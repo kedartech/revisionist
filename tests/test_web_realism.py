@@ -183,7 +183,18 @@ def test_me_carries_the_realism_block_for_a_realism_seat(solo: tuple[Realism, Cl
     game = ada.me()["game"]
     assert game["ruleset"] == "realism"
     block = game["view"]["realism"]
-    assert set(block) == {"documents", "desk", "situation", "orders", "clock", "map", "counsel"}
+    assert set(block) == {
+        "documents",
+        "desk",
+        "situation",
+        "orders",
+        "clock",
+        "map",
+        "counsel",
+        "wake",
+        "brief",
+    }
+    assert block["brief"] is None  # the aide has not read this wake yet
     assert block["map"] is None  # the toy has no positions: the map panel says so
     assert block["counsel"] == []
     assert block["documents"]["documents"] and block["documents"]["unread"] > 0
@@ -628,5 +639,65 @@ def test_only_the_host_pauses_resumes_and_ends_the_game(web: Web) -> None:  # no
     store = web.app.open()
     try:
         assert list(store.read(game.campaign))  # the record is kept
+    finally:
+        store.close()
+
+
+class CountingAide:
+    """A brief from a fixed summary, counting the model calls."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def call(self, request: Any) -> Any:
+        from revisionist.engine.llm import Reply
+
+        self.calls += 1
+        out = {"summary": f"Brief {['one', 'two', 'three'][self.calls - 1]}.", "drafts": []}
+        return Reply(out, request.model, 10, 10, 0, 0.0)
+
+
+def test_the_aide_reads_once_a_wake_and_again_only_when_asked(
+    solo: tuple[Realism, Client],
+) -> None:
+    game, ada = solo
+    model = CountingAide()
+    game.web.app.transport_factory = lambda: model
+    game.web.app.offline_prose = False
+    _, first = post(ada, "aide")
+    assert first["brief"]["summary"] == "Brief one."
+    assert realism_of(ada)["brief"] == first["brief"]
+    _, same = post(ada, "aide")  # the same wake: kept, no call
+    assert same["brief"] == first["brief"] and model.calls == 1
+    _, again = post(ada, "aide", again=True)
+    assert again["brief"]["summary"] == "Brief two." and model.calls == 2
+    wake = realism_of(ada)["wake"]
+    game.web.app.offline_prose = True  # template pages and aide from here: no model call
+    assert not post(ada, "advance")[1]["refused"]
+    block = realism_of(ada)
+    assert block["wake"] != wake and block["brief"] is None  # a new wake wants a new brief
+    _, fresh = post(ada, "aide")
+    assert model.calls == 2  # offline: the template aide, no model call
+    assert fresh["brief"]["summary"] and realism_of(ada)["brief"] == fresh["brief"]
+
+
+def test_a_player_leaves_and_the_host_cannot(web: Web) -> None:  # noqa: F811
+    game = Realism(web)
+    ada = game.seat("ada", "ada")
+    bram = game.seat("bram", "bram")
+    game.open_play()
+    game.first_tick()
+    make_host(game, ada)
+    _, out = ada.call("/api/game/leave", {})
+    assert out["refused"] and "End it" in out["reply"]
+    _, out = bram.call("/api/game/leave", {})
+    assert not out["refused"] and out["reply"].startswith("You have left")
+    assert bram.me()["game"] is None
+    assert ada.me()["game"]["view"]["realism"]  # the host plays on
+    store = web.app.open()
+    try:
+        state = store_state(store, game.campaign)
+        bram_seat = SeatId(derived_id(game.campaign, "seat", EntityId(game.ids["bram"])))
+        assert bram_seat in state.seats  # the person stays in the game
     finally:
         store.close()

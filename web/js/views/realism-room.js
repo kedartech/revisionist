@@ -8,7 +8,7 @@ import { h, icon } from '../dom.js';
 import { STEP_ACTIONS, entityChoices } from '../realism-rules.js';
 import { worldDate } from '../rules.js';
 import {
-  aidePanel, board, desk, directiveForm, dossier, inTray, paceHeader, pendingOrders, proposalCard,
+  aidePanel, board, briefBlock, desk, directiveForm, dossier, inTray, paceHeader, pendingOrders, proposalCard,
 } from './realism.js';
 import { header } from './frame.js';
 import { mapView } from './realism-map.js';
@@ -16,7 +16,7 @@ import { mapView } from './realism-map.js';
 const PANELS = [['tray', 'In-tray'], ['situation', 'Situation'], ['map', 'Map']];
 const ui = {
   panel: 'tray', wide: false, page: null, said: null, error: null, busy: null,
-  filter: 'all', sort: 'newest', draft: null, proposal: null, brief: null,
+  filter: 'all', sort: 'newest', draft: null, proposal: null, autoFor: null,
   mapMode: 'map', mapScope: 'reports', mapSelected: null,
 };
 
@@ -55,6 +55,7 @@ function gameMenu(game, ctx, work) {
       ui.said = r.reply;
       close();
       if (action === 'end') ctx.go('new');
+      else if (action === 'leave') ctx.go('home');
       else await ctx.refresh();
     } catch (ex) {
       out.replaceChildren(h('span', { class: 'form-error', role: 'alert' }, ex.message));
@@ -66,6 +67,15 @@ function gameMenu(game, ctx, work) {
     h('div', { class: 'row' },
       h('button', { type: 'button', class: 'ghost', onclick: () => { confirmEnd.hidden = true; endBtn.hidden = false; } }, 'Keep playing'),
       h('button', { type: 'button', class: 'danger', onclick: () => call('end') }, 'End the game')));
+  const confirmLeave = h('div', { class: 'rl-confirm', hidden: true },
+    h('p', {}, h('strong', {}, `Leave ${game.name}?`),
+      ' Your person stays in the game, played by no one. You can then join or start another game.'),
+    h('div', { class: 'row' },
+      h('button', { type: 'button', class: 'ghost', onclick: () => { confirmLeave.hidden = true; leaveBtn.hidden = false; } }, 'Stay'),
+      h('button', { type: 'button', class: 'danger', onclick: () => call('leave') }, 'Leave the game')));
+  const leaveBtn = h('button', {
+    type: 'button', class: 'ghost', onclick: () => { leaveBtn.hidden = true; confirmLeave.hidden = false; },
+  }, 'Leave game…');
   const endBtn = h('button', {
     type: 'button', class: 'ghost', onclick: () => { endBtn.hidden = true; confirmEnd.hidden = false; },
   }, 'End game…');
@@ -82,14 +92,18 @@ function gameMenu(game, ctx, work) {
         endBtn),
       confirmEnd,
     ]
-    : [h('p', { class: 'hint' }, 'Only the host can pause or end this game.')];
+    : [
+      h('p', { class: 'hint' }, 'Only the host can pause or end this game.'),
+      leaveBtn,
+      confirmLeave,
+    ];
   dialog.append(h('div', { class: 'rl-menu-body' },
     h('h2', { id: 'rl-menu-h' }, game.name),
     host,
     h('h3', {}, 'A new game'),
     h('p', { class: 'hint' }, game.host
       ? 'You play one game at a time. End this one, and you can start another straight away.'
-      : 'You play one game at a time. When this one ends you can start your own.'),
+      : 'You play one game at a time. Leave this one, and you can join or start another.'),
     out,
     h('div', { class: 'row end' }, h('button', { type: 'button', class: 'ghost', onclick: close }, 'Close'))));
   const open = h('button', {
@@ -274,12 +288,31 @@ export function realismRoom(ctx) {
     item.querySelector('input, select, textarea')?.focus();
   }
 
+  // The aide briefs itself once a wake: the room asks when this wake has no brief yet,
+  // and fills the slot when it comes, without holding the desk.
+  const briefOn = {
+    brief: () => act('Your aide is reading your papers…', 'aide', { again: true }),
+    useDraft,
+  };
+  const briefSlot = h('div', { class: 'rl-brief-slot' });
+  const fillBrief = (opts) => briefSlot.replaceChildren(...[briefBlock(rv.brief, briefOn, opts)].flat());
+  async function autoBrief() {
+    ui.autoFor = rv.wake;
+    fillBrief({ reading: true });
+    try {
+      const r = await api.realism('aide', {});
+      if (r.brief) rv.brief = r.brief;
+      fillBrief(r.brief ? {} : { said: r.reply });
+    } catch (ex) {
+      fillBrief({ said: ex.message });
+    }
+  }
+
   function sideColumn() {
     return h('aside', { class: 'rl-col rl-side', 'aria-label': 'Pending orders and your aide' },
       h('div', { class: 'rl-col-body' },
         pendingOrders(rv.orders, (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v))),
-        aidePanel(ui.brief, rv.desk.contacts, rv.counsel ?? [], {
-          brief: () => act('Your aide is reading your papers…', 'aide', {}, (r) => { ui.brief = r.brief ?? null; }),
+        aidePanel(briefSlot, rv.desk.contacts, rv.counsel ?? [], {
           consult: (to, question) => act(`Waiting for ${to} to answer…`, 'consult', { to, question }),
           useDraft,
         })));
@@ -288,8 +321,7 @@ export function realismRoom(ctx) {
   function build() {
     const advance = h('button', {
       type: 'button', class: 'primary',
-      onclick: () => act('The wake is running. New papers are being written; this can take a minute…', 'advance', {},
-        () => { ui.brief = null; }),
+      onclick: () => act('The wake is running. New papers are being written; this can take a minute…', 'advance', {}),
     }, 'Advance to next wake');
     const [menuBtn, menu] = gameMenu(game, ctx, work);
     const extra = [
@@ -309,5 +341,7 @@ export function realismRoom(ctx) {
   }
 
   root.append(...build());
+  if (rv.brief || ui.autoFor === rv.wake) fillBrief();
+  else autoBrief();
   return root;
 }

@@ -101,6 +101,9 @@ class App:
         )
         self._failures: dict[str, list[float]] = {}
         self._lock = threading.Lock()
+        self._briefs: dict[tuple[CampaignId, SeatId], tuple[int, dict[str, Any]]] = {}
+        """Each seat's aide brief and the wake (``state.tick``) it was read at: one model
+        call per seat per wake. Lost on a restart, which only means one more call."""
         self._pitches: dict[str, PendingCard] = {}
         """The setting card each account is choosing a start point from. Lost on a
         restart, which only means reading the pitch again."""
@@ -175,6 +178,10 @@ class App:
                 )
                 seat_view["realism"]["counsel"] = realism_snapshot.counsel_lines(
                     project(state, link.seat_id), counsel.counsel_records(log_now, link.seat_id)
+                )
+                seat_view["realism"]["wake"] = state.tick
+                seat_view["realism"]["brief"] = self._brief_for(
+                    link.campaign_id, link.seat_id, state.tick
                 )
             out["game"] = game | {"view": seat_view}
             return snapshot.checked(state, link.seat_id, out)
@@ -257,6 +264,10 @@ class App:
                     who = state.entities[first.person].name
                     reply = f"Sent to {who}: {_lever_label(state, seat, order.lever)}."
                 elif action == "aide":
+                    kept = self._brief_for(cid, seat, state.tick)
+                    if kept is not None and body.get("again") is not True:
+                        out = {"reply": "Your aide has read your papers.", "refused": False}
+                        return snapshot.checked(state, seat, out | {"brief": kept})
                     writer: aide.AideWriter = (
                         aide.TemplateAide()
                         if self.offline_prose
@@ -267,6 +278,8 @@ class App:
                     except TransportError:
                         return {"reply": MODEL_DOWN, "refused": True}
                     brief = realism_snapshot.aide_brief(project(state, seat), held)
+                    with self._lock:
+                        self._briefs[(cid, seat)] = (state.tick, brief)
                     out = {"reply": "Your aide has read your papers.", "refused": False}
                     return snapshot.checked(state, seat, out | {"brief": brief})
                 elif action == "consult":
@@ -326,24 +339,43 @@ class App:
         finally:
             store.close()
 
+    def _brief_for(self, cid: CampaignId, seat: SeatId, wake: int) -> dict[str, Any] | None:
+        with self._lock:
+            kept = self._briefs.get((cid, seat))
+        return kept[1] if kept is not None and kept[0] == wake else None
+
     # --- the game menu ---------------------------------------------------------
 
     def game(self, account: Account, action: str) -> dict[str, Any]:
-        """One ``/api/game/<action>``: the host pauses, resumes or ends the game. Ending
-        retires it as ``/retire`` does on Discord: it never ticks again, every seat is
-        unlinked, and the log is kept. A refusal is a reply, not an error."""
+        """One ``/api/game/<action>``: the host pauses, resumes or ends the game; any
+        other player leaves it. Ending retires it as ``/retire`` does on Discord: it never
+        ticks again, every seat is unlinked, and the log is kept. Leaving unlinks only the
+        player's own seat; the person stays in the game, played by no one. A refusal is a
+        reply, not an error."""
         store = self.open()
         try:
             link = self.handlers._game_of(store, account.account_id, "report")
             if isinstance(link, str):
                 raise ApiError(HTTPStatus.BAD_REQUEST, link)
-            if action not in ("pause", "resume", "end"):
+            if action not in ("pause", "resume", "end", "leave"):
                 raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
             cid = link.campaign_id
-            if WebSeats(store.conn).host(cid) != account.account_id:
+            host = WebSeats(store.conn).host(cid) == account.account_id
+            name = sch.campaign_name(store, cid)
+            if action == "leave":
+                if host:
+                    return {
+                        "reply": "The host cannot leave a game. End it instead.",
+                        "refused": True,
+                    }
+                WebSeats(store.conn).unlink(cid, link.seat_id)
+                with self._lock:
+                    self._briefs.pop((cid, link.seat_id), None)
+                log.info("a player left %s (%s) on the web", name, cid)
+                return {"reply": f"You have left {name}.", "refused": False}
+            if not host:
                 return {"reply": "Only the host can do that.", "refused": True}
             table = sch.register(store, self.clock())
-            name = sch.campaign_name(store, cid)
             if action == "pause":
                 table.pause(cid, "paused by host on the web")
                 return {

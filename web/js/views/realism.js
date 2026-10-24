@@ -299,10 +299,35 @@ export function pendingOrders(t, stepForm) {
 }
 
 /**
- * Your aide: a brief on request, and consult a contact. `brief` is the last brief or null;
- * `counsel` the seat's earlier answers, newest first. `on` is { brief, consult(to, question), useDraft(d) }.
+ * The aide's brief, or a line while the aide reads (`reading`) or since it could not
+ * (`said`). `on` is { brief, useDraft(d) }; brief asks again.
  */
-export function aidePanel(brief, contacts, counsel, on) {
+export function briefBlock(brief, on, { reading = false, said = null } = {}) {
+  if (reading) {
+    return h('p', { class: 'rl-brief-reading', role: 'status' },
+      h('span', { class: 'rl-spinner', 'aria-hidden': 'true' }), 'Your aide is reading the new papers…');
+  }
+  return [
+    brief
+      ? h('div', { class: 'rl-brief' },
+        h('p', {}, brief.summary),
+        brief.decisions ? h('p', { class: 'rl-brief-due' }, icon('alert'), ` ${brief.decisions === 1 ? 'One order waits' : `${brief.decisions} orders wait`} on your decision, under Pending orders.`) : null,
+        brief.drafts.length
+          ? [h('h3', {}, 'Your aide suggests'), h('ul', { class: 'rl-drafts', role: 'list' }, brief.drafts.map((d) => h('li', {},
+            h('strong', {}, d.label), d.terms.length ? list(d.terms, 'rl-terms') : null,
+            h('button', { type: 'button', class: 'rl-btn', onclick: () => on.useDraft?.(d) }, 'Open the form'))))]
+          : null)
+      : h('p', { class: 'rl-none' }, said ?? 'Your aide reads the papers on your desk after each wake and tells you what matters.'),
+    h('button', { type: 'button', class: 'rl-btn', onclick: () => on.brief?.() }, brief ? 'Brief me again' : 'Brief me'),
+  ];
+}
+
+/**
+ * Your aide: the brief for this wake (in a slot the room fills when the aide has read),
+ * and consult a contact. `counsel` is the seat's earlier answers, newest first.
+ * `on` is { brief, consult(to, question), useDraft(d) }; `slot` is the brief's node.
+ */
+export function aidePanel(slot, contacts, counsel, on) {
   const qid = 'rl-consult';
   const to = h('select', { id: `${qid}-to`, name: 'to', required: true },
     contacts.map((c) => h('option', { value: c.person }, c.title ? `${c.person}, ${c.title}` : c.person)));
@@ -323,17 +348,7 @@ export function aidePanel(brief, contacts, counsel, on) {
     h('p', { class: 'rl-answer-a' }, c.answer));
   return h('section', { class: 'rl-aide', 'aria-labelledby': 'rl-aide-h' },
     h('h2', { id: 'rl-aide-h' }, 'Your aide'),
-    brief
-      ? h('div', { class: 'rl-brief' },
-        h('p', {}, brief.summary),
-        brief.decisions ? h('p', { class: 'rl-brief-due' }, icon('alert'), ` ${brief.decisions === 1 ? 'One order waits' : `${brief.decisions} orders wait`} on your decision, under Pending orders.`) : null,
-        brief.drafts.length
-          ? [h('h3', {}, 'Your aide suggests'), h('ul', { class: 'rl-drafts', role: 'list' }, brief.drafts.map((d) => h('li', {},
-            h('strong', {}, d.label), d.terms.length ? list(d.terms, 'rl-terms') : null,
-            h('button', { type: 'button', class: 'rl-btn', onclick: () => on.useDraft?.(d) }, 'Open the form'))))]
-          : null)
-      : h('p', { class: 'rl-none' }, 'Your aide reads the papers on your desk and tells you what matters.'),
-    h('button', { type: 'button', class: 'rl-btn', onclick: () => on.brief?.() }, brief ? 'Brief me again' : 'Brief me'),
+    slot,
     h('h3', { class: 'rl-aide-sub' }, 'Consult'),
     contacts.length ? ask : h('p', { class: 'rl-none' }, 'No one is within reach.'),
     counsel.length

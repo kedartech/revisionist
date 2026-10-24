@@ -183,6 +183,15 @@ def main() -> int:
                 "the host's menu offers Pause",
                 menu.get_by_role("button", name="Pause").count() == 1,
             )
+            check(
+                "the host's menu does not offer Leave",
+                menu.get_by_role("button", name="Leave game…").count() == 0,
+            )
+        else:
+            check(
+                "a player's menu offers Leave",
+                menu.get_by_role("button", name="Leave game…").count() == 1,
+            )
         shoot(page, "01-game-menu")
         menu.get_by_role("button", name="Close").click()
 
@@ -291,10 +300,12 @@ def main() -> int:
         shoot(page, "07-pending-orders")
         axe(page, "orders")
 
-        page.get_by_role("button", name="Brief me").click()
         page.locator(".rl-brief").wait_for(timeout=WAKE_MS)
         report["aide_brief"] = page.locator(".rl-brief").inner_text()[:600]
-        check("the aide briefs on request", len(page.locator(".rl-brief").inner_text()) > 20)
+        check("the aide briefs itself", len(page.locator(".rl-brief").inner_text()) > 20)
+        page.get_by_role("button", name="Brief me again").click()
+        page.locator(".rl-status.said").filter(has_text="aide has read").wait_for(timeout=WAKE_MS)
+        check("the aide briefs again on request", page.locator(".rl-brief").count() == 1)
         aside = page.locator(".rl-aide")
         aside.get_by_label("Your question").fill("Should we wait for the Senate before we move?")
         aside.get_by_role("button", name="Ask them").click()
@@ -310,6 +321,8 @@ def main() -> int:
         report["advance_seconds"] = round(time.time() - t0, 1)
         moved = page.locator(".rl-pace").first.inner_text()
         check("advance moves the world date", moved != pace, f"{pace!r} -> {moved!r}")
+        page.locator(".rl-brief").wait_for(timeout=WAKE_MS)
+        check("the aide briefs itself after the wake", page.locator(".rl-brief").count() == 1)
         titles = page.locator(".rl-folder .rl-doc-title").all_inner_texts()
         report["titles_after_advance"] = titles
         check("an order reply arrives as a paper", any(t.startswith("On your") for t in titles))

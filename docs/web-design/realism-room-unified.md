@@ -86,13 +86,14 @@ desk, tracker, map) moves into a column unchanged; no overlay hides the desk;
 it works for a game with no map. B and C stay open if play shows the desk
 needs more width.
 
-## Questions for Josh
+## Decided (Josh, 24 October 2026)
 
-- Should the aide brief itself on each wake (one model call per wake per
-  seat), or only when asked, as built?
-- Should pending orders show only those needing a decision, or all moving
-  orders (built: decisions first, then the rest still moving; finished ones
-  under "Done").
+- The aide briefs itself once per wake. The server keeps each seat's brief for
+  the current wake (in memory; a restart costs one more call), and the room asks
+  for it when the wake has none, without holding the desk. "Brief me again"
+  asks afresh.
+- Contact titles come from the public card face's office.
+- A player who is not the host can leave a game (below).
 
 ## The game menu (note 5)
 
@@ -100,14 +101,17 @@ A "Game" button in the header opens a sheet. The host can Pause, Resume and End
 the game; ending asks first and then retires the game exactly as `/retire` does
 on Discord (the schedule row is retired, every seat is unlinked, the event log is
 kept, no new event). The player then lands on "Start a game". Other players see
-that only the host can pause or end it.
+that only the host can pause or end it, and can leave: "Leave game…" asks first,
+then unlinks only their own seat. Their person stays in the game, played by no
+one; the host cannot leave, only end.
 
 Not built, because no backend exists to change it after a game starts:
 
 - the wake cadence (`Settings.tick_hours`) and the end date
   (`Settings.end_date` / `real_days`): set at world load, no event or route
   changes them;
-- leaving a game as a non-host player: no route unlinks one web seat;
+- re-seating a person someone left: the web invites only while the cast is
+  being chosen (Discord's `/invite <seat>` works in play);
 - live or template prose per game: a server flag (`--offline-prose`), not a
   per-game setting.
 

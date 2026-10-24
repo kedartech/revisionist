@@ -8,7 +8,7 @@ import { h, icon } from '../dom.js';
 import { STEP_ACTIONS, entityChoices } from '../realism-rules.js';
 import { worldDate } from '../rules.js';
 import {
-  aidePanel, board, briefBlock, desk, directiveForm, dossier, inTray, paceHeader, pendingOrders, proposalCard,
+  board, briefBlock, conversations, desk, directiveForm, dossier, inTray, paceHeader, pendingOrders, proposalCard,
 } from './realism.js';
 import { header } from './frame.js';
 import { mapView } from './realism-map.js';
@@ -17,7 +17,7 @@ const PANELS = [['tray', 'In-tray'], ['situation', 'Situation'], ['map', 'Map']]
 const ui = {
   panel: 'tray', wide: false, page: null, said: null, error: null, busy: null,
   filter: 'all', sort: 'newest', draft: null, proposal: null, autoFor: null,
-  mapMode: 'map', mapScope: 'reports', mapSelected: null,
+  mapMode: 'map', mapScope: 'reports', mapSelected: null, chat: 'aide', seen: null,
 };
 
 // The coastlines, fetched once and kept: the map draws without them until they come.
@@ -161,7 +161,9 @@ export function realismRoom(ctx) {
 
   const act = (message, action, body, then) => work(message, async () => {
     const r = await api.realism(action, body);
-    ui.said = r.reply;
+    ui.said = r.reply || null;
+    // the aide has written: a failed order, or an answer; show its window
+    if (r.help) ui.chat = 'aide';
     then?.(r);
   });
 
@@ -308,11 +310,31 @@ export function realismRoom(ctx) {
     }
   }
 
+  /** Lines in each conversation, to mark the ones with something new since last seen. */
+  function chatCounts() {
+    const counts = { aide: (rv.help ?? []).filter((m) => m.from === 'aide').length };
+    for (const c of rv.desk.contacts) counts[c.person] = (rv.counsel ?? []).filter((x) => x.person === c.person).length;
+    return counts;
+  }
+
   function sideColumn() {
-    return h('aside', { class: 'rl-col rl-side', 'aria-label': 'Pending orders and your aide' },
+    const counts = chatCounts();
+    ui.seen ??= { ...counts };
+    if (!(ui.chat in counts)) ui.chat = 'aide';
+    ui.seen[ui.chat] = counts[ui.chat];
+    const fresh = new Set(Object.keys(counts).filter((k) => counts[k] > (ui.seen[k] ?? 0)));
+    return h('aside', { class: 'rl-col rl-side', 'aria-label': 'Pending orders and conversations' },
       h('div', { class: 'rl-col-body' },
         pendingOrders(rv.orders, (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v))),
-        aidePanel(briefSlot, rv.desk.contacts, rv.counsel ?? [], {
+        conversations({
+          selected: ui.chat,
+          slot: briefSlot,
+          contacts: rv.desk.contacts,
+          counsel: rv.counsel ?? [],
+          help: rv.help ?? [],
+          fresh,
+          onSelect: (key) => { ui.chat = key; rerender(); },
+          ask: (question) => act('Your aide is looking into it…', 'help', { question }),
           consult: (to, question) => act(`Waiting for ${to} to answer…`, 'consult', { to, question }),
           useDraft,
         })));

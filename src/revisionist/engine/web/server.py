@@ -30,7 +30,16 @@ from revisionist.core.project import project
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.pipeline import OrderStatus, StepAction
 from revisionist.core.state import State
-from revisionist.engine import aide, build, cast, counsel, directive, realism_tick, session_zero
+from revisionist.engine import (
+    aide,
+    aide_help,
+    build,
+    cast,
+    counsel,
+    directive,
+    realism_tick,
+    session_zero,
+)
 from revisionist.engine import campaign as cmp
 from revisionist.engine import scheduler as sch
 from revisionist.engine.discord import handlers as dh
@@ -61,6 +70,22 @@ SIGNIN_TRIES = 10
 READY = ("autumn-1941",)
 """[proposed] The ready-made realism worlds a web account may start."""
 MODEL_DOWN = "The model cannot be reached just now. Try again in a minute."
+HELP_KEPT = 40
+"""Lines of each seat's talk with its aide kept in memory [proposed]."""
+
+
+def model_down(exc: TransportError) -> str:
+    """What the player is told when a model call fails, by what failed. Logged in full."""
+    log.warning("model call failed: %s", exc)
+    why = str(exc)
+    if "budget" in why:
+        return "The model ran past its spending limit for this step. Try again."
+    if "timed out" in why:
+        return "The model took too long to answer. Try again."
+    if "limit" in why:
+        return "The model is at its usage limit just now. Try again in a few minutes."
+    return MODEL_DOWN
+
 
 CSP = (
     "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
@@ -107,6 +132,8 @@ class App:
         self._pitches: dict[str, PendingCard] = {}
         """The setting card each account is choosing a start point from. Lost on a
         restart, which only means reading the pitch again."""
+        self._help: dict[tuple[CampaignId, SeatId], list[dict[str, str]]] = {}
+        """Each seat's talk with its aide's help desk, oldest first. Lost on a restart."""
         self.spawn: Callable[[Callable[[], None]], None] = lambda run: threading.Thread(
             target=run, daemon=True
         ).start()
@@ -183,6 +210,7 @@ class App:
                 seat_view["realism"]["brief"] = self._brief_for(
                     link.campaign_id, link.seat_id, state.tick
                 )
+                seat_view["realism"]["help"] = self._help_thread(link.campaign_id, link.seat_id)
             out["game"] = game | {"view": seat_view}
             return snapshot.checked(state, link.seat_id, out)
         finally:
@@ -258,6 +286,14 @@ class App:
                             else str(shown["reason"])
                         )
                         out = {"reply": said, "refused": not read.lever, "proposal": shown}
+                        if not read.lever:
+                            out["help"] = self._aide_explains(
+                                store,
+                                state,
+                                seat,
+                                f"I wrote to {shown['to']}: {asked.text}",
+                                str(shown["reason"]),
+                            )
                         return snapshot.checked(state, seat, out)
                     order = directive.sign(store, cid, seat, asked)
                     first = state.pipelines[order.pipeline].steps[0]
@@ -275,8 +311,8 @@ class App:
                     )
                     try:
                         held = aide.aide_for(store, cid, seat, writer)
-                    except TransportError:
-                        return {"reply": MODEL_DOWN, "refused": True}
+                    except TransportError as exc:
+                        return {"reply": model_down(exc), "refused": True}
                     brief = realism_snapshot.aide_brief(project(state, seat), held)
                     with self._lock:
                         self._briefs[(cid, seat)] = (state.tick, brief)
@@ -293,9 +329,14 @@ class App:
                             _text(body, "question", counsel.QUESTION_MAX),
                             counsel.ClaudeCounsellor(self.transport_factory()),
                         )
-                    except TransportError:
-                        return {"reply": MODEL_DOWN, "refused": True}
+                    except TransportError as exc:
+                        return {"reply": model_down(exc), "refused": True}
                     reply = f"{answered.person} has answered."
+                elif action == "help":
+                    question = _text(body, "question", aide_help.QUESTION_MAX)
+                    thread = self._aide_explains(store, state, seat, question)
+                    out = {"reply": "", "refused": False, "help": thread}
+                    return snapshot.checked(state, seat, out)
                 elif action == "step":
                     try:
                         taken = StepAction(_text(body, "action", 20))
@@ -334,10 +375,46 @@ class App:
                     raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
             except (ValueError, KeyError, NotInPlayError, counsel.CounselRefusedError) as exc:
                 text = str(exc.args[0]) if isinstance(exc, KeyError) and exc.args else str(exc)
-                return snapshot.checked(state, seat, {"reply": text, "refused": True})
+                out = {"reply": text, "refused": True}
+                if action in ("lever", "sign", "directive"):
+                    out["help"] = self._aide_note(state, seat, _refused_note(text))
+                return snapshot.checked(state, seat, out)
             return snapshot.checked(state, seat, {"reply": reply, "refused": False})
         finally:
             store.close()
+
+    def _help_thread(self, cid: CampaignId, seat: SeatId) -> list[dict[str, str]]:
+        with self._lock:
+            return list(self._help.get((cid, seat), []))
+
+    def _aide_note(
+        self, state: State, seat: SeatId, text: str, asked: str = "", lever: str = ""
+    ) -> list[dict[str, str]]:
+        """Add a line from the aide (after the player's question, if any); the thread."""
+        on = state.in_world_date.isoformat() if state.in_world_date else ""
+        lines = [{"from": "you", "text": asked, "on": on}] if asked else []
+        note = {"from": "aide", "text": text, "on": on}
+        if lever:
+            note |= {"lever": lever, "label": _lever_label(state, seat, lever)}
+        with self._lock:
+            kept = self._help.setdefault((state.campaign_id, seat), [])
+            kept += [*lines, note]
+            del kept[:-HELP_KEPT]
+            return list(kept)
+
+    def _aide_explains(
+        self, store: PostgresEventStore, state: State, seat: SeatId, asked: str, failed: str = ""
+    ) -> list[dict[str, str]]:
+        """The aide answers a question, or explains what just failed; the thread."""
+        helper: aide_help.Helper = (
+            aide_help.TemplateHelper()
+            if self.offline_prose
+            else aide_help.ClaudeHelper(self.transport_factory())
+        )
+        said = aide_help.answer(project(state, seat), asked, helper, failed)
+        if said.cost is not None:
+            cmp.log_cost(store, state.campaign_id, "aide", [said.cost], seat)
+        return self._aide_note(state, seat, said.text, "" if failed else asked, said.lever)
 
     def _brief_for(self, cid: CampaignId, seat: SeatId, wake: int) -> dict[str, Any] | None:
         with self._lock:
@@ -457,8 +534,8 @@ class App:
                 card, costs = read_pitch(pitch, self.transport_factory())
             except PitchError as exc:
                 return {"reply": exc.reason, "refused": True}
-            except TransportError:
-                return {"reply": MODEL_DOWN, "refused": True}
+            except TransportError as exc:
+                return {"reply": model_down(exc), "refused": True}
             with self._lock:
                 self._pitches[account.account_id] = PendingCard(
                     pitch=pitch, card=card, costs=tuple(costs)
@@ -490,8 +567,8 @@ class App:
             except session_zero.SessionZeroError:
                 log.warning("cast refused for %s", account.account_id)
                 return {"reply": "The cast could not be drawn up. Try again.", "refused": True}
-            except TransportError:
-                return {"reply": MODEL_DOWN, "refused": True}
+            except TransportError as exc:
+                return {"reply": model_down(exc), "refused": True}
             cid = cmp.new_campaign(store, world)
             cmp.log_cost(store, cid, "session_zero", [*pending.costs, *costs])
             with self._lock:
@@ -521,8 +598,8 @@ class App:
                     "drawn up. Try again.",
                     "refused": True,
                 }
-            except TransportError:
-                return {"reply": MODEL_DOWN, "refused": True}
+            except TransportError as exc:
+                return {"reply": model_down(exc), "refused": True}
         try:
             held = session_zero.claim(store, state.campaign_id, seat, state.entities[person].name)
         except session_zero.StepRefusedError as exc:
@@ -564,6 +641,16 @@ def _lever_label(state: State, seat: SeatId, name: str) -> str:
     return (
         realism_snapshot.lever_label(found) if found is not None else realism_snapshot.words(name)
     )
+
+
+def _refused_note(reason: str) -> str:
+    """The aide's line when an order is refused on filing: why, and what to do."""
+    line = f"That order did not go through: {reason.rstrip('.')}."
+    if "reach" in reason:
+        return line + " Choose someone under Your staff and contacts, by a way that reaches them."
+    if "parameter" in reason or "choice" in reason or "range" in reason or "lever" in reason:
+        return line + " Open the form under Standard forms and fill in every line from its choices."
+    return line + " Ask me below how to set it up, and I will point you to the right form."
 
 
 def _calendar_line(today: date | None, reason: str | None) -> str:

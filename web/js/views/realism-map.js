@@ -4,7 +4,7 @@
 
 import { h, svg } from '../dom.js';
 import {
-  certaintyWord, landPath, mapBox, markKindWord, projection, sideLine, sightedLine, sortMarks, whereLine,
+  certaintyWord, landPath, mapBox, mapOrderLine, markKindWord, projection, sideLine, sightedLine, sortMarks, whereLine,
 } from '../realism-rules.js';
 
 /** The marker for a force: shape says side, fill and line say certainty, a glyph says kind. */
@@ -34,7 +34,8 @@ function drawing(map, land, opts) {
   const box = mapBox(map, opts.scope);
   const proj = projection(box);
   const size = proj.width / 55;
-  const named = new Set(map.marks.flatMap((m) => m.places.map((p) => p.name)));
+  const orders = map.orders ?? [];
+  const named = new Set([...map.marks.flatMap((m) => m.places.map((p) => p.name)), ...orders.map((o) => o.to.name)]);
   const inBox = (p) => p.lon >= box.west && p.lon <= box.east && p.lat >= box.south && p.lat <= box.north;
   const at = (p) => [proj.x(p.lon), proj.y(p.lat)];
 
@@ -71,13 +72,31 @@ function drawing(map, land, opts) {
       svg('title', {}, label(m)));
   });
 
+  // the seat's own movement orders: a dashed arrow from where the force was last
+  // reported to where it was sent, or a ring at the destination when no page placed it
+  const arrows = orders.map((o) => {
+    const from = map.marks.find((m) => m.name === o.mark)?.places[0];
+    const [tx, ty] = at(o.to);
+    const words = mapOrderLine(o);
+    return svg('g', { class: `rl-mk-order rl-o-${o.status}`, role: 'img', 'aria-label': words },
+      from ? svg('line', { x1: at(from)[0], y1: at(from)[1], x2: tx, y2: ty, class: 'rl-mk-arrow', 'marker-end': 'url(#rl-arrowhead)' }) : null,
+      svg('circle', { cx: tx, cy: ty, r: size * 0.8, class: 'rl-mk-goal' }),
+      svg('text', { x: tx + size, y: ty + size * 1.6, 'font-size': size * 0.7, class: 'rl-mk-name' },
+        o.status === 'awaiting' ? `Ordered: ${o.force}` : `Under way: ${o.force}`),
+      svg('title', {}, words));
+  });
+
   return svg('svg', {
     class: 'rl-map-svg', viewBox: `0 0 ${proj.width} ${proj.height}`, preserveAspectRatio: 'xMidYMid meet',
     role: 'group', 'aria-label': 'Map of what your papers report',
   },
   svg('rect', { x: 0, y: 0, width: proj.width, height: proj.height, class: 'rl-map-sea' }),
   land ? svg('path', { d: landPath(land.rings, box, proj), class: 'rl-map-land' }) : null,
+  svg('defs', {}, svg('marker', {
+    id: 'rl-arrowhead', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto-start-reverse',
+  }, svg('path', { d: 'M0 0L10 5L0 10Z', class: 'rl-mk-arrowhead' }))),
   places,
+  arrows,
   marks);
 }
 
@@ -100,6 +119,8 @@ function legend() {
     item(legendSwatch('fleet', 'own', 'known'), 'Known: your own side, lately reported'),
     item(legendSwatch('fleet', 'own', 'reported'), 'Reported: as a page has it, true or not'),
     item(legendSwatch('fleet', 'own', 'stale'), 'Stale: the latest page is over two weeks old'),
+    item(svg('svg', { viewBox: '0 0 28 12', width: 28, height: 12, 'aria-hidden': 'true', focusable: 'false', class: 'rl-mk-order' },
+      svg('polyline', { points: '2,6 26,6', class: 'rl-mk-arrow' })), 'Your order to move, until a page reports it there'),
     item(legendLine('front'), 'Front'),
     item(legendLine('route'), 'Convoy route'));
 }
@@ -144,8 +165,15 @@ export function mapView(map, land, opts = {}) {
         toggle('reports', 'Your reports', scope, opts.onScope), toggle('world', 'The world', scope, opts.onScope))
       : null);
   const selected = map.marks.find((m) => m.name === opts.selected) ?? null;
-  const empty = !map.marks.length
+  const orders = map.orders ?? [];
+  const empty = !map.marks.length && !orders.length
     ? h('p', { class: 'muted' }, 'No page has placed anything yet.')
+    : null;
+  const ordered = orders.length
+    ? h('section', { class: 'rl-map-orders', 'aria-labelledby': 'rl-map-orders-h' },
+      h('h3', { id: 'rl-map-orders-h' }, 'Your movement orders'),
+      h('ul', {}, orders.map((o) => h('li', {}, mapOrderLine(o)))),
+      h('p', { class: 'muted' }, 'A force is drawn where it was last reported; it moves on the map when a new page places it.'))
     : null;
   const find = (name) => opts.onSelect?.(name, 'map');
   return h('section', { class: 'rl-map', 'aria-labelledby': 'rl-map-h' },
@@ -154,7 +182,7 @@ export function mapView(map, land, opts = {}) {
     bar,
     empty,
     mode === 'list'
-      ? (map.marks.length ? table(map, find) : null)
+      ? [map.marks.length ? table(map, find) : null, ordered]
       : [h('figure', { class: 'rl-map-figure' }, drawing(map, land, { ...opts, scope })), legend(),
-        selected ? detail(selected, opts.onOpen) : null]);
+        selected ? detail(selected, opts.onOpen) : null, ordered]);
 }

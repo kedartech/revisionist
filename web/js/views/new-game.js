@@ -44,30 +44,46 @@ function readyMade(done) {
     list, out);
 }
 
+// The pitch as read, kept across a redraw so the start points stay on screen.
+const pending = { text: '', card: null };
+
 function ownGame(done) {
   const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
   const points = h('div', {});
-  const pitch = h('textarea', { id: 'ng-pitch', rows: 2, maxlength: 200, placeholder: 'e.g. The Cuban missile crisis, from the first photographs' });
+  const pitch = h('textarea', { id: 'ng-pitch', rows: 2, maxlength: 200, placeholder: 'e.g. The Cuban missile crisis, from the first photographs' }, pending.text);
   const read = h('button', { type: 'submit' }, 'Read my pitch');
   const form = h('form', { 'aria-label': 'Your own game' },
     h('label', { for: 'ng-pitch' }, 'A war, a year, a person, a place'), pitch, read);
+  const offer = (card) => {
+    out.replaceChildren(reply(card.reading));
+    points.replaceChildren(h('fieldset', { class: 'offers' },
+      h('legend', {}, 'Where to begin'),
+      card.start_points.map((p, i) => {
+        const take = h('button', { type: 'button' }, 'Begin here');
+        take.addEventListener('click', () => run(out, take, 'Assembling the cast…', 'cast', { choice: i + 1 }, (r) => {
+          pending.text = '';
+          pending.card = null;
+          return done(r);
+        }));
+        return h('div', { class: 'offer' },
+          h('span', { class: 'label' }, String(i + 1)),
+          h('span', {}, h('strong', {}, p.label), ' ', p.focus),
+          take);
+      }),
+      h('p', { class: 'hint' }, 'If the cast cannot be drawn up, the start points stay here: try again, or choose another.')));
+  };
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     if (!pitch.value.trim()) return;
     points.replaceChildren();
+    pending.card = null;
     run(out, read, 'Reading…', 'pitch', { text: pitch.value }, (r) => {
-      points.replaceChildren(h('fieldset', { class: 'offers' },
-        h('legend', {}, 'Where to begin'),
-        r.card.start_points.map((p, i) => {
-          const take = h('button', { type: 'button' }, 'Begin here');
-          take.addEventListener('click', () => run(out, take, 'Assembling the cast…', 'cast', { choice: i + 1 }, done));
-          return h('div', { class: 'offer' },
-            h('span', { class: 'label' }, String(i + 1)),
-            h('span', {}, h('strong', {}, p.label), ' ', p.focus),
-            take);
-        })));
+      pending.text = pitch.value;
+      pending.card = r.card;
+      offer(r.card);
     });
   });
+  if (pending.card) offer(pending.card);
   return h('section', { 'aria-label': 'Your own game' },
     h('h2', {}, 'Your own'),
     h('p', { class: 'muted' }, 'Name a moment in history. You will choose where to begin, then who to play.'),

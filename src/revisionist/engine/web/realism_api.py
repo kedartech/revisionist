@@ -243,11 +243,28 @@ class MapMark(TypedDict):
     """The page's id, to open it from the map."""
 
 
+class MapOrder(TypedDict):
+    """One of the seat's own orders to move a force, drawn until a page shows it arrived."""
+
+    order: str
+    force: str
+    """The force as the order names it."""
+    mark: str | None
+    """The name of that force's mark on this map, when a page has placed it."""
+    to: MapPlace
+    status: Literal["awaiting", "under_way"]
+    """Awaiting: still in its pipeline. Under way: carried out, not yet reported there."""
+    with_person: str | None
+    filed: str
+
+
 class SeatMap(TypedDict):
     """The map: places are public; marks come from arrived pages only, never the record."""
 
     places: list[MapPlace]
     marks: list[MapMark]
+    orders: list[MapOrder]
+    """The seat's own movement orders: what it has ordered, not where anything is."""
 
 
 __all__ = [
@@ -263,6 +280,7 @@ __all__ = [
     "LeverLine",
     "LeverParam",
     "MapMark",
+    "MapOrder",
     "MapPlace",
     "OrderTrack",
     "OrderTracker",

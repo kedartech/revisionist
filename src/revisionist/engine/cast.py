@@ -73,7 +73,8 @@ def _request(
         system=prompt_text("cast"),
         prompt=prompt,
         schema=CAST_SCHEMA,
-        max_usd=0.20,
+        # [proposed] A whole cast is long structured output; 0.20 left it little headroom.
+        max_usd=0.60,
     )
 
 

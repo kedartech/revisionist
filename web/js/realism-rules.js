@@ -223,6 +223,15 @@ export const whereLine = (mark) => mark.places.map((p) => p.name).join(' – ');
 /** "Reported 1 October 1941 by Alfred Jodl": where it was then, not now. */
 export const sightedLine = (mark) => `Reported ${worldDate(mark.reported)} by ${mark.source}`;
 
+/** One of the seat's own movement orders, in words: "Ordered to Argentia: with Harold R. Stark". */
+export function mapOrderLine(o) {
+  const head = o.status === 'awaiting' ? `${o.force}: ordered to ${o.to.name}` : `${o.force}: under way to ${o.to.name}`;
+  const tail = o.status === 'awaiting'
+    ? (o.with_person ? `, the order is with ${o.with_person}` : ', the order is moving')
+    : ', not yet reported there';
+  return `${head}${tail} (filed ${worldDate(o.filed)})`;
+}
+
 /** Lines first, then forces, by name: forces are drawn over the lines they sit on. */
 export function sortMarks(marks) {
   const rank = (m) => (m.places.length > 1 ? 0 : 1);
@@ -235,7 +244,8 @@ const MIN_SPAN = Object.freeze({ lon: 30, lat: 18 });
  *  padded, never narrower than MIN_SPAN. 'world' is the whole map. */
 export function mapBox(map, scope = 'reports') {
   if (scope === 'world') return { west: -180, east: 180, south: -60, north: 80 };
-  const pts = (map.marks.length ? map.marks.flatMap((m) => m.places) : map.places);
+  const marked = [...map.marks.flatMap((m) => m.places), ...(map.orders ?? []).map((o) => o.to)];
+  const pts = marked.length ? marked : map.places;
   if (!pts.length) return mapBox(map, 'world');
   const lons = pts.map((p) => p.lon);
   const lats = pts.map((p) => p.lat);

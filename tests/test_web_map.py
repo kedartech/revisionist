@@ -129,3 +129,17 @@ def test_the_fixture_map_has_the_snapshot_shape() -> None:
         assert set(mark) == set(MapMark.__annotations__)
         for p in mark["places"]:
             assert set(p) == set(MapPlace.__annotations__)
+
+
+def test_a_movement_order_shows_on_the_map_until_a_page_places_the_force(
+    fdr: tuple[Realism, Client],
+) -> None:
+    _, ada = fdr
+    assert realism_of(ada)["map"]["orders"] == []
+    params = {"force": "us_atlantic_fleet", "to": "argentia"}
+    status, out = post(ada, "lever", lever="move_fleet", params=params)
+    assert status == 200 and out["refused"] is False, out
+    (order,) = realism_of(ada)["map"]["orders"]
+    assert order["force"] == "US Atlantic Fleet" and order["mark"] == "US Atlantic Fleet"
+    assert order["to"]["name"] == "Argentia" and order["status"] == "awaiting"
+    assert order["with_person"] == "Harold R. Stark"

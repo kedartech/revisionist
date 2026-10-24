@@ -93,7 +93,8 @@ setInterval(() => {
   const typing = document.activeElement?.matches?.('input, textarea');
   const dialogOpen = document.querySelector('dialog[open]');
   const working = document.querySelector('button[disabled].primary, [aria-busy="true"]');
-  if (!typing && !dialogOpen && !working && route !== 'signup' && !pendingCodes) render();
+  // a new game is all in hand on the page (a pitch read, start points offered): leave it be
+  if (!typing && !dialogOpen && !working && route !== 'signup' && route !== 'new' && !pendingCodes) render();
 }, 60_000);
 
 render();

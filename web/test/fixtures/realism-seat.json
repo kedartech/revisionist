@@ -125,6 +125,10 @@
         "places": [{"name": "Lorient", "lat": 47.7, "lon": -3.4}]},
       {"name": "US Atlantic Fleet", "kind": "fleet", "side": "own", "side_name": "United States", "certainty": "known", "reported": "1941-10-13", "source": "Harold R. Stark", "document": "d-atlantic-1013",
         "places": [{"name": "Reykjavik", "lat": 64.1, "lon": -21.9}]}
+    ],
+    "orders": [
+      {"order": "o-move-1002", "force": "US Atlantic Fleet", "mark": "US Atlantic Fleet", "to": {"name": "Argentia", "lat": 47.3, "lon": -54.0},
+        "status": "awaiting", "with_person": "Harold R. Stark", "filed": "1941-10-02"}
     ]
   }
 }

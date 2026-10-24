@@ -2,7 +2,8 @@
 
 No model is called. Pages are written from templates; the aide brief uses the template
 aide; a directive is read as the first instrument whose fields can be filled from its
-own limits and choices; counsel answers with a fixed line. The cost on each reply is zero.
+own limits and choices; counsel and the aide's help desk answer with a fixed line. The
+cost on each reply is zero.
 
     REVISIONIST_DB=postgresql://... python web/test/e2e/serve_canned.py [PORT]
 """
@@ -39,6 +40,8 @@ class Canned:
         props = set(request.schema.get("properties", {}))
         if request.call_class == "counsel":
             out: Any = {"text": "I would wait a week before deciding; the papers are not all in."}
+        elif props == {"text", "lever"}:
+            out = {"text": "Use the form for it under Standard forms on your desk.", "lever": ""}
         elif "lever" in props:
             out = _directive(request.prompt)
         elif "summary" in props:

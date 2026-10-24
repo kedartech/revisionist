@@ -361,6 +361,11 @@ pipelines:
     steps:
       - {person: jodl, kind: clerical, days: 1, assumed: true}
       - {person: raeder, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend, refuse]}
+  - key: reich_declaration
+    name: A declaration of war, delivered by the Foreign Office
+    gap: true
+    steps:
+      - {person: ribbentrop, kind: decision, days: 1, assumed: true, allowed: [pass, expedite, stall, amend]}
   - key: gko_decree
     name: A Stavka or State Defence Committee decree
     gap: true
@@ -606,6 +611,15 @@ cards:
         params:
           - {name: force, kind: enum, choices: [army_group_centre], label: "Which army group", choice_labels: ["Army Group Centre"]}
           - {name: to, kind: enum, choices: [smolensk, vyazma, kalinin, mozhaisk, moscow], label: "To", choice_labels: ["Smolensk", "Vyazma", "Kalinin", "Mozhaisk", "Moscow"]}
+      # [proposed] The resolver moves no figure for this lever yet: the order runs
+      # its pipeline and its reply letter, and nothing more (web test, Oct 2026).
+      - name: declare_war
+        pipeline: reich_declaration
+        resolver: opinion
+        label: "Declare war"
+        summary: "Have the Foreign Office hand a declaration of war to another power's envoy."
+        params:
+          - {name: target, kind: enum, choices: [usa], label: "On whom", choice_labels: ["The United States"]}
     contacts:
       - {person: ribbentrop, channel: in_person}
       - {person: raeder, channel: in_person}
@@ -613,7 +627,7 @@ cards:
       - {person: goering, channel: in_person}
       - {person: mussolini, channel: courier}
     feeds: [german_naval_reports, okw_situation]
-    pipelines: [okw_directive]
+    pipelines: [okw_directive, reich_declaration]
     constraints:
       - the main effort is in the East
       - avoid war with the United States while Russia is unfinished

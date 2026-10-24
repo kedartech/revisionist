@@ -193,8 +193,10 @@ def test_me_carries_the_realism_block_for_a_realism_seat(solo: tuple[Realism, Cl
         "counsel",
         "wake",
         "brief",
+        "help",
     }
     assert block["brief"] is None  # the aide has not read this wake yet
+    assert block["help"] == []
     assert block["map"] is None  # the toy has no positions: the map panel says so
     assert block["counsel"] == []
     assert block["documents"]["documents"] and block["documents"]["unread"] > 0
@@ -701,3 +703,50 @@ def test_a_player_leaves_and_the_host_cannot(web: Web) -> None:  # noqa: F811
         assert bram_seat in state.seats  # the person stays in the game
     finally:
         store.close()
+
+
+def test_the_aide_answers_how_to_and_keeps_the_thread(solo: tuple[Realism, Client]) -> None:
+    game, ada = solo
+    game.web.app.offline_prose = False
+    said = {"text": "Use Propose a levy under Standard forms.", "lever": "propose_levy"}
+    reader = aide(game, said)
+    status, out = post(ada, "help", question="How do I raise money for the harbour?")
+    assert status == 200 and out["refused"] is False
+    you, said = out["help"]
+    assert you == {"from": "you", "text": "How do I raise money for the harbour?", "on": you["on"]}
+    assert said["from"] == "aide" and said["lever"] == "propose_levy"
+    assert said["label"] == "Propose a levy" and "Standard forms" in said["text"]
+    (prompt,) = reader.prompts
+    assert prompt.endswith("How do I raise money for the harbour?")
+    assert realism_of(ada)["help"] == out["help"]
+    # a form the desk does not hold is not offered
+    aide(game, {"text": "Use the other form.", "lever": "nonesuch"})
+    _, out = post(ada, "help", question="And another way?")
+    assert "lever" not in out["help"][-1]
+
+
+def test_the_aide_explains_a_directive_that_cannot_be_sent(solo: tuple[Realism, Client]) -> None:
+    game, ada = solo
+    aide(game, {"lever": "", "params": {}, "reason": "The Council alone can dissolve itself."})
+    status, out = post(ada, "directive", **ASK | {"text": "Dissolve the Council."})
+    assert status == 200 and out["refused"] is True
+    (note,) = out["help"]  # the aide writes unasked: no line from the player
+    assert note["from"] == "aide" and "Council alone can dissolve itself" in note["text"]
+    assert realism_of(ada)["help"] == out["help"]
+
+
+def test_the_aide_explains_an_order_refused_on_filing(solo: tuple[Realism, Client]) -> None:
+    game, ada = solo
+    reader = aide(game, LEVY)
+    status, out = post(ada, "sign", **ASK | {"to": "Nobody at all", **LEVY})
+    assert status == 200 and out["refused"] is True
+    note = out["help"][-1]
+    assert note["from"] == "aide" and note["text"].startswith("That order did not go through")
+    assert "_" not in note["text"] and reader.prompts == []
+
+
+def test_offline_the_aide_points_to_a_form_by_its_words(solo: tuple[Realism, Client]) -> None:
+    _, ada = solo
+    _, out = post(ada, "help", question="How do I propose a levy?")
+    said = out["help"][-1]
+    assert said["lever"] == "propose_levy" and "Standard forms" in said["text"]

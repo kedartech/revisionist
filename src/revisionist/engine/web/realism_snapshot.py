@@ -13,7 +13,7 @@ from typing import Any, Literal
 
 from revisionist.core import events as ev
 from revisionist.core.events import Event
-from revisionist.core.ids import DocumentId, EntityId, PipelineId, SeatId
+from revisionist.core.ids import DocumentId, EntityId, FeatureId, PipelineId, SeatId
 from revisionist.core.ontology import EntityKind
 from revisionist.core.project import project
 from revisionist.core.realism.advance import next_wake
@@ -21,6 +21,7 @@ from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, words
 from revisionist.core.realism.document import BodyField, DocumentView
 from revisionist.core.realism.pipeline import Order, OrderStatus, Pipeline, StepAction, StepOutcome
 from revisionist.core.state import State, View
+from revisionist.core.world_compile import object_id
 from revisionist.engine.aide import AideBrief
 from revisionist.engine.directive import Proposal, channels
 from revisionist.engine.web.realism_api import (
@@ -36,6 +37,7 @@ from revisionist.engine.web.realism_api import (
     LeverLine,
     LeverParam,
     MapMark,
+    MapOrder,
     MapPlace,
     OrderTrack,
     OrderTracker,
@@ -211,9 +213,68 @@ def _sides(view: View) -> set[EntityId]:
     return out
 
 
-def seat_map(view: View) -> SeatMap | None:
-    """Every placed feature as the latest arrived page has it; None for a world
-    with no positions (the client hides the map)."""
+def _map_orders(
+    view: View,
+    marks: list[MapMark],
+    forces: Mapping[str, str],
+    pipelines: Mapping[PipelineId, Pipeline],
+) -> list[MapOrder]:
+    """The seat's own movement orders still to show: moving, or carried out but with no
+    page yet placing the force where it was sent. ``forces`` names a force key's mark."""
+    levers = {x.name: x for x in view.desk.levers} if view.desk is not None else {}
+    out: list[MapOrder] = []
+    for order in sorted(view.orders.values(), key=lambda o: (o.filed, o.order_id)):
+        lever = levers.get(order.lever)
+        if lever is None or lever.resolver != "movement":
+            continue
+        if order.status not in (OrderStatus.MOVING, OrderStatus.ENACTED):
+            continue
+        key, to_key = str(order.params.get("force", "")), str(order.params.get("to", ""))
+        to = view.entities.get(EntityId(object_id(view.campaign_id, "entity", to_key)))
+        if to is None or to.at is None:
+            continue
+        spec = next((p for p in lever.params if p.name == "force"), None)
+        named = forces.get(key) or (_term(spec, key).split(": ", 1)[-1] if spec else words(key))
+        mark = next((m for m in marks if m["name"] == forces.get(key)), None)
+        if order.status is OrderStatus.ENACTED:
+            settled = (order.outcomes[-1].on if order.outcomes else order.filed).isoformat()
+            arrived = (
+                mark is not None
+                and mark["reported"] >= settled
+                and any(p["name"] == to.name for p in mark["places"])
+            )
+            if arrived:
+                continue
+        moving = order.status is OrderStatus.MOVING
+        pipeline = pipelines.get(order.pipeline)
+        holder = (
+            pipeline.steps[order.step].person
+            if moving and pipeline is not None and order.step < len(pipeline.steps)
+            else None
+        )
+        out.append(
+            MapOrder(
+                order=order.order_id,
+                force=named,
+                mark=mark["name"] if mark is not None else None,
+                to=MapPlace(name=to.name, lat=to.at[0], lon=to.at[1]),
+                status="awaiting" if moving else "under_way",
+                with_person=view.entities[holder].name if holder in view.entities else None,
+                filed=order.filed.isoformat(),
+            )
+        )
+    return out
+
+
+def seat_map(
+    view: View,
+    forces: Mapping[str, str] | None = None,
+    pipelines: Mapping[PipelineId, Pipeline] | None = None,
+) -> SeatMap | None:
+    """Every placed feature as the latest arrived page has it, and the seat's own
+    movement orders; None for a world with no positions (the client hides the map).
+    ``forces`` names the mark for each force key an order can name (the caller's, as
+    ``pipelines`` is)."""
     places = [
         _place(view, k)
         for k, e in sorted(view.entities.items(), key=lambda kv: (kv[1].name, kv[0]))
@@ -250,7 +311,8 @@ def seat_map(view: View) -> SeatMap | None:
                 document=doc_id,
             )
         )
-    return SeatMap(places=places, marks=marks)
+    orders = _map_orders(view, marks, forces or {}, pipelines or {})
+    return SeatMap(places=places, marks=marks, orders=orders)
 
 
 def _step_lines(order: Order, pipeline: Pipeline, view: View) -> list[StepLine]:
@@ -457,6 +519,22 @@ def flagged_ids(events: Iterable[Event], seat: SeatId) -> set[DocumentId]:
     return {k for k, v in standing.items() if v}
 
 
+def _force_names(state: State, view: View) -> dict[str, str]:
+    """Each force key the seat's movement levers offer, and that force's name."""
+    out: dict[str, str] = {}
+    for x in view.desk.levers if view.desk is not None else ():
+        if x.resolver != "movement":
+            continue
+        for p in x.params:
+            if p.name != "force":
+                continue
+            for key in p.choices:
+                f = state.features.get(FeatureId(object_id(state.campaign_id, "feature", key)))
+                if f is not None:
+                    out[key] = f.name
+    return out
+
+
 def seat_realism(
     state: State,
     seat: SeatId,
@@ -478,7 +556,7 @@ def seat_realism(
         "situation": situation(view),
         "orders": orders(view, state.pipelines),
         "clock": clock(view, next_wake_at, waiting_on, 0, wake.to.isoformat()),
-        "map": seat_map(view),
+        "map": seat_map(view, _force_names(state, view), state.pipelines),
     }
 
 

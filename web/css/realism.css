@@ -250,3 +250,33 @@ button.danger { background: var(--signal-stamp); color: var(--paper-sheet); bord
   .rl-map-list tr { display: grid; padding: var(--space-2) 0; border-bottom: 1px solid var(--ink-rule); }
   .rl-map-list th, .rl-map-list td { border: 0; padding: 0; }
 }
+
+/* the seat's own movement orders on the map */
+.rl-mk-order { pointer-events: none; }
+.rl-mk-arrow { stroke: var(--signal-link); stroke-width: 2px; stroke-dasharray: 5 4; fill: none; vector-effect: non-scaling-stroke; }
+.rl-mk-arrowhead { fill: var(--signal-link); }
+.rl-mk-goal { fill: none; stroke: var(--signal-link); stroke-width: 2px; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; }
+.rl-o-under_way .rl-mk-arrow, .rl-o-under_way .rl-mk-goal { stroke: var(--signal-settled); }
+.rl-o-under_way .rl-mk-arrowhead { fill: var(--signal-settled); }
+.rl-map-orders { margin-top: var(--space-4); }
+.rl-map-orders h3 { margin: 0 0 var(--space-1); font: 600 14px/1.3 var(--font-ui); }
+.rl-map-orders ul { margin: 0 0 var(--space-2); padding-left: var(--space-4); }
+
+/* conversations: a window for the aide and each contact */
+.rl-chat-tabs { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-bottom: var(--space-3); }
+.rl-chat-tab { position: relative; display: grid; justify-items: start; padding: var(--space-1) var(--space-2); background: var(--paper-field); border: 1px solid var(--ink-rule); border-radius: var(--radius-paper); font: 13px/1.3 var(--font-ui); color: var(--ink-primary); text-align: left; cursor: pointer; }
+.rl-chat-tab[aria-selected="true"] { border-color: var(--ink-primary); box-shadow: inset 0 -3px 0 var(--ink-primary); }
+.rl-chat-tab:focus-visible { outline: 2px solid var(--signal-link); outline-offset: 2px; }
+.rl-chat-tab .rl-person-title { font-size: 11px; }
+.rl-chat-dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 999px; background: var(--signal-stamp); }
+.rl-chat-panel { display: grid; gap: var(--space-2); }
+.rl-chat-head { display: flex; align-items: baseline; gap: var(--space-2); margin: 0; }
+.rl-thread { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); max-height: 22rem; overflow-y: auto; }
+.rl-msg { padding: var(--space-2) var(--space-3); border-radius: var(--radius-paper); }
+.rl-msg p { margin: 0; }
+.rl-msg .rl-btn { margin-top: var(--space-2); }
+.rl-msg-who { font: 600 12px/1.3 var(--font-ui); color: var(--ink-secondary); }
+.rl-msg-text { white-space: pre-wrap; }
+.rl-msg.mine { margin-left: var(--space-5); background: var(--paper-carbon); }
+.rl-msg.theirs { margin-right: var(--space-3); background: var(--paper-field); border-left: 3px solid var(--ink-rule); font-family: var(--font-dispatch); }
+.rl-msg.theirs .rl-msg-who { font-family: var(--font-ui); }

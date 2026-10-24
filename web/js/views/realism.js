@@ -322,42 +322,100 @@ export function briefBlock(brief, on, { reading = false, said = null } = {}) {
   ];
 }
 
+/** One line of a conversation: who said it, and the words. `extra` goes under the words. */
+function bubble(mine, who, text, extra = null) {
+  return h('li', { class: `rl-msg ${mine ? 'mine' : 'theirs'}` },
+    h('p', { class: 'rl-msg-who' }, who),
+    h('p', { class: 'rl-msg-text' }, text),
+    extra);
+}
+
+/** The thread with one contact: their answers to the seat's questions, oldest first. */
+function counselThread(person, counsel) {
+  const lines = counsel.filter((c) => c.person === person).slice().reverse();
+  if (!lines.length) return h('p', { class: 'rl-none' }, `You have not consulted ${person} yet.`);
+  return h('ol', { class: 'rl-thread rl-answers', role: 'list' }, lines.flatMap((c) => [
+    c.question ? bubble(true, 'You', c.question) : null,
+    h('li', { class: 'rl-msg theirs rl-answer' },
+      h('p', { class: 'rl-msg-who rl-answer-head' }, h('strong', {}, c.person), h('span', { class: 'rl-via' }, channelWord(c.channel))),
+      h('p', { class: 'rl-msg-text rl-answer-a' }, c.answer)),
+  ]));
+}
+
+/** The help desk with the aide: the seat's questions, and the aide's answers and notes. */
+function helpThread(help, useDraft) {
+  if (!help.length) {
+    return h('p', { class: 'rl-none' },
+      'Ask your aide how to do something: which form does it, whom it goes through, or whether it lies beyond your office. If an order does not go through, your aide says why here.');
+  }
+  return h('ol', { class: 'rl-thread', role: 'list' }, help.map((m) => (m.from === 'you'
+    ? bubble(true, 'You', m.text)
+    : bubble(false, 'Your aide', m.text, m.lever
+      ? h('button', { type: 'button', class: 'rl-btn', onclick: () => useDraft?.({ lever: m.lever }) }, `Open “${m.label ?? m.lever}”`)
+      : null))));
+}
+
 /**
- * Your aide: the brief for this wake (in a slot the room fills when the aide has read),
- * and consult a contact. `counsel` is the seat's earlier answers, newest first.
- * `on` is { brief, consult(to, question), useDraft(d) }; `slot` is the brief's node.
+ * Conversations: a window for your aide and one for each contact, so that each
+ * person's words stay together. `opts` is { selected, slot, contacts, counsel, help,
+ * fresh, onSelect(key), ask(text), consult(person, text), useDraft(d) }; `selected` is
+ * 'aide' or a contact's name, `slot` the brief's node, `fresh` the keys with new lines.
  */
-export function aidePanel(slot, contacts, counsel, on) {
-  const qid = 'rl-consult';
-  const to = h('select', { id: `${qid}-to`, name: 'to', required: true },
-    contacts.map((c) => h('option', { value: c.person }, c.title ? `${c.person}, ${c.title}` : c.person)));
-  const question = h('textarea', { id: `${qid}-q`, name: 'question', rows: 3, maxlength: 1000, required: true });
-  const ask = h('form', {
-    class: 'rl-form', 'aria-label': 'Consult someone',
+export function conversations(opts) {
+  const { selected = 'aide', slot, contacts, counsel, help, fresh = new Set() } = opts;
+  const id = 'rl-chat';
+  const keys = ['aide', ...contacts.map((c) => c.person)];
+  const choose = (key, focus) => {
+    opts.onSelect?.(key);
+    // the room redraws on select: find the new tab by its stable id
+    if (focus) document.getElementById(`${id}-tab-${keys.indexOf(key)}`)?.focus();
+  };
+  const tab = (key, i, name, title) => h('button', {
+    type: 'button', role: 'tab', id: `${id}-tab-${i}`, class: `rl-chat-tab${fresh.has(key) ? ' fresh' : ''}`,
+    'aria-selected': String(selected === key), 'aria-controls': `${id}-panel`, tabindex: selected === key ? 0 : -1,
+    onclick: () => choose(key),
+    onkeydown: (e) => {
+      const step = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
+      if (!step) return;
+      e.preventDefault();
+      const to = i + step;
+      choose(keys[to < 0 ? keys.length - 1 : to >= keys.length ? 0 : to], true);
+    },
+  }, h('span', { class: 'rl-person-name' }, name),
+  title ? h('span', { class: 'rl-person-title' }, title) : null,
+  fresh.has(key) ? h('span', { class: 'rl-chat-dot', 'aria-label': 'new' }) : null);
+  const tabs = h('div', { class: 'rl-chat-tabs', role: 'tablist', 'aria-label': 'Conversations', 'aria-orientation': 'vertical' },
+    tab('aide', 0, 'Your aide', 'Staff officer · briefs and help'),
+    contacts.map((c, i) => tab(c.person, i + 1, c.person, c.title)));
+
+  const contact = contacts.find((c) => c.person === selected);
+  const key = contact ? selected : 'aide';
+  const words = h('textarea', {
+    id: `${id}-q`, name: 'question', rows: 3, maxlength: key === 'aide' ? 600 : 1000, required: true,
+    placeholder: key === 'aide' ? 'e.g. How do I declare war?' : '',
+  });
+  const form = h('form', {
+    class: 'rl-form rl-chat-form', 'aria-label': key === 'aide' ? 'A question for your aide' : `A question for ${key}`,
     onsubmit: (e) => {
       e.preventDefault();
-      if (question.value.trim()) on.consult?.(to.value, question.value.trim());
+      const text = words.value.trim();
+      if (!text) return;
+      if (key === 'aide') opts.ask?.(text);
+      else opts.consult?.(key, text);
     },
   },
-  h('div', { class: 'rl-field' }, h('label', { for: `${qid}-to` }, 'Ask'), to),
-  h('div', { class: 'rl-field' }, h('label', { for: `${qid}-q` }, 'Your question'), question),
-  h('button', { type: 'submit', class: 'rl-btn' }, 'Ask them'));
-  const answer = (c) => h('li', { class: 'rl-answer' },
-    h('p', { class: 'rl-answer-head' }, h('strong', {}, c.person), h('span', { class: 'rl-via' }, channelWord(c.channel))),
-    c.question ? h('p', { class: 'rl-answer-q' }, c.question) : null,
-    h('p', { class: 'rl-answer-a' }, c.answer));
-  return h('section', { class: 'rl-aide', 'aria-labelledby': 'rl-aide-h' },
-    h('h2', { id: 'rl-aide-h' }, 'Your aide'),
-    slot,
-    h('h3', { class: 'rl-aide-sub' }, 'Consult'),
-    contacts.length ? ask : h('p', { class: 'rl-none' }, 'No one is within reach.'),
-    counsel.length
-      ? [h('h3', { class: 'rl-aide-sub' }, 'Answers'), h('ul', { class: 'rl-answers', role: 'list' }, counsel.slice(0, 3).map(answer)),
-        counsel.length > 3
-          ? h('details', {}, h('summary', {}, `Earlier answers (${counsel.length - 3})`),
-            h('ul', { class: 'rl-answers', role: 'list' }, counsel.slice(3).map(answer)))
-          : null]
-      : null);
+  h('div', { class: 'rl-field' }, h('label', { for: `${id}-q` }, key === 'aide' ? 'Ask your aide' : 'Your question'), words),
+  h('button', { type: 'submit', class: 'rl-btn' }, key === 'aide' ? 'Ask' : 'Ask them'));
+
+  const panel = h('div', { id: `${id}-panel`, role: 'tabpanel', class: 'rl-chat-panel', 'aria-labelledby': `${id}-tab-${keys.indexOf(key)}` },
+    key === 'aide'
+      ? [h('h3', { class: 'rl-aide-sub' }, 'This wake'), slot, h('h3', { class: 'rl-aide-sub' }, 'Help'), helpThread(help, opts.useDraft)]
+      : [h('p', { class: 'rl-chat-head' }, personName(contact), h('span', { class: 'rl-via' }, channelWord(contact.channel))),
+        counselThread(key, counsel)],
+    form);
+  return h('section', { class: 'rl-aide rl-chat', 'aria-labelledby': `${id}-h` },
+    h('h2', { id: `${id}-h` }, 'Conversations'),
+    tabs, panel);
 }
 
 export function paceHeader(clock) {

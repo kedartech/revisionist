@@ -73,6 +73,15 @@ def _lever(state: State, order: Order) -> Lever:
     for lever in state.cards[seat.embodies].levers:
         if lever.name == order.lever:
             return lever
+    if order.routed_from is not None:
+        # A process part carried from a routed order (engine v2, spec §8.2) is not a
+        # card lever: stand one in so replies, leaks and amends read it in words.
+        return Lever(
+            name=order.lever,
+            pipeline=order.pipeline,
+            resolver=resolvers.resolver_for(state, order),
+            label=order.measure.title if order.measure is not None else "",
+        )
     raise KeyError(f"order {order.order_id}: lever {order.lever} is not on the issuer's card")
 
 

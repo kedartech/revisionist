@@ -9,12 +9,12 @@ resolver needs Josh's word.
 
 import hashlib
 from collections.abc import Callable
-from datetime import date
+from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.ids import QuantityId
 from revisionist.core.realism.geography import Feature
-from revisionist.core.realism.pipeline import Order
+from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.quantity import QuantityChange, ResolverKey
 from revisionist.core.realism.resolvers import movement, opinion, production, shipping, votes
 from revisionist.core.state import State
@@ -25,8 +25,41 @@ Change = QuantityChange | Feature
 OrderFn = Callable[[State, Order], tuple[Change, ...]]
 DayFn = Callable[[State, date], tuple[Change, ...]]
 
+
+def _votes(state: State, order: Order) -> tuple[Change, ...]:
+    """``votes.resolve``, or for an order carrying a measure (engine v2, a process
+    part) its tally through each chamber under the bill keys it lands on: the
+    historical bill of the same title, else the novel reference."""
+    measure = order.measure
+    if measure is None:
+        return votes.resolve(state, order)
+    if order.status is not OrderStatus.ENACTED:
+        return ()
+    bill = next(
+        (k for k, m in votes.HISTORICAL.items() if m.title == measure.title and k in votes.TALLIES),
+        votes.NOVEL_REFERENCE,
+    )
+    senate_day = votes._step_day(order, 2)
+    days = {
+        "house": votes._step_day(order, 0),
+        "senate": senate_day,
+        "concur": senate_day + timedelta(days=votes.CONCUR_LAG_DAYS),
+    }
+    out: list[QuantityChange | None] = []
+    passed = 1
+    for chamber in votes.TALLIES[bill]:
+        yeas, nays = votes.tally_measure(state, order.order_id, measure, chamber, False)
+        out += [
+            votes.put(state, f"{bill}_{chamber}_yeas", yeas, days[chamber]),
+            votes.put(state, f"{bill}_{chamber}_nays", nays, days[chamber]),
+        ]
+        passed &= int(yeas > nays)
+    out.append(votes.put(state, f"{bill}_passed", passed, settled_on(order)))
+    return tuple(c for c in out if c is not None)
+
+
 ON_ORDER: dict[ResolverKey, OrderFn] = {
-    "votes": votes.resolve,
+    "votes": _votes,
     "shipping": shipping.resolve,
     "production": production.resolve,
     "opinion": opinion.resolve,
@@ -53,7 +86,10 @@ def value(state: State, key: str) -> int | None:
 
 
 def resolver_for(state: State, order: Order) -> ResolverKey:
-    """The resolver the issuer's card names for the order's lever."""
+    """The resolver the issuer's card names for the order's lever; an order carrying
+    a measure is counted by votes."""
+    if order.measure is not None:
+        return "votes"
     seat = state.seats[order.issuer]
     card = state.cards[seat.embodies]
     for lever in card.levers:

@@ -6,6 +6,7 @@ is exactly the tick a host would run by hand.
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
@@ -16,6 +17,7 @@ from revisionist.core.project import project
 from revisionist.core.report import leak_report
 from revisionist.core.resolution import TickStage
 from revisionist.engine import campaign as cmp
+from revisionist.engine import wake as wk
 from revisionist.engine.agent import Agent, held_means
 from revisionist.engine.llm import ClaudeNarrator, ClaudeResolver, Transport, TransportError
 from revisionist.engine.prose import ClaudeProseWriter, ProseWriter, TemplateProseWriter
@@ -67,12 +69,16 @@ def play_tick(
     warn: Callable[[str], None],
     stop_after: TickStage | None = None,
     deliverer_factory: DelivererFactory | None = None,
+    now: datetime | None = None,
 ) -> TickRun:
     """Run (or resume) one tick. Transport errors from the tick itself propagate."""
     state = load_state(store, campaign_id)
     if state.phase is not Phase.PLAY:
         raise NotInPlayError(state.phase)  # before any faction spends a model call
     if state.ruleset == "realism":  # code decides outcomes; a model only writes the pages
+        when = now or datetime.now(UTC)
+        if state.wake is not None and not state.wake.closed:
+            wk.close_wake(store, campaign_id, when, None if offline else transport_factory())
         writer: ProseWriter = (
             TemplateProseWriter() if offline else ClaudeProseWriter(transport_factory())
         )
@@ -86,6 +92,8 @@ def play_tick(
         )
         for dropped in done.prose_dropped:
             warn(f"  no prose for {dropped}")
+        if done.stopped_after is None:
+            wk.open_wake(store, campaign_id, when)
         found = leak_report(load_state(store, campaign_id), store.read(campaign_id))
         return TickRun(done, briefings, found)
     deliverer = (deliverer_factory or file_deliverer)(store, campaign_id, briefings)

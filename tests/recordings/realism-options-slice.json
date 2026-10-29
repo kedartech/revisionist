@@ -1,0 +1,561 @@
+{
+ "257cfbd6abe8e925ead62e2d": {
+  "call_class": "options",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply (plain ('beginner', False))",
+  "prompt_head": "## What the seat can see\n{\"date\":\"1941-09-01\",\"style\":\"beginner\",\"seat\":{\"name\":\"Franklin D. Roosevelt\",\"entity\":\"Z1YMP5",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "options": [
+     {
+      "asks": [
+       {
+        "ask": "Patrol",
+        "effect": {
+         "force": "C0QZHWPP423A82BQ365BYQ63CK",
+         "kind": "move_force",
+         "posture": "patrol"
+        }
+       }
+      ],
+      "historical": true,
+      "label": "Patrol the sea lanes",
+      "risk": "It may go badly.",
+      "to": "VAKP5F7QBGTN3YCP8CKDF4TN1E"
+     },
+     {
+      "asks": [
+       {
+        "ask": "Ask them",
+        "target": "no-such-person"
+       }
+      ],
+      "label": "Press a stranger",
+      "risk": "It may go badly."
+     },
+     {
+      "asks": [
+       {
+        "ask": "Ship oil",
+        "effect": {
+         "amount": 5,
+         "kind": "allocate",
+         "recipient": "ABAZ0TGFM42G2BDHEC49BPG0B7",
+         "unit": "tons",
+         "what": "oil"
+        }
+       }
+      ],
+      "label": "Hand over oil",
+      "risk": "It may go badly."
+     },
+     {
+      "asks": [
+       {
+        "ask": "Speak to the nation",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       }
+      ],
+      "label": "Speak to the nation",
+      "risk": "It may go badly."
+     }
+    ]
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ },
+ "55dc9356f4a82666e5b0f8df": {
+  "call_class": "options",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply (canary ('guided', False))",
+  "prompt_head": "## What the seat can see\n{\"date\":\"1941-09-01\",\"style\":\"guided\",\"seat\":{\"name\":\"Franklin D. Roosevelt\",\"entity\":\"Z1YMP565",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "options": [
+     {
+      "asks": [
+       {
+        "ask": "Patrol",
+        "effect": {
+         "force": "C0QZHWPP423A82BQ365BYQ63CK",
+         "kind": "move_force",
+         "posture": "patrol"
+        }
+       },
+       {
+        "ask": "Escort",
+        "effect": {
+         "force": "C0QZHWPP423A82BQ365BYQ63CK",
+         "kind": "engagement",
+         "rule": "escort",
+         "zone": "convoy lanes"
+        }
+       },
+       {
+        "ask": "Speak to the nation",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       },
+       {
+        "ask": "Ask Rayburn to hold the House",
+        "target": "ABAZ0TGFM42G2BDHEC49BPG0B7"
+       }
+      ],
+      "label": "A plan",
+      "risk": "It may go badly."
+     }
+    ]
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ },
+ "5ed6b50318a8971c8b31987e": {
+  "call_class": "options",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply (plain ('beginner', True))",
+  "prompt_head": "## What the seat can see\n{\"date\":\"1941-09-01\",\"style\":\"beginner\",\"seat\":{\"name\":\"Franklin D. Roosevelt\",\"entity\":\"Z1YMP5",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "options": [
+     {
+      "asks": [
+       {
+        "ask": "Patrol",
+        "effect": {
+         "force": "C0QZHWPP423A82BQ365BYQ63CK",
+         "kind": "move_force",
+         "posture": "patrol"
+        }
+       }
+      ],
+      "historical": true,
+      "label": "Patrol the sea lanes",
+      "risk": "It may go badly.",
+      "to": "VAKP5F7QBGTN3YCP8CKDF4TN1E"
+     },
+     {
+      "asks": [
+       {
+        "ask": "Ask them",
+        "target": "no-such-person"
+       }
+      ],
+      "label": "Press a stranger",
+      "risk": "It may go badly."
+     },
+     {
+      "asks": [
+       {
+        "ask": "Speak to the nation",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       }
+      ],
+      "label": "Speak to the nation",
+      "risk": "It may go badly."
+     },
+     {
+      "asks": [
+       {
+        "ask": "Ship oil",
+        "effect": {
+         "amount": 5,
+         "kind": "allocate",
+         "recipient": "ABAZ0TGFM42G2BDHEC49BPG0B7",
+         "unit": "tons",
+         "what": "oil"
+        }
+       }
+      ],
+      "label": "Hand over oil",
+      "risk": "It may go badly."
+     },
+     {
+      "asks": [
+       {
+        "ask": "Ask Rayburn to hold the House",
+        "target": "ABAZ0TGFM42G2BDHEC49BPG0B7"
+       }
+      ],
+      "label": "Press Rayburn",
+      "risk": "It may go badly.",
+      "to": "ABAZ0TGFM42G2BDHEC49BPG0B7"
+     }
+    ]
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ },
+ "8e1f48d0425143e3138081c5": {
+  "call_class": "options",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply (canary ('beginner', False))",
+  "prompt_head": "## What the seat can see\n{\"date\":\"1941-09-01\",\"style\":\"beginner\",\"seat\":{\"name\":\"Franklin D. Roosevelt\",\"entity\":\"Z1YMP5",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "options": [
+     {
+      "asks": [
+       {
+        "ask": "Patrol",
+        "effect": {
+         "force": "C0QZHWPP423A82BQ365BYQ63CK",
+         "kind": "move_force",
+         "posture": "patrol"
+        }
+       }
+      ],
+      "historical": true,
+      "label": "Patrol the sea lanes",
+      "risk": "It may go badly.",
+      "to": "VAKP5F7QBGTN3YCP8CKDF4TN1E"
+     },
+     {
+      "asks": [
+       {
+        "ask": "Speak to the nation",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       }
+      ],
+      "label": "Quiet word about CANARY-V2-REASON-7f3a",
+      "risk": "It may go badly."
+     },
+     {
+      "asks": [
+       {
+        "ask": "Escort",
+        "effect": {
+         "force": "C0QZHWPP423A82BQ365BYQ63CK",
+         "kind": "engagement",
+         "rule": "escort",
+         "zone": "convoy lanes"
+        }
+       }
+      ],
+      "label": "Escort the convoys",
+      "risk": "It may go badly.",
+      "to": "VAKP5F7QBGTN3YCP8CKDF4TN1E"
+     },
+     {
+      "asks": [
+       {
+        "ask": "Speak to the nation",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       }
+      ],
+      "label": "Speak out",
+      "risk": "They know of CANARY-V2-REASON-7f3a."
+     },
+     {
+      "asks": [
+       {
+        "ask": "Say CANARY-V2-OPTIONS-2b9c",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       }
+      ],
+      "label": "Another word",
+      "risk": "It may go badly."
+     },
+     {
+      "asks": [
+       {
+        "ask": "Speak to the nation",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       }
+      ],
+      "label": "Speak to the nation",
+      "risk": "It may go badly."
+     }
+    ]
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ },
+ "aa0a2bcd018ccb8afbf0639f": {
+  "call_class": "options",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply (plain ('guided', True))",
+  "prompt_head": "## What the seat can see\n{\"date\":\"1941-09-01\",\"style\":\"guided\",\"seat\":{\"name\":\"Franklin D. Roosevelt\",\"entity\":\"Z1YMP565",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "options": [
+     {
+      "asks": [
+       {
+        "ask": "Patrol",
+        "effect": {
+         "force": "C0QZHWPP423A82BQ365BYQ63CK",
+         "kind": "move_force",
+         "posture": "patrol"
+        }
+       },
+       {
+        "ask": "Escort",
+        "effect": {
+         "force": "C0QZHWPP423A82BQ365BYQ63CK",
+         "kind": "engagement",
+         "rule": "escort",
+         "zone": "convoy lanes"
+        }
+       },
+       {
+        "ask": "Speak to the nation",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       },
+       {
+        "ask": "Ask Rayburn to hold the House",
+        "target": "ABAZ0TGFM42G2BDHEC49BPG0B7"
+       }
+      ],
+      "label": "A plan",
+      "risk": "It may go badly."
+     }
+    ]
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ },
+ "b0c136190f53ee1928ce49e0": {
+  "call_class": "options",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply (canary ('guided', True))",
+  "prompt_head": "## What the seat can see\n{\"date\":\"1941-09-01\",\"style\":\"guided\",\"seat\":{\"name\":\"Franklin D. Roosevelt\",\"entity\":\"Z1YMP565",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "options": [
+     {
+      "asks": [
+       {
+        "ask": "Speak to the nation",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       },
+       {
+        "ask": "Speak to the nation",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       },
+       {
+        "ask": "Speak to the nation",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       }
+      ],
+      "label": "A plan (CANARY-V2-REASON-7f3a)",
+      "risk": "It may go badly."
+     }
+    ]
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ },
+ "df376b0e45a183f50b7aba33": {
+  "call_class": "options",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply (canary ('beginner', True))",
+  "prompt_head": "## What the seat can see\n{\"date\":\"1941-09-01\",\"style\":\"beginner\",\"seat\":{\"name\":\"Franklin D. Roosevelt\",\"entity\":\"Z1YMP5",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "options": [
+     {
+      "asks": [
+       {
+        "ask": "Patrol",
+        "effect": {
+         "force": "C0QZHWPP423A82BQ365BYQ63CK",
+         "kind": "move_force",
+         "posture": "patrol"
+        }
+       }
+      ],
+      "historical": true,
+      "label": "Patrol the sea lanes",
+      "risk": "It may go badly.",
+      "to": "VAKP5F7QBGTN3YCP8CKDF4TN1E"
+     },
+     {
+      "asks": [
+       {
+        "ask": "Speak to the nation",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       }
+      ],
+      "label": "Quiet word about CANARY-V2-REASON-7f3a",
+      "risk": "It may go badly."
+     },
+     {
+      "asks": [
+       {
+        "ask": "Escort",
+        "effect": {
+         "force": "C0QZHWPP423A82BQ365BYQ63CK",
+         "kind": "engagement",
+         "rule": "escort",
+         "zone": "convoy lanes"
+        }
+       }
+      ],
+      "label": "Escort the convoys",
+      "risk": "It may go badly.",
+      "to": "VAKP5F7QBGTN3YCP8CKDF4TN1E"
+     },
+     {
+      "asks": [
+       {
+        "ask": "Speak to the nation",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       }
+      ],
+      "label": "Speak out",
+      "risk": "They know of CANARY-V2-REASON-7f3a."
+     },
+     {
+      "asks": [
+       {
+        "ask": "Say CANARY-V2-OPTIONS-2b9c",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       }
+      ],
+      "label": "Another word",
+      "risk": "It may go badly."
+     },
+     {
+      "asks": [
+       {
+        "ask": "Speak to the nation",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       }
+      ],
+      "label": "Speak to the nation",
+      "risk": "It may go badly."
+     }
+    ]
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ },
+ "fbc92721141ca9b9e5e42c97": {
+  "call_class": "options",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply (plain ('guided', False))",
+  "prompt_head": "## What the seat can see\n{\"date\":\"1941-09-01\",\"style\":\"guided\",\"seat\":{\"name\":\"Franklin D. Roosevelt\",\"entity\":\"Z1YMP565",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "options": [
+     {
+      "asks": [
+       {
+        "ask": "Patrol",
+        "effect": {
+         "force": "C0QZHWPP423A82BQ365BYQ63CK",
+         "kind": "move_force",
+         "posture": "patrol"
+        }
+       },
+       {
+        "ask": "Speak to the nation",
+        "effect": {
+         "kind": "statement",
+         "theme": "convoys"
+        }
+       },
+       {
+        "ask": "Ship oil",
+        "effect": {
+         "amount": 5,
+         "kind": "allocate",
+         "recipient": "ABAZ0TGFM42G2BDHEC49BPG0B7",
+         "unit": "tons",
+         "what": "oil"
+        }
+       }
+      ],
+      "label": "A plan",
+      "risk": "It may go badly."
+     }
+    ]
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ }
+}

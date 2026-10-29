@@ -13,6 +13,7 @@ from datetime import date, timedelta
 from revisionist.core import history
 from revisionist.core._base import Label, Model
 from revisionist.core.ontology import Controller
+from revisionist.core.realism.agenda import MandateStatus
 from revisionist.core.realism.pipeline import Order, step_due
 from revisionist.core.realism.pipelines import waiting_on_human
 from revisionist.core.state import State
@@ -26,7 +27,7 @@ class WakeReason(Model):
 
     on: date
     what: Label
-    """"step", "history" or "horizon"."""
+    """""step", "history", "agenda" or "horizon"."""
     label: Label
     """For the clock line: "Rayburn's count expected ~14 Oct"."""
 
@@ -40,7 +41,7 @@ class Wake(Model):
     """Quiet days passed over: ``(to - today).days - 1``."""
 
 
-CATEGORIES = ("step", "history", "horizon")
+CATEGORIES = ("step", "history", "agenda", "horizon")
 
 
 def _reason(what: str, on: date, label: str, today: date) -> WakeReason:
@@ -85,6 +86,10 @@ def next_wake(state: State, today: date) -> Wake:
     event = history.next_due(state, today + timedelta(days=1))
     if event is not None and event.on_date is not None:
         found.append(_reason("history", event.on_date, event.name, today))
+    humans = {s.seat_id for s in state.seats.values() if s.controller is Controller.HUMAN}
+    for m in state.mandates.values():
+        if m.status is MandateStatus.LIVE and m.seat_id in humans:
+            found.append(_reason("agenda", m.expires, f"{m.text[:40]}, due", today))
     found.append(_reason("horizon", today + timedelta(days=_horizon(state)), "horizon", today))
     reason = min(found, key=lambda r: (r.on, CATEGORIES.index(r.what), r.label))
     return Wake(to=reason.on, reason=reason, collapsed_days=(reason.on - today).days - 1)

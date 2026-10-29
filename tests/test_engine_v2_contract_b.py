@@ -5,8 +5,7 @@ ruling per uncovered part, and an older log hashes as it did before any of it.
 No wave B behaviour is tested here: nothing applies, decides, opens or issues yet.
 """
 
-from collections.abc import Callable
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
 import pytest
@@ -19,7 +18,6 @@ from revisionist.core.goals import ActOf, GoalKind, Ordered, difficulty, goal_ki
 from revisionist.core.ids import CampaignId, EntityId, FactId, OrderId, PipelineId, derived_id
 from revisionist.core.project import project
 from revisionist.core.realism import agenda as ra
-from revisionist.core.realism import apply, mandates, process
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.pipeline import Order, Pipeline, Step, StepKind
@@ -29,7 +27,6 @@ from revisionist.core.visibility import PUBLIC, private_to
 from revisionist.core.world import TriggerDecl
 from revisionist.core.world_compile import WorldError, compile_world
 from revisionist.engine import campaign as cmp
-from revisionist.engine import options, wake
 from revisionist.engine import realism_tick as rt
 from revisionist.engine.estimate import CALL_CLASS, clamp
 from revisionist.engine.llm import Reply, Request
@@ -418,41 +415,6 @@ def test_ordered_is_never_met_for_a_person_no_human_holds(sl: Slice) -> None:
 
 
 # --- the hook stubs ------------------------------------------------------------------
-
-
-def test_every_stub_returns_its_neutral_value(sl: Slice) -> None:
-    state, today = sl.state, FILED
-    assert apply.apply_due(state, today) == []
-    assert apply.report(state, sl.shoot_on_sight(), 0, today) is None
-    assert process.open_processes(state, today) == []
-    assert process.influence_due(state, today) == []
-    assert mandates.issue_due(state, today) == []
-    assert mandates.settle_due(state, today) == []
-    assert mandates.score(state, sl.fdr) == 0
-    store, now = MemoryStore(), datetime(2026, 11, 1, tzinfo=UTC)
-    b1: list[Callable[[], object]] = [
-        lambda: wake.open_wake(store, CAMPAIGN, now),
-        lambda: wake.commit(store, CAMPAIGN, sl.fdr, now),
-        lambda: wake.close_wake(store, CAMPAIGN, now, None),
-        lambda: wake.wake_due(state, now),
-    ]
-    for call in b1:
-        with pytest.raises(NotImplementedError, match="Wave B unit B1"):
-            call()
-    b3: list[Callable[[], object]] = [
-        lambda: options.offer(state, sl.fdr, None),
-        lambda: options.aide_asks(state, sl.fdr, None),
-        lambda: options.set_style(store, CAMPAIGN, sl.fdr, ra.PlayStyle.GUIDED),
-    ]
-    for call in b3:
-        with pytest.raises(NotImplementedError, match="Wave B unit B3"):
-            call()
-    assert (options.OPTIONS_MODEL, options.CALL_CLASS, options.PROMPT) == (
-        "claude-haiku-5-5",
-        "options",
-        "options",
-    )
-    assert options.RECORDING == "realism-options-slice.json"
 
 
 # --- the ESTIMATE stage --------------------------------------------------------------

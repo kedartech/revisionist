@@ -127,7 +127,7 @@ def _refused(sl: Slice, payload: ev.Payload, match: str, scope: Scope = PUBLIC) 
 
 def test_the_slice_compiles_with_authority_and_reach(sl: Slice) -> None:
     state = sl.state
-    assert state.ruleset == "realism" and len(state.cards) == 4
+    assert state.ruleset == "realism" and len(state.cards) == 6
     fdr = state.cards[sl.entity("roosevelt")]
     naval = next(d for d in fdr.authority if d.name == "naval_operations")
     assert naval.executor == sl.entity("stark")

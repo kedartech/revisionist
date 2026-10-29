@@ -146,6 +146,7 @@
                   "entity_is": "#/$defs/EntityIs",
                   "holds_office": "#/$defs/HoldsOffice",
                   "meter_at": "#/$defs/MeterAt",
+                  "ordered": "#/$defs/Ordered",
                   "quantity_at": "#/$defs/QuantityAt"
                 },
                 "propertyName": "check"
@@ -171,6 +172,9 @@
                 },
                 {
                   "$ref": "#/$defs/ActOf"
+                },
+                {
+                  "$ref": "#/$defs/Ordered"
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
@@ -256,6 +260,7 @@
                   "entity_is": "#/$defs/EntityIs",
                   "holds_office": "#/$defs/HoldsOffice",
                   "meter_at": "#/$defs/MeterAt",
+                  "ordered": "#/$defs/Ordered",
                   "quantity_at": "#/$defs/QuantityAt"
                 },
                 "propertyName": "check"
@@ -281,6 +286,9 @@
                 },
                 {
                   "$ref": "#/$defs/ActOf"
+                },
+                {
+                  "$ref": "#/$defs/Ordered"
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
@@ -929,6 +937,14 @@
               "$ref": "#/$defs/Pipeline"
             },
             "title": "Pipelines",
+            "type": "array"
+          },
+          "templates": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/MandateTemplate"
+            },
+            "title": "Templates",
             "type": "array"
           }
         },
@@ -2822,6 +2838,48 @@
         "title": "EffectKind",
         "type": "string"
       },
+      "EffectsApplied": {
+        "additionalProperties": false,
+        "description": "A part's effects landed in the world (spec \u00a78.2-8.3): an executed command, an\nestimate, or a decided influence. A refusal applies nothing but still closes the\npart. ``revealed`` facts become public. Scoped to the issuer.",
+        "properties": {
+          "kind": {
+            "const": "effects_applied",
+            "default": "effects_applied",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "part": {
+            "maximum": 7,
+            "minimum": 0,
+            "title": "Part",
+            "type": "integer"
+          },
+          "revealed": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Revealed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "order_id",
+          "part",
+          "on"
+        ],
+        "title": "EffectsApplied",
+        "type": "object"
+      },
       "EffectsEstimated": {
         "additionalProperties": false,
         "description": "The estimator's ruling on one part no code rule covers (spec \u00a78.3).\n\nThe effects are engine-only; ``reason`` is the issuer's, written from its view\nand leak-scanned. ``rationale`` is sealed for the end-of-game reveal. A replay\nreads this event and never calls the model. ``failed``: the model gave nothing\nusable, the part stays unresolved, and the paper says so.",
@@ -3348,6 +3406,17 @@
             "default": null,
             "title": "Bound For"
           },
+          "engagement": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Engagement"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "feature_id": {
             "title": "Feature Id",
             "type": "string"
@@ -3388,6 +3457,17 @@
             "minItems": 1,
             "title": "Places",
             "type": "array"
+          },
+          "posture": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Posture"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "side": {
             "anyOf": [
@@ -3584,6 +3664,7 @@
                 "entity_is": "#/$defs/EntityIs",
                 "holds_office": "#/$defs/HoldsOffice",
                 "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
                 "quantity_at": "#/$defs/QuantityAt"
               },
               "propertyName": "check"
@@ -3609,6 +3690,9 @@
               },
               {
                 "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
               },
               {
                 "$ref": "#/$defs/QuantityAt"
@@ -3736,6 +3820,7 @@
                 "entity_is": "#/$defs/EntityIs",
                 "holds_office": "#/$defs/HoldsOffice",
                 "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
                 "quantity_at": "#/$defs/QuantityAt"
               },
               "propertyName": "check"
@@ -3761,6 +3846,9 @@
               },
               {
                 "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
               },
               {
                 "$ref": "#/$defs/QuantityAt"
@@ -3932,6 +4020,51 @@
         ],
         "title": "Inertia",
         "type": "string"
+      },
+      "InfluenceDecided": {
+        "additionalProperties": false,
+        "description": "The person an influence part was aimed at decided, under their card's policy\n(spec \u00a78.2). ``reason`` is read by the issuer and leak-scanned. Scoped to the issuer.",
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "influence_decided",
+            "default": "influence_decided",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "part": {
+            "maximum": 7,
+            "minimum": 0,
+            "title": "Part",
+            "type": "integer"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "part",
+          "on",
+          "accepted"
+        ],
+        "title": "InfluenceDecided",
+        "type": "object"
       },
       "Intent": {
         "additionalProperties": false,
@@ -4332,6 +4465,7 @@
                 "entity_is": "#/$defs/EntityIs",
                 "holds_office": "#/$defs/HoldsOffice",
                 "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
                 "quantity_at": "#/$defs/QuantityAt"
               },
               "propertyName": "check"
@@ -4357,6 +4491,9 @@
               },
               {
                 "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
               },
               {
                 "$ref": "#/$defs/QuantityAt"
@@ -4493,6 +4630,120 @@
         ],
         "title": "MandateStatus",
         "type": "string"
+      },
+      "MandateTemplate": {
+        "additionalProperties": false,
+        "description": "A mandate before it is issued: code fills it in when its trigger fires, one\nmandate per seat embodying a person in ``to`` (spec \u00a78.5). Engine only.",
+        "properties": {
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_office": "#/$defs/HoldsOffice",
+                "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
+                "quantity_at": "#/$defs/QuantityAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "days": {
+            "maximum": 90,
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "issuer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Issuer"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/MandateKind"
+          },
+          "text": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "to": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "To",
+            "type": "array"
+          },
+          "trigger": {
+            "$ref": "#/$defs/Trigger"
+          }
+        },
+        "required": [
+          "key",
+          "kind",
+          "trigger",
+          "to",
+          "text",
+          "condition",
+          "days"
+        ],
+        "title": "MandateTemplate",
+        "type": "object"
       },
       "Meter": {
         "additionalProperties": false,
@@ -4921,6 +5172,17 @@
             "title": "Lever",
             "type": "string"
           },
+          "measure": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProposeMeasure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "order_id": {
             "title": "Order Id",
             "type": "string"
@@ -4954,6 +5216,17 @@
           "pipeline": {
             "title": "Pipeline",
             "type": "string"
+          },
+          "routed_from": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PartRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "status": {
             "$ref": "#/$defs/OrderStatus",
@@ -5155,6 +5428,31 @@
         "title": "OrderStepTaken",
         "type": "object"
       },
+      "Ordered": {
+        "additionalProperties": false,
+        "description": "A seat embodying ``person`` issued a routed order with a part of this effect\nkind (given, or estimated) whose effects have landed. Never met while no human\nholds ``person``: a mandate is the seat's own work (engine v2, spec \u00a78.5).",
+        "properties": {
+          "check": {
+            "const": "ordered",
+            "default": "ordered",
+            "title": "Check",
+            "type": "string"
+          },
+          "effect": {
+            "$ref": "#/$defs/EffectKind"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          }
+        },
+        "required": [
+          "person",
+          "effect"
+        ],
+        "title": "Ordered",
+        "type": "object"
+      },
       "OutcomeTier": {
         "enum": [
           "fail_complication",
@@ -5241,6 +5539,28 @@
           "kind"
         ],
         "title": "ParamSpec",
+        "type": "object"
+      },
+      "PartRef": {
+        "additionalProperties": false,
+        "description": "One part of one routed order: what a pipeline order carries (wave B).",
+        "properties": {
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "part": {
+            "maximum": 7,
+            "minimum": 0,
+            "title": "Part",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "order_id",
+          "part"
+        ],
+        "title": "PartRef",
         "type": "object"
       },
       "Persona": {
@@ -5793,6 +6113,44 @@
         "additionalProperties": false,
         "description": "The whole part. ``estimated`` never leaves the engine.",
         "properties": {
+          "accepted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Accepted"
+          },
+          "applied": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Applied"
+          },
+          "decided": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Decided"
+          },
           "domain": {
             "anyOf": [
               {
@@ -6032,6 +6390,7 @@
                     "entity_is": "#/$defs/EntityIs",
                     "holds_office": "#/$defs/HoldsOffice",
                     "meter_at": "#/$defs/MeterAt",
+                    "ordered": "#/$defs/Ordered",
                     "quantity_at": "#/$defs/QuantityAt"
                   },
                   "propertyName": "check"
@@ -6057,6 +6416,9 @@
                   },
                   {
                     "$ref": "#/$defs/ActOf"
+                  },
+                  {
+                    "$ref": "#/$defs/Ordered"
                   },
                   {
                     "$ref": "#/$defs/QuantityAt"
@@ -6936,6 +7298,13 @@
             "title": "Veils",
             "type": "array"
           },
+          "wake_hours": {
+            "default": 12,
+            "maximum": 168,
+            "minimum": 1,
+            "title": "Wake Hours",
+            "type": "integer"
+          },
           "world_days_per_tick": {
             "default": 7,
             "minimum": 1,
@@ -7274,7 +7643,8 @@
           "pipelines",
           "resolve",
           "feeds",
-          "prose"
+          "prose",
+          "estimate"
         ],
         "title": "TickStage",
         "type": "string"
@@ -7305,6 +7675,92 @@
         ],
         "title": "TickStageCompleted",
         "type": "object"
+      },
+      "Trigger": {
+        "additionalProperties": false,
+        "description": "When a mandate template issues (spec \u00a78.5). Code reads it; no model does.",
+        "properties": {
+          "effect": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EffectKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "history": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "History"
+          },
+          "on": {
+            "$ref": "#/$defs/TriggerKind"
+          },
+          "op": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ge",
+                  "le"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Op"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Quantity"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Value"
+          }
+        },
+        "required": [
+          "on"
+        ],
+        "title": "Trigger",
+        "type": "object"
+      },
+      "TriggerKind": {
+        "enum": [
+          "history",
+          "quantity",
+          "act"
+        ],
+        "title": "TriggerKind",
+        "type": "string"
       },
       "TruthRef": {
         "additionalProperties": false,
@@ -7677,6 +8133,7 @@
             "document_issued": "#/$defs/DocumentIssued",
             "document_read": "#/$defs/DocumentRead",
             "document_written": "#/$defs/DocumentWritten",
+            "effects_applied": "#/$defs/EffectsApplied",
             "effects_estimated": "#/$defs/EffectsEstimated",
             "entity_created": "#/$defs/EntityCreated",
             "fact_asserted": "#/$defs/FactAsserted",
@@ -7688,6 +8145,7 @@
             "goal_proposed": "#/$defs/GoalProposed",
             "goal_set": "#/$defs/GoalSet",
             "goal_undone": "#/$defs/GoalUndone",
+            "influence_decided": "#/$defs/InfluenceDecided",
             "intent_filed": "#/$defs/IntentFiled",
             "intent_rejected": "#/$defs/IntentRejected",
             "mandate_issued": "#/$defs/MandateIssued",
@@ -7924,6 +8382,12 @@
             "$ref": "#/$defs/EffectsEstimated"
           },
           {
+            "$ref": "#/$defs/EffectsApplied"
+          },
+          {
+            "$ref": "#/$defs/InfluenceDecided"
+          },
+          {
             "$ref": "#/$defs/MandateIssued"
           },
           {
@@ -8076,6 +8540,7 @@
                   "entity_is": "#/$defs/EntityIs",
                   "holds_office": "#/$defs/HoldsOffice",
                   "meter_at": "#/$defs/MeterAt",
+                  "ordered": "#/$defs/Ordered",
                   "quantity_at": "#/$defs/QuantityAt"
                 },
                 "propertyName": "check"
@@ -8101,6 +8566,9 @@
                 },
                 {
                   "$ref": "#/$defs/ActOf"
+                },
+                {
+                  "$ref": "#/$defs/Ordered"
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
@@ -8186,6 +8654,7 @@
                   "entity_is": "#/$defs/EntityIs",
                   "holds_office": "#/$defs/HoldsOffice",
                   "meter_at": "#/$defs/MeterAt",
+                  "ordered": "#/$defs/Ordered",
                   "quantity_at": "#/$defs/QuantityAt"
                 },
                 "propertyName": "check"
@@ -8211,6 +8680,9 @@
                 },
                 {
                   "$ref": "#/$defs/ActOf"
+                },
+                {
+                  "$ref": "#/$defs/Ordered"
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
@@ -9480,6 +9952,17 @@
             "default": null,
             "title": "Bound For"
           },
+          "engagement": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Engagement"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "feature_id": {
             "title": "Feature Id",
             "type": "string"
@@ -9520,6 +10003,17 @@
             "minItems": 1,
             "title": "Places",
             "type": "array"
+          },
+          "posture": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Posture"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "side": {
             "anyOf": [
@@ -9696,6 +10190,7 @@
                 "entity_is": "#/$defs/EntityIs",
                 "holds_office": "#/$defs/HoldsOffice",
                 "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
                 "quantity_at": "#/$defs/QuantityAt"
               },
               "propertyName": "check"
@@ -9721,6 +10216,9 @@
               },
               {
                 "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
               },
               {
                 "$ref": "#/$defs/QuantityAt"
@@ -10117,6 +10615,7 @@
                 "entity_is": "#/$defs/EntityIs",
                 "holds_office": "#/$defs/HoldsOffice",
                 "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
                 "quantity_at": "#/$defs/QuantityAt"
               },
               "propertyName": "check"
@@ -10142,6 +10641,9 @@
               },
               {
                 "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
               },
               {
                 "$ref": "#/$defs/QuantityAt"
@@ -10234,6 +10736,120 @@
         ],
         "title": "MandateStatus",
         "type": "string"
+      },
+      "MandateTemplate": {
+        "additionalProperties": false,
+        "description": "A mandate before it is issued: code fills it in when its trigger fires, one\nmandate per seat embodying a person in ``to`` (spec \u00a78.5). Engine only.",
+        "properties": {
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_office": "#/$defs/HoldsOffice",
+                "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
+                "quantity_at": "#/$defs/QuantityAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "days": {
+            "maximum": 90,
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "issuer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Issuer"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/MandateKind"
+          },
+          "text": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "to": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "To",
+            "type": "array"
+          },
+          "trigger": {
+            "$ref": "#/$defs/Trigger"
+          }
+        },
+        "required": [
+          "key",
+          "kind",
+          "trigger",
+          "to",
+          "text",
+          "condition",
+          "days"
+        ],
+        "title": "MandateTemplate",
+        "type": "object"
       },
       "Meter": {
         "additionalProperties": false,
@@ -10387,6 +11003,17 @@
             "title": "Lever",
             "type": "string"
           },
+          "measure": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProposeMeasure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "order_id": {
             "title": "Order Id",
             "type": "string"
@@ -10421,6 +11048,17 @@
             "title": "Pipeline",
             "type": "string"
           },
+          "routed_from": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PartRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "status": {
             "$ref": "#/$defs/OrderStatus",
             "default": "moving"
@@ -10452,6 +11090,31 @@
         ],
         "title": "OrderStatus",
         "type": "string"
+      },
+      "Ordered": {
+        "additionalProperties": false,
+        "description": "A seat embodying ``person`` issued a routed order with a part of this effect\nkind (given, or estimated) whose effects have landed. Never met while no human\nholds ``person``: a mandate is the seat's own work (engine v2, spec \u00a78.5).",
+        "properties": {
+          "check": {
+            "const": "ordered",
+            "default": "ordered",
+            "title": "Check",
+            "type": "string"
+          },
+          "effect": {
+            "$ref": "#/$defs/EffectKind"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          }
+        },
+        "required": [
+          "person",
+          "effect"
+        ],
+        "title": "Ordered",
+        "type": "object"
       },
       "ParamKind": {
         "enum": [
@@ -10529,6 +11192,28 @@
           "kind"
         ],
         "title": "ParamSpec",
+        "type": "object"
+      },
+      "PartRef": {
+        "additionalProperties": false,
+        "description": "One part of one routed order: what a pipeline order carries (wave B).",
+        "properties": {
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "part": {
+            "maximum": 7,
+            "minimum": 0,
+            "title": "Part",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "order_id",
+          "part"
+        ],
+        "title": "PartRef",
         "type": "object"
       },
       "Persona": {
@@ -10898,6 +11583,44 @@
         "additionalProperties": false,
         "description": "The whole part. ``estimated`` never leaves the engine.",
         "properties": {
+          "accepted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Accepted"
+          },
+          "applied": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Applied"
+          },
+          "decided": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Decided"
+          },
           "domain": {
             "anyOf": [
               {
@@ -11137,6 +11860,7 @@
                     "entity_is": "#/$defs/EntityIs",
                     "holds_office": "#/$defs/HoldsOffice",
                     "meter_at": "#/$defs/MeterAt",
+                    "ordered": "#/$defs/Ordered",
                     "quantity_at": "#/$defs/QuantityAt"
                   },
                   "propertyName": "check"
@@ -11162,6 +11886,9 @@
                   },
                   {
                     "$ref": "#/$defs/ActOf"
+                  },
+                  {
+                    "$ref": "#/$defs/Ordered"
                   },
                   {
                     "$ref": "#/$defs/QuantityAt"
@@ -11728,6 +12455,13 @@
             "title": "Veils",
             "type": "array"
           },
+          "wake_hours": {
+            "default": 12,
+            "maximum": 168,
+            "minimum": 1,
+            "title": "Wake Hours",
+            "type": "integer"
+          },
           "world_days_per_tick": {
             "default": 7,
             "minimum": 1,
@@ -11940,6 +12674,92 @@
         ],
         "title": "StepOutcome",
         "type": "object"
+      },
+      "Trigger": {
+        "additionalProperties": false,
+        "description": "When a mandate template issues (spec \u00a78.5). Code reads it; no model does.",
+        "properties": {
+          "effect": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EffectKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "history": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "History"
+          },
+          "on": {
+            "$ref": "#/$defs/TriggerKind"
+          },
+          "op": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ge",
+                  "le"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Op"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Quantity"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Value"
+          }
+        },
+        "required": [
+          "on"
+        ],
+        "title": "Trigger",
+        "type": "object"
+      },
+      "TriggerKind": {
+        "enum": [
+          "history",
+          "quantity",
+          "act"
+        ],
+        "title": "TriggerKind",
+        "type": "string"
       },
       "TruthRef": {
         "additionalProperties": false,
@@ -12429,6 +13249,13 @@
         "title": "Styles",
         "type": "object"
       },
+      "templates": {
+        "additionalProperties": {
+          "$ref": "#/$defs/MandateTemplate"
+        },
+        "title": "Templates",
+        "type": "object"
+      },
       "tick": {
         "default": 0,
         "title": "Tick",
@@ -12536,6 +13363,7 @@
                   "entity_is": "#/$defs/EntityIs",
                   "holds_office": "#/$defs/HoldsOffice",
                   "meter_at": "#/$defs/MeterAt",
+                  "ordered": "#/$defs/Ordered",
                   "quantity_at": "#/$defs/QuantityAt"
                 },
                 "propertyName": "check"
@@ -12561,6 +13389,9 @@
                 },
                 {
                   "$ref": "#/$defs/ActOf"
+                },
+                {
+                  "$ref": "#/$defs/Ordered"
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
@@ -12646,6 +13477,7 @@
                   "entity_is": "#/$defs/EntityIs",
                   "holds_office": "#/$defs/HoldsOffice",
                   "meter_at": "#/$defs/MeterAt",
+                  "ordered": "#/$defs/Ordered",
                   "quantity_at": "#/$defs/QuantityAt"
                 },
                 "propertyName": "check"
@@ -12671,6 +13503,9 @@
                 },
                 {
                   "$ref": "#/$defs/ActOf"
+                },
+                {
+                  "$ref": "#/$defs/Ordered"
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
@@ -14026,6 +14861,7 @@
                 "entity_is": "#/$defs/EntityIs",
                 "holds_office": "#/$defs/HoldsOffice",
                 "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
                 "quantity_at": "#/$defs/QuantityAt"
               },
               "propertyName": "check"
@@ -14051,6 +14887,9 @@
               },
               {
                 "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
               },
               {
                 "$ref": "#/$defs/QuantityAt"
@@ -14422,6 +15261,7 @@
                 "entity_is": "#/$defs/EntityIs",
                 "holds_office": "#/$defs/HoldsOffice",
                 "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
                 "quantity_at": "#/$defs/QuantityAt"
               },
               "propertyName": "check"
@@ -14447,6 +15287,9 @@
               },
               {
                 "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
               },
               {
                 "$ref": "#/$defs/QuantityAt"
@@ -14692,6 +15535,17 @@
             "title": "Lever",
             "type": "string"
           },
+          "measure": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProposeMeasure"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "order_id": {
             "title": "Order Id",
             "type": "string"
@@ -14726,6 +15580,17 @@
             "title": "Pipeline",
             "type": "string"
           },
+          "routed_from": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PartRef"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "status": {
             "$ref": "#/$defs/OrderStatus",
             "default": "moving"
@@ -14757,6 +15622,31 @@
         ],
         "title": "OrderStatus",
         "type": "string"
+      },
+      "Ordered": {
+        "additionalProperties": false,
+        "description": "A seat embodying ``person`` issued a routed order with a part of this effect\nkind (given, or estimated) whose effects have landed. Never met while no human\nholds ``person``: a mandate is the seat's own work (engine v2, spec \u00a78.5).",
+        "properties": {
+          "check": {
+            "const": "ordered",
+            "default": "ordered",
+            "title": "Check",
+            "type": "string"
+          },
+          "effect": {
+            "$ref": "#/$defs/EffectKind"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          }
+        },
+        "required": [
+          "person",
+          "effect"
+        ],
+        "title": "Ordered",
+        "type": "object"
       },
       "ParamKind": {
         "enum": [
@@ -14836,10 +15726,70 @@
         "title": "ParamSpec",
         "type": "object"
       },
+      "PartRef": {
+        "additionalProperties": false,
+        "description": "One part of one routed order: what a pipeline order carries (wave B).",
+        "properties": {
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "part": {
+            "maximum": 7,
+            "minimum": 0,
+            "title": "Part",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "order_id",
+          "part"
+        ],
+        "title": "PartRef",
+        "type": "object"
+      },
       "PartView": {
         "additionalProperties": false,
         "description": "One part of a routed order, as its issuer knows it.",
         "properties": {
+          "accepted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Accepted"
+          },
+          "applied": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Applied"
+          },
+          "decided": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Decided"
+          },
           "domain": {
             "anyOf": [
               {
@@ -15352,6 +16302,7 @@
                     "entity_is": "#/$defs/EntityIs",
                     "holds_office": "#/$defs/HoldsOffice",
                     "meter_at": "#/$defs/MeterAt",
+                    "ordered": "#/$defs/Ordered",
                     "quantity_at": "#/$defs/QuantityAt"
                   },
                   "propertyName": "check"
@@ -15377,6 +16328,9 @@
                   },
                   {
                     "$ref": "#/$defs/ActOf"
+                  },
+                  {
+                    "$ref": "#/$defs/Ordered"
                   },
                   {
                     "$ref": "#/$defs/QuantityAt"
@@ -15805,6 +16759,13 @@
             },
             "title": "Veils",
             "type": "array"
+          },
+          "wake_hours": {
+            "default": 12,
+            "maximum": 168,
+            "minimum": 1,
+            "title": "Wake Hours",
+            "type": "integer"
           },
           "world_days_per_tick": {
             "default": 7,

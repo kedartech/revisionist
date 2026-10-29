@@ -26,6 +26,7 @@ from revisionist.core.goals import (
     HoldsOffice,
     Leaf,
     MeterAt,
+    Ordered,
     QuantityAt,
     WinCondition,
     leaves,
@@ -108,7 +109,7 @@ def _object(leaf: Leaf) -> str:
             return leaf.commitment
         case DispositionAt():
             return leaf.relationship
-        case ActOf():
+        case ActOf() | Ordered():
             return leaf.person
         case QuantityAt():
             return leaf.quantity
@@ -131,7 +132,7 @@ def domain(state: State, leaf: Leaf) -> str:
             return "a treaty"
         case DispositionAt():
             return "a relationship"
-        case ActOf():
+        case ActOf() | Ordered():
             return "an act"
         case QuantityAt():
             return "a figure"
@@ -165,6 +166,8 @@ def render(state: State, c: WinCondition, *, swap: tuple[str, str] | None = None
         case ActOf():
             what = f" ({c.lever})" if c.lever else ""
             return f"{name(c.person)} acts{what}"
+        case Ordered():
+            return f"{name(c.person)} orders {c.effect.value.replace('_', ' ')}"
         case QuantityAt():
             return f"{name(c.quantity)} {'at least' if c.op == 'ge' else 'at most'} {c.value}"
 
@@ -191,7 +194,7 @@ def _decoy(state: State, leaf: Leaf, seed: str) -> str | None:
             pool = sorted(m for m in state.meters if m != true)
         case DispositionAt():
             pool = sorted(r for r in state.relationships if r != true)
-        case CommitmentInForce() | ActOf() | QuantityAt():
+        case CommitmentInForce() | ActOf() | Ordered() | QuantityAt():
             pool = []
     if not pool:
         return None

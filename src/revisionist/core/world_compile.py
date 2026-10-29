@@ -13,6 +13,8 @@ have no card yet: ``compile_figure`` adds one person's card to a running campaig
 from collections.abc import Callable, Mapping, Sequence
 from itertools import pairwise
 
+from pydantic import ValidationError
+
 from revisionist.core import events as ev
 from revisionist.core import roster
 from revisionist.core.events import Event, Versions
@@ -74,6 +76,7 @@ from revisionist.core.ontology import (
     Seat,
     SeatKind,
 )
+from revisionist.core.realism.agenda import MandateKind, MandateTemplate, Trigger
 from revisionist.core.realism.card import Contact, Domain, Lever, ParamKind, Reach, SeatCard
 from revisionist.core.realism.document import Feed
 from revisionist.core.realism.geography import FORCES, Feature, Leg
@@ -88,6 +91,7 @@ from revisionist.core.world import (
     EntityDecl,
     GoalDecl,
     LeverDecl,
+    MandateDecl,
     ScopeDecl,
     ScopeSpec,
     WorldFile,
@@ -187,6 +191,7 @@ def _keyed(world: WorldFile) -> list[tuple[str, str]]:
     keyed += [("feature", d.key) for d in world.features]
     keyed += [("feed", d.key) for d in world.feeds]
     keyed += [("pipeline", d.key) for d in world.pipelines]
+    keyed += [("mandate", d.key) for d in world.mandates]
     return keyed
 
 
@@ -342,7 +347,15 @@ def _check_v3(world: WorldFile, sections: Mapping[str, str], problems: list[str]
 def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
     """Cards, feeds, pipelines, quantities and their citations (realism direction)."""
     if world.ruleset == "legacy":
-        for name in ("cards", "feeds", "pipelines", "quantities", "features", "sources"):
+        for name in (
+            "cards",
+            "feeds",
+            "pipelines",
+            "quantities",
+            "features",
+            "sources",
+            "mandates",
+        ):
             if getattr(world, name):
                 problems.append(f"{name}: only a realism world has {name}")
         return
@@ -409,6 +422,24 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
         problems.append(f"character {key}: a realism roster lists only playable cards")
     for key in sorted(playable - listed):
         problems.append(f"card {key}: playable, so it must be on the roster")
+    for m in world.mandates:
+        where = f"mandate {m.key}"
+        try:
+            Trigger.model_validate(m.trigger.model_dump())
+        except ValidationError as exc:
+            problems.append(f"{where}: {exc.errors()[0]['msg']}")
+        _ref(problems, where, m.trigger.history, "history", sections)
+        _ref(problems, where, m.trigger.quantity, "quantity", sections)
+        for key in m.to:
+            person(where, key)
+        _ref(problems, where, m.issuer, "entity", sections)
+        if (m.kind is MandateKind.ORDER) != (m.issuer is not None):
+            problems.append(f"{where}: an order, and only an order, has an issuer")
+        if depth(m.condition) > MAX_DEPTH or len(leaves(m.condition)) > MAX_PARTS:
+            problems.append(f"{where}: condition too large")
+        for leaf in leaves(m.condition):
+            for name, section in _CONDITION_REFS.items():
+                _ref(problems, where, getattr(leaf, name, None), section, sections)
 
 
 def _placed(world: WorldFile) -> set[str]:
@@ -900,7 +931,9 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
         for pl in world.pipelines
     )
     cards = tuple(_card(c, ids) for c in world.cards)
-    out.append((ev.CardsDeclared(cards=cards, feeds=feeds, pipelines=pipelines), PUBLIC))
+    templates = tuple(_template(m, ids) for m in world.mandates)
+    declared = ev.CardsDeclared(cards=cards, feeds=feeds, pipelines=pipelines, templates=templates)
+    out.append((declared, PUBLIC))
     return out
 
 
@@ -1043,6 +1076,27 @@ def _card(c: CardDecl, ids: Mapping[str, str]) -> SeatCard:
             chain=tuple(EntityId(ids[k]) for k in c.reach.chain),
             heads=c.reach.heads,
         ),
+    )
+
+
+def _template(m: MandateDecl, ids: Mapping[str, str]) -> MandateTemplate:
+    t = m.trigger
+    return MandateTemplate(
+        key=m.key,
+        kind=m.kind,
+        trigger=Trigger(
+            on=t.on,
+            history=_maybe(ids, t.history, ScheduledEventId),
+            quantity=_maybe(ids, t.quantity, QuantityId),
+            op=t.op,
+            value=t.value,
+            effect=t.effect,
+        ),
+        to=tuple(EntityId(ids[k]) for k in m.to),
+        issuer=_maybe(ids, m.issuer, EntityId),
+        text=m.text,
+        condition=_bind(m.condition, ids),
+        days=m.days,
     )
 
 

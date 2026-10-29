@@ -20,6 +20,7 @@ from pydantic import Field, model_validator
 
 from revisionist.core._base import Label, Model
 from revisionist.core.ids import EntityId, FeatureId
+from revisionist.core.realism.effect import Engagement, Posture
 
 
 class FeatureKind(StrEnum):
@@ -64,8 +65,12 @@ class Feature(Model):
     in_service: date | None = None
     """Engine v2: the day the capability enters service. An order that uses it
     before then is refused (spec §8.3). None: in service from the start."""
+    posture: Posture | None = None
+    """Engine v2: a force's posture, set by an applied order. None: as authored."""
+    engagement: Engagement | None = None
+    """Engine v2: a force's rules of engagement, set by an applied order. None: as authored."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"in_service"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"in_service", "posture", "engagement"})
 
     @model_validator(mode="after")
     def _shape(self) -> "Feature":

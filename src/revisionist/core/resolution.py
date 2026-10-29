@@ -54,6 +54,7 @@ class TickStage(StrEnum):
     RESOLVE = "resolve"
     FEEDS = "feeds"
     PROSE = "prose"
+    ESTIMATE = "estimate"
 
 
 LEGACY_STAGES: tuple[TickStage, ...] = (

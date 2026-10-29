@@ -38,6 +38,7 @@ from revisionist.core.ontology import (
     EntityKind,
     SeatKind,
 )
+from revisionist.core.realism.agenda import MandateKind, TriggerKind
 from revisionist.core.realism.card import ChannelKind, ParamSpec
 from revisionist.core.realism.document import Bias, Classification, DocumentKind
 from revisionist.core.realism.effect import EffectKind
@@ -436,6 +437,31 @@ class CardDecl(Model):
     reach: ReachDecl = ReachDecl()
 
 
+class TriggerDecl(Model):
+    """A mandate's trigger. ``history`` and ``quantity`` are keys."""
+
+    on: TriggerKind
+    history: Key | None = None
+    quantity: Key | None = None
+    op: Literal["ge", "le"] | None = None
+    value: int | None = None
+    effect: EffectKind | None = None
+
+
+class MandateDecl(Model):
+    """A mandate template (engine v2, spec §8.5). ``to`` and ``issuer`` are entity keys;
+    the condition names keys, like a goal's."""
+
+    key: Key
+    kind: MandateKind
+    trigger: TriggerDecl
+    to: tuple[Key, ...] = Field(min_length=1)
+    issuer: Key | None = None
+    text: str = Field(min_length=1, max_length=400)
+    condition: WinCondition
+    days: int = Field(ge=1, le=90)
+
+
 Slug = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_-]*$", max_length=40)]
 """A world's file name: lowercase, digits, underscores and hyphens."""
 
@@ -472,6 +498,8 @@ class WorldFile(Model):
     quantities: tuple[QuantityDecl, ...] = ()
     features: tuple[FeatureDecl, ...] = ()
     sources: tuple[SourceDecl, ...] = ()
+    mandates: tuple[MandateDecl, ...] = ()
+    """Engine v2: mandate templates. Realism only."""
 
 
 __all__ = [
@@ -494,6 +522,7 @@ __all__ = [
     "Key",
     "LegDecl",
     "LeverDecl",
+    "MandateDecl",
     "MeterDecl",
     "PipelineDecl",
     "QuantityDecl",
@@ -505,5 +534,6 @@ __all__ = [
     "Slug",
     "SourceDecl",
     "StepDecl",
+    "TriggerDecl",
     "WorldFile",
 ]

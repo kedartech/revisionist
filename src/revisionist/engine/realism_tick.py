@@ -1,10 +1,14 @@
 """The realism tick (plan, Phase 2 unit 2f): the event-driven advance, end to end.
 
-No model is called. Code walks the world from one wake to the next in four stages,
-each landed in the log as one atomic batch ending in ``tick_stage_completed``:
+Code walks the world from one wake to the next in stages, each landed in the log
+as one atomic batch ending in ``tick_stage_completed``:
 
+    ESTIMATE   engine v2: one estimator call per routed part no code rule covers,
+               each landed as its own batch, so a resumed tick never calls twice
     ADVANCE    the opening in-tray (first tick only), then ``date_advanced`` to the wake
-    PIPELINES  day by day: orders move, history fires or skips, resolvers compute
+    PIPELINES  day by day: orders move, history fires or skips, commands are carried
+               out, processes open, influence is decided, parts apply, resolvers
+               compute, feeds issue, then mandates settle and issue
     RESOLVE    goal changes, each private to the goal's owner
     FEEDS      any document still owed on the new today (the walk issues each feed
                on the day it falls due, so it waits in the in-tray until read)
@@ -12,9 +16,10 @@ each landed in the log as one atomic batch ending in ``tick_stage_completed``:
                closed, from the pages and the author's voice only (Phase 4)
 
 Resuming reads the tail of the log and continues from the first stage not marked
-complete, so a resumed run reaches the hash an uninterrupted one would. PROSE runs
-only when the caller passes a writer; a page whose prose is refused or whose call
-fails keeps its body lines, and the tick still closes. Delivery comes later;
+complete, so a resumed run reaches the hash an uninterrupted one would. ESTIMATE
+runs only when the caller passes an estimator, so a tick without one logs what it
+always did; PROSE runs only when the caller passes a writer; a page whose prose is
+refused or whose call fails keeps its body lines, and the tick still closes. Delivery comes later;
 ``TickResult.delivered`` is empty.
 """
 
@@ -36,6 +41,7 @@ from revisionist.core.ids import (
     derived_id,
 )
 from revisionist.core.ontology import Phase
+from revisionist.core.realism import apply, mandates, process
 from revisionist.core.realism.advance import Wake, next_wake
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import ParamKind, ParamSpec, ParamValue
@@ -57,8 +63,9 @@ from revisionist.core.visibility import PUBLIC, Scope, private_to
 from revisionist.engine import campaign as cmp
 from revisionist.engine import session_zero
 from revisionist.engine.emit import Emitter, tail
+from revisionist.engine.estimate import CALL_CLASS, estimate
 from revisionist.engine.ids import new_id
-from revisionist.engine.llm import TransportError
+from revisionist.engine.llm import Transport, TransportError
 from revisionist.engine.prose import ProseWriter, accepted, author_of, prose_prompt_version
 from revisionist.engine.store import EventStore, load_state
 from revisionist.engine.tick import NotInPlayError, TickResult
@@ -121,10 +128,12 @@ def run_realism_tick(
     versions: Versions | None = None,
     stop_after: TickStage | None = None,
     prose: ProseWriter | None = None,
+    estimator: Transport | None = None,
 ) -> RealismTickResult:
     """Run (or resume) one realism tick. Safe to call again after a crash at any point.
 
-    ``prose`` writes the pages; with none, the tick has no PROSE stage."""
+    ``prose`` writes the pages; with none, the tick has no PROSE stage. ``estimator``
+    rules on parts no code rule covers; with none, the tick has no ESTIMATE stage."""
     versions = versions or cmp.versions()
     state = load_state(store, campaign_id)
     if state.phase is not Phase.PLAY:
@@ -150,6 +159,13 @@ def run_realism_tick(
 
     if not log_tail.opened:
         em.commit([em.event(ev.TickOpened(intents_frozen=()))])
+
+    if estimator is not None and TickStage.ESTIMATE not in done:
+        _estimate(em, estimator)
+        em.commit([em.event(ev.TickStageCompleted(stage=TickStage.ESTIMATE))])
+        done.add(TickStage.ESTIMATE)
+        if stopped(TickStage.ESTIMATE):
+            return finish(TickStage.ESTIMATE)
 
     if TickStage.ADVANCE not in done:
         batch: list[Event] = []
@@ -212,6 +228,27 @@ def run_realism_tick(
     em.commit([em.event(ev.TickClosed(state_hash=digest, costs=tuple(costs)))])
     em.store.save_snapshot(em.state)
     return result.model_copy(update={"state_hash": digest})
+
+
+def _estimate(em: Emitter, transport: Transport) -> None:
+    """One ``effects_estimated`` per routed part with no typed effect and no ruling, in
+    (filed, order, part) order. Each lands with its cost as one batch, so a crash
+    loses at most the call in flight and a resumed tick skips what is ruled."""
+    todo = sorted(
+        (o.filed, o.order_id, i)
+        for o in em.state.routed.values()
+        for i, part in enumerate(o.parts)
+        if part.effect is None and not part.was_estimated
+    )
+    for _, order_id, part in todo:
+        ruled = estimate(em.state, order_id, part, transport)
+        issuer = em.state.routed[order_id].issuer
+        batch = [em.event(ruled.event, scope=private_to(issuer))]
+        if ruled.cost is not None:
+            # As ``campaign.log_cost`` records it, but inside the batch: the store
+            # cannot take a second writer while the emitter holds the sequence.
+            batch.append(em.event(ev.CostLogged(purpose=CALL_CLASS, costs=(ruled.cost,))))
+        em.commit(batch)
 
 
 def _prose(em: Emitter, writer: ProseWriter) -> tuple[list[Event], list[CallCost], list[str]]:
@@ -279,17 +316,22 @@ def _feed_documents(em: Emitter, today: date) -> list[Event]:
 def _scope_of(state: State, payload: ev.Payload) -> Scope:
     if isinstance(payload, ev.DocumentIssued):
         return payload.document.scope
-    if isinstance(payload, ev.OrderExecuted):
+    if isinstance(payload, ev.OrderExecuted | ev.EffectsApplied | ev.InfluenceDecided):
         return private_to(state.routed[payload.order_id].issuer)
-    return PUBLIC
+    if isinstance(payload, ev.MandateIssued):
+        return payload.mandate.scope
+    if isinstance(payload, ev.MandateSettled):
+        return private_to(state.mandates[payload.mandate_id].seat_id)
+    return PUBLIC  # an ``order_drafted`` too, as ``file_order`` lands it
 
 
 def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> list[Event]:
     """Every day from ``before`` + 1 to ``until``, earliest first. Each day: orders
-    move, history fires or skips what fell due (opinion reads fired incidents), the
+    move, history fires or skips what fell due (opinion reads fired incidents),
+    commands fall due, processes open, influence is decided, ready parts apply, the
     orders enacted that day are resolved, then what moves with time, then the feeds
-    that fall due issue, dated that day. Each step sees
-    the state after the ones before it."""
+    that fall due issue, dated that day, then mandates settle and issue. Each step
+    sees the state after the ones before it."""
     state = em.state
     out: list[Event] = []
 
@@ -310,6 +352,9 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(steps)
         add(history.settle(state, day))
         add(due_executions(state, day))
+        add(process.open_processes(state, day))
+        add(process.influence_due(state, day))
+        add(apply.apply_due(state, day))
         for step in steps:
             if isinstance(step, ev.OrderSettled) and step.status is OrderStatus.ENACTED:
                 order = state.orders[step.order_id]
@@ -324,6 +369,8 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
                 docs.append(em.event(doc, scope=doc.document.scope))
         state = replay(docs, initial=state) if docs else state
         out.extend(docs)
+        add(mandates.settle_due(state, day))
+        add(mandates.issue_due(state, day))
     return out
 
 

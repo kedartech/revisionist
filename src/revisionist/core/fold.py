@@ -384,6 +384,8 @@ def _mutate(state: State, event: Event) -> State:
             ev.OrderRouted()
             | ev.OrderExecuted()
             | ev.EffectsEstimated()
+            | ev.EffectsApplied()
+            | ev.InfluenceDecided()
             | ev.MandateIssued()
             | ev.MandateSettled()
             | ev.WakeOpened()
@@ -447,7 +449,20 @@ def _realism(state: State, p: ev.Payload) -> State:
                             f"card {c.person}: lever {lever.name} names another pipeline"
                         )
                 cards[c.person] = c
-            return state.model_copy(update={"cards": cards, "feeds": feeds, "pipelines": pipelines})
+            templates = dict(state.templates)
+            for t in p.templates:
+                _fresh(templates, t.key, "mandate template")
+                for entity in [*t.to, *([t.issuer] if t.issuer else [])]:
+                    _need(state.entities, entity, "entity")
+                templates[t.key] = t
+            return state.model_copy(
+                update={
+                    "cards": cards,
+                    "feeds": feeds,
+                    "pipelines": pipelines,
+                    "templates": templates,
+                }
+            )
         case ev.DocumentIssued():
             doc = Document(view=p.document, truth=p.truth)
             _fresh(state.documents, doc.view.doc_id, "document")
@@ -480,6 +495,16 @@ def _realism(state: State, p: ev.Payload) -> State:
             _need(state.pipelines, o.pipeline, "pipeline")
             if o.status is not OrderStatus.MOVING or o.step or o.outcomes:
                 raise FoldError(f"order {o.order_id} must start at its first step")
+            if o.routed_from is not None:
+                carried = o.routed_from
+                routed = _need(state.routed, carried.order_id, "order")
+                part = _part_at(routed, carried.part)
+                if part.route is not Route.PROCESS or part.pipeline != o.pipeline:
+                    raise FoldError(f"order {o.order_id}: part {carried.part} is not that process")
+                if any(x.routed_from == carried for x in state.orders.values()):
+                    raise FoldError(
+                        f"order {carried.order_id} part {carried.part} is already carried"
+                    )
             return state.model_copy(update={"orders": _put(state.orders, o.order_id, o)})
         case ev.OrderStepTaken():
             o = _need(state.orders, p.order_id, "order")
@@ -645,6 +670,37 @@ def _engine_v2(state: State, p: ev.Payload) -> State:
             part = part.model_copy(
                 update={"estimated": p.effects, "reason": p.reason, "was_estimated": True}
             )
+            return _with_part(state, o, p.part, part)
+        case ev.EffectsApplied():
+            o = _need(state.routed, p.order_id, "order")
+            part = _part_at(o, p.part)
+            where = f"order {o.order_id} part {p.part}"
+            if part.applied is not None:
+                raise FoldError(f"{where} is already applied")
+            # A refused command applies nothing, but its being applied closes it.
+            ready = (
+                (part.route is Route.COMMAND and part.executed is not None)
+                or part.was_estimated
+                or (part.route is Route.INFLUENCE and part.decided is not None)
+            )
+            if not ready:
+                raise FoldError(f"{where} is not ready to apply")
+            if p.on < o.filed:
+                raise FoldError(f"order {o.order_id} is applied before it is filed")
+            facts = dict(state.facts)
+            for fid in p.revealed:
+                fact = _need(facts, fid, "fact")
+                facts[fid] = fact.model_copy(update={"scope": PUBLIC})
+            state = state.model_copy(update={"facts": facts})
+            return _with_part(state, o, p.part, part.model_copy(update={"applied": p.on}))
+        case ev.InfluenceDecided():
+            o = _need(state.routed, p.order_id, "order")
+            part = _part_at(o, p.part)
+            if part.route is not Route.INFLUENCE:
+                raise FoldError(f"order {o.order_id} part {p.part} is not influence")
+            if part.decided is not None:
+                raise FoldError(f"order {o.order_id} part {p.part} is already decided")
+            part = part.model_copy(update={"decided": p.on, "accepted": p.accepted})
             return _with_part(state, o, p.part, part)
         case ev.MandateIssued():
             m = p.mandate

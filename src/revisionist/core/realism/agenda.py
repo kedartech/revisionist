@@ -8,13 +8,20 @@ orders, so picking one files exactly what a free player could have typed.
 
 from datetime import date
 from enum import StrEnum
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 from pydantic import Field, model_validator
 
-from revisionist.core._base import Model
+from revisionist.core._base import Label, Model
 from revisionist.core.goals import WinCondition
-from revisionist.core.ids import EntityId, MandateId, OrderId, SeatId
+from revisionist.core.ids import (
+    EntityId,
+    MandateId,
+    OrderId,
+    QuantityId,
+    ScheduledEventId,
+    SeatId,
+)
 from revisionist.core.realism.effect import Effect, EffectKind
 from revisionist.core.visibility import Scope
 
@@ -68,6 +75,66 @@ class Mandate(Model):
             raise ValueError(
                 f"mandate {self.mandate_id}: an order, and only an order, has an issuer"
             )
+        return self
+
+
+class TriggerKind(StrEnum):
+    HISTORY = "history"
+    """An item on history's clock fired."""
+    QUANTITY = "quantity"
+    """A quantity crossed a value."""
+    ACT = "act"
+    """The seat's own order part of an effect kind was applied."""
+
+
+_TRIGGER_FIELDS: dict[TriggerKind, frozenset[str]] = {
+    TriggerKind.HISTORY: frozenset({"history"}),
+    TriggerKind.QUANTITY: frozenset({"quantity", "op", "value"}),
+    TriggerKind.ACT: frozenset({"effect"}),
+}
+
+
+class Trigger(Model):
+    """When a mandate template issues (spec §8.5). Code reads it; no model does."""
+
+    on: TriggerKind
+    history: ScheduledEventId | None = None
+    quantity: QuantityId | None = None
+    op: Literal["ge", "le"] | None = None
+    value: int | None = None
+    effect: EffectKind | None = None
+
+    @model_validator(mode="after")
+    def _fields_for_kind(self) -> "Trigger":
+        fields = ("history", "quantity", "op", "value", "effect")
+        named = {f for f in fields if getattr(self, f) is not None}
+        if named != _TRIGGER_FIELDS[self.on]:
+            wanted = ", ".join(sorted(_TRIGGER_FIELDS[self.on]))
+            raise ValueError(f"a {self.on.value} trigger names exactly {wanted}")
+        return self
+
+
+class MandateTemplate(Model):
+    """A mandate before it is issued: code fills it in when its trigger fires, one
+    mandate per seat embodying a person in ``to`` (spec §8.5). Engine only."""
+
+    key: Label
+    kind: MandateKind
+    trigger: Trigger
+    to: tuple[EntityId, ...] = Field(min_length=1)
+    """The people whose seats receive it."""
+    issuer: EntityId | None = None
+    """Set exactly for an order, as on ``Mandate``."""
+    text: str = Field(min_length=1, max_length=400)
+    """The wording template. May hold ``{person}`` and ``{date}``."""
+    condition: WinCondition
+    days: int = Field(ge=1, le=90)
+    """Expiry, in in-world days after issue."""
+
+    @model_validator(mode="after")
+    def _issuer(self) -> "MandateTemplate":
+        if (self.kind is MandateKind.ORDER) != (self.issuer is not None):
+            raise ValueError(f"template {self.key}: an order, and only an order, has an issuer")
         return self
 
 
@@ -136,7 +203,10 @@ __all__ = [
     "Mandate",
     "MandateKind",
     "MandateStatus",
+    "MandateTemplate",
     "Offer",
     "Option",
     "PlayStyle",
+    "Trigger",
+    "TriggerKind",
 ]

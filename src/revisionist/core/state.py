@@ -54,7 +54,7 @@ from revisionist.core.ontology import (
     Seat,
     SeatKind,
 )
-from revisionist.core.realism.agenda import Mandate, PlayStyle
+from revisionist.core.realism.agenda import Mandate, MandateTemplate, PlayStyle
 from revisionist.core.realism.card import CardFace, Desk, SeatCard
 from revisionist.core.realism.document import Document, DocumentView, Feed
 from revisionist.core.realism.effect import EffectKind, RoutedOrder, RoutedOrderView
@@ -161,11 +161,14 @@ class State(_World):
     """Each seat's play style. Private to the seat; absent means free."""
     standing: dict[SeatId, frozenset[EffectKind]] = Field(default_factory=dict)
     """Irreversible kinds each seat lets its aide order while it is absent."""
+    templates: dict[str, MandateTemplate] = Field(default_factory=dict)
+    """Engine v2: mandate templates by key. Engine only; never in a view."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "routed",
         "styles",
         "standing",
+        "templates",
         "cards",
         "feeds",
         "pipelines",

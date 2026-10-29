@@ -8,12 +8,14 @@ Amendments are typed edits to the order's parameters, never free text.
 
 from datetime import date, timedelta
 from enum import StrEnum
+from typing import ClassVar
 
 from pydantic import Field, model_validator
 
 from revisionist.core._base import Label, Model
 from revisionist.core.ids import EntityId, OrderId, PipelineId, SeatId
 from revisionist.core.realism.card import ParamValue
+from revisionist.core.realism.effect import PartRef, ProposeMeasure
 
 
 class StepKind(StrEnum):
@@ -98,6 +100,12 @@ class Order(Model):
     """Index of the step the order is at. Equal to the step count once through."""
     filed: date
     outcomes: tuple[StepOutcome, ...] = ()
+    routed_from: PartRef | None = None
+    """Engine v2: the process part of a routed order this pipeline order carries."""
+    measure: ProposeMeasure | None = None
+    """Engine v2: the clauses it carries, for the votes resolver."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"routed_from", "measure"})
 
 
 def step_due(order: Order, pipeline: Pipeline) -> date | None:

@@ -12,8 +12,9 @@ Realism adds two outbound texts, documents and counsel, and one kind of
 secret: a canary on a document's ``truth_refs``, hidden from every seat,
 because truth never reaches a seat except as an estimate.
 
-Engine v2 adds three more outbound texts, each read by one seat: the
-estimator's reason (``effects_estimated``), a mandate's wording
+Engine v2 adds four more outbound texts, each read by one seat: the
+estimator's reason (``effects_estimated``), the reason a person gives for an
+influence decision (``influence_decided``), a mandate's wording
 (``mandate_issued``) and the options a seat is offered (``options_offered``).
 A canary on a mandate is a secret, as on a goal.
 """
@@ -69,6 +70,8 @@ def _outbound(state: State, p: ev.Payload) -> list[tuple[SeatId, str]]:
 def _own_text(state: State, p: ev.Payload) -> tuple[SeatId, str] | None:
     """Engine v2: the one seat that reads this payload, and the text it reads."""
     if isinstance(p, ev.EffectsEstimated) and p.order_id in state.routed:
+        return (state.routed[p.order_id].issuer, p.reason)
+    if isinstance(p, ev.InfluenceDecided) and p.order_id in state.routed:
         return (state.routed[p.order_id].issuer, p.reason)
     if isinstance(p, ev.MandateIssued):
         return (p.mandate.seat_id, p.mandate.text)

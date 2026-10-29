@@ -77,7 +77,12 @@ def play_tick(
             TemplateProseWriter() if offline else ClaudeProseWriter(transport_factory())
         )
         done = run_realism_tick(
-            store, campaign_id, versions=cmp.versions(), stop_after=stop_after, prose=writer
+            store,
+            campaign_id,
+            versions=cmp.versions(),
+            stop_after=stop_after,
+            prose=writer,
+            estimator=None if offline else transport_factory(),
         )
         for dropped in done.prose_dropped:
             warn(f"  no prose for {dropped}")

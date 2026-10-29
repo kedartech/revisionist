@@ -144,10 +144,19 @@ def estimator_prompt(state: State, order_id: OrderId, part: int) -> str:
 def clamp(
     state: State, order: RoutedOrder, effects: Sequence[Effect], on: date
 ) -> tuple[tuple[Effect, ...], tuple[str, ...]]:
-    """Code bounds on whatever the model proposed. Returns the survivors and a line per cut."""
+    """Code bounds on whatever the model proposed. Returns the survivors and a line per cut.
+
+    The disposition cap is per order (spec §8.3): what the order's other parts
+    already move, given or estimated, counts against it."""
     kept: list[Effect] = []
     dropped: list[str] = []
     moved: dict[tuple[EntityId, EntityId], int] = {}
+    for other in order.parts:
+        for given in (other.effect, *other.estimated):
+            if isinstance(given, ShiftDisposition):
+                pair = (given.of, given.toward)
+                total = moved.get(pair, 0) + given.change
+                moved[pair] = max(-DISPOSITION_CAP, min(DISPOSITION_CAP, total))
     for effect in effects:
         try:
             # The fold's own guard, so nothing lands that the fold would refuse.

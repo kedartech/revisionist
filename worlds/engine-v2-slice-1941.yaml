@@ -7,6 +7,10 @@
 # match autumn-1941.yaml as of 1 September 1941. Every figure is `gap: true`
 # unless the parent scenario cites it; domains and reach are design values
 # [proposed], not data.
+#
+# Wave B adds Churchill commanding the Home Fleet through Pound, two items on
+# history's clock and one mandate template of each kind. Their dates, weights,
+# expiries and wording are design values [proposed], not data.
 
 world: engine-v2-slice-1941
 name: Autumn 1941 (engine v2 slice)
@@ -25,11 +29,16 @@ entities:
   - {key: stark, kind: person, name: Harold R. Stark, parent: navy_dept}
   - {key: rayburn, kind: person, name: Sam Rayburn, parent: house}
   - {key: wheeler, kind: person, name: Burton K. Wheeler, parent: senate}
+  - {key: uk, kind: polity, name: United Kingdom}
+  - {key: commons, kind: org, name: House of Commons, parent: uk}
+  - {key: churchill, kind: person, name: Winston Churchill, parent: uk}
+  - {key: pound, kind: person, name: Sir Dudley Pound, parent: uk, tags: [First Sea Lord]}
   - {key: washington, kind: location, name: Washington, at: [38.9, -77.0]}
   - {key: norfolk, kind: location, name: Norfolk, at: [36.9, -76.3]}
   - {key: argentia, kind: location, name: Argentia, at: [47.3, -54.0]}
   - {key: reykjavik, kind: location, name: Reykjavik, at: [64.1, -21.9]}
   - {key: lorient, kind: location, name: Lorient, at: [47.7, -3.4]}
+  - {key: scapa_flow, kind: location, name: Scapa Flow, at: [58.9, -3.1]}
 
 sources:
   - key: congress_77th
@@ -43,6 +52,7 @@ quantities:
 features:
   - {key: us_atlantic_fleet, kind: fleet, name: US Atlantic Fleet, side: usa, tier: 4, places: [norfolk], gap: true}
   - {key: uboat_arm, kind: fleet, name: U-boat arm, side: germany, tier: 3, places: [lorient], gap: true}
+  - {key: home_fleet, kind: fleet, name: Home Fleet, side: uk, tier: 4, places: [scapa_flow], gap: true}
 
 feeds:
   - key: house_whip_count
@@ -132,6 +142,76 @@ cards:
     horizon_days: 7
     loyalty: -2
     reach: {rank: 2}
+  - person: churchill
+    office: Prime Minister of the United Kingdom
+    playable: true
+    principals: [commons]
+    powers: [direct the war as Minister of Defence]
+    inner_circle:
+      - {person: roosevelt, channel: cable}
+      - {person: pound, channel: in_person}
+    horizon_days: 7
+    authority:
+      - name: naval_operations
+        effects: [move_force, engagement]
+        executor: pound
+        forces: [home_fleet]
+        summary: "Orders to the Home Fleet, carried out by the First Sea Lord."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the House and the nation."
+    reach: {rank: 5, chain: [uk], heads: true}
+  - person: pound
+    office: First Sea Lord
+    principals: [churchill]
+    powers: [direct the Royal Navy's operations]
+    horizon_days: 7
+    loyalty: 2
+    reach: {rank: 3, chain: [uk]}
+
+schedule:
+  - key: greer_incident
+    name: "Greer and U-652 exchange fire (4 Sep)"
+    on_date: 1941-09-04
+    condition: {check: entity_is, entity: roosevelt, status: active}
+    weight: 2
+  - key: arms_window
+    name: Congress can take up arming merchant ships (20 Sep)
+    on_date: 1941-09-20
+    condition: {check: entity_is, entity: roosevelt, status: active}
+    weight: 1
+
+# "on" is quoted: YAML 1.1 reads a bare on as true.
+mandates:
+  - key: greer_response
+    kind: crisis
+    trigger: {"on": history, history: greer_incident}
+    to: [roosevelt]
+    condition: {check: ordered, person: roosevelt, effect: engagement}
+    days: 14
+    text: "After the Greer, set the Navy's rules in the western Atlantic."
+  - key: commons_convoys
+    kind: order
+    issuer: commons
+    trigger: {"on": history, history: greer_incident}
+    to: [churchill]
+    condition: {check: ordered, person: churchill, effect: move_force}
+    days: 10
+    text: "The House expects the Home Fleet placed to cover the convoys."
+  - key: shoot_outcry
+    kind: blowback
+    trigger: {"on": act, effect: engagement}
+    to: [roosevelt]
+    condition: {check: ordered, person: roosevelt, effect: statement}
+    days: 7
+    text: "Answer the outcry over the Navy's new orders."
+  - key: arms_bill
+    kind: opportunity
+    trigger: {"on": history, history: arms_window}
+    to: [roosevelt]
+    condition: {check: ordered, person: roosevelt, effect: measure}
+    days: 21
+    text: "Congress may now take up the arming of merchant ships."
 
 seats: []
 
@@ -143,4 +223,8 @@ roster:
   - entity: wheeler
     pitch: The Senate's loudest voice for staying out of the war.
     reach: His vote, his speeches, and the America First rallies.
+    composite: false
+  - entity: churchill
+    pitch: Prime Minister holding on until America comes in.
+    reach: The War Cabinet, the Chiefs of Staff, and cables to Roosevelt.
     composite: false

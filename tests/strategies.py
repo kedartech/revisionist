@@ -61,6 +61,7 @@ from revisionist.core.realism import agenda as ra
 from revisionist.core.realism import card as rc
 from revisionist.core.realism import document as rd
 from revisionist.core.realism import effect as rx
+from revisionist.core.realism import geography as rg
 from revisionist.core.realism import pipeline as rp
 from revisionist.core.realism.quantity import RESOLVER_KEYS, Quantity
 from revisionist.core.settings import Settings
@@ -114,6 +115,7 @@ settings = st.builds(
     tone=short_text,
     end_date=st.none() | in_world_dates,
     real_days=st.none() | st.integers(1, 365),
+    wake_hours=st.integers(1, 168),
 )
 
 entities = st.builds(
@@ -356,6 +358,7 @@ condition_leaves = st.one_of(
     st.builds(g.MeterAt, meter=meter_ids, op=ops, value=st.integers(-50, 150)),
     st.builds(g.CommitmentInForce, commitment=commitment_ids),
     st.builds(g.DispositionAt, relationship=relationship_ids, op=ops, value=st.integers(-5, 5)),
+    st.builds(g.Ordered, person=entity_ids, effect=st.sampled_from(list(rx.EffectKind))),
 )
 
 
@@ -568,6 +571,18 @@ def step_outcomes(draw: st.DrawFn) -> rp.StepOutcome:
     )
 
 
+part_refs = st.builds(rx.PartRef, order_id=order_ids, part=st.integers(0, 7))
+
+measures = st.builds(
+    rx.ProposeMeasure,
+    title=labels,
+    clauses=st.lists(
+        st.builds(rx.Clause, kind=st.just(rx.ClauseKind.POWER), subject=labels),
+        min_size=1,
+        max_size=3,
+    ).map(tuple),
+)
+
 orders = st.builds(
     rp.Order,
     order_id=order_ids,
@@ -579,6 +594,8 @@ orders = st.builds(
     step=st.integers(0, 12),
     filed=in_world_dates,
     outcomes=st.lists(step_outcomes(), max_size=3).map(tuple),
+    routed_from=st.none() | part_refs,
+    measure=st.none() | measures,
 )
 
 
@@ -643,6 +660,57 @@ quantities = st.builds(
     scope=st.none() | scopes(),
 )
 
+
+@st.composite
+def features(draw: st.DrawFn) -> rg.Feature:
+    kind = draw(st.sampled_from(list(rg.FeatureKind)))
+    force = kind in rg.FORCES
+    places = draw(st.lists(entity_ids, min_size=1 if force else 2, max_size=1 if force else 3))
+    moving = force and draw(st.booleans())
+    as_of = draw(in_world_dates)
+    return rg.Feature(
+        feature_id=draw(feature_ids),
+        kind=kind,
+        name=draw(labels),
+        side=draw(st.none() | entity_ids),
+        tier=draw(st.integers(0, 5)),
+        places=tuple(places),
+        as_of=as_of,
+        bound_for=draw(entity_ids) if moving else None,
+        arrives=as_of if moving else None,
+        in_service=draw(st.none() | in_world_dates),
+        posture=draw(st.none() | st.sampled_from(list(rx.Posture))) if force else None,
+        engagement=draw(st.none() | st.sampled_from(list(rx.Engagement))) if force else None,
+    )
+
+
+@st.composite
+def triggers(draw: st.DrawFn) -> ra.Trigger:
+    on = draw(st.sampled_from(list(ra.TriggerKind)))
+    if on is ra.TriggerKind.HISTORY:
+        return ra.Trigger(on=on, history=draw(scheduled_ids))
+    if on is ra.TriggerKind.QUANTITY:
+        return ra.Trigger(
+            on=on, quantity=draw(quantity_ids), op=draw(ops), value=draw(st.integers(-1000, 1000))
+        )
+    return ra.Trigger(on=on, effect=draw(st.sampled_from(list(rx.EffectKind))))
+
+
+@st.composite
+def mandate_templates(draw: st.DrawFn) -> ra.MandateTemplate:
+    kind = draw(st.sampled_from(list(ra.MandateKind)))
+    return ra.MandateTemplate(
+        key=draw(labels),
+        kind=kind,
+        trigger=draw(triggers()),
+        to=tuple(draw(st.lists(entity_ids, min_size=1, max_size=3))),
+        issuer=draw(entity_ids) if kind is ra.MandateKind.ORDER else None,
+        text=draw(short_text),
+        condition=draw(conditions),
+        days=draw(st.integers(1, 90)),
+    )
+
+
 realism_payloads = st.one_of(
     st.builds(ev.CampaignCreated, name=short_text, world=short_text, ruleset=st.just("realism")),
     st.builds(
@@ -650,7 +718,9 @@ realism_payloads = st.one_of(
         cards=st.lists(seat_cards, max_size=2).map(tuple),
         feeds=st.lists(feeds, max_size=2).map(tuple),
         pipelines=st.lists(pipelines, max_size=2).map(tuple),
+        templates=st.lists(mandate_templates(), max_size=2).map(tuple),
     ),
+    st.builds(ev.FeatureSet, feature=features()),
     documents_issued(),
     st.builds(ev.DocumentWritten, doc_id=document_ids, prose=st.text(min_size=1, max_size=400)),
     st.builds(ev.DocumentRead, seat_id=seat_ids, doc_id=document_ids),
@@ -756,6 +826,9 @@ def routed_parts(draw: st.DrawFn) -> rx.RoutedPart:
         fields["pipeline"] = draw(pipeline_ids)
     else:
         fields["target"] = draw(entity_ids)
+        if draw(st.booleans()):
+            fields |= {"decided": draw(in_world_dates), "accepted": draw(st.booleans())}
+    fields["applied"] = draw(st.none() | in_world_dates)
     fields["estimated"] = tuple(draw(st.lists(effects, max_size=2)))
     fields["reason"] = draw(st.text(max_size=100))
     return rx.RoutedPart.model_validate(fields)
@@ -845,12 +918,31 @@ def orders_executed(draw: st.DrawFn) -> ev.OrderExecuted:
     )
 
 
+effects_applied = st.builds(
+    ev.EffectsApplied,
+    order_id=order_ids,
+    part=st.integers(0, 7),
+    on=in_world_dates,
+    revealed=st.lists(fact_ids, max_size=3).map(tuple),
+)
+
+influence_decided = st.builds(
+    ev.InfluenceDecided,
+    order_id=order_ids,
+    part=st.integers(0, 7),
+    on=in_world_dates,
+    accepted=st.booleans(),
+    reason=st.text(max_size=100),
+)
+
 deadlines = st.datetimes(min_value=datetime(2020, 1, 1), max_value=datetime(2040, 1, 1))
 
 engine_v2_payloads = st.one_of(
     st.builds(ev.OrderRouted, order=routed_orders),
     orders_executed(),
     effects_estimated(),
+    effects_applied,
+    influence_decided,
     st.builds(ev.MandateIssued, mandate=mandates()),
     st.builds(
         ev.MandateSettled,
@@ -1037,4 +1129,6 @@ ALL_MODEL_STRATEGIES: dict[str, st.SearchStrategy[object]] = {
     "Mandate": cast(st.SearchStrategy[object], mandates()),
     "Offer": cast(st.SearchStrategy[object], offers),
     "Domain": cast(st.SearchStrategy[object], domains),
+    "Feature": cast(st.SearchStrategy[object], features()),
+    "MandateTemplate": cast(st.SearchStrategy[object], mandate_templates()),
 }

@@ -14,7 +14,8 @@ SessionZeroClosed, SeasonEnded, GoalSet, GoalProgressed, GoalMet, GoalUndone,
 TickOpened, TickClosed``, and for realism campaigns ``CardsDeclared,
 DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, QuantitySet,
 FeatureSet``, and under engine v2 ``OrderRouted, OrderExecuted, EffectsEstimated,
-MandateIssued, MandateSettled, WakeOpened, WakeCommitted, WakeClosed, PlayStyleSet``.
+EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
+WakeCommitted, WakeClosed, PlayStyleSet``.
 
 Every other kind is a record: it is replayable, searchable and shown by
 ``/why``, but changes no state.
@@ -36,6 +37,7 @@ from revisionist.core.ids import (
     DocumentId,
     EntityId,
     EventId,
+    FactId,
     GoalId,
     IntentId,
     MandateId,
@@ -59,7 +61,13 @@ from revisionist.core.ontology import (
     Seat,
     SeatStatus,
 )
-from revisionist.core.realism.agenda import Mandate, MandateStatus, Offer, PlayStyle
+from revisionist.core.realism.agenda import (
+    Mandate,
+    MandateStatus,
+    MandateTemplate,
+    Offer,
+    PlayStyle,
+)
 from revisionist.core.realism.card import ChannelKind, ParamValue, SeatCard
 from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
 from revisionist.core.realism.effect import Effect, EffectKind, Fidelity, RoutedOrder
@@ -504,6 +512,10 @@ class CardsDeclared(Model):
     cards: tuple[SeatCard, ...] = ()
     feeds: tuple[Feed, ...] = ()
     pipelines: tuple[Pipeline, ...] = ()
+    templates: tuple[MandateTemplate, ...] = ()
+    """Engine v2: the mandates the world issues when their triggers fire."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"templates"})
 
 
 class DocumentIssued(Model):
@@ -658,6 +670,30 @@ class EffectsEstimated(Model):
         if not self.failed and not self.reason:
             raise ValueError("an estimate states its reason")
         return self
+
+
+class EffectsApplied(Model):
+    """A part's effects landed in the world (spec §8.2-8.3): an executed command, an
+    estimate, or a decided influence. A refusal applies nothing but still closes the
+    part. ``revealed`` facts become public. Scoped to the issuer."""
+
+    kind: Literal["effects_applied"] = "effects_applied"
+    order_id: OrderId
+    part: int = Field(ge=0, le=7)
+    on: date
+    revealed: tuple[FactId, ...] = ()
+
+
+class InfluenceDecided(Model):
+    """The person an influence part was aimed at decided, under their card's policy
+    (spec §8.2). ``reason`` is read by the issuer and leak-scanned. Scoped to the issuer."""
+
+    kind: Literal["influence_decided"] = "influence_decided"
+    order_id: OrderId
+    part: int = Field(ge=0, le=7)
+    on: date
+    accepted: bool
+    reason: str = Field(default="", max_length=300)
 
 
 class MandateIssued(Model):
@@ -819,6 +855,8 @@ Payload = Annotated[
     | OrderRouted
     | OrderExecuted
     | EffectsEstimated
+    | EffectsApplied
+    | InfluenceDecided
     | MandateIssued
     | MandateSettled
     | WakeOpened
@@ -877,6 +915,8 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "order_routed",
         "order_executed",
         "effects_estimated",
+        "effects_applied",
+        "influence_decided",
         "mandate_issued",
         "mandate_settled",
         "wake_opened",

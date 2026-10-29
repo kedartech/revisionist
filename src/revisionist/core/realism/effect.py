@@ -15,7 +15,7 @@ vocabulary, inside the bounds the types set here (a disposition moves at most
 
 from datetime import date
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, ClassVar, Literal
 
 from pydantic import Field, model_validator
 
@@ -215,6 +215,13 @@ REFUSAL_LOYALTY = -4
 """At or below this loyalty an executor may refuse a lawful command (spec §8.2)."""
 
 
+class PartRef(Model):
+    """One part of one routed order: what a pipeline order carries (wave B)."""
+
+    order_id: OrderId
+    part: int = Field(ge=0, le=7)
+
+
 class PartView(Model):
     """One part of a routed order, as its issuer knows it."""
 
@@ -236,6 +243,14 @@ class PartView(Model):
     """The stated rule an executor refused under. Empty unless refused."""
     executed: date | None = None
     """The day the executor carried it out or refused it."""
+    decided: date | None = None
+    """Influence: the day the target decided (``influence_decided``)."""
+    accepted: bool | None = None
+    """Influence: whether the target went along. Set with ``decided``."""
+    applied: date | None = None
+    """The day the part's effects landed in the world (``effects_applied``)."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"decided", "accepted", "applied"})
 
     @model_validator(mode="after")
     def _route_fields(self) -> "PartView":
@@ -257,6 +272,10 @@ class PartView(Model):
             raise ValueError("a part is carried out or refused, not both")
         if done != (self.executed is not None):
             raise ValueError("an executed part, and only one, has its date")
+        if (self.decided is None) != (self.accepted is None):
+            raise ValueError("an influence part is decided and accepted together")
+        if self.decided is not None and self.route is not Route.INFLUENCE:
+            raise ValueError("only an influence part is decided")
         return self
 
 
@@ -343,6 +362,7 @@ __all__ = [
     "Investigate",
     "MakeStatement",
     "MoveForce",
+    "PartRef",
     "PartView",
     "Posture",
     "ProposeMeasure",

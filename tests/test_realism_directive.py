@@ -202,7 +202,9 @@ def test_signing_checks_everything_again() -> None:
 
 def seat_person(store: EventStore) -> EntityId:
     state = load_state(store, CAMPAIGN)
-    reach = {c.person for c in state.cards[state.seats[roosevelt_seat(store)].embodies].contacts}
+    reach = {
+        c.person for c in state.cards[state.seats[roosevelt_seat(store)].embodies].inner_circle
+    }
     return next(e for e in state.cards if e not in reach)
 
 

@@ -1,0 +1,146 @@
+# Contract-proof slice for engine v2 (remediation plan, Phase 1).
+#
+# Four people from autumn-1941.yaml, cut down to what the authority model
+# needs: Roosevelt commands the Atlantic Fleet through Stark (a command, no
+# approval chain); a bill still goes through Rayburn (a process); Wheeler
+# holds a vote Roosevelt can only try to move (influence). Offices and keys
+# match autumn-1941.yaml as of 1 September 1941. Every figure is `gap: true`
+# unless the parent scenario cites it; domains and reach are design values
+# [proposed], not data.
+
+world: engine-v2-slice-1941
+name: Autumn 1941 (engine v2 slice)
+ruleset: realism
+start: "Washington, September 1941"
+start_date: 1941-09-01
+
+entities:
+  - {key: usa, kind: polity, name: United States}
+  - {key: germany, kind: polity, name: Germany}
+  - {key: house, kind: org, name: House of Representatives, parent: usa}
+  - {key: senate, kind: org, name: Senate, parent: usa}
+  - {key: navy_dept, kind: org, name: Navy Department, parent: usa}
+  - {key: roosevelt, kind: person, name: Franklin D. Roosevelt, parent: usa}
+  - {key: wallace, kind: person, name: Henry A. Wallace, parent: usa}
+  - {key: stark, kind: person, name: Harold R. Stark, parent: navy_dept}
+  - {key: rayburn, kind: person, name: Sam Rayburn, parent: house}
+  - {key: wheeler, kind: person, name: Burton K. Wheeler, parent: senate}
+  - {key: washington, kind: location, name: Washington, at: [38.9, -77.0]}
+  - {key: norfolk, kind: location, name: Norfolk, at: [36.9, -76.3]}
+  - {key: argentia, kind: location, name: Argentia, at: [47.3, -54.0]}
+  - {key: reykjavik, kind: location, name: Reykjavik, at: [64.1, -21.9]}
+  - {key: lorient, kind: location, name: Lorient, at: [47.7, -3.4]}
+
+sources:
+  - key: congress_77th
+    title: Party division at the start of the 77th Congress (Clerk of the House)
+    note: "As in autumn-1941.yaml. Counted at Jan 1941, not 1 Sep."
+
+quantities:
+  - {key: house_democrats, owner: house, name: House Democrats, value: 267, unit: seats, source: congress_77th, public: true}
+  - {key: house_republicans, owner: house, name: House Republicans, value: 162, unit: seats, source: congress_77th, public: true}
+
+features:
+  - {key: us_atlantic_fleet, kind: fleet, name: US Atlantic Fleet, side: usa, tier: 4, places: [norfolk], gap: true}
+  - {key: uboat_arm, kind: fleet, name: U-boat arm, side: germany, tier: 3, places: [lorient], gap: true}
+
+feeds:
+  - key: house_whip_count
+    name: The Speaker's count
+    author: rayburn
+    kind: whip_count
+    channel: telephone
+    reports: [house_democrats, house_republicans]
+    every_days: 7
+    latency_days: 0
+    gap: true
+
+pipelines:
+  - key: bill_through_congress
+    name: A bill through Congress
+    gap: true
+    steps:
+      - {person: rayburn, kind: decision, days: 8, allowed: [pass, expedite, stall, amend, refuse, leak]}
+      - {person: roosevelt, kind: decision, days: 10, allowed: [pass, refuse]}
+
+cards:
+  - person: roosevelt
+    office: President of the United States
+    playable: true
+    principals: [usa]
+    powers:
+      - Commander in Chief of the Army and Navy
+      - sign or veto bills
+      - issue executive orders
+    levers:
+      - name: send_bill
+        pipeline: bill_through_congress
+        resolver: votes
+        label: "Send a bill to Congress"
+        params:
+          - {name: bill, kind: enum, choices: [neutrality_revision], label: "Which bill", choice_labels: ["Revise the Neutrality Act"]}
+    inner_circle:
+      - {person: stark, channel: in_person}
+      - {person: rayburn, channel: telephone}
+    feeds: [house_whip_count]
+    pipelines: [bill_through_congress]
+    constraints:
+      - Congress alone declares war
+      - Congress holds appropriations
+    successor: wallace
+    horizon_days: 14
+    authority:
+      - name: naval_operations
+        effects: [move_force, engagement]
+        executor: stark
+        forces: [us_atlantic_fleet]
+        summary: "Orders to the fleet, carried out by the Chief of Naval Operations."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the nation, by radio or to the press."
+    reach: {rank: 5, chain: [usa], heads: true}
+  - person: stark
+    office: Chief of Naval Operations
+    principals: [roosevelt]
+    powers: [direct the operating forces under the President]
+    inner_circle:
+      - {person: roosevelt, channel: in_person}
+    horizon_days: 7
+    loyalty: 2
+    authority:
+      - name: fleet_dispositions
+        effects: [move_force]
+        forces: [us_atlantic_fleet]
+        summary: "Dispose the operating forces within the President's orders."
+    reach: {rank: 3, chain: [navy_dept]}
+  - person: rayburn
+    office: Speaker of the House of Representatives
+    principals: [house]
+    powers: [recognise members on the floor, refer bills to committee]
+    inner_circle:
+      - {person: roosevelt, channel: telephone}
+    feeds: [house_whip_count]
+    pipelines: [bill_through_congress]
+    horizon_days: 7
+    reach: {rank: 4, chain: [house]}
+  - person: wheeler
+    office: Senator for Montana
+    playable: true
+    principals: [senate]
+    powers: [vote and speak in the Senate]
+    interests: [keep the United States out of the war]
+    horizon_days: 7
+    loyalty: -2
+    reach: {rank: 2}
+
+seats: []
+
+roster:
+  - entity: roosevelt
+    pitch: Third-term President steering a neutral nation toward the Allies.
+    reach: The Navy, the radio, and what Congress will pass.
+    composite: false
+  - entity: wheeler
+    pitch: The Senate's loudest voice for staying out of the war.
+    reach: His vote, his speeches, and the America First rallies.
+    composite: false

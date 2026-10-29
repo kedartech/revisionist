@@ -449,7 +449,7 @@ def directives(game: Realism) -> list[ev.Event]:
 
 def test_contacts_carry_the_channels_a_directive_can_take(solo: tuple[Realism, Client]) -> None:
     _, ada = solo
-    contacts = {c["person"]: c["channels"] for c in realism_of(ada)["desk"]["contacts"]}
+    contacts = {c["person"]: c["channels"] for c in realism_of(ada)["desk"]["inner_circle"]}
     assert contacts == {"Bram Tull": ["letter"], "Cora Senn": ["in_person", "letter"]}
 
 
@@ -573,7 +573,7 @@ def make_host(game: Realism, client: Client) -> None:
 
 def test_contacts_carry_the_title_on_their_public_card_face(solo: tuple[Realism, Client]) -> None:
     _, ada = solo
-    titles = {c["person"]: c["title"] for c in realism_of(ada)["desk"]["contacts"]}
+    titles = {c["person"]: c["title"] for c in realism_of(ada)["desk"]["inner_circle"]}
     assert titles == {"Bram Tull": "Speaker of the Council", "Cora Senn": "Clerk of the Council"}
 
 

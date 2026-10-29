@@ -129,8 +129,8 @@ export function desk(d, opts = {}) {
         ? h('ul', { class: 'rl-instruments', role: 'list' }, d.levers.map((l) => instrument(l, opts)))
         : h('p', { class: 'rl-none' }, 'None at your disposal.')),
     h('section', { class: 'rl-desk-block' }, h('h3', {}, 'Your staff and contacts'),
-      d.contacts.length
-        ? h('ul', { class: 'rl-contacts', role: 'list' }, d.contacts.map((c) => h('li', {},
+      d.inner_circle.length
+        ? h('ul', { class: 'rl-contacts', role: 'list' }, d.inner_circle.map((c) => h('li', {},
           CHANNEL_ICON[c.channel] ? icon(CHANNEL_ICON[c.channel]) : null,
           personName(c), h('span', { class: 'rl-via' }, channelWord(c.channel)))))
         : h('p', { class: 'rl-none' }, 'No one is within reach.')));

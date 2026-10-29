@@ -195,6 +195,45 @@
         "title": "AllOf",
         "type": "object"
       },
+      "Allocate": {
+        "additionalProperties": false,
+        "description": "Money or materiel to a recipient.",
+        "properties": {
+          "amount": {
+            "minimum": 0,
+            "title": "Amount",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "allocate",
+            "default": "allocate",
+            "title": "Kind",
+            "type": "string"
+          },
+          "recipient": {
+            "title": "Recipient",
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 60,
+            "title": "Unit",
+            "type": "string"
+          },
+          "what": {
+            "maxLength": 60,
+            "title": "What",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient",
+          "what",
+          "amount",
+          "unit"
+        ],
+        "title": "Allocate",
+        "type": "object"
+      },
       "AnyOf": {
         "additionalProperties": false,
         "properties": {
@@ -264,6 +303,112 @@
           "conditions"
         ],
         "title": "AnyOf",
+        "type": "object"
+      },
+      "Appointment": {
+        "additionalProperties": false,
+        "properties": {
+          "appoint": {
+            "default": true,
+            "title": "Appoint",
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "appointment",
+            "default": "appointment",
+            "title": "Kind",
+            "type": "string"
+          },
+          "office": {
+            "maxLength": 60,
+            "title": "Office",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          }
+        },
+        "required": [
+          "person",
+          "office"
+        ],
+        "title": "Appointment",
+        "type": "object"
+      },
+      "Ask": {
+        "additionalProperties": false,
+        "description": "One part of an order before it is routed: what the seat wants, in short words,\nand the typed effect where the reader found one.",
+        "properties": {
+          "ask": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Ask",
+            "type": "string"
+          },
+          "effect": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "allocate": "#/$defs/Allocate",
+                    "appointment": "#/$defs/Appointment",
+                    "deal": "#/$defs/Deal",
+                    "disclosure": "#/$defs/Disclosure",
+                    "disposition": "#/$defs/ShiftDisposition",
+                    "engagement": "#/$defs/SetEngagement",
+                    "investigate": "#/$defs/Investigate",
+                    "measure": "#/$defs/ProposeMeasure",
+                    "move_force": "#/$defs/MoveForce",
+                    "statement": "#/$defs/MakeStatement"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/MoveForce"
+                  },
+                  {
+                    "$ref": "#/$defs/SetEngagement"
+                  },
+                  {
+                    "$ref": "#/$defs/Allocate"
+                  },
+                  {
+                    "$ref": "#/$defs/Appointment"
+                  },
+                  {
+                    "$ref": "#/$defs/ProposeMeasure"
+                  },
+                  {
+                    "$ref": "#/$defs/MakeStatement"
+                  },
+                  {
+                    "$ref": "#/$defs/Investigate"
+                  },
+                  {
+                    "$ref": "#/$defs/Deal"
+                  },
+                  {
+                    "$ref": "#/$defs/ShiftDisposition"
+                  },
+                  {
+                    "$ref": "#/$defs/Disclosure"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Effect"
+          }
+        },
+        "required": [
+          "ask"
+        ],
+        "title": "Ask",
         "type": "object"
       },
       "Asset": {
@@ -971,86 +1116,6 @@
         "title": "Classification",
         "type": "string"
       },
-      "Clause": {
-        "additionalProperties": false,
-        "properties": {
-          "amount": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Amount"
-          },
-          "asset": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Asset"
-          },
-          "beneficiary": {
-            "title": "Beneficiary",
-            "type": "string"
-          },
-          "kind": {
-            "$ref": "#/$defs/ClauseKind"
-          },
-          "party": {
-            "title": "Party",
-            "type": "string"
-          },
-          "until_tick": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Until Tick"
-          },
-          "verb": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/Verb"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null
-          }
-        },
-        "required": [
-          "kind",
-          "party",
-          "beneficiary"
-        ],
-        "title": "Clause",
-        "type": "object"
-      },
-      "ClauseKind": {
-        "enum": [
-          "transfer",
-          "abstain",
-          "support",
-          "payment"
-        ],
-        "title": "ClauseKind",
-        "type": "string"
-      },
       "Clock": {
         "additionalProperties": false,
         "properties": {
@@ -1419,7 +1484,7 @@
         "properties": {
           "clauses": {
             "items": {
-              "$ref": "#/$defs/Clause"
+              "$ref": "#/$defs/revisionist__core__ontology__Clause"
             },
             "title": "Clauses",
             "type": "array"
@@ -1458,7 +1523,7 @@
         "properties": {
           "clauses": {
             "items": {
-              "$ref": "#/$defs/Clause"
+              "$ref": "#/$defs/revisionist__core__ontology__Clause"
             },
             "maxItems": 6,
             "minItems": 1,
@@ -1601,7 +1666,7 @@
       },
       "Contact": {
         "additionalProperties": false,
-        "description": "A person this one can consult, and how the words travel.",
+        "description": "A person in the inner circle, and how the words travel.",
         "properties": {
           "channel": {
             "$ref": "#/$defs/ChannelKind"
@@ -1934,6 +1999,52 @@
         "title": "DateAdvanced",
         "type": "object"
       },
+      "Deal": {
+        "additionalProperties": false,
+        "description": "Offer a deal, or accept one.",
+        "properties": {
+          "accept": {
+            "default": false,
+            "title": "Accept",
+            "type": "boolean"
+          },
+          "ask": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Ask",
+            "type": "array"
+          },
+          "counterparty": {
+            "title": "Counterparty",
+            "type": "string"
+          },
+          "kind": {
+            "const": "deal",
+            "default": "deal",
+            "title": "Kind",
+            "type": "string"
+          },
+          "offer": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Offer",
+            "type": "array"
+          }
+        },
+        "required": [
+          "counterparty"
+        ],
+        "title": "Deal",
+        "type": "object"
+      },
       "DeltaApplied": {
         "additionalProperties": false,
         "properties": {
@@ -2250,6 +2361,32 @@
           "lever"
         ],
         "title": "DirectiveGiven",
+        "type": "object"
+      },
+      "Disclosure": {
+        "additionalProperties": false,
+        "description": "Reveal a fact to the public, or conceal it.",
+        "properties": {
+          "fact": {
+            "title": "Fact",
+            "type": "string"
+          },
+          "kind": {
+            "const": "disclosure",
+            "default": "disclosure",
+            "title": "Kind",
+            "type": "string"
+          },
+          "reveal": {
+            "default": true,
+            "title": "Reveal",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "fact"
+        ],
+        "title": "Disclosure",
         "type": "object"
       },
       "DispositionAt": {
@@ -2604,6 +2741,184 @@
         ],
         "title": "DocumentWritten",
         "type": "object"
+      },
+      "Domain": {
+        "additionalProperties": false,
+        "description": "One field the office commands outright (spec \u00a78.1).",
+        "properties": {
+          "effects": {
+            "items": {
+              "$ref": "#/$defs/EffectKind"
+            },
+            "minItems": 1,
+            "title": "Effects",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "executor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Executor"
+          },
+          "forces": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Forces",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "summary": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "effects"
+        ],
+        "title": "Domain",
+        "type": "object"
+      },
+      "EffectKind": {
+        "enum": [
+          "move_force",
+          "engagement",
+          "allocate",
+          "appointment",
+          "measure",
+          "statement",
+          "investigate",
+          "deal",
+          "disposition",
+          "disclosure"
+        ],
+        "title": "EffectKind",
+        "type": "string"
+      },
+      "EffectsEstimated": {
+        "additionalProperties": false,
+        "description": "The estimator's ruling on one part no code rule covers (spec \u00a78.3).\n\nThe effects are engine-only; ``reason`` is the issuer's, written from its view\nand leak-scanned. ``rationale`` is sealed for the end-of-game reveal. A replay\nreads this event and never calls the model. ``failed``: the model gave nothing\nusable, the part stays unresolved, and the paper says so.",
+        "properties": {
+          "effects": {
+            "default": [],
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "allocate": "#/$defs/Allocate",
+                  "appointment": "#/$defs/Appointment",
+                  "deal": "#/$defs/Deal",
+                  "disclosure": "#/$defs/Disclosure",
+                  "disposition": "#/$defs/ShiftDisposition",
+                  "engagement": "#/$defs/SetEngagement",
+                  "investigate": "#/$defs/Investigate",
+                  "measure": "#/$defs/ProposeMeasure",
+                  "move_force": "#/$defs/MoveForce",
+                  "statement": "#/$defs/MakeStatement"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/MoveForce"
+                },
+                {
+                  "$ref": "#/$defs/SetEngagement"
+                },
+                {
+                  "$ref": "#/$defs/Allocate"
+                },
+                {
+                  "$ref": "#/$defs/Appointment"
+                },
+                {
+                  "$ref": "#/$defs/ProposeMeasure"
+                },
+                {
+                  "$ref": "#/$defs/MakeStatement"
+                },
+                {
+                  "$ref": "#/$defs/Investigate"
+                },
+                {
+                  "$ref": "#/$defs/Deal"
+                },
+                {
+                  "$ref": "#/$defs/ShiftDisposition"
+                },
+                {
+                  "$ref": "#/$defs/Disclosure"
+                }
+              ]
+            },
+            "maxItems": 8,
+            "title": "Effects",
+            "type": "array"
+          },
+          "failed": {
+            "default": false,
+            "title": "Failed",
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "effects_estimated",
+            "default": "effects_estimated",
+            "title": "Kind",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "part": {
+            "maximum": 7,
+            "minimum": 0,
+            "title": "Part",
+            "type": "integer"
+          },
+          "rationale": {
+            "default": "",
+            "maxLength": 2000,
+            "title": "Rationale",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 600,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "part"
+        ],
+        "title": "EffectsEstimated",
+        "type": "object"
+      },
+      "Engagement": {
+        "enum": [
+          "hold_fire",
+          "defend",
+          "escort",
+          "shoot_on_sight"
+        ],
+        "title": "Engagement",
+        "type": "string"
       },
       "Entity": {
         "additionalProperties": false,
@@ -3201,6 +3516,17 @@
         "title": "Feed",
         "type": "object"
       },
+      "Fidelity": {
+        "description": "How an executor carried out a command (spec \u00a78.2).",
+        "enum": [
+          "full",
+          "loose",
+          "slow",
+          "partial"
+        ],
+        "title": "Fidelity",
+        "type": "string"
+      },
       "Goal": {
         "additionalProperties": false,
         "description": "One player seat's secret goal. Private to its owner (decision 37).",
@@ -3750,6 +4076,32 @@
         "title": "IntentRejected",
         "type": "object"
       },
+      "Investigate": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "investigate",
+            "default": "investigate",
+            "title": "Kind",
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 60,
+            "title": "Question",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "question"
+        ],
+        "title": "Investigate",
+        "type": "object"
+      },
       "KnowledgeGrant": {
         "additionalProperties": false,
         "description": "Widen who knows an existing fact, asset or clock.\n\nDiscovery, leaks, exposure rolls and ``reveal()`` all emit this. Nothing\nelse in the engine knows about reveals.",
@@ -3882,6 +4234,240 @@
         ],
         "title": "Lever",
         "type": "object"
+      },
+      "MakeStatement": {
+        "additionalProperties": false,
+        "properties": {
+          "audience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Audience"
+          },
+          "kind": {
+            "const": "statement",
+            "default": "statement",
+            "title": "Kind",
+            "type": "string"
+          },
+          "theme": {
+            "maxLength": 60,
+            "title": "Theme",
+            "type": "string"
+          }
+        },
+        "required": [
+          "theme"
+        ],
+        "title": "MakeStatement",
+        "type": "object"
+      },
+      "Mandate": {
+        "additionalProperties": false,
+        "properties": {
+          "canary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Canary"
+          },
+          "cause": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cause"
+          },
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_office": "#/$defs/HoldsOffice",
+                "meter_at": "#/$defs/MeterAt",
+                "quantity_at": "#/$defs/QuantityAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "expires": {
+            "format": "date",
+            "title": "Expires",
+            "type": "string"
+          },
+          "issued": {
+            "format": "date",
+            "title": "Issued",
+            "type": "string"
+          },
+          "issuer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Issuer"
+          },
+          "kind": {
+            "$ref": "#/$defs/MandateKind"
+          },
+          "mandate_id": {
+            "title": "Mandate Id",
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/Scope"
+          },
+          "seat_id": {
+            "title": "Seat Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/$defs/MandateStatus",
+            "default": "live"
+          },
+          "text": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mandate_id",
+          "seat_id",
+          "kind",
+          "text",
+          "condition",
+          "issued",
+          "expires",
+          "scope"
+        ],
+        "title": "Mandate",
+        "type": "object"
+      },
+      "MandateIssued": {
+        "additionalProperties": false,
+        "description": "A mandate lands on a seat's agenda (spec \u00a78.5). Scoped to the seat.",
+        "properties": {
+          "kind": {
+            "const": "mandate_issued",
+            "default": "mandate_issued",
+            "title": "Kind",
+            "type": "string"
+          },
+          "mandate": {
+            "$ref": "#/$defs/Mandate"
+          }
+        },
+        "required": [
+          "mandate"
+        ],
+        "title": "MandateIssued",
+        "type": "object"
+      },
+      "MandateKind": {
+        "enum": [
+          "order",
+          "crisis",
+          "blowback",
+          "opportunity"
+        ],
+        "title": "MandateKind",
+        "type": "string"
+      },
+      "MandateSettled": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "mandate_settled",
+            "default": "mandate_settled",
+            "title": "Kind",
+            "type": "string"
+          },
+          "mandate_id": {
+            "title": "Mandate Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/$defs/MandateStatus"
+          }
+        },
+        "required": [
+          "mandate_id",
+          "status"
+        ],
+        "title": "MandateSettled",
+        "type": "object"
+      },
+      "MandateStatus": {
+        "enum": [
+          "live",
+          "met",
+          "failed",
+          "expired"
+        ],
+        "title": "MandateStatus",
+        "type": "string"
       },
       "Meter": {
         "additionalProperties": false,
@@ -4029,6 +4615,50 @@
         "title": "Mode",
         "type": "string"
       },
+      "MoveForce": {
+        "additionalProperties": false,
+        "description": "Move a force, posture it, or both.",
+        "properties": {
+          "force": {
+            "title": "Force",
+            "type": "string"
+          },
+          "kind": {
+            "const": "move_force",
+            "default": "move_force",
+            "title": "Kind",
+            "type": "string"
+          },
+          "posture": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Posture"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To"
+          }
+        },
+        "required": [
+          "force"
+        ],
+        "title": "MoveForce",
+        "type": "object"
+      },
       "NarrationWritten": {
         "additionalProperties": false,
         "description": "Prose for exactly one seat, written from that seat's view.",
@@ -4061,6 +4691,42 @@
           "text"
         ],
         "title": "NarrationWritten",
+        "type": "object"
+      },
+      "Offer": {
+        "additionalProperties": false,
+        "description": "What a seat is offered for one agenda item.",
+        "properties": {
+          "mandate_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mandate Id"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/$defs/Option"
+            },
+            "maxItems": 5,
+            "minItems": 1,
+            "title": "Options",
+            "type": "array"
+          },
+          "style": {
+            "$ref": "#/$defs/PlayStyle"
+          }
+        },
+        "required": [
+          "style",
+          "options"
+        ],
+        "title": "Offer",
         "type": "object"
       },
       "OperationOpened": {
@@ -4125,6 +4791,92 @@
           "outcome"
         ],
         "title": "OperationResolved",
+        "type": "object"
+      },
+      "Option": {
+        "additionalProperties": false,
+        "description": "A guided step or a beginner option: an ordinary order and what it risks,\nas the seat understands it.",
+        "properties": {
+          "asks": {
+            "items": {
+              "$ref": "#/$defs/Ask"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Asks",
+            "type": "array"
+          },
+          "historical": {
+            "default": false,
+            "title": "Historical",
+            "type": "boolean"
+          },
+          "label": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "risk": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Risk",
+            "type": "string"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To"
+          }
+        },
+        "required": [
+          "label",
+          "asks"
+        ],
+        "title": "Option",
+        "type": "object"
+      },
+      "OptionsOffered": {
+        "additionalProperties": false,
+        "description": "What the option generator offered a seat this wake. A record, sealed to the seat.",
+        "properties": {
+          "kind": {
+            "const": "options_offered",
+            "default": "options_offered",
+            "title": "Kind",
+            "type": "string"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/$defs/Offer"
+            },
+            "maxItems": 4,
+            "title": "Offers",
+            "type": "array"
+          },
+          "seat_id": {
+            "title": "Seat Id",
+            "type": "string"
+          },
+          "wake": {
+            "minimum": 0,
+            "title": "Wake",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seat_id",
+          "wake",
+          "offers"
+        ],
+        "title": "OptionsOffered",
         "type": "object"
       },
       "Order": {
@@ -4219,6 +4971,57 @@
         "title": "OrderDrafted",
         "type": "object"
       },
+      "OrderExecuted": {
+        "additionalProperties": false,
+        "description": "An executor carried out a command part, with a fidelity, or refused it under\na stated rule (spec \u00a78.2). Scoped to the issuer.",
+        "properties": {
+          "fidelity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Fidelity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "kind": {
+            "const": "order_executed",
+            "default": "order_executed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "part": {
+            "maximum": 7,
+            "minimum": 0,
+            "title": "Part",
+            "type": "integer"
+          },
+          "refusal": {
+            "default": "",
+            "maxLength": 60,
+            "title": "Refusal",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "part",
+          "on"
+        ],
+        "title": "OrderExecuted",
+        "type": "object"
+      },
       "OrderReceived": {
         "additionalProperties": false,
         "description": "Raw player text. Always Private to the seat. Encrypted at rest from Layer 9.",
@@ -4244,6 +5047,26 @@
           "text"
         ],
         "title": "OrderReceived",
+        "type": "object"
+      },
+      "OrderRouted": {
+        "additionalProperties": false,
+        "description": "A committed order, split into parts and each part routed (spec \u00a78.2).\n\nScoped to the issuer. A replay reads the routes from here; it never routes again.",
+        "properties": {
+          "kind": {
+            "const": "order_routed",
+            "default": "order_routed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "order": {
+            "$ref": "#/$defs/RoutedOrder"
+          }
+        },
+        "required": [
+          "order"
+        ],
+        "title": "OrderRouted",
         "type": "object"
       },
       "OrderSettled": {
@@ -4469,6 +5292,92 @@
         "title": "Plausibility",
         "type": "string"
       },
+      "PlayStyle": {
+        "enum": [
+          "free",
+          "guided",
+          "beginner"
+        ],
+        "title": "PlayStyle",
+        "type": "string"
+      },
+      "PlayStyleSet": {
+        "additionalProperties": false,
+        "description": "A seat's play style (spec \u00a78.6). Sealed to the seat; shown at the reveal.",
+        "properties": {
+          "kind": {
+            "const": "play_style_set",
+            "default": "play_style_set",
+            "title": "Kind",
+            "type": "string"
+          },
+          "seat_id": {
+            "title": "Seat Id",
+            "type": "string"
+          },
+          "standing": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/EffectKind"
+            },
+            "title": "Standing",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "style": {
+            "$ref": "#/$defs/PlayStyle"
+          }
+        },
+        "required": [
+          "seat_id",
+          "style"
+        ],
+        "title": "PlayStyleSet",
+        "type": "object"
+      },
+      "Posture": {
+        "enum": [
+          "patrol",
+          "escort",
+          "hold",
+          "attack",
+          "withdraw"
+        ],
+        "title": "Posture",
+        "type": "string"
+      },
+      "ProposeMeasure": {
+        "additionalProperties": false,
+        "description": "A bill, treaty or declaration, as a set of clauses.",
+        "properties": {
+          "clauses": {
+            "items": {
+              "$ref": "#/$defs/revisionist__core__realism__effect__Clause"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Clauses",
+            "type": "array"
+          },
+          "kind": {
+            "const": "measure",
+            "default": "measure",
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 60,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "clauses"
+        ],
+        "title": "ProposeMeasure",
+        "type": "object"
+      },
       "Quantity": {
         "additionalProperties": false,
         "properties": {
@@ -4588,6 +5497,34 @@
           "quantity"
         ],
         "title": "QuantitySet",
+        "type": "object"
+      },
+      "Reach": {
+        "additionalProperties": false,
+        "description": "What reach is derived from (spec \u00a78.1). Whether a meeting is taken is computed\nin code from rank, disposition and standing; nothing here is a whitelist.",
+        "properties": {
+          "chain": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Chain",
+            "type": "array"
+          },
+          "heads": {
+            "default": false,
+            "title": "Heads",
+            "type": "boolean"
+          },
+          "rank": {
+            "default": 0,
+            "maximum": 5,
+            "minimum": 0,
+            "title": "Rank",
+            "type": "integer"
+          }
+        },
+        "title": "Reach",
         "type": "object"
       },
       "RejectionReason": {
@@ -4780,6 +5717,268 @@
           "exposed"
         ],
         "title": "Rolled",
+        "type": "object"
+      },
+      "Route": {
+        "enum": [
+          "command",
+          "process",
+          "influence"
+        ],
+        "title": "Route",
+        "type": "string"
+      },
+      "RoutedOrder": {
+        "additionalProperties": false,
+        "description": "A committed order, split into routed parts (spec \u00a78.2).",
+        "properties": {
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "issuer": {
+            "title": "Issuer",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/$defs/RoutedPart"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Parts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "order_id",
+          "issuer",
+          "filed",
+          "parts"
+        ],
+        "title": "RoutedOrder",
+        "type": "object"
+      },
+      "RoutedPart": {
+        "additionalProperties": false,
+        "description": "The whole part. ``estimated`` never leaves the engine.",
+        "properties": {
+          "domain": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain"
+          },
+          "effect": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "allocate": "#/$defs/Allocate",
+                    "appointment": "#/$defs/Appointment",
+                    "deal": "#/$defs/Deal",
+                    "disclosure": "#/$defs/Disclosure",
+                    "disposition": "#/$defs/ShiftDisposition",
+                    "engagement": "#/$defs/SetEngagement",
+                    "investigate": "#/$defs/Investigate",
+                    "measure": "#/$defs/ProposeMeasure",
+                    "move_force": "#/$defs/MoveForce",
+                    "statement": "#/$defs/MakeStatement"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/MoveForce"
+                  },
+                  {
+                    "$ref": "#/$defs/SetEngagement"
+                  },
+                  {
+                    "$ref": "#/$defs/Allocate"
+                  },
+                  {
+                    "$ref": "#/$defs/Appointment"
+                  },
+                  {
+                    "$ref": "#/$defs/ProposeMeasure"
+                  },
+                  {
+                    "$ref": "#/$defs/MakeStatement"
+                  },
+                  {
+                    "$ref": "#/$defs/Investigate"
+                  },
+                  {
+                    "$ref": "#/$defs/Deal"
+                  },
+                  {
+                    "$ref": "#/$defs/ShiftDisposition"
+                  },
+                  {
+                    "$ref": "#/$defs/Disclosure"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Effect"
+          },
+          "estimated": {
+            "default": [],
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "allocate": "#/$defs/Allocate",
+                  "appointment": "#/$defs/Appointment",
+                  "deal": "#/$defs/Deal",
+                  "disclosure": "#/$defs/Disclosure",
+                  "disposition": "#/$defs/ShiftDisposition",
+                  "engagement": "#/$defs/SetEngagement",
+                  "investigate": "#/$defs/Investigate",
+                  "measure": "#/$defs/ProposeMeasure",
+                  "move_force": "#/$defs/MoveForce",
+                  "statement": "#/$defs/MakeStatement"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/MoveForce"
+                },
+                {
+                  "$ref": "#/$defs/SetEngagement"
+                },
+                {
+                  "$ref": "#/$defs/Allocate"
+                },
+                {
+                  "$ref": "#/$defs/Appointment"
+                },
+                {
+                  "$ref": "#/$defs/ProposeMeasure"
+                },
+                {
+                  "$ref": "#/$defs/MakeStatement"
+                },
+                {
+                  "$ref": "#/$defs/Investigate"
+                },
+                {
+                  "$ref": "#/$defs/Deal"
+                },
+                {
+                  "$ref": "#/$defs/ShiftDisposition"
+                },
+                {
+                  "$ref": "#/$defs/Disclosure"
+                }
+              ]
+            },
+            "maxItems": 8,
+            "title": "Estimated",
+            "type": "array"
+          },
+          "executed": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Executed"
+          },
+          "executor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Executor"
+          },
+          "fidelity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Fidelity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pipeline"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 600,
+            "title": "Reason",
+            "type": "string"
+          },
+          "refusal": {
+            "default": "",
+            "maxLength": 60,
+            "title": "Refusal",
+            "type": "string"
+          },
+          "route": {
+            "$ref": "#/$defs/Route"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target"
+          },
+          "was_estimated": {
+            "default": false,
+            "title": "Was Estimated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "route"
+        ],
+        "title": "RoutedPart",
         "type": "object"
       },
       "ScheduleSource": {
@@ -5233,6 +6432,14 @@
         "additionalProperties": false,
         "description": "The whole card. The policy fields below are how code runs an unclaimed person;\nthey never leave the engine.",
         "properties": {
+          "authority": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Domain"
+            },
+            "title": "Authority",
+            "type": "array"
+          },
           "constraints": {
             "default": [],
             "items": {
@@ -5240,14 +6447,6 @@
               "type": "string"
             },
             "title": "Constraints",
-            "type": "array"
-          },
-          "contacts": {
-            "default": [],
-            "items": {
-              "$ref": "#/$defs/Contact"
-            },
-            "title": "Contacts",
             "type": "array"
           },
           "doctrine": {
@@ -5272,6 +6471,14 @@
             "minimum": 1,
             "title": "Horizon Days",
             "type": "integer"
+          },
+          "inner_circle": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Contact"
+            },
+            "title": "Inner Circle",
+            "type": "array"
           },
           "interests": {
             "default": [],
@@ -5344,6 +6551,14 @@
             },
             "title": "Principals",
             "type": "array"
+          },
+          "reach": {
+            "$ref": "#/$defs/Reach",
+            "default": {
+              "chain": [],
+              "heads": false,
+              "rank": 0
+            }
           },
           "successor": {
             "anyOf": [
@@ -5522,6 +6737,43 @@
         "title": "SessionZeroOpened",
         "type": "object"
       },
+      "SetEngagement": {
+        "additionalProperties": false,
+        "properties": {
+          "force": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Force"
+          },
+          "kind": {
+            "const": "engagement",
+            "default": "engagement",
+            "title": "Kind",
+            "type": "string"
+          },
+          "rule": {
+            "$ref": "#/$defs/Engagement"
+          },
+          "zone": {
+            "maxLength": 60,
+            "title": "Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "zone",
+          "rule"
+        ],
+        "title": "SetEngagement",
+        "type": "object"
+      },
       "Settings": {
         "additionalProperties": false,
         "properties": {
@@ -5679,6 +6931,39 @@
           "settings"
         ],
         "title": "SettingsSet",
+        "type": "object"
+      },
+      "ShiftDisposition": {
+        "additionalProperties": false,
+        "description": "How ``of`` regards ``toward``. Feeds resolvers; never sets a quantity.",
+        "properties": {
+          "change": {
+            "maximum": 2,
+            "minimum": -2,
+            "title": "Change",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "disposition",
+            "default": "disposition",
+            "title": "Kind",
+            "type": "string"
+          },
+          "of": {
+            "title": "Of",
+            "type": "string"
+          },
+          "toward": {
+            "title": "Toward",
+            "type": "string"
+          }
+        },
+        "required": [
+          "of",
+          "toward",
+          "change"
+        ],
+        "title": "ShiftDisposition",
         "type": "object"
       },
       "Sight": {
@@ -6096,6 +7381,217 @@
         ],
         "title": "Visibility",
         "type": "string"
+      },
+      "WakeClosed": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "wake_closed",
+            "default": "wake_closed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "timed_out": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Timed Out",
+            "type": "array"
+          },
+          "wake": {
+            "minimum": 0,
+            "title": "Wake",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "wake"
+        ],
+        "title": "WakeClosed",
+        "type": "object"
+      },
+      "WakeCommitted": {
+        "additionalProperties": false,
+        "description": "A seat sealed its orders for the wake. Public that it committed, never what.",
+        "properties": {
+          "by_aide": {
+            "default": false,
+            "title": "By Aide",
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "wake_committed",
+            "default": "wake_committed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "seat_id": {
+            "title": "Seat Id",
+            "type": "string"
+          },
+          "wake": {
+            "minimum": 0,
+            "title": "Wake",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "wake",
+          "seat_id"
+        ],
+        "title": "WakeCommitted",
+        "type": "object"
+      },
+      "WakeOpened": {
+        "additionalProperties": false,
+        "description": "A shared wake opens for the table (spec \u00a74). Public.",
+        "properties": {
+          "deadline": {
+            "format": "date-time",
+            "title": "Deadline",
+            "type": "string"
+          },
+          "kind": {
+            "const": "wake_opened",
+            "default": "wake_opened",
+            "title": "Kind",
+            "type": "string"
+          },
+          "wake": {
+            "minimum": 0,
+            "title": "Wake",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "wake",
+          "deadline"
+        ],
+        "title": "WakeOpened",
+        "type": "object"
+      },
+      "revisionist__core__ontology__Clause": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Amount"
+          },
+          "asset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Asset"
+          },
+          "beneficiary": {
+            "title": "Beneficiary",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/revisionist__core__ontology__ClauseKind"
+          },
+          "party": {
+            "title": "Party",
+            "type": "string"
+          },
+          "until_tick": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Until Tick"
+          },
+          "verb": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Verb"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "kind",
+          "party",
+          "beneficiary"
+        ],
+        "title": "Clause",
+        "type": "object"
+      },
+      "revisionist__core__ontology__ClauseKind": {
+        "enum": [
+          "transfer",
+          "abstain",
+          "support",
+          "payment"
+        ],
+        "title": "ClauseKind",
+        "type": "string"
+      },
+      "revisionist__core__realism__effect__Clause": {
+        "additionalProperties": false,
+        "description": "One clause of a measure. The votes resolver scores each bloc against each.",
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Amount"
+          },
+          "kind": {
+            "$ref": "#/$defs/revisionist__core__realism__effect__ClauseKind"
+          },
+          "subject": {
+            "maxLength": 60,
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "subject"
+        ],
+        "title": "Clause",
+        "type": "object"
+      },
+      "revisionist__core__realism__effect__ClauseKind": {
+        "enum": [
+          "money",
+          "power",
+          "limit"
+        ],
+        "title": "ClauseKind",
+        "type": "string"
       }
     },
     "additionalProperties": false,
@@ -6149,6 +7645,7 @@
             "document_issued": "#/$defs/DocumentIssued",
             "document_read": "#/$defs/DocumentRead",
             "document_written": "#/$defs/DocumentWritten",
+            "effects_estimated": "#/$defs/EffectsEstimated",
             "entity_created": "#/$defs/EntityCreated",
             "fact_asserted": "#/$defs/FactAsserted",
             "feasibility_rated": "#/$defs/FeasibilityRated",
@@ -6161,14 +7658,20 @@
             "goal_undone": "#/$defs/GoalUndone",
             "intent_filed": "#/$defs/IntentFiled",
             "intent_rejected": "#/$defs/IntentRejected",
+            "mandate_issued": "#/$defs/MandateIssued",
+            "mandate_settled": "#/$defs/MandateSettled",
             "meter_created": "#/$defs/MeterCreated",
             "narration_written": "#/$defs/NarrationWritten",
             "operation_opened": "#/$defs/OperationOpened",
             "operation_resolved": "#/$defs/OperationResolved",
+            "options_offered": "#/$defs/OptionsOffered",
             "order_drafted": "#/$defs/OrderDrafted",
+            "order_executed": "#/$defs/OrderExecuted",
             "order_received": "#/$defs/OrderReceived",
+            "order_routed": "#/$defs/OrderRouted",
             "order_settled": "#/$defs/OrderSettled",
             "order_step_taken": "#/$defs/OrderStepTaken",
+            "play_style_set": "#/$defs/PlayStyleSet",
             "quantity_set": "#/$defs/QuantitySet",
             "relationship_set": "#/$defs/RelationshipSet",
             "rolled": "#/$defs/Rolled",
@@ -6185,7 +7688,10 @@
             "statement_issued": "#/$defs/StatementIssued",
             "tick_closed": "#/$defs/TickClosed",
             "tick_opened": "#/$defs/TickOpened",
-            "tick_stage_completed": "#/$defs/TickStageCompleted"
+            "tick_stage_completed": "#/$defs/TickStageCompleted",
+            "wake_closed": "#/$defs/WakeClosed",
+            "wake_committed": "#/$defs/WakeCommitted",
+            "wake_opened": "#/$defs/WakeOpened"
           },
           "propertyName": "kind"
         },
@@ -6377,6 +7883,36 @@
             "$ref": "#/$defs/DirectiveGiven"
           },
           {
+            "$ref": "#/$defs/OrderRouted"
+          },
+          {
+            "$ref": "#/$defs/OrderExecuted"
+          },
+          {
+            "$ref": "#/$defs/EffectsEstimated"
+          },
+          {
+            "$ref": "#/$defs/MandateIssued"
+          },
+          {
+            "$ref": "#/$defs/MandateSettled"
+          },
+          {
+            "$ref": "#/$defs/WakeOpened"
+          },
+          {
+            "$ref": "#/$defs/WakeCommitted"
+          },
+          {
+            "$ref": "#/$defs/WakeClosed"
+          },
+          {
+            "$ref": "#/$defs/PlayStyleSet"
+          },
+          {
+            "$ref": "#/$defs/OptionsOffered"
+          },
+          {
             "$ref": "#/$defs/Sealed"
           }
         ],
@@ -6557,6 +8093,45 @@
         "title": "AllOf",
         "type": "object"
       },
+      "Allocate": {
+        "additionalProperties": false,
+        "description": "Money or materiel to a recipient.",
+        "properties": {
+          "amount": {
+            "minimum": 0,
+            "title": "Amount",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "allocate",
+            "default": "allocate",
+            "title": "Kind",
+            "type": "string"
+          },
+          "recipient": {
+            "title": "Recipient",
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 60,
+            "title": "Unit",
+            "type": "string"
+          },
+          "what": {
+            "maxLength": 60,
+            "title": "What",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient",
+          "what",
+          "amount",
+          "unit"
+        ],
+        "title": "Allocate",
+        "type": "object"
+      },
       "AnyOf": {
         "additionalProperties": false,
         "properties": {
@@ -6626,6 +8201,37 @@
           "conditions"
         ],
         "title": "AnyOf",
+        "type": "object"
+      },
+      "Appointment": {
+        "additionalProperties": false,
+        "properties": {
+          "appoint": {
+            "default": true,
+            "title": "Appoint",
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "appointment",
+            "default": "appointment",
+            "title": "Kind",
+            "type": "string"
+          },
+          "office": {
+            "maxLength": 60,
+            "title": "Office",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          }
+        },
+        "required": [
+          "person",
+          "office"
+        ],
+        "title": "Appointment",
         "type": "object"
       },
       "Asset": {
@@ -6921,86 +8527,6 @@
         "title": "Classification",
         "type": "string"
       },
-      "Clause": {
-        "additionalProperties": false,
-        "properties": {
-          "amount": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Amount"
-          },
-          "asset": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Asset"
-          },
-          "beneficiary": {
-            "title": "Beneficiary",
-            "type": "string"
-          },
-          "kind": {
-            "$ref": "#/$defs/ClauseKind"
-          },
-          "party": {
-            "title": "Party",
-            "type": "string"
-          },
-          "until_tick": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Until Tick"
-          },
-          "verb": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/Verb"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null
-          }
-        },
-        "required": [
-          "kind",
-          "party",
-          "beneficiary"
-        ],
-        "title": "Clause",
-        "type": "object"
-      },
-      "ClauseKind": {
-        "enum": [
-          "transfer",
-          "abstain",
-          "support",
-          "payment"
-        ],
-        "title": "ClauseKind",
-        "type": "string"
-      },
       "Clock": {
         "additionalProperties": false,
         "properties": {
@@ -7138,7 +8664,7 @@
         "properties": {
           "clauses": {
             "items": {
-              "$ref": "#/$defs/Clause"
+              "$ref": "#/$defs/revisionist__core__ontology__Clause"
             },
             "title": "Clauses",
             "type": "array"
@@ -7205,7 +8731,7 @@
       },
       "Contact": {
         "additionalProperties": false,
-        "description": "A person this one can consult, and how the words travel.",
+        "description": "A person in the inner circle, and how the words travel.",
         "properties": {
           "channel": {
             "$ref": "#/$defs/ChannelKind"
@@ -7341,6 +8867,78 @@
           "asset"
         ],
         "title": "ControlsAsset",
+        "type": "object"
+      },
+      "Deal": {
+        "additionalProperties": false,
+        "description": "Offer a deal, or accept one.",
+        "properties": {
+          "accept": {
+            "default": false,
+            "title": "Accept",
+            "type": "boolean"
+          },
+          "ask": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Ask",
+            "type": "array"
+          },
+          "counterparty": {
+            "title": "Counterparty",
+            "type": "string"
+          },
+          "kind": {
+            "const": "deal",
+            "default": "deal",
+            "title": "Kind",
+            "type": "string"
+          },
+          "offer": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Offer",
+            "type": "array"
+          }
+        },
+        "required": [
+          "counterparty"
+        ],
+        "title": "Deal",
+        "type": "object"
+      },
+      "Disclosure": {
+        "additionalProperties": false,
+        "description": "Reveal a fact to the public, or conceal it.",
+        "properties": {
+          "fact": {
+            "title": "Fact",
+            "type": "string"
+          },
+          "kind": {
+            "const": "disclosure",
+            "default": "disclosure",
+            "title": "Kind",
+            "type": "string"
+          },
+          "reveal": {
+            "default": true,
+            "title": "Reveal",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "fact"
+        ],
+        "title": "Disclosure",
         "type": "object"
       },
       "DispositionAt": {
@@ -7538,6 +9136,84 @@
         ],
         "title": "DocumentView",
         "type": "object"
+      },
+      "Domain": {
+        "additionalProperties": false,
+        "description": "One field the office commands outright (spec \u00a78.1).",
+        "properties": {
+          "effects": {
+            "items": {
+              "$ref": "#/$defs/EffectKind"
+            },
+            "minItems": 1,
+            "title": "Effects",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "executor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Executor"
+          },
+          "forces": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Forces",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "summary": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "effects"
+        ],
+        "title": "Domain",
+        "type": "object"
+      },
+      "EffectKind": {
+        "enum": [
+          "move_force",
+          "engagement",
+          "allocate",
+          "appointment",
+          "measure",
+          "statement",
+          "investigate",
+          "deal",
+          "disposition",
+          "disclosure"
+        ],
+        "title": "EffectKind",
+        "type": "string"
+      },
+      "Engagement": {
+        "enum": [
+          "hold_fire",
+          "defend",
+          "escort",
+          "shoot_on_sight"
+        ],
+        "title": "Engagement",
+        "type": "string"
       },
       "Entity": {
         "additionalProperties": false,
@@ -7932,6 +9608,17 @@
         "title": "Feed",
         "type": "object"
       },
+      "Fidelity": {
+        "description": "How an executor carried out a command (spec \u00a78.2).",
+        "enum": [
+          "full",
+          "loose",
+          "slow",
+          "partial"
+        ],
+        "title": "Fidelity",
+        "type": "string"
+      },
       "Goal": {
         "additionalProperties": false,
         "description": "One player seat's secret goal. Private to its owner (decision 37).",
@@ -8200,6 +9887,32 @@
         "title": "Intent",
         "type": "object"
       },
+      "Investigate": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "investigate",
+            "default": "investigate",
+            "title": "Kind",
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 60,
+            "title": "Question",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "question"
+        ],
+        "title": "Investigate",
+        "type": "object"
+      },
       "Leg": {
         "additionalProperties": false,
         "description": "One move the record says a feature made.",
@@ -8286,6 +9999,196 @@
         ],
         "title": "Lever",
         "type": "object"
+      },
+      "MakeStatement": {
+        "additionalProperties": false,
+        "properties": {
+          "audience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Audience"
+          },
+          "kind": {
+            "const": "statement",
+            "default": "statement",
+            "title": "Kind",
+            "type": "string"
+          },
+          "theme": {
+            "maxLength": 60,
+            "title": "Theme",
+            "type": "string"
+          }
+        },
+        "required": [
+          "theme"
+        ],
+        "title": "MakeStatement",
+        "type": "object"
+      },
+      "Mandate": {
+        "additionalProperties": false,
+        "properties": {
+          "canary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Canary"
+          },
+          "cause": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cause"
+          },
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_office": "#/$defs/HoldsOffice",
+                "meter_at": "#/$defs/MeterAt",
+                "quantity_at": "#/$defs/QuantityAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "expires": {
+            "format": "date",
+            "title": "Expires",
+            "type": "string"
+          },
+          "issued": {
+            "format": "date",
+            "title": "Issued",
+            "type": "string"
+          },
+          "issuer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Issuer"
+          },
+          "kind": {
+            "$ref": "#/$defs/MandateKind"
+          },
+          "mandate_id": {
+            "title": "Mandate Id",
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/Scope"
+          },
+          "seat_id": {
+            "title": "Seat Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/$defs/MandateStatus",
+            "default": "live"
+          },
+          "text": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mandate_id",
+          "seat_id",
+          "kind",
+          "text",
+          "condition",
+          "issued",
+          "expires",
+          "scope"
+        ],
+        "title": "Mandate",
+        "type": "object"
+      },
+      "MandateKind": {
+        "enum": [
+          "order",
+          "crisis",
+          "blowback",
+          "opportunity"
+        ],
+        "title": "MandateKind",
+        "type": "string"
+      },
+      "MandateStatus": {
+        "enum": [
+          "live",
+          "met",
+          "failed",
+          "expired"
+        ],
+        "title": "MandateStatus",
+        "type": "string"
       },
       "Meter": {
         "additionalProperties": false,
@@ -8377,6 +10280,50 @@
         ],
         "title": "Mode",
         "type": "string"
+      },
+      "MoveForce": {
+        "additionalProperties": false,
+        "description": "Move a force, posture it, or both.",
+        "properties": {
+          "force": {
+            "title": "Force",
+            "type": "string"
+          },
+          "kind": {
+            "const": "move_force",
+            "default": "move_force",
+            "title": "Kind",
+            "type": "string"
+          },
+          "posture": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Posture"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To"
+          }
+        },
+        "required": [
+          "force"
+        ],
+        "title": "MoveForce",
+        "type": "object"
       },
       "Order": {
         "additionalProperties": false,
@@ -8623,6 +10570,58 @@
         "title": "Plausibility",
         "type": "string"
       },
+      "PlayStyle": {
+        "enum": [
+          "free",
+          "guided",
+          "beginner"
+        ],
+        "title": "PlayStyle",
+        "type": "string"
+      },
+      "Posture": {
+        "enum": [
+          "patrol",
+          "escort",
+          "hold",
+          "attack",
+          "withdraw"
+        ],
+        "title": "Posture",
+        "type": "string"
+      },
+      "ProposeMeasure": {
+        "additionalProperties": false,
+        "description": "A bill, treaty or declaration, as a set of clauses.",
+        "properties": {
+          "clauses": {
+            "items": {
+              "$ref": "#/$defs/revisionist__core__realism__effect__Clause"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Clauses",
+            "type": "array"
+          },
+          "kind": {
+            "const": "measure",
+            "default": "measure",
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 60,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "clauses"
+        ],
+        "title": "ProposeMeasure",
+        "type": "object"
+      },
       "Quantity": {
         "additionalProperties": false,
         "properties": {
@@ -8724,6 +10723,34 @@
         "title": "QuantityAt",
         "type": "object"
       },
+      "Reach": {
+        "additionalProperties": false,
+        "description": "What reach is derived from (spec \u00a78.1). Whether a meeting is taken is computed\nin code from rank, disposition and standing; nothing here is a whitelist.",
+        "properties": {
+          "chain": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Chain",
+            "type": "array"
+          },
+          "heads": {
+            "default": false,
+            "title": "Heads",
+            "type": "boolean"
+          },
+          "rank": {
+            "default": 0,
+            "maximum": 5,
+            "minimum": 0,
+            "title": "Rank",
+            "type": "integer"
+          }
+        },
+        "title": "Reach",
+        "type": "object"
+      },
       "Relationship": {
         "additionalProperties": false,
         "properties": {
@@ -8775,6 +10802,268 @@
           "scope"
         ],
         "title": "Relationship",
+        "type": "object"
+      },
+      "Route": {
+        "enum": [
+          "command",
+          "process",
+          "influence"
+        ],
+        "title": "Route",
+        "type": "string"
+      },
+      "RoutedOrder": {
+        "additionalProperties": false,
+        "description": "A committed order, split into routed parts (spec \u00a78.2).",
+        "properties": {
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "issuer": {
+            "title": "Issuer",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/$defs/RoutedPart"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Parts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "order_id",
+          "issuer",
+          "filed",
+          "parts"
+        ],
+        "title": "RoutedOrder",
+        "type": "object"
+      },
+      "RoutedPart": {
+        "additionalProperties": false,
+        "description": "The whole part. ``estimated`` never leaves the engine.",
+        "properties": {
+          "domain": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain"
+          },
+          "effect": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "allocate": "#/$defs/Allocate",
+                    "appointment": "#/$defs/Appointment",
+                    "deal": "#/$defs/Deal",
+                    "disclosure": "#/$defs/Disclosure",
+                    "disposition": "#/$defs/ShiftDisposition",
+                    "engagement": "#/$defs/SetEngagement",
+                    "investigate": "#/$defs/Investigate",
+                    "measure": "#/$defs/ProposeMeasure",
+                    "move_force": "#/$defs/MoveForce",
+                    "statement": "#/$defs/MakeStatement"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/MoveForce"
+                  },
+                  {
+                    "$ref": "#/$defs/SetEngagement"
+                  },
+                  {
+                    "$ref": "#/$defs/Allocate"
+                  },
+                  {
+                    "$ref": "#/$defs/Appointment"
+                  },
+                  {
+                    "$ref": "#/$defs/ProposeMeasure"
+                  },
+                  {
+                    "$ref": "#/$defs/MakeStatement"
+                  },
+                  {
+                    "$ref": "#/$defs/Investigate"
+                  },
+                  {
+                    "$ref": "#/$defs/Deal"
+                  },
+                  {
+                    "$ref": "#/$defs/ShiftDisposition"
+                  },
+                  {
+                    "$ref": "#/$defs/Disclosure"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Effect"
+          },
+          "estimated": {
+            "default": [],
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "allocate": "#/$defs/Allocate",
+                  "appointment": "#/$defs/Appointment",
+                  "deal": "#/$defs/Deal",
+                  "disclosure": "#/$defs/Disclosure",
+                  "disposition": "#/$defs/ShiftDisposition",
+                  "engagement": "#/$defs/SetEngagement",
+                  "investigate": "#/$defs/Investigate",
+                  "measure": "#/$defs/ProposeMeasure",
+                  "move_force": "#/$defs/MoveForce",
+                  "statement": "#/$defs/MakeStatement"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/MoveForce"
+                },
+                {
+                  "$ref": "#/$defs/SetEngagement"
+                },
+                {
+                  "$ref": "#/$defs/Allocate"
+                },
+                {
+                  "$ref": "#/$defs/Appointment"
+                },
+                {
+                  "$ref": "#/$defs/ProposeMeasure"
+                },
+                {
+                  "$ref": "#/$defs/MakeStatement"
+                },
+                {
+                  "$ref": "#/$defs/Investigate"
+                },
+                {
+                  "$ref": "#/$defs/Deal"
+                },
+                {
+                  "$ref": "#/$defs/ShiftDisposition"
+                },
+                {
+                  "$ref": "#/$defs/Disclosure"
+                }
+              ]
+            },
+            "maxItems": 8,
+            "title": "Estimated",
+            "type": "array"
+          },
+          "executed": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Executed"
+          },
+          "executor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Executor"
+          },
+          "fidelity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Fidelity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pipeline"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 600,
+            "title": "Reason",
+            "type": "string"
+          },
+          "refusal": {
+            "default": "",
+            "maxLength": 60,
+            "title": "Refusal",
+            "type": "string"
+          },
+          "route": {
+            "$ref": "#/$defs/Route"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target"
+          },
+          "was_estimated": {
+            "default": false,
+            "title": "Was Estimated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "route"
+        ],
+        "title": "RoutedPart",
         "type": "object"
       },
       "ScheduleSource": {
@@ -9046,6 +11335,14 @@
         "additionalProperties": false,
         "description": "The whole card. The policy fields below are how code runs an unclaimed person;\nthey never leave the engine.",
         "properties": {
+          "authority": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Domain"
+            },
+            "title": "Authority",
+            "type": "array"
+          },
           "constraints": {
             "default": [],
             "items": {
@@ -9053,14 +11350,6 @@
               "type": "string"
             },
             "title": "Constraints",
-            "type": "array"
-          },
-          "contacts": {
-            "default": [],
-            "items": {
-              "$ref": "#/$defs/Contact"
-            },
-            "title": "Contacts",
             "type": "array"
           },
           "doctrine": {
@@ -9085,6 +11374,14 @@
             "minimum": 1,
             "title": "Horizon Days",
             "type": "integer"
+          },
+          "inner_circle": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Contact"
+            },
+            "title": "Inner Circle",
+            "type": "array"
           },
           "interests": {
             "default": [],
@@ -9158,6 +11455,14 @@
             "title": "Principals",
             "type": "array"
           },
+          "reach": {
+            "$ref": "#/$defs/Reach",
+            "default": {
+              "chain": [],
+              "heads": false,
+              "rank": 0
+            }
+          },
           "successor": {
             "anyOf": [
               {
@@ -9203,6 +11508,43 @@
         ],
         "title": "SeatStatus",
         "type": "string"
+      },
+      "SetEngagement": {
+        "additionalProperties": false,
+        "properties": {
+          "force": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Force"
+          },
+          "kind": {
+            "const": "engagement",
+            "default": "engagement",
+            "title": "Kind",
+            "type": "string"
+          },
+          "rule": {
+            "$ref": "#/$defs/Engagement"
+          },
+          "zone": {
+            "maxLength": 60,
+            "title": "Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "zone",
+          "rule"
+        ],
+        "title": "SetEngagement",
+        "type": "object"
       },
       "Settings": {
         "additionalProperties": false,
@@ -9342,6 +11684,39 @@
           }
         },
         "title": "Settings",
+        "type": "object"
+      },
+      "ShiftDisposition": {
+        "additionalProperties": false,
+        "description": "How ``of`` regards ``toward``. Feeds resolvers; never sets a quantity.",
+        "properties": {
+          "change": {
+            "maximum": 2,
+            "minimum": -2,
+            "title": "Change",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "disposition",
+            "default": "disposition",
+            "title": "Kind",
+            "type": "string"
+          },
+          "of": {
+            "title": "Of",
+            "type": "string"
+          },
+          "toward": {
+            "title": "Toward",
+            "type": "string"
+          }
+        },
+        "required": [
+          "of",
+          "toward",
+          "change"
+        ],
+        "title": "ShiftDisposition",
         "type": "object"
       },
       "Sight": {
@@ -9592,6 +11967,164 @@
         ],
         "title": "Visibility",
         "type": "string"
+      },
+      "Wake": {
+        "additionalProperties": false,
+        "description": "The table's shared wake (spec \u00a74). Public: who has committed, never what.",
+        "properties": {
+          "closed": {
+            "default": false,
+            "title": "Closed",
+            "type": "boolean"
+          },
+          "committed": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Committed",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "deadline": {
+            "format": "date-time",
+            "title": "Deadline",
+            "type": "string"
+          },
+          "number": {
+            "minimum": 0,
+            "title": "Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number",
+          "deadline"
+        ],
+        "title": "Wake",
+        "type": "object"
+      },
+      "revisionist__core__ontology__Clause": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Amount"
+          },
+          "asset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Asset"
+          },
+          "beneficiary": {
+            "title": "Beneficiary",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/revisionist__core__ontology__ClauseKind"
+          },
+          "party": {
+            "title": "Party",
+            "type": "string"
+          },
+          "until_tick": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Until Tick"
+          },
+          "verb": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Verb"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "kind",
+          "party",
+          "beneficiary"
+        ],
+        "title": "Clause",
+        "type": "object"
+      },
+      "revisionist__core__ontology__ClauseKind": {
+        "enum": [
+          "transfer",
+          "abstain",
+          "support",
+          "payment"
+        ],
+        "title": "ClauseKind",
+        "type": "string"
+      },
+      "revisionist__core__realism__effect__Clause": {
+        "additionalProperties": false,
+        "description": "One clause of a measure. The votes resolver scores each bloc against each.",
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Amount"
+          },
+          "kind": {
+            "$ref": "#/$defs/revisionist__core__realism__effect__ClauseKind"
+          },
+          "subject": {
+            "maxLength": 60,
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "subject"
+        ],
+        "title": "Clause",
+        "type": "object"
+      },
+      "revisionist__core__realism__effect__ClauseKind": {
+        "enum": [
+          "money",
+          "power",
+          "limit"
+        ],
+        "title": "ClauseKind",
+        "type": "string"
       }
     },
     "additionalProperties": false,
@@ -9710,6 +12243,13 @@
         "title": "Last Seq",
         "type": "integer"
       },
+      "mandates": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Mandate"
+        },
+        "title": "Mandates",
+        "type": "object"
+      },
       "meters": {
         "additionalProperties": {
           "$ref": "#/$defs/Meter"
@@ -9763,6 +12303,13 @@
         "title": "Roster",
         "type": "object"
       },
+      "routed": {
+        "additionalProperties": {
+          "$ref": "#/$defs/RoutedOrder"
+        },
+        "title": "Routed",
+        "type": "object"
+      },
       "ruleset": {
         "default": "legacy",
         "enum": [
@@ -9812,10 +12359,39 @@
           "world_days_per_tick": 7
         }
       },
+      "standing": {
+        "additionalProperties": {
+          "items": {
+            "$ref": "#/$defs/EffectKind"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "title": "Standing",
+        "type": "object"
+      },
+      "styles": {
+        "additionalProperties": {
+          "$ref": "#/$defs/PlayStyle"
+        },
+        "title": "Styles",
+        "type": "object"
+      },
       "tick": {
         "default": 0,
         "title": "Tick",
         "type": "integer"
+      },
+      "wake": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Wake"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
       }
     },
     "required": [
@@ -9957,6 +12533,45 @@
         "title": "AllOf",
         "type": "object"
       },
+      "Allocate": {
+        "additionalProperties": false,
+        "description": "Money or materiel to a recipient.",
+        "properties": {
+          "amount": {
+            "minimum": 0,
+            "title": "Amount",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "allocate",
+            "default": "allocate",
+            "title": "Kind",
+            "type": "string"
+          },
+          "recipient": {
+            "title": "Recipient",
+            "type": "string"
+          },
+          "unit": {
+            "maxLength": 60,
+            "title": "Unit",
+            "type": "string"
+          },
+          "what": {
+            "maxLength": 60,
+            "title": "What",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipient",
+          "what",
+          "amount",
+          "unit"
+        ],
+        "title": "Allocate",
+        "type": "object"
+      },
       "AnyOf": {
         "additionalProperties": false,
         "properties": {
@@ -10026,6 +12641,37 @@
           "conditions"
         ],
         "title": "AnyOf",
+        "type": "object"
+      },
+      "Appointment": {
+        "additionalProperties": false,
+        "properties": {
+          "appoint": {
+            "default": true,
+            "title": "Appoint",
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "appointment",
+            "default": "appointment",
+            "title": "Kind",
+            "type": "string"
+          },
+          "office": {
+            "maxLength": 60,
+            "title": "Office",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          }
+        },
+        "required": [
+          "person",
+          "office"
+        ],
+        "title": "Appointment",
         "type": "object"
       },
       "Asset": {
@@ -10173,12 +12819,12 @@
         "additionalProperties": false,
         "description": "What anyone knows of the office: who holds it, its powers and its channels.",
         "properties": {
-          "contacts": {
+          "inner_circle": {
             "default": [],
             "items": {
               "$ref": "#/$defs/Contact"
             },
-            "title": "Contacts",
+            "title": "Inner Circle",
             "type": "array"
           },
           "office": {
@@ -10328,86 +12974,6 @@
         "title": "Classification",
         "type": "string"
       },
-      "Clause": {
-        "additionalProperties": false,
-        "properties": {
-          "amount": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Amount"
-          },
-          "asset": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Asset"
-          },
-          "beneficiary": {
-            "title": "Beneficiary",
-            "type": "string"
-          },
-          "kind": {
-            "$ref": "#/$defs/ClauseKind"
-          },
-          "party": {
-            "title": "Party",
-            "type": "string"
-          },
-          "until_tick": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Until Tick"
-          },
-          "verb": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/Verb"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null
-          }
-        },
-        "required": [
-          "kind",
-          "party",
-          "beneficiary"
-        ],
-        "title": "Clause",
-        "type": "object"
-      },
-      "ClauseKind": {
-        "enum": [
-          "transfer",
-          "abstain",
-          "support",
-          "payment"
-        ],
-        "title": "ClauseKind",
-        "type": "string"
-      },
       "Clock": {
         "additionalProperties": false,
         "properties": {
@@ -10545,7 +13111,7 @@
         "properties": {
           "clauses": {
             "items": {
-              "$ref": "#/$defs/Clause"
+              "$ref": "#/$defs/revisionist__core__ontology__Clause"
             },
             "title": "Clauses",
             "type": "array"
@@ -10612,7 +13178,7 @@
       },
       "Contact": {
         "additionalProperties": false,
-        "description": "A person this one can consult, and how the words travel.",
+        "description": "A person in the inner circle, and how the words travel.",
         "properties": {
           "channel": {
             "$ref": "#/$defs/ChannelKind"
@@ -10750,10 +13316,64 @@
         "title": "ControlsAsset",
         "type": "object"
       },
+      "Deal": {
+        "additionalProperties": false,
+        "description": "Offer a deal, or accept one.",
+        "properties": {
+          "accept": {
+            "default": false,
+            "title": "Accept",
+            "type": "boolean"
+          },
+          "ask": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Ask",
+            "type": "array"
+          },
+          "counterparty": {
+            "title": "Counterparty",
+            "type": "string"
+          },
+          "kind": {
+            "const": "deal",
+            "default": "deal",
+            "title": "Kind",
+            "type": "string"
+          },
+          "offer": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Offer",
+            "type": "array"
+          }
+        },
+        "required": [
+          "counterparty"
+        ],
+        "title": "Deal",
+        "type": "object"
+      },
       "Desk": {
         "additionalProperties": false,
         "description": "The face plus what the person works with. Shown only to the person's own seat.",
         "properties": {
+          "authority": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Domain"
+            },
+            "title": "Authority",
+            "type": "array"
+          },
           "constraints": {
             "default": [],
             "items": {
@@ -10761,14 +13381,6 @@
               "type": "string"
             },
             "title": "Constraints",
-            "type": "array"
-          },
-          "contacts": {
-            "default": [],
-            "items": {
-              "$ref": "#/$defs/Contact"
-            },
-            "title": "Contacts",
             "type": "array"
           },
           "feeds": {
@@ -10784,6 +13396,14 @@
             "minimum": 1,
             "title": "Horizon Days",
             "type": "integer"
+          },
+          "inner_circle": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Contact"
+            },
+            "title": "Inner Circle",
+            "type": "array"
           },
           "levers": {
             "default": [],
@@ -10841,6 +13461,14 @@
             "title": "Principals",
             "type": "array"
           },
+          "reach": {
+            "$ref": "#/$defs/Reach",
+            "default": {
+              "chain": [],
+              "heads": false,
+              "rank": 0
+            }
+          },
           "successor": {
             "anyOf": [
               {
@@ -10860,6 +13488,32 @@
           "horizon_days"
         ],
         "title": "Desk",
+        "type": "object"
+      },
+      "Disclosure": {
+        "additionalProperties": false,
+        "description": "Reveal a fact to the public, or conceal it.",
+        "properties": {
+          "fact": {
+            "title": "Fact",
+            "type": "string"
+          },
+          "kind": {
+            "const": "disclosure",
+            "default": "disclosure",
+            "title": "Kind",
+            "type": "string"
+          },
+          "reveal": {
+            "default": true,
+            "title": "Reveal",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "fact"
+        ],
+        "title": "Disclosure",
         "type": "object"
       },
       "DispositionAt": {
@@ -10987,6 +13641,84 @@
         ],
         "title": "DocumentView",
         "type": "object"
+      },
+      "Domain": {
+        "additionalProperties": false,
+        "description": "One field the office commands outright (spec \u00a78.1).",
+        "properties": {
+          "effects": {
+            "items": {
+              "$ref": "#/$defs/EffectKind"
+            },
+            "minItems": 1,
+            "title": "Effects",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "executor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Executor"
+          },
+          "forces": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Forces",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "summary": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "effects"
+        ],
+        "title": "Domain",
+        "type": "object"
+      },
+      "EffectKind": {
+        "enum": [
+          "move_force",
+          "engagement",
+          "allocate",
+          "appointment",
+          "measure",
+          "statement",
+          "investigate",
+          "deal",
+          "disposition",
+          "disclosure"
+        ],
+        "title": "EffectKind",
+        "type": "string"
+      },
+      "Engagement": {
+        "enum": [
+          "hold_fire",
+          "defend",
+          "escort",
+          "shoot_on_sight"
+        ],
+        "title": "Engagement",
+        "type": "string"
       },
       "Entity": {
         "additionalProperties": false,
@@ -11197,6 +13929,17 @@
           "route"
         ],
         "title": "FeatureKind",
+        "type": "string"
+      },
+      "Fidelity": {
+        "description": "How an executor carried out a command (spec \u00a78.2).",
+        "enum": [
+          "full",
+          "loose",
+          "slow",
+          "partial"
+        ],
+        "title": "Fidelity",
         "type": "string"
       },
       "Goal": {
@@ -11467,6 +14210,32 @@
         "title": "Intent",
         "type": "object"
       },
+      "Investigate": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "investigate",
+            "default": "investigate",
+            "title": "Kind",
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 60,
+            "title": "Question",
+            "type": "string"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target",
+          "question"
+        ],
+        "title": "Investigate",
+        "type": "object"
+      },
       "Lethality": {
         "enum": [
           "soft",
@@ -11528,6 +14297,196 @@
         ],
         "title": "Lever",
         "type": "object"
+      },
+      "MakeStatement": {
+        "additionalProperties": false,
+        "properties": {
+          "audience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Audience"
+          },
+          "kind": {
+            "const": "statement",
+            "default": "statement",
+            "title": "Kind",
+            "type": "string"
+          },
+          "theme": {
+            "maxLength": 60,
+            "title": "Theme",
+            "type": "string"
+          }
+        },
+        "required": [
+          "theme"
+        ],
+        "title": "MakeStatement",
+        "type": "object"
+      },
+      "Mandate": {
+        "additionalProperties": false,
+        "properties": {
+          "canary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Canary"
+          },
+          "cause": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cause"
+          },
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_office": "#/$defs/HoldsOffice",
+                "meter_at": "#/$defs/MeterAt",
+                "quantity_at": "#/$defs/QuantityAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "expires": {
+            "format": "date",
+            "title": "Expires",
+            "type": "string"
+          },
+          "issued": {
+            "format": "date",
+            "title": "Issued",
+            "type": "string"
+          },
+          "issuer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Issuer"
+          },
+          "kind": {
+            "$ref": "#/$defs/MandateKind"
+          },
+          "mandate_id": {
+            "title": "Mandate Id",
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/Scope"
+          },
+          "seat_id": {
+            "title": "Seat Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/$defs/MandateStatus",
+            "default": "live"
+          },
+          "text": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mandate_id",
+          "seat_id",
+          "kind",
+          "text",
+          "condition",
+          "issued",
+          "expires",
+          "scope"
+        ],
+        "title": "Mandate",
+        "type": "object"
+      },
+      "MandateKind": {
+        "enum": [
+          "order",
+          "crisis",
+          "blowback",
+          "opportunity"
+        ],
+        "title": "MandateKind",
+        "type": "string"
+      },
+      "MandateStatus": {
+        "enum": [
+          "live",
+          "met",
+          "failed",
+          "expired"
+        ],
+        "title": "MandateStatus",
+        "type": "string"
       },
       "Meter": {
         "additionalProperties": false,
@@ -11619,6 +14578,50 @@
         ],
         "title": "Mode",
         "type": "string"
+      },
+      "MoveForce": {
+        "additionalProperties": false,
+        "description": "Move a force, posture it, or both.",
+        "properties": {
+          "force": {
+            "title": "Force",
+            "type": "string"
+          },
+          "kind": {
+            "const": "move_force",
+            "default": "move_force",
+            "title": "Kind",
+            "type": "string"
+          },
+          "posture": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Posture"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To"
+          }
+        },
+        "required": [
+          "force"
+        ],
+        "title": "MoveForce",
+        "type": "object"
       },
       "Order": {
         "additionalProperties": false,
@@ -11781,6 +14784,163 @@
         "title": "ParamSpec",
         "type": "object"
       },
+      "PartView": {
+        "additionalProperties": false,
+        "description": "One part of a routed order, as its issuer knows it.",
+        "properties": {
+          "domain": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Domain"
+          },
+          "effect": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "allocate": "#/$defs/Allocate",
+                    "appointment": "#/$defs/Appointment",
+                    "deal": "#/$defs/Deal",
+                    "disclosure": "#/$defs/Disclosure",
+                    "disposition": "#/$defs/ShiftDisposition",
+                    "engagement": "#/$defs/SetEngagement",
+                    "investigate": "#/$defs/Investigate",
+                    "measure": "#/$defs/ProposeMeasure",
+                    "move_force": "#/$defs/MoveForce",
+                    "statement": "#/$defs/MakeStatement"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/MoveForce"
+                  },
+                  {
+                    "$ref": "#/$defs/SetEngagement"
+                  },
+                  {
+                    "$ref": "#/$defs/Allocate"
+                  },
+                  {
+                    "$ref": "#/$defs/Appointment"
+                  },
+                  {
+                    "$ref": "#/$defs/ProposeMeasure"
+                  },
+                  {
+                    "$ref": "#/$defs/MakeStatement"
+                  },
+                  {
+                    "$ref": "#/$defs/Investigate"
+                  },
+                  {
+                    "$ref": "#/$defs/Deal"
+                  },
+                  {
+                    "$ref": "#/$defs/ShiftDisposition"
+                  },
+                  {
+                    "$ref": "#/$defs/Disclosure"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Effect"
+          },
+          "executed": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Executed"
+          },
+          "executor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Executor"
+          },
+          "fidelity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Fidelity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "pipeline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pipeline"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 600,
+            "title": "Reason",
+            "type": "string"
+          },
+          "refusal": {
+            "default": "",
+            "maxLength": 60,
+            "title": "Refusal",
+            "type": "string"
+          },
+          "route": {
+            "$ref": "#/$defs/Route"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target"
+          }
+        },
+        "required": [
+          "route"
+        ],
+        "title": "PartView",
+        "type": "object"
+      },
       "Persona": {
         "additionalProperties": false,
         "description": "The player-designed face of their agent. Narrative only; no mechanics.",
@@ -11834,6 +14994,58 @@
         ],
         "title": "Plausibility",
         "type": "string"
+      },
+      "PlayStyle": {
+        "enum": [
+          "free",
+          "guided",
+          "beginner"
+        ],
+        "title": "PlayStyle",
+        "type": "string"
+      },
+      "Posture": {
+        "enum": [
+          "patrol",
+          "escort",
+          "hold",
+          "attack",
+          "withdraw"
+        ],
+        "title": "Posture",
+        "type": "string"
+      },
+      "ProposeMeasure": {
+        "additionalProperties": false,
+        "description": "A bill, treaty or declaration, as a set of clauses.",
+        "properties": {
+          "clauses": {
+            "items": {
+              "$ref": "#/$defs/revisionist__core__realism__effect__Clause"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Clauses",
+            "type": "array"
+          },
+          "kind": {
+            "const": "measure",
+            "default": "measure",
+            "title": "Kind",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 60,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "clauses"
+        ],
+        "title": "ProposeMeasure",
+        "type": "object"
       },
       "Quantity": {
         "additionalProperties": false,
@@ -11936,6 +15148,34 @@
         "title": "QuantityAt",
         "type": "object"
       },
+      "Reach": {
+        "additionalProperties": false,
+        "description": "What reach is derived from (spec \u00a78.1). Whether a meeting is taken is computed\nin code from rank, disposition and standing; nothing here is a whitelist.",
+        "properties": {
+          "chain": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Chain",
+            "type": "array"
+          },
+          "heads": {
+            "default": false,
+            "title": "Heads",
+            "type": "boolean"
+          },
+          "rank": {
+            "default": 0,
+            "maximum": 5,
+            "minimum": 0,
+            "title": "Rank",
+            "type": "integer"
+          }
+        },
+        "title": "Reach",
+        "type": "object"
+      },
       "Relationship": {
         "additionalProperties": false,
         "properties": {
@@ -11987,6 +15227,51 @@
           "scope"
         ],
         "title": "Relationship",
+        "type": "object"
+      },
+      "Route": {
+        "enum": [
+          "command",
+          "process",
+          "influence"
+        ],
+        "title": "Route",
+        "type": "string"
+      },
+      "RoutedOrderView": {
+        "additionalProperties": false,
+        "description": "An engine-v2 order as its issuer knows it.",
+        "properties": {
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "issuer": {
+            "title": "Issuer",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/$defs/PartView"
+            },
+            "maxItems": 8,
+            "minItems": 1,
+            "title": "Parts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "order_id",
+          "issuer",
+          "filed",
+          "parts"
+        ],
+        "title": "RoutedOrderView",
         "type": "object"
       },
       "ScheduleSource": {
@@ -12302,6 +15587,43 @@
         "title": "SeatStatus",
         "type": "string"
       },
+      "SetEngagement": {
+        "additionalProperties": false,
+        "properties": {
+          "force": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Force"
+          },
+          "kind": {
+            "const": "engagement",
+            "default": "engagement",
+            "title": "Kind",
+            "type": "string"
+          },
+          "rule": {
+            "$ref": "#/$defs/Engagement"
+          },
+          "zone": {
+            "maxLength": 60,
+            "title": "Zone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "zone",
+          "rule"
+        ],
+        "title": "SetEngagement",
+        "type": "object"
+      },
       "Settings": {
         "additionalProperties": false,
         "properties": {
@@ -12442,6 +15764,39 @@
         "title": "Settings",
         "type": "object"
       },
+      "ShiftDisposition": {
+        "additionalProperties": false,
+        "description": "How ``of`` regards ``toward``. Feeds resolvers; never sets a quantity.",
+        "properties": {
+          "change": {
+            "maximum": 2,
+            "minimum": -2,
+            "title": "Change",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "disposition",
+            "default": "disposition",
+            "title": "Kind",
+            "type": "string"
+          },
+          "of": {
+            "title": "Of",
+            "type": "string"
+          },
+          "toward": {
+            "title": "Toward",
+            "type": "string"
+          }
+        },
+        "required": [
+          "of",
+          "toward",
+          "change"
+        ],
+        "title": "ShiftDisposition",
+        "type": "object"
+      },
       "Sight": {
         "additionalProperties": false,
         "description": "A document line's claim about a feature: what it is, whose, and where.",
@@ -12576,6 +15931,164 @@
         ],
         "title": "Visibility",
         "type": "string"
+      },
+      "Wake": {
+        "additionalProperties": false,
+        "description": "The table's shared wake (spec \u00a74). Public: who has committed, never what.",
+        "properties": {
+          "closed": {
+            "default": false,
+            "title": "Closed",
+            "type": "boolean"
+          },
+          "committed": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Committed",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "deadline": {
+            "format": "date-time",
+            "title": "Deadline",
+            "type": "string"
+          },
+          "number": {
+            "minimum": 0,
+            "title": "Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "number",
+          "deadline"
+        ],
+        "title": "Wake",
+        "type": "object"
+      },
+      "revisionist__core__ontology__Clause": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Amount"
+          },
+          "asset": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Asset"
+          },
+          "beneficiary": {
+            "title": "Beneficiary",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/revisionist__core__ontology__ClauseKind"
+          },
+          "party": {
+            "title": "Party",
+            "type": "string"
+          },
+          "until_tick": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Until Tick"
+          },
+          "verb": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Verb"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "kind",
+          "party",
+          "beneficiary"
+        ],
+        "title": "Clause",
+        "type": "object"
+      },
+      "revisionist__core__ontology__ClauseKind": {
+        "enum": [
+          "transfer",
+          "abstain",
+          "support",
+          "payment"
+        ],
+        "title": "ClauseKind",
+        "type": "string"
+      },
+      "revisionist__core__realism__effect__Clause": {
+        "additionalProperties": false,
+        "description": "One clause of a measure. The votes resolver scores each bloc against each.",
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Amount"
+          },
+          "kind": {
+            "$ref": "#/$defs/revisionist__core__realism__effect__ClauseKind"
+          },
+          "subject": {
+            "maxLength": 60,
+            "title": "Subject",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "subject"
+        ],
+        "title": "Clause",
+        "type": "object"
+      },
+      "revisionist__core__realism__effect__ClauseKind": {
+        "enum": [
+          "money",
+          "power",
+          "limit"
+        ],
+        "title": "ClauseKind",
+        "type": "string"
       }
     },
     "additionalProperties": false,
@@ -12678,6 +16191,13 @@
         "default": null,
         "title": "In World Date"
       },
+      "mandates": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Mandate"
+        },
+        "title": "Mandates",
+        "type": "object"
+      },
       "me": {
         "$ref": "#/$defs/Seat"
       },
@@ -12726,6 +16246,13 @@
           "$ref": "#/$defs/Character"
         },
         "title": "Roster",
+        "type": "object"
+      },
+      "routed": {
+        "additionalProperties": {
+          "$ref": "#/$defs/RoutedOrderView"
+        },
+        "title": "Routed",
         "type": "object"
       },
       "ruleset": {
@@ -12777,6 +16304,17 @@
           "world_days_per_tick": 7
         }
       },
+      "style": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/PlayStyle"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
       "tick": {
         "default": 0,
         "title": "Tick",
@@ -12785,6 +16323,17 @@
       "viewer": {
         "title": "Viewer",
         "type": "string"
+      },
+      "wake": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Wake"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
       }
     },
     "required": [

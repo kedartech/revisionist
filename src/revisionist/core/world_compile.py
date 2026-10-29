@@ -74,7 +74,7 @@ from revisionist.core.ontology import (
     Seat,
     SeatKind,
 )
-from revisionist.core.realism.card import Contact, Lever, ParamKind, SeatCard
+from revisionist.core.realism.card import Contact, Domain, Lever, ParamKind, Reach, SeatCard
 from revisionist.core.realism.document import Feed
 from revisionist.core.realism.geography import FORCES, Feature, Leg
 from revisionist.core.realism.pipeline import Pipeline, Step
@@ -382,8 +382,15 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             problems.append(f"{where}: a second card for one person")
         carded.add(c.person)
         _refs(problems, where, c.principals, "entity", sections)
-        for k in c.contacts:
+        for k in c.inner_circle:
             person(where, k.person)
+        _refs(problems, where, c.reach.chain, "entity", sections)
+        domains = [dm.name for dm in c.authority]
+        if len(set(domains)) != len(domains):
+            problems.append(f"{where}: an authority domain is named twice")
+        for dm in c.authority:
+            person(f"{where}: domain {dm.name}", dm.executor)
+            _refs(problems, f"{where}: domain {dm.name}", dm.forces, "feature", sections)
         _refs(problems, where, c.feeds, "feed", sections)
         _refs(problems, where, c.pipelines, "pipeline", sections)
         person(where, c.successor)
@@ -994,8 +1001,8 @@ def _card(c: CardDecl, ids: Mapping[str, str]) -> SeatCard:
         office=c.office,
         playable=c.playable,
         powers=c.powers,
-        contacts=tuple(
-            Contact(person=EntityId(ids[k.person]), channel=k.channel) for k in c.contacts
+        inner_circle=tuple(
+            Contact(person=EntityId(ids[k.person]), channel=k.channel) for k in c.inner_circle
         ),
         principals=tuple(EntityId(ids[k]) for k in c.principals),
         levers=tuple(
@@ -1019,6 +1026,21 @@ def _card(c: CardDecl, ids: Mapping[str, str]) -> SeatCard:
         loyalty=c.loyalty,
         doctrine=c.doctrine,
         interests=c.interests,
+        authority=tuple(
+            Domain(
+                name=dm.name,
+                effects=frozenset(dm.effects),
+                executor=_maybe(ids, dm.executor, EntityId),
+                forces=tuple(FeatureId(ids[k]) for k in dm.forces),
+                summary=dm.summary,
+            )
+            for dm in c.authority
+        ),
+        reach=Reach(
+            rank=c.reach.rank,
+            chain=tuple(EntityId(ids[k]) for k in c.reach.chain),
+            heads=c.reach.heads,
+        ),
     )
 
 

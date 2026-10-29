@@ -146,9 +146,9 @@ def consult(
         raise CounselRefusedError(f"ask a question of 1 to {QUESTION_MAX} characters")
     me = state.seats[seat]
     card = state.cards.get(me.embodies)
-    contact = next((c for c in card.contacts if c.person == person), None) if card else None
+    contact = next((c for c in card.inner_circle if c.person == person), None) if card else None
     if card is None or contact is None:
-        names = ", ".join(state.entities[c.person].name for c in card.contacts) if card else ""
+        names = ", ".join(state.entities[c.person].name for c in card.inner_circle) if card else ""
         raise CounselRefusedError(
             f"{state.entities[person].name if person in state.entities else person} is not "
             f"within your reach" + (f" (you can consult: {names})" if names else "")

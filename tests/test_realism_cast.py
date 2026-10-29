@@ -111,7 +111,7 @@ def test_a_picked_figure_is_built_in_one_batch() -> None:
     card = state.cards[kennedy]
     assert card.playable and 2 <= len(card.levers) <= 6
     assert all(lv.resolver in RESOLVER_KEYS for lv in card.levers)
-    assert {state.entities[c.person].name for c in card.contacts} == {
+    assert {state.entities[c.person].name for c in card.inner_circle} == {
         "Robert McNamara",
         "Dean Rusk",
         "Nikita Khrushchev",

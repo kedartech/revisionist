@@ -130,7 +130,7 @@ def test_only_a_person_on_the_card_can_be_consulted() -> None:
     store = ready()
     state = load_state(store, CAMPAIGN)
     seat = roosevelt_seat(store)
-    reach = {c.person for c in state.cards[state.seats[seat].embodies].contacts}
+    reach = {c.person for c in state.cards[state.seats[seat].embodies].inner_circle}
     stranger = next(e for e in state.cards if e not in reach and e != state.seats[seat].embodies)
     with pytest.raises(CounselRefusedError, match="within your reach"):
         consult(store, CAMPAIGN, seat, stranger, QUESTION, ClaudeCounsellor(Capturing()))

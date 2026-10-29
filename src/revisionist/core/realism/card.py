@@ -14,12 +14,13 @@ Three nested shapes, by who may read them:
 """
 
 from enum import StrEnum
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from pydantic import Field, StringConstraints, model_validator
 
 from revisionist.core._base import Label, Model
-from revisionist.core.ids import EntityId, FeedId, PipelineId
+from revisionist.core.ids import EntityId, FeatureId, FeedId, PipelineId
+from revisionist.core.realism.effect import EffectKind
 from revisionist.core.realism.quantity import ResolverKey
 
 
@@ -104,7 +105,7 @@ class Lever(Model):
 
 
 class Contact(Model):
-    """A person this one can consult, and how the words travel."""
+    """A person in the inner circle, and how the words travel."""
 
     person: EntityId
     channel: ChannelKind
@@ -118,7 +119,56 @@ class CardFace(Model):
     playable: bool = False
     powers: tuple[Label, ...] = ()
     """Formal powers, as the constitution or the record states them."""
-    contacts: tuple[Contact, ...] = ()
+    inner_circle: tuple[Contact, ...] = ()
+    """Always reachable, fast and secure (spec §8.1). Everyone else is reached by ``reach``."""
+
+
+class Tie(StrEnum):
+    """How a person stands to someone they want to reach."""
+
+    INNER = "inner"
+    """On the card's inner circle: fast, secure, always available."""
+    CHAIN = "chain"
+    """In the person's own government or service chain: summoned."""
+    HEAD = "head"
+    """A foreign head of government."""
+    PUBLIC = "public"
+    """A legislator, the press, a private citizen."""
+
+
+CHANNELS: dict[Tie, tuple[ChannelKind, ...]] = {
+    Tie.INNER: tuple(ChannelKind),
+    Tie.CHAIN: (ChannelKind.IN_PERSON, ChannelKind.TELEPHONE),
+    Tie.HEAD: (ChannelKind.CABLE, ChannelKind.COURIER),
+    Tie.PUBLIC: (ChannelKind.TELEPHONE, ChannelKind.LETTER, ChannelKind.IN_PERSON),
+}
+"""The channels each tie allows. Courier stands for an envoy; ``in_person`` with the
+public is a meeting request, which the other side may decline."""
+
+
+class Reach(Model):
+    """What reach is derived from (spec §8.1). Whether a meeting is taken is computed
+    in code from rank, disposition and standing; nothing here is a whitelist."""
+
+    rank: int = Field(default=0, ge=0, le=5)
+    """Standing in the world: 5 a head of government, 0 a private citizen."""
+    chain: tuple[EntityId, ...] = ()
+    """The bodies whose people answer this person's summons: their own government
+    and service chain."""
+    heads: bool = False
+    """May address a foreign head of government directly."""
+
+
+class Domain(Model):
+    """One field the office commands outright (spec §8.1)."""
+
+    name: Label
+    effects: frozenset[EffectKind] = Field(min_length=1)
+    executor: EntityId | None = None
+    """Who carries it out. None: the seat acts itself (a statement, an executive order)."""
+    forces: tuple[FeatureId, ...] = ()
+    """The forces in scope, where the domain moves or engages forces."""
+    summary: str = Field(default="", max_length=300)
 
 
 class Desk(CardFace):
@@ -138,6 +188,18 @@ class Desk(CardFace):
     successor: EntityId | None = None
     horizon_days: int = Field(ge=1, le=365)
     """How far ahead this person's decisions play out (pillar 5)."""
+    authority: tuple[Domain, ...] = ()
+    """What the office commands outright (spec §8.1). Orders inside it are commands."""
+    reach: Reach = Reach()
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"authority", "reach"})
+
+    @model_validator(mode="after")
+    def _distinct_domains(self) -> "Desk":
+        names = [d.name for d in self.authority]
+        if len(set(names)) != len(names):
+            raise ValueError(f"card {self.person}: an authority domain is named twice")
+        return self
 
 
 class SeatCard(Desk):
@@ -159,14 +221,18 @@ class SeatCard(Desk):
 
 
 __all__ = [
+    "CHANNELS",
     "CardFace",
     "ChannelKind",
     "Contact",
     "Desk",
+    "Domain",
     "Lever",
     "ParamKind",
     "ParamSpec",
     "ParamValue",
+    "Reach",
     "SeatCard",
+    "Tie",
     "words",
 ]

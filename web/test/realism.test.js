@@ -98,7 +98,7 @@ test('realism output contains no figures that read as a chance', () => {
 });
 
 test('entity choices are contacts and principals, once each', () => {
-  const names = entityChoices({ contacts: [{ person: 'B' }, { person: 'A' }], principals: ['A', 'C'] });
+  const names = entityChoices({ inner_circle: [{ person: 'B' }, { person: 'A' }], principals: ['A', 'C'] });
   assert.deepEqual(names, ['A', 'B', 'C']);
 });
 
@@ -217,7 +217,7 @@ test('board lines carry no percentage sign or talk of chances', () => {
 });
 
 test('a directive offers each contact their own channel first, and a memo reads as one', () => {
-  for (const c of fixture.desk.contacts) assert.equal(c.channels[0], c.channel);
+  for (const c of fixture.desk.inner_circle) assert.equal(c.channels[0], c.channel);
   assert.equal(directiveChannel('letter'), 'Memo');
   assert.equal(directiveChannel('cable'), 'Cable');
   assert.equal(addressLine({ to: 'Cordell Hull', channel: 'letter' }), 'To Cordell Hull, by memo');

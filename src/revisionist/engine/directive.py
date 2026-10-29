@@ -174,7 +174,7 @@ def _addressed(
     if not text or len(text) > TEXT_MAX:
         raise DirectiveRefusedError(f"Write an instruction of 1 to {TEXT_MAX} characters.")
     card = state.cards.get(state.seats[seat].embodies)
-    contact = next((c for c in card.contacts if c.person == person), None) if card else None
+    contact = next((c for c in card.inner_circle if c.person == person), None) if card else None
     if contact is None:
         raise DirectiveRefusedError("That person is not within your reach.")
     if channel not in channels(contact):

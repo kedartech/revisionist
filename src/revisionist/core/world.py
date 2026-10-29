@@ -40,6 +40,7 @@ from revisionist.core.ontology import (
 )
 from revisionist.core.realism.card import ChannelKind, ParamSpec
 from revisionist.core.realism.document import Bias, Classification, DocumentKind
+from revisionist.core.realism.effect import EffectKind
 from revisionist.core.realism.geography import FeatureKind
 from revisionist.core.realism.pipeline import StepAction, StepKind
 from revisionist.core.realism.quantity import ResolverKey
@@ -392,6 +393,22 @@ class ContactDecl(Model):
     channel: ChannelKind
 
 
+class DomainDecl(Model):
+    """One authority domain. ``executor`` and ``forces`` are keys."""
+
+    name: Label
+    effects: tuple[EffectKind, ...] = Field(min_length=1)
+    executor: Key | None = None
+    forces: tuple[Key, ...] = ()
+    summary: str = Field(default="", max_length=300)
+
+
+class ReachDecl(Model):
+    rank: int = Field(default=0, ge=0, le=5)
+    chain: tuple[Key, ...] = ()
+    heads: bool = False
+
+
 class CardDecl(Model):
     """A person's seat card. ``person`` is a person key; the card has no key of its own."""
 
@@ -401,7 +418,7 @@ class CardDecl(Model):
     principals: tuple[Key, ...] = ()
     powers: tuple[Label, ...] = ()
     levers: tuple[LeverDecl, ...] = ()
-    contacts: tuple[ContactDecl, ...] = ()
+    inner_circle: tuple[ContactDecl, ...] = ()
     feeds: tuple[Key, ...] = ()
     pipelines: tuple[Key, ...] = ()
     constraints: tuple[Label, ...] = ()
@@ -412,6 +429,8 @@ class CardDecl(Model):
     loyalty: int = Field(default=0, ge=-5, le=5)
     doctrine: tuple[Label, ...] = ()
     interests: tuple[Label, ...] = ()
+    authority: tuple[DomainDecl, ...] = ()
+    reach: ReachDecl = ReachDecl()
 
 
 Slug = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_-]*$", max_length=40)]

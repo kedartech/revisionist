@@ -420,14 +420,14 @@ def desk(view: View) -> Desk:
             )
             for lever in card.levers
         ],
-        contacts=[
+        inner_circle=[
             ContactLine(
                 person=view.entities[c.person].name,
                 title=view.cards[c.person].office if c.person in view.cards else None,
                 channel=c.channel.value,
                 channels=[x.value for x in channels(c)],
             )
-            for c in card.contacts
+            for c in card.inner_circle
         ],
         principals=[
             view.entities[p].name

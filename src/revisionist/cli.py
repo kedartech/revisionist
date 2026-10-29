@@ -498,7 +498,7 @@ def step(order_id: str, action: str, params: Pairs = None, seat: PlayerSeat = No
 def _person(state: State, me: SeatId, ref: str) -> EntityId:
     """A person on the seat's card by entity ID, full name or any one word of the name."""
     card = state.cards.get(state.seats[me].embodies)
-    reach = [c.person for c in card.contacts] if card is not None else []
+    reach = [c.person for c in card.inner_circle] if card is not None else []
     if ref in reach:
         return EntityId(ref)
     want = ref.casefold()

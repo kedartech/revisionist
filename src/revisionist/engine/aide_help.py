@@ -77,7 +77,7 @@ def help_prompt(view: View, question: str, failed: str = "") -> str:
                 else {}
             ),
         }
-        for c in (desk.contacts if desk is not None else ())
+        for c in (desk.inner_circle if desk is not None else ())
         if c.person in view.entities
     ]
     principal = view.entities[view.me.embodies].name

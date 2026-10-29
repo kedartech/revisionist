@@ -185,7 +185,7 @@ BUILD_BY_NAME: dict[str, dict[str, Any]] = {
                     },
                     _text_lever("speak", "address", "opinion", "Speak to the nation"),
                 ],
-                "contacts": [
+                "inner_circle": [
                     {"person": "robert_mcnamara", "channel": "in_person"},
                     {"person": "rusk", "channel": "in_person"},
                     {"person": "nikita_khrushchev", "channel": "cable"},
@@ -277,7 +277,7 @@ BUILD_BY_NAME: dict[str, dict[str, Any]] = {
                     },
                     _text_lever("speak", "statement", "opinion", "Make a public statement"),
                 ],
-                "contacts": [
+                "inner_circle": [
                     {"person": "malinovsky", "channel": "in_person"},
                     {"person": "gromyko", "channel": "in_person"},
                     {"person": "john_f_kennedy", "channel": "cable"},
@@ -357,7 +357,7 @@ BUILD_BY_NAME: dict[str, dict[str, Any]] = {
                     },
                     _text_lever("speak", "broadcast", "opinion", "Speak on the radio"),
                 ],
-                "contacts": [
+                "inner_circle": [
                     {"person": "raul", "channel": "in_person"},
                     {"person": "nikita_khrushchev", "channel": "cable"},
                 ],
@@ -440,7 +440,7 @@ BUILD_BY_NAME: dict[str, dict[str, Any]] = {
                     },
                     _text_lever("brief", "briefing", "opinion", "Brief the press"),
                 ],
-                "contacts": [
+                "inner_circle": [
                     {"person": "taylor", "channel": "in_person"},
                     {"person": "john_f_kennedy", "channel": "in_person"},
                 ],

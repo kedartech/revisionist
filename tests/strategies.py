@@ -1,6 +1,6 @@
 """Hypothesis strategies for every core model. Reused by Layers 2 and 3."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import cast
 
 from hypothesis import strategies as st
@@ -19,9 +19,11 @@ from revisionist.core.ids import (
     EntityId,
     EventId,
     FactId,
+    FeatureId,
     FeedId,
     GoalId,
     IntentId,
+    MandateId,
     MeterId,
     OrderId,
     PipelineId,
@@ -55,8 +57,10 @@ from revisionist.core.ontology import (
     Seat,
     SeatKind,
 )
+from revisionist.core.realism import agenda as ra
 from revisionist.core.realism import card as rc
 from revisionist.core.realism import document as rd
+from revisionist.core.realism import effect as rx
 from revisionist.core.realism import pipeline as rp
 from revisionist.core.realism.quantity import RESOLVER_KEYS, Quantity
 from revisionist.core.settings import Settings
@@ -85,6 +89,8 @@ order_ids = ulid.map(OrderId)
 quantity_ids = ulid.map(QuantityId)
 pipeline_ids = ulid.map(PipelineId)
 feed_ids = ulid.map(FeedId)
+feature_ids = ulid.map(FeatureId)
+mandate_ids = ulid.map(MandateId)
 
 short_text = st.text(min_size=1, max_size=40)
 tags = st.frozensets(short_text, max_size=3)
@@ -459,15 +465,34 @@ levers = st.builds(
     params=st.lists(param_specs(), max_size=3, unique_by=lambda p: p.name).map(tuple),
 )
 
+effect_kinds = st.sampled_from(list(rx.EffectKind))
+
+domains = st.builds(
+    rc.Domain,
+    name=labels,
+    effects=st.frozensets(effect_kinds, min_size=1, max_size=3),
+    executor=st.none() | entity_ids,
+    forces=st.lists(feature_ids, max_size=2).map(tuple),
+)
+
+reaches = st.builds(
+    rc.Reach,
+    rank=st.integers(0, 5),
+    chain=st.lists(entity_ids, max_size=3).map(tuple),
+    heads=st.booleans(),
+)
+
 seat_cards = st.builds(
     rc.SeatCard,
+    authority=st.lists(domains, max_size=3, unique_by=lambda dm: dm.name).map(tuple),
+    reach=reaches,
     person=entity_ids,
     office=labels,
     playable=st.booleans(),
     powers=st.lists(labels, max_size=3).map(tuple),
-    contacts=st.lists(st.builds(rc.Contact, person=entity_ids, channel=channels), max_size=3).map(
-        tuple
-    ),
+    inner_circle=st.lists(
+        st.builds(rc.Contact, person=entity_ids, channel=channels), max_size=3
+    ).map(tuple),
     principals=st.lists(entity_ids, max_size=2).map(tuple),
     levers=st.lists(levers, max_size=2).map(tuple),
     feeds=st.lists(feed_ids, max_size=2).map(tuple),
@@ -653,8 +678,207 @@ realism_payloads = st.one_of(
     ),
 )
 
+
+# --- engine v2 ------------------------------------------------------------------
+
+
+@st.composite
+def measure_clauses(draw: st.DrawFn) -> rx.Clause:
+    kind = draw(st.sampled_from(list(rx.ClauseKind)))
+    amount = draw(st.integers(0, 10**9)) if kind is rx.ClauseKind.MONEY else None
+    return rx.Clause(kind=kind, subject=draw(labels), amount=amount)
+
+
+@st.composite
+def dispositions(draw: st.DrawFn) -> rx.ShiftDisposition:
+    of, toward = draw(st.lists(entity_ids, min_size=2, max_size=2, unique=True))
+    change = draw(st.sampled_from([-2, -1, 1, 2]))
+    return rx.ShiftDisposition(of=of, toward=toward, change=change)
+
+
+move_forces = st.one_of(
+    st.builds(
+        rx.MoveForce,
+        force=feature_ids,
+        to=entity_ids,
+        posture=st.none() | st.sampled_from(list(rx.Posture)),
+    ),
+    st.builds(
+        rx.MoveForce, force=feature_ids, to=st.none(), posture=st.sampled_from(list(rx.Posture))
+    ),
+)
+
+effects: st.SearchStrategy[rx.Effect] = st.one_of(
+    move_forces,
+    st.builds(
+        rx.SetEngagement,
+        force=st.none() | feature_ids,
+        zone=labels,
+        rule=st.sampled_from(list(rx.Engagement)),
+    ),
+    st.builds(
+        rx.Allocate, recipient=entity_ids, what=labels, amount=st.integers(0, 10**9), unit=labels
+    ),
+    st.builds(rx.Appointment, person=entity_ids, office=labels, appoint=st.booleans()),
+    st.builds(
+        rx.ProposeMeasure,
+        title=labels,
+        clauses=st.lists(measure_clauses(), min_size=1, max_size=4).map(tuple),
+    ),
+    st.builds(rx.MakeStatement, theme=labels, audience=st.none() | entity_ids),
+    st.builds(rx.Investigate, target=entity_ids, question=labels),
+    st.builds(
+        rx.Deal,
+        counterparty=entity_ids,
+        offer=st.lists(labels, min_size=1, max_size=3).map(tuple),
+        ask=st.lists(labels, max_size=3).map(tuple),
+        accept=st.booleans(),
+    ),
+    dispositions(),
+    st.builds(rx.Disclosure, fact=fact_ids, reveal=st.booleans()),
+)
+
+
+@st.composite
+def routed_parts(draw: st.DrawFn) -> rx.RoutedPart:
+    route = draw(st.sampled_from(list(rx.Route)))
+    fields: dict[str, object] = {"route": route, "effect": draw(st.none() | effects)}
+    if route is rx.Route.COMMAND:
+        fields |= {"domain": draw(labels), "executor": draw(st.none() | entity_ids)}
+        done = draw(st.sampled_from(["no", "done", "refused"]))
+        if done != "no":
+            fields["executed"] = draw(in_world_dates)
+            if done == "done":
+                fields["fidelity"] = draw(st.sampled_from(list(rx.Fidelity)))
+            else:
+                fields["refusal"] = draw(labels)
+    elif route is rx.Route.PROCESS:
+        fields["pipeline"] = draw(pipeline_ids)
+    else:
+        fields["target"] = draw(entity_ids)
+    fields["estimated"] = tuple(draw(st.lists(effects, max_size=2)))
+    fields["reason"] = draw(st.text(max_size=100))
+    return rx.RoutedPart.model_validate(fields)
+
+
+routed_orders = st.builds(
+    rx.RoutedOrder,
+    order_id=order_ids,
+    issuer=seat_ids,
+    filed=in_world_dates,
+    parts=st.lists(routed_parts(), min_size=1, max_size=3).map(tuple),
+)
+
+
+@st.composite
+def mandates(draw: st.DrawFn) -> ra.Mandate:
+    kind = draw(st.sampled_from(list(ra.MandateKind)))
+    seat = draw(seat_ids)
+    issued = draw(st.dates(min_value=date(1, 1, 1), max_value=date(2025, 1, 1)))
+    return ra.Mandate(
+        mandate_id=draw(mandate_ids),
+        seat_id=seat,
+        kind=kind,
+        issuer=draw(entity_ids) if kind is ra.MandateKind.ORDER else None,
+        text=draw(short_text),
+        condition=draw(conditions),
+        issued=issued,
+        expires=issued + timedelta(days=draw(st.integers(1, 365))),
+        cause=draw(order_ids) if kind is ra.MandateKind.BLOWBACK else None,
+        status=draw(st.sampled_from(list(ra.MandateStatus))),
+        scope=Scope(visibility=Visibility.PRIVATE, known_by=frozenset({seat})),
+    )
+
+
+asks = st.builds(ra.Ask, ask=short_text, effect=st.none() | effects)
+
+
+def _options(n_asks: tuple[int, int]) -> st.SearchStrategy[ra.Option]:
+    return st.builds(
+        ra.Option,
+        label=short_text,
+        asks=st.lists(asks, min_size=n_asks[0], max_size=n_asks[1]).map(tuple),
+        to=st.none() | entity_ids,
+        risk=st.text(max_size=60),
+        historical=st.just(False),
+    )
+
+
+offers = st.one_of(
+    st.builds(
+        ra.Offer,
+        mandate_id=st.none() | mandate_ids,
+        style=st.just(ra.PlayStyle.BEGINNER),
+        options=st.lists(_options((1, 2)), min_size=3, max_size=4).map(tuple),
+    ),
+    st.builds(
+        ra.Offer,
+        mandate_id=st.none() | mandate_ids,
+        style=st.just(ra.PlayStyle.GUIDED),
+        options=st.lists(_options((3, 5)), min_size=1, max_size=1).map(tuple),
+    ),
+)
+
+
+@st.composite
+def effects_estimated(draw: st.DrawFn) -> ev.EffectsEstimated:
+    failed = draw(st.booleans())
+    return ev.EffectsEstimated(
+        order_id=draw(order_ids),
+        part=draw(st.integers(0, 7)),
+        effects=() if failed else tuple(draw(st.lists(effects, max_size=3))),
+        reason=draw(st.text(max_size=100)) if failed else draw(st.text(min_size=1, max_size=100)),
+        rationale="" if failed else draw(st.text(max_size=100)),
+        failed=failed,
+    )
+
+
+@st.composite
+def orders_executed(draw: st.DrawFn) -> ev.OrderExecuted:
+    done = draw(st.booleans())
+    return ev.OrderExecuted(
+        order_id=draw(order_ids),
+        part=draw(st.integers(0, 7)),
+        on=draw(in_world_dates),
+        fidelity=draw(st.sampled_from(list(rx.Fidelity))) if done else None,
+        refusal="" if done else draw(labels),
+    )
+
+
+deadlines = st.datetimes(min_value=datetime(2020, 1, 1), max_value=datetime(2040, 1, 1))
+
+engine_v2_payloads = st.one_of(
+    st.builds(ev.OrderRouted, order=routed_orders),
+    orders_executed(),
+    effects_estimated(),
+    st.builds(ev.MandateIssued, mandate=mandates()),
+    st.builds(
+        ev.MandateSettled,
+        mandate_id=mandate_ids,
+        status=st.sampled_from([s for s in ra.MandateStatus if s is not ra.MandateStatus.LIVE]),
+    ),
+    st.builds(ev.WakeOpened, wake=st.integers(0, 500), deadline=deadlines),
+    st.builds(ev.WakeCommitted, wake=st.integers(0, 500), seat_id=seat_ids, by_aide=st.booleans()),
+    st.builds(
+        ev.WakeClosed, wake=st.integers(0, 500), timed_out=st.lists(seat_ids, max_size=3).map(tuple)
+    ),
+    st.builds(
+        ev.PlayStyleSet,
+        seat_id=seat_ids,
+        style=st.sampled_from(list(ra.PlayStyle)),
+        standing=st.frozensets(st.sampled_from(sorted(rx.IRREVERSIBLE)), max_size=2),
+    ),
+    st.builds(
+        ev.OptionsOffered,
+        seat_id=seat_ids,
+        wake=st.integers(0, 500),
+        offers=st.lists(offers, max_size=2).map(tuple),
+    ),
+)
+
 payloads = st.one_of(
     realism_payloads,
+    engine_v2_payloads,
     st.builds(ev.CampaignCreated, name=short_text, world=short_text),
     st.builds(ev.SettingsSet, settings=settings),
     st.builds(ev.EntityCreated, entity=entities),
@@ -809,4 +1033,8 @@ ALL_MODEL_STRATEGIES: dict[str, st.SearchStrategy[object]] = {
     "Order": cast(st.SearchStrategy[object], orders),
     "DocumentView": cast(st.SearchStrategy[object], document_views()),
     "Quantity": cast(st.SearchStrategy[object], quantities),
+    "RoutedOrder": cast(st.SearchStrategy[object], routed_orders),
+    "Mandate": cast(st.SearchStrategy[object], mandates()),
+    "Offer": cast(st.SearchStrategy[object], offers),
+    "Domain": cast(st.SearchStrategy[object], domains),
 }

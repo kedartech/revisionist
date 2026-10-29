@@ -10,6 +10,10 @@ Realism adds three rules. A document is in view once its scope admits the seat
 *and* it has arrived (``arrives <= in_world_date``); only its ``DocumentView``
 half is copied. A seat sees its own orders only. Cards show as faces, with the
 viewer's own person as a desk; AI policy fields never leave the state.
+
+Engine v2 adds three more. A seat sees its own routed orders, never the
+estimator's effects; its own play style; and only its own mandates. The shared
+wake is public: who has committed, never what.
 """
 
 from collections.abc import Mapping
@@ -65,6 +69,8 @@ def project(state: State, seat: SeatId) -> View:
         scheduled=_visible(state.scheduled, seat),
         commitments=_visible(state.commitments, seat),
         goals=_visible(state.goals, seat),
+        mandates=_visible(state.mandates, seat),
+        wake=state.wake,
         phase=state.phase,
         roster=dict(state.roster),
         contests=_visible(state.contests, seat),
@@ -83,4 +89,6 @@ def project(state: State, seat: SeatId) -> View:
             for k, q in state.quantities.items()
             if q.scope is not None and q.scope.visible_to(seat)
         },
+        routed={k: o.view() for k, o in state.routed.items() if o.issuer == seat},
+        style=state.styles.get(seat),
     )

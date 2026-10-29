@@ -119,7 +119,7 @@ def leak_lines(
     lines = render_leaks(found).splitlines()
     if holdings is None:
         return lines, bool(found)
-    seen = surfaces_from_log(store.read(campaign_id), holdings)
+    seen = surfaces_from_log(store.read(campaign_id), holdings, state)
     human_leaks: list[HumanLeak] = scan_humans(state, holdings, seen)
     lines += [
         f"LEAK human={leak.human} fact={leak.fact_id} in {leak.surface}" for leak in human_leaks

@@ -87,7 +87,7 @@ cards:
         resolver: votes
         params:
           - {name: bill, kind: enum, choices: [neutrality_revision]}
-    contacts:
+    inner_circle:
       - {person: hull, channel: in_person}
       - {person: rayburn, channel: telephone}
       - {person: churchill, channel: cable}
@@ -104,14 +104,14 @@ cards:
     office: Secretary of State
     principals: [roosevelt]
     powers: [conduct negotiations under instruction]
-    contacts:
+    inner_circle:
       - {person: roosevelt, channel: in_person}
     horizon_days: 7
   - person: rayburn
     office: Speaker of the House of Representatives
     principals: [house]
     powers: [recognise members on the floor, refer bills to committee]
-    contacts:
+    inner_circle:
       - {person: roosevelt, channel: telephone}
     horizon_days: 7
   - person: churchill
@@ -119,7 +119,7 @@ cards:
     playable: true
     principals: [commons]
     powers: [appoint and dismiss ministers, Minister of Defence]
-    contacts:
+    inner_circle:
       - {person: roosevelt, channel: cable}
     constraints:
       - keeps the confidence of the Commons

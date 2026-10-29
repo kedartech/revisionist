@@ -118,7 +118,7 @@ def _default(spec: ParamSpec, view: View) -> ParamValue:
     if spec.kind is ParamKind.ENUM:
         return spec.choices[0]
     if spec.kind is ParamKind.ENTITY:
-        contacts = view.desk.contacts if view.desk is not None else ()
+        contacts = view.desk.inner_circle if view.desk is not None else ()
         return str(contacts[0].person) if contacts else str(view.me.embodies)
     return "as you see fit"
 

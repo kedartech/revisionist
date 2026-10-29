@@ -62,7 +62,7 @@ cards:
         params:
           - {name: rate, kind: int, lo: 1, hi: 10, label: "Rate"}
           - {name: purpose, kind: enum, choices: [harbour, militia], label: "Purpose", choice_labels: ["For the harbour", "For the militia"]}
-    contacts:
+    inner_circle:
       - {person: bram, channel: letter}
       - {person: cora, channel: in_person}
     feeds: [council_count]
@@ -71,12 +71,17 @@ cards:
     horizon_days: 14
     voice: Brisk, plain, impatient with ceremony.
     doctrine: [reformer]
+    # Engine v2 (spec §8.1): what Ada commands outright, and how far she reaches.
+    authority:
+      - {name: public_word, effects: [statement], summary: "Speak for Vell in her own name."}
+      - {name: harbour_works, effects: [allocate, investigate], executor: cora, summary: "Spend what the Council has already voted, through the Clerk."}
+    reach: {rank: 4, chain: [council], heads: true}
   - person: bram
     office: Speaker of the Council
     playable: true
     principals: [council]
     powers: [schedule Council business]
-    contacts:
+    inner_circle:
       - {person: ada, channel: letter}
     horizon_days: 7
     voice: Careful; counts before he speaks.
@@ -87,7 +92,7 @@ cards:
     playable: true
     principals: [council]
     powers: [enrol bills]
-    contacts:
+    inner_circle:
       - {person: ada, channel: in_person}
     horizon_days: 3
     successor: bram

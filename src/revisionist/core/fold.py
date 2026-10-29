@@ -19,7 +19,7 @@ from revisionist.core import delta as d
 from revisionist.core import events as ev
 from revisionist.core.events import MUTATING_KINDS, Event
 from revisionist.core.goals import GoalKind, season_winners
-from revisionist.core.ids import CampaignId
+from revisionist.core.ids import CampaignId, SeatId
 from revisionist.core.ontology import (
     TRACK_MAX,
     Asset,
@@ -37,9 +37,28 @@ from revisionist.core.ontology import (
     SeatKind,
     SeatStatus,
 )
+from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus
 from revisionist.core.realism.document import Document
+from revisionist.core.realism.effect import (
+    IRREVERSIBLE,
+    Allocate,
+    Appointment,
+    Deal,
+    Disclosure,
+    Effect,
+    EffectKind,
+    Investigate,
+    MakeStatement,
+    MoveForce,
+    ProposeMeasure,
+    Route,
+    RoutedOrder,
+    RoutedPart,
+    SetEngagement,
+    ShiftDisposition,
+)
 from revisionist.core.realism.pipeline import ADVANCES, SETTLED, OrderStatus, StepAction
-from revisionist.core.state import State
+from revisionist.core.state import State, Wake
 from revisionist.core.visibility import PUBLIC, Scope
 
 
@@ -359,6 +378,20 @@ def _mutate(state: State, event: Event) -> State:
             if state.ruleset != "realism":
                 raise FoldError(f"{event.kind} belongs to a realism campaign")
             return _realism(state, p)
+        case (
+            ev.OrderRouted()
+            | ev.OrderExecuted()
+            | ev.EffectsEstimated()
+            | ev.MandateIssued()
+            | ev.MandateSettled()
+            | ev.WakeOpened()
+            | ev.WakeCommitted()
+            | ev.WakeClosed()
+            | ev.PlayStyleSet()
+        ):
+            if state.ruleset != "realism":
+                raise FoldError(f"{event.kind} belongs to a realism campaign")
+            return _engine_v2(state, p)
         case _:
             raise FoldError(f"mutating kind {event.kind!r} has no fold case")
 
@@ -391,9 +424,17 @@ def _realism(state: State, p: ev.Payload) -> State:
                 person = _need(state.entities, c.person, "entity")
                 if person.kind is not EntityKind.PERSON:
                     raise FoldError(f"card {c.person} is not a person")
-                named = [*c.principals, *(k.person for k in c.contacts)]
+                named = [
+                    *c.principals,
+                    *(k.person for k in c.inner_circle),
+                    *(dm.executor for dm in c.authority if dm.executor is not None),
+                    *c.reach.chain,
+                ]
                 for entity in [*named, *([c.successor] if c.successor else [])]:
                     _need(state.entities, entity, "entity")
+                for dm in c.authority:
+                    for force in dm.forces:
+                        _need(state.features, force, "feature")
                 for fid in c.feeds:
                     _need(feeds, fid, "feed")
                 for pid in c.pipelines:
@@ -488,6 +529,176 @@ def _realism(state: State, p: ev.Payload) -> State:
             return state.model_copy(update={"features": _put(state.features, ft.feature_id, ft)})
         case _:
             raise FoldError(f"kind {p.kind!r} is not a realism record")
+
+
+# --- engine v2 ------------------------------------------------------------------
+
+
+def _check_effect(state: State, effect: Effect, where: str) -> None:
+    """Every object an effect names must already be in the world (spec §8.3)."""
+    match effect:
+        case MoveForce():
+            _need(state.features, effect.force, "feature")
+            if effect.to is not None:
+                if _need(state.entities, effect.to, "entity").kind is not EntityKind.LOCATION:
+                    raise FoldError(f"{where}: {effect.to} is not a place")
+        case SetEngagement():
+            if effect.force is not None:
+                _need(state.features, effect.force, "feature")
+        case Allocate():
+            _need(state.entities, effect.recipient, "entity")
+        case Appointment():
+            _need(state.entities, effect.person, "entity")
+        case MakeStatement():
+            if effect.audience is not None:
+                _need(state.entities, effect.audience, "entity")
+        case Investigate():
+            _need(state.entities, effect.target, "entity")
+        case Deal():
+            _need(state.entities, effect.counterparty, "entity")
+        case ShiftDisposition():
+            _need(state.entities, effect.of, "entity")
+            _need(state.entities, effect.toward, "entity")
+        case Disclosure():
+            _need(state.facts, effect.fact, "fact")
+        case ProposeMeasure():
+            pass
+
+
+def _check_part(state: State, issuer: SeatId, part: RoutedPart, where: str) -> None:
+    if part.fidelity is not None or part.refusal or part.estimated or part.was_estimated:
+        raise FoldError(f"{where}: a part is routed before anyone acts on it")
+    if part.effect is not None:
+        _check_effect(state, part.effect, where)
+    match part.route:
+        case Route.COMMAND:
+            card = state.cards.get(state.seats[issuer].embodies)
+            domain = next(
+                (dm for dm in (card.authority if card else ()) if dm.name == part.domain), None
+            )
+            if domain is None:
+                raise FoldError(f"{where}: {part.domain!r} is not in the issuer's authority")
+            if part.executor != domain.executor:
+                raise FoldError(f"{where}: the {domain.name} domain is carried out by another")
+            if part.effect is not None and EffectKind(part.effect.kind) not in domain.effects:
+                raise FoldError(f"{where}: the {domain.name} domain does not cover that")
+        case Route.PROCESS if part.pipeline is not None:
+            _need(state.pipelines, part.pipeline, "pipeline")
+        case Route.INFLUENCE if part.target is not None:
+            _need(state.entities, part.target, "entity")
+
+
+def _part_at(order: RoutedOrder, index: int) -> RoutedPart:
+    if index >= len(order.parts):
+        raise FoldError(f"order {order.order_id} has no part {index}")
+    return order.parts[index]
+
+
+def _with_part(state: State, order: RoutedOrder, index: int, part: RoutedPart) -> State:
+    parts = (*order.parts[:index], part, *order.parts[index + 1 :])
+    order = order.model_copy(update={"parts": parts})
+    return state.model_copy(update={"routed": _put(state.routed, order.order_id, order)})
+
+
+def _engine_v2(state: State, p: ev.Payload) -> State:
+    """Store engine-v2 records: routed orders, the agenda, the wake, play styles."""
+    match p:
+        case ev.OrderRouted():
+            o = p.order
+            if o.order_id in state.orders:
+                raise FoldError(f"duplicate order {o.order_id!r}")
+            _fresh(state.routed, o.order_id, "order")
+            _need(state.seats, o.issuer, "seat")
+            for i, part in enumerate(o.parts):
+                _check_part(state, o.issuer, part, f"order {o.order_id} part {i}")
+            return state.model_copy(update={"routed": _put(state.routed, o.order_id, o)})
+        case ev.OrderExecuted():
+            o = _need(state.routed, p.order_id, "order")
+            part = _part_at(o, p.part)
+            if part.route is not Route.COMMAND:
+                raise FoldError(f"order {o.order_id} part {p.part} is not a command")
+            if part.executed is not None:
+                raise FoldError(f"order {o.order_id} part {p.part} is already executed")
+            if p.on < o.filed:
+                raise FoldError(f"order {o.order_id} is executed before it is filed")
+            part = part.model_copy(
+                update={"fidelity": p.fidelity, "refusal": p.refusal, "executed": p.on}
+            )
+            return _with_part(state, o, p.part, part)
+        case ev.EffectsEstimated():
+            o = _need(state.routed, p.order_id, "order")
+            part = _part_at(o, p.part)
+            if part.was_estimated:
+                raise FoldError(f"order {o.order_id} part {p.part} is already estimated")
+            for effect in p.effects:
+                _check_effect(state, effect, f"order {o.order_id} part {p.part}")
+            part = part.model_copy(
+                update={"estimated": p.effects, "reason": p.reason, "was_estimated": True}
+            )
+            return _with_part(state, o, p.part, part)
+        case ev.MandateIssued():
+            m = p.mandate
+            _fresh(state.mandates, m.mandate_id, "mandate")
+            _need(state.seats, m.seat_id, "seat")
+            if m.issuer is not None:
+                _need(state.entities, m.issuer, "entity")
+            if m.cause is not None and m.cause not in state.routed and m.cause not in state.orders:
+                raise FoldError(f"mandate {m.mandate_id}: unknown order {m.cause!r}")
+            if m.status is not MandateStatus.LIVE:
+                raise FoldError(f"mandate {m.mandate_id} must start live")
+            live = sum(
+                1
+                for x in state.mandates.values()
+                if x.seat_id == m.seat_id and x.status is MandateStatus.LIVE
+            )
+            if live >= MANDATE_CAP:
+                raise FoldError(f"seat {m.seat_id} already holds {MANDATE_CAP} live mandates")
+            return state.model_copy(update={"mandates": _put(state.mandates, m.mandate_id, m)})
+        case ev.MandateSettled():
+            m = _need(state.mandates, p.mandate_id, "mandate")
+            if m.status is not MandateStatus.LIVE:
+                raise FoldError(f"mandate {m.mandate_id} is already settled")
+            m = m.model_copy(update={"status": p.status})
+            return state.model_copy(update={"mandates": _put(state.mandates, m.mandate_id, m)})
+        case ev.WakeOpened():
+            w = state.wake
+            expected = 0 if w is None else w.number + 1
+            if w is not None and not w.closed:
+                raise FoldError(f"wake {w.number} is still open")
+            if p.wake != expected:
+                raise FoldError(f"wake {p.wake} opens out of turn: expected {expected}")
+            return state.model_copy(update={"wake": Wake(number=p.wake, deadline=p.deadline)})
+        case ev.WakeCommitted():
+            w = _open_wake(state, p.wake)
+            _need(state.seats, p.seat_id, "seat")
+            if p.seat_id in w.committed:
+                raise FoldError(f"seat {p.seat_id} has already committed in wake {p.wake}")
+            w = w.model_copy(update={"committed": w.committed | {p.seat_id}})
+            return state.model_copy(update={"wake": w})
+        case ev.WakeClosed():
+            w = _open_wake(state, p.wake)
+            for seat in p.timed_out:
+                _need(state.seats, seat, "seat")
+            return state.model_copy(update={"wake": w.model_copy(update={"closed": True})})
+        case ev.PlayStyleSet():
+            _need(state.seats, p.seat_id, "seat")
+            if not p.standing <= IRREVERSIBLE:
+                raise FoldError("a standing order names only irreversible kinds")
+            return state.model_copy(
+                update={
+                    "styles": _put(state.styles, p.seat_id, p.style),
+                    "standing": _put(state.standing, p.seat_id, p.standing),
+                }
+            )
+        case _:
+            raise FoldError(f"kind {p.kind!r} is not an engine-v2 record")
+
+
+def _open_wake(state: State, number: int) -> Wake:
+    w = state.wake
+    if w is None or w.closed or w.number != number:
+        raise FoldError(f"wake {number} is not open")
+    return w
 
 
 # --- deltas -------------------------------------------------------------------

@@ -7,8 +7,13 @@ Pure; the cryptography lives in ``engine/seal.py``. Two tiers of key:
 - a seat key seals that seat's own words: what its player typed
   (``order_received``), what its agent asked back (``clarification_asked``),
   its private briefings (``narration_written``), its counsel transcripts
-  (``counsel_held``) and its directives (``directive_given``). None of these
-  is folded, so destroying a seat key erases them and replay still works.
+  (``counsel_held``), its directives (``directive_given``) and the options it
+  was offered (``options_offered``). None of these is folded, so destroying a
+  seat key erases them and replay still works.
+
+``play_style_set`` is private to its seat but folded, so it takes the campaign
+key; it counts as an admin read, as does the estimator's ruling (engine-only
+effects and the sealed rationale) and a routed order.
 """
 
 from typing import Any
@@ -29,7 +34,8 @@ def seal_holder(event: Event) -> SeatId | None:
         | ev.ClarificationAsked
         | ev.GoalProposed
         | ev.CounselHeld
-        | ev.DirectiveGiven,
+        | ev.DirectiveGiven
+        | ev.OptionsOffered,
     ):
         return p.seat_id
     if isinstance(p, ev.NarrationWritten) and event.scope.visibility is not Visibility.PUBLIC:
@@ -61,7 +67,9 @@ def needs_admin_read(event: Event) -> bool:
     if seal_holder(event) is not None:
         return True
     p = event.payload
-    if isinstance(p, ev.CardsDeclared | ev.DocumentIssued):
+    if isinstance(p, ev.CardsDeclared | ev.DocumentIssued | ev.EffectsEstimated):
+        return True
+    if isinstance(p, ev.OrderRouted | ev.PlayStyleSet):
         return True
     if isinstance(p, ev.QuantitySet) and p.quantity.scope is None:
         return True

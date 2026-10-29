@@ -71,7 +71,7 @@
         {"name": "share_pct", "label": "Share of the aid (per cent)", "kind": "int", "lo": 0, "hi": 100, "choices": []}
       ]}
     ],
-    "contacts": [
+    "inner_circle": [
       {"person": "Harry Hopkins", "channel": "in_person", "channels": ["in_person", "letter"]},
       {"person": "Sam Rayburn", "channel": "telephone", "channels": ["telephone", "letter"]},
       {"person": "Winston Churchill", "channel": "cable", "channels": ["cable"]}

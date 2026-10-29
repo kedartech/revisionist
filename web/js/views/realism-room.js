@@ -270,7 +270,7 @@ export function realismRoom(ctx) {
   function deskColumn() {
     const directive = ui.proposal
       ? proposalCard(ui.proposal, { onSign: signed, onRevise: () => { ui.proposal = null; ui.said = null; rerender(); } })
-      : directiveForm(rv.desk.contacts, ui.draft, ask);
+      : directiveForm(rv.desk.inner_circle, ui.draft, ask);
     return h('section', { class: 'rl-col rl-desk-col', 'aria-label': 'Desk' },
       h('div', { class: 'rl-col-body' },
         desk(rv.desk, {
@@ -313,7 +313,7 @@ export function realismRoom(ctx) {
   /** Lines in each conversation, to mark the ones with something new since last seen. */
   function chatCounts() {
     const counts = { aide: (rv.help ?? []).filter((m) => m.from === 'aide').length };
-    for (const c of rv.desk.contacts) counts[c.person] = (rv.counsel ?? []).filter((x) => x.person === c.person).length;
+    for (const c of rv.desk.inner_circle) counts[c.person] = (rv.counsel ?? []).filter((x) => x.person === c.person).length;
     return counts;
   }
 
@@ -329,7 +329,7 @@ export function realismRoom(ctx) {
         conversations({
           selected: ui.chat,
           slot: briefSlot,
-          contacts: rv.desk.contacts,
+          contacts: rv.desk.inner_circle,
           counsel: rv.counsel ?? [],
           help: rv.help ?? [],
           fresh,

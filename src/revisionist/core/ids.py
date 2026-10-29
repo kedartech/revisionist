@@ -33,6 +33,7 @@ QuantityId = NewType("QuantityId", str)
 PipelineId = NewType("PipelineId", str)
 FeedId = NewType("FeedId", str)
 FeatureId = NewType("FeatureId", str)
+MandateId = NewType("MandateId", str)
 
 WorldObjectId = EntityId | AssetId | RelationshipId | MeterId | ClockId | FactId | CommitmentId
 """Anything an Intent may target."""

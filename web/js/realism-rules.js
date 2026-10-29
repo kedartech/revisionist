@@ -152,7 +152,7 @@ export function addressLine(p) {
 
 /** Names to offer for entity parameters: contacts and principals, once each, sorted. */
 export function entityChoices(desk) {
-  return [...new Set([...desk.contacts.map((c) => c.person), ...desk.principals])].sort();
+  return [...new Set([...desk.inner_circle.map((c) => c.person), ...desk.principals])].sort();
 }
 
 /** What a page's structured lines are called: figures when they are numbers, particulars when they are words. */

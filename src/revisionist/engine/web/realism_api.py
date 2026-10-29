@@ -166,7 +166,7 @@ class Desk(TypedDict):
     office: str
     powers: list[str]
     levers: list[LeverLine]
-    contacts: list[ContactLine]
+    inner_circle: list[ContactLine]
     principals: list[str]
     constraints: list[str]
     personal: list[str]

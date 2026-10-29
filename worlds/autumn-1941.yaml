@@ -457,7 +457,7 @@ cards:
         summary: "Send Mr. Churchill a message through the State Department cable office."
         params:
           - {name: message, kind: text, label: "The message"}
-    contacts:
+    inner_circle:
       - {person: hull, channel: in_person}
       - {person: hopkins, channel: in_person}
       - {person: stimson, channel: in_person}
@@ -518,7 +518,7 @@ cards:
         summary: "Speak over the wireless to a chosen audience."
         params:
           - {name: audience, kind: enum, choices: [britain, america, occupied_europe], label: "To whom", choice_labels: ["Britain", "America", "Occupied Europe"]}
-    contacts:
+    inner_circle:
       - {person: roosevelt, channel: cable}
       - {person: eden, channel: in_person}
       - {person: pound, channel: in_person}
@@ -565,7 +565,7 @@ cards:
         params:
           - {name: force, kind: enum, choices: [soviet_western_front], label: "Which army", choice_labels: ["The Western Front"]}
           - {name: to, kind: enum, choices: [vyazma, mozhaisk, moscow], label: "To", choice_labels: ["Vyazma", "Mozhaisk", "Moscow"]}
-    contacts:
+    inner_circle:
       - {person: molotov, channel: in_person}
       - {person: shaposhnikov, channel: in_person}
       - {person: roosevelt, channel: cable}
@@ -620,7 +620,7 @@ cards:
         summary: "Have the Foreign Office hand a declaration of war to another power's envoy."
         params:
           - {name: target, kind: enum, choices: [usa], label: "On whom", choice_labels: ["The United States"]}
-    contacts:
+    inner_circle:
       - {person: ribbentrop, channel: in_person}
       - {person: raeder, channel: in_person}
       - {person: jodl, channel: in_person}
@@ -662,7 +662,7 @@ cards:
         summary: "Put out the Cabinet's public line on the crisis."
         params:
           - {name: line, kind: enum, choices: [conciliatory, firm, silent], label: "The line to take", choice_labels: ["Conciliatory", "Firm", "Say nothing"]}
-    contacts:
+    inner_circle:
       - {person: hirohito, channel: in_person}
       - {person: tojo, channel: in_person}
       - {person: nomura, channel: cable}
@@ -706,7 +706,7 @@ cards:
         summary: "Put out the Cabinet's public line on the crisis."
         params:
           - {name: line, kind: enum, choices: [conciliatory, firm, silent], label: "The line to take", choice_labels: ["Conciliatory", "Firm", "Say nothing"]}
-    contacts:
+    inner_circle:
       - {person: konoe, channel: in_person}
       - {person: hirohito, channel: in_person}
       - {person: sugiyama, channel: in_person}
@@ -742,7 +742,7 @@ cards:
         summary: "Direct which branch of industry is to be pressed ahead."
         params:
           - {name: sector, kind: enum, choices: [aircraft, warships, tanks], label: "Which sector", choice_labels: ["Aircraft", "Warships", "Tanks"]}
-    contacts:
+    inner_circle:
       - {person: hitler, channel: courier}
       - {person: cavallero, channel: in_person}
       - {person: victor_emmanuel, channel: in_person}
@@ -776,7 +776,7 @@ cards:
         summary: "Send an appeal for support to a foreign public."
         params:
           - {name: audience, kind: enum, choices: [america, britain], label: "To whom", choice_labels: ["America", "Britain"]}
-    contacts:
+    inner_circle:
       - {person: soong, channel: cable}
       - {person: he_yingqin, channel: in_person}
       - {person: roosevelt, channel: cable}
@@ -794,13 +794,13 @@ cards:
     office: Vice President of the United States
     principals: [usa]
     powers: [preside over the Senate, break tied votes]
-    contacts: [{person: roosevelt, channel: in_person}]
+    inner_circle: [{person: roosevelt, channel: in_person}]
     horizon_days: 7
   - person: hull
     office: Secretary of State
     principals: [roosevelt]
     powers: [conduct negotiations under instruction]
-    contacts:
+    inner_circle:
       - {person: roosevelt, channel: in_person}
       - {person: welles, channel: in_person}
       - {person: nomura, channel: in_person}
@@ -813,38 +813,38 @@ cards:
     office: Under Secretary of State
     principals: [hull]
     powers: [run the Department's daily business]
-    contacts: [{person: roosevelt, channel: in_person}, {person: hull, channel: in_person}]
+    inner_circle: [{person: roosevelt, channel: in_person}, {person: hull, channel: in_person}]
     horizon_days: 7
   - person: grew
     office: US Ambassador to Japan
     principals: [hull]
     powers: [report from Tokyo, present US notes to the Japanese Government]
-    contacts: [{person: hull, channel: cable}]
+    inner_circle: [{person: hull, channel: cable}]
     constraints: [acts through the Department]
     horizon_days: 7
   - person: stimson
     office: Secretary of War
     principals: [roosevelt]
     powers: [administer the War Department]
-    contacts: [{person: roosevelt, channel: in_person}, {person: marshall, channel: in_person}]
+    inner_circle: [{person: roosevelt, channel: in_person}, {person: marshall, channel: in_person}]
     horizon_days: 7
   - person: marshall
     office: Army Chief of Staff
     principals: [stimson]
     powers: [direct the Army General Staff]
-    contacts: [{person: roosevelt, channel: in_person}, {person: stark, channel: in_person}]
+    inner_circle: [{person: roosevelt, channel: in_person}, {person: stark, channel: in_person}]
     horizon_days: 7
   - person: knox
     office: Secretary of the Navy
     principals: [roosevelt]
     powers: [administer the Navy Department]
-    contacts: [{person: roosevelt, channel: in_person}, {person: stark, channel: in_person}]
+    inner_circle: [{person: roosevelt, channel: in_person}, {person: stark, channel: in_person}]
     horizon_days: 7
   - person: stark
     office: Chief of Naval Operations
     principals: [knox]
     powers: [direct the operating forces under the President]
-    contacts:
+    inner_circle:
       - {person: king, channel: cable}
       - {person: knox, channel: in_person}
       - {person: roosevelt, channel: in_person}
@@ -856,7 +856,7 @@ cards:
     office: Commander in Chief, Atlantic Fleet
     principals: [stark]
     powers: [command the Atlantic Fleet, order escorts and patrols]
-    contacts: [{person: stark, channel: cable}]
+    inner_circle: [{person: stark, channel: cable}]
     feeds: [atlantic_reports]
     pipelines: [naval_order]
     horizon_days: 7
@@ -864,19 +864,19 @@ cards:
     office: Navy communications intelligence translator
     principals: [stark]
     powers: [translate and brief intercepts]
-    contacts: [{person: stark, channel: in_person}]
+    inner_circle: [{person: stark, channel: in_person}]
     horizon_days: 3
   - person: morgenthau
     office: Secretary of the Treasury
     principals: [roosevelt]
     powers: [administer the Treasury, freeze foreign assets]
-    contacts: [{person: roosevelt, channel: in_person}]
+    inner_circle: [{person: roosevelt, channel: in_person}]
     horizon_days: 7
   - person: hopkins
     office: Special assistant to the President
     principals: [roosevelt]
     powers: [coordinate aid to the Allies for the President]
-    contacts:
+    inner_circle:
       - {person: roosevelt, channel: in_person}
       - {person: churchill, channel: cable}
       - {person: stettinius, channel: in_person}
@@ -888,14 +888,14 @@ cards:
     office: Lend-Lease Administrator (appointed 28 Oct 1941)
     principals: [roosevelt]
     powers: [administer Lend-Lease allocations]
-    contacts: [{person: hopkins, channel: in_person}, {person: roosevelt, channel: in_person}]
+    inner_circle: [{person: hopkins, channel: in_person}, {person: roosevelt, channel: in_person}]
     pipelines: [lend_lease_allocation]
     horizon_days: 7
   - person: early
     office: White House press secretary
     principals: [roosevelt]
     powers: [hold press conferences, release statements]
-    contacts: [{person: roosevelt, channel: in_person}]
+    inner_circle: [{person: roosevelt, channel: in_person}]
     feeds: [gallup_polls]
     pipelines: [public_address]
     horizon_days: 3
@@ -913,7 +913,7 @@ cards:
     office: Speaker of the House of Representatives
     principals: [house]
     powers: [recognise members on the floor, refer bills to committee]
-    contacts: [{person: roosevelt, channel: telephone}, {person: mccormack, channel: in_person}]
+    inner_circle: [{person: roosevelt, channel: telephone}, {person: mccormack, channel: in_person}]
     feeds: [house_whip_count]
     pipelines: [bill_through_congress]
     constraints: [the Democratic majority in the House is thin on neutrality]
@@ -922,7 +922,7 @@ cards:
     office: House Majority Leader
     principals: [rayburn]
     powers: [schedule floor business, count votes]
-    contacts: [{person: rayburn, channel: in_person}]
+    inner_circle: [{person: rayburn, channel: in_person}]
     horizon_days: 7
   - person: house_clerk
     office: House committee clerk
@@ -933,7 +933,7 @@ cards:
     office: Senate Majority Leader
     principals: [senate]
     powers: [schedule floor business, count votes]
-    contacts: [{person: roosevelt, channel: telephone}, {person: rayburn, channel: telephone}]
+    inner_circle: [{person: roosevelt, channel: telephone}, {person: rayburn, channel: telephone}]
     feeds: [senate_whip_count]
     pipelines: [bill_through_congress]
     constraints: [Senate rules allow extended debate]
@@ -942,40 +942,40 @@ cards:
     office: Senator for Montana
     principals: [senate]
     powers: [vote and speak in the Senate]
-    contacts: [{person: nye, channel: in_person}]
+    inner_circle: [{person: nye, channel: in_person}]
     interests: [keep the United States out of the war]
     horizon_days: 7
   - person: nye
     office: Senator for North Dakota
     principals: [senate]
     powers: [vote and speak in the Senate]
-    contacts: [{person: wheeler, channel: in_person}]
+    inner_circle: [{person: wheeler, channel: in_person}]
     interests: [keep the United States out of the war]
     horizon_days: 7
   - person: eden
     office: Foreign Secretary
     principals: [churchill]
     powers: [conduct British foreign policy]
-    contacts: [{person: churchill, channel: in_person}, {person: halifax, channel: cable}]
+    inner_circle: [{person: churchill, channel: in_person}, {person: halifax, channel: cable}]
     horizon_days: 7
   - person: halifax
     office: British Ambassador to the United States
     principals: [eden]
     powers: [represent the Government in Washington]
-    contacts: [{person: eden, channel: cable}, {person: hull, channel: in_person}]
+    inner_circle: [{person: eden, channel: cable}, {person: hull, channel: in_person}]
     horizon_days: 7
   - person: pound
     office: First Sea Lord and Chairman of the Chiefs of Staff
     principals: [churchill]
     powers: [direct the Royal Navy, chair the Chiefs of Staff]
-    contacts: [{person: churchill, channel: in_person}]
+    inner_circle: [{person: churchill, channel: in_person}]
     pipelines: [cos_directive]
     horizon_days: 7
   - person: ismay
     office: Chief Staff Officer to the Minister of Defence
     principals: [churchill]
     powers: [carry the Chiefs' papers to the War Cabinet]
-    contacts: [{person: churchill, channel: in_person}]
+    inner_circle: [{person: churchill, channel: in_person}]
     horizon_days: 2
   - person: uk_cipher_clerk
     office: Downing Street cipher room
@@ -993,7 +993,7 @@ cards:
     powers:
       - sanction decisions of the Imperial Conference
       - supreme command in name
-    contacts: [{person: konoe, channel: in_person}, {person: tojo, channel: in_person}]
+    inner_circle: [{person: konoe, channel: in_person}, {person: tojo, channel: in_person}]
     pipelines: [japan_state_policy]
     constraints: [by convention does not overrule a unanimous conference]
     horizon_days: 14
@@ -1001,26 +1001,26 @@ cards:
     office: Japanese Ambassador to the United States
     principals: [konoe]
     powers: [negotiate under instruction]
-    contacts: [{person: hull, channel: in_person}, {person: konoe, channel: cable}]
+    inner_circle: [{person: hull, channel: in_person}, {person: konoe, channel: cable}]
     horizon_days: 7
   - person: kurusu
     office: Japanese Ambassador to Germany
     principals: [konoe]
     powers: [represent Japan in Berlin]
-    contacts: [{person: ribbentrop, channel: in_person}]
+    inner_circle: [{person: ribbentrop, channel: in_person}]
     horizon_days: 7
   - person: sugiyama
     office: Chief of the Army General Staff
     principals: [hirohito]
     powers: [direct Army operations, sit in the Liaison Conference]
-    contacts: [{person: tojo, channel: in_person}, {person: nagano, channel: in_person}]
+    inner_circle: [{person: tojo, channel: in_person}, {person: nagano, channel: in_person}]
     pipelines: [japan_state_policy]
     horizon_days: 7
   - person: nagano
     office: Chief of the Navy General Staff
     principals: [hirohito]
     powers: [direct Navy operations, sit in the Liaison Conference]
-    contacts: [{person: tojo, channel: in_person}, {person: sugiyama, channel: in_person}]
+    inner_circle: [{person: tojo, channel: in_person}, {person: sugiyama, channel: in_person}]
     pipelines: [japan_state_policy]
     horizon_days: 7
   - person: cabinet_clerk
@@ -1032,19 +1032,19 @@ cards:
     office: Reichsmarschall
     principals: [hitler]
     powers: [command the Luftwaffe, run the Four Year Plan]
-    contacts: [{person: hitler, channel: in_person}]
+    inner_circle: [{person: hitler, channel: in_person}]
     horizon_days: 7
   - person: ribbentrop
     office: Reich Foreign Minister
     principals: [hitler]
     powers: [conduct German foreign policy]
-    contacts: [{person: hitler, channel: in_person}]
+    inner_circle: [{person: hitler, channel: in_person}]
     horizon_days: 7
   - person: raeder
     office: Commander in Chief of the Navy
     principals: [hitler]
     powers: [direct the Kriegsmarine and the U-boat arm]
-    contacts: [{person: hitler, channel: in_person}]
+    inner_circle: [{person: hitler, channel: in_person}]
     feeds: [german_naval_reports]
     pipelines: [okw_directive]
     horizon_days: 7
@@ -1052,26 +1052,26 @@ cards:
     office: Chief of Wehrmacht Operations Staff
     principals: [hitler]
     powers: [draft Fuehrer directives]
-    contacts: [{person: hitler, channel: in_person}]
+    inner_circle: [{person: hitler, channel: in_person}]
     horizon_days: 3
   - person: victor_emmanuel
     office: King of Italy
     principals: [italy]
     powers: [head of state, nominal supreme command]
-    contacts: [{person: mussolini, channel: in_person}]
+    inner_circle: [{person: mussolini, channel: in_person}]
     horizon_days: 14
   - person: cavallero
     office: Chief of the Comando Supremo
     principals: [mussolini]
     powers: [direct Italian operations]
-    contacts: [{person: mussolini, channel: in_person}]
+    inner_circle: [{person: mussolini, channel: in_person}]
     pipelines: [comando_supremo_order]
     horizon_days: 7
   - person: molotov
     office: People's Commissar for Foreign Affairs
     principals: [stalin]
     powers: [conduct Soviet diplomacy, sit on the State Defence Committee]
-    contacts: [{person: stalin, channel: in_person}]
+    inner_circle: [{person: stalin, channel: in_person}]
     feeds: [soviet_requests]
     pipelines: [gko_decree, soviet_aid_request]
     horizon_days: 7
@@ -1079,7 +1079,7 @@ cards:
     office: Chief of the General Staff
     principals: [stalin]
     powers: [direct the General Staff, advise Stavka]
-    contacts: [{person: stalin, channel: in_person}]
+    inner_circle: [{person: stalin, channel: in_person}]
     feeds: [stavka_situation]
     pipelines: [gko_decree]
     horizon_days: 7
@@ -1087,14 +1087,14 @@ cards:
     office: Chief of the General Staff, China
     principals: [chiang]
     powers: [direct operations under the Commission]
-    contacts: [{person: chiang, channel: in_person}]
+    inner_circle: [{person: chiang, channel: in_person}]
     pipelines: [mac_order]
     horizon_days: 7
   - person: soong
     office: Chiang's personal representative in Washington
     principals: [chiang]
     powers: [negotiate for aid]
-    contacts: [{person: chiang, channel: cable}, {person: hull, channel: in_person}]
+    inner_circle: [{person: chiang, channel: cable}, {person: hull, channel: in_person}]
     pipelines: [appeal_through_soong]
     horizon_days: 7
 

@@ -732,7 +732,7 @@ def _params(body: dict[str, Any]) -> dict[str, str]:
 def _contact(state: State, seat: SeatId, name: str) -> EntityId:
     """The contact on the seat's card called ``name``. Raises ``ValueError``."""
     card = state.cards[state.seats[seat].embodies]
-    for c in card.contacts:
+    for c in card.inner_circle:
         if state.entities[c.person].name == name:
             return c.person
     raise ValueError("That person is not within your reach.")

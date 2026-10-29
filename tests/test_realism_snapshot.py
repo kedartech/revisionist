@@ -259,7 +259,7 @@ def test_the_desk_names_people_and_leaves_out_the_ai_policy(toy: Toy) -> None:
         "office",
         "powers",
         "levers",
-        "contacts",
+        "inner_circle",
         "principals",
         "constraints",
         "personal",
@@ -267,7 +267,7 @@ def test_the_desk_names_people_and_leaves_out_the_ai_policy(toy: Toy) -> None:
     }
     assert desk["office"] == "First Citizen of Vell" and desk["horizon_days"] == 14
     assert desk["principals"] == []  # Vell is a polity: no one answers to a country
-    assert [c["person"] for c in desk["contacts"]] == ["Bram Tull", "Cora Senn"]
+    assert [c["person"] for c in desk["inner_circle"]] == ["Bram Tull", "Cora Senn"]
     lever = desk["levers"][0]
     assert lever["name"] == "propose_levy" and lever["pipeline"] == toy.ids["levy_bill"]
     assert [p["name"] for p in lever["params"]] == ["rate", "purpose"]

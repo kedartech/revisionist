@@ -248,7 +248,7 @@ def _reply(
     lever = _lever(state, order)
     specs = {p.name: p for p in lever.params}
     channel = next(
-        (c.channel for c in state.cards[seat.embodies].contacts if c.person == outcome.person),
+        (c.channel for c in state.cards[seat.embodies].inner_circle if c.person == outcome.person),
         ChannelKind.LETTER,
     )
     label = lever.label or words(lever.name)

@@ -9,7 +9,7 @@ Layer 2 provides ``apply``, ``replay`` and ``project``; this module only
 defines the shapes.
 """
 
-from datetime import date
+from datetime import date, datetime
 from typing import ClassVar, Literal
 
 from pydantic import Field
@@ -29,6 +29,7 @@ from revisionist.core.ids import (
     FeedId,
     GoalId,
     IntentId,
+    MandateId,
     MeterId,
     OrderId,
     PipelineId,
@@ -53,14 +54,25 @@ from revisionist.core.ontology import (
     Seat,
     SeatKind,
 )
+from revisionist.core.realism.agenda import Mandate, PlayStyle
 from revisionist.core.realism.card import CardFace, Desk, SeatCard
 from revisionist.core.realism.document import Document, DocumentView, Feed
+from revisionist.core.realism.effect import EffectKind, RoutedOrder, RoutedOrderView
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.settings import Settings
 
 Ruleset = Literal["legacy", "realism"]
+
+
+class Wake(Model):
+    """The table's shared wake (spec §4). Public: who has committed, never what."""
+
+    number: int = Field(ge=0)
+    deadline: datetime
+    committed: frozenset[SeatId] = frozenset()
+    closed: bool = False
 
 
 class _World(Model):
@@ -91,9 +103,23 @@ class _World(Model):
     """Today in the world. None for a campaign with no start date."""
     ruleset: Ruleset = "legacy"
     """Set once, by ``campaign_created``. Public: the client hides odds under realism."""
+    wake: Wake | None = None
+    """Engine v2: the current or last shared wake. None before the first opens."""
+    mandates: dict[MandateId, Mandate] = Field(default_factory=dict)
+    """Engine v2: issued goals. A view holds only its own seat's."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
-        {"goals", "phase", "roster", "contests", "divergence", "in_world_date", "ruleset"}
+        {
+            "goals",
+            "phase",
+            "roster",
+            "contests",
+            "divergence",
+            "in_world_date",
+            "ruleset",
+            "wake",
+            "mandates",
+        }
     )
 
 
@@ -129,8 +155,17 @@ class State(_World):
     quantities: dict[QuantityId, Quantity] = Field(default_factory=dict)
     features: dict[FeatureId, Feature] = Field(default_factory=dict)
     """Engine only: seats learn of features from documents that sight them."""
+    routed: dict[OrderId, RoutedOrder] = Field(default_factory=dict)
+    """Engine v2 orders, with the estimator's effects."""
+    styles: dict[SeatId, PlayStyle] = Field(default_factory=dict)
+    """Each seat's play style. Private to the seat; absent means free."""
+    standing: dict[SeatId, frozenset[EffectKind]] = Field(default_factory=dict)
+    """Irreversible kinds each seat lets its aide order while it is absent."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
+        "routed",
+        "styles",
+        "standing",
         "cards",
         "feeds",
         "pipelines",
@@ -161,8 +196,14 @@ class View(_World):
     """The viewer's own orders only."""
     quantities: dict[QuantityId, Quantity] = Field(default_factory=dict)
     """Only quantities whose scope admits the viewer."""
+    routed: dict[OrderId, RoutedOrderView] = Field(default_factory=dict)
+    """The viewer's own engine-v2 orders, without the estimator's effects."""
+    style: PlayStyle | None = None
+    """The viewer's own play style. None: free."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
+        "routed",
+        "style",
         "cards",
         "desk",
         "documents",

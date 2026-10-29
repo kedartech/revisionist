@@ -271,6 +271,34 @@ class RoutedPart(PartView):
         return PartView.model_validate(self.model_dump(include=set(PartView.model_fields)))
 
 
+class FidelityInputs(Model):
+    """What sets an executor's fidelity, read from state when a command is carried
+    out (spec §8.2). The router (wave A1) fills it; the seeded roll lives there too."""
+
+    loyalty: int = Field(ge=-5, le=5)
+    competence: int = Field(ge=0, le=5)
+    workload: int = Field(ge=0)
+    """Command parts the executor already carries and has not carried out."""
+
+
+class Routing(Model):
+    """The router's answer for one part: the routed part, or why no route takes it.
+
+    Shared by the router (wave A1) and the estimator (wave A4): a part routed with
+    no ``effect`` is the estimator's to rule on. Engine-side, never stored; the
+    routed parts land as ``OrderRouted``."""
+
+    part: RoutedPart | None = None
+    refusal: str = Field(default="", max_length=300)
+    """Words the issuer can read: why nobody can carry this part out."""
+
+    @model_validator(mode="after")
+    def _one(self) -> "Routing":
+        if (self.part is None) == (not self.refusal):
+            raise ValueError("a part is routed or refused, not both or neither")
+        return self
+
+
 class RoutedOrderView(Model):
     """An engine-v2 order as its issuer knows it."""
 
@@ -311,6 +339,7 @@ __all__ = [
     "EffectKind",
     "Engagement",
     "Fidelity",
+    "FidelityInputs",
     "Investigate",
     "MakeStatement",
     "MoveForce",
@@ -321,6 +350,7 @@ __all__ = [
     "RoutedOrder",
     "RoutedOrderView",
     "RoutedPart",
+    "Routing",
     "SetEngagement",
     "ShiftDisposition",
 ]

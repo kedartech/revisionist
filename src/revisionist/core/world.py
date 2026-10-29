@@ -377,6 +377,8 @@ class FeatureDecl(Cited):
     as_of: date | None = None
     """None means the world's start date."""
     legs: tuple[LegDecl, ...] = ()
+    in_service: date | None = None
+    """Engine v2: the day the capability enters service. None: from the start."""
 
 
 class LeverDecl(Model):
@@ -427,6 +429,7 @@ class CardDecl(Model):
     horizon_days: int = Field(ge=1, le=365)
     voice: str = Field(default="", max_length=200)
     loyalty: int = Field(default=0, ge=-5, le=5)
+    competence: int = Field(default=3, ge=0, le=5)
     doctrine: tuple[Label, ...] = ()
     interests: tuple[Label, ...] = ()
     authority: tuple[DomainDecl, ...] = ()

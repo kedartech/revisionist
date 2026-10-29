@@ -1,50 +1,63 @@
 {
- "194f72892fc672b8fb95298d": {
+ "009fda9f36457588ade86e5f": {
   "call_class": "build",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"andrei_gromyko\", \"name\": \"Andrei Gromyko\", \"kin",
+  "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"cuba\", \"name\": \"Cuba\", \"kind\": \"polity\"}, {\"key",
   "reply": {
    "cached_tokens": 924,
-   "input_tokens": 1267,
+   "input_tokens": 1181,
    "model": "claude-sonnet-5-5",
    "output": {
     "cards": [
      {
       "feeds": [
-       "army_reports"
+       "u2_reports"
       ],
       "horizon_days": 7,
       "inner_circle": [
        {
         "channel": "in_person",
-        "person": "raul"
+        "person": "robert_mcnamara"
+       },
+       {
+        "channel": "in_person",
+        "person": "rusk"
        },
        {
         "channel": "cable",
         "person": "nikita_khrushchev"
        }
       ],
+      "interests": [
+       "a settlement that does not look like a retreat"
+      ],
       "levers": [
        {
-        "label": "Mobilise the militia",
-        "name": "mobilise",
+        "label": "Order a naval quarantine",
+        "name": "quarantine",
         "params": [
          {
-          "hi": 300,
-          "kind": "int",
-          "label": "Thousands of men",
-          "lo": 0,
-          "name": "thousands"
+          "choice_labels": [
+           "Close to Cuba",
+           "Far out at sea"
+          ],
+          "choices": [
+           "close_in",
+           "far_out"
+          ],
+          "kind": "enum",
+          "label": "Where to draw the line",
+          "name": "line"
          }
         ],
-        "pipeline": "mobilise",
-        "resolver": "production",
-        "summary": "Call up the militia in thousands."
+        "pipeline": "quarantine_order",
+        "resolver": "shipping",
+        "summary": "Have the Navy stop ships bound for Cuba at a line you set."
        },
        {
-        "label": "Speak on the radio",
+        "label": "Speak to the nation",
         "name": "speak",
         "params": [
          {
@@ -53,54 +66,63 @@
           "name": "message"
          }
         ],
-        "pipeline": "broadcast",
+        "pipeline": "address",
         "resolver": "opinion",
-        "summary": "Speak on the radio, in your own words."
+        "summary": "Speak to the nation, in your own words."
        }
       ],
-      "loyalty": 1,
-      "office": "Prime Minister of Cuba",
-      "person": "fidel_castro",
+      "loyalty": 3,
+      "office": "President of the United States",
+      "person": "john_f_kennedy",
       "pipelines": [
-       "mobilise",
-       "broadcast"
+       "quarantine_order",
+       "address"
+      ],
+      "powers": [
+       "Commander in Chief of the Army and Navy"
       ],
       "principals": [
-       "cuba"
+       "united_states"
       ],
-      "voice": "Long, fierce and defiant."
+      "voice": "Cool and ironic in private, measured and grave in public."
      }
     ],
     "entities": [
      {
-      "key": "raul",
+      "key": "rusk",
       "kind": "person",
-      "name": "Ra\u00fal Castro",
-      "parent": "cuba"
+      "name": "Dean Rusk",
+      "parent": "united_states"
+     },
+     {
+      "key": "anderson",
+      "kind": "person",
+      "name": "George Anderson",
+      "parent": "united_states"
      }
     ],
     "feeds": [
      {
       "assumed": true,
-      "author": "raul",
+      "author": "robert_mcnamara",
       "channel": "courier",
-      "classification": "secret",
+      "classification": "most_secret",
       "every_days": 1,
       "gap": true,
-      "key": "army_reports",
+      "key": "u2_reports",
       "kind": "report",
-      "latency_days": 0,
-      "name": "Reports from the Armed Forces Ministry",
+      "latency_days": 1,
+      "name": "Photographic intelligence from Cuba",
       "reports": [
-       "militia"
+       "sites_seen"
       ]
      }
     ],
     "pipelines": [
      {
       "gap": true,
-      "key": "mobilise",
-      "name": "A mobilisation order",
+      "key": "quarantine_order",
+      "name": "A quarantine order",
       "steps": [
        {
         "allowed": [
@@ -112,20 +134,32 @@
         "assumed": true,
         "days": 1,
         "kind": "decision",
-        "person": "raul"
+        "person": "robert_mcnamara"
+       },
+       {
+        "allowed": [
+         "pass",
+         "stall",
+         "amend",
+         "refuse"
+        ],
+        "assumed": true,
+        "days": 1,
+        "kind": "decision",
+        "person": "anderson"
        }
       ]
      },
      {
       "gap": true,
-      "key": "broadcast",
-      "name": "A broadcast",
+      "key": "address",
+      "name": "An address to the nation",
       "steps": [
        {
         "assumed": true,
         "days": 1,
         "kind": "clerical",
-        "person": "raul"
+        "person": "rusk"
        }
       ]
      }
@@ -133,18 +167,185 @@
     "quantities": [
      {
       "gap": true,
-      "key": "militia",
-      "name": "Cuban militia under arms",
+      "key": "sites_seen",
+      "name": "Missile sites photographed in Cuba",
       "owner": "cuba",
-      "unit": "men"
+      "unit": "sites"
      }
     ]
    },
-   "output_tokens": 416,
-   "usd": 0.006694
+   "output_tokens": 569,
+   "usd": 0.008052
   }
  },
- "553e7c3bc89f05d99ef4c27a": {
+ "583e4e4e330677ff83fde27a": {
+  "call_class": "build",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"cuba\", \"name\": \"Cuba\", \"kind\": \"polity\"}, {\"key",
+  "reply": {
+   "cached_tokens": 924,
+   "input_tokens": 1230,
+   "model": "claude-sonnet-5-5",
+   "output": {
+    "cards": [
+     {
+      "feeds": [
+       "defence_reports"
+      ],
+      "horizon_days": 7,
+      "inner_circle": [
+       {
+        "channel": "in_person",
+        "person": "malinovsky"
+       },
+       {
+        "channel": "in_person",
+        "person": "gromyko"
+       },
+       {
+        "channel": "cable",
+        "person": "john_f_kennedy"
+       }
+      ],
+      "interests": [
+       "the missiles kept or paid for"
+      ],
+      "levers": [
+       {
+        "label": "Order the ships",
+        "name": "ships",
+        "params": [
+         {
+          "choice_labels": [
+           "Hold course",
+           "Turn back"
+          ],
+          "choices": [
+           "hold_course",
+           "turn_back"
+          ],
+          "kind": "enum",
+          "label": "Their course",
+          "name": "course"
+         }
+        ],
+        "pipeline": "ship_orders",
+        "resolver": "shipping",
+        "summary": "Tell the ships bound for Cuba whether to hold course."
+       },
+       {
+        "label": "Make a public statement",
+        "name": "speak",
+        "params": [
+         {
+          "kind": "text",
+          "label": "What you will say",
+          "name": "message"
+         }
+        ],
+        "pipeline": "statement",
+        "resolver": "opinion",
+        "summary": "Make a public statement, in your own words."
+       }
+      ],
+      "loyalty": 2,
+      "office": "First Secretary of the Communist Party",
+      "person": "nikita_khrushchev",
+      "pipelines": [
+       "ship_orders",
+       "statement"
+      ],
+      "powers": [
+       "Chairman of the Council of Ministers"
+      ],
+      "principals": [
+       "soviet_union"
+      ],
+      "voice": "Blunt, earthy, quick to anger and quick to bargain."
+     }
+    ],
+    "entities": [
+     {
+      "key": "gromyko",
+      "kind": "person",
+      "name": "Andrei Gromyko",
+      "parent": "soviet_union"
+     },
+     {
+      "key": "malinovsky",
+      "kind": "person",
+      "name": "Rodion Malinovsky",
+      "parent": "soviet_union"
+     }
+    ],
+    "feeds": [
+     {
+      "assumed": true,
+      "author": "malinovsky",
+      "channel": "courier",
+      "classification": "secret",
+      "every_days": 2,
+      "gap": true,
+      "key": "defence_reports",
+      "kind": "report",
+      "latency_days": 1,
+      "name": "Reports from the Defence Ministry",
+      "reports": [
+       "ships_bound"
+      ]
+     }
+    ],
+    "pipelines": [
+     {
+      "gap": true,
+      "key": "ship_orders",
+      "name": "Orders to the ships",
+      "steps": [
+       {
+        "allowed": [
+         "pass",
+         "stall",
+         "amend",
+         "refuse"
+        ],
+        "assumed": true,
+        "days": 1,
+        "kind": "decision",
+        "person": "malinovsky"
+       }
+      ]
+     },
+     {
+      "gap": true,
+      "key": "statement",
+      "name": "A public statement",
+      "steps": [
+       {
+        "assumed": true,
+        "days": 1,
+        "kind": "clerical",
+        "person": "gromyko"
+       }
+      ]
+     }
+    ],
+    "quantities": [
+     {
+      "gap": true,
+      "key": "ships_bound",
+      "name": "Soviet ships bound for Cuba",
+      "owner": "soviet_union",
+      "unit": "ships"
+     }
+    ]
+   },
+   "output_tokens": 527,
+   "usd": 0.00773
+  }
+ },
+ "65cbb18c39439359deac5d6c": {
   "call_class": "build",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -435,65 +636,52 @@
    "usd": 0.0002368
   }
  },
- "d47575a8687cfbfdddaa3ba3": {
+ "de94873ddb244e9755645ea7": {
   "call_class": "build",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"cuba\", \"name\": \"Cuba\", \"kind\": \"polity\"}, {\"key",
+  "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"andrei_gromyko\", \"name\": \"Andrei Gromyko\", \"kin",
   "reply": {
    "cached_tokens": 924,
-   "input_tokens": 1181,
+   "input_tokens": 1267,
    "model": "claude-sonnet-5-5",
    "output": {
     "cards": [
      {
       "feeds": [
-       "u2_reports"
+       "army_reports"
       ],
       "horizon_days": 7,
       "inner_circle": [
        {
         "channel": "in_person",
-        "person": "robert_mcnamara"
-       },
-       {
-        "channel": "in_person",
-        "person": "rusk"
+        "person": "raul"
        },
        {
         "channel": "cable",
         "person": "nikita_khrushchev"
        }
       ],
-      "interests": [
-       "a settlement that does not look like a retreat"
-      ],
       "levers": [
        {
-        "label": "Order a naval quarantine",
-        "name": "quarantine",
+        "label": "Mobilise the militia",
+        "name": "mobilise",
         "params": [
          {
-          "choice_labels": [
-           "Close to Cuba",
-           "Far out at sea"
-          ],
-          "choices": [
-           "close_in",
-           "far_out"
-          ],
-          "kind": "enum",
-          "label": "Where to draw the line",
-          "name": "line"
+          "hi": 300,
+          "kind": "int",
+          "label": "Thousands of men",
+          "lo": 0,
+          "name": "thousands"
          }
         ],
-        "pipeline": "quarantine_order",
-        "resolver": "shipping",
-        "summary": "Have the Navy stop ships bound for Cuba at a line you set."
+        "pipeline": "mobilise",
+        "resolver": "production",
+        "summary": "Call up the militia in thousands."
        },
        {
-        "label": "Speak to the nation",
+        "label": "Speak on the radio",
         "name": "speak",
         "params": [
          {
@@ -502,242 +690,54 @@
           "name": "message"
          }
         ],
-        "pipeline": "address",
+        "pipeline": "broadcast",
         "resolver": "opinion",
-        "summary": "Speak to the nation, in your own words."
+        "summary": "Speak on the radio, in your own words."
        }
       ],
-      "loyalty": 3,
-      "office": "President of the United States",
-      "person": "john_f_kennedy",
+      "loyalty": 1,
+      "office": "Prime Minister of Cuba",
+      "person": "fidel_castro",
       "pipelines": [
-       "quarantine_order",
-       "address"
-      ],
-      "powers": [
-       "Commander in Chief of the Army and Navy"
+       "mobilise",
+       "broadcast"
       ],
       "principals": [
-       "united_states"
+       "cuba"
       ],
-      "voice": "Cool and ironic in private, measured and grave in public."
+      "voice": "Long, fierce and defiant."
      }
     ],
     "entities": [
      {
-      "key": "rusk",
+      "key": "raul",
       "kind": "person",
-      "name": "Dean Rusk",
-      "parent": "united_states"
-     },
-     {
-      "key": "anderson",
-      "kind": "person",
-      "name": "George Anderson",
-      "parent": "united_states"
+      "name": "Ra\u00fal Castro",
+      "parent": "cuba"
      }
     ],
     "feeds": [
      {
       "assumed": true,
-      "author": "robert_mcnamara",
-      "channel": "courier",
-      "classification": "most_secret",
-      "every_days": 1,
-      "gap": true,
-      "key": "u2_reports",
-      "kind": "report",
-      "latency_days": 1,
-      "name": "Photographic intelligence from Cuba",
-      "reports": [
-       "sites_seen"
-      ]
-     }
-    ],
-    "pipelines": [
-     {
-      "gap": true,
-      "key": "quarantine_order",
-      "name": "A quarantine order",
-      "steps": [
-       {
-        "allowed": [
-         "pass",
-         "stall",
-         "amend",
-         "refuse"
-        ],
-        "assumed": true,
-        "days": 1,
-        "kind": "decision",
-        "person": "robert_mcnamara"
-       },
-       {
-        "allowed": [
-         "pass",
-         "stall",
-         "amend",
-         "refuse"
-        ],
-        "assumed": true,
-        "days": 1,
-        "kind": "decision",
-        "person": "anderson"
-       }
-      ]
-     },
-     {
-      "gap": true,
-      "key": "address",
-      "name": "An address to the nation",
-      "steps": [
-       {
-        "assumed": true,
-        "days": 1,
-        "kind": "clerical",
-        "person": "rusk"
-       }
-      ]
-     }
-    ],
-    "quantities": [
-     {
-      "gap": true,
-      "key": "sites_seen",
-      "name": "Missile sites photographed in Cuba",
-      "owner": "cuba",
-      "unit": "sites"
-     }
-    ]
-   },
-   "output_tokens": 569,
-   "usd": 0.008052
-  }
- },
- "f0f65dea3820ddd09857b4ed": {
-  "call_class": "build",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"cuba\", \"name\": \"Cuba\", \"kind\": \"polity\"}, {\"key",
-  "reply": {
-   "cached_tokens": 924,
-   "input_tokens": 1230,
-   "model": "claude-sonnet-5-5",
-   "output": {
-    "cards": [
-     {
-      "feeds": [
-       "defence_reports"
-      ],
-      "horizon_days": 7,
-      "inner_circle": [
-       {
-        "channel": "in_person",
-        "person": "malinovsky"
-       },
-       {
-        "channel": "in_person",
-        "person": "gromyko"
-       },
-       {
-        "channel": "cable",
-        "person": "john_f_kennedy"
-       }
-      ],
-      "interests": [
-       "the missiles kept or paid for"
-      ],
-      "levers": [
-       {
-        "label": "Order the ships",
-        "name": "ships",
-        "params": [
-         {
-          "choice_labels": [
-           "Hold course",
-           "Turn back"
-          ],
-          "choices": [
-           "hold_course",
-           "turn_back"
-          ],
-          "kind": "enum",
-          "label": "Their course",
-          "name": "course"
-         }
-        ],
-        "pipeline": "ship_orders",
-        "resolver": "shipping",
-        "summary": "Tell the ships bound for Cuba whether to hold course."
-       },
-       {
-        "label": "Make a public statement",
-        "name": "speak",
-        "params": [
-         {
-          "kind": "text",
-          "label": "What you will say",
-          "name": "message"
-         }
-        ],
-        "pipeline": "statement",
-        "resolver": "opinion",
-        "summary": "Make a public statement, in your own words."
-       }
-      ],
-      "loyalty": 2,
-      "office": "First Secretary of the Communist Party",
-      "person": "nikita_khrushchev",
-      "pipelines": [
-       "ship_orders",
-       "statement"
-      ],
-      "powers": [
-       "Chairman of the Council of Ministers"
-      ],
-      "principals": [
-       "soviet_union"
-      ],
-      "voice": "Blunt, earthy, quick to anger and quick to bargain."
-     }
-    ],
-    "entities": [
-     {
-      "key": "gromyko",
-      "kind": "person",
-      "name": "Andrei Gromyko",
-      "parent": "soviet_union"
-     },
-     {
-      "key": "malinovsky",
-      "kind": "person",
-      "name": "Rodion Malinovsky",
-      "parent": "soviet_union"
-     }
-    ],
-    "feeds": [
-     {
-      "assumed": true,
-      "author": "malinovsky",
+      "author": "raul",
       "channel": "courier",
       "classification": "secret",
-      "every_days": 2,
+      "every_days": 1,
       "gap": true,
-      "key": "defence_reports",
+      "key": "army_reports",
       "kind": "report",
-      "latency_days": 1,
-      "name": "Reports from the Defence Ministry",
+      "latency_days": 0,
+      "name": "Reports from the Armed Forces Ministry",
       "reports": [
-       "ships_bound"
+       "militia"
       ]
      }
     ],
     "pipelines": [
      {
       "gap": true,
-      "key": "ship_orders",
-      "name": "Orders to the ships",
+      "key": "mobilise",
+      "name": "A mobilisation order",
       "steps": [
        {
         "allowed": [
@@ -749,20 +749,20 @@
         "assumed": true,
         "days": 1,
         "kind": "decision",
-        "person": "malinovsky"
+        "person": "raul"
        }
       ]
      },
      {
       "gap": true,
-      "key": "statement",
-      "name": "A public statement",
+      "key": "broadcast",
+      "name": "A broadcast",
       "steps": [
        {
         "assumed": true,
         "days": 1,
         "kind": "clerical",
-        "person": "gromyko"
+        "person": "raul"
        }
       ]
      }
@@ -770,15 +770,15 @@
     "quantities": [
      {
       "gap": true,
-      "key": "ships_bound",
-      "name": "Soviet ships bound for Cuba",
-      "owner": "soviet_union",
-      "unit": "ships"
+      "key": "militia",
+      "name": "Cuban militia under arms",
+      "owner": "cuba",
+      "unit": "men"
      }
     ]
    },
-   "output_tokens": 527,
-   "usd": 0.00773
+   "output_tokens": 416,
+   "usd": 0.006694
   }
  }
 }

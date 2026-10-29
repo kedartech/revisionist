@@ -157,6 +157,44 @@ def test_older_cards_hash_as_before_authority_existed(sl: Slice) -> None:
     assert "authority" not in dump and "reach" not in dump
 
 
+def test_a_force_is_not_used_before_it_enters_service(sl: Slice) -> None:
+    """Spec §8.3: no capability before its date. Checked when the order is routed
+    and when an estimate names the force."""
+    fleet = sl.state.features[sl.feature("us_atlantic_fleet")]
+    later = fleet.model_copy(update={"in_service": date(1941, 12, 1)})
+    sl.add(ev.FeatureSet(feature=later))
+    _refused(sl, ev.OrderRouted(order=sl.shoot_on_sight()), "not in service until")
+    sl.add(ev.FeatureSet(feature=later.model_copy(update={"in_service": date(1941, 9, 11)})))
+    sl.add(ev.OrderRouted(order=sl.shoot_on_sight()), private_to(sl.fdr))
+
+
+def test_engine_v2_late_fields_leave_older_dumps_unchanged(sl: Slice) -> None:
+    fleet = sl.state.features[sl.feature("us_atlantic_fleet")]
+    card = sl.state.cards[sl.entity("stark")]
+    assert "in_service" not in fleet.model_dump(mode="json")
+    assert "competence" not in card.model_dump(mode="json")
+    assert "target" not in ra.Ask(ask="x").model_dump(mode="json")
+    assert card.competence == 3
+
+
+def test_a_routing_is_a_part_or_a_refusal(sl: Slice) -> None:
+    part = sl.shoot_on_sight().parts[0]
+    assert rx.Routing(part=part).part == part
+    assert rx.Routing(refusal="Nobody under you commands that.").part is None
+    with pytest.raises(ValidationError):
+        rx.Routing()
+    with pytest.raises(ValidationError):
+        rx.Routing(part=part, refusal="both")
+
+
+def test_fidelity_inputs_hold_the_card_ranges() -> None:
+    rx.FidelityInputs(loyalty=-5, competence=0, workload=0)
+    with pytest.raises(ValidationError):
+        rx.FidelityInputs(loyalty=0, competence=6, workload=0)
+    with pytest.raises(ValidationError):
+        rx.FidelityInputs(loyalty=0, competence=3, workload=-1)
+
+
 # --- effects and parts ----------------------------------------------------------
 
 

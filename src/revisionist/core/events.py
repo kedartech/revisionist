@@ -451,7 +451,8 @@ class TickOpened(Model):
 
 class CallCost(Model):
     call_class: str
-    """resolver | narrator | structurer | persona | press | director | prose | counsel | aide."""
+    """resolver | narrator | structurer | persona | press | director | prose | counsel | aide
+    | estimator."""
     model: str
     input_tokens: int = Field(ge=0)
     output_tokens: int = Field(ge=0)

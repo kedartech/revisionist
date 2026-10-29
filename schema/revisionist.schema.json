@@ -403,6 +403,18 @@
             ],
             "default": null,
             "title": "Effect"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target"
           }
         },
         "required": [
@@ -3339,6 +3351,19 @@
           "feature_id": {
             "title": "Feature Id",
             "type": "string"
+          },
+          "in_service": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "In Service"
           },
           "kind": {
             "$ref": "#/$defs/FeatureKind"
@@ -6440,6 +6465,13 @@
             "title": "Authority",
             "type": "array"
           },
+          "competence": {
+            "default": 3,
+            "maximum": 5,
+            "minimum": 0,
+            "title": "Competence",
+            "type": "integer"
+          },
           "constraints": {
             "default": [],
             "items": {
@@ -9452,6 +9484,19 @@
             "title": "Feature Id",
             "type": "string"
           },
+          "in_service": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "In Service"
+          },
           "kind": {
             "$ref": "#/$defs/FeatureKind"
           },
@@ -11342,6 +11387,13 @@
             },
             "title": "Authority",
             "type": "array"
+          },
+          "competence": {
+            "default": 3,
+            "maximum": 5,
+            "minimum": 0,
+            "title": "Competence",
+            "type": "integer"
           },
           "constraints": {
             "default": [],

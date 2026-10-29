@@ -14,6 +14,7 @@ replay can never produce an invalid object.
 import hashlib
 import json
 from collections.abc import Iterable, Mapping
+from datetime import date
 
 from revisionist.core import delta as d
 from revisionist.core import events as ev
@@ -57,6 +58,7 @@ from revisionist.core.realism.effect import (
     SetEngagement,
     ShiftDisposition,
 )
+from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import ADVANCES, SETTLED, OrderStatus, StepAction
 from revisionist.core.state import State, Wake
 from revisionist.core.visibility import PUBLIC, Scope
@@ -534,17 +536,18 @@ def _realism(state: State, p: ev.Payload) -> State:
 # --- engine v2 ------------------------------------------------------------------
 
 
-def _check_effect(state: State, effect: Effect, where: str) -> None:
-    """Every object an effect names must already be in the world (spec §8.3)."""
+def _check_effect(state: State, effect: Effect, where: str, on: date | None) -> None:
+    """Every object an effect names must already be in the world, and no force is
+    used before it enters service on ``on`` (spec §8.3)."""
     match effect:
         case MoveForce():
-            _need(state.features, effect.force, "feature")
+            _in_service(_need(state.features, effect.force, "feature"), on, where)
             if effect.to is not None:
                 if _need(state.entities, effect.to, "entity").kind is not EntityKind.LOCATION:
                     raise FoldError(f"{where}: {effect.to} is not a place")
         case SetEngagement():
             if effect.force is not None:
-                _need(state.features, effect.force, "feature")
+                _in_service(_need(state.features, effect.force, "feature"), on, where)
         case Allocate():
             _need(state.entities, effect.recipient, "entity")
         case Appointment():
@@ -565,11 +568,16 @@ def _check_effect(state: State, effect: Effect, where: str) -> None:
             pass
 
 
-def _check_part(state: State, issuer: SeatId, part: RoutedPart, where: str) -> None:
+def _in_service(feature: Feature, on: date | None, where: str) -> None:
+    if on is not None and feature.in_service is not None and on < feature.in_service:
+        raise FoldError(f"{where}: {feature.name} is not in service until {feature.in_service}")
+
+
+def _check_part(state: State, issuer: SeatId, part: RoutedPart, where: str, on: date) -> None:
     if part.fidelity is not None or part.refusal or part.estimated or part.was_estimated:
         raise FoldError(f"{where}: a part is routed before anyone acts on it")
     if part.effect is not None:
-        _check_effect(state, part.effect, where)
+        _check_effect(state, part.effect, where, on)
     match part.route:
         case Route.COMMAND:
             card = state.cards.get(state.seats[issuer].embodies)
@@ -610,7 +618,7 @@ def _engine_v2(state: State, p: ev.Payload) -> State:
             _fresh(state.routed, o.order_id, "order")
             _need(state.seats, o.issuer, "seat")
             for i, part in enumerate(o.parts):
-                _check_part(state, o.issuer, part, f"order {o.order_id} part {i}")
+                _check_part(state, o.issuer, part, f"order {o.order_id} part {i}", o.filed)
             return state.model_copy(update={"routed": _put(state.routed, o.order_id, o)})
         case ev.OrderExecuted():
             o = _need(state.routed, p.order_id, "order")
@@ -631,7 +639,9 @@ def _engine_v2(state: State, p: ev.Payload) -> State:
             if part.was_estimated:
                 raise FoldError(f"order {o.order_id} part {p.part} is already estimated")
             for effect in p.effects:
-                _check_effect(state, effect, f"order {o.order_id} part {p.part}")
+                _check_effect(
+                    state, effect, f"order {o.order_id} part {p.part}", state.in_world_date
+                )
             part = part.model_copy(
                 update={"estimated": p.effects, "reason": p.reason, "was_estimated": True}
             )

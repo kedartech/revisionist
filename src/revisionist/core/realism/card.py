@@ -212,6 +212,11 @@ class SeatCard(Desk):
     """Disposition to the principal."""
     doctrine: tuple[Label, ...] = ()
     interests: tuple[Label, ...] = ()
+    competence: int = Field(default=3, ge=0, le=5)
+    """Engine v2: how well the person carries out a command (fidelity, spec §8.2).
+    3 is ordinary. [proposed]"""
+
+    late_fields: ClassVar[frozenset[str]] = Desk.late_fields | {"competence"}
 
     def face(self) -> CardFace:
         return CardFace.model_validate(self.model_dump(include=set(CardFace.model_fields)))

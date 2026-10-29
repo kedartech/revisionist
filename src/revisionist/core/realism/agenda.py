@@ -8,6 +8,7 @@ orders, so picking one files exactly what a free player could have typed.
 
 from datetime import date
 from enum import StrEnum
+from typing import ClassVar
 
 from pydantic import Field, model_validator
 
@@ -82,6 +83,11 @@ class Ask(Model):
 
     ask: str = Field(min_length=1, max_length=300)
     effect: Effect | None = None
+    target: EntityId | None = None
+    """Who the ask is aimed at when it has no typed effect: routed as influence
+    on them, and the estimator rules on it. Wave A (Phase 2)."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"target"})
 
 
 class Option(Model):

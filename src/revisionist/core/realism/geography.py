@@ -14,6 +14,7 @@ the ones still to come.
 import math
 from datetime import date
 from enum import StrEnum
+from typing import ClassVar
 
 from pydantic import Field, model_validator
 
@@ -60,6 +61,11 @@ class Feature(Model):
     arrives: date | None = None
     legs: tuple[Leg, ...] = ()
     """History's moves still to come, earliest first."""
+    in_service: date | None = None
+    """Engine v2: the day the capability enters service. An order that uses it
+    before then is refused (spec §8.3). None: in service from the start."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"in_service"})
 
     @model_validator(mode="after")
     def _shape(self) -> "Feature":

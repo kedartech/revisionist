@@ -864,6 +864,7 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
                 Leg(since=leg.since, places=tuple(EntityId(ids[k]) for k in leg.places))
                 for leg in d.legs
             ),
+            in_service=d.in_service,
         )
         out.append((ev.FeatureSet(feature=feature), PUBLIC))
     feeds = tuple(
@@ -1024,6 +1025,7 @@ def _card(c: CardDecl, ids: Mapping[str, str]) -> SeatCard:
         horizon_days=c.horizon_days,
         voice=c.voice,
         loyalty=c.loyalty,
+        competence=c.competence,
         doctrine=c.doctrine,
         interests=c.interests,
         authority=tuple(

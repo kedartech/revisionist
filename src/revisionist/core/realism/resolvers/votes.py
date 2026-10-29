@@ -17,6 +17,7 @@ from datetime import date, timedelta
 
 from revisionist.core.ids import OrderId
 from revisionist.core.realism import resolvers as rs
+from revisionist.core.realism.effect import Clause, ClauseKind, ProposeMeasure
 from revisionist.core.realism.pipeline import ADVANCES, Order, OrderStatus
 from revisionist.core.realism.quantity import QuantityChange
 from revisionist.core.state import State
@@ -70,16 +71,102 @@ def _half_points(state: State, order_id: OrderId, chamber: str, bloc: str, urgen
     return shift + 2 * (draw - FRICTION_POINTS)
 
 
-def tally(state: State, order: Order, chamber: str, rows: Rows) -> tuple[int, int]:
-    """(yeas, nays) for one chamber vote under the order's parameters."""
-    urgent = order.params.get("urgency") == "urgent"
+def _clause(kind: ClauseKind, subject: str, amount: int | None = None) -> Clause:
+    return Clause(kind=kind, subject=subject, amount=amount)
+
+
+HISTORICAL: dict[str, ProposeMeasure] = {
+    "neutrality_revision": ProposeMeasure(
+        title="Neutrality Act revision",
+        clauses=(
+            _clause(ClauseKind.POWER, "arm merchant ships"),
+            _clause(ClauseKind.LIMIT, "war zones closed to American ships"),
+        ),
+    ),
+    "draft_extension": ProposeMeasure(
+        title="Selective Service extension",
+        clauses=(_clause(ClauseKind.POWER, "hold draftees beyond twelve months"),),
+    ),
+    "lend_lease_appropriation": ProposeMeasure(
+        title="Lend-Lease appropriation",
+        clauses=(_clause(ClauseKind.MONEY, "lend-lease supplies", 7_000_000_000),),
+    ),
+    "arm_merchant_ships": ProposeMeasure(
+        title="Arming of merchant ships",
+        clauses=(_clause(ClauseKind.POWER, "arm merchant ships"),),
+    ),
+}
+"""Each key of TALLIES as its clause set [proposed]."""
+
+NOVEL_ROWS: dict[str, Rows] = {
+    "house": NEUTRALITY_HOUSE,
+    "senate": NEUTRALITY_SENATE,
+    "concur": NEUTRALITY_CONCUR,
+}
+"""[fitted, borrowed] rows a measure with no record of its own takes."""
+NOVEL_REFERENCE = "neutrality_revision"
+MONEY_STEP = 500_000_000  # [proposed] each started step of money moves R by one half-point
+MONEY_CAP = 4  # [proposed]
+# [proposed] Democrats back executive power and spending, Republicans resist both and favour limits.
+CLAUSE_POINTS = {
+    ("D", ClauseKind.POWER): 1,
+    ("D", ClauseKind.LIMIT): -1,
+    ("R", ClauseKind.POWER): -2,
+    ("R", ClauseKind.LIMIT): 2,
+}
+
+
+def clause_points(bloc: str, clause: Clause) -> int:
+    """A bloc's stance on one clause, in half-points (+ toward yes). [proposed]"""
+    if clause.kind is ClauseKind.MONEY:
+        if bloc == "D":
+            return 1
+        started = -(-(clause.amount or 0) // MONEY_STEP)
+        return -min(MONEY_CAP, started) if bloc == "R" else 0
+    return CLAUSE_POINTS.get((bloc, clause.kind), 0)
+
+
+def measure_half_points(bloc: str, measure: ProposeMeasure) -> int:
+    """Sum of clause_points over the clauses."""
+    return sum(clause_points(bloc, c) for c in measure.clauses)
+
+
+def _base(measure: ProposeMeasure, chamber: str) -> tuple[Rows, ProposeMeasure]:
+    """The rows a measure starts from, and the historical measure they belong to."""
+    for key, known in HISTORICAL.items():
+        if known.title == measure.title and chamber in TALLIES[key]:
+            return TALLIES[key][chamber], known
+    return NOVEL_ROWS[chamber], HISTORICAL[NOVEL_REFERENCE]
+
+
+def _tally(
+    state: State, order_id: OrderId, chamber: str, rows: Rows, urgent: bool, extra: dict[str, int]
+) -> tuple[int, int]:
     yeas = nays = 0
     for bloc, y, n in rows:
         voters = y + n
-        half = _half_points(state, order.order_id, chamber, bloc, urgent)
+        half = _half_points(state, order_id, chamber, bloc, urgent) + extra.get(bloc, 0)
         by = min(voters, max(0, y + (voters * half + 100) // 200))
         yeas, nays = yeas + by, nays + voters - by
     return yeas, nays
+
+
+def tally_measure(
+    state: State, order_id: OrderId, measure: ProposeMeasure, chamber: str, urgent: bool
+) -> tuple[int, int]:
+    """(yeas, nays) for a measure in one chamber."""
+    rows, reference = _base(measure, chamber)
+    extra = {
+        bloc: measure_half_points(bloc, measure) - measure_half_points(bloc, reference)
+        for bloc, _, _ in rows
+    }
+    return _tally(state, order_id, chamber, rows, urgent, extra)
+
+
+def tally(state: State, order: Order, chamber: str, rows: Rows) -> tuple[int, int]:
+    """(yeas, nays) for one chamber vote under the order's parameters."""
+    urgent = order.params.get("urgency") == "urgent"
+    return _tally(state, order.order_id, chamber, rows, urgent, {})
 
 
 def _step_day(order: Order, step: int) -> date:
@@ -100,8 +187,9 @@ def resolve(state: State, order: Order) -> tuple[QuantityChange, ...]:
     }
     out: list[QuantityChange | None] = []
     passed = 1
-    for chamber, rows in TALLIES[str(bill)].items():
-        yeas, nays = tally(state, order, chamber, rows)
+    urgent = order.params.get("urgency") == "urgent"
+    for chamber in TALLIES[str(bill)]:
+        yeas, nays = tally_measure(state, order.order_id, HISTORICAL[str(bill)], chamber, urgent)
         out += [
             put(state, f"{bill}_{chamber}_yeas", yeas, days[chamber]),
             put(state, f"{bill}_{chamber}_nays", nays, days[chamber]),

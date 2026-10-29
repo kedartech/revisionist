@@ -37,8 +37,10 @@ from revisionist.core.ids import (
 )
 from revisionist.core.ontology import Phase
 from revisionist.core.realism.advance import Wake, next_wake
+from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import ParamKind, ParamSpec, ParamValue
 from revisionist.core.realism.document import DocumentView
+from revisionist.core.realism.effect import RoutedOrder, RoutedPart
 from revisionist.core.realism.feeds import due_feeds, issue, seed_for_day
 from revisionist.core.realism.pipeline import Order, OrderStatus, StepAction
 from revisionist.core.realism.pipelines import human_step, run_pipelines
@@ -48,6 +50,7 @@ from revisionist.core.realism.resolvers import (
     apply_changes,
     resolver_for,
 )
+from revisionist.core.realism.route import due_executions, route
 from revisionist.core.resolution import TickStage
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, Scope, private_to
@@ -273,6 +276,14 @@ def _feed_documents(em: Emitter, today: date) -> list[Event]:
     return out
 
 
+def _scope_of(state: State, payload: ev.Payload) -> Scope:
+    if isinstance(payload, ev.DocumentIssued):
+        return payload.document.scope
+    if isinstance(payload, ev.OrderExecuted):
+        return private_to(state.routed[payload.order_id].issuer)
+    return PUBLIC
+
+
 def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> list[Event]:
     """Every day from ``before`` + 1 to ``until``, earliest first. Each day: orders
     move, history fires or skips what fell due (opinion reads fired incidents), the
@@ -284,10 +295,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
 
     def add(payloads: Sequence[ev.Payload]) -> None:
         nonlocal state
-        batch = [
-            em.event(p, scope=p.document.scope) if isinstance(p, ev.DocumentIssued) else em.event(p)
-            for p in payloads
-        ]
+        batch = [em.event(p, scope=_scope_of(state, p)) for p in payloads]
         state = replay(batch, initial=state)
         out.extend(batch)
 
@@ -301,6 +309,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))
         add(steps)
         add(history.settle(state, day))
+        add(due_executions(state, day))
         for step in steps:
             if isinstance(step, ev.OrderSettled) and step.status is OrderStatus.ENACTED:
                 order = state.orders[step.order_id]
@@ -406,6 +415,25 @@ def draft_order(state: State, seat: SeatId, lever: str, given: dict[str, str]) -
         params=params,
         filed=state.in_world_date,
     )
+
+
+def commit_order(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, asks: Sequence[Ask]
+) -> RoutedOrder:
+    """Route every ask on today's date and land them as one order. If any ask has no
+    route, raises ``ValueError`` with its words and nothing is logged."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    assert today is not None
+    parts: list[RoutedPart] = []
+    for ask in asks:
+        routing = route(state, seat, ask, today)
+        if routing.part is None:
+            raise ValueError(routing.refusal)
+        parts.append(routing.part)
+    order = RoutedOrder(order_id=OrderId(new_id()), issuer=seat, filed=today, parts=tuple(parts))
+    _append(store, state, ev.OrderRouted(order=order), seat, private_to(seat))
+    return order
 
 
 def take_step(
@@ -521,6 +549,7 @@ def _append(
 
 __all__ = [
     "RealismTickResult",
+    "commit_order",
     "draft_order",
     "file_order",
     "mark_read",

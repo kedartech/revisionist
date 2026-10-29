@@ -1,0 +1,79 @@
+{
+ "33e129d738fbf074c2bd6dff": {
+  "call_class": "estimator",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply (canary)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"J8PGQ0WA0J43MQN5T5HKKKK68F\",\"issuer\":\"Frank",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "effects": [
+     {
+      "change": -1,
+      "kind": "disposition",
+      "of": "THFN18W8WRFX8EF1JVQBF8C2R0",
+      "toward": "Z1YMP565PJFGVNTHDHMPYR57K0"
+     }
+    ],
+    "rationale": "Referee only: CANARY-V2-REASON-7f3a.",
+    "reason": "Wheeler is compromised (CANARY-V2-REASON-7f3a)."
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ },
+ "60cdeda3d3deb1c1b12ed26c": {
+  "call_class": "estimator",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply (quantity)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"4W7GBHN946QWXFJTADTT7CJMGV\",\"issuer\":\"Frank",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "effects": [
+     {
+      "bloc": "isolationists",
+      "count": 40,
+      "kind": "set_votes"
+     }
+    ],
+    "rationale": "A count, which no effect may carry.",
+    "reason": "Forty votes fall away."
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ },
+ "9e0a2b8fa6f7aec8abb1d76e": {
+  "call_class": "estimator",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply (shift)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"J8PGQ0WA0J43MQN5T5HKKKK68F\",\"issuer\":\"Frank",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "effects": [
+     {
+      "change": -1,
+      "kind": "disposition",
+      "of": "THFN18W8WRFX8EF1JVQBF8C2R0",
+      "toward": "Z1YMP565PJFGVNTHDHMPYR57K0"
+     }
+    ],
+    "rationale": "Wheeler resents being lobbied; one step down.",
+    "reason": "The Senate will notice."
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ }
+}

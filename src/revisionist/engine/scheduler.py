@@ -143,6 +143,12 @@ class ScheduleTable:
             (campaign_id, next_due_at),
         )
 
+    def has(self, campaign_id: CampaignId) -> bool:
+        row = self.conn.execute(
+            "SELECT 1 FROM schedule WHERE campaign_id = %s", (campaign_id,)
+        ).fetchone()
+        return row is not None
+
     def get(self, campaign_id: CampaignId) -> Schedule:
         row = self.conn.execute(
             f"SELECT {_COLUMNS} FROM schedule WHERE campaign_id = %s",
@@ -229,6 +235,8 @@ def register(store: "PostgresEventStore", now: datetime) -> ScheduleTable:
     """Give every campaign a schedule row; a new one is first due one tick from now."""
     table = ScheduleTable(store.conn)
     for campaign_id in store.campaign_ids():
+        if table.has(campaign_id):
+            continue  # already scheduled: ensure() would do nothing, and an old state may not load
         hours = load_state(store, campaign_id).settings.tick_hours
         table.ensure(campaign_id, now + timedelta(hours=hours))
     return table

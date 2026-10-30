@@ -52,6 +52,18 @@ def test_a_routed_command_reads_in_words() -> None:
     assert "shoot on sight" in part["ask"] and "western Atlantic" in part["ask"]
 
 
+def test_a_zone_given_as_a_place_id_reads_as_its_name() -> None:
+    sl = Slice()
+    zone = sl.entity("argentia")
+    effect = rx.SetEngagement(
+        force=sl.feature("us_atlantic_fleet"), zone=zone, rule=rx.Engagement.SHOOT_ON_SIGHT
+    )
+    order = sl.shoot_on_sight(effect=effect)
+    sl.add(ev.OrderRouted(order=order), private_to(sl.fdr))
+    [part] = results(sl.state, sl.fdr)[0]["parts"]
+    assert part["ask"] == "Order the rule shoot on sight in Argentia"
+
+
 def test_a_refused_part_names_its_rule() -> None:
     sl = Slice()
     order = sl.shoot_on_sight()

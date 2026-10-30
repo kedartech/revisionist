@@ -178,6 +178,16 @@ def test_partial_move_keeps_the_force_in_place_with_the_posture(sl: Slice) -> No
     assert ft.places == (sl.entity("norfolk"),)
 
 
+def test_a_zone_given_as_a_place_id_is_titled_by_name(sl: Slice) -> None:
+    zone = sl.entity("argentia")
+    effect = shoot_effect(sl).model_copy(update={"zone": zone})
+    order = sl.shoot_on_sight(effect=effect)
+    executed(sl, order, rx.Fidelity.FULL)
+    doc = next(p for p in land(sl, order) if isinstance(p, ev.DocumentIssued))
+    assert doc.document.title == "Shoot on sight in Argentia: carried out"
+    assert zone not in str(doc.document.model_dump())
+
+
 def test_a_refusal_applies_nothing_and_names_the_rule(sl: Slice) -> None:
     order = sl.shoot_on_sight()
     executed(sl, order, None, refusal="loyalty -4: Stark will not carry it out")

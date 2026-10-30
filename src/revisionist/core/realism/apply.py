@@ -260,13 +260,19 @@ def _name(state: State, who: EntityId | FeatureId) -> str:
     return "someone"
 
 
+def zone_name(state: State, zone: str) -> str:
+    """A zone in words: the order reader may give a place's id instead of its name."""
+    place = state.entities.get(EntityId(zone))
+    return place.name if place is not None else zone
+
+
 def _describe(state: State, part: RoutedPart) -> str:
     """What was ordered, in plain words."""
     match part.effect:
         case None:
             return "Your request"
         case SetEngagement(rule=rule, zone=zone):
-            return f"{words(rule.value)} in {zone}"
+            return f"{words(rule.value)} in {zone_name(state, zone)}"
         case MoveForce(force=force, to=to):
             if to is None:
                 return f"Orders to {_name(state, force)}"
@@ -362,4 +368,4 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
     )
 
 
-__all__ = ["apply_due", "as_carried", "report"]
+__all__ = ["apply_due", "as_carried", "report", "zone_name"]

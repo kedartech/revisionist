@@ -11,6 +11,7 @@ from hashlib import sha256
 from revisionist.core.ids import SeatId
 from revisionist.core.project import project
 from revisionist.core.realism import effect as rx
+from revisionist.core.realism.apply import zone_name
 from revisionist.core.realism.card import words
 from revisionist.core.state import State, View
 from revisionist.engine.web.realism_api import OrderResult, ResultPart
@@ -41,7 +42,8 @@ def _ask(state: State, view: View, effect: rx.Effect | None) -> str:
             how = effect.posture.value if effect.posture else "move"
             return f"Move {f.name if f else 'a force'} ({how})"
         case rx.SetEngagement():
-            return f"Order the rule {words(effect.rule.value).lower()} in {effect.zone}"
+            zone = zone_name(state, effect.zone)
+            return f"Order the rule {words(effect.rule.value).lower()} in {zone}"
         case rx.Allocate():
             return (
                 f"Allocate {effect.amount} {effect.unit} of {effect.what} "

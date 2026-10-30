@@ -125,6 +125,44 @@ entities:
   - {key: chiang, kind: person, name: Chiang Kai-shek, parent: china}
   - {key: he_yingqin, kind: person, name: He Yingqin, parent: military_affairs_commission}
   - {key: soong, kind: person, name: T. V. Soong, parent: china}
+  - {key: washington_ledger, kind: org, name: "The Washington Ledger", parent: usa, tags: [press]}
+  - {key: reichsbote, kind: org, name: "Der Reichsbote", parent: germany, tags: [press]}
+  - {key: london_chronicle, kind: org, name: "The London Chronicle", parent: uk, tags: [press]}
+  - {key: rising_sun_courier, kind: org, name: "The Rising Sun Courier", parent: japan, tags: [press]}
+  - {key: gazzetta_impero, kind: org, name: "Gazzetta dell'Impero", parent: italy, tags: [press]}
+  - {key: krasnaya_zarya, kind: org, name: "Krasnaya Zarya", parent: ussr, tags: [press]}
+  - {key: chungking_herald, kind: org, name: "The Chungking Herald", parent: china, tags: [press]}
+
+# Invented papers: any match to a real one is accidental.
+outlets:
+  - key: washington_ledger
+    polity: usa
+    name: "The Washington Ledger"
+    voice: "American broadsheet. Brisk, factual headlines; quotes officials and congressmen; wary of foreign wars but sympathetic to Britain."
+  - key: reichsbote
+    polity: germany
+    name: "Der Reichsbote"
+    voice: "Party-line German daily. Triumphant and defiant; blames Germany's enemies; praises the Führer's resolve; never states a setback plainly."
+  - key: london_chronicle
+    polity: uk
+    name: "The London Chronicle"
+    voice: "British daily. Measured and resolute; stresses the Empire's endurance and the value of friends abroad."
+  - key: rising_sun_courier
+    polity: japan
+    name: "The Rising Sun Courier"
+    voice: "Japanese daily under censorship. Formal; stresses national unity and encirclement by the Western powers."
+  - key: gazzetta_impero
+    polity: italy
+    name: "Gazzetta dell'Impero"
+    voice: "Fascist Italian daily. Grandiose, Roman imagery; loyal to the Duce; follows Berlin's line."
+  - key: krasnaya_zarya
+    polity: ussr
+    name: "Krasnaya Zarya"
+    voice: "Soviet party daily. Ideological; collective heroism at the front; denounces the fascist aggressor."
+  - key: chungking_herald
+    polity: china
+    name: "The Chungking Herald"
+    voice: "Nationalist Chinese daily. Defiant; appeals for Allied aid; reports Japanese outrages."
 
 assets:
   - {key: us_presidency, kind: office, name: President of the United States, tier: 5, controller: roosevelt}
@@ -652,7 +690,7 @@ cards:
         label: "Direct the U-boat arm"
         summary: "Set the rules of engagement for U-boats in a stated area."
         params:
-          - {name: posture, kind: enum, choices: [restrict_us_ships, unrestricted_atlantic], label: "Posture", choice_labels: ["Spare American ships", "Unrestricted warfare in the Atlantic"]}
+          - {name: posture, kind: enum, choices: [restrict_us_ships, unrestricted_atlantic, attack_us_shipping], label: "Posture", choice_labels: ["Spare American ships", "Unrestricted warfare in the Atlantic", "Attack American ships on sight"]}
           - {name: theatre, kind: enum, choices: [north_atlantic, arctic, mediterranean], label: "Which waters", choice_labels: ["The North Atlantic", "The Arctic", "The Mediterranean"]}
       - name: production_priority
         pipeline: okw_directive
@@ -669,11 +707,9 @@ cards:
         params:
           - {name: force, kind: enum, choices: [army_group_centre], label: "Which army group", choice_labels: ["Army Group Centre"]}
           - {name: to, kind: enum, choices: [smolensk, vyazma, kalinin, mozhaisk, moscow], label: "To", choice_labels: ["Smolensk", "Vyazma", "Kalinin", "Mozhaisk", "Moscow"]}
-      # [proposed] The resolver moves no figure for this lever yet: the order runs
-      # its pipeline and its reply letter, and nothing more (web test, Oct 2026).
       - name: declare_war
         pipeline: reich_declaration
-        resolver: opinion
+        resolver: war
         label: "Declare war"
         summary: "Have the Foreign Office hand a declaration of war to another power's envoy."
         params:

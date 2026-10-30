@@ -39,6 +39,24 @@ entities:
   - {key: reykjavik, kind: location, name: Reykjavik, at: [64.1, -21.9]}
   - {key: lorient, kind: location, name: Lorient, at: [47.7, -3.4]}
   - {key: scapa_flow, kind: location, name: Scapa Flow, at: [58.9, -3.1]}
+  - {key: washington_ledger, kind: org, name: "The Washington Ledger", parent: usa, tags: [press]}
+  - {key: reichsbote, kind: org, name: "Der Reichsbote", parent: germany, tags: [press]}
+  - {key: london_chronicle, kind: org, name: "The London Chronicle", parent: uk, tags: [press]}
+
+# Invented papers: any match to a real one is accidental.
+outlets:
+  - key: washington_ledger
+    polity: usa
+    name: "The Washington Ledger"
+    voice: "American broadsheet. Brisk, factual headlines; quotes officials and congressmen; wary of foreign wars but sympathetic to Britain."
+  - key: reichsbote
+    polity: germany
+    name: "Der Reichsbote"
+    voice: "Party-line German daily. Triumphant and defiant; blames Germany's enemies; praises the Führer's resolve; never states a setback plainly."
+  - key: london_chronicle
+    polity: uk
+    name: "The London Chronicle"
+    voice: "British daily. Measured and resolute; stresses the Empire's endurance and the value of friends abroad."
 
 sources:
   - key: congress_77th

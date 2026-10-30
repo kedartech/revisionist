@@ -60,6 +60,7 @@ from revisionist.core.realism.effect import (
 )
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import ADVANCES, SETTLED, OrderStatus, StepAction
+from revisionist.core.realism.war import at_war
 from revisionist.core.state import State, Wake
 from revisionist.core.visibility import PUBLIC, Scope
 
@@ -376,6 +377,8 @@ def _mutate(state: State, event: Event) -> State:
             | ev.OrderSettled()
             | ev.QuantitySet()
             | ev.FeatureSet()
+            | ev.WarDeclared()
+            | ev.NewsReported()
         ):
             if state.ruleset != "realism":
                 raise FoldError(f"{event.kind} belongs to a realism campaign")
@@ -455,12 +458,20 @@ def _realism(state: State, p: ev.Payload) -> State:
                 for entity in [*t.to, *([t.issuer] if t.issuer else [])]:
                     _need(state.entities, entity, "entity")
                 templates[t.key] = t
+            outlets = dict(state.outlets)
+            for outlet in p.outlets:
+                _fresh(outlets, outlet.outlet_id, "outlet")
+                _need(state.entities, outlet.outlet_id, "entity")
+                if _need(state.entities, outlet.polity, "entity").kind is not EntityKind.POLITY:
+                    raise FoldError(f"outlet {outlet.outlet_id}: {outlet.polity} is not a polity")
+                outlets[outlet.outlet_id] = outlet
             return state.model_copy(
                 update={
                     "cards": cards,
                     "feeds": feeds,
                     "pipelines": pipelines,
                     "templates": templates,
+                    "outlets": outlets,
                 }
             )
         case ev.DocumentIssued():
@@ -554,6 +565,17 @@ def _realism(state: State, p: ev.Payload) -> State:
             if was is not None and (ft.as_of < was.as_of or ft.kind is not was.kind):
                 raise FoldError(f"feature {ft.feature_id} cannot go back or change kind")
             return state.model_copy(update={"features": _put(state.features, ft.feature_id, ft)})
+        case ev.WarDeclared():
+            w = p.war
+            for side in (w.a, w.b):
+                if _need(state.entities, side, "entity").kind is not EntityKind.POLITY:
+                    raise FoldError(f"war {w.war_id}: {side} is not a polity")
+            if at_war(state, w.a, w.b):
+                raise FoldError(f"{w.a} and {w.b} are already at war")
+            return state.model_copy(update={"wars": _put(state.wars, w.war_id, w)})
+        case ev.NewsReported():
+            _fresh(state.news, p.news.news_id, "news")
+            return state.model_copy(update={"news": _put(state.news, p.news.news_id, p.news)})
         case _:
             raise FoldError(f"kind {p.kind!r} is not a realism record")
 

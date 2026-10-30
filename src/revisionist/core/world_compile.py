@@ -82,6 +82,7 @@ from revisionist.core.realism.document import Feed
 from revisionist.core.realism.geography import FORCES, Feature, Leg
 from revisionist.core.realism.pipeline import Pipeline, Step
 from revisionist.core.realism.quantity import Quantity
+from revisionist.core.realism.war import Outlet
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, Scope, Visibility, private_to
 from revisionist.core.world import (
@@ -355,6 +356,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "features",
             "sources",
             "mandates",
+            "outlets",
         ):
             if getattr(world, name):
                 problems.append(f"{name}: only a realism world has {name}")
@@ -422,6 +424,16 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
         problems.append(f"character {key}: a realism roster lists only playable cards")
     for key in sorted(playable - listed):
         problems.append(f"card {key}: playable, so it must be on the roster")
+    polities = {d.key for d in world.entities if d.kind is EntityKind.POLITY}
+    orgs = {d.key for d in world.entities if d.kind is EntityKind.ORG}
+    for o in world.outlets:
+        where = f"outlet {o.key}"
+        _ref(problems, where, o.key, "entity", sections)
+        _ref(problems, where, o.polity, "entity", sections)
+        if o.key in sections and o.key not in orgs:
+            problems.append(f"{where}: {o.key} is not an org")
+        if o.polity in sections and o.polity not in polities:
+            problems.append(f"{where}: {o.polity} is not a polity")
     for m in world.mandates:
         where = f"mandate {m.key}"
         try:
@@ -932,7 +944,18 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
     )
     cards = tuple(_card(c, ids) for c in world.cards)
     templates = tuple(_template(m, ids) for m in world.mandates)
-    declared = ev.CardsDeclared(cards=cards, feeds=feeds, pipelines=pipelines, templates=templates)
+    outlets = tuple(
+        Outlet(
+            outlet_id=EntityId(ids[o.key]),
+            polity=EntityId(ids[o.polity]),
+            name=o.name,
+            voice=o.voice,
+        )
+        for o in world.outlets
+    )
+    declared = ev.CardsDeclared(
+        cards=cards, feeds=feeds, pipelines=pipelines, templates=templates, outlets=outlets
+    )
     out.append((declared, PUBLIC))
     return out
 

@@ -70,6 +70,7 @@ def project(state: State, seat: SeatId) -> View:
         commitments=_visible(state.commitments, seat),
         goals=_visible(state.goals, seat),
         mandates=_visible(state.mandates, seat),
+        wars=dict(state.wars),
         wake=state.wake,
         phase=state.phase,
         roster=dict(state.roster),

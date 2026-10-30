@@ -14,7 +14,7 @@ from typing import ClassVar, Literal
 
 from pydantic import Field
 
-from revisionist.core._base import Model
+from revisionist.core._base import Label, Model
 from revisionist.core.goals import Goal
 from revisionist.core.ids import (
     AssetId,
@@ -61,6 +61,7 @@ from revisionist.core.realism.effect import EffectKind, RoutedOrder, RoutedOrder
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
+from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.settings import Settings
 
 Ruleset = Literal["legacy", "realism"]
@@ -107,6 +108,8 @@ class _World(Model):
     """Engine v2: the current or last shared wake. None before the first opens."""
     mandates: dict[MandateId, Mandate] = Field(default_factory=dict)
     """Engine v2: issued goals. A view holds only its own seat's."""
+    wars: dict[Label, War] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """Who is at war with whom, by ``war_id_for``. Public."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
@@ -119,6 +122,7 @@ class _World(Model):
             "ruleset",
             "wake",
             "mandates",
+            "wars",
         }
     )
 
@@ -163,12 +167,18 @@ class State(_World):
     """Irreversible kinds each seat lets its aide order while it is absent."""
     templates: dict[str, MandateTemplate] = Field(default_factory=dict)
     """Engine v2: mandate templates by key. Engine only; never in a view."""
+    news: dict[Label, NewsEvent] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """Public events, as structured facts. Engine only: seats read them in the press."""
+    outlets: dict[EntityId, Outlet] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """Each polity's newspaper. Engine only."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "routed",
         "styles",
         "standing",
         "templates",
+        "news",
+        "outlets",
         "cards",
         "feeds",
         "pipelines",

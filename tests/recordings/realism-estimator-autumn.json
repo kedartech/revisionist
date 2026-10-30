@@ -1,10 +1,10 @@
 {
- "11b23a3c09c128810c3ce7d2": {
+ "1e4b23a7526bd8c460cd698f": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply (quantity)",
-  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"4W7GBHN946QWXFJTADTT7CJMGV\",\"issuer\":\"Frank",
+  "note": "hand-written for tests; not a model reply (canary)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"J8PGQ0WA0J43MQN5T5HKKKK68F\",\"issuer\":\"Frank",
   "reply": {
    "cached_tokens": 0,
    "input_tokens": 0,
@@ -12,19 +12,20 @@
    "output": {
     "effects": [
      {
-      "bloc": "isolationists",
-      "count": 40,
-      "kind": "set_votes"
+      "change": -1,
+      "kind": "disposition",
+      "of": "THFN18W8WRFX8EF1JVQBF8C2R0",
+      "toward": "Z1YMP565PJFGVNTHDHMPYR57K0"
      }
     ],
-    "rationale": "A count, which no effect may carry.",
-    "reason": "Forty votes fall away."
+    "rationale": "Referee only: CANARY-V2-REASON-7f3a.",
+    "reason": "Wheeler is compromised (CANARY-V2-REASON-7f3a)."
    },
    "output_tokens": 0,
    "usd": 0.0
   }
  },
- "1eeeafdc1f60575ed9794bc1": {
+ "428841dd1533c6ea8de589a5": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -50,12 +51,12 @@
    "usd": 0.0
   }
  },
- "406468ea0d0ce93d14f8f27d": {
+ "a6537e5b054d08ae42370b27": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply (canary)",
-  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"J8PGQ0WA0J43MQN5T5HKKKK68F\",\"issuer\":\"Frank",
+  "note": "hand-written for tests; not a model reply (quantity)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"4W7GBHN946QWXFJTADTT7CJMGV\",\"issuer\":\"Frank",
   "reply": {
    "cached_tokens": 0,
    "input_tokens": 0,
@@ -63,14 +64,13 @@
    "output": {
     "effects": [
      {
-      "change": -1,
-      "kind": "disposition",
-      "of": "THFN18W8WRFX8EF1JVQBF8C2R0",
-      "toward": "Z1YMP565PJFGVNTHDHMPYR57K0"
+      "bloc": "isolationists",
+      "count": 40,
+      "kind": "set_votes"
      }
     ],
-    "rationale": "Referee only: CANARY-V2-REASON-7f3a.",
-    "reason": "Wheeler is compromised (CANARY-V2-REASON-7f3a)."
+    "rationale": "A count, which no effect may carry.",
+    "reason": "Forty votes fall away."
    },
    "output_tokens": 0,
    "usd": 0.0

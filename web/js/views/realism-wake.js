@@ -99,6 +99,12 @@ function commitButton(wake, act) {
   }, 'Commit my orders');
 }
 
+/** Commit only while a wake is open; the text once committed. */
+function commitControl(wake, act) {
+  if (!wake.deadline) return null;
+  return wake.you_committed ? committed() : commitButton(wake, act);
+}
+
 function committed() {
   return h('span', { class: 'rl-committed' }, icon('check'), 'Committed');
 }
@@ -128,7 +134,7 @@ export function wakeHeader(wake, { act }) {
       h('span', { class: 'title' }, `Wake ${wake.wake}`),
       closes ? h('span', { class: 'muted rl-wake-line' }, closes) : null,
       h('span', { class: 'muted rl-wake-line', role: 'status', 'aria-live': 'polite' }, commitCount(wake))),
-    wake.you_committed ? committed() : commitButton(wake, act),
+    commitControl(wake, act),
     wake.can_close ? closeWake(act) : null);
 }
 
@@ -201,7 +207,7 @@ export function initiativePanel(agenda, { act }) {
 export function commitPanel(wake, { act }) {
   return h('div', { class: 'rl-commit-foot' },
     h('p', { role: 'status', 'aria-live': 'polite' }, commitCount(wake)),
-    wake.you_committed ? committed() : commitButton(wake, act));
+    commitControl(wake, act));
 }
 
 /** The order the aide read free text as, to sign or revise; or why there is none. */

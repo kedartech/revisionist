@@ -18,7 +18,7 @@ from revisionist.engine.llm import TransportError
 from revisionist.engine.scheduler import ScheduleTable
 from revisionist.engine.store import MemoryStore
 from revisionist.engine.store import load_state as store_state
-from revisionist.engine.web import wake_api
+from revisionist.engine.web import server, wake_api
 from tests.test_engine_v2_wake import CAMPAIGN, T0, Table
 from tests.test_web import Client, Web, web  # noqa: F401
 from tests.test_web_realism import Realism, make_host, post, realism_of
@@ -149,10 +149,25 @@ def test_no_wake_open_is_a_refusal(web: Web) -> None:  # noqa: F811
     make_host(game, ada)
     game.open_play()
     head = realism_of(ada)["wake"]
-    assert (head["deadline"], head["can_close"], head["humans"]) == (None, False, 1)
-    for action in ("commit", "close"):
-        _, out = post(ada, action)
-        assert out == {"reply": "No wake is open.", "refused": True}
+    assert (head["deadline"], head["can_close"], head["humans"]) == (None, True, 1)
+    _, out = post(ada, "commit")
+    assert out == {"reply": "No wake is open.", "refused": True}
+    _, out = post(ada, "close")
+    assert not out["refused"] and out["reply"].startswith("The calendar moves"), out
+    assert realism_of(ada)["wake"]["deadline"] is not None
+
+
+def test_a_committed_seat_files_nothing_more_this_wake(
+    duo: tuple[Realism, Client, Client],
+) -> None:
+    game, _ada, bea = duo
+    assert not post(bea, "commit")[1]["refused"]
+    for action in ("lever", "sign", "option", "file", "step"):
+        _, out = post(bea, action)
+        assert out == {"reply": server.SEALED, "refused": True}, action
+    _, still = post(bea, "read")
+    assert still != {"reply": server.SEALED, "refused": True}
+    assert state_of(game).tick == 0
 
 
 def test_advance_closes_the_wake_for_an_old_client(solo: tuple[Realism, Client]) -> None:

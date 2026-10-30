@@ -67,7 +67,7 @@ def wake_header(state: State, seat: SeatId, *, host: bool) -> WakeHeader:
             humans=humans,
             you_committed=False,
             is_host=host,
-            can_close=False,
+            can_close=host,  # a game begun before wakes: closing runs the tick that opens one
         )
     return WakeHeader(
         wake=wake.number,
@@ -150,13 +150,11 @@ def close(
     host: bool,
     tools: TickTools,
 ) -> Reply:
-    """ "Close the wake now". The host alone; a refusal otherwise."""
+    """ "Close the wake now". The host alone; a refusal otherwise. With no wake open (a
+    game begun before wakes) it runs the tick, which opens the first."""
     if not host:
         return Reply(reply="Only the host can close the wake.", refused=True)
-    number = _open_number(load_state(store, campaign_id))
-    if number is None:
-        return Reply(reply=NO_WAKE, refused=True)
-    return _play(store, campaign_id, number, now, tools)
+    return _play(store, campaign_id, _open_number(load_state(store, campaign_id)), now, tools)
 
 
 def set_wake_hours(store: EventStore, campaign_id: CampaignId, hours: int) -> Reply:

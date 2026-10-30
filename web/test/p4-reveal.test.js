@@ -16,7 +16,7 @@ test('a seat reads in order: goals, secrets, style history, rulings', () => {
   assert.deepEqual(parts.map((p) => p.title), [
     'Their secret goals', 'What they did in secret', 'How they played', "The estimator's rulings",
   ]);
-  assert.equal(parts[3].items[0].when, '14 October 1941');
+  assert.equal(parts[3].items[0].on, 'Harold R. Stark');
 });
 
 test('empty parts are dropped', () => {

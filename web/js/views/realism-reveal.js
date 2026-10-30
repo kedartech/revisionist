@@ -2,7 +2,6 @@
 
 import { api } from '../api.js';
 import { h } from '../dom.js';
-import { worldDate } from '../rules.js';
 import { header } from './frame.js';
 
 const text = (v) => (typeof v === 'string' ? v.trim() : '');
@@ -11,7 +10,7 @@ const text = (v) => (typeof v === 'string' ? v.trim() : '');
 export function revealParts(seat) {
   const list = (items) => (items ?? []).map(text).filter(Boolean);
   const rulings = (seat?.rulings ?? [])
-    .map((r) => ({ when: r.on ? worldDate(r.on) : '', ask: text(r.ask), rationale: text(r.rationale) }))
+    .map((r) => ({ on: text(r.on), ask: text(r.ask), rationale: text(r.rationale) }))
     .filter((r) => r.ask || r.rationale);
   return [
     { key: 'goals', title: 'Their secret goals', items: list(seat?.goals) },
@@ -36,7 +35,7 @@ export const revealLinkLabel = (name) => `See the reveal of ${name}`;
 
 function ruling(r) {
   return h('li', { class: 'rv-ruling' },
-    r.when ? h('span', { class: 'rv-when' }, r.when) : null,
+    r.on ? h('span', { class: 'rv-when' }, r.on) : null,
     r.ask ? h('span', { class: 'rv-ask' }, r.ask) : null,
     r.rationale ? h('blockquote', { class: 'rv-quote' }, h('p', {}, r.rationale)) : null);
 }

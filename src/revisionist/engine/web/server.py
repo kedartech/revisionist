@@ -83,6 +83,9 @@ OFFERED = ("autumn-1941",)
 MODEL_DOWN = "The model cannot be reached just now. Try again in a minute."
 HELP_KEPT = 40
 """Lines of each seat's talk with its aide kept in memory [proposed]."""
+SEALED_BY_COMMIT = frozenset({"lever", "sign", "option", "file", "step"})
+"""Actions that file or change an order: refused once the seat has committed the wake."""
+SEALED = "Your orders for this wake are sealed. They go out when the wake closes."
 
 
 def model_down(exc: TransportError) -> str:
@@ -257,6 +260,14 @@ class App:
             if state.phase is not Phase.PLAY or link.seat_id not in state.seats:
                 raise ApiError(HTTPStatus.BAD_REQUEST, "The game is not in play yet.")
             seat, cid = link.seat_id, link.campaign_id
+            wake = state.wake
+            if (
+                action in SEALED_BY_COMMIT
+                and wake is not None
+                and not wake.closed
+                and seat in wake.committed
+            ):
+                return {"reply": SEALED, "refused": True}
             try:
                 if action == "read":
                     doc_id = DocumentId(_text(body, "doc_id", 64))

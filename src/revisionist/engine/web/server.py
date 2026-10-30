@@ -597,7 +597,11 @@ class App:
                 if action == "start":
                     try:
                         started = new_game_api.start(
-                            store, account.account_id, _date(body), self.transport_factory()
+                            store,
+                            account.account_id,
+                            _date(body),
+                            self.transport_factory(),
+                            _text(body, "world", 64, required=False) or None,
                         )
                     except TransportError as exc:
                         return {"reply": model_down(exc), "refused": True}

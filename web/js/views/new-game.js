@@ -31,7 +31,7 @@ async function run(out, button, label, action, body, after) {
 export function timelinePoints(points) {
   return [...points]
     .sort((a, b) => a.date.localeCompare(b.date))
-    .map((p) => ({ date: p.date, label: p.label, when: worldDate(p.date), startable: Boolean(p.world) }));
+    .map((p) => ({ date: p.date, label: p.label, when: worldDate(p.date), world: p.world || null, startable: Boolean(p.world) }));
 }
 
 function whenToBegin(done) {
@@ -40,7 +40,7 @@ function whenToBegin(done) {
   api.newGame('timeline').then(({ timeline }) => {
     list.replaceChildren(...timelinePoints(timeline).map((p) => {
       const begin = p.startable ? h('button', { type: 'button' }, `Begin on ${p.label}`) : null;
-      begin?.addEventListener('click', () => run(out, begin, 'Starting…', 'start', { date: p.date }, done));
+      begin?.addEventListener('click', () => run(out, begin, 'Starting…', 'start', { date: p.date, world: p.world }, done));
       return h('article', { class: 'char tl-point' },
         h('div', { class: 'char-head' },
           h('span', { class: 'char-name' }, p.label),

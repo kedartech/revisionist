@@ -22,6 +22,7 @@ test('the timeline is in date order, startable only with a world', () => {
   assert.deepEqual(points.map((p) => p.label), ['Autumn 1941', 'D-Day']);
   assert.deepEqual(points.map((p) => p.startable), [true, false]);
   assert.equal(points[0].when, '1 September 1941');
+  assert.deepEqual(points.map((p) => p.world), [fixture.timeline[0].world, null]);
 });
 
 test('timeline wording has no underscore or ISO date', () => {

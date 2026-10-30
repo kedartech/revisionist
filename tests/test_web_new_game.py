@@ -129,6 +129,13 @@ def test_a_curated_date_starts_its_world_with_the_account_as_host(cast_web: Web)
     assert game["phase"] == "session_zero" and game["host"]
 
 
+def test_two_worlds_on_one_date_start_the_one_chosen(cast_web: Web) -> None:
+    client, _ = cast_web.signed_up("ada")
+    out = new(client, "start", date="1941-09-01", world="engine-v2-slice-1941")
+    assert not out["refused"]
+    assert client.me()["game"]["name"] == "Autumn 1941 (engine v2 slice)"
+
+
 def test_an_unmarked_date_will_not_start(cast_web: Web) -> None:
     client, _ = cast_web.signed_up("ada")
     out = new(client, "start", date="1941-09-03")

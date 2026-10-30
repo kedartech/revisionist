@@ -45,10 +45,19 @@ def figures(on: date, search: str, transport: Transport) -> list[FigureGroup]:
     ]
 
 
-def start(store: PostgresEventStore, account_id: str, on: date, transport: Transport) -> Reply:
+def start(
+    store: PostgresEventStore,
+    account_id: str,
+    on: date,
+    transport: Transport,
+    world: str | None = None,
+) -> Reply:
     """A game on the chosen date, with the account as host; everyone then picks a
-    figure through ``/api/new/pick``. The account holds no seat yet."""
-    point = next((p for p in tl.start_points() if p.on == on), None)
+    figure through ``/api/new/pick``. The account holds no seat yet. ``world`` picks
+    between two ready worlds on one date; without it the first on that date starts."""
+    point = next(
+        (p for p in tl.start_points() if p.on == on and (not world or p.world == world)), None
+    )
     if point is None:
         return Reply(reply=UNMARKED, refused=True)
     if point.world is None:

@@ -94,6 +94,7 @@ def play_tick(
             warn(f"  no prose for {dropped}")
         if done.stopped_after is None:
             wk.open_wake(store, campaign_id, when)
+            wk.offer_all(store, campaign_id, None if offline else transport_factory())
         found = leak_report(load_state(store, campaign_id), store.read(campaign_id))
         return TickRun(done, briefings, found)
     deliverer = (deliverer_factory or file_deliverer)(store, campaign_id, briefings)

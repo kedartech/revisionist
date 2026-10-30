@@ -119,3 +119,19 @@ def test_a_ready_made_game_seats_without_building(cast_web: Web) -> None:
     assert not new(client, "begin")["refused"]
     assert client.me()["game"]["phase"] == "play"
     assert new(client, "ready", world="salt-strait")["refused"]
+
+
+def test_a_curated_date_starts_its_world_with_the_account_as_host(cast_web: Web) -> None:
+    client, _ = cast_web.signed_up("ada")
+    out = new(client, "start", date="1941-09-01")
+    assert not out["refused"]
+    game = client.me()["game"]
+    assert game["phase"] == "session_zero" and game["host"]
+
+
+def test_an_unmarked_date_will_not_start(cast_web: Web) -> None:
+    client, _ = cast_web.signed_up("ada")
+    out = new(client, "start", date="1941-09-03")
+    assert out["refused"] and out["reply"] == "Only the marked dates can start a game for now."
+    assert new(client, "start", date="1944-06-06")["refused"]
+    assert client.me().get("game") is None

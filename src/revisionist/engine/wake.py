@@ -13,18 +13,22 @@ from revisionist.core.ontology import Controller
 from revisionist.core.realism.agenda import STANDING_DEFAULT, Ask
 from revisionist.core.realism.effect import IRREVERSIBLE
 from revisionist.core.state import State
-from revisionist.core.visibility import PUBLIC
+from revisionist.core.visibility import PUBLIC, Scope, private_to
 from revisionist.engine import campaign as cmp
 from revisionist.engine import options, realism_tick
 from revisionist.engine.ids import new_id
-from revisionist.engine.llm import Transport
+from revisionist.engine.llm import Transport, TransportError
 from revisionist.engine.store import EventStore, load_state
 
 log = logging.getLogger(__name__)
 
 
 def _land(
-    store: EventStore, state: State, payload: ev.Payload, actor: SeatId | None = None
+    store: EventStore,
+    state: State,
+    payload: ev.Payload,
+    actor: SeatId | None = None,
+    scope: Scope = PUBLIC,
 ) -> None:
     store.append_all(
         [
@@ -34,7 +38,7 @@ def _land(
                 seq=state.last_seq + 1,
                 tick=state.tick,
                 actor=actor,
-                scope=PUBLIC,
+                scope=scope,
                 payload=payload,
                 versions=cmp.versions(),
             )
@@ -56,6 +60,34 @@ def open_wake(store: EventStore, campaign_id: CampaignId, now: datetime) -> int:
     deadline = now + timedelta(hours=state.settings.wake_hours)
     _land(store, state, ev.WakeOpened(wake=number, deadline=deadline))
     return number
+
+
+def offer_all(store: EventStore, campaign_id: CampaignId, transport: Transport | None) -> int:
+    """Offer each human seat its options for the open wake; returns how many landed.
+
+    Each offer is sealed to its seat: no seat learns another's style from it.
+    """
+    landed = 0
+    for seat in cmp.human_seats(load_state(store, campaign_id)):
+        state = load_state(store, campaign_id)
+        try:
+            offered = options.offer(state, seat, transport)
+        except TransportError as exc:
+            log.warning("no options for %s: %s", seat, exc)
+            continue
+        if offered is not None:
+            _land(store, state, offered, seat, private_to(seat))
+            landed += 1
+        if options.last_cost is not None:
+            cmp.log_cost(store, campaign_id, options.CALL_CLASS, [options.last_cost], seat)
+    return landed
+
+
+def set_hours(store: EventStore, campaign_id: CampaignId, hours: int) -> None:
+    """How long wakes stay open from the next one on; an open wake keeps its deadline."""
+    state = load_state(store, campaign_id)
+    settings = state.settings.model_copy(update={"wake_hours": hours})
+    _land(store, state, ev.SettingsSet(settings=settings))
 
 
 def commit(store: EventStore, campaign_id: CampaignId, seat: SeatId, now: datetime) -> bool:
@@ -122,4 +154,4 @@ def close_wake(
     return absent
 
 
-__all__ = ["close_wake", "commit", "open_wake", "wake_due"]
+__all__ = ["close_wake", "commit", "offer_all", "open_wake", "set_hours", "wake_due"]

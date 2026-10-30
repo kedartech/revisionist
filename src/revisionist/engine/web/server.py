@@ -378,7 +378,13 @@ class App:
                     )
                 elif action == "advance":
                     host = WebSeats(store.conn).host(cid) == account.account_id
-                    reply = wake_api.advance(store, cid, seat, host=host, tools=self._tools())
+                    try:
+                        done = wake_api.advance(
+                            store, cid, seat, self.clock(), host=host, tools=self._tools()
+                        )
+                    except TransportError as exc:
+                        return {"reply": model_down(exc), "refused": True}
+                    return snapshot.checked(state, seat, dict(done))
                 elif action in ("commit", "close"):
                     try:
                         if action == "commit":
@@ -618,6 +624,7 @@ class App:
                 realism_tick.open_play(store, cid)
             except session_zero.StepRefusedError as exc:
                 return {"reply": str(exc), "refused": True}
+            wake_api.start_play(store, cid, self.clock(), tools=self._tools())
             self.spawn(lambda: self._build_rest(cid))
             return {
                 "reply": "The game has begun. The rest of the cast is being drawn up "

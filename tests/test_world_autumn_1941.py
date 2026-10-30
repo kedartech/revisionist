@@ -94,3 +94,17 @@ def test_every_card_lever_names_a_resolver_and_a_card_pipeline() -> None:
     for c in _world().cards:
         assert all(lv.pipeline in c.pipelines for lv in c.levers), c.person
     assert all(2 <= len(c.levers) <= 6 for c in _world().cards if c.playable)
+
+
+def test_every_playable_card_has_authority_or_a_rank() -> None:
+    for c in _world().cards:
+        if c.playable:
+            assert c.authority or c.reach.rank > 0, c.person
+
+
+def test_every_mandate_goes_to_a_playable_person() -> None:
+    world = _world()
+    playable = {c.person for c in world.cards if c.playable}
+    assert world.mandates
+    assert all(set(m.to) <= playable for m in world.mandates)
+    assert playable <= {k for m in world.mandates for k in m.to}

@@ -134,6 +134,11 @@ def _part(output: object, playable: bool) -> tuple[WorldFile | None, list[str]]:
         for c in part.cards
         if not LEVERS_MIN <= len(c.levers) <= LEVERS_MAX
     ]
+    problems += [
+        f"card {c.person}: no authority domain and reach rank 0, so no order has a route"
+        for c in part.cards
+        if playable and not c.authority and c.reach.rank == 0
+    ]
     cards = tuple(c.model_copy(update={"playable": playable}) for c in part.cards)
     return part.model_copy(update={"cards": cards}), problems
 

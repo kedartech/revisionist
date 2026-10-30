@@ -480,6 +480,27 @@ cards:
     horizon_days: 14
     voice: Warm, confident, evasive when pressed; never commits to a date for war.
     interests: [aid to Britain and the Soviet Union, keeping the public behind him]
+    # Authority and reach are design values [proposed]; the offices are as of 1 Sep 1941.
+    authority:
+      - name: naval_operations
+        effects: [move_force, engagement]
+        executor: stark
+        forces: [us_atlantic_fleet, us_pacific_fleet]
+        summary: "Orders to the fleets, carried out by the Chief of Naval Operations."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the nation, by radio or to the press."
+      - name: appointments
+        effects: [appointment]
+        summary: "Nominate and appoint officers and officials."
+      - name: executive_agreements
+        effects: [deal]
+        executor: hull
+        summary: "Make executive agreements with other governments, through the State Department."
+      - name: lend_lease
+        effects: [allocate]
+        summary: "Decide how the aid programme is shared out."
+    reach: {rank: 5, chain: [usa], heads: true}
   - person: churchill
     office: Prime Minister of the United Kingdom
     playable: true
@@ -534,6 +555,23 @@ cards:
     horizon_days: 14
     voice: Sonorous, combative, given to long dictated minutes and set-piece speeches.
     interests: [bring America into the war, hold the Atlantic supply line]
+    authority:
+      - name: naval_operations
+        effects: [move_force, engagement]
+        executor: pound
+        forces: [home_fleet]
+        summary: "Orders to the Home Fleet, carried out by the First Sea Lord."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the House and the nation."
+      - name: appointments
+        effects: [appointment]
+        summary: "Appoint and dismiss ministers."
+      - name: foreign_dealings
+        effects: [deal]
+        executor: eden
+        summary: "Treat with other governments, through the Foreign Secretary."
+    reach: {rank: 5, chain: [uk], heads: true}
   - person: stalin
     office: Chairman of the Council of People's Commissars
     playable: true
@@ -579,6 +617,26 @@ cards:
     horizon_days: 7
     voice: Blunt, suspicious, speaks in short orders and rarely explains.
     interests: [Western supply, a second front, survival of Moscow]
+    authority:
+      - name: military_operations
+        effects: [move_force, engagement]
+        executor: shaposhnikov
+        forces: [soviet_western_front]
+        summary: "Orders to the armies, carried out by the Chief of the General Staff."
+      - name: state_defence
+        effects: [allocate]
+        summary: "Direct industry and supply through the State Defence Committee."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the country, by radio or in the press."
+      - name: appointments
+        effects: [appointment]
+        summary: "Appoint and remove commanders and commissars."
+      - name: foreign_dealings
+        effects: [deal]
+        executor: molotov
+        summary: "Treat with other governments, through the Commissar for Foreign Affairs."
+    reach: {rank: 5, chain: [ussr], heads: true}
   - person: hitler
     office: Fuehrer and Reich Chancellor
     playable: true
@@ -635,6 +693,28 @@ cards:
     successor: goering
     voice: Hectoring, monologuing, prone to grievance and vast promises.
     interests: [defeat the Soviet Union, cut British supply by sea]
+    authority:
+      - name: uboat_war
+        effects: [move_force, engagement]
+        executor: raeder
+        forces: [uboat_arm]
+        summary: "Orders to the U-boats, carried out by the Navy's commander in chief."
+      - name: eastern_operations
+        effects: [move_force, engagement]
+        executor: jodl
+        forces: [army_group_centre]
+        summary: "Orders to the armies in the East, carried out through the High Command."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the nation and the world."
+      - name: appointments
+        effects: [appointment]
+        summary: "Appoint and dismiss officers and officials."
+      - name: foreign_dealings
+        effects: [deal]
+        executor: ribbentrop
+        summary: "Treat with other governments, through the Foreign Minister."
+    reach: {rank: 5, chain: [germany], heads: true}
   - person: konoe
     office: Prime Minister of Japan
     playable: true
@@ -677,6 +757,21 @@ cards:
     horizon_days: 14
     voice: Courtly, indecisive, speaks in hints and defers to the Throne.
     interests: [settlement with the United States, avoid a break with the Army]
+    authority:
+      - name: cabinet
+        effects: [appointment]
+        summary: "Form or reshape the cabinet."
+      - name: planning
+        effects: [allocate]
+        summary: "Direct national resources through the cabinet's planning bodies."
+      - name: public_word
+        effects: [statement]
+        summary: "Put out the Cabinet's public line."
+      - name: talks_with_washington
+        effects: [deal]
+        executor: nomura
+        summary: "Negotiate with the United States, through the Ambassador in Washington."
+    reach: {rank: 4, chain: [japan]}
   - person: tojo
     office: War Minister of Japan
     playable: true
@@ -720,6 +815,14 @@ cards:
     horizon_days: 14
     voice: Clipped, bureaucratic and rigid; speaks for the Army's position.
     interests: [keep the China gains, a deadline for the talks]
+    authority:
+      - name: army_administration
+        effects: [appointment, allocate]
+        summary: "Post officers and supply the Army, as War Minister."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak for the Army's position."
+    reach: {rank: 3, chain: [japan]}
   - person: mussolini
     office: Duce and Prime Minister of Italy
     playable: true
@@ -754,6 +857,21 @@ cards:
     horizon_days: 14
     voice: Theatrical, boastful, with a defensive edge about Germany.
     interests: [keep pace with Germany, hold North Africa]
+    authority:
+      - name: supreme_command
+        effects: [engagement]
+        executor: cavallero
+        summary: "Orders to the armed forces, carried out through the Comando Supremo."
+      - name: war_economy
+        effects: [allocate]
+        summary: "Direct which industry is pressed ahead."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the nation from the balcony or on the radio."
+      - name: appointments
+        effects: [appointment]
+        summary: "Appoint and dismiss ministers and commanders."
+    reach: {rank: 4, chain: [italy], heads: true}
   - person: chiang
     office: Chairman of the National Government of China
     playable: true
@@ -789,6 +907,22 @@ cards:
     horizon_days: 14
     voice: Stern, moralising, impatient with allies who promise more than they send.
     interests: [American aid, keep Japan tied down in China]
+    authority:
+      - name: military_affairs
+        effects: [engagement]
+        executor: he_yingqin
+        summary: "Orders to the armies, carried out through the Military Affairs Commission."
+      - name: arsenals
+        effects: [allocate]
+        summary: "Direct the arsenals and the Burma Road supply."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the nation and appeal abroad."
+      - name: appeals_abroad
+        effects: [deal]
+        executor: soong
+        summary: "Treat with Washington and London, through T. V. Soong."
+    reach: {rank: 5, chain: [china], heads: true}
   # --- the people around them, run by code ---
   - person: wallace
     office: Vice President of the United States
@@ -1099,6 +1233,93 @@ cards:
     horizon_days: 7
 
 # Nobody is pre-seated: players claim playable cards at Session Zero.
+# Mandates: what each playable figure is asked, or has brought on themselves.
+# Triggers are the history items above; deadlines, wording and the choice of
+# which item to answer are design values [proposed], not data. "on" is quoted:
+# YAML 1.1 reads a bare on as true.
+mandates:
+  # Roosevelt's broadcast of 11 Sep (rules for the western Atlantic) followed
+  # the Greer of 4 Sep by a week; the Navy Day speech of 27 Oct answered the Kearny.
+  - key: greer_response
+    kind: crisis
+    trigger: {"on": history, history: greer_incident}
+    to: [roosevelt]
+    condition: {check: ordered, person: roosevelt, effect: engagement}
+    days: 14
+    text: "After the Greer, set the Navy's rules in the western Atlantic."
+  - key: shoot_outcry
+    kind: blowback
+    trigger: {"on": act, effect: engagement}
+    to: [roosevelt]
+    condition: {check: ordered, person: roosevelt, effect: statement}
+    days: 7
+    text: "Answer the outcry over the Navy's new orders."
+  - key: kearny_address
+    kind: crisis
+    trigger: {"on": history, history: kearny_hit}
+    to: [roosevelt]
+    condition: {check: ordered, person: roosevelt, effect: statement}
+    days: 14
+    text: "The Kearny is hit and eleven are dead: tell the country what the Navy will do."
+  # The Commons pressed for the Atlantic convoys through the autumn.
+  - key: commons_convoys
+    kind: order
+    issuer: commons
+    trigger: {"on": history, history: greer_incident}
+    to: [churchill]
+    condition: {check: ordered, person: churchill, effect: move_force}
+    days: 10
+    text: "The House expects the Home Fleet placed to cover the convoys."
+  # Lend-Lease reached the Soviet Union by the 7 Nov finding; Stalin's requests ran on Molotov's cables.
+  - key: soviet_aid_window
+    kind: opportunity
+    trigger: {"on": history, history: soviet_lend_lease_finding}
+    to: [stalin]
+    condition: {check: ordered, person: stalin, effect: deal}
+    days: 21
+    text: "Washington has opened Lend-Lease to Russia: press what is wanted."
+  # Raeder pressed to answer American escorts; Hitler held the U-boats to avoid incidents.
+  - key: uboat_rules
+    kind: crisis
+    trigger: {"on": history, history: greer_incident}
+    to: [hitler]
+    condition: {check: ordered, person: hitler, effect: engagement}
+    days: 14
+    text: "The Greer has been fired on: settle the U-boats' rules toward American ships."
+  # The services, Tojo above all, held the Cabinet to its line on the talks.
+  - key: services_line
+    kind: blowback
+    trigger: {"on": act, effect: deal}
+    to: [konoe]
+    condition: {check: ordered, person: konoe, effect: statement}
+    days: 14
+    text: "The services want the Cabinet's line on the talks made plain."
+  # The Emperor told Tojo to form the cabinet on 17 Oct, the day after Konoe went.
+  - key: form_cabinet
+    kind: order
+    issuer: hirohito
+    trigger: {"on": history, history: konoe_resigns}
+    to: [tojo]
+    condition: {check: ordered, person: tojo, effect: appointment}
+    days: 7
+    text: "The Throne calls on the War Minister to form a cabinet."
+  # Tripartite Pact partner: Rome kept in step with Berlin and Tokyo.
+  - key: axis_in_step
+    kind: crisis
+    trigger: {"on": history, history: konoe_resigns}
+    to: [mussolini]
+    condition: {check: ordered, person: mussolini, effect: statement}
+    days: 14
+    text: "Tokyo's Cabinet has fallen: show Italy standing with its partners."
+  # Chiang cabled Washington and London against a modus vivendi in the last days of Nov.
+  - key: hull_note_appeal
+    kind: opportunity
+    trigger: {"on": history, history: hull_note}
+    to: [chiang]
+    condition: {check: ordered, person: chiang, effect: deal}
+    days: 10
+    text: "Washington has answered Tokyo: make China's case to the Allies."
+
 seats: []
 
 roster:

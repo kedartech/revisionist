@@ -277,7 +277,41 @@ def record_aide() -> None:
     store = MemoryStore()
     ticked(store)
     aide_for(store, CAMPAIGN, roosevelt_seat(store), ClaudeAide(hand))
+    _record_aide_cli(hand)
     hand.save(AIDE)
+
+
+def _record_aide_cli(hand: Hand) -> None:
+    """The wiring test's CLI path: its ticks close the shared wake, where the aide plays the
+    absent seat against autumn-1941's mandates, so the briefing it asks for differs."""
+    import itertools
+    import tempfile
+
+    import pytest
+    from typer.testing import CliRunner
+
+    from revisionist import cli
+    from revisionist.core.ids import derived_id
+    from revisionist.engine import campaign as cmp
+    from revisionist.engine import realism_tick
+    from revisionist.engine.aide import AIDE_MODEL
+    from tests.counsel_scenario import TICKS
+
+    fixed = "01ARZ3NDEKTSV4RRFFQ69G5FAV"  # tests/test_realism_wiring.py fixed_campaign
+    counter = itertools.count()
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory() as tmp, pytest.MonkeyPatch.context() as mp:
+        mp.setenv("REVISIONIST_DB", str(Path(tmp) / "game.db"))
+        mp.setattr(cmp, "new_id", lambda: fixed)
+        mp.setattr(realism_tick, "new_id", lambda: derived_id(fixed, next(counter)))
+        for args in (
+            ["new", "autumn-1941", "--seat", "roosevelt"],
+            *[["tick", "--offline"]] * TICKS,
+        ):
+            assert runner.invoke(cli.app, args).exit_code == 0, args
+        mp.setattr(cli, "transport_factory", lambda: hand)
+        assert runner.invoke(cli.app, ["aide"]).exit_code == 0
+    assert all(e["model"] == AIDE_MODEL for e in hand.entries.values())
 
 
 def record_directive() -> None:

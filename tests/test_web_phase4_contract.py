@@ -1,4 +1,4 @@
-"""The Phase 4 seams: every new route answers in its stub shape, the fixture matches
+"""The Phase 4 seams: every new route answers in its declared shape, the fixture matches
 the API's shapes, and an ended game keeps its seats. Same harness as ``tests/test_web.py``.
 """
 
@@ -141,10 +141,29 @@ def test_the_host_sets_the_wake_hours(solo: tuple[Realism, Client]) -> None:
     assert _in_game(ada, "wake-hours", hours="soon")["refused"]
 
 
+class _HeldPower:
+    """Answers the figure-list call with two people; no model is called."""
+
+    def call(self, request: Any) -> Any:
+        from revisionist.engine.llm import Reply
+
+        people = [
+            {"name": "Ernest King", "title": "Admiral", "side": "United States", "power": "Navy"},
+            {"name": "Erich Raeder", "title": "Grand Admiral", "side": "Germany", "power": "Navy"},
+        ]
+        return Reply({"people": people}, request.model, 8, 4, 0, 0.0)
+
+
 def test_a_new_game_answers_with_the_timeline_and_figures(web: Web) -> None:  # noqa: F811
+    from revisionist.engine import timeline
+
+    timeline._held.clear()
+    web.app.transport_factory = _HeldPower
     client, _ = web.signed_up("ada")
-    assert _new(client, "timeline") == {"timeline": []}
-    assert _new(client, "figures", date=DATE)["figures"] == []
+    points = _new(client, "timeline")["timeline"]
+    assert points and all(set(p) == set(api.TimelinePoint.__annotations__) for p in points)
+    groups = _new(client, "figures", date=DATE)["figures"]
+    assert groups and all(set(g) == set(api.FigureGroup.__annotations__) for g in groups)
     assert set(_new(client, "start", date=DATE)) == set(api.Reply.__annotations__)
     status, out = client.call("/api/new/figures", {"date": "soon"})
     assert status == 400, out

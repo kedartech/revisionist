@@ -487,12 +487,13 @@ def test_the_disposition_cap_holds_across_an_order(sl: Slice) -> None:
 
 
 def test_an_older_realism_log_hashes_as_before_wave_b() -> None:
-    """One realism tick of autumn-1941 with no estimator: no new late field reaches the
-    state, so its hash is what schema 18 gave. The recorded legacy log is pinned byte
-    for byte by tests/test_realism_contract.py::
+    """One realism tick of the pre-v2 1941 slice with no estimator: no new late field
+    reaches the state, so its hash is what schema 18 gave. (autumn-1941 now carries
+    mandate templates, so it is no longer an older world.) The recorded legacy log is
+    pinned byte for byte by tests/test_realism_contract.py::
     test_the_recorded_legacy_log_replays_and_reserialises_byte_for_byte."""
     store = MemoryStore()
-    world = cmp.load_world(cmp.world_path("autumn-1941"))
+    world = cmp.load_world(cmp.world_path("realism-slice-1941"))
     store.append_all(compile_world(world, CAMPAIGN, cmp.versions()))
     rt.seat_player(store, CAMPAIGN, EntityId(derived_id(CAMPAIGN, "entity", "roosevelt")))
     result = rt.run_realism_tick(store, CAMPAIGN)

@@ -163,6 +163,7 @@ BUILD_BY_NAME: dict[str, dict[str, Any]] = {
         "cards": [
             {
                 "person": "john_f_kennedy",
+                "reach": {"rank": 5, "heads": False},
                 "office": "President of the United States",
                 "principals": ["united_states"],
                 "powers": ["Commander in Chief of the Army and Navy"],
@@ -255,6 +256,7 @@ BUILD_BY_NAME: dict[str, dict[str, Any]] = {
         "cards": [
             {
                 "person": "nikita_khrushchev",
+                "reach": {"rank": 5, "heads": False},
                 "office": "First Secretary of the Communist Party",
                 "principals": ["soviet_union"],
                 "powers": ["Chairman of the Council of Ministers"],
@@ -336,6 +338,7 @@ BUILD_BY_NAME: dict[str, dict[str, Any]] = {
         "cards": [
             {
                 "person": "fidel_castro",
+                "reach": {"rank": 5, "heads": False},
                 "office": "Prime Minister of Cuba",
                 "principals": ["cuba"],
                 "levers": [
@@ -419,6 +422,7 @@ BUILD_BY_NAME: dict[str, dict[str, Any]] = {
         "cards": [
             {
                 "person": "robert_mcnamara",
+                "reach": {"rank": 4, "heads": False},
                 "office": "Secretary of Defense",
                 "principals": ["john_f_kennedy"],
                 "levers": [

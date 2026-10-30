@@ -46,9 +46,9 @@ from revisionist.core.realism.advance import Wake, next_wake
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import ParamKind, ParamSpec, ParamValue
 from revisionist.core.realism.document import DocumentView
-from revisionist.core.realism.effect import RoutedOrder, RoutedPart
+from revisionist.core.realism.effect import Effect, PartRef, Route, RoutedOrder, RoutedPart
 from revisionist.core.realism.feeds import due_feeds, issue, seed_for_day
-from revisionist.core.realism.pipeline import Order, OrderStatus, StepAction
+from revisionist.core.realism.pipeline import SETTLED, Order, OrderStatus, StepAction
 from revisionist.core.realism.pipelines import human_step, run_pipelines
 from revisionist.core.realism.resolvers import (
     ON_DAY,
@@ -464,6 +464,27 @@ def draft_order(state: State, seat: SeatId, lever: str, given: dict[str, str]) -
     )
 
 
+def _pending_effects(state: State, seat: SeatId) -> list[Effect]:
+    """The typed asks the seat has sent that are still on their way: not refused,
+    not turned down, not yet landed. Free-text asks carry no effect and are not compared."""
+    carried = {o.routed_from: o for o in state.orders.values() if o.routed_from is not None}
+    out: list[Effect] = []
+    for order in state.routed.values():
+        if order.issuer != seat:
+            continue
+        for i, part in enumerate(order.parts):
+            if part.effect is None or part.refusal or part.applied is not None:
+                continue
+            if part.accepted is False:
+                continue
+            if part.route is Route.PROCESS:
+                carrier = carried.get(PartRef(order_id=order.order_id, part=i))
+                if carrier is not None and carrier.status in SETTLED:
+                    continue
+            out.append(part.effect)
+    return out
+
+
 def commit_order(
     store: EventStore, campaign_id: CampaignId, seat: SeatId, asks: Sequence[Ask]
 ) -> RoutedOrder:
@@ -472,8 +493,15 @@ def commit_order(
     state = load_state(store, campaign_id)
     today = state.in_world_date
     assert today is not None
+    pending = _pending_effects(state, seat)
     parts: list[RoutedPart] = []
     for ask in asks:
+        if ask.effect is not None:
+            if ask.effect in pending:
+                raise ValueError(
+                    f"You already sent that order and it is still on its way: {ask.ask}"
+                )
+            pending.append(ask.effect)
         routing = route(state, seat, ask, today)
         if routing.part is None:
             raise ValueError(routing.refusal)

@@ -255,3 +255,6 @@ dialog.sheet form { display: flex; flex-direction: column; gap: var(--space-3); 
   .split { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+/* A taken figure reads dimmer by its name, not by fading the whole card: faded tags fail contrast. */
+.char.taken { opacity: 1; }
+.char.taken .char-name { color: var(--ink-secondary); }

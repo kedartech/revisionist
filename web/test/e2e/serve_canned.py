@@ -2,8 +2,10 @@
 
 No model is called. Pages are written from templates; the aide brief uses the template
 aide; a directive is read as the first instrument whose fields can be filled from its
-own limits and choices; counsel and the aide's help desk answer with a fixed line. The
-cost on each reply is zero.
+own limits and choices; counsel and the aide's help desk answer with a fixed line. Engine
+v2: options fall back to the template, a free-text order reads as one ask aimed at its
+addressee, the estimator rules that nothing changes, and three people held power on
+every date. The cost on each reply is zero.
 
     REVISIONIST_DB=postgresql://... python web/test/e2e/serve_canned.py [PORT]
 """
@@ -35,6 +37,29 @@ def _directive(prompt: str) -> dict[str, Any]:
     return {"lever": "", "params": {}, "reason": "None of your instruments does this."}
 
 
+HELD = [
+    {
+        "name": "Franklin D. Roosevelt",
+        "title": "President of the United States",
+        "side": "United States",
+        "power": "Government",
+    },
+    {
+        "name": "Henry L. Stimson",
+        "title": "Secretary of War",
+        "side": "United States",
+        "power": "Government",
+    },
+    {
+        "name": "Winston Churchill",
+        "title": "Prime Minister",
+        "side": "United Kingdom",
+        "power": "Government",
+    },
+]
+"""Who held power on any date, for the new-game screen."""
+
+
 class Canned:
     def call(self, request: Request) -> Reply:
         props = set(request.schema.get("properties", {}))
@@ -44,6 +69,18 @@ class Canned:
             out = {"text": "Use the form for it under Standard forms on your desk.", "lever": ""}
         elif "lever" in props:
             out = _directive(request.prompt)
+        elif props == {"options"}:
+            out = {"options": []}  # the template offers instead
+        elif props == {"asks", "reason"}:
+            out = {"asks": [{"ask": "Escort the convoys as far as Iceland"}], "reason": ""}
+        elif props == {"effects", "reason", "rationale"}:
+            out = {
+                "effects": [],
+                "reason": "The office takes note.",
+                "rationale": "A canned ruling for the smoke run: nothing changes.",
+            }
+        elif props == {"people"}:
+            out = {"people": HELD}
         elif "summary" in props:
             out = {"summary": "", "drafts": []}
         else:

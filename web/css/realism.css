@@ -280,3 +280,5 @@ button.danger { background: var(--signal-stamp); color: var(--paper-sheet); bord
 .rl-msg.mine { margin-left: var(--space-5); background: var(--paper-carbon); }
 .rl-msg.theirs { margin-right: var(--space-3); background: var(--paper-field); border-left: 3px solid var(--ink-rule); font-family: var(--font-dispatch); }
 .rl-msg.theirs .rl-msg-who { font-family: var(--font-ui); }
+/* A caution stamp on a closed folder sits on a sheet-coloured patch: the bare manila is too dark for it. */
+.rl-folder .stamp-confidential, .rl-folder .stamp-secret { background: var(--paper-sheet); }

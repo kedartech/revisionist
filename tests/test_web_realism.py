@@ -191,7 +191,12 @@ def test_me_carries_the_realism_block_for_a_realism_seat(solo: tuple[Realism, Cl
         "clock",
         "map",
         "counsel",
+        "wake_tick",
         "wake",
+        "agenda",
+        "results",
+        "reach",
+        "style",
         "brief",
         "help",
     }
@@ -673,11 +678,11 @@ def test_the_aide_reads_once_a_wake_and_again_only_when_asked(
     assert same["brief"] == first["brief"] and model.calls == 1
     _, again = post(ada, "aide", again=True)
     assert again["brief"]["summary"] == "Brief two." and model.calls == 2
-    wake = realism_of(ada)["wake"]
+    wake = realism_of(ada)["wake_tick"]
     game.web.app.offline_prose = True  # template pages and aide from here: no model call
     assert not post(ada, "advance")[1]["refused"]
     block = realism_of(ada)
-    assert block["wake"] != wake and block["brief"] is None  # a new wake wants a new brief
+    assert block["wake_tick"] != wake and block["brief"] is None  # a new wake wants a new brief
     _, fresh = post(ada, "aide")
     assert model.calls == 2  # offline: the template aide, no model call
     assert fresh["brief"]["summary"] and realism_of(ada)["brief"] == fresh["brief"]

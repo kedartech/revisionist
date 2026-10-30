@@ -267,7 +267,187 @@ class SeatMap(TypedDict):
     """The seat's own movement orders: what it has ordered, not where anything is."""
 
 
+class Reply(TypedDict):
+    """What a seat action answers. A refusal is a reply, not an error."""
+
+    reply: str
+    refused: bool
+
+
+class WakeHeader(TypedDict):
+    """The shared wake, as the room's header shows it. Counts only: never who has
+    committed, never a style, and nothing that tells an aide from a person."""
+
+    wake: int
+    """The wake's number; 0 too while none has opened (``deadline`` is then None)."""
+    deadline: str | None
+    """Wall-clock ISO time it closes by; None when no wake is open."""
+    committed: int
+    humans: int
+    you_committed: bool
+    is_host: bool
+    can_close: bool
+    """True when this account may press "Close the wake now"."""
+
+
+class AgendaOption(TypedDict):
+    """One offered order, as the seat understands it."""
+
+    label: str
+    to: str | None
+    """Who it goes to, by name; None: the seat acts itself."""
+    risk: str
+    historical: bool
+    """What history did; the client labels it so."""
+    pick: str
+    """An opaque token, posted back to ``option``."""
+
+
+class AgendaItem(TypedDict):
+    """One live mandate with what the seat is offered for it."""
+
+    id: str
+    """An opaque token."""
+    kind: str
+    """In words ("Order", "Crisis")."""
+    issuer: str | None
+    """The issuer's name; None: the world itself."""
+    text: str
+    issued: str
+    deadline: str
+    options: list[AgendaOption]
+    """Beginner: what to choose from. Empty otherwise."""
+    plan: list[AgendaOption]
+    """Guided: the plan's steps, in order. Empty otherwise."""
+
+
+class AgendaBlock(TypedDict):
+    style: str
+    """``PlayStyle`` value; the client words it. The seat's own, sent to it alone."""
+    items: list[AgendaItem]
+    initiative: list[AgendaOption]
+    """Options offered outside the agenda."""
+
+
+class ResultPart(TypedDict):
+    """One part of a routed order, as its issuer knows it. Never the estimator's
+    rationale, never its engine-only effects."""
+
+    ask: str
+    """What the part asked for, in words."""
+    to: str | None
+    """Who carries it out or decides, by name; None: the seat acts itself."""
+    route: str
+    """In words ("Your command", "Through Congress", "Your persuasion")."""
+    fidelity: str | None
+    """In words, once carried out."""
+    refused_under: str | None
+    """In words: the stated rule an executor refused under."""
+    reason: str
+    """The issuer-facing reason; leak-scanned."""
+    accepted: bool | None
+    """Influence: whether the target went along; None until decided."""
+    applied: str | None
+    """The in-world date it landed; None until then."""
+
+
+class OrderResult(TypedDict):
+    """One of the seat's own routed orders, with how each part landed."""
+
+    id: str
+    """An opaque token."""
+    filed: str
+    parts: list[ResultPart]
+
+
+class ReachContact(TypedDict):
+    name: str
+    title: str | None
+    """The office on the person's public card face, if they have a card."""
+    channels: list[str]
+    """How the seat can reach them, in words, nearest first."""
+
+
+class ReachGroups(TypedDict):
+    """Who the seat can reach and how."""
+
+    inner_circle: list[ReachContact]
+    government: list[ReachContact]
+    foreign: list[ReachContact]
+    other: list[ReachContact]
+
+
+class OrderProposal(TypedDict):
+    """The engine-v2 order the aide read free text as, for the player to sign or
+    revise. The server holds what is filed; signing posts nothing of it back."""
+
+    person: str | None
+    """Who it is addressed to, by name; None: the seat acts itself."""
+    channel: str | None
+    """How it travels, in words."""
+    text: str
+    parts: list[str]
+    """Each part in words; empty when it cannot be filed."""
+    reason: str | None
+    """Why it cannot be filed, in words."""
+
+
+class TimelinePoint(TypedDict):
+    """A date a new game can start on."""
+
+    date: str
+    label: str
+    curated: bool
+    """True for a curated start point; the timeline marks these."""
+    world: str | None
+    """The ready-made world to start, for a curated point that has one."""
+
+
+class Figure(TypedDict):
+    """Someone who held real power on the chosen date."""
+
+    name: str
+    """Posted back to ``pick``."""
+    title: str
+
+
+class FigureGroup(TypedDict):
+    side: str
+    power: str
+    """The kind of power, in words ("Head of government", "Military command")."""
+    figures: list[Figure]
+
+
+class RevealRuling(TypedDict):
+    """The estimator's ruling on one part, shown only once the game has ended."""
+
+    on: str
+    ask: str
+    rationale: str
+
+
+class RevealSeat(TypedDict):
+    person: str
+    goals: list[str]
+    covert: list[str]
+    """Each covert act, in words."""
+    styles: list[str]
+    """The seat's play style over the game, in words, oldest first."""
+    rulings: list[RevealRuling]
+
+
+class Reveal(TypedDict):
+    """The end-of-game reveal. The one read that shows what was hidden: it is served
+    for an ended game only, so it does not pass ``snapshot.checked``."""
+
+    name: str
+    seats: list[RevealSeat]
+
+
 __all__ = [
+    "AgendaBlock",
+    "AgendaItem",
+    "AgendaOption",
     "BodyLine",
     "Clock",
     "ContactLine",
@@ -276,18 +456,31 @@ __all__ = [
     "DocumentListItem",
     "DocumentListing",
     "DocumentPage",
+    "Figure",
+    "FigureGroup",
     "LeverChoice",
     "LeverLine",
     "LeverParam",
     "MapMark",
     "MapOrder",
     "MapPlace",
+    "OrderProposal",
+    "OrderResult",
     "OrderTrack",
     "OrderTracker",
+    "ReachContact",
+    "ReachGroups",
+    "Reply",
+    "ResultPart",
+    "Reveal",
+    "RevealRuling",
+    "RevealSeat",
     "SeatMap",
     "Situation",
     "SituationFigure",
     "SituationReading",
     "SituationSource",
     "StepLine",
+    "TimelinePoint",
+    "WakeHeader",
 ]

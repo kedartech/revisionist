@@ -37,6 +37,7 @@ from revisionist.engine import (
     cast,
     counsel,
     directive,
+    orders_reader,
     realism_tick,
     session_zero,
 )
@@ -48,10 +49,18 @@ from revisionist.engine.ids import new_id
 from revisionist.engine.llm import Transport, TransportError
 from revisionist.engine.pg_store import PostgresEventStore
 from revisionist.engine.pitch import PITCH_MAX, PendingCard, PitchError, read_pitch
-from revisionist.engine.prose import ClaudeProseWriter, ProseWriter, TemplateProseWriter
 from revisionist.engine.store import load_state
 from revisionist.engine.tick import NotInPlayError
-from revisionist.engine.web import realism_snapshot, snapshot
+from revisionist.engine.web import (
+    agenda_api,
+    new_game_api,
+    reach_groups,
+    realism_snapshot,
+    results,
+    reveal,
+    snapshot,
+    wake_api,
+)
 from revisionist.engine.web.accounts import (
     SESSION_DAYS,
     Account,
@@ -67,8 +76,10 @@ COOKIE = "rv_session"
 BODY_MAX = 64 * 1024
 SIGNIN_TRIES = 10
 """Failed sign-ins (or recoveries) per handle per 15 minutes."""
-READY = ("autumn-1941",)
+READY = ("autumn-1941", "engine-v2-slice-1941")
 """[proposed] The ready-made realism worlds a web account may start."""
+OFFERED = ("autumn-1941",)
+"""[proposed] Those the new-game screen lists: the slice is started by name only."""
 MODEL_DOWN = "The model cannot be reached just now. Try again in a minute."
 HELP_KEPT = 40
 """Lines of each seat's talk with its aide kept in memory [proposed]."""
@@ -121,6 +132,7 @@ class App:
         self.secure_cookie = secure_cookie
         self.offline_prose = offline_prose
         self.transport_factory = transport_factory
+        self.briefings = briefings
         self.handlers = WebHandlers(
             dsn, transport_factory=transport_factory, clock=clock, briefings=briefings
         )
@@ -134,6 +146,9 @@ class App:
         restart, which only means reading the pitch again."""
         self._help: dict[tuple[CampaignId, SeatId], list[dict[str, str]]] = {}
         """Each seat's talk with its aide's help desk, oldest first. Lost on a restart."""
+        self._readings: dict[tuple[CampaignId, SeatId], orders_reader.Reading] = {}
+        """Each seat's latest order reading, until it is signed. Lost on a restart, which
+        only means reading it again."""
         self.spawn: Callable[[Callable[[], None]], None] = lambda run: threading.Thread(
             target=run, daemon=True
         ).start()
@@ -171,6 +186,10 @@ class App:
                 },
                 "game": None,
                 "live": [],
+                "finished": [
+                    {"id": s.campaign_id, "name": sch.campaign_name(store, s.campaign_id)}
+                    for s in WebSeats(store.conn).finished_for(account.account_id)
+                ],
             }
             live = sch.live_campaigns(store, now)
             out["live"] = [{"id": c, "name": sch.campaign_name(store, c)} for c in live]
@@ -206,7 +225,14 @@ class App:
                 seat_view["realism"]["counsel"] = realism_snapshot.counsel_lines(
                     project(state, link.seat_id), counsel.counsel_records(log_now, link.seat_id)
                 )
-                seat_view["realism"]["wake"] = state.tick
+                seat_view["realism"]["wake_tick"] = state.tick
+                seat_view["realism"]["wake"] = wake_api.wake_header(
+                    state, link.seat_id, host=game["host"]
+                )
+                seat_view["realism"]["agenda"] = agenda_api.agenda(state, link.seat_id, log_now)
+                seat_view["realism"]["results"] = results.results(state, link.seat_id)
+                seat_view["realism"]["reach"] = reach_groups.reach(state, link.seat_id)
+                seat_view["realism"]["style"] = agenda_api.seat_style(state, link.seat_id)
                 seat_view["realism"]["brief"] = self._brief_for(
                     link.campaign_id, link.seat_id, state.tick
                 )
@@ -351,26 +377,59 @@ class App:
                         f"{_STANDING[order.status]}"
                     )
                 elif action == "advance":
-                    humans = cmp.human_seats(state)
-                    if humans != [seat] and WebSeats(store.conn).host(cid) != account.account_id:
-                        raise ValueError("Only the host advances a shared game.")
-                    prose: ProseWriter = (
-                        TemplateProseWriter()
-                        if self.offline_prose
-                        else ClaudeProseWriter(self.transport_factory())
-                    )
-                    result = realism_tick.run_realism_tick(store, cid, prose=prose)
-                    for dropped in result.prose_dropped:
-                        log.warning("no prose for %s", dropped)
-                    today = load_state(store, cid).in_world_date
-                    reply = _calendar_line(
-                        today,
-                        (
-                            result.wake.reason.label
-                            if result.wake and result.wake.reason.what != "horizon"
-                            else None
-                        ),
-                    )
+                    host = WebSeats(store.conn).host(cid) == account.account_id
+                    reply = wake_api.advance(store, cid, seat, host=host, tools=self._tools())
+                elif action in ("commit", "close"):
+                    try:
+                        if action == "commit":
+                            done = wake_api.commit(
+                                store, cid, seat, self.clock(), tools=self._tools()
+                            )
+                        else:
+                            done = wake_api.close(
+                                store,
+                                cid,
+                                self.clock(),
+                                host=WebSeats(store.conn).host(cid) == account.account_id,
+                                tools=self._tools(),
+                            )
+                    except TransportError as exc:
+                        return {"reply": model_down(exc), "refused": True}
+                    return snapshot.checked(state, seat, dict(done))
+                elif action == "style":
+                    done = agenda_api.set_style(store, cid, seat, _text(body, "style", 20))
+                    return snapshot.checked(state, seat, dict(done))
+                elif action == "option":
+                    done = agenda_api.pick_option(store, cid, seat, _text(body, "pick", 120))
+                    return snapshot.checked(state, seat, dict(done))
+                elif action == "order":
+                    try:
+                        reading = orders_reader.read_order(
+                            state,
+                            seat,
+                            _text(body, "to", 120, required=False),
+                            _text(body, "channel", 20, required=False),
+                            _text(body, "text", directive.TEXT_MAX),
+                            self.transport_factory(),
+                        )
+                    except TransportError as exc:
+                        return {"reply": model_down(exc), "refused": True}
+                    with self._lock:
+                        self._readings[(cid, seat)] = reading
+                    out = {
+                        "reply": reading.shown["reason"] or "Your aide has read your order.",
+                        "refused": not reading.asks,
+                        "proposal": reading.shown,
+                    }
+                    return snapshot.checked(state, seat, out)
+                elif action == "file":
+                    with self._lock:
+                        signed = self._readings.get((cid, seat))
+                    done = orders_reader.file_order(store, cid, seat, signed)
+                    if not done["refused"]:
+                        with self._lock:
+                            self._readings.pop((cid, seat), None)
+                    return snapshot.checked(state, seat, dict(done))
                 else:
                     raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
             except (ValueError, KeyError, NotInPlayError, counsel.CounselRefusedError) as exc:
@@ -382,6 +441,9 @@ class App:
             return snapshot.checked(state, seat, {"reply": reply, "refused": False})
         finally:
             store.close()
+
+    def _tools(self) -> wake_api.TickTools:
+        return wake_api.TickTools(self.offline_prose, self.transport_factory, self.briefings)
 
     def _help_thread(self, cid: CampaignId, seat: SeatId) -> list[dict[str, str]]:
         with self._lock:
@@ -423,18 +485,21 @@ class App:
 
     # --- the game menu ---------------------------------------------------------
 
-    def game(self, account: Account, action: str) -> dict[str, Any]:
-        """One ``/api/game/<action>``: the host pauses, resumes or ends the game; any
-        other player leaves it. Ending retires it as ``/retire`` does on Discord: it never
-        ticks again, every seat is unlinked, and the log is kept. Leaving unlinks only the
-        player's own seat; the person stays in the game, played by no one. A refusal is a
-        reply, not an error."""
+    def game(self, account: Account, action: str, body: dict[str, Any]) -> dict[str, Any]:
+        """One ``/api/game/<action>``: the host pauses, resumes, ends the game or sets
+        its wake hours; any other player leaves it. Ending retires it as ``/retire`` does
+        on Discord: it never ticks again, and the log is kept, but every seat stays as
+        finished, for the reveal. Leaving unlinks only the player's own seat; the person
+        stays in the game, played by no one. ``reveal`` reads a game that has ended. A
+        refusal is a reply, not an error."""
         store = self.open()
         try:
+            if action == "reveal":  # the game is over: no seat in play to look up
+                return self._reveal(store, account, _text(body, "game", 64))
             link = self.handlers._game_of(store, account.account_id, "report")
             if isinstance(link, str):
                 raise ApiError(HTTPStatus.BAD_REQUEST, link)
-            if action not in ("pause", "resume", "end", "leave"):
+            if action not in ("pause", "resume", "end", "leave", "wake-hours"):
                 raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
             cid = link.campaign_id
             host = WebSeats(store.conn).host(cid) == account.account_id
@@ -452,6 +517,11 @@ class App:
                 return {"reply": f"You have left {name}.", "refused": False}
             if not host:
                 return {"reply": "Only the host can do that.", "refused": True}
+            if action == "wake-hours":
+                hours = body.get("hours")
+                if not isinstance(hours, int) or isinstance(hours, bool):
+                    return {"reply": "Give the hours as a whole number.", "refused": True}
+                return dict(wake_api.set_wake_hours(store, cid, hours))
             table = sch.register(store, self.clock())
             if action == "pause":
                 table.pause(cid, "paused by host on the web")
@@ -466,11 +536,20 @@ class App:
             links = SeatLinks(store.conn)
             for seat in links.users(cid):
                 links.unlink(cid, seat)
-            WebSeats(store.conn).unlink_campaign(cid)
+            WebSeats(store.conn).finish_campaign(cid, self.clock())
             log.info("game ended on the web: %s (%s)", name, cid)
             return {"reply": f"{name} has ended. Its record is kept.", "refused": False}
         finally:
             store.close()
+
+    def _reveal(self, store: PostgresEventStore, account: Account, game: str) -> dict[str, Any]:
+        """An ended game's reveal, for an account that held a seat in it. Not through
+        ``snapshot.checked``: showing what was hidden is the point of it."""
+        held = WebSeats(store.conn).finished_for(account.account_id)
+        if not any(s.campaign_id == game for s in held):
+            return {"reply": "That game's record is not open to you.", "refused": True}
+        cid = CampaignId(game)
+        return dict(reveal.build(load_state(store, cid), store.read(cid)))
 
     # --- a new game ------------------------------------------------------------
 
@@ -480,12 +559,32 @@ class App:
         store = self.open()
         try:
             if action == "worlds":
-                decls = [(k, cmp.load_world(cmp.world_path(k))) for k in READY]
+                decls = [(k, cmp.load_world(cmp.world_path(k))) for k in OFFERED]
                 return {"worlds": [{"key": k, "name": d.name, "start": d.start} for k, d in decls]}
+            if action == "timeline":
+                return {"timeline": new_game_api.timeline()}
+            if action == "figures":
+                try:
+                    found = new_game_api.figures(
+                        _date(body),
+                        _text(body, "search", 120, required=False),
+                        self.transport_factory(),
+                    )
+                except TransportError as exc:
+                    return {"reply": model_down(exc), "refused": True}
+                return {"reply": "", "refused": False, "figures": found}
             link = self.handlers.seat_of(store, account.account_id)
-            if action in ("ready", "pitch", "cast"):
+            if action in ("ready", "pitch", "cast", "start"):
                 if link is not None:
                     return {"reply": dh.ALREADY_SEATED, "refused": True}
+                if action == "start":
+                    try:
+                        started = new_game_api.start(
+                            store, account.account_id, _date(body), self.transport_factory()
+                        )
+                    except TransportError as exc:
+                        return {"reply": model_down(exc), "refused": True}
+                    return dict(started)
                 return self._start(store, account, action, body)
             if link is None:
                 raise ApiError(HTTPStatus.BAD_REQUEST, NOT_LINKED)
@@ -495,6 +594,10 @@ class App:
                 raise ApiError(HTTPStatus.BAD_REQUEST, "This game is not choosing its people.")
             if action == "pick":
                 return self._pick(store, state, link.seat_id, _text(body, "name", 120))
+            if action == "style":
+                return dict(
+                    agenda_api.set_style(store, cid, link.seat_id, _text(body, "style", 20))
+                )
             if action not in ("invite", "begin"):
                 raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
             if WebSeats(store.conn).host(cid) != account.account_id:
@@ -653,14 +756,6 @@ def _refused_note(reason: str) -> str:
     return line + " Ask me below how to set it up, and I will point you to the right form."
 
 
-def _calendar_line(today: date | None, reason: str | None) -> str:
-    """What the web says after an advance, in words rather than the CLI's log line."""
-    if today is None:
-        return "The calendar moves on."
-    line = f"The calendar moves to {today:%A} {today.day} {today:%B %Y}."
-    return f"{line} Reason: {reason.rstrip('.')}." if reason else line
-
-
 def _json_body(raw: bytes) -> dict[str, Any]:
     if not raw:
         return {}
@@ -743,6 +838,13 @@ def _channel(body: dict[str, Any]) -> ChannelKind:
         return ChannelKind(_text(body, "channel", 20))
     except ValueError:
         raise ValueError("Choose how the directive is to travel.") from None
+
+
+def _date(body: dict[str, Any]) -> date:
+    try:
+        return date.fromisoformat(_text(body, "date", 10))
+    except ValueError:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "date is YYYY-MM-DD.") from None
 
 
 def _route(body: dict[str, Any]) -> str:
@@ -899,7 +1001,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     self._send_json(HTTPStatus.OK, out)
                 elif path.startswith("/api/game/"):
                     account = self._need_account()
-                    out = app.game(account, path.removeprefix("/api/game/"))
+                    out = app.game(account, path.removeprefix("/api/game/"), body)
                     self._send_json(HTTPStatus.OK, out)
                 elif path.startswith("/api/realism/"):
                     account = self._need_account()

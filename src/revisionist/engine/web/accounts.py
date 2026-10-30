@@ -216,7 +216,9 @@ class WebSeat:
 
 class WebSeats:
     """``web_seats``: the web's counterpart of ``discord_seats``. A seat is held from
-    one client only, so each table's ``link`` checks the other."""
+    one client only, so each table's ``link`` checks the other. A finished seat
+    (migration 0011) stays for the game's reveal and is held by no one: only
+    ``finished_for`` reads it."""
 
     def __init__(self, conn: "Connection[Any]") -> None:
         self.conn = conn
@@ -250,11 +252,28 @@ class WebSeats:
         cur = self.conn.execute("DELETE FROM web_seats WHERE campaign_id = %s", (campaign_id,))
         return cur.rowcount
 
+    def finish_campaign(self, campaign_id: CampaignId, now: datetime) -> int:
+        """The game has ended: its seats stop counting, and stay for the reveal."""
+        cur = self.conn.execute(
+            "UPDATE web_seats SET finished_at = %s WHERE campaign_id = %s AND finished_at IS NULL",
+            (now, campaign_id),
+        )
+        return cur.rowcount
+
+    def finished_for(self, account_id: str) -> list[WebSeat]:
+        """The account's seats in ended games, last ended first."""
+        rows = self.conn.execute(
+            "SELECT campaign_id, seat_id, account_id, linked_at FROM web_seats"
+            " WHERE account_id = %s AND finished_at IS NOT NULL ORDER BY finished_at DESC",
+            (account_id,),
+        ).fetchall()
+        return [WebSeat(CampaignId(r[0]), SeatId(r[1]), str(r[2]), r[3]) for r in rows]
+
     def for_campaign(self, campaign_id: CampaignId) -> list[WebSeat]:
         """Every web seat in the campaign, first linked first."""
         rows = self.conn.execute(
             "SELECT campaign_id, seat_id, account_id, linked_at FROM web_seats"
-            " WHERE campaign_id = %s ORDER BY linked_at, seat_id",
+            " WHERE campaign_id = %s AND finished_at IS NULL ORDER BY linked_at, seat_id",
             (campaign_id,),
         ).fetchall()
         return [WebSeat(CampaignId(r[0]), SeatId(r[1]), str(r[2]), r[3]) for r in rows]
@@ -278,7 +297,7 @@ class WebSeats:
     def for_account(self, account_id: str) -> list[WebSeat]:
         rows = self.conn.execute(
             "SELECT campaign_id, seat_id, account_id, linked_at FROM web_seats"
-            " WHERE account_id = %s ORDER BY linked_at DESC",
+            " WHERE account_id = %s AND finished_at IS NULL ORDER BY linked_at DESC",
             (account_id,),
         ).fetchall()
         return [WebSeat(CampaignId(r[0]), SeatId(r[1]), str(r[2]), r[3]) for r in rows]
@@ -289,7 +308,9 @@ class WebSeats:
     def accounts(self, campaign_id: CampaignId) -> dict[SeatId, str]:
         """Seat to account, for one campaign."""
         rows = self.conn.execute(
-            "SELECT seat_id, account_id FROM web_seats WHERE campaign_id = %s", (campaign_id,)
+            "SELECT seat_id, account_id FROM web_seats"
+            " WHERE campaign_id = %s AND finished_at IS NULL",
+            (campaign_id,),
         ).fetchall()
         return {SeatId(seat): str(account) for seat, account in rows}
 

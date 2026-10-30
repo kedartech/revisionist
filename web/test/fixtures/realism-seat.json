@@ -130,5 +130,13 @@
       {"order": "o-move-1002", "force": "US Atlantic Fleet", "mark": "US Atlantic Fleet", "to": {"name": "Argentia", "lat": 47.3, "lon": -54.0},
         "status": "awaiting", "with_person": "Harold R. Stark", "filed": "1941-10-02"}
     ]
-  }
+  },
+  "wake": {"wake": 3, "deadline": "1941-10-20T21:00:00+00:00", "committed": 1, "humans": 2, "you_committed": true, "is_host": true, "can_close": true},
+  "agenda": {"style": "beginner", "items": [{"id": "a1", "kind": "Order", "issuer": "Franklin D. Roosevelt", "text": "Keep the convoys moving to Iceland.", "issued": "1941-10-12", "deadline": "1941-10-26", "options": [{"label": "Order the escort forward", "to": "Harold R. Stark", "risk": "The Germans may take it as an act of war.", "historical": true, "pick": "p1"}], "plan": [{"label": "Ask the Speaker for a count", "to": "Sam Rayburn", "risk": "Word of the count may get out.", "historical": false, "pick": "p3"}]}], "initiative": [{"label": "Ask the Speaker for a count", "to": "Sam Rayburn", "risk": "Word of the count may get out.", "historical": false, "pick": "p2"}]},
+  "results": [{"id": "r1", "filed": "1941-10-12", "parts": [{"ask": "Escort the convoys to Iceland", "to": "Harold R. Stark", "route": "Your command", "fidelity": "Carried out loosely", "refused_under": null, "reason": "Stark read the order narrowly.", "accepted": null, "applied": "1941-10-14"}]}],
+  "reach": {"inner_circle": [{"name": "Harold R. Stark", "title": "Chief of Naval Operations", "channels": ["In person", "Cable"]}], "government": [{"name": "Sam Rayburn", "title": "Speaker of the House", "channels": ["Letter"]}], "foreign": [{"name": "Winston Churchill", "title": "Prime Minister", "channels": ["Cable"]}], "other": [{"name": "Burton K. Wheeler", "title": null, "channels": ["Letter"]}]},
+  "proposal": {"person": "Harold R. Stark", "channel": "Cable", "text": "Move the escorts to Iceland.", "parts": ["Escort the convoys to Iceland"], "reason": null},
+  "timeline": [{"date": "1941-09-01", "label": "Autumn 1941", "curated": true, "world": "autumn-1941"}],
+  "figures": [{"side": "United States", "power": "Head of government", "figures": [{"name": "Franklin D. Roosevelt", "title": "President"}]}],
+  "reveal": {"name": "Autumn 1941", "seats": [{"person": "Franklin D. Roosevelt", "goals": ["Bring the country into the war"], "covert": ["Passed the convoy plan to London"], "styles": ["Beginner from 12 October 1941"], "rulings": [{"on": "1941-10-14", "ask": "Escort the convoys to Iceland", "rationale": "Stark had the ships and the standing to act."}]}]}
 }

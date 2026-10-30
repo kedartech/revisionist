@@ -6,6 +6,7 @@ import { h } from './dom.js';
 import { join, recover, recoveryCodes, signIn, signUp } from './views/auth.js';
 import { newGame } from './views/new-game.js';
 import { realismCast } from './views/realism-cast.js';
+import { finishedList, realismReveal } from './views/realism-reveal.js';
 import { realismRoom } from './views/realism-room.js';
 import { sessionZero } from './views/session-zero.js';
 import { warRoom } from './views/war-room.js';
@@ -78,8 +79,18 @@ async function render() {
   }
   const refresh = async () => render();
   const ctx = { me, refresh, signOut, go };
+  const finished = me.finished.find((f) => route === `reveal/${f.id}`);
+  if (finished) {
+    show(realismReveal({ ...ctx, finished }));
+    return;
+  }
   if (!me.game) {
-    show(route === 'new' ? newGame(ctx) : join({ me, done: refresh, signOut, go }));
+    if (route === 'new') show(newGame(ctx));
+    else {
+      const home = join({ me, done: refresh, signOut, go });
+      home.append(finishedList(ctx));
+      show(home);
+    }
     return;
   }
   document.title = `${me.game.name} · Revisionist`;
@@ -94,7 +105,7 @@ setInterval(() => {
   const dialogOpen = document.querySelector('dialog[open]');
   const working = document.querySelector('button[disabled].primary, [aria-busy="true"]');
   // a new game is all in hand on the page (a pitch read, start points offered): leave it be
-  if (!typing && !dialogOpen && !working && route !== 'signup' && route !== 'new' && !pendingCodes) render();
+  if (!typing && !dialogOpen && !working && route !== 'signup' && route !== 'new' && !route.startsWith('reveal/') && !pendingCodes) render();
 }, 60_000);
 
 render();

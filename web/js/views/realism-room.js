@@ -12,6 +12,8 @@ import {
 } from './realism.js';
 import { header } from './frame.js';
 import { mapView } from './realism-map.js';
+import { reachPanel } from './realism-reach.js';
+import { agendaPanel, commitPanel, initiativePanel, resultsPanel, wakeHeader } from './realism-wake.js';
 
 const PANELS = [['tray', 'In-tray'], ['situation', 'Situation'], ['map', 'Map']];
 const ui = {
@@ -273,11 +275,15 @@ export function realismRoom(ctx) {
       : directiveForm(rv.desk.inner_circle, ui.draft, ask);
     return h('section', { class: 'rl-col rl-desk-col', 'aria-label': 'Desk' },
       h('div', { class: 'rl-col-body' },
+        agendaPanel(rv.agenda, { act }),
+        initiativePanel(rv.agenda, { act }),
+        commitPanel(rv.wake, { act }),
         desk(rv.desk, {
           onSubmit: (v) => act('Sending it…', 'lever', v),
           entities: entityChoices(rv.desk),
           directive,
-        })));
+        }),
+        reachPanel(rv.reach)));
   }
 
   /** Open a standard form on the desk, for a draft the aide suggested. */
@@ -299,7 +305,7 @@ export function realismRoom(ctx) {
   const briefSlot = h('div', { class: 'rl-brief-slot' });
   const fillBrief = (opts) => briefSlot.replaceChildren(...[briefBlock(rv.brief, briefOn, opts)].flat());
   async function autoBrief() {
-    ui.autoFor = rv.wake;
+    ui.autoFor = rv.wake_tick;
     fillBrief({ reading: true });
     try {
       const r = await api.realism('aide', {});
@@ -326,6 +332,7 @@ export function realismRoom(ctx) {
     return h('aside', { class: 'rl-col rl-side', 'aria-label': 'Pending orders and conversations' },
       h('div', { class: 'rl-col-body' },
         pendingOrders(rv.orders, (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v))),
+        resultsPanel(rv.results),
         conversations({
           selected: ui.chat,
           slot: briefSlot,
@@ -341,15 +348,11 @@ export function realismRoom(ctx) {
   }
 
   function build() {
-    const advance = h('button', {
-      type: 'button', class: 'primary',
-      onclick: () => act('The wake is running. New papers are being written; this can take a minute…', 'advance', {}),
-    }, 'Advance to next wake');
     const [menuBtn, menu] = gameMenu(game, ctx, work);
     const extra = [
       h('span', { class: 'divider', 'aria-hidden': 'true' }),
       h('div', { class: 'stack rl-clock' }, h('span', { class: 'title' }, worldDate(rv.clock.world_date)), paceHeader(rv.clock)),
-      advance,
+      wakeHeader(rv.wake, { act }),
       menuBtn,
     ];
     status = h('div', { class: 'rl-status', role: 'status', 'aria-live': 'polite' });
@@ -363,7 +366,7 @@ export function realismRoom(ctx) {
   }
 
   root.append(...build());
-  if (rv.brief || ui.autoFor === rv.wake) fillBrief();
+  if (rv.brief || ui.autoFor === rv.wake_tick) fillBrief();
   else autoBrief();
   return root;
 }

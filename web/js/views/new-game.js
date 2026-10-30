@@ -3,6 +3,7 @@
 
 import { api } from '../api.js';
 import { h, reply } from '../dom.js';
+import { worldDate } from '../rules.js';
 import { header } from './frame.js';
 
 function busy(button, label) {
@@ -24,6 +25,33 @@ async function run(out, button, label, action, body, after) {
   } finally {
     restore();
   }
+}
+
+/** The timeline in date order, each point worded for the screen; startable when a world is ready. */
+export function timelinePoints(points) {
+  return [...points]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((p) => ({ date: p.date, label: p.label, when: worldDate(p.date), startable: Boolean(p.world) }));
+}
+
+function whenToBegin(done) {
+  const list = h('div', { class: 'roster' }, h('p', { class: 'muted' }, 'Loading…'));
+  const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
+  api.newGame('timeline').then(({ timeline }) => {
+    list.replaceChildren(...timelinePoints(timeline).map((p) => {
+      const begin = p.startable ? h('button', { type: 'button' }, `Begin on ${p.label}`) : null;
+      begin?.addEventListener('click', () => run(out, begin, 'Starting…', 'start', { date: p.date }, done));
+      return h('article', { class: 'char tl-point' },
+        h('div', { class: 'char-head' },
+          h('span', { class: 'char-name' }, p.label),
+          p.startable ? null : h('span', { class: 'tag' }, 'Coming later')),
+        h('p', { class: 'muted' }, p.when), begin);
+    }));
+  }).catch((ex) => list.replaceChildren(h('p', { class: 'form-error' }, ex.message)));
+  return h('section', { 'aria-labelledby': 'ng-when' },
+    h('h2', { id: 'ng-when' }, 'When to begin'),
+    h('p', { class: 'muted' }, 'Choose a date; you will then choose whom to play.'),
+    list, out);
 }
 
 function readyMade(done) {
@@ -101,6 +129,7 @@ export function newGame(ctx) {
             h('h1', {}, 'Start a game'),
             h('p', {}, 'You will be its host: you invite the other players and say when it begins.'),
             h('p', {}, h('a', { href: '#home', onclick: (e) => { e.preventDefault(); go('home'); } }, 'Join a game with a code instead'))),
+          whenToBegin(refresh),
           readyMade(refresh),
           ownGame(refresh)))));
 }

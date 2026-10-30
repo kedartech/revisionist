@@ -8,12 +8,14 @@ import { h, icon } from '../dom.js';
 import { STEP_ACTIONS, entityChoices } from '../realism-rules.js';
 import { worldDate } from '../rules.js';
 import {
-  board, briefBlock, conversations, desk, directiveForm, dossier, inTray, paceHeader, pendingOrders, proposalCard,
+  board, briefBlock, conversations, desk, directiveForm, dossier, inTray, paceHeader, pendingOrders,
 } from './realism.js';
 import { header } from './frame.js';
 import { mapView } from './realism-map.js';
 import { reachPanel } from './realism-reach.js';
-import { agendaPanel, commitPanel, initiativePanel, resultsPanel, wakeHeader } from './realism-wake.js';
+import {
+  agendaPanel, commitPanel, initiativePanel, orderCard, resultsPanel, stylePicker, wakeHeader,
+} from './realism-wake.js';
 
 const PANELS = [['tray', 'In-tray'], ['situation', 'Situation'], ['map', 'Map']];
 const ui = {
@@ -63,6 +65,17 @@ function gameMenu(game, ctx, work) {
       out.replaceChildren(h('span', { class: 'form-error', role: 'alert' }, ex.message));
     }
   };
+  const hours = h('input', { id: 'rl-wake-hours', name: 'hours', type: 'number', min: 1, max: 168, step: 1, required: true });
+  const setHours = async () => {
+    if (!hours.reportValidity()) return;
+    out.replaceChildren('Working…');
+    try {
+      const r = await api.game('wake-hours', { hours: Number(hours.value) });
+      out.replaceChildren(r.reply);
+    } catch (ex) {
+      out.replaceChildren(h('span', { class: 'form-error', role: 'alert' }, ex.message));
+    }
+  };
   const confirmEnd = h('div', { class: 'rl-confirm', hidden: true },
     h('p', {}, h('strong', {}, `End ${game.name} for everyone?`),
       ' No one can play it again and its invite codes stop working. Its record is kept.'),
@@ -93,6 +106,9 @@ function gameMenu(game, ctx, work) {
           : h('button', { type: 'button', class: 'ghost', onclick: () => call('pause') }, 'Pause'),
         endBtn),
       confirmEnd,
+      h('div', { class: 'rl-field' }, h('label', { for: 'rl-wake-hours' }, 'Hours per wake'),
+        h('div', { class: 'row' }, hours,
+          h('button', { type: 'button', class: 'ghost', onclick: setHours }, 'Set'))),
     ]
     : [
       h('p', { class: 'hint' }, 'Only the host can pause or end this game.'),
@@ -169,18 +185,17 @@ export function realismRoom(ctx) {
     then?.(r);
   });
 
-  /** The aide reads the directive; nothing is filed until the player signs. */
+  /** The aide reads the order; nothing is filed until the player signs. */
   const ask = (draft) => {
     ui.draft = draft;
-    return act('Your aide is reading it…', 'directive', draft, (r) => {
+    return act('Your aide is reading it…', 'order', draft, (r) => {
       ui.proposal = r.proposal ?? null;
       if (ui.proposal) ui.said = null; // the card says it
     });
   };
 
-  /** File the signed order; a refusal leaves the reading on the desk to revise. */
-  const signed = (p) => act(`Sending it to ${p.to}…`, 'sign',
-    { to: p.to, channel: p.channel, text: p.text, lever: p.lever, params: p.params },
+  /** File the signed order, which the server holds; a refusal leaves it on the desk to revise. */
+  const signed = (p) => act(p.person ? `Sending it to ${p.person}…` : 'Sending it…', 'file', {},
     (r) => { if (!r.refused) { ui.proposal = null; ui.draft = null; } });
 
   const open = (d) => work('Fetching the paper…', async () => {
@@ -269,21 +284,35 @@ export function realismRoom(ctx) {
     });
   }
 
+  /** The directive form, its words kept as typed: a redraw or a refresh rebuilds it from ui.draft. */
+  function orderForm() {
+    const form = directiveForm(rv.desk.inner_circle, ui.draft, ask);
+    form.addEventListener('input', () => {
+      ui.draft = {
+        to: form.querySelector('input[type="radio"]:checked')?.value ?? '',
+        channel: form.querySelector('select').value,
+        text: form.querySelector('textarea').value,
+      };
+    });
+    return form;
+  }
+
   function deskColumn() {
     const directive = ui.proposal
-      ? proposalCard(ui.proposal, { onSign: signed, onRevise: () => { ui.proposal = null; ui.said = null; rerender(); } })
-      : directiveForm(rv.desk.inner_circle, ui.draft, ask);
+      ? orderCard(ui.proposal, { onSign: signed, onRevise: () => { ui.proposal = null; ui.said = null; rerender(); } })
+      : orderForm();
     return h('section', { class: 'rl-col rl-desk-col', 'aria-label': 'Desk' },
       h('div', { class: 'rl-col-body' },
+        stylePicker(rv.style, { act }),
         agendaPanel(rv.agenda, { act }),
         initiativePanel(rv.agenda, { act }),
-        commitPanel(rv.wake, { act }),
         desk(rv.desk, {
           onSubmit: (v) => act('Sending it…', 'lever', v),
           entities: entityChoices(rv.desk),
           directive,
         }),
-        reachPanel(rv.reach)));
+        reachPanel(rv.reach),
+        commitPanel(rv.wake, { act })));
   }
 
   /** Open a standard form on the desk, for a draft the aide suggested. */

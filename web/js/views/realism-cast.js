@@ -24,6 +24,85 @@ async function run(out, button, label, action, body, after) {
   }
 }
 
+/** The generated list without anyone already in the cast, by side then kind of power. */
+export function figureGroups(groups, castNames) {
+  const cast = new Set(castNames.map((n) => n.toLowerCase()));
+  return groups
+    .map((g) => ({ ...g, figures: g.figures.filter((f) => !cast.has(f.name.toLowerCase())) }))
+    .filter((g) => g.figures.length)
+    .sort((a, b) => a.side.localeCompare(b.side) || a.power.localeCompare(b.power));
+}
+
+export const PLAY_STYLES = [
+  { value: 'beginner', label: 'Beginner', line: 'Your aide offers a few ready orders for each matter.' },
+  { value: 'guided', label: 'Guided', line: 'Your aide offers a plan for each matter; you write the orders.' },
+  { value: 'free', label: 'Free', line: 'You write every order yourself.' },
+];
+
+const SEARCH_WAIT = 300;
+
+function whoHeldPower(game, cast, refresh) {
+  const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
+  const list = h('div', { class: 'held-list' }, h('p', { class: 'muted' }, 'Loading…'));
+  const search = h('input', { id: 'held-search', type: 'search', maxlength: 120, autocomplete: 'off' });
+  let timer = null;
+  let latest = 0;
+  const show = (groups) => {
+    const shown = figureGroups(groups, cast);
+    list.replaceChildren(...shown.map((g) => h('div', { class: 'held-group' },
+      h('h3', {}, g.side),
+      h('h4', {}, g.power),
+      h('ul', { class: 'held-figures' }, g.figures.map((f) => {
+        const play = h('button', { type: 'button' }, `Play ${f.name}`);
+        play.addEventListener('click', () => run(out, play, 'Drawing up their papers…', 'pick', { name: f.name }, refresh));
+        return h('li', {},
+          h('span', { class: 'char-name' }, f.name),
+          f.title ? h('span', { class: 'muted' }, f.title) : null,
+          play);
+      })))));
+  };
+  const load = () => {
+    const mine = ++latest;
+    const body = { date: game.date };
+    if (search.value.trim()) body.search = search.value.trim();
+    api.newGame('figures', body).then((r) => {
+      if (mine !== latest) return;
+      if (r.refused) list.replaceChildren(reply(r.reply));
+      else show(r.figures);
+    }).catch((ex) => {
+      if (mine === latest) list.replaceChildren(h('p', { class: 'form-error' }, ex.message));
+    });
+  };
+  search.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(load, SEARCH_WAIT);
+  });
+  load();
+  return h('section', { class: 'held', 'aria-labelledby': 'held-title' },
+    h('h2', { id: 'held-title' }, 'Who held power'),
+    h('p', { class: 'muted' }, 'Anyone on this list can be played. A person not yet drawn up takes about a minute.'),
+    h('label', { for: 'held-search' }, 'Find someone'), search,
+    list, out);
+}
+
+function playStyle() {
+  const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
+  const choices = PLAY_STYLES.map((s) => {
+    const radio = h('input', { type: 'radio', name: 'play-style', id: `style-${s.value}`, value: s.value, checked: s.value === 'free' });
+    radio.addEventListener('change', async () => {
+      try {
+        const r = await api.newGame('style', { style: s.value });
+        out.replaceChildren(reply(r.reply));
+      } catch (ex) {
+        out.replaceChildren(h('p', { class: 'form-error' }, ex.message));
+      }
+    });
+    return h('div', { class: 'style-choice' },
+      radio, h('label', { for: `style-${s.value}` }, s.label), h('p', { class: 'hint' }, s.line));
+  });
+  return h('fieldset', { class: 'play-style' }, h('legend', {}, 'How you play'), choices, out);
+}
+
 function hostPanel(game, refresh) {
   const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
   const invite = h('button', { type: 'button' }, 'Invite a player');
@@ -67,6 +146,9 @@ export function realismCast(ctx) {
               ? 'Waiting for the host to begin. You can close this tab; your place is kept.'
               : 'Drawing up a person for the first time takes a minute.')),
           h('div', { class: 'split' },
-            h('div', {}, out, h('div', { class: 'roster' }, cards)),
+            h('div', {},
+              out,
+              h('div', { class: 'roster' }, cards),
+              mine ? playStyle() : (game.date ? whoHeldPower(game, view.roster.map((c) => c.name), refresh) : null)),
             game.host ? hostPanel(game, refresh) : null)))));
 }

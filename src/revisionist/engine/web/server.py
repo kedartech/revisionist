@@ -697,7 +697,24 @@ class App:
             None,
         )
         if person is None:
-            return {"reply": "No one of that name is in the cast.", "refused": True}
+            # Not on the roster: the record may still place them. The pick adds them to the
+            # world, but a realism claim waits for a card, so it refuses; the card is built
+            # below and the claim retried. A failed build leaves them on the roster without
+            # a card, which the roster path above and ``build_rest`` at the begin both mend.
+            try:
+                held = session_zero.pick(
+                    store, state.campaign_id, seat, name, self.transport_factory()
+                )
+            except session_zero.StepRefusedError as exc:
+                added = set(load_state(store, state.campaign_id).roster) - set(state.roster)
+                if not added:
+                    return {"reply": str(exc), "refused": True}
+                (person,) = added
+            except TransportError as exc:
+                return {"reply": model_down(exc), "refused": True}
+            else:
+                return {"reply": f"You are {held}.", "refused": False}
+            state = load_state(store, state.campaign_id)
         if person not in state.cards:
             try:
                 build.build_figure(store, state.campaign_id, person, self.transport_factory())

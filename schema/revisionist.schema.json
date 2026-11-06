@@ -2652,6 +2652,19 @@
             "default": null,
             "title": "Feed"
           },
+          "news_id": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "News Id"
+          },
           "sightings": {
             "default": [],
             "items": {
@@ -9735,6 +9748,19 @@
             ],
             "default": null,
             "title": "Feed"
+          },
+          "news_id": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "News Id"
           },
           "sightings": {
             "default": [],

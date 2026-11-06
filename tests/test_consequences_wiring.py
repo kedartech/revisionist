@@ -71,6 +71,14 @@ def test_a_declaration_of_war_leaves_a_visible_mark() -> None:
     assert press[hitler], "Hitler sees no page from Der Reichsbote"
     news = {n.news_id for n in state.news.values() if n.topic is NewsTopic.WAR_DECLARED}
     assert news, "no war_declared NewsEvent in state.news"
+    # both pages were written from the one event, not from two
+    pages = {
+        seat: {state.documents[d.doc_id].truth.news_id for d in docs}
+        for seat, docs in press.items()
+    }
+    assert pages[fdr] == pages[hitler] <= news and len(pages[fdr]) == 1, (
+        f"the two papers did not report the same event: {pages}"
+    )
 
     # 5. now the U-boats may be told to attack
     assert draft_order(load_state(store, CAMPAIGN), hitler, "uboat_directive", ATTACK)

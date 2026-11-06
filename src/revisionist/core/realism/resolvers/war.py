@@ -59,7 +59,7 @@ def _news(state: State, a: EntityId, b: EntityId, day: date) -> NewsEvent:
         facts=(
             BodyField(label="Declared by", value=a_name),
             BodyField(label="Against", value=b_name),
-            BodyField(label="Date", value=day.isoformat()),
+            BodyField(label="Date", value=f"{day.day} {day:%B %Y}"),
         ),
     )
 

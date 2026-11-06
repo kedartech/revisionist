@@ -12,6 +12,11 @@ export function whatChanged(listing, limit = 5) {
     .map((d) => ({ id: d.id, title: d.title, paper: d.author, issued: d.issued }));
 }
 
+/** One item's button text: the paper, then the headline. Press titles may already lead with it. */
+export function newsLabel(d) {
+  return d.title.startsWith(`${d.paper}: `) ? d.title : `${d.paper}: ${d.title}`;
+}
+
 /** The block above the room, or null when no press page is unread. */
 export function newsBlock(items, onOpen) {
   if (!items.length) return null;
@@ -19,5 +24,5 @@ export function newsBlock(items, onOpen) {
     h('h2', { id: 'rl-news-h' }, 'What changed'),
     h('ul', { role: 'list' }, items.map((d) => h('li', {},
       h('button', { type: 'button', class: 'rl-btn', onclick: () => onOpen?.(d.id) },
-        `${d.paper}: ${d.title}`)))));
+        newsLabel(d))))));
 }

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { whatChanged } from '../js/views/realism-news.js';
+import { newsLabel, whatChanged } from '../js/views/realism-news.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 
@@ -63,4 +63,19 @@ test('the block is built with h, never with markup strings', () => {
   const source = readFileSync(join(WEB, 'js', 'views', 'realism-news.js'), 'utf8');
   assert.match(source, /from '\.\.\/dom\.js'/);
   assert.match(source, /'aria-labelledby': 'rl-news-h'/);
+});
+
+test('newsLabel names the paper once, even when the title already starts with it', () => {
+  assert.equal(
+    newsLabel({ paper: 'The Washington Ledger', title: 'The Washington Ledger: Germany declares war' }),
+    'The Washington Ledger: Germany declares war',
+  );
+  assert.equal(newsLabel({ paper: 'The Times', title: 'Leaked: Move a fleet' }), 'The Times: Leaked: Move a fleet');
+});
+
+test('the room drops an empty news block instead of printing null', () => {
+  const room = readFileSync(join(WEB, 'js', 'views', 'realism-room.js'), 'utf8');
+  const build = room.slice(room.indexOf('function build()'), room.indexOf('root.append(...build())'));
+  assert.match(build, /newsBlock\(/);
+  assert.match(build, /\]\.filter\(Boolean\);/);
 });

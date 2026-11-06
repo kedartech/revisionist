@@ -393,7 +393,7 @@ export function realismRoom(ctx) {
       newsBlock(whatChanged(rv.documents), (id) => open({ id })),
       h('main', { class: `rl-room${ui.wide ? ' wide' : ''}` }, papers(), deskColumn(), sideColumn()),
       menu,
-    ];
+    ].filter(Boolean);
   }
 
   root.append(...build());

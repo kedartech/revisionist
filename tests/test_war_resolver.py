@@ -48,7 +48,7 @@ def test_an_enacted_declaration_yields_the_war_fact_relationship_and_news() -> N
     assert [(f.label, f.value) for f in news.facts] == [
         ("Declared by", "Germany"),
         ("Against", "United States"),
-        ("Date", "1941-12-11"),
+        ("Date", "11 December 1941"),
     ]
 
 

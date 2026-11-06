@@ -1,6 +1,7 @@
 """No orderable effect lands nothing in silence: each changes the world or is named inert."""
 
 from datetime import date
+from typing import get_args
 
 from revisionist.core.ids import FactId, derived_id
 from revisionist.core.realism import effect as rx
@@ -51,6 +52,14 @@ def test_every_effect_kind_changes_the_world_or_is_named_inert() -> None:
         if not events and not revealed:
             silent.append(name)
     assert sorted(silent) == sorted(INERT)
+
+
+def test_the_guard_names_every_effect_kind() -> None:
+    """A new member of the Effect union must be added to ``effects`` or this fails."""
+    union = get_args(get_args(rx.Effect)[0])
+    kinds = {t.model_fields["kind"].default for t in union}
+    named = {e.kind for e in effects(Slice()).values()}
+    assert named == kinds
 
 
 def test_every_resolver_key_has_an_order_and_a_day_rule() -> None:

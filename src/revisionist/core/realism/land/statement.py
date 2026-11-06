@@ -14,7 +14,7 @@ from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.effect import MakeStatement
 from revisionist.core.realism.pass_world import PassWorld
-from revisionist.core.realism.resolvers import opinion, votes
+from revisionist.core.realism.resolvers import opinion
 from revisionist.core.realism.war import NewsEvent, NewsTopic, polity_of
 from revisionist.core.visibility import private_to
 
@@ -32,13 +32,16 @@ def _opinion(world: PassWorld, theme: str, on: date) -> list[ev.Payload]:
     points = opinion.THEME_POINTS.get(theme)
     if points is None:
         return []
-    base = rs.value(world.state, "opinion_target")
-    if base is None:
-        base = rs.value(world.state, opinion.ABOUT_RIGHT)
-    if base is None:
+    target = world.quantities.get(rs.qid(world.state, "opinion_target"))
+    about = world.quantities.get(rs.qid(world.state, opinion.ABOUT_RIGHT))
+    base = target.value if target is not None else None
+    if base is None and about is not None:
+        base = about.value
+    if base is None or target is None:
         return []
-    change = votes.put(world.state, "opinion_target", max(0, min(100, base + points)), on)
-    return [] if change is None else rs.apply_changes(world.state, (change,))
+    moved = target.model_copy(update={"value": max(0, min(100, base + points)), "as_of": on})
+    world.quantities[moved.quantity_id] = moved
+    return [ev.QuantitySet(quantity=moved)]
 
 
 def land(
@@ -57,7 +60,7 @@ def land(
                 on.isoformat(),
             )
         )
-        if fact_id in state.facts:
+        if not world.claim(fact_id, state.facts):
             return [], []
         told = Fact(
             fact_id=fact_id,
@@ -70,7 +73,7 @@ def land(
     news_id = derived_id(
         state.campaign_id, "news", "statement", issuer, effect.theme, on.isoformat()
     )
-    if news_id in state.news:
+    if not world.claim(news_id, state.news):
         return [], []
     item = NewsEvent(
         news_id=news_id,

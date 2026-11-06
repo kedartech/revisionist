@@ -15,10 +15,11 @@ def land(
     world: PassWorld, effect: Deal, issuer_seat: SeatId, issuer: EntityId, on: date
 ) -> tuple[list[ev.Payload], list[FactId]]:
     """Private facts for the deal's terms, plus a disposition shift when accepted."""
-    facts = _facts(world, effect, issuer_seat, issuer, on)
-    fresh = [f for f in facts if f.fact_id not in world.state.facts]
-    if not fresh:
-        return [], []
+    unique = {f.fact_id: f for f in _facts(world, effect, issuer_seat, issuer, on)}
+    fresh = [f for f in unique.values() if world.claim(f.fact_id, world.state.facts)]
+    if len(fresh) < len(unique):
+        # some term is already on record: this deal, or part of it, has landed before
+        return [ev.FactAsserted(fact=f) for f in fresh], []
     out: list[ev.Payload] = [ev.FactAsserted(fact=f) for f in fresh]
     if effect.accept:
         out.append(_shift(world, issuer_seat, issuer, effect.counterparty))

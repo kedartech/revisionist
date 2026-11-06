@@ -83,7 +83,9 @@ def test_a_page_leaks_nothing_private() -> None:
     state = folded(press_world(), ev.NewsReported(news=news()))
     fact = Fact(fact_id="f1", subject=FDR, predicate="plans", obj=SECRET, scope=private_to(SEAT_US))
     state = folded(state, ev.FactAsserted(fact=fact))
-    dump = "".join(p.model_dump_json() for p in news_pages(state, DAY))
+    pages = news_pages(state, DAY)
+    assert pages
+    dump = "".join(p.model_dump_json() for p in pages)
     assert SECRET not in dump
 
 

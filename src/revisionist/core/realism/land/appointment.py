@@ -33,7 +33,7 @@ def land(
         state.campaign_id, "news", "appointment", effect.person, effect.office, verb, on.isoformat()
     )
     out: list[ev.Payload] = []
-    if fact_id not in state.facts:
+    if world.claim(fact_id, state.facts):
         predicate = "holds_office" if effect.appoint else "dismissed_from"
         out.append(
             ev.FactAsserted(
@@ -46,7 +46,7 @@ def land(
                 )
             )
         )
-    if news_id not in state.news:
+    if world.claim(news_id, state.news):
         entity = state.entities.get(effect.person)
         name = _cut(entity.name) if entity is not None else "someone"
         past = "appointed" if effect.appoint else "dismissed"

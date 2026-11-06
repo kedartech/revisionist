@@ -32,7 +32,7 @@ def land(
             state.campaign_id, "inquiry", issuer, effect.target, effect.question, on.isoformat()
         )
     )
-    if doc_id in state.documents:
+    if not world.claim(doc_id, state.documents):
         return [], []
     seen = sorted(
         (

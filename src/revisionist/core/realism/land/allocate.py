@@ -10,7 +10,6 @@ from revisionist.core.realism.effect import Allocate
 from revisionist.core.realism.pass_world import PassWorld
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.war import polity_of
-from revisionist.core.state import State
 from revisionist.core.visibility import private_to
 
 
@@ -21,26 +20,21 @@ def land(
     amount, and record the receipt. A pair of distinct quantities is needed to move anything."""
     state = world.state
     payloads: list[ev.Payload] = []
-    giver = _held(state, polity_of(state, issuer), effect.what)
-    taker = _held(state, polity_of(state, effect.recipient), effect.what)
+    giver = _held(world, polity_of(state, issuer), effect.what)
+    taker = _held(world, polity_of(state, effect.recipient), effect.what)
     if (
         giver is not None
         and taker is not None
         and giver.quantity_id != taker.quantity_id
         and giver.value is not None
     ):
-        moved = min(effect.amount, giver.value)
+        moved = max(0, min(effect.amount, giver.value))
         if moved:
-            payloads += [
-                ev.QuantitySet(
-                    quantity=giver.model_copy(update={"value": giver.value - moved, "as_of": on})
-                ),
-                ev.QuantitySet(
-                    quantity=taker.model_copy(
-                        update={"value": (taker.value or 0) + moved, "as_of": on}
-                    )
-                ),
-            ]
+            less = giver.model_copy(update={"value": giver.value - moved, "as_of": on})
+            more = taker.model_copy(update={"value": (taker.value or 0) + moved, "as_of": on})
+            world.quantities[less.quantity_id] = less
+            world.quantities[more.quantity_id] = more
+            payloads += [ev.QuantitySet(quantity=less), ev.QuantitySet(quantity=more)]
     fact = Fact(
         fact_id=FactId(
             derived_id(
@@ -59,15 +53,15 @@ def land(
         obj=issuer,
         scope=private_to(issuer_seat),
     )
-    if fact.fact_id not in state.facts:
+    if world.claim(fact.fact_id, state.facts):
         payloads.append(ev.FactAsserted(fact=fact))
     return payloads, []
 
 
-def _held(state: State, polity: EntityId | None, name: str) -> Quantity | None:
+def _held(world: PassWorld, polity: EntityId | None, name: str) -> Quantity | None:
     """The first quantity the polity owns under this name."""
     if polity is None:
         return None
     return next(
-        (q for q in state.quantities.values() if q.owner == polity and q.name == name), None
+        (q for q in world.quantities.values() if q.owner == polity and q.name == name), None
     )

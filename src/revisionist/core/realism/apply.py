@@ -352,10 +352,12 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
             title = f"{_describe(state, routed)}: {_outcome(routed)}"
         else:
             move, posture = partial
-            here = state.features[move.force].places[0]
+            force = state.features.get(move.force)
             title = (
-                f"{_name(state, move.force)} stayed at {_name(state, here)}; "
+                f"{force.name} stayed at {_name(state, force.places[0])}; "
                 f"took the {words(posture.value)} posture"
+                if force is not None
+                else f"{_describe(state, routed)}: {_outcome(routed)}"
             )
     if len(title) > LINE:
         title = title[: LINE - 1].rsplit(" ", 1)[0].rstrip(" ,:;") + "…"

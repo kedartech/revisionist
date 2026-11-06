@@ -129,3 +129,12 @@ def test_a_contact_lands_once_and_costs_nothing() -> None:
     assert sl.state.features == before
     assert len(sl.state.news) == 1
     assert war_rules.contacts(sl.state, date(1941, 9, 13)) == []
+
+
+def test_declaring_war_on_yourself_or_a_non_polity_is_refused() -> None:
+    sl = slice_with("churchill")
+    churchill = SeatId("seat-churchill")
+    own = war_rules.order_refusal(sl.state, churchill, "declare_war", {"target": "uk"})
+    assert own == "United Kingdom cannot declare war on itself."
+    org = war_rules.order_refusal(sl.state, churchill, "declare_war", {"target": "commons"})
+    assert org == "House of Commons is not a power to declare war on."

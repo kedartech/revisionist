@@ -4,6 +4,7 @@ from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.ids import DocumentId, EntityId, FeatureId, SeatId, derived_id
+from revisionist.core.ontology import EntityKind
 from revisionist.core.realism import reach
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import ChannelKind, Desk
@@ -57,6 +58,12 @@ def order_refusal(state: State, seat: SeatId, lever: str, params: dict[str, str]
         )
     if lever == "declare_war":
         target = _world_entity(state, params.get("target", ""))
+        if target is not None and target == own:
+            return _clip(f"{state.entities[own].name} cannot declare war on itself.", REFUSAL)
+        if target is not None and state.entities[target].kind is not EntityKind.POLITY:
+            return _clip(
+                f"{state.entities[target].name} is not a power to declare war on.", REFUSAL
+            )
         if target is not None and at_war(state, own, target):
             return _clip(
                 f"{state.entities[own].name} is already at war with {state.entities[target].name}.",
@@ -131,6 +138,7 @@ def contacts(state: State, day: date) -> list[ev.Payload]:
         (f for f in state.features.values() if f.kind in FORCES), key=lambda f: f.feature_id
     )
     out: list[ev.Payload] = []
+    issued: set[DocumentId] = set()
     for war in sorted(state.wars.values(), key=lambda w: w.war_id):
         for a in forces:
             for b in forces:
@@ -156,6 +164,7 @@ def contacts(state: State, day: date) -> list[ev.Payload]:
                 for mine, other in ((a, b), (b, a)):
                     for seat, author in _commanders(state, mine.feature_id):
                         doc = _report(state, news, mine, other, seat, author)
-                        if doc is not None:
+                        if doc is not None and doc.document.doc_id not in issued:
+                            issued.add(doc.document.doc_id)
                             out.append(doc)
     return out

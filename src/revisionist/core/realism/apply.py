@@ -41,6 +41,7 @@ from revisionist.core.realism.effect import (
     Investigate,
     MakeStatement,
     MoveForce,
+    Posture,
     ProposeMeasure,
     Route,
     RoutedOrder,
@@ -294,6 +295,16 @@ def _describe(state: State, part: RoutedPart) -> str:
     return "Your request"
 
 
+def _partial_move(part: RoutedPart) -> tuple[MoveForce, Posture] | None:
+    """A move to a destination carried out in part: the force stays and takes its posture."""
+    match part.effect:
+        case MoveForce(to=to, posture=Posture() as posture) as move if (
+            part.fidelity is Fidelity.PARTIAL and to is not None
+        ):
+            return move, posture
+    return None
+
+
 def _outcome(part: RoutedPart) -> str:
     if part.route is Route.INFLUENCE:
         return "agreed" if part.accepted else "rebuffed"
@@ -336,14 +347,24 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
         title = f"Your approach to {_name(state, author)}: {_outcome(routed)}"
     else:
         author = routed.executor if routed.executor is not None else issuer
-        title = f"{_describe(state, routed)}: {_outcome(routed)}"
+        partial = _partial_move(routed)
+        if partial is None:
+            title = f"{_describe(state, routed)}: {_outcome(routed)}"
+        else:
+            move, posture = partial
+            here = state.features[move.force].places[0]
+            title = (
+                f"{_name(state, move.force)} stayed at {_name(state, here)}; "
+                f"took the {words(posture.value)} posture"
+            )
     if len(title) > LINE:
         title = title[: LINE - 1].rsplit(" ", 1)[0].rstrip(" ,:;") + "…"
     body = [BodyField(label="Ordered", value=safe(_describe(state, routed))[:LINE])]
     if routed.refusal:
         body.append(BodyField(label="Refused under", value=safe(routed.refusal)[:LINE]))
     elif routed.fidelity is not None:
-        body.append(BodyField(label="Carried out", value=routed.fidelity.value))
+        carried = "posture only" if _partial_move(routed) is not None else routed.fidelity.value
+        body.append(BodyField(label="Carried out", value=carried))
     if routed.reason:
         body += _lines(safe(routed.reason), "Account")
     channels = reach.channels_to(state, issuer, author) if author != issuer else ()

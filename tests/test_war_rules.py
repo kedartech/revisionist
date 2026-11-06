@@ -98,7 +98,10 @@ def test_forces_meeting_in_a_war_land_one_news_and_a_report_each() -> None:
     assert len(news) == 1 and len(docs) == 2
     item = news[0].news
     assert item.topic is NewsTopic.CONTACT and item.on == DAY and len(item.headline) <= 60
-    assert " met at Norfolk" in item.headline
+    assert item.headline == "Forces of United Kingdom and United States in contact"
+    public = item.headline + "".join(f"{f.label}{f.value}" for f in item.facts)
+    for hidden in ("Norfolk", "Home Fleet", "Atlantic Fleet"):
+        assert hidden not in public
     assert {item.subject, item.obj} == {sl.entity("uk"), sl.entity("usa")}
     assert all(d.truth.news_id == item.news_id for d in docs)
     assert {d.document.scope.known_by for d in docs} == {

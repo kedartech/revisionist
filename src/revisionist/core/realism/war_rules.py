@@ -150,15 +150,15 @@ def contacts(state: State, day: date) -> list[ev.Payload]:
                 )
                 if news_id in state.news:
                     continue
-                name = state.entities[place].name
+                powers = (state.entities[war.a].name, state.entities[war.b].name)
                 news = NewsEvent(
                     news_id=news_id,
                     on=day,
                     topic=NewsTopic.CONTACT,
                     subject=war.a,
                     obj=war.b,
-                    facts=(BodyField(label="Place", value=_clip(name)),),
-                    headline=_clip(f"{a.name} and {b.name} met at {name}"),
+                    facts=(BodyField(label="Powers", value=_clip(f"{powers[0]} and {powers[1]}")),),
+                    headline=_clip(f"Forces of {powers[0]} and {powers[1]} in contact"),
                 )
                 out.append(ev.NewsReported(news=news))
                 for mine, other in ((a, b), (b, a)):

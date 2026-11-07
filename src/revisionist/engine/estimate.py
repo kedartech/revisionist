@@ -102,6 +102,7 @@ def estimator_prompt(state: State, order_id: OrderId, part: int) -> str:
             "issuer_entity": issuer.embodies,
             "filed": str(order.filed),
             "part": routed.view().model_dump(mode="json", exclude_none=True),
+            "asked": routed.ask,
         },
         "cards": cards,
         "entities": [

@@ -219,5 +219,24 @@ def test_the_prompt_names_ids_and_leaves_out_the_voice() -> None:
     assert '"voice"' not in prompt and "disposition_cap" in prompt
 
 
+def test_the_prompt_carries_the_words_the_seat_asked_for() -> None:
+    from revisionist.core.realism.agenda import Ask
+    from revisionist.core.realism.route import route
+
+    sl = Slice()
+    words = "Press Wheeler to drop the filibuster on the Neutrality revision"
+    ask = Ask(ask=words, target=sl.entity("wheeler"))
+    part = route(sl.state, sl.fdr, ask, date(1941, 9, 11)).part
+    assert part is not None and part.ask == words
+    order = rx.RoutedOrder(
+        order_id=OrderId("01ARZ3NDEKTSV4RRFFQ69G5ASK"),
+        issuer=sl.fdr,
+        filed=date(1941, 9, 11),
+        parts=(part,),
+    )
+    sl.add(ev.OrderRouted(order=order), private_to(sl.fdr))
+    assert words in es.estimator_prompt(sl.state, order.order_id, 0)
+
+
 if __name__ == "__main__":
     _write()

@@ -8,14 +8,17 @@ import { h, icon } from '../dom.js';
 import { STEP_ACTIONS, entityChoices } from '../realism-rules.js';
 import { worldDate } from '../rules.js';
 import {
-  board, briefBlock, conversations, desk, directiveForm, dossier, inTray, paceHeader, pendingOrders,
+  board, briefBlock, conversations, desk, directiveForm, dossier, paceHeader, pendingOrders,
 } from './realism.js';
 import { header } from './frame.js';
 import { mapView } from './realism-map.js';
+import { ackThread } from './realism-acks.js';
 import { newsBlock, whatChanged } from './realism-news.js';
+import { ordersLog } from './realism-orders.js';
 import { reachPanel } from './realism-reach.js';
+import { trayView } from './realism-tray.js';
 import {
-  agendaPanel, commitPanel, initiativePanel, orderCard, resultsPanel, stylePicker, wakeHeader,
+  agendaPanel, commitPanel, initiativePanel, orderCard, stylePicker, wakeHeader,
 } from './realism-wake.js';
 
 const PANELS = [['tray', 'In-tray'], ['situation', 'Situation'], ['map', 'Map']];
@@ -244,12 +247,8 @@ export function realismRoom(ctx) {
   }
 
   function papersBody() {
-    if (ui.page) {
-      return dossier(ui.page, {
-        onClose: () => { ui.page = null; ui.panel = ui.pageFrom ?? 'tray'; rerender(); },
-        onFlag: flag,
-      });
-    }
+    const close = () => { ui.page = null; ui.panel = ui.pageFrom ?? 'tray'; rerender(); };
+    if (ui.page && ui.pageFrom !== 'tray') return dossier(ui.page, { onClose: close, onFlag: flag });
     if (ui.panel === 'situation') return board(rv.situation, { onOpen: open });
     if (ui.panel === 'map') {
       if (!rv.map) {
@@ -277,11 +276,15 @@ export function realismRoom(ctx) {
       rerender();
       if (focus) root.querySelector(`#rl-filter-${key}`)?.focus();
     };
-    return inTray(rv.documents, open, {
+    return trayView(rv.documents, open, {
       filter: ui.filter,
       sort: ui.sort,
       onFilter: choose,
       onSort: (value) => { ui.sort = value; rerender(); },
+      page: ui.page,
+      onClose: close,
+      onFlag: flag,
+      wide: ui.wide,
     });
   }
 
@@ -362,7 +365,7 @@ export function realismRoom(ctx) {
     return h('aside', { class: 'rl-col rl-side', 'aria-label': 'Pending orders and conversations' },
       h('div', { class: 'rl-col-body' },
         pendingOrders(rv.orders, (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v))),
-        resultsPanel(rv.results),
+        ordersLog(rv.results, rv.orders),
         conversations({
           selected: ui.chat,
           slot: briefSlot,
@@ -374,6 +377,7 @@ export function realismRoom(ctx) {
           ask: (question) => act('Your aide is looking into it…', 'help', { question }),
           consult: (to, question) => act(`Waiting for ${to} to answer…`, 'consult', { to, question }),
           useDraft,
+          ackThread: (person) => ackThread(rv.documents, person, open),
         })));
   }
 

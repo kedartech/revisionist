@@ -35,12 +35,19 @@ class DocumentListItem(TypedDict):
     """True until the seat logs ``document_read`` for it."""
     flagged: bool
     """True while the seat's latest ``document_flagged`` for it says so."""
+    group: str | None
+    """The feed's name when the feed files one paper a day ("MAGIC intercepts"); None
+    for a one-off paper. Rows with the same group fold into one line in the tray."""
+    ack: bool
+    """True when the paper only acknowledges an order (``tray.acknowledgement``): it goes to
+    the conversation with its author and to the tray's Acknowledgements filter."""
 
 
 class DocumentListing(TypedDict):
     documents: list[DocumentListItem]
     """Arrived documents in the seat's scope, newest arrival first."""
     unread: int
+    """Unread papers that are not acknowledgements."""
     flagged: int
 
 

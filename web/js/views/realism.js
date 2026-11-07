@@ -411,7 +411,7 @@ export function conversations(opts) {
     key === 'aide'
       ? [h('h3', { class: 'rl-aide-sub' }, 'This wake'), slot, h('h3', { class: 'rl-aide-sub' }, 'Help'), helpThread(help, opts.useDraft)]
       : [h('p', { class: 'rl-chat-head' }, personName(contact), h('span', { class: 'rl-via' }, channelWord(contact.channel))),
-        counselThread(key, counsel)],
+        counselThread(key, counsel), opts.ackThread?.(key)],
     form);
   return h('section', { class: 'rl-aide rl-chat', 'aria-labelledby': `${id}-h` },
     h('h2', { id: `${id}-h` }, 'Conversations'),

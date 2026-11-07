@@ -13,7 +13,9 @@
         "channel": "courier",
         "classification": "most_secret",
         "unread": true,
-        "flagged": false
+        "flagged": false,
+        "group": "MAGIC intercepts",
+        "ack": false
       },
       {
         "id": "d-whip-1017",
@@ -25,7 +27,9 @@
         "channel": "letter",
         "classification": "confidential",
         "unread": true,
-        "flagged": false
+        "flagged": false,
+        "group": "The Speaker's count",
+        "ack": false
       },
       {
         "id": "d-cable-1016",
@@ -37,7 +41,9 @@
         "channel": "cable",
         "classification": "secret",
         "unread": false,
-        "flagged": true
+        "flagged": true,
+        "group": null,
+        "ack": false
       },
       {
         "id": "d-memo-1015",
@@ -49,7 +55,9 @@
         "channel": "letter",
         "classification": "restricted",
         "unread": false,
-        "flagged": false
+        "flagged": false,
+        "group": null,
+        "ack": false
       },
       {
         "id": "d-press-1014",
@@ -61,7 +69,9 @@
         "channel": "press",
         "classification": "open",
         "unread": false,
-        "flagged": false
+        "flagged": false,
+        "group": null,
+        "ack": false
       },
       {
         "id": "d-report-1010",
@@ -73,7 +83,9 @@
         "channel": "courier",
         "classification": "confidential",
         "unread": false,
-        "flagged": false
+        "flagged": false,
+        "group": null,
+        "ack": false
       },
       {
         "id": "d-reply-1012",
@@ -85,7 +97,9 @@
         "channel": "letter",
         "classification": "confidential",
         "unread": false,
-        "flagged": false
+        "flagged": false,
+        "group": null,
+        "ack": true
       }
     ]
   },
@@ -100,7 +114,9 @@
       "channel": "letter",
       "classification": "confidential",
       "unread": true,
-      "flagged": false
+      "flagged": false,
+      "group": null,
+      "ack": false
     },
     "body": [
       {
@@ -142,7 +158,9 @@
       "channel": "letter",
       "classification": "confidential",
       "unread": false,
-      "flagged": false
+      "flagged": false,
+      "group": null,
+      "ack": true
     },
     "body": [
       {

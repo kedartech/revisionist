@@ -48,6 +48,7 @@ from revisionist.engine.web.realism_api import (
     SituationSource,
     StepLine,
 )
+from revisionist.engine.web.tray import acknowledgement, feed_group
 
 _HIDDEN = frozenset({StepAction.STALL, StepAction.LEAK})
 """Outcomes the issuer never sees: an order that stalls is still with that person."""
@@ -102,6 +103,8 @@ def _item(
         classification=doc.classification.value,
         unread=unread,
         flagged=flagged,
+        group=feed_group(doc.title),
+        ack=acknowledgement(doc),
     )
 
 
@@ -116,7 +119,7 @@ def documents(
     ]
     return DocumentListing(
         documents=rows,
-        unread=sum(r["unread"] for r in rows),
+        unread=sum(r["unread"] and not r["ack"] for r in rows),
         flagged=sum(r["flagged"] for r in rows),
     )
 

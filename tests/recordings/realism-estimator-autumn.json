@@ -1,31 +1,5 @@
 {
- "0b1410cdcc68cc560efa74cb": {
-  "call_class": "estimator",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply (canary)",
-  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"J8PGQ0WA0J43MQN5T5HKKKK68F\",\"issuer\":\"Frank",
-  "reply": {
-   "cached_tokens": 0,
-   "input_tokens": 0,
-   "model": "hand",
-   "output": {
-    "effects": [
-     {
-      "change": -1,
-      "kind": "disposition",
-      "of": "THFN18W8WRFX8EF1JVQBF8C2R0",
-      "toward": "Z1YMP565PJFGVNTHDHMPYR57K0"
-     }
-    ],
-    "rationale": "Referee only: CANARY-V2-REASON-7f3a.",
-    "reason": "Wheeler is compromised (CANARY-V2-REASON-7f3a)."
-   },
-   "output_tokens": 0,
-   "usd": 0.0
-  }
- },
- "cd726c2befacd3abad46cc3b": {
+ "2b52a7179f862bc59ab033d1": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -51,7 +25,7 @@
    "usd": 0.0
   }
  },
- "ef95c042a34d627b0c49edcf": {
+ "a609b62d91564d347d4af53c": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -71,6 +45,32 @@
     ],
     "rationale": "A count, which no effect may carry.",
     "reason": "Forty votes fall away."
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ },
+ "a9ffffd92ea8e52be9a25ce7": {
+  "call_class": "estimator",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply (canary)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"J8PGQ0WA0J43MQN5T5HKKKK68F\",\"issuer\":\"Frank",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "effects": [
+     {
+      "change": -1,
+      "kind": "disposition",
+      "of": "THFN18W8WRFX8EF1JVQBF8C2R0",
+      "toward": "Z1YMP565PJFGVNTHDHMPYR57K0"
+     }
+    ],
+    "rationale": "Referee only: CANARY-V2-REASON-7f3a.",
+    "reason": "Wheeler is compromised (CANARY-V2-REASON-7f3a)."
    },
    "output_tokens": 0,
    "usd": 0.0

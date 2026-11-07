@@ -15,6 +15,7 @@ from revisionist.core.realism.document import (
     DocumentTruth,
     DocumentView,
 )
+from revisionist.core.realism.effect import Engagement, SetEngagement
 from revisionist.core.realism.geography import FORCES, Feature
 from revisionist.core.realism.war import NewsEvent, NewsTopic, War, at_war, polity_of
 from revisionist.core.state import State
@@ -72,9 +73,43 @@ def order_refusal(state: State, seat: SeatId, lever: str, params: dict[str, str]
     return ""
 
 
+def _zone_place(state: State, zone: str) -> EntityId | None:
+    """The place a zone names: the reader gives a place's id or its name."""
+    if EntityId(zone) in state.entities:
+        return EntityId(zone)
+    wanted = zone.strip().casefold()
+    return next((e.entity_id for e in state.entities.values() if e.name.casefold() == wanted), None)
+
+
 def ask_refusal(state: State, seat: SeatId, ask: Ask) -> str:
-    """Empty: engagement against a named polity is gated at the lever, in ``order_refusal``."""
-    return ""
+    """The words for why a free-text order to shoot on sight may not stand; empty if it may.
+
+    It is refused when the zone holds forces of a power the seat's polity is not at war
+    with, and none of a power it is at war with: the same line ``order_refusal`` draws
+    for the menu's attack order.
+    """
+    effect = ask.effect
+    if not isinstance(effect, SetEngagement) or effect.rule is not Engagement.SHOOT_ON_SIGHT:
+        return ""
+    own = _own_polity(state, seat)
+    place = _zone_place(state, effect.zone)
+    if own is None or place is None:
+        return ""
+    sides = {
+        polity_of(state, f.side)
+        for f in state.features.values()
+        if f.kind in FORCES and f.side is not None and f.places[0] == place
+    }
+    others = sorted(
+        (s for s in sides if s is not None and s != own), key=lambda s: state.entities[s].name
+    )
+    if not others or any(at_war(state, own, s) for s in others):
+        return ""
+    return _clip(
+        f"{state.entities[own].name} is not at war with {state.entities[others[0]].name}, "
+        f"so forces in {state.entities[place].name} cannot be ordered to shoot on sight.",
+        REFUSAL,
+    )
 
 
 def _in_contact(war: War, a: Feature, b: Feature) -> bool:

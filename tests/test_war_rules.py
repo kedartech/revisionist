@@ -4,6 +4,7 @@ from datetime import date
 
 from revisionist.core import events as ev
 from revisionist.core.ids import SeatId
+from revisionist.core.realism import effect as rx
 from revisionist.core.realism import war_rules
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.war import NewsTopic, War, war_id_for
@@ -141,3 +142,53 @@ def test_declaring_war_on_yourself_or_a_non_polity_is_refused() -> None:
     assert own == "United Kingdom cannot declare war on itself."
     org = war_rules.order_refusal(sl.state, churchill, "declare_war", {"target": "commons"})
     assert org == "House of Commons is not a power to declare war on."
+
+
+def fire_at(sl: Slice, zone: str, rule: rx.Engagement = rx.Engagement.SHOOT_ON_SIGHT) -> Ask:
+    """A free-text ask, as the reader types it: the Home Fleet's rules in one zone."""
+    effect = rx.SetEngagement(force=sl.feature("home_fleet"), zone=zone, rule=rule)
+    return Ask(ask="Fire on any ship you meet", effect=effect)
+
+
+def test_shoot_on_sight_at_a_neutral_is_refused_until_the_war() -> None:
+    sl = together()
+    churchill = SeatId("seat-churchill")
+    ask = fire_at(sl, sl.entity("norfolk"))
+    text = war_rules.ask_refusal(sl.state, churchill, ask)
+    assert text == (
+        "United Kingdom is not at war with United States, "
+        "so forces in Norfolk cannot be ordered to shoot on sight."
+    )
+    declared(sl, "uk", "usa")
+    assert war_rules.ask_refusal(sl.state, churchill, ask) == ""
+
+
+def test_a_zone_named_in_words_is_matched_by_name() -> None:
+    sl = together()
+    text = war_rules.ask_refusal(sl.state, SeatId("seat-churchill"), fire_at(sl, "norfolk"))
+    assert text.startswith("United Kingdom is not at war with United States")
+    lorient = war_rules.ask_refusal(sl.state, SeatId("seat-churchill"), fire_at(sl, "Lorient"))
+    assert lorient.startswith("United Kingdom is not at war with Germany")
+
+
+def test_other_rules_and_empty_or_unknown_zones_are_untouched() -> None:
+    sl = together()
+    churchill = SeatId("seat-churchill")
+    state = sl.state
+    for rule in (rx.Engagement.HOLD_FIRE, rx.Engagement.DEFEND, rx.Engagement.ESCORT):
+        assert (
+            war_rules.ask_refusal(state, churchill, fire_at(sl, sl.entity("norfolk"), rule)) == ""
+        )
+    assert war_rules.ask_refusal(state, churchill, fire_at(sl, sl.entity("scapa_flow"))) == ""
+    assert war_rules.ask_refusal(state, churchill, fire_at(sl, "western Atlantic")) == ""
+    assert war_rules.ask_refusal(state, churchill, Ask(ask="Say something")) == ""
+    assert war_rules.ask_refusal(state, SeatId("nobody"), fire_at(sl, sl.entity("norfolk"))) == ""
+
+
+def test_a_zone_holding_an_enemy_is_not_refused() -> None:
+    sl = together()
+    uboats = sl.state.features[sl.feature("uboat_arm")]
+    sl.add(ev.FeatureSet(feature=uboats.model_copy(update={"places": (sl.entity("norfolk"),)})))
+    declared(sl, "uk", "germany")
+    ask = fire_at(sl, sl.entity("norfolk"))
+    assert war_rules.ask_refusal(sl.state, SeatId("seat-churchill"), ask) == ""

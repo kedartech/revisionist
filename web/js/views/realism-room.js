@@ -16,6 +16,7 @@ import { ackThread } from './realism-acks.js';
 import { newsBlock, whatChanged } from './realism-news.js';
 import { ordersLog } from './realism-orders.js';
 import { reachPanel } from './realism-reach.js';
+import { requestsPanel } from './realism-requests.js';
 import { trayView } from './realism-tray.js';
 import {
   agendaPanel, commitPanel, initiativePanel, orderCard, stylePicker, wakeHeader,
@@ -285,6 +286,7 @@ export function realismRoom(ctx) {
       onClose: close,
       onFlag: flag,
       wide: ui.wide,
+      requests: requestsPanel(rv.agenda, { act }),
     });
   }
 

@@ -46,7 +46,7 @@ export function commitBusy(wake) {
 }
 
 // The server words its dates, and worldDate cannot read words: only a bare ISO day goes through it.
-function dayWords(day) {
+export function dayWords(day) {
   return /^\d{4}-\d{2}-\d{2}$/.test(day ?? '') ? worldDate(day) : day ?? '';
 }
 
@@ -68,6 +68,11 @@ export function agendaList(style, item) {
 
 export function agendaItems(agenda) {
   return agenda.style === 'free' ? [] : agenda.items;
+}
+
+/** The desk's matters: those with no issuer. A leader's request is a paper in the tray. */
+export function deskMatters(agenda) {
+  return agendaItems(agenda).filter((item) => !item.issuer);
 }
 
 export function optionLines(o) {
@@ -193,9 +198,9 @@ function agendaItem(item, style, act) {
     offered);
 }
 
-/** Each agenda item with its options or plan; hidden for a free player or an empty agenda. */
+/** Each matter with no issuer, with its options or plan; hidden for a free player or when there is none. */
 export function agendaPanel(agenda, { act }) {
-  const items = agendaItems(agenda);
+  const items = deskMatters(agenda);
   if (!items.length) return null;
   return h('section', { class: 'rl-agenda', 'aria-labelledby': 'rl-agenda-h' },
     h('h2', { id: 'rl-agenda-h' }, 'Agenda'),

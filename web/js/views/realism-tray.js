@@ -92,7 +92,7 @@ function groupRow(row, onOpen, open) {
   return h('li', { class: 'rl-group', role: 'presentation' }, head, kids);
 }
 
-/** The tray panel. `opts`: { filter, sort, onFilter, onSort, page, onClose, onFlag, wide }. */
+/** The tray panel. `opts`: { filter, sort, onFilter, onSort, page, onClose, onFlag, wide, requests }. */
 export function trayView(listing, onOpen, opts = {}) {
   const { filter = 'all', sort = 'newest', onFilter, onSort, page } = opts;
   const counts = trayCounts(listing.documents);
@@ -109,6 +109,7 @@ export function trayView(listing, onOpen, opts = {}) {
     h('div', { role: 'tabpanel', id: 'rl-folders', 'aria-labelledby': `rl-filter-${filter}` },
       h('div', { class: `rl-mail${page ? ' rl-mail-open' : ''}` },
         h('div', { class: 'rl-mail-list' },
+          opts.requests ?? null,
           rows.length
             ? h('ul', { class: 'rl-rows', role: 'listbox', 'aria-label': 'Papers' },
               rows.map((r) => r.type === 'group'

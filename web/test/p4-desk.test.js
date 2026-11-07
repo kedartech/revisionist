@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
-  STYLES, agendaItems, agendaList, answerWord, commitBusy, commitCount, commitHint, deadlineWords, itemDates,
+  STYLES, agendaItems, agendaList, deskMatters, answerWord, commitBusy, commitCount, commitHint, deadlineWords, itemDates,
   itemHeading, optionLines, orderAddress, orderHeading, partLines,
 } from '../js/views/realism-wake.js';
 
@@ -61,6 +61,12 @@ test('each style shows its own list, and free shows no agenda', () => {
   assert.deepEqual(agendaList('free', item), []);
   assert.equal(agendaItems(agenda), agenda.items);
   assert.deepEqual(agendaItems({ ...agenda, style: 'free' }), []);
+});
+
+test('the desk keeps only matters with no issuer; a leader\'s request goes to the tray', () => {
+  const crisis = { ...item, id: 'c1', kind: 'Crisis', issuer: null };
+  assert.deepEqual(deskMatters({ ...agenda, items: [item, crisis] }).map((i) => i.id), ['c1']);
+  assert.deepEqual(deskMatters({ ...agenda, style: 'free', items: [crisis] }), []);
 });
 
 test('an agenda item reads in words, whether the date comes as a day or as words', () => {

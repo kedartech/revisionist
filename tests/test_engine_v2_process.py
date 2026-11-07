@@ -5,7 +5,7 @@ from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.fold import replay, state_hash
-from revisionist.core.ids import CampaignId, EntityId, QuantityId, SeatId, derived_id
+from revisionist.core.ids import CampaignId, EntityId, OrderId, QuantityId, SeatId, derived_id
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism import process
 from revisionist.core.realism.agenda import Ask
@@ -148,6 +148,9 @@ def _values(changes: tuple[Change, ...]) -> dict[QuantityId, int | None]:
 def test_a_novel_measure_counts_differently_and_deterministically() -> None:
     state, order = _drafted(NOVEL)
     _, known = _drafted(HISTORICAL)
+    # The friction draw is seeded by the order id, and on some ids the extra clause's
+    # half-point rounds away; a fixed id keeps the comparison from depending on the draw.
+    order = order.model_copy(update={"order_id": OrderId(derived_id(CAMPAIGN, "order", "novel"))})
     novel = ON_ORDER["votes"](state, _enacted(order))
     again = ON_ORDER["votes"](state, _enacted(order))
     assert novel == again

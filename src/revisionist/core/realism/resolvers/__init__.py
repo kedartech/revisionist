@@ -13,15 +13,25 @@ from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.ids import QuantityId
+from revisionist.core.ontology import Fact, Relationship
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.quantity import QuantityChange, ResolverKey
-from revisionist.core.realism.resolvers import movement, opinion, production, shipping, votes
+from revisionist.core.realism.resolvers import (
+    movement,
+    opinion,
+    production,
+    shipping,
+    votes,
+    war,
+)
+from revisionist.core.realism.war import NewsEvent, War
 from revisionist.core.state import State
 from revisionist.core.world_compile import object_id
 
-Change = QuantityChange | Feature
-"""A quantity's new value, or a feature as it now stands."""
+Change = QuantityChange | Feature | War | NewsEvent | Fact | Relationship
+"""A quantity's new value, a feature as it now stands, a war declared, a public news
+event, a fact asserted or a relationship as it now stands."""
 OrderFn = Callable[[State, Order], tuple[Change, ...]]
 DayFn = Callable[[State, date], tuple[Change, ...]]
 
@@ -64,6 +74,7 @@ ON_ORDER: dict[ResolverKey, OrderFn] = {
     "production": production.resolve,
     "opinion": opinion.resolve,
     "movement": movement.resolve,
+    "war": war.resolve,
 }
 ON_DAY: dict[ResolverKey, DayFn] = {
     "votes": votes.on_day,
@@ -71,6 +82,7 @@ ON_DAY: dict[ResolverKey, DayFn] = {
     "production": production.on_day,
     "opinion": opinion.on_day,
     "movement": movement.on_day,
+    "war": war.on_day,
 }
 
 
@@ -110,22 +122,31 @@ def friction(state: State, *parts: object, n: int) -> int:
     return int.from_bytes(hashlib.blake2b(key.encode(), digest_size=8).digest(), "big") % n
 
 
-def apply_changes(
-    state: State, changes: tuple[Change, ...]
-) -> list[ev.QuantitySet | ev.FeatureSet]:
+def apply_changes(state: State, changes: tuple[Change, ...]) -> list[ev.Payload]:
     """The events for ``changes``: each quantity as it stands, with the new value and
-    date, and each feature as given. Raises ``KeyError`` for a quantity the world
-    never declared."""
-    return [
-        ev.FeatureSet(feature=c)
-        if isinstance(c, Feature)
-        else ev.QuantitySet(
-            quantity=state.quantities[c.quantity_id].model_copy(
-                update={"value": c.value, "as_of": c.as_of}
+    date, and every other change as given. Raises ``KeyError`` for a quantity the
+    world never declared."""
+    out: list[ev.Payload] = []
+    for c in changes:
+        if isinstance(c, Feature):
+            out.append(ev.FeatureSet(feature=c))
+        elif isinstance(c, War):
+            out.append(ev.WarDeclared(war=c))
+        elif isinstance(c, NewsEvent):
+            out.append(ev.NewsReported(news=c))
+        elif isinstance(c, Fact):
+            out.append(ev.FactAsserted(fact=c))
+        elif isinstance(c, Relationship):
+            out.append(ev.RelationshipSet(relationship=c))
+        else:
+            out.append(
+                ev.QuantitySet(
+                    quantity=state.quantities[c.quantity_id].model_copy(
+                        update={"value": c.value, "as_of": c.as_of}
+                    )
+                )
             )
-        )
-        for c in changes
-    ]
+    return out
 
 
 __all__ = [

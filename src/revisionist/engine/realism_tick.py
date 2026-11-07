@@ -44,12 +44,14 @@ from revisionist.core.ontology import Phase
 from revisionist.core.realism import apply, mandates, process
 from revisionist.core.realism.advance import Wake, next_wake
 from revisionist.core.realism.agenda import Ask
+from revisionist.core.realism.arrivals import arrivals
 from revisionist.core.realism.card import ParamKind, ParamSpec, ParamValue
 from revisionist.core.realism.document import DocumentView
 from revisionist.core.realism.effect import Effect, PartRef, Route, RoutedOrder, RoutedPart
 from revisionist.core.realism.feeds import due_feeds, issue, seed_for_day
 from revisionist.core.realism.pipeline import SETTLED, Order, OrderStatus, StepAction
 from revisionist.core.realism.pipelines import human_step, run_pipelines
+from revisionist.core.realism.press import news_pages
 from revisionist.core.realism.resolvers import (
     ON_DAY,
     ON_ORDER,
@@ -57,6 +59,7 @@ from revisionist.core.realism.resolvers import (
     resolver_for,
 )
 from revisionist.core.realism.route import due_executions, route
+from revisionist.core.realism.war_rules import contacts, order_refusal
 from revisionist.core.resolution import TickStage
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, Scope, private_to
@@ -329,9 +332,9 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     """Every day from ``before`` + 1 to ``until``, earliest first. Each day: orders
     move, history fires or skips what fell due (opinion reads fired incidents),
     commands fall due, processes open, influence is decided, ready parts apply, the
-    orders enacted that day are resolved, then what moves with time, then the feeds
-    that fall due issue, dated that day, then mandates settle and issue. Each step
-    sees the state after the ones before it."""
+    orders enacted that day are resolved, then what moves with time, then arrivals, contacts and the
+    press, then the feeds that fall due issue, dated that day, then mandates settle and
+    issue. Each step sees the state after the ones before it."""
     state = em.state
     out: list[Event] = []
 
@@ -359,8 +362,12 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
             if isinstance(step, ev.OrderSettled) and step.status is OrderStatus.ENACTED:
                 order = state.orders[step.order_id]
                 add(apply_changes(state, ON_ORDER[resolver_for(state, order)](state, order)))
+        before_on_day = state
         for on_day in ON_DAY.values():
             add(apply_changes(state, on_day(state, day)))
+        add(arrivals(before_on_day, state, day))
+        add(contacts(state, day))
+        add(news_pages(state, day))
         seed = seed_for_day(state.campaign_id, day)
         docs: list[Event] = []
         for feed in sorted(due_feeds(state, day), key=lambda f: f.feed_id):
@@ -453,6 +460,9 @@ def draft_order(state: State, seat: SeatId, lever: str, given: dict[str, str]) -
     if set(given) != wanted:
         raise ValueError(f"{lever} takes exactly: {', '.join(sorted(wanted)) or 'no parameters'}")
     params = {p.name: _fits(p, given[p.name]) for p in found.params}
+    refused = order_refusal(state, seat, lever, given)
+    if refused:
+        raise ValueError(refused)
     assert state.in_world_date is not None
     return Order(
         order_id=OrderId(new_id()),

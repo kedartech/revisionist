@@ -462,6 +462,16 @@ class MandateDecl(Model):
     days: int = Field(ge=1, le=90)
 
 
+class OutletDecl(Model):
+    """A polity's newspaper. ``key`` is also declared in ``entities`` (an org under
+    ``polity``); both are entity keys."""
+
+    key: Key
+    polity: Key
+    name: Label
+    voice: str = Field(min_length=1, max_length=300)
+
+
 Slug = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_-]*$", max_length=40)]
 """A world's file name: lowercase, digits, underscores and hyphens."""
 
@@ -500,6 +510,8 @@ class WorldFile(Model):
     sources: tuple[SourceDecl, ...] = ()
     mandates: tuple[MandateDecl, ...] = ()
     """Engine v2: mandate templates. Realism only."""
+    outlets: tuple[OutletDecl, ...] = ()
+    """Each polity's newspaper. Realism only."""
 
 
 __all__ = [
@@ -524,6 +536,7 @@ __all__ = [
     "LeverDecl",
     "MandateDecl",
     "MeterDecl",
+    "OutletDecl",
     "PipelineDecl",
     "QuantityDecl",
     "RelationshipDecl",

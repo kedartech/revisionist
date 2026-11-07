@@ -1,5 +1,5 @@
 {
- "74bcc308ac3dd3212970a0a8": {
+ "04129713e44b8026a58a6eb4": {
   "call_class": "build",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -148,44 +148,162 @@
    "usd": 0.007526
   }
  },
- "7bc6112027851d13be7e66cc": {
-  "call_class": "pitch",
+ "419071c013e56441e4366ff9": {
+  "call_class": "build",
   "hand_written": true,
-  "model": "claude-haiku-5-5",
+  "model": "claude-sonnet-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Pitch\nThe Cuban missile crisis, from the first photographs",
+  "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"andrei_gromyko\", \"name\": \"Andrei Gromyko\", \"kin",
   "reply": {
-   "cached_tokens": 428,
-   "input_tokens": 443,
-   "model": "claude-haiku-5-5",
+   "cached_tokens": 1291,
+   "input_tokens": 1658,
+   "model": "claude-sonnet-5-5",
    "output": {
-    "named": [],
-    "reading": "The thirteen days of October 1962, from the U-2 photographs to the settlement.",
-    "refusal": "",
-    "start_points": [
+    "cards": [
      {
-      "contests": [
-       "The missiles in Cuba"
+      "feeds": [
+       "chiefs_reports"
       ],
-      "focus": "The President is shown the photographs of missile sites in Cuba.",
-      "label": "Washington, 16 October 1962",
-      "powers": [
-       "United States",
-       "Soviet Union",
-       "Cuba"
+      "horizon_days": 7,
+      "inner_circle": [
+       {
+        "channel": "in_person",
+        "person": "taylor"
+       },
+       {
+        "channel": "in_person",
+        "person": "john_f_kennedy"
+       }
       ],
-      "schedule": [
-       "22 October: the President announces a quarantine of Cuba"
+      "levers": [
+       {
+        "label": "Set the forces' readiness",
+        "name": "readiness",
+        "params": [
+         {
+          "choice_labels": [
+           "Raised",
+           "Lowered"
+          ],
+          "choices": [
+           "raised",
+           "lowered"
+          ],
+          "kind": "enum",
+          "label": "Readiness",
+          "name": "level"
+         }
+        ],
+        "pipeline": "readiness",
+        "resolver": "production",
+        "summary": "Raise or lower the readiness of the forces."
+       },
+       {
+        "label": "Brief the press",
+        "name": "brief",
+        "params": [
+         {
+          "kind": "text",
+          "label": "What you will say",
+          "name": "message"
+         }
+        ],
+        "pipeline": "briefing",
+        "resolver": "opinion",
+        "summary": "Brief the press, in your own words."
+       }
       ],
-      "start_date": "1962-10-16"
+      "loyalty": 4,
+      "office": "Secretary of Defense",
+      "person": "robert_mcnamara",
+      "pipelines": [
+       "readiness",
+       "briefing"
+      ],
+      "principals": [
+       "john_f_kennedy"
+      ],
+      "reach": {
+       "heads": false,
+       "rank": 4
+      },
+      "voice": "Brisk, numerical, impatient with soldiers' talk."
+     }
+    ],
+    "entities": [
+     {
+      "key": "taylor",
+      "kind": "person",
+      "name": "Maxwell Taylor",
+      "parent": "united_states"
+     }
+    ],
+    "feeds": [
+     {
+      "assumed": true,
+      "author": "taylor",
+      "channel": "courier",
+      "classification": "secret",
+      "every_days": 1,
+      "gap": true,
+      "key": "chiefs_reports",
+      "kind": "report",
+      "latency_days": 0,
+      "name": "The Joint Chiefs' readiness reports",
+      "reports": [
+       "ready_sorties"
+      ]
+     }
+    ],
+    "pipelines": [
+     {
+      "gap": true,
+      "key": "readiness",
+      "name": "A readiness order",
+      "steps": [
+       {
+        "allowed": [
+         "pass",
+         "stall",
+         "amend",
+         "refuse"
+        ],
+        "assumed": true,
+        "days": 1,
+        "kind": "decision",
+        "person": "taylor"
+       }
+      ]
+     },
+     {
+      "gap": true,
+      "key": "briefing",
+      "name": "A press briefing",
+      "steps": [
+       {
+        "assumed": true,
+        "days": 1,
+        "kind": "clerical",
+        "person": "taylor"
+       }
+      ]
+     }
+    ],
+    "quantities": [
+     {
+      "gap": true,
+      "key": "ready_sorties",
+      "name": "Air strike sorties ready",
+      "owner": "united_states",
+      "unit": "sorties"
      }
     ]
    },
-   "output_tokens": 112,
-   "usd": 0.0001003
+   "output_tokens": 459,
+   "usd": 0.007906
   }
  },
- "a18f000e7a31453a0ecd119a": {
+ "493838220433cf3ab8cebaaf": {
   "call_class": "build",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -356,159 +474,41 @@
    "usd": 0.008564
   }
  },
- "c6a92a9607c585f8da867a9a": {
-  "call_class": "build",
+ "7bc6112027851d13be7e66cc": {
+  "call_class": "pitch",
   "hand_written": true,
-  "model": "claude-sonnet-5-5",
+  "model": "claude-haiku-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"andrei_gromyko\", \"name\": \"Andrei Gromyko\", \"kin",
+  "prompt_head": "## Pitch\nThe Cuban missile crisis, from the first photographs",
   "reply": {
-   "cached_tokens": 1291,
-   "input_tokens": 1658,
-   "model": "claude-sonnet-5-5",
+   "cached_tokens": 428,
+   "input_tokens": 443,
+   "model": "claude-haiku-5-5",
    "output": {
-    "cards": [
+    "named": [],
+    "reading": "The thirteen days of October 1962, from the U-2 photographs to the settlement.",
+    "refusal": "",
+    "start_points": [
      {
-      "feeds": [
-       "chiefs_reports"
+      "contests": [
+       "The missiles in Cuba"
       ],
-      "horizon_days": 7,
-      "inner_circle": [
-       {
-        "channel": "in_person",
-        "person": "taylor"
-       },
-       {
-        "channel": "in_person",
-        "person": "john_f_kennedy"
-       }
+      "focus": "The President is shown the photographs of missile sites in Cuba.",
+      "label": "Washington, 16 October 1962",
+      "powers": [
+       "United States",
+       "Soviet Union",
+       "Cuba"
       ],
-      "levers": [
-       {
-        "label": "Set the forces' readiness",
-        "name": "readiness",
-        "params": [
-         {
-          "choice_labels": [
-           "Raised",
-           "Lowered"
-          ],
-          "choices": [
-           "raised",
-           "lowered"
-          ],
-          "kind": "enum",
-          "label": "Readiness",
-          "name": "level"
-         }
-        ],
-        "pipeline": "readiness",
-        "resolver": "production",
-        "summary": "Raise or lower the readiness of the forces."
-       },
-       {
-        "label": "Brief the press",
-        "name": "brief",
-        "params": [
-         {
-          "kind": "text",
-          "label": "What you will say",
-          "name": "message"
-         }
-        ],
-        "pipeline": "briefing",
-        "resolver": "opinion",
-        "summary": "Brief the press, in your own words."
-       }
+      "schedule": [
+       "22 October: the President announces a quarantine of Cuba"
       ],
-      "loyalty": 4,
-      "office": "Secretary of Defense",
-      "person": "robert_mcnamara",
-      "pipelines": [
-       "readiness",
-       "briefing"
-      ],
-      "principals": [
-       "john_f_kennedy"
-      ],
-      "reach": {
-       "heads": false,
-       "rank": 4
-      },
-      "voice": "Brisk, numerical, impatient with soldiers' talk."
-     }
-    ],
-    "entities": [
-     {
-      "key": "taylor",
-      "kind": "person",
-      "name": "Maxwell Taylor",
-      "parent": "united_states"
-     }
-    ],
-    "feeds": [
-     {
-      "assumed": true,
-      "author": "taylor",
-      "channel": "courier",
-      "classification": "secret",
-      "every_days": 1,
-      "gap": true,
-      "key": "chiefs_reports",
-      "kind": "report",
-      "latency_days": 0,
-      "name": "The Joint Chiefs' readiness reports",
-      "reports": [
-       "ready_sorties"
-      ]
-     }
-    ],
-    "pipelines": [
-     {
-      "gap": true,
-      "key": "readiness",
-      "name": "A readiness order",
-      "steps": [
-       {
-        "allowed": [
-         "pass",
-         "stall",
-         "amend",
-         "refuse"
-        ],
-        "assumed": true,
-        "days": 1,
-        "kind": "decision",
-        "person": "taylor"
-       }
-      ]
-     },
-     {
-      "gap": true,
-      "key": "briefing",
-      "name": "A press briefing",
-      "steps": [
-       {
-        "assumed": true,
-        "days": 1,
-        "kind": "clerical",
-        "person": "taylor"
-       }
-      ]
-     }
-    ],
-    "quantities": [
-     {
-      "gap": true,
-      "key": "ready_sorties",
-      "name": "Air strike sorties ready",
-      "owner": "united_states",
-      "unit": "sorties"
+      "start_date": "1962-10-16"
      }
     ]
    },
-   "output_tokens": 459,
-   "usd": 0.007906
+   "output_tokens": 112,
+   "usd": 0.0001003
   }
  },
  "cf19062506844cfaa2c94e91": {
@@ -614,7 +614,7 @@
    "usd": 0.0002368
   }
  },
- "fb714ec000410f783621a1b4": {
+ "ea28f90c9ad5e4f445b30149": {
   "call_class": "build",
   "hand_written": true,
   "model": "claude-sonnet-5-5",

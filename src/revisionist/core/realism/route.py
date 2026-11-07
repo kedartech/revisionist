@@ -28,6 +28,7 @@ from revisionist.core.realism.effect import (
     SetEngagement,
 )
 from revisionist.core.realism.resolvers import friction
+from revisionist.core.realism.war_rules import ask_refusal
 from revisionist.core.state import State
 
 REFUSE_PCT = 50  # [proposed] chance in 100 that an executor at or below the floor refuses
@@ -87,6 +88,9 @@ def route(state: State, issuer: SeatId, ask: Ask, on: date) -> Routing:
     late = _not_in_service(state, ask, on)
     if late:
         return Routing(refusal=late)
+    refused = ask_refusal(state, issuer, ask)
+    if refused:
+        return Routing(refusal=refused)
     domain = _domain_for(card, ask)
     if domain is not None:
         return Routing(

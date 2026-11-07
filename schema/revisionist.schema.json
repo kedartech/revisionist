@@ -931,6 +931,14 @@
             "title": "Kind",
             "type": "string"
           },
+          "outlets": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Outlet"
+            },
+            "title": "Outlets",
+            "type": "array"
+          },
           "pipelines": {
             "default": [],
             "items": {
@@ -2643,6 +2651,19 @@
             ],
             "default": null,
             "title": "Feed"
+          },
+          "news_id": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "News Id"
           },
           "sightings": {
             "default": [],
@@ -4373,7 +4394,8 @@
               "shipping",
               "production",
               "opinion",
-              "movement"
+              "movement",
+              "war"
             ],
             "title": "Resolver",
             "type": "string"
@@ -4969,6 +4991,95 @@
         "title": "NarrationWritten",
         "type": "object"
       },
+      "NewsEvent": {
+        "additionalProperties": false,
+        "description": "A public event, as structured public facts only. Never prose. One per event;\neach seat's press later words it in its own outlet's voice.",
+        "properties": {
+          "facts": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/BodyField"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "headline": {
+            "maxLength": 60,
+            "title": "Headline",
+            "type": "string"
+          },
+          "news_id": {
+            "maxLength": 60,
+            "title": "News Id",
+            "type": "string"
+          },
+          "obj": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Obj"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "topic": {
+            "$ref": "#/$defs/NewsTopic"
+          }
+        },
+        "required": [
+          "news_id",
+          "on",
+          "topic",
+          "subject",
+          "headline"
+        ],
+        "title": "NewsEvent",
+        "type": "object"
+      },
+      "NewsReported": {
+        "additionalProperties": false,
+        "description": "A public event, as structured facts. Each seat's press words it later.",
+        "properties": {
+          "kind": {
+            "const": "news_reported",
+            "default": "news_reported",
+            "title": "Kind",
+            "type": "string"
+          },
+          "news": {
+            "$ref": "#/$defs/NewsEvent"
+          }
+        },
+        "required": [
+          "news"
+        ],
+        "title": "NewsReported",
+        "type": "object"
+      },
+      "NewsTopic": {
+        "enum": [
+          "war_declared",
+          "statement",
+          "appointment",
+          "deal",
+          "contact",
+          "vote"
+        ],
+        "title": "NewsTopic",
+        "type": "string"
+      },
       "Offer": {
         "additionalProperties": false,
         "description": "What a seat is offered for one agenda item.",
@@ -5462,6 +5573,37 @@
         ],
         "title": "OutcomeTier",
         "type": "string"
+      },
+      "Outlet": {
+        "additionalProperties": false,
+        "description": "A seat's newspaper: the voice its press is written in.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "outlet_id": {
+            "title": "Outlet Id",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "voice": {
+            "maxLength": 300,
+            "title": "Voice",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outlet_id",
+          "polity",
+          "name",
+          "voice"
+        ],
+        "title": "Outlet",
+        "type": "object"
       },
       "ParamKind": {
         "enum": [
@@ -7959,6 +8101,62 @@
         "title": "WakeOpened",
         "type": "object"
       },
+      "War": {
+        "additionalProperties": false,
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          },
+          "declared_by": {
+            "title": "Declared By",
+            "type": "string"
+          },
+          "since": {
+            "format": "date",
+            "title": "Since",
+            "type": "string"
+          },
+          "war_id": {
+            "maxLength": 60,
+            "title": "War Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "war_id",
+          "a",
+          "b",
+          "since",
+          "declared_by"
+        ],
+        "title": "War",
+        "type": "object"
+      },
+      "WarDeclared": {
+        "additionalProperties": false,
+        "description": "Two polities are at war. Public.",
+        "properties": {
+          "kind": {
+            "const": "war_declared",
+            "default": "war_declared",
+            "title": "Kind",
+            "type": "string"
+          },
+          "war": {
+            "$ref": "#/$defs/War"
+          }
+        },
+        "required": [
+          "war"
+        ],
+        "title": "WarDeclared",
+        "type": "object"
+      },
       "revisionist__core__ontology__Clause": {
         "additionalProperties": false,
         "properties": {
@@ -8152,6 +8350,7 @@
             "mandate_settled": "#/$defs/MandateSettled",
             "meter_created": "#/$defs/MeterCreated",
             "narration_written": "#/$defs/NarrationWritten",
+            "news_reported": "#/$defs/NewsReported",
             "operation_opened": "#/$defs/OperationOpened",
             "operation_resolved": "#/$defs/OperationResolved",
             "options_offered": "#/$defs/OptionsOffered",
@@ -8181,7 +8380,8 @@
             "tick_stage_completed": "#/$defs/TickStageCompleted",
             "wake_closed": "#/$defs/WakeClosed",
             "wake_committed": "#/$defs/WakeCommitted",
-            "wake_opened": "#/$defs/WakeOpened"
+            "wake_opened": "#/$defs/WakeOpened",
+            "war_declared": "#/$defs/WarDeclared"
           },
           "propertyName": "kind"
         },
@@ -8365,6 +8565,12 @@
           },
           {
             "$ref": "#/$defs/FeatureSet"
+          },
+          {
+            "$ref": "#/$defs/WarDeclared"
+          },
+          {
+            "$ref": "#/$defs/NewsReported"
           },
           {
             "$ref": "#/$defs/CounselHeld"
@@ -9543,6 +9749,19 @@
             "default": null,
             "title": "Feed"
           },
+          "news_id": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "News Id"
+          },
           "sightings": {
             "default": [],
             "items": {
@@ -10523,7 +10742,8 @@
               "shipping",
               "production",
               "opinion",
-              "movement"
+              "movement",
+              "war"
             ],
             "title": "Resolver",
             "type": "string"
@@ -10986,6 +11206,75 @@
         "title": "MoveForce",
         "type": "object"
       },
+      "NewsEvent": {
+        "additionalProperties": false,
+        "description": "A public event, as structured public facts only. Never prose. One per event;\neach seat's press later words it in its own outlet's voice.",
+        "properties": {
+          "facts": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/BodyField"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "headline": {
+            "maxLength": 60,
+            "title": "Headline",
+            "type": "string"
+          },
+          "news_id": {
+            "maxLength": 60,
+            "title": "News Id",
+            "type": "string"
+          },
+          "obj": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Obj"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "topic": {
+            "$ref": "#/$defs/NewsTopic"
+          }
+        },
+        "required": [
+          "news_id",
+          "on",
+          "topic",
+          "subject",
+          "headline"
+        ],
+        "title": "NewsEvent",
+        "type": "object"
+      },
+      "NewsTopic": {
+        "enum": [
+          "war_declared",
+          "statement",
+          "appointment",
+          "deal",
+          "contact",
+          "vote"
+        ],
+        "title": "NewsTopic",
+        "type": "string"
+      },
       "Order": {
         "additionalProperties": false,
         "properties": {
@@ -11114,6 +11403,37 @@
           "effect"
         ],
         "title": "Ordered",
+        "type": "object"
+      },
+      "Outlet": {
+        "additionalProperties": false,
+        "description": "A seat's newspaper: the voice its press is written in.",
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "outlet_id": {
+            "title": "Outlet Id",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "voice": {
+            "maxLength": 300,
+            "title": "Voice",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outlet_id",
+          "polity",
+          "name",
+          "voice"
+        ],
+        "title": "Outlet",
         "type": "object"
       },
       "ParamKind": {
@@ -12876,6 +13196,42 @@
         "title": "Wake",
         "type": "object"
       },
+      "War": {
+        "additionalProperties": false,
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          },
+          "declared_by": {
+            "title": "Declared By",
+            "type": "string"
+          },
+          "since": {
+            "format": "date",
+            "title": "Since",
+            "type": "string"
+          },
+          "war_id": {
+            "maxLength": 60,
+            "title": "War Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "war_id",
+          "a",
+          "b",
+          "since",
+          "declared_by"
+        ],
+        "title": "War",
+        "type": "object"
+      },
       "revisionist__core__ontology__Clause": {
         "additionalProperties": false,
         "properties": {
@@ -13129,11 +13485,28 @@
         "title": "Meters",
         "type": "object"
       },
+      "news": {
+        "additionalProperties": {
+          "$ref": "#/$defs/NewsEvent"
+        },
+        "propertyNames": {
+          "maxLength": 60
+        },
+        "title": "News",
+        "type": "object"
+      },
       "orders": {
         "additionalProperties": {
           "$ref": "#/$defs/Order"
         },
         "title": "Orders",
+        "type": "object"
+      },
+      "outlets": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Outlet"
+        },
+        "title": "Outlets",
         "type": "object"
       },
       "pending": {
@@ -13271,6 +13644,16 @@
           }
         ],
         "default": null
+      },
+      "wars": {
+        "additionalProperties": {
+          "$ref": "#/$defs/War"
+        },
+        "propertyNames": {
+          "maxLength": 60
+        },
+        "title": "Wars",
+        "type": "object"
       }
     },
     "required": [
@@ -15169,7 +15552,8 @@
               "shipping",
               "production",
               "opinion",
-              "movement"
+              "movement",
+              "war"
             ],
             "title": "Resolver",
             "type": "string"
@@ -16981,6 +17365,42 @@
         "title": "Wake",
         "type": "object"
       },
+      "War": {
+        "additionalProperties": false,
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          },
+          "declared_by": {
+            "title": "Declared By",
+            "type": "string"
+          },
+          "since": {
+            "format": "date",
+            "title": "Since",
+            "type": "string"
+          },
+          "war_id": {
+            "maxLength": 60,
+            "title": "War Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "war_id",
+          "a",
+          "b",
+          "since",
+          "declared_by"
+        ],
+        "title": "War",
+        "type": "object"
+      },
       "revisionist__core__ontology__Clause": {
         "additionalProperties": false,
         "properties": {
@@ -17347,6 +17767,16 @@
           }
         ],
         "default": null
+      },
+      "wars": {
+        "additionalProperties": {
+          "$ref": "#/$defs/War"
+        },
+        "propertyNames": {
+          "maxLength": 60
+        },
+        "title": "Wars",
+        "type": "object"
       }
     },
     "required": [

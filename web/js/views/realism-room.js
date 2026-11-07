@@ -12,6 +12,7 @@ import {
 } from './realism.js';
 import { header } from './frame.js';
 import { mapView } from './realism-map.js';
+import { newsBlock, whatChanged } from './realism-news.js';
 import { reachPanel } from './realism-reach.js';
 import {
   agendaPanel, commitPanel, initiativePanel, orderCard, resultsPanel, stylePicker, wakeHeader,
@@ -389,9 +390,10 @@ export function realismRoom(ctx) {
     return [
       header({ ...ctx, game, role: 'Campaign', extra, identity: { name: seatName, office: rv.desk.office } }),
       status,
+      newsBlock(whatChanged(rv.documents), (id) => open({ id })),
       h('main', { class: `rl-room${ui.wide ? ' wide' : ''}` }, papers(), deskColumn(), sideColumn()),
       menu,
-    ];
+    ].filter(Boolean);
   }
 
   root.append(...build());

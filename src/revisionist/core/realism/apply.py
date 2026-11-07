@@ -41,6 +41,7 @@ from revisionist.core.realism.effect import (
     Investigate,
     MakeStatement,
     MoveForce,
+    Posture,
     ProposeMeasure,
     Route,
     RoutedOrder,
@@ -48,7 +49,9 @@ from revisionist.core.realism.effect import (
     SetEngagement,
     ShiftDisposition,
 )
-from revisionist.core.realism.geography import SPEED_KM_PER_DAY, Feature, km_between
+from revisionist.core.realism.geography import SPEED_KM_PER_DAY, km_between
+from revisionist.core.realism.land import allocate, appointment, deal, investigate, statement
+from revisionist.core.realism.pass_world import PassWorld
 from revisionist.core.state import State
 from revisionist.core.visibility import private_to
 
@@ -111,23 +114,7 @@ def _ready(order: RoutedOrder, part: RoutedPart) -> date | None:
     return max(done, order.filed)
 
 
-class _World:
-    """Features and relationships as they stand mid-pass, so two parts landing on the
-    same force or relationship on one day see each other."""
-
-    def __init__(self, state: State) -> None:
-        self.state = state
-        self.features: dict[FeatureId, Feature] = dict(state.features)
-        self.relationships: dict[RelationshipId, Relationship] = dict(state.relationships)
-
-    def relationship(self, a: EntityId, b: EntityId) -> Relationship | None:
-        return next(
-            (r for r in self.relationships.values() if {r.a, r.b} == {a, b}),
-            None,
-        )
-
-
-def _move(world: _World, effect: MoveForce, on: date) -> list[ev.Payload]:
+def _move(world: PassWorld, effect: MoveForce, on: date) -> list[ev.Payload]:
     force = world.features.get(effect.force)
     if force is None:
         return []
@@ -151,7 +138,9 @@ def _move(world: _World, effect: MoveForce, on: date) -> list[ev.Payload]:
     return [ev.FeatureSet(feature=moved)]
 
 
-def _engage(world: _World, effect: SetEngagement, issuer: EntityId, on: date) -> list[ev.Payload]:
+def _engage(
+    world: PassWorld, effect: SetEngagement, issuer: EntityId, on: date
+) -> list[ev.Payload]:
     if effect.force is not None:
         named = [effect.force]
     else:
@@ -169,7 +158,7 @@ def _engage(world: _World, effect: SetEngagement, issuer: EntityId, on: date) ->
     return out
 
 
-def _shift(world: _World, effect: ShiftDisposition, issuer_seat: SeatId) -> ev.Payload:
+def _shift(world: PassWorld, effect: ShiftDisposition, issuer_seat: SeatId) -> ev.Payload:
     now = world.relationship(effect.of, effect.toward)
     if now is None:
         rel = Relationship(
@@ -189,12 +178,12 @@ def _shift(world: _World, effect: ShiftDisposition, issuer_seat: SeatId) -> ev.P
     return ev.RelationshipSet(relationship=rel)
 
 
-# Recorded, no resolver yet: MakeStatement, Investigate, Deal, Allocate, Appointment and
-# ProposeMeasure outside a process change nothing in the world beyond the report; the
+# Recorded, no resolver yet: ProposeMeasure outside a process changes nothing in the
+# world beyond the report; the
 # record is the routed part and its ``applied`` date. Card loyalty has no event, so a
 # shift of disposition toward a principal moves the relationship only. [proposed]
 def _land(
-    world: _World, effect: Effect, issuer_seat: SeatId, issuer: EntityId, on: date
+    world: PassWorld, effect: Effect, issuer_seat: SeatId, issuer: EntityId, on: date
 ) -> tuple[list[ev.Payload], list[FactId]]:
     match effect:
         case MoveForce():
@@ -205,6 +194,16 @@ def _land(
             return [_shift(world, effect, issuer_seat)], []
         case Disclosure(reveal=True) if effect.fact in world.state.facts:
             return [], [effect.fact]
+        case Allocate():
+            return allocate.land(world, effect, issuer_seat, issuer, on)
+        case Appointment():
+            return appointment.land(world, effect, issuer_seat, issuer, on)
+        case MakeStatement():
+            return statement.land(world, effect, issuer_seat, issuer, on)
+        case Deal():
+            return deal.land(world, effect, issuer_seat, issuer, on)
+        case Investigate():
+            return investigate.land(world, effect, issuer_seat, issuer, on)
         case _:
             # Disclosure(reveal=False) changes nothing in this wave. [proposed]
             return [], []
@@ -212,7 +211,7 @@ def _land(
 
 def apply_due(state: State, today: date) -> list[ev.Payload]:
     """Every part ready to apply on ``today``, earliest filed first, each once."""
-    world = _World(state)
+    world = PassWorld(state)
     out: list[ev.Payload] = []
     for order in sorted(state.routed.values(), key=lambda o: (o.filed, o.order_id)):
         issuer_seat = order.issuer
@@ -296,6 +295,16 @@ def _describe(state: State, part: RoutedPart) -> str:
     return "Your request"
 
 
+def _partial_move(part: RoutedPart) -> tuple[MoveForce, Posture] | None:
+    """A move to a destination carried out in part: the force stays and takes its posture."""
+    match part.effect:
+        case MoveForce(to=to, posture=Posture() as posture) as move if (
+            part.fidelity is Fidelity.PARTIAL and to is not None
+        ):
+            return move, posture
+    return None
+
+
 def _outcome(part: RoutedPart) -> str:
     if part.route is Route.INFLUENCE:
         return "agreed" if part.accepted else "rebuffed"
@@ -338,14 +347,26 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
         title = f"Your approach to {_name(state, author)}: {_outcome(routed)}"
     else:
         author = routed.executor if routed.executor is not None else issuer
-        title = f"{_describe(state, routed)}: {_outcome(routed)}"
+        partial = _partial_move(routed)
+        if partial is None:
+            title = f"{_describe(state, routed)}: {_outcome(routed)}"
+        else:
+            move, posture = partial
+            force = state.features.get(move.force)
+            title = (
+                f"{force.name} stayed at {_name(state, force.places[0])}; "
+                f"took the {words(posture.value)} posture"
+                if force is not None
+                else f"{_describe(state, routed)}: {_outcome(routed)}"
+            )
     if len(title) > LINE:
         title = title[: LINE - 1].rsplit(" ", 1)[0].rstrip(" ,:;") + "…"
     body = [BodyField(label="Ordered", value=safe(_describe(state, routed))[:LINE])]
     if routed.refusal:
         body.append(BodyField(label="Refused under", value=safe(routed.refusal)[:LINE]))
     elif routed.fidelity is not None:
-        body.append(BodyField(label="Carried out", value=routed.fidelity.value))
+        carried = "posture only" if _partial_move(routed) is not None else routed.fidelity.value
+        body.append(BodyField(label="Carried out", value=carried))
     if routed.reason:
         body += _lines(safe(routed.reason), "Account")
     channels = reach.channels_to(state, issuer, author) if author != issuer else ()

@@ -106,8 +106,10 @@ class DocumentTruth(Model):
     truth_refs: tuple[TruthRef, ...] = ()
     bias: Bias = Bias()
     sightings: tuple[SightRef, ...] = ()
+    news_id: Label | None = Field(default=None, exclude_if=lambda v: v is None)
+    """The public ``NewsEvent`` a press page words; None for every other document."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"sightings"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"sightings", "news_id"})
 
 
 class Document(Model):

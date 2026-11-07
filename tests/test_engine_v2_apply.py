@@ -16,6 +16,7 @@ from revisionist.core.realism import effect as rx
 from revisionist.core.realism import reach
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.apply import REASON_WITHHELD, apply_due, as_carried, report
+from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.geography import SPEED_KM_PER_DAY, Feature, km_between
 from revisionist.core.realism.resolvers import movement
 from revisionist.core.state import State
@@ -176,6 +177,17 @@ def test_partial_move_keeps_the_force_in_place_with_the_posture(sl: Slice) -> No
     ft = sl.state.features[sl.feature("us_atlantic_fleet")]
     assert ft.posture is rx.Posture.ESCORT and ft.bound_for is None
     assert ft.places == (sl.entity("norfolk"),)
+
+
+def test_a_partly_carried_move_says_the_force_stayed_and_took_the_posture(sl: Slice) -> None:
+    move = rx.MoveForce(
+        force=sl.feature("us_atlantic_fleet"), to=sl.entity("argentia"), posture=rx.Posture.ESCORT
+    )
+    order = sl.shoot_on_sight(effect=move)
+    executed(sl, order, rx.Fidelity.PARTIAL)
+    doc = next(p for p in land(sl, order) if isinstance(p, ev.DocumentIssued))
+    assert doc.document.title == "US Atlantic Fleet stayed at Norfolk; took the Escort posture"
+    assert BodyField(label="Carried out", value="posture only") in doc.document.body
 
 
 def test_a_zone_given_as_a_place_id_is_titled_by_name(sl: Slice) -> None:

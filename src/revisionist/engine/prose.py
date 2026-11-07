@@ -71,11 +71,12 @@ def author_of(state: State, entity: EntityId, pages: Sequence[DocumentView] = ()
     """The author block for ``entity``: the name, the office, the card's voice and who each
     of ``pages`` is addressed to. Read here, from the state, so no writer ever needs one."""
     card = state.cards.get(entity)
+    outlet = state.outlets.get(entity) if card is None else None
     return Author(
         entity=entity,
         name=state.entities[entity].name,
-        office=card.office if card is not None else "",
-        voice=card.voice if card is not None else "",
+        office=card.office if card is not None else "newspaper" if outlet is not None else "",
+        voice=card.voice if card is not None else outlet.voice if outlet is not None else "",
         to={p.doc_id: to for p in pages if (to := _addressee(state, p))},
     )
 

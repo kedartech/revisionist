@@ -13,8 +13,8 @@ SessionZeroOpened, CharacterListed, CharacterClaimed,
 SessionZeroClosed, SeasonEnded, GoalSet, GoalProgressed, GoalMet, GoalUndone,
 TickOpened, TickClosed``, and for realism campaigns ``CardsDeclared,
 DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, QuantitySet,
-FeatureSet``, and under engine v2 ``OrderRouted, OrderExecuted, EffectsEstimated,
-EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
+FeatureSet, WarDeclared, NewsReported``, and under engine v2 ``OrderRouted, OrderExecuted,
+EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet``.
 
 Every other kind is a record: it is replayable, searchable and shown by
@@ -74,6 +74,7 @@ from revisionist.core.realism.effect import Effect, EffectKind, Fidelity, Routed
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import Order, OrderStatus, Pipeline, StepOutcome
 from revisionist.core.realism.quantity import Quantity
+from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.resolution import FeasibilityBand, OutcomeTier, RejectionReason, TickStage
 from revisionist.core.settings import Settings
 from revisionist.core.state import Ruleset
@@ -514,8 +515,10 @@ class CardsDeclared(Model):
     pipelines: tuple[Pipeline, ...] = ()
     templates: tuple[MandateTemplate, ...] = ()
     """Engine v2: the mandates the world issues when their triggers fire."""
+    outlets: tuple[Outlet, ...] = ()
+    """Each polity's newspaper, for the press to word public news in."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"templates"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"templates", "outlets"})
 
 
 class DocumentIssued(Model):
@@ -590,6 +593,20 @@ class FeatureSet(Model):
 
     kind: Literal["feature_set"] = "feature_set"
     feature: Feature
+
+
+class WarDeclared(Model):
+    """Two polities are at war. Public."""
+
+    kind: Literal["war_declared"] = "war_declared"
+    war: War
+
+
+class NewsReported(Model):
+    """A public event, as structured facts. Each seat's press words it later."""
+
+    kind: Literal["news_reported"] = "news_reported"
+    news: NewsEvent
 
 
 class CounselHeld(Model):
@@ -850,6 +867,8 @@ Payload = Annotated[
     | OrderSettled
     | QuantitySet
     | FeatureSet
+    | WarDeclared
+    | NewsReported
     | CounselHeld
     | DirectiveGiven
     | OrderRouted
@@ -912,6 +931,8 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "order_settled",
         "quantity_set",
         "feature_set",
+        "war_declared",
+        "news_reported",
         "order_routed",
         "order_executed",
         "effects_estimated",

@@ -1,10 +1,122 @@
 // The in-tray as a message list with a reading pane (In-Tray follow-up, unit T1).
-// contract stub: until T1 lands, the folder grid, and an opened paper replaces it.
 
-import { dossier, inTray } from './realism.js';
+import { h } from '../dom.js';
+import { TRAY_FILTERS, filterInTray, sortInTray, trayCounts } from '../realism-rules.js';
+import { worldDate } from '../rules.js';
+import { dossier } from './realism.js';
+
+/** Fold same-group papers into one row at the place of the group's newest paper. Does not mutate `items`. */
+export function trayRows(items) {
+  const groups = new Map();
+  items.forEach((item, i) => {
+    if (item.group == null) return;
+    const g = groups.get(item.group) || { items: [], at: i };
+    g.items.push(item);
+    if (item.arrives > items[g.at].arrives) g.at = i;
+    groups.set(item.group, g);
+  });
+  const rows = [];
+  items.forEach((item, i) => {
+    if (item.group == null) { rows.push({ type: 'paper', item }); return; }
+    const g = groups.get(item.group);
+    if (g.at !== i) return;
+    rows.push({
+      type: 'group', group: item.group, count: g.items.length,
+      unread: g.items.filter((d) => d.unread).length, latest: item, items: g.items.slice(),
+    });
+  });
+  return rows;
+}
+
+export function rowLabel(row) {
+  if (row.type === 'group') return `${row.group} (${row.count} ${row.count === 1 ? 'paper' : 'papers'})`;
+  return `${row.item.author} — ${row.item.title}`;
+}
+
+function tabBar(filter, counts, onFilter) {
+  return TRAY_FILTERS.map(([key, word]) => h('button', {
+    type: 'button', role: 'tab', id: `rl-filter-${key}`, 'aria-selected': String(filter === key),
+    'aria-controls': 'rl-folders', tabindex: filter === key ? 0 : -1, class: 'rl-filter',
+    onclick: () => onFilter?.(key),
+    onkeydown: (e) => {
+      const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!step) return;
+      e.preventDefault();
+      const last = TRAY_FILTERS.length - 1;
+      let to = TRAY_FILTERS.findIndex(([k]) => k === key) + step;
+      if (to < 0) to = last;
+      if (to > last) to = 0;
+      onFilter?.(TRAY_FILTERS[to][0], true);
+    },
+  }, word, h('span', { class: 'rl-count' }, ` ${counts[key]}`)));
+}
+
+function moveFocus(e) {
+  const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+  if (!step) return;
+  e.preventDefault();
+  const rows = [...e.currentTarget.closest('[role="listbox"]').querySelectorAll('.rl-row')]
+    .filter((r) => !r.closest('[hidden]'));
+  rows[rows.indexOf(e.currentTarget) + step]?.focus();
+}
+
+function paperRow(item, onOpen, open, nested) {
+  return h('button', {
+    type: 'button', role: 'option', class: `rl-row rl-row-paper${nested ? ' rl-row-nested' : ''}`,
+    'aria-selected': String(open?.id === item.id), onclick: () => onOpen?.(item), onkeydown: moveFocus,
+  },
+  h('span', { class: item.unread ? 'rl-dot rl-dot-on' : 'rl-dot', title: item.unread ? 'Unread' : '' }),
+  h('span', { class: 'rl-row-main' },
+    h('span', { class: 'rl-row-from' }, item.author),
+    h('span', { class: 'rl-row-title' }, item.title)),
+  h('span', { class: 'rl-row-date' }, worldDate(item.arrives)),
+  item.flagged ? h('span', { class: 'rl-flag', title: 'Flagged' }, 'Flagged') : null);
+}
+
+function groupRow(row, onOpen, open) {
+  const holds = open && row.items.some((d) => d.id === open.id);
+  const kids = h('div', { class: 'rl-group-papers', role: 'presentation', hidden: !holds },
+    row.items.map((d) => paperRow(d, onOpen, open, true)));
+  const head = h('button', {
+    type: 'button', class: 'rl-row rl-row-group', 'aria-expanded': String(!!holds), onkeydown: moveFocus,
+    onclick: () => {
+      const on = head.getAttribute('aria-expanded') !== 'true';
+      head.setAttribute('aria-expanded', String(on));
+      kids.hidden = !on;
+    },
+  },
+  h('span', { class: row.unread ? 'rl-dot rl-dot-on' : 'rl-dot' }),
+  h('span', { class: 'rl-row-main' }, h('span', { class: 'rl-row-title' }, rowLabel(row))),
+  h('span', { class: 'rl-row-date' }, worldDate(row.latest.arrives)),
+  row.unread ? h('span', { class: 'rl-row-unread' }, `${row.unread} unread`) : null);
+  return h('li', { class: 'rl-group', role: 'presentation' }, head, kids);
+}
 
 /** The tray panel. `opts`: { filter, sort, onFilter, onSort, page, onClose, onFlag, wide }. */
 export function trayView(listing, onOpen, opts = {}) {
-  if (opts.page) return dossier(opts.page, { onClose: opts.onClose, onFlag: opts.onFlag });
-  return inTray(listing, onOpen, opts);
+  const { filter = 'all', sort = 'newest', onFilter, onSort, page } = opts;
+  const counts = trayCounts(listing.documents);
+  const rows = trayRows(sortInTray(filterInTray(listing.documents, filter), sort));
+  const open = page?.item;
+  return h('section', { class: 'rl-tray', 'aria-labelledby': 'rl-tray-h' },
+    h('h2', { id: 'rl-tray-h' }, 'In-tray'),
+    h('div', { class: 'rl-bar' },
+      h('div', { role: 'tablist', 'aria-label': 'Show papers', class: 'rl-filters' }, tabBar(filter, counts, onFilter)),
+      h('label', { class: 'rl-sort' }, 'Sort ',
+        h('select', { name: 'sort', onchange: (e) => onSort?.(e.target.value) },
+          h('option', { value: 'newest', selected: sort === 'newest' }, 'Newest first'),
+          h('option', { value: 'oldest', selected: sort === 'oldest' }, 'Oldest first')))),
+    h('div', { role: 'tabpanel', id: 'rl-folders', 'aria-labelledby': `rl-filter-${filter}` },
+      h('div', { class: `rl-mail${page ? ' rl-mail-open' : ''}` },
+        h('div', { class: 'rl-mail-list' },
+          rows.length
+            ? h('ul', { class: 'rl-rows', role: 'listbox', 'aria-label': 'Papers' },
+              rows.map((r) => r.type === 'group'
+                ? groupRow(r, onOpen, open)
+                : h('li', { role: 'presentation' }, paperRow(r.item, onOpen, open, false))))
+            : h('p', { class: 'rl-none' }, 'Nothing in this tray.')),
+        h('div', { class: 'rl-mail-pane' },
+          page
+            ? dossier(page, { onClose: opts.onClose, onFlag: opts.onFlag })
+            : h('p', { class: 'rl-none' }, 'Choose a paper to read it here.')))));
 }

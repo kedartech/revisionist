@@ -6,8 +6,8 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
-  STYLES, agendaItems, agendaList, answerWord, commitBusy, commitCount, deadlineWords, itemDates, itemHeading,
-  optionLines, orderAddress, orderHeading, partLines,
+  STYLES, agendaItems, agendaList, answerWord, commitBusy, commitCount, commitHint, deadlineWords, itemDates,
+  itemHeading, optionLines, orderAddress, orderHeading, partLines,
 } from '../js/views/realism-wake.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
@@ -30,10 +30,19 @@ test('no deadline, no line', () => {
 });
 
 test('the commit line is a count, and the last commit says the wake runs', () => {
-  assert.equal(commitCount(wake), '1 of 2 committed');
+  assert.equal(commitCount(wake), '1 of 2 players committed');
+  assert.equal(commitCount({ committed: 0, humans: 1 }), '0 of 1 player committed');
   assert.match(commitBusy({ committed: 1, humans: 2 }), /wake is running/);
   assert.match(commitBusy({ committed: 0, humans: 1 }), /wake is running/);
   assert.doesNotMatch(commitBusy({ committed: 0, humans: 2 }), /wake is running/);
+});
+
+test('the commit hint shows only while a wake is open and you have not committed', () => {
+  const hint = 'Your aide plays any seat that has not committed when the wake closes.';
+  assert.equal(commitHint({ deadline: wake.deadline, you_committed: false }), hint);
+  assert.equal(commitHint({ deadline: wake.deadline, you_committed: true }), null);
+  assert.equal(commitHint({ deadline: null, you_committed: false }), null);
+  assert.equal(commitHint(wake), null);
 });
 
 test('the three play styles say what they do', () => {

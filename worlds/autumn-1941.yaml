@@ -1,0 +1,1489 @@
+# Autumn 1941: 1 September to 7 December 1941, a realism world (realism plan, Phase 3).
+#
+# No seat is pre-assigned: any of the eight playable cards may be claimed at
+# Session Zero and the rest are run by code. Every figure is cited to a source
+# declared below (values from the Phase 0b source note) or left `gap: true`
+# with no value. Step lengths, feed cadences and horizons are unsourced gaps or
+# design values [proposed], not data. Offices are as of 1 September 1941.
+# There is no Map Room feed: it was established in January 1942.
+
+world: autumn-1941
+name: Autumn 1941
+ruleset: realism
+start: "Washington, September 1941"
+start_date: 1941-09-01
+
+entities:
+  - {key: usa, kind: polity, name: United States}
+  - {key: uk, kind: polity, name: United Kingdom}
+  - {key: japan, kind: polity, name: Japan}
+  - {key: germany, kind: polity, name: Germany}
+  - {key: italy, kind: polity, name: Italy}
+  - {key: ussr, kind: polity, name: Soviet Union}
+  - {key: china, kind: polity, name: China}
+  - {key: house, kind: org, name: House of Representatives, parent: usa}
+  - {key: senate, kind: org, name: Senate, parent: usa}
+  - {key: state_dept, kind: org, name: Department of State, parent: usa}
+  - {key: war_dept, kind: org, name: War Department, parent: usa}
+  - {key: navy_dept, kind: org, name: Navy Department, parent: usa}
+  - {key: treasury, kind: org, name: Treasury Department, parent: usa}
+  - {key: white_house, kind: org, name: The White House, parent: usa}
+  - {key: interventionists, kind: org, name: Aid-to-Britain bloc, parent: usa}
+  - {key: noninterventionists, kind: org, name: Non-interventionist bloc, parent: usa}
+  - {key: commons, kind: org, name: House of Commons, parent: uk}
+  - {key: chiefs_of_staff, kind: org, name: Chiefs of Staff Committee, parent: uk}
+  - {key: okw, kind: org, name: Oberkommando der Wehrmacht, parent: germany}
+  - {key: kriegsmarine, kind: org, name: Kriegsmarine, parent: germany}
+  - {key: stavka, kind: org, name: Stavka and the State Defence Committee, parent: ussr}
+  - {key: comando_supremo, kind: org, name: Comando Supremo, parent: italy}
+  - {key: military_affairs_commission, kind: org, name: Military Affairs Commission, parent: china}
+  # Positions are approximate (latitude, longitude) for the map [proposed].
+  - {key: washington, kind: location, name: Washington, at: [38.9, -77.0]}
+  - {key: london, kind: location, name: London, at: [51.5, -0.1]}
+  - {key: tokyo, kind: location, name: Tokyo, at: [35.7, 139.7]}
+  - {key: berlin, kind: location, name: Berlin, at: [52.5, 13.4]}
+  - {key: moscow, kind: location, name: Moscow, at: [55.8, 37.6]}
+  - {key: rome, kind: location, name: Rome, at: [41.9, 12.5]}
+  - {key: chungking, kind: location, name: Chungking, at: [29.6, 106.6]}
+  - {key: north_atlantic, kind: location, name: North Atlantic, at: [55.0, -30.0]}
+  - {key: norfolk, kind: location, name: Norfolk, at: [36.9, -76.3]}
+  - {key: argentia, kind: location, name: Argentia, at: [47.3, -54.0]}
+  - {key: halifax_port, kind: location, name: Halifax, at: [44.6, -63.6]}
+  - {key: sydney_cb, kind: location, name: "Sydney, Cape Breton", at: [46.1, -60.2]}
+  - {key: reykjavik, kind: location, name: Reykjavik, at: [64.1, -21.9]}
+  - {key: liverpool, kind: location, name: Liverpool, at: [53.4, -3.0]}
+  - {key: scapa_flow, kind: location, name: Scapa Flow, at: [58.9, -3.1]}
+  - {key: lorient, kind: location, name: Lorient, at: [47.7, -3.4]}
+  - {key: archangel, kind: location, name: Archangel, at: [64.5, 40.5]}
+  - {key: leningrad, kind: location, name: Leningrad, at: [59.9, 30.3]}
+  - {key: smolensk, kind: location, name: Smolensk, at: [54.8, 32.0]}
+  - {key: vyazma, kind: location, name: Vyazma, at: [55.2, 34.3]}
+  - {key: kalinin, kind: location, name: Kalinin, at: [56.9, 35.9]}
+  - {key: mozhaisk, kind: location, name: Mozhaisk, at: [55.5, 36.0]}
+  - {key: kiev, kind: location, name: Kiev, at: [50.5, 30.5]}
+  - {key: poltava, kind: location, name: Poltava, at: [49.6, 34.6]}
+  - {key: kharkov, kind: location, name: Kharkov, at: [50.0, 36.2]}
+  - {key: odessa, kind: location, name: Odessa, at: [46.5, 30.7]}
+  - {key: taganrog, kind: location, name: Taganrog, at: [47.2, 38.9]}
+  - {key: pearl_harbor_base, kind: location, name: Pearl Harbor, at: [21.4, -158.0]}
+  - {key: kure, kind: location, name: Kure, at: [34.2, 132.6]}
+  - {key: hitokappu_bay, kind: location, name: Hitokappu Bay, at: [44.9, 147.6]}
+  # United States
+  - {key: roosevelt, kind: person, name: Franklin D. Roosevelt, parent: usa}
+  - {key: wallace, kind: person, name: Henry A. Wallace, parent: usa}
+  - {key: hull, kind: person, name: Cordell Hull, parent: state_dept}
+  - {key: welles, kind: person, name: Sumner Welles, parent: state_dept}
+  - {key: grew, kind: person, name: Joseph C. Grew, parent: state_dept}
+  - {key: stimson, kind: person, name: Henry L. Stimson, parent: war_dept}
+  - {key: marshall, kind: person, name: George C. Marshall, parent: war_dept}
+  - {key: knox, kind: person, name: Frank Knox, parent: navy_dept}
+  - {key: stark, kind: person, name: Harold R. Stark, parent: navy_dept}
+  - {key: king, kind: person, name: Ernest J. King, parent: navy_dept}
+  - {key: kramer, kind: person, name: Alwin D. Kramer, parent: navy_dept}
+  - {key: morgenthau, kind: person, name: Henry Morgenthau Jr., parent: treasury}
+  - {key: hopkins, kind: person, name: Harry L. Hopkins, parent: white_house}
+  - {key: early, kind: person, name: Stephen T. Early, parent: white_house}
+  - {key: stettinius, kind: person, name: Edward R. Stettinius Jr., parent: usa}
+  - {key: wh_clerk, kind: person, name: White House executive clerk, parent: white_house}
+  - {key: cable_clerk, kind: person, name: State Department cable clerk, parent: state_dept}
+  - {key: rayburn, kind: person, name: Sam Rayburn, parent: house}
+  - {key: mccormack, kind: person, name: John W. McCormack, parent: house}
+  - {key: house_clerk, kind: person, name: House committee clerk, parent: house}
+  - {key: barkley, kind: person, name: Alben W. Barkley, parent: senate}
+  - {key: wheeler, kind: person, name: Burton K. Wheeler, parent: senate}
+  - {key: nye, kind: person, name: Gerald P. Nye, parent: senate}
+  # United Kingdom
+  - {key: churchill, kind: person, name: Winston Churchill, parent: uk}
+  - {key: eden, kind: person, name: Anthony Eden, parent: uk}
+  - {key: halifax, kind: person, name: Lord Halifax, parent: uk}
+  - {key: pound, kind: person, name: Sir Dudley Pound, parent: chiefs_of_staff}
+  - {key: ismay, kind: person, name: Sir Hastings Ismay, parent: chiefs_of_staff}
+  - {key: uk_cipher_clerk, kind: person, name: Downing Street cipher clerk, parent: uk}
+  - {key: bbc_clerk, kind: person, name: BBC talks duty officer, parent: uk}
+  # Japan
+  - {key: konoe, kind: person, name: Fumimaro Konoe, parent: japan}
+  - {key: tojo, kind: person, name: Hideki Tojo, parent: japan}
+  - {key: hirohito, kind: person, name: Emperor Hirohito, parent: japan}
+  - {key: nomura, kind: person, name: Kichisaburo Nomura, parent: japan}
+  - {key: kurusu, kind: person, name: Saburo Kurusu, parent: japan}
+  - {key: sugiyama, kind: person, name: Hajime Sugiyama, parent: japan}
+  - {key: nagano, kind: person, name: Osami Nagano, parent: japan}
+  - {key: cabinet_clerk, kind: person, name: Cabinet Secretariat clerk, parent: japan}
+  # Germany, Italy
+  - {key: hitler, kind: person, name: Adolf Hitler, parent: germany}
+  - {key: goering, kind: person, name: Hermann Goering, parent: germany}
+  - {key: ribbentrop, kind: person, name: Joachim von Ribbentrop, parent: germany}
+  - {key: raeder, kind: person, name: Erich Raeder, parent: kriegsmarine}
+  - {key: jodl, kind: person, name: Alfred Jodl, parent: okw}
+  - {key: mussolini, kind: person, name: Benito Mussolini, parent: italy}
+  - {key: victor_emmanuel, kind: person, name: King Victor Emmanuel III, parent: italy}
+  - {key: cavallero, kind: person, name: Ugo Cavallero, parent: comando_supremo}
+  # Soviet Union, China
+  - {key: stalin, kind: person, name: Joseph Stalin, parent: ussr}
+  - {key: molotov, kind: person, name: Vyacheslav Molotov, parent: ussr}
+  - {key: shaposhnikov, kind: person, name: Boris Shaposhnikov, parent: stavka}
+  - {key: chiang, kind: person, name: Chiang Kai-shek, parent: china}
+  - {key: he_yingqin, kind: person, name: He Yingqin, parent: military_affairs_commission}
+  - {key: soong, kind: person, name: T. V. Soong, parent: china}
+  - {key: washington_ledger, kind: org, name: "The Washington Ledger", parent: usa, tags: [press]}
+  - {key: reichsbote, kind: org, name: "Der Reichsbote", parent: germany, tags: [press]}
+  - {key: london_chronicle, kind: org, name: "The London Chronicle", parent: uk, tags: [press]}
+  - {key: rising_sun_courier, kind: org, name: "The Rising Sun Courier", parent: japan, tags: [press]}
+  - {key: gazzetta_impero, kind: org, name: "Gazzetta dell'Impero", parent: italy, tags: [press]}
+  - {key: krasnaya_zarya, kind: org, name: "Krasnaya Zarya", parent: ussr, tags: [press]}
+  - {key: chungking_herald, kind: org, name: "The Chungking Herald", parent: china, tags: [press]}
+
+# Invented papers: any match to a real one is accidental.
+outlets:
+  - key: washington_ledger
+    polity: usa
+    name: "The Washington Ledger"
+    voice: "American broadsheet. Brisk, factual headlines; quotes officials and congressmen; wary of foreign wars but sympathetic to Britain."
+  - key: reichsbote
+    polity: germany
+    name: "Der Reichsbote"
+    voice: "Party-line German daily. Triumphant and defiant; blames Germany's enemies; praises the Führer's resolve; never states a setback plainly."
+  - key: london_chronicle
+    polity: uk
+    name: "The London Chronicle"
+    voice: "British daily. Measured and resolute; stresses the Empire's endurance and the value of friends abroad."
+  - key: rising_sun_courier
+    polity: japan
+    name: "The Rising Sun Courier"
+    voice: "Japanese daily under censorship. Formal; stresses national unity and encirclement by the Western powers."
+  - key: gazzetta_impero
+    polity: italy
+    name: "Gazzetta dell'Impero"
+    voice: "Fascist Italian daily. Grandiose, Roman imagery; loyal to the Duce; follows Berlin's line."
+  - key: krasnaya_zarya
+    polity: ussr
+    name: "Krasnaya Zarya"
+    voice: "Soviet party daily. Ideological; collective heroism at the front; denounces the fascist aggressor."
+  - key: chungking_herald
+    polity: china
+    name: "The Chungking Herald"
+    voice: "Nationalist Chinese daily. Defiant; appeals for Allied aid; reports Japanese outrages."
+
+assets:
+  - {key: us_presidency, kind: office, name: President of the United States, tier: 5, controller: roosevelt}
+  - {key: uk_premiership, kind: office, name: Prime Minister of the United Kingdom, tier: 4, controller: churchill}
+  - {key: soviet_chairmanship, kind: office, name: Chairman of the Council of People's Commissars, tier: 5, controller: stalin}
+  - {key: reich_chancellorship, kind: office, name: Fuehrer and Reich Chancellor, tier: 5, controller: hitler}
+  - {key: japan_premiership, kind: office, name: Prime Minister of Japan, tier: 4, controller: konoe}
+  - {key: army_ministry, kind: office, name: Army Minister of Japan, tier: 3, controller: tojo}
+  - {key: italian_premiership, kind: office, name: Prime Minister of Italy, tier: 3, controller: mussolini}
+  - {key: chinese_chairmanship, kind: office, name: Chairman of the National Government, tier: 4, controller: chiang}
+
+sources:
+  - key: voteview
+    title: "Voteview: congressional roll-call votes"
+    note: "Roll calls RH0770063, RH0770068, RS0770084 (SOURCES.md, agreed by both readers). The 13 Nov House concurrence is single-reader."
+    verified: true
+  - key: frus_1941
+    title: Foreign Relations of the United States, 1941, vol. I
+    note: "Soviet Lend-Lease eligibility finding, letter to Stettinius, 7 Nov 1941 (SOURCES.md, agreed)."
+    verified: true
+  - key: congress_77th
+    title: Party division at the start of the 77th Congress (Clerk of the House)
+    note: "SOURCES.md. Counted at Jan 1941, not 1 Sep. Readers differ by one House seat (+-1 gap)."
+  - key: uboat_war_tables
+    title: Allied merchant losses to U-boats by month, 1941 (GRT)
+    note: "Phase 0b note (agreed). The underlying table is not named there; name it before release."
+    verified: true
+  - key: us_war_production
+    title: US wartime production totals, 1941 (aircraft; merchant ship deliveries)
+    note: "Phase 0b note (agreed). The underlying table is not named there; name it before release."
+    verified: true
+  - key: lend_lease_appropriations
+    title: Second Lend-Lease Appropriation, October 1941
+    note: "Phase 0b note (agreed): $5,985,000,000. The statute is not cited there."
+    verified: true
+  - key: rohwer_uboats
+    title: Rohwer, via a table of U-boats operational in the Atlantic
+    note: "SOURCES.md: about 30, a Jul-Sep 1941 average, not a September count. Blair would settle it."
+  - key: hjr237_timeline
+    title: "H.J.Res. 237 (Neutrality revision), 1941: from message to signature"
+    note: "FDR's message 9 Oct (H. Doc. 77-404); House 17 Oct 259-138 (RH0770068); Senate 7 Nov 50-37 (RS0770084); House concurs 13 Nov 212-194 (RH0770070); signed 17 Nov."
+    verified: true
+  - key: gallup_1941
+    title: Gallup polls of 1941 (ibiblio transcription)
+    note: "SOURCES.md: 8 Oct 1941 FDR 'about right' 57%, 'too far' 27%, 'not far enough' 16%; 22 Nov 26% for war on Germany."
+
+quantities:
+  - {key: senate_democrats, owner: senate, name: Senate Democrats, value: 66, unit: seats, source: congress_77th, public: true}
+  - {key: senate_republicans, owner: senate, name: Senate Republicans, value: 28, unit: seats, source: congress_77th, public: true}
+  - {key: senate_other, owner: senate, name: Senate other members, value: 2, unit: seats, source: congress_77th, public: true}
+  - {key: house_democrats, owner: house, name: House Democrats, value: 267, unit: seats, source: congress_77th, public: true}
+  - {key: house_republicans, owner: house, name: House Republicans, value: 162, unit: seats, source: congress_77th, public: true}
+  - {key: house_other, owner: house, name: House other members, value: 5, unit: seats, source: congress_77th, public: true}
+  - {key: draft_extension_yeas, owner: house, name: House yeas on draft extension, value: 203, unit: votes, as_of: 1941-08-12, source: voteview, public: true}
+  - {key: draft_extension_nays, owner: house, name: House nays on draft extension, value: 202, unit: votes, as_of: 1941-08-12, source: voteview, public: true}
+  - {key: uboat_losses_sep, name: "Allied merchant losses to U-boats, Sep 1941", value: 209835, unit: GRT, source: uboat_war_tables}
+  - {key: uboats_operational, owner: germany, name: U-boats operational in the Atlantic, value: 30, unit: boats (Jul-Sep average), source: rohwer_uboats}
+  - {key: us_aircraft_1941, owner: usa, name: "US aircraft production, 1941", value: 19433, unit: aircraft, source: us_war_production}
+  - {key: us_ship_deliveries_1941, owner: usa, name: "US merchant ships delivered, 1941", value: 103, unit: ships, source: us_war_production}
+  - {key: us_ship_dwt_1941, owner: usa, name: "US merchant ship deliveries, 1941", value: 1159765, unit: DWT, source: us_war_production}
+  - {key: lend_lease_second_appropriation, owner: usa, name: Second Lend-Lease appropriation, value: 5985000000, unit: USD, source: lend_lease_appropriations}
+  # Survey 6/26-7/1/41, the last release before the start: too far 23, about right 55, not far enough 22.
+  - {key: gallup_fdr_about_right, owner: usa, name: "Gallup, Roosevelt's course 'about right'", value: 55, unit: percent, source: gallup_1941, public: true}
+  - {key: gallup_declare_war_germany, owner: usa, name: "Gallup, declare war on Germany", unit: percent, gap: true, public: true}
+  - {key: gallup_help_britain, owner: usa, name: "Gallup, help Britain even at risk of war", unit: percent, gap: true, public: true}
+  - {key: japan_oil_stocks, owner: japan, name: Japanese oil stocks, unit: months of supply, gap: true}
+  - {key: senate_neutrality_yeas, owner: senate, name: Senate Neutrality revision vote, unit: votes, gap: true}
+  # Computed: resolver outputs. No value until code computes one.
+  - {key: neutrality_revision_house_yeas, owner: house, name: "House yeas on Neutrality revision", unit: votes, computed: true, public: true}
+  - {key: neutrality_revision_house_nays, owner: house, name: "House nays on Neutrality revision", unit: votes, computed: true, public: true}
+  - {key: neutrality_revision_senate_yeas, owner: senate, name: "Senate yeas on Neutrality revision", unit: votes, computed: true, public: true}
+  - {key: neutrality_revision_senate_nays, owner: senate, name: "Senate nays on Neutrality revision", unit: votes, computed: true, public: true}
+  - {key: neutrality_revision_concur_yeas, owner: house, name: "House concurrence yeas on Neutrality revision", unit: votes, computed: true, public: true}
+  - {key: neutrality_revision_concur_nays, owner: house, name: "House concurrence nays on Neutrality revision", unit: votes, computed: true, public: true}
+  - {key: neutrality_revision_passed, owner: usa, name: "Whether Neutrality revision became law (1 yes, 0 no)", unit: flag, computed: true, public: true}
+  - {key: arm_merchant_ships_house_yeas, owner: house, name: "House yeas on arming merchant ships", unit: votes, computed: true, public: true}
+  - {key: arm_merchant_ships_house_nays, owner: house, name: "House nays on arming merchant ships", unit: votes, computed: true, public: true}
+  - {key: arm_merchant_ships_senate_yeas, owner: senate, name: "Senate yeas on arming merchant ships", unit: votes, computed: true, public: true}
+  - {key: arm_merchant_ships_senate_nays, owner: senate, name: "Senate nays on arming merchant ships", unit: votes, computed: true, public: true}
+  - {key: arm_merchant_ships_passed, owner: usa, name: "Whether arming merchant ships became law (1 yes, 0 no)", unit: flag, computed: true, public: true}
+  - {key: lend_lease_appropriation_house_yeas, owner: house, name: "House yeas on the Lend-Lease appropriation", unit: votes, computed: true, public: true}
+  - {key: lend_lease_appropriation_house_nays, owner: house, name: "House nays on the Lend-Lease appropriation", unit: votes, computed: true, public: true}
+  - {key: lend_lease_appropriation_senate_yeas, owner: senate, name: "Senate yeas on the Lend-Lease appropriation", unit: votes, computed: true, public: true}
+  - {key: lend_lease_appropriation_senate_nays, owner: senate, name: "Senate nays on the Lend-Lease appropriation", unit: votes, computed: true, public: true}
+  - {key: lend_lease_appropriation_passed, owner: usa, name: "Whether Lend-Lease money became law (1 yes, 0 no)", unit: flag, computed: true, public: true}
+  - {key: draft_extension_house_yeas, owner: house, name: "House yeas on draft extension", unit: votes, computed: true, public: true}
+  - {key: draft_extension_house_nays, owner: house, name: "House nays on draft extension", unit: votes, computed: true, public: true}
+  - {key: draft_extension_senate_yeas, owner: senate, name: "Senate yeas on draft extension", unit: votes, computed: true, public: true}
+  - {key: draft_extension_senate_nays, owner: senate, name: "Senate nays on draft extension", unit: votes, computed: true, public: true}
+  - {key: draft_extension_passed, owner: usa, name: "Whether draft extension became law (1 yes, 0 no)", unit: flag, computed: true, public: true}
+  - {key: uboat_losses_oct, name: "Allied merchant losses to U-boats, Oct 1941", unit: GRT, computed: true}
+  - {key: uboat_losses_nov, name: "Allied merchant losses to U-boats, Nov 1941", unit: GRT, computed: true}
+  - {key: soviet_lend_lease_eligible, owner: usa, name: "Soviet Union eligible for Lend-Lease (1 yes, 0 no)", unit: flag, computed: true}
+  - {key: lend_lease_share_uk, owner: usa, name: Lend-Lease allocated to Britain, unit: USD, computed: true}
+  - {key: lend_lease_share_ussr, owner: usa, name: Lend-Lease allocated to the Soviet Union, unit: USD, computed: true}
+  - {key: lend_lease_share_china, owner: usa, name: Lend-Lease allocated to China, unit: USD, computed: true}
+  - {key: us_atlantic_escort, owner: usa, name: "US Atlantic escort (0 none, 1 escort, 2 shoot on sight)", unit: level, computed: true}
+  - {key: uboat_posture, owner: germany, name: "U-boat posture to US ships (0 restrict, 1 open)", unit: level, computed: true}
+  - {key: opinion_target, owner: usa, name: "Where 'about right' is heading", unit: percent, computed: true}
+
+# The map. Positions and dates are approximate and unsourced (gap: true): a
+# force's legs are where the record has it if nobody orders it elsewhere.
+features:
+  - {key: us_atlantic_fleet, kind: fleet, name: US Atlantic Fleet, side: usa, tier: 4, places: [norfolk], gap: true}
+  - {key: us_pacific_fleet, kind: fleet, name: US Pacific Fleet, side: usa, tier: 5, places: [pearl_harbor_base], gap: true}
+  - {key: home_fleet, kind: fleet, name: Home Fleet, side: uk, tier: 4, places: [scapa_flow], gap: true}
+  - {key: uboat_arm, kind: fleet, name: U-boat arm, side: germany, tier: 3, places: [lorient], gap: true}
+  - key: combined_fleet
+    kind: fleet
+    name: Combined Fleet
+    side: japan
+    tier: 5
+    places: [kure]
+    legs: [{since: 1941-11-22, places: [hitokappu_bay]}]
+    gap: true
+  - key: army_group_centre
+    kind: army
+    name: Army Group Centre
+    side: germany
+    tier: 5
+    places: [smolensk]
+    legs: [{since: 1941-10-07, places: [vyazma]}, {since: 1941-10-24, places: [mozhaisk]}]
+    gap: true
+  - key: soviet_western_front
+    kind: army
+    name: Soviet Western Front
+    side: ussr
+    tier: 4
+    places: [vyazma]
+    legs: [{since: 1941-10-12, places: [mozhaisk]}, {since: 1941-10-24, places: [moscow]}]
+    gap: true
+  - key: eastern_front
+    kind: front
+    name: The Eastern Front
+    places: [leningrad, smolensk, kiev, odessa]
+    legs:
+      - {since: 1941-09-26, places: [leningrad, smolensk, poltava, odessa]}
+      - {since: 1941-10-24, places: [leningrad, kalinin, mozhaisk, kharkov, taganrog]}
+    gap: true
+  - {key: hx_route, kind: route, name: HX convoys, side: uk, places: [halifax_port, north_atlantic, liverpool], gap: true}
+  - {key: sc_route, kind: route, name: SC convoys, side: uk, places: [sydney_cb, north_atlantic, liverpool], gap: true}
+  - {key: arctic_route, kind: route, name: Arctic convoys, side: uk, places: [reykjavik, archangel], gap: true}
+
+feeds:
+  - {key: state_dept_reports, name: State Department memoranda, author: hull, kind: memo, channel: letter, classification: confidential, reports: [japan_oil_stocks], every_days: 7, latency_days: 1, assumed: true, gap: true}
+  - {key: grew_cables, name: Grew's cables from Tokyo, author: grew, kind: cable, channel: cable, classification: confidential, every_days: 3, latency_days: 1, assumed: true, gap: true}
+  - {key: magic_intercepts, name: MAGIC intercepts, author: kramer, kind: intercept, channel: courier, classification: most_secret, reports: [japan_oil_stocks], every_days: 2, latency_days: 1, assumed: true, gap: true}
+  - {key: gallup_polls, name: Gallup polls, author: early, kind: poll, channel: press, reports: [gallup_fdr_about_right, gallup_declare_war_germany, gallup_help_britain], every_days: 7, latency_days: 14, assumed: true, gap: true}
+  - {key: house_whip_count, name: The Speaker's count, author: rayburn, kind: whip_count, channel: telephone, reports: [house_democrats, house_republicans], every_days: 7, latency_days: 0, assumed: true, gap: true}
+  - {key: senate_whip_count, name: The Majority Leader's count, author: barkley, kind: whip_count, channel: telephone, reports: [senate_neutrality_yeas], every_days: 7, latency_days: 0, assumed: true, gap: true}
+  - {key: atlantic_reports, name: Atlantic reports from the Navy Department, author: stark, kind: report, channel: cable, classification: secret, reports: [uboat_losses_sep, uboats_operational], sights: [us_atlantic_fleet, us_pacific_fleet, uboat_arm, hx_route, sc_route], every_days: 7, latency_days: 1, assumed: true, gap: true}
+  - {key: churchill_cables, name: Churchill's cables, author: churchill, kind: cable, channel: cable, classification: secret, sights: [home_fleet, arctic_route], every_days: 3, latency_days: 1, assumed: true, gap: true}
+  - {key: soviet_requests, name: Soviet requests for aid, author: molotov, kind: letter, channel: courier, classification: confidential, every_days: 14, latency_days: 7, assumed: true, gap: true}
+  - {key: german_naval_reports, name: Kriegsmarine reports, author: raeder, kind: report, channel: courier, classification: secret, reports: [uboats_operational, uboat_losses_sep], sights: [uboat_arm, home_fleet, hx_route], every_days: 7, latency_days: 1, assumed: true, gap: true}
+  - {key: admiralty_reports, name: Admiralty reports, author: pound, kind: report, channel: courier, classification: secret, sights: [home_fleet, uboat_arm, hx_route, sc_route, arctic_route], every_days: 7, latency_days: 1, assumed: true, gap: true}
+  - {key: okw_situation, name: OKW situation reports, author: jodl, kind: report, channel: courier, classification: secret, sights: [army_group_centre, soviet_western_front, eastern_front], every_days: 3, latency_days: 1, assumed: true, gap: true}
+  - {key: stavka_situation, name: General Staff situation reports, author: shaposhnikov, kind: report, channel: courier, classification: secret, sights: [soviet_western_front, army_group_centre, eastern_front], every_days: 3, latency_days: 0, assumed: true, gap: true}
+
+pipelines:
+  - key: executive_order
+    name: An executive order
+    gap: true
+    steps:
+      - {person: wh_clerk, kind: clerical, days: 1, assumed: true}
+      - {person: roosevelt, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend, refuse]}
+  # The House floor vote is the `votes` resolver's, at settlement, not a person's step.
+  # Step lengths from H.J.Res. 237: message 9 Oct, House 17 Oct (8 days), Senate
+  # 7 Nov (21 days, one of them the clerk's), signed 17 Nov (10 days). The 13 Nov concurrence
+  # is a floor vote, so it is the votes resolver's, not a step.
+  - key: bill_through_congress
+    name: A bill through Congress
+    source: hjr237_timeline
+    steps:
+      - {person: rayburn, kind: decision, days: 8, allowed: [pass, expedite, stall, amend, refuse, leak]}
+      - {person: house_clerk, kind: clerical, days: 1, assumed: true}
+      - {person: barkley, kind: decision, days: 20, allowed: [pass, expedite, stall, amend, refuse, leak]}
+      - {person: roosevelt, kind: decision, days: 10, allowed: [pass, refuse]}
+  - key: naval_order
+    name: A naval order
+    gap: true
+    steps:
+      - {person: stark, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend, refuse]}
+      - {person: king, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, refuse]}
+  - key: cable_to_churchill
+    name: A cable to the Prime Minister
+    gap: true
+    steps:
+      - {person: cable_clerk, kind: clerical, days: 1, assumed: true}
+      - {person: churchill, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, leak, refuse]}
+  - key: lend_lease_allocation
+    name: A Lend-Lease allocation
+    gap: true
+    steps:
+      - {person: hopkins, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend]}
+      - {person: stettinius, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, refuse]}
+      - {person: roosevelt, kind: decision, days: 2, assumed: true, allowed: [pass, refuse]}
+  - key: public_address
+    name: A public address
+    gap: true
+    steps:
+      - {person: early, kind: clerical, days: 1, assumed: true}
+  - key: cos_directive
+    name: A Chiefs of Staff directive
+    gap: true
+    steps:
+      - {person: pound, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend, refuse]}
+      - {person: ismay, kind: clerical, days: 1, assumed: true}
+  - key: cable_to_roosevelt
+    name: A cable to the President
+    gap: true
+    steps:
+      - {person: uk_cipher_clerk, kind: clerical, days: 1, assumed: true}
+      - {person: roosevelt, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, leak, refuse]}
+  - key: press_broadcast
+    name: A broadcast to the nation
+    gap: true
+    steps:
+      - {person: bbc_clerk, kind: clerical, days: 1, assumed: true}
+  - key: japan_state_policy
+    name: Liaison Conference to Imperial sanction
+    gap: true
+    steps:
+      - {person: sugiyama, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, refuse]}
+      - {person: nagano, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, refuse]}
+      - {person: hirohito, kind: decision, days: 2, assumed: true, allowed: [pass, stall, refuse]}
+  - key: cabinet_statement
+    name: A cabinet statement
+    gap: true
+    steps:
+      - {person: cabinet_clerk, kind: clerical, days: 1, assumed: true}
+  - key: okw_directive
+    name: An OKW directive
+    gap: true
+    steps:
+      - {person: jodl, kind: clerical, days: 1, assumed: true}
+      - {person: raeder, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend, refuse]}
+  - key: reich_declaration
+    name: A declaration of war, delivered by the Foreign Office
+    gap: true
+    steps:
+      - {person: ribbentrop, kind: decision, days: 1, assumed: true, allowed: [pass, expedite, stall, amend]}
+  - key: gko_decree
+    name: A Stavka or State Defence Committee decree
+    gap: true
+    steps:
+      - {person: shaposhnikov, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend]}
+      - {person: molotov, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall]}
+  - key: soviet_aid_request
+    name: A Soviet request for aid
+    gap: true
+    steps:
+      - {person: molotov, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend]}
+      - {person: hopkins, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend, refuse]}
+  - key: comando_supremo_order
+    name: A Comando Supremo order
+    gap: true
+    steps:
+      - {person: cavallero, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend, refuse]}
+  - key: mac_order
+    name: A Military Affairs Commission order
+    gap: true
+    steps:
+      - {person: he_yingqin, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend, refuse]}
+  - key: appeal_through_soong
+    name: An appeal to Washington through Soong
+    gap: true
+    steps:
+      - {person: soong, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend]}
+      - {person: hull, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, refuse]}
+
+cards:
+  # --- the eight playable cards ---
+  - person: roosevelt
+    office: President of the United States
+    playable: true
+    principals: [usa]
+    powers:
+      - Commander in Chief of the Army and Navy
+      - sign or veto bills
+      - issue executive orders
+      - make executive agreements
+      - nominate and appoint officers
+    levers:
+      - name: send_bill
+        pipeline: bill_through_congress
+        resolver: votes
+        label: "Send a bill to Congress"
+        summary: "Ask the Speaker and the Majority Leader to carry a bill through both Houses."
+        params:
+          - {name: bill, kind: enum, choices: [neutrality_revision, arm_merchant_ships, lend_lease_appropriation, draft_extension], label: "Which bill", choice_labels: ["Revise the Neutrality Act", "Arm merchant ships", "Fund Lend-Lease", "Extend the draft"]}
+          - {name: urgency, kind: enum, choices: [ordinary, urgent], label: "How hard to press", choice_labels: ["In the ordinary way", "As a matter of urgency"]}
+      - name: lend_lease_finding
+        pipeline: lend_lease_allocation
+        resolver: production
+        label: "Allocate Lend-Lease aid"
+        summary: "Decide how much of the aid programme goes to a given country."
+        params:
+          - {name: recipient, kind: enum, choices: [uk, ussr, china], label: "Which country", choice_labels: ["Britain", "The Soviet Union", "China"]}
+          - {name: share_pct, kind: int, lo: 0, hi: 100, label: "Share of the aid (per cent)"}
+      - name: naval_order
+        pipeline: naval_order
+        resolver: shipping
+        label: "Give a naval order"
+        summary: "Instruct the Navy how to act at sea in a stated zone."
+        params:
+          - {name: order, kind: enum, choices: [escort_convoys, shoot_on_sight, hold_in_port], label: "The order", choice_labels: ["Escort the convoys", "Shoot on sight", "Hold in port"]}
+          - {name: zone, kind: enum, choices: [western_atlantic, iceland_route, pacific], label: "Where", choice_labels: ["Western Atlantic", "The Iceland route", "The Pacific"]}
+      - name: move_fleet
+        pipeline: naval_order
+        resolver: movement
+        label: "Move a fleet"
+        summary: "Send a fleet to another base. The Navy Department carries it out."
+        params:
+          - {name: force, kind: enum, choices: [us_atlantic_fleet, us_pacific_fleet], label: "Which fleet", choice_labels: ["The Atlantic Fleet", "The Pacific Fleet"]}
+          - {name: to, kind: enum, choices: [norfolk, argentia, reykjavik, pearl_harbor_base], label: "To", choice_labels: ["Norfolk", "Argentia", "Reykjavik", "Pearl Harbor"]}
+      - name: public_address
+        pipeline: public_address
+        resolver: opinion
+        label: "Address the nation"
+        summary: "Speak to the country by radio on a chosen theme."
+        params:
+          - {name: theme, kind: enum, choices: [aid_to_allies, freedom_of_the_seas, national_unity], label: "Theme", choice_labels: ["Aid to the Allies", "Freedom of the seas", "National unity"]}
+      # [proposed] The resolver moves no figure for this lever yet: the order runs
+      # its pipeline and its reply letter, and nothing more. (Executive orders gave
+      # way to "Move a fleet" under the six-lever cap, Josh, Batch 6.)
+      - name: cable_to_churchill
+        pipeline: cable_to_churchill
+        resolver: shipping
+        label: "Cable the Prime Minister"
+        summary: "Send Mr. Churchill a message through the State Department cable office."
+        params:
+          - {name: message, kind: text, label: "The message"}
+    inner_circle:
+      - {person: hull, channel: in_person}
+      - {person: hopkins, channel: in_person}
+      - {person: stimson, channel: in_person}
+      - {person: knox, channel: in_person}
+      - {person: marshall, channel: in_person}
+      - {person: stark, channel: in_person}
+      - {person: early, channel: in_person}
+      - {person: rayburn, channel: telephone}
+      - {person: barkley, channel: telephone}
+      - {person: churchill, channel: cable}
+    feeds: [state_dept_reports, magic_intercepts, gallup_polls, house_whip_count, senate_whip_count, atlantic_reports, churchill_cables, soviet_requests]
+    pipelines: [bill_through_congress, naval_order, cable_to_churchill, lend_lease_allocation, public_address]
+    constraints:
+      - Congress alone declares war
+      - Congress holds appropriations
+      - Neutrality Act of 1939 in force
+      - a third-term President with a divided Congress
+    personal: [legs paralysed by polio; kept from the public]
+    successor: wallace
+    horizon_days: 14
+    voice: Warm, confident, evasive when pressed; never commits to a date for war.
+    interests: [aid to Britain and the Soviet Union, keeping the public behind him]
+    # Authority and reach are design values [proposed]; the offices are as of 1 Sep 1941.
+    authority:
+      - name: naval_operations
+        effects: [move_force, engagement]
+        executor: stark
+        forces: [us_atlantic_fleet, us_pacific_fleet]
+        summary: "Orders to the fleets, carried out by the Chief of Naval Operations."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the nation, by radio or to the press."
+      - name: appointments
+        effects: [appointment]
+        summary: "Nominate and appoint officers and officials."
+      - name: executive_agreements
+        effects: [deal]
+        executor: hull
+        summary: "Make executive agreements with other governments, through the State Department."
+      - name: lend_lease
+        effects: [allocate]
+        summary: "Decide how the aid programme is shared out."
+    reach: {rank: 5, chain: [usa], heads: true}
+  - person: churchill
+    office: Prime Minister of the United Kingdom
+    playable: true
+    principals: [commons]
+    powers:
+      - appoint and dismiss ministers
+      - Minister of Defence
+      - direct the Chiefs of Staff
+    levers:
+      - name: convoy_orders
+        pipeline: cos_directive
+        resolver: shipping
+        label: "Set convoy priorities"
+        summary: "Tell the Admiralty which convoy routes to protect first."
+        params:
+          - {name: priority, kind: enum, choices: [atlantic, mediterranean, home_waters], label: "First priority", choice_labels: ["The Atlantic", "The Mediterranean", "Home waters"]}
+      - name: production_priority
+        pipeline: cos_directive
+        resolver: production
+        label: "Set production priorities"
+        summary: "Direct which branch of industry is to be pressed ahead."
+        params:
+          - {name: sector, kind: enum, choices: [aircraft, escorts, merchant_ships], label: "Which sector", choice_labels: ["Aircraft", "Escort vessels", "Merchant ships"]}
+      - name: move_fleet
+        pipeline: cos_directive
+        resolver: movement
+        label: "Move the Home Fleet"
+        summary: "Tell the Admiralty where the Home Fleet is to base."
+        params:
+          - {name: force, kind: enum, choices: [home_fleet], label: "Which fleet", choice_labels: ["The Home Fleet"]}
+          - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool"]}
+      - name: broadcast
+        pipeline: press_broadcast
+        resolver: opinion
+        label: "Broadcast to an audience"
+        summary: "Speak over the wireless to a chosen audience."
+        params:
+          - {name: audience, kind: enum, choices: [britain, america, occupied_europe], label: "To whom", choice_labels: ["Britain", "America", "Occupied Europe"]}
+    inner_circle:
+      - {person: roosevelt, channel: cable}
+      - {person: eden, channel: in_person}
+      - {person: pound, channel: in_person}
+      - {person: ismay, channel: in_person}
+      - {person: halifax, channel: cable}
+      - {person: stalin, channel: cable}
+    feeds: [admiralty_reports]
+    pipelines: [cos_directive, cable_to_roosevelt, press_broadcast]
+    constraints:
+      - keeps the confidence of the Commons
+      - orders go through the Chiefs of Staff Committee
+      - Britain cannot win without American supply
+    horizon_days: 14
+    voice: Sonorous, combative, given to long dictated minutes and set-piece speeches.
+    interests: [bring America into the war, hold the Atlantic supply line]
+    authority:
+      - name: naval_operations
+        effects: [move_force, engagement]
+        executor: pound
+        forces: [home_fleet]
+        summary: "Orders to the Home Fleet, carried out by the First Sea Lord."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the House and the nation."
+      - name: appointments
+        effects: [appointment]
+        summary: "Appoint and dismiss ministers."
+      - name: foreign_dealings
+        effects: [deal]
+        executor: eden
+        summary: "Treat with other governments, through the Foreign Secretary."
+    reach: {rank: 5, chain: [uk], heads: true}
+  - person: stalin
+    office: Chairman of the Council of People's Commissars
+    playable: true
+    principals: [ussr]
+    powers:
+      - chair the State Defence Committee
+      - Supreme Commander
+      - General Secretary of the Party
+    levers:
+      - name: state_defence_order
+        pipeline: gko_decree
+        resolver: production
+        label: "Issue a State Defence order"
+        summary: "Direct industry through the State Defence Committee."
+        params:
+          - {name: sector, kind: enum, choices: [tanks, aircraft, evacuated_industry], label: "Which sector", choice_labels: ["Tanks", "Aircraft", "Evacuated industry"]}
+      - name: aid_request
+        pipeline: soviet_aid_request
+        resolver: production
+        label: "Ask for foreign aid"
+        summary: "Apply to the Allies for supplies or credit."
+        params:
+          - {name: item, kind: enum, choices: [aircraft, tanks, aluminium, credit], label: "What is wanted", choice_labels: ["Aircraft", "Tanks", "Aluminium", "Credit"]}
+      - name: move_army
+        pipeline: gko_decree
+        resolver: movement
+        label: "Move the Western Front"
+        summary: "Order the Western Front to stand on a new line."
+        params:
+          - {name: force, kind: enum, choices: [soviet_western_front], label: "Which army", choice_labels: ["The Western Front"]}
+          - {name: to, kind: enum, choices: [vyazma, mozhaisk, moscow], label: "To", choice_labels: ["Vyazma", "Mozhaisk", "Moscow"]}
+    inner_circle:
+      - {person: molotov, channel: in_person}
+      - {person: shaposhnikov, channel: in_person}
+      - {person: roosevelt, channel: cable}
+      - {person: churchill, channel: cable}
+    feeds: [soviet_requests, stavka_situation]
+    pipelines: [gko_decree, soviet_aid_request]
+    constraints:
+      - the German armies are inside Soviet territory
+      - Soviet industry is being evacuated eastward
+    personal: [distrusts the Western powers and his own commanders]
+    horizon_days: 7
+    voice: Blunt, suspicious, speaks in short orders and rarely explains.
+    interests: [Western supply, a second front, survival of Moscow]
+    authority:
+      - name: military_operations
+        effects: [move_force, engagement]
+        executor: shaposhnikov
+        forces: [soviet_western_front]
+        summary: "Orders to the armies, carried out by the Chief of the General Staff."
+      - name: state_defence
+        effects: [allocate]
+        summary: "Direct industry and supply through the State Defence Committee."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the country, by radio or in the press."
+      - name: appointments
+        effects: [appointment]
+        summary: "Appoint and remove commanders and commissars."
+      - name: foreign_dealings
+        effects: [deal]
+        executor: molotov
+        summary: "Treat with other governments, through the Commissar for Foreign Affairs."
+    reach: {rank: 5, chain: [ussr], heads: true}
+  - person: hitler
+    office: Fuehrer and Reich Chancellor
+    playable: true
+    principals: [germany]
+    powers:
+      - Supreme Commander of the Wehrmacht
+      - issue Fuehrer directives
+      - declare war
+    levers:
+      - name: uboat_directive
+        pipeline: okw_directive
+        resolver: shipping
+        label: "Direct the U-boat arm"
+        summary: "Set the rules of engagement for U-boats in a stated area."
+        params:
+          - {name: posture, kind: enum, choices: [restrict_us_ships, unrestricted_atlantic, attack_us_shipping], label: "Posture", choice_labels: ["Spare American ships", "Unrestricted warfare in the Atlantic", "Attack American ships on sight"]}
+          - {name: theatre, kind: enum, choices: [north_atlantic, arctic, mediterranean], label: "Which waters", choice_labels: ["The North Atlantic", "The Arctic", "The Mediterranean"]}
+      - name: production_priority
+        pipeline: okw_directive
+        resolver: production
+        label: "Set production priorities"
+        summary: "Direct which branch of industry is to be pressed ahead."
+        params:
+          - {name: sector, kind: enum, choices: [uboats, aircraft, tanks], label: "Which sector", choice_labels: ["U-boats", "Aircraft", "Tanks"]}
+      - name: move_army
+        pipeline: okw_directive
+        resolver: movement
+        label: "Move Army Group Centre"
+        summary: "Direct Army Group Centre on a new objective."
+        params:
+          - {name: force, kind: enum, choices: [army_group_centre], label: "Which army group", choice_labels: ["Army Group Centre"]}
+          - {name: to, kind: enum, choices: [smolensk, vyazma, kalinin, mozhaisk, moscow], label: "To", choice_labels: ["Smolensk", "Vyazma", "Kalinin", "Mozhaisk", "Moscow"]}
+      - name: declare_war
+        pipeline: reich_declaration
+        resolver: war
+        label: "Declare war"
+        summary: "Have the Foreign Office hand a declaration of war to another power's envoy."
+        params:
+          - {name: target, kind: enum, choices: [usa], label: "On whom", choice_labels: ["The United States"]}
+    inner_circle:
+      - {person: ribbentrop, channel: in_person}
+      - {person: raeder, channel: in_person}
+      - {person: jodl, channel: in_person}
+      - {person: goering, channel: in_person}
+      - {person: mussolini, channel: courier}
+    feeds: [german_naval_reports, okw_situation]
+    pipelines: [okw_directive, reich_declaration]
+    constraints:
+      - the main effort is in the East
+      - avoid war with the United States while Russia is unfinished
+    horizon_days: 14
+    successor: goering
+    voice: Hectoring, monologuing, prone to grievance and vast promises.
+    interests: [defeat the Soviet Union, cut British supply by sea]
+    authority:
+      - name: uboat_war
+        effects: [move_force, engagement]
+        executor: raeder
+        forces: [uboat_arm]
+        summary: "Orders to the U-boats, carried out by the Navy's commander in chief."
+      - name: eastern_operations
+        effects: [move_force, engagement]
+        executor: jodl
+        forces: [army_group_centre]
+        summary: "Orders to the armies in the East, carried out through the High Command."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the nation and the world."
+      - name: appointments
+        effects: [appointment]
+        summary: "Appoint and dismiss officers and officials."
+      - name: foreign_dealings
+        effects: [deal]
+        executor: ribbentrop
+        summary: "Treat with other governments, through the Foreign Minister."
+    reach: {rank: 5, chain: [germany], heads: true}
+  - person: konoe
+    office: Prime Minister of Japan
+    playable: true
+    principals: [hirohito]
+    powers: [form or resign the cabinet]
+    levers:
+      - name: requisition_shipping
+        pipeline: japan_state_policy
+        resolver: shipping
+        label: "Requisition shipping"
+        summary: "Take merchant tonnage into the service of the state."
+        params:
+          - {name: tonnage_class, kind: enum, choices: [army, navy, civil], label: "Whose shipping", choice_labels: ["The Army's", "The Navy's", "Civil"]}
+      - name: mobilisation_plan
+        pipeline: japan_state_policy
+        resolver: production
+        label: "Order a mobilisation plan"
+        summary: "Direct national resources toward a chosen industry."
+        params:
+          - {name: sector, kind: enum, choices: [oil, steel, aircraft], label: "Which sector", choice_labels: ["Oil", "Steel", "Aircraft"]}
+      - name: cabinet_statement
+        pipeline: cabinet_statement
+        resolver: opinion
+        label: "Issue a Cabinet statement"
+        summary: "Put out the Cabinet's public line on the crisis."
+        params:
+          - {name: line, kind: enum, choices: [conciliatory, firm, silent], label: "The line to take", choice_labels: ["Conciliatory", "Firm", "Say nothing"]}
+    inner_circle:
+      - {person: hirohito, channel: in_person}
+      - {person: tojo, channel: in_person}
+      - {person: nomura, channel: cable}
+    feeds: []
+    pipelines: [japan_state_policy, cabinet_statement]
+    constraints:
+      - service ministers must be serving officers
+      - the services can topple a cabinet by withdrawing a minister
+      - a summit with Roosevelt needs the services' consent
+    personal: [seeks a settlement with Washington before the Army moves]
+    successor: tojo
+    horizon_days: 14
+    voice: Courtly, indecisive, speaks in hints and defers to the Throne.
+    interests: [settlement with the United States, avoid a break with the Army]
+    authority:
+      - name: cabinet
+        effects: [appointment]
+        summary: "Form or reshape the cabinet."
+      - name: planning
+        effects: [allocate]
+        summary: "Direct national resources through the cabinet's planning bodies."
+      - name: public_word
+        effects: [statement]
+        summary: "Put out the Cabinet's public line."
+      - name: talks_with_washington
+        effects: [deal]
+        executor: nomura
+        summary: "Negotiate with the United States, through the Ambassador in Washington."
+    reach: {rank: 4, chain: [japan]}
+  - person: tojo
+    office: War Minister of Japan
+    playable: true
+    principals: [konoe]
+    powers:
+      - command the Army Ministry
+      - sit in the Liaison Conference
+    levers:
+      - name: requisition_shipping
+        pipeline: japan_state_policy
+        resolver: shipping
+        label: "Requisition shipping"
+        summary: "Take merchant tonnage into the service of the state."
+        params:
+          - {name: tonnage_class, kind: enum, choices: [army, navy, civil], label: "Whose shipping", choice_labels: ["The Army's", "The Navy's", "Civil"]}
+      - name: mobilisation_plan
+        pipeline: japan_state_policy
+        resolver: production
+        label: "Order a mobilisation plan"
+        summary: "Direct national resources toward a chosen industry."
+        params:
+          - {name: sector, kind: enum, choices: [oil, steel, aircraft], label: "Which sector", choice_labels: ["Oil", "Steel", "Aircraft"]}
+      - name: cabinet_statement
+        pipeline: cabinet_statement
+        resolver: opinion
+        label: "Issue a Cabinet statement"
+        summary: "Put out the Cabinet's public line on the crisis."
+        params:
+          - {name: line, kind: enum, choices: [conciliatory, firm, silent], label: "The line to take", choice_labels: ["Conciliatory", "Firm", "Say nothing"]}
+    inner_circle:
+      - {person: konoe, channel: in_person}
+      - {person: hirohito, channel: in_person}
+      - {person: sugiyama, channel: in_person}
+      - {person: nagano, channel: in_person}
+    feeds: []
+    pipelines: [japan_state_policy, cabinet_statement]
+    constraints:
+      - must remain a serving officer to hold the ministry
+      - the Army will not accept withdrawal from China
+    personal: [becomes Prime Minister if the Konoe cabinet falls]
+    horizon_days: 14
+    voice: Clipped, bureaucratic and rigid; speaks for the Army's position.
+    interests: [keep the China gains, a deadline for the talks]
+    authority:
+      - name: army_administration
+        effects: [appointment, allocate]
+        summary: "Post officers and supply the Army, as War Minister."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak for the Army's position."
+    reach: {rank: 3, chain: [japan]}
+  - person: mussolini
+    office: Duce and Prime Minister of Italy
+    playable: true
+    principals: [victor_emmanuel]
+    powers:
+      - head of government
+      - command the armed forces by royal delegation
+    levers:
+      - name: libya_convoys
+        pipeline: comando_supremo_order
+        resolver: shipping
+        label: "Run convoys to Libya"
+        summary: "Send supply convoys across the Mediterranean by a chosen route."
+        params:
+          - {name: route, kind: enum, choices: [tripoli, benghazi, greece], label: "Which route", choice_labels: ["To Tripoli", "To Benghazi", "To Greece"]}
+      - name: production_priority
+        pipeline: comando_supremo_order
+        resolver: production
+        label: "Set production priorities"
+        summary: "Direct which branch of industry is to be pressed ahead."
+        params:
+          - {name: sector, kind: enum, choices: [aircraft, warships, tanks], label: "Which sector", choice_labels: ["Aircraft", "Warships", "Tanks"]}
+    inner_circle:
+      - {person: hitler, channel: courier}
+      - {person: cavallero, channel: in_person}
+      - {person: victor_emmanuel, channel: in_person}
+    feeds: []
+    pipelines: [comando_supremo_order]
+    constraints:
+      - the King can dismiss him, as he did in 1943
+      - dependent on German coal, oil and arms
+    horizon_days: 14
+    voice: Theatrical, boastful, with a defensive edge about Germany.
+    interests: [keep pace with Germany, hold North Africa]
+    authority:
+      - name: supreme_command
+        effects: [engagement]
+        executor: cavallero
+        summary: "Orders to the armed forces, carried out through the Comando Supremo."
+      - name: war_economy
+        effects: [allocate]
+        summary: "Direct which industry is pressed ahead."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the nation from the balcony or on the radio."
+      - name: appointments
+        effects: [appointment]
+        summary: "Appoint and dismiss ministers and commanders."
+    reach: {rank: 4, chain: [italy], heads: true}
+  - person: chiang
+    office: Chairman of the National Government of China
+    playable: true
+    principals: [china]
+    powers:
+      - chair the Military Affairs Commission
+      - Generalissimo
+    levers:
+      - name: arsenal_output
+        pipeline: mac_order
+        resolver: production
+        label: "Press the arsenals"
+        summary: "Direct the arsenals to concentrate on a chosen class of arms."
+        params:
+          - {name: sector, kind: enum, choices: [small_arms, artillery, ammunition], label: "Which sector", choice_labels: ["Small arms", "Artillery", "Ammunition"]}
+      - name: appeal_abroad
+        pipeline: appeal_through_soong
+        resolver: opinion
+        label: "Appeal abroad for help"
+        summary: "Send an appeal for support to a foreign public."
+        params:
+          - {name: audience, kind: enum, choices: [america, britain], label: "To whom", choice_labels: ["America", "Britain"]}
+    inner_circle:
+      - {person: soong, channel: cable}
+      - {person: he_yingqin, channel: in_person}
+      - {person: roosevelt, channel: cable}
+      - {person: churchill, channel: cable}
+    feeds: []
+    pipelines: [mac_order, appeal_through_soong]
+    constraints:
+      - China is cut off except by the Burma Road
+      - the Communist armies keep a separate command
+    horizon_days: 14
+    voice: Stern, moralising, impatient with allies who promise more than they send.
+    interests: [American aid, keep Japan tied down in China]
+    authority:
+      - name: military_affairs
+        effects: [engagement]
+        executor: he_yingqin
+        summary: "Orders to the armies, carried out through the Military Affairs Commission."
+      - name: arsenals
+        effects: [allocate]
+        summary: "Direct the arsenals and the Burma Road supply."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the nation and appeal abroad."
+      - name: appeals_abroad
+        effects: [deal]
+        executor: soong
+        summary: "Treat with Washington and London, through T. V. Soong."
+    reach: {rank: 5, chain: [china], heads: true}
+  # --- the people around them, run by code ---
+  - person: wallace
+    office: Vice President of the United States
+    principals: [usa]
+    powers: [preside over the Senate, break tied votes]
+    inner_circle: [{person: roosevelt, channel: in_person}]
+    horizon_days: 7
+  - person: hull
+    office: Secretary of State
+    principals: [roosevelt]
+    powers: [conduct negotiations under instruction]
+    inner_circle:
+      - {person: roosevelt, channel: in_person}
+      - {person: welles, channel: in_person}
+      - {person: nomura, channel: in_person}
+    feeds: [grew_cables]
+    pipelines: [appeal_through_soong]
+    constraints: [acts only on the President's instruction]
+    personal: [in poor health; wants no war with Japan]
+    horizon_days: 7
+  - person: welles
+    office: Under Secretary of State
+    principals: [hull]
+    powers: [run the Department's daily business]
+    inner_circle: [{person: roosevelt, channel: in_person}, {person: hull, channel: in_person}]
+    horizon_days: 7
+  - person: grew
+    office: US Ambassador to Japan
+    principals: [hull]
+    powers: [report from Tokyo, present US notes to the Japanese Government]
+    inner_circle: [{person: hull, channel: cable}]
+    constraints: [acts through the Department]
+    horizon_days: 7
+  - person: stimson
+    office: Secretary of War
+    principals: [roosevelt]
+    powers: [administer the War Department]
+    inner_circle: [{person: roosevelt, channel: in_person}, {person: marshall, channel: in_person}]
+    horizon_days: 7
+  - person: marshall
+    office: Army Chief of Staff
+    principals: [stimson]
+    powers: [direct the Army General Staff]
+    inner_circle: [{person: roosevelt, channel: in_person}, {person: stark, channel: in_person}]
+    horizon_days: 7
+  - person: knox
+    office: Secretary of the Navy
+    principals: [roosevelt]
+    powers: [administer the Navy Department]
+    inner_circle: [{person: roosevelt, channel: in_person}, {person: stark, channel: in_person}]
+    horizon_days: 7
+  - person: stark
+    office: Chief of Naval Operations
+    principals: [knox]
+    powers: [direct the operating forces under the President]
+    inner_circle:
+      - {person: king, channel: cable}
+      - {person: knox, channel: in_person}
+      - {person: roosevelt, channel: in_person}
+    feeds: [atlantic_reports, magic_intercepts]
+    pipelines: [naval_order]
+    constraints: [orders to the fleets go through the Navy chain of command]
+    horizon_days: 7
+  - person: king
+    office: Commander in Chief, Atlantic Fleet
+    principals: [stark]
+    powers: [command the Atlantic Fleet, order escorts and patrols]
+    inner_circle: [{person: stark, channel: cable}]
+    feeds: [atlantic_reports]
+    pipelines: [naval_order]
+    horizon_days: 7
+  - person: kramer
+    office: Navy communications intelligence translator
+    principals: [stark]
+    powers: [translate and brief intercepts]
+    inner_circle: [{person: stark, channel: in_person}]
+    horizon_days: 3
+  - person: morgenthau
+    office: Secretary of the Treasury
+    principals: [roosevelt]
+    powers: [administer the Treasury, freeze foreign assets]
+    inner_circle: [{person: roosevelt, channel: in_person}]
+    horizon_days: 7
+  - person: hopkins
+    office: Special assistant to the President
+    principals: [roosevelt]
+    powers: [coordinate aid to the Allies for the President]
+    inner_circle:
+      - {person: roosevelt, channel: in_person}
+      - {person: churchill, channel: cable}
+      - {person: stettinius, channel: in_person}
+    feeds: [soviet_requests]
+    pipelines: [lend_lease_allocation, soviet_aid_request]
+    personal: [chronically ill, often lives in the White House]
+    horizon_days: 7
+  - person: stettinius
+    office: Lend-Lease Administrator (appointed 28 Oct 1941)
+    principals: [roosevelt]
+    powers: [administer Lend-Lease allocations]
+    inner_circle: [{person: hopkins, channel: in_person}, {person: roosevelt, channel: in_person}]
+    pipelines: [lend_lease_allocation]
+    horizon_days: 7
+  - person: early
+    office: White House press secretary
+    principals: [roosevelt]
+    powers: [hold press conferences, release statements]
+    inner_circle: [{person: roosevelt, channel: in_person}]
+    feeds: [gallup_polls]
+    pipelines: [public_address]
+    horizon_days: 3
+  - person: wh_clerk
+    office: White House executive clerk
+    principals: [roosevelt]
+    powers: [draft and file executive orders]
+    horizon_days: 2
+  - person: cable_clerk
+    office: State Department cable room
+    principals: [hull]
+    powers: [encipher and send cables]
+    horizon_days: 2
+  - person: rayburn
+    office: Speaker of the House of Representatives
+    principals: [house]
+    powers: [recognise members on the floor, refer bills to committee]
+    inner_circle: [{person: roosevelt, channel: telephone}, {person: mccormack, channel: in_person}]
+    feeds: [house_whip_count]
+    pipelines: [bill_through_congress]
+    constraints: [the Democratic majority in the House is thin on neutrality]
+    horizon_days: 7
+  - person: mccormack
+    office: House Majority Leader
+    principals: [rayburn]
+    powers: [schedule floor business, count votes]
+    inner_circle: [{person: rayburn, channel: in_person}]
+    horizon_days: 7
+  - person: house_clerk
+    office: House committee clerk
+    principals: [rayburn]
+    powers: [report and calendar bills]
+    horizon_days: 2
+  - person: barkley
+    office: Senate Majority Leader
+    principals: [senate]
+    powers: [schedule floor business, count votes]
+    inner_circle: [{person: roosevelt, channel: telephone}, {person: rayburn, channel: telephone}]
+    feeds: [senate_whip_count]
+    pipelines: [bill_through_congress]
+    constraints: [Senate rules allow extended debate]
+    horizon_days: 7
+  - person: wheeler
+    office: Senator for Montana
+    principals: [senate]
+    powers: [vote and speak in the Senate]
+    inner_circle: [{person: nye, channel: in_person}]
+    interests: [keep the United States out of the war]
+    horizon_days: 7
+  - person: nye
+    office: Senator for North Dakota
+    principals: [senate]
+    powers: [vote and speak in the Senate]
+    inner_circle: [{person: wheeler, channel: in_person}]
+    interests: [keep the United States out of the war]
+    horizon_days: 7
+  - person: eden
+    office: Foreign Secretary
+    principals: [churchill]
+    powers: [conduct British foreign policy]
+    inner_circle: [{person: churchill, channel: in_person}, {person: halifax, channel: cable}]
+    horizon_days: 7
+  - person: halifax
+    office: British Ambassador to the United States
+    principals: [eden]
+    powers: [represent the Government in Washington]
+    inner_circle: [{person: eden, channel: cable}, {person: hull, channel: in_person}]
+    horizon_days: 7
+  - person: pound
+    office: First Sea Lord and Chairman of the Chiefs of Staff
+    principals: [churchill]
+    powers: [direct the Royal Navy, chair the Chiefs of Staff]
+    inner_circle: [{person: churchill, channel: in_person}]
+    pipelines: [cos_directive]
+    horizon_days: 7
+  - person: ismay
+    office: Chief Staff Officer to the Minister of Defence
+    principals: [churchill]
+    powers: [carry the Chiefs' papers to the War Cabinet]
+    inner_circle: [{person: churchill, channel: in_person}]
+    horizon_days: 2
+  - person: uk_cipher_clerk
+    office: Downing Street cipher room
+    principals: [churchill]
+    powers: [encipher and send cables]
+    horizon_days: 2
+  - person: bbc_clerk
+    office: BBC duty officer
+    principals: [churchill]
+    powers: [schedule a broadcast]
+    horizon_days: 2
+  - person: hirohito
+    office: Emperor of Japan
+    principals: [japan]
+    powers:
+      - sanction decisions of the Imperial Conference
+      - supreme command in name
+    inner_circle: [{person: konoe, channel: in_person}, {person: tojo, channel: in_person}]
+    pipelines: [japan_state_policy]
+    constraints: [by convention does not overrule a unanimous conference]
+    horizon_days: 14
+  - person: nomura
+    office: Japanese Ambassador to the United States
+    principals: [konoe]
+    powers: [negotiate under instruction]
+    inner_circle: [{person: hull, channel: in_person}, {person: konoe, channel: cable}]
+    horizon_days: 7
+  - person: kurusu
+    office: Japanese Ambassador to Germany
+    principals: [konoe]
+    powers: [represent Japan in Berlin]
+    inner_circle: [{person: ribbentrop, channel: in_person}]
+    horizon_days: 7
+  - person: sugiyama
+    office: Chief of the Army General Staff
+    principals: [hirohito]
+    powers: [direct Army operations, sit in the Liaison Conference]
+    inner_circle: [{person: tojo, channel: in_person}, {person: nagano, channel: in_person}]
+    pipelines: [japan_state_policy]
+    horizon_days: 7
+  - person: nagano
+    office: Chief of the Navy General Staff
+    principals: [hirohito]
+    powers: [direct Navy operations, sit in the Liaison Conference]
+    inner_circle: [{person: tojo, channel: in_person}, {person: sugiyama, channel: in_person}]
+    pipelines: [japan_state_policy]
+    horizon_days: 7
+  - person: cabinet_clerk
+    office: Cabinet Secretariat
+    principals: [konoe]
+    powers: [issue cabinet statements]
+    horizon_days: 2
+  - person: goering
+    office: Reichsmarschall
+    principals: [hitler]
+    powers: [command the Luftwaffe, run the Four Year Plan]
+    inner_circle: [{person: hitler, channel: in_person}]
+    horizon_days: 7
+  - person: ribbentrop
+    office: Reich Foreign Minister
+    principals: [hitler]
+    powers: [conduct German foreign policy]
+    inner_circle: [{person: hitler, channel: in_person}]
+    horizon_days: 7
+  - person: raeder
+    office: Commander in Chief of the Navy
+    principals: [hitler]
+    powers: [direct the Kriegsmarine and the U-boat arm]
+    inner_circle: [{person: hitler, channel: in_person}]
+    feeds: [german_naval_reports]
+    pipelines: [okw_directive]
+    horizon_days: 7
+  - person: jodl
+    office: Chief of Wehrmacht Operations Staff
+    principals: [hitler]
+    powers: [draft Fuehrer directives]
+    inner_circle: [{person: hitler, channel: in_person}]
+    horizon_days: 3
+  - person: victor_emmanuel
+    office: King of Italy
+    principals: [italy]
+    powers: [head of state, nominal supreme command]
+    inner_circle: [{person: mussolini, channel: in_person}]
+    horizon_days: 14
+  - person: cavallero
+    office: Chief of the Comando Supremo
+    principals: [mussolini]
+    powers: [direct Italian operations]
+    inner_circle: [{person: mussolini, channel: in_person}]
+    pipelines: [comando_supremo_order]
+    horizon_days: 7
+  - person: molotov
+    office: People's Commissar for Foreign Affairs
+    principals: [stalin]
+    powers: [conduct Soviet diplomacy, sit on the State Defence Committee]
+    inner_circle: [{person: stalin, channel: in_person}]
+    feeds: [soviet_requests]
+    pipelines: [gko_decree, soviet_aid_request]
+    horizon_days: 7
+  - person: shaposhnikov
+    office: Chief of the General Staff
+    principals: [stalin]
+    powers: [direct the General Staff, advise Stavka]
+    inner_circle: [{person: stalin, channel: in_person}]
+    feeds: [stavka_situation]
+    pipelines: [gko_decree]
+    horizon_days: 7
+  - person: he_yingqin
+    office: Chief of the General Staff, China
+    principals: [chiang]
+    powers: [direct operations under the Commission]
+    inner_circle: [{person: chiang, channel: in_person}]
+    pipelines: [mac_order]
+    horizon_days: 7
+  - person: soong
+    office: Chiang's personal representative in Washington
+    principals: [chiang]
+    powers: [negotiate for aid]
+    inner_circle: [{person: chiang, channel: cable}, {person: hull, channel: in_person}]
+    pipelines: [appeal_through_soong]
+    horizon_days: 7
+
+# Nobody is pre-seated: players claim playable cards at Session Zero.
+# Mandates: what each playable figure is asked, or has brought on themselves.
+# Triggers are the history items above; deadlines, wording and the choice of
+# which item to answer are design values [proposed], not data. "on" is quoted:
+# YAML 1.1 reads a bare on as true.
+mandates:
+  # Roosevelt's broadcast of 11 Sep (rules for the western Atlantic) followed
+  # the Greer of 4 Sep by a week; the Navy Day speech of 27 Oct answered the Kearny.
+  - key: greer_response
+    kind: crisis
+    trigger: {"on": history, history: greer_incident}
+    to: [roosevelt]
+    condition: {check: ordered, person: roosevelt, effect: engagement}
+    days: 14
+    text: "After the Greer, set the Navy's rules in the western Atlantic."
+  - key: shoot_outcry
+    kind: blowback
+    trigger: {"on": act, effect: engagement}
+    to: [roosevelt]
+    condition: {check: ordered, person: roosevelt, effect: statement}
+    days: 7
+    text: "Answer the outcry over the Navy's new orders."
+  - key: kearny_address
+    kind: crisis
+    trigger: {"on": history, history: kearny_hit}
+    to: [roosevelt]
+    condition: {check: ordered, person: roosevelt, effect: statement}
+    days: 14
+    text: "The Kearny is hit and eleven are dead: tell the country what the Navy will do."
+  # The Commons pressed for the Atlantic convoys through the autumn.
+  - key: commons_convoys
+    kind: order
+    issuer: commons
+    trigger: {"on": history, history: greer_incident}
+    to: [churchill]
+    condition: {check: ordered, person: churchill, effect: move_force}
+    days: 10
+    text: "The House expects the Home Fleet placed to cover the convoys."
+  # Lend-Lease reached the Soviet Union by the 7 Nov finding; Stalin's requests ran on Molotov's cables.
+  - key: soviet_aid_window
+    kind: opportunity
+    trigger: {"on": history, history: soviet_lend_lease_finding}
+    to: [stalin]
+    condition: {check: ordered, person: stalin, effect: deal}
+    days: 21
+    text: "Washington has opened Lend-Lease to Russia: press what is wanted."
+  # Raeder pressed to answer American escorts; Hitler held the U-boats to avoid incidents.
+  - key: uboat_rules
+    kind: crisis
+    trigger: {"on": history, history: greer_incident}
+    to: [hitler]
+    condition: {check: ordered, person: hitler, effect: engagement}
+    days: 14
+    text: "The Greer has been fired on: settle the U-boats' rules toward American ships."
+  # The services, Tojo above all, held the Cabinet to its line on the talks.
+  - key: services_line
+    kind: blowback
+    trigger: {"on": act, effect: deal}
+    to: [konoe]
+    condition: {check: ordered, person: konoe, effect: statement}
+    days: 14
+    text: "The services want the Cabinet's line on the talks made plain."
+  # The Emperor told Tojo to form the cabinet on 17 Oct, the day after Konoe went.
+  - key: form_cabinet
+    kind: order
+    issuer: hirohito
+    trigger: {"on": history, history: konoe_resigns}
+    to: [tojo]
+    condition: {check: ordered, person: tojo, effect: appointment}
+    days: 7
+    text: "The Throne calls on the War Minister to form a cabinet."
+  # Tripartite Pact partner: Rome kept in step with Berlin and Tokyo.
+  - key: axis_in_step
+    kind: crisis
+    trigger: {"on": history, history: konoe_resigns}
+    to: [mussolini]
+    condition: {check: ordered, person: mussolini, effect: statement}
+    days: 14
+    text: "Tokyo's Cabinet has fallen: show Italy standing with its partners."
+  # Chiang cabled Washington and London against a modus vivendi in the last days of Nov.
+  - key: hull_note_appeal
+    kind: opportunity
+    trigger: {"on": history, history: hull_note}
+    to: [chiang]
+    condition: {check: ordered, person: chiang, effect: deal}
+    days: 10
+    text: "Washington has answered Tokyo: make China's case to the Allies."
+
+seats: []
+
+roster:
+  - entity: roosevelt
+    pitch: Third-term President steering a neutral nation toward the Allies.
+    reach: Executive orders, the Navy, Lend-Lease, and what Congress will pass.
+    composite: false
+    sides:
+      - {contest: neutrality_revision, side: interventionists}
+      - {contest: us_japan_talks, side: usa}
+  - entity: churchill
+    pitch: Prime Minister holding on until America comes in.
+    reach: The War Cabinet, the Chiefs of Staff, and cables to Roosevelt.
+    composite: false
+    sides: [{contest: atlantic_war, side: uk}]
+  - entity: stalin
+    pitch: Leader of a country invaded and begging for supplies.
+    reach: Stavka, the State Defence Committee, and the Soviet war economy.
+    composite: false
+    sides: [{contest: atlantic_war, side: ussr}]
+  - entity: hitler
+    pitch: Fuehrer at the height of his conquests, committed to the East.
+    reach: The OKW, the Kriegsmarine, and the U-boat war.
+    composite: false
+    sides: [{contest: atlantic_war, side: germany}]
+  - entity: konoe
+    pitch: Prime Minister seeking a settlement with Washington before the Army moves.
+    reach: The cabinet, the Liaison Conference, and a summit he cannot arrange alone.
+    composite: false
+    sides: [{contest: us_japan_talks, side: japan}]
+  - entity: tojo
+    pitch: War Minister and serving general, the Army's voice in the cabinet.
+    reach: The Army Ministry, the Liaison Conference, and the Army's veto on any deal.
+    composite: false
+    sides: [{contest: us_japan_talks, side: japan}]
+  - entity: mussolini
+    pitch: Duce tied to Germany and answerable to a King.
+    reach: The Comando Supremo, the Italian convoys, and Hitler's ear.
+    composite: false
+    sides: [{contest: atlantic_war, side: italy}]
+  - entity: chiang
+    pitch: Generalissimo holding China open on American aid.
+    reach: The Military Affairs Commission, the Burma Road, and Soong in Washington.
+    composite: false
+    sides: [{contest: us_japan_talks, side: china}]
+
+contests:
+  - key: neutrality_revision
+    kind: rivalry
+    name: Revising the Neutrality Act
+    prize: Whether Congress repeals the 1939 Act's bans on arming merchant ships and on war zones.
+    sides: [interventionists, noninterventionists]
+    countdown_days: 73
+  - key: us_japan_talks
+    kind: rivalry
+    name: The US-Japan negotiations
+    prize: Whether talks end in a modus vivendi or in war in the Pacific.
+    sides: [usa, japan, china]
+    countdown_days: 97
+  - key: atlantic_war
+    kind: rivalry
+    name: The war against Germany
+    prize: Whether Britain's sea supply holds, the Soviet front survives, and America is drawn in.
+    sides: [uk, germany, ussr, italy]
+    countdown_days: 97
+
+schedule:
+  - key: greer_incident
+    name: "Greer and U-652 exchange fire (4 Sep)"
+    on_date: 1941-09-04
+    condition: {check: quantity_at, quantity: uboats_operational, op: ge, value: 1}
+    weight: 2
+  - key: konoe_resigns
+    name: Konoe cabinet resigns (16 Oct)
+    on_date: 1941-10-16
+    condition: {check: act_of, person: konoe}
+    weight: 3
+  - key: house_arms_merchant_ships
+    name: House votes 259-138 to arm merchant ships (17 Oct)
+    on_date: 1941-10-17
+    condition: {check: act_of, person: roosevelt, lever: send_bill, params: {bill: neutrality_revision}, past_step: 0}
+    weight: 2
+  - key: kearny_hit
+    name: "Kearny torpedoed, 11 killed, convoy SC-48 (17 Oct)"
+    on_date: 1941-10-17
+    condition: {check: act_of, person: roosevelt, lever: naval_order, params: {order: shoot_on_sight}}
+    weight: 2
+  - key: tojo_cabinet
+    name: Tojo cabinet formed (18 Oct)
+    on_date: 1941-10-18
+    condition: {check: all_of, conditions: [{check: act_of, person: konoe}, {check: act_of, person: tojo}]}
+    weight: 3
+  - key: reuben_james_sunk
+    name: Reuben James sunk by U-552 (31 Oct)
+    on_date: 1941-10-31
+    condition: {check: act_of, person: roosevelt, lever: naval_order, params: {order: shoot_on_sight}}
+    weight: 2
+  - key: soviet_lend_lease_finding
+    name: Soviet Lend-Lease eligibility finding (7 Nov)
+    on_date: 1941-11-07
+    condition: {check: act_of, person: roosevelt, lever: lend_lease_finding, params: {recipient: ussr}}
+    weight: 2
+  - key: senate_neutrality_vote
+    name: Senate passes Neutrality revision 50-37 (7 Nov)
+    on_date: 1941-11-07
+    condition: {check: act_of, person: roosevelt, lever: send_bill, params: {bill: neutrality_revision}, past_step: 2}
+    weight: 3
+  - key: house_concurrence
+    name: House concurs in the Senate amendment 212-194 (13 Nov)
+    on_date: 1941-11-13
+    condition: {check: act_of, person: roosevelt, lever: send_bill, params: {bill: neutrality_revision}, past_step: 2}
+    weight: 3
+  - key: hull_note
+    name: Hull note delivered to Nomura (26 Nov)
+    on_date: 1941-11-26
+    condition: {check: act_of, person: hull}
+    weight: 3
+  - key: pearl_harbor
+    name: Japan attacks Pearl Harbor (7 Dec)
+    on_date: 1941-12-07
+    condition: {check: all_of, conditions: [{check: act_of, person: konoe}, {check: act_of, person: tojo, lever: mobilisation_plan}]}
+    weight: 3
+
+notes:
+  - "Allied merchant losses to U-boats: Sep 209,835 GRT is the quantity; Oct 176,622 and Nov 120,541 GRT are the record for the shipping resolver."
+  - "Gallup 8 Oct 1941: Roosevelt 'about right' 57%, 'too far' 27%, 'not far enough' 16%. Gallup 22 Nov: 26% for war on Germany. Quantities start as gaps."
+  - "Soviet finding: FDR's 30 Oct letter to Stalin pledged up to $1bn before the 7 Nov finding (SOURCES.md)."
+  - "MAGIC: Navy carried the White House copies in even months from mid-1941 and was fully responsible from 6 Dec. The courier and takeover date are gaps."
+  - "The 12 Aug draft extension passed the House 203-202; it precedes the start and serves as the counterfactual lever."
+  - "Step lengths are sourced for the bill through Congress only. The rest, and every feed cadence, are labelled defaults (assumed: true). Card horizons are unsourced."
+  - "Gallup: 'about right' 57% was asked 19-24 Sep and released 8 Oct, a 14-day lag; the poll feed's latency uses it."

@@ -11,18 +11,22 @@ ScheduledEventFired, ContestCreated, ContestMoved, ContestDecided,
 ScheduledEventCreated, ScheduledEventSkipped, DivergenceChanged, DateAdvanced,
 SessionZeroOpened, CharacterListed, CharacterClaimed,
 SessionZeroClosed, SeasonEnded, GoalSet, GoalProgressed, GoalMet, GoalUndone,
-TickOpened, TickClosed``.
+TickOpened, TickClosed``, and for realism campaigns ``CardsDeclared,
+DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, QuantitySet,
+FeatureSet, WarDeclared, NewsReported``, and under engine v2 ``OrderRouted, OrderExecuted,
+EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
+WakeCommitted, WakeClosed, PlayStyleSet``.
 
 Every other kind is a record: it is replayable, searchable and shown by
 ``/why``, but changes no state.
 """
 
-from datetime import date
-from typing import Annotated, Literal
+from datetime import date, datetime
+from typing import Annotated, ClassVar, Literal
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, model_validator
 
-from revisionist.core._base import Model
+from revisionist.core._base import Label, Model
 from revisionist.core.delta import Delta
 from revisionist.core.goals import Goal, GoalKind, WinCondition
 from revisionist.core.ids import (
@@ -30,10 +34,14 @@ from revisionist.core.ids import (
     ClockId,
     ContestId,
     DeltaId,
+    DocumentId,
     EntityId,
     EventId,
+    FactId,
     GoalId,
     IntentId,
+    MandateId,
+    OrderId,
     ScheduledEventId,
     SeatId,
 )
@@ -53,8 +61,23 @@ from revisionist.core.ontology import (
     Seat,
     SeatStatus,
 )
+from revisionist.core.realism.agenda import (
+    Mandate,
+    MandateStatus,
+    MandateTemplate,
+    Offer,
+    PlayStyle,
+)
+from revisionist.core.realism.card import ChannelKind, ParamValue, SeatCard
+from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
+from revisionist.core.realism.effect import Effect, EffectKind, Fidelity, RoutedOrder
+from revisionist.core.realism.geography import Feature
+from revisionist.core.realism.pipeline import Order, OrderStatus, Pipeline, StepOutcome
+from revisionist.core.realism.quantity import Quantity
+from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.resolution import FeasibilityBand, OutcomeTier, RejectionReason, TickStage
 from revisionist.core.settings import Settings
+from revisionist.core.state import Ruleset
 from revisionist.core.visibility import Scope
 
 
@@ -73,6 +96,10 @@ class CampaignCreated(Model):
     name: str
     world: str
     """Name of the world bible this campaign was compiled from."""
+    ruleset: Ruleset = "legacy"
+    """Which rules resolve this campaign. Left out of a legacy log, so it hashes as before."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"ruleset"})
 
 
 class SettingsSet(Model):
@@ -433,7 +460,8 @@ class TickOpened(Model):
 
 class CallCost(Model):
     call_class: str
-    """resolver | narrator | structurer | persona | press | director."""
+    """resolver | narrator | structurer | persona | press | director | prose | counsel | aide
+    | estimator."""
     model: str
     input_tokens: int = Field(ge=0)
     output_tokens: int = Field(ge=0)
@@ -469,6 +497,284 @@ class CostLogged(Model):
     seat_id: SeatId | None = None
     purpose: str = Field(max_length=60)
     costs: tuple[CallCost, ...]
+
+
+# --- Realism (core/realism) ---------------------------------------------------
+
+
+class CardsDeclared(Model):
+    """The scenario's cards, feeds and pipelines, compiled from the world file.
+
+    One event, after the entities it names, so the fold can check every
+    reference at once. Engine only: cards carry the AI policy fields.
+    """
+
+    kind: Literal["cards_declared"] = "cards_declared"
+    cards: tuple[SeatCard, ...] = ()
+    feeds: tuple[Feed, ...] = ()
+    pipelines: tuple[Pipeline, ...] = ()
+    templates: tuple[MandateTemplate, ...] = ()
+    """Engine v2: the mandates the world issues when their triggers fire."""
+    outlets: tuple[Outlet, ...] = ()
+    """Each polity's newspaper, for the press to word public news in."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"templates", "outlets"})
+
+
+class DocumentIssued(Model):
+    """A document is written. Its envelope scope is the view's; seats see it on arrival."""
+
+    kind: Literal["document_issued"] = "document_issued"
+    document: DocumentView
+    truth: DocumentTruth
+
+
+class DocumentWritten(Model):
+    """The prose model wrote a document's page from its view and its author's voice.
+
+    Scoped like the document. Folded into the view; a document is written at most
+    once, so a resumed tick cannot write it twice."""
+
+    kind: Literal["document_written"] = "document_written"
+    doc_id: DocumentId
+    prose: str = Field(min_length=1, max_length=4000)
+
+
+class DocumentRead(Model):
+    """A seat opened a document (the in-tray's unread mark). A record."""
+
+    kind: Literal["document_read"] = "document_read"
+    seat_id: SeatId
+    doc_id: DocumentId
+
+
+class DocumentFlagged(Model):
+    """A seat flagged a document, or took the flag off. A record; the latest event wins."""
+
+    kind: Literal["document_flagged"] = "document_flagged"
+    seat_id: SeatId
+    doc_id: DocumentId
+    flagged: bool
+
+
+class OrderDrafted(Model):
+    """A seat pulled a lever: the order enters its pipeline at step 0."""
+
+    kind: Literal["order_drafted"] = "order_drafted"
+    order: Order
+
+
+class OrderStepTaken(Model):
+    """The person at the order's current step acted on it."""
+
+    kind: Literal["order_step_taken"] = "order_step_taken"
+    order_id: OrderId
+    outcome: StepOutcome
+
+
+class OrderSettled(Model):
+    """The order left its pipeline: enacted, refused, lapsed or withdrawn."""
+
+    kind: Literal["order_settled"] = "order_settled"
+    order_id: OrderId
+    status: OrderStatus
+
+
+class QuantitySet(Model):
+    """A quantity's value as of a date: authored at compile, computed by a resolver after."""
+
+    kind: Literal["quantity_set"] = "quantity_set"
+    quantity: Quantity
+
+
+class FeatureSet(Model):
+    """A force, front or route as it stands: authored at compile, moved by the
+    movement resolver after. Engine only, like a quantity."""
+
+    kind: Literal["feature_set"] = "feature_set"
+    feature: Feature
+
+
+class WarDeclared(Model):
+    """Two polities are at war. Public."""
+
+    kind: Literal["war_declared"] = "war_declared"
+    war: War
+
+
+class NewsReported(Model):
+    """A public event, as structured facts. Each seat's press words it later."""
+
+    kind: Literal["news_reported"] = "news_reported"
+    news: NewsEvent
+
+
+class CounselHeld(Model):
+    """A seat consulted a person on its card. The words are prose and change nothing;
+    a record, sealed with the seat's key like an order's text."""
+
+    kind: Literal["counsel_held"] = "counsel_held"
+    seat_id: SeatId
+    person: EntityId
+    channel: ChannelKind
+    text: str = Field(max_length=8000)
+
+
+class DirectiveGiven(Model):
+    """A seat signed a directive: its own words to a contact, and the order the aide
+    read them as, filed in the same batch. A record, sealed with the seat's key."""
+
+    kind: Literal["directive_given"] = "directive_given"
+    seat_id: SeatId
+    person: EntityId
+    channel: ChannelKind
+    text: str = Field(max_length=1000)
+    order_id: OrderId
+    lever: Label
+    params: dict[Label, ParamValue] = Field(default_factory=dict)
+
+
+# --- Engine v2 (spec §4, §8) ------------------------------------------------------
+
+
+class OrderRouted(Model):
+    """A committed order, split into parts and each part routed (spec §8.2).
+
+    Scoped to the issuer. A replay reads the routes from here; it never routes again."""
+
+    kind: Literal["order_routed"] = "order_routed"
+    order: RoutedOrder
+
+
+class OrderExecuted(Model):
+    """An executor carried out a command part, with a fidelity, or refused it under
+    a stated rule (spec §8.2). Scoped to the issuer."""
+
+    kind: Literal["order_executed"] = "order_executed"
+    order_id: OrderId
+    part: int = Field(ge=0, le=7)
+    on: date
+    fidelity: Fidelity | None = None
+    refusal: Label = ""
+
+    @model_validator(mode="after")
+    def _one(self) -> "OrderExecuted":
+        if (self.fidelity is None) == (not self.refusal):
+            raise ValueError("an executor carries a part out or refuses it")
+        return self
+
+
+class EffectsEstimated(Model):
+    """The estimator's ruling on one part no code rule covers (spec §8.3).
+
+    The effects are engine-only; ``reason`` is the issuer's, written from its view
+    and leak-scanned. ``rationale`` is sealed for the end-of-game reveal. A replay
+    reads this event and never calls the model. ``failed``: the model gave nothing
+    usable, the part stays unresolved, and the paper says so."""
+
+    kind: Literal["effects_estimated"] = "effects_estimated"
+    order_id: OrderId
+    part: int = Field(ge=0, le=7)
+    effects: tuple[Effect, ...] = Field(default=(), max_length=8)
+    reason: str = Field(default="", max_length=600)
+    rationale: str = Field(default="", max_length=2000)
+    failed: bool = False
+
+    @model_validator(mode="after")
+    def _shape(self) -> "EffectsEstimated":
+        if self.failed and (self.effects or self.rationale):
+            raise ValueError("a failed estimate carries no effects")
+        if not self.failed and not self.reason:
+            raise ValueError("an estimate states its reason")
+        return self
+
+
+class EffectsApplied(Model):
+    """A part's effects landed in the world (spec §8.2-8.3): an executed command, an
+    estimate, or a decided influence. A refusal applies nothing but still closes the
+    part. ``revealed`` facts become public. Scoped to the issuer."""
+
+    kind: Literal["effects_applied"] = "effects_applied"
+    order_id: OrderId
+    part: int = Field(ge=0, le=7)
+    on: date
+    revealed: tuple[FactId, ...] = ()
+
+
+class InfluenceDecided(Model):
+    """The person an influence part was aimed at decided, under their card's policy
+    (spec §8.2). ``reason`` is read by the issuer and leak-scanned. Scoped to the issuer."""
+
+    kind: Literal["influence_decided"] = "influence_decided"
+    order_id: OrderId
+    part: int = Field(ge=0, le=7)
+    on: date
+    accepted: bool
+    reason: str = Field(default="", max_length=300)
+
+
+class MandateIssued(Model):
+    """A mandate lands on a seat's agenda (spec §8.5). Scoped to the seat."""
+
+    kind: Literal["mandate_issued"] = "mandate_issued"
+    mandate: Mandate
+
+
+class MandateSettled(Model):
+    kind: Literal["mandate_settled"] = "mandate_settled"
+    mandate_id: MandateId
+    status: MandateStatus
+
+    @model_validator(mode="after")
+    def _settles(self) -> "MandateSettled":
+        if self.status is MandateStatus.LIVE:
+            raise ValueError("a mandate settles met, failed or expired")
+        return self
+
+
+class WakeOpened(Model):
+    """A shared wake opens for the table (spec §4). Public."""
+
+    kind: Literal["wake_opened"] = "wake_opened"
+    wake: int = Field(ge=0)
+    deadline: datetime
+    """Real time. The wake closes at commit-of-all or here, whichever comes first."""
+
+
+class WakeCommitted(Model):
+    """A seat sealed its orders for the wake. Public that it committed, never what."""
+
+    kind: Literal["wake_committed"] = "wake_committed"
+    wake: int = Field(ge=0)
+    seat_id: SeatId
+    by_aide: bool = False
+    """The seat had not committed by the deadline; its aide played it."""
+
+
+class WakeClosed(Model):
+    kind: Literal["wake_closed"] = "wake_closed"
+    wake: int = Field(ge=0)
+    timed_out: tuple[SeatId, ...] = ()
+    """Human seats the aide played."""
+
+
+class PlayStyleSet(Model):
+    """A seat's play style (spec §8.6). Sealed to the seat; shown at the reveal."""
+
+    kind: Literal["play_style_set"] = "play_style_set"
+    seat_id: SeatId
+    style: PlayStyle
+    standing: frozenset[EffectKind] = frozenset()
+    """Standing orders: the irreversible kinds the aide may order while the seat is absent."""
+
+
+class OptionsOffered(Model):
+    """What the option generator offered a seat this wake. A record, sealed to the seat."""
+
+    kind: Literal["options_offered"] = "options_offered"
+    seat_id: SeatId
+    wake: int = Field(ge=0)
+    offers: tuple[Offer, ...] = Field(max_length=4)
 
 
 # --- Admin --------------------------------------------------------------------
@@ -551,6 +857,32 @@ Payload = Annotated[
     | TickClosed
     | CostLogged
     | AdminRead
+    | CardsDeclared
+    | DocumentIssued
+    | DocumentWritten
+    | DocumentRead
+    | DocumentFlagged
+    | OrderDrafted
+    | OrderStepTaken
+    | OrderSettled
+    | QuantitySet
+    | FeatureSet
+    | WarDeclared
+    | NewsReported
+    | CounselHeld
+    | DirectiveGiven
+    | OrderRouted
+    | OrderExecuted
+    | EffectsEstimated
+    | EffectsApplied
+    | InfluenceDecided
+    | MandateIssued
+    | MandateSettled
+    | WakeOpened
+    | WakeCommitted
+    | WakeClosed
+    | PlayStyleSet
+    | OptionsOffered
     | Sealed,
     Field(discriminator="kind"),
 ]
@@ -591,6 +923,27 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "goal_undone",
         "tick_opened",
         "tick_closed",
+        "cards_declared",
+        "document_issued",
+        "document_written",
+        "order_drafted",
+        "order_step_taken",
+        "order_settled",
+        "quantity_set",
+        "feature_set",
+        "war_declared",
+        "news_reported",
+        "order_routed",
+        "order_executed",
+        "effects_estimated",
+        "effects_applied",
+        "influence_decided",
+        "mandate_issued",
+        "mandate_settled",
+        "wake_opened",
+        "wake_committed",
+        "wake_closed",
+        "play_style_set",
     }
 )
 

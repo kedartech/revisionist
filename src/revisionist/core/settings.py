@@ -65,8 +65,10 @@ class Settings(Model):
     """The in-world end date the table picked (spec §5.7). None: fixed turns."""
     real_days: int | None = Field(default=None, ge=1, le=365)
     """The real-life length in days. With ``end_date``, sets the turn rate."""
+    wake_hours: int = Field(default=12, ge=1, le=168)
+    """Engine v2: the longest a shared wake stays open, in real hours (spec decision 41)."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"end_date", "real_days"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"end_date", "real_days", "wake_hours"})
 
     @field_validator("lines", "veils", mode="before")
     @classmethod

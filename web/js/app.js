@@ -4,6 +4,10 @@
 import { api } from './api.js';
 import { h } from './dom.js';
 import { join, recover, recoveryCodes, signIn, signUp } from './views/auth.js';
+import { newGame } from './views/new-game.js';
+import { realismCast } from './views/realism-cast.js';
+import { finishedList, realismReveal } from './views/realism-reveal.js';
+import { realismRoom } from './views/realism-room.js';
 import { sessionZero } from './views/session-zero.js';
 import { warRoom } from './views/war-room.js';
 
@@ -75,12 +79,23 @@ async function render() {
   }
   const refresh = async () => render();
   const ctx = { me, refresh, signOut, go };
+  const finished = me.finished.find((f) => route === `reveal/${f.id}`);
+  if (finished) {
+    show(realismReveal({ ...ctx, finished }));
+    return;
+  }
   if (!me.game) {
-    show(join({ me, done: refresh, signOut }));
+    if (route === 'new') show(newGame(ctx));
+    else {
+      const home = join({ me, done: refresh, signOut, go });
+      home.append(finishedList(ctx));
+      show(home);
+    }
     return;
   }
   document.title = `${me.game.name} · Revisionist`;
-  show(me.game.phase === 'session_zero' ? sessionZero(ctx) : warRoom(ctx));
+  if (me.game.phase === 'session_zero') show(me.game.ruleset === 'realism' ? realismCast(ctx) : sessionZero(ctx));
+  else show(me.game.ruleset === 'realism' ? realismRoom(ctx) : warRoom(ctx));
 }
 
 // Keep the clock and the briefing fresh without a reload: re-read every minute
@@ -88,8 +103,9 @@ async function render() {
 setInterval(() => {
   const typing = document.activeElement?.matches?.('input, textarea');
   const dialogOpen = document.querySelector('dialog[open]');
-  const working = document.querySelector('button[disabled].primary');
-  if (!typing && !dialogOpen && !working && route !== 'signup' && !pendingCodes) render();
+  const working = document.querySelector('button[disabled].primary, [aria-busy="true"]');
+  // a new game is all in hand on the page (a pitch read, start points offered): leave it be
+  if (!typing && !dialogOpen && !working && route !== 'signup' && route !== 'new' && !route.startsWith('reveal/') && !pendingCodes) render();
 }, 60_000);
 
 render();

@@ -16,7 +16,7 @@ import mimetypes
 import threading
 import time
 from collections.abc import Callable
-from datetime import datetime
+from datetime import date, datetime
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -24,21 +24,51 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from revisionist.core.ontology import Persona
+from revisionist.core.ids import CampaignId, DocumentId, EntityId, OrderId, SeatId
+from revisionist.core.ontology import Persona, Phase
+from revisionist.core.project import project
+from revisionist.core.realism.card import ChannelKind
+from revisionist.core.realism.pipeline import OrderStatus, StepAction
+from revisionist.core.state import State
+from revisionist.engine import (
+    aide,
+    aide_help,
+    build,
+    cast,
+    counsel,
+    directive,
+    orders_reader,
+    realism_tick,
+    session_zero,
+)
 from revisionist.engine import campaign as cmp
 from revisionist.engine import scheduler as sch
 from revisionist.engine.discord import handlers as dh
-from revisionist.engine.llm import Transport
+from revisionist.engine.discord.tables import Invites, SeatLinks
+from revisionist.engine.ids import new_id
+from revisionist.engine.llm import Transport, TransportError
 from revisionist.engine.pg_store import PostgresEventStore
+from revisionist.engine.pitch import PITCH_MAX, PendingCard, PitchError, read_pitch
 from revisionist.engine.store import load_state
-from revisionist.engine.web import snapshot
+from revisionist.engine.tick import NotInPlayError
+from revisionist.engine.web import (
+    agenda_api,
+    new_game_api,
+    reach_groups,
+    realism_snapshot,
+    results,
+    reveal,
+    snapshot,
+    wake_api,
+)
 from revisionist.engine.web.accounts import (
     SESSION_DAYS,
     Account,
     AccountError,
     Accounts,
+    WebSeats,
 )
-from revisionist.engine.web.handlers import WebHandlers
+from revisionist.engine.web.handlers import NOT_LINKED, WebHandlers
 
 log = logging.getLogger("revisionist.web")
 
@@ -46,6 +76,30 @@ COOKIE = "rv_session"
 BODY_MAX = 64 * 1024
 SIGNIN_TRIES = 10
 """Failed sign-ins (or recoveries) per handle per 15 minutes."""
+READY = ("autumn-1941", "engine-v2-slice-1941")
+"""[proposed] The ready-made realism worlds a web account may start."""
+OFFERED = ("autumn-1941",)
+"""[proposed] Those the new-game screen lists: the slice is started by name only."""
+MODEL_DOWN = "The model cannot be reached just now. Try again in a minute."
+HELP_KEPT = 40
+"""Lines of each seat's talk with its aide kept in memory [proposed]."""
+SEALED_BY_COMMIT = frozenset({"lever", "sign", "option", "file", "step"})
+"""Actions that file or change an order: refused once the seat has committed the wake."""
+SEALED = "Your orders for this wake are sealed. They go out when the wake closes."
+
+
+def model_down(exc: TransportError) -> str:
+    """What the player is told when a model call fails, by what failed. Logged in full."""
+    log.warning("model call failed: %s", exc)
+    why = str(exc)
+    if "budget" in why:
+        return "The model ran past its spending limit for this step. Try again."
+    if "timed out" in why:
+        return "The model took too long to answer. Try again."
+    if "limit" in why:
+        return "The model is at its usage limit just now. Try again in a few minutes."
+    return MODEL_DOWN
+
 
 CSP = (
     "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
@@ -73,16 +127,34 @@ class App:
         clock: Callable[[], datetime],
         briefings: Path,
         secure_cookie: bool = False,
+        offline_prose: bool = False,
     ) -> None:
         self.dsn = dsn
         self.static = static.resolve()
         self.clock = clock
         self.secure_cookie = secure_cookie
+        self.offline_prose = offline_prose
+        self.transport_factory = transport_factory
+        self.briefings = briefings
         self.handlers = WebHandlers(
             dsn, transport_factory=transport_factory, clock=clock, briefings=briefings
         )
         self._failures: dict[str, list[float]] = {}
         self._lock = threading.Lock()
+        self._briefs: dict[tuple[CampaignId, SeatId], tuple[int, dict[str, Any]]] = {}
+        """Each seat's aide brief and the wake (``state.tick``) it was read at: one model
+        call per seat per wake. Lost on a restart, which only means one more call."""
+        self._pitches: dict[str, PendingCard] = {}
+        """The setting card each account is choosing a start point from. Lost on a
+        restart, which only means reading the pitch again."""
+        self._help: dict[tuple[CampaignId, SeatId], list[dict[str, str]]] = {}
+        """Each seat's talk with its aide's help desk, oldest first. Lost on a restart."""
+        self._readings: dict[tuple[CampaignId, SeatId], orders_reader.Reading] = {}
+        """Each seat's latest order reading, until it is signed. Lost on a restart, which
+        only means reading it again."""
+        self.spawn: Callable[[Callable[[], None]], None] = lambda run: threading.Thread(
+            target=run, daemon=True
+        ).start()
 
     def open(self) -> PostgresEventStore:
         store = cmp.open_store(self.dsn)
@@ -117,6 +189,10 @@ class App:
                 },
                 "game": None,
                 "live": [],
+                "finished": [
+                    {"id": s.campaign_id, "name": sch.campaign_name(store, s.campaign_id)}
+                    for s in WebSeats(store.conn).finished_for(account.account_id)
+                ],
             }
             live = sch.live_campaigns(store, now)
             out["live"] = [{"id": c, "name": sch.campaign_name(store, c)} for c in live]
@@ -128,10 +204,595 @@ class App:
             game |= snapshot.schedule_info(store, link.campaign_id, now)
             game["live"] = link.campaign_id in live
             seat_view = snapshot.seat_snapshot(store, state, link.seat_id)
+            game["ruleset"] = state.ruleset
+            if state.ruleset == "realism":
+                seats = WebSeats(store.conn)
+                game["host"] = seats.host(link.campaign_id) == account.account_id
+                game["waiting"] = sum(
+                    1 for s in seats.for_campaign(link.campaign_id) if s.seat_id not in state.seats
+                )
+            if (
+                state.ruleset == "realism"
+                and state.phase is Phase.PLAY
+                and link.seat_id in state.seats
+            ):
+                wake_at = None if game["paused"] else game["next_tick_at"]
+                log_now = list(store.read(link.campaign_id))
+                seat_view["realism"] = realism_snapshot.seat_realism(
+                    state,
+                    link.seat_id,
+                    realism_snapshot.read_ids(log_now, link.seat_id),
+                    realism_snapshot.flagged_ids(log_now, link.seat_id),
+                    wake_at,
+                )
+                seat_view["realism"]["counsel"] = realism_snapshot.counsel_lines(
+                    project(state, link.seat_id), counsel.counsel_records(log_now, link.seat_id)
+                )
+                seat_view["realism"]["wake_tick"] = state.tick
+                seat_view["realism"]["wake"] = wake_api.wake_header(
+                    state, link.seat_id, host=game["host"]
+                )
+                seat_view["realism"]["agenda"] = agenda_api.agenda(state, link.seat_id, log_now)
+                seat_view["realism"]["results"] = results.results(state, link.seat_id)
+                seat_view["realism"]["reach"] = reach_groups.reach(state, link.seat_id)
+                seat_view["realism"]["style"] = agenda_api.seat_style(state, link.seat_id)
+                seat_view["realism"]["brief"] = self._brief_for(
+                    link.campaign_id, link.seat_id, state.tick
+                )
+                seat_view["realism"]["help"] = self._help_thread(link.campaign_id, link.seat_id)
             out["game"] = game | {"view": seat_view}
             return snapshot.checked(state, link.seat_id, out)
         finally:
             store.close()
+
+    # --- realism actions -------------------------------------------------------
+
+    def realism(self, account: Account, action: str, body: dict[str, Any]) -> dict[str, Any]:
+        """One ``/api/realism/<action>``. A refusal is a reply, not an error."""
+        store = self.open()
+        try:
+            link = self.handlers._game_of(store, account.account_id, "status")
+            if isinstance(link, str):
+                raise ApiError(HTTPStatus.BAD_REQUEST, link)
+            state = load_state(store, link.campaign_id)
+            if state.ruleset != "realism":
+                raise ApiError(HTTPStatus.BAD_REQUEST, "This game does not use the realism rules.")
+            if state.phase is not Phase.PLAY or link.seat_id not in state.seats:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "The game is not in play yet.")
+            seat, cid = link.seat_id, link.campaign_id
+            wake = state.wake
+            if (
+                action in SEALED_BY_COMMIT
+                and wake is not None
+                and not wake.closed
+                and seat in wake.committed
+            ):
+                return {"reply": SEALED, "refused": True}
+            try:
+                if action == "read":
+                    doc_id = DocumentId(_text(body, "doc_id", 64))
+                    try:
+                        page = realism_snapshot.document(project(state, seat), doc_id)
+                    except KeyError:
+                        raise ApiError(HTTPStatus.NOT_FOUND, "No such document.") from None
+                    realism_tick.mark_read(store, cid, seat, doc_id)
+                    flagged = doc_id in realism_snapshot.flagged_ids(store.read(cid), seat)
+                    page["item"]["flagged"] = flagged
+                    return snapshot.checked(state, seat, dict(page))
+                if action == "flag":
+                    doc_id = DocumentId(_text(body, "doc_id", 64))
+                    if doc_id not in project(state, seat).documents:
+                        raise ApiError(HTTPStatus.NOT_FOUND, "No such document.")
+                    flag = body.get("flagged")
+                    if not isinstance(flag, bool):
+                        raise ValueError("flagged is true or false.")
+                    realism_tick.set_flag(store, cid, seat, doc_id, flag)
+                    return snapshot.checked(state, seat, {"flagged": flag})
+                if action == "lever":
+                    order = realism_tick.file_order(
+                        store, cid, seat, _text(body, "lever", 120), _params(body)
+                    )
+                    first = state.pipelines[order.pipeline].steps[0]
+                    who = state.entities[first.person].name
+                    reply = f"Sent to {who}: {_lever_label(state, seat, order.lever)}."
+                elif action in ("directive", "sign"):
+                    asked = directive.Proposal(
+                        person=_contact(state, seat, _text(body, "to", 120)),
+                        channel=_channel(body),
+                        text=_text(body, "text", directive.TEXT_MAX, required=False),
+                        **(
+                            {"lever": _text(body, "lever", 120), "params": _params(body)}
+                            if action == "sign"
+                            else {}
+                        ),
+                    )
+                    if action == "directive":
+                        read = directive.propose(
+                            store,
+                            cid,
+                            seat,
+                            asked.person,
+                            asked.channel,
+                            asked.text,
+                            directive.ClaudeDirectiveReader(self.transport_factory()),
+                        )
+                        shown = realism_snapshot.proposal(project(state, seat), read)
+                        said = (
+                            f"Your aide reads this as: {shown['label']}."
+                            if shown["label"]
+                            else str(shown["reason"])
+                        )
+                        out = {"reply": said, "refused": not read.lever, "proposal": shown}
+                        if not read.lever:
+                            out["help"] = self._aide_explains(
+                                store,
+                                state,
+                                seat,
+                                f"I wrote to {shown['to']}: {asked.text}",
+                                str(shown["reason"]),
+                            )
+                        return snapshot.checked(state, seat, out)
+                    order = directive.sign(store, cid, seat, asked)
+                    first = state.pipelines[order.pipeline].steps[0]
+                    who = state.entities[first.person].name
+                    reply = f"Sent to {who}: {_lever_label(state, seat, order.lever)}."
+                elif action == "aide":
+                    kept = self._brief_for(cid, seat, state.tick)
+                    if kept is not None and body.get("again") is not True:
+                        out = {"reply": "Your aide has read your papers.", "refused": False}
+                        return snapshot.checked(state, seat, out | {"brief": kept})
+                    writer: aide.AideWriter = (
+                        aide.TemplateAide()
+                        if self.offline_prose
+                        else aide.ClaudeAide(self.transport_factory())
+                    )
+                    try:
+                        held = aide.aide_for(store, cid, seat, writer)
+                    except TransportError as exc:
+                        return {"reply": model_down(exc), "refused": True}
+                    brief = realism_snapshot.aide_brief(project(state, seat), held)
+                    with self._lock:
+                        self._briefs[(cid, seat)] = (state.tick, brief)
+                    out = {"reply": "Your aide has read your papers.", "refused": False}
+                    return snapshot.checked(state, seat, out | {"brief": brief})
+                elif action == "consult":
+                    person = _contact(state, seat, _text(body, "to", 120))
+                    try:
+                        answered = counsel.consult(
+                            store,
+                            cid,
+                            seat,
+                            person,
+                            _text(body, "question", counsel.QUESTION_MAX),
+                            counsel.ClaudeCounsellor(self.transport_factory()),
+                        )
+                    except TransportError as exc:
+                        return {"reply": model_down(exc), "refused": True}
+                    reply = f"{answered.person} has answered."
+                elif action == "help":
+                    question = _text(body, "question", aide_help.QUESTION_MAX)
+                    thread = self._aide_explains(store, state, seat, question)
+                    out = {"reply": "", "refused": False, "help": thread}
+                    return snapshot.checked(state, seat, out)
+                elif action == "step":
+                    try:
+                        taken = StepAction(_text(body, "action", 20))
+                    except ValueError:
+                        names = ", ".join(a.value for a in StepAction)
+                        raise ValueError(f"The action is one of {names}.") from None
+                    order = realism_tick.take_step(
+                        store, cid, OrderId(_text(body, "order_id", 64)), taken, _params(body)
+                    )
+                    reply = (
+                        f"{_lever_label(state, seat, order.lever)}: {_DONE[taken]}. "
+                        f"{_STANDING[order.status]}"
+                    )
+                elif action == "advance":
+                    host = WebSeats(store.conn).host(cid) == account.account_id
+                    try:
+                        done = wake_api.advance(
+                            store, cid, seat, self.clock(), host=host, tools=self._tools()
+                        )
+                    except TransportError as exc:
+                        return {"reply": model_down(exc), "refused": True}
+                    return snapshot.checked(state, seat, dict(done))
+                elif action in ("commit", "close"):
+                    try:
+                        if action == "commit":
+                            done = wake_api.commit(
+                                store, cid, seat, self.clock(), tools=self._tools()
+                            )
+                        else:
+                            done = wake_api.close(
+                                store,
+                                cid,
+                                self.clock(),
+                                host=WebSeats(store.conn).host(cid) == account.account_id,
+                                tools=self._tools(),
+                            )
+                    except TransportError as exc:
+                        return {"reply": model_down(exc), "refused": True}
+                    return snapshot.checked(state, seat, dict(done))
+                elif action == "style":
+                    done = agenda_api.set_style(store, cid, seat, _text(body, "style", 20))
+                    return snapshot.checked(state, seat, dict(done))
+                elif action == "option":
+                    done = agenda_api.pick_option(store, cid, seat, _text(body, "pick", 120))
+                    return snapshot.checked(state, seat, dict(done))
+                elif action == "order":
+                    try:
+                        reading = orders_reader.read_order(
+                            state,
+                            seat,
+                            _text(body, "to", 120, required=False),
+                            _text(body, "channel", 20, required=False),
+                            _text(body, "text", directive.TEXT_MAX),
+                            self.transport_factory(),
+                        )
+                    except TransportError as exc:
+                        return {"reply": model_down(exc), "refused": True}
+                    with self._lock:
+                        self._readings[(cid, seat)] = reading
+                    out = {
+                        "reply": reading.shown["reason"] or "Your aide has read your order.",
+                        "refused": not reading.asks,
+                        "proposal": reading.shown,
+                    }
+                    return snapshot.checked(state, seat, out)
+                elif action == "file":
+                    with self._lock:
+                        signed = self._readings.get((cid, seat))
+                    done = orders_reader.file_order(store, cid, seat, signed)
+                    if not done["refused"]:
+                        with self._lock:
+                            self._readings.pop((cid, seat), None)
+                    return snapshot.checked(state, seat, dict(done))
+                else:
+                    raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
+            except (ValueError, KeyError, NotInPlayError, counsel.CounselRefusedError) as exc:
+                text = str(exc.args[0]) if isinstance(exc, KeyError) and exc.args else str(exc)
+                out = {"reply": text, "refused": True}
+                if action in ("lever", "sign", "directive"):
+                    out["help"] = self._aide_note(state, seat, _refused_note(text))
+                return snapshot.checked(state, seat, out)
+            return snapshot.checked(state, seat, {"reply": reply, "refused": False})
+        finally:
+            store.close()
+
+    def _tools(self) -> wake_api.TickTools:
+        return wake_api.TickTools(self.offline_prose, self.transport_factory, self.briefings)
+
+    def _help_thread(self, cid: CampaignId, seat: SeatId) -> list[dict[str, str]]:
+        with self._lock:
+            return list(self._help.get((cid, seat), []))
+
+    def _aide_note(
+        self, state: State, seat: SeatId, text: str, asked: str = "", lever: str = ""
+    ) -> list[dict[str, str]]:
+        """Add a line from the aide (after the player's question, if any); the thread."""
+        on = state.in_world_date.isoformat() if state.in_world_date else ""
+        lines = [{"from": "you", "text": asked, "on": on}] if asked else []
+        note = {"from": "aide", "text": text, "on": on}
+        if lever:
+            note |= {"lever": lever, "label": _lever_label(state, seat, lever)}
+        with self._lock:
+            kept = self._help.setdefault((state.campaign_id, seat), [])
+            kept += [*lines, note]
+            del kept[:-HELP_KEPT]
+            return list(kept)
+
+    def _aide_explains(
+        self, store: PostgresEventStore, state: State, seat: SeatId, asked: str, failed: str = ""
+    ) -> list[dict[str, str]]:
+        """The aide answers a question, or explains what just failed; the thread."""
+        helper: aide_help.Helper = (
+            aide_help.TemplateHelper()
+            if self.offline_prose
+            else aide_help.ClaudeHelper(self.transport_factory())
+        )
+        said = aide_help.answer(project(state, seat), asked, helper, failed)
+        if said.cost is not None:
+            cmp.log_cost(store, state.campaign_id, "aide", [said.cost], seat)
+        return self._aide_note(state, seat, said.text, "" if failed else asked, said.lever)
+
+    def _brief_for(self, cid: CampaignId, seat: SeatId, wake: int) -> dict[str, Any] | None:
+        with self._lock:
+            kept = self._briefs.get((cid, seat))
+        return kept[1] if kept is not None and kept[0] == wake else None
+
+    # --- the game menu ---------------------------------------------------------
+
+    def game(self, account: Account, action: str, body: dict[str, Any]) -> dict[str, Any]:
+        """One ``/api/game/<action>``: the host pauses, resumes, ends the game or sets
+        its wake hours; any other player leaves it. Ending retires it as ``/retire`` does
+        on Discord: it never ticks again, and the log is kept, but every seat stays as
+        finished, for the reveal. Leaving unlinks only the player's own seat; the person
+        stays in the game, played by no one. ``reveal`` reads a game that has ended. A
+        refusal is a reply, not an error."""
+        store = self.open()
+        try:
+            if action == "reveal":  # the game is over: no seat in play to look up
+                return self._reveal(store, account, _text(body, "game", 64))
+            link = self.handlers._game_of(store, account.account_id, "report")
+            if isinstance(link, str):
+                raise ApiError(HTTPStatus.BAD_REQUEST, link)
+            if action not in ("pause", "resume", "end", "leave", "wake-hours"):
+                raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
+            cid = link.campaign_id
+            host = WebSeats(store.conn).host(cid) == account.account_id
+            name = sch.campaign_name(store, cid)
+            if action == "leave":
+                if host:
+                    return {
+                        "reply": "The host cannot leave a game. End it instead.",
+                        "refused": True,
+                    }
+                WebSeats(store.conn).unlink(cid, link.seat_id)
+                with self._lock:
+                    self._briefs.pop((cid, link.seat_id), None)
+                log.info("a player left %s (%s) on the web", name, cid)
+                return {"reply": f"You have left {name}.", "refused": False}
+            if not host:
+                return {"reply": "Only the host can do that.", "refused": True}
+            if action == "wake-hours":
+                hours = body.get("hours")
+                if not isinstance(hours, int) or isinstance(hours, bool):
+                    return {"reply": "Give the hours as a whole number.", "refused": True}
+                return dict(wake_api.set_wake_hours(store, cid, hours))
+            table = sch.register(store, self.clock())
+            if action == "pause":
+                table.pause(cid, "paused by host on the web")
+                return {
+                    "reply": f"{name} is paused. Nothing moves until you resume.",
+                    "refused": False,
+                }
+            if action == "resume":
+                table.resume(cid)
+                return {"reply": f"{name} is running again.", "refused": False}
+            table.retire(cid, self.clock())
+            links = SeatLinks(store.conn)
+            for seat in links.users(cid):
+                links.unlink(cid, seat)
+            WebSeats(store.conn).finish_campaign(cid, self.clock())
+            log.info("game ended on the web: %s (%s)", name, cid)
+            return {"reply": f"{name} has ended. Its record is kept.", "refused": False}
+        finally:
+            store.close()
+
+    def _reveal(self, store: PostgresEventStore, account: Account, game: str) -> dict[str, Any]:
+        """An ended game's reveal, for an account that held a seat in it. Not through
+        ``snapshot.checked``: showing what was hidden is the point of it."""
+        held = WebSeats(store.conn).finished_for(account.account_id)
+        if not any(s.campaign_id == game for s in held):
+            return {"reply": "That game's record is not open to you.", "refused": True}
+        cid = CampaignId(game)
+        return dict(reveal.build(load_state(store, cid), store.read(cid)))
+
+    # --- a new game ------------------------------------------------------------
+
+    def new_game(self, account: Account, action: str, body: dict[str, Any]) -> dict[str, Any]:
+        """One ``/api/new/<action>``: start a realism game, choose its people, invite
+        the others and begin. A refusal is a reply, not an error."""
+        store = self.open()
+        try:
+            if action == "worlds":
+                decls = [(k, cmp.load_world(cmp.world_path(k))) for k in OFFERED]
+                return {"worlds": [{"key": k, "name": d.name, "start": d.start} for k, d in decls]}
+            if action == "timeline":
+                return {"timeline": new_game_api.timeline()}
+            if action == "figures":
+                try:
+                    found = new_game_api.figures(
+                        _date(body),
+                        _text(body, "search", 120, required=False),
+                        self.transport_factory(),
+                    )
+                except TransportError as exc:
+                    return {"reply": model_down(exc), "refused": True}
+                return {"reply": "", "refused": False, "figures": found}
+            link = self.handlers.seat_of(store, account.account_id)
+            if action in ("ready", "pitch", "cast", "start"):
+                if link is not None:
+                    return {"reply": dh.ALREADY_SEATED, "refused": True}
+                if action == "start":
+                    try:
+                        started = new_game_api.start(
+                            store,
+                            account.account_id,
+                            _date(body),
+                            self.transport_factory(),
+                            _text(body, "world", 64, required=False) or None,
+                        )
+                    except TransportError as exc:
+                        return {"reply": model_down(exc), "refused": True}
+                    return dict(started)
+                return self._start(store, account, action, body)
+            if link is None:
+                raise ApiError(HTTPStatus.BAD_REQUEST, NOT_LINKED)
+            cid = link.campaign_id
+            state = load_state(store, cid)
+            if state.ruleset != "realism" or state.phase is not Phase.SESSION_ZERO:
+                raise ApiError(HTTPStatus.BAD_REQUEST, "This game is not choosing its people.")
+            if action == "pick":
+                return self._pick(store, state, link.seat_id, _text(body, "name", 120))
+            if action == "style":
+                return dict(
+                    agenda_api.set_style(store, cid, link.seat_id, _text(body, "style", 20))
+                )
+            if action not in ("invite", "begin"):
+                raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
+            if WebSeats(store.conn).host(cid) != account.account_id:
+                return {"reply": "Only the host can do that.", "refused": True}
+            if action == "invite":
+                code = Invites(store.conn).issue(cid, SeatId(new_id()), self.clock())
+                return {
+                    "reply": "Send this code to one player privately. It works once.",
+                    "refused": False,
+                    "code": code,
+                }
+            waiting = [
+                s for s in WebSeats(store.conn).for_campaign(cid) if s.seat_id not in state.seats
+            ]
+            if waiting:
+                return {"reply": f"Still to choose: {len(waiting)} player(s).", "refused": True}
+            try:
+                realism_tick.open_play(store, cid)
+            except session_zero.StepRefusedError as exc:
+                return {"reply": str(exc), "refused": True}
+            wake_api.start_play(store, cid, self.clock(), tools=self._tools())
+            self.spawn(lambda: self._build_rest(cid))
+            return {
+                "reply": "The game has begun. The rest of the cast is being drawn up "
+                "and will act on their own.",
+                "refused": False,
+            }
+        finally:
+            store.close()
+
+    def _start(
+        self, store: PostgresEventStore, account: Account, action: str, body: dict[str, Any]
+    ) -> dict[str, Any]:
+        """A ready-made world, a pitch read into start points, or the cast for one."""
+        if action == "pitch":
+            pitch = _text(body, "text", PITCH_MAX)
+            try:
+                card, costs = read_pitch(pitch, self.transport_factory())
+            except PitchError as exc:
+                return {"reply": exc.reason, "refused": True}
+            except TransportError as exc:
+                return {"reply": model_down(exc), "refused": True}
+            with self._lock:
+                self._pitches[account.account_id] = PendingCard(
+                    pitch=pitch, card=card, costs=tuple(costs)
+                )
+            points = [{"label": p.label, "focus": p.focus} for p in card.start_points]
+            return {
+                "reply": card.reading,
+                "refused": False,
+                "card": {"reading": card.reading, "start_points": points},
+            }
+        if action == "ready":
+            key = _text(body, "world", 40)
+            if key not in READY:
+                return {"reply": "There is no such game to start.", "refused": True}
+            cid = cmp.new_campaign(store, cmp.load_world(cmp.world_path(key)))
+        else:
+            with self._lock:
+                pending = self._pitches.get(account.account_id)
+            if pending is None:
+                return {"reply": "Write your pitch first.", "refused": True}
+            choice = body.get("choice")
+            starts = pending.card.start_points
+            if not isinstance(choice, int) or not 1 <= choice <= len(starts):
+                return {"reply": "Choose one of the start points.", "refused": True}
+            try:
+                world, costs = cast.draft_cast(
+                    pending.card, starts[choice - 1], self.transport_factory()
+                )
+            except session_zero.SessionZeroError:
+                log.warning("cast refused for %s", account.account_id)
+                return {"reply": "The cast could not be drawn up. Try again.", "refused": True}
+            except TransportError as exc:
+                return {"reply": model_down(exc), "refused": True}
+            cid = cmp.new_campaign(store, world)
+            cmp.log_cost(store, cid, "session_zero", [*pending.costs, *costs])
+            with self._lock:
+                self._pitches.pop(account.account_id, None)
+        WebSeats(store.conn).start(cid, SeatId(new_id()), account.account_id)
+        return {"reply": "The cast is assembled. Choose who you will play.", "refused": False}
+
+    def _pick(
+        self, store: PostgresEventStore, state: State, seat: SeatId, name: str
+    ) -> dict[str, Any]:
+        """Take a person from the cast, building their card first if no one has."""
+        if seat in state.seats:
+            return {"reply": f"You already play {state.seats[seat].name}.", "refused": True}
+        person = next(
+            (c for c in state.roster if state.entities[c].name.casefold() == name.casefold()),
+            None,
+        )
+        if person is None:
+            # Not on the roster: the record may still place them. The pick adds them to the
+            # world, but a realism claim waits for a card, so it refuses; the card is built
+            # below and the claim retried. A failed build leaves them on the roster without
+            # a card, which the roster path above and ``build_rest`` at the begin both mend.
+            try:
+                held = session_zero.pick(
+                    store, state.campaign_id, seat, name, self.transport_factory()
+                )
+            except session_zero.StepRefusedError as exc:
+                added = set(load_state(store, state.campaign_id).roster) - set(state.roster)
+                if not added:
+                    return {"reply": str(exc), "refused": True}
+                (person,) = added
+            except TransportError as exc:
+                return {"reply": model_down(exc), "refused": True}
+            else:
+                return {"reply": f"You are {held}.", "refused": False}
+            state = load_state(store, state.campaign_id)
+        if person not in state.cards:
+            try:
+                build.build_figure(store, state.campaign_id, person, self.transport_factory())
+            except build.BuildError:
+                log.warning("card for %s refused in %s", person, state.campaign_id)
+                return {
+                    "reply": f"The papers for {state.entities[person].name} could not be "
+                    "drawn up. Try again.",
+                    "refused": True,
+                }
+            except TransportError as exc:
+                return {"reply": model_down(exc), "refused": True}
+        try:
+            held = session_zero.claim(store, state.campaign_id, seat, state.entities[person].name)
+        except session_zero.StepRefusedError as exc:
+            return {"reply": str(exc), "refused": True}
+        return {"reply": f"You are {held}.", "refused": False}
+
+    def _build_rest(self, campaign_id: CampaignId) -> None:
+        store = self.open()
+        try:
+            failed = build.build_rest(store, campaign_id, self.transport_factory())
+            if failed:
+                log.warning("not built in %s: %s", campaign_id, ", ".join(failed))
+        except Exception:
+            log.exception("building the rest of the cast failed in %s", campaign_id)
+        finally:
+            store.close()
+
+
+_DONE: dict[StepAction, str] = {
+    StepAction.PASS: "you passed it on",
+    StepAction.EXPEDITE: "you pressed it forward",
+    StepAction.AMEND: "you amended it",
+    StepAction.STALL: "you held it back",
+    StepAction.LEAK: "you let word of it out",
+    StepAction.REFUSE: "you refused it",
+}
+_STANDING: dict[OrderStatus, str] = {
+    OrderStatus.MOVING: "It is still moving.",
+    OrderStatus.ENACTED: "It has been carried out.",
+    OrderStatus.REFUSED: "It has been refused.",
+    OrderStatus.LAPSED: "It has lapsed.",
+    OrderStatus.WITHDRAWN: "It has been withdrawn.",
+}
+
+
+def _lever_label(state: State, seat: SeatId, name: str) -> str:
+    card = state.cards[state.seats[seat].embodies]
+    found = next((x for x in card.levers if x.name == name), None)
+    return (
+        realism_snapshot.lever_label(found) if found is not None else realism_snapshot.words(name)
+    )
+
+
+def _refused_note(reason: str) -> str:
+    """The aide's line when an order is refused on filing: why, and what to do."""
+    line = f"That order did not go through: {reason.rstrip('.')}."
+    if "reach" in reason:
+        return line + " Choose someone under Your staff and contacts, by a way that reaches them."
+    if "parameter" in reason or "choice" in reason or "range" in reason or "lever" in reason:
+        return line + " Open the form under Standard forms and fill in every line from its choices."
+    return line + " Ask me below how to set it up, and I will point you to the right form."
 
 
 def _json_body(raw: bytes) -> dict[str, Any]:
@@ -192,6 +853,37 @@ SEAT_ACTIONS: dict[str, Callable[[WebHandlers, str, dict[str, Any]], str]] = {
     "report": lambda h, a, b: h.report(a),
     "bug": lambda h, a, b: h.bug(a, _text(b, "notes", 4000)),
 }
+
+
+def _params(body: dict[str, Any]) -> dict[str, str]:
+    """Order parameters as the CLI passes them: every value a string."""
+    raw = body.get("params", {})
+    if not isinstance(raw, dict) or not all(isinstance(v, str | int) for v in raw.values()):
+        raise ApiError(HTTPStatus.BAD_REQUEST, "params is a JSON object of names and values.")
+    return {str(k): str(v) for k, v in raw.items()}
+
+
+def _contact(state: State, seat: SeatId, name: str) -> EntityId:
+    """The contact on the seat's card called ``name``. Raises ``ValueError``."""
+    card = state.cards[state.seats[seat].embodies]
+    for c in card.inner_circle:
+        if state.entities[c.person].name == name:
+            return c.person
+    raise ValueError("That person is not within your reach.")
+
+
+def _channel(body: dict[str, Any]) -> ChannelKind:
+    try:
+        return ChannelKind(_text(body, "channel", 20))
+    except ValueError:
+        raise ValueError("Choose how the directive is to travel.") from None
+
+
+def _date(body: dict[str, Any]) -> date:
+    try:
+        return date.fromisoformat(_text(body, "date", 10))
+    except ValueError:
+        raise ApiError(HTTPStatus.BAD_REQUEST, "date is YYYY-MM-DD.") from None
 
 
 def _route(body: dict[str, Any]) -> str:
@@ -342,10 +1034,25 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     account = self._need_account()
                     reply = str(run(app.handlers, account.account_id, body))
                     self._send_json(HTTPStatus.OK, {"reply": reply, "refused": reply in REFUSALS})
+                elif path.startswith("/api/new/"):
+                    account = self._need_account()
+                    out = app.new_game(account, path.removeprefix("/api/new/"), body)
+                    self._send_json(HTTPStatus.OK, out)
+                elif path.startswith("/api/game/"):
+                    account = self._need_account()
+                    out = app.game(account, path.removeprefix("/api/game/"), body)
+                    self._send_json(HTTPStatus.OK, out)
+                elif path.startswith("/api/realism/"):
+                    account = self._need_account()
+                    out = app.realism(account, path.removeprefix("/api/realism/"), body)
+                    self._send_json(HTTPStatus.OK, out)
                 else:
                     raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
             except ApiError as exc:
                 self._send_json(exc.status, {"error": exc.message})
+            except snapshot.WithheldError:
+                log.warning("realism reply withheld: canary hit")
+                self._send_json(HTTPStatus.OK, {"error": dh.WITHHELD})
             except AccountError as exc:
                 self._send_json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
             except Exception:

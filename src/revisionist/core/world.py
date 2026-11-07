@@ -12,12 +12,18 @@ the ID of the right type and refuses a key of the wrong type.
 
 This module only defines the shapes. It is pure: no file reading, no YAML.
 ``revisionist.engine.worlds.load`` reads a file into a ``WorldFile``.
+
+A ``ruleset: realism`` world adds cards, feeds, pipelines, quantities and
+sources. It names no human seat: any card marked ``playable`` may be claimed
+at Session Zero, and every person left unclaimed is run by code. Every number
+authored in a quantity, feed or pipeline carries ``source: <a sources key>``
+or ``gap: true``, so an unsourced figure can never pass as a sourced one.
 """
 
 from datetime import date
 from typing import Annotated, Literal
 
-from pydantic import Field, StringConstraints
+from pydantic import Field, StringConstraints, model_validator
 
 from revisionist.core._base import Label, Model
 from revisionist.core.goals import WinCondition
@@ -32,11 +38,22 @@ from revisionist.core.ontology import (
     EntityKind,
     SeatKind,
 )
+from revisionist.core.realism.agenda import MandateKind, TriggerKind
+from revisionist.core.realism.card import ChannelKind, ParamSpec
+from revisionist.core.realism.document import Bias, Classification, DocumentKind
+from revisionist.core.realism.effect import EffectKind
+from revisionist.core.realism.geography import FeatureKind
+from revisionist.core.realism.pipeline import StepAction, StepKind
+from revisionist.core.realism.quantity import ResolverKey
 from revisionist.core.settings import Settings
 from revisionist.core.visibility import Visibility
 
 Key = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]*$", max_length=40)]
 """A world-file name for one object. Lowercase, digits, underscores."""
+
+
+Latitude = Annotated[float, Field(ge=-90, le=90)]
+Longitude = Annotated[float, Field(ge=-180, le=180)]
 
 
 class ScopeDecl(Model):
@@ -57,6 +74,8 @@ class EntityDecl(Model):
     parent: Key | None = None
     location: Key | None = None
     tags: tuple[Label, ...] = ()
+    at: tuple[Latitude, Longitude] | None = None
+    """A place's latitude and longitude, for the map."""
 
 
 class AssetDecl(Model):
@@ -238,6 +257,221 @@ class CharacterDecl(Model):
     """Other names people use for this person. Public."""
 
 
+# --- realism ---------------------------------------------------------------------
+
+
+class SourceDecl(Model):
+    """A published source numbers are cited to. ``verified`` stays false until its
+    coverage and licence are checked (plan, 0b)."""
+
+    key: Key
+    title: str = Field(max_length=200)
+    note: str = Field(default="", max_length=400)
+    verified: bool = False
+
+
+class Cited(Model):
+    """A declaration holding authored numbers: cited to a source, or marked a gap."""
+
+    source: Key | None = None
+    gap: bool = False
+
+    @model_validator(mode="after")
+    def _cited_or_gap(self) -> "Cited":
+        if getattr(self, "computed", False):
+            if self.source is not None or self.gap:
+                raise ValueError("a computed figure has no source and is not a gap")
+            return self
+        if (self.source is None) == (not self.gap):
+            raise ValueError("give exactly one of source: <key> or gap: true")
+        return self
+
+
+class QuantityDecl(Cited):
+    key: Key
+    owner: Key | None = None
+    """An entity key."""
+    name: Label
+    value: int | None = None
+    """Left out only for a gap."""
+    unit: Label
+    as_of: date | None = None
+    """None means the world's start date."""
+    public: bool = False
+    """Public quantities are in every view; the rest reach seats only as documents."""
+    computed: bool = False
+    """A resolver's output: no value until code computes one, so neither cited nor a gap."""
+
+    @model_validator(mode="after")
+    def _gap_has_no_value(self) -> "QuantityDecl":
+        if self.computed and self.value is not None:
+            raise ValueError(f"quantity {self.key}: a computed figure starts with no value")
+        if self.value is None and not (self.gap or self.computed):
+            raise ValueError(f"quantity {self.key}: a value, gap: true or computed: true")
+        return self
+
+
+class FeedDecl(Cited):
+    key: Key
+    name: Label
+    author: Key
+    """A person key."""
+    kind: DocumentKind
+    channel: ChannelKind
+    classification: Classification = Classification.OPEN
+    every_days: int | None = Field(default=None, ge=1, le=365)
+    latency_days: int | None = Field(default=None, ge=0, le=365)
+    assumed: bool = False
+    """The cadence and latency are a labelled default by document kind, not sourced."""
+    reports: tuple[Key, ...] = ()
+    """Quantity keys."""
+    sights: tuple[Key, ...] = ()
+    """Feature keys."""
+    bias: Bias = Bias()
+
+    @model_validator(mode="after")
+    def _assumed_is_set(self) -> "FeedDecl":
+        if self.assumed and (self.every_days is None or self.latency_days is None):
+            raise ValueError(f"feed {self.key}: an assumed timing still needs its numbers")
+        return self
+
+
+class StepDecl(Model):
+    person: Key
+    kind: StepKind
+    days: int | None = Field(default=None, ge=0, le=365)
+    assumed: bool = False
+    """``days`` is a labelled default by step kind, not sourced."""
+    allowed: tuple[StepAction, ...] = (StepAction.PASS,)
+
+    @model_validator(mode="after")
+    def _assumed_is_set(self) -> "StepDecl":
+        if self.assumed and self.days is None:
+            raise ValueError(f"step at {self.person}: an assumed length still needs its days")
+        return self
+
+
+class PipelineDecl(Cited):
+    key: Key
+    name: Label
+    steps: tuple[StepDecl, ...] = Field(min_length=1, max_length=12)
+
+
+class LegDecl(Model):
+    """A move the record says a feature made: where it was from ``since``."""
+
+    since: date
+    places: tuple[Key, ...] = Field(min_length=1)
+
+
+class FeatureDecl(Cited):
+    """A force, front or route on the map. Positions are approximate."""
+
+    key: Key
+    kind: FeatureKind
+    name: Label
+    side: Key | None = None
+    """A polity or body key. A front has none."""
+    tier: int = Field(default=0, ge=0, le=5)
+    places: tuple[Key, ...] = Field(min_length=1)
+    """Place keys: one for a force, two or more for a front or route."""
+    as_of: date | None = None
+    """None means the world's start date."""
+    legs: tuple[LegDecl, ...] = ()
+    in_service: date | None = None
+    """Engine v2: the day the capability enters service. None: from the start."""
+
+
+class LeverDecl(Model):
+    name: Label
+    pipeline: Key
+    resolver: ResolverKey
+    params: tuple[ParamSpec, ...] = ()
+    label: Label = ""
+    summary: str = Field(default="", max_length=300)
+
+
+class ContactDecl(Model):
+    person: Key
+    channel: ChannelKind
+
+
+class DomainDecl(Model):
+    """One authority domain. ``executor`` and ``forces`` are keys."""
+
+    name: Label
+    effects: tuple[EffectKind, ...] = Field(min_length=1)
+    executor: Key | None = None
+    forces: tuple[Key, ...] = ()
+    summary: str = Field(default="", max_length=300)
+
+
+class ReachDecl(Model):
+    rank: int = Field(default=0, ge=0, le=5)
+    chain: tuple[Key, ...] = ()
+    heads: bool = False
+
+
+class CardDecl(Model):
+    """A person's seat card. ``person`` is a person key; the card has no key of its own."""
+
+    person: Key
+    office: Label
+    playable: bool = False
+    principals: tuple[Key, ...] = ()
+    powers: tuple[Label, ...] = ()
+    levers: tuple[LeverDecl, ...] = ()
+    inner_circle: tuple[ContactDecl, ...] = ()
+    feeds: tuple[Key, ...] = ()
+    pipelines: tuple[Key, ...] = ()
+    constraints: tuple[Label, ...] = ()
+    personal: tuple[Label, ...] = ()
+    successor: Key | None = None
+    horizon_days: int = Field(ge=1, le=365)
+    voice: str = Field(default="", max_length=200)
+    loyalty: int = Field(default=0, ge=-5, le=5)
+    competence: int = Field(default=3, ge=0, le=5)
+    doctrine: tuple[Label, ...] = ()
+    interests: tuple[Label, ...] = ()
+    authority: tuple[DomainDecl, ...] = ()
+    reach: ReachDecl = ReachDecl()
+
+
+class TriggerDecl(Model):
+    """A mandate's trigger. ``history`` and ``quantity`` are keys."""
+
+    on: TriggerKind
+    history: Key | None = None
+    quantity: Key | None = None
+    op: Literal["ge", "le"] | None = None
+    value: int | None = None
+    effect: EffectKind | None = None
+
+
+class MandateDecl(Model):
+    """A mandate template (engine v2, spec §8.5). ``to`` and ``issuer`` are entity keys;
+    the condition names keys, like a goal's."""
+
+    key: Key
+    kind: MandateKind
+    trigger: TriggerDecl
+    to: tuple[Key, ...] = Field(min_length=1)
+    issuer: Key | None = None
+    text: str = Field(min_length=1, max_length=400)
+    condition: WinCondition
+    days: int = Field(ge=1, le=90)
+
+
+class OutletDecl(Model):
+    """A polity's newspaper. ``key`` is also declared in ``entities`` (an org under
+    ``polity``); both are entity keys."""
+
+    key: Key
+    polity: Key
+    name: Label
+    voice: str = Field(min_length=1, max_length=300)
+
+
 Slug = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_-]*$", max_length=40)]
 """A world's file name: lowercase, digits, underscores and hyphens."""
 
@@ -267,27 +501,52 @@ class WorldFile(Model):
     contests: tuple[ContestDecl, ...] = ()
     schedule: tuple[HistoryDecl, ...] = ()
     """History's clock: the key events that really followed ``start_date``."""
+    ruleset: Literal["legacy", "realism"] = "legacy"
+    cards: tuple[CardDecl, ...] = ()
+    feeds: tuple[FeedDecl, ...] = ()
+    pipelines: tuple[PipelineDecl, ...] = ()
+    quantities: tuple[QuantityDecl, ...] = ()
+    features: tuple[FeatureDecl, ...] = ()
+    sources: tuple[SourceDecl, ...] = ()
+    mandates: tuple[MandateDecl, ...] = ()
+    """Engine v2: mandate templates. Realism only."""
+    outlets: tuple[OutletDecl, ...] = ()
+    """Each polity's newspaper. Realism only."""
 
 
 __all__ = [
     "AgentDecl",
     "AssetDecl",
+    "CardDecl",
     "CharacterDecl",
+    "Cited",
     "ClauseDecl",
     "ClockDecl",
     "CommitmentDecl",
+    "ContactDecl",
     "ContestDecl",
     "EntityDecl",
     "FactDecl",
+    "FeatureDecl",
+    "FeedDecl",
     "GoalDecl",
     "HistoryDecl",
     "Key",
+    "LegDecl",
+    "LeverDecl",
+    "MandateDecl",
     "MeterDecl",
+    "OutletDecl",
+    "PipelineDecl",
+    "QuantityDecl",
     "RelationshipDecl",
     "ScopeDecl",
     "ScopeSpec",
     "SeatDecl",
     "SideDecl",
     "Slug",
+    "SourceDecl",
+    "StepDecl",
+    "TriggerDecl",
     "WorldFile",
 ]

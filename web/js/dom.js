@@ -21,6 +21,18 @@ export function h(tag, attrs = {}, ...children) {
   return el;
 }
 
+/** An SVG element, the same way: attributes set one by one, text as text nodes. */
+export function svg(tag, attrs = {}, ...children) {
+  const el = document.createElementNS(SVG, tag);
+  for (const [k, v] of Object.entries(attrs ?? {})) {
+    if (v === undefined || v === null || v === false) continue;
+    if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v === true ? '' : String(v));
+  }
+  append(el, children);
+  return el;
+}
+
 function append(el, children) {
   for (const c of children.flat(Infinity)) {
     if (c === undefined || c === null || c === false) continue;
@@ -50,6 +62,7 @@ const PATHS = {
   alert: [['path', { d: 'M12 3 2 20h20L12 3z' }], ['path', { d: 'M12 10v4M12 17v.5' }]],
   clock: [['circle', { cx: 12, cy: 12, r: 9 }], ['path', { d: 'M12 7v5l3 2' }]],
   out: [['path', { d: 'M14 4h6v16h-6M10 8l-4 4 4 4M6 12h10' }]],
+  chevron: [['path', { d: 'M6 9l6 6 6-6' }]],
 };
 
 export function icon(name, size = 13) {

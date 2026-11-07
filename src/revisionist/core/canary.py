@@ -7,6 +7,16 @@ Pure: takes the state and the events, returns the hits. Zero tolerance in tests.
 Layer 9b adds the human boundary (spec §7): the opacity boundary is the
 person, not the seat, so a person's check is against the union of what all
 their seats may know, over everything that person can read.
+
+Realism adds two outbound texts, documents and counsel, and one kind of
+secret: a canary on a document's ``truth_refs``, hidden from every seat,
+because truth never reaches a seat except as an estimate.
+
+Engine v2 adds four more outbound texts, each read by one seat: the
+estimator's reason (``effects_estimated``), the reason a person gives for an
+influence decision (``influence_decided``), a mandate's wording
+(``mandate_issued``) and the options a seat is offered (``options_offered``).
+A canary on a mandate is a secret, as on a goal.
 """
 
 from collections.abc import Iterable, Mapping, Sequence
@@ -14,12 +24,12 @@ from collections.abc import Iterable, Mapping, Sequence
 from revisionist.core import events as ev
 from revisionist.core._base import Model
 from revisionist.core.events import Event
-from revisionist.core.ids import EventId, FactId, GoalId, SeatId
+from revisionist.core.ids import DocumentId, EventId, FactId, GoalId, MandateId, SeatId
 from revisionist.core.state import State
 from revisionist.core.visibility import Visibility
 
-Secret = FactId | GoalId
-"""What a canary marks: a fact, or a goal's text."""
+Secret = FactId | GoalId | DocumentId | MandateId
+"""What a canary marks: a fact, a goal's or mandate's text, or the truth behind a document."""
 
 
 class Leak(Model):
@@ -31,7 +41,7 @@ class Leak(Model):
 
 
 def canaries_hidden_from(state: State, seat_id: SeatId) -> dict[str, Secret]:
-    """Canary strings on facts and goals whose scope excludes ``seat_id``."""
+    """Canary strings on facts, goals and mandates whose scope excludes ``seat_id``."""
     return canaries_hidden_from_human(state, (seat_id,))
 
 
@@ -40,27 +50,57 @@ def scan_text(state: State, seat_id: SeatId, text: str) -> list[tuple[str, Secre
     return [(c, fid) for c, fid in hidden.items() if c in text]
 
 
-def scan(state: State, events: Iterable[Event]) -> list[Leak]:
-    """Every narration in ``events`` checked against what its seat may know in ``state``.
+def _outbound(state: State, p: ev.Payload) -> list[tuple[SeatId, str]]:
+    """Who reads this payload's text, and the text."""
+    if isinstance(p, ev.NarrationWritten | ev.CounselHeld):
+        return [(p.seat_id, p.text)]
+    if isinstance(p, ev.DocumentIssued):
+        scope = p.document.scope
+        readers = state.seats if scope.visibility is Visibility.PUBLIC else scope.known_by
+        text = p.document.model_dump_json()
+        return [(seat, text) for seat in sorted(readers)]
+    if isinstance(p, ev.DocumentWritten) and p.doc_id in state.documents:
+        scope = state.documents[p.doc_id].view.scope
+        readers = state.seats if scope.visibility is Visibility.PUBLIC else scope.known_by
+        return [(seat, p.prose) for seat in sorted(readers)]
+    own = _own_text(state, p)
+    return [own] if own is not None else []
 
-    Briefings carry no text of their own (they point at a narration), so the
-    narration is the one place outbound prose exists in the log.
+
+def _own_text(state: State, p: ev.Payload) -> tuple[SeatId, str] | None:
+    """Engine v2: the one seat that reads this payload, and the text it reads."""
+    if isinstance(p, ev.EffectsEstimated) and p.order_id in state.routed:
+        return (state.routed[p.order_id].issuer, p.reason)
+    if isinstance(p, ev.InfluenceDecided) and p.order_id in state.routed:
+        return (state.routed[p.order_id].issuer, p.reason)
+    if isinstance(p, ev.MandateIssued):
+        return (p.mandate.seat_id, p.mandate.text)
+    if isinstance(p, ev.OptionsOffered):
+        return (p.seat_id, "\n".join(o.model_dump_json() for o in p.offers))
+    return None
+
+
+def scan(state: State, events: Iterable[Event]) -> list[Leak]:
+    """Every narration, document and counsel in ``events`` checked against what its
+    reader may know in ``state``.
+
+    Briefings carry no text of their own (they point at a narration). A
+    document is scanned whole, body and prose, for each seat its scope names;
+    prose written later (``document_written``) is scanned the same way.
     """
     leaks: list[Leak] = []
     for e in events:
-        p = e.payload
-        if not isinstance(p, ev.NarrationWritten):
-            continue
-        for canary, fact_id in scan_text(state, p.seat_id, p.text):
-            leaks.append(
-                Leak(
-                    seat_id=p.seat_id,
-                    fact_id=fact_id,
-                    canary=canary,
-                    event_id=e.event_id,
-                    kind=e.kind,
+        for seat, text in _outbound(state, e.payload):
+            for canary, fact_id in scan_text(state, seat, text):
+                leaks.append(
+                    Leak(
+                        seat_id=seat,
+                        fact_id=fact_id,
+                        canary=canary,
+                        event_id=e.event_id,
+                        kind=e.kind,
+                    )
                 )
-            )
     return leaks
 
 
@@ -88,7 +128,8 @@ class HumanLeak(Model):
 
 
 def canaries_hidden_from_human(state: State, seats: Iterable[SeatId]) -> dict[str, Secret]:
-    """Canaries on facts and goals that none of one person's seats may see."""
+    """Canaries on facts and goals that none of one person's seats may see, and every
+    canary on a document's truth."""
     held = frozenset(seats)
     out: dict[str, Secret] = {
         f.canary: f.fact_id
@@ -98,28 +139,56 @@ def canaries_hidden_from_human(state: State, seats: Iterable[SeatId]) -> dict[st
     for g in state.goals.values():
         if g.canary and not any(g.scope.visible_to(s) for s in held):
             out[g.canary] = g.goal_id
+    for m in state.mandates.values():
+        if m.canary and not any(m.scope.visible_to(s) for s in held):
+            out[m.canary] = m.mandate_id
+    for d in state.documents.values():
+        for ref in d.truth.truth_refs:
+            if ref.canary:
+                out[ref.canary] = d.view.doc_id
     return out
 
 
 def surfaces_from_log(
-    events: Iterable[Event], holdings: Mapping[str, frozenset[SeatId]]
+    events: Iterable[Event],
+    holdings: Mapping[str, frozenset[SeatId]],
+    state: State | None = None,
 ) -> dict[str, list[tuple[str, str]]]:
-    """What each person can read in the log: their seats' narrations and questions,
-    every public narration (the press) and every statement."""
+    """What each person can read in the log: their seats' narrations, questions,
+    counsel and documents, every public narration or document (the press) and
+    every statement. With ``state``, also their seats' estimator reasons, mandates
+    and offered options (engine v2), which need the state to know whose they are."""
     seen: dict[str, list[tuple[str, str]]] = {human: [] for human in holdings}
     for e in events:
         p = e.payload
-        own: SeatId | None = None
-        if isinstance(p, ev.NarrationWritten | ev.ClarificationAsked):
-            own = p.seat_id
-        text = p.text if isinstance(p, ev.NarrationWritten | ev.StatementIssued) else ""
+        own: frozenset[SeatId] = frozenset()
+        if isinstance(p, ev.NarrationWritten | ev.ClarificationAsked | ev.CounselHeld):
+            own = frozenset({p.seat_id})
+        text = (
+            p.text
+            if isinstance(p, ev.NarrationWritten | ev.StatementIssued | ev.CounselHeld)
+            else ""
+        )
         if isinstance(p, ev.ClarificationAsked):
             text = p.question
+        if isinstance(p, ev.DocumentIssued):
+            own = p.document.scope.known_by
+            text = p.document.model_dump_json()
+        if isinstance(p, ev.DocumentWritten):
+            own = e.scope.known_by
+            text = p.prose
+        mine = _own_text(state, p) if state is not None else None
+        if mine is not None:
+            own, text = frozenset({mine[0]}), mine[1]
         if not text:
             continue
-        public = isinstance(p, ev.StatementIssued) or e.scope.visibility is Visibility.PUBLIC
+        # An engine-v2 text has one reader whatever its envelope: an estimate is
+        # logged Public because its effects are folded, but only its issuer reads it.
+        public = mine is None and (
+            isinstance(p, ev.StatementIssued) or e.scope.visibility is Visibility.PUBLIC
+        )
         for human, seats in holdings.items():
-            if public or own in seats:
+            if public or own & seats:
                 seen[human].append((f"{e.kind} {e.event_id}", text))
     return seen
 

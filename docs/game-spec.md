@@ -1,6 +1,6 @@
 # Revisionist
 
-An AI-run multiplayer statecraft game. Game parameters, v2 (2026-10-19); Session Zero v3 (2026-10-21).
+An AI-run multiplayer statecraft game. Game parameters, v2 (2026-10-19); Session Zero v3 (2026-10-21); engine v2 for realism campaigns (2026-10-28).
 
 v2 folds in the decisions from an independent pressure test of the v1 parameters (2026-10-19; sections A-G and addendum H1-H20, cited below as "H" numbers). The pressure-test document itself is in the git history before this commit.
 
@@ -78,15 +78,28 @@ Not the reference: Studio 14b's scripted "President Simulator" on Steam (Early A
 | 36 | Winning | Decided at **season end**. Every player whose goal is met wins. A player who meets their goal keeps playing and may help or thwart the others. (2026-10-20) |
 | 37 | Secret goals | Goals are secret. Other players learn them only through intelligence in the fiction: sending spies, intercepting messages, turning or capturing agents. Partial information is normal. (2026-10-20) |
 | 38 | Competing goals | Allowed. Two players may want the same throne. (2026-10-20) |
+| 39 | Engine v2 (realism) | What a figure can do comes from authority, reach and influence; levers are quick forms, not the ceiling. Free-play orders get model-estimated effects inside code bounds, each with a stated reason. One wake loop; one shared wake per table; three private play styles (§4, §8). (2026-10-28) |
+| 40 | Old realism campaigns | No compatibility. Test games on the trial database are backed up, then deleted, not replayed under the new routing. (2026-10-28) |
+| 41 | Wake deadline | 12 real hours by default; the host can change it. (2026-10-28) |
+| 42 | Cast size | Up to about 40 figures per start date (`CAST_MAX` 8 to 40). Cards are still built only after a pick. (2026-10-28) |
+| 43 | Atrocities | Abstract only, never played out. (2026-10-28) |
 
-## 4. Core loop [proposed]
+## 4. Core loop [decided 2026-10-28, engine v2]
 
-1. **Session Zero.** The host pitches a period with `/establish`, picks a start point from the setting card and confirms it (§5.2). Each player then chooses a character, chooses a secret goal, reads a historical brief, and designs their agent. The GM writes the world bible in the fixed schema (§12).
-2. **Briefing.** Each seat's agent writes that seat's briefing, from that seat's knowledge only.
-3. **Act.** Players talk to their agent in free text, any time. The agent turns orders into structured intents, tagged with a visibility level (§7). Players can also talk to each other directly.
-4. **Resolve.** Each resolution tick, the engine batches every intent in that window, plus the AI factions' moves and any director events, and resolves them together (§13).
-5. **React.** The world updates. Personas, the press, factions and markets respond. Consequences are scheduled for later ticks.
-6. **Repeat.** Formal sessions, delayed consequences, director events and co-GM events punctuate the flow. Chapter breaks and season ends bring partial or full reveals.
+Engine v2 (approved 2026-10-28; plan in the vault, `inbox/plans/2026-10-28-revisionist-engine-gameplay-remediation-plan.md`) replaces the tick loop for `ruleset: realism` campaigns. Legacy campaigns keep the tick loop below, frozen.
+
+1. **New game.** The host picks a date anywhere in the war on a timeline that marks the curated start points; each player picks a figure from a generated list of everyone who held real power on that date (grouped by side and kind of power, with search) and a play style (§8.6). The aide then gives an opening brief of about two minutes of reading.
+2. **The wake.** Every wake has the same four parts, for every seat and every style:
+   1. **What changed.** New papers since the last wake, and how each earlier order landed (its fidelity and results), always as documents (§8.4).
+   2. **Agenda.** 1 to 3 issued items, each with an issuer and a deadline (§8.5).
+   3. **Initiative.** Anything the player wants to start.
+   4. **Commit.** The seat's orders are sealed for this wake.
+   Talk (counsel, summoning, a cable asking a question) is free, unlimited, and needs no commit. Orders are drafted freely and take effect only on commit.
+3. **One shared wake for the table.** The wake closes when every human seat has committed or the deadline passes (default **12 real hours**, host-adjustable). A solo game closes on commit. The host can still force an advance. At close, any seat that has not committed is played by its aide under standing orders, through the beginner option generator (§8.6). The aide never takes an irreversible step (declare, transfer, dismiss) without a standing order naming it.
+4. **Resolve.** Each committed order is routed (command, process or influence, §8.2) and resolved: by a code resolver where one owns the quantity, otherwise by the estimator (§8.3).
+5. **Run the clock.** The world clock runs, as now, to the next point that needs someone: a pipeline step due, a history event, the earliest horizon among the seats, or an agenda deadline. All seats stop on the same date. Then the next wake opens.
+
+**Legacy loop (frozen).** Session Zero; a per-seat briefing; free-text orders turned into typed intents with a visibility level (§7); a resolution tick that batches intents, AI faction moves and director events (§13); the world reacts and schedules consequences; repeat, punctuated by formal sessions, director and co-GM events, chapter breaks and season end.
 
 ## 5. Session Zero [v3 decided 2026-10-21; build in progress]
 
@@ -211,17 +224,23 @@ The player's agent delivers the tick-0 briefing: the character's real history up
 - **Output:** a **world bible** in the fixed schema: polities, leaders, factions, resources, geography, contests, the history schedule, and each seat's starting knowledge, which may differ between seats. Each player seat carries its character and its goal clock, both Private to that seat. Seat backstory locks when Session Zero ends.
 - **Historical accuracy.** The world bible, schedule and briefs come from the documented record and say "as recorded" where it matters. Where historians disagree or the record is silent, the GM picks one reading and logs that it did so. Past the start date, history is whatever the players make it.
 
-## 6. Seats [proposed]
+## 6. Seats [revised 2026-10-28 for engine v2; legacy rules frozen]
 
-- A seat is any role with agency in the world. Examples: head of state, minister, general, admiral, intelligence chief, ambassador, opposition leader, governor, CEO, journalist, arms dealer, revolutionary.
-- Several players can share a government. Their seats come with **differing interests**: the defence minister wants budget, the finance minister wants cuts. The world bible gives each seat a domain the head can't veto; the head's overrides are public and cost standing.
-- Each seat has **means** (typed assets and relationships: money, people, assets, contacts, legal powers) and **reach** (what it can affect directly). Means are an inventory, seeded at Session Zero and changed only by logged events. A means the seat doesn't have becomes an acquisition action: recruit, buy, build, turn an agent. That takes time and slots and carries exposure.
-- **A player seat is a character:** a real person from the chosen moment (decision 35), with the means and reach the record gives them at that date. The player's agent is that character's aide.
-- **Goal.** Each player seat has one secret goal (decisions 23, 37), tracked as an objective clock with a win condition the engine checks in code (§15). AI seats keep their historical aims as objectives that drive their moves but never win.
-- **Operation slots.** 3 to start, cap 5. Each running operation holds one slot until it resolves; extra orders wait in a visible queue. Slots are gained by hiring staff, fixers or a network, and lost through scandal or lost assets. They are never spent, saved or traded. Statements, talks and diplomacy are always free.
+- A seat is any role with agency in the world: head of state, minister, general, admiral, intelligence chief, ambassador, opposition leader, governor, industrialist, journalist, revolutionary.
+- **A player seat is a character:** a real person from the chosen moment (decision 35), with the powers the record gives them at that date. The player's agent is that character's aide.
+- **The seat card** (`core/realism/card.py`) is the data record for the figure. Engine v2 adds three things to every card, built by the figure builder (`engine/build.py`) and checked in code (§8.1):
+  - **Authority:** the domains the office commands outright, each with what it covers and who carries it out.
+  - **Reach:** who the person can talk to, derived from rank and office rather than whitelisted. Today's `contacts` become the **inner circle**: fast, secure, always available.
+  - **Influence:** acting on the people who hold an authority the seat lacks.
+  Levers stay on the card as **quick standard forms** for common orders. They are a convenience, not the ceiling of what a seat can do.
+- **Several players can share a government.** Their seats carry differing interests and separate authority: the War Secretary commands what the President delegates, and the President's override is itself an order with a visible cost in standing.
+- **Agenda.** Each seat carries up to 3 live issued items (mandates, §8.5). An optional secret goal (decision 37) works as a wager that replaces the seat's score (§8.5). AI seats keep their historical aims as doctrine and interests that drive their moves but never win.
+- **Play style** (free, guided or beginner, §8.6) is a private setting of the seat, changeable at any wake.
+- **Absence.** A seat that has not committed when the wake closes is played by its aide (§4 step 3).
 - **One human, one seat.** In solo, the player holds one seat and may switch at chapter breaks.
-- **Falling.** A seat can be lost to events or to other players. The player returns as a new character designed to fit the world as it now stands: passes the same balance check, starts with public knowledge only, fresh inventory seeded by the engine. The player keeps their own memory of what the old seat knew; that is drama, not policed.
-- **Joining mid-campaign.** By invite, up to 10 players, starting at the next tick. A newcomer takes over an AI-run seat (inheriting its knowledge layer) or builds a new character via the redesign path. Their agent gives a catch-up briefing. They vote from their second tick.
+- **Succession.** If a player's character dies or falls, the seat passes to the lawful or designated successor and the player keeps playing (2026-10-22). Orders tied to the office carry over; anything tied to the dead person lapses.
+- **Joining mid-campaign.** By invite, up to 10 players: take over an AI-run seat (inheriting its knowledge) or pick a new figure. Their aide gives a catch-up briefing.
+- **Legacy only.** Means as a typed inventory, operation slots (3 to start, cap 5), falling and redesign as described in the v2 parameters still apply to `ruleset: legacy` campaigns. Realism campaigns have no operation slots: what limits a seat is authority, reach, time and the people at each step.
 
 ## 7. Opacity and information model [decided principle; proposed mechanics]
 
@@ -245,21 +264,94 @@ The player's agent delivers the tick-0 briefing: the character's real history up
 - **Leak tests** run in CI before any playtest: canary strings planted in covert orders and searched for in all outbound text over 50+ ticks; counterfactual tests (remove one covert fact, AI moves must not change); the prompt-injection suite; Discord metadata checks.
 - **Builder as player.** When Josh plays multiplayer: covert payloads encrypted at rest, break-glass debug access announced to the table, every admin read logged.
 
-## 8. Actions and limits [proposed, built on decisions 9, 10, 25]
+## 8. Authority, actions and limits [decided 2026-10-28, engine v2]
 
-There is no points budget. Any means a player can describe is open, legal or not. What bounds a move is the world itself:
+Decided (Josh, 2026-10-28): the realism ruleset was too narrow (diluted power, too few contacts, too thin an action list). What a figure can do comes from **authority, reach and influence**, not a hand-written lever list. Free-play orders get **model-estimated effects** where no code rule exists; code enforces the bounds and each estimate carries a stated reason. Decisions 9 and 10 still hold: there is no points budget, and any means a player can describe is open, legal or not. The world bounds the move, not a menu.
 
-- **Means:** does the seat actually have the money, people, contacts or access? If not, it's an acquisition first.
-- **Slots:** a seat runs at most its slot count of operations at once. The rest queue visibly.
-- **Time:** operations have in-world ETAs. Orders take time to carry out.
-- **Counterparties:** a deal needs someone on the other side, AI or human, with their own interests and price. Promises are non-binding talk; transfers and contracts are atomic engine primitives (offer, then accept).
-- **Exposure:** illicit routes can leak, be traced, or be sold out by the contact you trusted. Exposure is rolled per operation, with no modifier for how many a seat runs.
+**Read from the code at `ed1a2e3` (why this changed).** Roosevelt has 6 levers with fixed choices; free text (`engine/directive.py`) is mapped onto a lever or refused; contacts are a fixed whitelist per card (Roosevelt 10, Konoe 3); 44 of 52 cards in `worlds/autumn-1941.yaml` have no levers; every lever runs a pipeline whose decision steps can stall or refuse, so a President's order to his own Navy faces the same gauntlet as a bill; resolvers cover only votes, shipping, production, opinion and movement; nothing issues goals during play; the cast is capped at 4 to 8 (`engine/cast.py`).
 
-For each action, the engine rates **feasibility** and **risk** from state alone. It does not refuse creativity. An implausible action is attempted and fails in the fiction, often in an interesting way. Omnibus orders are split into atomic operations; bribing ten people is ten counterparties.
+### 8.1 The authority model
 
-**The world reacts to the size of consequences, not the number of actions.**
+- **Authority** is a list of domains on the card. Each domain names what it covers (a closed effect kind, §8.3, plus the objects in scope) and who executes it. Roosevelt, for example: naval operations (via Stark), army deployment (via Marshall), executive orders, appointments and dismissals, Lend-Lease allocation (via Stettinius), public statements. The builder proposes domains from the record; code checks that every executor exists in the world and that every domain names an effect kind from the closed set.
+- **Reach** is derived, not whitelisted:
+  - the seat's own government and service chain: summon, in person or by phone;
+  - foreign heads of government: cable, or an envoy;
+  - legislators, press and private citizens: phone, letter or a meeting request.
+  Each channel has a speed and an exposure (the channels table in the realism direction, 2026-10-23). Whether a person takes the meeting depends on rank, disposition and standing, computed in code. The **inner circle** (today's `contacts`) is always reachable, fast and secure.
+- **Influence** covers everything outside authority: lobby, trade, pressure, appeal to the public, or go around the holder. The outcome depends on the holder's interests and the leverage and offer brought.
 
-**Action anatomy:** the free-text order (to the agent), an optional public spin line, a visibility tag, and an optional target or counterparty. Orders lock at the tick cutoff; edits roll into the next tick.
+### 8.2 Routing an order
+
+On commit, code classifies each part of an order into one of three routes. The classification is logged (`OrderRouted`).
+
+1. **Command** (inside the seat's authority). The order goes straight to the executor named by the domain, with no approval chain. The executor carries it out with a **fidelity**: full, loose, slow or partial, set in code from loyalty, competence and workload, with a seeded roll. The executor refuses only if loyalty is **-4 or below**, or if the order is outside the lawful power of the office (a stated rule in code, not a model judgment). The result is logged (`OrderExecuted`, with fidelity).
+2. **Process** (needs an institution: a bill, a treaty, a declaration of war). The existing pipelines (`core/realism/pipelines.py`) run, cut to the decision steps where a person could say no for their own reasons; clerical steps become elapsed time.
+3. **Influence** (aimed at a person who holds the power). The target's decision runs through the card policy (`_policy` in `core/realism/pipelines.py`), extended with the leverage and the offer made.
+
+### 8.3 One set of effects, and the estimator
+
+A **closed, engine-wide vocabulary** of typed effects works on any object in the world: move or posture a force; set rules of engagement; allocate money or materiel; appoint or dismiss; propose a measure (as a set of clauses); make a public statement; investigate; offer or accept a deal; change a disposition; reveal or conceal a fact. The office decides which effects are commands, which need process and which need influence.
+
+**Bills are clause sets:** money, powers granted, limits imposed. The votes resolver scores each bloc against each clause, so a bill is no longer one of four fixed choices. The fitted vote rates and the 0c bands still hold for the three historical votes (§8.7).
+
+**The estimator (the free-play rule).** For any part of an order no code rule covers, one engine-side model call returns typed effects from the vocabulary.
+
+- **Input:** the order, the actor's card, and the cards and relevant state of the people and objects it touches. The estimator is a referee and may read truth.
+- **Output, two parts:** the effects, which stay engine-only; and a **player-facing reason** written only from what the acting seat can see, leak-scanned (canary) like any document. The full rationale is sealed for the end-of-game reveal.
+- **Bounds, enforced in code:**
+  - It never sets a quantity a resolver owns (votes, shipping, production, opinion, movement). It may only feed a resolver input, such as a bloc's disposition.
+  - Per-effect caps: disposition ±2 per order; meters under `cap_meters` (`core/referee.py`); no new asset above tier 2.
+  - **No capability before its date.** No date rule exists yet in the realism code (only the abstract `CAPABILITY` asset kind, §19); engine v2 adds one: a capability carries an in-service date and an effect that uses it before that date is rejected.
+  - Only objects already in the world, or a place added on demand under the existing rule (§5.2, #29).
+- **Determinism:** the estimate lands as an event (`EffectsEstimated`); a replay reads the log and never calls the model again. A model failure leaves that part of the order unresolved, says so on the paper, and the wake still closes.
+- **Atrocity and extreme harm stay abstract** (Josh, 2026-10-28, closing open question 4 of 2026-10-22). The estimator does not model them in detail and records only a political consequence; the §19 floor applies on input as before.
+
+### 8.4 Limits
+
+What bounds a move is the world itself:
+
+- **Authority:** inside it, an order is a command; outside it, it is influence or process, and someone else decides.
+- **Reach:** a person you cannot reach cannot be asked; a slow channel costs days; an insecure one can be read.
+- **Time:** executors, steps and transmission take in-world time; lead times are real.
+- **People:** executors execute loosely or slowly; decision-makers in a process or an influence target have their own interests and price.
+- **Exposure:** covert routes can leak, be traced, or be sold out (§7).
+
+Every order reports back as a document (a letter, a report, a cable) showing what was done, its fidelity, and, where the estimator ruled, its reason. The world reacts to the size of consequences, not the number of orders.
+
+### 8.5 The agenda (issued goals)
+
+The mandates designed on 2026-10-22, built in engine v2:
+
+- **Four kinds.** **Order**, from a principal, pays standing or means on success. **Crisis**, from the state of the world, pays nothing; success avoids loss. **Blowback**, from the seat's own earlier act and linked to it, pays nothing. **Opportunity**, a window; ignoring it costs nothing.
+- **Triggers:** history-schedule events, quantities crossing thresholds, and visible player acts. A seeded choice picks which eligible mandate fires, so replays stay deterministic.
+- **Fan-out:** one event gives each affected seat the kind its post warrants.
+- **Cap:** 3 live items per seat, each with an expiry. Code fills the template and compiles the success condition (`core/goals.py`); the model only words it.
+- **Scoring:** standing with principals, the mandate record, and the side's position. An optional secret goal works as a wager that replaces the score.
+
+### 8.6 Play styles
+
+Three styles, mixable at one table, each private to its player and changeable at any wake (`PlayStyleSet`, sealed to the seat, shown at the end-of-game reveal):
+
+- **Free:** a blank order field, read by the directive reader into effects and routes (§8.2, §8.3).
+- **Guided:** for each agenda item, a suggested plan of 3 to 5 orders the player can edit, reorder or drop.
+- **Beginner:** for each agenda item, 3 or 4 complete options, each saying who it goes to and what it risks as the seat understands it. At least one carries real risk. One is the historical choice, **labelled "what history did"** (Josh, 2026-10-28).
+
+One option generator (engine side, cheap tier) serves guided, beginner and the aide playing an absent seat, and works only from the seat's projected `View`. Fairness rules, each enforced by a test: every option is an ordinary order, so picking one files exactly what a free player could have typed; no style gets extra information or better odds; no style is visible to other players.
+
+### 8.7 Pass bands for engine v2 (fixed before any of it is built)
+
+Each band is an automated test, written to fail on the base (`ed1a2e3`) and pass once its unit lands. Runs use the same 10 seeds as the 0c historical run (`tests/test_realism_bands.py`).
+
+| # | Band | Setup | Pass |
+|---|---|---|---|
+| A | **Authority** | Roosevelt commits a naval command inside his authority (for example shoot on sight in the western Atlantic) to Stark, at Stark's loyalty 0, +2 and +5 | In all 10 seeds and at every loyalty: no refusal; `OrderExecuted` lands within **2 in-world days** of commit; no approval step runs. |
+| A′ | **Refusal floor** | The same order at Stark's loyalty -4 | The executor may refuse; the refusal is a seeded, logged outcome with its rule named. At loyalty -3, never a refusal. |
+| E | **Equivalence** | One seat, one seed: (1) pick a beginner option; (2) type the same order in free play; (3) accept it from a guided plan | The three logs are identical from `OrderRouted` onward (same routes, effects, fidelity, results and documents), apart from the sealed `PlayStyleSet` and `OptionsOffered` events. |
+| F | **Fog** | A canary string planted in a covert fact and in another seat's sealed scope, run over 3 shared wakes with every style present | The canary never appears in any option, guided plan, estimator reason, order report or aide-played order, for any human. |
+| H | **Historical run still holds** | The 0c script under engine v2, with bills as clause sets | The 0c pass rule as recorded (2026-10-23): at least 80% of assertions in band, none outside twice its band, votes 1-3 pass in every seed. |
+| W | **Shared wake closes** | Two human seats (Roosevelt and Churchill), 3 wakes; one commits, one times out | Every wake closes at commit-of-all or deadline; the timed-out seat is played by its aide; the aide takes no irreversible step without a standing order naming it. |
+
+Bands H and W are gates of Phases 2 and 3; A, A′, E and F are written as tests in Phase 1 and must pass by the end of Phase 3.
 
 ## 9. Async model and activity [decided principle; proposed mechanics]
 

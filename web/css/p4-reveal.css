@@ -1,0 +1,24 @@
+/* Phase 4 reveal styles (wave 2). Tokens only (web/css/tokens.css). */
+.rv-screen { min-height: 100vh; background: var(--paper-desk); color: var(--ink-primary); }
+.rv-main { max-width: 52rem; margin: 0 auto; padding: var(--space-4); display: grid; gap: var(--space-4); }
+.rv-main h1 { margin: 0; font: 600 28px/1.2 var(--font-period); }
+.rv-status { min-height: 1.4em; margin: 0; font: 14px/1.4 var(--font-ui); color: var(--ink-secondary); }
+.rv-status.error { color: var(--signal-stamp); border-left: 4px solid var(--signal-stamp); padding-left: var(--space-2); }
+.rv-files { display: grid; gap: var(--space-5); }
+.rv-file { position: relative; padding-top: var(--space-5); }
+.rv-tab { position: absolute; top: 0; left: var(--space-3); margin: 0; padding: var(--space-1) var(--space-3); background: var(--folder-manila-open); border: 1px solid var(--folder-edge); border-bottom: 0; border-radius: var(--radius-paper) var(--radius-paper) 0 0; font: 600 14px/1.5 var(--font-ui); }
+.rv-sheet { display: grid; gap: var(--space-3); padding: var(--space-3); background: var(--folder-manila); border: 1px solid var(--folder-edge); border-radius: 0 var(--radius-paper) var(--radius-paper) var(--radius-paper); }
+.rv-part h3 { margin: 0 0 var(--space-1); font: 600 13px/1.4 var(--font-ui); text-transform: uppercase; letter-spacing: .04em; color: var(--ink-secondary); }
+.rv-list { margin: 0; padding-left: var(--space-4); font: 15px/1.5 var(--font-period); }
+.rv-rulings { list-style: none; padding-left: 0; display: grid; gap: var(--space-2); }
+.rv-ruling { display: grid; gap: var(--space-1); padding: var(--space-2); background: var(--paper-field); border: 1px solid var(--ink-rule); border-radius: var(--radius-paper); }
+.rv-when { font: 600 12px/1.4 var(--font-ui); color: var(--ink-muted); }
+.rv-ask { font-weight: 600; }
+.rv-quote { margin: 0; padding-left: var(--space-3); border-left: 3px solid var(--folder-edge); font-style: italic; color: var(--ink-secondary); }
+.rv-quote p { margin: 0; }
+.rv-back, .rv-ended a { color: var(--signal-link); font: 600 14px/1.4 var(--font-ui); }
+.rv-back:focus-visible, .rv-ended a:focus-visible { outline: 2px solid var(--signal-link); outline-offset: 2px; }
+.rv-ended { max-width: 52rem; margin: var(--space-4) auto; padding: var(--space-3); background: var(--paper-sheet); color: var(--ink-primary); border: 1px solid var(--ink-rule); border-radius: var(--radius-paper); }
+.rv-ended h2 { margin: 0 0 var(--space-2); font: 600 18px/1.3 var(--font-period); }
+.rv-ended .rv-list { list-style: none; padding: 0; display: grid; gap: var(--space-2); font-family: var(--font-ui); }
+.rv-ended li { display: flex; justify-content: space-between; gap: var(--space-3); }

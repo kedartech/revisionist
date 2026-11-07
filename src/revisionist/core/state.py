@@ -9,12 +9,12 @@ Layer 2 provides ``apply``, ``replay`` and ``project``; this module only
 defines the shapes.
 """
 
-from datetime import date
-from typing import ClassVar
+from datetime import date, datetime
+from typing import ClassVar, Literal
 
 from pydantic import Field
 
-from revisionist.core._base import Model
+from revisionist.core._base import Label, Model
 from revisionist.core.goals import Goal
 from revisionist.core.ids import (
     AssetId,
@@ -22,11 +22,18 @@ from revisionist.core.ids import (
     ClockId,
     CommitmentId,
     ContestId,
+    DocumentId,
     EntityId,
     FactId,
+    FeatureId,
+    FeedId,
     GoalId,
     IntentId,
+    MandateId,
     MeterId,
+    OrderId,
+    PipelineId,
+    QuantityId,
     RelationshipId,
     ScheduledEventId,
     SeatId,
@@ -47,7 +54,26 @@ from revisionist.core.ontology import (
     Seat,
     SeatKind,
 )
+from revisionist.core.realism.agenda import Mandate, MandateTemplate, PlayStyle
+from revisionist.core.realism.card import CardFace, Desk, SeatCard
+from revisionist.core.realism.document import Document, DocumentView, Feed
+from revisionist.core.realism.effect import EffectKind, RoutedOrder, RoutedOrderView
+from revisionist.core.realism.geography import Feature
+from revisionist.core.realism.pipeline import Order, Pipeline
+from revisionist.core.realism.quantity import Quantity
+from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.settings import Settings
+
+Ruleset = Literal["legacy", "realism"]
+
+
+class Wake(Model):
+    """The table's shared wake (spec §4). Public: who has committed, never what."""
+
+    number: int = Field(ge=0)
+    deadline: datetime
+    committed: frozenset[SeatId] = frozenset()
+    closed: bool = False
 
 
 class _World(Model):
@@ -76,9 +102,28 @@ class _World(Model):
     """How far the world has drifted from the record (spec §5.4). Public."""
     in_world_date: date | None = None
     """Today in the world. None for a campaign with no start date."""
+    ruleset: Ruleset = "legacy"
+    """Set once, by ``campaign_created``. Public: the client hides odds under realism."""
+    wake: Wake | None = None
+    """Engine v2: the current or last shared wake. None before the first opens."""
+    mandates: dict[MandateId, Mandate] = Field(default_factory=dict)
+    """Engine v2: issued goals. A view holds only its own seat's."""
+    wars: dict[Label, War] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """Who is at war with whom, by ``war_id_for``. Public."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
-        {"goals", "phase", "roster", "contests", "divergence", "in_world_date"}
+        {
+            "goals",
+            "phase",
+            "roster",
+            "contests",
+            "divergence",
+            "in_world_date",
+            "ruleset",
+            "wake",
+            "mandates",
+            "wars",
+        }
     )
 
 
@@ -104,6 +149,44 @@ class State(_World):
     """Filed, not yet frozen into a tick."""
     frozen: tuple[IntentId, ...] = ()
     """Intents in the tick being resolved."""
+    cards: dict[EntityId, SeatCard] = Field(default_factory=dict)
+    """Realism: one card per person, policy fields included."""
+    feeds: dict[FeedId, Feed] = Field(default_factory=dict)
+    pipelines: dict[PipelineId, Pipeline] = Field(default_factory=dict)
+    documents: dict[DocumentId, Document] = Field(default_factory=dict)
+    """Both halves of every document issued, arrived or not."""
+    orders: dict[OrderId, Order] = Field(default_factory=dict)
+    quantities: dict[QuantityId, Quantity] = Field(default_factory=dict)
+    features: dict[FeatureId, Feature] = Field(default_factory=dict)
+    """Engine only: seats learn of features from documents that sight them."""
+    routed: dict[OrderId, RoutedOrder] = Field(default_factory=dict)
+    """Engine v2 orders, with the estimator's effects."""
+    styles: dict[SeatId, PlayStyle] = Field(default_factory=dict)
+    """Each seat's play style. Private to the seat; absent means free."""
+    standing: dict[SeatId, frozenset[EffectKind]] = Field(default_factory=dict)
+    """Irreversible kinds each seat lets its aide order while it is absent."""
+    templates: dict[str, MandateTemplate] = Field(default_factory=dict)
+    """Engine v2: mandate templates by key. Engine only; never in a view."""
+    news: dict[Label, NewsEvent] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """Public events, as structured facts. Engine only: seats read them in the press."""
+    outlets: dict[EntityId, Outlet] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """Each polity's newspaper. Engine only."""
+
+    late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
+        "routed",
+        "styles",
+        "standing",
+        "templates",
+        "news",
+        "outlets",
+        "cards",
+        "feeds",
+        "pipelines",
+        "documents",
+        "orders",
+        "quantities",
+        "features",
+    }
 
 
 class View(_World):
@@ -116,3 +199,27 @@ class View(_World):
     """Every seat, the viewer's included, as others see it."""
     own_pending: tuple[Intent, ...] = ()
     """The viewer's own filed intents; others' intents are never in a view."""
+    cards: dict[EntityId, CardFace] = Field(default_factory=dict)
+    """Realism: every card's public face."""
+    desk: Desk | None = None
+    """Realism: the card of the person the viewer embodies, without its AI policy."""
+    documents: dict[DocumentId, DocumentView] = Field(default_factory=dict)
+    """Pages in scope that have arrived by today. Never a ``DocumentTruth``."""
+    orders: dict[OrderId, Order] = Field(default_factory=dict)
+    """The viewer's own orders only."""
+    quantities: dict[QuantityId, Quantity] = Field(default_factory=dict)
+    """Only quantities whose scope admits the viewer."""
+    routed: dict[OrderId, RoutedOrderView] = Field(default_factory=dict)
+    """The viewer's own engine-v2 orders, without the estimator's effects."""
+    style: PlayStyle | None = None
+    """The viewer's own play style. None: free."""
+
+    late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
+        "routed",
+        "style",
+        "cards",
+        "desk",
+        "documents",
+        "orders",
+        "quantities",
+    }

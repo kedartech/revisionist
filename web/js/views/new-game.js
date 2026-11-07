@@ -1,0 +1,135 @@
+// A new realism game (Batch 5): a ready-made world, or a pitch read into start
+// points and a generated cast. Whoever starts the game is its host.
+
+import { api } from '../api.js';
+import { h, reply } from '../dom.js';
+import { worldDate } from '../rules.js';
+import { header } from './frame.js';
+
+function busy(button, label) {
+  const was = button.textContent;
+  button.disabled = true;
+  button.textContent = label;
+  return () => { button.disabled = false; button.textContent = was; };
+}
+
+async function run(out, button, label, action, body, after) {
+  const restore = busy(button, label);
+  out.replaceChildren();
+  try {
+    const r = await api.newGame(action, body);
+    out.replaceChildren(reply(r.reply));
+    if (!r.refused) await after?.(r);
+  } catch (ex) {
+    out.replaceChildren(h('p', { class: 'form-error' }, ex.message));
+  } finally {
+    restore();
+  }
+}
+
+/** The timeline in date order, each point worded for the screen; startable when a world is ready. */
+export function timelinePoints(points) {
+  return [...points]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((p) => ({ date: p.date, label: p.label, when: worldDate(p.date), world: p.world || null, startable: Boolean(p.world) }));
+}
+
+function whenToBegin(done) {
+  const list = h('div', { class: 'roster' }, h('p', { class: 'muted' }, 'Loading…'));
+  const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
+  api.newGame('timeline').then(({ timeline }) => {
+    list.replaceChildren(...timelinePoints(timeline).map((p) => {
+      const begin = p.startable ? h('button', { type: 'button' }, `Begin on ${p.label}`) : null;
+      begin?.addEventListener('click', () => run(out, begin, 'Starting…', 'start', { date: p.date, world: p.world }, done));
+      return h('article', { class: 'char tl-point' },
+        h('div', { class: 'char-head' },
+          h('span', { class: 'char-name' }, p.label),
+          p.startable ? null : h('span', { class: 'tag' }, 'Coming later')),
+        h('p', { class: 'muted' }, p.when), begin);
+    }));
+  }).catch((ex) => list.replaceChildren(h('p', { class: 'form-error' }, ex.message)));
+  return h('section', { 'aria-labelledby': 'ng-when' },
+    h('h2', { id: 'ng-when' }, 'When to begin'),
+    h('p', { class: 'muted' }, 'Choose a date; you will then choose whom to play.'),
+    list, out);
+}
+
+function readyMade(done) {
+  const list = h('div', { class: 'roster' }, h('p', { class: 'muted' }, 'Loading…'));
+  const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
+  api.newGame('worlds').then(({ worlds }) => {
+    list.replaceChildren(...worlds.map((w) => {
+      const start = h('button', { type: 'button' }, `Start ${w.name}`);
+      start.addEventListener('click', () => run(out, start, 'Starting…', 'ready', { world: w.key }, done));
+      return h('article', { class: 'char' },
+        h('div', { class: 'char-head' }, h('span', { class: 'char-name' }, w.name)),
+        h('p', {}, w.start), start);
+    }));
+  }).catch((ex) => list.replaceChildren(h('p', { class: 'form-error' }, ex.message)));
+  return h('section', { 'aria-label': 'A ready-made game' },
+    h('h2', {}, 'A ready-made game'),
+    h('p', { class: 'muted' }, 'Every person in it is already drawn up.'),
+    list, out);
+}
+
+// The pitch as read, kept across a redraw so the start points stay on screen.
+const pending = { text: '', card: null };
+
+function ownGame(done) {
+  const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
+  const points = h('div', {});
+  const pitch = h('textarea', { id: 'ng-pitch', rows: 2, maxlength: 200, placeholder: 'e.g. The Cuban missile crisis, from the first photographs' }, pending.text);
+  const read = h('button', { type: 'submit' }, 'Read my pitch');
+  const form = h('form', { 'aria-label': 'Your own game' },
+    h('label', { for: 'ng-pitch' }, 'A war, a year, a person, a place'), pitch, read);
+  const offer = (card) => {
+    out.replaceChildren(reply(card.reading));
+    points.replaceChildren(h('fieldset', { class: 'offers' },
+      h('legend', {}, 'Where to begin'),
+      card.start_points.map((p, i) => {
+        const take = h('button', { type: 'button' }, 'Begin here');
+        take.addEventListener('click', () => run(out, take, 'Assembling the cast…', 'cast', { choice: i + 1 }, (r) => {
+          pending.text = '';
+          pending.card = null;
+          return done(r);
+        }));
+        return h('div', { class: 'offer' },
+          h('span', { class: 'label' }, String(i + 1)),
+          h('span', {}, h('strong', {}, p.label), ' ', p.focus),
+          take);
+      }),
+      h('p', { class: 'hint' }, 'If the cast cannot be drawn up, the start points stay here: try again, or choose another.')));
+  };
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!pitch.value.trim()) return;
+    points.replaceChildren();
+    pending.card = null;
+    run(out, read, 'Reading…', 'pitch', { text: pitch.value }, (r) => {
+      pending.text = pitch.value;
+      pending.card = r.card;
+      offer(r.card);
+    });
+  });
+  if (pending.card) offer(pending.card);
+  return h('section', { 'aria-label': 'Your own game' },
+    h('h2', {}, 'Your own'),
+    h('p', { class: 'muted' }, 'Name a moment in history. You will choose where to begin, then who to play.'),
+    form, out, points);
+}
+
+export function newGame(ctx) {
+  const { refresh, go } = ctx;
+  return h('div', { class: 'screen' },
+    header({ ...ctx, game: null, role: 'New game' }),
+    h('div', { class: 'sz sz-solo' },
+      h('main', { class: 'sz-main' },
+        h('div', { class: 'sz-inner' },
+          h('div', { class: 'step-head' },
+            h('h1', {}, 'Start a game'),
+            h('p', {}, 'You will be its host: you invite the other players and say when it begins.'),
+            h('p', {}, h('a', { href: '#home', onclick: (e) => { e.preventDefault(); go('home'); } }, 'Join a game with a code instead'))),
+          whenToBegin(refresh),
+          readyMade(refresh),
+          ownGame(refresh)))));
+}

@@ -21,7 +21,7 @@ pure and take ``now`` as an argument; only ``run`` reads the clock.
 """
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
@@ -115,6 +115,8 @@ def all_submitted(state: State, tail: Sequence[Event]) -> bool:
     filed before that close, so they never make a campaign due on their own.
     """
     humans = {s.seat_id for s in state.seats.values() if s.controller is Controller.HUMAN}
+    if state.ruleset == "realism" and state.wake is not None and not state.wake.closed:
+        return bool(humans) and humans <= state.wake.committed
     filed: set[SeatId] = set()
     for e in tail:
         if isinstance(e.payload, ev.IntentFiled) and e.payload.intent.intent_id in state.pending:
@@ -140,6 +142,12 @@ class ScheduleTable:
             " ON CONFLICT DO NOTHING",
             (campaign_id, next_due_at),
         )
+
+    def has(self, campaign_id: CampaignId) -> bool:
+        row = self.conn.execute(
+            "SELECT 1 FROM schedule WHERE campaign_id = %s", (campaign_id,)
+        ).fetchone()
+        return row is not None
 
     def get(self, campaign_id: CampaignId) -> Schedule:
         row = self.conn.execute(
@@ -227,6 +235,8 @@ def register(store: "PostgresEventStore", now: datetime) -> ScheduleTable:
     """Give every campaign a schedule row; a new one is first due one tick from now."""
     table = ScheduleTable(store.conn)
     for campaign_id in store.campaign_ids():
+        if table.has(campaign_id):
+            continue  # already scheduled: ensure() would do nothing, and an old state may not load
         hours = load_state(store, campaign_id).settings.tick_hours
         table.ensure(campaign_id, now + timedelta(hours=hours))
     return table
@@ -338,7 +348,10 @@ def _one(
     if state.phase is not Phase.PLAY:
         return Outcome(campaign_id, Action.WAITING, state.phase.value.replace("_", " "))
     tail = _tail(store, campaign_id)
-    why = due(row, now, in_flight=in_flight(tail), submitted=all_submitted(state, tail))
+    timer = row
+    if state.ruleset == "realism" and state.wake is not None and not state.wake.closed:
+        timer = replace(row, next_due_at=state.wake.deadline)  # the wake deadline is the timer
+    why = due(timer, now, in_flight=in_flight(tail), submitted=all_submitted(state, tail))
     if why is None:
         action = Action.PAUSED if row.paused else Action.WAITING
         return Outcome(campaign_id, action, row.paused_reason if row.paused else "")
@@ -353,6 +366,7 @@ def _one(
             warn=warn,
             stop_after=stop_after,
             deliverer_factory=deliverer_factory,
+            now=now,
         )
     except Exception as exc:  # the tick stays resumable; count it and maybe stop trying
         failures = row.consecutive_failures + 1

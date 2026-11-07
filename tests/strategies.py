@@ -1,6 +1,6 @@
 """Hypothesis strategies for every core model. Reused by Layers 2 and 3."""
 
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import cast
 
 from hypothesis import strategies as st
@@ -15,12 +15,19 @@ from revisionist.core.ids import (
     CommitmentId,
     ContestId,
     DeltaId,
+    DocumentId,
     EntityId,
     EventId,
     FactId,
+    FeatureId,
+    FeedId,
     GoalId,
     IntentId,
+    MandateId,
     MeterId,
+    OrderId,
+    PipelineId,
+    QuantityId,
     RelationshipId,
     ScheduledEventId,
     SeatId,
@@ -50,6 +57,13 @@ from revisionist.core.ontology import (
     Seat,
     SeatKind,
 )
+from revisionist.core.realism import agenda as ra
+from revisionist.core.realism import card as rc
+from revisionist.core.realism import document as rd
+from revisionist.core.realism import effect as rx
+from revisionist.core.realism import geography as rg
+from revisionist.core.realism import pipeline as rp
+from revisionist.core.realism.quantity import RESOLVER_KEYS, Quantity
 from revisionist.core.settings import Settings
 from revisionist.core.visibility import Scope, Visibility
 
@@ -71,6 +85,13 @@ seat_ids = ulid.map(SeatId)
 intent_ids = ulid.map(IntentId)
 delta_ids = ulid.map(DeltaId)
 goal_ids = ulid.map(GoalId)
+document_ids = ulid.map(DocumentId)
+order_ids = ulid.map(OrderId)
+quantity_ids = ulid.map(QuantityId)
+pipeline_ids = ulid.map(PipelineId)
+feed_ids = ulid.map(FeedId)
+feature_ids = ulid.map(FeatureId)
+mandate_ids = ulid.map(MandateId)
 
 short_text = st.text(min_size=1, max_size=40)
 tags = st.frozensets(short_text, max_size=3)
@@ -94,6 +115,7 @@ settings = st.builds(
     tone=short_text,
     end_date=st.none() | in_world_dates,
     real_days=st.none() | st.integers(1, 365),
+    wake_hours=st.integers(1, 168),
 )
 
 entities = st.builds(
@@ -336,6 +358,7 @@ condition_leaves = st.one_of(
     st.builds(g.MeterAt, meter=meter_ids, op=ops, value=st.integers(-50, 150)),
     st.builds(g.CommitmentInForce, commitment=commitment_ids),
     st.builds(g.DispositionAt, relationship=relationship_ids, op=ops, value=st.integers(-5, 5)),
+    st.builds(g.Ordered, person=entity_ids, effect=st.sampled_from(list(rx.EffectKind))),
 )
 
 
@@ -418,7 +441,536 @@ history_events = st.builds(
 
 any_scheduled_events = scheduled_events | history_events
 
+# --- realism ------------------------------------------------------------------
+
+channels = st.sampled_from(list(rc.ChannelKind))
+labels = st.text(min_size=1, max_size=60)
+
+
+@st.composite
+def param_specs(draw: st.DrawFn) -> rc.ParamSpec:
+    kind = draw(st.sampled_from(list(rc.ParamKind)))
+    name = draw(labels)
+    if kind is rc.ParamKind.INT:
+        lo = draw(st.integers(-1000, 1000))
+        return rc.ParamSpec(name=name, kind=kind, lo=lo, hi=lo + draw(st.integers(0, 1000)))
+    if kind is rc.ParamKind.ENUM:
+        choices = draw(st.lists(labels, min_size=1, max_size=4, unique=True))
+        return rc.ParamSpec(name=name, kind=kind, choices=tuple(choices))
+    return rc.ParamSpec(name=name, kind=kind)
+
+
+levers = st.builds(
+    rc.Lever,
+    name=labels,
+    pipeline=pipeline_ids,
+    resolver=st.sampled_from(RESOLVER_KEYS),
+    params=st.lists(param_specs(), max_size=3, unique_by=lambda p: p.name).map(tuple),
+)
+
+effect_kinds = st.sampled_from(list(rx.EffectKind))
+
+domains = st.builds(
+    rc.Domain,
+    name=labels,
+    effects=st.frozensets(effect_kinds, min_size=1, max_size=3),
+    executor=st.none() | entity_ids,
+    forces=st.lists(feature_ids, max_size=2).map(tuple),
+)
+
+reaches = st.builds(
+    rc.Reach,
+    rank=st.integers(0, 5),
+    chain=st.lists(entity_ids, max_size=3).map(tuple),
+    heads=st.booleans(),
+)
+
+seat_cards = st.builds(
+    rc.SeatCard,
+    authority=st.lists(domains, max_size=3, unique_by=lambda dm: dm.name).map(tuple),
+    reach=reaches,
+    person=entity_ids,
+    office=labels,
+    playable=st.booleans(),
+    powers=st.lists(labels, max_size=3).map(tuple),
+    inner_circle=st.lists(
+        st.builds(rc.Contact, person=entity_ids, channel=channels), max_size=3
+    ).map(tuple),
+    principals=st.lists(entity_ids, max_size=2).map(tuple),
+    levers=st.lists(levers, max_size=2).map(tuple),
+    feeds=st.lists(feed_ids, max_size=2).map(tuple),
+    pipelines=st.lists(pipeline_ids, max_size=2).map(tuple),
+    constraints=st.lists(labels, max_size=2).map(tuple),
+    personal=st.lists(labels, max_size=2).map(tuple),
+    successor=st.none() | entity_ids,
+    horizon_days=st.integers(1, 365),
+    voice=st.text(max_size=200),
+    loyalty=st.integers(-5, 5),
+    doctrine=st.lists(labels, max_size=2).map(tuple),
+    interests=st.lists(labels, max_size=2).map(tuple),
+)
+
+biases = st.builds(
+    rd.Bias,
+    skew_pct=st.integers(-100, 100),
+    noise_pct=st.integers(0, 100),
+    omit_pct=st.integers(0, 100),
+    delay_days=st.integers(0, 365),
+)
+
+feeds = st.builds(
+    rd.Feed,
+    feed_id=feed_ids,
+    name=labels,
+    author=entity_ids,
+    kind=st.sampled_from(list(rd.DocumentKind)),
+    channel=channels,
+    classification=st.sampled_from(list(rd.Classification)),
+    every_days=st.none() | st.integers(1, 365),
+    latency_days=st.none() | st.integers(0, 365),
+    reports=st.lists(quantity_ids, max_size=3).map(tuple),
+    bias=biases,
+)
+
+
+@st.composite
+def steps(draw: st.DrawFn) -> rp.Step:
+    kind = draw(st.sampled_from(list(rp.StepKind)))
+    allowed = frozenset({rp.StepAction.PASS})
+    if kind is rp.StepKind.DECISION:
+        allowed |= draw(st.frozensets(st.sampled_from(list(rp.StepAction))))
+    return rp.Step(
+        person=draw(entity_ids),
+        kind=kind,
+        days=draw(st.none() | st.integers(0, 365)),
+        allowed=allowed,
+    )
+
+
+pipelines = st.builds(
+    rp.Pipeline,
+    pipeline_id=pipeline_ids,
+    name=labels,
+    steps=st.lists(steps(), min_size=1, max_size=4).map(tuple),
+)
+
+param_values = st.integers(-1000, 1000) | st.text(max_size=200)
+param_maps = st.dictionaries(labels, param_values, max_size=3)
+
+
+@st.composite
+def step_outcomes(draw: st.DrawFn) -> rp.StepOutcome:
+    action = draw(st.sampled_from(list(rp.StepAction)))
+    amended = draw(st.dictionaries(labels, param_values, min_size=1, max_size=2))
+    return rp.StepOutcome(
+        step=draw(st.integers(0, 11)),
+        person=draw(entity_ids),
+        action=action,
+        on=draw(in_world_dates),
+        amended=amended if action is rp.StepAction.AMEND else {},
+    )
+
+
+part_refs = st.builds(rx.PartRef, order_id=order_ids, part=st.integers(0, 7))
+
+measures = st.builds(
+    rx.ProposeMeasure,
+    title=labels,
+    clauses=st.lists(
+        st.builds(rx.Clause, kind=st.just(rx.ClauseKind.POWER), subject=labels),
+        min_size=1,
+        max_size=3,
+    ).map(tuple),
+)
+
+orders = st.builds(
+    rp.Order,
+    order_id=order_ids,
+    issuer=seat_ids,
+    lever=labels,
+    pipeline=pipeline_ids,
+    params=param_maps,
+    status=st.sampled_from(list(rp.OrderStatus)),
+    step=st.integers(0, 12),
+    filed=in_world_dates,
+    outcomes=st.lists(step_outcomes(), max_size=3).map(tuple),
+    routed_from=st.none() | part_refs,
+    measure=st.none() | measures,
+)
+
+
+@st.composite
+def document_views(draw: st.DrawFn) -> rd.DocumentView:
+    issued = draw(in_world_dates)
+    return rd.DocumentView(
+        doc_id=draw(document_ids),
+        kind=draw(st.sampled_from(list(rd.DocumentKind))),
+        author=draw(entity_ids),
+        issued=issued,
+        arrives=issued + draw(st.timedeltas(min_value=timedelta(0), max_value=timedelta(60))),
+        channel=draw(channels),
+        classification=draw(st.sampled_from(list(rd.Classification))),
+        title=draw(st.text(max_size=60)),
+        body=tuple(
+            draw(
+                st.lists(
+                    st.builds(
+                        rd.BodyField,
+                        label=labels,
+                        value=st.none() | st.integers(-(10**6), 10**6) | labels,
+                        unit=st.text(max_size=60),
+                    ),
+                    max_size=3,
+                )
+            )
+        ),
+        prose=draw(st.none() | st.text(max_size=400)),
+        scope=draw(scopes()),
+    )
+
+
+truth_refs = st.builds(
+    rd.TruthRef,
+    quantity_id=quantity_ids,
+    value=st.none() | st.integers(-(10**6), 10**6),
+    canary=st.none() | ulid,
+)
+
+
+@st.composite
+def documents_issued(draw: st.DrawFn) -> ev.DocumentIssued:
+    view = draw(document_views())
+    truth = rd.DocumentTruth(
+        doc_id=view.doc_id,
+        feed=draw(st.none() | feed_ids),
+        truth_refs=tuple(draw(st.lists(truth_refs, max_size=3))),
+        bias=draw(biases),
+    )
+    return ev.DocumentIssued(document=view, truth=truth)
+
+
+quantities = st.builds(
+    Quantity,
+    quantity_id=quantity_ids,
+    owner=st.none() | entity_ids,
+    name=labels,
+    value=st.none() | st.integers(-(10**9), 10**9),
+    unit=labels,
+    as_of=in_world_dates,
+    scope=st.none() | scopes(),
+)
+
+
+@st.composite
+def features(draw: st.DrawFn) -> rg.Feature:
+    kind = draw(st.sampled_from(list(rg.FeatureKind)))
+    force = kind in rg.FORCES
+    places = draw(st.lists(entity_ids, min_size=1 if force else 2, max_size=1 if force else 3))
+    moving = force and draw(st.booleans())
+    as_of = draw(in_world_dates)
+    return rg.Feature(
+        feature_id=draw(feature_ids),
+        kind=kind,
+        name=draw(labels),
+        side=draw(st.none() | entity_ids),
+        tier=draw(st.integers(0, 5)),
+        places=tuple(places),
+        as_of=as_of,
+        bound_for=draw(entity_ids) if moving else None,
+        arrives=as_of if moving else None,
+        in_service=draw(st.none() | in_world_dates),
+        posture=draw(st.none() | st.sampled_from(list(rx.Posture))) if force else None,
+        engagement=draw(st.none() | st.sampled_from(list(rx.Engagement))) if force else None,
+    )
+
+
+@st.composite
+def triggers(draw: st.DrawFn) -> ra.Trigger:
+    on = draw(st.sampled_from(list(ra.TriggerKind)))
+    if on is ra.TriggerKind.HISTORY:
+        return ra.Trigger(on=on, history=draw(scheduled_ids))
+    if on is ra.TriggerKind.QUANTITY:
+        return ra.Trigger(
+            on=on, quantity=draw(quantity_ids), op=draw(ops), value=draw(st.integers(-1000, 1000))
+        )
+    return ra.Trigger(on=on, effect=draw(st.sampled_from(list(rx.EffectKind))))
+
+
+@st.composite
+def mandate_templates(draw: st.DrawFn) -> ra.MandateTemplate:
+    kind = draw(st.sampled_from(list(ra.MandateKind)))
+    return ra.MandateTemplate(
+        key=draw(labels),
+        kind=kind,
+        trigger=draw(triggers()),
+        to=tuple(draw(st.lists(entity_ids, min_size=1, max_size=3))),
+        issuer=draw(entity_ids) if kind is ra.MandateKind.ORDER else None,
+        text=draw(short_text),
+        condition=draw(conditions),
+        days=draw(st.integers(1, 90)),
+    )
+
+
+realism_payloads = st.one_of(
+    st.builds(ev.CampaignCreated, name=short_text, world=short_text, ruleset=st.just("realism")),
+    st.builds(
+        ev.CardsDeclared,
+        cards=st.lists(seat_cards, max_size=2).map(tuple),
+        feeds=st.lists(feeds, max_size=2).map(tuple),
+        pipelines=st.lists(pipelines, max_size=2).map(tuple),
+        templates=st.lists(mandate_templates(), max_size=2).map(tuple),
+    ),
+    st.builds(ev.FeatureSet, feature=features()),
+    documents_issued(),
+    st.builds(ev.DocumentWritten, doc_id=document_ids, prose=st.text(min_size=1, max_size=400)),
+    st.builds(ev.DocumentRead, seat_id=seat_ids, doc_id=document_ids),
+    st.builds(ev.DocumentFlagged, seat_id=seat_ids, doc_id=document_ids, flagged=st.booleans()),
+    st.builds(ev.OrderDrafted, order=orders),
+    st.builds(ev.OrderStepTaken, order_id=order_ids, outcome=step_outcomes()),
+    st.builds(ev.OrderSettled, order_id=order_ids, status=st.sampled_from(sorted(rp.SETTLED))),
+    st.builds(ev.QuantitySet, quantity=quantities),
+    st.builds(
+        ev.CounselHeld,
+        seat_id=seat_ids,
+        person=entity_ids,
+        channel=channels,
+        text=st.text(max_size=400),
+    ),
+    st.builds(
+        ev.DirectiveGiven,
+        seat_id=seat_ids,
+        person=entity_ids,
+        channel=channels,
+        text=st.text(max_size=400),
+        order_id=order_ids,
+        lever=labels,
+        params=param_maps,
+    ),
+)
+
+
+# --- engine v2 ------------------------------------------------------------------
+
+
+@st.composite
+def measure_clauses(draw: st.DrawFn) -> rx.Clause:
+    kind = draw(st.sampled_from(list(rx.ClauseKind)))
+    amount = draw(st.integers(0, 10**9)) if kind is rx.ClauseKind.MONEY else None
+    return rx.Clause(kind=kind, subject=draw(labels), amount=amount)
+
+
+@st.composite
+def dispositions(draw: st.DrawFn) -> rx.ShiftDisposition:
+    of, toward = draw(st.lists(entity_ids, min_size=2, max_size=2, unique=True))
+    change = draw(st.sampled_from([-2, -1, 1, 2]))
+    return rx.ShiftDisposition(of=of, toward=toward, change=change)
+
+
+move_forces = st.one_of(
+    st.builds(
+        rx.MoveForce,
+        force=feature_ids,
+        to=entity_ids,
+        posture=st.none() | st.sampled_from(list(rx.Posture)),
+    ),
+    st.builds(
+        rx.MoveForce, force=feature_ids, to=st.none(), posture=st.sampled_from(list(rx.Posture))
+    ),
+)
+
+effects: st.SearchStrategy[rx.Effect] = st.one_of(
+    move_forces,
+    st.builds(
+        rx.SetEngagement,
+        force=st.none() | feature_ids,
+        zone=labels,
+        rule=st.sampled_from(list(rx.Engagement)),
+    ),
+    st.builds(
+        rx.Allocate, recipient=entity_ids, what=labels, amount=st.integers(0, 10**9), unit=labels
+    ),
+    st.builds(rx.Appointment, person=entity_ids, office=labels, appoint=st.booleans()),
+    st.builds(
+        rx.ProposeMeasure,
+        title=labels,
+        clauses=st.lists(measure_clauses(), min_size=1, max_size=4).map(tuple),
+    ),
+    st.builds(rx.MakeStatement, theme=labels, audience=st.none() | entity_ids),
+    st.builds(rx.Investigate, target=entity_ids, question=labels),
+    st.builds(
+        rx.Deal,
+        counterparty=entity_ids,
+        offer=st.lists(labels, min_size=1, max_size=3).map(tuple),
+        ask=st.lists(labels, max_size=3).map(tuple),
+        accept=st.booleans(),
+    ),
+    dispositions(),
+    st.builds(rx.Disclosure, fact=fact_ids, reveal=st.booleans()),
+)
+
+
+@st.composite
+def routed_parts(draw: st.DrawFn) -> rx.RoutedPart:
+    route = draw(st.sampled_from(list(rx.Route)))
+    fields: dict[str, object] = {"route": route, "effect": draw(st.none() | effects)}
+    if route is rx.Route.COMMAND:
+        fields |= {"domain": draw(labels), "executor": draw(st.none() | entity_ids)}
+        done = draw(st.sampled_from(["no", "done", "refused"]))
+        if done != "no":
+            fields["executed"] = draw(in_world_dates)
+            if done == "done":
+                fields["fidelity"] = draw(st.sampled_from(list(rx.Fidelity)))
+            else:
+                fields["refusal"] = draw(labels)
+    elif route is rx.Route.PROCESS:
+        fields["pipeline"] = draw(pipeline_ids)
+    else:
+        fields["target"] = draw(entity_ids)
+        if draw(st.booleans()):
+            fields |= {"decided": draw(in_world_dates), "accepted": draw(st.booleans())}
+    fields["applied"] = draw(st.none() | in_world_dates)
+    fields["estimated"] = tuple(draw(st.lists(effects, max_size=2)))
+    fields["reason"] = draw(st.text(max_size=100))
+    return rx.RoutedPart.model_validate(fields)
+
+
+routed_orders = st.builds(
+    rx.RoutedOrder,
+    order_id=order_ids,
+    issuer=seat_ids,
+    filed=in_world_dates,
+    parts=st.lists(routed_parts(), min_size=1, max_size=3).map(tuple),
+)
+
+
+@st.composite
+def mandates(draw: st.DrawFn) -> ra.Mandate:
+    kind = draw(st.sampled_from(list(ra.MandateKind)))
+    seat = draw(seat_ids)
+    issued = draw(st.dates(min_value=date(1, 1, 1), max_value=date(2025, 1, 1)))
+    return ra.Mandate(
+        mandate_id=draw(mandate_ids),
+        seat_id=seat,
+        kind=kind,
+        issuer=draw(entity_ids) if kind is ra.MandateKind.ORDER else None,
+        text=draw(short_text),
+        condition=draw(conditions),
+        issued=issued,
+        expires=issued + timedelta(days=draw(st.integers(1, 365))),
+        cause=draw(order_ids) if kind is ra.MandateKind.BLOWBACK else None,
+        status=draw(st.sampled_from(list(ra.MandateStatus))),
+        scope=Scope(visibility=Visibility.PRIVATE, known_by=frozenset({seat})),
+    )
+
+
+asks = st.builds(ra.Ask, ask=short_text, effect=st.none() | effects)
+
+
+def _options(n_asks: tuple[int, int]) -> st.SearchStrategy[ra.Option]:
+    return st.builds(
+        ra.Option,
+        label=short_text,
+        asks=st.lists(asks, min_size=n_asks[0], max_size=n_asks[1]).map(tuple),
+        to=st.none() | entity_ids,
+        risk=st.text(max_size=60),
+        historical=st.just(False),
+    )
+
+
+offers = st.one_of(
+    st.builds(
+        ra.Offer,
+        mandate_id=st.none() | mandate_ids,
+        style=st.just(ra.PlayStyle.BEGINNER),
+        options=st.lists(_options((1, 2)), min_size=3, max_size=4).map(tuple),
+    ),
+    st.builds(
+        ra.Offer,
+        mandate_id=st.none() | mandate_ids,
+        style=st.just(ra.PlayStyle.GUIDED),
+        options=st.lists(_options((3, 5)), min_size=1, max_size=1).map(tuple),
+    ),
+)
+
+
+@st.composite
+def effects_estimated(draw: st.DrawFn) -> ev.EffectsEstimated:
+    failed = draw(st.booleans())
+    return ev.EffectsEstimated(
+        order_id=draw(order_ids),
+        part=draw(st.integers(0, 7)),
+        effects=() if failed else tuple(draw(st.lists(effects, max_size=3))),
+        reason=draw(st.text(max_size=100)) if failed else draw(st.text(min_size=1, max_size=100)),
+        rationale="" if failed else draw(st.text(max_size=100)),
+        failed=failed,
+    )
+
+
+@st.composite
+def orders_executed(draw: st.DrawFn) -> ev.OrderExecuted:
+    done = draw(st.booleans())
+    return ev.OrderExecuted(
+        order_id=draw(order_ids),
+        part=draw(st.integers(0, 7)),
+        on=draw(in_world_dates),
+        fidelity=draw(st.sampled_from(list(rx.Fidelity))) if done else None,
+        refusal="" if done else draw(labels),
+    )
+
+
+effects_applied = st.builds(
+    ev.EffectsApplied,
+    order_id=order_ids,
+    part=st.integers(0, 7),
+    on=in_world_dates,
+    revealed=st.lists(fact_ids, max_size=3).map(tuple),
+)
+
+influence_decided = st.builds(
+    ev.InfluenceDecided,
+    order_id=order_ids,
+    part=st.integers(0, 7),
+    on=in_world_dates,
+    accepted=st.booleans(),
+    reason=st.text(max_size=100),
+)
+
+deadlines = st.datetimes(min_value=datetime(2020, 1, 1), max_value=datetime(2040, 1, 1))
+
+engine_v2_payloads = st.one_of(
+    st.builds(ev.OrderRouted, order=routed_orders),
+    orders_executed(),
+    effects_estimated(),
+    effects_applied,
+    influence_decided,
+    st.builds(ev.MandateIssued, mandate=mandates()),
+    st.builds(
+        ev.MandateSettled,
+        mandate_id=mandate_ids,
+        status=st.sampled_from([s for s in ra.MandateStatus if s is not ra.MandateStatus.LIVE]),
+    ),
+    st.builds(ev.WakeOpened, wake=st.integers(0, 500), deadline=deadlines),
+    st.builds(ev.WakeCommitted, wake=st.integers(0, 500), seat_id=seat_ids, by_aide=st.booleans()),
+    st.builds(
+        ev.WakeClosed, wake=st.integers(0, 500), timed_out=st.lists(seat_ids, max_size=3).map(tuple)
+    ),
+    st.builds(
+        ev.PlayStyleSet,
+        seat_id=seat_ids,
+        style=st.sampled_from(list(ra.PlayStyle)),
+        standing=st.frozensets(st.sampled_from(sorted(rx.IRREVERSIBLE)), max_size=2),
+    ),
+    st.builds(
+        ev.OptionsOffered,
+        seat_id=seat_ids,
+        wake=st.integers(0, 500),
+        offers=st.lists(offers, max_size=2).map(tuple),
+    ),
+)
+
 payloads = st.one_of(
+    realism_payloads,
+    engine_v2_payloads,
     st.builds(ev.CampaignCreated, name=short_text, world=short_text),
     st.builds(ev.SettingsSet, settings=settings),
     st.builds(ev.EntityCreated, entity=entities),
@@ -567,4 +1119,16 @@ ALL_MODEL_STRATEGIES: dict[str, st.SearchStrategy[object]] = {
     "Intent": cast(st.SearchStrategy[object], intents),
     "Goal": cast(st.SearchStrategy[object], goals()),
     "Event": cast(st.SearchStrategy[object], events),
+    "SeatCard": cast(st.SearchStrategy[object], seat_cards),
+    "Feed": cast(st.SearchStrategy[object], feeds),
+    "Pipeline": cast(st.SearchStrategy[object], pipelines),
+    "Order": cast(st.SearchStrategy[object], orders),
+    "DocumentView": cast(st.SearchStrategy[object], document_views()),
+    "Quantity": cast(st.SearchStrategy[object], quantities),
+    "RoutedOrder": cast(st.SearchStrategy[object], routed_orders),
+    "Mandate": cast(st.SearchStrategy[object], mandates()),
+    "Offer": cast(st.SearchStrategy[object], offers),
+    "Domain": cast(st.SearchStrategy[object], domains),
+    "Feature": cast(st.SearchStrategy[object], features()),
+    "MandateTemplate": cast(st.SearchStrategy[object], mandate_templates()),
 }

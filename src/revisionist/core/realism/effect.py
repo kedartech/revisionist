@@ -285,6 +285,10 @@ class RoutedPart(PartView):
     estimated: tuple[Effect, ...] = Field(default=(), max_length=8)
     was_estimated: bool = False
     """The estimator has ruled on this part; it rules once. Its effects may be none."""
+    ask: str = Field(default="", max_length=300)
+    """The seat's own words for this part, for the estimator to read. Engine-side only."""
+
+    late_fields: ClassVar[frozenset[str]] = PartView.late_fields | {"ask"}
 
     def view(self) -> PartView:
         return PartView.model_validate(self.model_dump(include=set(PartView.model_fields)))

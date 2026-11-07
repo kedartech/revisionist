@@ -96,6 +96,7 @@ def route(state: State, issuer: SeatId, ask: Ask, on: date) -> Routing:
         return Routing(
             part=RoutedPart(
                 route=Route.COMMAND,
+                ask=ask.ask,
                 effect=ask.effect,
                 domain=domain.name,
                 executor=domain.executor,
@@ -105,10 +106,16 @@ def route(state: State, issuer: SeatId, ask: Ask, on: date) -> Routing:
         pipeline = _process_pipeline(card)
         if pipeline is not None:
             return Routing(
-                part=RoutedPart(route=Route.PROCESS, effect=ask.effect, pipeline=pipeline)
+                part=RoutedPart(
+                    route=Route.PROCESS, ask=ask.ask, effect=ask.effect, pipeline=pipeline
+                )
             )
     if ask.target is not None and ask.target in state.entities:
-        return Routing(part=RoutedPart(route=Route.INFLUENCE, effect=ask.effect, target=ask.target))
+        return Routing(
+            part=RoutedPart(
+                route=Route.INFLUENCE, ask=ask.ask, effect=ask.effect, target=ask.target
+            )
+        )
     if ask.effect is None and ask.target is None:
         return Routing(refusal="Name who should act on it.")
     return Routing(refusal="Nobody under you commands that. Name the person who decides it.")

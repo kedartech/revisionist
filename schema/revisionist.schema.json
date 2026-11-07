@@ -6280,6 +6280,12 @@
             "default": null,
             "title": "Applied"
           },
+          "ask": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Ask",
+            "type": "string"
+          },
           "decided": {
             "anyOf": [
               {
@@ -11927,6 +11933,12 @@
             ],
             "default": null,
             "title": "Applied"
+          },
+          "ask": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Ask",
+            "type": "string"
           },
           "decided": {
             "anyOf": [

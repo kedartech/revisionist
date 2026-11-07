@@ -108,17 +108,19 @@ test('the step actions match the engine and offer each once', () => {
 });
 
 test('the filter bar counts each tray and the counts agree with the listing', () => {
-  assert.deepEqual(trayCounts(docs), { all: 7, unread: 2, read: 5, flagged: 1 });
+  assert.deepEqual(trayCounts(docs), { all: 6, unread: 2, read: 4, flagged: 1, news: 4, acks: 1 });
   assert.equal(fixture.listing.flagged, trayCounts(docs).flagged);
-  assert.deepEqual(TRAY_FILTERS.map(([key]) => key), ['all', 'unread', 'read', 'flagged']);
-  assert.deepEqual(trayCounts([]), { all: 0, unread: 0, read: 0, flagged: 0 });
+  assert.deepEqual(TRAY_FILTERS.map(([key]) => key), ['all', 'unread', 'read', 'flagged', 'news', 'acks']);
+  assert.deepEqual(trayCounts([]), { all: 0, unread: 0, read: 0, flagged: 0, news: 0, acks: 0 });
 });
 
 test('filterInTray keeps the right folders and rejects an unknown filter', () => {
   assert.deepEqual(filterInTray(docs, 'unread').map((d) => d.id), ['d-magic-0919', 'd-whip-1017']);
   assert.deepEqual(filterInTray(docs, 'flagged').map((d) => d.id), ['d-cable-1016']);
-  assert.equal(filterInTray(docs, 'read').length, 5);
-  assert.equal(filterInTray(docs, 'all').length, docs.length);
+  assert.equal(filterInTray(docs, 'read').length, 4);
+  assert.equal(filterInTray(docs, 'all').length, docs.length - 1);
+  assert.deepEqual(filterInTray(docs, 'acks').map((d) => d.id), ['d-reply-1012']);
+  assert.ok(filterInTray(docs, 'news').every((d) => !d.group && !d.ack));
   assert.throws(() => filterInTray(docs, 'toString'));
 });
 

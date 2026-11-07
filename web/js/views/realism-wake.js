@@ -30,7 +30,14 @@ export function deadlineWords(iso, timeZone) {
 }
 
 export function commitCount(wake) {
-  return `${wake.committed} of ${wake.humans} committed`;
+  const tail = wake.humans === 1 ? 'player committed' : 'players committed';
+  return `${wake.committed} of ${wake.humans} ${tail}`;
+}
+
+/** Shown under the header while the wake is open and you have not committed; the aide plays the rest. */
+export function commitHint(wake) {
+  if (!wake.deadline || wake.you_committed) return null;
+  return 'Your aide plays any seat that has not committed when the wake closes.';
 }
 
 /** The busy line for a commit: the last one runs the wake. */
@@ -113,7 +120,7 @@ function committed() {
 function closeWake(act) {
   const dialog = h('dialog', { class: 'sheet rl-close-wake', 'aria-labelledby': 'rl-close-wake-h' },
     h('h2', { id: 'rl-close-wake-h' }, 'Close this wake?'),
-    h('p', {}, 'It runs now, with the orders as they stand. This can take a minute.'),
+    h('p', {}, 'It runs now, with the orders as they stand. The aide plays any seat that has not committed. This can take a minute.'),
     h('div', { class: 'row end' },
       h('button', { type: 'button', class: 'ghost', onclick: () => dialog.close() }, 'Cancel'),
       h('button', {
@@ -207,6 +214,7 @@ export function initiativePanel(agenda, { act }) {
 export function commitPanel(wake, { act }) {
   return h('div', { class: 'rl-commit-foot' },
     h('p', { role: 'status', 'aria-live': 'polite' }, commitCount(wake)),
+    commitHint(wake) ? h('p', { class: 'muted rl-wake-hint' }, commitHint(wake)) : null,
     commitControl(wake, act));
 }
 

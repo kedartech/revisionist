@@ -1,0 +1,21 @@
+/* In-Tray follow-up, unit T1. Tokens only (web/css/tokens.css). */
+.rl-mail { display: grid; grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+.rl-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.rl-group-papers[hidden] { display: none; }
+.rl-row { display: flex; align-items: center; gap: var(--space-2); width: 100%; padding: var(--space-2) var(--space-3); text-align: left; background: var(--paper-carbon); color: var(--ink-primary); border: 1px solid var(--ink-field-border); border-radius: var(--radius-paper); font: 14px/1.4 var(--font-ui); cursor: pointer; }
+.rl-row[aria-selected="true"] { background: var(--ink-primary); color: var(--paper-sheet); }
+.rl-row:focus-visible { outline: 2px solid var(--signal-link); outline-offset: 2px; }
+.rl-row-nested { margin-top: var(--space-1); padding-left: var(--space-5); }
+.rl-row-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.rl-row-from { font-weight: 600; }
+.rl-row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rl-row-date, .rl-row-unread, .rl-flag { font-size: 12px; white-space: nowrap; }
+.rl-dot { flex: none; width: 0.6rem; height: 0.6rem; border-radius: 50%; border: 1px solid var(--ink-field-border); }
+.rl-dot-on { background: var(--signal-link); border-color: var(--signal-link); }
+.rl-row-group[aria-expanded="true"] { font-weight: 600; }
+/* The papers column is narrow unless widened, so the panes follow the column, not the screen. */
+.rl-tray { container-type: inline-size; }
+@container (max-width: 36rem) {
+  .rl-mail { grid-template-columns: minmax(0, 1fr); }
+  .rl-mail-open .rl-mail-list { display: none; }
+}

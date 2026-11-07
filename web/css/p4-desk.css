@@ -4,6 +4,7 @@
 .rl-wake { display: flex; align-items: center; gap: var(--space-3); padding-left: var(--space-3); border-left: 1px solid var(--frame-rule); }
 .frame-head .rl-wake > button.primary, .frame-head .rl-wake > button.primary:hover:not(:disabled) { background: var(--frame-bronze); color: var(--frame-ground); border-color: var(--frame-bronze); }
 .rl-wake-line { font: 12px/1.3 var(--font-ui); white-space: nowrap; }
+.rl-wake-hint { margin: 0; font: 12px/1.4 var(--font-ui); }
 .rl-committed { display: inline-flex; align-items: center; gap: var(--space-1); font: 600 13px/1.4 var(--font-ui); }
 .frame-head .rl-committed { color: var(--frame-text); }
 /* the confirm opens over the page's paper, but sits inside the header in the DOM */

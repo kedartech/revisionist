@@ -370,3 +370,14 @@ def test_the_report_holds_no_rationale_and_no_canary(sl: Slice) -> None:
 def test_report_is_none_for_a_missing_part(sl: Slice) -> None:
     order = sl.shoot_on_sight()
     assert report(sl.state, order, 3, FILED) is None
+
+
+def test_a_command_with_no_executor_is_reported_by_an_aide_not_the_issuer(sl: Slice) -> None:
+    order = sl.shoot_on_sight(
+        domain="public_word", executor=None, effect=rx.MakeStatement(theme="the Atlantic")
+    )
+    executed(sl, order, rx.Fidelity.FULL)
+    doc = next(p for p in land(sl, order) if isinstance(p, ev.DocumentIssued))
+    roosevelt = sl.entity("roosevelt")
+    assert doc.document.author != roosevelt
+    assert doc.document.author == sl.state.cards[roosevelt].inner_circle[0].person

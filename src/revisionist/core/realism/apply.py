@@ -330,6 +330,13 @@ def _lines(text: str, label: str) -> list[BodyField]:
     ]
 
 
+def _aide(state: State, issuer: EntityId) -> EntityId:
+    """Who reports a command the issuer carries out in person: the first of their inner
+    circle, so no one writes a report to themselves. The issuer when they have none."""
+    card = state.cards.get(issuer)
+    return card.inner_circle[0].person if card is not None and card.inner_circle else issuer
+
+
 def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.DocumentIssued | None:
     """The paper the issuer gets for one applied part."""
     if part >= len(order.parts) or order.issuer not in state.seats:
@@ -346,7 +353,7 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
         author = routed.target
         title = f"Your approach to {_name(state, author)}: {_outcome(routed)}"
     else:
-        author = routed.executor if routed.executor is not None else issuer
+        author = routed.executor if routed.executor is not None else _aide(state, issuer)
         partial = _partial_move(routed)
         if partial is None:
             title = f"{_describe(state, routed)}: {_outcome(routed)}"

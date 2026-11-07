@@ -458,8 +458,9 @@ def test_advance_racing_the_scheduler_ticks_once(game: Game) -> None:
     clock = Clock()
     clock.now = T0
     store = game.store()
-    sch.register(store, clock())
-    clock.now = T0 + timedelta(hours=25)  # the timer is due
+    # The fixture's CLI calls register the row on the wall clock, so start from its due time.
+    due = sch.register(store, clock()).get(game.campaign()).next_due_at
+    clock.now = due + timedelta(hours=1)  # the timer is due
     outcomes: list[sch.Outcome] = []
 
     def timer() -> None:

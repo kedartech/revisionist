@@ -41,6 +41,7 @@ from revisionist.core.realism.effect import (
     Investigate,
     MakeStatement,
     MoveForce,
+    PartView,
     Posture,
     ProposeMeasure,
     Route,
@@ -265,7 +266,7 @@ def zone_name(state: State, zone: str) -> str:
     return place.name if place is not None else zone
 
 
-def _describe(state: State, part: RoutedPart) -> str:
+def describe(state: State, part: PartView) -> str:
     """What was ordered, in plain words."""
     match part.effect:
         case None:
@@ -305,7 +306,7 @@ def _partial_move(part: RoutedPart) -> tuple[MoveForce, Posture] | None:
     return None
 
 
-def _outcome(part: RoutedPart) -> str:
+def outcome(part: PartView) -> str:
     if part.route is Route.INFLUENCE:
         return "agreed" if part.accepted else "rebuffed"
     if part.refusal:
@@ -364,12 +365,12 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
 
     if routed.route is Route.INFLUENCE and routed.target is not None:
         author = routed.target
-        title = f"Your approach to {_name(state, author)}: {_outcome(routed)}"
+        title = f"Your approach to {_name(state, author)}: {outcome(routed)}"
     else:
         author = routed.executor if routed.executor is not None else _aide(state, issuer)
         partial = _partial_move(routed)
         if partial is None:
-            title = f"{_describe(state, routed)}: {_outcome(routed)}"
+            title = f"{describe(state, routed)}: {outcome(routed)}"
         else:
             move, posture = partial
             force = state.features.get(move.force)
@@ -377,11 +378,11 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
                 f"{force.name} stayed at {_name(state, force.places[0])}; "
                 f"took the {words(posture.value)} posture"
                 if force is not None
-                else f"{_describe(state, routed)}: {_outcome(routed)}"
+                else f"{describe(state, routed)}: {outcome(routed)}"
             )
     if len(title) > LINE:
         title = title[: LINE - 1].rsplit(" ", 1)[0].rstrip(" ,:;") + "…"
-    body = [BodyField(label="Ordered", value=safe(_describe(state, routed))[:LINE])]
+    body = [BodyField(label="Ordered", value=safe(describe(state, routed))[:LINE])]
     if routed.refusal:
         body.append(BodyField(label="Refused under", value=safe(routed.refusal)[:LINE]))
     elif routed.fidelity is not None:
@@ -413,4 +414,4 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
     )
 
 
-__all__ = ["answer", "apply_due", "as_carried", "report", "zone_name"]
+__all__ = ["answer", "apply_due", "as_carried", "describe", "outcome", "report", "zone_name"]

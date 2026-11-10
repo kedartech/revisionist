@@ -8,6 +8,7 @@ import logging
 from datetime import datetime, timedelta
 
 from revisionist.core import events as ev
+from revisionist.core import record
 from revisionist.core.ids import CampaignId, EventId, SeatId
 from revisionist.core.ontology import Controller
 from revisionist.core.realism.agenda import STANDING_DEFAULT, Ask
@@ -70,8 +71,9 @@ def offer_all(store: EventStore, campaign_id: CampaignId, transport: Transport |
     landed = 0
     for seat in cmp.human_seats(load_state(store, campaign_id)):
         state = load_state(store, campaign_id)
+        memory = record.build(state, list(store.read(campaign_id)), seat)
         try:
-            offered = options.offer(state, seat, transport)
+            offered = options.offer(state, seat, transport, memory)
         except TransportError as exc:
             log.warning("no options for %s: %s", seat, exc)
             continue

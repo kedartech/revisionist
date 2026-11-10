@@ -4,7 +4,8 @@ import json
 from datetime import date
 
 from revisionist.core import events as ev
-from revisionist.core.ids import OrderId, derived_id
+from revisionist.core.ids import OrderId, RelationshipId, derived_id
+from revisionist.core.ontology import Relationship
 from revisionist.core.realism import effect as rx
 from revisionist.core.visibility import private_to
 from revisionist.engine.web.results import results
@@ -144,3 +145,59 @@ def _strings(node: object) -> list[str]:
     if isinstance(node, list):
         return [s for v in node for s in _strings(v)]
     return []
+
+
+def test_a_decided_approach_reads_as_the_decision_not_the_estimate() -> None:
+    sl = Slice()
+    order = _influence(sl, 1)
+    sl.add(
+        ev.EffectsEstimated(order_id=order.order_id, part=0, reason="He is receptive."),
+        private_to(sl.fdr),
+    )
+    sl.add(
+        ev.InfluenceDecided(
+            order_id=order.order_id,
+            part=0,
+            on=date(1941, 9, 14),
+            accepted=False,
+            reason="Burton K. Wheeler would not be moved.",
+        ),
+        private_to(sl.fdr),
+    )
+    _land_reports(sl, date(1941, 9, 14))
+    [part] = results(sl.state, sl.fdr)[0]["parts"]
+    assert part["accepted"] is False
+    assert "receptive" not in str(part["reason"]) and "would not be moved" in str(part["reason"])
+
+
+def _land_reports(sl: Slice, on: date) -> None:
+    """Apply what is due, then let a month pass so every report has arrived."""
+    from datetime import timedelta
+
+    from revisionist.core.realism.apply import apply_due
+
+    for p in apply_due(sl.state, on):
+        scope = p.document.scope if isinstance(p, ev.DocumentIssued) else private_to(sl.fdr)
+        sl.add(p, scope)
+    sl.add(ev.DateAdvanced(to=on + timedelta(days=30)))
+
+
+def test_the_log_line_is_the_issued_papers_answer_and_does_not_drift() -> None:
+    sl = Slice()
+    order = _influence(sl, 1)
+    sl.add(ev.EffectsEstimated(order_id=order.order_id, part=0, reason="r"), private_to(sl.fdr))
+    sl.add(
+        ev.InfluenceDecided(order_id=order.order_id, part=0, on=date(1941, 9, 14), accepted=False),
+        private_to(sl.fdr),
+    )
+    _land_reports(sl, date(1941, 9, 14))
+    before = results(sl.state, sl.fdr)[0]["parts"][0]["reason"]
+    warm = Relationship(
+        relationship_id=RelationshipId("01ARZ3NDEKTSV4RRFFQ69GWARM0"),
+        a=sl.entity("wheeler"),
+        b=sl.entity("roosevelt"),
+        disposition=5,
+        scope=private_to(sl.fdr),
+    )
+    later = sl.state.model_copy(update={"relationships": {warm.relationship_id: warm}})
+    assert before and results(later, sl.fdr)[0]["parts"][0]["reason"] == before

@@ -46,7 +46,7 @@ from revisionist.core.realism.advance import Wake, next_wake
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.arrivals import arrivals
 from revisionist.core.realism.card import ParamKind, ParamSpec, ParamValue
-from revisionist.core.realism.document import DocumentView
+from revisionist.core.realism.document import DocumentView, Feed
 from revisionist.core.realism.effect import Effect, PartRef, Route, RoutedOrder, RoutedPart
 from revisionist.core.realism.feeds import due_feeds, issue, seed_for_day
 from revisionist.core.realism.pipeline import SETTLED, Order, OrderStatus, StepAction
@@ -328,6 +328,11 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
     return PUBLIC  # an ``order_drafted`` too, as ``file_order`` lands it
 
 
+def _due_again_by(feed: Feed, day: date, until: date) -> bool:
+    """Issued on ``day``, the feed would fall due again on or before ``until``."""
+    return feed.every_days is not None and day + timedelta(days=feed.every_days) <= until
+
+
 def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> list[Event]:
     """Every day from ``before`` + 1 to ``until``, earliest first. Each day: orders
     move, history fires or skips what fell due (opinion reads fired incidents),
@@ -371,6 +376,8 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         seed = seed_for_day(state.campaign_id, day)
         docs: list[Event] = []
         for feed in sorted(due_feeds(state, day), key=lambda f: f.feed_id):
+            if _due_again_by(feed, day, until):
+                continue  # one issue per stretch: the last day it falls due
             doc = issue(state, feed, day, seed)
             if doc is not None:
                 docs.append(em.event(doc, scope=doc.document.scope))
@@ -401,24 +408,30 @@ def seat_player(store: EventStore, campaign_id: CampaignId, entity: EntityId) ->
 
 
 def open_play(store: EventStore, campaign_id: CampaignId) -> None:
-    """Close a realism Session Zero: no goals or agents to wait for. Raises
+    """Close a realism Session Zero: no goals or agents to wait for. The opening
+    in-tray lands in the same batch, so wake 0 has papers to read. Raises
     ``StepRefusedError`` when no one holds a person yet."""
     state = load_state(store, campaign_id)
     if not cmp.human_seats(state):
         raise session_zero.StepRefusedError("No one has chosen a person yet.")
-    store.append_all(
-        [
-            Event(
-                event_id=EventId(new_id()),
-                campaign_id=campaign_id,
-                seq=state.last_seq + 1,
-                tick=state.tick,
-                scope=PUBLIC,
-                payload=ev.SessionZeroClosed(),
-                versions=cmp.versions(),
-            )
-        ]
-    )
+    em = Emitter(store, state, cmp.versions())
+    batch = [em.event(ev.SessionZeroClosed())]
+    if state.in_world_date is not None:
+        batch += _opening_in_tray(em, state.in_world_date)
+    em.commit(batch)
+
+
+def _opening_in_tray(em: Emitter, today: date) -> list[Event]:
+    """The feeds due at the start, each arrived on the start date: the pile on the
+    desk when the person takes office. Later issues keep their latency."""
+    out: list[Event] = []
+    for e in _feed_documents(em, today):
+        assert isinstance(e.payload, ev.DocumentIssued)
+        page = e.payload.document.model_copy(update={"arrives": today})
+        out.append(
+            e.model_copy(update={"payload": e.payload.model_copy(update={"document": page})})
+        )
+    return out
 
 
 def _fits(spec: ParamSpec, raw: str) -> ParamValue:
@@ -463,6 +476,7 @@ def draft_order(state: State, seat: SeatId, lever: str, given: dict[str, str]) -
     refused = order_refusal(state, seat, lever, given)
     if refused:
         raise ValueError(refused)
+    _refuse_twin_form(state, seat, lever, params)
     assert state.in_world_date is not None
     return Order(
         order_id=OrderId(new_id()),
@@ -472,6 +486,51 @@ def draft_order(state: State, seat: SeatId, lever: str, given: dict[str, str]) -
         params=params,
         filed=state.in_world_date,
     )
+
+
+def _refuse_twin_form(
+    state: State, seat: SeatId, lever: str, params: dict[str, ParamValue]
+) -> None:
+    """Raise ``ValueError`` when the seat's same form, with the same terms, is still
+    moving, saying who holds it now."""
+    for order in state.orders.values():
+        if (
+            order.issuer != seat
+            or order.routed_from is not None
+            or order.status in SETTLED
+            or (order.lever, order.params) != (lever, params)
+        ):
+            continue
+        steps = state.pipelines[order.pipeline].steps
+        where = (
+            f"it is with {state.entities[steps[order.step].person].name}"
+            if order.step < len(steps)
+            else "it is through every step and waits to be settled"
+        )
+        raise ValueError(f"You already sent that and {where}.")
+
+
+def _words(text: str) -> str:
+    return " ".join(text.casefold().split())
+
+
+def _pending_words(state: State, seat: SeatId) -> set[tuple[str, EntityId | None]]:
+    """Free-text asks the seat has sent that are still on their way: the words and who
+    they went to. A part is on its way until it is applied or, for a process, settled."""
+    carried = {o.routed_from: o for o in state.orders.values() if o.routed_from is not None}
+    out: set[tuple[str, EntityId | None]] = set()
+    for order in state.routed.values():
+        if order.issuer != seat:
+            continue
+        for i, part in enumerate(order.parts):
+            if part.effect is not None or part.applied is not None or not part.ask.strip():
+                continue
+            if part.route is Route.PROCESS:
+                carrier = carried.get(PartRef(order_id=order.order_id, part=i))
+                if carrier is not None and carrier.status in SETTLED:
+                    continue
+            out.add((_words(part.ask), part.target or part.executor))
+    return out
 
 
 def _pending_effects(state: State, seat: SeatId) -> list[Effect]:
@@ -504,6 +563,7 @@ def commit_order(
     today = state.in_world_date
     assert today is not None
     pending = _pending_effects(state, seat)
+    said = _pending_words(state, seat)
     parts: list[RoutedPart] = []
     for ask in asks:
         if ask.effect is not None:
@@ -515,7 +575,15 @@ def commit_order(
         routing = route(state, seat, ask, today)
         if routing.part is None:
             raise ValueError(routing.refusal)
-        parts.append(routing.part)
+        part = routing.part
+        if part.effect is None:
+            words = (_words(part.ask), part.target or part.executor)
+            if words in said:
+                raise ValueError(
+                    f"You already sent that order and it is still on its way: {ask.ask}"
+                )
+            said.add(words)
+        parts.append(part)
     order = RoutedOrder(order_id=OrderId(new_id()), issuer=seat, filed=today, parts=tuple(parts))
     _append(store, state, ev.OrderRouted(order=order), seat, private_to(seat))
     return order

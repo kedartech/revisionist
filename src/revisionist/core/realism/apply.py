@@ -21,7 +21,7 @@ from revisionist.core.ids import (
     derived_id,
 )
 from revisionist.core.ontology import Relationship
-from revisionist.core.realism import reach
+from revisionist.core.realism import process, reach
 from revisionist.core.realism.card import ChannelKind, words
 from revisionist.core.realism.document import (
     BodyField,
@@ -313,6 +313,19 @@ def _outcome(part: RoutedPart) -> str:
     return _CARRIED[part.fidelity] if part.fidelity is not None else "carried out"
 
 
+def answer(state: State, order: RoutedOrder, part: RoutedPart) -> str:
+    """What came of an approach, in line with the decision: agreed; never reached (no
+    channel to them); or would not be moved, with the same hint on every refusal."""
+    assert part.target is not None
+    name = _name(state, part.target)
+    issuer = state.seats[order.issuer].embodies
+    if part.accepted:
+        return f"{name} agreed to what you asked."
+    if not reach.channels_to(state, issuer, part.target):
+        return process.NO_REACH
+    return f"{name} would not be moved. {process.REFUSED_HINT}"
+
+
 def _lines(text: str, label: str) -> list[BodyField]:
     """``text`` in body lines of at most ``LINE`` characters, broken at words."""
     out: list[str] = []
@@ -374,7 +387,11 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
     elif routed.fidelity is not None:
         carried = "posture only" if _partial_move(routed) is not None else routed.fidelity.value
         body.append(BodyField(label="Carried out", value=carried))
-    if routed.reason:
+    if routed.route is Route.INFLUENCE and routed.target is not None:
+        # The estimator writes before the target decides, so its words can contradict
+        # the answer; the account of an approach comes from the decision itself.
+        body += _lines(safe(answer(state, order, routed)), "Answer")
+    elif routed.reason:
         body += _lines(safe(routed.reason), "Account")
     channels = reach.channels_to(state, issuer, author) if author != issuer else ()
     channel = channels[0] if channels else ChannelKind.IN_PERSON
@@ -396,4 +413,4 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
     )
 
 
-__all__ = ["apply_due", "as_carried", "report", "zone_name"]
+__all__ = ["answer", "apply_due", "as_carried", "report", "zone_name"]

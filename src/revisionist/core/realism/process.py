@@ -110,6 +110,24 @@ def _name(state: State, who: EntityId) -> str:
 def decides(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[bool, str]:
     """The target's card policy [proposed]: accepted when the score reaches
     ``ACCEPT_AT``. One rule, so a model-backed policy can replace it."""
+    disposition, interest, leverage, d = _score(state, routed, part)
+    accepted = disposition + interest + leverage + d >= ACCEPT_AT
+    assert part.target is not None
+    name = _name(state, part.target)
+    if accepted:
+        return True, f"{name} agreed to what you asked."
+    if interest < 0:
+        return False, f"{name} would not be moved: it would take the country nearer the war."
+    return False, f"{name} would not be moved."
+
+
+REFUSED_HINT = "Better standing with them, or something offered in return, might change it."
+"""The same words on every refusal: a hint tuned to the score would tell the issuer
+something about the target's card, which the issuer cannot see."""
+
+
+def _score(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[int, int, int, int]:
+    """Disposition, interest, leverage and the seeded roll, as ``decides`` weighs them."""
     assert part.target is not None
     target, issuer = part.target, _person(state, routed)
     card = state.cards.get(target)
@@ -139,13 +157,7 @@ def decides(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[bool, 
     # d: the seeded roll, -2..+2
     index = next(i for i, p in enumerate(routed.parts) if p is part)
     d = friction(state, routed.order_id, index, "influence", n=5) - 2
-    accepted = disposition + interest + leverage + d >= ACCEPT_AT
-    name = _name(state, target)
-    if accepted:
-        return True, f"{name} agreed to what you asked."
-    if interest < 0:
-        return False, f"{name} would not be moved: it would take the country nearer the war."
-    return False, f"{name} would not be moved."
+    return disposition, interest, leverage, d
 
 
 def _human(state: State, who: EntityId) -> bool:
@@ -184,4 +196,4 @@ def influence_due(state: State, today: date) -> list[ev.Payload]:
     return out
 
 
-__all__ = ["decides", "influence_due", "open_processes"]
+__all__ = ["NO_REACH", "REFUSED_HINT", "decides", "influence_due", "open_processes"]

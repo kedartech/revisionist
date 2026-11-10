@@ -15,7 +15,13 @@ from revisionist.core.ontology import Relationship
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism import reach
 from revisionist.core.realism.agenda import Ask
-from revisionist.core.realism.apply import REASON_WITHHELD, apply_due, as_carried, report
+from revisionist.core.realism.apply import (
+    REASON_WITHHELD,
+    answer,
+    apply_due,
+    as_carried,
+    report,
+)
 from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.geography import SPEED_KM_PER_DAY, Feature, km_between
 from revisionist.core.realism.resolvers import movement
@@ -381,3 +387,61 @@ def test_a_command_with_no_executor_is_reported_by_an_aide_not_the_issuer(sl: Sl
     roosevelt = sl.entity("roosevelt")
     assert doc.document.author != roosevelt
     assert doc.document.author == sl.state.cards[roosevelt].inner_circle[0].person
+
+
+def _lines(doc: ev.DocumentIssued) -> str:
+    return " ".join(str(line.value) for line in doc.document.body)
+
+
+def test_a_rebuffed_approach_reads_as_a_refusal_and_says_what_would_change_it(sl: Slice) -> None:
+    order = influence(sl, False)
+    sl.add(
+        ev.EffectsEstimated(
+            order_id=order.order_id, part=0, reason="Wheeler is receptive and will help."
+        )
+    )
+    sl.add(ev.InfluenceDecided(order_id=order.order_id, part=0, on=FILED, accepted=False))
+    doc = next(p for p in land(sl, order) if isinstance(p, ev.DocumentIssued))
+    assert doc.document.title.endswith("rebuffed")
+    body = _lines(doc)
+    assert "receptive" not in body
+    assert "would not be moved" in body and "might change it" in body
+
+
+def test_an_accepted_approach_reads_as_agreed(sl: Slice) -> None:
+    order = influence(sl, True)
+    sl.add(ev.EffectsEstimated(order_id=order.order_id, part=0, reason="He will not budge."))
+    sl.add(ev.InfluenceDecided(order_id=order.order_id, part=0, on=FILED, accepted=True))
+    doc = next(p for p in land(sl, order) if isinstance(p, ev.DocumentIssued))
+    assert doc.document.title.endswith("agreed")
+    body = _lines(doc)
+    assert "agreed" in body and "budge" not in body
+
+
+def _refused(sl: Slice) -> tuple[rx.RoutedOrder, ev.DocumentIssued]:
+    order = influence(sl, False)
+    sl.add(ev.EffectsEstimated(order_id=order.order_id, part=0, reason="He is receptive."))
+    sl.add(ev.InfluenceDecided(order_id=order.order_id, part=0, on=FILED, accepted=False))
+    doc = next(p for p in land(sl, order) if isinstance(p, ev.DocumentIssued))
+    return order, doc
+
+
+def test_a_refusal_reads_the_same_whatever_the_targets_hidden_card_says(sl: Slice) -> None:
+    order, _ = _refused(sl)
+    wheeler = sl.entity("wheeler")
+    part = sl.state.routed[order.order_id].parts[0]
+    texts = set()
+    for loyalty, held in ((-5, ()), (0, ("keep out of the war",)), (5, ("aid to Britain",))):
+        card = sl.state.cards[wheeler].model_copy(update={"loyalty": loyalty, "interests": held})
+        state = sl.state.model_copy(update={"cards": {**sl.state.cards, wheeler: card}})
+        texts.add(answer(state, state.routed[order.order_id], part))
+    assert len(texts) == 1
+
+
+def test_an_unreachable_target_was_not_approached(
+    sl: Slice, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(reach, "channels_to", lambda *a, **k: ())
+    _, doc = _refused(sl)
+    body = _lines(doc)
+    assert "no way to reach" in body and "would not be moved" not in body

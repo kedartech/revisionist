@@ -517,9 +517,8 @@ def test_the_autumn_board_reads_the_roosevelt_desks_feeds() -> None:
     board = rs.situation(project(state, seat))
     by_label = {f["label"]: f for f in board["figures"]}
     assert "House Democrats" in by_label and "U-boats operational in the Atlantic" in by_label
-    oil = by_label["Japanese oil stocks"]
-    assert {s["author"] for s in oil["sources"]} == {"Cordell Hull", "Alwin D. Kramer"}
-    assert all(s["value"] is None and s["last_given"] is None for s in oil["sources"])
+    # A figure the record leaves blank (no feed can state it) puts no empty paper on the desk.
+    assert "Japanese oil stocks" not in by_label
     today = state.in_world_date
     assert today is not None
     for figure in board["figures"]:

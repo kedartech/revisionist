@@ -8,8 +8,9 @@ import pytest
 from revisionist.core import events as ev
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism.agenda import Ask
+from revisionist.core.realism.pipeline import OrderStatus
 from revisionist.core.visibility import private_to
-from revisionist.engine.realism_tick import commit_order
+from revisionist.engine.realism_tick import commit_order, file_order
 from revisionist.engine.store import MemoryStore, load_state
 from tests.test_engine_v2_contract import CAMPAIGN, Slice
 
@@ -81,4 +82,48 @@ def test_a_different_ask_is_not_a_duplicate() -> None:
         }
     )
     commit_order(store, CAMPAIGN, sl.fdr, [defend])
+    assert routed(store) == 2
+
+
+def bill(store: MemoryStore, sl: Slice) -> None:
+    file_order(store, CAMPAIGN, sl.fdr, "send_bill", {"bill": "neutrality_revision"})
+
+
+def test_the_same_form_is_refused_while_the_first_is_moving_and_says_where() -> None:
+    sl = Slice()
+    store = store_of(sl)
+    bill(store, sl)
+    with pytest.raises(ValueError, match="already") as refused:
+        bill(store, sl)
+    state = load_state(store, CAMPAIGN)
+    (order,) = state.orders.values()
+    holder = state.entities[state.pipelines[order.pipeline].steps[order.step].person].name
+    assert holder in str(refused.value)
+    assert len(state.orders) == 1
+
+
+def test_a_form_can_be_filed_again_once_the_first_is_settled() -> None:
+    sl = Slice()
+    store = store_of(sl)
+    bill(store, sl)
+    (first,) = load_state(store, CAMPAIGN).orders
+    sl2 = Slice()
+    sl2.events = list(store.read(CAMPAIGN))
+    sl2.add(ev.OrderSettled(order_id=first, status=OrderStatus.REFUSED))
+    store = store_of(sl2)
+    bill(store, sl)
+    assert len(load_state(store, CAMPAIGN).orders) == 2
+
+
+def test_the_same_words_to_the_same_person_are_refused_while_pending() -> None:
+    sl = Slice()
+    store = store_of(sl)
+    ask = Ask(ask="Hold the fleet at Argentia.", target=sl.entity("wheeler"))
+    commit_order(store, CAMPAIGN, sl.fdr, [ask])
+    again = ask.model_copy(update={"ask": "  hold the fleet at argentia. "})
+    with pytest.raises(ValueError, match="already"):
+        commit_order(store, CAMPAIGN, sl.fdr, [again])
+    assert routed(store) == 1
+    other = ask.model_copy(update={"target": sl.entity("rayburn")})
+    commit_order(store, CAMPAIGN, sl.fdr, [other])
     assert routed(store) == 2

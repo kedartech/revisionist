@@ -162,22 +162,23 @@ AB_BY_MODEL_AND_TITLE: Mapping[tuple[str, str], str] = {
         "given me anything I'd trust on a declaration against Germany, nor on helping Britain "
         "at the risk of war; I'll chase them for it.\n\nSteve"
     ),
-    ("claude-haiku-5-5", "Gallup polls, 1941-09-08"): (
+    ("claude-haiku-5-5", "Gallup polls, 1941-09-12"): (
         "Gallup now shows 56 percent saying your course is about right. Nothing new on war "
         "with Germany or on aid to Britain at risk of war.\n\nSteve Early"
     ),
-    ("claude-sonnet-5-5", "Gallup polls, 1941-09-08"): (
+    ("claude-sonnet-5-5", "Gallup polls, 1941-09-12"): (
         "Boss,\n\nA small move our way: 56 percent now call your course about right. Still "
         "no number on war with Germany or on helping Britain whatever the risk, and I'd "
         "rather give you none than a guess.\n\nSteve"
     ),
-    ("claude-haiku-5-5", "The Speaker's count, 1941-09-08"): (
-        "Mr. President, no change in the House: 267 Democrats, 162 Republicans. Sam Rayburn"
+    ("claude-haiku-5-5", "Atlantic reports from the Navy Department, 1941-09-12"): (
+        "September losses to U-boats still stand at 209835 GRT; 30 boats operational in the "
+        "Atlantic. The Atlantic Fleet is at Norfolk.\n\nH. R. Stark"
     ),
-    ("claude-sonnet-5-5", "The Speaker's count, 1941-09-08"): (
-        "Mr. President,\n\nThe House is as it was a week ago, 267 Democrats to 162 Republicans. "
-        "The party line will hold on most things; on neutrality I'll want another week of "
-        "talking before I give you a count you can lean on.\n\nSam"
+    ("claude-sonnet-5-5", "Atlantic reports from the Navy Department, 1941-09-12"): (
+        "Mr. President,\n\nNo change worth the name since my last: losses for September at "
+        "209,835 GRT and some 30 boats at sea in the Atlantic. The fleet is at Norfolk and the "
+        "convoys keep their routes.\n\nRespectfully,\nH. R. Stark"
     ),
 }
 

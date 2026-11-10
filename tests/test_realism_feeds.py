@@ -107,14 +107,15 @@ def test_skew_pushes_the_report_in_its_direction(rig: Rig) -> None:
     assert (hi, lo) == (11, 4)
 
 
-def test_noise_stays_within_its_band_and_omission_leaves_a_blank_line(rig: Rig) -> None:
+def test_noise_stays_within_its_band_and_a_page_with_every_line_left_out_is_not_issued(
+    rig: Rig,
+) -> None:
     noisy = rig.feed.model_copy(update={"bias": Bias(noise_pct=20)})
     for n in range(20):
         v = _reported(_issue(rig.state, noisy, date(1900, 4, 2), f"seed{n}"))
         assert v is not None and 5 <= v <= 9
     mute = rig.feed.model_copy(update={"bias": Bias(omit_pct=100)})
-    doc = _issue(rig.state, mute, date(1900, 4, 2))
-    assert len(doc.document.body) == 1 and _reported(doc) is None
+    assert issue(rig.state, mute, date(1900, 4, 2), "s") is None  # nothing left to state
 
 
 def test_arrival_is_latency_plus_delay_and_projection_waits(rig: Rig) -> None:
@@ -156,12 +157,36 @@ def test_the_document_goes_to_card_holders_only_and_nobody_means_none(rig: Rig) 
     assert issue(bare, rig.feed, day, "s") is None
 
 
-def test_a_gap_quantity_reports_none_never_a_number(rig: Rig) -> None:
+def test_a_feed_whose_every_figure_is_a_gap_issues_nothing(rig: Rig) -> None:
     state = rig.state
     gap = Quantity(
         quantity_id=rig.qid, name="Votes", value=None, unit="votes", as_of=date(1900, 4, 2)
     )
     state = state.model_copy(update={"quantities": {rig.qid: gap}})
-    doc = _issue(state, rig.feed, date(1900, 4, 2))
-    assert doc.document.body[0].value is None and doc.document.body[0].unit == "votes"
-    assert doc.truth.truth_refs[0].value is None
+    assert issue(state, rig.feed, date(1900, 4, 2), "s") is None
+
+
+def test_a_feed_with_one_figure_stated_still_issues(rig: Rig) -> None:
+    gap = Quantity(
+        quantity_id=QuantityId("01ARZ3NDEKTSV4RRFFQ69GAP00"),
+        name="Abstentions",
+        value=None,
+        unit="votes",
+        as_of=date(1900, 4, 2),
+    )
+    state = rig.state.model_copy(
+        update={"quantities": {**rig.state.quantities, gap.quantity_id: gap}}
+    )
+    feed = rig.feed.model_copy(update={"reports": (*rig.feed.reports, gap.quantity_id)})
+    doc = _issue(state, feed, date(1900, 4, 2))
+    assert [line.value is None for line in doc.document.body] == [False, True]
+
+
+def test_a_word_for_word_repeat_of_the_last_issue_is_not_issued(rig: Rig) -> None:
+    start = rig.state.quantities[rig.qid].as_of
+    rig.add(_issue(rig.state, rig.feed, start))
+    week = start + timedelta(days=7)
+    assert issue(rig.state, rig.feed, week, seed_for_day(CAMPAIGN, week)) is None
+    moved = rig.state.quantities[rig.qid].model_copy(update={"value": 3})
+    state = rig.state.model_copy(update={"quantities": {rig.qid: moved}})
+    assert issue(state, rig.feed, week, seed_for_day(CAMPAIGN, week)) is not None

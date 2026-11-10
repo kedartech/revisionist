@@ -63,6 +63,15 @@ def _domain_for(card: SeatCard, ask: Ask) -> Domain | None:
     return None
 
 
+def _executors_domain(card: SeatCard, ask: Ask) -> Domain | None:
+    """Words with no typed effect, aimed at the person who carries out one of the
+    card's domains: an order to one's own subordinate, ruled on by the estimator,
+    not a favour asked of a peer."""
+    if ask.effect is not None or ask.target is None:
+        return None
+    return next((d for d in card.authority if d.executor == ask.target), None)
+
+
 def _process_pipeline(card: SeatCard) -> str | None:
     """[proposed] The pipeline of the first votes lever, else the card's first pipeline."""
     for lever in card.levers:
@@ -91,7 +100,7 @@ def route(state: State, issuer: SeatId, ask: Ask, on: date) -> Routing:
     refused = ask_refusal(state, issuer, ask)
     if refused:
         return Routing(refusal=refused)
-    domain = _domain_for(card, ask)
+    domain = _domain_for(card, ask) or _executors_domain(card, ask)
     if domain is not None:
         return Routing(
             part=RoutedPart(

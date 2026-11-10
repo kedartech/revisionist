@@ -91,6 +91,29 @@ class Realism:
         finally:
             store.close()
 
+    def move_votes(self, value: int) -> None:
+        """The toy's one figure moved to ``value``, as a resolver would land it."""
+        store = self.web.app.open()
+        try:
+            state = store_state(store, self.campaign)
+            qid = QuantityId(self.ids["council_votes"])
+            moved = state.quantities[qid].model_copy(update={"value": value})
+            store.append_all(
+                [
+                    ev.Event(
+                        event_id=EventId(derived_id(self.campaign, "move-votes", value)),
+                        campaign_id=self.campaign,
+                        seq=state.last_seq + 1,
+                        tick=state.tick,
+                        scope=PUBLIC,
+                        payload=ev.QuantitySet(quantity=moved),
+                        versions=cmp.versions(),
+                    )
+                ]
+            )
+        finally:
+            store.close()
+
     def first_tick(self) -> None:
         store = self.web.app.open()
         try:
@@ -334,7 +357,8 @@ def test_the_planted_truth_canary_never_reaches_a_response(solo: tuple[Realism, 
 
 
 def test_advance_writes_prose_for_the_pages_it_issues(solo: tuple[Realism, Client]) -> None:
-    _, ada = solo
+    game, ada = solo
+    game.move_votes(9)  # a count that has not moved is not sent again
     first_day = realism_of(ada)["clock"]["world_date"]
     assert post(ada, "advance")[1]["refused"] is False
     fresh = [d for d in realism_of(ada)["documents"]["documents"] if d["issued"] > first_day]

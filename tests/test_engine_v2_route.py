@@ -391,3 +391,20 @@ def test_a_refused_ask_logs_nothing() -> None:
     with pytest.raises(ValueError, match="Name who should act on it"):
         commit_order(store, campaign, seat, [Ask(ask="Do something.")])
     assert len(list(store.read(campaign))) == before
+
+
+def test_free_words_to_your_own_executor_are_a_command_in_that_domain(sl: Slice) -> None:
+    ask = Ask(ask="Bring the fleet to alert.", target=sl.entity("stark"))
+    part = rt.route(sl.state, sl.fdr, ask, TODAY).part
+    assert part is not None and part.route is Route.COMMAND
+    assert part.domain == "naval_operations" and part.executor == sl.entity("stark")
+    assert part.effect is None
+
+
+def test_a_typed_ask_your_executor_cannot_carry_stays_influence(sl: Slice) -> None:
+    card = sl.state.cards[sl.entity("roosevelt")]
+    naval = tuple(d for d in card.authority if d.name == "naval_operations")
+    state = with_card(sl.state, sl.entity("roosevelt"), authority=naval)
+    ask = Ask(ask="Speak for me.", target=sl.entity("stark"), effect=MakeStatement(theme="aid"))
+    part = rt.route(state, sl.fdr, ask, TODAY).part
+    assert part is not None and part.route is Route.INFLUENCE

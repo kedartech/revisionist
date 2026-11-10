@@ -8,7 +8,7 @@ no free text for an ask, so each ask is spoken from its typed effect.
 from datetime import date
 from hashlib import sha256
 
-from revisionist.core.ids import SeatId
+from revisionist.core.ids import DocumentId, SeatId, derived_id
 from revisionist.core.project import project
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism.apply import zone_name
@@ -68,7 +68,7 @@ def _ask(state: State, view: View, effect: rx.Effect | None) -> str:
     return "A request in your own words"
 
 
-def _part(state: State, view: View, p: rx.PartView) -> ResultPart:
+def _part(state: State, view: View, p: rx.PartView, said: str | None = None) -> ResultPart:
     to: str | None = None
     match p.route:
         case rx.Route.COMMAND:
@@ -86,10 +86,24 @@ def _part(state: State, view: View, p: rx.PartView) -> ResultPart:
         route=route,
         fidelity=_FIDELITY[p.fidelity] if p.fidelity is not None else None,
         refused_under=f"Refused under {p.refusal.replace('_', ' ')}" if p.refusal else None,
-        reason=p.reason,
+        reason=said if said is not None else p.reason,
         accepted=p.accepted,
         applied=_day(p.applied) if p.applied is not None else None,
     )
+
+
+def _said(view: View, order: rx.RoutedOrderView, i: int) -> str | None:
+    """For a decided approach, the answer the issued paper gives, as the log froze it:
+    the estimator wrote before the decision and may contradict it. None when there is
+    no such paper (yet), and for anything else."""
+    part = order.parts[i]
+    if part.route is not rx.Route.INFLUENCE or part.accepted is None:
+        return None
+    doc = view.documents.get(DocumentId(derived_id(view.campaign_id, "report", order.order_id, i)))
+    if doc is None:
+        return None
+    said = " ".join(str(x.value) for x in doc.body if x.label.startswith("Answer"))
+    return said or None
 
 
 def results(state: State, seat: SeatId) -> list[OrderResult]:
@@ -103,7 +117,9 @@ def results(state: State, seat: SeatId) -> list[OrderResult]:
             OrderResult(
                 id=token,
                 filed=_day(order.filed),
-                parts=[_part(state, view, p) for p in order.parts],
+                parts=[
+                    _part(state, view, p, _said(view, order, i)) for i, p in enumerate(order.parts)
+                ],
             )
         )
     return out

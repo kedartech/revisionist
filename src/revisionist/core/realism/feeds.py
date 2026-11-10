@@ -93,9 +93,25 @@ def _holders(state: State, feed: Feed) -> frozenset[SeatId]:
     return frozenset(s.seat_id for s in state.seats.values() if s.embodies in persons)
 
 
+def _repeats(state: State, feed: Feed, body: tuple[BodyField, ...]) -> bool:
+    """The page would say word for word what the feed's last page said. Only a page of
+    figures counts: a page with no lines (a cable the prose writes from its title) is
+    never a repeat, and a sighting confirms where a force still is, which the map reads."""
+    if not body or any(line.sight is not None for line in body):
+        return False
+    last = max(
+        (d.view for d in state.documents.values() if d.truth.feed == feed.feed_id),
+        key=lambda v: v.issued,
+        default=None,
+    )
+    return last is not None and last.body == body
+
+
 def issue(state: State, feed: Feed, today: date, seed: str) -> ev.DocumentIssued | None:
     """The document ``feed`` issues today, or None when no seat holds the feed
-    (a non-public scope needs a holder, and a feed no one receives is not a document)."""
+    (a non-public scope needs a holder, and a feed no one receives is not a document),
+    when every line it would carry is left blank (nothing to state), or when the page
+    would repeat the feed's last one word for word."""
     holders = _holders(state, feed)
     if not holders:
         return None
@@ -113,6 +129,8 @@ def issue(state: State, feed: Feed, today: date, seed: str) -> ev.DocumentIssued
         if line is not None:
             seen.append(SightRef(feature_id=fid, places=f.places))
             body.append(line)
+    if (body and all(line.value is None for line in body)) or _repeats(state, feed, tuple(body)):
+        return None
     doc_id = DocumentId(derived_id(state.campaign_id, feed.feed_id, today.isoformat()))
     arrives = today + timedelta(days=(feed.latency_days or 0) + feed.bias.delay_days)
     view = DocumentView(

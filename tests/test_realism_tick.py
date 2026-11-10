@@ -13,6 +13,7 @@ from revisionist.core.ids import (
     EventId,
     OrderId,
     PipelineId,
+    QuantityId,
     SeatId,
     derived_id,
 )
@@ -24,6 +25,7 @@ from revisionist.core.visibility import PUBLIC
 from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
 from revisionist.engine import realism_tick
+from revisionist.engine.emit import Emitter
 from revisionist.engine.realism_tick import RealismTickResult, run_realism_tick
 from revisionist.engine.runner import play_tick
 from revisionist.engine.store import EventStore, MemoryStore, SqliteStore, load_state
@@ -53,6 +55,15 @@ def seated(store: EventStore, world: str = "realism-toy", who: str = "ada") -> C
     store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))
     realism_tick.seat_player(store, CAMPAIGN, EntityId(resolve_keys(decl, CAMPAIGN)[who]))
     return CAMPAIGN
+
+
+def move_figure(store: EventStore, cid: CampaignId, key: str, value: int) -> None:
+    """The figure ``key`` set to ``value`` as of today, as a resolver would land it."""
+    state = load_state(store, cid)
+    qid = QuantityId(derived_id(cid, "quantity", key))
+    moved = state.quantities[qid].model_copy(update={"value": value})
+    (seat,) = state.seats
+    realism_tick._append(store, state, ev.QuantitySet(quantity=moved), seat)
 
 
 def file_levy(store: EventStore, who: SeatId | None = None) -> None:
@@ -99,12 +110,35 @@ def test_first_tick_issues_the_opening_in_tray_and_wakes_at_the_next_candidate()
     assert result.delivered == ()
 
 
-def test_documents_project_to_a_seat_only_on_arrival() -> None:
+def test_the_opening_in_tray_is_on_the_desk_when_play_opens() -> None:
+    """Before any tick: the papers are there to read at wake 0, dated the start."""
     store = MemoryStore()
-    cid = seated(store)
+    cid = seated(store, "autumn-1941", "roosevelt")
+    state = load_state(store, cid)
+    (seat,) = state.seats
+    start = state.in_world_date
+    view = project(state, seat)
+    assert view.documents
+    assert {d.issued for d in view.documents.values()} == {start}
+    run_realism_tick(store, cid)
+    after = load_state(store, cid)
+    opening = [d for d in after.documents.values() if d.view.issued == start]
+    assert len(opening) == len(view.documents)
+
+
+def test_documents_project_to_a_seat_only_on_arrival() -> None:
+    """A slow feed (20 days on the road) leaves papers in the log past the wake."""
+    store = MemoryStore()
+    decl = cmp.load_world(cmp.world_path("realism-toy"))
+    slow = tuple(f.model_copy(update={"latency_days": 20}) for f in decl.feeds)
+    decl = decl.model_copy(update={"feeds": slow})
+    store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))
+    realism_tick.seat_player(store, CAMPAIGN, EntityId(resolve_keys(decl, CAMPAIGN)["ada"]))
+    cid = CAMPAIGN
     (seat,) = load_state(store, cid).seats
     held_back = 0
-    for _ in range(4):
+    for n in range(4):
+        move_figure(store, cid, "council_votes", 7 + n)  # a feed that repeats issues nothing
         run_realism_tick(store, cid)
         state = load_state(store, cid)
         view = project(state, seat)
@@ -194,6 +228,7 @@ def test_a_feed_due_mid_stretch_issues_on_its_own_day() -> None:
 
     store = MemoryStore()
     cid = seated(store, "autumn-1941", "roosevelt")
+    move_figure(store, cid, "japan_oil_stocks", 18)  # the MAGIC intercepts, due 3 September
     run_realism_tick(store, cid)
     state = load_state(store, cid)
     assert state.in_world_date == date(1941, 9, 4)
@@ -240,3 +275,46 @@ def test_a_reply_letter_rides_a_private_envelope_and_is_written_next_wake() -> N
         assert isinstance(e.payload, ev.DocumentIssued)
         assert e.payload.document.doc_id in mine
         assert e.payload.document.doc_id not in theirs
+
+
+def test_a_daily_feed_issues_once_per_stretch_dated_the_last_day() -> None:
+    """Days passed over between wakes do not each file the same daily paper."""
+    from datetime import timedelta
+
+    store = MemoryStore()
+    cid = seated(store, "autumn-1941", "roosevelt")
+    state = load_state(store, cid)
+    daily = next(iter(state.feeds.values())).model_copy(update={"every_days": 1})
+    em = Emitter(store, state, cmp.versions())
+    start = state.in_world_date
+    assert start is not None
+    until = start + timedelta(days=4)
+    em.state = em.state.model_copy(update={"feeds": {daily.feed_id: daily}})
+    walked = realism_tick._walk(em, list(store.read(cid)), start, until)
+    issued = [
+        e.payload.document.issued
+        for e in walked
+        if isinstance(e.payload, ev.DocumentIssued) and e.payload.truth.feed == daily.feed_id
+    ]
+    assert len(issued) <= 1 and set(issued) <= {until}
+
+
+def test_a_weekly_feed_keeps_its_day_when_the_stretch_holds_one_issue() -> None:
+    from datetime import timedelta
+
+    store = MemoryStore()
+    cid = seated(store, "autumn-1941", "roosevelt")
+    state = load_state(store, cid)
+    start = state.in_world_date
+    assert start is not None
+    weekly = next(f for f in state.feeds.values() if f.every_days == 7)
+    em = Emitter(store, state, cmp.versions())
+    em.state = em.state.model_copy(update={"feeds": {weekly.feed_id: weekly}})
+    until = start + timedelta(days=11)
+    walked = realism_tick._walk(em, list(store.read(cid)), start, until)
+    issued = {
+        e.payload.document.issued
+        for e in walked
+        if isinstance(e.payload, ev.DocumentIssued) and e.payload.truth.feed == weekly.feed_id
+    }
+    assert issued <= {start + timedelta(days=7)}

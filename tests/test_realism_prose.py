@@ -25,7 +25,7 @@ from revisionist.engine.prose import (
     Written,
     template_prose,
 )
-from revisionist.engine.realism_tick import run_realism_tick
+from revisionist.engine.realism_tick import run_realism_tick, write_opening
 from revisionist.engine.store import EventStore, MemoryStore, SqliteStore, load_state
 from tests.handwritten import PROSE
 from tests.prose_scenario import CANARY, scenario
@@ -268,3 +268,66 @@ def test_a_line_with_no_figure_is_neither_prompted_nor_written() -> None:
     written = template_prose(author, page)
     assert "Aircraft shipped: 40." in written and "Tanks" not in written
     assert "nothing firm" not in written
+
+
+# --- the opening papers, written at the begin ------------------------------------------
+
+
+class Priced(Counting):
+    """``Counting`` with a cost on every call."""
+
+    def write(self, author: Author, pages: Sequence[DocumentView]) -> Written:
+        out = super().write(author, pages)
+        cost = ev.CallCost(
+            call_class="prose", model="m", input_tokens=10, output_tokens=5, usd=0.01
+        )
+        return out.model_copy(update={"cost": cost})
+
+
+def test_the_opening_papers_are_written_at_the_begin_and_not_again_on_the_first_tick() -> None:
+    store = MemoryStore()
+    cora, bram = scenario(store)
+    writer = Counting()
+    done = write_opening(store, CAMPAIGN, writer)
+    state = load_state(store, CAMPAIGN)
+    assert state.tick == 0
+    assert sorted(name for name, _ in writer.calls) == ["Bram Tull", "Cora Senn"]
+    assert state.documents[cora].view.prose and state.documents[bram].view.prose
+    assert done.written == len(state.documents)
+    writer.calls.clear()
+    run_realism_tick(store, CAMPAIGN, prose=writer)
+    assert not {cora, bram} & {i for _, ids in writer.calls for i in ids}
+
+
+def test_the_opening_prose_costs_are_logged_once_outside_the_tick() -> None:
+    store = MemoryStore()
+    scenario(store)
+    write_opening(store, CAMPAIGN, Priced())
+    log = list(store.read(CAMPAIGN))
+    (logged,) = [e.payload for e in log if isinstance(e.payload, ev.CostLogged)]
+    assert [c.call_class for c in logged.costs] == ["prose", "prose"]
+    assert not any(isinstance(e.payload, ev.TickOpened) for e in log)
+    prose_events = [e for e in log if isinstance(e.payload, ev.DocumentWritten)]
+    assert prose_events and all("document_prose=" in e.versions.prompt for e in prose_events)
+
+
+def test_a_failed_opening_call_leaves_its_pages_to_the_first_tick() -> None:
+    store = MemoryStore()
+    cora, bram = scenario(store)
+    done = write_opening(store, CAMPAIGN, ClaudeProseWriter(Failing()))
+    assert done.written == 0 and all("call failed" in why for why in done.prose_dropped)
+    assert all(d.view.prose is None for d in load_state(store, CAMPAIGN).documents.values())
+    assert not any(isinstance(e.payload, ev.CostLogged) for e in store.read(CAMPAIGN))
+    writer = Counting()
+    run_realism_tick(store, CAMPAIGN, prose=writer)
+    assert {cora, bram} <= {i for _, ids in writer.calls for i in ids}
+
+
+@pytest.mark.parametrize("stop_after", [TickStage.FEEDS, None])
+def test_the_opening_is_written_only_before_the_first_tick(stop_after: TickStage | None) -> None:
+    store = MemoryStore()
+    scenario(store)
+    run_realism_tick(store, CAMPAIGN, stop_after=stop_after)  # no writer: pages stay bare
+    writer = Counting()
+    done = write_opening(store, CAMPAIGN, writer)
+    assert writer.calls == [] and done.written == 0

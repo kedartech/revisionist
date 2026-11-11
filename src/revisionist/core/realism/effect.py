@@ -10,7 +10,8 @@ order is read into parts, each one effect, and each part is routed:
 
 Where no code rule covers a part, the estimator returns effects from this same
 vocabulary, inside the bounds the types set here (a disposition moves at most
-``DISPOSITION_CAP`` per order). Pure data: routing and resolving are the engine's.
+``DISPOSITION_CAP`` per order, a figure by at most ``FIGURE_CAP`` percent). Pure data:
+routing and resolving are the engine's.
 """
 
 from datetime import date
@@ -20,10 +21,21 @@ from typing import Annotated, ClassVar, Literal
 from pydantic import Field, model_validator
 
 from revisionist.core._base import Label, Model
-from revisionist.core.ids import EntityId, FactId, FeatureId, OrderId, PipelineId, SeatId
+from revisionist.core.ids import (
+    EntityId,
+    FactId,
+    FeatureId,
+    OrderId,
+    PipelineId,
+    QuantityId,
+    SeatId,
+)
 
 DISPOSITION_CAP = 2
 """The most one order may move a disposition, either way (spec §8.3)."""
+
+FIGURE_CAP = 10
+"""Percent a figure may move per order, either way."""
 
 
 class Route(StrEnum):
@@ -52,6 +64,7 @@ class EffectKind(StrEnum):
     DEAL = "deal"
     DISPOSITION = "disposition"
     DISCLOSURE = "disclosure"
+    FIGURE = "figure"
 
 
 class Posture(StrEnum):
@@ -192,6 +205,21 @@ class Disclosure(Model):
     reveal: bool = True
 
 
+class MoveFigure(Model):
+    """A figure no resolver computes, moved by a percent of its value. Only the
+    estimator returns it: a seat never orders one."""
+
+    kind: Literal["figure"] = "figure"
+    quantity: QuantityId
+    percent: int = Field(ge=-100, le=100)
+
+    @model_validator(mode="after")
+    def _moves(self) -> "MoveFigure":
+        if self.percent == 0:
+            raise ValueError("a figure change moves the figure")
+        return self
+
+
 Effect = Annotated[
     MoveForce
     | SetEngagement
@@ -205,6 +233,25 @@ Effect = Annotated[
     | Disclosure,
     Field(discriminator="kind"),
 ]
+
+EstimatedEffect = Annotated[
+    MoveForce
+    | SetEngagement
+    | Allocate
+    | Appointment
+    | ProposeMeasure
+    | MakeStatement
+    | Investigate
+    | Deal
+    | ShiftDisposition
+    | Disclosure
+    | MoveFigure,
+    Field(discriminator="kind"),
+]
+"""What the estimator may return: every effect a seat can order, and a figure's move."""
+
+ESTIMATED_ONLY: frozenset[EffectKind] = frozenset({EffectKind.FIGURE})
+"""Kinds only the estimator returns; no office is given them."""
 
 IRREVERSIBLE: frozenset[EffectKind] = frozenset({EffectKind.APPOINTMENT, EffectKind.ALLOCATE})
 """Kinds an aide never orders for an absent seat without a standing order naming
@@ -282,7 +329,7 @@ class PartView(Model):
 class RoutedPart(PartView):
     """The whole part. ``estimated`` never leaves the engine."""
 
-    estimated: tuple[Effect, ...] = Field(default=(), max_length=8)
+    estimated: tuple[EstimatedEffect, ...] = Field(default=(), max_length=8)
     was_estimated: bool = False
     """The estimator has ruled on this part; it rules once. Its effects may be none."""
     ask: str = Field(default="", max_length=300)
@@ -350,6 +397,8 @@ class RoutedOrder(Model):
 
 __all__ = [
     "DISPOSITION_CAP",
+    "ESTIMATED_ONLY",
+    "FIGURE_CAP",
     "IRREVERSIBLE",
     "REFUSAL_LOYALTY",
     "Allocate",
@@ -361,10 +410,12 @@ __all__ = [
     "Effect",
     "EffectKind",
     "Engagement",
+    "EstimatedEffect",
     "Fidelity",
     "FidelityInputs",
     "Investigate",
     "MakeStatement",
+    "MoveFigure",
     "MoveForce",
     "PartRef",
     "PartView",

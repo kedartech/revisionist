@@ -14,7 +14,7 @@ import pytest
 from revisionist.core import events as ev
 from revisionist.core.canary import scan
 from revisionist.core.fold import replay
-from revisionist.core.ids import EntityId, OrderId
+from revisionist.core.ids import EntityId, OrderId, QuantityId
 from revisionist.core.realism import effect as rx
 from revisionist.core.state import State
 from revisionist.core.visibility import private_to
@@ -24,11 +24,22 @@ from tests.test_engine_v2_contract import REASON_CANARY, Slice, _with_covert_fac
 
 RECORDINGS = Path(__file__).parent / "recordings"
 QUANTITY = 2  # a second order, so its request key is its own
+FIGURE = 3  # a third, in a world where the Speaker's count reports a figure the referee may move
 NOTE = "hand-written for tests; not a model reply"
+
+
+def figure_of(sl: Slice) -> QuantityId:
+    """The Democrats' seat count, made a figure the estimator may move, at 22000."""
+    (feed,) = (sl.state.feeds[f] for f in sl.state.cards[sl.entity("roosevelt")].feeds)
+    q = sl.state.quantities[feed.reports[0]]
+    sl.add(ev.QuantitySet(quantity=q.model_copy(update={"estimable": True, "value": 22000})))
+    return q.quantity_id
 
 
 def _scenario(covert: bool = False, n: int = 1) -> tuple[Slice, OrderId]:
     sl = Slice()
+    if n == FIGURE:
+        figure_of(sl)
     if covert:
         _with_covert_fact(sl)
     order = sl.shoot_on_sight(
@@ -53,6 +64,16 @@ def _shift(sl: Slice, change: int) -> dict[str, Any]:
 
 
 def _replies(sl: Slice, covert: bool, n: int) -> dict[str, dict[str, Any]]:
+    if n == FIGURE:
+        return {
+            "figure": {
+                "effects": [
+                    {"kind": "figure", "quantity": figure_of(Slice()), "percent": 10},
+                ],
+                "reason": "The count rises as the Hill takes the lobbying to heart.",
+                "rationale": "The order plainly bears on the Democrats' strength; ten percent.",
+            }
+        }
     if n == QUANTITY:
         return {
             "quantity": {
@@ -92,7 +113,7 @@ class _Hand:
 
 def _write() -> None:
     entries: dict[str, dict[str, Any]] = {}
-    for covert, n in ((False, 1), (True, 1), (False, QUANTITY)):
+    for covert, n in ((False, 1), (True, 1), (False, QUANTITY), (False, FIGURE)):
         sl, oid = _scenario(covert, n)
         for name, output in _replies(sl, covert, n).items():
             hand = _Hand(output)

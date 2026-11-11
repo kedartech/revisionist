@@ -22,11 +22,13 @@ from revisionist.core._base import Model
 from revisionist.core.canary import scan_text
 from revisionist.core.events import CallCost
 from revisionist.core.fold import FoldError, _check_effect
-from revisionist.core.ids import EntityId, OrderId
+from revisionist.core.ids import EntityId, OrderId, QuantityId
 from revisionist.core.realism.effect import (
     DISPOSITION_CAP,
-    Effect,
+    FIGURE_CAP,
     EffectKind,
+    EstimatedEffect,
+    MoveFigure,
     RoutedOrder,
     RoutedPart,
     ShiftDisposition,
@@ -66,13 +68,14 @@ class Estimate(Model):
 class _Ruling(Model):
     """The model's reply. No cap on effects: the clamp cuts and says so."""
 
-    effects: tuple[Effect, ...]
+    effects: tuple[EstimatedEffect, ...]
     reason: str
     rationale: str
 
 
 ESTIMATOR_SCHEMA: dict[str, Any] = _Ruling.model_json_schema()
-"""Closed vocabulary only: a quantity has no kind here, so a reply that sets one fails."""
+"""Closed vocabulary only: a quantity has no kind here but a figure's bounded move, so a
+reply that sets one fails."""
 
 _NAMED = ("of", "toward", "person", "recipient", "audience", "target", "counterparty")
 
@@ -94,6 +97,8 @@ def estimator_prompt(state: State, order_id: OrderId, part: int) -> str:
         for who in dict.fromkeys([issuer.embodies, *_named(routed)])
         if who in state.cards
     }
+    on_cards = {f for c in cards.values() for f in c.get("feeds", ())}
+    reported = {q for f in on_cards if f in state.feeds for q in state.feeds[f].reports}
     world = {
         "date": str(state.in_world_date or order.filed),
         "order": {
@@ -129,9 +134,15 @@ def estimator_prompt(state: State, order_id: OrderId, part: int) -> str:
             }
             for x in state.facts.values()
         ],
+        "figures": [
+            {"id": q.quantity_id, "name": q.name, "value": q.value, "unit": q.unit}
+            for q in sorted(state.quantities.values(), key=lambda q: q.quantity_id)
+            if q.estimable and q.value is not None and q.quantity_id in reported
+        ],
         "rules": {
             "effect_kinds": sorted(k.value for k in EffectKind),
             "disposition_cap": DISPOSITION_CAP,
+            "figure_cap": FIGURE_CAP,
             "max_effects": MAX_EFFECTS,
         },
     }
@@ -143,21 +154,25 @@ def estimator_prompt(state: State, order_id: OrderId, part: int) -> str:
 
 
 def clamp(
-    state: State, order: RoutedOrder, effects: Sequence[Effect], on: date
-) -> tuple[tuple[Effect, ...], tuple[str, ...]]:
+    state: State, order: RoutedOrder, effects: Sequence[EstimatedEffect], on: date
+) -> tuple[tuple[EstimatedEffect, ...], tuple[str, ...]]:
     """Code bounds on whatever the model proposed. Returns the survivors and a line per cut.
 
     The disposition cap is per order (spec §8.3): what the order's other parts
-    already move, given or estimated, counts against it."""
-    kept: list[Effect] = []
+    already move, given or estimated, counts against it. A figure's percent is held
+    to ``FIGURE_CAP`` per order the same way."""
+    kept: list[EstimatedEffect] = []
     dropped: list[str] = []
     moved: dict[tuple[EntityId, EntityId], int] = {}
+    scaled: dict[QuantityId, int] = {}
     for other in order.parts:
         for given in (other.effect, *other.estimated):
             if isinstance(given, ShiftDisposition):
                 pair = (given.of, given.toward)
                 total = moved.get(pair, 0) + given.change
                 moved[pair] = max(-DISPOSITION_CAP, min(DISPOSITION_CAP, total))
+            elif isinstance(given, MoveFigure):
+                scaled[given.quantity] = scaled.get(given.quantity, 0) + given.percent
     for effect in effects:
         try:
             # The fold's own guard, so nothing lands that the fold would refuse.
@@ -176,6 +191,16 @@ def clamp(
             if after - before != effect.change:
                 dropped.append(f"disposition: {effect.change:+d} cut to {after - before:+d}")
                 effect = effect.model_copy(update={"change": after - before})
+        if isinstance(effect, MoveFigure):
+            before = scaled.get(effect.quantity, 0)
+            after = max(-FIGURE_CAP, min(FIGURE_CAP, before + effect.percent))
+            if after == before:
+                dropped.append(f"figure: {effect.quantity} is at the cap")
+                continue
+            scaled[effect.quantity] = after
+            if after - before != effect.percent:
+                dropped.append(f"figure: {effect.percent:+d} cut to {after - before:+d}")
+                effect = effect.model_copy(update={"percent": after - before})
         kept.append(effect)
     for effect in kept[MAX_EFFECTS:]:
         dropped.append(f"{effect.kind}: over the {MAX_EFFECTS}-effect cap")

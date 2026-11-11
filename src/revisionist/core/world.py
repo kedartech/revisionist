@@ -39,7 +39,7 @@ from revisionist.core.ontology import (
     SeatKind,
 )
 from revisionist.core.realism.agenda import MandateKind, TriggerKind
-from revisionist.core.realism.card import ChannelKind, ParamSpec
+from revisionist.core.realism.card import Aim, ChannelKind, ParamSpec
 from revisionist.core.realism.document import Bias, Classification, DocumentKind
 from revisionist.core.realism.effect import EffectKind
 from revisionist.core.realism.geography import FeatureKind
@@ -435,6 +435,7 @@ class CardDecl(Model):
     interests: tuple[Label, ...] = ()
     authority: tuple[DomainDecl, ...] = ()
     reach: ReachDecl = ReachDecl()
+    aims: tuple[Aim, ...] = Field(default=(), max_length=3)
 
 
 class TriggerDecl(Model):

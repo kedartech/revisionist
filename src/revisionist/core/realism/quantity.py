@@ -5,7 +5,7 @@ vote tally, say); otherwise it reaches people as documents that estimate it.
 """
 
 from datetime import date
-from typing import TYPE_CHECKING, Literal, Protocol, get_args
+from typing import TYPE_CHECKING, ClassVar, Literal, Protocol, get_args
 
 from revisionist.core._base import Label, Model
 from revisionist.core.ids import EntityId, QuantityId
@@ -32,6 +32,10 @@ class Quantity(Model):
     as_of: date
     scope: Scope | None = None
     """None: engine only, which is the usual case. Seats learn it from documents."""
+    estimable: bool = False
+    """A figure no resolver computes; the estimator may move it."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"estimable"})
 
 
 class QuantityChange(Model):

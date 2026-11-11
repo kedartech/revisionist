@@ -171,6 +171,10 @@ class Domain(Model):
     summary: str = Field(default="", max_length=300)
 
 
+Aim = Annotated[str, StringConstraints(min_length=1, max_length=160)]
+"""One line on what the person was set on at the start."""
+
+
 class Desk(CardFace):
     """The face plus what the person works with. Shown only to the person's own seat."""
 
@@ -191,8 +195,11 @@ class Desk(CardFace):
     authority: tuple[Domain, ...] = ()
     """What the office commands outright (spec §8.1). Orders inside it are commands."""
     reach: Reach = Reach()
+    aims: tuple[Aim, ...] = Field(default=(), max_length=3)
+    """What the person was set on at the start, as the record has it. Shown to the
+    seat; not a rule."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"authority", "reach"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"authority", "reach", "aims"})
 
     @model_validator(mode="after")
     def _distinct_domains(self) -> "Desk":
@@ -227,6 +234,7 @@ class SeatCard(Desk):
 
 __all__ = [
     "CHANNELS",
+    "Aim",
     "CardFace",
     "ChannelKind",
     "Contact",

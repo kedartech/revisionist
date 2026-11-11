@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   STEP_ACTIONS, TRAY_FILTERS, addressLine, castLine, certaintyWord, channelWord, directiveChannel, classificationWord, entityChoices, figureValue, filterInTray, gapLine,
-  horizonWords, landPath, linesHeading, mapBox, markKindWord, paceLine, powersSentence, projection, reportLine, runLine, sideLine, sightedLine, sortInTray, sortMarks,
+  aimsBlock, horizonWords, landPath, linesHeading, mapBox, markKindWord, paceLine, powersSentence, projection, reportLine, runLine, sideLine, sightedLine, sortInTray, sortMarks,
   stepLine, trackerLine, trayCounts, trendLine, unreadCount, whereLine,
 } from '../js/realism-rules.js';
 
@@ -131,6 +131,19 @@ test('sortInTray can put the oldest arrival first, keeping ties in order', () =>
   const tied = [{ id: 'a', arrives: '1941-10-01' }, { id: 'b', arrives: '1941-10-01' }];
   assert.deepEqual(sortInTray(tied, 'oldest').map((d) => d.id), ['a', 'b']);
   assert.deepEqual(sortInTray(tied).map((d) => d.id), ['a', 'b']);
+});
+
+test('the desk shows what the person was set on, under its heading, and says it is not binding', () => {
+  const block = aimsBlock(fixture.desk.aims);
+  assert.equal(block.heading, 'As history had it');
+  assert.deepEqual(block.lines, fixture.desk.aims);
+  assert.equal(block.note, 'What this person was set on at the start. Not binding.');
+});
+
+test('the desk shows no aims block when there are none, or the payload predates them', () => {
+  assert.equal(aimsBlock([]), null);
+  assert.equal(aimsBlock(undefined), null);
+  assert.equal(aimsBlock(null), null);
 });
 
 test('the planning horizon is in words', () => {

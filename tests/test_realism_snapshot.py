@@ -252,6 +252,14 @@ def test_a_settled_order_has_no_holder(toy: Toy) -> None:
     assert [s["action"] for s in track["steps"]] == ["pass"]
 
 
+def test_the_desk_carries_the_aims_of_the_seats_own_card(toy: Toy) -> None:
+    ada = toy.state.cards[toy.entity("ada")]
+    cards = {**toy.state.cards, ada.person: ada.model_copy(update={"aims": ("Hold the harbour.",)})}
+    state = toy.state.model_copy(update={"cards": cards})
+    assert rs.desk(project(state, toy.ada))["aims"] == ["Hold the harbour."]
+    assert rs.desk(project(state, toy.bram))["aims"] == []
+
+
 def test_the_desk_names_people_and_leaves_out_the_ai_policy(toy: Toy) -> None:
     view = project(toy.state, toy.ada)
     desk = rs.desk(view)
@@ -264,7 +272,9 @@ def test_the_desk_names_people_and_leaves_out_the_ai_policy(toy: Toy) -> None:
         "constraints",
         "personal",
         "horizon_days",
+        "aims",
     }
+    assert desk["aims"] == []
     assert desk["office"] == "First Citizen of Vell" and desk["horizon_days"] == 14
     assert desk["principals"] == []  # Vell is a polity: no one answers to a country
     assert [c["person"] for c in desk["inner_circle"]] == ["Bram Tull", "Cora Senn"]

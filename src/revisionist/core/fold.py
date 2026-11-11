@@ -46,10 +46,11 @@ from revisionist.core.realism.effect import (
     Appointment,
     Deal,
     Disclosure,
-    Effect,
     EffectKind,
+    EstimatedEffect,
     Investigate,
     MakeStatement,
+    MoveFigure,
     MoveForce,
     ProposeMeasure,
     Route,
@@ -583,7 +584,7 @@ def _realism(state: State, p: ev.Payload) -> State:
 # --- engine v2 ------------------------------------------------------------------
 
 
-def _check_effect(state: State, effect: Effect, where: str, on: date | None) -> None:
+def _check_effect(state: State, effect: EstimatedEffect, where: str, on: date | None) -> None:
     """Every object an effect names must already be in the world, and no force is
     used before it enters service on ``on`` (spec §8.3)."""
     match effect:
@@ -611,6 +612,10 @@ def _check_effect(state: State, effect: Effect, where: str, on: date | None) -> 
             _need(state.entities, effect.toward, "entity")
         case Disclosure():
             _need(state.facts, effect.fact, "fact")
+        case MoveFigure():
+            q = _need(state.quantities, effect.quantity, "quantity")
+            if not q.estimable or q.value is None:
+                raise FoldError(f"{where}: {q.name} is not a figure that can be moved")
         case ProposeMeasure():
             pass
 

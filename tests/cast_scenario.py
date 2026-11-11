@@ -194,6 +194,10 @@ BUILD_BY_NAME: dict[str, dict[str, Any]] = {
                 "feeds": ["u2_reports"],
                 "pipelines": ["quarantine_order", "address"],
                 "horizon_days": 7,
+                "aims": [
+                    "Get the missiles out of Cuba without a war.",
+                    "Keep the allies behind the United States.",
+                ],
                 "voice": KENNEDY_VOICE,
                 "loyalty": 3,
                 "interests": [KENNEDY_INTEREST],
@@ -287,6 +291,10 @@ BUILD_BY_NAME: dict[str, dict[str, Any]] = {
                 "feeds": ["defence_reports"],
                 "pipelines": ["ship_orders", "statement"],
                 "horizon_days": 7,
+                "aims": [
+                    "Keep the missiles in Cuba or be paid for taking them out.",
+                    "Avoid a war with the United States.",
+                ],
                 "voice": "Blunt, earthy, quick to anger and quick to bargain.",
                 "loyalty": 2,
                 "interests": ["the missiles kept or paid for"],

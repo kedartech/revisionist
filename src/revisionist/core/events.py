@@ -70,7 +70,7 @@ from revisionist.core.realism.agenda import (
 )
 from revisionist.core.realism.card import ChannelKind, ParamValue, SeatCard
 from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
-from revisionist.core.realism.effect import Effect, EffectKind, Fidelity, RoutedOrder
+from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import Order, OrderStatus, Pipeline, StepOutcome
 from revisionist.core.realism.quantity import Quantity
@@ -675,7 +675,7 @@ class EffectsEstimated(Model):
     kind: Literal["effects_estimated"] = "effects_estimated"
     order_id: OrderId
     part: int = Field(ge=0, le=7)
-    effects: tuple[Effect, ...] = Field(default=(), max_length=8)
+    effects: tuple[EstimatedEffect, ...] = Field(default=(), max_length=8)
     reason: str = Field(default="", max_length=600)
     rationale: str = Field(default="", max_length=2000)
     failed: bool = False

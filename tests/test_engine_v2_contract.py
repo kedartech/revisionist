@@ -200,7 +200,11 @@ def test_fidelity_inputs_hold_the_card_ranges() -> None:
 
 def test_the_effect_vocabulary_is_closed_and_bounded() -> None:
     kinds = {cls.model_fields["kind"].default for cls in rx.Effect.__args__[0].__args__}
-    assert kinds == {k.value for k in rx.EffectKind}
+    assert kinds == {k.value for k in rx.EffectKind} - rx.ESTIMATED_ONLY
+    estimated = {
+        cls.model_fields["kind"].default for cls in rx.EstimatedEffect.__args__[0].__args__
+    }
+    assert estimated == {k.value for k in rx.EffectKind}
     e, f = EntityId(derived_id("e")), EntityId(derived_id("f"))
     rx.ShiftDisposition(of=e, toward=f, change=rx.DISPOSITION_CAP)
     for change in (0, rx.DISPOSITION_CAP + 1, -rx.DISPOSITION_CAP - 1):

@@ -13,7 +13,7 @@ from typing import Any, Literal
 
 from revisionist.core import events as ev
 from revisionist.core.events import Event
-from revisionist.core.ids import DocumentId, EntityId, FeatureId, PipelineId, SeatId
+from revisionist.core.ids import DocumentId, EntityId, FeatureId, PipelineId, SeatId, derived_id
 from revisionist.core.ontology import EntityKind
 from revisionist.core.project import project
 from revisionist.core.realism.advance import next_wake
@@ -89,8 +89,22 @@ def _spoken_title(title: str) -> str:
     return f"{title[: found.start()]}, {day.day} {day:%B %Y}"
 
 
+def _answers(view: View) -> set[DocumentId]:
+    """The ids of the report papers on the parts of the seat's own routed orders."""
+    return {
+        DocumentId(derived_id(view.campaign_id, "report", order.order_id, i))
+        for order in view.routed.values()
+        for i in range(len(order.parts))
+    }
+
+
 def _item(
-    view: View, doc_id: DocumentId, doc: DocumentView, unread: bool, flagged: bool
+    view: View,
+    doc_id: DocumentId,
+    doc: DocumentView,
+    unread: bool,
+    flagged: bool,
+    answers: set[DocumentId],
 ) -> DocumentListItem:
     return DocumentListItem(
         id=doc_id,
@@ -105,6 +119,7 @@ def _item(
         flagged=flagged,
         group=feed_group(doc.title),
         ack=acknowledgement(doc),
+        answer=doc_id in answers,
     )
 
 
@@ -114,8 +129,10 @@ def documents(
     """The in-tray: arrived pages, newest arrival first, ties by document ID."""
     arrived = sorted(view.documents.items(), key=lambda kv: kv[0])
     arrived.sort(key=lambda kv: kv[1].arrives, reverse=True)
+    answers = _answers(view)
     rows = [
-        _item(view, k, d, unread=k not in read_ids, flagged=k in flagged_ids) for k, d in arrived
+        _item(view, k, d, unread=k not in read_ids, flagged=k in flagged_ids, answers=answers)
+        for k, d in arrived
     ]
     return DocumentListing(
         documents=rows,
@@ -128,7 +145,7 @@ def document(view: View, doc_id: DocumentId, flagged: bool = False) -> DocumentP
     """One page. KeyError if the seat has not received it; fetching it counts as reading it."""
     doc = view.documents[doc_id]
     return DocumentPage(
-        item=_item(view, doc_id, doc, unread=False, flagged=flagged),
+        item=_item(view, doc_id, doc, unread=False, flagged=flagged, answers=_answers(view)),
         body=[BodyLine(label=b.label, value=b.value, unit=b.unit) for b in doc.body],
         prose=doc.prose,
     )

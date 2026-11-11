@@ -1,0 +1,74 @@
+/* p5-overlay.css: unit V of Train 2. */
+
+.rl-ovl {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: var(--backdrop);
+  color: var(--fg-strong);
+  font: 14px/1.5 var(--font-chrome);
+}
+
+.rl-ovl-box {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: min(100%, 36rem);
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px var(--border-sheet) var(--rule);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sheet);
+}
+
+.rl-ovl-msg {
+  margin: 0;
+  font: 400 18px/1.3 var(--font-head);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+/* every line takes the same cell, so the box keeps its height as the lines change */
+.rl-ovl-lines {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rl-ovl-line {
+  grid-area: 1 / 1;
+  margin: 0;
+  font: 15px/1.5 var(--font-read);
+  overflow-wrap: anywhere;
+  visibility: hidden;
+  animation: rl-ovl-show 24s linear infinite both;
+}
+
+/* one line per three seconds, each on screen for about two and a half */
+.rl-ovl-line:nth-child(1) { animation-delay: 0s; }
+.rl-ovl-line:nth-child(2) { animation-delay: 3s; }
+.rl-ovl-line:nth-child(3) { animation-delay: 6s; }
+.rl-ovl-line:nth-child(4) { animation-delay: 9s; }
+.rl-ovl-line:nth-child(5) { animation-delay: 12s; }
+.rl-ovl-line:nth-child(6) { animation-delay: 15s; }
+.rl-ovl-line:nth-child(7) { animation-delay: 18s; }
+.rl-ovl-line:nth-child(8) { animation-delay: 21s; }
+
+@keyframes rl-ovl-show {
+  0% { visibility: hidden; transform: translateY(.5rem); }
+  2% { visibility: visible; transform: translateY(0); }
+  10% { visibility: visible; transform: translateY(0); }
+  12%, 100% { visibility: hidden; transform: translateY(-.5rem); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rl-ovl-line { animation: none; }
+  .rl-ovl-line:first-child { visibility: visible; }
+}

@@ -95,7 +95,7 @@ def _part(
     )
 
 
-def _said(view: View, order: rx.RoutedOrderView, i: int) -> str | None:
+def said_for(view: View, order: rx.RoutedOrderView, i: int) -> str | None:
     """For a decided approach, the answer the issued paper gives, as the log froze it:
     the estimator wrote before the decision and may contradict it. None when there is
     no such paper (yet), and for anything else."""
@@ -126,7 +126,7 @@ def results(state: State, seat: SeatId) -> list[OrderResult]:
                 id=token,
                 filed=_day(order.filed),
                 parts=[
-                    _part(state, view, p, _own_words(state, order, i), _said(view, order, i))
+                    _part(state, view, p, _own_words(state, order, i), said_for(view, order, i))
                     for i, p in enumerate(order.parts)
                 ],
             )
@@ -134,4 +134,4 @@ def results(state: State, seat: SeatId) -> list[OrderResult]:
     return out
 
 
-__all__ = ["results"]
+__all__ = ["results", "said_for"]

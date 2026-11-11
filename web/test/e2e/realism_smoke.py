@@ -3,15 +3,15 @@
 Signs up a fresh account and either joins a realism game with an invite code or, with
 the code `new`, starts the ready-made game as its host and plays Franklin D. Roosevelt.
 With the code `v2` it starts the engine-v2 slice from the timeline instead and checks
-the Phase 4 screens: the timeline, who held power, the play style, the wake header with
-Commit and the host's close, the agenda, reach, order results, a free-text order, a
-narrow desk, and the reveal after the end.
-Checks the one-surface room: the header names the player, the game menu, the busy
-state while a wake runs, in-tray folders and an opened paper read beside the desk, the
-filters, recipients with their titles, a directive read by the aide (signed when it
-reads as an order, revised when it cannot be sent), an order signed on a standard form,
-the pending orders sidebar, the aide brief and consult, the situation board, the map,
-that no empty-state filler shows, and (as host) ending the game. Screenshots at
+the timeline, who held power and the play style first.
+Checks the room: the header names the player and its two names open the setting and the
+character dossiers; the game menu; the wake header with "Done for today" and the host's
+"Run the day now"; the in-tray's grouped rows, an opened paper, flagging and the filters;
+needs-your-answer, ideas, the standard forms, a directive read by the aide (signed when it
+reads as an order, revised when it cannot be sent) and the orders column; the messenger
+with the aide's thread, a question to the aide, a consult and the contacts tab; a day run
+with the busy line and the overlay, then the "What happened" sheet; a narrow room; that no
+empty-state filler shows; and (as host) ending the game and the reveal. Screenshots at
 1440x900. Fails on any console error, page error, failed request or a request to
 another origin, or any named check that does not hold; runs axe-core when it is
 mounted at /axe/axe.min.js.
@@ -33,6 +33,7 @@ BASE, CODE, OUT = sys.argv[1].rstrip("/"), sys.argv[2], Path(sys.argv[3])
 SIZE = (1440, 900)
 AXE = Path("/axe/axe.min.js")
 WAKE_MS = 240_000  # a wake makes one live prose call per author
+RUN_NOW = "Run the day now"
 problems: list[str] = []
 checks: dict[str, bool] = {}
 origin = urlparse(BASE).netloc
@@ -98,12 +99,21 @@ def no_filler(page: Page, where: str) -> None:
     check(f"no empty-state filler on {where}", not found, ", ".join(found))
 
 
-def advance(page: Page, name: str) -> None:
-    """Commit (the only player, so the wake runs) with the call held, and check the
-    busy state while it runs."""
+def advance(page: Page, name: str, button: str = "Done for today") -> None:
+    """Run the day (the only player, so it runs) with the call held, and check the busy
+    state and the overlay while it runs, then the What happened sheet after."""
     page.evaluate(SLOW_ADVANCE)
-    commit = page.get_by_role("button", name="Commit my orders").first
-    commit.click()
+    number = wake_number(page)
+    go = page.get_by_role("button", name=button).first
+    go.click()
+    if button == RUN_NOW:
+        dialog = page.locator("dialog.rl-close-wake[open]")
+        dialog.wait_for()
+        check(
+            f"{name}: running the day asks first", "every order as it stands" in dialog.inner_text()
+        )
+        shoot(page, f"{name}-confirm")
+        dialog.get_by_role("button", name="Run it", exact=True).click()
     busy = page.locator(".rl-status.busy")
     busy.wait_for(timeout=5_000)
     check(f"{name}: busy line says the wake is running", "wake is running" in busy.inner_text())
@@ -112,12 +122,30 @@ def advance(page: Page, name: str) -> None:
         busy.get_attribute("role") == "status" and busy.get_attribute("aria-live") == "polite",
     )
     check(
-        f"{name}: commit is held while busy",
-        commit.is_disabled(),
+        f"{name}: controls are held while busy",
+        page.locator(".rl-room button:not([disabled])").count() == 0,
     )
+    overlay = page.locator(".rl-ovl")
+    check(f"{name}: the overlay covers the room", overlay.count() == 1 and overlay.is_visible())
     shoot(page, f"{name}-busy")
     page.locator(".rl-status.said").filter(has_text="calendar moves").wait_for(timeout=WAKE_MS)
     page.wait_for_timeout(300)
+    after = wake_number(page)
+    check(f"{name}: the wake moves on", after == number + 1, f"{number} -> {after}")
+    check(f"{name}: the overlay is gone", page.locator(".rl-ovl").count() == 0)
+    sheet = page.locator("dialog.rl-hap[open]")
+    sheet.wait_for(timeout=5_000)
+    check(f"{name}: What happened opens", "what happened" in sheet.inner_text().lower())
+    shoot(page, f"{name}-happened")
+    axe(page, f"{name} what happened")
+    sheet.get_by_role("button", name="To the desk").click()
+    page.wait_for_timeout(300)
+    check(f"{name}: What happened closes", page.locator("dialog.rl-hap[open]").count() == 0)
+
+
+def wake_number(page: Page) -> int:
+    text = page.locator(".rl-wake").first.inner_text()
+    return int(text.split("Wake ", 1)[1].split()[0])
 
 
 def fill(form: Locator) -> None:
@@ -189,206 +217,30 @@ def main() -> int:
             page.get_by_role("button", name="Start Autumn 1941").click()
             page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
             page.get_by_role("button", name="Play Franklin D. Roosevelt").click()
-            page.get_by_role("heading", name="You are Franklin D. Roosevelt").wait_for(
-                timeout=60_000
-            )
+            page.get_by_role("button", name="Begin the game").wait_for(timeout=60_000)
             page.get_by_role("button", name="Begin the game").click()
         else:
             page.get_by_label("Invite code").fill(CODE)
             page.get_by_role("button", name="Join").click()
 
-        page.get_by_role("tab", name="In-tray").wait_for(timeout=60_000)
+        page.locator("main.rl-room").wait_for(timeout=60_000)
         page.wait_for_timeout(300)
         shoot(page, "00-opening")
-        who = page.locator(".frame-head .identity")
-        report["header_identity"] = who.inner_text() if who.count() else ""
-        check(
-            "the header names who the player plays",
-            who.count() == 1
-            and "playing as" in who.inner_text().lower()
-            and len(who.inner_text()) > 20,
-            str(report["header_identity"]),
-        )
-        page.get_by_role("button", name="Game").click()
-        menu = page.locator("dialog.rl-menu")
-        menu.wait_for()
-        report["game_menu"] = menu.inner_text()
-        check("the game menu opens from the header", menu.is_visible())
-        if host:
-            check(
-                "the host's menu offers End game",
-                menu.get_by_role("button", name="End game…").count() == 1,
-            )
-            check(
-                "the host's menu offers Pause",
-                menu.get_by_role("button", name="Pause").count() == 1,
-            )
-            check(
-                "the host's menu does not offer Leave",
-                menu.get_by_role("button", name="Leave game…").count() == 0,
-            )
-        else:
-            check(
-                "a player's menu offers Leave",
-                menu.get_by_role("button", name="Leave game…").count() == 1,
-            )
-        shoot(page, "01-game-menu")
-        menu.get_by_role("button", name="Close").click()
-
-        if v2:
-            wake = page.locator(".rl-wake")
-            report["wake_header"] = wake.inner_text()
-            check("the header shows the wake", "Wake " in wake.inner_text(), wake.inner_text())
-            check("the header says when the wake closes", "Closes " in wake.inner_text())
-            check("the header counts commits", "committed" in wake.inner_text())
-            check(
-                "the host can close the wake",
-                page.get_by_role("button", name="Close the wake now").count() == 1,
-            )
-            check("no Advance button remains", "Advance to next wake" not in wake.inner_text())
-            check("the play style shows as chosen", page.get_by_label("Beginner").is_checked())
-            choose = page.get_by_role("button", name="Choose")
-            report["offers"] = page.locator(".rl-agenda").all_inner_texts()
-            check("a beginner is offered options to choose", choose.count() > 0)
-            reach = page.locator(
-                "section", has=page.get_by_role("heading", name="Who you can reach")
-            )
-            report["reach"] = reach.first.inner_text() if reach.count() else ""
-            check("the desk shows who the seat can reach", reach.count() >= 1)
-            check(
-                "reach is grouped",
-                any(g in str(report["reach"]) for g in ("Inner circle", "Government", "Foreign")),
-            )
-            no_filler(page, "the v2 desk")
-            shoot(page, "02a-desk-wake-agenda")
-            axe(page, "v2 desk")
-            if choose.count():
-                choose.first.click()
-                page.get_by_role("heading", name="How your orders landed").wait_for(timeout=30_000)
-                page.wait_for_timeout(300)
-                report["results"] = page.locator(".rl-results").inner_text()
-                check("a chosen option shows in the results", "Filed " in str(report["results"]))
-                check("results are in words", "_" not in str(report["results"]))
-                shoot(page, "02b-results")
-                axe(page, "results")
-
-        if page.locator(".rl-folder").count() == 0:
-            # A new game's first papers arrive on the first wake.
-            advance(page, "02-first-wake")
-        tray = page.locator(".rl-folder")
-        n = tray.count()
-        check(f"in-tray renders {n} folders", n > 0)
-        check("the desk shows beside the in-tray", page.locator(".rl-desk").is_visible())
-        check("pending orders show beside the desk", page.locator(".rl-pending").is_visible())
-        check("the aide shows beside the desk", page.locator(".rl-aide").is_visible())
-        shoot(page, "03-room")
-        axe(page, "room")
-
-        unread = page.locator(".rl-folder.unread").count()
-        page.locator(".rl-folder.unread .rl-cover").first.click()
-        page.locator(".rl-dossier .rl-page").wait_for()
-        page.wait_for_timeout(300)
-        prose = page.locator(".rl-prose")
-        text = prose.inner_text() if prose.count() else ""
-        check("an opened paper reads beside the desk", page.locator(".rl-desk").is_visible())
-        report["sample_prose"] = text[:600]
-        no_filler(page, "an opened paper")
-        shoot(page, "04-paper-beside-desk")
-        axe(page, "dossier")
-
-        page.get_by_role("button", name="Flag", exact=True).click()
-        page.get_by_role("button", name="Unflag").wait_for()
-        page.get_by_role("button", name="Close folder").click()
-        page.locator(".rl-tray").wait_for()
-        page.wait_for_timeout(300)
-        now_unread = page.locator(".rl-folder.unread").count()
-        check(
-            "opening a folder marks it read",
-            unread > 0 and now_unread == unread - 1,
-            f"unread {unread} -> {now_unread}",
-        )
-        check("flagging marks the folder", page.locator(".rl-folder.flagged").count() == 1)
-        page.get_by_role("tab", name="Flagged").click()
-        page.wait_for_timeout(200)
-        check("Flagged filter shows the one folder", page.locator(".rl-folder").count() == 1)
-        page.get_by_role("tab", name="Unread").click()
-        page.wait_for_timeout(200)
-        check("Unread filter shows the rest", page.locator(".rl-folder").count() == now_unread)
-        page.get_by_role("tab", name="All").click()
-
-        instruments = page.locator(".rl-instrument")
-        check("desk lists instruments", v2 or instruments.count() > 0)
-        snake = [t for t in instruments.locator("strong").all_inner_texts() if "_" in t]
-        check("instrument names are in words", not snake, ", ".join(snake))
-        people = page.locator(".rl-recipient")
-        titles = people.locator(".rl-person-title").all_inner_texts()
-        report["recipients"] = people.all_inner_texts()
-        check(
-            "each recipient shows a title",
-            people.count() > 0 and len(titles) == people.count() and all(titles),
-            str(report["recipients"]),
-        )
-        page.locator(".rl-desk-col .rl-col-body").evaluate("el => el.scrollTo(0, 0)")
-        shoot(page, "05-desk-recipients")
-
-        before = page.locator(".rl-pending .rl-order").count()
-        landed = page.locator(".rl-results .rl-order").count()
-        words = "Send word that our escorts will see the convoys as far as Iceland."
-        directive = page.locator("form.rl-directive")
-        check("the desk offers a directive", directive.count() == 1)
-        directive.get_by_label("Your instruction").fill(words)
-        directive.get_by_role("button", name="Prepare the order").click()
-        check(
-            "preparing the order shows the aide at work",
-            page.locator(".rl-status.busy").filter(has_text="aide").count() == 1
-            or page.locator(".rl-proposal").count() == 1,
-        )
-        card = page.locator(".rl-proposal")
-        card.wait_for(timeout=WAKE_MS)
-        page.wait_for_timeout(300)
-        report["directive_reading"] = card.inner_text()
-        shoot(page, "06-directive-reading")
-        axe(page, "directive")
-        check("the reading quotes the instruction", words in card.inner_text())
-        check("the reading is in words", "_" not in card.inner_text(), card.inner_text())
-        sign = card.get_by_role("button", name="Sign and send")
-        if sign.count():
-            sign.click()
-            page.locator(".rl-status.said").filter(has_text="Sent to").wait_for()
-            report["directive_reply"] = page.locator(".rl-status").inner_text()
-            before += 1
-        else:
-            card.get_by_role("button", name="Revise").click()
-            kept = page.locator("form.rl-directive textarea").input_value()
-            check("Revise keeps the instruction", kept == words, kept)
-        page.wait_for_timeout(300)
-        filed = page.locator(".rl-pending .rl-order").count()
-        if v2:
-            now = page.locator(".rl-results .rl-order").count()
-            check(
-                "a signed free-text order shows in the results",
-                not sign.count() or now == landed + 1,
-                f"{landed} -> {now}",
-            )
-            page.set_viewport_size({"width": 390, "height": 844})
-            page.wait_for_timeout(300)
-            check(
-                "a narrow desk repeats the commit at its foot",
-                page.locator(".rl-commit-foot").first.is_visible(),
-            )
-            page.screenshot(path=str(OUT / "07n-desk-390x844.png"), full_page=True)
-            axe(page, "narrow desk")
-            page.set_viewport_size({"width": SIZE[0], "height": SIZE[1]})
-            page.wait_for_timeout(300)
-        else:
-            check("a directive files only when signed", filed == before, f"{before} -> {filed}")
-            draft_and_sign(page, page.locator(".rl-instrument").first, before, report)
-
-        aide_and_consult(page, report)
-        after_wake(page, report, v2)
-        board_and_map(page, report, v2)
+        try:
+            header_and_menu(page, report, host)
+            wake_header(page, report, host)
+            desk(page, report, v2)
+            tray(page, report)
+            orders(page, report, v2)
+            messenger(page, report)
+            after_wake(page, report, host)
+            narrow(page)
+        except Exception:
+            page.screenshot(path=str(OUT / "zz-failed.png"), full_page=True)
+            (OUT / "zz-failed.aria.txt").write_text(page.locator("body").aria_snapshot())
+            raise
         body = page.locator("body").inner_text()
-        for word in ("controller", "human", "truth", " AI ", "%"):
+        for word in ("controller", "human", "truth", " AI ", "%", "Commit my orders"):
             if word in body:
                 problems.append(f"rule: page text contains {word!r}")
         if host:
@@ -401,7 +253,201 @@ def main() -> int:
     return 1 if problems else 0
 
 
-def draft_and_sign(page: Page, first: Locator, before: int, report: dict[str, object]) -> None:
+def header_and_menu(page: Page, report: dict[str, object], host: bool) -> None:
+    who = page.locator(".frame-head .identity")
+    report["header_identity"] = who.inner_text() if who.count() else ""
+    check(
+        "the header names who the player plays",
+        who.count() == 1
+        and "playing as" in who.inner_text().lower()
+        and len(who.inner_text()) > 20,
+        str(report["header_identity"]),
+    )
+    for label, name in (("open the setting", "setting"), ("open the dossier", "character")):
+        page.locator(f"button.head-link[aria-label$='{label}']").click()
+        dossier = page.locator("dialog.rl-dos[open]")
+        dossier.wait_for()
+        report[f"{name}_dossier"] = dossier.inner_text()[:800]
+        check(f"the {name} dossier opens from the header", dossier.locator("h3").count() > 0)
+        no_filler(page, f"the {name} dossier")
+        shoot(page, f"01-{name}-dossier")
+        axe(page, f"{name} dossier")
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(200)
+        check(f"Esc closes the {name} dossier", page.locator("dialog.rl-dos[open]").count() == 0)
+    page.get_by_role("button", name="Game").click()
+    menu = page.locator("dialog.rl-menu")
+    menu.wait_for()
+    report["game_menu"] = menu.inner_text()
+    check("the game menu opens from the header", menu.is_visible())
+    if host:
+        check(
+            "the host's menu offers End game",
+            menu.get_by_role("button", name="End game…").count() == 1,
+        )
+        check("the host's menu offers Pause", menu.get_by_role("button", name="Pause").count() == 1)
+        check(
+            "the host's menu does not offer Leave",
+            menu.get_by_role("button", name="Leave game…").count() == 0,
+        )
+    else:
+        check(
+            "a player's menu offers Leave",
+            menu.get_by_role("button", name="Leave game…").count() == 1,
+        )
+    shoot(page, "01-game-menu")
+    menu.get_by_role("button", name="Close").click()
+
+
+def wake_header(page: Page, report: dict[str, object], host: bool) -> None:
+    wake = page.locator(".frame-head .rl-wake")
+    report["wake_header"] = wake.inner_text()
+    check("the header shows the wake", "Wake " in wake.inner_text(), wake.inner_text())
+    check("the header says when the wake closes", "Closes " in wake.inner_text())
+    check("the header counts players done", "done" in wake.inner_text())
+    check(
+        "the header offers Done for today",
+        page.get_by_role("button", name="Done for today").count() >= 1,
+    )
+    check(
+        "only the host can run the day now",
+        page.get_by_role("button", name=RUN_NOW).count() == (1 if host else 0),
+    )
+
+
+def desk(page: Page, report: dict[str, object], v2: bool) -> None:
+    room = page.locator("main.rl-room")
+    for region in ("Papers", "Desk", "Your orders"):
+        check(
+            f"the room shows {region}",
+            room.get_by_role("region", name=region).count()
+            + room.get_by_role("complementary", name=region).count()
+            >= 1,
+        )
+    check(
+        "the room shows the play style", room.get_by_role("group", name="How you play").count() == 1
+    )
+    if v2:
+        check("the play style shows as chosen", page.get_by_label("Beginner").is_checked())
+    needs = room.get_by_role("region", name="Needs your answer")
+    report["needs_your_answer"] = needs.inner_text() if needs.count() else ""
+    ideas = room.get_by_role("region", name="Ideas")
+    report["ideas"] = ideas.inner_text() if ideas.count() else ""
+    check("the desk shows needs-your-answer or ideas", needs.count() + ideas.count() >= 1)
+    no_filler(page, "the desk")
+    shoot(page, "02-room")
+    axe(page, "room")
+
+
+def tray(page: Page, report: dict[str, object]) -> None:
+    rows = page.locator(".rl-tray .rl-row")
+    if rows.count() == 0:
+        advance(page, "03-first-wake")  # a new game's first papers arrive on the first wake
+    check("the in-tray lists papers", rows.count() > 0, str(rows.count()))
+    unread = tab_count(page, "Unread")
+    group = page.locator(".rl-tray .rl-row-group.rl-row-unread, .rl-tray .rl-row-unread").first
+    group.click()
+    paper = page.locator(".rl-tray .rl-row-paper").first
+    if paper.count():
+        paper.click()
+    page.locator(".rl-page").wait_for(timeout=30_000)
+    page.wait_for_timeout(300)
+    prose = page.locator(".rl-page .rl-prose")
+    report["sample_prose"] = prose.first.inner_text()[:600] if prose.count() else ""
+    check(
+        "an opened paper reads beside the desk",
+        page.get_by_role("region", name="Desk").is_visible(),
+    )
+    no_filler(page, "an opened paper")
+    shoot(page, "04-paper")
+    axe(page, "paper")
+    page.get_by_role("button", name="Flag", exact=True).click()
+    page.get_by_role("button", name="Unflag").wait_for()
+    check(
+        "opening a paper marks it read",
+        tab_count(page, "Unread") == unread - 1,
+        f"unread {unread} -> {tab_count(page, 'Unread')}",
+    )
+    check("flagging counts under Flagged", tab_count(page, "Flagged") == 1)
+    page.get_by_role("tab", name="Flagged 1").click()
+    page.wait_for_timeout(200)
+    check("the Flagged filter shows one row", page.locator(".rl-tray .rl-row").count() >= 1)
+    page.get_by_role("tab").filter(has_text="All").first.click()
+    page.wait_for_timeout(200)
+
+
+def tab_count(page: Page, word: str) -> int:
+    tab = page.get_by_role("tab").filter(has_text=word).first
+    return int(tab.inner_text().split()[-1])
+
+
+def orders(page: Page, report: dict[str, object], v2: bool) -> None:
+    cards = page.locator(".rl-oc-card")
+    before = cards.count()
+    choose = page.locator("main.rl-room").get_by_role("button", name="Choose")
+    if v2 and choose.count():
+        choose.first.click()
+        page.locator(".rl-status.said").wait_for(timeout=30_000)
+        page.wait_for_timeout(300)
+        report["chosen_reply"] = page.locator(".rl-status").inner_text()
+        check(
+            "a chosen idea joins your orders",
+            cards.count() == before + 1,
+            f"{before} -> {cards.count()}",
+        )
+        check(
+            "a chosen idea shows as filed",
+            page.locator("main.rl-room").get_by_text("Filed").count() >= 1,
+        )
+        before = cards.count()
+        shoot(page, "05-chosen")
+    forms = page.locator("details.rl-forms")
+    check("the desk folds the standard forms", forms.count() == 1)
+    forms.locator("summary").click()
+    instruments = page.locator(".rl-instrument")
+    check("the standard forms list instruments", instruments.count() > 0)
+    snake = [t for t in instruments.locator("strong").all_inner_texts() if "_" in t]
+    check("instrument names are in words", not snake, ", ".join(snake))
+    people = page.locator("form.rl-directive .rl-recipient")
+    titles = people.locator(".rl-person-title").all_inner_texts()
+    report["recipients"] = people.all_inner_texts()
+    check(
+        "each recipient shows a title",
+        people.count() > 0 and len(titles) == people.count() and all(titles),
+        str(report["recipients"]),
+    )
+    words = "Send word that our escorts will see the convoys as far as Iceland."
+    directive = page.locator("form.rl-directive")
+    check("the desk offers a directive", directive.count() == 1)
+    directive.get_by_label("Your instruction").fill(words)
+    directive.get_by_role("button", name="Prepare the order").click()
+    card = page.locator(".rl-proposal")
+    card.wait_for(timeout=WAKE_MS)
+    page.wait_for_timeout(300)
+    report["directive_reading"] = card.inner_text()
+    shoot(page, "06-directive-reading")
+    axe(page, "directive")
+    check("the reading quotes the instruction", words in card.inner_text())
+    check("the reading is in words", "_" not in card.inner_text(), card.inner_text())
+    sign = card.get_by_role("button", name="Sign and send")
+    if sign.count():
+        sign.click()
+        page.locator(".rl-status.said").filter(has_text="Sent to").wait_for()
+        report["directive_reply"] = page.locator(".rl-status").inner_text()
+        before += 1
+    else:
+        card.get_by_role("button", name="Revise").click()
+        kept = page.locator("form.rl-directive textarea").input_value()
+        check("Revise keeps the instruction", kept == words, kept)
+    page.wait_for_timeout(300)
+    check(
+        "a signed directive joins your orders",
+        cards.count() == before,
+        f"{before} -> {cards.count()}",
+    )
+    if forms.get_attribute("open") is None:  # a redraw folds the forms again
+        forms.locator("summary").click()
+    first = instruments.first
     first.get_by_role("button", name="Draft").click()
     form = first.locator("form.rl-form")
     form.wait_for()
@@ -410,118 +456,108 @@ def draft_and_sign(page: Page, first: Locator, before: int, report: dict[str, ob
     page.locator(".rl-status.said").filter(has_text="Sent to").wait_for()
     report["sent_reply"] = page.locator(".rl-status").inner_text()
     page.wait_for_timeout(300)
-    after = page.locator(".rl-pending .rl-order").count()
-    check("signing an order adds a pending order", after == before + 1, f"{before} -> {after}")
-    shoot(page, "07-pending-orders")
+    check(
+        "a signed form joins your orders",
+        cards.count() == before + 1,
+        f"{before} -> {cards.count()}",
+    )
+    report["orders"] = page.locator(".rl-oc").inner_text()[:1200]
+    check("your orders are in words", "_" not in str(report["orders"]))
+    shoot(page, "07-orders")
     axe(page, "orders")
 
 
-def aide_and_consult(page: Page, report: dict[str, object]) -> None:
-    page.locator(".rl-brief").wait_for(timeout=WAKE_MS)
-    report["aide_brief"] = page.locator(".rl-brief").inner_text()[:600]
-    check("the aide briefs itself", len(page.locator(".rl-brief").inner_text()) > 20)
-    page.get_by_role("button", name="Brief me again").click()
-    page.locator(".rl-status.said").filter(has_text="aide has read").wait_for(timeout=WAKE_MS)
-    check("the aide briefs again on request", page.locator(".rl-brief").count() == 1)
-    aside = page.locator(".rl-aide")
-    aside.get_by_label("Ask your aide").fill("How do I move a fleet?")
-    aside.get_by_role("button", name="Ask", exact=True).click()
-    aside.locator(".rl-msg.theirs").first.wait_for(timeout=WAKE_MS)
-    check("the aide answers a question in its window", aside.locator(".rl-msg").count() >= 2)
-    aside.get_by_role("tab").nth(1).click()
-    aside = page.locator(".rl-aide")
-    aside.get_by_label("Your question").fill("Should we wait for the Senate before we move?")
-    aside.get_by_role("button", name="Ask them").click()
-    page.locator(".rl-answer").first.wait_for(timeout=WAKE_MS)
-    report["consult"] = page.locator(".rl-answer").first.inner_text()
-    check("consult shows the answer by the aide", page.locator(".rl-answer").count() >= 1)
-    shoot(page, "08-aide-and-consult")
-    axe(page, "aide")
+def messenger(page: Page, report: dict[str, object]) -> None:
+    page.get_by_role("button", name="Messages").click()
+    dock = page.locator(".rl-msgr")
+    dock.get_by_role("tab", name="Chats").wait_for()
+    dock.get_by_role("button", name="Your aide").click()
+    page.locator(".rl-msgr .rl-brief").wait_for(timeout=WAKE_MS)
+    report["aide_brief"] = page.locator(".rl-msgr .rl-brief").inner_text()[:600]
+    check("the aide's thread holds its brief", len(str(report["aide_brief"])) > 20)
+    thread = page.locator(".rl-msgr ol.rl-thread > li")
+    lines = thread.count()
+    page.locator(".rl-msgr").get_by_label("Message", exact=True).fill("How do I move a fleet?")
+    page.locator(".rl-msgr").get_by_role("button", name="Send").click()
+    page.locator(".rl-msgr ol.rl-thread > li").nth(lines + 1).wait_for(timeout=WAKE_MS)
+    page.wait_for_timeout(300)
+    check(
+        "the aide answers in its thread",
+        thread.count() >= lines + 2 and "Your aide" in thread.last.inner_text(),
+        f"{lines} -> {thread.count()}",
+    )
+    check("focus stays in the messenger after the aide answers", in_messenger(page))
+    shoot(page, "08-aide-thread")
+    axe(page, "aide thread")
+    page.locator(".rl-msgr").get_by_role("button", name="Back").click()
+    person = page.locator(".rl-msgr .rl-msgr-item").nth(1)
+    who = person.locator(".rl-msgr-item-text").inner_text().split("\n")[0]
+    person.click()
+    page.locator(".rl-msgr").get_by_label("Message", exact=True).fill(
+        "Should we wait for the Senate before we move?"
+    )
+    page.locator(".rl-msgr").get_by_role("button", name="Send").click()
+    page.locator(".rl-msgr .rl-answer").first.wait_for(timeout=WAKE_MS)
+    report["consult"] = page.locator(".rl-msgr .rl-answer").first.inner_text()
+    check(
+        f"a consult with {who} shows the answer", page.locator(".rl-msgr .rl-answer").count() >= 1
+    )
+    check("focus stays in the messenger after a consult", in_messenger(page))
+    shoot(page, "09-consult")
+    page.locator(".rl-msgr").get_by_role("button", name="Back").click()
+    page.locator(".rl-msgr").get_by_role("tab", name="Contacts").click()
+    contacts = page.locator(".rl-msgr")
+    report["contacts"] = contacts.inner_text()[:1200]
+    check(
+        "contacts are grouped",
+        any(
+            g in str(report["contacts"]).lower() for g in ("inner circle", "government", "foreign")
+        ),
+    )
+    shoot(page, "10-contacts")
+    axe(page, "contacts")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(200)
+    check("Esc closes the messenger", page.locator(".rl-msgr-panel").count() == 0)
 
 
-def after_wake(page: Page, report: dict[str, object], v2: bool) -> None:
+def in_messenger(page: Page) -> bool:
+    return bool(page.evaluate("() => !!document.activeElement?.closest('.rl-msgr-panel')"))
+
+
+def after_wake(page: Page, report: dict[str, object], host: bool) -> None:
     pace = page.locator(".rl-pace").first.inner_text()
     t0 = time.time()
-    advance(page, "09-advance")
+    advance(page, "11-day")
     report["advance_seconds"] = round(time.time() - t0, 1)
     moved = page.locator(".rl-pace").first.inner_text()
-    check("advance moves the world date", moved != pace, f"{pace!r} -> {moved!r}")
-    page.locator(".rl-aide").get_by_role("tab").first.click()  # back from the consult
-    page.locator(".rl-brief").wait_for(timeout=WAKE_MS)
-    check("the aide briefs itself after the wake", page.locator(".rl-brief").count() == 1)
-    titles = page.locator(".rl-folder .rl-doc-title").all_inner_texts()
+    check("a day moves the world date", moved != pace, f"{pace!r} -> {moved!r}")
+    check("pace line has no engine words", "horizon" not in moved, moved)
+    report["pace_after_advance"] = moved
+    titles = page.locator(".rl-tray .rl-row-title").all_inner_texts()
     report["titles_after_advance"] = titles
-    check("an order reply arrives as a paper", v2 or any(t.startswith("On your") for t in titles))
     check(
         "no title shows an ISO date",
         not any(c.isdigit() and "-" in t for t in titles for c in t[-3:]),
     )
-    shoot(page, "10-room-after-advance")
-    reply = page.locator(".rl-folder", has_text="On your").first
-    if reply.count():
-        reply.locator(".rl-cover").click()
-        page.locator(".rl-dossier .rl-page").wait_for()
-        page.wait_for_timeout(300)
-        report["reply_page"] = page.locator(".rl-page").inner_text()[:800]
-        written = page.locator(".rl-dossier .rl-prose")
-        check(
-            "a reply has written text",
-            written.count() == 1 and len(written.inner_text().strip()) > 40,
-        )
-        no_filler(page, "a reply")
-        shoot(page, "11-reply-letter")
-        axe(page, "reply")
-        page.get_by_role("button", name="Close folder").click()
-    report["pace_after_advance"] = moved
-    check("pace line has no engine words", "horizon" not in moved, moved)
-    if v2:
-        number = page.locator(".rl-wake .title").inner_text()
-        page.get_by_role("button", name="Close the wake now").click()
-        dialog = page.locator("dialog.rl-close-wake")
-        dialog.wait_for()
-        check("closing the wake asks first", "runs now" in dialog.inner_text())
-        shoot(page, "11a-close-confirm")
-        page.evaluate(SLOW_ADVANCE)
-        dialog.get_by_role("button", name="Close it").click()
-        busy = page.locator(".rl-status.busy")
-        busy.wait_for(timeout=5_000)
-        check("closing says the wake is running", "wake is running" in busy.inner_text())
-        page.locator(".rl-status.said").filter(has_text="calendar moves").wait_for(timeout=WAKE_MS)
-        page.wait_for_timeout(300)
-        after = page.locator(".rl-wake .title").inner_text()
-        report["wake_after_close"] = [number, after]
-        check(
-            "closing moves to the next wake",
-            int(after.split()[-1]) == int(number.split()[-1]) + 1,
-            f"{number} -> {after}",
-        )
-        shoot(page, "11b-after-close")
+    shoot(page, "12-room-after-day")
+    if host:
+        advance(page, "13-run-now", RUN_NOW)
 
 
-def board_and_map(page: Page, report: dict[str, object], v2: bool = False) -> None:
-    page.get_by_role("tab", name="Situation").click()
+def narrow(page: Page) -> None:
+    page.set_viewport_size({"width": 390, "height": 844})
     page.wait_for_timeout(300)
-    cards = page.locator(".rl-card")
-    check("the situation board shows figures", cards.count() > 0)
-    report["situation"] = page.locator(".rl-board").inner_text()[:1200]
-    no_filler(page, "the situation board")
-    shoot(page, "12-situation")
-    axe(page, "situation")
-
-    page.get_by_role("tab", name="Map").click()
-    page.locator(".rl-map").wait_for()
-    page.wait_for_timeout(800)
-    marks = page.locator(".rl-map-svg .rl-mk")
-    report["map_marks"] = marks.count()
-    # The engine-v2 slice has no sighting feeds yet, so its map has places but no marks.
-    check("the map opens and shows marks", v2 or marks.count() > 0, f"{marks.count()} marks")
-    check("the map draws coastlines", page.locator(".rl-map-land").count() == 1)
-    shoot(page, "13-map")
-    page.get_by_role("button", name="Widen").click()
-    page.wait_for_timeout(500)
-    shoot(page, "14-map-wide")
-    axe(page, "map")
-    page.get_by_role("button", name="Narrow").click()
+    width = page.evaluate("document.documentElement.scrollWidth")
+    check("a narrow room has no sideways scroll", width <= 390, str(width))
+    check(
+        "a narrow room repeats Done for today at the desk's foot",
+        page.locator(".rl-commit-foot").first.is_visible(),
+    )
+    page.screenshot(path=str(OUT / "14n-room-390x844.png"), full_page=True)
+    axe(page, "narrow room")
+    page.set_viewport_size({"width": SIZE[0], "height": SIZE[1]})
+    page.wait_for_timeout(300)
 
 
 def end_game(page: Page, report: dict[str, object], v2: bool) -> None:

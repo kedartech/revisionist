@@ -1,0 +1,60 @@
+/* p5-happened.css: "What happened" sheet (Train 2 unit W). */
+
+dialog.rl-hap {
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--fg-strong);
+  width: min(560px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sheet);
+  border: var(--border-sheet) var(--rule);
+}
+dialog.rl-hap::backdrop { background: var(--backdrop); }
+
+.rl-hap h2 {
+  margin: 0 0 var(--space-3);
+  font: 400 1.05rem var(--font-head);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-strong);
+}
+.rl-hap h3 {
+  margin: var(--space-4) 0 var(--space-2);
+  font: 400 0.85rem var(--font-head);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-muted);
+}
+.rl-hap p {
+  margin: 0 0 var(--space-3);
+  font: 400 0.95rem/1.5 var(--font-read);
+  color: var(--fg-read);
+}
+.rl-hap ul {
+  margin: 0;
+  padding: 0 0 0 var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font: 400 0.9rem/1.45 var(--font-read);
+  color: var(--fg-read);
+}
+.rl-hap li { min-width: 0; overflow-wrap: anywhere; }
+.rl-hap-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-5);
+}
+.rl-hap-actions button {
+  font: 400 0.85rem var(--font-chrome);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius);
+  background: var(--accent-bg);
+  color: var(--on-accent);
+  cursor: pointer;
+}
+.rl-hap-actions button:hover { background: var(--accent-hover); }
+.rl-hap-actions button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

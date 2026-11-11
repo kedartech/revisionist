@@ -53,9 +53,11 @@ from revisionist.engine.store import load_state
 from revisionist.engine.tick import NotInPlayError
 from revisionist.engine.web import (
     agenda_api,
+    dossiers,
     new_game_api,
     reach_groups,
     realism_snapshot,
+    record_api,
     results,
     reveal,
     snapshot,
@@ -240,6 +242,13 @@ class App:
                     link.campaign_id, link.seat_id, state.tick
                 )
                 seat_view["realism"]["help"] = self._help_thread(link.campaign_id, link.seat_id)
+                seat_view["realism"]["record"] = record_api.record_block(
+                    state, log_now, link.seat_id
+                )
+                seat_view["realism"]["setting"] = dossiers.setting(state, log_now)
+                seat_view["realism"]["dossier"] = dossiers.for_people(state, log_now).get(
+                    state.seats[link.seat_id].embodies, dossiers.empty_dossier()
+                )
             out["game"] = game | {"view": seat_view}
             return snapshot.checked(state, link.seat_id, out)
         finally:

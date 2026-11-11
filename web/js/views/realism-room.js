@@ -1,44 +1,65 @@
-// The realism room: one surface for a seat in a realism game. Papers on the left (the
-// in-tray, the situation board and the map, with an opened paper read in place), the
-// desk in the centre, and the aide and the pending orders on the right, under the pace
-// header. Built from view.realism (realism_api.py). Layout: docs/web-design/realism-room-unified.md.
+// The realism room: one surface for a seat in a realism game. The in-tray on the left; in
+// the middle what needs an answer, ideas, the order being written or signed, the standard
+// forms and the commit; the seat's orders on the right; the messenger floating over it.
+// The header's two names open the setting and the character dossiers. Built from
+// view.realism (realism_api.py).
 
 import { api } from '../api.js';
 import { h, icon } from '../dom.js';
 import { STEP_ACTIONS, entityChoices } from '../realism-rules.js';
 import { worldDate } from '../rules.js';
-import {
-  board, briefBlock, conversations, desk, directiveForm, dossier, paceHeader, pendingOrders,
-} from './realism.js';
+import { browserStorage } from '../theme.js';
+import { briefBlock, directiveForm, paceHeader } from './realism.js';
 import { header } from './frame.js';
-import { mapView } from './realism-map.js';
 import { ackThread } from './realism-acks.js';
+import { needsAnswer } from './realism-answer.js';
+import { chatDock, seenStore } from './realism-chat.js';
+import { contactsTab } from './realism-contacts.js';
+import { characterDossier, settingDossier } from './realism-dossier.js';
+import { standardForms } from './realism-forms.js';
+import { happenedSheet, happenedStore, shouldShow } from './realism-happened.js';
+import { ideasPanel } from './realism-ideas.js';
 import { newsBlock, whatChanged } from './realism-news.js';
-import { ordersLog } from './realism-orders.js';
-import { reachPanel } from './realism-reach.js';
-import { requestsPanel } from './realism-requests.js';
+import { orderCards } from './realism-orders.js';
+import { overlayLines, wakeOverlay } from './realism-overlay.js';
 import { trayView } from './realism-tray.js';
-import {
-  agendaPanel, commitPanel, initiativePanel, orderCard, stylePicker, wakeHeader,
-} from './realism-wake.js';
+import { RUNNING, commitPanel, orderCard, stylePicker, wakeHeader } from './realism-wake.js';
 
-const PANELS = [['tray', 'In-tray'], ['situation', 'Situation'], ['map', 'Map']];
-const ui = {
-  panel: 'tray', wide: false, page: null, said: null, error: null, busy: null,
+const freshUi = (game) => ({
+  game, wide: false, page: null, said: null, error: null, busy: null,
   filter: 'all', sort: 'newest', draft: null, proposal: null, autoFor: null,
-  mapMode: 'map', mapScope: 'reports', mapSelected: null, chat: 'aide', seen: null,
-};
+  chat: { open: false, tab: 'chats', thread: null }, contact: null, orderTo: null,
+  happenedSeen: null, refocusChat: false, brief: null,
+});
+let ui = freshUi(null);
 
-// The coastlines, fetched once and kept: the map draws without them until they come.
-let land = null;
-let landing = null;
-function loadLand(then) {
-  landing ??= fetch('/assets/land-110m.json')
-    .then((r) => (r.ok ? r.json() : null))
-    .then((json) => { land = json; })
-    .catch(() => {});
-  landing.then(then);
+/** The room's picks and drafts: kept across redraws of one game, started clean for another. */
+export function uiFor(gameId) {
+  if (ui.game !== gameId) ui = freshUi(gameId);
+  return ui;
 }
+
+/**
+ * Who an order can go to: the inner circle, and a contact chosen from the messenger
+ * ("Write them an order"), whose channels are the keys the order form posts. A contact
+ * with no channel cannot be written to, so it is left off.
+ */
+export function orderContacts(inner, c) {
+  const keys = c?.channel_keys ?? [];
+  if (!c || !keys.length || inner.some((x) => x.person === c.name)) return inner;
+  return [...inner, { person: c.name, title: c.title, channel: keys[0], channels: keys }];
+}
+
+/**
+ * Whether the What happened sheet opens for this wake page: once per wake, kept in storage
+ * and, where storage is blocked, in the room's memory (`seen`) so a redraw does not reopen it.
+ */
+export function happenedDue(page, store, seen) {
+  return Boolean(page) && shouldShow(page, store) && page.number > (seen ?? 0);
+}
+
+/** Browser storage, or nothing where it is blocked: the units take it as a parameter. */
+const storage = () => browserStorage(window);
 
 function stepForm(order, act) {
   const id = `rl-step-${order.id}`;
@@ -138,24 +159,34 @@ function gameMenu(game, ctx, work) {
 export function realismRoom(ctx) {
   const { me, refresh } = ctx;
   const game = me.game;
+  uiFor(game.id);
   const rv = game.view.realism;
+  if (!rv.brief && ui.brief?.tick === rv.wake_tick) rv.brief = ui.brief.brief;
   const seatName = game.view.seat?.name ?? '';
   const root = h('div', { class: 'screen war-screen realism-screen' });
   const rerender = () => root.replaceChildren(...build());
+  const seen = seenStore(storage(), game.id);
+  const shown = happenedStore(storage(), game.id);
 
   /**
    * Run one slow call: the status line says what is happening in plain words, every
-   * control is held until it is done, and the room is re-read after.
+   * control is held until it is done, and the room is re-read after. A call that runs
+   * the wake also lays the overlay over the room; the redraw removes it.
    */
   async function work(message, fn) {
     if (ui.busy) return;
     ui.busy = message;
     ui.error = null;
     const clicked = document.activeElement;
+    ui.refocusChat = Boolean(clicked?.closest?.('.rl-msgr-panel'));
     root.setAttribute('aria-busy', 'true');
     if (clicked?.tagName === 'BUTTON') clicked.classList.add('rl-working');
     for (const el of root.querySelectorAll('button, select, textarea, input')) el.disabled = true;
     showStatus();
+    if (message === RUNNING) {
+      const layer = wakeOverlay({ message, lines: overlayLines(rv.setting) });
+      if (layer) root.append(layer);
+    }
     try {
       await fn();
     } catch (ex) {
@@ -163,7 +194,15 @@ export function realismRoom(ctx) {
     } finally {
       ui.busy = null;
     }
-    await refresh();
+    try {
+      await refresh();
+    } catch (ex) {
+      // the room was not re-read: drop the overlay and the hold, and say why
+      ui.error = ex.message;
+      root.removeAttribute('aria-busy');
+      rerender();
+      if (ui.refocusChat) refocus(ui.chat, true);
+    }
   }
   work.idle = () => !ui.busy;
 
@@ -185,8 +224,8 @@ export function realismRoom(ctx) {
   const act = (message, action, body, then) => work(message, async () => {
     const r = await api.realism(action, body);
     ui.said = r.reply || null;
-    // the aide has written: a failed order, or an answer; show its window
-    if (r.help) ui.chat = 'aide';
+    // the aide has written: a failed order, or an answer; open its thread
+    if (r.help) ui.chat = { open: true, tab: 'chats', thread: 'aide' };
     then?.(r);
   });
 
@@ -201,12 +240,10 @@ export function realismRoom(ctx) {
 
   /** File the signed order, which the server holds; a refusal leaves it on the desk to revise. */
   const signed = (p) => act(p.person ? `Sending it to ${p.person}…` : 'Sending it…', 'file', {},
-    (r) => { if (!r.refused) { ui.proposal = null; ui.draft = null; } });
+    (r) => { if (!r.refused) { ui.proposal = null; ui.draft = null; ui.orderTo = null; } });
 
   const open = (d) => work('Fetching the paper…', async () => {
     ui.page = await api.realism('read', { doc_id: d.id });
-    ui.pageFrom = ui.panel;
-    ui.panel = 'tray';
     ui.said = null;
   });
 
@@ -215,84 +252,34 @@ export function realismRoom(ctx) {
     ui.page.item.flagged = on;
   });
 
-  function choosePanel(key) {
-    ui.panel = key;
-    ui.page = null;
-    rerender();
-    root.querySelector(`#rl-panel-${key}`)?.focus();
-  }
-
   function papers() {
-    const unread = rv.documents.unread ?? rv.documents.documents.filter((d) => d.unread).length;
-    const switcher = h('div', { role: 'tablist', 'aria-label': 'Papers', class: 'rl-switch' },
-      PANELS.map(([k, label]) => h('button', {
-        type: 'button', role: 'tab', id: `rl-panel-${k}`, 'aria-selected': String(ui.panel === k && !ui.page),
-        'aria-controls': 'rl-papers-body', tabindex: ui.panel === k ? 0 : -1,
-        onclick: () => choosePanel(k),
-        onkeydown: (e) => {
-          const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
-          if (!step) return;
-          e.preventDefault();
-          const at = PANELS.findIndex(([x]) => x === k);
-          choosePanel(PANELS[(at + step + PANELS.length) % PANELS.length][0]);
-        },
-      }, label, k === 'tray' && unread ? h('span', { class: 'rl-count' }, ` ${unread}`) : null)));
     const widen = h('button', {
       type: 'button', class: 'rl-btn rl-widen', 'aria-pressed': String(ui.wide),
       onclick: () => { ui.wide = !ui.wide; rerender(); },
     }, ui.wide ? 'Narrow' : 'Widen');
-    return h('section', { class: 'rl-col rl-papers', 'aria-label': 'Papers' },
-      h('div', { class: 'rl-col-head' }, switcher, widen),
-      h('div', { id: 'rl-papers-body', role: 'tabpanel', 'aria-labelledby': `rl-panel-${ui.panel}`, class: 'rl-col-body' },
-        papersBody()));
-  }
-
-  function papersBody() {
-    const close = () => { ui.page = null; ui.panel = ui.pageFrom ?? 'tray'; rerender(); };
-    if (ui.page && ui.pageFrom !== 'tray') return dossier(ui.page, { onClose: close, onFlag: flag });
-    if (ui.panel === 'situation') return board(rv.situation, { onOpen: open });
-    if (ui.panel === 'map') {
-      if (!rv.map) {
-        return h('section', { class: 'rl-map', 'aria-labelledby': 'rl-map-h' },
-          h('h2', { id: 'rl-map-h' }, 'Map'),
-          h('p', { class: 'rl-none' }, 'This game has no map: its places were set down without positions, so there is nothing to draw. Games started now carry one.'));
-      }
-      if (!land) loadLand(() => { if (land && ui.panel === 'map') rerender(); });
-      return mapView(rv.map, land, {
-        mode: ui.mapMode,
-        scope: ui.mapScope,
-        selected: ui.mapSelected,
-        onMode: (m) => { ui.mapMode = m; rerender(); },
-        onScope: (sc) => { ui.mapScope = sc; rerender(); },
-        onSelect: (name, mode) => {
-          ui.mapSelected = ui.mapSelected === name && !mode ? null : name;
-          if (mode) ui.mapMode = mode;
-          rerender();
-        },
-        onOpen: open,
-      });
-    }
     const choose = (key, focus) => {
       ui.filter = key;
       rerender();
       if (focus) root.querySelector(`#rl-filter-${key}`)?.focus();
     };
-    return trayView(rv.documents, open, {
-      filter: ui.filter,
-      sort: ui.sort,
-      onFilter: choose,
-      onSort: (value) => { ui.sort = value; rerender(); },
-      page: ui.page,
-      onClose: close,
-      onFlag: flag,
-      wide: ui.wide,
-      requests: requestsPanel(rv.agenda, { act }),
-    });
+    return h('section', { class: 'rl-col rl-papers', 'aria-label': 'Papers' },
+      h('div', { class: 'rl-col-head' }, widen),
+      h('div', { class: 'rl-col-body' },
+        trayView(rv.documents, open, {
+          filter: ui.filter,
+          sort: ui.sort,
+          onFilter: choose,
+          onSort: (value) => { ui.sort = value; rerender(); },
+          page: ui.page,
+          onClose: () => { ui.page = null; rerender(); },
+          onFlag: flag,
+          wide: ui.wide,
+        })));
   }
 
   /** The directive form, its words kept as typed: a redraw or a refresh rebuilds it from ui.draft. */
   function orderForm() {
-    const form = directiveForm(rv.desk.inner_circle, ui.draft, ask);
+    const form = directiveForm(orderContacts(rv.desk.inner_circle, ui.orderTo), ui.draft, ask);
     form.addEventListener('input', () => {
       ui.draft = {
         to: form.querySelector('input[type="radio"]:checked')?.value ?? '',
@@ -303,6 +290,34 @@ export function realismRoom(ctx) {
     return form;
   }
 
+  // The aide briefs itself once a wake: the room asks when this wake has no brief yet, and
+  // fills the brief and the ideas when it comes, without holding the desk.
+  const briefOn = {
+    brief: () => act('Your aide is reading your papers…', 'aide', { again: true }),
+    useDraft,
+  };
+  const briefSlot = h('div', { class: 'rl-brief-slot' });
+  const ideasSlot = h('div', { class: 'rl-ideas-slot' });
+  const fillIdeas = () => ideasSlot.replaceChildren(...[ideasPanel(rv.agenda, rv.brief, { act, useDraft })].filter(Boolean));
+  const fillBrief = (opts) => {
+    briefSlot.replaceChildren(...[briefBlock(rv.brief, briefOn, opts)].flat().filter(Boolean));
+    fillIdeas();
+  };
+  async function autoBrief() {
+    ui.autoFor = rv.wake_tick;
+    fillBrief({ reading: true });
+    try {
+      const r = await api.realism('aide', {});
+      if (r.brief) {
+        rv.brief = r.brief;
+        ui.brief = { tick: rv.wake_tick, brief: r.brief }; // a redraw meanwhile reads it from here
+      }
+      fillBrief(r.brief ? {} : { said: r.reply });
+    } catch (ex) {
+      fillBrief({ said: ex.message });
+    }
+  }
+
   function deskColumn() {
     const directive = ui.proposal
       ? orderCard(ui.proposal, { onSign: signed, onRevise: () => { ui.proposal = null; ui.said = null; rerender(); } })
@@ -310,14 +325,13 @@ export function realismRoom(ctx) {
     return h('section', { class: 'rl-col rl-desk-col', 'aria-label': 'Desk' },
       h('div', { class: 'rl-col-body' },
         stylePicker(rv.style, { act }),
-        agendaPanel(rv.agenda, { act }),
-        initiativePanel(rv.agenda, { act }),
-        desk(rv.desk, {
+        needsAnswer(rv.agenda, { act }),
+        ideasSlot,
+        h('section', { class: 'rl-write', 'aria-label': ui.proposal ? 'Your order, to sign' : 'Write an order' }, directive),
+        standardForms(rv.desk, {
           onSubmit: (v) => act('Sending it…', 'lever', v),
           entities: entityChoices(rv.desk),
-          directive,
         }),
-        reachPanel(rv.reach),
         commitPanel(rv.wake, { act })));
   }
 
@@ -325,66 +339,100 @@ export function realismRoom(ctx) {
   function useDraft(d) {
     const item = root.querySelector(`.rl-instrument[data-lever="${CSS.escape(d.lever)}"]`);
     if (!item) return;
+    const fold = item.closest('details');
+    if (fold) fold.open = true;
     const toggle = item.querySelector('[aria-expanded]');
     if (toggle?.getAttribute('aria-expanded') === 'false') toggle.click();
     item.scrollIntoView({ block: 'center' });
     item.querySelector('input, select, textarea')?.focus();
   }
 
-  // The aide briefs itself once a wake: the room asks when this wake has no brief yet,
-  // and fills the slot when it comes, without holding the desk.
-  const briefOn = {
-    brief: () => act('Your aide is reading your papers…', 'aide', { again: true }),
-    useDraft,
-  };
-  const briefSlot = h('div', { class: 'rl-brief-slot' });
-  const fillBrief = (opts) => briefSlot.replaceChildren(...[briefBlock(rv.brief, briefOn, opts)].flat());
-  async function autoBrief() {
-    ui.autoFor = rv.wake_tick;
-    fillBrief({ reading: true });
-    try {
-      const r = await api.realism('aide', {});
-      if (r.brief) rv.brief = r.brief;
-      fillBrief(r.brief ? {} : { said: r.reply });
-    } catch (ex) {
-      fillBrief({ said: ex.message });
-    }
+  function sideColumn() {
+    return h('aside', { class: 'rl-col rl-side', 'aria-label': 'Your orders' },
+      h('div', { class: 'rl-col-body' },
+        orderCards(rv.record, rv.orders, (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v)))));
   }
 
-  /** Lines in each conversation, to mark the ones with something new since last seen. */
+  /** Lines in each thread, to mark the ones with something new since last seen. */
   function chatCounts() {
     const counts = { aide: (rv.help ?? []).filter((m) => m.from === 'aide').length };
     for (const c of rv.desk.inner_circle) counts[c.person] = (rv.counsel ?? []).filter((x) => x.person === c.person).length;
     return counts;
   }
 
-  function sideColumn() {
-    const counts = chatCounts();
-    ui.seen ??= { ...counts };
-    if (!(ui.chat in counts)) ui.chat = 'aide';
-    ui.seen[ui.chat] = counts[ui.chat];
-    const fresh = new Set(Object.keys(counts).filter((k) => counts[k] > (ui.seen[k] ?? 0)));
-    return h('aside', { class: 'rl-col rl-side', 'aria-label': 'Pending orders and conversations' },
-      h('div', { class: 'rl-col-body' },
-        pendingOrders(rv.orders, (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v))),
-        ordersLog(rv.results, rv.orders),
-        conversations({
-          selected: ui.chat,
-          slot: briefSlot,
-          contacts: rv.desk.inner_circle,
-          counsel: rv.counsel ?? [],
-          help: rv.help ?? [],
-          fresh,
-          onSelect: (key) => { ui.chat = key; rerender(); },
-          ask: (question) => act('Your aide is looking into it…', 'help', { question }),
-          consult: (to, question) => act(`Waiting for ${to} to answer…`, 'consult', { to, question }),
-          useDraft,
-          ackThread: (person) => ackThread(rv.documents, person, open),
-        })));
+  /** A redraw drops focus; put it back in the messenger so Esc and the keyboard keep working. */
+  function refocus(chat, compose = false) {
+    ui.refocusChat = false;
+    const panel = root.querySelector('.rl-msgr-panel');
+    const inThread = compose ? '.rl-msgr-compose textarea' : '.rl-msgr-back';
+    const target = !chat.open ? root.querySelector('.rl-msgr-btn')
+      : panel?.querySelector(chat.thread ? inThread : '[role="tab"][aria-selected="true"]');
+    target?.focus();
   }
 
+  function dock() {
+    const counts = chatCounts();
+    const marks = seen.read();
+    const thread = ui.chat.open ? ui.chat.thread : null;
+    if (thread && thread in counts && marks[thread] !== counts[thread]) seen.write({ ...marks, [thread]: counts[thread] });
+    const inner = rv.desk.inner_circle.map((c) => c.person);
+    return chatDock({
+      state: ui.chat,
+      onState: (next) => { ui.chat = next; rerender(); refocus(next); },
+      counts,
+      seen: seen.read(),
+      contacts: rv.desk.inner_circle,
+      counsel: rv.counsel ?? [],
+      help: rv.help ?? [],
+      brief: briefSlot,
+      ask: (question) => act('Your aide is looking into it…', 'help', { question }),
+      consult: (to, question) => act(`Waiting for ${to} to answer…`, 'consult', { to, question }),
+      useDraft,
+      ackThread: (person) => ackThread(rv.documents, person, open),
+      contactsTab: contactsTab(rv.reach, {
+        inner,
+        selected: ui.contact,
+        onSelect: (name) => {
+          ui.contact = name;
+          rerender();
+          root.querySelector(name ? '.rl-msgr-panel .rl-ct-back' : '.rl-msgr-panel [role="tab"][aria-selected="true"]')?.focus();
+        },
+        onMessage: (name) => { ui.chat = { open: true, tab: 'chats', thread: name }; rerender(); refocus(ui.chat); },
+        onOrder: (c) => {
+          ui.orderTo = c;
+          ui.proposal = null;
+          ui.draft = { to: c.name, channel: c.channel_keys?.[0] ?? '', text: ui.draft?.text ?? '' };
+          ui.chat = { ...ui.chat, open: false };
+          rerender();
+          root.querySelector('.rl-write textarea')?.focus();
+        },
+      }),
+    });
+  }
+
+  /** The two dossiers behind the header's names, and the sheet a new wake opens with. */
+  function sheets() {
+    const date = worldDate(rv.clock.world_date);
+    const close = (d) => () => d?.close();
+    const character = characterDossier({ name: seatName, desk: rv.desk, dossier: rv.dossier, onClose: () => close(character)() });
+    const setting = settingDossier({ name: game.name, setting: rv.setting, date, onClose: () => close(setting)() });
+    const page = rv.record?.wake;
+    const happened = happenedDue(page, shown, ui.happenedSeen)
+      ? happenedSheet({
+        record: rv.record, situation: rv.situation, date,
+        onClose: () => happened?.close(),
+      })
+      : null;
+    // Esc closes a dialog without its button: the close event counts either way
+    happened?.addEventListener('close', () => { ui.happenedSeen = page.number; shown.write(page.number); });
+    return { character, setting, happened };
+  }
+
+  let pending = null;
   function build() {
     const [menuBtn, menu] = gameMenu(game, ctx, work);
+    const { character, setting, happened } = sheets();
+    pending = happened;
     const extra = [
       h('span', { class: 'divider', 'aria-hidden': 'true' }),
       h('div', { class: 'stack rl-clock' }, h('span', { class: 'title' }, worldDate(rv.clock.world_date)), paceHeader(rv.clock)),
@@ -394,16 +442,27 @@ export function realismRoom(ctx) {
     status = h('div', { class: 'rl-status', role: 'status', 'aria-live': 'polite' });
     showStatus();
     return [
-      header({ ...ctx, game, role: 'Campaign', extra, identity: { name: seatName, office: rv.desk.office } }),
+      header({
+        ...ctx, game, role: 'Campaign', extra,
+        identity: { name: seatName, office: rv.desk.office, principal: rv.desk.principals.join(', ') || null },
+        onSetting: setting && work.idle() ? () => setting.showModal() : null,
+        onIdentity: character && work.idle() ? () => character.showModal() : null,
+      }),
       status,
       newsBlock(whatChanged(rv.documents), (id) => open({ id })),
       h('main', { class: `rl-room${ui.wide ? ' wide' : ''}` }, papers(), deskColumn(), sideColumn()),
-      menu,
+      dock(),
+      menu, character, setting, happened,
     ].filter(Boolean);
   }
 
   root.append(...build());
   if (rv.brief || ui.autoFor === rv.wake_tick) fillBrief();
   else autoBrief();
+  // a dialog opens only once it is in the page
+  queueMicrotask(() => {
+    if (pending?.isConnected && !pending.open) pending.showModal();
+    else if (ui.refocusChat) refocus(ui.chat, true); // the reply redrew the room under the player
+  });
   return root;
 }

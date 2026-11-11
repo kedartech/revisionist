@@ -1,0 +1,12 @@
+/* p5-ideas.css: unit M2 of Train 2. Tokens only (web/css/tokens.css). */
+
+.rl-idea-panel { margin: var(--space-4) 0; font: 14px/1.5 var(--font-chrome); color: var(--fg-strong); }
+.rl-idea-panel h2 { margin: 0 0 var(--space-2); font: 600 14px/1.3 var(--font-head); letter-spacing: 0.04em; text-transform: uppercase; }
+.rl-idea-rows, .rl-idea-plan { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.rl-idea-plan { padding-left: var(--space-5); list-style: decimal; }
+.rl-idea-row, .rl-idea-step { padding: var(--space-2) var(--space-3); background: var(--field); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-idea-label { margin: 0; overflow-wrap: anywhere; }
+.rl-idea-line { margin: 0; font-size: 13px; color: var(--fg); overflow-wrap: anywhere; }
+.rl-idea-terms { margin: var(--space-1) 0 0; padding-left: var(--space-4); font-size: 13px; color: var(--fg); overflow-wrap: anywhere; }
+.rl-idea-row .rl-btn { margin-top: var(--space-2); }
+.rl-idea-filed { display: inline-flex; align-items: center; gap: var(--space-1); margin-top: var(--space-2); font-size: 13px; color: var(--fg); }

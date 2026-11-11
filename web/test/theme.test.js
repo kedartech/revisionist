@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { THEMES, themeName } from '../js/theme.js';
+import { EFFECTS_KEY, THEMES, applyTheme, browserStorage, effectsOn, themeName } from '../js/theme.js';
 
 const CSS = fileURLToPath(new URL('../css', import.meta.url));
 const read = (name) => readFileSync(join(CSS, name), 'utf8');
@@ -125,4 +125,25 @@ test('themeName reads rv.theme and falls back to terminal', () => {
   assert.equal(themeName({ getItem: () => null }), 'terminal');
   assert.equal(themeName({ getItem: () => { throw new Error('blocked'); } }), 'terminal');
   assert.equal(themeName(undefined), 'terminal');
+});
+
+test('effects are off unless stored as on, and the root carries both settings', () => {
+  const store = (v) => ({ getItem: (k) => (k === EFFECTS_KEY ? v : null) });
+  assert.equal(effectsOn(store('on')), true);
+  for (const v of [null, 'off', 'yes', '']) assert.equal(effectsOn(store(v)), false);
+  assert.equal(effectsOn({ getItem: () => { throw new Error('blocked'); } }), false);
+  assert.equal(effectsOn(undefined), false);
+  const root = { dataset: {} };
+  applyTheme(root, store('on'));
+  assert.deepEqual(root.dataset, { theme: 'terminal', effects: 'on' });
+  applyTheme(root, undefined);
+  assert.deepEqual(root.dataset, { theme: 'terminal', effects: 'off' });
+});
+
+test('browserStorage gives the page storage, or undefined where reading it throws', () => {
+  const store = { getItem: () => null };
+  assert.equal(browserStorage({ localStorage: store }), store);
+  const blocked = Object.defineProperty({}, 'localStorage', { get() { throw new Error('SecurityError'); } });
+  assert.equal(browserStorage(blocked), undefined);
+  assert.equal(browserStorage(undefined), undefined);
 });

@@ -62,11 +62,14 @@ def reach(state: State, seat: SeatId) -> ReachGroups:
             group = "foreign"
         else:
             group = "other"
+        face = view.cards.get(them.entity_id)
         groups[group].append(
             ReachContact(
                 name=them.name,
-                title=view.cards[them.entity_id].office if them.entity_id in view.cards else None,
+                title=face.office if face else None,
                 channels=[words(c) for c in channels],
+                powers=list(face.powers) if face else [],
+                channel_keys=[c.value for c in channels],
             )
         )
     return groups

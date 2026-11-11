@@ -15,7 +15,8 @@
         "unread": true,
         "flagged": false,
         "group": "MAGIC intercepts",
-        "ack": false
+        "ack": false,
+        "answer": false
       },
       {
         "id": "d-whip-1017",
@@ -29,7 +30,8 @@
         "unread": true,
         "flagged": false,
         "group": "The Speaker's count",
-        "ack": false
+        "ack": false,
+        "answer": false
       },
       {
         "id": "d-cable-1016",
@@ -43,7 +45,8 @@
         "unread": false,
         "flagged": true,
         "group": null,
-        "ack": false
+        "ack": false,
+        "answer": false
       },
       {
         "id": "d-memo-1015",
@@ -57,7 +60,8 @@
         "unread": false,
         "flagged": false,
         "group": null,
-        "ack": false
+        "ack": false,
+        "answer": false
       },
       {
         "id": "d-press-1014",
@@ -71,7 +75,8 @@
         "unread": false,
         "flagged": false,
         "group": null,
-        "ack": false
+        "ack": false,
+        "answer": false
       },
       {
         "id": "d-report-1010",
@@ -85,7 +90,8 @@
         "unread": false,
         "flagged": false,
         "group": null,
-        "ack": false
+        "ack": false,
+        "answer": true
       },
       {
         "id": "d-reply-1012",
@@ -99,7 +105,8 @@
         "unread": false,
         "flagged": false,
         "group": null,
-        "ack": true
+        "ack": true,
+        "answer": true
       }
     ]
   },
@@ -736,15 +743,16 @@
         "kind": "Order",
         "issuer": "Franklin D. Roosevelt",
         "text": "Keep the convoys moving to Iceland.",
-        "issued": "1941-10-12",
-        "deadline": "1941-10-26",
+        "issued": "12 October 1941",
+        "deadline": "26 October 1941",
         "options": [
           {
             "label": "Order the escort forward",
             "to": "Harold R. Stark",
             "risk": "The Germans may take it as an act of war.",
             "historical": true,
-            "pick": "p1"
+            "pick": "p1",
+            "taken": false
           }
         ],
         "plan": [
@@ -753,7 +761,8 @@
             "to": "Sam Rayburn",
             "risk": "Word of the count may get out.",
             "historical": false,
-            "pick": "p3"
+            "pick": "p3",
+            "taken": false
           }
         ]
       }
@@ -764,14 +773,15 @@
         "to": "Sam Rayburn",
         "risk": "Word of the count may get out.",
         "historical": false,
-        "pick": "p2"
+        "pick": "p2",
+        "taken": true
       }
     ]
   },
   "results": [
     {
       "id": "r1",
-      "filed": "1941-10-12",
+      "filed": "12 October 1941",
       "parts": [
         {
           "ask": "Escort the convoys to Iceland",
@@ -781,7 +791,7 @@
           "refused_under": null,
           "reason": "Stark read the order narrowly.",
           "accepted": null,
-          "applied": "1941-10-14"
+          "applied": "14 October 1941"
         }
       ]
     }
@@ -789,29 +799,80 @@
   "reach": {
     "inner_circle": [
       {
-        "name": "Harold R. Stark",
-        "title": "Chief of Naval Operations",
+        "name": "Harry Hopkins",
+        "title": "Special Assistant to the President",
         "channels": [
           "In person",
-          "Cable"
+          "Letter"
+        ],
+        "powers": [
+          "speak for the President on Lend-Lease"
+        ],
+        "channel_keys": [
+          "in_person",
+          "letter"
         ]
-      }
-    ],
-    "government": [
+      },
       {
         "name": "Sam Rayburn",
         "title": "Speaker of the House",
         "channels": [
+          "Telephone",
           "Letter"
+        ],
+        "powers": [
+          "schedule a bill for the floor",
+          "count the votes in the House"
+        ],
+        "channel_keys": [
+          "telephone",
+          "letter"
         ]
-      }
-    ],
-    "foreign": [
+      },
       {
         "name": "Winston Churchill",
         "title": "Prime Minister",
         "channels": [
           "Cable"
+        ],
+        "powers": [
+          "direct the British war effort"
+        ],
+        "channel_keys": [
+          "cable"
+        ]
+      }
+    ],
+    "government": [
+      {
+        "name": "Harold R. Stark",
+        "title": "Chief of Naval Operations",
+        "channels": [
+          "In person",
+          "Cable"
+        ],
+        "powers": [
+          "command the fleet at sea",
+          "advise the President on the Navy"
+        ],
+        "channel_keys": [
+          "in_person",
+          "cable"
+        ]
+      }
+    ],
+    "foreign": [
+      {
+        "name": "Kichisaburō Nomura",
+        "title": "Ambassador of Japan",
+        "channels": [
+          "Letter"
+        ],
+        "powers": [
+          "carry the talks with Tokyo"
+        ],
+        "channel_keys": [
+          "letter"
         ]
       }
     ],
@@ -821,9 +882,139 @@
         "title": null,
         "channels": [
           "Letter"
+        ],
+        "powers": [],
+        "channel_keys": [
+          "letter"
         ]
       }
     ]
+  },
+  "record": {
+    "orders": [
+      {
+        "id": "5d1c0a77e2b4",
+        "wake": 3,
+        "filed": "18 October 1941",
+        "settled": null,
+        "asked": "Give a naval order: Escort the convoys, The Iceland route",
+        "to": null,
+        "holder": "Franklin D. Roosevelt",
+        "status": "on its way",
+        "moving": true,
+        "track": "o-convoy",
+        "due": null,
+        "said": null
+      },
+      {
+        "id": "a90f3e6b1c22",
+        "wake": 3,
+        "filed": "17 October 1941",
+        "settled": null,
+        "asked": "Escort the convoys to Iceland and shoot on sight",
+        "to": "Harold R. Stark",
+        "holder": "Harold R. Stark",
+        "status": "on its way",
+        "moving": true,
+        "track": null,
+        "due": "21 October 1941",
+        "said": null
+      },
+      {
+        "id": "0b7d24c9e815",
+        "wake": 2,
+        "filed": "10 October 1941",
+        "settled": null,
+        "asked": "Send a bill to Congress: Revise the Neutrality Act",
+        "to": null,
+        "holder": "Sam Rayburn",
+        "status": "on its way",
+        "moving": true,
+        "track": "o-neutrality",
+        "due": null,
+        "said": null
+      },
+      {
+        "id": "e43a91d07f6c",
+        "wake": 2,
+        "filed": "8 October 1941",
+        "settled": "14 October 1941",
+        "asked": "Ask Senator Wheeler to drop his filibuster",
+        "to": "Burton K. Wheeler",
+        "holder": null,
+        "status": "rebuffed",
+        "moving": false,
+        "track": null,
+        "due": null,
+        "said": "Wheeler would not be moved while the America First rallies go on."
+      },
+      {
+        "id": "7c2f8e0a3d91",
+        "wake": 1,
+        "filed": "2 October 1941",
+        "settled": "9 October 1941",
+        "asked": "Allocate Lend-Lease aid: Britain, 40",
+        "to": null,
+        "holder": null,
+        "status": "enacted",
+        "moving": false,
+        "track": "o-lend",
+        "due": null,
+        "said": null
+      }
+    ],
+    "wake": {
+      "number": 3,
+      "opened": "20 October 1941",
+      "days_passed": 6,
+      "papers": 5,
+      "filed": [
+        "5d1c0a77e2b4",
+        "a90f3e6b1c22"
+      ],
+      "settled": [
+        "e43a91d07f6c"
+      ]
+    }
+  },
+  "setting": {
+    "situation": "Autumn 1941. Britain stands, the Soviet Union is falling back on Moscow, and the United States is neutral in law and not in fact.",
+    "sides": [
+      "The Allies: Britain, the Soviet Union, and the United States in all but name",
+      "The Axis: Germany and Italy, with Japan pressing in the Pacific"
+    ],
+    "crawl": [
+      "It is the autumn of 1941. German armies stand before Moscow.",
+      "In the Atlantic, American destroyers escort British convoys as far as Iceland, and U-boats wait beyond.",
+      "In Washington, a neutral nation argues about how neutral it means to stay."
+    ],
+    "facts": [
+      "The Neutrality Act still bars armed merchant ships.",
+      "Lend-Lease has run since March.",
+      "The draft was renewed by one vote in August."
+    ],
+    "dates": [
+      {
+        "on": "17 October 1941",
+        "what": "USS Kearny is torpedoed off Iceland."
+      },
+      {
+        "on": "31 October 1941",
+        "what": "USS Reuben James is sunk."
+      }
+    ]
+  },
+  "dossier": {
+    "bio": "Franklin Delano Roosevelt, thirty-second President, in his third term. Crippled by polio at thirty-nine, he governs from a wheelchair the public rarely sees.",
+    "history": [
+      "Asked Congress to arm merchant ships in October 1941.",
+      "Ordered the Navy to shoot on sight after the Greer incident."
+    ],
+    "quote": "We must be the great arsenal of democracy.",
+    "source": "Fireside chat, 29 December 1940",
+    "fact": "He held 337 press conferences in his first term.",
+    "portrait": null,
+    "credit": null
   },
   "proposal": {
     "person": "Harold R. Stark",

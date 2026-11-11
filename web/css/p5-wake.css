@@ -1,0 +1,4 @@
+/* p5-wake.css: unit H of Train 2, the wake's "Done for today" commit and the run-now confirm. */
+
+.rl-done-commit { display: grid; justify-items: start; gap: var(--space-1); min-width: 0; }
+.rl-done-hint { margin: 0; font: 12px/1.4 var(--font-chrome); }

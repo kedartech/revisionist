@@ -1,10 +1,11 @@
-// Realism views: the in-tray, a document page, the desk, the directive form, the situation
-// board, the order tracker, the pace header and the lever form. Each takes the realism_api JSON and returns a node.
+// Realism views: the in-tray, a document page, the directive form, the situation board, the
+// aide's brief, conversation bubbles, the pace header and the standard forms. Each takes the
+// realism_api JSON and returns a node.
 
 import { h, icon } from '../dom.js';
 import {
-  TRAY_FILTERS, addressLine, aimsBlock, channelWord, directiveChannel, classificationWord, figureValue, filterInTray, horizonWords, linesHeading, paceLine,
-  powersSentence, reportLine, runLine, sortInTray, stepLine, trackerLine, trayCounts, trendLine,
+  TRAY_FILTERS, addressLine, channelWord, directiveChannel, classificationWord, figureValue, filterInTray, linesHeading, paceLine,
+  reportLine, runLine, sortInTray, trayCounts, trendLine,
 } from '../realism-rules.js';
 import { worldDate } from '../rules.js';
 
@@ -82,7 +83,7 @@ function figures(lines) {
 export function documentPage(page) {
   const { item } = page;
   const paragraphs = page.prose ? page.prose.split(/\n{2,}/).filter((p) => p.trim()) : [];
-  return h('article', { class: 'rl-page', 'aria-labelledby': 'rl-page-h' },
+  return h('article', { class: item.kind === 'press' ? 'rl-page rl-page-press' : 'rl-page', 'aria-labelledby': 'rl-page-h' },
     h('div', { class: 'rl-page-top' }, stamp(item.classification),
       h('span', { class: 'rl-page-via' }, `via ${channelWord(item.channel)}`)),
     h('h2', { id: 'rl-page-h' }, item.title),
@@ -101,42 +102,6 @@ export function dossier(page, { onClose, onFlag }) {
         type: 'button', class: 'rl-btn', 'aria-pressed': String(flagged), onclick: () => onFlag?.(!flagged),
       }, flagged ? 'Unflag' : 'Flag')),
     documentPage(page));
-}
-
-function paragraph(text) {
-  return text ? h('p', { class: 'rl-powers' }, text) : null;
-}
-
-/**
- * `opts` is { onSubmit, entities, directive }: the lever form's hand-off, the names entity
- * params offer, and the directive panel shown above the standard forms.
- */
-export function desk(d, opts = {}) {
-  const block = (title, items) => items.length
-    ? h('section', { class: 'rl-desk-block' }, h('h3', {}, title), list(items))
-    : null;
-  const aims = aimsBlock(d.aims);
-  return h('section', { class: 'rl-desk', 'aria-labelledby': 'rl-desk-h' },
-    h('header', { class: 'rl-office' },
-      h('h2', { id: 'rl-desk-h' }, d.office),
-      d.principals.length ? h('p', {}, `Answerable to ${d.principals.join(', ')}`) : null,
-      h('p', { class: 'rl-horizon' }, horizonWords(d.horizon_days))),
-    aims ? h('section', { class: 'rl-desk-block' }, h('h3', {}, aims.heading),
-      list(aims.lines), h('p', { class: 'muted' }, aims.note)) : null,
-    opts.directive ?? null,
-    d.powers.length ? h('section', { class: 'rl-desk-block' }, h('h3', {}, 'Powers'), paragraph(powersSentence(d.powers))) : null,
-    block('Limits', d.constraints),
-    block('Personal', d.personal),
-    h('section', { class: 'rl-desk-block' }, h('h3', {}, 'Standard forms'),
-      d.levers.length
-        ? h('ul', { class: 'rl-instruments', role: 'list' }, d.levers.map((l) => instrument(l, opts)))
-        : h('p', { class: 'rl-none' }, 'None at your disposal.')),
-    h('section', { class: 'rl-desk-block' }, h('h3', {}, 'Your staff and contacts'),
-      d.inner_circle.length
-        ? h('ul', { class: 'rl-contacts', role: 'list' }, d.inner_circle.map((c) => h('li', {},
-          CHANNEL_ICON[c.channel] ? icon(CHANNEL_ICON[c.channel]) : null,
-          personName(c), h('span', { class: 'rl-via' }, channelWord(c.channel)))))
-        : h('p', { class: 'rl-none' }, 'No one is within reach.')));
 }
 
 /** A person's name with their title beneath, in a lighter hand. */
@@ -207,12 +172,10 @@ export function proposalCard(p, { onSign, onRevise } = {}) {
       revise));
 }
 
-/** The design's icons that fit a channel; the others go without. */
-const CHANNEL_ICON = Object.freeze({ in_person: 'restricted', cable: 'out', letter: 'mark', radio: 'public', press: 'public' });
-
 let draftSeq = 0;
 
-function instrument(lever, { onSubmit, entities = [] } = {}) {
+/** One standard form: its label, a Draft toggle, and the lever form under it. */
+export function instrument(lever, { onSubmit, entities = [] } = {}) {
   const id = `rl-draft-${draftSeq++}`;
   const panel = h('div', { id, hidden: true }, leverForm(lever, onSubmit, entities));
   const toggle = h('button', {
@@ -258,49 +221,6 @@ export function board(s, { onOpen } = {}) {
       : h('p', { class: 'rl-none' }, 'No figures have reached your desk.'));
 }
 
-/** One order: its form, terms, where it stands and its steps; `extra` goes at the foot. */
-function orderItem(o, extra = null) {
-  return h('li', { class: `rl-order status-${o.status}${o.decision_needed ? ' due' : ''}` },
-    h('p', { class: 'rl-order-head' }, h('strong', {}, o.label), ` filed ${worldDate(o.filed)}`),
-    o.terms.length ? list(o.terms, 'rl-terms') : null,
-    h('p', { class: 'rl-order-line' },
-      o.decision_needed ? icon('alert') : null, trackerLine(o)),
-    h('ol', { class: 'rl-steps' }, o.steps.map((s) => h('li', {
-      class: s.step === o.at_step && o.status === 'moving' ? 'rl-step here' : 'rl-step',
-      'aria-current': s.step === o.at_step && o.status === 'moving' ? 'step' : null,
-    }, stepLine(s)))),
-    extra);
-}
-
-export function tracker(t) {
-  return h('section', { class: 'rl-tracker', 'aria-labelledby': 'rl-track-h' },
-    h('h2', { id: 'rl-track-h' }, 'Your orders'),
-    t.orders.length
-      ? h('ul', { class: 'rl-orders', role: 'list' }, t.orders.map((o) => orderItem(o)))
-      : h('p', { class: 'rl-none' }, 'No orders filed.'));
-}
-
-/**
- * The desk's sidebar of orders: those waiting on the player's decision first, with the
- * decision form under each, then those still moving; finished ones folded away.
- * `stepForm(order)` returns the decision form.
- */
-export function pendingOrders(t, stepForm) {
-  const due = t.orders.filter((o) => o.decision_needed);
-  const moving = t.orders.filter((o) => !o.decision_needed && o.status === 'moving');
-  const done = t.orders.filter((o) => o.status !== 'moving');
-  return h('section', { class: 'rl-tracker rl-pending', 'aria-labelledby': 'rl-track-h' },
-    h('h2', { id: 'rl-track-h' }, 'Pending orders'),
-    due.length || moving.length
-      ? h('ul', { class: 'rl-orders', role: 'list' },
-        due.map((o) => orderItem(o, stepForm(o))), moving.map((o) => orderItem(o)))
-      : h('p', { class: 'rl-none' }, t.orders.length ? 'Nothing is moving.' : 'No orders filed.'),
-    done.length
-      ? h('details', { class: 'rl-done' }, h('summary', {}, `Finished (${done.length})`),
-        h('ul', { class: 'rl-orders', role: 'list' }, done.map((o) => orderItem(o))))
-      : null);
-}
-
 /**
  * The aide's brief, or a line while the aide reads (`reading`) or since it could not
  * (`said`). `on` is { brief, useDraft(d) }; brief asks again.
@@ -314,7 +234,7 @@ export function briefBlock(brief, on, { reading = false, said = null } = {}) {
     brief
       ? h('div', { class: 'rl-brief' },
         h('p', {}, brief.summary),
-        brief.decisions ? h('p', { class: 'rl-brief-due' }, icon('alert'), ` ${brief.decisions === 1 ? 'One order waits' : `${brief.decisions} orders wait`} on your decision, under Pending orders.`) : null,
+        brief.decisions ? h('p', { class: 'rl-brief-due' }, icon('alert'), ` ${brief.decisions === 1 ? 'One order waits' : `${brief.decisions} orders wait`} on your decision, under Your orders.`) : null,
         brief.drafts.length
           ? [h('h3', {}, 'Your aide suggests'), h('ul', { class: 'rl-drafts', role: 'list' }, brief.drafts.map((d) => h('li', {},
             h('strong', {}, d.label), d.terms.length ? list(d.terms, 'rl-terms') : null,
@@ -326,7 +246,7 @@ export function briefBlock(brief, on, { reading = false, said = null } = {}) {
 }
 
 /** One line of a conversation: who said it, and the words. `extra` goes under the words. */
-function bubble(mine, who, text, extra = null) {
+export function bubble(mine, who, text, extra = null) {
   return h('li', { class: `rl-msg ${mine ? 'mine' : 'theirs'}` },
     h('p', { class: 'rl-msg-who' }, who),
     h('p', { class: 'rl-msg-text' }, text),
@@ -334,7 +254,7 @@ function bubble(mine, who, text, extra = null) {
 }
 
 /** The thread with one contact: their answers to the seat's questions, oldest first. */
-function counselThread(person, counsel) {
+export function counselThread(person, counsel) {
   const lines = counsel.filter((c) => c.person === person).slice().reverse();
   if (!lines.length) return h('p', { class: 'rl-none' }, `You have not consulted ${person} yet.`);
   return h('ol', { class: 'rl-thread rl-answers', role: 'list' }, lines.flatMap((c) => [
@@ -346,7 +266,7 @@ function counselThread(person, counsel) {
 }
 
 /** The help desk with the aide: the seat's questions, and the aide's answers and notes. */
-function helpThread(help, useDraft) {
+export function helpThread(help, useDraft) {
   if (!help.length) {
     return h('p', { class: 'rl-none' },
       'Ask your aide how to do something: which form does it, whom it goes through, or whether it lies beyond your office. If an order does not go through, your aide says why here.');
@@ -356,69 +276,6 @@ function helpThread(help, useDraft) {
     : bubble(false, 'Your aide', m.text, m.lever
       ? h('button', { type: 'button', class: 'rl-btn', onclick: () => useDraft?.({ lever: m.lever }) }, `Open “${m.label ?? m.lever}”`)
       : null))));
-}
-
-/**
- * Conversations: a window for your aide and one for each contact, so that each
- * person's words stay together. `opts` is { selected, slot, contacts, counsel, help,
- * fresh, onSelect(key), ask(text), consult(person, text), useDraft(d) }; `selected` is
- * 'aide' or a contact's name, `slot` the brief's node, `fresh` the keys with new lines.
- */
-export function conversations(opts) {
-  const { selected = 'aide', slot, contacts, counsel, help, fresh = new Set() } = opts;
-  const id = 'rl-chat';
-  const keys = ['aide', ...contacts.map((c) => c.person)];
-  const choose = (key, focus) => {
-    opts.onSelect?.(key);
-    // the room redraws on select: find the new tab by its stable id
-    if (focus) document.getElementById(`${id}-tab-${keys.indexOf(key)}`)?.focus();
-  };
-  const tab = (key, i, name, title) => h('button', {
-    type: 'button', role: 'tab', id: `${id}-tab-${i}`, class: `rl-chat-tab${fresh.has(key) ? ' fresh' : ''}`,
-    'aria-selected': String(selected === key), 'aria-controls': `${id}-panel`, tabindex: selected === key ? 0 : -1,
-    onclick: () => choose(key),
-    onkeydown: (e) => {
-      const step = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
-      if (!step) return;
-      e.preventDefault();
-      const to = i + step;
-      choose(keys[to < 0 ? keys.length - 1 : to >= keys.length ? 0 : to], true);
-    },
-  }, h('span', { class: 'rl-person-name' }, name),
-  title ? h('span', { class: 'rl-person-title' }, title) : null,
-  fresh.has(key) ? h('span', { class: 'rl-chat-dot', 'aria-label': 'new' }) : null);
-  const tabs = h('div', { class: 'rl-chat-tabs', role: 'tablist', 'aria-label': 'Conversations', 'aria-orientation': 'vertical' },
-    tab('aide', 0, 'Your aide', 'Staff officer · briefs and help'),
-    contacts.map((c, i) => tab(c.person, i + 1, c.person, c.title)));
-
-  const contact = contacts.find((c) => c.person === selected);
-  const key = contact ? selected : 'aide';
-  const words = h('textarea', {
-    id: `${id}-q`, name: 'question', rows: 3, maxlength: key === 'aide' ? 600 : 1000, required: true,
-    placeholder: key === 'aide' ? 'e.g. How do I declare war?' : '',
-  });
-  const form = h('form', {
-    class: 'rl-form rl-chat-form', 'aria-label': key === 'aide' ? 'A question for your aide' : `A question for ${key}`,
-    onsubmit: (e) => {
-      e.preventDefault();
-      const text = words.value.trim();
-      if (!text) return;
-      if (key === 'aide') opts.ask?.(text);
-      else opts.consult?.(key, text);
-    },
-  },
-  h('div', { class: 'rl-field' }, h('label', { for: `${id}-q` }, key === 'aide' ? 'Ask your aide' : 'Your question'), words),
-  h('button', { type: 'submit', class: 'rl-btn' }, key === 'aide' ? 'Ask' : 'Ask them'));
-
-  const panel = h('div', { id: `${id}-panel`, role: 'tabpanel', class: 'rl-chat-panel', 'aria-labelledby': `${id}-tab-${keys.indexOf(key)}` },
-    key === 'aide'
-      ? [h('h3', { class: 'rl-aide-sub' }, 'This wake'), slot, h('h3', { class: 'rl-aide-sub' }, 'Help'), helpThread(help, opts.useDraft)]
-      : [h('p', { class: 'rl-chat-head' }, personName(contact), h('span', { class: 'rl-via' }, channelWord(contact.channel))),
-        counselThread(key, counsel), opts.ackThread?.(key)],
-    form);
-  return h('section', { class: 'rl-aide rl-chat', 'aria-labelledby': `${id}-h` },
-    h('h2', { id: `${id}-h` }, 'Conversations'),
-    tabs, panel);
 }
 
 export function paceHeader(clock) {

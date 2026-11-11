@@ -35,9 +35,9 @@ export function startOverview({ map, situation, agenda } = {}) {
       return `${f.label}: ${f.sources[0].value.toLocaleString('en-US')}${unit ? ` ${unit}` : ''}`;
     });
   const item = (Array.isArray(agenda?.items) ? agenda.items : []).find((i) => text(i?.text));
-  const first = item
-    ? `${text(item.text).replace(/\.$/, '')}${text(item.deadline) ? ` (due ${text(item.deadline)})` : ''}`
-    : null;
+  const firstText = item ? text(item.text).replace(/\.$/, '') : null;
+  const due = item ? text(item.deadline) : null;
+  const first = item ? `${firstText}${due && !firstText.includes(due) ? ` (due ${due})` : ''}` : null;
   return { forces, figures, first };
 }
 

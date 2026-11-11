@@ -1,8 +1,9 @@
 """The event-driven advance (plan, Phase 2 unit B1).
 
 The world does not move a fixed number of days a turn. It wakes at the earliest
-thing that could need someone: an order's step falling due, a history event, or the
-horizon of the people at the table. Routine paper does not wake the world: documents
+thing that could need someone: an order's step falling due, the last answer a player
+is waiting for, a history event, or the horizon of the people at the table. Routine
+paper does not wake the world: documents
 issue and arrive during the stretch and wait in the in-tray (Josh, 2026-10-23: a
 daily feed otherwise turns every tick into one day). The days in between pass unseen
 and are reported as collapsed.
@@ -12,15 +13,22 @@ from datetime import date, timedelta
 
 from revisionist.core import history
 from revisionist.core._base import Label, Model
-from revisionist.core.ids import EntityId
+from revisionist.core.ids import EntityId, SeatId
 from revisionist.core.ontology import Controller
+from revisionist.core.realism import reach
 from revisionist.core.realism.agenda import MandateStatus
+from revisionist.core.realism.apply import reporter
+from revisionist.core.realism.effect import Route, RoutedOrder
 from revisionist.core.realism.pipeline import Order, Step, StepKind, step_due
 from revisionist.core.realism.pipelines import waiting_on_human
+from revisionist.core.realism.route import carry_out, execute_on
 from revisionist.core.state import State
 
 DEFAULT_HORIZON_DAYS = 7
 """The horizon when no human holds a seat [proposed]."""
+QUIET_DAYS = 14
+"""The longest stretch the clock runs with nothing to stop it, whatever the horizon
+of the people at the table [proposed]."""
 
 
 class WakeReason(Model):
@@ -28,7 +36,7 @@ class WakeReason(Model):
 
     on: date
     what: Label
-    """""step", "history", "agenda" or "horizon"."""
+    """""step", "answer", "history", "agenda" or "horizon"."""
     label: Label
     """For the clock line: "Rayburn's count expected ~14 Oct"."""
 
@@ -42,7 +50,7 @@ class Wake(Model):
     """Quiet days passed over: ``(to - today).days - 1``."""
 
 
-CATEGORIES = ("step", "history", "agenda", "horizon")
+CATEGORIES = ("step", "answer", "history", "agenda", "horizon")
 
 
 def _reason(what: str, on: date, label: str, today: date) -> WakeReason:
@@ -105,6 +113,45 @@ def _stop(state: State, order: Order) -> tuple[date, Step] | None:
     return None
 
 
+def _answer(state: State, order: RoutedOrder, i: int) -> tuple[date, EntityId] | None:
+    """The day the paper on part ``i`` of a routed order reaches its issuer, and who
+    writes it. None when the part has answered, when a player holds the answer, or
+    when nothing will rule on it."""
+    part = order.parts[i]
+    if part.applied is not None or part.route is Route.PROCESS:
+        return None
+    if part.effect is None and not (part.was_estimated and (part.estimated or part.reason)):
+        return None
+    if part.route is Route.COMMAND:
+        if part.executed is not None:
+            settled = max(part.executed, order.filed)
+        else:
+            fidelity, _ = carry_out(state, order, i)
+            settled = execute_on(order, i, fidelity)
+    elif part.decided is not None:
+        settled = max(part.decided, order.filed)
+    elif part.target is None or _human(state, part.target):
+        return None
+    else:
+        channels = reach.channels_to(state, state.seats[order.issuer].embodies, part.target)
+        settled = order.filed + timedelta(days=reach.transit_days(channels[0]) if channels else 0)
+    author, channel = reporter(state, order, i)
+    return settled + timedelta(days=reach.transit_days(channel)), author
+
+
+def _last_answers(state: State, humans: set[SeatId]) -> dict[SeatId, tuple[date, EntityId]]:
+    """For each player with routed orders still out, the day the last answer lands."""
+    last: dict[SeatId, tuple[date, EntityId]] = {}
+    for order in sorted(state.routed.values(), key=lambda o: (o.filed, o.order_id)):
+        if order.issuer not in humans:
+            continue
+        for i in range(len(order.parts)):
+            due = _answer(state, order, i)
+            if due is not None and (order.issuer not in last or due[0] > last[order.issuer][0]):
+                last[order.issuer] = due
+    return last
+
+
 def next_wake(state: State, today: date) -> Wake:
     """Where the next advance stops. Pure: same state and day, same wake."""
     found: list[WakeReason] = []
@@ -122,12 +169,16 @@ def next_wake(state: State, today: date) -> Wake:
     if event is not None and event.on_date is not None:
         found.append(_reason("history", event.on_date, event.name, today))
     humans = {s.seat_id for s in state.seats.values() if s.controller is Controller.HUMAN}
+    for when, who in _last_answers(state, humans).values():
+        name = state.entities[who].name
+        found.append(_reason("answer", when, f"Answer from {name}", today))
     for m in state.mandates.values():
         if m.status is MandateStatus.LIVE and m.seat_id in humans:
             found.append(_reason("agenda", m.expires, f"{m.text[:40]}, due", today))
-    found.append(_reason("horizon", today + timedelta(days=_horizon(state)), "horizon", today))
+    quiet = min(_horizon(state), QUIET_DAYS)
+    found.append(_reason("horizon", today + timedelta(days=quiet), "horizon", today))
     reason = min(found, key=lambda r: (r.on, CATEGORIES.index(r.what), r.label))
     return Wake(to=reason.on, reason=reason, collapsed_days=(reason.on - today).days - 1)
 
 
-__all__ = ["DEFAULT_HORIZON_DAYS", "Wake", "WakeReason", "next_wake"]
+__all__ = ["DEFAULT_HORIZON_DAYS", "QUIET_DAYS", "Wake", "WakeReason", "next_wake"]

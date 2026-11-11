@@ -25,6 +25,7 @@ from revisionist.core.goals import (
     AllOf,
     AnyOf,
     Goal,
+    Ordered,
     WinCondition,
     depth,
     goal_kind,
@@ -76,7 +77,7 @@ from revisionist.core.ontology import (
     Seat,
     SeatKind,
 )
-from revisionist.core.realism.agenda import MandateKind, MandateTemplate, Trigger
+from revisionist.core.realism.agenda import MandateKind, MandateTemplate, Trigger, TriggerKind
 from revisionist.core.realism.card import Contact, Domain, Lever, ParamKind, Reach, SeatCard
 from revisionist.core.realism.document import Feed
 from revisionist.core.realism.geography import FORCES, Feature, Leg
@@ -1012,9 +1013,25 @@ def compile_figure(
         problems.append(f"figure {figure}: not among the known keys")
     elif [c.person for c in part.cards] != [me]:
         problems.append(f"cards: exactly one card, for {me}")
+    orderable = (
+        {e for d in part.cards[0].authority for e in d.effects} if len(part.cards) == 1 else None
+    )
     for m in part.mandates:
         if me is not None and m.to != (me,):
             problems.append(f"mandate {m.key}: aimed at {', '.join(m.to)}, not only at {me}")
+        if me is None or orderable is None:
+            continue
+        for leaf in leaves(m.condition):
+            if not isinstance(leaf, Ordered):
+                continue
+            if leaf.person != me:
+                problems.append(f"mandate {m.key}: ordered by {leaf.person}, not by {me}")
+            if leaf.effect not in orderable:
+                problems.append(f"mandate {m.key}: {me} cannot order {leaf.effect}")
+        if m.trigger.on is TriggerKind.ACT and m.trigger.effect not in orderable:
+            problems.append(
+                f"mandate {m.key}: {me} cannot order {m.trigger.effect}, so it never fires"
+            )
     names = {x.name.casefold(): by_id.get(e, "") for e, x in state.entities.items()}
     for d in part.entities:
         if d.name.casefold() in names:

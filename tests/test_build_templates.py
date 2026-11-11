@@ -32,6 +32,9 @@ def template(**over: Any) -> dict[str, Any]:
 def kennedy_with(mandates: list[dict[str, Any]]) -> dict[str, Any]:
     raw = copy.deepcopy(BUILD_BY_NAME["John F. Kennedy"])
     raw["mandates"] = mandates
+    raw["cards"][0]["authority"] = [
+        {"name": "The President's word", "effects": ["statement", "engagement"]}
+    ]
     return raw
 
 
@@ -54,6 +57,34 @@ def test_a_template_aimed_at_anyone_else_is_retried_with_the_problem() -> None:
     assert len(load_state(store, cid).templates) == 1
 
 
+def _refused_then_mended(bad: dict[str, Any], problem: str) -> None:
+    store, cid, kennedy = opened_kennedy()
+    transport = Replies(kennedy_with([bad]), kennedy_with([template()]))
+    assert build.build_figure(store, cid, kennedy, transport)
+    assert "was refused" in transport.sent[1].prompt
+    assert problem in transport.sent[1].prompt
+    assert len(load_state(store, cid).templates) == 1
+
+
+def test_a_condition_ordered_by_someone_else_is_retried_with_the_problem() -> None:
+    cond = {"check": "ordered", "person": "robert_mcnamara", "effect": "statement"}
+    _refused_then_mended(template(condition=cond), "mandate answer_the_outcry: ordered by")
+
+
+def test_a_condition_the_figure_cannot_order_is_retried_with_the_problem() -> None:
+    cond = {"check": "ordered", "person": WHO, "effect": "deal"}
+    _refused_then_mended(
+        template(condition=cond), "mandate answer_the_outcry: john_f_kennedy cannot order deal"
+    )
+
+
+def test_a_trigger_the_figure_cannot_set_off_is_retried_with_the_problem() -> None:
+    trigger = {"on": "act", "effect": "allocate"}
+    _refused_then_mended(
+        template(trigger=trigger), "mandate answer_the_outcry: john_f_kennedy cannot order allocate"
+    )
+
+
 def test_a_trigger_that_names_nothing_in_the_world_is_refused() -> None:
     store, cid, kennedy = opened_kennedy()
     bad = kennedy_with(
@@ -69,6 +100,9 @@ def test_two_figures_may_use_the_same_template_key() -> None:
     khrushchev = person(store, cid, "Nikita Khrushchev")
     first = kennedy_with([template()])
     other = copy.deepcopy(BUILD_BY_NAME["Nikita Khrushchev"])
+    other["cards"][0]["authority"] = [
+        {"name": "The Premier's word", "effects": ["statement", "engagement"]}
+    ]
     other["mandates"] = [
         template(
             to=[other["cards"][0]["person"]],

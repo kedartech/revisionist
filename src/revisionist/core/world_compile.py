@@ -80,6 +80,7 @@ from revisionist.core.ontology import (
 from revisionist.core.realism.agenda import MandateKind, MandateTemplate, Trigger, TriggerKind
 from revisionist.core.realism.card import Contact, Domain, Lever, ParamKind, Reach, SeatCard
 from revisionist.core.realism.document import Feed
+from revisionist.core.realism.effect import ESTIMATED_ONLY
 from revisionist.core.realism.geography import FORCES, Feature, Leg
 from revisionist.core.realism.pipeline import Pipeline, Step
 from revisionist.core.realism.quantity import Quantity
@@ -406,6 +407,10 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             problems.append(f"{where}: an authority domain is named twice")
         for dm in c.authority:
             person(f"{where}: domain {dm.name}", dm.executor)
+            if ESTIMATED_ONLY.intersection(dm.effects):
+                problems.append(
+                    f"{where}: domain {dm.name}: figure is not something an office orders"
+                )
             _refs(problems, f"{where}: domain {dm.name}", dm.forces, "feature", sections)
         _refs(problems, where, c.feeds, "feed", sections)
         _refs(problems, where, c.pipelines, "pipeline", sections)
@@ -1055,9 +1060,14 @@ def compile_figure(
     mandates = tuple(
         m.model_copy(update={"key": f"{m.key}.{str(figure)[-12:]}"}) for m in part.mandates
     )
-    emitted += _emit_realism(
-        whole.model_copy(update={"cards": part.cards, "mandates": mandates}), ids
-    )
+    emitted += [
+        (ev.QuantitySet(quantity=x.quantity.model_copy(update={"estimable": True})), scope)
+        if isinstance(x, ev.QuantitySet)
+        else (x, scope)
+        for x, scope in _emit_realism(
+            whole.model_copy(update={"cards": part.cards, "mandates": mandates}), ids
+        )
+    ]
     events = [
         Event(
             event_id=EventId(derived_id(state.campaign_id, "figure", figure, n)),

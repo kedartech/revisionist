@@ -1,5 +1,5 @@
 {
- "087c0ee8b0e1be89aaae5c73": {
+ "467cedc150d49476e56049d3": {
   "call_class": "build",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -7,45 +7,51 @@
   "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"andrei_gromyko\", \"name\": \"Andrei Gromyko\", \"kin",
   "reply": {
    "cached_tokens": 1472,
-   "input_tokens": 1814,
+   "input_tokens": 1839,
    "model": "claude-sonnet-5-5",
    "output": {
     "cards": [
      {
       "feeds": [
-       "army_reports"
+       "chiefs_reports"
       ],
       "horizon_days": 7,
       "inner_circle": [
        {
         "channel": "in_person",
-        "person": "raul"
+        "person": "taylor"
        },
        {
-        "channel": "cable",
-        "person": "nikita_khrushchev"
+        "channel": "in_person",
+        "person": "john_f_kennedy"
        }
       ],
       "levers": [
        {
-        "label": "Mobilise the militia",
-        "name": "mobilise",
+        "label": "Set the forces' readiness",
+        "name": "readiness",
         "params": [
          {
-          "hi": 300,
-          "kind": "int",
-          "label": "Thousands of men",
-          "lo": 0,
-          "name": "thousands"
+          "choice_labels": [
+           "Raised",
+           "Lowered"
+          ],
+          "choices": [
+           "raised",
+           "lowered"
+          ],
+          "kind": "enum",
+          "label": "Readiness",
+          "name": "level"
          }
         ],
-        "pipeline": "mobilise",
+        "pipeline": "readiness",
         "resolver": "production",
-        "summary": "Call up the militia in thousands."
+        "summary": "Raise or lower the readiness of the forces."
        },
        {
-        "label": "Speak on the radio",
-        "name": "speak",
+        "label": "Brief the press",
+        "name": "brief",
         "params": [
          {
           "kind": "text",
@@ -53,58 +59,58 @@
           "name": "message"
          }
         ],
-        "pipeline": "broadcast",
+        "pipeline": "briefing",
         "resolver": "opinion",
-        "summary": "Speak on the radio, in your own words."
+        "summary": "Brief the press, in your own words."
        }
       ],
-      "loyalty": 1,
-      "office": "Prime Minister of Cuba",
-      "person": "fidel_castro",
+      "loyalty": 4,
+      "office": "Secretary of Defense",
+      "person": "robert_mcnamara",
       "pipelines": [
-       "mobilise",
-       "broadcast"
+       "readiness",
+       "briefing"
       ],
       "principals": [
-       "cuba"
+       "john_f_kennedy"
       ],
       "reach": {
        "heads": false,
-       "rank": 5
+       "rank": 4
       },
-      "voice": "Long, fierce and defiant."
+      "voice": "Brisk, numerical, impatient with soldiers' talk."
      }
     ],
     "entities": [
      {
-      "key": "raul",
+      "key": "taylor",
       "kind": "person",
-      "name": "Ra\u00fal Castro",
-      "parent": "cuba"
+      "name": "Maxwell Taylor",
+      "parent": "united_states"
      }
     ],
     "feeds": [
      {
       "assumed": true,
-      "author": "raul",
+      "author": "taylor",
       "channel": "courier",
       "classification": "secret",
       "every_days": 1,
       "gap": true,
-      "key": "army_reports",
+      "key": "chiefs_reports",
       "kind": "report",
       "latency_days": 0,
-      "name": "Reports from the Armed Forces Ministry",
+      "name": "The Joint Chiefs' readiness reports",
       "reports": [
-       "militia"
+       "ready_sorties"
       ]
      }
     ],
     "pipelines": [
      {
       "gap": true,
-      "key": "mobilise",
-      "name": "A mobilisation order",
+      "key": "readiness",
+      "name": "A readiness order",
       "steps": [
        {
         "allowed": [
@@ -116,20 +122,20 @@
         "assumed": true,
         "days": 1,
         "kind": "decision",
-        "person": "raul"
+        "person": "taylor"
        }
       ]
      },
      {
       "gap": true,
-      "key": "broadcast",
-      "name": "A broadcast",
+      "key": "briefing",
+      "name": "A press briefing",
       "steps": [
        {
         "assumed": true,
         "days": 1,
         "kind": "clerical",
-        "person": "raul"
+        "person": "taylor"
        }
       ]
      }
@@ -137,18 +143,18 @@
     "quantities": [
      {
       "gap": true,
-      "key": "militia",
-      "name": "Cuban militia under arms",
-      "owner": "cuba",
-      "unit": "men"
+      "key": "ready_sorties",
+      "name": "Air strike sorties ready",
+      "owner": "united_states",
+      "unit": "sorties"
      }
     ]
    },
-   "output_tokens": 426,
-   "usd": 0.007888
+   "output_tokens": 459,
+   "usd": 0.008268
   }
  },
- "5976760eea3d79a0fb60fd97": {
+ "68dda0a527847cb2fa5d9069": {
   "call_class": "build",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -331,7 +337,44 @@
    "usd": 0.009248
   }
  },
- "6e2d237943b0bb1890188106": {
+ "7bc6112027851d13be7e66cc": {
+  "call_class": "pitch",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Pitch\nThe Cuban missile crisis, from the first photographs",
+  "reply": {
+   "cached_tokens": 428,
+   "input_tokens": 443,
+   "model": "claude-haiku-5-5",
+   "output": {
+    "named": [],
+    "reading": "The thirteen days of October 1962, from the U-2 photographs to the settlement.",
+    "refusal": "",
+    "start_points": [
+     {
+      "contests": [
+       "The missiles in Cuba"
+      ],
+      "focus": "The President is shown the photographs of missile sites in Cuba.",
+      "label": "Washington, 16 October 1962",
+      "powers": [
+       "United States",
+       "Soviet Union",
+       "Cuba"
+      ],
+      "schedule": [
+       "22 October: the President announces a quarantine of Cuba"
+      ],
+      "start_date": "1962-10-16"
+     }
+    ]
+   },
+   "output_tokens": 112,
+   "usd": 0.0001003
+  }
+ },
+ "925f64b3e83baef4d01c7151": {
   "call_class": "build",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -502,41 +545,153 @@
    "usd": 0.008926
   }
  },
- "7bc6112027851d13be7e66cc": {
-  "call_class": "pitch",
+ "93674f86bb7f50f6ab5a4cbc": {
+  "call_class": "build",
   "hand_written": true,
-  "model": "claude-haiku-5-5",
+  "model": "claude-sonnet-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Pitch\nThe Cuban missile crisis, from the first photographs",
+  "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"andrei_gromyko\", \"name\": \"Andrei Gromyko\", \"kin",
   "reply": {
-   "cached_tokens": 428,
-   "input_tokens": 443,
-   "model": "claude-haiku-5-5",
+   "cached_tokens": 1472,
+   "input_tokens": 1814,
+   "model": "claude-sonnet-5-5",
    "output": {
-    "named": [],
-    "reading": "The thirteen days of October 1962, from the U-2 photographs to the settlement.",
-    "refusal": "",
-    "start_points": [
+    "cards": [
      {
-      "contests": [
-       "The missiles in Cuba"
+      "feeds": [
+       "army_reports"
       ],
-      "focus": "The President is shown the photographs of missile sites in Cuba.",
-      "label": "Washington, 16 October 1962",
-      "powers": [
-       "United States",
-       "Soviet Union",
-       "Cuba"
+      "horizon_days": 7,
+      "inner_circle": [
+       {
+        "channel": "in_person",
+        "person": "raul"
+       },
+       {
+        "channel": "cable",
+        "person": "nikita_khrushchev"
+       }
       ],
-      "schedule": [
-       "22 October: the President announces a quarantine of Cuba"
+      "levers": [
+       {
+        "label": "Mobilise the militia",
+        "name": "mobilise",
+        "params": [
+         {
+          "hi": 300,
+          "kind": "int",
+          "label": "Thousands of men",
+          "lo": 0,
+          "name": "thousands"
+         }
+        ],
+        "pipeline": "mobilise",
+        "resolver": "production",
+        "summary": "Call up the militia in thousands."
+       },
+       {
+        "label": "Speak on the radio",
+        "name": "speak",
+        "params": [
+         {
+          "kind": "text",
+          "label": "What you will say",
+          "name": "message"
+         }
+        ],
+        "pipeline": "broadcast",
+        "resolver": "opinion",
+        "summary": "Speak on the radio, in your own words."
+       }
       ],
-      "start_date": "1962-10-16"
+      "loyalty": 1,
+      "office": "Prime Minister of Cuba",
+      "person": "fidel_castro",
+      "pipelines": [
+       "mobilise",
+       "broadcast"
+      ],
+      "principals": [
+       "cuba"
+      ],
+      "reach": {
+       "heads": false,
+       "rank": 5
+      },
+      "voice": "Long, fierce and defiant."
+     }
+    ],
+    "entities": [
+     {
+      "key": "raul",
+      "kind": "person",
+      "name": "Ra\u00fal Castro",
+      "parent": "cuba"
+     }
+    ],
+    "feeds": [
+     {
+      "assumed": true,
+      "author": "raul",
+      "channel": "courier",
+      "classification": "secret",
+      "every_days": 1,
+      "gap": true,
+      "key": "army_reports",
+      "kind": "report",
+      "latency_days": 0,
+      "name": "Reports from the Armed Forces Ministry",
+      "reports": [
+       "militia"
+      ]
+     }
+    ],
+    "pipelines": [
+     {
+      "gap": true,
+      "key": "mobilise",
+      "name": "A mobilisation order",
+      "steps": [
+       {
+        "allowed": [
+         "pass",
+         "stall",
+         "amend",
+         "refuse"
+        ],
+        "assumed": true,
+        "days": 1,
+        "kind": "decision",
+        "person": "raul"
+       }
+      ]
+     },
+     {
+      "gap": true,
+      "key": "broadcast",
+      "name": "A broadcast",
+      "steps": [
+       {
+        "assumed": true,
+        "days": 1,
+        "kind": "clerical",
+        "person": "raul"
+       }
+      ]
+     }
+    ],
+    "quantities": [
+     {
+      "gap": true,
+      "key": "militia",
+      "name": "Cuban militia under arms",
+      "owner": "cuba",
+      "unit": "men"
      }
     ]
    },
-   "output_tokens": 112,
-   "usd": 0.0001003
+   "output_tokens": 426,
+   "usd": 0.007888
   }
  },
  "cf19062506844cfaa2c94e91": {
@@ -640,161 +795,6 @@
    },
    "output_tokens": 375,
    "usd": 0.0002368
-  }
- },
- "f2804c925322bdd65df0bdfb": {
-  "call_class": "build",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"andrei_gromyko\", \"name\": \"Andrei Gromyko\", \"kin",
-  "reply": {
-   "cached_tokens": 1472,
-   "input_tokens": 1839,
-   "model": "claude-sonnet-5-5",
-   "output": {
-    "cards": [
-     {
-      "feeds": [
-       "chiefs_reports"
-      ],
-      "horizon_days": 7,
-      "inner_circle": [
-       {
-        "channel": "in_person",
-        "person": "taylor"
-       },
-       {
-        "channel": "in_person",
-        "person": "john_f_kennedy"
-       }
-      ],
-      "levers": [
-       {
-        "label": "Set the forces' readiness",
-        "name": "readiness",
-        "params": [
-         {
-          "choice_labels": [
-           "Raised",
-           "Lowered"
-          ],
-          "choices": [
-           "raised",
-           "lowered"
-          ],
-          "kind": "enum",
-          "label": "Readiness",
-          "name": "level"
-         }
-        ],
-        "pipeline": "readiness",
-        "resolver": "production",
-        "summary": "Raise or lower the readiness of the forces."
-       },
-       {
-        "label": "Brief the press",
-        "name": "brief",
-        "params": [
-         {
-          "kind": "text",
-          "label": "What you will say",
-          "name": "message"
-         }
-        ],
-        "pipeline": "briefing",
-        "resolver": "opinion",
-        "summary": "Brief the press, in your own words."
-       }
-      ],
-      "loyalty": 4,
-      "office": "Secretary of Defense",
-      "person": "robert_mcnamara",
-      "pipelines": [
-       "readiness",
-       "briefing"
-      ],
-      "principals": [
-       "john_f_kennedy"
-      ],
-      "reach": {
-       "heads": false,
-       "rank": 4
-      },
-      "voice": "Brisk, numerical, impatient with soldiers' talk."
-     }
-    ],
-    "entities": [
-     {
-      "key": "taylor",
-      "kind": "person",
-      "name": "Maxwell Taylor",
-      "parent": "united_states"
-     }
-    ],
-    "feeds": [
-     {
-      "assumed": true,
-      "author": "taylor",
-      "channel": "courier",
-      "classification": "secret",
-      "every_days": 1,
-      "gap": true,
-      "key": "chiefs_reports",
-      "kind": "report",
-      "latency_days": 0,
-      "name": "The Joint Chiefs' readiness reports",
-      "reports": [
-       "ready_sorties"
-      ]
-     }
-    ],
-    "pipelines": [
-     {
-      "gap": true,
-      "key": "readiness",
-      "name": "A readiness order",
-      "steps": [
-       {
-        "allowed": [
-         "pass",
-         "stall",
-         "amend",
-         "refuse"
-        ],
-        "assumed": true,
-        "days": 1,
-        "kind": "decision",
-        "person": "taylor"
-       }
-      ]
-     },
-     {
-      "gap": true,
-      "key": "briefing",
-      "name": "A press briefing",
-      "steps": [
-       {
-        "assumed": true,
-        "days": 1,
-        "kind": "clerical",
-        "person": "taylor"
-       }
-      ]
-     }
-    ],
-    "quantities": [
-     {
-      "gap": true,
-      "key": "ready_sorties",
-      "name": "Air strike sorties ready",
-      "owner": "united_states",
-      "unit": "sorties"
-     }
-    ]
-   },
-   "output_tokens": 459,
-   "usd": 0.008268
   }
  }
 }

@@ -37,9 +37,11 @@ from revisionist.core.realism.effect import (
     Disclosure,
     Effect,
     Engagement,
+    EstimatedEffect,
     Fidelity,
     Investigate,
     MakeStatement,
+    MoveFigure,
     MoveForce,
     PartView,
     Posture,
@@ -184,7 +186,7 @@ def _shift(world: PassWorld, effect: ShiftDisposition, issuer_seat: SeatId) -> e
 # record is the routed part and its ``applied`` date. Card loyalty has no event, so a
 # shift of disposition toward a principal moves the relationship only. [proposed]
 def _land(
-    world: PassWorld, effect: Effect, issuer_seat: SeatId, issuer: EntityId, on: date
+    world: PassWorld, effect: EstimatedEffect, issuer_seat: SeatId, issuer: EntityId, on: date
 ) -> tuple[list[ev.Payload], list[FactId]]:
     match effect:
         case MoveForce():
@@ -195,6 +197,8 @@ def _land(
             return [_shift(world, effect, issuer_seat)], []
         case Disclosure(reveal=True) if effect.fact in world.state.facts:
             return [], [effect.fact]
+        case MoveFigure():
+            return _figure(world, effect, on), []
         case Allocate():
             return allocate.land(world, effect, issuer_seat, issuer, on)
         case Appointment():
@@ -210,6 +214,23 @@ def _land(
             return [], []
 
 
+def _figure(world: PassWorld, effect: MoveFigure, on: date) -> list[ev.Payload]:
+    q = world.quantities.get(effect.quantity)
+    if q is None or q.value is None:
+        return []
+    # Integer arithmetic truncating toward zero, so a replay never meets a float.
+    change = _toward_zero(q.value * effect.percent, 100)
+    if change == 0:
+        return []
+    moved = q.model_copy(update={"value": q.value + change, "as_of": on})
+    world.quantities[moved.quantity_id] = moved
+    return [ev.QuantitySet(quantity=moved)]
+
+
+def _toward_zero(n: int, d: int) -> int:
+    return -(-n // d) if n < 0 else n // d
+
+
 def apply_due(state: State, today: date) -> list[ev.Payload]:
     """Every part ready to apply on ``today``, earliest filed first, each once."""
     world = PassWorld(state)
@@ -222,7 +243,7 @@ def apply_due(state: State, today: date) -> list[ev.Payload]:
             if ready is None or part.applied is not None:
                 continue
             on = max(today, ready)
-            effects: list[Effect] = []
+            effects: list[EstimatedEffect] = []
             if part.refusal:
                 pass  # a refusal applies nothing, but still closes the part
             elif part.route is Route.COMMAND:

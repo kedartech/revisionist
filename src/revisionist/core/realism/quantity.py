@@ -32,6 +32,8 @@ class Quantity(Model):
     as_of: date
     scope: Scope | None = None
     """None: engine only, which is the usual case. Seats learn it from documents."""
+    estimable: bool = False
+    """A figure no resolver computes; the estimator may move it."""
 
 
 class QuantityChange(Model):

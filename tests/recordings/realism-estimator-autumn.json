@@ -1,5 +1,5 @@
 {
- "2b52a7179f862bc59ab033d1": {
+ "445e4e3cc2fcd76b6afa9eb5": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -25,12 +25,12 @@
    "usd": 0.0
   }
  },
- "a609b62d91564d347d4af53c": {
+ "598098a201e25096daa2f224": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply (quantity)",
-  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"4W7GBHN946QWXFJTADTT7CJMGV\",\"issuer\":\"Frank",
+  "note": "hand-written for tests; not a model reply (figure)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"ZZPE3Q51YWBGEV3Q49DSSZN4CY\",\"issuer\":\"Frank",
   "reply": {
    "cached_tokens": 0,
    "input_tokens": 0,
@@ -38,19 +38,19 @@
    "output": {
     "effects": [
      {
-      "bloc": "isolationists",
-      "count": 40,
-      "kind": "set_votes"
+      "kind": "figure",
+      "percent": 10,
+      "quantity": "W449JZD1QF2WJM8J2HZGAQ8TC9"
      }
     ],
-    "rationale": "A count, which no effect may carry.",
-    "reason": "Forty votes fall away."
+    "rationale": "The order plainly bears on the Democrats' strength; ten percent.",
+    "reason": "The count rises as the Hill takes the lobbying to heart."
    },
    "output_tokens": 0,
    "usd": 0.0
   }
  },
- "a9ffffd92ea8e52be9a25ce7": {
+ "5cfd9a1ec5e518772160342f": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -71,6 +71,31 @@
     ],
     "rationale": "Referee only: CANARY-V2-REASON-7f3a.",
     "reason": "Wheeler is compromised (CANARY-V2-REASON-7f3a)."
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ },
+ "b7b22406dee2ba3290dfe216": {
+  "call_class": "estimator",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply (quantity)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"4W7GBHN946QWXFJTADTT7CJMGV\",\"issuer\":\"Frank",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "effects": [
+     {
+      "bloc": "isolationists",
+      "count": 40,
+      "kind": "set_votes"
+     }
+    ],
+    "rationale": "A count, which no effect may carry.",
+    "reason": "Forty votes fall away."
    },
    "output_tokens": 0,
    "usd": 0.0

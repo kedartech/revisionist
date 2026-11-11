@@ -2854,7 +2854,8 @@
           "investigate",
           "deal",
           "disposition",
-          "disclosure"
+          "disclosure",
+          "figure"
         ],
         "title": "EffectKind",
         "type": "string"
@@ -2916,6 +2917,7 @@
                   "disclosure": "#/$defs/Disclosure",
                   "disposition": "#/$defs/ShiftDisposition",
                   "engagement": "#/$defs/SetEngagement",
+                  "figure": "#/$defs/MoveFigure",
                   "investigate": "#/$defs/Investigate",
                   "measure": "#/$defs/ProposeMeasure",
                   "move_force": "#/$defs/MoveForce",
@@ -2953,6 +2955,9 @@
                 },
                 {
                   "$ref": "#/$defs/Disclosure"
+                },
+                {
+                  "$ref": "#/$defs/MoveFigure"
                 }
               ]
             },
@@ -4913,6 +4918,34 @@
         "title": "Mode",
         "type": "string"
       },
+      "MoveFigure": {
+        "additionalProperties": false,
+        "description": "A figure no resolver computes, moved by a percent of its value. Only the\nestimator returns it: a seat never orders one.",
+        "properties": {
+          "kind": {
+            "const": "figure",
+            "default": "figure",
+            "title": "Kind",
+            "type": "string"
+          },
+          "percent": {
+            "maximum": 100,
+            "minimum": -100,
+            "title": "Percent",
+            "type": "integer"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quantity",
+          "percent"
+        ],
+        "title": "MoveFigure",
+        "type": "object"
+      },
       "MoveForce": {
         "additionalProperties": false,
         "description": "Move a force, posture it, or both.",
@@ -5873,6 +5906,11 @@
             "title": "As Of",
             "type": "string"
           },
+          "estimable": {
+            "default": false,
+            "title": "Estimable",
+            "type": "boolean"
+          },
           "name": {
             "maxLength": 60,
             "title": "Name",
@@ -6381,6 +6419,7 @@
                   "disclosure": "#/$defs/Disclosure",
                   "disposition": "#/$defs/ShiftDisposition",
                   "engagement": "#/$defs/SetEngagement",
+                  "figure": "#/$defs/MoveFigure",
                   "investigate": "#/$defs/Investigate",
                   "measure": "#/$defs/ProposeMeasure",
                   "move_force": "#/$defs/MoveForce",
@@ -6418,6 +6457,9 @@
                 },
                 {
                   "$ref": "#/$defs/Disclosure"
+                },
+                {
+                  "$ref": "#/$defs/MoveFigure"
                 }
               ]
             },
@@ -9929,7 +9971,8 @@
           "investigate",
           "deal",
           "disposition",
-          "disclosure"
+          "disclosure",
+          "figure"
         ],
         "title": "EffectKind",
         "type": "string"
@@ -11168,6 +11211,34 @@
         "title": "Mode",
         "type": "string"
       },
+      "MoveFigure": {
+        "additionalProperties": false,
+        "description": "A figure no resolver computes, moved by a percent of its value. Only the\nestimator returns it: a seat never orders one.",
+        "properties": {
+          "kind": {
+            "const": "figure",
+            "default": "figure",
+            "title": "Kind",
+            "type": "string"
+          },
+          "percent": {
+            "maximum": 100,
+            "minimum": -100,
+            "title": "Percent",
+            "type": "integer"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quantity",
+          "percent"
+        ],
+        "title": "MoveFigure",
+        "type": "object"
+      },
       "MoveForce": {
         "additionalProperties": false,
         "description": "Move a force, posture it, or both.",
@@ -11686,6 +11757,11 @@
             "title": "As Of",
             "type": "string"
           },
+          "estimable": {
+            "default": false,
+            "title": "Estimable",
+            "type": "boolean"
+          },
           "name": {
             "maxLength": 60,
             "title": "Name",
@@ -12035,6 +12111,7 @@
                   "disclosure": "#/$defs/Disclosure",
                   "disposition": "#/$defs/ShiftDisposition",
                   "engagement": "#/$defs/SetEngagement",
+                  "figure": "#/$defs/MoveFigure",
                   "investigate": "#/$defs/Investigate",
                   "measure": "#/$defs/ProposeMeasure",
                   "move_force": "#/$defs/MoveForce",
@@ -12072,6 +12149,9 @@
                 },
                 {
                   "$ref": "#/$defs/Disclosure"
+                },
+                {
+                  "$ref": "#/$defs/MoveFigure"
                 }
               ]
             },
@@ -14987,7 +15067,8 @@
           "investigate",
           "deal",
           "disposition",
-          "disclosure"
+          "disclosure",
+          "figure"
         ],
         "title": "EffectKind",
         "type": "string"
@@ -16452,6 +16533,11 @@
             "format": "date",
             "title": "As Of",
             "type": "string"
+          },
+          "estimable": {
+            "default": false,
+            "title": "Estimable",
+            "type": "boolean"
           },
           "name": {
             "maxLength": 60,

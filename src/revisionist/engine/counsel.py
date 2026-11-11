@@ -21,7 +21,7 @@ from revisionist.core.ontology import EntityKind, EntityStatus
 from revisionist.core.project import project
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.person import PersonView, project_person
-from revisionist.core.realism.reach import channels_to
+from revisionist.core.realism.reach import channels_to, takes_meeting
 from revisionist.core.state import State
 from revisionist.core.visibility import private_to
 from revisionist.engine import campaign as cmp
@@ -141,8 +141,10 @@ def consult(
 ) -> Counsel:
     """Put ``question`` to ``person`` over the seat's channel to them: the card's channel for
     the inner circle, else the first channel that reaches them, and then the person speaks
-    only from pages the seat also holds. Raises ``CounselRefusedError`` for anyone the seat
-    cannot reach or an empty question; ``TransportError`` propagates and nothing is written."""
+    only from pages the seat also holds, and may decline as they would a meeting (one roll
+    per tick, whatever the words). Raises ``CounselRefusedError`` for anyone the seat
+    cannot reach, an outsider who declines, or an empty question; ``TransportError``
+    propagates and nothing is written."""
     state = load_state(store, campaign_id)
     if state.ruleset != "realism":
         raise CounselRefusedError("counsel is for realism campaigns")
@@ -159,6 +161,8 @@ def consult(
             f"{state.entities[person].name if person in state.entities else person} is not "
             f"within your reach" + (f" (you can consult: {names})" if names else "")
         )
+    if contact is None and not takes_meeting(state, me.embodies, person, "counsel", state.tick):
+        raise CounselRefusedError(f"{state.entities[person].name} did not answer.")
     asker = Asker(name=state.entities[me.embodies].name, office=card.office)
     seen = project_person(state, person, asker=None if contact is not None else seat)
     spoken = counsellor.speak(seen, asker, channel, question)

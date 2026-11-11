@@ -20,7 +20,7 @@ from revisionist.core.realism.document import (
     DocumentView,
 )
 from revisionist.core.realism.person import PersonView, project_person
-from revisionist.core.realism.reach import channels_to
+from revisionist.core.realism.reach import channels_to, takes_meeting
 from revisionist.core.report import leak_report
 from revisionist.core.sealing import seal_holder
 from revisionist.core.state import State
@@ -269,6 +269,19 @@ def test_a_name_resolves_to_the_inner_circle_first_and_an_unclear_one_is_refused
     state = with_twin(state, person_named(store, MOLOTOV), "twin-molotov")
     with pytest.raises(ValueError, match="More than one"):
         server._reachable(state, seat, MOLOTOV)
+
+
+def test_an_outsider_who_would_not_take_a_meeting_does_not_answer() -> None:
+    store = ready()
+    state = load_state(store, CAMPAIGN)
+    seat = roosevelt_seat(store)
+    konoe = person_named(store, "Fumimaro Konoe")
+    assert not takes_meeting(state, state.seats[seat].embodies, konoe, "counsel", state.tick)
+    transport = Kept()
+    for question in (QUESTION, "Will Tokyo talk before the winter?"):
+        with pytest.raises(CounselRefusedError, match="Fumimaro Konoe did not answer"):
+            consult(store, CAMPAIGN, seat, konoe, question, ClaudeCounsellor(transport))
+    assert transport.sent == [] and held(store) == []
 
 
 def test_a_person_with_no_channel_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:

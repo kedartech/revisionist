@@ -29,14 +29,12 @@ from revisionist.core.realism.effect import Effect, EffectKind
 from revisionist.core.visibility import Scope
 
 MANDATE_CAP = 3
+"""Live mandates per seat (spec §8.5). The opening matter is not counted."""
 
 
 def opening_id(campaign_id: CampaignId, seat: SeatId) -> MandateId:
     """The id of a seat's opening matter, which the cap does not count."""
     return MandateId(derived_id(campaign_id, "mandate", "opening", seat))
-
-
-"""Live mandates per seat (spec §8.5)."""
 
 
 class MandateKind(StrEnum):

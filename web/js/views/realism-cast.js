@@ -82,6 +82,7 @@ function openDossier(root, person, { canPlay, out, refresh }) {
   });
   root.append(dialog);
   dialog.showModal();
+  dialog.scrollTop = 0; // focus lands on Play at the foot; the reader starts at the name
 }
 
 export const PLAY_STYLES = [

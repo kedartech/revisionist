@@ -5,8 +5,6 @@
 import { h } from '../dom.js';
 import { monogram, portraitNode } from './realism-dossier.js';
 
-void monogram; void portraitNode;
-
 /**
  * The card's model for a roster entry `person` (snapshot.roster: name, pitch, reach, taken,
  * sides [{contest, side}], dossier) seen by a viewer who plays `mine` (a name, or null):
@@ -16,10 +14,21 @@ void monogram; void portraitNode;
  * - `monogram`: `monogram(name)`.
  * - `tag`: "You" when `person.name === mine`, else "Taken" when `person.taken`, else null.
  * - `label`: "<name>: open the dossier".
- * contract stub
  */
 export function cardModel(person, mine) {
-  return { name: person?.name ?? '', side: null, pitch: null, monogram: '', tag: null, label: '' };
+  const name = person?.name ?? '';
+  const sides = Array.isArray(person?.sides) ? person.sides : [];
+  const names = [...new Set(sides.map((s) => (typeof s?.side === 'string' ? s.side.trim() : '')).filter(Boolean))];
+  const pitch = typeof person?.pitch === 'string' ? person.pitch.trim() : '';
+  const tag = mine && name === mine ? 'You' : person?.taken ? 'Taken' : null;
+  return {
+    name,
+    side: names.length ? names.join(' and ') : null,
+    pitch: pitch || null,
+    monogram: monogram(name),
+    tag,
+    label: `${name}: open the dossier`,
+  };
 }
 
 /**
@@ -28,8 +37,20 @@ export function cardModel(person, mine) {
  * Inside the button: `portraitNode(name, person.dossier, 'rl-cc')`, the name
  * (`.rl-cc-name`), the side (`.rl-cc-side`), the pitch (`.rl-cc-pitch`) and the tag
  * (`.rl-cc-tag`), each left out when empty.
- * contract stub
  */
 export function castCard(person, { mine = null, onOpen } = {}) {
-  return h('article', { class: 'rl-cc' }, person?.name ?? '');
+  const m = cardModel(person, mine);
+  return h('article', { class: m.tag ? 'rl-cc taken' : 'rl-cc' },
+    h('button', {
+      type: 'button',
+      class: 'rl-cc-open',
+      'aria-label': m.label,
+      onclick: () => { if (onOpen) onOpen(person); },
+    },
+      portraitNode(m.name, person?.dossier, 'rl-cc'),
+      h('span', { class: 'rl-cc-text' },
+        h('span', { class: 'rl-cc-name' }, m.name),
+        m.side ? h('span', { class: 'rl-cc-side' }, m.side) : null,
+        m.pitch ? h('span', { class: 'rl-cc-pitch' }, m.pitch) : null,
+        m.tag ? h('span', { class: 'rl-cc-tag' }, m.tag) : null)));
 }

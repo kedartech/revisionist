@@ -48,7 +48,7 @@ def sidecar(tmp: Path, people: dict[str, Any] | None = None, **setting: Any) -> 
             }
         },
     }
-    (tmp / "toy.dossiers.yaml").write_text(yaml.safe_dump(doc, sort_keys=False))
+    (tmp / "toy.yaml").write_text(yaml.safe_dump(doc, sort_keys=False))
     return tmp
 
 
@@ -248,14 +248,14 @@ def test_a_broken_sidecar_never_breaks_the_blocks(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     state, events = campaign("engine-v2-slice-1941")
-    (tmp_path / "engine-v2-slice-1941.dossiers.yaml").write_text(
+    (tmp_path / "engine-v2-slice-1941.yaml").write_text(
         textwrap.dedent("""\
             world: engine-v2-slice-1941
             people:
               roosevelt: {quote: Words with no source.}
             """)
     )
-    monkeypatch.setattr(dossiers, "WORLDS_DIR", tmp_path)
+    monkeypatch.setattr(dossiers, "SIDECAR_DIR", tmp_path)
     assert dossiers.for_people(state, events) == {}
     assert dossiers.setting(state, events) == dossiers.empty_setting()
 
@@ -264,7 +264,7 @@ def test_a_campaign_with_no_sidecar_gets_empty_blocks(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     state, events = campaign("autumn-1941")
-    monkeypatch.setattr(dossiers, "WORLDS_DIR", tmp_path)
+    monkeypatch.setattr(dossiers, "SIDECAR_DIR", tmp_path)
     assert dossiers.for_people(state, events) == {}
     assert dossiers.setting(state, events) == dossiers.empty_setting()
 
@@ -308,3 +308,8 @@ def test_the_room_serves_the_seats_own_dossier(cast_web: Web) -> None:
     block = game["view"]["realism"]
     assert block["dossier"] == people["churchill"]
     assert block["setting"] == setting
+
+
+def test_sidecars_sit_outside_the_world_list() -> None:
+    assert dossiers.SIDECAR_DIR != cmp.WORLDS_DIR
+    assert not list(cmp.WORLDS_DIR.glob("*dossiers*.yaml"))

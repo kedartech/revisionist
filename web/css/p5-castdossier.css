@@ -1,1 +1,155 @@
-/* The select screen's dossier dialog (Train 3 unit P3), under .rl-cd. contract stub */
+/* The select screen's dossier dialog (Train 3 unit P3), under .rl-cd. */
+
+.rl-cd {
+  box-sizing: border-box;
+  width: min(44rem, 92vw);
+  max-width: 44rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 1.25rem;
+  border: 1px var(--border-sheet) var(--rule);
+  background: var(--surface);
+  color: var(--fg-read);
+  font-family: var(--font-read);
+  box-shadow: var(--shadow-sheet);
+  overflow-wrap: anywhere;
+}
+
+.rl-cd::backdrop {
+  background: var(--backdrop);
+}
+
+.rl-cd-head {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px var(--border-sheet) var(--rule);
+}
+
+.rl-cd-figure {
+  flex: 0 0 6rem;
+  width: 6rem;
+  margin: 0;
+}
+
+.rl-cd-portrait {
+  display: block;
+  width: 6rem;
+  height: auto;
+  border: 1px var(--border-sheet) var(--field-border);
+}
+
+.rl-cd-credit {
+  margin-top: 0.25rem;
+  font-family: var(--font-chrome);
+  font-size: 0.7rem;
+  color: var(--fg-muted);
+}
+
+.rl-cd-mono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 6rem;
+  width: 6rem;
+  height: 6rem;
+  border: 1px solid var(--field-border);
+  font-family: var(--font-head);
+  font-size: 1.5rem;
+  color: var(--fg-strong);
+}
+
+.rl-cd-name {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--fg-strong);
+}
+
+.rl-cd-sec {
+  margin: 0 0 1rem;
+}
+
+.rl-cd-h {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-head);
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.rl-cd-sec p {
+  margin: 0 0 0.4rem;
+  line-height: 1.5;
+}
+
+.rl-cd-sec p:last-child {
+  margin-bottom: 0;
+}
+
+.rl-cd-quote {
+  font-family: var(--font-read);
+  font-style: italic;
+}
+
+.rl-cd-source {
+  font-family: var(--font-chrome);
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+.rl-cd-list {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.rl-cd-list li + li {
+  margin-top: 0.35rem;
+}
+
+.rl-cd-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.rl-cd-foot button {
+  font-family: var(--font-chrome);
+}
+
+.rl-cd-note {
+  flex: 1 1 14rem;
+  margin: 0;
+  font-family: var(--font-chrome);
+  font-size: 0.8rem;
+  color: var(--fg-muted);
+}
+
+@media (max-width: 30rem) {
+  .rl-cd {
+    padding: 1rem;
+  }
+
+  .rl-cd-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .rl-cd-foot {
+    justify-content: stretch;
+  }
+
+  .rl-cd-foot button {
+    flex: 1 1 auto;
+  }
+}

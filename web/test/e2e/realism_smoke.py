@@ -192,14 +192,17 @@ def main() -> int:
             begin.click()
             page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
             page.get_by_role("heading", name="Who held power").wait_for()
-            page.get_by_role("button", name="Play Henry L. Stimson").wait_for(timeout=30_000)
+            page.get_by_role("button", name="Henry L. Stimson", exact=True).wait_for(timeout=30_000)
             check(
                 "a cast member shows once, not again under who held power",
-                page.get_by_role("button", name="Play Franklin D. Roosevelt").count() == 1,
+                page.get_by_role("button", name="Franklin D. Roosevelt: open the dossier").count()
+                == 1
+                and page.get_by_role("button", name="Franklin D. Roosevelt", exact=True).count()
+                == 0,
             )
             shoot(page, "00b-who-held-power")
             axe(page, "who held power")
-            page.get_by_role("button", name="Play Franklin D. Roosevelt").click()
+            play_from_dossier(page, report, "Franklin D. Roosevelt")
             page.get_by_role("heading", name="You are Franklin D. Roosevelt").wait_for(
                 timeout=60_000
             )
@@ -211,20 +214,21 @@ def main() -> int:
             page.locator(".play-style .outcome > *").first.wait_for(timeout=10_000)
             shoot(page, "00c-play-style")
             axe(page, "play style")
-            page.get_by_role("button", name="Begin the game").click()
+            begin_with_crawl(page, report)
         elif host:
             page.get_by_role("link", name="Start a new game").click()
             page.get_by_role("button", name="Start Autumn 1941").click()
             page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
-            page.get_by_role("button", name="Play Franklin D. Roosevelt").click()
+            play_from_dossier(page, report, "Franklin D. Roosevelt")
             page.get_by_role("button", name="Begin the game").wait_for(timeout=60_000)
-            page.get_by_role("button", name="Begin the game").click()
+            begin_with_crawl(page, report)
         else:
             page.get_by_label("Invite code").fill(CODE)
             page.get_by_role("button", name="Join").click()
 
         page.locator("main.rl-room").wait_for(timeout=60_000)
         page.wait_for_timeout(300)
+        through_intro(page, report)
         shoot(page, "00-opening")
         try:
             header_and_menu(page, report, host)
@@ -251,6 +255,58 @@ def main() -> int:
     (OUT / "report.json").write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))
     return 1 if problems else 0
+
+
+def play_from_dossier(page: Page, report: dict, name: str) -> None:
+    """Open a cast card's dossier, check it reads as a dossier, and play that person."""
+    page.get_by_role("button", name=f"{name}: open the dossier").click()
+    dialog = page.locator("dialog.rl-cd[open]")
+    dialog.wait_for(timeout=10_000)
+    heads = [t.strip().lower() for t in dialog.locator("h3").all_inner_texts()]
+    report["cast_dossier_headings"] = heads
+    check("the cast dossier carries a biography", "biography" in heads, str(heads))
+    check("the cast dossier carries the arena", "your arena" in heads, str(heads))
+    shoot(page, "00x-cast-dossier")
+    page.get_by_role("button", name=f"Play {name}").click()
+    page.get_by_role("heading", name=f"You are {name}").wait_for(timeout=60_000)
+
+
+def begin_with_crawl(page: Page, report: dict) -> None:
+    """Begin plays the crawl while the server works; Continue once it says it is ready."""
+    page.get_by_role("button", name="Begin the game").click()
+    crawl = page.locator("dialog.rl-intro[open]")
+    crawl.wait_for(timeout=10_000)
+    paragraphs = crawl.locator(".rl-intro-crawl p").count()
+    report["crawl_paragraphs"] = paragraphs
+    check("Begin plays the opening crawl", paragraphs > 0, str(paragraphs))
+    crawl.locator(".rl-intro-status", has_text="Ready").wait_for(timeout=120_000)
+    shoot(page, "00y-crawl")
+    crawl.get_by_role("button", name="Continue").click()
+
+
+def through_intro(page: Page, report: dict) -> None:
+    """The room opens on the intro once per game: the crawl if not yet seen, then the splash."""
+    intro = page.locator("dialog.rl-intro[open]")
+    try:
+        intro.wait_for(timeout=5_000)
+    except Exception:
+        check("the room opens on the intro before the first order", False, "no intro dialog")
+        return
+    if page.locator("dialog.rl-intro-splash[open]").count() == 0:
+        intro.get_by_role("button", name="Continue").click()
+    splash = page.locator("dialog.rl-intro-splash[open]")
+    splash.wait_for(timeout=10_000)
+    title = splash.locator("h2").inner_text()
+    report["splash_title"] = title
+    check("the splash names the seat", title.lower().startswith("you are "), title)
+    no_filler(page, "the splash")
+    shoot(page, "00z-splash")
+    splash.get_by_role("button", name="Take your desk").click()
+    page.wait_for_timeout(300)
+    check(
+        "Take your desk closes the intro",
+        page.locator("dialog.rl-intro[open]").count() == 0,
+    )
 
 
 def header_and_menu(page: Page, report: dict[str, object], host: bool) -> None:

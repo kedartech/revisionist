@@ -1,1 +1,28 @@
-/* Portraits everywhere (Train 3 unit TH4): .portrait-frame, .portrait, .portrait-mono. contract stub */
+/* Portraits under the terminal theme (Train 3 unit TH4): a green duotone with scanlines.
+   Paper keeps the photograph as it is. The monogram is not styled here. */
+.portrait-frame {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.portrait {
+  filter: grayscale(1) sepia(1) hue-rotate(70deg) saturate(2.5) contrast(1.1);
+}
+
+.portrait-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(to bottom, var(--backdrop) 0 1px, transparent 1px 3px);
+  pointer-events: none;
+}
+
+html[data-theme="paper"] .portrait {
+  filter: none;
+}
+
+html[data-theme="paper"] .portrait-frame::after {
+  content: none;
+}

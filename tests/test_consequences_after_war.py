@@ -36,11 +36,15 @@ class War:
             for key in OPINION:
                 self.put(key, seed_opinion)
         self.before = {k: self.value(k) for k in OPINION}
-        order = file_order(self.store, CAMPAIGN, self.hitler, "declare_war", {"target": "usa"})
-        for _ in range(30):
-            run_realism_tick(self.store, CAMPAIGN)
-            if self.state.orders[order.order_id].status is OrderStatus.ENACTED:
-                return
+        for _ in range(5):  # an order's id is random, and about one in a hundred lapses
+            order = file_order(self.store, CAMPAIGN, self.hitler, "declare_war", {"target": "usa"})
+            for _ in range(30):
+                run_realism_tick(self.store, CAMPAIGN)
+                status = self.state.orders[order.order_id].status
+                if status is OrderStatus.ENACTED:
+                    return
+                if status is not OrderStatus.MOVING:
+                    break
         raise AssertionError("the declaration never enacted")
 
     @property

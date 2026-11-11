@@ -9,11 +9,13 @@ Once play begins the people nobody picked are built the same way in the
 background (``build_rest``), so code can run them from their cards.
 """
 
+import copy
 import json
 import logging
 import re
 import threading
 import unicodedata
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -37,7 +39,18 @@ BUILD_MODEL = PROSE_MODEL
 LEVERS_MIN, LEVERS_MAX = 2, 6
 TEMPLATES_MAX = 3
 FIELDS = ("entities", "quantities", "feeds", "pipelines", "cards", "mandates")
-BUILD_SCHEMA = stage_schema(FIELDS)
+BUILT_RESOLVERS = ("votes", "shipping", "production", "opinion")
+"""What a built lever may name. A movement or war lever offers forces and places by key,
+and a figure's card declares neither: its say over forces is an authority domain."""
+
+
+def _build_schema() -> dict[str, Any]:
+    schema = copy.deepcopy(stage_schema(FIELDS))
+    schema["$defs"]["LeverDecl"]["properties"]["resolver"]["enum"] = list(BUILT_RESOLVERS)
+    return schema
+
+
+BUILD_SCHEMA = _build_schema()
 APPEND_TRIES = 3
 """Other writers may land between our read and our append; reload and recompile."""
 
@@ -139,6 +152,14 @@ def _part(output: object, playable: bool) -> tuple[WorldFile | None, list[str]]:
         f"card {c.person}: no authority domain and reach rank 0, so no order has a route"
         for c in part.cards
         if playable and not c.authority and c.reach.rank == 0
+    ]
+    problems += [
+        f"card {c.person}: lever {lv.name}: a lever names {', '.join(BUILT_RESOLVERS[:-1])} or "
+        f"{BUILT_RESOLVERS[-1]}, not {lv.resolver}; a say over forces is an authority domain "
+        "with move_force or engagement"
+        for c in part.cards
+        for lv in c.levers
+        if lv.resolver not in BUILT_RESOLVERS
     ]
     if len(part.mandates) > TEMPLATES_MAX:
         problems.append(f"mandates: {len(part.mandates)} templates, at most {TEMPLATES_MAX}")

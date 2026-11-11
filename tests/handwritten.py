@@ -162,20 +162,20 @@ AB_BY_MODEL_AND_TITLE: Mapping[tuple[str, str], str] = {
         "given me anything I'd trust on a declaration against Germany, nor on helping Britain "
         "at the risk of war; I'll chase them for it.\n\nSteve"
     ),
-    ("claude-haiku-5-5", "Gallup polls, 1941-09-12"): (
+    ("claude-haiku-5-5", "Gallup polls, 1941-09-09"): (
         "Gallup now shows 56 percent saying your course is about right. Nothing new on war "
         "with Germany or on aid to Britain at risk of war.\n\nSteve Early"
     ),
-    ("claude-sonnet-5-5", "Gallup polls, 1941-09-12"): (
+    ("claude-sonnet-5-5", "Gallup polls, 1941-09-09"): (
         "Boss,\n\nA small move our way: 56 percent now call your course about right. Still "
         "no number on war with Germany or on helping Britain whatever the risk, and I'd "
         "rather give you none than a guess.\n\nSteve"
     ),
-    ("claude-haiku-5-5", "Atlantic reports from the Navy Department, 1941-09-12"): (
+    ("claude-haiku-5-5", "Atlantic reports from the Navy Department, 1941-09-09"): (
         "September losses to U-boats still stand at 209835 GRT; 30 boats operational in the "
         "Atlantic. The Atlantic Fleet is at Norfolk.\n\nH. R. Stark"
     ),
-    ("claude-sonnet-5-5", "Atlantic reports from the Navy Department, 1941-09-12"): (
+    ("claude-sonnet-5-5", "Atlantic reports from the Navy Department, 1941-09-09"): (
         "Mr. President,\n\nNo change worth the name since my last: losses for September at "
         "209,835 GRT and some 30 boats at sea in the Atlantic. The fleet is at Norfolk and the "
         "convoys keep their routes.\n\nRespectfully,\nH. R. Stark"

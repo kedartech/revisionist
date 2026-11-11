@@ -25,6 +25,9 @@ def test_the_ledger_holds_each_order_in_the_seats_own_words(tmp_path: Path) -> N
     t = Table(MemoryStore())
     wake.open_wake(t.store, CAMPAIGN, T0)
     realism_tick.commit_order(t.store, CAMPAIGN, t.fdr, [t.shoot_on_sight()])
+    wake.commit(
+        t.store, CAMPAIGN, t.fdr, T0
+    )  # a seat that has not committed is played on its opening matter
     (entry,) = _record(t, "fdr").orders
     assert entry.asked == "shoot on sight in the western Atlantic"
     assert entry.to == t.state.entities[t.entity("stark")].name
@@ -41,6 +44,9 @@ def test_a_wake_page_says_what_arrived_what_was_filed_and_what_settled(tmp_path:
     t = Table(MemoryStore())
     wake.open_wake(t.store, CAMPAIGN, T0)
     realism_tick.commit_order(t.store, CAMPAIGN, t.fdr, [t.shoot_on_sight()])
+    wake.commit(
+        t.store, CAMPAIGN, t.fdr, T0
+    )  # a seat that has not committed is played on its opening matter
     play(t, tmp_path, T0 + timedelta(hours=13))
     rec = _record(t, "fdr")
     (entry,) = rec.orders
@@ -85,7 +91,8 @@ def test_an_offer_is_marked_taken_once_its_order_is_filed() -> None:
     chosen = offered[-1].offers[-1].options[1]
     realism_tick.commit_order(t.store, CAMPAIGN, t.fdr, chosen.asks)
     (page,) = _record(t, "fdr").wakes
-    assert [o.label for o in page.offered if o.taken] == [chosen.label]
+    # the opening matter and the Greer crisis each list the option, and one order takes both
+    assert [o.label for o in page.offered if o.taken] == [chosen.label] * len(offered[-1].offers)
 
 
 def test_a_seats_edition_holds_nothing_of_another_seats() -> None:

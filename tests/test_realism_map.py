@@ -371,8 +371,8 @@ def test_the_truth_behind_a_sighting_stays_in_the_state() -> None:
 
 
 def test_replaying_a_moving_world_gives_the_same_state() -> None:
-    a, sa = ticked("hitler", ticks=4)
-    _, sb = ticked("hitler", ticks=4)
+    a, sa = ticked("hitler", ticks=5)
+    _, sb = ticked("hitler", ticks=5)
     assert state_hash(sa) == state_hash(sb)
     assert state_hash(replay(a.read(CAMPAIGN))) == state_hash(sa)
     assert sa.in_world_date is not None and sa.in_world_date >= date(1941, 10, 7)

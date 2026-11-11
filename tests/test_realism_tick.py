@@ -106,7 +106,9 @@ def test_first_tick_issues_the_opening_in_tray_and_wakes_at_the_next_candidate()
     assert state.in_world_date == result.wake.to > start  # type: ignore[operator]
     assert state.documents
     assert any(d.view.issued == start for d in state.documents.values())
-    assert result.wake.reason.what in {"document", "feed", "step", "history", "horizon"}
+    assert (
+        result.wake.reason.what == "agenda"
+    )  # the opening matter falls due before any paper or step
     assert result.delivered == ()
 
 

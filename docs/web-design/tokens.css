@@ -1,61 +1,126 @@
-/* Revisionist design tokens, taken from the design system sheet (A, A2).
-   Every text pairing passes WCAG AA; contrast ratios are in the comments. */
+/* Revisionist design tokens. Semantic names only: a stylesheet never names a colour or a font.
+   The terminal theme is :root; the paper theme is html[data-theme="paper"] (set from js/theme.js).
+   Both blocks define the same names. A text token must reach 4.5:1 on the grounds it sits on,
+   a border or focus token 3:1; web/test/theme.test.js computes every pair. */
 :root {
-  /* Frame: the identity layer */
-  --frame-ground: #000000;
-  --frame-surface: #120F0C;
-  --frame-bronze: #B87333;          /* 5.5:1 on ground */
-  --frame-bronze-strong: #D08A49;   /* hover, focus; 7.4:1 */
-  --frame-rule: #4A2F16;            /* decorative rules only */
-  --frame-text: #EDE3D1;            /* 16:1 */
-  --frame-text-muted: #A89A86;      /* 7.6:1 */
-  --frame-field-border: #85705A;    /* 4:1 on surface */
+  /* Grounds */
+  --bg: #050a07;
+  --surface: #0a120d;
+  --surface-2: #0e1a13;
+  --field: #0c1711;
+  --cover: #0e1a13;                /* a closed in-tray folder */
+  --cover-open: #12241a;           /* a read one */
+  --cover-edge: #17402a;           /* decorative edge only */
+  --backdrop: rgb(0 0 0 / .7);
 
-  /* Paper and ink: the era layer */
-  --paper-desk: #D8CFBA;
-  --paper-sheet: #F2ECDF;
-  --paper-field: #FAF7F0;
-  --paper-carbon: #E4DCCB;
-  --ink-primary: #1F1B16;           /* 14.6:1 sheet, 11:1 desk */
-  --ink-secondary: #4D463B;         /* 7.9:1 sheet, 6:1 desk */
-  --ink-muted: #5F574A;             /* 6:1 sheet, 4.6:1 desk */
-  --ink-field-border: #7A705F;      /* 4.1:1 */
-  --ink-rule: #B5AA93;              /* decorative */
+  /* Text */
+  --fg: #3fd374;
+  --fg-strong: #7dffa8;
+  --fg-read: #bfe8cc;              /* long prose */
+  --fg-muted: #33a35e;             /* 6.2 on bg */
 
-  /* Signal: always with an icon and a word */
-  --signal-stamp: #9B2C22;          /* deadlines, errors, covert, hostile */
-  --signal-link: #2A3D66;           /* links, focus ring */
-  --signal-settled: #2E5A3C;        /* success tiers */
-  --signal-caution: #7A4E0C;        /* degraded, partial, estimates */
+  /* Lines. --rule is decoration only (1.7:1); a field border and a focus ring use their own tokens */
+  --rule: #17402a;
+  --field-border: #33a35e;
+  --focus: #7dffa8;
 
-  /* Seat heraldry: never used for status */
-  --seat-azure: #234A8A;            /* Churchill */
-  --seat-gules: #8E2A2A;            /* Brooke */
-  --seat-vert: #3B5E1F;             /* Mussolini */
-  --seat-purpure: #5A3A70;          /* Stalin */
-  --seat-or: #8A6410;               /* Menzies; fills and shields only */
-  --seat-sable: #2B2B2B;            /* Canaris */
+  /* A selected or primary control */
+  --accent: #3fd374;
+  --accent-bg: #3fd374;
+  --accent-hover: #7dffa8;
+  --on-accent: #050a07;
 
-  /* Map */
-  --map-sea: #C9D1CC;
-  --map-land: #EFE8D8;
-  --map-water: #7E9AA0;
+  /* Status: always with an icon or a word beside it */
+  --warn: #ffb000;
+  --danger: #ff5f56;
+  --ok: #5fe08a;
+  --info: #5fd7ff;
 
-  /* Blinded seat */
-  --blind-ground: #C9C6BF;
-  --blind-sheet: #E9E7E2;
+  /* The header frame */
+  --chrome-bg: #050a07;
+  --chrome-fg: #bfe8cc;
+  --chrome-fg-muted: #33a35e;
+  --chrome-accent: #3fd374;
+  --chrome-accent-strong: #7dffa8;
+  --chrome-field-border: #33a35e;
+  --chrome-rule: #17402a;
+
+  /* Chart colours (the unused map code keeps these) */
+  --chart-sea: #0a120d;
+  --chart-land: #12241a;
+  --chart-line: #33a35e;
+
+  /* The parts of the paper look that are not colour */
+  --tilt-stamp: 0deg;
+  --tilt-folder: 0deg;
+  --shadow-sheet: none;
+  --border-sheet: solid;           /* a read folder's edge */
+  --border-portrait: solid;
+  --radius: 0;
 
   /* Type */
-  --font-period: 'Libre Caslon Text', Georgia, serif;          /* in-world titles */
-  --font-dispatch: 'Courier Prime', 'Courier New', monospace;  /* agent voice, orders */
-  --font-ui: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif; /* system voice, numbers (tnum) */
+  --font-chrome: 'IBM Plex Mono', ui-monospace, Menlo, monospace;       /* labels, numbers, dates */
+  --font-read: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;    /* long prose */
+  --font-head: 'IBM Plex Mono', ui-monospace, Menlo, monospace;         /* headings */
+}
+
+html[data-theme="paper"] {
+  --bg: #D8CFBA;
+  --surface: #F2ECDF;
+  --surface-2: #E4DCCB;
+  --field: #FAF7F0;
+  --cover: #D9C48F;
+  --cover-open: #E8D9AE;
+  --cover-edge: #8A7544;
+  --backdrop: rgb(0 0 0 / .6);
+
+  --fg: #4D463B;
+  --fg-strong: #1F1B16;
+  --fg-read: #1F1B16;
+  --fg-muted: #5F574A;
+
+  --rule: #B5AA93;
+  --field-border: #7A705F;
+  --focus: #2A3D66;
+
+  --accent: #1F1B16;
+  --accent-bg: #1F1B16;
+  --accent-hover: #000000;
+  --on-accent: #F2ECDF;
+
+  --warn: #7A4E0C;
+  --danger: #9B2C22;
+  --ok: #2E5A3C;
+  --info: #2A3D66;
+
+  --chrome-bg: #000000;
+  --chrome-fg: #EDE3D1;
+  --chrome-fg-muted: #A89A86;
+  --chrome-accent: #B87333;
+  --chrome-accent-strong: #D08A49;
+  --chrome-field-border: #85705A;
+  --chrome-rule: #4A2F16;
+
+  --chart-sea: #C9D1CC;
+  --chart-land: #EFE8D8;
+  --chart-line: #7E9AA0;
+
+  --tilt-stamp: -2deg;
+  --tilt-folder: -.6deg;
+  --shadow-sheet: 0 1px 0 #B5AA93;
+  --border-sheet: dashed;
+  --border-portrait: double;
+  --radius: 2px;
+
+  --font-chrome: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
+  --font-read: 'Courier Prime', 'Courier New', monospace;
+  --font-head: 'Libre Caslon Text', Georgia, serif;
+}
+
+:root {
   --font-code: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
 
   /* Spacing: 4 px base */
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
   --space-5: 24px; --space-6: 32px; --space-7: 48px;
-
-  /* Radius */
-  --radius-frame: 0;
-  --radius-paper: 2px;
 }

@@ -242,6 +242,23 @@ def test_a_free_seat_is_offered_nothing(solo: tuple[Realism, Client]) -> None:
     assert not any(isinstance(e.payload, ev.OptionsOffered) for e in log_of(game))
 
 
+def test_a_failed_opening_still_opens_wake_0(
+    web: Web,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    def broken(*_args: object, **_kwargs: object) -> object:
+        raise RuntimeError("the opening broke")
+
+    monkeypatch.setattr(realism_tick, "write_opening", broken)
+    game = Realism(web, world=WORLD)
+    make_host(game, game.seat("ada", "roosevelt"))
+    begin(game)
+    wake_now = state_of(game).wake
+    assert wake_now is not None and wake_now.number == 0 and not wake_now.closed
+    assert "the opening broke" in caplog.text
+
+
 def test_begin_opens_the_first_wake_with_its_offers(web: Web) -> None:  # noqa: F811
     web.app.spawn = lambda run: run()
     ada, _ = web.signed_up("ada")

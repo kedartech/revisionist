@@ -454,12 +454,16 @@ def write_opening(
     as a paper: the same calls the first tick's PROSE stage would make, one per author,
     made now. Costs land as one ``cost_logged``. A page the writer fails or refuses stays
     bare and the first tick writes it. Does nothing once a tick has opened: later pages
-    belong to that tick."""
+    belong to that tick, and if another writer moves the log while the calls are out the
+    pages stay bare for the first tick (the calls' cost goes unlogged)."""
+    seen = store.last_seq(campaign_id)
     state = load_state(store, campaign_id)
     if state.tick or tail(list(store.read(campaign_id))).opened:
         return OpeningWritten()
     em = Emitter(store, state, cmp.versions())
     batch, spent, dropped = _prose(em, writer)
+    if store.last_seq(campaign_id) != seen:
+        return OpeningWritten()
     if spent:
         batch.append(em.event(ev.CostLogged(purpose="prose", costs=tuple(spent))))
     if batch:

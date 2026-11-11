@@ -332,9 +332,27 @@ def _hoist_defs(schema: dict[str, Any]) -> dict[str, Any]:
     return root
 
 
+def _untuple(node: Any) -> Any:
+    """Rewrite ``prefixItems`` (a Pydantic tuple field) as a plain number-or-any array.
+
+    The CLI's strict validator rejects the keyword. ``minItems``/``maxItems`` stay, so the
+    length is still pinned; per-slot bounds are checked by Pydantic on the reply.
+    """
+    if isinstance(node, list):
+        return [_untuple(x) for x in node]
+    if not isinstance(node, dict):
+        return node
+    out = {k: _untuple(v) for k, v in node.items() if k != "prefixItems"}
+    slots = node.get("prefixItems")
+    if isinstance(slots, list) and slots and "items" not in out:
+        kinds = {s.get("type") for s in slots if isinstance(s, dict)}
+        out["items"] = {"type": kinds.pop()} if len(kinds) == 1 and None not in kinds else {}
+    return out
+
+
 def cli_schema(schema: dict[str, Any]) -> dict[str, Any]:
     """The schema as the CLI's strict validator accepts it."""
-    return _hoist_defs(_strip(schema))
+    return _hoist_defs(_untuple(_strip(schema)))
 
 
 def _delta_schema_without_ids() -> dict[str, Any]:

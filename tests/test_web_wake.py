@@ -301,10 +301,12 @@ def test_a_failed_offer_costs_only_that_seat(monkeypatch: pytest.MonkeyPatch) ->
     wake.open_wake(t.store, CAMPAIGN, T0)
     real = options.offer
 
-    def offer(state: State, seat: SeatId, transport: Any) -> ev.OptionsOffered | None:
+    def offer(
+        state: State, seat: SeatId, transport: Any, memory: Any = None
+    ) -> ev.OptionsOffered | None:
         if seat == t.fdr:
             raise TransportError("down")
-        return real(state, seat, transport)
+        return real(state, seat, transport, memory)
 
     monkeypatch.setattr(options, "offer", offer)
     assert wake.offer_all(t.store, CAMPAIGN, None) == 1

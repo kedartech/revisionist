@@ -7,7 +7,7 @@ have typed. The generator reads only the seat's projected ``View``.
 """
 
 import json
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import date
 from typing import Any
 
@@ -18,7 +18,7 @@ from revisionist.core._base import Model
 from revisionist.core.canary import scan_text
 from revisionist.core.events import CallCost
 from revisionist.core.ids import CampaignId, EntityId, FeatureId, SeatId
-from revisionist.core.ontology import Controller, ScheduleSource
+from revisionist.core.ontology import Controller, EntityKind, ScheduleSource
 from revisionist.core.project import project
 from revisionist.core.realism.agenda import (
     Ask,
@@ -39,10 +39,11 @@ from revisionist.core.realism.effect import (
     SetEngagement,
 )
 from revisionist.core.realism.route import route
+from revisionist.core.record import Record, WakePage
 from revisionist.core.state import State, View
 from revisionist.core.visibility import private_to
 from revisionist.engine.llm import Request, Transport, TransportError, cli_schema, prompt_text
-from revisionist.engine.realism_tick import _append
+from revisionist.engine.realism_tick import _append, _pending_effects, _pending_words, _words
 from revisionist.engine.store import EventStore, load_state
 
 OPTIONS_MODEL = "claude-haiku-5-5"
@@ -60,6 +61,10 @@ AIDE_ORDERS = 3  # [proposed] orders the aide files for an absent seat in one wa
 STATION = "its station"  # [proposed] zone label for a template engagement ask
 BEGINNER_MIN, BEGINNER_MAX = 3, 4
 GUIDED_MIN, GUIDED_MAX = 3, 5
+OFFER_MEMORY = 2  # [proposed] earlier wakes whose offers the generator is shown
+PAPERS_SHOWN = 12  # [proposed] new papers the generator is shown, newest kept
+PAPER_LINES = 4  # [proposed] stated lines shown per paper
+ORDERS_SHOWN = 12  # [proposed] orders shown per list, newest kept
 
 last_cost: CallCost | None = None
 """Summed cost of the model calls the latest ``offer`` or ``aide_asks`` made; None if none."""
@@ -111,8 +116,59 @@ def _history(view: View) -> list[dict[str, str]]:
     ]
 
 
-def options_prompt(view: View, mandate: Mandate | None, style: PlayStyle) -> str:
-    """The seat's own view, compact: desk, mandate, date, the objects it may name."""
+def _offered_once(page: WakePage) -> list[dict[str, Any]]:
+    """The wake's offers by label, each once: the same option can stand under a
+    mandate and under initiative. Taken if the seat took it under either."""
+    taken: dict[str, bool] = {}
+    for line in page.offered:
+        taken[line.label] = taken.get(line.label, False) or line.taken
+    return [{"label": label, "taken": took} for label, took in taken.items()]
+
+
+def _since(view: View, memory: Record) -> dict[str, Any]:
+    """What the seat's record says of the wake just opened: the papers that came in,
+    its orders still on their way, what came of those that settled, and what it was
+    offered before with which it took. Empty lists are left out."""
+    if not memory.wakes:
+        return {}
+    page = memory.wakes[-1]
+    papers = []
+    for paper in page.papers[-PAPERS_SHOWN:]:
+        doc = view.documents.get(paper.doc_id)
+        says = [
+            f"{b.label}: {b.value} {b.unit}".strip()
+            for b in (doc.body if doc is not None else ())
+            if b.value is not None
+        ]
+        papers.append(
+            {"title": paper.title, "from": paper.author, "kind": paper.kind}
+            | ({"says": says[:PAPER_LINES]} if says else {})
+        )
+    found: dict[str, Any] = {
+        "new_papers": papers,
+        "orders_on_their_way": [
+            {"asked": o.asked, "to": o.to, "with": o.holder, "filed": str(o.filed)}
+            for o in memory.orders
+            if o.moving
+        ][-ORDERS_SHOWN:],
+        "orders_settled": [
+            {"asked": o.asked, "to": o.to, "came_of_it": o.status}
+            for o in memory.orders
+            if o.key in page.settled
+        ][-ORDERS_SHOWN:],
+        "offered_before": [
+            {"wake": w.number, "options": _offered_once(w)} for w in memory.wakes if w.offered
+        ][-OFFER_MEMORY:],
+    }
+    return {k: v for k, v in found.items() if v}
+
+
+def options_prompt(
+    view: View, mandate: Mandate | None, style: PlayStyle, memory: Record | None = None
+) -> str:
+    """The seat's own view, compact: desk, mandate, date, the objects it may name.
+    With ``memory`` (the seat's edition of the record), also what has happened since
+    the last wake."""
     desk = view.desk
     names = {e.entity_id: e.name for e in view.entities.values()}
     seat: dict[str, Any] = {"name": view.me.name, "entity": view.me.embodies}
@@ -153,9 +209,15 @@ def options_prompt(view: View, mandate: Mandate | None, style: PlayStyle) -> str
         ],
     }
     wanted = "3 or 4 options" if style is PlayStyle.BEGINNER else "one plan of 3 to 5 asks"
+    since = _since(view, memory) if memory is not None else {}
     return (
         "## What the seat can see\n"
         + json.dumps(world, separators=(",", ":"), default=str)
+        + (
+            "\n\n## Since the last wake\n" + json.dumps(since, separators=(",", ":"), default=str)
+            if since
+            else ""
+        )
         + f"\n\nReturn {wanted}. Echo ids exactly."
     )
 
@@ -218,7 +280,9 @@ def _candidates(view: View, mandate: Mandate | None) -> list[Option]:
     aimed += [c.person for c in desk.inner_circle]
     aimed += list(desk.principals)
     for who in dict.fromkeys(aimed):
-        if who in names and who != view.me.embodies:
+        if who not in names or who == view.me.embodies:
+            continue
+        if view.entities[who].kind is not EntityKind.POLITY:  # a country is not pressed
             out.append(
                 Option(
                     label=f"Press {names[who]} for support",
@@ -274,13 +338,51 @@ def _routes(state: State, seat: SeatId, option: Option, today: date) -> bool:
     return all(route(state, seat, a, today).part is not None for a in option.asks)
 
 
-def _clean(state: State, seat: SeatId, view: View, options: Iterable[Option]) -> list[Option]:
+Repeats = Callable[[Option], bool]
+
+
+def _on_its_way(state: State, seat: SeatId, today: date) -> Repeats:
+    """Whether an option holds an ask the seat has sent and not yet had settled, or
+    the same ask twice, by the rule ``realism_tick.commit_order`` refuses a filing
+    under: picking such an option would be refused, so it is not offered."""
+    pending = _pending_effects(state, seat)
+    sent = _pending_words(state, seat)
+
+    def repeats(option: Option) -> bool:
+        effects, said = list(pending), set(sent)
+        for ask in option.asks:
+            if ask.effect is not None:
+                if ask.effect in effects:
+                    return True
+                effects.append(ask.effect)
+                continue
+            part = route(state, seat, ask, today).part
+            if part is None:
+                continue
+            words = (_words(part.ask), part.target or part.executor)
+            if words in said:
+                return True
+            said.add(words)
+        return False
+
+    return repeats
+
+
+def _clean(
+    state: State,
+    seat: SeatId,
+    view: View,
+    options: Iterable[Option],
+    repeats: Repeats | None = None,
+) -> list[Option]:
     today = view.in_world_date
     if today is None:
         return []
     kept: list[Option] = []
     for option in options:
         if not _named_ok(view, option) or not _routes(state, seat, option, today):
+            continue
+        if repeats is not None and repeats(option):
             continue
         if scan_text(state, seat, option.model_dump_json()):
             continue
@@ -303,14 +405,20 @@ def _history_marked(view: View, options: list[Option]) -> list[Option]:
 
 
 def _ask_model(
-    state: State, view: View, mandate: Mandate | None, style: PlayStyle, transport: Transport
+    state: State,
+    view: View,
+    mandate: Mandate | None,
+    style: PlayStyle,
+    transport: Transport,
+    memory: Record | None = None,
+    repeats: Repeats | None = None,
 ) -> list[Option]:
     global last_cost
     request = Request(
         call_class=CALL_CLASS,
         model=OPTIONS_MODEL,
         system=prompt_text(PROMPT),
-        prompt=options_prompt(view, mandate, style),
+        prompt=options_prompt(view, mandate, style, memory),
         schema=cli_schema(OPTIONS_SCHEMA),
     )
     try:
@@ -337,18 +445,25 @@ def _ask_model(
             parsed.append(Option.model_validate(item))
         except ValidationError:
             continue
-    return _history_marked(view, _clean(state, view.viewer, view, parsed))
+    return _history_marked(view, _clean(state, view.viewer, view, parsed, repeats))
 
 
 def _options_for(
-    state: State, view: View, mandate: Mandate | None, style: PlayStyle, transport: Transport | None
+    state: State,
+    view: View,
+    mandate: Mandate | None,
+    style: PlayStyle,
+    transport: Transport | None,
+    memory: Record | None = None,
+    repeats: Repeats | None = None,
 ) -> tuple[Option, ...]:
     """Model options when a transport is given and enough survive; else the template."""
     if transport is not None:
-        got = _pick_valid(_ask_model(state, view, mandate, style, transport), style)
+        asked = _ask_model(state, view, mandate, style, transport, memory, repeats)
+        got = _pick_valid(asked, style)
         if got:
             return got
-    pool = _clean(state, view.viewer, view, _candidates(view, mandate))
+    pool = _clean(state, view.viewer, view, _candidates(view, mandate), repeats)
     return _pick(pool, style)
 
 
@@ -369,8 +484,12 @@ def _live(view: View) -> list[Mandate]:
     return sorted(mine, key=lambda m: (m.expires, m.mandate_id))
 
 
-def offer(state: State, seat: SeatId, transport: Transport | None) -> ev.OptionsOffered | None:
-    """What ``seat`` is offered this wake, or None for a free or AI seat."""
+def offer(
+    state: State, seat: SeatId, transport: Transport | None, memory: Record | None = None
+) -> ev.OptionsOffered | None:
+    """What ``seat`` is offered this wake, or None for a free or AI seat. Nothing the
+    seat already has on its way is offered. ``memory`` is the seat's edition of the
+    record, for the model to read."""
     global last_cost
     last_cost = None
     held = state.seats.get(seat)
@@ -379,10 +498,12 @@ def offer(state: State, seat: SeatId, transport: Transport | None) -> ev.Options
         return None
     assert style is not None
     view = project(state, seat)
+    today = view.in_world_date
+    repeats = _on_its_way(state, seat, today) if today is not None else None
     asked: list[Mandate | None] = [*_live(view)[: MAX_OFFERS - 1], None]
     offers: list[Offer] = []
     for mandate in asked:
-        options = _options_for(state, view, mandate, style, transport)
+        options = _options_for(state, view, mandate, style, transport, memory, repeats)
         if options:
             offers.append(
                 Offer(

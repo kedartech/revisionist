@@ -12,6 +12,11 @@ Rules:
 - Style guided: exactly one option, a plan of 3 to 5 asks that together answer the mandate.
 - Mark at most one option `historical: true`, and only when the history schedule you are given names what really happened and the option does that. Otherwise leave it false.
 - The mandate, when given, is what the seat is being asked for and by when. With no mandate, offer initiative: what the seat might do on its own account.
+- When you are given a section named "Since the last wake", it is the seat's own record: the papers that have just reached the desk, the orders it has sent that are still on their way, what came of the orders that settled, and what it was offered in earlier wakes with which options it took.
+  - Never offer an order that is still on its way, in the same or other words. It has been sent.
+  - Do not repeat an option offered before that the seat did not take, unless a new paper gives a new reason for it. Offer something different.
+  - When there are new papers, at least one option answers one of them: it acts on what that paper says, and its label makes plain which matter it answers.
+  - When an order settled, an option may follow it up: press further where it was carried out, try another way where it was refused.
 - Do not set quantities: no vote counts, tonnages, production figures or opinion numbers.
 - Atrocity and extreme harm stay abstract. Offer political acts, never a description of violence.
 - Nothing that does not exist yet: a force whose `in_service` date is after the in-world date is out of reach.

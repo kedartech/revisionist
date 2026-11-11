@@ -405,8 +405,9 @@ def _option(n: int, *, asks: int = 1, historical: bool = False) -> ra.Option:
 def test_offers_have_the_shape_each_style_promises() -> None:
     ra.Offer(style=ra.PlayStyle.BEGINNER, options=tuple(_option(n) for n in range(3)))
     ra.Offer(style=ra.PlayStyle.GUIDED, options=(_option(0, asks=4),))
-    with pytest.raises(ValidationError, match="3 or 4"):
-        ra.Offer(style=ra.PlayStyle.BEGINNER, options=(_option(0), _option(1)))
+    ra.Offer(style=ra.PlayStyle.BEGINNER, options=(_option(0),))
+    with pytest.raises(ValidationError, match="1 to 4"):
+        ra.Offer(style=ra.PlayStyle.BEGINNER, options=tuple(_option(n) for n in range(5)))
     with pytest.raises(ValidationError, match="what history did"):
         ra.Offer(
             style=ra.PlayStyle.BEGINNER,

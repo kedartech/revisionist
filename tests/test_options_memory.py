@@ -50,6 +50,19 @@ def test_an_option_already_on_its_way_is_not_offered_again() -> None:
     assert first.label not in after and 3 <= len(after) <= 4
 
 
+def test_a_beginner_with_few_ideas_left_is_still_offered_them() -> None:
+    t = _beginner()
+    left: tuple[Option, ...] = ()
+    for _ in range(12):
+        made = options.offer(t.state, t.fdr, None)
+        assert made is not None, "ideas remained and none were offered"
+        left = made.offers[-1].options
+        if len(left) < 3:
+            break
+        realism_tick.commit_order(t.store, CAMPAIGN, t.fdr, left[0].asks)
+    assert 1 <= len(left) <= 2
+
+
 def test_the_same_words_to_the_same_person_are_not_offered_again() -> None:
     t = _beginner()
     stark = t.entity("stark")

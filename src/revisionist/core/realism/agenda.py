@@ -183,8 +183,8 @@ class Offer(Model):
         if self.style is PlayStyle.FREE:
             raise ValueError("a free seat is offered nothing")
         if self.style is PlayStyle.BEGINNER:
-            if not 3 <= len(self.options) <= 4:
-                raise ValueError("a beginner is offered 3 or 4 options")
+            if not 1 <= len(self.options) <= 4:
+                raise ValueError("a beginner is offered 1 to 4 options")
             if sum(o.historical for o in self.options) > 1:
                 raise ValueError("at most one option is what history did")
         elif len(self.options) != 1 or not 3 <= len(self.options[0].asks) <= 5:

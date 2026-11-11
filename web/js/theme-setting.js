@@ -1,5 +1,6 @@
-// The theme control in the header (Train 2 unit TH1): Terminal or Paper, and the screen
-// effects on or off. Storage is a parameter; nothing here touches `window` when the module is imported.
+// The theme control in the header: Paper or Terminal, and the screen effects on or off.
+// Any theme other than `terminal` reads as Paper. Storage is a parameter; nothing here touches
+// `window` when the module is imported.
 
 import { EFFECTS_KEY, THEME_KEY, THEMES, effectsOn, themeName } from './theme.js';
 import { h } from './dom.js';
@@ -37,7 +38,7 @@ export function nextTheme(current) {
  * calling `onChange(theme, effects)`.
  */
 export function themeControl({ theme, effects, onChange }) {
-  const now = theme === 'paper' ? 'paper' : 'terminal';
+  const now = theme === 'terminal' ? 'terminal' : 'paper';
   const other = nextTheme(now);
   return h('div', { class: 'rl-theme', role: 'group', 'aria-label': 'Display' },
     h('button', {

@@ -1,4 +1,5 @@
-// Spec for Train 2 unit H, written with contract K2: the unit makes it pass and never edits it.
+// Spec for Train 2 unit H (contract K2), revised for unit Q3 (contract KQ): Run the day now
+// is hidden in a game with one player while a wake is open. The unit makes it pass and never edits it.
 // Run: node --test web/test/
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -6,7 +7,9 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { DONE_HINT, RUN_NOW, commitCount, commitLabel } from '../js/views/realism-wake.js';
+import * as wakeView from '../js/views/realism-wake.js';
+import { DONE_HINT, RUN_NOW, commitCount, commitLabel, wakeHeader } from '../js/views/realism-wake.js';
+import { buttons, installDom } from './dom-fake.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const read = (f) => readFileSync(join(WEB, f), 'utf8');
@@ -44,4 +47,26 @@ test('the views use the words, and the old ones are gone', () => {
   assert.match(views, /act\(RUNNING, 'close'/);
   assert.match(src, /`Wake \$\{wake\.wake\}`/);
   for (const old of ['Close the wake now', 'Close this wake?', 'Commit my orders', 'players committed']) assert.ok(!src.includes(old), old);
+});
+
+test('the host may run the day now with company, or to recover a game with no wake open', () => {
+  const { canRunNow } = wakeView;
+  assert.equal(typeof canRunNow, 'function');
+  assert.equal(canRunNow({ can_close: true, humans: 2, deadline: '1941-10-20T21:00:00+00:00' }), true);
+  assert.equal(canRunNow({ can_close: true, humans: 1, deadline: '1941-10-20T21:00:00+00:00' }), false);
+  assert.equal(canRunNow({ can_close: true, humans: 1, deadline: null }), true);
+  assert.equal(canRunNow({ can_close: false, humans: 3, deadline: null }), false);
+  assert.equal(canRunNow({ can_close: false, humans: 1, deadline: null }), false);
+});
+
+test('the header shows Run the day now only when canRunNow says so', () => {
+  installDom();
+  const act = () => {};
+  assert.equal(fixture.wake.humans, 2);
+  assert.equal(fixture.wake_solo.humans, 1);
+  assert.equal(buttons(wakeHeader(fixture.wake, { act }), RUN_NOW.button).length, 1);
+  assert.equal(buttons(wakeHeader(fixture.wake_solo, { act }), RUN_NOW.button).length, 0);
+  assert.equal(buttons(wakeHeader({ ...fixture.wake_solo, deadline: null }, { act }), RUN_NOW.button).length, 1);
+  const src = read('js/views/realism-wake.js');
+  assert.match(src.slice(src.indexOf('export function wakeHeader')), /canRunNow\(wake\)/);
 });

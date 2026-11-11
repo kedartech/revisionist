@@ -17,6 +17,8 @@ const UNITS = {
   P3: ['js/views/realism-castdossier.js', 'css/p5-castdossier.css'],
   P4: ['js/views/realism-intro.js', 'css/p5-intro.css'],
   TH4: [null, 'css/p5-portrait.css'],
+  Q5: ['js/views/realism-crawl.js', 'css/p5-crawl.css'],
+  Q8: ['js/views/realism-intro.js', 'css/p5-intro.css'],
 };
 
 test('the select screen calls each unit with the data the server sends', () => {
@@ -27,26 +29,36 @@ test('the select screen calls each unit with the data the server sends', () => {
     /castList\(\{\s*cast: castNames,/,
     /api\.newGame\('figures'/,
     /crawlParagraphs\(game\.view\.setting\)/,
-    /introCrawl\(\{\s*title: game\.name,/,
+    /introCrawl\(\{\s*title: game\.name,\s*paragraphs,\s*ready: false,/,
     /markIntro\(browserStorage\(window\), game\.id, 'crawl'\)/,
+    /from '\.\/realism-crawl\.js'/,
+    /status\?\.before\(beginStatus\(\)\)/,
+    /'Beginning…'\), beginStatus\(\)\)/,
+    /if \(crawl\?\.isConnected && crawl\.open\) markReady\(crawl\);/,
+    /confirmNote: CONFIRM_NOTE,/,
   ]) assert.match(cast, call);
+  assert.ok(!cast.includes('watched'), 'the crawl can no longer be left before Begin answers');
   for (const gone of ['whoHeldPower', 'held-search', "'Reach: '"]) assert.ok(!cast.includes(gone), gone);
 });
 
-test('a failed or refused Begin closes the crawl before it says why', () => {
+test('a failed, refused or too-slow Begin closes the crawl before it says why', () => {
   const cast = read('js/views/realism-cast.js');
   const begin = cast.slice(cast.indexOf('async function beginWithCrawl'), cast.indexOf('function hostPanel'));
   assert.match(begin, /if \(r\.refused\) \{\s*closeCrawl\(\);/);
   assert.match(begin, /catch \(ex\) \{\s*closeCrawl\(\);/);
+  assert.match(begin, /await beginOrGiveUp\(\)/);
+  assert.match(cast, /Promise\.race\(\[api\.newGame\('begin', \{\}\), slow\]\)/);
 });
 
 test('the room opens with the intro before the seat files its first order', () => {
   const room = read('js/views/realism-room.js');
   for (const call of [
     /introStage\(storage\(\), game\.id, !rv\.record\?\.orders\?\.length\)/,
-    /splashModel\(seatName, rv\.desk, rv\.dossier\)/,
+    /splashModel\(seatName, rv\.desk, rv\.dossier, startOverview\(rv\)\)/,
     /seatSplash\(\{/,
     /crawlParagraphs\(rv\.setting\)/,
+    /introCrawl\(\{\s*title: game\.name,\s*paragraphs,\s*ready: true,/,
+    /from '\.\/realism-crawl\.js'/,
     /markIntro\(storage\(\), game\.id, 'splash'\)/,
     /pending = opening \?\? happened/,
   ]) assert.match(room, call);

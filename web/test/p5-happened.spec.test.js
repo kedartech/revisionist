@@ -1,4 +1,5 @@
-// Spec for Train 2 unit W, written with contract K2: the unit makes it pass and never edits it.
+// Spec for Train 2 unit W (contract K2), revised for unit Q4 (contract KQ): each line is a
+// sentence. The unit makes it pass and never edits it.
 // Run: node --test web/test/
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -6,6 +7,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import * as happened from '../js/views/realism-happened.js';
 import { HAPPENED_PREFIX, changedFigures, happenedLines, happenedStore, shouldShow } from '../js/views/realism-happened.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
@@ -17,16 +19,36 @@ const memory = () => {
   return { data, getItem: (k) => (data.has(k) ? data.get(k) : null), setItem: (k, v) => data.set(k, String(v)) };
 };
 
-test('one line per order moving or settled since the last wake', () => {
+test('one sentence per order moving or settled since the last wake', () => {
   assert.deepEqual(happenedLines(fixture.record), [
-    'Give a naval order: Escort the convoys, The Iceland route: under way, with Franklin D. Roosevelt',
-    'Escort the convoys to Iceland and shoot on sight: under way, with Harold R. Stark',
-    'Send a bill to Congress: Revise the Neutrality Act: under way, with Sam Rayburn',
-    'Ask Senator Wheeler to drop his filibuster: rebuffed — “Wheeler would not be moved while the America First rallies go on.”',
+    '“Give a naval order: Escort the convoys, The Iceland route” is under way, with Franklin D. Roosevelt.',
+    '“Escort the convoys to Iceland and shoot on sight” is under way, with Harold R. Stark.',
+    '“Send a bill to Congress: Revise the Neutrality Act” is under way, with Sam Rayburn.',
+    '“Ask Senator Wheeler to drop his filibuster” has been rebuffed. “Wheeler would not be moved while the America First rallies go on.”',
+    '“Allocate Lend-Lease aid: Britain, 40” has been enacted.',
+    '“Close the Pan American Highway to German trade” has been refused. “Hull would not act without the Latin American governments.”',
+    '“Ask the Navy for a report on Pacific bases” has lapsed.',
+    '“Send a bill to Congress: Extend the draft to men of forty” has been withdrawn.',
+    '“Ask the Speaker to hold the vote until November” has been agreed to. “The Speaker will hold it.”',
+    '“Give a naval order: Patrol the Denmark Strait” has been carried out.',
+    '“Give a naval order: Escort the HX convoys to the meeting point” has been carried out loosely.',
+    '“Give a naval order: Base a destroyer squadron at Reykjavik” has been carried out late.',
+    '“Allocate Lend-Lease aid: Soviet Union, 30” has been carried out in part.',
   ]);
   const quiet = { orders: [{ ...fixture.record.orders[0], holder: null }], wake: { ...fixture.record.wake, settled: [] } };
-  assert.deepEqual(happenedLines(quiet), ['Give a naval order: Escort the convoys, The Iceland route: under way']);
+  assert.deepEqual(happenedLines(quiet), ['“Give a naval order: Escort the convoys, The Iceland route” is under way.']);
   assert.deepEqual(happenedLines({ orders: [], wake: null }), []);
+});
+
+test('the sentence table covers every settled status, and an unknown one still reads', () => {
+  const table = happened.STATUS_SENTENCE;
+  assert.ok(table && Object.isFrozen(table), 'STATUS_SENTENCE is a frozen table');
+  assert.deepEqual(Object.keys(table).sort(), [
+    'agreed', 'carried out', 'carried out in part', 'carried out late', 'carried out loosely',
+    'enacted', 'lapsed', 'rebuffed', 'refused', 'withdrawn',
+  ]);
+  const odd = { orders: [{ ...fixture.record.orders[3], status: 'mislaid', said: null }], wake: fixture.record.wake };
+  assert.deepEqual(happenedLines(odd), ['“Ask Senator Wheeler to drop his filibuster”: mislaid.']);
 });
 
 test('figures that moved between the last two readings', () => {

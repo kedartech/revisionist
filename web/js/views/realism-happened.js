@@ -4,18 +4,35 @@ import { h } from '../dom.js';
 
 export const HAPPENED_PREFIX = 'rv.happened.';
 
+/** Verb phrase for each settled order status; a status missing here reads as its bare word. */
+export const STATUS_SENTENCE = Object.freeze({
+  enacted: 'has been enacted',
+  refused: 'has been refused',
+  lapsed: 'has lapsed',
+  withdrawn: 'has been withdrawn',
+  agreed: 'has been agreed to',
+  rebuffed: 'has been rebuffed',
+  'carried out': 'has been carried out',
+  'carried out loosely': 'has been carried out loosely',
+  'carried out late': 'has been carried out late',
+  'carried out in part': 'has been carried out in part',
+});
+
 /**
- * One line per order that is moving or settled since the last wake (`record.wake.settled`):
- * moving "<asked>: under way, with <holder>" (", with" dropped with no holder); settled
- * "<asked>: <status>", then " — “<said>”" when the order has an answer.
+ * One sentence per order that is moving or settled since the last wake (`record.wake.settled`):
+ * moving “<asked>” is under way, with <holder> (no holder: just under way); settled
+ * “<asked>” plus its `STATUS_SENTENCE` phrase, or “<asked>”: <status> when the status is not
+ * in the table. An answer (`said`) follows after a space in curly quotes.
  */
 export function happenedLines(record) {
   const settled = record?.wake?.settled ?? [];
   return (record?.orders ?? [])
     .filter((o) => o.moving || settled.includes(o.id))
     .map((o) => {
-      if (o.moving) return `${o.asked}: under way${o.holder ? `, with ${o.holder}` : ''}`;
-      return `${o.asked}: ${o.status}${o.said ? ` — “${o.said}”` : ''}`;
+      const said = o.said ? ` “${o.said}”` : '';
+      if (o.moving) return `“${o.asked}” is under way${o.holder ? `, with ${o.holder}` : ''}.${said}`;
+      const phrase = STATUS_SENTENCE[o.status];
+      return phrase ? `“${o.asked}” ${phrase}.${said}` : `“${o.asked}”: ${o.status}.${said}`;
     });
 }
 

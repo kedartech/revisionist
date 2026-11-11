@@ -164,6 +164,14 @@ function closeWake(act) {
   ];
 }
 
+/**
+ * The host may run the day now when others are playing, or when no deadline will close the wake
+ * (a game begun with no wake open), since then this button is the only way to run it.
+ */
+export function canRunNow(wake) {
+  return Boolean(wake.can_close && (wake.humans > 1 || !wake.deadline));
+}
+
 /** The wake in the room's header: its number, when it closes, the count, commit and close. */
 export function wakeHeader(wake, { act }) {
   const closes = deadlineWords(wake.deadline);
@@ -173,7 +181,7 @@ export function wakeHeader(wake, { act }) {
       closes ? h('span', { class: 'muted rl-wake-line' }, closes) : null,
       h('span', { class: 'muted rl-wake-line', role: 'status', 'aria-live': 'polite' }, commitCount(wake))),
     commitControl(wake, act),
-    wake.can_close ? closeWake(act) : null);
+    canRunNow(wake) ? closeWake(act) : null);
 }
 
 /** How the seat plays. Offers are made as a wake opens, so a change shows from the next. */

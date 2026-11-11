@@ -799,6 +799,52 @@
   "reach": {
     "inner_circle": [
       {
+        "name": "Harry Hopkins",
+        "title": "Special Assistant to the President",
+        "channels": [
+          "In person",
+          "Letter"
+        ],
+        "powers": [
+          "speak for the President on Lend-Lease"
+        ],
+        "channel_keys": [
+          "in_person",
+          "letter"
+        ]
+      },
+      {
+        "name": "Sam Rayburn",
+        "title": "Speaker of the House",
+        "channels": [
+          "Telephone",
+          "Letter"
+        ],
+        "powers": [
+          "schedule a bill for the floor",
+          "count the votes in the House"
+        ],
+        "channel_keys": [
+          "telephone",
+          "letter"
+        ]
+      },
+      {
+        "name": "Winston Churchill",
+        "title": "Prime Minister",
+        "channels": [
+          "Cable"
+        ],
+        "powers": [
+          "direct the British war effort"
+        ],
+        "channel_keys": [
+          "cable"
+        ]
+      }
+    ],
+    "government": [
+      {
         "name": "Harold R. Stark",
         "title": "Chief of Naval Operations",
         "channels": [
@@ -815,34 +861,18 @@
         ]
       }
     ],
-    "government": [
+    "foreign": [
       {
-        "name": "Sam Rayburn",
-        "title": "Speaker of the House",
+        "name": "Kichisaburō Nomura",
+        "title": "Ambassador of Japan",
         "channels": [
           "Letter"
         ],
         "powers": [
-          "schedule a bill for the floor",
-          "count the votes in the House"
+          "carry the talks with Tokyo"
         ],
         "channel_keys": [
           "letter"
-        ]
-      }
-    ],
-    "foreign": [
-      {
-        "name": "Winston Churchill",
-        "title": "Prime Minister",
-        "channels": [
-          "Cable"
-        ],
-        "powers": [
-          "direct the British war effort"
-        ],
-        "channel_keys": [
-          "cable"
         ]
       }
     ],

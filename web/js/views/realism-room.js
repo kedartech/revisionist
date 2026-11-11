@@ -8,6 +8,7 @@ import { api } from '../api.js';
 import { h, icon } from '../dom.js';
 import { STEP_ACTIONS, entityChoices } from '../realism-rules.js';
 import { worldDate } from '../rules.js';
+import { browserStorage } from '../theme.js';
 import { briefBlock, directiveForm, paceHeader } from './realism.js';
 import { header } from './frame.js';
 import { ackThread } from './realism-acks.js';
@@ -24,20 +25,32 @@ import { overlayLines, wakeOverlay } from './realism-overlay.js';
 import { trayView } from './realism-tray.js';
 import { RUNNING, commitPanel, orderCard, stylePicker, wakeHeader } from './realism-wake.js';
 
-const ui = {
-  wide: false, page: null, said: null, error: null, busy: null,
+const freshUi = (game) => ({
+  game, wide: false, page: null, said: null, error: null, busy: null,
   filter: 'all', sort: 'newest', draft: null, proposal: null, autoFor: null,
   chat: { open: false, tab: 'chats', thread: null }, contact: null, orderTo: null,
-};
+});
+let ui = freshUi(null);
+
+/** The room's picks and drafts: kept across redraws of one game, started clean for another. */
+export function uiFor(gameId) {
+  if (ui.game !== gameId) ui = freshUi(gameId);
+  return ui;
+}
+
+/**
+ * Who an order can go to: the inner circle, and a contact chosen from the messenger
+ * ("Write them an order"), whose channels are the keys the order form posts. A contact
+ * with no channel cannot be written to, so it is left off.
+ */
+export function orderContacts(inner, c) {
+  const keys = c?.channel_keys ?? [];
+  if (!c || !keys.length || inner.some((x) => x.person === c.name)) return inner;
+  return [...inner, { person: c.name, title: c.title, channel: keys[0], channels: keys }];
+}
 
 /** Browser storage, or nothing where it is blocked: the units take it as a parameter. */
-function storage() {
-  try {
-    return window.localStorage;
-  } catch {
-    return undefined;
-  }
-}
+const storage = () => browserStorage(window);
 
 function stepForm(order, act) {
   const id = `rl-step-${order.id}`;
@@ -137,6 +150,7 @@ function gameMenu(game, ctx, work) {
 export function realismRoom(ctx) {
   const { me, refresh } = ctx;
   const game = me.game;
+  uiFor(game.id);
   const rv = game.view.realism;
   const seatName = game.view.seat?.name ?? '';
   const root = h('div', { class: 'screen war-screen realism-screen' });
@@ -169,7 +183,14 @@ export function realismRoom(ctx) {
     } finally {
       ui.busy = null;
     }
-    await refresh();
+    try {
+      await refresh();
+    } catch (ex) {
+      // the room was not re-read: drop the overlay and the hold, and say why
+      ui.error = ex.message;
+      root.removeAttribute('aria-busy');
+      rerender();
+    }
   }
   work.idle = () => !ui.busy;
 
@@ -244,21 +265,9 @@ export function realismRoom(ctx) {
         })));
   }
 
-  /**
-   * Who an order can go to: the inner circle, and a contact chosen from the messenger
-   * ("Write them an order"), whose channels are the keys the order form posts.
-   */
-  function orderContacts() {
-    const inner = rv.desk.inner_circle;
-    const c = ui.orderTo;
-    if (!c || inner.some((x) => x.person === c.name)) return inner;
-    const keys = c.channel_keys ?? [];
-    return [...inner, { person: c.name, title: c.title, channel: keys[0] ?? '', channels: keys }];
-  }
-
   /** The directive form, its words kept as typed: a redraw or a refresh rebuilds it from ui.draft. */
   function orderForm() {
-    const form = directiveForm(orderContacts(), ui.draft, ask);
+    const form = directiveForm(orderContacts(rv.desk.inner_circle, ui.orderTo), ui.draft, ask);
     form.addEventListener('input', () => {
       ui.draft = {
         to: form.querySelector('input[type="radio"]:checked')?.value ?? '',
@@ -382,9 +391,11 @@ export function realismRoom(ctx) {
     const happened = page && shouldShow(page, shown)
       ? happenedSheet({
         record: rv.record, situation: rv.situation, date,
-        onClose: () => { shown.write(page.number); happened?.close(); },
+        onClose: () => happened?.close(),
       })
       : null;
+    // Esc closes a dialog without its button: the close event counts either way
+    happened?.addEventListener('close', () => shown.write(page.number));
     return { character, setting, happened };
   }
 

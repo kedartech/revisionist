@@ -30,7 +30,8 @@ def _block(t: Table, seat: SeatId) -> Any:
 
 
 def _all(block: Any) -> list[Any]:
-    return [o for i in block["items"] for o in i["options"] + i["plan"]] + block["initiative"]
+    out: list[Any] = [o for i in block["items"] for o in i["options"] + i["plan"]]
+    return out + list(block["initiative"])
 
 
 def test_nothing_is_taken_before_a_pick_and_the_pick_is_after() -> None:

@@ -18,9 +18,9 @@ test('the groups in order, rows with how to reach them and what the seat can do'
   const out = contactRows(fixture.reach, inner);
   assert.deepEqual(out.map((g) => g.key), ['inner_circle', 'government', 'foreign', 'other']);
   assert.deepEqual(out.map((g) => g.heading), ['Inner circle', 'Government', 'Foreign', 'Other']);
-  assert.deepEqual(out[0].rows[0], { name: 'Harold R. Stark', title: 'Chief of Naval Operations', how: 'In person · Cable', can: 'order' });
-  assert.equal(out[1].rows[0].can, 'message');
-  assert.equal(out[2].rows[0].can, 'message');
+  assert.deepEqual(out[0].rows[0], { name: 'Harry Hopkins', title: 'Special Assistant to the President', how: 'In person · Letter', can: 'message' });
+  assert.deepEqual(out[1].rows[0], { name: 'Harold R. Stark', title: 'Chief of Naval Operations', how: 'In person · Cable', can: 'order' });
+  assert.equal(out[2].rows[0].can, 'order');
   assert.equal(out[3].rows[0].title, null);
 });
 
@@ -31,7 +31,7 @@ test('empty groups are dropped', () => {
 });
 
 test('the detail: office, powers as a sentence, how', () => {
-  const stark = fixture.reach.inner_circle[0];
+  const stark = fixture.reach.government[0];
   const d = contactDetail(stark);
   assert.equal(d.office, 'Chief of Naval Operations');
   assert.equal(d.powers, 'Command the fleet at sea and advise the President on the Navy.');

@@ -19,7 +19,7 @@ export function changedFigures(situation) { // contract stub
   return [];
 }
 
-/** The last wake shown, kept under `rv.happened.<campaignId>`: `{ read(), write(n) }`; `read()` is 0 when missing, broken or with no storage. */
+/** The last wake shown, kept under `rv.happened.<campaignId>`: `{ read(), write(n) }`; `read()` is 0 when missing, broken, with no storage or with storage that throws; `write` never throws. */
 export function happenedStore(storage, campaignId) { // contract stub
   return { read: () => 0, write: () => {} };
 }

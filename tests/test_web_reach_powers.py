@@ -7,12 +7,16 @@ import json
 
 from revisionist.core.realism.card import ChannelKind, words
 from revisionist.engine.web.reach_groups import reach
+from revisionist.engine.web.realism_api import ReachContact, ReachGroups
 from tests.test_engine_v2_contract import Slice
 
 
-def _contact(sl: Slice, name: str) -> dict[str, object]:
-    groups = reach(sl.state, sl.fdr)
-    return dict(next(c for g in groups.values() for c in g if c["name"] == name))
+def _everyone(groups: ReachGroups) -> list[ReachContact]:
+    return [*groups["inner_circle"], *groups["government"], *groups["foreign"], *groups["other"]]
+
+
+def _contact(sl: Slice, name: str) -> ReachContact:
+    return next(c for c in _everyone(reach(sl.state, sl.fdr)) if c["name"] == name)
 
 
 def test_a_contact_with_a_card_face_has_its_powers_in_words() -> None:
@@ -24,9 +28,8 @@ def test_a_contact_with_a_card_face_has_its_powers_in_words() -> None:
 
 def test_the_channel_keys_match_the_worded_channels_in_order() -> None:
     sl = Slice()
-    for group in reach(sl.state, sl.fdr).values():
-        for c in group:
-            assert [words(ChannelKind(k)) for k in c["channel_keys"]] == c["channels"]
+    for c in _everyone(reach(sl.state, sl.fdr)):
+        assert [words(ChannelKind(k)) for k in c["channel_keys"]] == c["channels"]
     assert _contact(sl, "Winston Churchill")["channel_keys"] == ["cable", "courier"]
 
 

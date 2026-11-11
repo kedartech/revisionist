@@ -54,6 +54,9 @@ test('the sheet shows once per wake, never for wake 0', () => {
   assert.equal(happenedStore(s, 'c2').read(), 0);
   assert.equal(happenedStore(undefined, 'c1').read(), 0);
   assert.doesNotThrow(() => happenedStore(undefined, 'c1').write(2));
+  const blocked = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } };
+  assert.equal(happenedStore(blocked, 'c1').read(), 0);
+  assert.doesNotThrow(() => happenedStore(blocked, 'c1').write(2));
 });
 
 test('the sheet words', () => {

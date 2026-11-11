@@ -33,3 +33,12 @@ export function applyTheme(root, storage) {
   root.dataset.theme = themeName(storage);
   root.dataset.effects = effectsOn(storage) ? 'on' : 'off';
 }
+
+/** The page's `localStorage`, or undefined where the browser blocks reading it. */
+export function browserStorage(win) {
+  try {
+    return win?.localStorage;
+  } catch {
+    return undefined;
+  }
+}

@@ -95,15 +95,21 @@ def test_a_standard_form_points_at_its_tracker_entry() -> None:
 def test_a_decided_approach_carries_the_papers_answer() -> None:
     sl = Slice()
     order = _influence(sl, 1, ask="drop the filibuster")
-    sl.add(ev.EffectsEstimated(order_id=order.order_id, part=0, reason="r"), private_to(sl.fdr))
+    private = "estimator reckons Wheeler is bluffing"
+    sl.add(
+        ev.EffectsEstimated(order_id=order.order_id, part=0, reason="r", rationale=private),
+        private_to(sl.fdr),
+    )
     sl.add(
         ev.InfluenceDecided(order_id=order.order_id, part=0, on=date(1941, 9, 14), accepted=False),
         private_to(sl.fdr),
     )
     _land_reports(sl, date(1941, 9, 14))
-    (entry,) = record_block(sl.state, sl.events, sl.fdr)["orders"]
+    block = record_block(sl.state, sl.events, sl.fdr)
+    (entry,) = block["orders"]
     assert entry["asked"] == "drop the filibuster" and entry["said"]
     assert entry["moving"] is False
+    assert private not in json.dumps(block)
 
 
 def test_newest_filed_first() -> None:

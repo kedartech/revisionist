@@ -1,5 +1,5 @@
 {
- "149982dae8d78eb284b963a4": {
+ "d11ff03604bb0141724c2d34": {
   "call_class": "aide",
   "hand_written": true,
   "model": "claude-haiku-5-5",
@@ -39,7 +39,7 @@
    "usd": 0.0002163
   }
  },
- "535c59f1e3dfe60ab44bc689": {
+ "e17f3618889fd5ecd77b7b86": {
   "call_class": "aide",
   "hand_written": true,
   "model": "claude-haiku-5-5",

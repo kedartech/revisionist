@@ -43,6 +43,28 @@
    "usd": 0.00168
   }
  },
+ "121625e2fd215a41561b61b2": {
+  "call_class": "prose",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Author\nHarold R. Stark, Chief of Naval Operations\n\n## Pages to write\n[{\"doc_id\": \"XY2W7KC441ACZ9RJJ7SYSJ4XNH\", \"kind\"",
+  "reply": {
+   "cached_tokens": 377,
+   "input_tokens": 591,
+   "model": "claude-haiku-5-5",
+   "output": {
+    "pages": [
+     {
+      "doc_id": "XY2W7KC441ACZ9RJJ7SYSJ4XNH",
+      "prose": "September losses to U-boats still stand at 209835 GRT; 30 boats operational in the Atlantic. The Atlantic Fleet is at Norfolk.\n\nH. R. Stark"
+     }
+    ]
+   },
+   "output_tokens": 51,
+   "usd": 8.46e-05
+  }
+ },
  "14f9de88e94702ecee378515": {
   "call_class": "prose",
   "hand_written": true,
@@ -65,48 +87,26 @@
    "usd": 6.74e-05
   }
  },
- "69ffb6c975e52d647c39ee1b": {
+ "4f7156c1972a7c965faa24b2": {
   "call_class": "prose",
   "hand_written": true,
-  "model": "claude-haiku-5-5",
+  "model": "claude-sonnet-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nStephen T. Early, White House press secretary\n\n## Pages to write\n[{\"doc_id\": \"J8B1VXFJN0MDVZZQDJ29H63BMB\", \"ki",
+  "prompt_head": "## Author\nStephen T. Early, White House press secretary\n\n## Pages to write\n[{\"doc_id\": \"K2JFTV447NE1W5B78144V8GG5D\", \"ki",
   "reply": {
    "cached_tokens": 377,
    "input_tokens": 480,
-   "model": "claude-haiku-5-5",
+   "model": "claude-sonnet-5-5",
    "output": {
     "pages": [
      {
-      "doc_id": "J8B1VXFJN0MDVZZQDJ29H63BMB",
-      "prose": "Gallup now shows 56 percent saying your course is about right. Nothing new on war with Germany or on aid to Britain at risk of war.\n\nSteve Early"
+      "doc_id": "K2JFTV447NE1W5B78144V8GG5D",
+      "prose": "Boss,\n\nA small move our way: 56 percent now call your course about right. Still no number on war with Germany or on helping Britain whatever the risk, and I'd rather give you none than a guess.\n\nSteve"
      }
     ]
    },
-   "output_tokens": 53,
-   "usd": 7.45e-05
-  }
- },
- "72eec2f0a59fd5d4eb8c501a": {
-  "call_class": "prose",
-  "hand_written": true,
-  "model": "claude-haiku-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nHarold R. Stark, Chief of Naval Operations\n\n## Pages to write\n[{\"doc_id\": \"RPS6140QA99Q5F9MW5WMF4R9QE\", \"kind\"",
-  "reply": {
-   "cached_tokens": 377,
-   "input_tokens": 591,
-   "model": "claude-haiku-5-5",
-   "output": {
-    "pages": [
-     {
-      "doc_id": "RPS6140QA99Q5F9MW5WMF4R9QE",
-      "prose": "September losses to U-boats still stand at 209835 GRT; 30 boats operational in the Atlantic. The Atlantic Fleet is at Norfolk.\n\nH. R. Stark"
-     }
-    ]
-   },
-   "output_tokens": 51,
-   "usd": 8.46e-05
+   "output_tokens": 67,
+   "usd": 0.00163
   }
  },
  "7eda0505f9493c7fa244542a": {
@@ -153,12 +153,12 @@
    "usd": 8.66e-05
   }
  },
- "bef89d6c40e88bcb6889e9d5": {
+ "b0e965d76b680e3fad82bb4b": {
   "call_class": "prose",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nHarold R. Stark, Chief of Naval Operations\n\n## Pages to write\n[{\"doc_id\": \"RPS6140QA99Q5F9MW5WMF4R9QE\", \"kind\"",
+  "prompt_head": "## Author\nHarold R. Stark, Chief of Naval Operations\n\n## Pages to write\n[{\"doc_id\": \"XY2W7KC441ACZ9RJJ7SYSJ4XNH\", \"kind\"",
   "reply": {
    "cached_tokens": 377,
    "input_tokens": 591,
@@ -166,13 +166,35 @@
    "output": {
     "pages": [
      {
-      "doc_id": "RPS6140QA99Q5F9MW5WMF4R9QE",
+      "doc_id": "XY2W7KC441ACZ9RJJ7SYSJ4XNH",
       "prose": "Mr. President,\n\nNo change worth the name since my last: losses for September at 209,835 GRT and some 30 boats at sea in the Atlantic. The fleet is at Norfolk and the convoys keep their routes.\n\nRespectfully,\nH. R. Stark"
      }
     ]
    },
    "output_tokens": 72,
    "usd": 0.001902
+  }
+ },
+ "b4ccd8b94da23e98c54bf4a6": {
+  "call_class": "prose",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Author\nStephen T. Early, White House press secretary\n\n## Pages to write\n[{\"doc_id\": \"K2JFTV447NE1W5B78144V8GG5D\", \"ki",
+  "reply": {
+   "cached_tokens": 377,
+   "input_tokens": 480,
+   "model": "claude-haiku-5-5",
+   "output": {
+    "pages": [
+     {
+      "doc_id": "K2JFTV447NE1W5B78144V8GG5D",
+      "prose": "Gallup now shows 56 percent saying your course is about right. Nothing new on war with Germany or on aid to Britain at risk of war.\n\nSteve Early"
+     }
+    ]
+   },
+   "output_tokens": 53,
+   "usd": 7.45e-05
   }
  },
  "e8178a48d89b0a7575b0d465": {
@@ -195,28 +217,6 @@
    },
    "output_tokens": 86,
    "usd": 0.002042
-  }
- },
- "fc638f6cf2586977a36b3840": {
-  "call_class": "prose",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nStephen T. Early, White House press secretary\n\n## Pages to write\n[{\"doc_id\": \"J8B1VXFJN0MDVZZQDJ29H63BMB\", \"ki",
-  "reply": {
-   "cached_tokens": 377,
-   "input_tokens": 480,
-   "model": "claude-sonnet-5-5",
-   "output": {
-    "pages": [
-     {
-      "doc_id": "J8B1VXFJN0MDVZZQDJ29H63BMB",
-      "prose": "Boss,\n\nA small move our way: 56 percent now call your course about right. Still no number on war with Germany or on helping Britain whatever the risk, and I'd rather give you none than a guess.\n\nSteve"
-     }
-    ]
-   },
-   "output_tokens": 67,
-   "usd": 0.00163
   }
  }
 }

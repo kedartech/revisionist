@@ -1,46 +1,5 @@
 {
- "31da29b377dccb8fb65403b0": {
-  "call_class": "aide",
-  "hand_written": true,
-  "model": "claude-haiku-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Your principal\nFranklin D. Roosevelt, President of the United States\n\n## Their instruments\n[{\"lever\": \"send_bill\", \"l",
-  "reply": {
-   "cached_tokens": 383,
-   "input_tokens": 1166,
-   "model": "claude-haiku-5-5",
-   "output": {
-    "lever": "lend_lease_finding",
-    "params": {
-     "recipient": "ussr",
-     "share_pct": 150
-    },
-    "reason": ""
-   },
-   "output_tokens": 24,
-   "usd": 0.0001286
-  }
- },
- "3b464254455f7726d07952f0": {
-  "call_class": "aide",
-  "hand_written": true,
-  "model": "claude-haiku-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Your principal\nFranklin D. Roosevelt, President of the United States\n\n## Their instruments\n[{\"lever\": \"send_bill\", \"l",
-  "reply": {
-   "cached_tokens": 383,
-   "input_tokens": 1161,
-   "model": "claude-haiku-5-5",
-   "output": {
-    "lever": "",
-    "params": {},
-    "reason": "Only Congress can declare war. Nothing on your desk does it, though a message to the Hill could prepare the ground."
-   },
-   "output_tokens": 39,
-   "usd": 0.0001356
-  }
- },
- "404c6c46ca2c890721d58d5c": {
+ "314ce0c386dec787567210b6": {
   "call_class": "aide",
   "hand_written": true,
   "model": "claude-haiku-5-5",
@@ -61,7 +20,7 @@
    "usd": 0.0001336
   }
  },
- "47d62a9f15180d2967d0a661": {
+ "45518075be0d03a44487cc98": {
   "call_class": "aide",
   "hand_written": true,
   "model": "claude-haiku-5-5",
@@ -80,7 +39,7 @@
    "usd": 0.0001251
   }
  },
- "9bc9de60db443019d8b89dec": {
+ "845aa3bea58b6f78799e5683": {
   "call_class": "aide",
   "hand_written": true,
   "model": "claude-haiku-5-5",
@@ -100,6 +59,47 @@
    },
    "output_tokens": 25,
    "usd": 0.0001293
+  }
+ },
+ "8a1d6568994f6d2e404dd6e9": {
+  "call_class": "aide",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Your principal\nFranklin D. Roosevelt, President of the United States\n\n## Their instruments\n[{\"lever\": \"send_bill\", \"l",
+  "reply": {
+   "cached_tokens": 383,
+   "input_tokens": 1161,
+   "model": "claude-haiku-5-5",
+   "output": {
+    "lever": "",
+    "params": {},
+    "reason": "Only Congress can declare war. Nothing on your desk does it, though a message to the Hill could prepare the ground."
+   },
+   "output_tokens": 39,
+   "usd": 0.0001356
+  }
+ },
+ "f40a04d9ca686ed90ad75a60": {
+  "call_class": "aide",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Your principal\nFranklin D. Roosevelt, President of the United States\n\n## Their instruments\n[{\"lever\": \"send_bill\", \"l",
+  "reply": {
+   "cached_tokens": 383,
+   "input_tokens": 1166,
+   "model": "claude-haiku-5-5",
+   "output": {
+    "lever": "lend_lease_finding",
+    "params": {
+     "recipient": "ussr",
+     "share_pct": 150
+    },
+    "reason": ""
+   },
+   "output_tokens": 24,
+   "usd": 0.0001286
   }
  }
 }

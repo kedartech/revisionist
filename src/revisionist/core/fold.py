@@ -38,7 +38,7 @@ from revisionist.core.ontology import (
     SeatKind,
     SeatStatus,
 )
-from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus
+from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, opening_id
 from revisionist.core.realism.document import Document
 from revisionist.core.realism.effect import (
     IRREVERSIBLE,
@@ -734,12 +734,15 @@ def _engine_v2(state: State, p: ev.Payload) -> State:
                 raise FoldError(f"mandate {m.mandate_id}: unknown order {m.cause!r}")
             if m.status is not MandateStatus.LIVE:
                 raise FoldError(f"mandate {m.mandate_id} must start live")
+            held_open = opening_id(state.campaign_id, m.seat_id)
             live = sum(
                 1
                 for x in state.mandates.values()
-                if x.seat_id == m.seat_id and x.status is MandateStatus.LIVE
+                if x.seat_id == m.seat_id
+                and x.status is MandateStatus.LIVE
+                and x.mandate_id != held_open
             )
-            if live >= MANDATE_CAP:
+            if m.mandate_id != held_open and live >= MANDATE_CAP:
                 raise FoldError(f"seat {m.seat_id} already holds {MANDATE_CAP} live mandates")
             return state.model_copy(update={"mandates": _put(state.mandates, m.mandate_id, m)})
         case ev.MandateSettled():

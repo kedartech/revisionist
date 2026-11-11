@@ -72,7 +72,9 @@ def _statement_applied(sl: Slice, n: int = 9) -> None:
 
 def test_history_templates_reach_their_own_seats_privately() -> None:
     _, state = _play()
-    by_key = {m.mandate_id: m for m in state.mandates.values()}
+    opening = {MandateId(derived_id(CAMPAIGN, "mandate", "opening", s)) for s in state.seats}
+    assert len(state.mandates) == len(opening) + 2  # one opening matter per human seat
+    by_key = {i: m for i, m in state.mandates.items() if i not in opening}
     assert len(by_key) == 2
     roosevelt = next(m for m in by_key.values() if m.kind is ra.MandateKind.CRISIS)
     churchill = next(m for m in by_key.values() if m.kind is ra.MandateKind.ORDER)

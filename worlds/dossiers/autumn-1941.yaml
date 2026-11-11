@@ -1,0 +1,219 @@
+# Public dossier text for the autumn-1941 world: read-only, served to every player.
+# Written from the record; every quote carries its source. Portraits stay null until
+# their licence is cleared; a portrait is a file name under web/assets/portraits/.
+world: autumn-1941
+setting:
+  situation: Autumn 1941. Germany's armies are deep in the Soviet Union. Britain holds on, supplied across
+    the Atlantic by a United States that is neutral in name only. In the Pacific, Japan has lost its American
+    oil and must choose between a settlement and a war.
+  sides:
+  - 'The Allies: Britain, the Soviet Union and China, with the United States behind them short of war'
+  - 'The Axis: Germany and Italy, bound by treaty to Japan'
+  - Japan, between a settlement with Washington and a war for the south
+  crawl:
+  - It is the autumn of 1941. German armies stand deep in Russia and close on Leningrad. Britain fights
+    on, fed by convoys that cross an Atlantic full of U-boats.
+  - 'The United States is neutral in law and not in fact: its factories arm Britain and its warships escort
+    the convoys part of the way. In Tokyo, an oil embargo has set a clock running on Japan''s choice between
+    talks and war.'
+  - Eight leaders hold the levers of the world. History knows what each of them did. You may do otherwise.
+  facts:
+  - The Neutrality Act still bars American merchant ships from the war zones.
+  - Lend-Lease became law on 11 March 1941.
+  - The House renewed the draft by one vote, 203 to 202, on 12 August 1941.
+  - American troops landed in Iceland in July 1941.
+  - The United States froze Japan's assets in July 1941, and its oil stopped.
+  - Germany invaded the Soviet Union on 22 June 1941.
+  - China has fought Japan since July 1937.
+  dates:
+  - 'on': 1941-09-04
+    what: USS Greer and U-652 exchange fire south of Iceland.
+  - 'on': 1941-10-16
+    what: Konoe's cabinet resigns.
+  - 'on': 1941-10-17
+    what: The House votes 259 to 138 to arm merchant ships.
+  - 'on': 1941-10-17
+    what: USS Kearny is torpedoed off Iceland; eleven killed.
+  - 'on': 1941-10-18
+    what: Tojo forms a cabinet.
+  - 'on': 1941-10-31
+    what: USS Reuben James is sunk by U-552.
+  - 'on': 1941-11-07
+    what: The Soviet Union is made eligible for Lend-Lease.
+  - 'on': 1941-11-07
+    what: The Senate passes the Neutrality revision, 50 to 37.
+  - 'on': 1941-11-13
+    what: The House agrees to the Senate's revision, 212 to 194.
+  - 'on': 1941-11-26
+    what: Hull hands his note to Ambassador Nomura.
+  - 'on': 1941-12-07
+    what: Japan attacks Pearl Harbor.
+people:
+  roosevelt:
+    bio: 'Franklin Delano Roosevelt, thirty-second President of the United States, won an unprecedented
+      third term in November 1940. A former Assistant Secretary of the Navy and Governor of New York,
+      he was struck by polio in 1921 and governs from a wheelchair the public rarely sees. He carried
+      the country through the Depression with the New Deal, and now steers a neutral nation toward Britain:
+      destroyers for bases in 1940, Lend-Lease in March 1941, the Atlantic Charter with Churchill in August.
+      He leads by radio, by press conference and by keeping his own counsel, and he must still carry a
+      Congress that renewed the draft by a single vote.'
+    arena: Your arena is Washington and the western Atlantic. The Navy escorts convoys as far as Iceland
+      on your order; Congress decides whether merchant ships may be armed and sail into the war zones;
+      and the country is not yet sure it wants a war. What you say on the radio moves opinion. What you
+      ask of Congress has to pass both Houses.
+    history:
+    - Ordered the Navy to shoot on sight at Axis raiders after the Greer incident, in a radio talk on
+      11 September 1941.
+    - Asked Congress to arm merchant ships and let them sail to Britain; the Neutrality Act was revised
+      in November 1941.
+    - Made the Soviet Union eligible for Lend-Lease on 7 November 1941.
+    - Asked Congress for war on Japan on 8 December 1941, the day after Pearl Harbor.
+    quote: When you see a rattlesnake poised to strike, you do not wait until he has struck before you
+      crush him.
+    source: Fireside chat on the Greer incident, 11 September 1941
+    fact: He is the only President elected to a third term.
+    portrait: null
+    credit: null
+  churchill:
+    bio: Winston Spencer Churchill became Prime Minister in May 1940, as France fell, and leads a coalition
+      government from Downing Street and the Cabinet War Rooms. A soldier, war correspondent and writer
+      before he was a politician, he was First Lord of the Admiralty in both wars and spent the 1930s
+      warning against German rearmament. Britain stood without a major ally from the summer of 1940; since
+      June 1941 the Soviet Union fights beside it, and it lives on American supplies carried across an
+      Atlantic where the U-boats hunt. His tools are the War Cabinet, the Chiefs of Staff, the House of
+      Commons, and a private correspondence with Roosevelt that he signs "Former Naval Person".
+    arena: Your arena is the Atlantic lifeline and the House of Commons. The Home Fleet and the escorts
+      decide whether the convoys reach Britain; the Commons expects them covered; and every cable to Washington
+      asks for a little more than America has yet agreed to give.
+    history:
+    - Agreed the Atlantic Charter with Roosevelt at Placentia Bay in August 1941.
+    - Sent the first Arctic convoy of aid to the Soviet Union in August 1941.
+    - Opened Operation Crusader to relieve Tobruk on 18 November 1941.
+    - Crossed to Washington after Pearl Harbor to plan the war with Roosevelt.
+    quote: Give us the tools, and we will finish the job.
+    source: Broadcast, 9 February 1941
+    fact: He sat in the House of Commons for the first time in 1901.
+    portrait: null
+    credit: null
+  stalin:
+    bio: Joseph Stalin, born Ioseb Jughashvili in Georgia, rose through the Bolshevik party to rule the
+      Soviet Union alone by the end of the 1920s. He drove collectivisation and forced industrialisation
+      at the cost of millions of lives, and purged the party and the officer corps in the late 1930s.
+      In August 1939 he signed a pact with Hitler and divided Poland; on 22 June 1941 Germany invaded
+      all the same. Since the summer he has been Chairman of the State Defence Committee and Supreme Commander.
+      His armies have lost millions of men, the Germans are deep in Ukraine and closing on Leningrad,
+      and he presses London and Washington for supplies and a second front.
+    arena: Your arena is the Eastern Front and the routes that bring aid into Russia. Every order you
+      give is obeyed, or its author answers for it. What you cannot command is time, the weather, and
+      the aid Britain and America have promised. Moscow, Leningrad and the south all ask for the same
+      reserves.
+    history:
+    - Stayed in Moscow in October 1941 as the Germans neared, while the government moved east to Kuybyshev.
+    - Took the parade in Red Square on 7 November 1941; the troops marched on to the front.
+    - Opened the counter-offensive before Moscow on 5 December 1941.
+    quote: Comrades! Citizens! Brothers and sisters! Men of our army and navy! I am addressing you, my
+      friends!
+    source: Radio broadcast, 3 July 1941
+    fact: He took the name Stalin, from the Russian for steel.
+    portrait: null
+    credit: null
+  hitler:
+    bio: Adolf Hitler, born in Austria in 1889, led the National Socialist party to power in January 1933
+      and made himself dictator of Germany within two years. His regime destroyed every rival party, persecuted
+      the Jews of Germany and of every land it took, and rearmed for war; behind the Eastern Front its
+      killing squads have begun the mass murder of Jews. Since September 1939 his armies have conquered
+      Poland, Norway, the Low Countries, France, Yugoslavia and Greece. On 22 June 1941 he invaded the
+      Soviet Union, expecting a campaign of weeks. He commands from his headquarters in East Prussia,
+      overrules his generals, and still holds back from open war with the United States while American
+      ships escort Britain's convoys.
+    arena: Your arena is the war in the East and the U-boat war in the Atlantic. Your word is law in Germany.
+      Your generals want Moscow before the winter, your admirals want leave to sink American ships, and
+      you have not yet chosen war with the United States.
+    history:
+    - Opened the drive on Moscow, Operation Typhoon, at the start of October 1941.
+    - Declared war on the United States on 11 December 1941.
+    - Took personal command of the army on 19 December 1941.
+    quote: This enemy is already broken and will never rise again.
+    source: Speech at the Berlin Sportpalast, 3 October 1941
+    fact: He became a German citizen only in 1932.
+    portrait: null
+    credit: null
+  konoe:
+    bio: 'Prince Fumimaro Konoe, heir to the oldest of Japan''s court families, is Prime Minister for
+      the third time. He first took office in June 1937, weeks before the war with China began, and presided
+      over its widening. In 1940 he folded the political parties into the Imperial Rule Assistance Association,
+      and his government signed the Tripartite Pact with Germany and Italy. Now the United States has
+      frozen Japan''s assets and stopped its oil, and the army and navy press for a date after which talks
+      give way to war. Konoe wants to meet Roosevelt and settle the quarrel himself, but he cannot promise
+      what the army will not give: a withdrawal from China.'
+    arena: Your arena is the talks with Washington and the cabinet in Tokyo. The army and navy chiefs
+      sit beside you at the Liaison Conference and can bring your cabinet down by withdrawing a minister;
+      the Emperor hears both sides; and Roosevelt has not agreed to meet.
+    history:
+    - Pressed for a summit with Roosevelt in the autumn of 1941; Washington would not meet before terms
+      were settled.
+    - Resigned on 16 October 1941 when the army would not withdraw its troops from China.
+    quote: null
+    source: null
+    fact: He was Prime Minister three times between 1937 and 1941.
+    portrait: null
+    credit: null
+  tojo:
+    bio: 'General Hideki Tojo, a career officer and once chief of staff of the Kwantung Army in Manchuria,
+      has been War Minister since July 1940. Known in the army as "the Razor" for his quick mind and hard
+      rulings, he speaks for an army that has fought in China since 1937 and will not give up what it
+      has won there. He backed the alliance with Germany and the move into southern Indochina that brought
+      the American oil embargo. In cabinet he holds the power every War Minister holds: if he resigns
+      the government falls, and the army chooses who replaces him.'
+    arena: Your arena is the War Ministry and the cabinet room. You speak for the army at every Liaison
+      Conference. The army in China and the plans for the south answer to the high command, and the high
+      command listens to you.
+    history:
+    - Refused to withdraw the army from China, which brought down Konoe's cabinet in October 1941.
+    - Became Prime Minister on 18 October 1941 and kept the War Ministry.
+    - Led the cabinet that decided on war at the Imperial Conference of 1 December 1941.
+    quote: Sometimes a man has to jump, with his eyes closed, from the veranda of Kiyomizu Temple.
+    source: To Prince Konoe, October 1941, as Konoe recorded it
+    fact: His nickname in the army was Kamisori, "the Razor".
+    portrait: null
+    credit: null
+  mussolini:
+    bio: Benito Mussolini, a blacksmith's son who became a schoolteacher and a socialist editor, founded
+      Fascism after the First World War and has ruled Italy since the March on Rome in 1922. He conquered
+      Ethiopia in 1936, allied himself with Hitler, and entered the war in June 1940 as France was falling.
+      Since then Italian armies have been beaten in Greece and North Africa, most of the empire in East
+      Africa is lost, and German troops hold the line in Libya. He has sent an expeditionary corps to
+      Russia to keep a place at Hitler's side. He governs as Duce and head of government, but the King
+      remains head of state.
+    arena: Your arena is the Mediterranean and the Italian home front. The fleet and the convoys to Libya
+      are yours to order; the war in Africa depends on German help; and the country that cheered your
+      speeches in 1940 is short of food and of victories.
+    history:
+    - Kept an Italian corps fighting beside the Germans in the Soviet Union through 1941.
+    - Declared war on the United States alongside Germany on 11 December 1941.
+    quote: Vincere! E vinceremo!
+    source: Speech declaring war, Rome, 10 June 1940
+    fact: He edited the socialist daily Avanti! before the First World War.
+    portrait: null
+    credit: null
+  chiang:
+    bio: Generalissimo Chiang Kai-shek, a soldier trained in Japan and the first commandant of the Whampoa
+      Military Academy, became head of the Nationalist government after the Northern Expedition of 1926
+      to 1928. Since July 1937 he has fought Japan, losing Shanghai, Nanjing and Wuhan and moving his
+      capital up the Yangtze to Chongqing, which Japanese bombers strike again and again. He keeps an
+      uneasy truce with the Communists, who fight Japan in the north on their own terms. Lend-Lease aid
+      has been promised since May 1941, reaching China over the Burma Road, and American volunteer airmen
+      are training in Burma.
+    arena: Your arena is Free China and its lifelines. Your armies hold a long front against Japan with
+      little artillery and less air cover; supplies come only over the Burma Road; and Washington and
+      London listen to you less than you need them to.
+    history:
+    - Held Chongqing through the Japanese bombing and kept China in the war.
+    - Declared war on Japan, Germany and Italy on 9 December 1941, after Pearl Harbor.
+    - Became Supreme Commander of the Allied China Theatre in January 1942.
+    quote: While there is the slightest hope for peace we will not abandon it; so long as we have not
+      reached the limit of endurance we will not talk lightly of sacrifice.
+    source: Address at Kuling, July 1937 (Central News Agency translation)
+    fact: Chongqing has been China's wartime capital since 1938.
+    portrait: null
+    credit: null

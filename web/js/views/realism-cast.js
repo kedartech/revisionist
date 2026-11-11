@@ -1,11 +1,19 @@
-// A realism game choosing its people (Batch 5): each player picks someone from the
-// cast, whose papers are drawn up on the spot if no one has yet. The host invites
-// the others and begins.
+// A realism game choosing its people: the cast as cards that open a dossier, everyone else
+// who held power as a searchable table, and the host's invite and Begin. Begin plays the
+// opening crawl while the server sets the game up. Units: realism-castcard.js,
+// realism-castlist.js, realism-castdossier.js, realism-intro.js.
 
 import { api } from '../api.js';
 import { h, reply } from '../dom.js';
 import { castLine } from '../realism-rules.js';
+import { browserStorage } from '../theme.js';
 import { header } from './frame.js';
+import { castCard } from './realism-castcard.js';
+import { castDossier } from './realism-castdossier.js';
+import { alreadyPlayed, castList, figureGroups, searchState } from './realism-castlist.js';
+import { crawlParagraphs, introCrawl, markIntro } from './realism-intro.js';
+
+export { alreadyPlayed, figureGroups, searchState };
 
 /** One pick at a time: a redraw gives fresh buttons, so the guard cannot live on a button. */
 export function pickLock() {
@@ -27,20 +35,28 @@ export function pickLock() {
 
 const picks = pickLock();
 
-function run(out, button, label, action, body, after) {
-  if (action !== 'pick') return doRun(out, button, label, action, body, after);
-  return picks.run(() => doRun(out, button, label, action, body, after));
+/** Pick `name`; the reply goes in `out`. One pick at a time across redraws. */
+function pick(out, name, refresh) {
+  return picks.run(async () => {
+    out.replaceChildren(h('p', { class: 'muted' }, `Drawing up the papers for ${name}…`));
+    try {
+      const r = await api.newGame('pick', { name });
+      out.replaceChildren(reply(r.reply));
+      if (!r.refused) await refresh?.();
+    } catch (ex) {
+      out.replaceChildren(h('p', { class: 'form-error' }, ex.message));
+    }
+  });
 }
 
-async function doRun(out, button, label, action, body, after) {
+async function issue(out, button) {
   const was = button.textContent;
   button.disabled = true;
-  button.textContent = label;
+  button.textContent = 'Issuing…';
   out.replaceChildren();
   try {
-    const r = await api.newGame(action, body);
+    const r = await api.newGame('invite', {});
     out.replaceChildren(reply(r.reply), r.code ? h('p', { class: 'code' }, h('strong', {}, r.code)) : null);
-    if (!r.refused) await after?.(r);
   } catch (ex) {
     out.replaceChildren(h('p', { class: 'form-error' }, ex.message));
   } finally {
@@ -49,13 +65,24 @@ async function doRun(out, button, label, action, body, after) {
   }
 }
 
-/** The generated list without anyone already in the cast, by side then kind of power. */
-export function figureGroups(groups, castNames) {
-  const cast = new Set(castNames.map((n) => n.toLowerCase()));
-  return groups
-    .map((g) => ({ ...g, figures: g.figures.filter((f) => !cast.has(f.name.toLowerCase())) }))
-    .filter((g) => g.figures.length)
-    .sort((a, b) => a.side.localeCompare(b.side) || a.power.localeCompare(b.power));
+/** A dossier dialog over `root` for a cast member or a listed figure, removed once closed. */
+function openDossier(root, person, { canPlay, out, refresh }) {
+  const dialog = castDossier({
+    person,
+    dossier: person.dossier ?? null,
+    canPlay,
+    onPlay: () => {
+      if (dialog.open) dialog.close();
+      pick(out, person.name, refresh);
+    },
+    onClose: () => {
+      if (dialog.open) dialog.close();
+      dialog.remove();
+    },
+  });
+  root.append(dialog);
+  dialog.showModal();
+  dialog.scrollTop = 0; // focus lands on Play at the foot; the reader starts at the name
 }
 
 export const PLAY_STYLES = [
@@ -63,101 +90,6 @@ export const PLAY_STYLES = [
   { value: 'guided', label: 'Guided', line: 'Your aide offers a plan for each matter; you write the orders.' },
   { value: 'free', label: 'Free', line: 'You write every order yourself.' },
 ];
-
-const SEARCH_WAIT = 300;
-
-/** Names on the generated list that are already in the cast. */
-export function alreadyPlayed(groups, castNames) {
-  const cast = new Set(castNames.map((n) => n.toLowerCase()));
-  return groups.flatMap((g) => g.figures).map((f) => f.name).filter((n) => cast.has(n.toLowerCase()));
-}
-
-/**
- * What the Find someone box shows: a loading line, the list, or a line saying why it is empty.
- * `taken` names matches hidden because they are already played; the query then names them,
- * not someone new, so no draw is offered.
- */
-export function searchState({ loading, shown, query, taken = [] }) {
-  if (loading) return { kind: 'loading', text: 'Searching…' };
-  if (shown.length) return { kind: 'list' };
-  const q = query.trim();
-  if (q && taken.length) {
-    const who = taken.length === 1 ? `${taken[0]} matches` : `${taken.slice(0, -1).join(', ')} and ${taken.at(-1)} match`;
-    return { kind: 'taken', text: `Only ${who} “${q}”, and they are already played.` };
-  }
-  if (q) return { kind: 'none', text: `No one on the list matches “${q}”.`, offer: `Draw up ${q}` };
-  return { kind: 'empty', text: 'No one is listed for this date.' };
-}
-
-function whoHeldPower(game, cast, refresh) {
-  const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
-  const list = h('div', { class: 'held-list' });
-  const search = h('input', { id: 'held-search', type: 'search', maxlength: 120, autocomplete: 'off' });
-  let timer = null;
-  let latest = 0;
-  let loading = true;
-  let groups = [];
-  let asked = '';
-  const playButton = (f) => {
-    const play = h('button', { type: 'button' }, `Play ${f.name}`);
-    play.addEventListener('click', () => run(out, play, 'Drawing up their papers…', 'pick', { name: f.name }, refresh));
-    return play;
-  };
-  const offerButton = (label, name) => {
-    const offer = h('button', { type: 'button' }, label);
-    offer.addEventListener('click', () => run(out, offer, 'Drawing up their papers…', 'pick', { name }, refresh));
-    return offer;
-  };
-  const render = () => {
-    const shown = figureGroups(groups, cast);
-    const state = searchState({ loading, shown, query: asked, taken: alreadyPlayed(groups, cast) });
-    if (state.kind === 'list') {
-      list.replaceChildren(...shown.map((g) => h('div', { class: 'held-group' },
-        h('h3', {}, g.side),
-        h('h4', {}, g.power),
-        h('ul', { class: 'held-figures' }, g.figures.map((f) => h('li', {},
-          h('span', { class: 'char-name' }, f.name),
-          f.title ? h('span', { class: 'muted' }, f.title) : null,
-          playButton(f)))))));
-    } else if (state.kind === 'none') {
-      list.replaceChildren(
-        h('p', { class: 'muted' }, state.text),
-        h('p', { class: 'hint' }, 'A person not on the list takes about a minute, and the record may not place them.'),
-        offerButton(state.offer, asked));
-    } else {
-      list.replaceChildren(h('p', { class: 'muted' }, state.text));
-    }
-  };
-  const load = () => {
-    const mine = ++latest;
-    asked = search.value.trim();
-    loading = true;
-    render();
-    const body = { date: game.date };
-    if (asked) body.search = asked;
-    api.newGame('figures', body).then((r) => {
-      if (mine !== latest) return;
-      if (r.refused) list.replaceChildren(reply(r.reply));
-      else {
-        loading = false;
-        groups = r.figures;
-        render();
-      }
-    }).catch((ex) => {
-      if (mine === latest) list.replaceChildren(h('p', { class: 'form-error' }, ex.message));
-    });
-  };
-  search.addEventListener('input', () => {
-    clearTimeout(timer);
-    timer = setTimeout(load, SEARCH_WAIT);
-  });
-  load();
-  return h('section', { class: 'held', 'aria-labelledby': 'held-title' },
-    h('h2', { id: 'held-title' }, 'Who held power'),
-    h('p', { class: 'muted' }, 'Anyone on this list can be played. A person not yet drawn up takes about a minute.'),
-    h('label', { for: 'held-search' }, 'Find someone'), search,
-    list, out);
-}
 
 function playStyle() {
   const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
@@ -177,12 +109,63 @@ function playStyle() {
   return h('fieldset', { class: 'play-style' }, h('legend', {}, 'How you play'), choices, out);
 }
 
+/**
+ * Begin, with the opening crawl over the page while the server works. A refused or failed
+ * Begin closes the crawl at once and says why; the crawl never holds a player on a failure.
+ * Once Begin succeeds the crawl counts as seen, so the room opens on the player's splash.
+ */
+async function beginWithCrawl(game, out, button, refresh) {
+  const paragraphs = crawlParagraphs(game.view.setting);
+  button.disabled = true;
+  out.replaceChildren(h('p', { class: 'muted' }, 'Beginning…'));
+  let crawl = null;
+  let ready = false;
+  let watched = false;
+  const closeCrawl = () => {
+    if (crawl?.open) crawl.close();
+    crawl?.remove();
+  };
+  if (paragraphs.length) {
+    crawl = introCrawl({
+      title: game.name,
+      paragraphs,
+      onDone: () => {
+        watched = true;
+        closeCrawl();
+        if (ready) refresh?.();
+      },
+    });
+    document.body.append(crawl);
+    crawl.showModal();
+    crawl.querySelector('.rl-intro-status')?.replaceChildren('Setting up the game…');
+  }
+  try {
+    const r = await api.newGame('begin', {});
+    if (r.refused) {
+      closeCrawl();
+      out.replaceChildren(reply(r.reply));
+      return;
+    }
+    ready = true;
+    markIntro(browserStorage(window), game.id, 'crawl');
+    if (!crawl || watched) await refresh?.();
+    else crawl.querySelector('.rl-intro-status')?.replaceChildren('Ready. Continue when you are.');
+  } catch (ex) {
+    closeCrawl();
+    out.replaceChildren(h('p', { class: 'form-error' }, ex.message));
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function hostPanel(game, refresh) {
   const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
   const invite = h('button', { type: 'button' }, 'Invite a player');
-  invite.addEventListener('click', () => run(out, invite, 'Issuing…', 'invite', {}));
+  invite.addEventListener('click', () => issue(out, invite));
   const begin = h('button', { type: 'button', class: 'primary', disabled: game.waiting > 0 }, 'Begin the game');
-  begin.addEventListener('click', () => run(out, begin, 'Beginning…', 'begin', {}, refresh));
+  begin.addEventListener('click', () => {
+    if (!begin.disabled) beginWithCrawl(game, out, begin, refresh);
+  });
   return h('aside', { class: 'aside-card', 'aria-label': 'Host' },
     h('span', { class: 'eyebrow' }, 'You are the host'),
     h('p', {}, castLine(game.waiting)),
@@ -195,21 +178,21 @@ export function realismCast(ctx) {
   const { me, refresh } = ctx;
   const game = me.game;
   const view = game.view;
-  const mine = view.seat?.name;
+  const mine = view.seat?.name ?? null;
   const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
-  const cards = view.roster.map((c) => {
-    const play = h('button', { type: 'button', disabled: c.taken || Boolean(mine) },
-      c.taken ? 'Taken' : `Play ${c.name}`);
-    play.addEventListener('click', () => run(out, play, 'Drawing up their papers…', 'pick', { name: c.name }, refresh));
-    return h('article', { class: `char${c.taken ? ' taken' : ''}` },
-      h('div', { class: 'char-head' },
-        h('span', { class: 'char-name' }, c.name),
-        c.taken ? h('span', { class: 'tag' }, c.name === mine ? 'You' : 'Taken') : null),
-      h('p', {}, c.pitch),
-      h('p', { class: 'muted' }, h('strong', {}, 'Reach: '), c.reach),
-      mine ? null : play);
-  });
-  return h('div', { class: 'screen' },
+  const castNames = view.roster.map((c) => c.name);
+  const screen = h('div', { class: 'screen' });
+  const open = (person, canPlay) => openDossier(screen, person, { canPlay, out, refresh });
+  const cards = view.roster.map((c) => castCard(c, { mine, onOpen: () => open(c, !c.taken && !mine) }));
+  const others = !mine && game.date
+    ? castList({
+      cast: castNames,
+      load: (query) => api.newGame('figures', query ? { date: game.date, search: query } : { date: game.date }),
+      onOpen: (row) => open(row, true),
+      onDraw: (name) => pick(out, name, refresh),
+    })
+    : null;
+  screen.append(
     header({ ...ctx, game, role: 'Choosing the cast' }),
     h('div', { class: 'sz sz-solo' },
       h('main', { class: 'sz-main' },
@@ -218,11 +201,14 @@ export function realismCast(ctx) {
             h('h1', {}, mine ? `You are ${mine}` : 'Choose who you will play'),
             h('p', {}, mine
               ? 'Waiting for the host to begin. You can close this tab; your place is kept.'
-              : 'Drawing up a person for the first time takes a minute.')),
+              : 'Open a card to read who they are, then play them.')),
           h('div', { class: 'split' },
             h('div', {},
               out,
-              h('div', { class: 'roster' }, cards),
-              mine ? playStyle() : (game.date ? whoHeldPower(game, view.roster.map((c) => c.name), refresh) : null)),
+              h('section', { class: 'rl-cast', 'aria-labelledby': 'rl-cast-title' },
+                h('h2', { id: 'rl-cast-title' }, 'The cast'),
+                h('div', { class: 'rl-cast-cards' }, cards)),
+              mine ? playStyle() : others),
             game.host ? hostPanel(game, refresh) : null)))));
+  return screen;
 }

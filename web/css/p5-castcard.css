@@ -1,0 +1,96 @@
+/* Cast cards on the character-select screen (Train 3 unit P1), under .rl-cc. */
+
+.rl-cc {
+  container-type: inline-size;
+  min-width: 0;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.rl-cc:hover { border-color: var(--accent); }
+
+.rl-cc-open {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0.75rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-chrome);
+  text-align: left;
+  cursor: pointer;
+}
+
+.rl-cc-open:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+.rl-cc-figure { flex: 0 0 4rem; margin: 0; }
+.rl-cc-figure .portrait-frame { display: block; width: 4rem; height: 4rem; }
+.rl-cc-portrait { display: block; width: 100%; height: 100%; object-fit: cover; }
+.rl-cc-credit { display: none; }
+
+.rl-cc-mono {
+  display: grid;
+  flex: 0 0 4rem;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  background: var(--surface-2);
+  color: var(--fg-strong);
+  font-family: var(--font-head);
+  font-size: 1.25rem;
+  text-transform: uppercase;
+}
+
+.rl-cc-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.rl-cc-name {
+  color: var(--fg-strong);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.rl-cc-side {
+  color: var(--fg-muted);
+  font-family: var(--font-head);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rl-cc-pitch {
+  color: var(--fg);
+  font-size: 0.9rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.rl-cc-tag {
+  margin-block-start: 0.2rem;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: var(--font-head);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transform: rotate(var(--tilt-stamp));
+}
+
+@container (max-width: 14rem) {
+  .rl-cc-open {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

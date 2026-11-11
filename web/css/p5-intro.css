@@ -1,0 +1,193 @@
+/* The opening crawl and the seat splash (Train 3 unit P4). Both dialogs fill the viewport. */
+
+.rl-intro {
+  box-sizing: border-box;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 1.5rem;
+  border: 0;
+  background: var(--bg);
+  color: var(--fg-read);
+  font-family: var(--font-read);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+}
+
+.rl-intro::backdrop {
+  background: var(--backdrop);
+}
+
+.rl-intro > * {
+  width: min(100%, 40rem);
+}
+
+.rl-intro h2 {
+  margin: 0 0 1.5rem;
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-strong);
+}
+
+.rl-intro-crawl p {
+  margin: 0 0 1.25rem;
+  font-family: var(--font-head);
+  font-size: 1.35rem;
+  line-height: 1.5;
+  color: var(--accent);
+  animation: rl-intro-rise 900ms ease-out both;
+}
+
+.rl-intro-crawl p:nth-child(2) {
+  animation-delay: 1200ms;
+}
+
+.rl-intro-crawl p:nth-child(3) {
+  animation-delay: 2400ms;
+}
+
+@keyframes rl-intro-rise {
+  from {
+    transform: translateY(2rem);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.rl-intro-status {
+  text-align: center;
+  min-height: 1.25rem;
+  margin: auto 0 0.75rem;
+  font-family: var(--font-chrome);
+  font-size: 0.8rem;
+  color: var(--fg-muted);
+}
+
+.rl-intro-continue,
+.rl-intro-take {
+  align-self: center;
+  width: auto;
+  padding: 0.6rem 1.25rem;
+  border: 1px solid var(--accent);
+  background: var(--accent-bg);
+  color: var(--on-accent);
+  font-family: var(--font-head);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.rl-intro-continue:focus-visible,
+.rl-intro-take:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.rl-intro-splash-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+  margin-bottom: 1rem;
+}
+
+.rl-intro-splash-head h2 {
+  margin: 0;
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.rl-intro-figure {
+  margin: 0;
+  flex: 0 0 auto;
+  max-width: 8rem;
+}
+
+.rl-intro-portrait {
+  display: block;
+  width: 8rem;
+  height: auto;
+  border: 1px solid var(--field-border);
+}
+
+.rl-intro-credit {
+  margin-top: 0.25rem;
+  font-family: var(--font-chrome);
+  font-size: 0.7rem;
+  color: var(--fg-muted);
+}
+
+.rl-intro-mono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 4.5rem;
+  height: 4.5rem;
+  border: 1px solid var(--field-border);
+  font-family: var(--font-head);
+  font-size: 1.5rem;
+  color: var(--fg-strong);
+}
+
+.rl-intro-office {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-chrome);
+  font-size: 0.9rem;
+  color: var(--fg-strong);
+}
+
+.rl-intro-answers {
+  margin: 0 0 1rem;
+  font-family: var(--font-chrome);
+  font-size: 0.8rem;
+  color: var(--fg-muted);
+}
+
+.rl-intro-arena {
+  margin: 0 0 1.25rem;
+  font-family: var(--font-read);
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--fg-read);
+}
+
+.rl-intro-history h3 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-head);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-strong);
+}
+
+.rl-intro-history ul {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
+  font-family: var(--font-read);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--fg-read);
+}
+
+.rl-intro-note {
+  margin: 0 0 1.25rem;
+  font-family: var(--font-chrome);
+  font-size: 0.75rem;
+  color: var(--fg-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rl-intro-crawl p {
+    animation: none;
+  }
+}

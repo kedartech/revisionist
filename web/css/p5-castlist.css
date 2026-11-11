@@ -1,0 +1,32 @@
+/* Who held power: chips, table and search (Train 3 unit P2), under .rl-cl. */
+
+.rl-cl { container-type: inline-size; font: 14px/1.5 var(--font-chrome); color: var(--fg); }
+.rl-cl h2 { font: 600 13px/1.3 var(--font-head); text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-muted); margin: 0 0 0.4rem; }
+.rl-cl-lead { margin: 0 0 0.75rem; color: var(--fg-read); }
+
+.rl-cl-search-label { display: block; font: 600 12px/1.3 var(--font-head); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-muted); margin: 0 0 0.3rem; }
+.rl-cl-search { display: block; box-sizing: border-box; width: 100%; margin: 0 0 0.6rem; padding: 0.45rem 0.6rem; font: 14px/1.4 var(--font-chrome); color: var(--fg-strong); background: var(--field); border: 1px solid var(--field-border); }
+.rl-cl-search:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+.rl-cl-chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.75rem; }
+.rl-cl-chip { font: 13px/1.2 var(--font-chrome); padding: 0.3rem 0.6rem; color: var(--fg); background: var(--field); border: 1px solid var(--field-border); cursor: pointer; }
+.rl-cl-chip[aria-selected="true"] { color: var(--on-accent); background: var(--accent-bg); border-color: var(--accent-bg); }
+.rl-cl-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.rl-cl-table { width: 100%; border-collapse: collapse; font: 14px/1.4 var(--font-chrome); }
+.rl-cl-table th { font: 600 11px/1.3 var(--font-head); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-muted); text-align: left; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule); }
+.rl-cl-table td { padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--rule); vertical-align: top; overflow-wrap: anywhere; }
+
+.rl-cl-name { padding: 0; font: inherit; text-align: left; color: var(--accent); background: none; border: 0; text-decoration: underline; text-underline-offset: 0.2em; cursor: pointer; }
+.rl-cl-name:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.rl-cl-status { margin: 0.6rem 0 0; }
+.rl-cl-status p { margin: 0 0 0.4rem; }
+.rl-cl-status .form-error { margin: 0 0 0.4rem; }
+.rl-cl-draw { font: 600 13px/1.2 var(--font-chrome); padding: 0.4rem 0.75rem; color: var(--on-accent); background: var(--accent-bg); border: 1px solid var(--accent-bg); cursor: pointer; }
+.rl-cl-draw:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+@container (max-width: 34rem) {
+  .rl-cl-table .rl-cl-side,
+  .rl-cl-table .rl-cl-power { display: none; }
+}

@@ -56,9 +56,13 @@ def start_play(
     writer: ProseWriter = (
         TemplateProseWriter() if tools.offline else ClaudeProseWriter(tools.transport_factory())
     )
-    done = realism_tick.write_opening(store, campaign_id, writer)
-    for dropped in done.prose_dropped:
-        log.warning("no prose at the begin for %s", dropped)
+    try:
+        done = realism_tick.write_opening(store, campaign_id, writer)
+    except Exception:  # the game is begun: wake 0 must open, and the first tick writes the pages
+        log.exception("the opening papers were not written at the begin")
+    else:
+        for dropped in done.prose_dropped:
+            log.warning("no prose at the begin for %s", dropped)
     wk.open_wake(store, campaign_id, now)
     wk.offer_all(store, campaign_id, None if tools.offline else tools.transport_factory())
 

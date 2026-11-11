@@ -323,6 +323,30 @@ def test_a_failed_opening_call_leaves_its_pages_to_the_first_tick() -> None:
     assert {cora, bram} <= {i for _, ids in writer.calls for i in ids}
 
 
+class TickMeanwhile(Counting):
+    """``Counting`` that opens a tick in the same store during its first call, as another
+    writer (the host's close, a scheduler run) could while the opening prose is out."""
+
+    def __init__(self, store: EventStore) -> None:
+        super().__init__()
+        self.store = store
+
+    def write(self, author: Author, pages: Sequence[DocumentView]) -> Written:
+        if not self.calls:
+            run_realism_tick(self.store, CAMPAIGN, stop_after=TickStage.FEEDS)
+        return super().write(author, pages)
+
+
+def test_an_opening_overtaken_by_a_tick_writes_nothing_and_does_not_raise() -> None:
+    store = MemoryStore()
+    scenario(store)
+    writer = TickMeanwhile(store)
+    done = write_opening(store, CAMPAIGN, writer)
+    assert writer.calls and done.written == 0
+    assert written(store) == []
+    assert not any(isinstance(e.payload, ev.CostLogged) for e in store.read(CAMPAIGN))
+
+
 @pytest.mark.parametrize("stop_after", [TickStage.FEEDS, None])
 def test_the_opening_is_written_only_before_the_first_tick(stop_after: TickStage | None) -> None:
     store = MemoryStore()

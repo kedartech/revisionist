@@ -41,34 +41,69 @@ export const PLAY_STYLES = [
 
 const SEARCH_WAIT = 300;
 
+/** What the Find someone box shows: a loading line, the list, or a line saying why it is empty. */
+export function searchState({ loading, shown, query }) {
+  if (loading) return { kind: 'loading', text: 'Searching…' };
+  if (shown.length) return { kind: 'list' };
+  const q = query.trim();
+  if (q) return { kind: 'none', text: `No one on the list matches “${q}”.`, offer: `Draw up ${q}` };
+  return { kind: 'empty', text: 'No one is listed for this date.' };
+}
+
 function whoHeldPower(game, cast, refresh) {
   const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
-  const list = h('div', { class: 'held-list' }, h('p', { class: 'muted' }, 'Loading…'));
+  const list = h('div', { class: 'held-list' });
   const search = h('input', { id: 'held-search', type: 'search', maxlength: 120, autocomplete: 'off' });
   let timer = null;
   let latest = 0;
-  const show = (groups) => {
+  let loading = true;
+  let groups = [];
+  let asked = '';
+  const playButton = (f) => {
+    const play = h('button', { type: 'button' }, `Play ${f.name}`);
+    play.addEventListener('click', () => run(out, play, 'Drawing up their papers…', 'pick', { name: f.name }, refresh));
+    return play;
+  };
+  const offerButton = (label, name) => {
+    const offer = h('button', { type: 'button' }, label);
+    offer.addEventListener('click', () => run(out, offer, 'Drawing up their papers…', 'pick', { name }, refresh));
+    return offer;
+  };
+  const render = () => {
     const shown = figureGroups(groups, cast);
-    list.replaceChildren(...shown.map((g) => h('div', { class: 'held-group' },
-      h('h3', {}, g.side),
-      h('h4', {}, g.power),
-      h('ul', { class: 'held-figures' }, g.figures.map((f) => {
-        const play = h('button', { type: 'button' }, `Play ${f.name}`);
-        play.addEventListener('click', () => run(out, play, 'Drawing up their papers…', 'pick', { name: f.name }, refresh));
-        return h('li', {},
+    const state = searchState({ loading, shown, query: asked });
+    if (state.kind === 'list') {
+      list.replaceChildren(...shown.map((g) => h('div', { class: 'held-group' },
+        h('h3', {}, g.side),
+        h('h4', {}, g.power),
+        h('ul', { class: 'held-figures' }, g.figures.map((f) => h('li', {},
           h('span', { class: 'char-name' }, f.name),
           f.title ? h('span', { class: 'muted' }, f.title) : null,
-          play);
-      })))));
+          playButton(f)))))));
+    } else if (state.kind === 'none') {
+      list.replaceChildren(
+        h('p', { class: 'muted' }, state.text),
+        h('p', { class: 'hint' }, 'A person not on the list takes about a minute, and the record may not place them.'),
+        offerButton(state.offer, asked));
+    } else {
+      list.replaceChildren(h('p', { class: 'muted' }, state.text));
+    }
   };
   const load = () => {
     const mine = ++latest;
+    asked = search.value.trim();
+    loading = true;
+    render();
     const body = { date: game.date };
-    if (search.value.trim()) body.search = search.value.trim();
+    if (asked) body.search = asked;
     api.newGame('figures', body).then((r) => {
       if (mine !== latest) return;
       if (r.refused) list.replaceChildren(reply(r.reply));
-      else show(r.figures);
+      else {
+        loading = false;
+        groups = r.figures;
+        render();
+      }
     }).catch((ex) => {
       if (mine === latest) list.replaceChildren(h('p', { class: 'form-error' }, ex.message));
     });

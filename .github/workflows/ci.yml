@@ -44,3 +44,5 @@ jobs:
       - run: uv run --frozen ruff format --check .
       - run: uv run --frozen mypy
       - run: uv run --frozen pytest --cov=revisionist.core --cov-report=term-missing
+      - run: node --test test/*.test.js
+        working-directory: web

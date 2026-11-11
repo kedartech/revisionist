@@ -29,6 +29,10 @@ test('an order with no parts is only made', () => {
   assert.equal(orderStage(result('1941-10-12')), 'Made 12 October 1941');
 });
 
+test('a worded filed day is shown as given when the order is only made', () => {
+  assert.equal(orderStage(result('1 September 1941', part())), 'Made 1 September 1941');
+});
+
 test('an order is finished on the latest applied day of its parts', () => {
   const r = result('1941-10-12',
     part({ applied: '9 October 1941' }),
@@ -64,6 +68,20 @@ test('newestFirst puts the latest filed order at the top and keeps ties in order
   const c = result('1941-10-12');
   const out = newestFirst([a, b, c]);
   assert.deepEqual(out.map((r) => r.id), [b.id, c.id, a.id]);
+});
+
+test('newestFirst sorts worded filed days by their real date', () => {
+  const sept3 = result('3 September 1941');
+  const oct14 = result('14 October 1941');
+  const sept1 = result('1 September 1941');
+  assert.deepEqual(newestFirst([sept3, oct14, sept1]).map((r) => r.id), [oct14.id, sept3.id, sept1.id]);
+});
+
+test('newestFirst sorts an ISO filed day and a worded one together', () => {
+  const iso = result('1941-10-12');
+  const worded = result('14 October 1941');
+  const earlier = result('1 September 1941');
+  assert.deepEqual(newestFirst([earlier, iso, worded]).map((r) => r.id), [worded.id, iso.id, earlier.id]);
 });
 
 test('newestFirst does not mutate its input', () => {

@@ -3,6 +3,7 @@
 
 import { api } from './api.js';
 import { h } from './dom.js';
+import { applyTheme } from './theme.js';
 import { join, recover, recoveryCodes, signIn, signUp } from './views/auth.js';
 import { newGame } from './views/new-game.js';
 import { realismCast } from './views/realism-cast.js';
@@ -12,6 +13,7 @@ import { sessionZero } from './views/session-zero.js';
 import { warRoom } from './views/war-room.js';
 
 const root = document.getElementById('app');
+applyTheme(document.documentElement, window.localStorage);
 let route = location.hash.slice(1) || 'signin';
 let pendingCodes = null;
 

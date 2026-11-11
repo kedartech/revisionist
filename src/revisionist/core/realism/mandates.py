@@ -8,8 +8,9 @@ worth. Code fills the template and compiles the condition; no model is called.
 from datetime import date, timedelta
 
 from revisionist.core import events as ev
-from revisionist.core.goals import goal_met
+from revisionist.core.goals import Ordered, goal_met
 from revisionist.core.ids import EntityId, MandateId, OrderId, SeatId, derived_id
+from revisionist.core.ontology import EntityKind
 from revisionist.core.realism.agenda import (
     MANDATE_CAP,
     Mandate,
@@ -126,6 +127,66 @@ def issue_due(state: State, today: date) -> list[ev.Payload]:
             )
             out.append(ev.MandateIssued(mandate=mandate))
     return out
+
+
+OPENING_DAYS = 14  # [proposed] how long a seat has to answer its opening matter
+_OPENING_ACTS: tuple[tuple[EffectKind, str], ...] = (
+    (EffectKind.STATEMENT, "make your position public"),
+    (EffectKind.MOVE_FORCE, "give your forces their first orders"),
+    (EffectKind.ENGAGEMENT, "set the rules your forces fight under"),
+    (EffectKind.ALLOCATE, "decide where the first money or supplies go"),
+    (EffectKind.APPOINTMENT, "settle one appointment"),
+    (EffectKind.INVESTIGATE, "order one inquiry"),
+    (EffectKind.MEASURE, "put one measure forward"),
+    (EffectKind.DEAL, "open one negotiation"),
+)
+"""What an opening matter may ask for, simplest first, in the words it is asked in."""
+
+
+def opening(state: State, seat: SeatId, today: date) -> ev.MandateIssued | None:
+    """One matter for a seat whose agenda would open empty: the first order of a kind
+    its own office commands, due in ``OPENING_DAYS``. Asked by the person the seat
+    answers to, as an order; where it answers to no person, as an opening it may let
+    pass. None for a seat that commands nothing, or that already has a mandate."""
+    held = state.seats[seat]
+    card = state.cards.get(held.embodies) if held.embodies is not None else None
+    if card is None or any(m.seat_id == seat for m in state.mandates.values()):
+        return None
+    mine = {e for d in card.authority for e in d.effects}
+    act = next(((e, words) for e, words in _OPENING_ACTS if e in mine), None)
+    if act is None:
+        return None
+    assert held.embodies is not None
+    effect, words = act
+    by = today + timedelta(days=OPENING_DAYS)
+    asker = next(
+        (
+            p
+            for p in card.principals
+            if p in state.entities and state.entities[p].kind is EntityKind.PERSON
+        ),
+        None,
+    )
+    if asker is None:
+        text = f"The first days set the tone: {words} by {_in_words(by)}."
+    else:
+        text = (
+            f"{state.entities[asker].name} expects to hear that you have begun: "
+            f"{words} by {_in_words(by)}."
+        )
+    return ev.MandateIssued(
+        mandate=Mandate(
+            mandate_id=MandateId(derived_id(state.campaign_id, "mandate", "opening", seat)),
+            seat_id=seat,
+            kind=MandateKind.OPPORTUNITY if asker is None else MandateKind.ORDER,
+            issuer=asker,
+            text=text,
+            condition=Ordered(person=held.embodies, effect=effect),
+            issued=today,
+            expires=by,
+            scope=private_to(seat),
+        )
+    )
 
 
 def settle_due(state: State, today: date) -> list[ev.Payload]:

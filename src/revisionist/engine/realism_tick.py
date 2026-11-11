@@ -409,7 +409,8 @@ def seat_player(store: EventStore, campaign_id: CampaignId, entity: EntityId) ->
 
 def open_play(store: EventStore, campaign_id: CampaignId) -> None:
     """Close a realism Session Zero: no goals or agents to wait for. The opening
-    in-tray lands in the same batch, so wake 0 has papers to read. Raises
+    in-tray and each human seat's opening matter land in the same batch, so wake 0
+    has papers to read and something to answer. Raises
     ``StepRefusedError`` when no one holds a person yet."""
     state = load_state(store, campaign_id)
     if not cmp.human_seats(state):
@@ -418,6 +419,10 @@ def open_play(store: EventStore, campaign_id: CampaignId) -> None:
     batch = [em.event(ev.SessionZeroClosed())]
     if state.in_world_date is not None:
         batch += _opening_in_tray(em, state.in_world_date)
+        for seat in cmp.human_seats(state):
+            matter = mandates.opening(state, seat, state.in_world_date)
+            if matter is not None:
+                batch.append(em.event(matter, scope=matter.mandate.scope))
     em.commit(batch)
 
 

@@ -51,8 +51,8 @@ people:
       crush him.
     source: Fireside chat on the Greer incident, 11 September 1941
     fact: He is the only President elected to a third term.
-    portrait: null
-    credit: null
+    portrait: roosevelt.jpg
+    credit: Leon Perskie, 1944. CC BY 2.0
   wheeler:
     bio: 'Burton Kendall Wheeler, Democratic Senator from Montana since 1923, made his name leading the
       Senate investigation of Attorney General Harry Daugherty, and ran for Vice President on Robert La
@@ -72,8 +72,8 @@ people:
       fourth American boy.
     source: Radio address, January 1941
     fact: Roosevelt called the line "the rottenest thing that has been said in public life in my generation".
-    portrait: null
-    credit: null
+    portrait: wheeler.jpg
+    credit: National Photo Company, 1922. Library of Congress
   churchill:
     bio: Winston Spencer Churchill became Prime Minister in May 1940, as France fell, and leads a coalition
       government from Downing Street and the Cabinet War Rooms. A soldier, war correspondent and writer
@@ -93,5 +93,5 @@ people:
     quote: Give us the tools, and we will finish the job.
     source: Broadcast, 9 February 1941
     fact: He sat in the House of Commons for the first time in 1901.
-    portrait: null
-    credit: null
+    portrait: churchill.jpg
+    credit: Ottawa, December 1941. Public domain

@@ -375,7 +375,7 @@ def test_the_cli_never_gets_a_discriminator_keyword(monkeypatch: pytest.MonkeyPa
 
 
 def _engine_schemas() -> dict[str, dict[str, Any]]:
-    from revisionist.engine import agent, session_zero
+    from revisionist.engine import agent, build, draft, session_zero
 
     return {
         "draft": session_zero.DRAFT_SCHEMA,
@@ -386,6 +386,8 @@ def _engine_schemas() -> dict[str, dict[str, Any]]:
         "agent_brief": agent.BRIEF_SCHEMA,
         "resolver": llm.resolver_schema(),
         "narrator": llm.NARRATOR_SCHEMA,
+        "build": build.BUILD_SCHEMA,
+        "draft_outline": draft.SCHEMAS["outline"],
     }
 
 
@@ -399,6 +401,7 @@ def test_every_schema_the_cli_gets_resolves_its_refs(name: str) -> None:
     assert refs <= set(sent.get("$defs", {})), sorted(refs - set(sent.get("$defs", {})))
     assert text.count('"$defs"') <= 1  # only at the root
     assert "discriminator" not in text
+    assert "prefixItems" not in text  # a tuple field; the strict validator rejects it
 
 
 def test_a_refused_flag_is_named_without_its_text(monkeypatch: pytest.MonkeyPatch) -> None:

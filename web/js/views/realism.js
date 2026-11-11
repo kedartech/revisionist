@@ -3,7 +3,7 @@
 
 import { h, icon } from '../dom.js';
 import {
-  TRAY_FILTERS, addressLine, channelWord, directiveChannel, classificationWord, figureValue, filterInTray, horizonWords, linesHeading, paceLine,
+  TRAY_FILTERS, addressLine, aimsBlock, channelWord, directiveChannel, classificationWord, figureValue, filterInTray, horizonWords, linesHeading, paceLine,
   powersSentence, reportLine, runLine, sortInTray, stepLine, trackerLine, trayCounts, trendLine,
 } from '../realism-rules.js';
 import { worldDate } from '../rules.js';
@@ -115,11 +115,14 @@ export function desk(d, opts = {}) {
   const block = (title, items) => items.length
     ? h('section', { class: 'rl-desk-block' }, h('h3', {}, title), list(items))
     : null;
+  const aims = aimsBlock(d.aims);
   return h('section', { class: 'rl-desk', 'aria-labelledby': 'rl-desk-h' },
     h('header', { class: 'rl-office' },
       h('h2', { id: 'rl-desk-h' }, d.office),
       d.principals.length ? h('p', {}, `Answerable to ${d.principals.join(', ')}`) : null,
       h('p', { class: 'rl-horizon' }, horizonWords(d.horizon_days))),
+    aims ? h('section', { class: 'rl-desk-block' }, h('h3', {}, aims.heading),
+      list(aims.lines), h('p', { class: 'muted' }, aims.note)) : null,
     opts.directive ?? null,
     d.powers.length ? h('section', { class: 'rl-desk-block' }, h('h3', {}, 'Powers'), paragraph(powersSentence(d.powers))) : null,
     block('Limits', d.constraints),

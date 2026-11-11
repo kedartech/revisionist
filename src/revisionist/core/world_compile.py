@@ -1135,6 +1135,7 @@ def _card(c: CardDecl, ids: Mapping[str, str]) -> SeatCard:
             chain=tuple(EntityId(ids[k]) for k in c.reach.chain),
             heads=c.reach.heads,
         ),
+        aims=c.aims,
     )
 
 

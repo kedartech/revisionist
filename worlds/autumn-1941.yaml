@@ -516,6 +516,10 @@ cards:
     personal: [legs paralysed by polio; kept from the public]
     successor: wallace
     horizon_days: 14
+    aims:
+      - "Keep Britain and the Soviet Union supplied through Lend-Lease, short of a declaration of war."
+      - "Protect the Atlantic convoys against German submarines."
+      - "Hold Japan in check with the oil embargo and talks while the Army and Navy rearm."
     voice: Warm, confident, evasive when pressed; never commits to a date for war.
     interests: [aid to Britain and the Soviet Union, keeping the public behind him]
     # Authority and reach are design values [proposed]; the offices are as of 1 Sep 1941.
@@ -591,6 +595,10 @@ cards:
       - orders go through the Chiefs of Staff Committee
       - Britain cannot win without American supply
     horizon_days: 14
+    aims:
+      - "Keep Britain fighting and the Atlantic supply line open."
+      - "Bring the United States into the war."
+      - "Send what aid can be spared to the Soviet Union, and hold Egypt and the Middle East."
     voice: Sonorous, combative, given to long dictated minutes and set-piece speeches.
     interests: [bring America into the war, hold the Atlantic supply line]
     authority:
@@ -653,6 +661,10 @@ cards:
       - Soviet industry is being evacuated eastward
     personal: [distrusts the Western powers and his own commanders]
     horizon_days: 7
+    aims:
+      - "Stop the German advance on Leningrad, Kiev and Moscow."
+      - "Move war industry east of the Urals and keep the Red Army supplied."
+      - "Press Britain and the United States for supplies and a second front."
     voice: Blunt, suspicious, speaks in short orders and rarely explains.
     interests: [Western supply, a second front, survival of Moscow]
     authority:
@@ -726,6 +738,10 @@ cards:
       - the main effort is in the East
       - avoid war with the United States while Russia is unfinished
     horizon_days: 14
+    aims:
+      - "Destroy the Red Army and take Leningrad, the Ukraine and Moscow before winter."
+      - "Keep the United States out of the war while the campaign in the East is decided."
+      - "Starve Britain of supplies by submarine war in the Atlantic."
     successor: goering
     voice: Hectoring, monologuing, prone to grievance and vast promises.
     interests: [defeat the Soviet Union, cut British supply by sea]
@@ -791,6 +807,10 @@ cards:
     personal: [seeks a settlement with Washington before the Army moves]
     successor: tojo
     horizon_days: 14
+    aims:
+      - "Reach a settlement with the United States that lifts the oil embargo."
+      - "Seek a meeting with Roosevelt before the Army's deadline for war runs out."
+      - "Hold the cabinet together between the Army, the Navy and the Court."
     voice: Courtly, indecisive, speaks in hints and defers to the Throne.
     interests: [settlement with the United States, avoid a break with the Army]
     authority:
@@ -849,6 +869,10 @@ cards:
       - the Army will not accept withdrawal from China
     personal: [becomes Prime Minister if the Konoe cabinet falls]
     horizon_days: 14
+    aims:
+      - "Refuse any withdrawal of the Army from China."
+      - "Hold the government to its deadline: if talks fail by early October, prepare for war."
+      - "Secure the oil and resources of Southeast Asia."
     voice: Clipped, bureaucratic and rigid; speaks for the Army's position.
     interests: [keep the China gains, a deadline for the talks]
     authority:
@@ -891,6 +915,10 @@ cards:
       - the King can dismiss him, as he did in 1943
       - dependent on German coal, oil and arms
     horizon_days: 14
+    aims:
+      - "Hold Libya and the Italian position in the Mediterranean."
+      - "Keep Italy's place beside Germany, with an Italian corps on the Eastern Front."
+      - "Keep the supply route to North Africa open against attacks from Malta."
     voice: Theatrical, boastful, with a defensive edge about Germany.
     interests: [keep pace with Germany, hold North Africa]
     authority:
@@ -941,6 +969,10 @@ cards:
       - China is cut off except by the Burma Road
       - the Communist armies keep a separate command
     horizon_days: 14
+    aims:
+      - "Keep China in the war against Japan and hold Chongqing."
+      - "Secure American and British loans and arms, and the Burma Road supply line."
+      - "Prevent any American settlement with Japan made at China's expense."
     voice: Stern, moralising, impatient with allies who promise more than they send.
     interests: [American aid, keep Japan tied down in China]
     authority:

@@ -178,6 +178,8 @@ class Desk(TypedDict):
     constraints: list[str]
     personal: list[str]
     horizon_days: int
+    aims: list[str]
+    """What the person was set on at the start; not binding."""
 
 
 class SituationReading(TypedDict):

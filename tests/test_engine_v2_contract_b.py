@@ -12,6 +12,7 @@ import pytest
 from pydantic import ValidationError
 
 from revisionist.core import events as ev
+from revisionist.core._base import Model
 from revisionist.core.canary import scan
 from revisionist.core.fold import FoldError, replay, state_hash
 from revisionist.core.goals import ActOf, GoalKind, Ordered, difficulty, goal_kind, goal_met
@@ -52,6 +53,8 @@ NEW_LATE = frozenset(
         "applied",
         "routed_from",
         "measure",
+        "estimable",
+        "aims",
     }
 )
 
@@ -121,10 +124,16 @@ def _decided(order_id: OrderId, part: int = 0, **more: Any) -> ev.InfluenceDecid
 # --- schema --------------------------------------------------------------------------
 
 
+def _bare(sl: Slice) -> list[Model]:
+    """A card with no aims and a quantity that is not estimable: what older logs hold."""
+    card = sl.state.cards[sl.entity("roosevelt")].model_copy(update={"aims": ()})
+    return [card, *sl.state.quantities.values()]
+
+
 def test_new_late_fields_leave_older_dumps_unchanged(sl: Slice) -> None:
     fleet = sl.state.features[sl.feature("us_atlantic_fleet")]
     part = sl.shoot_on_sight().parts[0]
-    models = [fleet, part, Settings(), ev.CardsDeclared(), replay(sl.events[:5])]
+    models = [fleet, part, Settings(), ev.CardsDeclared(), replay(sl.events[:5]), *_bare(sl)]
     assert NEW_LATE.isdisjoint(k for m in models for k in _keys(m.model_dump(mode="json")))
     assert Settings().wake_hours == 12
 

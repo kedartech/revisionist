@@ -117,6 +117,10 @@ cards:
       - Congress holds appropriations
     successor: wallace
     horizon_days: 14
+    aims:
+      - "Keep Britain and the Soviet Union supplied through Lend-Lease, short of a declaration of war."
+      - "Protect the Atlantic convoys against German submarines."
+      - "Hold Japan in check with the oil embargo and talks while the Army and Navy rearm."
     authority:
       - name: naval_operations
         effects: [move_force, engagement]
@@ -158,6 +162,10 @@ cards:
     powers: [vote and speak in the Senate]
     interests: [keep the United States out of the war]
     horizon_days: 7
+    aims:
+      - "Keep the United States out of the war in Europe."
+      - "Block any step that widens Lend-Lease or sends American ships and men into the fighting."
+      - "Hold the administration to account in the Senate for every move toward intervention."
     loyalty: -2
     reach: {rank: 2}
   - person: churchill
@@ -169,6 +177,10 @@ cards:
       - {person: roosevelt, channel: cable}
       - {person: pound, channel: in_person}
     horizon_days: 7
+    aims:
+      - "Keep Britain fighting and the Atlantic supply line open."
+      - "Bring the United States into the war."
+      - "Send what aid can be spared to the Soviet Union, and hold Egypt and the Middle East."
     authority:
       - name: naval_operations
         effects: [move_force, engagement]

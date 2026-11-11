@@ -440,6 +440,7 @@ def desk(view: View) -> Desk:
         constraints=list(card.constraints),
         personal=list(card.personal),
         horizon_days=card.horizon_days,
+        aims=list(card.aims),
     )
 
 

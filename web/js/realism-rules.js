@@ -86,6 +86,18 @@ export function horizonWords(days) {
   return `You plan about ${days} ${days === 1 ? 'day' : 'days'} ahead`;
 }
 
+/** The desk's aims block: heading, lines and a note that they bind nothing. Null when there
+ * are none, which is also how an older payload without `aims` reads. */
+export function aimsBlock(aims) {
+  const lines = Array.isArray(aims) ? aims.filter(Boolean) : [];
+  if (!lines.length) return null;
+  return {
+    heading: 'As history had it',
+    lines,
+    note: 'What this person was set on at the start. Not binding.',
+  };
+}
+
 /** Powers as one sentence: "Commander in chief, veto and executive orders." */
 export function powersSentence(powers) {
   const items = powers.map((p) => p.trim().replace(/\.$/, '')).filter(Boolean);

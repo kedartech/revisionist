@@ -416,7 +416,11 @@
       "Polio; limited mobility",
       "Fireside chats"
     ],
-    "horizon_days": 30
+    "horizon_days": 30,
+    "aims": [
+      "Keep Britain supplied short of a declaration of war.",
+      "Protect the Atlantic convoys."
+    ]
   },
   "situation": {
     "figures": [

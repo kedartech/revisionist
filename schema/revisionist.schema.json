@@ -7009,6 +7009,17 @@
         "additionalProperties": false,
         "description": "The whole card. The policy fields below are how code runs an unclaimed person;\nthey never leave the engine.",
         "properties": {
+          "aims": {
+            "default": [],
+            "items": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Aims",
+            "type": "array"
+          },
           "authority": {
             "default": [],
             "items": {
@@ -12519,6 +12530,17 @@
         "additionalProperties": false,
         "description": "The whole card. The policy fields below are how code runs an unclaimed person;\nthey never leave the engine.",
         "properties": {
+          "aims": {
+            "default": [],
+            "items": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Aims",
+            "type": "array"
+          },
           "authority": {
             "default": [],
             "items": {
@@ -14728,6 +14750,17 @@
         "additionalProperties": false,
         "description": "The face plus what the person works with. Shown only to the person's own seat.",
         "properties": {
+          "aims": {
+            "default": [],
+            "items": {
+              "maxLength": 160,
+              "minLength": 1,
+              "type": "string"
+            },
+            "maxItems": 3,
+            "title": "Aims",
+            "type": "array"
+          },
           "authority": {
             "default": [],
             "items": {

@@ -59,7 +59,9 @@ MAX_OFFERS = 4
 """The event's cap: live mandates take the first slots, initiative the last."""
 AIDE_ORDERS = 3  # [proposed] orders the aide files for an absent seat in one wake
 STATION = "its station"  # [proposed] zone label for a template engagement ask
-BEGINNER_MIN, BEGINNER_MAX = 3, 4
+BEGINNER_MIN, BEGINNER_MAX = 1, 4
+BEGINNER_FULL = 3
+"""A model reply with fewer usable options than this gives way to the desk's own list."""
 GUIDED_MIN, GUIDED_MAX = 3, 5
 OFFER_MEMORY = 2  # [proposed] earlier wakes whose offers the generator is shown
 PAPERS_SHOWN = 12  # [proposed] new papers the generator is shown, newest kept
@@ -469,7 +471,7 @@ def _options_for(
 
 def _pick_valid(options: list[Option], style: PlayStyle) -> tuple[Option, ...]:
     if style is PlayStyle.BEGINNER:
-        return tuple(options[:BEGINNER_MAX]) if len(options) >= BEGINNER_MIN else ()
+        return tuple(options[:BEGINNER_MAX]) if len(options) >= BEGINNER_FULL else ()
     for o in options:
         if GUIDED_MIN <= len(o.asks) <= GUIDED_MAX:
             return (o,)

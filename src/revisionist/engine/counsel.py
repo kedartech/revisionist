@@ -17,8 +17,12 @@ from revisionist.core._base import Model
 from revisionist.core.events import CallCost, Event
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId, EntityId, EventId, SeatId
+from revisionist.core.ontology import EntityKind, EntityStatus
+from revisionist.core.project import project
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.person import PersonView, project_person
+from revisionist.core.realism.reach import channels_to
+from revisionist.core.state import State
 from revisionist.core.visibility import private_to
 from revisionist.engine import campaign as cmp
 from revisionist.engine.ids import new_id
@@ -135,9 +139,10 @@ def consult(
     question: str,
     counsellor: Counsellor,
 ) -> Counsel:
-    """Put ``question`` to ``person`` over the seat's channel to them. Raises
-    ``CounselRefusedError`` for a person not on the seat's card or an empty question;
-    ``TransportError`` propagates and nothing is written."""
+    """Put ``question`` to ``person`` over the seat's channel to them: the card's channel for
+    the inner circle, else the first channel that reaches them, and then the person speaks
+    only from pages the seat also holds. Raises ``CounselRefusedError`` for anyone the seat
+    cannot reach or an empty question; ``TransportError`` propagates and nothing is written."""
     state = load_state(store, campaign_id)
     if state.ruleset != "realism":
         raise CounselRefusedError("counsel is for realism campaigns")
@@ -147,14 +152,16 @@ def consult(
     me = state.seats[seat]
     card = state.cards.get(me.embodies)
     contact = next((c for c in card.inner_circle if c.person == person), None) if card else None
-    if card is None or contact is None:
+    channel = contact.channel if contact is not None else _outer_channel(state, seat, person)
+    if card is None or channel is None:
         names = ", ".join(state.entities[c.person].name for c in card.inner_circle) if card else ""
         raise CounselRefusedError(
             f"{state.entities[person].name if person in state.entities else person} is not "
             f"within your reach" + (f" (you can consult: {names})" if names else "")
         )
     asker = Asker(name=state.entities[me.embodies].name, office=card.office)
-    spoken = counsellor.speak(project_person(state, person), asker, contact.channel, question)
+    seen = project_person(state, person, asker=None if contact is not None else seat)
+    spoken = counsellor.speak(seen, asker, channel, question)
     if not spoken.text:
         raise CounselRefusedError(f"{state.entities[person].name} had nothing to say")
     text = f"You asked: {question}\n\n{spoken.text}"[:8000]
@@ -169,7 +176,7 @@ def consult(
         tick=state.tick,
         actor=seat,
         scope=private_to(seat),
-        payload=ev.CounselHeld(seat_id=seat, person=person, channel=contact.channel, text=text),
+        payload=ev.CounselHeld(seat_id=seat, person=person, channel=channel, text=text),
         versions=versions,
     )
     batch = [held]
@@ -190,10 +197,22 @@ def consult(
     store.append_all(batch)
     return Counsel(
         person=state.entities[person].name,
-        channel=contact.channel,
+        channel=channel,
         text=text,
         event_id=held.event_id,
     )
+
+
+def _outer_channel(state: State, seat: SeatId, person: EntityId) -> ChannelKind | None:
+    """The first channel from the seat to a living person it can see, or None."""
+    me = state.seats[seat].embodies
+    who = state.entities.get(person)
+    if who is None or who.kind is not EntityKind.PERSON or who.status is EntityStatus.DEAD:
+        return None
+    if person == me or person not in project(state, seat).entities:
+        return None
+    channels = channels_to(state, me, person)
+    return channels[0] if channels else None
 
 
 def counsel_records(events: Sequence[Event], seat: SeatId) -> list[ev.CounselHeld]:

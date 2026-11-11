@@ -13,7 +13,7 @@ from datetime import date
 from pydantic import Field
 
 from revisionist.core._base import Label, Model
-from revisionist.core.ids import EntityId
+from revisionist.core.ids import EntityId, SeatId
 from revisionist.core.realism.card import CardFace
 from revisionist.core.realism.document import DocumentView
 from revisionist.core.state import State
@@ -31,7 +31,9 @@ class PersonView(Model):
     """Arrived pages this person holds, oldest first."""
 
 
-def project_person(state: State, person: EntityId) -> PersonView:
+def project_person(state: State, person: EntityId, asker: SeatId | None = None) -> PersonView:
+    """What ``person`` knows today. With ``asker``, only the pages that seat also holds:
+    the view of someone outside the asking seat's inner circle."""
     if person not in state.entities:
         raise KeyError(f"unknown person {person!r}")
     today = state.in_world_date
@@ -44,6 +46,7 @@ def project_person(state: State, person: EntityId) -> PersonView:
         d.view
         for d in state.documents.values()
         if d.view.arrives <= today
+        and (asker is None or d.view.scope.visible_to(asker))
         and (
             d.view.author == person
             or (d.truth.feed is not None and d.truth.feed in feeds)

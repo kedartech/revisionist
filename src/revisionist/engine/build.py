@@ -161,6 +161,11 @@ def _part(output: object, playable: bool) -> tuple[WorldFile | None, list[str]]:
         for lv in c.levers
         if lv.resolver not in BUILT_RESOLVERS
     ]
+    problems += [
+        f"quantity {q.key}: give a value, your best estimate where the record gives none"
+        for q in part.quantities
+        if q.value is None and not q.computed
+    ]
     if len(part.mandates) > TEMPLATES_MAX:
         problems.append(f"mandates: {len(part.mandates)} templates, at most {TEMPLATES_MAX}")
     cards = tuple(c.model_copy(update={"playable": playable}) for c in part.cards)

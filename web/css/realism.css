@@ -141,9 +141,10 @@ button.danger { background: var(--danger); color: var(--on-accent); border-color
 .rl-page-via, .rl-page-from { font: 13px/1.4 var(--font-chrome); color: var(--fg); }
 .rl-page h2 { margin: 0 0 var(--space-2); font-size: 20px; }
 .rl-figures h3 { margin: var(--space-4) 0 0; font: 600 12px/1.3 var(--font-chrome); letter-spacing: .06em; text-transform: uppercase; color: var(--fg); }
-.rl-body { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin: var(--space-2) 0 var(--space-4); padding: var(--space-3); background: var(--surface-2); font: 14px/1.4 var(--font-chrome); }
+.rl-body { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--space-1) var(--space-4); margin: var(--space-2) 0 var(--space-4); padding: var(--space-3); background: var(--surface-2); font: 14px/1.4 var(--font-chrome); }
 .rl-body dt { color: var(--fg); }
 .rl-body dd { margin: 0; font-variant-numeric: tabular-nums; }
+.rl-body dt, .rl-body dd { overflow-wrap: anywhere; }
 .rl-prose p { margin: 0 0 var(--space-3); font-family: var(--font-read); }
 
 .rl-desk-block { margin-bottom: var(--space-4); }

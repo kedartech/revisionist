@@ -1,1 +1,134 @@
-/* p5-dossier.css: unit D of Train 2. contract stub */
+/* The character and setting dossiers (Train 2 unit D). Every selector sits under .rl-dos. */
+
+.rl-dos {
+  border: 1px var(--border-sheet) var(--rule);
+  background: var(--surface);
+  color: var(--fg-read);
+  font-family: var(--font-read);
+  width: min(34rem, 92vw);
+  max-height: 88vh;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sheet);
+}
+
+.rl-dos::backdrop {
+  background: var(--backdrop);
+}
+
+.rl-dos-head {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px var(--border-sheet) var(--rule);
+}
+
+.rl-dos-figure {
+  margin: 0;
+  flex: 0 0 auto;
+  max-width: 9rem;
+}
+
+.rl-dos-portrait {
+  display: block;
+  width: 9rem;
+  height: auto;
+  border: 1px var(--border-sheet) var(--field-border);
+}
+
+.rl-dos-credit {
+  margin-top: 0.25rem;
+  font-family: var(--font-chrome);
+  font-size: 0.7rem;
+  color: var(--fg-muted);
+}
+
+.rl-dos-mono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 4.5rem;
+  height: 4.5rem;
+  border: 1px solid var(--field-border);
+  font-family: var(--font-head);
+  font-size: 1.5rem;
+  color: var(--fg-strong);
+}
+
+.rl-dos-name {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg-strong);
+}
+
+.rl-dos-sec {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.rl-dos-sec:last-of-type {
+  border-bottom: 0;
+}
+
+.rl-dos-h {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-head);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-muted);
+}
+
+.rl-dos-sec p {
+  margin: 0 0 0.35rem;
+  line-height: 1.5;
+}
+
+.rl-dos-sec p:last-child {
+  margin-bottom: 0;
+}
+
+.rl-dos-quote {
+  font-style: italic;
+  color: var(--fg-strong);
+}
+
+.rl-dos-source {
+  font-family: var(--font-chrome);
+  font-size: 0.8rem;
+  color: var(--fg-muted);
+}
+
+.rl-dos-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  line-height: 1.5;
+}
+
+.rl-dos-list li + li {
+  margin-top: 0.25rem;
+}
+
+.rl-dos-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}
+
+.rl-dos-foot button {
+  font-family: var(--font-chrome);
+}
+
+@media (max-width: 30rem) {
+  .rl-dos-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -109,6 +109,10 @@ legend { font-weight: 600; font-size: 13px; padding: 0; margin-bottom: 4px; }
 }
 .frame-head .title { font: 400 16px/1.3 var(--font-head); color: var(--chrome-fg); }
 .frame-head .muted { color: var(--chrome-fg-muted); }
+/* the game's name and the person's name open their dossiers */
+.frame-head button.head-link { padding: 0; border: 0; background: none; text-align: left; cursor: pointer; text-decoration: underline dotted var(--chrome-fg-muted); text-underline-offset: 3px; }
+.frame-head button.head-link:hover, .frame-head button.head-link:focus-visible { text-decoration-style: solid; text-decoration-color: var(--chrome-accent); }
+.frame-head .office, .frame-head .answers-to { font: 12px/1.3 var(--font-chrome); }
 .brand-mark { color: var(--chrome-accent); display: inline-flex; }
 .divider { width: 1px; align-self: stretch; background: var(--chrome-rule); }
 .head-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); }

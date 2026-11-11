@@ -75,16 +75,36 @@ export function ordersLog(results, orders) {
  * (`rebuffed`), "Refused" (`bad` both), "Lapsed", "Withdrawn" (`quiet` both); any other
  * settled status is its own words capitalised, `quiet`.
  */
-export function orderChip(entry, track) { // contract stub
-  return { word: '', tone: 'quiet' };
+const SETTLED = {
+  agreed: ['Agreed', 'ok'],
+  rebuffed: ['Declined', 'bad'],
+  refused: ['Refused', 'bad'],
+  lapsed: ['Lapsed', 'quiet'],
+  withdrawn: ['Withdrawn', 'quiet'],
+};
+
+export function orderChip(entry, track) {
+  if (track?.decision_needed) return { word: 'Needs you', tone: 'need' };
+  if (entry.moving) return { word: 'Under way', tone: 'moving' };
+  const status = (entry.status ?? '').toLowerCase();
+  if (status.startsWith('carried out') || status === 'enacted') return { word: 'Carried out', tone: 'ok' };
+  if (SETTLED[status]) return { word: SETTLED[status][0], tone: SETTLED[status][1] };
+  if (!status) return { word: 'Settled', tone: 'quiet' };
+  return { word: status.charAt(0).toUpperCase() + status.slice(1), tone: 'quiet' };
 }
 
 /**
  * The card's lines: "To <to>"; "With <holder>" while moving and the holder is not `to`;
  * "Answer expected <due>"; "Settled <settled>"; `said` as “<said>”. Each only when set.
  */
-export function orderLines(entry) { // contract stub
-  return [];
+export function orderLines(entry) {
+  const lines = [];
+  if (entry.to) lines.push(`To ${entry.to}`);
+  if (entry.moving && entry.holder && entry.holder !== entry.to) lines.push(`With ${entry.holder}`);
+  if (entry.due) lines.push(`Answer expected ${dayInWords(entry.due)}`);
+  if (entry.settled) lines.push(`Settled ${dayInWords(entry.settled)}`);
+  if (entry.said) lines.push(`“${entry.said}”`);
+  return lines;
 }
 
 /**
@@ -92,8 +112,15 @@ export function orderLines(entry) { // contract stub
  * waits on the seat), `moving` (the rest still moving), `finished`. `tracker` is
  * view.realism.orders; an entry's `track` is a tracker order's `id`.
  */
-export function orderGroups(record, tracker) { // contract stub
-  return { need: [], moving: [], finished: [] };
+export function orderGroups(record, tracker) {
+  const waiting = new Set((tracker?.orders ?? []).filter((o) => o.decision_needed).map((o) => o.id));
+  const groups = { need: [], moving: [], finished: [] };
+  for (const e of record?.orders ?? []) {
+    if (waiting.has(e.track)) groups.need.push(e);
+    else if (e.moving) groups.moving.push(e);
+    else groups.finished.push(e);
+  }
+  return groups;
 }
 
 export const NO_ORDERS = 'No orders yet. Pick an idea or write one.';
@@ -103,7 +130,28 @@ export const NO_ORDERS = 'No orders yet. Pick an idea or write one.';
  * `stepForm(trackerOrder)` under it, then the moving ones, then a folded "Finished (n)";
  * with no orders, `NO_ORDERS`.
  */
-export function orderCards(record, tracker, stepForm) { // contract stub
-  return null;
+export function orderCards(record, tracker, stepForm) {
+  const head = h('h2', { id: 'rl-oc-h' }, 'Your orders');
+  if (!(record?.orders ?? []).length) {
+    return h('section', { class: 'rl-oc', 'aria-labelledby': 'rl-oc-h' }, head, h('p', { class: 'rl-oc-empty' }, NO_ORDERS));
+  }
+  const trackerOrder = (e) => (tracker?.orders ?? []).find((o) => o.id === e.track) ?? null;
+  const card = (e, form = false) => {
+    const t = trackerOrder(e);
+    const chip = orderChip(e, t);
+    return h('li', { class: 'rl-oc-card' },
+      e.asked ? h('p', { class: 'rl-oc-ask' }, e.asked) : null,
+      h('span', { class: `rl-oc-chip rl-oc-${chip.tone}` }, chip.word),
+      orderLines(e).map((line) => h('p', { class: 'rl-oc-line' }, line)),
+      form && t ? stepForm(t) : null);
+  };
+  const { need, moving, finished } = orderGroups(record, tracker);
+  const active = [...need.map((e) => card(e, true)), ...moving.map((e) => card(e))];
+  return h('section', { class: 'rl-oc', 'aria-labelledby': 'rl-oc-h' },
+    head,
+    active.length ? h('ul', { class: 'rl-oc-list', role: 'list' }, active) : null,
+    finished.length ? h('details', { class: 'rl-oc-done' },
+      h('summary', {}, `Finished (${finished.length})`),
+      h('ul', { class: 'rl-oc-list', role: 'list' }, finished.map((e) => card(e)))) : null);
 }
 

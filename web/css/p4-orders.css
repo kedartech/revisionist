@@ -1,13 +1,18 @@
-/* In-Tray follow-up, unit T4. Tokens only (web/css/tokens.css). */
+/* Your orders: the right column's cards (Train 2, unit O). Tokens only (web/css/tokens.css). */
 
-/* the orders log in the side column */
-.rl-log { font: 14px/1.5 var(--font-chrome); color: var(--fg-strong); }
-.rl-log h2 { margin: 0 0 var(--space-2); font: 600 16px/1.3 var(--font-chrome); }
-.rl-log-rows { list-style: none; margin: 0; padding: 0; }
-.rl-log-row { padding: var(--space-3) 0; border-bottom: 1px solid var(--rule); }
-.rl-log-row p { margin: 0 0 var(--space-1); }
-.rl-log-ask { font-weight: 600; }
-.rl-log-stage { color: var(--fg); font-size: 13px; }
-.rl-log-parts summary { cursor: pointer; color: var(--fg); font-size: 13px; }
-.rl-log-parts ul { list-style: none; margin: var(--space-2) 0 0; padding: 0; }
-.rl-log-parts li { margin: 0 0 var(--space-2); }
+.rl-oc { font: 14px/1.5 var(--font-chrome); color: var(--fg-strong); }
+.rl-oc h2 { margin: 0 0 .5rem; font: 600 13px/1.3 var(--font-head); text-transform: uppercase; letter-spacing: .04em; color: var(--fg); }
+.rl-oc-empty { margin: 0; color: var(--fg-muted); }
+.rl-oc-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: .75rem; list-style: none; margin: 0; padding: 0; }
+.rl-oc-card { display: grid; grid-template-columns: minmax(0, 1fr); justify-items: start; gap: .25rem; padding: .75rem; background: var(--surface-2); border: 1px solid var(--rule); }
+.rl-oc-ask { margin: 0; font-weight: 600; color: var(--fg-strong); overflow-wrap: anywhere; }
+.rl-oc-line { margin: 0; color: var(--fg-read); font-size: 13px; overflow-wrap: anywhere; }
+.rl-oc-chip { padding: .125rem .5rem; border: 1px solid currentColor; font: 600 12px/1.4 var(--font-chrome); text-transform: uppercase; letter-spacing: .04em; }
+.rl-oc-need { color: var(--warn); }
+.rl-oc-moving { color: var(--info); }
+.rl-oc-ok { color: var(--ok); }
+.rl-oc-bad { color: var(--danger); }
+.rl-oc-quiet { color: var(--fg-muted); }
+.rl-oc-done { margin-top: .75rem; }
+.rl-oc-done summary { cursor: pointer; color: var(--fg); font-size: 13px; }
+.rl-oc-done .rl-oc-list { margin-top: .5rem; }

@@ -31,7 +31,7 @@ export function deadlineWords(iso, timeZone) {
 }
 
 export function commitCount(wake) {
-  const tail = wake.humans === 1 ? 'player committed' : 'players committed';
+  const tail = wake.humans === 1 ? 'player done' : 'players done';
   return `${wake.committed} of ${wake.humans} ${tail}`;
 }
 
@@ -39,8 +39,10 @@ export function commitCount(wake) {
  * The commit button's words: "Done for today" before the seat is done; then "Done" when
  * every player is, else "Done, waiting on <n> of <m>" (n the players not done, m all).
  */
-export function commitLabel(wake) { // contract stub
-  return '';
+export function commitLabel(wake) {
+  if (!wake.you_committed) return 'Done for today';
+  if (wake.committed >= wake.humans) return 'Done';
+  return `Done, waiting on ${wake.humans - wake.committed} of ${wake.humans}`;
 }
 
 /** Under the commit button. */
@@ -126,35 +128,38 @@ export function orderAddress(p) {
   return `To ${p.person}, ${how === 'in person' ? how : `by ${how}`}`;
 }
 
-function commitButton(wake, act) {
-  return h('button', {
-    type: 'button', class: 'primary', onclick: () => act(commitBusy(wake), 'commit', {}),
-  }, 'Commit my orders');
-}
-
-/** Commit only while a wake is open; the text once committed. */
+/** Commit only while a wake is open; once the seat is done, its words as a status. */
 function commitControl(wake, act) {
   if (!wake.deadline) return null;
-  return wake.you_committed ? committed() : commitButton(wake, act);
+  return wake.you_committed ? committed(wake) : commitButton(wake, act);
 }
 
-function committed() {
-  return h('span', { class: 'rl-committed' }, icon('check'), 'Committed');
+/** The commit button and the hint under it, until the seat is done. */
+function commitButton(wake, act) {
+  return h('div', { class: 'rl-done-commit' },
+    h('button', {
+      type: 'button', class: 'primary', onclick: () => act(commitBusy(wake), 'commit', {}),
+    }, commitLabel(wake)),
+    h('p', { class: 'rl-done-hint' }, DONE_HINT));
+}
+
+function committed(wake) {
+  return h('span', { class: 'rl-committed', role: 'status', 'aria-live': 'polite' }, icon('check'), commitLabel(wake));
 }
 
 /** The host's close, behind a confirm: closing runs the wake. */
 function closeWake(act) {
   const dialog = h('dialog', { class: 'sheet rl-close-wake', 'aria-labelledby': 'rl-close-wake-h' },
-    h('h2', { id: 'rl-close-wake-h' }, 'Close this wake?'),
-    h('p', {}, 'It runs now, with the orders as they stand. The aide plays any seat that has not committed. This can take a minute.'),
+    h('h2', { id: 'rl-close-wake-h' }, RUN_NOW.heading),
+    h('p', {}, RUN_NOW.text),
     h('div', { class: 'row end' },
-      h('button', { type: 'button', class: 'ghost', onclick: () => dialog.close() }, 'Cancel'),
+      h('button', { type: 'button', class: 'ghost', onclick: () => dialog.close() }, RUN_NOW.cancel),
       h('button', {
         type: 'button', class: 'danger',
         onclick: () => { dialog.close(); act(RUNNING, 'close', {}); },
-      }, 'Close it')));
+      }, RUN_NOW.confirm)));
   return [
-    h('button', { type: 'button', 'aria-haspopup': 'dialog', onclick: () => dialog.showModal() }, 'Close the wake now'),
+    h('button', { type: 'button', 'aria-haspopup': 'dialog', onclick: () => dialog.showModal() }, RUN_NOW.button),
     dialog,
   ];
 }

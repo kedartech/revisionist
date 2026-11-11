@@ -10,10 +10,12 @@ from collections.abc import Iterable
 from datetime import date
 
 from revisionist.core import events as ev
+from revisionist.core import record
 from revisionist.core.events import Event
 from revisionist.core.ids import CampaignId, EntityId, MandateId, SeatId
 from revisionist.core.project import project
 from revisionist.core.realism.agenda import Offer, Option, PlayStyle
+from revisionist.core.realism.effect import RoutedPart
 from revisionist.core.state import State, View
 from revisionist.engine import options, realism_tick
 from revisionist.engine.store import EventStore, load_state
@@ -40,6 +42,19 @@ def _latest(log: Iterable[Event], seat: SeatId, wake: int) -> ev.OptionsOffered 
     return found
 
 
+def _filed(log: list[Event], seat: SeatId, wake: int) -> list[tuple[RoutedPart, ...]]:
+    """The parts of each order ``seat`` routed while ``wake`` was open."""
+    filed: list[tuple[RoutedPart, ...]] = []
+    open_here = False
+    for event in log:
+        p = event.payload
+        if isinstance(p, ev.WakeOpened):
+            open_here = p.wake == wake
+        elif open_here and isinstance(p, ev.OrderRouted) and p.order.issuer == seat:
+            filed.append(p.order.parts)
+    return filed
+
+
 def _name(view: View, who: EntityId | None) -> str | None:
     if who is None:
         return None
@@ -51,46 +66,54 @@ def _token(wake: int, offer: int, option: int) -> str:
     return f"w{wake}.o{offer}.p{option}"
 
 
-def _shown(view: View, option: Option, pick: str, label: str | None = None) -> AgendaOption:
+def _shown(
+    view: View, option: Option, pick: str, taken: bool, label: str | None = None
+) -> AgendaOption:
     return AgendaOption(
         label=label or option.label,
         to=_name(view, option.to),
         risk=option.risk,
         historical=option.historical,
         pick=pick,
-        taken=False,
+        taken=taken,
     )
 
 
-def _listed(view: View, made: ev.OptionsOffered, index: int) -> tuple[list[AgendaOption], bool]:
+def _listed(
+    view: View, made: ev.OptionsOffered, index: int, filed: list[tuple[RoutedPart, ...]]
+) -> tuple[list[AgendaOption], bool]:
     """The offer's options for the client; a guided plan is its asks in order, every
-    step carrying the plan's one token. The flag: whether it is a plan."""
+    step carrying the plan's one token and one taken flag. The flag: whether it is a plan."""
     offer = made.offers[index]
     if offer.style is PlayStyle.GUIDED:
         plan = offer.options[0]
         pick = _token(made.wake, index, 0)
-        return [_shown(view, plan, pick, a.ask) for a in plan.asks], True
+        taken = record.taken(plan.asks, filed)
+        return [_shown(view, plan, pick, taken, a.ask) for a in plan.asks], True
     return [
-        _shown(view, o, _token(made.wake, index, n)) for n, o in enumerate(offer.options)
+        _shown(view, o, _token(made.wake, index, n), record.taken(o.asks, filed))
+        for n, o in enumerate(offer.options)
     ], False
 
 
 def agenda(state: State, seat: SeatId, log: Iterable[Event]) -> AgendaBlock:
     """Each live mandate and the seat's offers from ``log``, all from its own view."""
     view = project(state, seat)
-    made = _latest(log, seat, _wake(state))
+    events = list(log)
+    made = _latest(events, seat, _wake(state))
+    filed = _filed(events, seat, made.wake) if made is not None else []
     items: list[AgendaItem] = []
     initiative: list[AgendaOption] = []
     by_mandate: dict[MandateId | None, int] = {}
     if made is not None:
         by_mandate = {o.mandate_id: i for i, o in enumerate(made.offers)}
         if None in by_mandate:
-            initiative = _listed(view, made, by_mandate[None])[0]
+            initiative = _listed(view, made, by_mandate[None], filed)[0]
     for mandate in options._live(view):
         listed: list[AgendaOption] = []
         plan = False
         if made is not None and mandate.mandate_id in by_mandate:
-            listed, plan = _listed(view, made, by_mandate[mandate.mandate_id])
+            listed, plan = _listed(view, made, by_mandate[mandate.mandate_id], filed)
         items.append(
             AgendaItem(
                 id=mandate.mandate_id,

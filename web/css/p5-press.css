@@ -1,1 +1,33 @@
-/* p5-press.css: unit TH3 of Train 2. contract stub */
+/* p5-press.css: the press paper keeps its newspaper look under the terminal theme. */
+
+.rl-page.rl-page-press {
+  border: 2px var(--border-sheet) var(--fg-read);
+  background: var(--surface);
+  color: var(--fg-read);
+  box-shadow: var(--shadow-sheet);
+  font-family: var(--font-read);
+}
+
+.rl-page-press::before {
+  content: "INTERCEPT";
+  display: inline-block;
+  margin-bottom: var(--space-3);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--fg-read);
+  font: 700 12px/1.6 var(--font-chrome);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--fg-strong);
+  transform: rotate(var(--tilt-stamp));
+}
+
+.rl-page-press h2 {
+  font-family: var(--font-read);
+  color: var(--fg-strong);
+}
+
+.rl-page-press .rl-prose,
+.rl-page-press .rl-prose p {
+  font-family: var(--font-read);
+  color: var(--fg-read);
+}

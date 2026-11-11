@@ -345,6 +345,14 @@ export function realismRoom(ctx) {
     return counts;
   }
 
+  /** A redraw drops focus; put it back in the messenger so Esc and the keyboard keep working. */
+  function refocus(chat) {
+    const panel = root.querySelector('.rl-msgr-panel');
+    const target = !chat.open ? root.querySelector('.rl-msgr-btn')
+      : panel?.querySelector(chat.thread ? '.rl-msgr-back' : '[role="tab"][aria-selected="true"]');
+    target?.focus();
+  }
+
   function dock() {
     const counts = chatCounts();
     const marks = seen.read();
@@ -353,7 +361,7 @@ export function realismRoom(ctx) {
     const inner = rv.desk.inner_circle.map((c) => c.person);
     return chatDock({
       state: ui.chat,
-      onState: (next) => { ui.chat = next; rerender(); },
+      onState: (next) => { ui.chat = next; rerender(); refocus(next); },
       counts,
       seen: seen.read(),
       contacts: rv.desk.inner_circle,
@@ -367,8 +375,8 @@ export function realismRoom(ctx) {
       contactsTab: contactsTab(rv.reach, {
         inner,
         selected: ui.contact,
-        onSelect: (name) => { ui.contact = name; rerender(); },
-        onMessage: (name) => { ui.chat = { open: true, tab: 'chats', thread: name }; rerender(); },
+        onSelect: (name) => { ui.contact = name; rerender(); refocus(ui.chat); },
+        onMessage: (name) => { ui.chat = { open: true, tab: 'chats', thread: name }; rerender(); refocus(ui.chat); },
         onOrder: (c) => {
           ui.orderTo = c;
           ui.proposal = null;

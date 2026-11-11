@@ -55,7 +55,7 @@ function moveFocus(e) {
   const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
   if (!step) return;
   e.preventDefault();
-  const rows = [...e.currentTarget.closest('[role="listbox"]').querySelectorAll('.rl-row')]
+  const rows = [...e.currentTarget.closest('.rl-mail-list').querySelectorAll('.rl-row')]
     .filter((r) => !r.closest('[hidden]'));
   rows[rows.indexOf(e.currentTarget) + step]?.focus();
 }
@@ -92,22 +92,51 @@ function groupRow(row, onOpen, open) {
   return h('li', { class: 'rl-group', role: 'presentation' }, head, kids);
 }
 
+const TRAY_SECTIONS = Object.freeze([
+  ['answers', 'Answers to your orders'], ['press', 'Press'], ['reports', 'Reports'],
+]);
+
 /**
- * The tray's sections, in this order and empty ones dropped: `answers` ("Answers to your
- * orders": `answer` true), `press` ("Press": kind press), `reports` ("Reports": everything
- * else that is not an acknowledgement). Each `{ key, heading, rows }`, rows folded by
- * `trayRows`. The acknowledgement filter still lists acknowledgements on their own.
+ * The tray's sections, in this order and empty ones dropped: `answers` (`answer` true), `press`
+ * (kind press), `reports` (everything else). Acknowledgements are in no section. Each
+ * `{ key, heading, rows }`, rows folded by `trayRows`.
  */
-export function traySections(items) { // contract stub
-  return [];
+export function traySections(items) {
+  const bins = { answers: [], press: [], reports: [] };
+  for (const d of items) {
+    if (d.ack) continue;
+    if (d.answer) bins.answers.push(d);
+    else if (d.kind === 'press') bins.press.push(d);
+    else bins.reports.push(d);
+  }
+  return TRAY_SECTIONS.filter(([key]) => bins[key].length)
+    .map(([key, heading]) => ({ key, heading, rows: trayRows(bins[key]) }));
 }
 
-/** The tray panel. `opts`: { filter, sort, onFilter, onSort, page, onClose, onFlag, wide, requests }. */
+function rowNodes(rows, onOpen, open) {
+  return rows.map((r) => (r.type === 'group'
+    ? groupRow(r, onOpen, open)
+    : h('li', { role: 'presentation' }, paperRow(r.item, onOpen, open, false))));
+}
+
+function sectionList(section, onOpen, open) {
+  const id = `rl-tray-${section.key}-h`;
+  return h('div', { class: 'rl-tray-section' },
+    h('h3', { id, class: 'rl-tray-head' }, section.heading),
+    h('ul', { class: 'rl-rows', role: 'listbox', 'aria-labelledby': id }, rowNodes(section.rows, onOpen, open)));
+}
+
+/** The tray panel. `opts`: { filter, sort, onFilter, onSort, page, onClose, onFlag, wide }. */
 export function trayView(listing, onOpen, opts = {}) {
   const { filter = 'all', sort = 'newest', onFilter, onSort, page } = opts;
   const counts = trayCounts(listing.documents);
-  const rows = trayRows(sortInTray(filterInTray(listing.documents, filter), sort));
   const open = page?.item;
+  const sorted = sortInTray(filterInTray(listing.documents, filter), sort);
+  const lists = filter === 'all'
+    ? traySections(sorted).map((s) => sectionList(s, onOpen, open))
+    : sorted.length
+      ? [h('ul', { class: 'rl-rows', role: 'listbox', 'aria-label': 'Papers' }, rowNodes(trayRows(sorted), onOpen, open))]
+      : [];
   return h('section', { class: 'rl-tray', 'aria-labelledby': 'rl-tray-h' },
     h('h2', { id: 'rl-tray-h' }, 'In-tray'),
     h('div', { class: 'rl-bar' },
@@ -119,13 +148,7 @@ export function trayView(listing, onOpen, opts = {}) {
     h('div', { role: 'tabpanel', id: 'rl-folders', 'aria-labelledby': `rl-filter-${filter}` },
       h('div', { class: `rl-mail${page ? ' rl-mail-open' : ''}` },
         h('div', { class: 'rl-mail-list' },
-          opts.requests ?? null,
-          rows.length
-            ? h('ul', { class: 'rl-rows', role: 'listbox', 'aria-label': 'Papers' },
-              rows.map((r) => r.type === 'group'
-                ? groupRow(r, onOpen, open)
-                : h('li', { role: 'presentation' }, paperRow(r.item, onOpen, open, false))))
-            : h('p', { class: 'rl-none' }, 'Nothing in this tray.')),
+          lists.length ? lists : h('p', { class: 'rl-none' }, 'Nothing in this tray.')),
         h('div', { class: 'rl-mail-pane' },
           page
             ? dossier(page, { onClose: opts.onClose, onFlag: opts.onFlag })

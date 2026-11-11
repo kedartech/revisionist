@@ -8,8 +8,9 @@ import pytest
 
 from revisionist.core import events as ev
 from revisionist.core.fold import state_hash
-from revisionist.core.ids import DocumentId, EventId
+from revisionist.core.ids import DocumentId, EventId, OrderId, SeatId
 from revisionist.core.project import project
+from revisionist.core.realism.pipeline import OrderStatus
 from revisionist.core.realism.pipelines import waiting_on_human
 from revisionist.core.state import State, View
 from revisionist.core.visibility import private_to
@@ -135,24 +136,32 @@ def test_read_pages_are_not_unread() -> None:
     assert first not in out.unread and out.unread
 
 
+def _bill_on_the_desk(store: EventStore, seat: SeatId) -> OrderId:
+    """File the bill until one reaches Roosevelt's desk."""
+    for _ in range(5):  # an order's id is random, and about one in a hundred lapses
+        order = realism_tick.file_order(
+            store, CAMPAIGN, seat, "send_bill", {"bill": "neutrality_revision", "urgency": "urgent"}
+        )
+        for _ in range(200):
+            state = load_state(store, CAMPAIGN)
+            filed = state.orders[order.order_id]
+            if waiting_on_human(state, filed):
+                return order.order_id
+            if filed.status is not OrderStatus.MOVING:
+                break
+            run_realism_tick(store, CAMPAIGN, prose=TemplateProseWriter())
+    pytest.fail("the bill never reached Roosevelt's desk")
+
+
 def test_the_aide_lists_decisions_waiting_on_the_human_and_files_nothing() -> None:
     store = ready()
     seat = roosevelt_seat(store)
-    order = realism_tick.file_order(
-        store, CAMPAIGN, seat, "send_bill", {"bill": "neutrality_revision", "urgency": "urgent"}
-    )
-    for _ in range(200):
-        state = load_state(store, CAMPAIGN)
-        if waiting_on_human(state, state.orders[order.order_id]):
-            break
-        run_realism_tick(store, CAMPAIGN, prose=TemplateProseWriter())
-    else:
-        pytest.fail("the bill never reached Roosevelt's desk")
+    order_id = _bill_on_the_desk(store, seat)
     plant_memo(store)
     before = load_state(store, CAMPAIGN)
     waiting = [o for o in before.orders.values() if waiting_on_human(before, o)]
     out = aide_for(store, CAMPAIGN, seat, TemplateAide())
-    assert [d.order_id for d in out.decisions] == [o.order_id for o in waiting] == [order.order_id]
+    assert [d.order_id for d in out.decisions] == [o.order_id for o in waiting] == [order_id]
     assert "pass" in out.decisions[0].allowed
     after = load_state(store, CAMPAIGN)
     assert after.last_seq == before.last_seq  # the template aide writes nothing at all

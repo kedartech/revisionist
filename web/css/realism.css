@@ -288,3 +288,7 @@ button.danger { background: var(--danger); color: var(--on-accent); border-color
 .rl-msg.theirs .rl-msg-who { font-family: var(--font-chrome); }
 /* A caution stamp on a closed folder sits on a sheet-coloured patch: the bare manila is too dark for it. */
 .rl-folder .stamp-confidential, .rl-folder .stamp-secret { background: var(--surface); }
+
+/* The character-select screen's cast: a grid of cards (realism-cast.js) */
+.rl-cast { margin-block: 1rem; }
+.rl-cast-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .75rem; }

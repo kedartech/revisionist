@@ -170,11 +170,11 @@ def seat_snapshot(store: PostgresEventStore, state: State, seat: SeatId) -> dict
     """Everything one seat's screens show. ``seat`` need not exist yet: in Session
     Zero it appears when the player claims a character."""
     log = _own_log(store, state.campaign_id, seat)
-    out: dict[str, Any] = {
-        "roster": roster(state, dossiers.for_people(state, store.read(state.campaign_id)))
-        if state.phase is Phase.SESSION_ZERO
-        else []
-    }
+    out: dict[str, Any] = {"roster": []}
+    if state.phase is Phase.SESSION_ZERO:
+        events = list(store.read(state.campaign_id))
+        out["roster"] = roster(state, dossiers.for_people(state, events))
+        out["setting"] = dossiers.setting(state, events)
     if seat not in state.seats:
         out["seat"] = None
         return out

@@ -82,17 +82,33 @@ function dossierDialog({ id, name, portrait, sections, onClose }) {
   return dialog;
 }
 
+const PORTRAIT_FILE = /^[a-z0-9][a-z0-9-]*\.(jpg|png|webp)$/;
+
+/** `/assets/portraits/<file>` for a bare lowercase image file name (the sidecar's rule); else null. */
+export function portraitSrc(file) {
+  return typeof file === 'string' && PORTRAIT_FILE.test(file) ? `/assets/portraits/${file}` : null;
+}
+
+/**
+ * The portrait for `name`, shared by every screen that shows one: a `figure` holding
+ * `span.portrait-frame > img.portrait` (alt the name) and the credit as a caption, or, with no
+ * usable portrait, `span.portrait-mono` with the monogram (aria-hidden). `prefix` adds the
+ * screen's own classes: `<prefix>-figure`, `<prefix>-portrait`, `<prefix>-credit`, `<prefix>-mono`.
+ */
+export function portraitNode(name, dossier, prefix) {
+  const src = portraitSrc(dossier?.portrait);
+  if (!src) return h('span', { class: `portrait-mono ${prefix}-mono`, 'aria-hidden': 'true' }, monogram(name));
+  return h('figure', { class: `portrait-figure ${prefix}-figure` },
+    h('span', { class: 'portrait-frame' }, h('img', { class: `portrait ${prefix}-portrait`, src, alt: name })),
+    dossier.credit ? h('figcaption', { class: `portrait-credit ${prefix}-credit` }, dossier.credit) : null);
+}
+
 /**
  * A `<dialog class="rl-dos">` headed with `name`: the portrait (`/assets/portraits/<file>`,
  * alt the name) or the monogram, the sections, the credit line under a portrait, and Close.
  */
 export function characterDossier({ name, desk, dossier, onClose }) {
-  const file = dossier?.portrait;
-  const portrait = file
-    ? h('figure', { class: 'rl-dos-figure' },
-      h('img', { class: 'rl-dos-portrait', src: `/assets/portraits/${encodeURIComponent(file)}`, alt: name }),
-      dossier.credit ? h('figcaption', { class: 'rl-dos-credit' }, dossier.credit) : null)
-    : h('span', { class: 'rl-dos-mono', 'aria-hidden': 'true' }, monogram(name));
+  const portrait = portraitNode(name, dossier, 'rl-dos');
   return dossierDialog({
     id: 'rl-dos-character', name, portrait, sections: dossierSections(desk, dossier), onClose,
   });

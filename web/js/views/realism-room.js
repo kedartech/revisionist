@@ -19,6 +19,7 @@ import { characterDossier, settingDossier } from './realism-dossier.js';
 import { standardForms } from './realism-forms.js';
 import { happenedSheet, happenedStore, shouldShow } from './realism-happened.js';
 import { ideasPanel } from './realism-ideas.js';
+import { crawlParagraphs, introCrawl, introStage, markIntro, seatSplash, splashModel } from './realism-intro.js';
 import { newsBlock, whatChanged } from './realism-news.js';
 import { orderCards } from './realism-orders.js';
 import { overlayLines, wakeOverlay } from './realism-overlay.js';
@@ -425,14 +426,52 @@ export function realismRoom(ctx) {
       : null;
     // Esc closes a dialog without its button: the close event counts either way
     happened?.addEventListener('close', () => { ui.happenedSeen = page.number; shown.write(page.number); });
-    return { character, setting, happened };
+    return { character, setting, happened, intro: intro(happened) };
+  }
+
+  /**
+   * The opening, once per game in this browser and only before the seat's first order:
+   * the crawl (unless the host already watched it at Begin), then the seat's splash. The
+   * What happened sheet waits behind it.
+   */
+  function intro(after) {
+    const stage = introStage(storage(), game.id, !rv.record?.orders?.length);
+    if (!stage) return null;
+    const drop = (d) => { if (d.open) d.close(); d.remove(); };
+    const splash = () => {
+      const s = seatSplash({
+        name: seatName,
+        model: splashModel(seatName, rv.desk, rv.dossier),
+        dossier: rv.dossier,
+        onDone: () => {
+          markIntro(storage(), game.id, 'splash');
+          drop(s);
+          if (after?.isConnected && !after.open) after.showModal();
+        },
+      });
+      return s;
+    };
+    const paragraphs = crawlParagraphs(rv.setting);
+    if (stage === 'splash' || !paragraphs.length) return splash();
+    const crawl = introCrawl({
+      title: game.name,
+      paragraphs,
+      onDone: () => {
+        markIntro(storage(), game.id, 'crawl');
+        drop(crawl);
+        const next = splash();
+        root.append(next);
+        next.showModal();
+      },
+    });
+    return crawl;
   }
 
   let pending = null;
   function build() {
     const [menuBtn, menu] = gameMenu(game, ctx, work);
-    const { character, setting, happened } = sheets();
-    pending = happened;
+    const { character, setting, happened, intro: opening } = sheets();
+    pending = opening ?? happened;
     const extra = [
       h('span', { class: 'divider', 'aria-hidden': 'true' }),
       h('div', { class: 'stack rl-clock' }, h('span', { class: 'title' }, worldDate(rv.clock.world_date)), paceHeader(rv.clock)),
@@ -452,7 +491,7 @@ export function realismRoom(ctx) {
       newsBlock(whatChanged(rv.documents), (id) => open({ id })),
       h('main', { class: `rl-room${ui.wide ? ' wide' : ''}` }, papers(), deskColumn(), sideColumn()),
       dock(),
-      menu, character, setting, happened,
+      menu, character, setting, happened, opening,
     ].filter(Boolean);
   }
 

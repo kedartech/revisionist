@@ -517,6 +517,8 @@ class Dossier(TypedDict):
     nothing in it comes from a card's private side. Empty fields hide their section."""
 
     bio: str | None
+    arena: str | None
+    """The seat's own stage in two or three sentences: what it commands and who it must carry."""
     history: list[str]
     """As history had it: what the person did in the record, one line each. Not binding."""
     quote: str | None

@@ -1,0 +1,172 @@
+{
+  "roster": [
+    {
+      "name": "Franklin D. Roosevelt",
+      "pitch": "Third-term President steering a neutral nation toward the Allies.",
+      "reach": "The Navy, the radio, and what Congress will pass.",
+      "composite": false,
+      "taken": false,
+      "aliases": [],
+      "dossier": {
+        "bio": "Franklin Delano Roosevelt, thirty-second President of the United States, won an unprecedented third term in November 1940. A former Assistant Secretary of the Navy and Governor of New York, he was struck by polio in 1921 and governs from a wheelchair the public rarely sees. He carried the country through the Depression with the New Deal, and now steers a neutral nation toward Britain: destroyers for bases in 1940, Lend-Lease in March 1941, the Atlantic Charter with Churchill in August. He leads by radio, by press conference and by keeping his own counsel, and he must still carry a Congress that renewed the draft by a single vote.",
+        "arena": "Your arena is Washington and the western Atlantic. The Navy escorts convoys as far as Iceland on your order; Congress decides whether merchant ships may be armed and sail into the war zones; and the country is not yet sure it wants a war. What you say on the radio moves opinion. What you ask of Congress has to pass both Houses.",
+        "history": [
+          "Ordered the Navy to shoot on sight at Axis raiders after the Greer incident, in a radio talk on 11 September 1941.",
+          "Asked Congress to arm merchant ships and let them sail to Britain; the Neutrality Act was revised in November 1941.",
+          "Made the Soviet Union eligible for Lend-Lease on 7 November 1941.",
+          "Asked Congress for war on Japan on 8 December 1941, the day after Pearl Harbor."
+        ],
+        "quote": "When you see a rattlesnake poised to strike, you do not wait until he has struck before you crush him.",
+        "source": "Fireside chat on the Greer incident, 11 September 1941",
+        "fact": "He is the only President elected to a third term.",
+        "portrait": "roosevelt.jpg",
+        "credit": "Leon Perskie, 1944. CC BY 2.0."
+      },
+      "sides": [
+        {
+          "contest": "Neutrality revision",
+          "side": "Interventionists"
+        },
+        {
+          "contest": "US-Japan talks",
+          "side": "United States"
+        }
+      ]
+    },
+    {
+      "name": "Winston Churchill",
+      "pitch": "Prime Minister holding on until America comes in.",
+      "reach": "The War Cabinet, the Chiefs of Staff, and cables to Roosevelt.",
+      "composite": false,
+      "taken": true,
+      "aliases": [],
+      "dossier": {
+        "bio": "Winston Spencer Churchill became Prime Minister in May 1940, as France fell, and leads a coalition government from Downing Street and the Cabinet War Rooms. A soldier, war correspondent and writer before he was a politician, he was First Lord of the Admiralty in both wars and spent the 1930s warning against German rearmament. Britain stood without a major ally from the summer of 1940; since June 1941 the Soviet Union fights beside it, and it lives on American supplies carried across an Atlantic where the U-boats hunt. His tools are the War Cabinet, the Chiefs of Staff, the House of Commons, and a private correspondence with Roosevelt that he signs \"Former Naval Person\".",
+        "arena": "Your arena is the Atlantic lifeline and the House of Commons. The Home Fleet and the escorts decide whether the convoys reach Britain; the Commons expects them covered; and every cable to Washington asks for a little more than America has yet agreed to give.",
+        "history": [
+          "Agreed the Atlantic Charter with Roosevelt at Placentia Bay in August 1941.",
+          "Sent the first Arctic convoy of aid to the Soviet Union in August 1941.",
+          "Opened Operation Crusader to relieve Tobruk on 18 November 1941.",
+          "Crossed to Washington after Pearl Harbor to plan the war with Roosevelt."
+        ],
+        "quote": "Give us the tools, and we will finish the job.",
+        "source": "Broadcast, 9 February 1941",
+        "fact": "He sat in the House of Commons for the first time in 1901.",
+        "portrait": null,
+        "credit": null
+      },
+      "sides": [
+        {
+          "contest": "The Atlantic war",
+          "side": "United Kingdom"
+        }
+      ]
+    },
+    {
+      "name": "Burton K. Wheeler",
+      "pitch": "The Senate's loudest voice for staying out of the war.",
+      "reach": "His vote, his speeches, and the America First rallies.",
+      "composite": false,
+      "taken": false,
+      "aliases": [],
+      "dossier": {
+        "bio": null,
+        "arena": null,
+        "history": [],
+        "quote": null,
+        "source": null,
+        "fact": null,
+        "portrait": null,
+        "credit": null
+      },
+      "sides": []
+    }
+  ],
+  "figures": [
+    {
+      "side": "United States",
+      "power": "Navy",
+      "figures": [
+        {
+          "name": "Harold R. Stark",
+          "title": "Chief of Naval Operations"
+        },
+        {
+          "name": "Ernest J. King",
+          "title": "Commander, Atlantic Fleet"
+        }
+      ]
+    },
+    {
+      "side": "United Kingdom",
+      "power": "Navy",
+      "figures": [
+        {
+          "name": "Sir Dudley Pound",
+          "title": "First Sea Lord"
+        }
+      ]
+    },
+    {
+      "side": "United States",
+      "power": "Congress",
+      "figures": [
+        {
+          "name": "Sam Rayburn",
+          "title": "Speaker of the House"
+        },
+        {
+          "name": "Franklin D. Roosevelt",
+          "title": "President"
+        }
+      ]
+    },
+    {
+      "side": "Germany",
+      "power": "Navy",
+      "figures": [
+        {
+          "name": "Karl Dönitz",
+          "title": "Commander of U-boats"
+        }
+      ]
+    }
+  ],
+  "setting": {
+    "situation": "September 1941. Britain has fought Germany for two years, and since June the Soviet Union fights too. The United States is neutral in law: it lends and leases Britain the means of war, and its Navy escorts convoys as far as Iceland, where the U-boats wait.",
+    "sides": [
+      "Those who would bring America into the war: the President's men, and Britain",
+      "Those who would keep America out: Wheeler, America First and much of Congress",
+      "Germany, whose U-boats make the choice harder every week"
+    ],
+    "crawl": [
+      "It is September 1941. For two years Britain has fought Germany, alone for much of that time. Since June the Soviet Union has fought too, and it is falling back.",
+      "Across the Atlantic, the United States is neutral in law and not in fact. American ships carry Lend-Lease to Britain, American destroyers escort the convoys as far as Iceland, and German U-boats wait beyond.",
+      "In Washington and London, a few people will decide how long that can last. One of them is you."
+    ],
+    "facts": [
+      "The Neutrality Act still bars American merchant ships from the war zones.",
+      "Lend-Lease became law on 11 March 1941.",
+      "The House renewed the draft by one vote, 203 to 202, on 12 August 1941.",
+      "American troops landed in Iceland in July 1941.",
+      "Roosevelt and Churchill met at Placentia Bay in August 1941."
+    ],
+    "dates": [
+      {
+        "on": "4 September 1941",
+        "what": "USS Greer and U-652 exchange fire south of Iceland."
+      },
+      {
+        "on": "20 September 1941",
+        "what": "Congress can take up the arming of merchant ships."
+      }
+    ]
+  },
+  "desk": {
+    "office": "President of the United States",
+    "principals": [
+      "The electorate",
+      "Congress"
+    ]
+  }
+}

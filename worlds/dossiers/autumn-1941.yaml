@@ -72,8 +72,8 @@ people:
       crush him.
     source: Fireside chat on the Greer incident, 11 September 1941
     fact: He is the only President elected to a third term.
-    portrait: null
-    credit: null
+    portrait: roosevelt.jpg
+    credit: Leon Perskie, 1944. CC BY 2.0
   churchill:
     bio: Winston Spencer Churchill became Prime Minister in May 1940, as France fell, and leads a coalition
       government from Downing Street and the Cabinet War Rooms. A soldier, war correspondent and writer
@@ -93,8 +93,8 @@ people:
     quote: Give us the tools, and we will finish the job.
     source: Broadcast, 9 February 1941
     fact: He sat in the House of Commons for the first time in 1901.
-    portrait: null
-    credit: null
+    portrait: churchill.jpg
+    credit: Ottawa, December 1941. Public domain
   stalin:
     bio: Joseph Stalin, born Ioseb Jughashvili in Georgia, rose through the Bolshevik party to rule the
       Soviet Union alone by the end of the 1920s. He drove collectivisation and forced industrialisation
@@ -115,8 +115,8 @@ people:
       friends!
     source: Radio broadcast, 3 July 1941
     fact: He took the name Stalin, from the Russian for steel.
-    portrait: null
-    credit: null
+    portrait: stalin.jpg
+    credit: Tehran, November 1943. FDR Library
   hitler:
     bio: Adolf Hitler, born in Austria in 1889, led the National Socialist party to power in January 1933
       and made himself dictator of Germany within two years. His regime destroyed every rival party, persecuted
@@ -136,8 +136,8 @@ people:
     quote: This enemy is already broken and will never rise again.
     source: Speech at the Berlin Sportpalast, 3 October 1941
     fact: He became a German citizen only in 1932.
-    portrait: null
-    credit: null
+    portrait: hitler.jpg
+    credit: US National Archives. Public domain
   konoe:
     bio: 'Prince Fumimaro Konoe, heir to the oldest of Japan''s court families, is Prime Minister for
       the third time. He first took office in June 1937, weeks before the war with China began, and presided
@@ -156,8 +156,8 @@ people:
     quote: null
     source: null
     fact: He was Prime Minister three times between 1937 and 1941.
-    portrait: null
-    credit: null
+    portrait: konoe.jpg
+    credit: Cabinet Information Bureau, 1938. Public domain
   tojo:
     bio: 'General Hideki Tojo, a career officer and once chief of staff of the Kwantung Army in Manchuria,
       has been War Minister since July 1940. Known in the army as "the Razor" for his quick mind and hard
@@ -175,8 +175,8 @@ people:
     quote: Sometimes a man has to jump, with his eyes closed, from the veranda of Kiyomizu Temple.
     source: To Prince Konoe, October 1941, as Konoe recorded it
     fact: His nickname in the army was Kamisori, "the Razor".
-    portrait: null
-    credit: null
+    portrait: tojo.jpg
+    credit: Photographer unknown. Public domain
   mussolini:
     bio: Benito Mussolini, a blacksmith's son who became a schoolteacher and a socialist editor, founded
       Fascism after the First World War and has ruled Italy since the March on Rome in 1922. He conquered
@@ -194,8 +194,8 @@ people:
     quote: Vincere! E vinceremo!
     source: Speech declaring war, Rome, 10 June 1940
     fact: He edited the socialist daily Avanti! before the First World War.
-    portrait: null
-    credit: null
+    portrait: mussolini.jpg
+    credit: Photographer unknown. Public domain
   chiang:
     bio: Generalissimo Chiang Kai-shek, a soldier trained in Japan and the first commandant of the Whampoa
       Military Academy, became head of the Nationalist government after the Northern Expedition of 1926
@@ -215,5 +215,5 @@ people:
       reached the limit of endurance we will not talk lightly of sacrifice.
     source: Address at Kuling, July 1937 (Central News Agency translation)
     fact: Chongqing has been China's wartime capital since 1938.
-    portrait: null
-    credit: null
+    portrait: chiang.jpg
+    credit: About 1943. Public domain

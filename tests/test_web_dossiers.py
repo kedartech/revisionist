@@ -208,6 +208,23 @@ def test_every_portrait_named_in_a_ready_sidecar_is_in_the_repo(world: str) -> N
             assert d["credit"], f"{key}: a portrait is shown with its credit"
 
 
+@pytest.mark.parametrize("world", READY)
+def test_every_playable_person_in_a_ready_sidecar_has_a_portrait(world: str) -> None:
+    people, _ = dossiers.load(world)
+    assert [key for key, d in people.items() if not d["portrait"]] == []
+
+
+def test_every_portrait_file_is_a_small_jpeg_with_its_source_recorded() -> None:
+    sources = (dossiers.PORTRAITS_DIR / "SOURCES.md").read_text()
+    shots = sorted(dossiers.PORTRAITS_DIR.glob("*.jpg"))
+    assert shots
+    for shot in shots:
+        data = shot.read_bytes()
+        assert data[:3] == b"\xff\xd8\xff", shot.name
+        assert len(data) <= 64_000, shot.name
+        assert f"`{shot.name}`" in sources, f"{shot.name}: source and licence not recorded"
+
+
 # --- the blocks a campaign serves ----------------------------------------------------
 
 

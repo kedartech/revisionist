@@ -119,6 +119,14 @@ test('figures: a figure with no value is left out; first matter without a deadli
   assert.equal(startOverview({ agenda: { ...room.agenda, items: [] } }).first, null);
 });
 
+test('first matter: a deadline the text already names is not repeated', () => {
+  const named = { ...room.agenda.items[0], text: 'Answer the Navy on the convoy by 15 September 1941.', deadline: '15 September 1941' };
+  assert.equal(startOverview({ agenda: { items: [named] } }).first, 'Answer the Navy on the convoy by 15 September 1941');
+  const other = { ...named, deadline: '20 September 1941' };
+  assert.equal(startOverview({ agenda: { items: [other] } }).first,
+    'Answer the Navy on the convoy by 15 September 1941 (due 20 September 1941)', 'a different date still shows');
+});
+
 test('the splash carries the overview; null when it has nothing', () => {
   assert.deepEqual(splashModel('Franklin D. Roosevelt', desk, fdr.dossier, OVERVIEW).overview, OVERVIEW);
   assert.equal(splashModel('Franklin D. Roosevelt', desk, fdr.dossier, { forces: [], figures: [], first: null }).overview, null);

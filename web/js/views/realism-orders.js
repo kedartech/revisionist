@@ -13,7 +13,8 @@ const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 function sortKey(day) {
   if (ISO_DAY.test(day ?? '')) return day;
   const m = /^(\d{1,2}) (\w+) (\d{4})$/.exec(day ?? '');
-  return m ? `${m[3]}-${String(MONTHS.indexOf(m[2]) + 1).padStart(2, '0')}-${m[1].padStart(2, '0')}` : '';
+  const month = m ? MONTHS.indexOf(m[2]) + 1 : 0;
+  return month ? `${m[3]}-${String(month).padStart(2, '0')}-${m[1].padStart(2, '0')}` : '';
 }
 
 function latestApplied(parts) {
@@ -30,7 +31,7 @@ export function orderStage(result) {
   if (parts.length && parts.every((p) => p.applied)) return `Finished ${dayInWords(latestApplied(parts))}`;
   if (parts.length && parts.every((p) => p.refused_under)) return 'Refused';
   if (parts.some((p) => p.applied || p.refused_under)) return 'Landed in part';
-  return `Made ${dayInWords(result.filed)}`;
+  return result.filed ? `Made ${dayInWords(result.filed)}` : 'Made';
 }
 
 /** Results with the newest filed first; ties keep their given order. Does not mutate. */

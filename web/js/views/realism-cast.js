@@ -66,11 +66,25 @@ export const PLAY_STYLES = [
 
 const SEARCH_WAIT = 300;
 
-/** What the Find someone box shows: a loading line, the list, or a line saying why it is empty. */
-export function searchState({ loading, shown, query }) {
+/** Names on the generated list that are already in the cast. */
+export function alreadyPlayed(groups, castNames) {
+  const cast = new Set(castNames.map((n) => n.toLowerCase()));
+  return groups.flatMap((g) => g.figures).map((f) => f.name).filter((n) => cast.has(n.toLowerCase()));
+}
+
+/**
+ * What the Find someone box shows: a loading line, the list, or a line saying why it is empty.
+ * `taken` names matches hidden because they are already played; the query then names them,
+ * not someone new, so no draw is offered.
+ */
+export function searchState({ loading, shown, query, taken = [] }) {
   if (loading) return { kind: 'loading', text: 'Searching…' };
   if (shown.length) return { kind: 'list' };
   const q = query.trim();
+  if (q && taken.length) {
+    const who = taken.length === 1 ? `${taken[0]} matches` : `${taken.slice(0, -1).join(', ')} and ${taken.at(-1)} match`;
+    return { kind: 'taken', text: `Only ${who} “${q}”, and they are already played.` };
+  }
   if (q) return { kind: 'none', text: `No one on the list matches “${q}”.`, offer: `Draw up ${q}` };
   return { kind: 'empty', text: 'No one is listed for this date.' };
 }
@@ -96,7 +110,7 @@ function whoHeldPower(game, cast, refresh) {
   };
   const render = () => {
     const shown = figureGroups(groups, cast);
-    const state = searchState({ loading, shown, query: asked });
+    const state = searchState({ loading, shown, query: asked, taken: alreadyPlayed(groups, cast) });
     if (state.kind === 'list') {
       list.replaceChildren(...shown.map((g) => h('div', { class: 'held-group' },
         h('h3', {}, g.side),

@@ -14,13 +14,13 @@ from tests.test_engine_v2_contract import CAMPAIGN, REASON_CANARY, Slice
 RATIONALE_CANARY = "CANARY-V2-RATIONALE-c41d"
 
 
-def _influence(sl: Slice, n: int, parts: int = 1) -> rx.RoutedOrder:
+def _influence(sl: Slice, n: int, parts: int = 1, ask: str = "") -> rx.RoutedOrder:
     order = rx.RoutedOrder(
         order_id=OrderId(derived_id(CAMPAIGN, "v2-order", n)),
         issuer=sl.fdr,
         filed=date(1941, 9, 10 + n),
         parts=tuple(
-            rx.RoutedPart(route=rx.Route.INFLUENCE, target=sl.entity("wheeler"))
+            rx.RoutedPart(route=rx.Route.INFLUENCE, target=sl.entity("wheeler"), ask=ask)
             for _ in range(parts)
         ),
     )
@@ -135,6 +135,37 @@ def test_no_rationale_no_estimate_and_no_underscore() -> None:
     assert REASON_CANARY in text
     for strings in _strings(got):
         assert "_" not in strings
+
+
+def test_a_free_text_ask_is_shown_in_the_seats_own_words() -> None:
+    sl = Slice()
+    words = "Ask Wheeler to back the bill quietly"
+    _influence(sl, 1, ask=words)
+    [part] = results(sl.state, sl.fdr)[0]["parts"]
+    assert part["ask"] == words
+
+
+def test_another_seats_results_do_not_hold_a_free_text_ask_own_words() -> None:
+    sl = Slice()
+    words = "Tell Roosevelt nothing about the convoy"
+    other = rx.RoutedOrder(
+        order_id=OrderId(derived_id(CAMPAIGN, "v2-order", 3)),
+        issuer=sl.wheeler,
+        filed=date(1941, 9, 20),
+        parts=(rx.RoutedPart(route=rx.Route.INFLUENCE, target=sl.entity("roosevelt"), ask=words),),
+    )
+    sl.add(ev.OrderRouted(order=other), private_to(sl.wheeler))
+    _influence(sl, 1)
+    assert words not in json.dumps(results(sl.state, sl.fdr))
+    [part] = results(sl.state, sl.wheeler)[0]["parts"]
+    assert part["ask"] == words
+
+
+def test_an_empty_ask_keeps_the_fallback_own_words() -> None:
+    sl = Slice()
+    _influence(sl, 1, ask="   ")
+    [part] = results(sl.state, sl.fdr)[0]["parts"]
+    assert part["ask"] == "A request in your own words"
 
 
 def _strings(node: object) -> list[str]:

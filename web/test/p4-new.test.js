@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { timelinePoints } from '../js/views/new-game.js';
-import { PLAY_STYLES, figureGroups } from '../js/views/realism-cast.js';
+import { PLAY_STYLES, figureGroups, searchState } from '../js/views/realism-cast.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const fixture = JSON.parse(readFileSync(join(WEB, 'test', 'fixtures', 'realism-seat.json'), 'utf8'));
@@ -65,6 +65,55 @@ test('the play styles read in words, Beginner, Guided, Free', () => {
 
 test('figure groups carry no underscore or ISO date', () => {
   for (const t of figureGroups(fixture.figures, []).flatMap(strings)) {
+    assert.ok(!t.includes('_') && !ISO.test(t));
+  }
+});
+
+const SOME = figureGroups(fixture.figures, []);
+
+test('a search with no loading and a non-empty list shows the list', () => {
+  assert.deepEqual(searchState({ loading: false, shown: SOME, query: 'roo' }), { kind: 'list' });
+});
+
+test('a search still out shows the loading line', () => {
+  assert.deepEqual(searchState({ loading: true, shown: [], query: '' }),
+    { kind: 'loading', text: 'Searching…' });
+});
+
+test('loading wins over a non-empty list', () => {
+  assert.deepEqual(searchState({ loading: true, shown: SOME, query: 'roo' }),
+    { kind: 'loading', text: 'Searching…' });
+});
+
+test('a name not on the list offers to draw it up', () => {
+  assert.deepEqual(searchState({ loading: false, shown: [], query: 'Zed Quill' }), {
+    kind: 'none',
+    text: 'No one on the list matches “Zed Quill”.',
+    offer: 'Draw up Zed Quill',
+  });
+});
+
+test('an empty date with no query says no one is listed', () => {
+  assert.deepEqual(searchState({ loading: false, shown: [], query: '' }),
+    { kind: 'empty', text: 'No one is listed for this date.' });
+  assert.deepEqual(searchState({ loading: false, shown: [], query: '   ' }),
+    { kind: 'empty', text: 'No one is listed for this date.' });
+});
+
+test('a query with surrounding spaces is trimmed in the text and the offer', () => {
+  const state = searchState({ loading: false, shown: [], query: '  Ada Lovelace  ' });
+  assert.equal(state.text, 'No one on the list matches “Ada Lovelace”.');
+  assert.equal(state.offer, 'Draw up Ada Lovelace');
+});
+
+test('search wording has no underscore or ISO date in any kind', () => {
+  const states = [
+    searchState({ loading: true, shown: [], query: '' }),
+    searchState({ loading: false, shown: SOME, query: 'roo' }),
+    searchState({ loading: false, shown: [], query: 'Zed Quill' }),
+    searchState({ loading: false, shown: [], query: '' }),
+  ];
+  for (const t of states.flatMap(strings)) {
     assert.ok(!t.includes('_') && !ISO.test(t));
   }
 });

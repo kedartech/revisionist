@@ -1,8 +1,9 @@
 """How each routed order landed (Phase 4 unit S3), built from the seat's own view.
 
 Never the estimator's ``rationale``, never its engine-only effects: ``View.routed``
-carries neither, and this module reads nothing else about the order. The view keeps
-no free text for an ask, so each ask is spoken from its typed effect.
+carries neither, and this module reads nothing else about the order. A part with a
+typed effect is spoken from that effect; a part without one is spoken from the seat's
+own words, read from the routed order in state. Only this seat's orders are read.
 """
 
 from datetime import date
@@ -33,10 +34,10 @@ def _who(view: View, who: str) -> str:
     return str(found.name) if found is not None else "someone unknown"
 
 
-def _ask(state: State, view: View, effect: rx.Effect | None) -> str:
+def _ask(state: State, view: View, effect: rx.Effect | None, own: str) -> str:
     match effect:
         case None:
-            return "A request in your own words"
+            return own or "A request in your own words"
         case rx.MoveForce():
             f = state.features.get(effect.force)
             how = effect.posture.value if effect.posture else "move"
@@ -68,7 +69,9 @@ def _ask(state: State, view: View, effect: rx.Effect | None) -> str:
     return "A request in your own words"
 
 
-def _part(state: State, view: View, p: rx.PartView, said: str | None = None) -> ResultPart:
+def _part(
+    state: State, view: View, p: rx.PartView, own: str, said: str | None = None
+) -> ResultPart:
     to: str | None = None
     match p.route:
         case rx.Route.COMMAND:
@@ -81,7 +84,7 @@ def _part(state: State, view: View, p: rx.PartView, said: str | None = None) -> 
             route = "Your persuasion"
             to = _who(view, p.target) if p.target is not None else None
     return ResultPart(
-        ask=_ask(state, view, p.effect),
+        ask=_ask(state, view, p.effect, own),
         to=to,
         route=route,
         fidelity=_FIDELITY[p.fidelity] if p.fidelity is not None else None,
@@ -106,6 +109,11 @@ def _said(view: View, order: rx.RoutedOrderView, i: int) -> str | None:
     return said or None
 
 
+def _own_words(state: State, order: rx.RoutedOrderView, i: int) -> str:
+    routed = state.routed.get(order.order_id)
+    return routed.parts[i].ask.strip() if routed is not None else ""
+
+
 def results(state: State, seat: SeatId) -> list[OrderResult]:
     """Phase 4 unit S3: the seat's routed orders, newest first, each part in words."""
     view = project(state, seat)
@@ -118,7 +126,8 @@ def results(state: State, seat: SeatId) -> list[OrderResult]:
                 id=token,
                 filed=_day(order.filed),
                 parts=[
-                    _part(state, view, p, _said(view, order, i)) for i, p in enumerate(order.parts)
+                    _part(state, view, p, _own_words(state, order, i), _said(view, order, i))
+                    for i, p in enumerate(order.parts)
                 ],
             )
         )

@@ -20,23 +20,24 @@ function latestApplied(parts) {
   return parts.map((p) => p.applied).reduce((a, b) => (sortKey(b) > sortKey(a) ? b : a));
 }
 
+function dayInWords(day) {
+  return ISO_DAY.test(day) ? worldDate(day) : day;
+}
+
 /** Where an order stands, in words: finished, refused, landed in part, or only made. */
 export function orderStage(result) {
   const { parts } = result;
-  if (parts.length && parts.every((p) => p.applied)) {
-    const day = latestApplied(parts);
-    return `Finished ${ISO_DAY.test(day) ? worldDate(day) : day}`;
-  }
+  if (parts.length && parts.every((p) => p.applied)) return `Finished ${dayInWords(latestApplied(parts))}`;
   if (parts.length && parts.every((p) => p.refused_under)) return 'Refused';
   if (parts.some((p) => p.applied || p.refused_under)) return 'Landed in part';
-  return `Made ${worldDate(result.filed)}`;
+  return `Made ${dayInWords(result.filed)}`;
 }
 
 /** Results with the newest filed first; ties keep their given order. Does not mutate. */
 export function newestFirst(results) {
   return results
-    .map((r, i) => [r, i])
-    .sort(([a, i], [b, j]) => (a.filed < b.filed ? 1 : a.filed > b.filed ? -1 : i - j))
+    .map((r, i) => [r, sortKey(r.filed), i])
+    .sort(([, a, i], [, b, j]) => (a < b ? 1 : a > b ? -1 : i - j))
     .map(([r]) => r);
 }
 

@@ -127,6 +127,7 @@ BUILD_BY_NAME: dict[str, dict[str, Any]] = {
                 "key": "sites_seen",
                 "owner": "cuba",
                 "name": "Missile sites photographed in Cuba",
+                "value": 9,
                 "unit": "sites",
                 "gap": True,
             }
@@ -224,6 +225,7 @@ BUILD_BY_NAME: dict[str, dict[str, Any]] = {
                 "key": "ships_bound",
                 "owner": "soviet_union",
                 "name": "Soviet ships bound for Cuba",
+                "value": 25,
                 "unit": "ships",
                 "gap": True,
             }
@@ -310,6 +312,7 @@ BUILD_BY_NAME: dict[str, dict[str, Any]] = {
                 "key": "militia",
                 "owner": "cuba",
                 "name": "Cuban militia under arms",
+                "value": 270000,
                 "unit": "men",
                 "gap": True,
             }
@@ -394,6 +397,7 @@ BUILD_BY_NAME: dict[str, dict[str, Any]] = {
                 "key": "ready_sorties",
                 "owner": "united_states",
                 "name": "Air strike sorties ready",
+                "value": 500,
                 "unit": "sorties",
                 "gap": True,
             }

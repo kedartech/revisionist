@@ -12,9 +12,10 @@ from datetime import date, timedelta
 
 from revisionist.core import history
 from revisionist.core._base import Label, Model
+from revisionist.core.ids import EntityId
 from revisionist.core.ontology import Controller
 from revisionist.core.realism.agenda import MandateStatus
-from revisionist.core.realism.pipeline import Order, step_due
+from revisionist.core.realism.pipeline import Order, Step, StepKind, step_due
 from revisionist.core.realism.pipelines import waiting_on_human
 from revisionist.core.state import State
 
@@ -71,15 +72,49 @@ def _lever_words(state: State, order: Order) -> str:
     return spoken[:1].upper() + spoken[1:]
 
 
+def _human(state: State, person: EntityId) -> bool:
+    return any(
+        s.embodies == person and s.controller is Controller.HUMAN for s in state.seats.values()
+    )
+
+
+def _stop(state: State, order: Order) -> tuple[date, Step] | None:
+    """When a moving order next has something for a human, and the step falling due then.
+
+    Clerical steps pass unseen. The order stops the clock when a step decides on an
+    order a human issued, when it settles for that human, or when the next step is a
+    decision a human holds. Later steps are projected as passing on time; None when
+    the order never reaches a human or a step ahead has no length.
+    """
+    steps = state.pipelines[order.pipeline].steps
+    seat = state.seats.get(order.issuer)
+    mine = seat is not None and seat.controller is Controller.HUMAN
+    when = step_due(order, state.pipelines[order.pipeline])
+    i = order.step
+    while when is not None:
+        step = steps[i]
+        if mine and (step.kind is StepKind.DECISION or i + 1 == len(steps)):
+            return when, step
+        if i + 1 == len(steps):
+            return None
+        ahead = steps[i + 1]
+        if ahead.kind is StepKind.DECISION and _human(state, ahead.person):
+            return when, step
+        i += 1
+        when = None if ahead.days is None else when + timedelta(days=ahead.days)
+    return None
+
+
 def next_wake(state: State, today: date) -> Wake:
     """Where the next advance stops. Pure: same state and day, same wake."""
     found: list[WakeReason] = []
     for order in state.orders.values():
         if waiting_on_human(state, order):
             continue
-        when = step_due(order, state.pipelines[order.pipeline])
-        if when is not None:
-            holder = state.entities[state.pipelines[order.pipeline].steps[order.step].person].name
+        stop = _stop(state, order)
+        if stop is not None:
+            when, step = stop
+            holder = state.entities[step.person].name
             found.append(
                 _reason("step", when, f"{_lever_words(state, order)}, now with {holder}", today)
             )

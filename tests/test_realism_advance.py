@@ -176,6 +176,76 @@ def test_a_step_held_by_a_human_adds_no_candidate_and_an_ai_step_does() -> None:
     assert wake.reason.what == "step" and wake.to == today + timedelta(days=5)
 
 
+def test_a_relay_step_does_not_wake_the_world_the_answer_does() -> None:
+    """Cora's clerical pass is routine; Bram's decision at the last step answers Ada."""
+    rig = Rig()
+    rig.start("ada")
+    today = rig.start_day - timedelta(days=30)
+    rig.add(ev.OrderDrafted(order=rig.order(today)))
+    wake = next_wake(rig.state, today)
+    assert wake.to == today + timedelta(days=2 + 5)
+    assert wake.reason.what == "step"
+    assert wake.reason.label == "Propose a levy, now with Bram Tull"
+
+
+def test_an_ai_order_that_never_reaches_a_human_does_not_wake_the_world() -> None:
+    rig = Rig()
+    rig.start("ada")
+    today = rig.start_day - timedelta(days=30)
+    theirs = rig.order(today, issuer=rig.seat("bram"))
+    wake = next_wake(_with_order(rig.state, theirs), today)
+    assert wake.reason.what == "horizon"
+    assert wake.to == today + timedelta(days=14)
+
+
+def test_a_decision_mid_chain_on_your_order_wakes_the_world() -> None:
+    """A clerk after the decision does not delay the answer: Bram may refuse or amend."""
+    rig = Rig()
+    rig.start("ada")
+    today = rig.start_day - timedelta(days=30)
+    order = rig.order(today)
+    pid = order.pipeline
+    chain = rig.state.pipelines[pid]
+    steps = (*chain.steps, chain.steps[0])
+    state = _with_order(rig.state, order)
+    state = state.model_copy(
+        update={"pipelines": {**state.pipelines, pid: chain.model_copy(update={"steps": steps})}}
+    )
+    wake = next_wake(state, today)
+    assert wake.to == today + timedelta(days=2 + 5)
+    assert wake.reason.label == "Propose a levy, now with Bram Tull"
+
+
+def test_an_all_clerical_order_wakes_the_world_when_it_settles() -> None:
+    rig = Rig()
+    rig.start("ada")
+    today = rig.start_day - timedelta(days=30)
+    order = rig.order(today)
+    pid = order.pipeline
+    chain = rig.state.pipelines[pid]
+    steps = (chain.steps[0], chain.steps[0])
+    state = _with_order(rig.state, order)
+    state = state.model_copy(
+        update={"pipelines": {**state.pipelines, pid: chain.model_copy(update={"steps": steps})}}
+    )
+    assert next_wake(state, today).to == today + timedelta(days=2 + 2)
+
+
+def test_a_step_with_no_length_ahead_adds_no_candidate() -> None:
+    rig = Rig()
+    rig.start("ada")
+    today = rig.start_day - timedelta(days=30)
+    order = rig.order(today)
+    pid = order.pipeline
+    gap = rig.state.pipelines[pid]
+    steps = (gap.steps[0], gap.steps[1].model_copy(update={"days": None}))
+    state = _with_order(rig.state, order)
+    state = state.model_copy(
+        update={"pipelines": {**state.pipelines, pid: gap.model_copy(update={"steps": steps})}}
+    )
+    assert next_wake(state, today).reason.what == "horizon"
+
+
 def test_autumn_1941_first_wake_is_the_greer_event() -> None:
     rig = Rig("autumn-1941")
     rig.start("roosevelt")

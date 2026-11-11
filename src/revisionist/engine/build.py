@@ -35,7 +35,8 @@ log = logging.getLogger(__name__)
 BUILD_MODEL = PROSE_MODEL
 """[proposed] ``REVISIONIST_MODEL_BUILD`` overrides it per call."""
 LEVERS_MIN, LEVERS_MAX = 2, 6
-FIELDS = ("entities", "quantities", "feeds", "pipelines", "cards")
+TEMPLATES_MAX = 3
+FIELDS = ("entities", "quantities", "feeds", "pipelines", "cards", "mandates")
 BUILD_SCHEMA = stage_schema(FIELDS)
 APPEND_TRIES = 3
 """Other writers may land between our read and our append; reload and recompile."""
@@ -139,6 +140,8 @@ def _part(output: object, playable: bool) -> tuple[WorldFile | None, list[str]]:
         for c in part.cards
         if playable and not c.authority and c.reach.rank == 0
     ]
+    if len(part.mandates) > TEMPLATES_MAX:
+        problems.append(f"mandates: {len(part.mandates)} templates, at most {TEMPLATES_MAX}")
     cards = tuple(c.model_copy(update={"playable": playable}) for c in part.cards)
     return part.model_copy(update={"cards": cards}), problems
 

@@ -7,7 +7,32 @@ import { h, reply } from '../dom.js';
 import { castLine } from '../realism-rules.js';
 import { header } from './frame.js';
 
-async function run(out, button, label, action, body, after) {
+/** One pick at a time: a redraw gives fresh buttons, so the guard cannot live on a button. */
+export function pickLock() {
+  const lock = {
+    busy: false,
+    async run(fn) {
+      if (lock.busy) return false;
+      lock.busy = true;
+      try {
+        await fn();
+        return true;
+      } finally {
+        lock.busy = false;
+      }
+    },
+  };
+  return lock;
+}
+
+const picks = pickLock();
+
+function run(out, button, label, action, body, after) {
+  if (action !== 'pick') return doRun(out, button, label, action, body, after);
+  return picks.run(() => doRun(out, button, label, action, body, after));
+}
+
+async function doRun(out, button, label, action, body, after) {
   const was = button.textContent;
   button.disabled = true;
   button.textContent = label;

@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { timelinePoints } from '../js/views/new-game.js';
-import { PLAY_STYLES, figureGroups, searchState } from '../js/views/realism-cast.js';
+import { PLAY_STYLES, figureGroups, pickLock, searchState } from '../js/views/realism-cast.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const fixture = JSON.parse(readFileSync(join(WEB, 'test', 'fixtures', 'realism-seat.json'), 'utf8'));
@@ -116,4 +116,25 @@ test('search wording has no underscore or ISO date in any kind', () => {
   for (const t of states.flatMap(strings)) {
     assert.ok(!t.includes('_') && !ISO.test(t));
   }
+});
+
+test('a pick in flight refuses a second pick until it settles', async () => {
+  const lock = pickLock();
+  let calls = 0;
+  let release;
+  const first = lock.run(() => new Promise((r) => { calls += 1; release = r; }));
+  assert.equal(lock.busy, true);
+  assert.equal(await lock.run(async () => { calls += 1; }), false);
+  assert.equal(calls, 1);
+  release();
+  assert.equal(await first, true);
+  assert.equal(lock.busy, false);
+  assert.equal(await lock.run(async () => { calls += 1; }), true);
+  assert.equal(calls, 2);
+});
+
+test('a pick that throws still frees the lock', async () => {
+  const lock = pickLock();
+  await assert.rejects(lock.run(async () => { throw new Error('x'); }));
+  assert.equal(lock.busy, false);
 });

@@ -25,7 +25,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from revisionist.core.ids import CampaignId, DocumentId, EntityId, OrderId, SeatId
-from revisionist.core.ontology import Persona, Phase
+from revisionist.core.ontology import EntityKind, Persona, Phase
 from revisionist.core.project import project
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.pipeline import OrderStatus, StepAction
@@ -365,7 +365,7 @@ class App:
                     out = {"reply": "Your aide has read your papers.", "refused": False}
                     return snapshot.checked(state, seat, out | {"brief": brief})
                 elif action == "consult":
-                    person = _contact(state, seat, _text(body, "to", 120))
+                    person = _reachable(state, seat, _text(body, "to", 120))
                     try:
                         answered = counsel.consult(
                             store,
@@ -879,6 +879,26 @@ def _contact(state: State, seat: SeatId, name: str) -> EntityId:
         if state.entities[c.person].name == name:
             return c.person
     raise ValueError("That person is not within your reach.")
+
+
+def _reachable(state: State, seat: SeatId, name: str) -> EntityId:
+    """The person called ``name`` the seat can see, the inner circle first; whether a
+    channel reaches them is counsel's to decide. Raises ``ValueError``, also when the
+    name fits more than one person outside the inner circle."""
+    try:
+        return _contact(state, seat, name)
+    except ValueError:
+        pass
+    found = [
+        e
+        for e, who in project(state, seat).entities.items()
+        if who.kind is EntityKind.PERSON and who.name == name
+    ]
+    if len(found) > 1:
+        raise ValueError(f"More than one person is called {name}.")
+    if not found:
+        raise ValueError("That person is not within your reach.")
+    return found[0]
 
 
 def _channel(body: dict[str, Any]) -> ChannelKind:

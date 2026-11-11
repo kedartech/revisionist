@@ -651,6 +651,20 @@ def test_consult_asks_a_contact_and_keeps_the_answer_for_the_seat_only(web: Web)
     assert len(realism_of(ada)["counsel"]) == 1
 
 
+def test_consult_reaches_a_person_outside_the_inner_circle(web: Web) -> None:  # noqa: F811
+    game = Realism(web)
+    game.seat("ada", "ada")
+    bram = game.seat("bram", "bram")
+    game.open_play()
+    game.first_tick()
+    assert "Cora Senn" not in {c["person"] for c in realism_of(bram)["desk"]["inner_circle"]}
+    aide(game, {"text": "Ask me again after the vote."})
+    status, out = post(bram, "consult", to="Cora Senn", question="Where does Ada stand?")
+    assert status == 200 and not out["refused"], out
+    (held,) = realism_of(bram)["counsel"]
+    assert held["person"] == "Cora Senn" and held["answer"] == "Ask me again after the vote."
+
+
 def test_only_the_host_pauses_resumes_and_ends_the_game(web: Web) -> None:  # noqa: F811
     game = Realism(web)
     ada = game.seat("ada", "ada")

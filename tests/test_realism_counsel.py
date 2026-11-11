@@ -9,13 +9,24 @@ import pytest
 
 from revisionist.core import events as ev
 from revisionist.core.fold import state_hash
+from revisionist.core.ids import DocumentId, EntityId, EventId, SeatId, derived_id
+from revisionist.core.ontology import EntityKind
 from revisionist.core.project import project
 from revisionist.core.realism.card import ChannelKind
+from revisionist.core.realism.document import (
+    Classification,
+    DocumentKind,
+    DocumentTruth,
+    DocumentView,
+)
 from revisionist.core.realism.person import PersonView, project_person
+from revisionist.core.realism.reach import channels_to
 from revisionist.core.report import leak_report
 from revisionist.core.sealing import seal_holder
 from revisionist.core.state import State
-from revisionist.core.visibility import Visibility
+from revisionist.core.visibility import Scope, Visibility, private_to
+from revisionist.engine import campaign as cmp
+from revisionist.engine import counsel
 from revisionist.engine.counsel import (
     Asker,
     ClaudeCounsellor,
@@ -28,6 +39,7 @@ from revisionist.engine.counsel import (
 )
 from revisionist.engine.llm import RecordedTransport, Reply, Request, TransportError
 from revisionist.engine.store import EventStore, MemoryStore, load_state
+from revisionist.engine.web import server
 from tests.counsel_scenario import CANARY, QUESTION, hopkins, plant_memo, roosevelt_seat, ticked
 from tests.handwritten import COUNSEL
 from tests.test_realism_tick import CAMPAIGN
@@ -126,16 +138,151 @@ def test_the_truth_canary_never_reaches_a_counsel_request() -> None:
     assert leak_report(load_state(store, CAMPAIGN), store.read(CAMPAIGN)) == []
 
 
-def test_only_a_person_on_the_card_can_be_consulted() -> None:
+def test_only_a_living_person_the_seat_can_reach_can_be_consulted() -> None:
     store = ready()
     state = load_state(store, CAMPAIGN)
     seat = roosevelt_seat(store)
-    reach = {c.person for c in state.cards[state.seats[seat].embodies].inner_circle}
-    stranger = next(e for e in state.cards if e not in reach and e != state.seats[seat].embodies)
+    polity = next(e for e, x in state.entities.items() if x.kind is EntityKind.POLITY)
     with pytest.raises(CounselRefusedError, match="within your reach"):
-        consult(store, CAMPAIGN, seat, stranger, QUESTION, ClaudeCounsellor(Capturing()))
+        consult(store, CAMPAIGN, seat, polity, QUESTION, ClaudeCounsellor(Capturing()))
+    with pytest.raises(CounselRefusedError, match="within your reach"):
+        consult(store, CAMPAIGN, seat, EntityId("nobody"), QUESTION, ClaudeCounsellor(Capturing()))
     with pytest.raises(CounselRefusedError):
         consult(store, CAMPAIGN, seat, hopkins(store), "   ", ClaudeCounsellor(Capturing()))
+    assert held(store) == []
+
+
+MOLOTOV = "Vyacheslav Molotov"
+SEALED = "Molotov's own note on the Moscow talks, for no one else"
+SHARED = "Molotov to the President, on the supply protocol"
+
+
+def person_named(store: EventStore, name: str) -> EntityId:
+    return next(e for e, x in load_state(store, CAMPAIGN).entities.items() if x.name == name)
+
+
+def plant_page(store: EventStore, author: EntityId, title: str, scope: Scope, key: str) -> None:
+    """A page by ``author`` that arrived today, seen by ``scope`` only."""
+    state = load_state(store, CAMPAIGN)
+    today = state.in_world_date
+    assert today is not None
+    doc_id = DocumentId(derived_id(CAMPAIGN, key))
+    view = DocumentView(
+        doc_id=doc_id,
+        kind=DocumentKind.MEMO,
+        author=author,
+        issued=today,
+        arrives=today,
+        channel=ChannelKind.CABLE,
+        classification=Classification.CONFIDENTIAL,
+        title=title,
+        body=(),
+        scope=scope,
+    )
+    store.append_all(
+        [
+            ev.Event(
+                event_id=EventId(derived_id(CAMPAIGN, key, "event")),
+                campaign_id=CAMPAIGN,
+                seq=state.last_seq + 1,
+                tick=state.tick,
+                scope=scope,
+                payload=ev.DocumentIssued(document=view, truth=DocumentTruth(doc_id=doc_id)),
+                versions=cmp.versions(),
+            )
+        ]
+    )
+
+
+class Kept:
+    """A transport that keeps each request and fails it, so nothing is written."""
+
+    def __init__(self) -> None:
+        self.sent: list[Request] = []
+
+    def call(self, request: Request) -> Reply:
+        self.sent.append(request)
+        raise TransportError("kept")
+
+
+def test_an_outer_contact_is_consulted_over_the_first_channel_that_reaches_them() -> None:
+    store = ready()
+    state = load_state(store, CAMPAIGN)
+    seat = roosevelt_seat(store)
+    me = state.seats[seat].embodies
+    molotov = person_named(store, MOLOTOV)
+    assert molotov not in {c.person for c in state.cards[me].inner_circle}
+    channels: list[ChannelKind] = []
+
+    class Keep:
+        def speak(
+            self, person: PersonView, asker: Asker, channel: ChannelKind, question: str
+        ) -> Spoken:
+            channels.append(channel)
+            return Spoken(text="We need lorries before tanks.")
+
+    out = consult(store, CAMPAIGN, seat, molotov, QUESTION, Keep())
+    assert out.person == MOLOTOV
+    assert channels == [out.channel] and out.channel == channels_to(state, me, molotov)[0]
+    (h,) = held(store)
+    assert isinstance(h.payload, ev.CounselHeld) and h.payload.channel == out.channel
+    assert h.scope == private_to(seat)
+
+
+def test_an_outer_contact_speaks_only_from_pages_the_asking_seat_also_holds() -> None:
+    store = ready()
+    seat = roosevelt_seat(store)
+    molotov = person_named(store, MOLOTOV)
+    plant_page(store, molotov, SEALED, private_to(SeatId(derived_id(CAMPAIGN, "x"))), "sealed")
+    plant_page(store, molotov, SHARED, private_to(seat), "shared")
+    transport = Kept()
+    with pytest.raises(TransportError):
+        consult(store, CAMPAIGN, seat, molotov, QUESTION, ClaudeCounsellor(transport))
+    (req,) = transport.sent
+    assert SHARED in req.prompt
+    assert SEALED not in req.prompt
+
+
+def test_the_inner_circle_still_speaks_from_all_its_own_pages() -> None:
+    store = ready()
+    seat = roosevelt_seat(store)
+    plant_page(store, hopkins(store), SEALED, private_to(SeatId(derived_id(CAMPAIGN, "x"))), "s")
+    transport = Kept()
+    with pytest.raises(TransportError):
+        consult(store, CAMPAIGN, seat, hopkins(store), QUESTION, ClaudeCounsellor(transport))
+    (req,) = transport.sent
+    assert SEALED in req.prompt
+
+
+def with_twin(state: State, of: EntityId, key: str) -> State:
+    """``state`` with a second person of the same name, placed first in the entities."""
+    twin = EntityId(derived_id(CAMPAIGN, key))
+    copy = state.entities[of].model_copy(update={"entity_id": twin})
+    return state.model_copy(update={"entities": {twin: copy, **state.entities}})
+
+
+def test_a_name_resolves_to_the_inner_circle_first_and_an_unclear_one_is_refused() -> None:
+    store = ready()
+    seat = roosevelt_seat(store)
+    state = with_twin(load_state(store, CAMPAIGN), hopkins(store), "twin-hopkins")
+    assert server._reachable(state, seat, "Harry L. Hopkins") == hopkins(store)
+    state = with_twin(state, person_named(store, MOLOTOV), "twin-molotov")
+    with pytest.raises(ValueError, match="More than one"):
+        server._reachable(state, seat, MOLOTOV)
+
+
+def test_a_person_with_no_channel_is_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    store = ready()
+    monkeypatch.setattr(counsel, "channels_to", lambda *_: (), raising=False)
+    with pytest.raises(CounselRefusedError, match="within your reach"):
+        consult(
+            store,
+            CAMPAIGN,
+            roosevelt_seat(store),
+            person_named(store, MOLOTOV),
+            QUESTION,
+            ClaudeCounsellor(Capturing()),
+        )
     assert held(store) == []
 
 

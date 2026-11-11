@@ -1,13 +1,13 @@
 {
- "04129713e44b8026a58a6eb4": {
+ "087c0ee8b0e1be89aaae5c73": {
   "call_class": "build",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
   "note": "hand-written for tests; not a model reply",
   "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"andrei_gromyko\", \"name\": \"Andrei Gromyko\", \"kin",
   "reply": {
-   "cached_tokens": 1291,
-   "input_tokens": 1633,
+   "cached_tokens": 1472,
+   "input_tokens": 1814,
    "model": "claude-sonnet-5-5",
    "output": {
     "cards": [
@@ -145,484 +145,18 @@
     ]
    },
    "output_tokens": 426,
-   "usd": 0.007526
+   "usd": 0.007888
   }
  },
- "419071c013e56441e4366ff9": {
-  "call_class": "build",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"andrei_gromyko\", \"name\": \"Andrei Gromyko\", \"kin",
-  "reply": {
-   "cached_tokens": 1291,
-   "input_tokens": 1658,
-   "model": "claude-sonnet-5-5",
-   "output": {
-    "cards": [
-     {
-      "feeds": [
-       "chiefs_reports"
-      ],
-      "horizon_days": 7,
-      "inner_circle": [
-       {
-        "channel": "in_person",
-        "person": "taylor"
-       },
-       {
-        "channel": "in_person",
-        "person": "john_f_kennedy"
-       }
-      ],
-      "levers": [
-       {
-        "label": "Set the forces' readiness",
-        "name": "readiness",
-        "params": [
-         {
-          "choice_labels": [
-           "Raised",
-           "Lowered"
-          ],
-          "choices": [
-           "raised",
-           "lowered"
-          ],
-          "kind": "enum",
-          "label": "Readiness",
-          "name": "level"
-         }
-        ],
-        "pipeline": "readiness",
-        "resolver": "production",
-        "summary": "Raise or lower the readiness of the forces."
-       },
-       {
-        "label": "Brief the press",
-        "name": "brief",
-        "params": [
-         {
-          "kind": "text",
-          "label": "What you will say",
-          "name": "message"
-         }
-        ],
-        "pipeline": "briefing",
-        "resolver": "opinion",
-        "summary": "Brief the press, in your own words."
-       }
-      ],
-      "loyalty": 4,
-      "office": "Secretary of Defense",
-      "person": "robert_mcnamara",
-      "pipelines": [
-       "readiness",
-       "briefing"
-      ],
-      "principals": [
-       "john_f_kennedy"
-      ],
-      "reach": {
-       "heads": false,
-       "rank": 4
-      },
-      "voice": "Brisk, numerical, impatient with soldiers' talk."
-     }
-    ],
-    "entities": [
-     {
-      "key": "taylor",
-      "kind": "person",
-      "name": "Maxwell Taylor",
-      "parent": "united_states"
-     }
-    ],
-    "feeds": [
-     {
-      "assumed": true,
-      "author": "taylor",
-      "channel": "courier",
-      "classification": "secret",
-      "every_days": 1,
-      "gap": true,
-      "key": "chiefs_reports",
-      "kind": "report",
-      "latency_days": 0,
-      "name": "The Joint Chiefs' readiness reports",
-      "reports": [
-       "ready_sorties"
-      ]
-     }
-    ],
-    "pipelines": [
-     {
-      "gap": true,
-      "key": "readiness",
-      "name": "A readiness order",
-      "steps": [
-       {
-        "allowed": [
-         "pass",
-         "stall",
-         "amend",
-         "refuse"
-        ],
-        "assumed": true,
-        "days": 1,
-        "kind": "decision",
-        "person": "taylor"
-       }
-      ]
-     },
-     {
-      "gap": true,
-      "key": "briefing",
-      "name": "A press briefing",
-      "steps": [
-       {
-        "assumed": true,
-        "days": 1,
-        "kind": "clerical",
-        "person": "taylor"
-       }
-      ]
-     }
-    ],
-    "quantities": [
-     {
-      "gap": true,
-      "key": "ready_sorties",
-      "name": "Air strike sorties ready",
-      "owner": "united_states",
-      "unit": "sorties"
-     }
-    ]
-   },
-   "output_tokens": 459,
-   "usd": 0.007906
-  }
- },
- "493838220433cf3ab8cebaaf": {
+ "5976760eea3d79a0fb60fd97": {
   "call_class": "build",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
   "note": "hand-written for tests; not a model reply",
   "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"cuba\", \"name\": \"Cuba\", \"kind\": \"polity\"}, {\"key",
   "reply": {
-   "cached_tokens": 1291,
-   "input_tokens": 1597,
-   "model": "claude-sonnet-5-5",
-   "output": {
-    "cards": [
-     {
-      "feeds": [
-       "defence_reports"
-      ],
-      "horizon_days": 7,
-      "inner_circle": [
-       {
-        "channel": "in_person",
-        "person": "malinovsky"
-       },
-       {
-        "channel": "in_person",
-        "person": "gromyko"
-       },
-       {
-        "channel": "cable",
-        "person": "john_f_kennedy"
-       }
-      ],
-      "interests": [
-       "the missiles kept or paid for"
-      ],
-      "levers": [
-       {
-        "label": "Order the ships",
-        "name": "ships",
-        "params": [
-         {
-          "choice_labels": [
-           "Hold course",
-           "Turn back"
-          ],
-          "choices": [
-           "hold_course",
-           "turn_back"
-          ],
-          "kind": "enum",
-          "label": "Their course",
-          "name": "course"
-         }
-        ],
-        "pipeline": "ship_orders",
-        "resolver": "shipping",
-        "summary": "Tell the ships bound for Cuba whether to hold course."
-       },
-       {
-        "label": "Make a public statement",
-        "name": "speak",
-        "params": [
-         {
-          "kind": "text",
-          "label": "What you will say",
-          "name": "message"
-         }
-        ],
-        "pipeline": "statement",
-        "resolver": "opinion",
-        "summary": "Make a public statement, in your own words."
-       }
-      ],
-      "loyalty": 2,
-      "office": "First Secretary of the Communist Party",
-      "person": "nikita_khrushchev",
-      "pipelines": [
-       "ship_orders",
-       "statement"
-      ],
-      "powers": [
-       "Chairman of the Council of Ministers"
-      ],
-      "principals": [
-       "soviet_union"
-      ],
-      "reach": {
-       "heads": false,
-       "rank": 5
-      },
-      "voice": "Blunt, earthy, quick to anger and quick to bargain."
-     }
-    ],
-    "entities": [
-     {
-      "key": "gromyko",
-      "kind": "person",
-      "name": "Andrei Gromyko",
-      "parent": "soviet_union"
-     },
-     {
-      "key": "malinovsky",
-      "kind": "person",
-      "name": "Rodion Malinovsky",
-      "parent": "soviet_union"
-     }
-    ],
-    "feeds": [
-     {
-      "assumed": true,
-      "author": "malinovsky",
-      "channel": "courier",
-      "classification": "secret",
-      "every_days": 2,
-      "gap": true,
-      "key": "defence_reports",
-      "kind": "report",
-      "latency_days": 1,
-      "name": "Reports from the Defence Ministry",
-      "reports": [
-       "ships_bound"
-      ]
-     }
-    ],
-    "pipelines": [
-     {
-      "gap": true,
-      "key": "ship_orders",
-      "name": "Orders to the ships",
-      "steps": [
-       {
-        "allowed": [
-         "pass",
-         "stall",
-         "amend",
-         "refuse"
-        ],
-        "assumed": true,
-        "days": 1,
-        "kind": "decision",
-        "person": "malinovsky"
-       }
-      ]
-     },
-     {
-      "gap": true,
-      "key": "statement",
-      "name": "A public statement",
-      "steps": [
-       {
-        "assumed": true,
-        "days": 1,
-        "kind": "clerical",
-        "person": "gromyko"
-       }
-      ]
-     }
-    ],
-    "quantities": [
-     {
-      "gap": true,
-      "key": "ships_bound",
-      "name": "Soviet ships bound for Cuba",
-      "owner": "soviet_union",
-      "unit": "ships"
-     }
-    ]
-   },
-   "output_tokens": 537,
-   "usd": 0.008564
-  }
- },
- "7bc6112027851d13be7e66cc": {
-  "call_class": "pitch",
-  "hand_written": true,
-  "model": "claude-haiku-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Pitch\nThe Cuban missile crisis, from the first photographs",
-  "reply": {
-   "cached_tokens": 428,
-   "input_tokens": 443,
-   "model": "claude-haiku-5-5",
-   "output": {
-    "named": [],
-    "reading": "The thirteen days of October 1962, from the U-2 photographs to the settlement.",
-    "refusal": "",
-    "start_points": [
-     {
-      "contests": [
-       "The missiles in Cuba"
-      ],
-      "focus": "The President is shown the photographs of missile sites in Cuba.",
-      "label": "Washington, 16 October 1962",
-      "powers": [
-       "United States",
-       "Soviet Union",
-       "Cuba"
-      ],
-      "schedule": [
-       "22 October: the President announces a quarantine of Cuba"
-      ],
-      "start_date": "1962-10-16"
-     }
-    ]
-   },
-   "output_tokens": 112,
-   "usd": 0.0001003
-  }
- },
- "cf19062506844cfaa2c94e91": {
-  "call_class": "cast",
-  "hand_written": true,
-  "model": "claude-haiku-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## How the pitch was read\nThe thirteen days of October 1962, from the U-2 photographs to the settlement.\n\n## Start point",
-  "reply": {
-   "cached_tokens": 403,
-   "input_tokens": 493,
-   "model": "claude-haiku-5-5",
-   "output": {
-    "entities": [
-     {
-      "key": "usa",
-      "kind": "polity",
-      "name": "United States"
-     },
-     {
-      "key": "ussr",
-      "kind": "polity",
-      "name": "Soviet Union"
-     },
-     {
-      "key": "cuba",
-      "kind": "polity",
-      "name": "Cuba"
-     },
-     {
-      "key": "excomm",
-      "kind": "org",
-      "name": "Executive Committee of the National Security Council",
-      "parent": "usa"
-     },
-     {
-      "key": "kennedy",
-      "kind": "person",
-      "name": "John F. Kennedy",
-      "parent": "usa"
-     },
-     {
-      "key": "khrushchev",
-      "kind": "person",
-      "name": "Nikita Khrushchev",
-      "parent": "ussr"
-     },
-     {
-      "key": "castro",
-      "kind": "person",
-      "name": "Fidel Castro",
-      "parent": "cuba"
-     },
-     {
-      "key": "mcnamara",
-      "kind": "person",
-      "name": "Robert McNamara",
-      "parent": "excomm"
-     }
-    ],
-    "name": "October 1962",
-    "roster": [
-     {
-      "aliases": [
-       "JFK",
-       "Kennedy"
-      ],
-      "composite": false,
-      "entity": "kennedy",
-      "pitch": "President of the United States, shown the photographs this morning.",
-      "reach": "The armed forces, the Executive Committee and the nation's ear."
-     },
-     {
-      "aliases": [
-       "Khrushchev"
-      ],
-      "composite": false,
-      "entity": "khrushchev",
-      "pitch": "First Secretary, who sent the missiles and must decide what to do now.",
-      "reach": "The Presidium, the ships at sea and the letters to Washington."
-     },
-     {
-      "aliases": [
-       "Castro"
-      ],
-      "composite": false,
-      "entity": "castro",
-      "pitch": "Prime Minister of Cuba, expecting an invasion.",
-      "reach": "The Cuban army and militia, and the radio."
-     },
-     {
-      "aliases": [
-       "McNamara"
-      ],
-      "composite": false,
-      "entity": "mcnamara",
-      "pitch": "Secretary of Defense, the President's manager of force.",
-      "reach": "The Pentagon and the Navy's orders at sea."
-     }
-    ]
-   },
-   "output_tokens": 375,
-   "usd": 0.0002368
-  }
- },
- "ea28f90c9ad5e4f445b30149": {
-  "call_class": "build",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"cuba\", \"name\": \"Cuba\", \"kind\": \"polity\"}, {\"key",
-  "reply": {
-   "cached_tokens": 1291,
-   "input_tokens": 1548,
+   "cached_tokens": 1472,
+   "input_tokens": 1729,
    "model": "claude-sonnet-5-5",
    "output": {
     "cards": [
@@ -794,7 +328,473 @@
     ]
    },
    "output_tokens": 579,
-   "usd": 0.008886
+   "usd": 0.009248
+  }
+ },
+ "6e2d237943b0bb1890188106": {
+  "call_class": "build",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"cuba\", \"name\": \"Cuba\", \"kind\": \"polity\"}, {\"key",
+  "reply": {
+   "cached_tokens": 1472,
+   "input_tokens": 1778,
+   "model": "claude-sonnet-5-5",
+   "output": {
+    "cards": [
+     {
+      "feeds": [
+       "defence_reports"
+      ],
+      "horizon_days": 7,
+      "inner_circle": [
+       {
+        "channel": "in_person",
+        "person": "malinovsky"
+       },
+       {
+        "channel": "in_person",
+        "person": "gromyko"
+       },
+       {
+        "channel": "cable",
+        "person": "john_f_kennedy"
+       }
+      ],
+      "interests": [
+       "the missiles kept or paid for"
+      ],
+      "levers": [
+       {
+        "label": "Order the ships",
+        "name": "ships",
+        "params": [
+         {
+          "choice_labels": [
+           "Hold course",
+           "Turn back"
+          ],
+          "choices": [
+           "hold_course",
+           "turn_back"
+          ],
+          "kind": "enum",
+          "label": "Their course",
+          "name": "course"
+         }
+        ],
+        "pipeline": "ship_orders",
+        "resolver": "shipping",
+        "summary": "Tell the ships bound for Cuba whether to hold course."
+       },
+       {
+        "label": "Make a public statement",
+        "name": "speak",
+        "params": [
+         {
+          "kind": "text",
+          "label": "What you will say",
+          "name": "message"
+         }
+        ],
+        "pipeline": "statement",
+        "resolver": "opinion",
+        "summary": "Make a public statement, in your own words."
+       }
+      ],
+      "loyalty": 2,
+      "office": "First Secretary of the Communist Party",
+      "person": "nikita_khrushchev",
+      "pipelines": [
+       "ship_orders",
+       "statement"
+      ],
+      "powers": [
+       "Chairman of the Council of Ministers"
+      ],
+      "principals": [
+       "soviet_union"
+      ],
+      "reach": {
+       "heads": false,
+       "rank": 5
+      },
+      "voice": "Blunt, earthy, quick to anger and quick to bargain."
+     }
+    ],
+    "entities": [
+     {
+      "key": "gromyko",
+      "kind": "person",
+      "name": "Andrei Gromyko",
+      "parent": "soviet_union"
+     },
+     {
+      "key": "malinovsky",
+      "kind": "person",
+      "name": "Rodion Malinovsky",
+      "parent": "soviet_union"
+     }
+    ],
+    "feeds": [
+     {
+      "assumed": true,
+      "author": "malinovsky",
+      "channel": "courier",
+      "classification": "secret",
+      "every_days": 2,
+      "gap": true,
+      "key": "defence_reports",
+      "kind": "report",
+      "latency_days": 1,
+      "name": "Reports from the Defence Ministry",
+      "reports": [
+       "ships_bound"
+      ]
+     }
+    ],
+    "pipelines": [
+     {
+      "gap": true,
+      "key": "ship_orders",
+      "name": "Orders to the ships",
+      "steps": [
+       {
+        "allowed": [
+         "pass",
+         "stall",
+         "amend",
+         "refuse"
+        ],
+        "assumed": true,
+        "days": 1,
+        "kind": "decision",
+        "person": "malinovsky"
+       }
+      ]
+     },
+     {
+      "gap": true,
+      "key": "statement",
+      "name": "A public statement",
+      "steps": [
+       {
+        "assumed": true,
+        "days": 1,
+        "kind": "clerical",
+        "person": "gromyko"
+       }
+      ]
+     }
+    ],
+    "quantities": [
+     {
+      "gap": true,
+      "key": "ships_bound",
+      "name": "Soviet ships bound for Cuba",
+      "owner": "soviet_union",
+      "unit": "ships"
+     }
+    ]
+   },
+   "output_tokens": 537,
+   "usd": 0.008926
+  }
+ },
+ "7bc6112027851d13be7e66cc": {
+  "call_class": "pitch",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Pitch\nThe Cuban missile crisis, from the first photographs",
+  "reply": {
+   "cached_tokens": 428,
+   "input_tokens": 443,
+   "model": "claude-haiku-5-5",
+   "output": {
+    "named": [],
+    "reading": "The thirteen days of October 1962, from the U-2 photographs to the settlement.",
+    "refusal": "",
+    "start_points": [
+     {
+      "contests": [
+       "The missiles in Cuba"
+      ],
+      "focus": "The President is shown the photographs of missile sites in Cuba.",
+      "label": "Washington, 16 October 1962",
+      "powers": [
+       "United States",
+       "Soviet Union",
+       "Cuba"
+      ],
+      "schedule": [
+       "22 October: the President announces a quarantine of Cuba"
+      ],
+      "start_date": "1962-10-16"
+     }
+    ]
+   },
+   "output_tokens": 112,
+   "usd": 0.0001003
+  }
+ },
+ "cf19062506844cfaa2c94e91": {
+  "call_class": "cast",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## How the pitch was read\nThe thirteen days of October 1962, from the U-2 photographs to the settlement.\n\n## Start point",
+  "reply": {
+   "cached_tokens": 403,
+   "input_tokens": 493,
+   "model": "claude-haiku-5-5",
+   "output": {
+    "entities": [
+     {
+      "key": "usa",
+      "kind": "polity",
+      "name": "United States"
+     },
+     {
+      "key": "ussr",
+      "kind": "polity",
+      "name": "Soviet Union"
+     },
+     {
+      "key": "cuba",
+      "kind": "polity",
+      "name": "Cuba"
+     },
+     {
+      "key": "excomm",
+      "kind": "org",
+      "name": "Executive Committee of the National Security Council",
+      "parent": "usa"
+     },
+     {
+      "key": "kennedy",
+      "kind": "person",
+      "name": "John F. Kennedy",
+      "parent": "usa"
+     },
+     {
+      "key": "khrushchev",
+      "kind": "person",
+      "name": "Nikita Khrushchev",
+      "parent": "ussr"
+     },
+     {
+      "key": "castro",
+      "kind": "person",
+      "name": "Fidel Castro",
+      "parent": "cuba"
+     },
+     {
+      "key": "mcnamara",
+      "kind": "person",
+      "name": "Robert McNamara",
+      "parent": "excomm"
+     }
+    ],
+    "name": "October 1962",
+    "roster": [
+     {
+      "aliases": [
+       "JFK",
+       "Kennedy"
+      ],
+      "composite": false,
+      "entity": "kennedy",
+      "pitch": "President of the United States, shown the photographs this morning.",
+      "reach": "The armed forces, the Executive Committee and the nation's ear."
+     },
+     {
+      "aliases": [
+       "Khrushchev"
+      ],
+      "composite": false,
+      "entity": "khrushchev",
+      "pitch": "First Secretary, who sent the missiles and must decide what to do now.",
+      "reach": "The Presidium, the ships at sea and the letters to Washington."
+     },
+     {
+      "aliases": [
+       "Castro"
+      ],
+      "composite": false,
+      "entity": "castro",
+      "pitch": "Prime Minister of Cuba, expecting an invasion.",
+      "reach": "The Cuban army and militia, and the radio."
+     },
+     {
+      "aliases": [
+       "McNamara"
+      ],
+      "composite": false,
+      "entity": "mcnamara",
+      "pitch": "Secretary of Defense, the President's manager of force.",
+      "reach": "The Pentagon and the Navy's orders at sea."
+     }
+    ]
+   },
+   "output_tokens": 375,
+   "usd": 0.0002368
+  }
+ },
+ "f2804c925322bdd65df0bdfb": {
+  "call_class": "build",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## The world\nOctober 1962, 1962-10-16\n\n## Already in the world\n[{\"key\": \"andrei_gromyko\", \"name\": \"Andrei Gromyko\", \"kin",
+  "reply": {
+   "cached_tokens": 1472,
+   "input_tokens": 1839,
+   "model": "claude-sonnet-5-5",
+   "output": {
+    "cards": [
+     {
+      "feeds": [
+       "chiefs_reports"
+      ],
+      "horizon_days": 7,
+      "inner_circle": [
+       {
+        "channel": "in_person",
+        "person": "taylor"
+       },
+       {
+        "channel": "in_person",
+        "person": "john_f_kennedy"
+       }
+      ],
+      "levers": [
+       {
+        "label": "Set the forces' readiness",
+        "name": "readiness",
+        "params": [
+         {
+          "choice_labels": [
+           "Raised",
+           "Lowered"
+          ],
+          "choices": [
+           "raised",
+           "lowered"
+          ],
+          "kind": "enum",
+          "label": "Readiness",
+          "name": "level"
+         }
+        ],
+        "pipeline": "readiness",
+        "resolver": "production",
+        "summary": "Raise or lower the readiness of the forces."
+       },
+       {
+        "label": "Brief the press",
+        "name": "brief",
+        "params": [
+         {
+          "kind": "text",
+          "label": "What you will say",
+          "name": "message"
+         }
+        ],
+        "pipeline": "briefing",
+        "resolver": "opinion",
+        "summary": "Brief the press, in your own words."
+       }
+      ],
+      "loyalty": 4,
+      "office": "Secretary of Defense",
+      "person": "robert_mcnamara",
+      "pipelines": [
+       "readiness",
+       "briefing"
+      ],
+      "principals": [
+       "john_f_kennedy"
+      ],
+      "reach": {
+       "heads": false,
+       "rank": 4
+      },
+      "voice": "Brisk, numerical, impatient with soldiers' talk."
+     }
+    ],
+    "entities": [
+     {
+      "key": "taylor",
+      "kind": "person",
+      "name": "Maxwell Taylor",
+      "parent": "united_states"
+     }
+    ],
+    "feeds": [
+     {
+      "assumed": true,
+      "author": "taylor",
+      "channel": "courier",
+      "classification": "secret",
+      "every_days": 1,
+      "gap": true,
+      "key": "chiefs_reports",
+      "kind": "report",
+      "latency_days": 0,
+      "name": "The Joint Chiefs' readiness reports",
+      "reports": [
+       "ready_sorties"
+      ]
+     }
+    ],
+    "pipelines": [
+     {
+      "gap": true,
+      "key": "readiness",
+      "name": "A readiness order",
+      "steps": [
+       {
+        "allowed": [
+         "pass",
+         "stall",
+         "amend",
+         "refuse"
+        ],
+        "assumed": true,
+        "days": 1,
+        "kind": "decision",
+        "person": "taylor"
+       }
+      ]
+     },
+     {
+      "gap": true,
+      "key": "briefing",
+      "name": "A press briefing",
+      "steps": [
+       {
+        "assumed": true,
+        "days": 1,
+        "kind": "clerical",
+        "person": "taylor"
+       }
+      ]
+     }
+    ],
+    "quantities": [
+     {
+      "gap": true,
+      "key": "ready_sorties",
+      "name": "Air strike sorties ready",
+      "owner": "united_states",
+      "unit": "sorties"
+     }
+    ]
+   },
+   "output_tokens": 459,
+   "usd": 0.008268
   }
  }
 }

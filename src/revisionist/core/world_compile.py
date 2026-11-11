@@ -1012,6 +1012,9 @@ def compile_figure(
         problems.append(f"figure {figure}: not among the known keys")
     elif [c.person for c in part.cards] != [me]:
         problems.append(f"cards: exactly one card, for {me}")
+    for m in part.mandates:
+        if me is not None and m.to != (me,):
+            problems.append(f"mandate {m.key}: aimed at {', '.join(m.to)}, not only at {me}")
     names = {x.name.casefold(): by_id.get(e, "") for e, x in state.entities.items()}
     for d in part.entities:
         if d.name.casefold() in names:
@@ -1031,7 +1034,13 @@ def compile_figure(
     emitted: list[tuple[ev.Payload, Scope]] = [
         (ev.EntityCreated(entity=_entity(e, ids)), PUBLIC) for e in part.entities
     ]
-    emitted += _emit_realism(whole.model_copy(update={"cards": part.cards}), ids)
+    # Template keys are global in the state; the figure's tail keeps two cards' keys apart.
+    mandates = tuple(
+        m.model_copy(update={"key": f"{m.key}.{str(figure)[-12:]}"}) for m in part.mandates
+    )
+    emitted += _emit_realism(
+        whole.model_copy(update={"cards": part.cards, "mandates": mandates}), ids
+    )
     events = [
         Event(
             event_id=EventId(derived_id(state.campaign_id, "figure", figure, n)),

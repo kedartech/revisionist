@@ -19,6 +19,7 @@ from revisionist.engine import realism_tick, runner
 from revisionist.engine import scheduler as sch
 from revisionist.engine import wake as wk
 from revisionist.engine.llm import Transport
+from revisionist.engine.prose import ClaudeProseWriter, ProseWriter, TemplateProseWriter
 from revisionist.engine.store import EventStore, load_state
 from revisionist.engine.web.realism_api import Reply, WakeHeader
 
@@ -50,7 +51,14 @@ def _open_number(state: State) -> int | None:
 def start_play(
     store: EventStore, campaign_id: CampaignId, now: datetime, *, tools: TickTools
 ) -> None:
-    """Open wake 0 and its offers: the first wake opens with play, no tick before it."""
+    """Write the opening papers, then open wake 0 and its offers: the first wake opens
+    with play, no tick before it."""
+    writer: ProseWriter = (
+        TemplateProseWriter() if tools.offline else ClaudeProseWriter(tools.transport_factory())
+    )
+    done = realism_tick.write_opening(store, campaign_id, writer)
+    for dropped in done.prose_dropped:
+        log.warning("no prose at the begin for %s", dropped)
     wk.open_wake(store, campaign_id, now)
     wk.offer_all(store, campaign_id, None if tools.offline else tools.transport_factory())
 

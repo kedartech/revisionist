@@ -29,6 +29,7 @@ from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core import goals, history
+from revisionist.core._base import Model
 from revisionist.core.events import CallCost, Event, Versions
 from revisionist.core.fold import replay, state_hash
 from revisionist.core.ids import (
@@ -83,6 +84,13 @@ class RealismTickResult(TickResult):
     """Pages given prose in this run."""
     prose_dropped: tuple[str, ...] = ()
     """``doc_id: reason`` for pages left without prose in this run."""
+
+
+class OpeningWritten(Model):
+    written: int = 0
+    """Opening pages given prose at the begin."""
+    prose_dropped: tuple[str, ...] = ()
+    """``doc_id: reason`` for opening pages left to the first tick's PROSE stage."""
 
 
 def _opening_date(events: Sequence[Event]) -> date | None:
@@ -439,6 +447,27 @@ def _opening_in_tray(em: Emitter, today: date) -> list[Event]:
     return out
 
 
+def write_opening(
+    store: EventStore, campaign_id: CampaignId, writer: ProseWriter
+) -> OpeningWritten:
+    """Prose for the opening papers at the begin, so the first paper on each desk reads
+    as a paper: the same calls the first tick's PROSE stage would make, one per author,
+    made now. Costs land as one ``cost_logged``. A page the writer fails or refuses stays
+    bare and the first tick writes it. Does nothing once a tick has opened: later pages
+    belong to that tick."""
+    state = load_state(store, campaign_id)
+    if state.tick or tail(list(store.read(campaign_id))).opened:
+        return OpeningWritten()
+    em = Emitter(store, state, cmp.versions())
+    batch, spent, dropped = _prose(em, writer)
+    if spent:
+        batch.append(em.event(ev.CostLogged(purpose="prose", costs=tuple(spent))))
+    if batch:
+        em.commit(batch)
+    written = sum(isinstance(e.payload, ev.DocumentWritten) for e in batch)
+    return OpeningWritten(written=written, prose_dropped=tuple(dropped))
+
+
 def _fits(spec: ParamSpec, raw: str) -> ParamValue:
     if spec.kind is ParamKind.INT:
         try:
@@ -706,6 +735,7 @@ def _append(
 
 
 __all__ = [
+    "OpeningWritten",
     "RealismTickResult",
     "commit_order",
     "draft_order",
@@ -717,4 +747,5 @@ __all__ = [
     "set_flag",
     "take_step",
     "wake_line",
+    "write_opening",
 ]

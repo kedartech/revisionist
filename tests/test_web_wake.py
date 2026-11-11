@@ -12,7 +12,7 @@ from revisionist.core.ids import EntityId, SeatId, derived_id
 from revisionist.core.realism.agenda import PlayStyle
 from revisionist.core.state import State
 from revisionist.core.visibility import private_to
-from revisionist.engine import options, wake
+from revisionist.engine import options, realism_tick, wake
 from revisionist.engine.campaign import human_seats
 from revisionist.engine.llm import TransportError
 from revisionist.engine.scheduler import ScheduleTable
@@ -76,6 +76,27 @@ def duo(web: Web) -> tuple[Realism, Client, Client]:  # noqa: F811
     make_host(game, ada)
     begin(game)
     return game, ada, bea
+
+
+def test_the_opening_papers_have_prose_at_the_begin(web: Web) -> None:  # noqa: F811
+    game = Realism(web, world="autumn-1941")
+    make_host(game, game.seat("ada", "roosevelt"))
+    store = game.web.app.open()
+    try:  # as the server's begin: the opening in-tray, then wake 0 and its offers
+        realism_tick.open_play(store, game.campaign)
+        app = game.web.app
+        wake_api.start_play(store, game.campaign, app.clock(), tools=app._tools())
+    finally:
+        store.close()
+    state = state_of(game)
+    assert state.tick == 0
+    stated = [
+        d.view
+        for d in state.documents.values()
+        if any(line.value is not None for line in d.view.body)
+    ]
+    assert stated, "the slice opens with papers that state a figure"
+    assert [v.title for v in stated if not v.prose] == []
 
 
 def test_a_solo_commit_moves_the_calendar_and_opens_the_next_wake(

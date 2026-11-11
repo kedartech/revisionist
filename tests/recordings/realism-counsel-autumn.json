@@ -16,6 +16,23 @@
    "usd": 0.001966
   }
  },
+ "ac5d3e58fd10611036b4b403": {
+  "call_class": "counsel",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## You are\nHarry L. Hopkins, Special assistant to the President\n\n## Today\n1941-09-06\n\n## Your papers\n[{\"kind\": \"letter\",",
+  "reply": {
+   "cached_tokens": 263,
+   "input_tokens": 384,
+   "model": "claude-sonnet-5-5",
+   "output": {
+    "text": "Mr. President, I have only their letter of request so far, and it gives no figures I would put in front of you. From what I saw in Moscow they need everything, but I would not guess at numbers until the full list comes through. When it does, I will bring it to you myself."
+   },
+   "output_tokens": 71,
+   "usd": 0.001478
+  }
+ },
  "c538f6d80b0a8fd86e59a02d": {
   "call_class": "counsel",
   "hand_written": true,

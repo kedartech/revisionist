@@ -265,6 +265,7 @@ def record_counsel() -> None:
     consult(store, CAMPAIGN, seat, person, WIRING_QUESTION, ClaudeCounsellor(hand))
     plant_memo(store)
     consult(store, CAMPAIGN, seat, person, QUESTION, ClaudeCounsellor(hand))
+    _record_cli(hand, ["consult", "hopkins", WIRING_QUESTION])
     hand.save(COUNSEL)
 
 
@@ -277,14 +278,18 @@ def record_aide() -> None:
     hand = Hand(aide_reply)
     store = MemoryStore()
     ticked(store)
+    from revisionist.engine.aide import AIDE_MODEL
+
     aide_for(store, CAMPAIGN, roosevelt_seat(store), ClaudeAide(hand))
-    _record_aide_cli(hand)
+    _record_cli(hand, ["aide"])
+    assert all(e["model"] == AIDE_MODEL for e in hand.entries.values())
     hand.save(AIDE)
 
 
-def _record_aide_cli(hand: Hand) -> None:
+def _record_cli(hand: Hand, call: list[str]) -> None:
     """The wiring test's CLI path: its ticks close the shared wake, where the aide plays the
-    absent seat against autumn-1941's mandates, so the briefing it asks for differs."""
+    absent seat against autumn-1941's mandates, so the clock stops on other days and what
+    the seat has read by then differs. ``call`` is the CLI call the model answers."""
     import itertools
     import tempfile
 
@@ -295,7 +300,6 @@ def _record_aide_cli(hand: Hand) -> None:
     from revisionist.core.ids import derived_id
     from revisionist.engine import campaign as cmp
     from revisionist.engine import realism_tick
-    from revisionist.engine.aide import AIDE_MODEL
     from tests.counsel_scenario import TICKS
 
     fixed = "01ARZ3NDEKTSV4RRFFQ69G5FAV"  # tests/test_realism_wiring.py fixed_campaign
@@ -311,8 +315,7 @@ def _record_aide_cli(hand: Hand) -> None:
         ):
             assert runner.invoke(cli.app, args).exit_code == 0, args
         mp.setattr(cli, "transport_factory", lambda: hand)
-        assert runner.invoke(cli.app, ["aide"]).exit_code == 0
-    assert all(e["model"] == AIDE_MODEL for e in hand.entries.values())
+        assert runner.invoke(cli.app, call).exit_code == 0, call
 
 
 def record_directive() -> None:

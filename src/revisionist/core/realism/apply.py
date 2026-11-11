@@ -372,6 +372,18 @@ def _aide(state: State, issuer: EntityId) -> EntityId:
     return card.inner_circle[0].person if card is not None and card.inner_circle else issuer
 
 
+def reporter(state: State, order: RoutedOrder, part: int) -> tuple[EntityId, ChannelKind]:
+    """Who writes the issuer's paper on one part, and the channel it comes by."""
+    routed = order.parts[part]
+    issuer = state.seats[order.issuer].embodies
+    if routed.route is Route.INFLUENCE and routed.target is not None:
+        author = routed.target
+    else:
+        author = routed.executor if routed.executor is not None else _aide(state, issuer)
+    channels = reach.channels_to(state, issuer, author) if author != issuer else ()
+    return author, channels[0] if channels else ChannelKind.IN_PERSON
+
+
 def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.DocumentIssued | None:
     """The paper the issuer gets for one applied part."""
     if part >= len(order.parts) or order.issuer not in state.seats:
@@ -379,16 +391,14 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
     routed = order.parts[part]
     if _ready(order, routed) is None:
         return None
-    issuer = state.seats[order.issuer].embodies
+    author, channel = reporter(state, order, part)
 
     def safe(text: str) -> str:
         return REASON_WITHHELD if scan_text(state, order.issuer, text) else text
 
     if routed.route is Route.INFLUENCE and routed.target is not None:
-        author = routed.target
         title = f"Your approach to {_name(state, author)}: {outcome(routed)}"
     else:
-        author = routed.executor if routed.executor is not None else _aide(state, issuer)
         partial = _partial_move(routed)
         if partial is None:
             title = f"{describe(state, routed)}: {outcome(routed)}"
@@ -415,8 +425,6 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
         body += _lines(safe(answer(state, order, routed)), "Answer")
     elif routed.reason:
         body += _lines(safe(routed.reason), "Account")
-    channels = reach.channels_to(state, issuer, author) if author != issuer else ()
-    channel = channels[0] if channels else ChannelKind.IN_PERSON
     doc_id = DocumentId(derived_id(state.campaign_id, "report", order.order_id, part))
     return ev.DocumentIssued(
         document=DocumentView(
@@ -435,4 +443,13 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
     )
 
 
-__all__ = ["answer", "apply_due", "as_carried", "describe", "outcome", "report", "zone_name"]
+__all__ = [
+    "answer",
+    "apply_due",
+    "as_carried",
+    "describe",
+    "outcome",
+    "report",
+    "reporter",
+    "zone_name",
+]

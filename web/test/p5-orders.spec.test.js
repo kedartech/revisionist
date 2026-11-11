@@ -50,7 +50,10 @@ test('the record splits into needs you, moving and finished, in record order', (
   const g = orderGroups(record, orders);
   assert.deepEqual(g.need.map((e) => e.track), ['o-convoy']);
   assert.deepEqual(g.moving.map((e) => e.id), ['a90f3e6b1c22', '0b7d24c9e815']);
-  assert.deepEqual(g.finished.map((e) => e.id), ['e43a91d07f6c', '7c2f8e0a3d91']);
+  assert.deepEqual(g.finished.map((e) => e.id), [
+    'e43a91d07f6c', '7c2f8e0a3d91', 'c1a7e5f20b3d', 'c2b8f6031c4e', 'c3c907142d5f',
+    'c4da18253e60', 'c5eb29364f71', 'c6fc3a475082', 'c70d4b586193', 'c81e5c6972a4',
+  ]);
   assert.deepEqual(orderGroups({ orders: [], wake: null }, { orders: [] }), { need: [], moving: [], finished: [] });
 });
 

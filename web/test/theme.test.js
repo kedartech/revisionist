@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import * as theme from '../js/theme.js';
 import { EFFECTS_KEY, THEMES, applyTheme, browserStorage, effectsOn, themeName } from '../js/theme.js';
 
 const CSS = fileURLToPath(new URL('../css', import.meta.url));
@@ -117,14 +118,15 @@ test('the terminal theme drops the paper look and the paper theme keeps it', () 
   assert.notEqual(paper['--shadow-sheet'], 'none');
 });
 
-test('themeName reads rv.theme and falls back to terminal', () => {
+test('themeName reads rv.theme and falls back to paper', () => {
+  assert.equal(theme.DEFAULT_THEME, 'paper');
   assert.deepEqual(THEMES, ['terminal', 'paper']);
   assert.equal(themeName({ getItem: () => 'paper' }), 'paper');
   assert.equal(themeName({ getItem: () => 'terminal' }), 'terminal');
-  assert.equal(themeName({ getItem: () => 'neon' }), 'terminal');
-  assert.equal(themeName({ getItem: () => null }), 'terminal');
-  assert.equal(themeName({ getItem: () => { throw new Error('blocked'); } }), 'terminal');
-  assert.equal(themeName(undefined), 'terminal');
+  assert.equal(themeName({ getItem: () => 'neon' }), 'paper');
+  assert.equal(themeName({ getItem: () => null }), 'paper');
+  assert.equal(themeName({ getItem: () => { throw new Error('blocked'); } }), 'paper');
+  assert.equal(themeName(undefined), 'paper');
 });
 
 test('effects are off unless stored as on, and the root carries both settings', () => {
@@ -135,9 +137,9 @@ test('effects are off unless stored as on, and the root carries both settings', 
   assert.equal(effectsOn(undefined), false);
   const root = { dataset: {} };
   applyTheme(root, store('on'));
-  assert.deepEqual(root.dataset, { theme: 'terminal', effects: 'on' });
+  assert.deepEqual(root.dataset, { theme: 'paper', effects: 'on' });
   applyTheme(root, undefined);
-  assert.deepEqual(root.dataset, { theme: 'terminal', effects: 'off' });
+  assert.deepEqual(root.dataset, { theme: 'paper', effects: 'off' });
 });
 
 test('browserStorage gives the page storage, or undefined where reading it throws', () => {

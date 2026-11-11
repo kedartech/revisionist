@@ -1,6 +1,5 @@
-// The opening of a game (Train 3 unit P4): the crawl that sets the scene, shown while the
-// host's Begin runs and to every other player on first entry, then the player's own
-// splash. Once per game per browser; never blocks a player whose storage is blocked.
+// The opening of a game (Train 3 unit P4): the crawl (realism-crawl.js), then the player's
+// own splash. Once per game per browser; never blocks a player whose storage is blocked.
 
 import { h } from '../dom.js';
 import { portraitNode } from './realism-dossier.js';
@@ -9,14 +8,16 @@ export const INTRO_PREFIX = 'rv.intro.';
 export const TAKE_DESK = 'Take your desk';
 export const NOT_BINDING = 'As history had it. You are not bound by it.';
 
-const CRAWL_MAX = 3;
-
 const lines = (xs) => (Array.isArray(xs) ? xs.filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim()) : []);
 const text = (x) => (typeof x === 'string' && x.trim() ? x.trim() : null);
 
-/** The setting's crawl paragraphs: trimmed, empty ones dropped, at most three. */
-export function crawlParagraphs(setting) {
-  return lines(setting?.crawl).slice(0, CRAWL_MAX);
+/** What the seat starts with, for the splash (unit Q8). */
+// contract stub: empty lists (unit Q8)
+export function startOverview({ map, situation, agenda } = {}) {
+  void map;
+  void situation;
+  void agenda;
+  return { forces: [], figures: [], first: null };
 }
 
 /**
@@ -26,7 +27,8 @@ export function crawlParagraphs(setting) {
  * null with none; `arena` the dossier's arena or null; `history` its lines (may be []);
  * `note` NOT_BINDING when there are history lines, else null; `action` TAKE_DESK.
  */
-export function splashModel(name, desk, dossier) {
+export function splashModel(name, desk, dossier, overview = null) {
+  void overview;
   const principals = lines(desk?.principals);
   const history = lines(dossier?.history);
   return {
@@ -71,31 +73,6 @@ export function markIntro(store, campaignId, stage) {
   } catch {
     // a blocked store never blocks the player
   }
-}
-
-/**
- * `<dialog class="rl-intro" aria-labelledby="rl-intro-title">`: an h2 `title` (the game's
- * name), the paragraphs rising by CSS animation inside `.rl-intro-crawl`, a
- * `p.rl-intro-status[role=status]` the caller writes progress into, and a "Continue" button.
- * Continue, and the dialog's `cancel` (Esc), call `onDone()` once. Under reduced motion the
- * text is static (CSS).
- */
-export function introCrawl({ title, paragraphs = [], onDone } = {}) {
-  let done = false;
-  const finish = () => {
-    if (done) return;
-    done = true;
-    onDone?.();
-  };
-  return h('dialog', {
-    class: 'rl-intro',
-    'aria-labelledby': 'rl-intro-title',
-    oncancel: (e) => { e.preventDefault(); finish(); },
-  },
-    h('h2', { id: 'rl-intro-title' }, title ?? ''),
-    h('div', { class: 'rl-intro-crawl' }, paragraphs.map((p) => h('p', {}, p))),
-    h('p', { class: 'rl-intro-status', role: 'status', 'aria-live': 'polite' }),
-    h('button', { type: 'button', class: 'rl-intro-continue', onclick: finish }, 'Continue'));
 }
 
 /**

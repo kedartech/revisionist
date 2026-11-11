@@ -1,0 +1,33 @@
+/* The opening crawl (split out of p5-intro.css; unit Q5). */
+
+.rl-intro-crawl p {
+  margin: 0 0 1.25rem;
+  font-family: var(--font-head);
+  font-size: 1.35rem;
+  line-height: 1.5;
+  color: var(--accent);
+  animation: rl-intro-rise 900ms ease-out both;
+}
+
+.rl-intro-crawl p:nth-child(2) {
+  animation-delay: 1200ms;
+}
+
+.rl-intro-crawl p:nth-child(3) {
+  animation-delay: 2400ms;
+}
+
+@keyframes rl-intro-rise {
+  from {
+    transform: translateY(2rem);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rl-intro-crawl p {
+    animation: none;
+  }
+}

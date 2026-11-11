@@ -735,6 +735,15 @@
     "is_host": true,
     "can_close": true
   },
+  "wake_solo": {
+    "wake": 3,
+    "deadline": "1941-10-20T21:00:00+00:00",
+    "committed": 0,
+    "humans": 1,
+    "you_committed": false,
+    "is_host": true,
+    "can_close": true
+  },
   "agenda": {
     "style": "beginner",
     "items": [
@@ -961,6 +970,118 @@
         "track": "o-lend",
         "due": null,
         "said": null
+      },
+      {
+        "id": "c1a7e5f20b3d",
+        "wake": 2,
+        "filed": "6 October 1941",
+        "settled": "13 October 1941",
+        "asked": "Close the Pan American Highway to German trade",
+        "to": "Cordell Hull",
+        "holder": null,
+        "status": "refused",
+        "moving": false,
+        "track": null,
+        "due": null,
+        "said": "Hull would not act without the Latin American governments."
+      },
+      {
+        "id": "c2b8f6031c4e",
+        "wake": 1,
+        "filed": "1 October 1941",
+        "settled": "11 October 1941",
+        "asked": "Ask the Navy for a report on Pacific bases",
+        "to": "Harold R. Stark",
+        "holder": null,
+        "status": "lapsed",
+        "moving": false,
+        "track": null,
+        "due": null,
+        "said": null
+      },
+      {
+        "id": "c3c907142d5f",
+        "wake": 2,
+        "filed": "7 October 1941",
+        "settled": "12 October 1941",
+        "asked": "Send a bill to Congress: Extend the draft to men of forty",
+        "to": null,
+        "holder": null,
+        "status": "withdrawn",
+        "moving": false,
+        "track": null,
+        "due": null,
+        "said": null
+      },
+      {
+        "id": "c4da18253e60",
+        "wake": 2,
+        "filed": "9 October 1941",
+        "settled": "15 October 1941",
+        "asked": "Ask the Speaker to hold the vote until November",
+        "to": "Sam Rayburn",
+        "holder": null,
+        "status": "agreed",
+        "moving": false,
+        "track": null,
+        "due": null,
+        "said": "The Speaker will hold it."
+      },
+      {
+        "id": "c5eb29364f71",
+        "wake": 1,
+        "filed": "3 October 1941",
+        "settled": "10 October 1941",
+        "asked": "Give a naval order: Patrol the Denmark Strait",
+        "to": "Harold R. Stark",
+        "holder": null,
+        "status": "carried out",
+        "moving": false,
+        "track": null,
+        "due": null,
+        "said": null
+      },
+      {
+        "id": "c6fc3a475082",
+        "wake": 2,
+        "filed": "8 October 1941",
+        "settled": "16 October 1941",
+        "asked": "Give a naval order: Escort the HX convoys to the meeting point",
+        "to": "Harold R. Stark",
+        "holder": null,
+        "status": "carried out loosely",
+        "moving": false,
+        "track": null,
+        "due": null,
+        "said": null
+      },
+      {
+        "id": "c70d4b586193",
+        "wake": 2,
+        "filed": "9 October 1941",
+        "settled": "17 October 1941",
+        "asked": "Give a naval order: Base a destroyer squadron at Reykjavik",
+        "to": "Harold R. Stark",
+        "holder": null,
+        "status": "carried out late",
+        "moving": false,
+        "track": null,
+        "due": null,
+        "said": null
+      },
+      {
+        "id": "c81e5c6972a4",
+        "wake": 2,
+        "filed": "10 October 1941",
+        "settled": "18 October 1941",
+        "asked": "Allocate Lend-Lease aid: Soviet Union, 30",
+        "to": null,
+        "holder": null,
+        "status": "carried out in part",
+        "moving": false,
+        "track": null,
+        "due": null,
+        "said": null
       }
     ],
     "wake": {
@@ -973,7 +1094,16 @@
         "a90f3e6b1c22"
       ],
       "settled": [
-        "e43a91d07f6c"
+        "e43a91d07f6c",
+        "c1a7e5f20b3d",
+        "c2b8f6031c4e",
+        "c3c907142d5f",
+        "c4da18253e60",
+        "c5eb29364f71",
+        "c6fc3a475082",
+        "c70d4b586193",
+        "c81e5c6972a4",
+        "7c2f8e0a3d91"
       ]
     }
   },

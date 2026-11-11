@@ -1,4 +1,5 @@
-/* The opening crawl and the seat splash (Train 3 unit P4). Both dialogs fill the viewport. */
+/* The opening dialogs (Train 3 unit P4): the shared dialog frame and the seat splash. The
+   crawl's own rules are in p5-crawl.css. Both dialogs fill the viewport. */
 
 .rl-intro {
   box-sizing: border-box;
@@ -34,32 +35,6 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--fg-strong);
-}
-
-.rl-intro-crawl p {
-  margin: 0 0 1.25rem;
-  font-family: var(--font-head);
-  font-size: 1.35rem;
-  line-height: 1.5;
-  color: var(--accent);
-  animation: rl-intro-rise 900ms ease-out both;
-}
-
-.rl-intro-crawl p:nth-child(2) {
-  animation-delay: 1200ms;
-}
-
-.rl-intro-crawl p:nth-child(3) {
-  animation-delay: 2400ms;
-}
-
-@keyframes rl-intro-rise {
-  from {
-    transform: translateY(2rem);
-  }
-  to {
-    transform: translateY(0);
-  }
 }
 
 .rl-intro-status {
@@ -184,10 +159,4 @@
   font-family: var(--font-chrome);
   font-size: 0.75rem;
   color: var(--fg-muted);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .rl-intro-crawl p {
-    animation: none;
-  }
 }

@@ -1,4 +1,5 @@
-// Spec for Train 3 unit P3, written with contract K3: the unit makes it pass and never edits it.
+// Spec for Train 3 unit P3 (contract K3), revised for unit Q6 (contract KQ): a pick asks
+// first. The unit makes it pass and never edits it.
 // Run: node --test web/test/
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -6,7 +7,9 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { DRAW_NOTE, castDossierModel } from '../js/views/realism-castdossier.js';
+import * as dossierView from '../js/views/realism-castdossier.js';
+import { DRAW_NOTE, castDossier, castDossierModel } from '../js/views/realism-castdossier.js';
+import { buttons, installDom, words } from './dom-fake.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const read = (f) => readFileSync(join(WEB, f), 'utf8');
@@ -73,4 +76,69 @@ test('no HTML parsing, no inline style, no stub left, linked and scoped', () => 
   const outer = css.replace(/@(media|container|supports)[^{]+\{/g, '').replace(/@keyframes[^{]+\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, '');
   const sels = [...outer.matchAll(/([^{}]+)\{/g)].flatMap((m) => m[1].split(',')).map((s) => s.trim()).filter(Boolean);
   for (const sel of sels) assert.match(sel, /\.rl-cd/, sel);
+});
+
+test('playStep: read, confirm, back, go', () => {
+  const { playStep } = dossierView;
+  assert.equal(typeof playStep, 'function');
+  assert.equal(playStep('read', 'play'), 'confirm');
+  assert.equal(playStep('confirm', 'back'), 'read');
+  assert.equal(playStep('confirm', 'yes'), 'go');
+  assert.equal(playStep('read', 'yes'), 'read');
+  assert.equal(playStep('read', 'back'), 'read');
+  assert.equal(playStep('confirm', 'play'), 'confirm');
+  assert.equal(playStep('go', 'back'), 'go');
+});
+
+const open = (person, confirmNote) => {
+  const doc = installDom();
+  const played = [];
+  const closed = [];
+  const dialog = castDossier({
+    person, dossier: person.dossier ?? null, canPlay: true, confirmNote,
+    onPlay: (p) => played.push(p), onClose: () => closed.push(1),
+  });
+  doc.body.append(dialog);
+  dialog.showModal();
+  return { doc, dialog, played, closed, foot: () => dialog.querySelector('.rl-cd-foot') };
+};
+
+test('Play asks first: the question, the note, Yes and Not yet; Yes plays once', () => {
+  const { doc, dialog, played, foot } = open(fdr, 'You keep this seat for the whole game.');
+  buttons(foot(), 'Play Franklin D. Roosevelt')[0].click();
+  assert.equal(played.length, 0, 'Play alone does not pick');
+  assert.ok(words(foot()).includes('Play Franklin D. Roosevelt?'), words(foot()));
+  assert.ok(words(foot()).includes('You keep this seat for the whole game.'));
+  const yes = buttons(foot(), 'Yes, play Franklin D. Roosevelt')[0];
+  assert.ok(yes, 'a Yes button');
+  assert.equal(buttons(foot(), 'Not yet').length, 1);
+  assert.equal(doc.activeElement, yes, 'focus moves to Yes');
+  yes.click();
+  yes.click();
+  assert.deepEqual(played, [fdr]);
+  assert.ok(dialog);
+});
+
+test('Not yet goes back to the foot with Play focused; Esc still closes', () => {
+  const { doc, dialog, played, closed, foot } = open(fdr, null);
+  buttons(foot(), 'Play Franklin D. Roosevelt')[0].click();
+  assert.ok(!words(foot()).includes('null'), 'no note shows as null');
+  const notYet = buttons(foot(), 'Not yet')[0];
+  assert.ok(notYet, 'a Not yet button');
+  notYet.click();
+  const play = buttons(foot(), 'Play Franklin D. Roosevelt')[0];
+  assert.ok(play, 'Play is back');
+  assert.equal(buttons(foot(), 'Not yet').length, 0);
+  assert.equal(doc.activeElement, play);
+  dialog.close();
+  assert.equal(closed.length, 1);
+  assert.equal(played.length, 0);
+});
+
+test('a listed figure: the confirm step carries the drawing-up note', () => {
+  const pound = { name: 'Sir Dudley Pound', title: 'First Sea Lord', side: 'United Kingdom', power: 'Navy' };
+  const { foot } = open(pound, 'You keep this seat for the whole game.');
+  buttons(foot(), 'Play Sir Dudley Pound')[0].click();
+  assert.ok(words(foot()).includes(DRAW_NOTE));
+  assert.equal(buttons(foot(), 'Yes, play Sir Dudley Pound').length, 1);
 });

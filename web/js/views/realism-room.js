@@ -19,7 +19,8 @@ import { characterDossier, settingDossier } from './realism-dossier.js';
 import { standardForms } from './realism-forms.js';
 import { happenedSheet, happenedStore, shouldShow } from './realism-happened.js';
 import { ideasPanel } from './realism-ideas.js';
-import { crawlParagraphs, introCrawl, introStage, markIntro, seatSplash, splashModel } from './realism-intro.js';
+import { crawlParagraphs, introCrawl } from './realism-crawl.js';
+import { introStage, markIntro, seatSplash, splashModel, startOverview } from './realism-intro.js';
 import { newsBlock, whatChanged } from './realism-news.js';
 import { orderCards } from './realism-orders.js';
 import { overlayLines, wakeOverlay } from './realism-overlay.js';
@@ -185,7 +186,7 @@ export function realismRoom(ctx) {
     for (const el of root.querySelectorAll('button, select, textarea, input')) el.disabled = true;
     showStatus();
     if (message === RUNNING) {
-      const layer = wakeOverlay({ message, lines: overlayLines(rv.setting) });
+      const layer = wakeOverlay({ message, lines: overlayLines(rv.setting, rv.wake.wake) });
       if (layer) root.append(layer);
     }
     try {
@@ -441,7 +442,7 @@ export function realismRoom(ctx) {
     const splash = () => {
       const s = seatSplash({
         name: seatName,
-        model: splashModel(seatName, rv.desk, rv.dossier),
+        model: splashModel(seatName, rv.desk, rv.dossier, startOverview(rv)),
         dossier: rv.dossier,
         onDone: () => {
           markIntro(storage(), game.id, 'splash');
@@ -456,6 +457,7 @@ export function realismRoom(ctx) {
     const crawl = introCrawl({
       title: game.name,
       paragraphs,
+      ready: true,
       onDone: () => {
         markIntro(storage(), game.id, 'crawl');
         drop(crawl);

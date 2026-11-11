@@ -6,7 +6,8 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { orderContacts, uiFor } from '../js/views/realism-room.js';
+import { happenedDue, orderContacts, uiFor } from '../js/views/realism-room.js';
+import { happenedStore } from '../js/views/realism-happened.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const read = (f) => readFileSync(join(WEB, f), 'utf8');
@@ -39,7 +40,9 @@ test('the room keeps its picks for one game and starts clean in another', () => 
 });
 
 test('closing the What happened sheet by any means counts as seen', () => {
-  assert.match(read('js/views/realism-room.js'), /happened\?\.addEventListener\('close', \(\) => shown\.write\(page\.number\)\)/);
+  const room = read('js/views/realism-room.js');
+  assert.match(room, /happened\?\.addEventListener\('close', \(\) => \{[^}]*shown\.write\(page\.number\)/);
+  assert.match(room, /happened\?\.addEventListener\('close', \(\) => \{[^}]*ui\.happenedSeen = page\.number/);
 });
 
 test('the page reads browser storage only through browserStorage', () => {
@@ -47,4 +50,19 @@ test('the page reads browser storage only through browserStorage', () => {
     assert.doesNotMatch(read(f), /window\.localStorage/, f);
     assert.match(read(f), /browserStorage\(window\)/, f);
   }
+});
+
+test('What happened shows once per wake even where storage is blocked', () => {
+  const blocked = happenedStore({ getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } }, 'c1');
+  assert.equal(happenedDue({ number: 3 }, blocked, null), true);
+  assert.equal(happenedDue({ number: 3 }, blocked, 3), false);
+  assert.equal(happenedDue({ number: 4 }, blocked, 3), true);
+  assert.equal(happenedDue(null, blocked, null), false);
+  assert.equal(happenedDue({ number: 0 }, blocked, null), false);
+});
+
+test('the desk foot repeats Done for today without a second live count', () => {
+  const src = read('js/views/realism-wake.js');
+  const foot = src.slice(src.indexOf('export function commitPanel'), src.indexOf('/** The order the aide read'));
+  assert.doesNotMatch(foot, /aria-live/);
 });

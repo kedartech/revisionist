@@ -244,7 +244,7 @@ export function initiativePanel(agenda, { act }) {
 /** The commit again at the foot of the desk; the stylesheet shows it on narrow screens only. */
 export function commitPanel(wake, { act }) {
   return h('div', { class: 'rl-commit-foot' },
-    h('p', { role: 'status', 'aria-live': 'polite' }, commitCount(wake)),
+    h('p', {}, commitCount(wake)),
     commitHint(wake) ? h('p', { class: 'muted rl-wake-hint' }, commitHint(wake)) : null,
     commitControl(wake, act));
 }

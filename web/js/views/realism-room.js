@@ -29,6 +29,7 @@ const freshUi = (game) => ({
   game, wide: false, page: null, said: null, error: null, busy: null,
   filter: 'all', sort: 'newest', draft: null, proposal: null, autoFor: null,
   chat: { open: false, tab: 'chats', thread: null }, contact: null, orderTo: null,
+  happenedSeen: null, refocusChat: false, brief: null,
 });
 let ui = freshUi(null);
 
@@ -47,6 +48,14 @@ export function orderContacts(inner, c) {
   const keys = c?.channel_keys ?? [];
   if (!c || !keys.length || inner.some((x) => x.person === c.name)) return inner;
   return [...inner, { person: c.name, title: c.title, channel: keys[0], channels: keys }];
+}
+
+/**
+ * Whether the What happened sheet opens for this wake page: once per wake, kept in storage
+ * and, where storage is blocked, in the room's memory (`seen`) so a redraw does not reopen it.
+ */
+export function happenedDue(page, store, seen) {
+  return Boolean(page) && shouldShow(page, store) && page.number > (seen ?? 0);
 }
 
 /** Browser storage, or nothing where it is blocked: the units take it as a parameter. */
@@ -152,6 +161,7 @@ export function realismRoom(ctx) {
   const game = me.game;
   uiFor(game.id);
   const rv = game.view.realism;
+  if (!rv.brief && ui.brief?.tick === rv.wake_tick) rv.brief = ui.brief.brief;
   const seatName = game.view.seat?.name ?? '';
   const root = h('div', { class: 'screen war-screen realism-screen' });
   const rerender = () => root.replaceChildren(...build());
@@ -168,6 +178,7 @@ export function realismRoom(ctx) {
     ui.busy = message;
     ui.error = null;
     const clicked = document.activeElement;
+    ui.refocusChat = Boolean(clicked?.closest?.('.rl-msgr-panel'));
     root.setAttribute('aria-busy', 'true');
     if (clicked?.tagName === 'BUTTON') clicked.classList.add('rl-working');
     for (const el of root.querySelectorAll('button, select, textarea, input')) el.disabled = true;
@@ -190,6 +201,7 @@ export function realismRoom(ctx) {
       ui.error = ex.message;
       root.removeAttribute('aria-busy');
       rerender();
+      if (ui.refocusChat) refocus(ui.chat, true);
     }
   }
   work.idle = () => !ui.busy;
@@ -296,7 +308,10 @@ export function realismRoom(ctx) {
     fillBrief({ reading: true });
     try {
       const r = await api.realism('aide', {});
-      if (r.brief) rv.brief = r.brief;
+      if (r.brief) {
+        rv.brief = r.brief;
+        ui.brief = { tick: rv.wake_tick, brief: r.brief }; // a redraw meanwhile reads it from here
+      }
       fillBrief(r.brief ? {} : { said: r.reply });
     } catch (ex) {
       fillBrief({ said: ex.message });
@@ -346,10 +361,12 @@ export function realismRoom(ctx) {
   }
 
   /** A redraw drops focus; put it back in the messenger so Esc and the keyboard keep working. */
-  function refocus(chat) {
+  function refocus(chat, compose = false) {
+    ui.refocusChat = false;
     const panel = root.querySelector('.rl-msgr-panel');
+    const inThread = compose ? '.rl-msgr-compose textarea' : '.rl-msgr-back';
     const target = !chat.open ? root.querySelector('.rl-msgr-btn')
-      : panel?.querySelector(chat.thread ? '.rl-msgr-back' : '[role="tab"][aria-selected="true"]');
+      : panel?.querySelector(chat.thread ? inThread : '[role="tab"][aria-selected="true"]');
     target?.focus();
   }
 
@@ -375,7 +392,11 @@ export function realismRoom(ctx) {
       contactsTab: contactsTab(rv.reach, {
         inner,
         selected: ui.contact,
-        onSelect: (name) => { ui.contact = name; rerender(); refocus(ui.chat); },
+        onSelect: (name) => {
+          ui.contact = name;
+          rerender();
+          root.querySelector(name ? '.rl-msgr-panel .rl-ct-back' : '.rl-msgr-panel [role="tab"][aria-selected="true"]')?.focus();
+        },
         onMessage: (name) => { ui.chat = { open: true, tab: 'chats', thread: name }; rerender(); refocus(ui.chat); },
         onOrder: (c) => {
           ui.orderTo = c;
@@ -396,14 +417,14 @@ export function realismRoom(ctx) {
     const character = characterDossier({ name: seatName, desk: rv.desk, dossier: rv.dossier, onClose: () => close(character)() });
     const setting = settingDossier({ name: game.name, setting: rv.setting, date, onClose: () => close(setting)() });
     const page = rv.record?.wake;
-    const happened = page && shouldShow(page, shown)
+    const happened = happenedDue(page, shown, ui.happenedSeen)
       ? happenedSheet({
         record: rv.record, situation: rv.situation, date,
         onClose: () => happened?.close(),
       })
       : null;
     // Esc closes a dialog without its button: the close event counts either way
-    happened?.addEventListener('close', () => shown.write(page.number));
+    happened?.addEventListener('close', () => { ui.happenedSeen = page.number; shown.write(page.number); });
     return { character, setting, happened };
   }
 
@@ -439,6 +460,9 @@ export function realismRoom(ctx) {
   if (rv.brief || ui.autoFor === rv.wake_tick) fillBrief();
   else autoBrief();
   // a dialog opens only once it is in the page
-  queueMicrotask(() => { if (pending?.isConnected && !pending.open) pending.showModal(); });
+  queueMicrotask(() => {
+    if (pending?.isConnected && !pending.open) pending.showModal();
+    else if (ui.refocusChat) refocus(ui.chat, true); // the reply redrew the room under the player
+  });
   return root;
 }

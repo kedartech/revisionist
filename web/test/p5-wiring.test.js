@@ -41,7 +41,7 @@ test('the room calls each unit with the data the server sends', () => {
     /characterDossier\(\{ name: seatName, desk: rv\.desk, dossier: rv\.dossier/,
     /settingDossier\(\{ name: game\.name, setting: rv\.setting/,
     /happenedSheet\(\{/,
-    /shouldShow\(page, shown\)/,
+    /happenedDue\(page, shown, ui\.happenedSeen\)/,
     /wakeOverlay\(\{ message, lines: overlayLines\(rv\.setting\) \}\)/,
     /seenStore\(storage\(\), game\.id\)/,
     /happenedStore\(storage\(\), game\.id\)/,

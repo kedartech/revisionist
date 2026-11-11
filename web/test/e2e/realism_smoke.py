@@ -486,6 +486,7 @@ def messenger(page: Page, report: dict[str, object]) -> None:
         thread.count() >= lines + 2 and "Your aide" in thread.last.inner_text(),
         f"{lines} -> {thread.count()}",
     )
+    check("focus stays in the messenger after the aide answers", in_messenger(page))
     shoot(page, "08-aide-thread")
     axe(page, "aide thread")
     page.locator(".rl-msgr").get_by_role("button", name="Back").click()
@@ -501,6 +502,7 @@ def messenger(page: Page, report: dict[str, object]) -> None:
     check(
         f"a consult with {who} shows the answer", page.locator(".rl-msgr .rl-answer").count() >= 1
     )
+    check("focus stays in the messenger after a consult", in_messenger(page))
     shoot(page, "09-consult")
     page.locator(".rl-msgr").get_by_role("button", name="Back").click()
     page.locator(".rl-msgr").get_by_role("tab", name="Contacts").click()
@@ -517,6 +519,10 @@ def messenger(page: Page, report: dict[str, object]) -> None:
     page.keyboard.press("Escape")
     page.wait_for_timeout(200)
     check("Esc closes the messenger", page.locator(".rl-msgr-panel").count() == 0)
+
+
+def in_messenger(page: Page) -> bool:
+    return bool(page.evaluate("() => !!document.activeElement?.closest('.rl-msgr-panel')"))
 
 
 def after_wake(page: Page, report: dict[str, object], host: bool) -> None:

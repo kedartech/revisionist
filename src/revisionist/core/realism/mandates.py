@@ -18,6 +18,7 @@ from revisionist.core.realism.agenda import (
     MandateStatus,
     MandateTemplate,
     TriggerKind,
+    opening_id,
 )
 from revisionist.core.realism.effect import EffectKind
 from revisionist.core.realism.resolvers import friction
@@ -107,8 +108,10 @@ def issue_due(state: State, today: date) -> list[ev.Payload]:
             wanted.setdefault(seat, []).append((roll, t.key, t, cause))
     out: list[ev.Payload] = []
     for seat in sorted(wanted):
+        held_open = opening_id(state.campaign_id, seat)
         live = sum(
-            m.seat_id == seat and m.status is MandateStatus.LIVE for m in state.mandates.values()
+            m.seat_id == seat and m.status is MandateStatus.LIVE and m.mandate_id != held_open
+            for m in state.mandates.values()
         )
         person = state.seats[seat].name
         for _, _, t, cause in sorted(wanted[seat], key=lambda w: w[:2])[: MANDATE_CAP - live]:
@@ -176,7 +179,7 @@ def opening(state: State, seat: SeatId, today: date) -> ev.MandateIssued | None:
         )
     return ev.MandateIssued(
         mandate=Mandate(
-            mandate_id=MandateId(derived_id(state.campaign_id, "mandate", "opening", seat)),
+            mandate_id=opening_id(state.campaign_id, seat),
             seat_id=seat,
             kind=MandateKind.OPPORTUNITY if asker is None else MandateKind.ORDER,
             issuer=asker,

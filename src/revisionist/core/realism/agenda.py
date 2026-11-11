@@ -2,8 +2,9 @@
 
 A mandate is an issued goal: code fills the template and compiles its success
 condition; the model only words it. A seat holds at most ``MANDATE_CAP`` live
-mandates. A play style is a private setting of the seat; options are ordinary
-orders, so picking one files exactly what a free player could have typed.
+mandates, not counting the opening matter. A play style is a private setting of the
+seat; options are ordinary orders, so picking one files exactly what a free player
+could have typed.
 """
 
 from datetime import date
@@ -15,17 +16,26 @@ from pydantic import Field, model_validator
 from revisionist.core._base import Label, Model
 from revisionist.core.goals import WinCondition
 from revisionist.core.ids import (
+    CampaignId,
     EntityId,
     MandateId,
     OrderId,
     QuantityId,
     ScheduledEventId,
     SeatId,
+    derived_id,
 )
 from revisionist.core.realism.effect import Effect, EffectKind
 from revisionist.core.visibility import Scope
 
 MANDATE_CAP = 3
+
+
+def opening_id(campaign_id: CampaignId, seat: SeatId) -> MandateId:
+    """The id of a seat's opening matter, which the cap does not count."""
+    return MandateId(derived_id(campaign_id, "mandate", "opening", seat))
+
+
 """Live mandates per seat (spec §8.5)."""
 
 
@@ -209,4 +219,5 @@ __all__ = [
     "PlayStyle",
     "Trigger",
     "TriggerKind",
+    "opening_id",
 ]

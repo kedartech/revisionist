@@ -113,7 +113,7 @@ def _stop(state: State, order: Order) -> tuple[date, Step] | None:
     return None
 
 
-def _answer(state: State, order: RoutedOrder, i: int) -> tuple[date, EntityId] | None:
+def answer_due(state: State, order: RoutedOrder, i: int) -> tuple[date, EntityId] | None:
     """The day the paper on part ``i`` of a routed order reaches its issuer, and who
     writes it. None when the part has answered, when a player holds the answer, or
     when nothing will rule on it."""
@@ -146,7 +146,7 @@ def _last_answers(state: State, humans: set[SeatId]) -> dict[SeatId, tuple[date,
         if order.issuer not in humans:
             continue
         for i in range(len(order.parts)):
-            due = _answer(state, order, i)
+            due = answer_due(state, order, i)
             if due is not None and (order.issuer not in last or due[0] > last[order.issuer][0]):
                 last[order.issuer] = due
     return last
@@ -181,4 +181,11 @@ def next_wake(state: State, today: date) -> Wake:
     return Wake(to=reason.on, reason=reason, collapsed_days=(reason.on - today).days - 1)
 
 
-__all__ = ["DEFAULT_HORIZON_DAYS", "QUIET_DAYS", "Wake", "WakeReason", "next_wake"]
+__all__ = [
+    "DEFAULT_HORIZON_DAYS",
+    "QUIET_DAYS",
+    "Wake",
+    "WakeReason",
+    "answer_due",
+    "next_wake",
+]

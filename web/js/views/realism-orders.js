@@ -67,3 +67,43 @@ export function ordersLog(results, orders) {
     h('h2', { id: 'rl-log-h' }, 'Orders log'),
     h('ul', { class: 'rl-log-rows', role: 'list' }, newestFirst(results).map(logRow)));
 }
+
+/**
+ * The order's status chip, `{ word, tone }`: "Needs you" (`need`) when `track` waits on the
+ * seat's decision; "Under way" (`moving`) while moving; once settled "Carried out" (any
+ * status starting "carried out", and `enacted`), "Agreed" (`ok` both), "Declined"
+ * (`rebuffed`), "Refused" (`bad` both), "Lapsed", "Withdrawn" (`quiet` both); any other
+ * settled status is its own words capitalised, `quiet`.
+ */
+export function orderChip(entry, track) { // contract stub
+  return { word: '', tone: 'quiet' };
+}
+
+/**
+ * The card's lines: "To <to>"; "With <holder>" while moving and the holder is not `to`;
+ * "Answer expected <due>"; "Settled <settled>"; `said` as “<said>”. Each only when set.
+ */
+export function orderLines(entry) { // contract stub
+  return [];
+}
+
+/**
+ * The record's orders in three lists, each in record order: `need` (a tracker entry that
+ * waits on the seat), `moving` (the rest still moving), `finished`. `tracker` is
+ * view.realism.orders; an entry's `track` is a tracker order's `id`.
+ */
+export function orderGroups(record, tracker) { // contract stub
+  return { need: [], moving: [], finished: [] };
+}
+
+export const NO_ORDERS = 'No orders yet. Pick an idea or write one.';
+
+/**
+ * The right column, headed "Your orders": cards that need the seat first, each with
+ * `stepForm(trackerOrder)` under it, then the moving ones, then a folded "Finished (n)";
+ * with no orders, `NO_ORDERS`.
+ */
+export function orderCards(record, tracker, stepForm) { // contract stub
+  return null;
+}
+

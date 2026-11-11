@@ -232,3 +232,23 @@ def test_the_log_line_is_the_issued_papers_answer_and_does_not_drift() -> None:
     )
     later = sl.state.model_copy(update={"relationships": {warm.relationship_id: warm}})
     assert before and results(later, sl.fdr)[0]["parts"][0]["reason"] == before
+
+
+def test_the_tray_marks_the_report_on_the_seats_own_order_as_an_answer() -> None:
+    from revisionist.core.ids import DocumentId
+    from revisionist.core.project import project
+    from revisionist.engine.web.realism_snapshot import documents
+
+    sl = Slice()
+    order = _influence(sl, 1)
+    sl.add(ev.EffectsEstimated(order_id=order.order_id, part=0, reason="r"), private_to(sl.fdr))
+    sl.add(
+        ev.InfluenceDecided(order_id=order.order_id, part=0, on=date(1941, 9, 14), accepted=False),
+        private_to(sl.fdr),
+    )
+    _land_reports(sl, date(1941, 9, 14))
+    report = DocumentId(derived_id(CAMPAIGN, "report", order.order_id, 0))
+    rows = documents(project(sl.state, sl.fdr), set(), set())["documents"]
+    assert [r["id"] for r in rows if r["answer"]] == [report]
+    theirs = documents(project(sl.state, sl.wheeler), set(), set())["documents"]
+    assert not any(r["answer"] for r in theirs)

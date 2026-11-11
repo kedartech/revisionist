@@ -58,6 +58,7 @@ def _shown(view: View, option: Option, pick: str, label: str | None = None) -> A
         risk=option.risk,
         historical=option.historical,
         pick=pick,
+        taken=False,
     )
 
 

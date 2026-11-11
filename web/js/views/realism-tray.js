@@ -92,6 +92,16 @@ function groupRow(row, onOpen, open) {
   return h('li', { class: 'rl-group', role: 'presentation' }, head, kids);
 }
 
+/**
+ * The tray's sections, in this order and empty ones dropped: `answers` ("Answers to your
+ * orders": `answer` true), `press` ("Press": kind press), `reports` ("Reports": everything
+ * else that is not an acknowledgement). Each `{ key, heading, rows }`, rows folded by
+ * `trayRows`. The acknowledgement filter still lists acknowledgements on their own.
+ */
+export function traySections(items) { // contract stub
+  return [];
+}
+
 /** The tray panel. `opts`: { filter, sort, onFilter, onSort, page, onClose, onFlag, wide, requests }. */
 export function trayView(listing, onOpen, opts = {}) {
   const { filter = 'all', sort = 'newest', onFilter, onSort, page } = opts;

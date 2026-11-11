@@ -41,6 +41,8 @@ class DocumentListItem(TypedDict):
     ack: bool
     """True when the paper only acknowledges an order (``tray.acknowledgement``): it goes to
     the conversation with its author and to the tray's Acknowledgements filter."""
+    answer: bool
+    """True when the paper is the report on a part of one of the seat's own orders."""
 
 
 class DocumentListing(TypedDict):
@@ -310,6 +312,9 @@ class AgendaOption(TypedDict):
     """What history did; the client labels it so."""
     pick: str
     """An opaque token, posted back to ``option``."""
+    taken: bool
+    """True once the seat has filed exactly this option's asks in the open wake. The
+    steps of a guided plan share one value."""
 
 
 class AgendaItem(TypedDict):
@@ -375,6 +380,10 @@ class ReachContact(TypedDict):
     """The office on the person's public card face, if they have a card."""
     channels: list[str]
     """How the seat can reach them, in words, nearest first."""
+    powers: list[str]
+    """The powers on the person's public card face, in words; empty with no card face."""
+    channel_keys: list[str]
+    """The ``ChannelKind`` value behind each of ``channels``, in the same order."""
 
 
 class ReachGroups(TypedDict):
@@ -453,6 +462,93 @@ class Reveal(TypedDict):
     seats: list[RevealSeat]
 
 
+class RecordOrder(TypedDict):
+    """One ledger line of the seat's record (``core.record``): a part of a routed order
+    or a standard form, in the seat's own words. No entity id, and no order id outside
+    ``track``, which repeats the seat's own tracker id."""
+
+    id: str
+    """An opaque token: the first 12 hex of the sha256 of the ledger key."""
+    wake: int
+    filed: str
+    """The in-world day it was filed, in words (1 September 1941)."""
+    settled: str | None
+    """The in-world day it settled, in words; None while it is moving."""
+    asked: str
+    to: str | None
+    """Who it was sent to, by name; None: the seat acts itself or it runs a pipeline."""
+    holder: str | None
+    """Who has it now, by name, while it is moving."""
+    status: str
+    """In words, as the ledger has it."""
+    moving: bool
+    track: str | None
+    """The ``OrderTrack.id`` of the matching tracker entry for a standard form; else None."""
+    due: str | None
+    """For a routed part still moving: the day its answer reaches the seat, in words."""
+    said: str | None
+    """The answer the issued paper gives, else the part's issuer-facing reason, else None."""
+
+
+class RecordWake(TypedDict):
+    """The latest wake's page of the record."""
+
+    number: int
+    opened: str
+    """The in-world day it opened, in words."""
+    days_passed: int
+    papers: int
+    """How many papers reached the desk since the wake before."""
+    filed: list[str]
+    """``RecordOrder.id`` of each entry filed in this wake."""
+    settled: list[str]
+    """``RecordOrder.id`` of each entry settled since the wake before."""
+
+
+class RecordBlock(TypedDict):
+    orders: list[RecordOrder]
+    """Newest filed first."""
+    wake: RecordWake | None
+    """None before any wake opens."""
+
+
+class Dossier(TypedDict):
+    """A person's dossier text from the world's sidecar file. Read-only, public text:
+    nothing in it comes from a card's private side. Empty fields hide their section."""
+
+    bio: str | None
+    history: list[str]
+    """As history had it: what the person did in the record, one line each. Not binding."""
+    quote: str | None
+    source: str | None
+    """Where the quote is from; a quote is never served without one."""
+    fact: str | None
+    portrait: str | None
+    """A file name under ``/assets/portraits/``; None: the client draws a monogram."""
+    credit: str | None
+    """The portrait's author and licence, shown under it."""
+
+
+class SettingDate(TypedDict):
+    on: str
+    """The in-world day, in words."""
+    what: str
+
+
+class Setting(TypedDict):
+    """The world's setting dossier from the sidecar file. Empty fields hide their section."""
+
+    situation: str | None
+    sides: list[str]
+    """Each side of the world's main contest, as a short line."""
+    crawl: list[str]
+    """The opening crawl, one paragraph each."""
+    facts: list[str]
+    """Short period lines for the overlay while a wake runs."""
+    dates: list[SettingDate]
+    """The dates history has on its clock, oldest first."""
+
+
 __all__ = [
     "AgendaBlock",
     "AgendaItem",
@@ -465,6 +561,7 @@ __all__ = [
     "DocumentListItem",
     "DocumentListing",
     "DocumentPage",
+    "Dossier",
     "Figure",
     "FigureGroup",
     "LeverChoice",
@@ -479,12 +576,17 @@ __all__ = [
     "OrderTracker",
     "ReachContact",
     "ReachGroups",
+    "RecordBlock",
+    "RecordOrder",
+    "RecordWake",
     "Reply",
     "ResultPart",
     "Reveal",
     "RevealRuling",
     "RevealSeat",
     "SeatMap",
+    "Setting",
+    "SettingDate",
     "Situation",
     "SituationFigure",
     "SituationReading",

@@ -2,23 +2,38 @@
 
 import { api } from '../api.js';
 import { h, icon, reply } from '../dom.js';
+import { themeControl } from '../theme-setting.js';
 
-/** `identity` is { name, office } of the person the player plays, shown under the game's name. */
-export function header({ me, game, role, extra = [], refresh, signOut, identity = null }) {
+/** A header title: a button that opens a dossier when `onClick` is given, else plain text. */
+function titleOf(text, onClick, label) {
+  return onClick
+    ? h('button', { type: 'button', class: 'title head-link', 'aria-haspopup': 'dialog', 'aria-label': label, onclick: onClick }, text)
+    : h('span', { class: 'title' }, text);
+}
+
+/**
+ * `identity` is { name, office, principal } of the person the player plays, shown under the
+ * game's name. `onSetting` and `onIdentity` make the game's name and the person's name open
+ * their dossiers. `theme` is { theme, effects, onChange } for the theme control.
+ */
+export function header({ me, game, role, extra = [], refresh, signOut, identity = null, onSetting = null, onIdentity = null, theme = null }) {
   const bugDialog = bugReport(refresh);
+  const name = game?.name ?? 'Revisionist';
   return h('header', { class: 'frame-head' },
     h('span', { class: 'brand-mark', 'aria-hidden': 'true' }, icon('mark', 22)),
     h('div', { class: 'stack' },
       h('span', { class: 'eyebrow' }, role),
-      h('span', { class: 'title' }, game?.name ?? 'Revisionist')),
+      titleOf(name, onSetting, `${name}: open the setting`)),
     identity?.name
       ? h('div', { class: 'stack identity' },
         h('span', { class: 'eyebrow' }, 'Playing as'),
-        h('span', { class: 'title' }, identity.name),
-        identity.office ? h('span', { class: 'muted office' }, identity.office) : null)
+        titleOf(identity.name, onIdentity, `${identity.name}: open the dossier`),
+        identity.office ? h('span', { class: 'muted office' }, identity.office) : null,
+        identity.principal ? h('span', { class: 'muted answers-to' }, `Answers to ${identity.principal}`) : null)
       : null,
     ...extra,
     h('div', { class: 'head-right' },
+      theme ? themeControl(theme) : null,
       h('span', { class: 'muted' }, 'Signed in as ', me.account.handle),
       game ? h('button', {
         type: 'button', class: 'icon-btn', 'aria-label': 'Report a bug', title: 'Report a bug',

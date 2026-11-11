@@ -30,8 +30,8 @@ test('no deadline, no line', () => {
 });
 
 test('the commit line is a count, and the last commit says the wake runs', () => {
-  assert.equal(commitCount(wake), '1 of 2 players committed');
-  assert.equal(commitCount({ committed: 0, humans: 1 }), '0 of 1 player committed');
+  assert.equal(commitCount(wake), '1 of 2 players done');
+  assert.equal(commitCount({ committed: 0, humans: 1 }), '0 of 1 player done');
   assert.match(commitBusy({ committed: 1, humans: 2 }), /wake is running/);
   assert.match(commitBusy({ committed: 0, humans: 1 }), /wake is running/);
   assert.doesNotMatch(commitBusy({ committed: 0, humans: 2 }), /wake is running/);

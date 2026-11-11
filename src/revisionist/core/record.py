@@ -167,7 +167,8 @@ def _same(ask: Ask, part: RoutedPart) -> bool:
     return _plain(ask.ask) == _plain(part.ask) and ask.target in (part.target, part.executor)
 
 
-def _taken(asks: Sequence[Ask], filed: Sequence[Sequence[RoutedPart]]) -> bool:
+def taken(asks: Sequence[Ask], filed: Sequence[Sequence[RoutedPart]]) -> bool:
+    """True when one of ``filed`` (each a routed order's parts) is exactly ``asks``."""
     return any(
         len(parts) == len(asks) and all(_same(a, p) for a, p in zip(asks, parts, strict=True))
         for parts in filed
@@ -232,7 +233,7 @@ def build(state: State, events: Sequence[Event], seat: SeatId) -> Record:
                 filed=tuple(x.key for x in ledger if x.wake == number),
                 settled=tuple(x.key for x in ledger if x.settled is not None and since(x.settled)),
                 offered=tuple(
-                    OfferLine(label=o.label, to=_name(view, o.to), taken=_taken(o.asks, filed))
+                    OfferLine(label=o.label, to=_name(view, o.to), taken=taken(o.asks, filed))
                     for offer in (made.offers if made is not None else ())
                     for o in offer.options
                 ),
@@ -242,4 +243,4 @@ def build(state: State, events: Sequence[Event], seat: SeatId) -> Record:
     return Record(seat=seat, wakes=tuple(pages), orders=tuple(ledger))
 
 
-__all__ = ["OfferLine", "OrderEntry", "PaperLine", "Record", "WakePage", "build"]
+__all__ = ["OfferLine", "OrderEntry", "PaperLine", "Record", "WakePage", "build", "taken"]

@@ -3,7 +3,8 @@
 
 import { api } from './api.js';
 import { h } from './dom.js';
-import { applyTheme } from './theme.js';
+import { applyTheme, effectsOn, themeName } from './theme.js';
+import { themeStore } from './theme-setting.js';
 import { join, recover, recoveryCodes, signIn, signUp } from './views/auth.js';
 import { newGame } from './views/new-game.js';
 import { realismCast } from './views/realism-cast.js';
@@ -80,7 +81,17 @@ async function render() {
     return;
   }
   const refresh = async () => render();
-  const ctx = { me, refresh, signOut, go };
+  const storage = window.localStorage;
+  const theme = {
+    theme: themeName(storage),
+    effects: effectsOn(storage),
+    onChange: (next, effects) => {
+      themeStore(storage).save(next, effects);
+      applyTheme(document.documentElement, storage);
+      render();
+    },
+  };
+  const ctx = { me, refresh, signOut, go, theme };
   const finished = me.finished.find((f) => route === `reveal/${f.id}`);
   if (finished) {
     show(realismReveal({ ...ctx, finished }));

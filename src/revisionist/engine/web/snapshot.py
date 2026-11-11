@@ -16,12 +16,13 @@ is returned, as ``Handlers._as_seat`` scans a Discord reply.
 """
 
 import json
+from collections.abc import Mapping
 from typing import Any
 
 from revisionist.core import events as ev
 from revisionist.core.canary import canaries_hidden_from
 from revisionist.core.dashboard import dashboard
-from revisionist.core.ids import CampaignId, SeatId
+from revisionist.core.ids import CampaignId, EntityId, SeatId
 from revisionist.core.ontology import AssetStatus, ClockStatus, EntityKind, Phase, SeatKind
 from revisionist.core.project import project
 from revisionist.core.referee import holds
@@ -29,6 +30,8 @@ from revisionist.core.state import State, View
 from revisionist.engine import scheduler as sch
 from revisionist.engine import session_zero
 from revisionist.engine.pg_store import PostgresEventStore
+from revisionist.engine.web import dossiers
+from revisionist.engine.web.realism_api import Dossier
 
 BANDS = ("impossible", "long_shot", "contested", "likely", "assured")
 """The only odds a client is ever sent, as words (decision: odds are words)."""
@@ -97,8 +100,8 @@ def schedule_info(store: PostgresEventStore, campaign_id: CampaignId, now: Any) 
     }
 
 
-def roster(state: State) -> list[dict[str, Any]]:
-    """The public roster, as ``roster_lines`` shows it, in parts."""
+def roster(state: State, people: Mapping[EntityId, Dossier] | None = None) -> list[dict[str, Any]]:
+    """The public roster, as ``roster_lines`` shows it, in parts, each with its dossier."""
     out = []
     for ch in sorted(state.roster.values(), key=lambda c: state.entities[c.entity_id].name):
         out.append(
@@ -109,6 +112,7 @@ def roster(state: State) -> list[dict[str, Any]]:
                 "composite": ch.composite,
                 "taken": ch.claimed_by is not None,
                 "aliases": list(ch.aliases),
+                "dossier": (people or {}).get(ch.entity_id, dossiers.empty_dossier()),
                 "sides": [
                     {
                         "contest": state.contests[s.contest_id].name,
@@ -166,7 +170,11 @@ def seat_snapshot(store: PostgresEventStore, state: State, seat: SeatId) -> dict
     """Everything one seat's screens show. ``seat`` need not exist yet: in Session
     Zero it appears when the player claims a character."""
     log = _own_log(store, state.campaign_id, seat)
-    out: dict[str, Any] = {"roster": roster(state) if state.phase is Phase.SESSION_ZERO else []}
+    out: dict[str, Any] = {
+        "roster": roster(state, dossiers.for_people(state, store.read(state.campaign_id)))
+        if state.phase is Phase.SESSION_ZERO
+        else []
+    }
     if seat not in state.seats:
         out["seat"] = None
         return out

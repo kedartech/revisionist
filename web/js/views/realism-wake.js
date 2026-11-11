@@ -5,7 +5,8 @@
 import { h, icon } from '../dom.js';
 import { worldDate } from '../rules.js';
 
-const RUNNING = 'The wake is running. New papers are being written; this can take a minute…';
+/** The busy line for a call that runs the wake; the room shows the overlay for it. */
+export const RUNNING = 'The wake is running. New papers are being written; this can take a minute…';
 
 /** Each play style: its value, its word, and what it does. */
 export const STYLES = Object.freeze([
@@ -33,6 +34,26 @@ export function commitCount(wake) {
   const tail = wake.humans === 1 ? 'player committed' : 'players committed';
   return `${wake.committed} of ${wake.humans} ${tail}`;
 }
+
+/**
+ * The commit button's words: "Done for today" before the seat is done; then "Done" when
+ * every player is, else "Done, waiting on <n> of <m>" (n the players not done, m all).
+ */
+export function commitLabel(wake) { // contract stub
+  return '';
+}
+
+/** Under the commit button. */
+export const DONE_HINT = 'The day runs when everyone is done.';
+
+/** The host's confirm before running the wake now. */
+export const RUN_NOW = Object.freeze({
+  button: 'Run the day now',
+  heading: 'Run the day now?',
+  text: 'It runs with every order as it stands. Your aide plays anyone who is not done. This can take a minute.',
+  cancel: 'Cancel',
+  confirm: 'Run it',
+});
 
 /** Shown under the header while the wake is open and you have not committed; the aide plays the rest. */
 export function commitHint(wake) {

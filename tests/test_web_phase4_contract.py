@@ -5,7 +5,7 @@ the API's shapes, and an ended game keeps its seats. Same harness as ``tests/tes
 import json
 from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, is_typeddict
+from typing import Any, get_origin, is_typeddict
 
 import pytest
 
@@ -51,13 +51,18 @@ def _seat_row(game: Realism) -> list[tuple[Any, ...]]:
 
 
 def _same_shape(example: Any, shape: Any) -> None:
-    """Every key the TypedDict declares, recursively through its nested shapes."""
+    """Every key the TypedDict declares, recursively through its nested shapes: a list of
+    shapes and an optional shape each need an example."""
     assert set(example) == set(shape.__annotations__), shape
     for key, kind in shape.__annotations__.items():
+        if is_typeddict(kind):
+            _same_shape(example[key], kind)
+            continue
         args = getattr(kind, "__args__", ())
         if args and is_typeddict(args[0]):
             assert example[key], f"{shape.__name__}.{key} needs an example"
-            for item in example[key]:
+            items = example[key] if get_origin(kind) is list else [example[key]]
+            for item in items:
                 _same_shape(item, args[0])
 
 
@@ -69,6 +74,10 @@ def _same_shape(example: Any, shape: Any) -> None:
         ("reach", api.ReachGroups),
         ("proposal", api.OrderProposal),
         ("reveal", api.Reveal),
+        ("record", api.RecordBlock),
+        ("setting", api.Setting),
+        ("dossier", api.Dossier),
+        ("listing", api.DocumentListing),
     ],
 )
 def test_the_web_fixture_has_the_api_shape(key: str, shape: Any) -> None:
@@ -99,6 +108,13 @@ def test_the_seat_block_carries_the_stub_shapes(solo: tuple[Realism, Client]) ->
     assert block["results"] == []
     assert set(block["reach"]) == set(api.ReachGroups.__annotations__)
     assert block["style"] == "free"
+    assert set(block["record"]) == set(api.RecordBlock.__annotations__)
+    assert set(block["setting"]) == set(api.Setting.__annotations__)
+    assert set(block["dossier"]) == set(api.Dossier.__annotations__)
+    contacts = [c for group in block["reach"].values() for c in group]
+    assert contacts and all(set(c) == set(api.ReachContact.__annotations__) for c in contacts)
+    rows = block["documents"]["documents"]
+    assert all(set(r) == set(api.DocumentListItem.__annotations__) for r in rows)
 
 
 @pytest.mark.parametrize(

@@ -1,4 +1,4 @@
-/* The opening crawl (split out of p5-intro.css; unit Q5). */
+/* The opening crawl: the paragraphs fade in turn, and the Begin phrases take turns in one cell. */
 
 .rl-intro-crawl p {
   margin: 0 0 1.25rem;
@@ -6,28 +6,103 @@
   font-size: 1.35rem;
   line-height: 1.5;
   color: var(--accent);
-  animation: rl-intro-rise 900ms ease-out both;
+  animation: rl-intro-fade 1500ms ease-out both;
 }
 
 .rl-intro-crawl p:nth-child(2) {
-  animation-delay: 1200ms;
+  animation-delay: 2.5s;
 }
 
 .rl-intro-crawl p:nth-child(3) {
-  animation-delay: 2400ms;
+  animation-delay: 5s;
 }
 
-@keyframes rl-intro-rise {
+@keyframes rl-intro-fade {
   from {
-    transform: translateY(2rem);
+    opacity: 0;
   }
   to {
-    transform: translateY(0);
+    opacity: 1;
   }
+}
+
+.rl-intro-phrases {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  text-align: center;
+  font-family: var(--font-chrome);
+  font-size: 0.9rem;
+  color: var(--fg-muted);
+}
+
+.rl-intro-phrases li {
+  grid-area: 1 / 1;
+  opacity: 0;
+  animation: rl-intro-phrase 12s linear infinite both;
+}
+
+.rl-intro-phrases li:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.rl-intro-phrases li:nth-child(2) {
+  animation-delay: 2s;
+}
+
+.rl-intro-phrases li:nth-child(3) {
+  animation-delay: 4s;
+}
+
+.rl-intro-phrases li:nth-child(4) {
+  animation-delay: 6s;
+}
+
+.rl-intro-phrases li:nth-child(5) {
+  animation-delay: 8s;
+}
+
+.rl-intro-phrases li:nth-child(6) {
+  animation-delay: 10s;
+}
+
+@keyframes rl-intro-phrase {
+  0% {
+    opacity: 0;
+  }
+  2% {
+    opacity: 1;
+  }
+  14% {
+    opacity: 1;
+  }
+  16% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.rl-intro-continue:disabled {
+  border-color: var(--rule);
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: not-allowed;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .rl-intro-crawl p {
     animation: none;
+  }
+
+  .rl-intro-phrases li {
+    animation: none;
+  }
+
+  .rl-intro-phrases li:first-child {
+    opacity: 1;
   }
 }

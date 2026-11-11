@@ -173,8 +173,12 @@ async function beginWithCrawl(game, out, button, refresh) {
     }
     ready = true;
     markIntro(browserStorage(window), game.id, 'crawl');
-    if (crawl?.isConnected) markReady(crawl);
-    else await refresh?.();
+    // a browser may close a dialog on a repeated Esc even while its cancel is held
+    if (crawl?.isConnected && crawl.open) markReady(crawl);
+    else {
+      closeCrawl();
+      await refresh?.();
+    }
   } catch (ex) {
     closeCrawl();
     out.replaceChildren(h('p', { class: 'form-error' }, ex.message));

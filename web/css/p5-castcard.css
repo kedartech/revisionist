@@ -34,6 +34,24 @@
 .rl-cc-portrait { display: block; width: 100%; height: 100%; object-fit: cover; }
 .rl-cc-credit { display: none; }
 
+.rl-cc-media {
+  display: flex;
+  flex: 0 0 6rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 6rem;
+  min-width: 0;
+}
+
+.rl-cc-byline {
+  display: block;
+  color: var(--fg-muted);
+  font-family: var(--font-chrome);
+  font-size: 0.7rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
 .rl-cc-mono {
   display: grid;
   flex: 0 0 4rem;

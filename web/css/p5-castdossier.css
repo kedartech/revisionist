@@ -127,6 +127,14 @@
   font-family: var(--font-chrome);
 }
 
+.rl-cd-ask {
+  flex: 1 1 100%;
+  margin: 0;
+  font-family: var(--font-head);
+  font-size: 0.9rem;
+  color: var(--fg-strong);
+}
+
 .rl-cd-note {
   flex: 1 1 14rem;
   margin: 0;

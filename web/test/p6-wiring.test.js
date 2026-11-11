@@ -34,7 +34,7 @@ test('the select screen calls each unit with the data the server sends', () => {
     /from '\.\/realism-crawl\.js'/,
     /status\?\.before\(beginStatus\(\)\)/,
     /'Beginning…'\), beginStatus\(\)\)/,
-    /if \(crawl\?\.isConnected\) markReady\(crawl\);/,
+    /if \(crawl\?\.isConnected && crawl\.open\) markReady\(crawl\);/,
     /confirmNote: CONFIRM_NOTE,/,
   ]) assert.match(cast, call);
   assert.ok(!cast.includes('watched'), 'the crawl can no longer be left before Begin answers');

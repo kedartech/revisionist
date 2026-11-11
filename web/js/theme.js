@@ -1,18 +1,19 @@
-// The theme setting: Terminal (the default) or Paper, kept in the browser under `rv.theme`,
+// The theme setting: Paper (the default) or Terminal, kept in the browser under `rv.theme`,
 // and the screen effects, off unless `rv.effects` is "on".
 // Storage is a parameter, so nothing here touches `window` when the module is imported.
 
 export const THEMES = ['terminal', 'paper'];
+export const DEFAULT_THEME = 'paper';
 export const THEME_KEY = 'rv.theme';
 export const EFFECTS_KEY = 'rv.effects';
 
-/** The stored theme, or `terminal` when it is missing, unknown or storage is blocked. */
+/** The stored theme, or `DEFAULT_THEME` when it is missing, unknown or storage is blocked. */
 export function themeName(storage) {
   try {
     const stored = storage?.getItem(THEME_KEY);
-    return THEMES.includes(stored) ? stored : 'terminal';
+    return THEMES.includes(stored) ? stored : DEFAULT_THEME;
   } catch {
-    return 'terminal';
+    return DEFAULT_THEME;
   }
 }
 

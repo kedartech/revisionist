@@ -72,30 +72,64 @@ function sectionNode(i, heading, ls) {
         : h('p', {}, ls[0]));
 }
 
+/** The foot's transitions: `read` shows Play; a Play asks first (`confirm`), then Yes goes. */
+export function playStep(step, event) {
+  if (step === 'read' && event === 'play') return 'confirm';
+  if (step === 'confirm' && event === 'back') return 'read';
+  if (step === 'confirm' && event === 'yes') return 'go';
+  return step;
+}
+
 /**
  * `<dialog class="rl-cd" aria-labelledby="rl-cd-title">`: `portraitNode(name, dossier, 'rl-cd')`,
  * the h2 name (`#rl-cd-title`), each section as an h3 plus a paragraph or a list, then the
- * foot: when `canPlay`, a primary button "Play <name>" calling `onPlay(person)`; for a listed
- * figure, the `DRAW_NOTE` line beside it; and a Close button calling `onClose()`. The
- * dialog's `close` event (Esc) also calls `onClose()`.
+ * foot. The foot reads: when `canPlay`, a primary button "Play <name>" that asks first; for a
+ * listed figure, the `DRAW_NOTE` line beside it; and a Close button calling `onClose()`. Asking
+ * swaps the foot for "Play <name>?", the `confirmNote` line when given, the `DRAW_NOTE` line for
+ * a listed figure, a primary "Yes, play <name>" calling `onPlay(person)` once, and "Not yet",
+ * which swaps back. Focus follows the primary button after each swap. The dialog's `close`
+ * event (Esc) also calls `onClose()`.
  */
-export function castDossier({ person, dossier = null, canPlay = true, onPlay, onClose } = {}) {
+export function castDossier({ person, dossier = null, canPlay = true, confirmNote = null, onPlay, onClose } = {}) {
   const model = castDossierModel(person, dossier);
   let done = false;
+  let step = 'read';
   const finish = () => {
     if (done) return;
     done = true;
     if (dialog.open) dialog.close();
     onClose?.();
   };
+  const swap = (event) => {
+    const next = playStep(step, event);
+    if (next === step) return;
+    step = next;
+    if (next === 'go') {
+      onPlay(person);
+      return;
+    }
+    foot.replaceChildren(...(next === 'confirm' ? askFoot() : readFoot()).filter(Boolean));
+    foot.querySelector('button.primary').focus();
+  };
+  const readFoot = () => [
+    canPlay ? h('button', { type: 'button', class: 'primary', onclick: () => swap('play') }, `Play ${model.name}`) : null,
+    canPlay && model.listed ? h('p', { class: 'rl-cd-note' }, DRAW_NOTE) : null,
+    h('button', { type: 'button', class: 'ghost', onclick: finish }, 'Close'),
+  ];
+  const askFoot = () => [
+    h('p', { class: 'rl-cd-ask' }, `Play ${model.name}?`),
+    confirmNote ? h('p', { class: 'rl-cd-note' }, confirmNote) : null,
+    model.listed ? h('p', { class: 'rl-cd-note' }, DRAW_NOTE) : null,
+    h('button', { type: 'button', class: 'primary', onclick: () => swap('yes') }, `Yes, play ${model.name}`),
+    h('button', { type: 'button', class: 'ghost', onclick: () => swap('back') }, 'Not yet'),
+    h('button', { type: 'button', class: 'ghost', onclick: finish }, 'Close'),
+  ];
+  const foot = h('div', { class: 'rl-cd-foot' }, readFoot());
   const dialog = h('dialog', { class: 'rl-cd', 'aria-labelledby': 'rl-cd-title', onclose: finish },
     h('header', { class: 'rl-cd-head' },
       portraitNode(model.name, dossier, 'rl-cd'),
       h('h2', { id: 'rl-cd-title', class: 'rl-cd-name' }, model.name)),
     model.sections.map(({ heading, lines: ls }, i) => sectionNode(i, heading, ls)),
-    h('div', { class: 'rl-cd-foot' },
-      canPlay ? h('button', { type: 'button', class: 'primary', onclick: () => onPlay(person) }, `Play ${model.name}`) : null,
-      canPlay && model.listed ? h('p', { class: 'rl-cd-note' }, DRAW_NOTE) : null,
-      h('button', { type: 'button', class: 'ghost', onclick: finish }, 'Close')));
+    foot);
   return dialog;
 }

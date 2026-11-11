@@ -1,6 +1,6 @@
 // The opening crawl (split out of realism-intro.js): the scene-setting paragraphs shown
 // while the host's Begin runs and to every other player on first entry, and the phrases
-// that say what Begin is doing. Unit Q5 builds the fade, the held Continue and the phrases.
+// that say what Begin is doing.
 
 import { h } from '../dom.js';
 
@@ -17,37 +17,55 @@ export function crawlParagraphs(setting) {
  * `<dialog class="rl-intro" aria-labelledby="rl-intro-title">`: an h2 `title` (the game's
  * name), the paragraphs inside `.rl-intro-crawl`, a `p.rl-intro-status[role=status]` the
  * caller writes progress into, and a "Continue" button. Continue, and the dialog's `cancel`
- * (Esc), call `onDone()` once. Under reduced motion the text is static (CSS).
- * `ready` (default true): see unit Q5.
+ * (Esc), call `onDone()` once, and only once the dialog is ready: `ready: false` holds both
+ * until `markReady(dialog)`. Under reduced motion the text is static (CSS).
  */
-// contract stub: `ready` is accepted and not yet acted on (unit Q5)
 export function introCrawl({ title, paragraphs = [], ready = true, onDone } = {}) {
-  void ready;
   let done = false;
   const finish = () => {
     if (done) return;
     done = true;
     onDone?.();
   };
-  return h('dialog', {
+  const dialog = h('dialog', {
     class: 'rl-intro',
     'aria-labelledby': 'rl-intro-title',
-    oncancel: (e) => { e.preventDefault(); finish(); },
+    'data-ready': ready ? '' : undefined,
+    oncancel: (e) => {
+      e.preventDefault();
+      if (dialog.hasAttribute('data-ready')) finish();
+    },
   },
     h('h2', { id: 'rl-intro-title' }, title ?? ''),
     h('div', { class: 'rl-intro-crawl' }, paragraphs.map((p) => h('p', {}, p))),
     h('p', { class: 'rl-intro-status', role: 'status', 'aria-live': 'polite' }),
-    h('button', { type: 'button', class: 'rl-intro-continue', onclick: finish }, 'Continue'));
+    h('button', { type: 'button', class: 'rl-intro-continue', disabled: !ready, onclick: finish }, 'Continue'));
+  return dialog;
 }
 
-/** Begin has finished: let the player continue (unit Q5). */
-// contract stub: writes the status line only, as before the split (unit Q5)
+/** Begin has finished: enable Continue, say so in the status line, and drop the phrases. */
 export function markReady(dialog, text = 'Ready. Continue when you are.') {
-  dialog?.querySelector('.rl-intro-status')?.replaceChildren(text);
+  if (!dialog) return;
+  dialog.setAttribute('data-ready', '');
+  const cont = dialog.querySelector('.rl-intro-continue');
+  if (cont) cont.disabled = false;
+  dialog.querySelector('.rl-intro-status')?.replaceChildren(text);
+  dialog.querySelector('.rl-intro-phrases')?.remove();
+  cont?.focus();
 }
 
-/** The phrases shown while Begin runs (unit Q5). */
-// contract stub: an empty list (unit Q5)
-export function beginStatus() {
-  return h('ul', { class: 'rl-intro-phrases', 'aria-hidden': 'true' });
+/** The phrases shown while Begin runs, one at a time in the stylesheet. */
+export const BEGIN_PHRASES = Object.freeze([
+  'Drawing up the opening papers.',
+  'Seating the cabinet and the staff.',
+  'Setting the calendar.',
+  "Sorting the first day's in-tray.",
+  'Briefing your aide.',
+  'Opening the first day.',
+]);
+
+/** A list of `phrases` (the Begin phrases by default), hidden from screen readers. */
+export function beginStatus(phrases = BEGIN_PHRASES) {
+  return h('ul', { class: 'rl-intro-phrases', 'aria-hidden': 'true' },
+    phrases.map((p) => h('li', {}, p)));
 }

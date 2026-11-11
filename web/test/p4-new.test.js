@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { timelinePoints } from '../js/views/new-game.js';
-import { PLAY_STYLES, figureGroups, pickLock, searchState } from '../js/views/realism-cast.js';
+import { PLAY_STYLES, alreadyPlayed, figureGroups, pickLock, searchState } from '../js/views/realism-cast.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const fixture = JSON.parse(readFileSync(join(WEB, 'test', 'fixtures', 'realism-seat.json'), 'utf8'));
@@ -91,6 +91,26 @@ test('a name not on the list offers to draw it up', () => {
     text: 'No one on the list matches “Zed Quill”.',
     offer: 'Draw up Zed Quill',
   });
+});
+
+test('a search that matches only people already playing says so and offers no draw', () => {
+  assert.deepEqual(searchState({ loading: false, shown: [], query: 'Church', taken: ['Winston Churchill'] }), {
+    kind: 'taken',
+    text: 'Only Winston Churchill matches “Church”, and they are already played.',
+  });
+});
+
+test('several people already playing are named together', () => {
+  const state = searchState({ loading: false, shown: [], query: 'r', taken: ['Franklin D. Roosevelt', 'Harold R. Stark'] });
+  assert.equal(state.kind, 'taken');
+  assert.equal(state.text, 'Only Franklin D. Roosevelt and Harold R. Stark match “r”, and they are already played.');
+  assert.equal(state.offer, undefined);
+});
+
+test('alreadyPlayed names list matches that are in the cast, ignoring case', () => {
+  const groups = [{ side: 'A', power: 'p', figures: [{ name: 'Winston Churchill' }, { name: 'Dudley Pound' }] }];
+  assert.deepEqual(alreadyPlayed(groups, ['winston churchill', 'Someone Else']), ['Winston Churchill']);
+  assert.deepEqual(alreadyPlayed(groups, []), []);
 });
 
 test('an empty date with no query says no one is listed', () => {

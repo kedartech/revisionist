@@ -33,6 +33,12 @@ test('a worded filed day is shown as given when the order is only made', () => {
   assert.equal(orderStage(result('1 September 1941', part())), 'Made 1 September 1941');
 });
 
+test('an order with no filed day is made, with no day named', () => {
+  assert.equal(orderStage(result(undefined, part())), 'Made');
+  assert.equal(orderStage(result(null)), 'Made');
+  assert.equal(orderStage(result('')), 'Made');
+});
+
 test('an order is finished on the latest applied day of its parts', () => {
   const r = result('1941-10-12',
     part({ applied: '9 October 1941' }),
@@ -93,4 +99,16 @@ test('newestFirst does not mutate its input', () => {
 
 test('the fixture results sort without a document', () => {
   assert.deepEqual(newestFirst(fixture.results).map((r) => r.id), fixture.results.map((r) => r.id));
+});
+
+test('newestFirst puts a filed day with an unknown month last, not first of its year', () => {
+  const odd = result('5 Brumaire 1942');
+  const jan = result('2 January 1941');
+  const oct = result('14 October 1941');
+  assert.deepEqual(newestFirst([odd, jan, oct]).map((r) => r.id), [oct.id, jan.id, odd.id]);
+});
+
+test('a part applied on an unknown month never counts as the latest', () => {
+  const r = result('1941-10-01', part({ applied: '9 Brumaire 1942' }), part({ applied: '3 November 1941' }));
+  assert.equal(orderStage(r), 'Finished 3 November 1941');
 });

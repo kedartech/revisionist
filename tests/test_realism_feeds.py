@@ -6,15 +6,31 @@ import pytest
 
 from revisionist.core import events as ev
 from revisionist.core.fold import replay
-from revisionist.core.ids import CampaignId, EventId, FeedId, QuantityId, SeatId, derived_id
+from revisionist.core.ids import (
+    CampaignId,
+    EntityId,
+    EventId,
+    FeedId,
+    QuantityId,
+    SeatId,
+    derived_id,
+)
 from revisionist.core.project import project
-from revisionist.core.realism.document import Bias, Feed
-from revisionist.core.realism.feeds import due_feeds, issue, seed_for_day
+from revisionist.core.realism.document import Bias, BodyField, Feed
+from revisionist.core.realism.feeds import (
+    NO_CHANGE,
+    RESTATE_DAYS,
+    due_feeds,
+    issue,
+    seed_for_day,
+)
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC
 from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
+from revisionist.engine import realism_tick
+from revisionist.engine.store import MemoryStore, load_state
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 CANARY = "CANARY-FEED-TRUTH-77aa"
@@ -182,11 +198,70 @@ def test_a_feed_with_one_figure_stated_still_issues(rig: Rig) -> None:
     assert [line.value is None for line in doc.document.body] == [False, True]
 
 
-def test_a_word_for_word_repeat_of_the_last_issue_is_not_issued(rig: Rig) -> None:
+def _on(rig: Rig, day: date) -> ev.DocumentIssued | None:
+    return issue(rig.state, rig.feed, day, seed_for_day(CAMPAIGN, day))
+
+
+def test_a_page_that_would_repeat_the_last_one_says_no_change_since_its_date(rig: Rig) -> None:
     start = rig.state.quantities[rig.qid].as_of
     rig.add(_issue(rig.state, rig.feed, start))
     week = start + timedelta(days=7)
-    assert issue(rig.state, rig.feed, week, seed_for_day(CAMPAIGN, week)) is None
+    page = _on(rig, week)
+    assert page is not None
+    assert page.document.body == (BodyField(label=NO_CHANGE, value=f"{start.day} {start:%B %Y}"),)
+    assert page.document.title.endswith(": no change")
+    assert page.truth.truth_refs, "the truth record still holds the figure"
     moved = rig.state.quantities[rig.qid].model_copy(update={"value": 3})
     state = rig.state.model_copy(update={"quantities": {rig.qid: moved}})
-    assert issue(state, rig.feed, week, seed_for_day(CAMPAIGN, week)) is not None
+    full = issue(state, rig.feed, week, seed_for_day(CAMPAIGN, week))
+    assert full is not None and full.document.body[0].label != NO_CHANGE
+
+
+def test_a_no_change_title_fits_the_title_limit_for_a_long_feed_name(rig: Rig) -> None:
+    start = rig.state.quantities[rig.qid].as_of
+    feed = rig.feed.model_copy(update={"name": "Atlantic reports from the Navy Department"})
+    state = rig.state.model_copy(update={"feeds": {**rig.state.feeds, feed.feed_id: feed}})
+    rig.add(_issue(state, feed, start))
+    state = rig.state.model_copy(update={"feeds": {**rig.state.feeds, feed.feed_id: feed}})
+    week = start + timedelta(days=7)
+    page = issue(state, feed, week, seed_for_day(CAMPAIGN, week))
+    assert page is not None
+    assert len(page.document.title) <= 60
+    assert page.document.title.endswith(f"{week.isoformat()}: no change")
+
+
+def test_no_change_counts_from_the_last_full_page_not_the_last_no_change_page(rig: Rig) -> None:
+    start = rig.state.quantities[rig.qid].as_of
+    rig.add(_issue(rig.state, rig.feed, start))
+    rig.add(_issue(rig.state, rig.feed, start + timedelta(days=7)))
+    page = _on(rig, start + timedelta(days=13))
+    assert page is not None
+    assert page.document.body == (BodyField(label=NO_CHANGE, value=f"{start.day} {start:%B %Y}"),)
+
+
+def test_an_unchanged_page_is_stated_in_full_again_once_the_last_full_page_is_old(
+    rig: Rig,
+) -> None:
+    start = rig.state.quantities[rig.qid].as_of
+    first = _issue(rig.state, rig.feed, start)
+    rig.add(first)
+    page = _on(rig, start + timedelta(days=RESTATE_DAYS))
+    assert page is not None
+    assert page.document.body == first.document.body
+
+
+def test_a_sighting_page_that_would_repeat_says_no_change_and_places_nothing() -> None:
+    store = MemoryStore()
+    decl = cmp.load_world(cmp.world_path("autumn-1941"))
+    store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))
+    realism_tick.seat_player(store, CAMPAIGN, EntityId(resolve_keys(decl, CAMPAIGN)["churchill"]))
+    state = load_state(store, CAMPAIGN)
+    feed = state.feeds[FeedId(resolve_keys(decl, CAMPAIGN)["admiralty_reports"])]
+    first = next(d.view for d in state.documents.values() if d.truth.feed == feed.feed_id)
+    assert any(line.sight for line in first.body), "seating issues the opening sighting page"
+    start = first.issued
+    week = start + timedelta(days=7)
+    page = issue(state, feed, week, seed_for_day(CAMPAIGN, week))
+    assert page is not None
+    assert [line.label for line in page.document.body] == [NO_CHANGE]
+    assert page.truth.sightings == ()

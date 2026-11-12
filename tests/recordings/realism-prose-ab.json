@@ -1,123 +1,13 @@
 {
- "741745e0464c175f42bb7ce9": {
+ "124bcf7ecdb9e9993a8157b6": {
   "call_class": "prose",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nStephen T. Early, White House press secretary\n\n## Pages to write\n[{\"doc_id\": \"VZPC34SMT5X71QRYNZC0QN9GEF\", \"ki",
+  "prompt_head": "## Author\nSam Rayburn, Speaker of the House of Representatives\nVoice: Plain-spoken Texan of few words; counts votes priv",
   "reply": {
    "cached_tokens": 1011,
-   "input_tokens": 1114,
-   "model": "claude-sonnet-5-5",
-   "output": {
-    "pages": [
-     {
-      "doc_id": "VZPC34SMT5X71QRYNZC0QN9GEF",
-      "prose": "Boss,\n\nGallup's latest has 55 percent calling your course about right. They haven't given me anything I'd trust on a declaration against Germany, nor on helping Britain at the risk of war; I'll chase them for it.\n\nSteve"
-     }
-    ]
-   },
-   "output_tokens": 72,
-   "usd": 0.002948
-  }
- },
- "9189bba9f131d750fc8d5547": {
-  "call_class": "prose",
-  "hand_written": true,
-  "model": "claude-haiku-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nSam Rayburn, Speaker of the House of Representatives\n\n## Pages to write\n[{\"doc_id\": \"60ATBCTZ2KYC0K2G20C4ZF9RE",
-  "reply": {
-   "cached_tokens": 1011,
-   "input_tokens": 1128,
-   "model": "claude-haiku-5-5",
-   "output": {
-    "pages": [
-     {
-      "doc_id": "60ATBCTZ2KYC0K2G20C4ZF9REH",
-      "prose": "Mr. President, the House still stands at 267 Democrats and 162 Republicans. Sam Rayburn"
-     }
-    ]
-   },
-   "output_tokens": 38,
-   "usd": 0.0001318
-  }
- },
- "aeb06148c18729fba475bedd": {
-  "call_class": "prose",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nStephen T. Early, White House press secretary\n\n## Pages to write\n[{\"doc_id\": \"K2JFTV447NE1W5B78144V8GG5D\", \"ki",
-  "reply": {
-   "cached_tokens": 1011,
-   "input_tokens": 1114,
-   "model": "claude-sonnet-5-5",
-   "output": {
-    "pages": [
-     {
-      "doc_id": "K2JFTV447NE1W5B78144V8GG5D",
-      "prose": "Boss,\n\nA small move our way: 56 percent now call your course about right. Still no number on war with Germany or on helping Britain whatever the risk, and I'd rather give you none than a guess.\n\nSteve"
-     }
-    ]
-   },
-   "output_tokens": 67,
-   "usd": 0.002898
-  }
- },
- "c098924f0ff0a79f60cbfe29": {
-  "call_class": "prose",
-  "hand_written": true,
-  "model": "claude-haiku-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nSam Rayburn, Speaker of the House of Representatives\n\n## Pages to write\n[{\"doc_id\": \"80C6G710WKH1B4CTGD4MXMBT6",
-  "reply": {
-   "cached_tokens": 1011,
-   "input_tokens": 1128,
-   "model": "claude-haiku-5-5",
-   "output": {
-    "pages": [
-     {
-      "doc_id": "80C6G710WKH1B4CTGD4MXMBT6V",
-      "prose": "Mr. President, the House stands at 267 Democrats and 162 Republicans. Sam Rayburn"
-     }
-    ]
-   },
-   "output_tokens": 36,
-   "usd": 0.0001308
-  }
- },
- "d15e551f382e17b844ae923f": {
-  "call_class": "prose",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nSam Rayburn, Speaker of the House of Representatives\n\n## Pages to write\n[{\"doc_id\": \"60ATBCTZ2KYC0K2G20C4ZF9RE",
-  "reply": {
-   "cached_tokens": 1011,
-   "input_tokens": 1128,
-   "model": "claude-sonnet-5-5",
-   "output": {
-    "pages": [
-     {
-      "doc_id": "60ATBCTZ2KYC0K2G20C4ZF9REH",
-      "prose": "Mr. President,\n\nThe House is as it was: 267 Democrats and 162 Republicans. I'll tell you the minute that changes.\n\nSam"
-     }
-    ]
-   },
-   "output_tokens": 47,
-   "usd": 0.002726
-  }
- },
- "e3ce35b0dd41315daeda6f88": {
-  "call_class": "prose",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nSam Rayburn, Speaker of the House of Representatives\n\n## Pages to write\n[{\"doc_id\": \"80C6G710WKH1B4CTGD4MXMBT6",
-  "reply": {
-   "cached_tokens": 1011,
-   "input_tokens": 1128,
+   "input_tokens": 1152,
    "model": "claude-sonnet-5-5",
    "output": {
     "pages": [
@@ -128,84 +18,62 @@
     ]
    },
    "output_tokens": 62,
-   "usd": 0.002876
+   "usd": 0.002924
   }
  },
- "edc1120557fff5036cdc3d65": {
+ "25717a12f352d5596e4fda62": {
   "call_class": "prose",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nHarold R. Stark, Chief of Naval Operations\n\n## Pages to write\n[{\"doc_id\": \"7WD18YQ5NNBCYVWE5V96DPY182\", \"kind\"",
+  "prompt_head": "## Author\nStephen T. Early, White House press secretary\nVoice: Crisp newsroom manner; thinks in headlines and deadlines,",
   "reply": {
    "cached_tokens": 1011,
-   "input_tokens": 1225,
+   "input_tokens": 1138,
    "model": "claude-sonnet-5-5",
    "output": {
     "pages": [
      {
-      "doc_id": "7WD18YQ5NNBCYVWE5V96DPY182",
-      "prose": "Mr. President,\n\nThe Atlantic picture for September is a hard one. Allied merchant losses to U-boats come to 209,835 GRT, and we reckon 30 boats operational in the Atlantic on the July to September average. The convoys need every escort we can spare.\n\nRespectfully,\nH. R. Stark"
-     }
-    ]
-   },
-   "output_tokens": 86,
-   "usd": 0.00331
-  }
- },
- "f0a6ea323bba3d5662343e88": {
-  "call_class": "prose",
-  "hand_written": true,
-  "model": "claude-haiku-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nStephen T. Early, White House press secretary\n\n## Pages to write\n[{\"doc_id\": \"K2JFTV447NE1W5B78144V8GG5D\", \"ki",
-  "reply": {
-   "cached_tokens": 1011,
-   "input_tokens": 1114,
-   "model": "claude-haiku-5-5",
-   "output": {
-    "pages": [
-     {
       "doc_id": "K2JFTV447NE1W5B78144V8GG5D",
-      "prose": "Gallup now shows 56 percent saying your course is about right. Nothing new on war with Germany or on aid to Britain at risk of war.\n\nSteve Early"
+      "prose": "Boss,\n\nA small move our way: 56 percent now call your course about right. Still no number on war with Germany or on helping Britain whatever the risk, and I'd rather give you none than a guess.\n\nSteve"
      }
     ]
    },
-   "output_tokens": 53,
-   "usd": 0.0001379
+   "output_tokens": 67,
+   "usd": 0.002946
   }
  },
- "f77692a9481528de816e3911": {
+ "7fe326d94daff9772de5374d": {
   "call_class": "prose",
   "hand_written": true,
   "model": "claude-haiku-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nHarold R. Stark, Chief of Naval Operations\n\n## Pages to write\n[{\"doc_id\": \"7WD18YQ5NNBCYVWE5V96DPY182\", \"kind\"",
+  "prompt_head": "## Author\nSam Rayburn, Speaker of the House of Representatives\nVoice: Plain-spoken Texan of few words; counts votes priv",
   "reply": {
    "cached_tokens": 1011,
-   "input_tokens": 1225,
+   "input_tokens": 1152,
    "model": "claude-haiku-5-5",
    "output": {
     "pages": [
      {
-      "doc_id": "7WD18YQ5NNBCYVWE5V96DPY182",
-      "prose": "Allied merchant losses to U-boats for September stand at 209835 GRT. U-boats operational in the Atlantic: 30 boats, July to September average.\n\nH. R. Stark"
+      "doc_id": "80C6G710WKH1B4CTGD4MXMBT6V",
+      "prose": "Mr. President, the House stands at 267 Democrats and 162 Republicans. Sam Rayburn"
      }
     ]
    },
-   "output_tokens": 55,
-   "usd": 0.00015
+   "output_tokens": 36,
+   "usd": 0.0001332
   }
  },
- "f8f7cb584b3b6445705c5c2f": {
+ "92121e1cfa18128fe763676e": {
   "call_class": "prose",
   "hand_written": true,
   "model": "claude-haiku-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nStephen T. Early, White House press secretary\n\n## Pages to write\n[{\"doc_id\": \"VZPC34SMT5X71QRYNZC0QN9GEF\", \"ki",
+  "prompt_head": "## Author\nStephen T. Early, White House press secretary\nVoice: Crisp newsroom manner; thinks in headlines and deadlines,",
   "reply": {
    "cached_tokens": 1011,
-   "input_tokens": 1114,
+   "input_tokens": 1138,
    "model": "claude-haiku-5-5",
    "output": {
     "pages": [
@@ -216,7 +84,139 @@
     ]
    },
    "output_tokens": 55,
-   "usd": 0.0001389
+   "usd": 0.0001413
+  }
+ },
+ "94addcfe426adc8232e61c74": {
+  "call_class": "prose",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Author\nSam Rayburn, Speaker of the House of Representatives\nVoice: Plain-spoken Texan of few words; counts votes priv",
+  "reply": {
+   "cached_tokens": 1011,
+   "input_tokens": 1152,
+   "model": "claude-sonnet-5-5",
+   "output": {
+    "pages": [
+     {
+      "doc_id": "60ATBCTZ2KYC0K2G20C4ZF9REH",
+      "prose": "Mr. President,\n\nThe House is as it was: 267 Democrats and 162 Republicans. I'll tell you the minute that changes.\n\nSam"
+     }
+    ]
+   },
+   "output_tokens": 47,
+   "usd": 0.002774
+  }
+ },
+ "9a16d9ebeb1702778e965f7c": {
+  "call_class": "prose",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Author\nHarold R. Stark, Chief of Naval Operations\nVoice: Courteous, careful and wordy; writes long, chatty letters to",
+  "reply": {
+   "cached_tokens": 1011,
+   "input_tokens": 1252,
+   "model": "claude-haiku-5-5",
+   "output": {
+    "pages": [
+     {
+      "doc_id": "7WD18YQ5NNBCYVWE5V96DPY182",
+      "prose": "Allied merchant losses to U-boats for September stand at 209835 GRT. U-boats operational in the Atlantic: 30 boats, July to September average.\n\nH. R. Stark"
+     }
+    ]
+   },
+   "output_tokens": 55,
+   "usd": 0.0001527
+  }
+ },
+ "c44ed6f2e08f04ca56f137ee": {
+  "call_class": "prose",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Author\nSam Rayburn, Speaker of the House of Representatives\nVoice: Plain-spoken Texan of few words; counts votes priv",
+  "reply": {
+   "cached_tokens": 1011,
+   "input_tokens": 1152,
+   "model": "claude-haiku-5-5",
+   "output": {
+    "pages": [
+     {
+      "doc_id": "60ATBCTZ2KYC0K2G20C4ZF9REH",
+      "prose": "Mr. President, the House still stands at 267 Democrats and 162 Republicans. Sam Rayburn"
+     }
+    ]
+   },
+   "output_tokens": 38,
+   "usd": 0.0001342
+  }
+ },
+ "cf8b260700e19c2529462f43": {
+  "call_class": "prose",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Author\nHarold R. Stark, Chief of Naval Operations\nVoice: Courteous, careful and wordy; writes long, chatty letters to",
+  "reply": {
+   "cached_tokens": 1011,
+   "input_tokens": 1252,
+   "model": "claude-sonnet-5-5",
+   "output": {
+    "pages": [
+     {
+      "doc_id": "7WD18YQ5NNBCYVWE5V96DPY182",
+      "prose": "Mr. President,\n\nThe Atlantic picture for September is a hard one. Allied merchant losses to U-boats come to 209,835 GRT, and we reckon 30 boats operational in the Atlantic on the July to September average. The convoys need every escort we can spare.\n\nRespectfully,\nH. R. Stark"
+     }
+    ]
+   },
+   "output_tokens": 86,
+   "usd": 0.003364
+  }
+ },
+ "d2e8d20265fc0937eca9dc22": {
+  "call_class": "prose",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Author\nStephen T. Early, White House press secretary\nVoice: Crisp newsroom manner; thinks in headlines and deadlines,",
+  "reply": {
+   "cached_tokens": 1011,
+   "input_tokens": 1138,
+   "model": "claude-haiku-5-5",
+   "output": {
+    "pages": [
+     {
+      "doc_id": "K2JFTV447NE1W5B78144V8GG5D",
+      "prose": "Gallup now shows 56 percent saying your course is about right. Nothing new on war with Germany or on aid to Britain at risk of war.\n\nSteve Early"
+     }
+    ]
+   },
+   "output_tokens": 53,
+   "usd": 0.0001403
+  }
+ },
+ "dc68e1e4604c07c17fd27138": {
+  "call_class": "prose",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Author\nStephen T. Early, White House press secretary\nVoice: Crisp newsroom manner; thinks in headlines and deadlines,",
+  "reply": {
+   "cached_tokens": 1011,
+   "input_tokens": 1138,
+   "model": "claude-sonnet-5-5",
+   "output": {
+    "pages": [
+     {
+      "doc_id": "VZPC34SMT5X71QRYNZC0QN9GEF",
+      "prose": "Boss,\n\nGallup's latest has 55 percent calling your course about right. They haven't given me anything I'd trust on a declaration against Germany, nor on helping Britain at the risk of war; I'll chase them for it.\n\nSteve"
+     }
+    ]
+   },
+   "output_tokens": 72,
+   "usd": 0.002996
   }
  }
 }

@@ -1258,15 +1258,19 @@ def _answer(a: Answer, ids: Mapping[str, str]) -> Answer:
 
 
 def card_policy(world: WorldFile, campaign_id: CampaignId) -> list[ev.CardAmended]:
-    """Each card's allies, conflicts and answers as the world file has them now, as the
-    amendment that would bring a game's copy of the card up to it. Raises WorldError."""
+    """Each card's allies, conflicts, answers and voice as the world file has them now, as
+    the amendment that would bring a game's copy of the card up to it. Raises WorldError."""
     ids = resolve_keys(world, campaign_id)
     out: list[ev.CardAmended] = []
     for c in world.cards:
         card = _card(c, ids)
         out.append(
             ev.CardAmended(
-                person=card.person, allies=card.allies, opposes=card.opposes, answers=card.answers
+                person=card.person,
+                allies=card.allies,
+                opposes=card.opposes,
+                answers=card.answers,
+                voice=card.voice,
             )
         )
     return out

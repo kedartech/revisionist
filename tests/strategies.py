@@ -779,6 +779,7 @@ realism_payloads = st.one_of(
             max_size=2,
             unique_by=lambda a: a.key,
         ).map(tuple),
+        voice=st.none() | st.text(max_size=200),
     ),
     in_world_dates.flatmap(
         lambda on: st.builds(

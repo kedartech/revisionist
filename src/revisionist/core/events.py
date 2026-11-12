@@ -647,14 +647,18 @@ class OpponentsRanked(Model):
 
 
 class CardAmended(Model):
-    """A game takes the world file's word on who a person stands with and against and
-    how they answer, replacing what its card held. Engine only: these are AI policy."""
+    """A game takes the world file's word on who a person stands with and against, how
+    they answer and how they write, replacing what its card held. Engine only: these are
+    AI policy. ``voice`` None leaves the card's voice as it was."""
 
     kind: Literal["card_amended"] = "card_amended"
     person: EntityId
     allies: tuple[EntityId, ...] = ()
     opposes: tuple[Conflict, ...] = Field(default=(), max_length=6)
     answers: tuple[Answer, ...] = Field(default=(), max_length=8)
+    voice: str | None = Field(default=None, max_length=200)
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"voice"})
 
 
 class AnswerPlanned(Model):

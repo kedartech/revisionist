@@ -1310,7 +1310,7 @@
       },
       "CardAmended": {
         "additionalProperties": false,
-        "description": "A game takes the world file's word on who a person stands with and against and\nhow they answer, replacing what its card held. Engine only: these are AI policy.",
+        "description": "A game takes the world file's word on who a person stands with and against, how\nthey answer and how they write, replacing what its card held. Engine only: these are\nAI policy. ``voice`` None leaves the card's voice as it was.",
         "properties": {
           "allies": {
             "default": [],
@@ -1347,6 +1347,19 @@
           "person": {
             "title": "Person",
             "type": "string"
+          },
+          "voice": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Voice"
           }
         },
         "required": [

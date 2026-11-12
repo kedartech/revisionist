@@ -412,6 +412,14 @@ class ReachDecl(Model):
     heads: bool = False
 
 
+class ConflictDecl(Model):
+    """Something a person is set against. ``against`` is a person or polity key."""
+
+    against: Key
+    over: Label
+    irreducible: bool = False
+
+
 class CardDecl(Model):
     """A person's seat card. ``person`` is a person key; the card has no key of its own."""
 
@@ -436,6 +444,9 @@ class CardDecl(Model):
     authority: tuple[DomainDecl, ...] = ()
     reach: ReachDecl = ReachDecl()
     aims: tuple[Aim, ...] = Field(default=(), max_length=3)
+    allies: tuple[Key, ...] = ()
+    """Polity or person keys this person stands with."""
+    opposes: tuple[ConflictDecl, ...] = Field(default=(), max_length=6)
 
 
 class TriggerDecl(Model):
@@ -524,6 +535,7 @@ __all__ = [
     "ClauseDecl",
     "ClockDecl",
     "CommitmentDecl",
+    "ConflictDecl",
     "ContactDecl",
     "ContestDecl",
     "EntityDecl",

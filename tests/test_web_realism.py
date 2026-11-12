@@ -213,6 +213,7 @@ def test_me_carries_the_realism_block_for_a_realism_seat(solo: tuple[Realism, Cl
         "orders",
         "clock",
         "map",
+        "threats",
         "counsel",
         "wake_tick",
         "wake",

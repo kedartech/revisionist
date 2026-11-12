@@ -228,6 +228,28 @@ class Situation(TypedDict):
     figures: list[SituationFigure]
 
 
+class Threat(TypedDict):
+    """One person set against the seat, as the seat's staff believe it: the stance
+    on the last day they had evidence, never the engine's score."""
+
+    person: str
+    name: str
+    office: str
+    stance: str
+    """``hostile`` or ``obstructing``."""
+    stance_label: str
+    trend: Literal["worse", "better", "steady"]
+    """Against the stance the staff knew before this one."""
+    as_of: str
+    """The last day the seat had evidence about the person (ISO date)."""
+    confidence: Literal["firm", "dated", "old"]
+    """From the age of that evidence."""
+    over: list[str]
+    """What the world file says the two are at odds over."""
+    cause: str
+    """Why the stance changed, in words, where the seat saw it."""
+
+
 class MapPlace(TypedDict):
     name: str
     lat: float
@@ -608,6 +630,7 @@ __all__ = [
     "SituationReading",
     "SituationSource",
     "StepLine",
+    "Threat",
     "TimelinePoint",
     "WakeHeader",
 ]

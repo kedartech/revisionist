@@ -42,11 +42,17 @@ FIELDS = ("entities", "quantities", "feeds", "pipelines", "cards", "mandates")
 BUILT_RESOLVERS = ("votes", "shipping", "production", "opinion")
 """What a built lever may name. A movement or war lever offers forces and places by key,
 and a figure's card declares neither: its say over forces is an authority domain."""
+HAND_WRITTEN = ("allies", "opposes")
+"""Card fields a build is not asked for: who stands with and against whom is written
+by hand, so a built figure takes no stance."""
 
 
 def _build_schema() -> dict[str, Any]:
     schema = copy.deepcopy(stage_schema(FIELDS))
     schema["$defs"]["LeverDecl"]["properties"]["resolver"]["enum"] = list(BUILT_RESOLVERS)
+    for held in HAND_WRITTEN:
+        del schema["$defs"]["CardDecl"]["properties"][held]
+    del schema["$defs"]["ConflictDecl"]
     return schema
 
 

@@ -63,6 +63,7 @@ from revisionist.core.realism import document as rd
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism import geography as rg
 from revisionist.core.realism import pipeline as rp
+from revisionist.core.realism import stance as rs
 from revisionist.core.realism.quantity import RESOLVER_KEYS, Quantity
 from revisionist.core.settings import Settings
 from revisionist.core.visibility import Scope, Visibility
@@ -729,6 +730,26 @@ realism_payloads = st.one_of(
     st.builds(ev.OrderStepTaken, order_id=order_ids, outcome=step_outcomes()),
     st.builds(ev.OrderSettled, order_id=order_ids, status=st.sampled_from(sorted(rp.SETTLED))),
     st.builds(ev.QuantitySet, quantity=quantities),
+    st.builds(
+        ev.StanceChanged,
+        seat_id=seat_ids,
+        figure=entity_ids,
+        standing=st.builds(
+            rs.Standing,
+            on=in_world_dates,
+            stance=st.sampled_from(rs.Stance),
+            score=st.integers(-20, 20),
+            side=st.integers(-5, 5),
+            disposition=st.integers(-5, 5),
+            cause=st.sampled_from(rs.StanceCause),
+            order=st.none() | order_ids,
+        ),
+    ),
+    st.builds(
+        ev.OpponentsRanked,
+        seat_id=seat_ids,
+        active=st.lists(entity_ids, max_size=4, unique=True).map(tuple),
+    ),
     st.builds(
         ev.CounselHeld,
         seat_id=seat_ids,

@@ -61,6 +61,7 @@ from revisionist.core.realism.effect import EffectKind, RoutedOrder, RoutedOrder
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
+from revisionist.core.realism.stance import Standing
 from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.settings import Settings
 
@@ -171,6 +172,15 @@ class State(_World):
     """Public events, as structured facts. Engine only: seats read them in the press."""
     outlets: dict[EntityId, Outlet] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """Each polity's newspaper. Engine only."""
+    stances: dict[SeatId, dict[EntityId, tuple[Standing, ...]]] = Field(
+        default_factory=dict, exclude_if=lambda v: not v
+    )
+    """Each unplayed person's stance toward each seat, every change kept, oldest
+    first. Engine only: a seat is shown what its staff last had evidence for."""
+    opponents: dict[SeatId, tuple[EntityId, ...]] = Field(
+        default_factory=dict, exclude_if=lambda v: not v
+    )
+    """The people actively opposing each seat. Engine only."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "routed",
@@ -179,6 +189,8 @@ class State(_World):
         "templates",
         "news",
         "outlets",
+        "stances",
+        "opponents",
         "cards",
         "feeds",
         "pipelines",

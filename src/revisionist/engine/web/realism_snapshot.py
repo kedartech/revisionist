@@ -49,6 +49,7 @@ from revisionist.engine.web.realism_api import (
     SituationSource,
     StepLine,
 )
+from revisionist.engine.web.threats import seat_threats
 from revisionist.engine.web.tray import acknowledgement, feed_group
 
 _HIDDEN = frozenset({StepAction.STALL, StepAction.LEAK})
@@ -591,6 +592,7 @@ def seat_realism(
         "orders": orders(view, state.pipelines),
         "clock": clock(view, next_wake_at, waiting_on, 0, wake.to.isoformat()),
         "map": seat_map(view, _force_names(state, view), state.pipelines),
+        "threats": seat_threats(state, seat, view),
     }
 
 

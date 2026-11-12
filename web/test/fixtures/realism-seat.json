@@ -726,6 +726,34 @@
       }
     ]
   },
+  "threats": [
+    {
+      "person": "e-hitler",
+      "name": "Adolf Hitler",
+      "office": "Führer and Reich Chancellor",
+      "stance": "hostile",
+      "stance_label": "Hostile",
+      "trend": "worse",
+      "as_of": "1941-10-09",
+      "confidence": "firm",
+      "over": [
+        "Command of the Atlantic"
+      ],
+      "cause": "After your order of 2 October 1941."
+    },
+    {
+      "person": "e-tojo",
+      "name": "Hideki Tojo",
+      "office": "Minister of War",
+      "stance": "obstructing",
+      "stance_label": "Obstructing",
+      "trend": "steady",
+      "as_of": "1941-09-01",
+      "confidence": "old",
+      "over": [],
+      "cause": "As things stood at the start."
+    }
+  ],
   "wake": {
     "wake": 3,
     "deadline": "1941-10-20T21:00:00+00:00",

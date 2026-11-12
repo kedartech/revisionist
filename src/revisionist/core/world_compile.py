@@ -78,17 +78,19 @@ from revisionist.core.ontology import (
     SeatKind,
 )
 from revisionist.core.realism.agenda import MandateKind, MandateTemplate, Trigger, TriggerKind
+from revisionist.core.realism.answer import ENTITY_FIELDS, Answer, ParamValue
 from revisionist.core.realism.card import (
     Conflict,
     Contact,
     Domain,
     Lever,
     ParamKind,
+    ParamSpec,
     Reach,
     SeatCard,
 )
 from revisionist.core.realism.document import Feed
-from revisionist.core.realism.effect import ESTIMATED_ONLY
+from revisionist.core.realism.effect import ESTIMATED_ONLY, EffectKind, MoveForce, SetEngagement
 from revisionist.core.realism.geography import FORCES, Feature, Leg
 from revisionist.core.realism.pipeline import Pipeline, Step
 from revisionist.core.realism.quantity import Quantity
@@ -433,6 +435,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
                 problems.append(f"{where}: lever {lv.name} names a pipeline not on the card")
             if lv.resolver == "movement":
                 _check_movement(world, f"{where}: lever {lv.name}", lv, problems)
+    _check_answers(world, sections, problems)
     playable = {c.person for c in world.cards if c.playable}
     listed = {ch.entity for ch in world.roster}
     # A listed person with no card yet is built when picked (compile_figure).
@@ -468,6 +471,77 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
         for leaf in leaves(m.condition):
             for name, section in _CONDITION_REFS.items():
                 _ref(problems, where, getattr(leaf, name, None), section, sections)
+
+
+def _fits(spec: ParamSpec, value: ParamValue, sections: Mapping[str, str]) -> bool:
+    match spec.kind:
+        case ParamKind.INT:
+            lo, hi = spec.lo, spec.hi
+            return (
+                isinstance(value, int) and lo is not None and hi is not None and lo <= value <= hi
+            )
+        case ParamKind.ENUM:
+            return value in spec.choices
+        case ParamKind.ENTITY:
+            return isinstance(value, str) and sections.get(value) == "entity"
+        case ParamKind.TEXT:
+            return isinstance(value, str) and bool(value.strip())
+    return False
+
+
+def _check_answers(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """Every answer names things that exist, sets off on a form someone has, and acts
+    by the person's own form or inside their authority."""
+    forms: dict[str, list[LeverDecl]] = {}
+    for c in world.cards:
+        for lv in c.levers:
+            forms.setdefault(lv.name, []).append(lv)
+    for c in world.cards:
+        own = {lv.name: lv for lv in c.levers}
+        for a in c.answers:
+            where = f"card {c.person}: answer {a.key}"
+            if a.aim > len(c.aims):
+                problems.append(f"{where}: the card has no aim {a.aim}")
+            when, act = a.when, a.act
+            _ref(problems, where, when.by, "entity", sections)
+            _ref(problems, where, when.party, "entity", sections)
+            _ref(problems, where, a.until, "history", sections)
+            if when.lever is not None:
+                found = forms.get(when.lever, [])
+                if not found:
+                    problems.append(f"{where}: no card has a form {when.lever}")
+                for name, values in when.params.items():
+                    specs = [p for lv in found for p in lv.params if p.name == name]
+                    if found and not specs:
+                        problems.append(f"{where}: no form {when.lever} takes {name}")
+                    for v in values:
+                        if specs and not any(_fits(sp, v, sections) for sp in specs):
+                            problems.append(f"{where}: {name} {v} fits no form {when.lever}")
+            if act.lever is not None:
+                lever = own.get(act.lever)
+                if lever is None:
+                    problems.append(f"{where}: {c.person} has no form {act.lever}")
+                    continue
+                if set(act.params) != {p.name for p in lever.params}:
+                    problems.append(f"{where}: {act.lever} takes exactly its own parameters")
+                for sp in lever.params:
+                    given = act.params.get(sp.name)
+                    if given is not None and not _fits(sp, given, sections):
+                        problems.append(f"{where}: {sp.name} {given} does not fit {act.lever}")
+            elif act.effect is not None:
+                kind = EffectKind(act.effect.kind)
+                domains = [dm for dm in c.authority if kind in dm.effects]
+                if not domains:
+                    problems.append(f"{where}: {kind.value} is outside {c.person}'s authority")
+                for name in ENTITY_FIELDS:
+                    ref = getattr(act.effect, name, None)
+                    if isinstance(ref, str):
+                        _ref(problems, where, ref, "entity", sections)
+                force = getattr(act.effect, "force", None)
+                if force is not None:
+                    _ref(problems, where, force, "feature", sections)
+                    if domains and not any(force in dm.forces for dm in domains):
+                        problems.append(f"{where}: {force} is not under {c.person}")
 
 
 def _placed(world: WorldFile) -> set[str]:
@@ -1151,7 +1225,46 @@ def _card(c: CardDecl, ids: Mapping[str, str]) -> SeatCard:
             Conflict(against=EntityId(ids[x.against]), over=x.over, irreducible=x.irreducible)
             for x in c.opposes
         ),
+        answers=tuple(_answer(a, ids) for a in c.answers),
     )
+
+
+def _answer(a: Answer, ids: Mapping[str, str]) -> Answer:
+    """The answer with every key in it replaced by its id."""
+    when = a.when.model_copy(
+        update={
+            "by": _maybe(ids, a.when.by, EntityId),
+            "party": _maybe(ids, a.when.party, EntityId),
+        }
+    )
+    effect = a.act.effect
+    if effect is not None:
+        named = {f: ids[getattr(effect, f)] for f in ENTITY_FIELDS if getattr(effect, f, None)}
+        if isinstance(effect, MoveForce | SetEngagement) and effect.force is not None:
+            named["force"] = ids[effect.force]
+        effect = effect.model_copy(update=named)
+    return a.model_copy(
+        update={
+            "when": when,
+            "act": a.act.model_copy(update={"effect": effect}),
+            "until": _maybe(ids, a.until, ScheduledEventId),
+        }
+    )
+
+
+def card_policy(world: WorldFile, campaign_id: CampaignId) -> list[ev.CardAmended]:
+    """Each card's allies, conflicts and answers as the world file has them now, as the
+    amendment that would bring a game's copy of the card up to it. Raises WorldError."""
+    ids = resolve_keys(world, campaign_id)
+    out: list[ev.CardAmended] = []
+    for c in world.cards:
+        card = _card(c, ids)
+        out.append(
+            ev.CardAmended(
+                person=card.person, allies=card.allies, opposes=card.opposes, answers=card.answers
+            )
+        )
+    return out
 
 
 def _template(m: MandateDecl, ids: Mapping[str, str]) -> MandateTemplate:

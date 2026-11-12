@@ -238,6 +238,409 @@
         "title": "Allocate",
         "type": "object"
       },
+      "Answer": {
+        "additionalProperties": false,
+        "description": "One thing a person does back, with when, how soon and how often.",
+        "properties": {
+          "act": {
+            "$ref": "#/$defs/AnswerAct"
+          },
+          "aim": {
+            "maximum": 3,
+            "minimum": 1,
+            "title": "Aim",
+            "type": "integer"
+          },
+          "cooldown_days": {
+            "maximum": 365,
+            "minimum": 1,
+            "title": "Cooldown Days",
+            "type": "integer"
+          },
+          "delay_days": {
+            "maximum": 30,
+            "minimum": 0,
+            "title": "Delay Days",
+            "type": "integer"
+          },
+          "gate": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Stance"
+            },
+            "title": "Gate",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "helps": {
+            "default": false,
+            "title": "Helps",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Until"
+          },
+          "when": {
+            "$ref": "#/$defs/AnswerWhen"
+          }
+        },
+        "required": [
+          "key",
+          "aim",
+          "when",
+          "act",
+          "delay_days",
+          "cooldown_days"
+        ],
+        "title": "Answer",
+        "type": "object"
+      },
+      "AnswerAct": {
+        "additionalProperties": false,
+        "description": "What the person does: one of their own forms, or a typed effect inside their\nauthority.",
+        "properties": {
+          "effect": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "allocate": "#/$defs/Allocate",
+                    "appointment": "#/$defs/Appointment",
+                    "deal": "#/$defs/Deal",
+                    "disclosure": "#/$defs/Disclosure",
+                    "disposition": "#/$defs/ShiftDisposition",
+                    "engagement": "#/$defs/SetEngagement",
+                    "investigate": "#/$defs/Investigate",
+                    "measure": "#/$defs/ProposeMeasure",
+                    "move_force": "#/$defs/MoveForce",
+                    "statement": "#/$defs/MakeStatement"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/MoveForce"
+                  },
+                  {
+                    "$ref": "#/$defs/SetEngagement"
+                  },
+                  {
+                    "$ref": "#/$defs/Allocate"
+                  },
+                  {
+                    "$ref": "#/$defs/Appointment"
+                  },
+                  {
+                    "$ref": "#/$defs/ProposeMeasure"
+                  },
+                  {
+                    "$ref": "#/$defs/MakeStatement"
+                  },
+                  {
+                    "$ref": "#/$defs/Investigate"
+                  },
+                  {
+                    "$ref": "#/$defs/Deal"
+                  },
+                  {
+                    "$ref": "#/$defs/ShiftDisposition"
+                  },
+                  {
+                    "$ref": "#/$defs/Disclosure"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Effect"
+          },
+          "lever": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lever"
+          },
+          "params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Params",
+            "type": "object"
+          }
+        },
+        "title": "AnswerAct",
+        "type": "object"
+      },
+      "AnswerMade": {
+        "additionalProperties": false,
+        "description": "The answer fell due: the order it filed, the approach it put to a player, or why\nthere was neither. Engine only.",
+        "properties": {
+          "figure": {
+            "title": "Figure",
+            "type": "string"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "const": "answer_made",
+            "default": "answer_made",
+            "title": "Kind",
+            "type": "string"
+          },
+          "mandate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mandate"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Order"
+          },
+          "refusal": {
+            "default": "",
+            "maxLength": 60,
+            "title": "Refusal",
+            "type": "string"
+          }
+        },
+        "required": [
+          "figure",
+          "key",
+          "on"
+        ],
+        "title": "AnswerMade",
+        "type": "object"
+      },
+      "AnswerPlanned": {
+        "additionalProperties": false,
+        "description": "A person nobody plays took up one of their answers, to act on ``due``. Engine only.",
+        "properties": {
+          "cause": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cause"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          },
+          "figure": {
+            "title": "Figure",
+            "type": "string"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "const": "answer_planned",
+            "default": "answer_planned",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "toward": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Toward"
+          }
+        },
+        "required": [
+          "figure",
+          "key",
+          "on",
+          "due"
+        ],
+        "title": "AnswerPlanned",
+        "type": "object"
+      },
+      "AnswerWhen": {
+        "additionalProperties": false,
+        "description": "What sets an answer off: a form filed through to the end (``lever``), a typed\nact that landed (``effect``), or a date on a cadence (``every_days``).",
+        "properties": {
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "By"
+          },
+          "effect": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EffectKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "every_days": {
+            "anyOf": [
+              {
+                "maximum": 365,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Every Days"
+          },
+          "human": {
+            "default": false,
+            "title": "Human",
+            "type": "boolean"
+          },
+          "lever": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lever"
+          },
+          "params": {
+            "additionalProperties": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "maxLength": 200,
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Params",
+            "type": "object"
+          },
+          "party": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Party"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start"
+          }
+        },
+        "title": "AnswerWhen",
+        "type": "object"
+      },
       "AnyOf": {
         "additionalProperties": false,
         "properties": {
@@ -903,6 +1306,53 @@
           "world"
         ],
         "title": "CampaignCreated",
+        "type": "object"
+      },
+      "CardAmended": {
+        "additionalProperties": false,
+        "description": "A game takes the world file's word on who a person stands with and against and\nhow they answer, replacing what its card held. Engine only: these are AI policy.",
+        "properties": {
+          "allies": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Allies",
+            "type": "array"
+          },
+          "answers": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Answer"
+            },
+            "maxItems": 8,
+            "title": "Answers",
+            "type": "array"
+          },
+          "kind": {
+            "const": "card_amended",
+            "default": "card_amended",
+            "title": "Kind",
+            "type": "string"
+          },
+          "opposes": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Conflict"
+            },
+            "maxItems": 6,
+            "title": "Opposes",
+            "type": "array"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          }
+        },
+        "required": [
+          "person"
+        ],
+        "title": "CardAmended",
         "type": "object"
       },
       "CardsDeclared": {
@@ -7110,6 +7560,15 @@
             "title": "Allies",
             "type": "array"
           },
+          "answers": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Answer"
+            },
+            "maxItems": 8,
+            "title": "Answers",
+            "type": "array"
+          },
           "authority": {
             "default": [],
             "items": {
@@ -8573,9 +9032,12 @@
           "mapping": {
             "admin_read": "#/$defs/AdminRead",
             "agent_assigned": "#/$defs/AgentAssigned",
+            "answer_made": "#/$defs/AnswerMade",
+            "answer_planned": "#/$defs/AnswerPlanned",
             "asset_created": "#/$defs/AssetCreated",
             "briefing_delivered": "#/$defs/BriefingDelivered",
             "campaign_created": "#/$defs/CampaignCreated",
+            "card_amended": "#/$defs/CardAmended",
             "cards_declared": "#/$defs/CardsDeclared",
             "character_claimed": "#/$defs/CharacterClaimed",
             "character_listed": "#/$defs/CharacterListed",
@@ -8851,6 +9313,15 @@
             "$ref": "#/$defs/OpponentsRanked"
           },
           {
+            "$ref": "#/$defs/CardAmended"
+          },
+          {
+            "$ref": "#/$defs/AnswerPlanned"
+          },
+          {
+            "$ref": "#/$defs/AnswerMade"
+          },
+          {
             "$ref": "#/$defs/CounselHeld"
           },
           {
@@ -9114,6 +9585,372 @@
           "unit"
         ],
         "title": "Allocate",
+        "type": "object"
+      },
+      "Answer": {
+        "additionalProperties": false,
+        "description": "One thing a person does back, with when, how soon and how often.",
+        "properties": {
+          "act": {
+            "$ref": "#/$defs/AnswerAct"
+          },
+          "aim": {
+            "maximum": 3,
+            "minimum": 1,
+            "title": "Aim",
+            "type": "integer"
+          },
+          "cooldown_days": {
+            "maximum": 365,
+            "minimum": 1,
+            "title": "Cooldown Days",
+            "type": "integer"
+          },
+          "delay_days": {
+            "maximum": 30,
+            "minimum": 0,
+            "title": "Delay Days",
+            "type": "integer"
+          },
+          "gate": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Stance"
+            },
+            "title": "Gate",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "helps": {
+            "default": false,
+            "title": "Helps",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Until"
+          },
+          "when": {
+            "$ref": "#/$defs/AnswerWhen"
+          }
+        },
+        "required": [
+          "key",
+          "aim",
+          "when",
+          "act",
+          "delay_days",
+          "cooldown_days"
+        ],
+        "title": "Answer",
+        "type": "object"
+      },
+      "AnswerAct": {
+        "additionalProperties": false,
+        "description": "What the person does: one of their own forms, or a typed effect inside their\nauthority.",
+        "properties": {
+          "effect": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "allocate": "#/$defs/Allocate",
+                    "appointment": "#/$defs/Appointment",
+                    "deal": "#/$defs/Deal",
+                    "disclosure": "#/$defs/Disclosure",
+                    "disposition": "#/$defs/ShiftDisposition",
+                    "engagement": "#/$defs/SetEngagement",
+                    "investigate": "#/$defs/Investigate",
+                    "measure": "#/$defs/ProposeMeasure",
+                    "move_force": "#/$defs/MoveForce",
+                    "statement": "#/$defs/MakeStatement"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/MoveForce"
+                  },
+                  {
+                    "$ref": "#/$defs/SetEngagement"
+                  },
+                  {
+                    "$ref": "#/$defs/Allocate"
+                  },
+                  {
+                    "$ref": "#/$defs/Appointment"
+                  },
+                  {
+                    "$ref": "#/$defs/ProposeMeasure"
+                  },
+                  {
+                    "$ref": "#/$defs/MakeStatement"
+                  },
+                  {
+                    "$ref": "#/$defs/Investigate"
+                  },
+                  {
+                    "$ref": "#/$defs/Deal"
+                  },
+                  {
+                    "$ref": "#/$defs/ShiftDisposition"
+                  },
+                  {
+                    "$ref": "#/$defs/Disclosure"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Effect"
+          },
+          "lever": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lever"
+          },
+          "params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Params",
+            "type": "object"
+          }
+        },
+        "title": "AnswerAct",
+        "type": "object"
+      },
+      "AnswerLog": {
+        "additionalProperties": false,
+        "description": "The last time a person took up one answer, and what came of it.",
+        "properties": {
+          "cause": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Cause"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          },
+          "made": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Made"
+          },
+          "mandate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Mandate"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Order"
+          },
+          "planned": {
+            "format": "date",
+            "title": "Planned",
+            "type": "string"
+          },
+          "refusal": {
+            "default": "",
+            "maxLength": 60,
+            "title": "Refusal",
+            "type": "string"
+          },
+          "toward": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Toward"
+          }
+        },
+        "required": [
+          "planned",
+          "due"
+        ],
+        "title": "AnswerLog",
+        "type": "object"
+      },
+      "AnswerWhen": {
+        "additionalProperties": false,
+        "description": "What sets an answer off: a form filed through to the end (``lever``), a typed\nact that landed (``effect``), or a date on a cadence (``every_days``).",
+        "properties": {
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "By"
+          },
+          "effect": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EffectKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "every_days": {
+            "anyOf": [
+              {
+                "maximum": 365,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Every Days"
+          },
+          "human": {
+            "default": false,
+            "title": "Human",
+            "type": "boolean"
+          },
+          "lever": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lever"
+          },
+          "params": {
+            "additionalProperties": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "maxLength": 200,
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Params",
+            "type": "object"
+          },
+          "party": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Party"
+          },
+          "start": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start"
+          }
+        },
+        "title": "AnswerWhen",
         "type": "object"
       },
       "AnyOf": {
@@ -12794,6 +13631,15 @@
             "title": "Allies",
             "type": "array"
           },
+          "answers": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Answer"
+            },
+            "maxItems": 8,
+            "title": "Answers",
+            "type": "array"
+          },
           "authority": {
             "default": [],
             "items": {
@@ -13812,6 +14658,16 @@
     "additionalProperties": false,
     "description": "The full truth. Only the referee and the resolver ever hold one.",
     "properties": {
+      "answers": {
+        "additionalProperties": {
+          "additionalProperties": {
+            "$ref": "#/$defs/AnswerLog"
+          },
+          "type": "object"
+        },
+        "title": "Answers",
+        "type": "object"
+      },
       "assets": {
         "additionalProperties": {
           "$ref": "#/$defs/Asset"

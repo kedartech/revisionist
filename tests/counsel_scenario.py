@@ -6,6 +6,7 @@ and, for the unit tests, a memo from Hopkins whose truth carries a canary.
 
 from revisionist.core import events as ev
 from revisionist.core.ids import DocumentId, EntityId, EventId, QuantityId, SeatId, derived_id
+from revisionist.core.realism.actors import readers
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.document import (
     BodyField,
@@ -34,7 +35,7 @@ def hopkins(store: EventStore) -> EntityId:
 
 
 def roosevelt_seat(store: EventStore) -> SeatId:
-    (seat,) = load_state(store, CAMPAIGN).seats
+    (seat,) = readers(load_state(store, CAMPAIGN))
     return seat
 
 

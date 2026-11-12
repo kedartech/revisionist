@@ -42,9 +42,18 @@ FIELDS = ("entities", "quantities", "feeds", "pipelines", "cards", "mandates")
 BUILT_RESOLVERS = ("votes", "shipping", "production", "opinion")
 """What a built lever may name. A movement or war lever offers forces and places by key,
 and a figure's card declares neither: its say over forces is an authority domain."""
-HAND_WRITTEN = ("allies", "opposes")
-"""Card fields a build is not asked for: who stands with and against whom is written
-by hand, so a built figure takes no stance."""
+HAND_WRITTEN = ("allies", "opposes", "answers")
+"""Card fields a build is not asked for: who stands with and against whom, and what
+they do back, is written by hand, so a built figure takes no stance and never acts."""
+
+
+def _refs(node: Any) -> set[str]:
+    if isinstance(node, dict):
+        found = {node["$ref"].rsplit("/", 1)[-1]} if isinstance(node.get("$ref"), str) else set()
+        return found.union(*(_refs(v) for v in node.values()))
+    if isinstance(node, list):
+        return set().union(*(_refs(v) for v in node))
+    return set()
 
 
 def _build_schema() -> dict[str, Any]:
@@ -52,8 +61,14 @@ def _build_schema() -> dict[str, Any]:
     schema["$defs"]["LeverDecl"]["properties"]["resolver"]["enum"] = list(BUILT_RESOLVERS)
     for held in HAND_WRITTEN:
         del schema["$defs"]["CardDecl"]["properties"][held]
-    del schema["$defs"]["ConflictDecl"]
-    return schema
+    defs = schema["$defs"]
+    while True:  # drop what only the cut fields used
+        top = {k: v for k, v in schema.items() if k != "$defs"}
+        unused = set(defs) - _refs(top).union(*(_refs(d) for d in defs.values()))
+        if not unused:
+            return schema
+        for name in unused:
+            del defs[name]
 
 
 BUILD_SCHEMA = _build_schema()

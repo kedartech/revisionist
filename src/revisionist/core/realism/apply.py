@@ -21,7 +21,7 @@ from revisionist.core.ids import (
     derived_id,
 )
 from revisionist.core.ontology import Relationship
-from revisionist.core.realism import process, reach
+from revisionist.core.realism import actors, process, reach
 from revisionist.core.realism.card import ChannelKind, words
 from revisionist.core.realism.document import (
     BodyField,
@@ -161,7 +161,7 @@ def _engage(
     return out
 
 
-def _shift(world: PassWorld, effect: ShiftDisposition, issuer_seat: SeatId) -> ev.Payload:
+def shift(world: PassWorld, effect: ShiftDisposition, issuer_seat: SeatId) -> ev.Payload:
     now = world.relationship(effect.of, effect.toward)
     if now is None:
         rel = Relationship(
@@ -194,7 +194,7 @@ def _land(
         case SetEngagement():
             return _engage(world, effect, issuer, on), []
         case ShiftDisposition():
-            return [_shift(world, effect, issuer_seat)], []
+            return [shift(world, effect, issuer_seat)], []
         case Disclosure(reveal=True) if effect.fact in world.state.facts:
             return [], [effect.fact]
         case MoveFigure():
@@ -394,8 +394,8 @@ def reporter(state: State, order: RoutedOrder, part: int) -> tuple[EntityId, Cha
 
 
 def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.DocumentIssued | None:
-    """The paper the issuer gets for one applied part."""
-    if part >= len(order.parts) or order.issuer not in state.seats:
+    """The paper the issuer gets for one applied part. None for a seat nobody plays."""
+    if part >= len(order.parts) or order.issuer not in actors.readers(state):
         return None
     routed = order.parts[part]
     if _ready(order, routed) is None:
@@ -460,5 +460,6 @@ __all__ = [
     "outcome",
     "report",
     "reporter",
+    "shift",
     "zone_name",
 ]

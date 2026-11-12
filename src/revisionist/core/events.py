@@ -13,7 +13,8 @@ SessionZeroOpened, CharacterListed, CharacterClaimed,
 CharacterReleased, SessionZeroClosed, SeasonEnded, GoalSet, GoalProgressed, GoalMet, GoalUndone,
 TickOpened, TickClosed``, and for realism campaigns ``CardsDeclared,
 DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, QuantitySet,
-FeatureSet, WarDeclared, NewsReported, StanceChanged, OpponentsRanked``, and under engine v2
+FeatureSet, WarDeclared, NewsReported, StanceChanged, OpponentsRanked, CardAmended,
+AnswerPlanned, AnswerMade``, and under engine v2
 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet``.
@@ -69,7 +70,8 @@ from revisionist.core.realism.agenda import (
     Offer,
     PlayStyle,
 )
-from revisionist.core.realism.card import ChannelKind, ParamValue, SeatCard
+from revisionist.core.realism.answer import Answer
+from revisionist.core.realism.card import ChannelKind, Conflict, ParamValue, SeatCard
 from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
@@ -644,6 +646,54 @@ class OpponentsRanked(Model):
     active: tuple[EntityId, ...] = Field(max_length=4)
 
 
+class CardAmended(Model):
+    """A game takes the world file's word on who a person stands with and against and
+    how they answer, replacing what its card held. Engine only: these are AI policy."""
+
+    kind: Literal["card_amended"] = "card_amended"
+    person: EntityId
+    allies: tuple[EntityId, ...] = ()
+    opposes: tuple[Conflict, ...] = Field(default=(), max_length=6)
+    answers: tuple[Answer, ...] = Field(default=(), max_length=8)
+
+
+class AnswerPlanned(Model):
+    """A person nobody plays took up one of their answers, to act on ``due``. Engine only."""
+
+    kind: Literal["answer_planned"] = "answer_planned"
+    figure: EntityId
+    key: Label
+    on: date
+    due: date
+    cause: OrderId | None = None
+    toward: EntityId | None = None
+
+    @model_validator(mode="after")
+    def _after(self) -> "AnswerPlanned":
+        if self.due < self.on:
+            raise ValueError("an answer falls due on or after the day it is taken up")
+        return self
+
+
+class AnswerMade(Model):
+    """The answer fell due: the order it filed, the approach it put to a player, or why
+    there was neither. Engine only."""
+
+    kind: Literal["answer_made"] = "answer_made"
+    figure: EntityId
+    key: Label
+    on: date
+    order: OrderId | None = None
+    mandate: MandateId | None = None
+    refusal: Label = ""
+
+    @model_validator(mode="after")
+    def _one(self) -> "AnswerMade":
+        if sum((self.order is not None, self.mandate is not None, bool(self.refusal))) != 1:
+            raise ValueError("an answer is made as one of an order, an approach, a refusal")
+        return self
+
+
 class CounselHeld(Model):
     """A seat consulted a person on its card. The words are prose and change nothing;
     a record, sealed with the seat's key like an order's text."""
@@ -907,6 +957,9 @@ Payload = Annotated[
     | NewsReported
     | StanceChanged
     | OpponentsRanked
+    | CardAmended
+    | AnswerPlanned
+    | AnswerMade
     | CounselHeld
     | DirectiveGiven
     | OrderRouted
@@ -973,6 +1026,9 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "war_declared",
         "stance_changed",
         "opponents_ranked",
+        "card_amended",
+        "answer_planned",
+        "answer_made",
         "news_reported",
         "order_routed",
         "order_executed",

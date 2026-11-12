@@ -118,8 +118,24 @@ def test_nothing_is_addressed_to_an_ai_seat() -> None:
     made = set(seat_the_rest(store))
     state = played(store, Counting())
     for e in store.read(CAMPAIGN):
-        assert not (made & e.scope.known_by), e.payload.kind
+        if e.payload.kind not in OWN_ORDERS:
+            assert not (made & e.scope.known_by), e.payload.kind
     assert {m.seat_id for m in state.mandates.values()} <= {human}
+
+
+OWN_ORDERS = frozenset(
+    {
+        "order_drafted",
+        "order_routed",
+        "order_step_taken",
+        "order_settled",
+        "order_executed",
+        "effects_applied",
+        "influence_decided",
+        "relationship_set",
+    }
+)
+"""What an AI seat may be scoped: the orders its answers file, as a player's are."""
 
 
 def test_a_page_only_an_ai_seat_holds_is_never_sent_to_the_writer() -> None:

@@ -31,7 +31,7 @@ from revisionist.core import events as ev
 from revisionist.core import goals, history
 from revisionist.core._base import Model
 from revisionist.core.events import CallCost, Event, Versions
-from revisionist.core.fold import replay, state_hash
+from revisionist.core.fold import FoldError, replay, state_hash
 from revisionist.core.ids import (
     CampaignId,
     DocumentId,
@@ -42,7 +42,7 @@ from revisionist.core.ids import (
     derived_id,
 )
 from revisionist.core.ontology import Phase
-from revisionist.core.realism import actors, apply, mandates, opponents, process
+from revisionist.core.realism import actors, answering, apply, mandates, opponents, process
 from revisionist.core.realism.advance import Wake, next_wake
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.arrivals import arrivals
@@ -64,6 +64,7 @@ from revisionist.core.realism.war_rules import contacts, order_refusal
 from revisionist.core.resolution import TickStage
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, Scope, Visibility, private_to
+from revisionist.core.world_compile import card_policy
 from revisionist.engine import campaign as cmp
 from revisionist.engine import session_zero
 from revisionist.engine.emit import Emitter, tail
@@ -196,6 +197,9 @@ def run_realism_tick(
     assert new_today is not None
 
     if TickStage.PIPELINES not in done:
+        amended = _amend(em, events)
+        if amended:
+            em.commit(amended)
         batch = _walk(em, events, before, new_today)
         batch.append(em.event(ev.TickStageCompleted(stage=TickStage.PIPELINES)))
         em.commit(batch)
@@ -340,7 +344,46 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return payload.mandate.scope
     if isinstance(payload, ev.MandateSettled):
         return private_to(state.mandates[payload.mandate_id].seat_id)
-    return PUBLIC  # an ``order_drafted`` too, as ``file_order`` lands it
+    if isinstance(payload, ev.OrderRouted):
+        return private_to(payload.order.issuer)
+    if isinstance(payload, ev.OrderDrafted) and payload.order.issuer not in actors.readers(state):
+        return private_to(payload.order.issuer)
+    return PUBLIC  # a player's ``order_drafted`` too, as ``file_order`` lands it
+
+
+def _amend(em: Emitter, events: Sequence[Event]) -> list[Event]:
+    """Bring each card's allies, conflicts and answers up to the world file the game
+    was compiled from, so a game begun before they were written takes them at its next
+    wake. Nothing when the file is gone or no longer compiles, and nothing for a card
+    the game could not take (it names something the game does not have)."""
+    name = next(
+        (e.payload.world for e in events if isinstance(e.payload, ev.CampaignCreated)), None
+    )
+    if name is None:
+        return []
+    try:
+        policy = card_policy(cmp.load_world(cmp.world_path(name)), em.state.campaign_id)
+    except (OSError, ValueError) as exc:
+        log.debug("no card amendments from world %s: %s", name, exc)
+        return []
+    out: list[Event] = []
+    state = em.state
+    for amendment in policy:
+        card = state.cards.get(amendment.person)
+        if card is None or (card.allies, card.opposes, card.answers) == (
+            amendment.allies,
+            amendment.opposes,
+            amendment.answers,
+        ):
+            continue
+        probe = Emitter(em.store, state, em.versions).event(amendment)
+        try:
+            state = replay([probe], initial=state)
+        except FoldError as exc:
+            log.warning("card %s not amended: %s", amendment.person, exc)
+            continue
+        out.append(em.event(amendment))
+    return out
 
 
 def _due_again_by(feed: Feed, day: date, until: date) -> bool:
@@ -354,8 +397,9 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     commands fall due, processes open, influence is decided, ready parts apply, the
     orders enacted that day are resolved, then what moves with time, then arrivals, contacts and the
     press, then the feeds that fall due issue, dated that day, then mandates settle and
-    issue, then stances and each seat's opponents are worked out. Each step sees the
-    state after the ones before it."""
+    issue, then the people nobody plays take up and make their answers, then stances
+    and each seat's opponents are worked out. Each step sees the state after the ones
+    before it."""
     state = em.state
     out: list[Event] = []
 
@@ -365,12 +409,13 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         state = replay(batch, initial=state)
         out.extend(batch)
 
+    add(actors.unseated(state, answering.answerers(state)))
     wake_start = dict(state.opponents)
     pending = _unresolved(events)
     for oid in pending:
         order = state.orders[oid]
         add(apply_changes(state, ON_ORDER[resolver_for(state, order)](state, order)))
-    day = before
+    day, first = before, before + timedelta(days=1)
     while day < until:
         day += timedelta(days=1)
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))
@@ -403,7 +448,11 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         out.extend(docs)
         add(mandates.settle_due(state, day))
         add(mandates.issue_due(state, day))
-        add(opponents.settle(state, day, landed, wake_start))
+        planned = answering.plan(state, day, since=before if day == first else None)
+        add(planned)
+        while made := answering.make(state, day):
+            add(made)
+        add(opponents.settle(state, day, [*landed, *planned], wake_start))
     return out
 
 

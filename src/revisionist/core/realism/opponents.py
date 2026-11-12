@@ -44,7 +44,7 @@ class Parts(NamedTuple):
         return self.side + self.disposition - PER_CONFLICT * self.conflicts
 
 
-def _line(state: State, entity: EntityId) -> tuple[EntityId, ...]:
+def line(state: State, entity: EntityId) -> tuple[EntityId, ...]:
     """The entity and everything it belongs to, nearest first."""
     out: list[EntityId] = []
     here = state.entities.get(entity)
@@ -59,12 +59,12 @@ def _stands(state: State, person: EntityId) -> dict[ContestId, EntityId]:
     they belong to."""
     listed = state.roster.get(person)
     said = {s.contest_id: s.side for s in listed.sides} if listed is not None else {}
-    line = _line(state, person)
+    chain = line(state, person)
     out: dict[ContestId, EntityId] = {}
     for cid, contest in state.contests.items():
         if contest.kind is not ContestKind.RIVALRY or contest.decided:
             continue
-        side = said.get(cid) or next((e for e in line if e in contest.sides), None)
+        side = said.get(cid) or next((e for e in chain if e in contest.sides), None)
         if side is not None:
             out[cid] = side
     return out
@@ -76,7 +76,7 @@ def _side(state: State, figure: EntityId, person: EntityId) -> int:
         return 0
     if theirs is not None and ours is not None and at_war(state, theirs, ours):
         return ENEMY
-    if set(state.cards[figure].allies) & set(_line(state, person)):
+    if set(state.cards[figure].allies) & set(line(state, person)):
         return ALLY
     mine = _stands(state, person)
     if any(mine.get(cid, side) != side for cid, side in _stands(state, figure).items()):
@@ -97,12 +97,15 @@ def _regard(state: State, figure: EntityId, person: EntityId) -> int:
 
 def conflicts(state: State, figure: EntityId, person: EntityId) -> tuple[Conflict, ...]:
     """What the figure's card declares against the person or anything they belong to."""
-    line = _line(state, person)
-    return tuple(x for x in state.cards[figure].opposes if x.against in line)
+    chain = line(state, person)
+    return tuple(x for x in state.cards[figure].opposes if x.against in chain)
 
 
 def parts(state: State, figure: EntityId, seat: SeatId) -> Parts:
-    person = state.seats[seat].embodies
+    return parts_for(state, figure, state.seats[seat].embodies)
+
+
+def parts_for(state: State, figure: EntityId, person: EntityId) -> Parts:
     declared = conflicts(state, figure, person)
     return Parts(
         side=_side(state, figure, person),
@@ -132,13 +135,16 @@ def _order_behind(
     landed: Sequence[ev.Payload], figure: EntityId, person: EntityId
 ) -> OrderId | None:
     """The last order whose effects set the pair's relationship: effects land
-    before the ``effects_applied`` that closes their part."""
+    before the ``effects_applied`` that closes their part, and a fall in regard
+    before the answer to the act that caused it."""
     hit, order = False, None
     for payload in landed:
         if isinstance(payload, ev.RelationshipSet):
             hit = hit or {payload.relationship.a, payload.relationship.b} == {figure, person}
         elif isinstance(payload, ev.EffectsApplied) and hit:
             hit, order = False, payload.order_id
+        elif isinstance(payload, ev.AnswerPlanned) and hit and payload.cause is not None:
+            hit, order = False, payload.cause
     return order
 
 
@@ -213,4 +219,27 @@ def settle(
     return out
 
 
-__all__ = ["CAP", "Parts", "conflicts", "figures", "parts", "settle", "weight"]
+def stance_toward(state: State, figure: EntityId, person: EntityId) -> Stance:
+    """Where the figure stands toward the person today: the stance logged toward the
+    seat with a desk that holds them, else worked out on the spot from the same score."""
+    for seat in sorted(actors.readers(state)):
+        if state.seats[seat].embodies == person:
+            past = state.stances.get(seat, {}).get(figure, ())
+            if past:
+                return past[-1].stance
+    got = parts_for(state, figure, person)
+    return step(None, got.total, capped=got.capped)
+
+
+__all__ = [
+    "CAP",
+    "Parts",
+    "conflicts",
+    "figures",
+    "line",
+    "parts",
+    "parts_for",
+    "settle",
+    "stance_toward",
+    "weight",
+]

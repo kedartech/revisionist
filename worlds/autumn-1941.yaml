@@ -313,13 +313,13 @@ feeds:
   - {key: gallup_polls, name: Gallup polls, author: early, kind: poll, channel: press, reports: [gallup_fdr_about_right, gallup_declare_war_germany, gallup_help_britain], every_days: 7, latency_days: 14, assumed: true, gap: true}
   - {key: house_whip_count, name: The Speaker's count, author: rayburn, kind: whip_count, channel: telephone, reports: [house_democrats, house_republicans], every_days: 7, latency_days: 0, assumed: true, gap: true}
   - {key: senate_whip_count, name: The Majority Leader's count, author: barkley, kind: whip_count, channel: telephone, reports: [senate_neutrality_yeas], every_days: 7, latency_days: 0, assumed: true, gap: true}
-  - {key: atlantic_reports, name: Atlantic reports from the Navy Department, author: stark, kind: report, channel: cable, classification: secret, reports: [uboat_losses_sep, uboats_operational], sights: [us_atlantic_fleet, us_pacific_fleet, uboat_arm, hx_route, sc_route], every_days: 7, latency_days: 1, assumed: true, gap: true}
+  - {key: atlantic_reports, name: Atlantic reports from the Navy Department, author: stark, kind: report, channel: cable, classification: secret, reports: [uboat_losses_sep, uboat_losses_oct, uboat_losses_nov, uboats_operational], sights: [us_atlantic_fleet, us_pacific_fleet, uboat_arm, hx_route, sc_route], every_days: 7, latency_days: 1, assumed: true, gap: true}
   - {key: churchill_cables, name: Churchill's cables, author: churchill, kind: cable, channel: cable, classification: secret, sights: [home_fleet, arctic_route], every_days: 3, latency_days: 1, assumed: true, gap: true}
   - {key: soviet_requests, name: Soviet requests for aid, author: molotov, kind: letter, channel: courier, classification: confidential, every_days: 14, latency_days: 7, assumed: true, gap: true}
-  - {key: german_naval_reports, name: Kriegsmarine reports, author: raeder, kind: report, channel: courier, classification: secret, reports: [uboats_operational, uboat_losses_sep], sights: [uboat_arm, home_fleet, hx_route], every_days: 7, latency_days: 1, assumed: true, gap: true}
-  - {key: admiralty_reports, name: Admiralty reports, author: pound, kind: report, channel: courier, classification: secret, sights: [home_fleet, uboat_arm, hx_route, sc_route, arctic_route], every_days: 7, latency_days: 1, assumed: true, gap: true}
+  - {key: german_naval_reports, name: Kriegsmarine reports, author: raeder, kind: report, channel: courier, classification: secret, reports: [uboats_operational, uboat_losses_sep, uboat_losses_oct, uboat_losses_nov], sights: [uboat_arm, home_fleet, hx_route], every_days: 7, latency_days: 1, assumed: true, gap: true}
+  - {key: admiralty_reports, name: Admiralty reports, author: pound, kind: report, channel: courier, classification: secret, reports: [uboat_losses_sep, uboat_losses_oct, uboat_losses_nov], sights: [home_fleet, uboat_arm, hx_route, sc_route, arctic_route], every_days: 7, latency_days: 1, assumed: true, gap: true}
   - {key: okw_situation, name: OKW situation reports, author: jodl, kind: report, channel: courier, classification: secret, sights: [army_group_centre, soviet_western_front, eastern_front], every_days: 3, latency_days: 1, assumed: true, gap: true}
-  - {key: stavka_situation, name: General Staff situation reports, author: shaposhnikov, kind: report, channel: courier, classification: secret, sights: [soviet_western_front, army_group_centre, eastern_front], every_days: 3, latency_days: 0, assumed: true, gap: true}
+  - {key: stavka_situation, name: General Staff situation reports, author: shaposhnikov, kind: report, channel: courier, classification: secret, reports: [soviet_lend_lease_eligible, lend_lease_share_ussr], sights: [soviet_western_front, army_group_centre, eastern_front], every_days: 3, latency_days: 0, assumed: true, gap: true}
 
 pipelines:
   - key: executive_order
@@ -435,8 +435,56 @@ pipelines:
 
 cards:
   # --- the eight playable cards ---
+  # opposes: who each head is set against and over what (shown in the Opponents list).
+  # answers: what the head does back while nobody plays them. when: a form that went
+  # through (lever, params with the values that count) or a typed act that landed
+  # (effect, party), by a person or polity (human: only a player's act); or a cadence
+  # (every_days from start). gate: the head's stance toward whoever acted. act: one of
+  # the head's own forms, or a typed effect inside their authority. helps: costs no
+  # regard. until: a history item that retires the answer.
   - person: roosevelt
     allies: [uk, china]
+    opposes:
+      - {against: germany, over: "U-boat war on the Atlantic convoys"}
+      - {against: tojo, over: "the Army's advance south and the oil embargo"}
+    answers:
+      - key: escorts_shoot_on_sight
+        aim: 2
+        when: {lever: uboat_directive, params: {posture: [unrestricted_atlantic]}, by: germany}
+        gate: [obstructing, hostile]
+        act: {lever: naval_order, params: {order: shoot_on_sight, zone: western_atlantic}}
+        delay_days: 3
+        cooldown_days: 30
+      - key: lend_lease_to_russia
+        aim: 1
+        when: {lever: move_army, params: {to: [mozhaisk, moscow]}, by: germany}
+        gate: [obstructing, hostile]
+        act: {lever: lend_lease_finding, params: {recipient: ussr, share_pct: 20}}
+        delay_days: 7
+        cooldown_days: 60
+      - key: warn_japan
+        aim: 3
+        when: {lever: mobilisation_plan, params: {sector: [oil]}, by: japan}
+        gate: [obstructing, hostile]
+        act: {effect: {kind: statement, theme: "a warning to Japan"}}
+        delay_days: 2
+        cooldown_days: 21
+      - key: aid_for_russia
+        aim: 1
+        helps: true
+        when: {lever: aid_request, by: ussr}
+        gate: [neutral, cooperative, aligned]
+        act: {lever: lend_lease_finding, params: {recipient: ussr, share_pct: 20}}
+        delay_days: 7
+        cooldown_days: 45
+      - key: escort_for_britain
+        aim: 2
+        helps: true
+        when: {lever: broadcast, params: {audience: [america]}, by: uk}
+        gate: [cooperative, aligned]
+        act: {lever: naval_order, params: {order: escort_convoys, zone: western_atlantic}}
+        delay_days: 3
+        cooldown_days: 30
     office: President of the United States
     playable: true
     principals: [usa]
@@ -546,6 +594,38 @@ cards:
     reach: {rank: 5, chain: [usa], heads: true}
   - person: churchill
     allies: [usa, ussr]
+    opposes:
+      - {against: germany, over: "the war at sea and the bombing of Britain", irreducible: true}
+      - {against: italy, over: "Malta, Libya and the Mediterranean"}
+      - {against: japan, over: "Japan's threat to Malaya and Singapore"}
+    answers:
+      - key: home_fleet_to_iceland
+        aim: 1
+        when: {lever: uboat_directive, params: {posture: [unrestricted_atlantic], theatre: [north_atlantic]}, by: germany}
+        gate: [obstructing, hostile]
+        act: {lever: move_fleet, params: {force: home_fleet, to: reykjavik}}
+        delay_days: 2
+        cooldown_days: 30
+      - key: appeal_to_america
+        aim: 2
+        when: {lever: naval_order, params: {order: [hold_in_port]}, by: usa}
+        act: {effect: {kind: statement, theme: "an appeal to America"}}
+        delay_days: 1
+        cooldown_days: 21
+      - key: malta_strikes
+        aim: 3
+        when: {lever: libya_convoys, by: italy}
+        gate: [obstructing, hostile]
+        act: {effect: {kind: statement, theme: "Malta will strike the Libya convoys"}}
+        delay_days: 2
+        cooldown_days: 21
+      - key: warn_japan_over_malaya
+        aim: 3
+        when: {lever: requisition_shipping, params: {tonnage_class: [navy]}, by: japan}
+        gate: [obstructing, hostile]
+        act: {effect: {kind: statement, theme: "a warning to Japan over Malaya"}}
+        delay_days: 2
+        cooldown_days: 30
     office: Prime Minister of the United Kingdom
     playable: true
     principals: [commons]
@@ -622,6 +702,36 @@ cards:
     reach: {rank: 5, chain: [uk], heads: true}
   - person: stalin
     allies: [uk]
+    opposes:
+      - {against: germany, over: "the invasion of the Soviet Union", irreducible: true}
+      - {against: italy, over: "the Italian corps in the Ukraine"}
+    answers:
+      - key: front_to_mozhaisk
+        aim: 1
+        when: {lever: move_army, params: {to: [vyazma, mozhaisk]}, by: germany, human: true}
+        gate: [obstructing, hostile]
+        act: {lever: move_army, params: {force: soviet_western_front, to: mozhaisk}}
+        delay_days: 1
+        cooldown_days: 14
+      - key: front_to_moscow
+        aim: 1
+        when: {lever: move_army, params: {to: [moscow]}, by: germany, human: true}
+        gate: [obstructing, hostile]
+        act: {lever: move_army, params: {force: soviet_western_front, to: moscow}}
+        delay_days: 1
+        cooldown_days: 14
+      - key: second_front_demand
+        aim: 3
+        when: {lever: convoy_orders, params: {priority: [mediterranean]}, by: uk}
+        act: {effect: {kind: statement, theme: "Russia demands a second front"}}
+        delay_days: 2
+        cooldown_days: 30
+      - key: supplies_from_america
+        aim: 3
+        when: {every_days: 21, start: 1941-09-15}
+        act: {effect: {kind: deal, counterparty: roosevelt, ask: ["aircraft, tanks and aluminium"], offer: ["hold the front through the winter"]}}
+        delay_days: 0
+        cooldown_days: 21
     office: Chairman of the Council of People's Commissars
     playable: true
     principals: [ussr]
@@ -692,6 +802,46 @@ cards:
     reach: {rank: 5, chain: [ussr], heads: true}
   - person: hitler
     allies: [italy, japan]
+    opposes:
+      - {against: ussr, over: "the war in the East", irreducible: true}
+      - {against: uk, over: "the blockade and the war at sea"}
+      - {against: usa, over: "American aid and the Atlantic patrols"}
+    answers:
+      - key: spare_american_ships
+        aim: 2
+        when: {lever: naval_order, params: {order: [shoot_on_sight]}, by: usa}
+        gate: [obstructing]
+        act: {lever: uboat_directive, params: {posture: restrict_us_ships, theatre: north_atlantic}}
+        delay_days: 3
+        cooldown_days: 30
+      - key: unrestricted_after_all
+        aim: 3
+        when: {lever: naval_order, params: {order: [shoot_on_sight]}, by: usa}
+        gate: [hostile]
+        act: {lever: uboat_directive, params: {posture: unrestricted_atlantic, theatre: north_atlantic}}
+        delay_days: 3
+        cooldown_days: 30
+      - key: wolfpacks_on_the_convoys
+        aim: 3
+        when: {lever: convoy_orders, params: {priority: [atlantic]}, by: uk}
+        gate: [obstructing, hostile]
+        act: {lever: uboat_directive, params: {posture: unrestricted_atlantic, theatre: north_atlantic}}
+        delay_days: 3
+        cooldown_days: 30
+      - key: push_on_to_mozhaisk
+        aim: 1
+        when: {lever: move_army, params: {force: [soviet_western_front]}, by: ussr, human: true}
+        gate: [obstructing, hostile]
+        act: {lever: move_army, params: {force: army_group_centre, to: mozhaisk}}
+        delay_days: 2
+        cooldown_days: 14
+      - key: against_aid_to_moscow
+        aim: 2
+        when: {lever: lend_lease_finding, params: {recipient: [ussr]}, by: usa}
+        gate: [obstructing, hostile]
+        act: {effect: {kind: statement, theme: "against Roosevelt's aid to Moscow"}}
+        delay_days: 2
+        cooldown_days: 21
     office: Fuehrer and Reich Chancellor
     playable: true
     principals: [germany]
@@ -773,6 +923,34 @@ cards:
     reach: {rank: 5, chain: [germany], heads: true}
   - person: konoe
     allies: [germany, italy]
+    opposes:
+      - {against: china, over: "the China Incident"}
+      - {against: tojo, over: "withdrawal from China and the October deadline"}
+    answers:
+      - key: summit_offer
+        aim: 2
+        helps: true
+        when: {every_days: 21, start: 1941-09-06}
+        gate: [obstructing, neutral, cooperative, aligned]
+        act: {effect: {kind: deal, counterparty: roosevelt, offer: ["withdrawal from southern Indochina"], ask: ["lift the oil embargo"]}}
+        delay_days: 0
+        cooldown_days: 21
+        until: konoe_resigns
+      - key: conciliatory_line
+        aim: 1
+        when: {lever: naval_order, params: {zone: [pacific]}, by: usa}
+        act: {effect: {kind: statement, theme: "the Cabinet seeks a peaceful settlement"}}
+        delay_days: 1
+        cooldown_days: 21
+        until: konoe_resigns
+      - key: not_hurried_into_war
+        aim: 3
+        when: {lever: mobilisation_plan, by: tojo, human: true}
+        gate: [obstructing, hostile]
+        act: {effect: {kind: statement, theme: "the Cabinet will not be hurried into war"}}
+        delay_days: 1
+        cooldown_days: 21
+        until: konoe_resigns
     office: Prime Minister of Japan
     playable: true
     principals: [hirohito]
@@ -835,6 +1013,39 @@ cards:
     reach: {rank: 4, chain: [japan]}
   - person: tojo
     allies: [germany, italy]
+    opposes:
+      - {against: china, over: "the Army's gains in China", irreducible: true}
+      - {against: usa, over: "the embargo and the demand to leave China"}
+      - {against: konoe, over: "a summit that would give up China"}
+    answers:
+      - key: army_will_not_leave
+        aim: 1
+        when: {effect: deal, party: usa, by: konoe, human: true}
+        gate: [obstructing]
+        act: {effect: {kind: statement, theme: "the Army will not leave China"}}
+        delay_days: 1
+        cooldown_days: 14
+      - key: withdraw_the_war_minister
+        aim: 2
+        when: {effect: deal, party: usa, by: konoe, human: true}
+        gate: [hostile]
+        act: {effect: {kind: appointment, person: tojo, office: "War Minister", appoint: false}}
+        delay_days: 2
+        cooldown_days: 60
+      - key: deadline_stands
+        aim: 2
+        when: {lever: naval_order, params: {zone: [pacific]}, by: usa}
+        gate: [obstructing, hostile]
+        act: {effect: {kind: statement, theme: "the deadline for the talks stands"}}
+        delay_days: 2
+        cooldown_days: 21
+      - key: answer_to_chungking
+        aim: 1
+        when: {lever: appeal_abroad, by: china}
+        gate: [obstructing, hostile]
+        act: {effect: {kind: statement, theme: "Chungking's appeals abroad will not save it"}}
+        delay_days: 1
+        cooldown_days: 21
     office: War Minister of Japan
     playable: true
     principals: [konoe]
@@ -891,6 +1102,24 @@ cards:
     reach: {rank: 3, chain: [japan]}
   - person: mussolini
     allies: [germany, japan]
+    opposes:
+      - {against: uk, over: "Malta, Libya and the Mediterranean"}
+      - {against: ussr, over: "the Italian corps on the Eastern Front"}
+    answers:
+      - key: mare_nostrum
+        aim: 3
+        when: {lever: convoy_orders, params: {priority: [mediterranean]}, by: uk}
+        gate: [obstructing, hostile]
+        act: {effect: {kind: statement, theme: "the convoys to Libya will sail"}}
+        delay_days: 1
+        cooldown_days: 21
+      - key: beside_germany
+        aim: 2
+        when: {lever: lend_lease_finding, params: {recipient: [ussr]}, by: usa}
+        gate: [obstructing, hostile, neutral]
+        act: {effect: {kind: statement, theme: "Italy stands beside Germany in the East"}}
+        delay_days: 2
+        cooldown_days: 30
     office: Duce and Prime Minister of Italy
     playable: true
     principals: [victor_emmanuel]
@@ -945,6 +1174,28 @@ cards:
     reach: {rank: 4, chain: [italy], heads: true}
   - person: chiang
     allies: [usa]
+    opposes:
+      - {against: japan, over: "the invasion of China", irreducible: true}
+    answers:
+      - key: no_settlement_at_chinas_expense
+        aim: 3
+        when: {effect: deal, party: japan, by: usa}
+        act: {effect: {kind: statement, theme: "China will not be sold to Japan"}}
+        delay_days: 1
+        cooldown_days: 14
+      - key: arms_for_china
+        aim: 2
+        when: {lever: lend_lease_finding, params: {recipient: [uk, ussr]}, by: usa}
+        act: {effect: {kind: deal, counterparty: roosevelt, ask: ["aircraft and arms for China"], offer: ["keep Japan tied down in China"]}}
+        delay_days: 2
+        cooldown_days: 30
+      - key: no_peace_while_japan_holds_china
+        aim: 1
+        when: {lever: cabinet_statement, params: {line: [conciliatory]}, by: japan}
+        gate: [obstructing, hostile]
+        act: {effect: {kind: statement, theme: "no peace while Japan holds China"}}
+        delay_days: 1
+        cooldown_days: 21
     office: Chairman of the National Government of China
     playable: true
     principals: [china]

@@ -7,6 +7,7 @@ first tick then issues Bram's count, so the PROSE stage sees two authors.
 
 from revisionist.core import events as ev
 from revisionist.core.ids import DocumentId, EventId, QuantityId, derived_id
+from revisionist.core.realism.actors import readers
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.document import (
     BodyField,
@@ -26,7 +27,7 @@ CANARY = "CANARY-PROSE-TRUTH-3e9a"
 def plant(store: EventStore, n: int, author: str, body: tuple[BodyField, ...]) -> DocumentId:
     """A letter from ``author`` to Ada, dated today, with a truth canary on Bram's."""
     state = load_state(store, CAMPAIGN)
-    (seat,) = state.seats
+    (seat,) = readers(state)
     today = state.in_world_date
     assert today is not None
     who = next(e for e, x in state.entities.items() if x.name.split()[0].lower() == author)

@@ -624,6 +624,9 @@ class App:
                 raise ApiError(HTTPStatus.BAD_REQUEST, "This game is not choosing its people.")
             if action == "pick":
                 return self._pick(store, state, link.seat_id, _text(body, "name", 120))
+            if action == "unpick":
+                named = _text(body, "name", 120, required=False)
+                return self._unpick(store, state, account, link.seat_id, named)
             if action == "style":
                 return dict(
                     agenda_api.set_style(store, cid, link.seat_id, _text(body, "style", 20))
@@ -756,6 +759,33 @@ class App:
         except session_zero.StepRefusedError as exc:
             return {"reply": str(exc), "refused": True}
         return {"reply": f"You are {held}.", "refused": False}
+
+    def _unpick(
+        self, store: PostgresEventStore, state: State, account: Account, seat: SeatId, named: str
+    ) -> dict[str, Any]:
+        """Give up the caller's person, or, for the host, the person ``named``."""
+        own = seat
+        if named:
+            held = next(
+                (
+                    s.seat_id
+                    for s in state.seats.values()
+                    if state.entities[s.embodies].name.casefold() == named.casefold()
+                ),
+                None,
+            )
+            if held is None:
+                return {"reply": f"No player holds {named}.", "refused": True}
+            if held != seat and WebSeats(store.conn).host(state.campaign_id) != account.account_id:
+                return {"reply": "Only the host can do that.", "refused": True}
+            seat = held
+        try:
+            name = session_zero.release(store, state.campaign_id, seat)
+        except session_zero.StepRefusedError as exc:
+            return {"reply": str(exc), "refused": True}
+        if seat != own:
+            return {"reply": f"{name} is free again.", "refused": False}
+        return {"reply": f"You no longer play {name}. Choose again.", "refused": False}
 
     def _build_rest(self, campaign_id: CampaignId) -> None:
         store = self.open()

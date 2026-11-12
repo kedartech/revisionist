@@ -10,7 +10,7 @@ AgentAssigned, SeatStatusSet, IntentFiled, IntentRejected, DeltaApplied,
 ScheduledEventFired, ContestCreated, ContestMoved, ContestDecided,
 ScheduledEventCreated, ScheduledEventSkipped, DivergenceChanged, DateAdvanced,
 SessionZeroOpened, CharacterListed, CharacterClaimed,
-SessionZeroClosed, SeasonEnded, GoalSet, GoalProgressed, GoalMet, GoalUndone,
+CharacterReleased, SessionZeroClosed, SeasonEnded, GoalSet, GoalProgressed, GoalMet, GoalUndone,
 TickOpened, TickClosed``, and for realism campaigns ``CardsDeclared,
 DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, QuantitySet,
 FeatureSet, WarDeclared, NewsReported``, and under engine v2 ``OrderRouted, OrderExecuted,
@@ -316,6 +316,21 @@ class CharacterClaimed(Model):
     """
 
     kind: Literal["character_claimed"] = "character_claimed"
+    seat_id: SeatId
+    entity_id: EntityId
+
+
+class CharacterReleased(Model):
+    """A player gives up the character they claimed, before the game begins.
+
+    Realism games only. The fold removes the player's seat and frees the
+    character, so it can be claimed again. The engine derives this event's ID
+    from the character and how many releases it has had, and each later claim's
+    ID from the same count, so two players racing for a freed person still
+    cannot both land.
+    """
+
+    kind: Literal["character_released"] = "character_released"
     seat_id: SeatId
     entity_id: EntityId
 
@@ -843,6 +858,7 @@ Payload = Annotated[
     | SessionZeroOpened
     | CharacterListed
     | CharacterClaimed
+    | CharacterReleased
     | SessionZeroClosed
     | SeasonEnded
     | GoalSet
@@ -915,6 +931,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "session_zero_opened",
         "character_listed",
         "character_claimed",
+        "character_released",
         "session_zero_closed",
         "season_ended",
         "goal_set",

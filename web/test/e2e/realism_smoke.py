@@ -221,6 +221,7 @@ def main() -> int:
             page.get_by_role("button", name="Start Autumn 1941").click()
             page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
             play_from_dossier(page, report, "Franklin D. Roosevelt")
+            release_and_repick(page, report, "Franklin D. Roosevelt")
             page.get_by_role("button", name="Begin the game").wait_for(timeout=60_000)
             begin_with_crawl(page, report)
         else:
@@ -277,6 +278,25 @@ def play_from_dossier(page: Page, report: dict, name: str) -> None:
     )
     yes.click()
     page.get_by_role("heading", name=f"You are {name}").wait_for(timeout=60_000)
+
+
+def release_and_repick(page: Page, report: dict, name: str) -> None:
+    """Give the person up behind its confirm, see the cast again, then play them again."""
+    page.get_by_role("button", name="Choose someone else").click()
+    keep = page.get_by_role("button", name=f"Keep {name}")
+    keep.wait_for(timeout=10_000)
+    check(
+        "a release asks first, with focus on Keep",
+        bool(page.evaluate("() => document.activeElement?.textContent?.startsWith('Keep ')")),
+    )
+    shoot(page, "00c-release-confirm")
+    page.get_by_role("button", name="Yes, choose again").click()
+    page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
+    check(
+        "a released person is free on the cast again",
+        page.get_by_role("button", name=f"{name}: open the dossier").count() == 1,
+    )
+    play_from_dossier(page, report, name)
 
 
 def begin_with_crawl(page: Page, report: dict) -> None:

@@ -1090,6 +1090,32 @@
         "title": "CharacterListed",
         "type": "object"
       },
+      "CharacterReleased": {
+        "additionalProperties": false,
+        "description": "A player gives up the character they claimed, before the game begins.\n\nRealism games only. The fold removes the player's seat and frees the\ncharacter, so it can be claimed again. The engine derives this event's ID\nfrom the character and how many releases it has had, and each later claim's\nID from the same count, so two players racing for a freed person still\ncannot both land.",
+        "properties": {
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "character_released",
+            "default": "character_released",
+            "title": "Kind",
+            "type": "string"
+          },
+          "seat_id": {
+            "title": "Seat Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seat_id",
+          "entity_id"
+        ],
+        "title": "CharacterReleased",
+        "type": "object"
+      },
       "CharacterSide": {
         "additionalProperties": false,
         "description": "Where a roster character stands in one contest. Public, like the roster.",
@@ -8372,6 +8398,7 @@
             "cards_declared": "#/$defs/CardsDeclared",
             "character_claimed": "#/$defs/CharacterClaimed",
             "character_listed": "#/$defs/CharacterListed",
+            "character_released": "#/$defs/CharacterReleased",
             "clarification_asked": "#/$defs/ClarificationAsked",
             "clock_created": "#/$defs/ClockCreated",
             "commitment_created": "#/$defs/CommitmentCreated",
@@ -8552,6 +8579,9 @@
           },
           {
             "$ref": "#/$defs/CharacterClaimed"
+          },
+          {
+            "$ref": "#/$defs/CharacterReleased"
           },
           {
             "$ref": "#/$defs/SessionZeroClosed"

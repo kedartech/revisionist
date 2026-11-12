@@ -9,6 +9,7 @@ from typing import get_type_hints
 import pytest
 
 from revisionist.core import events as ev
+from revisionist.core.events import CallCost
 from revisionist.core.fold import state_hash
 from revisionist.core.ids import DocumentId
 from revisionist.core.project import project
@@ -23,6 +24,7 @@ from revisionist.engine.prose import (
     ProseWriter,
     TemplateProseWriter,
     Written,
+    prose_prompt,
     template_prose,
 )
 from revisionist.engine.realism_tick import run_realism_tick, write_opening
@@ -147,6 +149,92 @@ def test_a_figure_not_on_the_page_drops_the_prose() -> None:
     assert len(result.prose_dropped) == len(state.documents)
     assert all("4321" in why for why in result.prose_dropped)
     assert any(isinstance(e.payload, ev.TickClosed) for e in store.read(CAMPAIGN))
+
+
+class SecondDraft:
+    """Invents a figure on the first draft of the pages in ``bad`` (every page when
+    empty), and writes cleanly when told why a draft was refused; ``fail_retry`` makes
+    the second call fail instead. Records each call's pages and refusals."""
+
+    def __init__(self, bad: Sequence[DocumentId] = (), fail_retry: bool = False) -> None:
+        self.calls: list[tuple[tuple[DocumentId, ...], dict[DocumentId, str]]] = []
+        self.bad = set(bad)
+        self.fail_retry = fail_retry
+
+    def write(self, author: Author, pages: Sequence[DocumentView]) -> Written:
+        self.calls.append((tuple(p.doc_id for p in pages), dict(author.refused)))
+        if author.refused and self.fail_retry:
+            raise TransportError("model unavailable")
+        prose = {}
+        for p in pages:
+            text = template_prose(author, p)
+            if not author.refused and (not self.bad or p.doc_id in self.bad):
+                text += " Also 4,321 rifles."
+            prose[p.doc_id] = text
+        return Written(prose=prose, cost=COST)
+
+
+COST = CallCost(call_class="prose", model="m", input_tokens=1, output_tokens=1, usd=0.01)
+
+
+def test_a_refused_draft_is_written_once_more_and_told_why() -> None:
+    store = MemoryStore()
+    scenario(store)
+    writer = SecondDraft()
+    result = run_realism_tick(store, CAMPAIGN, prose=writer)
+    state = load_state(store, CAMPAIGN)
+    assert all(d.view.prose and "4,321" not in d.view.prose for d in state.documents.values())
+    assert result.prose_dropped == ()
+    first = [c for c in writer.calls if not c[1]]
+    again = [c for c in writer.calls if c[1]]
+    assert len(first) == len(again) == 2  # one retry per author
+    for (pages, _), (retried, why) in zip(first, again, strict=True):
+        assert retried == pages and set(why) == set(pages)
+        assert all("4321" in w for w in why.values())
+    (closed,) = [e.payload for e in store.read(CAMPAIGN) if isinstance(e.payload, ev.TickClosed)]
+    assert len(closed.costs) == 4
+
+
+def test_only_the_refused_pages_are_sent_again() -> None:
+    store = MemoryStore()
+    _, bram = scenario(store)
+    writer = SecondDraft(bad=[bram])
+    run_realism_tick(store, CAMPAIGN, prose=writer)
+    again = [c for c in writer.calls if c[1]]
+    assert again == [((bram,), {bram: again[0][1][bram]})]
+    assert load_state(store, CAMPAIGN).documents[bram].view.prose
+
+
+def test_a_page_refused_twice_is_dropped_after_one_retry() -> None:
+    store = MemoryStore()
+    scenario(store)
+    writer = Counting(invent=True)
+    result = run_realism_tick(store, CAMPAIGN, prose=writer)
+    assert len(writer.calls) == 4  # two authors, one retry each
+    assert written(store) == []
+    assert len(result.prose_dropped) == len(load_state(store, CAMPAIGN).documents)
+
+
+def test_a_failed_retry_leaves_the_page_bare_and_closes_the_tick() -> None:
+    store = MemoryStore()
+    scenario(store)
+    result = run_realism_tick(store, CAMPAIGN, prose=SecondDraft(fail_retry=True))
+    state = load_state(store, CAMPAIGN)
+    assert result.state_hash and written(store) == []
+    assert len(result.prose_dropped) == len(state.documents)
+    (closed,) = [e.payload for e in store.read(CAMPAIGN) if isinstance(e.payload, ev.TickClosed)]
+    assert len(closed.costs) == 2  # the first drafts were paid for
+
+
+def test_the_prompt_names_why_a_draft_was_refused_on_that_page_only() -> None:
+    store = MemoryStore()
+    _, bram = scenario(store)
+    state = load_state(store, CAMPAIGN)
+    page = state.documents[bram].view
+    author = Author(entity=page.author, name="Bram Tull", refused={bram: "states 4321"})
+    prompt = prose_prompt(author, [page])
+    assert "states 4321" in prompt and "refused" in prompt
+    assert "refused" not in prose_prompt(author.model_copy(update={"refused": {}}), [page])
 
 
 def test_a_transport_failure_leaves_prose_none_and_closes_the_tick() -> None:

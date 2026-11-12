@@ -45,6 +45,8 @@ class Author(Model):
     context: dict[DocumentId, dict[str, Any]] = Field(default_factory=dict)
     """Why each private page is written (``prose_context.page_context``): its reader, the
     reader's own words for the order it answers, its purpose, the author's aims."""
+    refused: dict[DocumentId, str] = Field(default_factory=dict)
+    """Why the last draft of a page was refused, for the one second draft it gets."""
 
 
 class Written(Model):
@@ -138,6 +140,14 @@ def page_lines(page: DocumentView, author: Author) -> dict[str, Any]:
             if line.value is not None
         ],
         **({"context": author.context[page.doc_id]} if page.doc_id in author.context else {}),
+        **(
+            {
+                "refused": f"Your last draft of this page was refused: it {why}. "
+                "Write it again without that fault."
+            }
+            if (why := author.refused.get(page.doc_id))
+            else {}
+        ),
     }
 
 
@@ -258,15 +268,16 @@ def accepted(
     for page in pages:
         text = written.prose.get(page.doc_id)
         if not text:
-            dropped.append(Rejected(page.doc_id, "no prose returned"))
+            dropped.append(Rejected(page.doc_id, "returned no text for the page"))
             continue
         if len(text) > 4000:
-            dropped.append(Rejected(page.doc_id, f"{len(text)} characters, over 4000"))
+            dropped.append(Rejected(page.doc_id, f"ran to {len(text)} characters, over 4000"))
             continue
         asked = author.context.get(page.doc_id, {}).get("asked", "") if author else ""
         invented = tuple(n for n in invented_numbers(text, page) if n not in numbers_in(asked))
         if invented:
-            dropped.append(Rejected(page.doc_id, f"states figures not on the page: {invented}"))
+            figures = ", ".join(invented)
+            dropped.append(Rejected(page.doc_id, f"states figures not on the page: {figures}"))
             continue
         keep[page.doc_id] = text
     for r in dropped:

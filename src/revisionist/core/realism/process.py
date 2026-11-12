@@ -121,9 +121,11 @@ def decides(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[bool, 
     return False, f"{name} would not be moved."
 
 
-REFUSED_HINT = "Better standing with them, or something offered in return, might change it."
-"""The same words on every refusal: a hint tuned to the score would tell the issuer
-something about the target's card, which the issuer cannot see."""
+REFUSED_HINT = (
+    "Were we on better terms, or were something offered in return, I might see it differently."
+)
+"""The same words on every refusal, in the target's own voice: a hint tuned to the score
+would tell the issuer something about the target's card, which the issuer cannot see."""
 
 
 def _score(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[int, int, int, int]:

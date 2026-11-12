@@ -337,17 +337,21 @@ def outcome(part: PartView) -> str:
     return _CARRIED[part.fidelity] if part.fidelity is not None else "carried out"
 
 
+AGREED = "I will do as you ask."
+REFUSED = "I cannot agree to what you ask."
+
+
 def answer(state: State, order: RoutedOrder, part: RoutedPart) -> str:
-    """What came of an approach, in line with the decision: agreed; never reached (no
-    channel to them); or would not be moved, with the same hint on every refusal."""
+    """What came of an approach, in line with the decision and in the target's own
+    words, since the target writes the paper: agreed; or refused, with the same hint on
+    every refusal. Never reached (no channel to them) is the issuer's staff speaking."""
     assert part.target is not None
-    name = _name(state, part.target)
     issuer = state.seats[order.issuer].embodies
     if part.accepted:
-        return f"{name} agreed to what you asked."
+        return AGREED
     if not reach.channels_to(state, issuer, part.target):
         return process.NO_REACH
-    return f"{name} would not be moved. {process.REFUSED_HINT}"
+    return f"{REFUSED} {process.REFUSED_HINT}"
 
 
 def _lines(text: str, label: str) -> list[BodyField]:
@@ -384,15 +388,29 @@ def _aide(state: State, issuer: EntityId) -> EntityId:
 
 
 def reporter(state: State, order: RoutedOrder, part: int) -> tuple[EntityId, ChannelKind]:
-    """Who writes the issuer's paper on one part, and the channel it comes by."""
+    """Who writes the issuer's paper on one part, and the channel it comes by. An
+    approach is answered by its target, unless no channel reaches them: then the
+    issuer's own staff report that it never went (the target still, for an issuer with
+    no staff, rather than a letter to themselves)."""
     routed = order.parts[part]
     issuer = state.seats[order.issuer].embodies
     if routed.route is Route.INFLUENCE and routed.target is not None:
-        author = routed.target
+        staff = _aide(state, issuer)
+        reached = reach.channels_to(state, issuer, routed.target)
+        author = routed.target if reached or staff == issuer else staff
     else:
         author = routed.executor if routed.executor is not None else _aide(state, issuer)
     channels = reach.channels_to(state, issuer, author) if author != issuer else ()
     return author, channels[0] if channels else ChannelKind.IN_PERSON
+
+
+def account_by(state: State, order: RoutedOrder, part: int) -> EntityId:
+    """Whose words the estimator's account of one part is written in: the paper's author,
+    except on an approach. Its paper speaks from the target's decision, and the account
+    is shown to the issuer before that, so it comes from the issuer's own staff."""
+    if order.parts[part].route is Route.INFLUENCE:
+        return _aide(state, state.seats[order.issuer].embodies)
+    return reporter(state, order, part)[0]
 
 
 def report_doc_id(campaign_id: CampaignId, order_id: OrderId, part: int) -> DocumentId:
@@ -413,7 +431,7 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
         return REASON_WITHHELD if scan_text(state, order.issuer, text) else text
 
     if routed.route is Route.INFLUENCE and routed.target is not None:
-        title = f"Your approach to {_name(state, author)}: {outcome(routed)}"
+        title = f"Your approach to {_name(state, routed.target)}: {outcome(routed)}"
     else:
         partial = _partial_move(routed)
         if partial is None:
@@ -460,6 +478,7 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
 
 
 __all__ = [
+    "account_by",
     "answer",
     "apply_due",
     "as_carried",

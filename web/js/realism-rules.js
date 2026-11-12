@@ -172,6 +172,25 @@ export function entityChoices(desk) {
   return [...new Set([...desk.inner_circle.map((c) => c.person), ...desk.principals])].sort();
 }
 
+/**
+ * A page's lines as one entry per label: a long line the engine broke into "Label (cont.)"
+ * pieces is joined back onto its first piece, and a line with no figure is left off.
+ */
+export function sheetLines(lines) {
+  const out = [];
+  for (const b of lines) {
+    if (b.value === null) continue;
+    const head = b.label.endsWith(' (cont.)') ? b.label.slice(0, -' (cont.)'.length) : null;
+    const last = out[out.length - 1];
+    if (head !== null && last && last.label === head) {
+      out[out.length - 1] = { ...last, value: `${last.value} ${b.value}` };
+    } else {
+      out.push({ ...b });
+    }
+  }
+  return out;
+}
+
 /** What a page's structured lines are called: figures when they are numbers, particulars when they are words. */
 export function linesHeading(lines) {
   return lines.some((b) => typeof b.value === 'string') ? 'Particulars' : 'Figures quoted';

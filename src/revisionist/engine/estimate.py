@@ -23,6 +23,7 @@ from revisionist.core.canary import scan_text
 from revisionist.core.events import CallCost
 from revisionist.core.fold import FoldError, _check_effect
 from revisionist.core.ids import EntityId, OrderId, QuantityId
+from revisionist.core.realism.apply import account_by
 from revisionist.core.realism.effect import (
     DISPOSITION_CAP,
     FIGURE_CAP,
@@ -92,6 +93,7 @@ def estimator_prompt(state: State, order_id: OrderId, part: int) -> str:
     order = state.routed[order_id]
     routed = order.parts[part]
     issuer = state.seats[order.issuer]
+    reported_by = account_by(state, order, part)
     cards = {
         str(who): state.cards[who].model_dump(mode="json", exclude={"voice"}, exclude_none=True)
         for who in dict.fromkeys([issuer.embodies, *_named(routed)])
@@ -108,6 +110,11 @@ def estimator_prompt(state: State, order_id: OrderId, part: int) -> str:
             "filed": str(order.filed),
             "part": routed.view().model_dump(mode="json", exclude_none=True),
             "asked": routed.ask,
+            "reported_by": (
+                state.entities[reported_by].name
+                if reported_by != issuer.embodies
+                else "the issuer's own staff"
+            ),
         },
         "cards": cards,
         "entities": [

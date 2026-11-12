@@ -259,5 +259,41 @@ def test_the_prompt_carries_the_words_the_seat_asked_for() -> None:
     assert words in es.estimator_prompt(sl.state, order.order_id, 0)
 
 
+def _order_block(prompt: str) -> dict[str, Any]:
+    world: dict[str, Any] = json.loads(prompt.split("\n")[1])
+    return world["order"]  # type: ignore[no-any-return]
+
+
+def test_the_prompt_names_who_writes_the_account() -> None:
+    from revisionist.core.realism.apply import reporter
+
+    sl = Slice()
+    command = sl.shoot_on_sight(effect=None)
+    own = sl.shoot_on_sight(2, domain="public_word", executor=None, effect=None)
+    for order in (command, own):
+        sl.add(ev.OrderRouted(order=order), private_to(sl.fdr))
+    stark = sl.state.entities[sl.entity("stark")].name
+    assert _order_block(es.estimator_prompt(sl.state, command.order_id, 0))["reported_by"] == stark
+    aide, _ = reporter(sl.state, sl.state.routed[own.order_id], 0)
+    said = _order_block(es.estimator_prompt(sl.state, own.order_id, 0))["reported_by"]
+    assert said == sl.state.entities[aide].name != sl.state.entities[sl.entity("roosevelt")].name
+
+
+def test_an_approach_account_is_not_written_in_the_targets_voice() -> None:
+    sl, oid = _scenario()
+    said = _order_block(es.estimator_prompt(sl.state, oid, 0))["reported_by"]
+    names = {sl.state.entities[sl.entity(k)].name for k in ("wheeler", "roosevelt")}
+    assert said not in names
+    circle = sl.state.cards[sl.entity("roosevelt")].inner_circle
+    assert said in {sl.state.entities[c.person].name for c in circle}
+
+
+def test_the_account_is_asked_for_in_the_reporters_own_words() -> None:
+    from revisionist.engine.llm import prompt_text
+
+    system = prompt_text("estimator")
+    assert "reported_by" in system and "first person" in system
+
+
 if __name__ == "__main__":
     _write()

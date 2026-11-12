@@ -21,6 +21,7 @@ from revisionist.core.realism.apply import (
     apply_due,
     as_carried,
     report,
+    reporter,
 )
 from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.geography import SPEED_KM_PER_DAY, Feature, km_between
@@ -428,7 +429,7 @@ def test_a_rebuffed_approach_reads_as_a_refusal_and_says_what_would_change_it(sl
     assert doc.document.title.endswith("rebuffed")
     body = _lines(doc)
     assert "receptive" not in body
-    assert "would not be moved" in body and "might change it" in body
+    assert "I cannot agree to what you ask." in body and "offered in return" in body
 
 
 def test_an_accepted_approach_reads_as_agreed(sl: Slice) -> None:
@@ -438,7 +439,25 @@ def test_an_accepted_approach_reads_as_agreed(sl: Slice) -> None:
     doc = next(p for p in land(sl, order) if isinstance(p, ev.DocumentIssued))
     assert doc.document.title.endswith("agreed")
     body = _lines(doc)
-    assert "agreed" in body and "budge" not in body
+    assert "I will do as you ask." in body and "budge" not in body
+
+
+def _answer(doc: ev.DocumentIssued) -> str:
+    return " ".join(str(x.value) for x in doc.document.body if x.label.startswith("Answer"))
+
+
+@pytest.mark.parametrize("agreed", [True, False])
+def test_the_answer_is_in_the_targets_own_voice(sl: Slice, agreed: bool) -> None:
+    order = influence(sl, agreed)
+    sl.add(ev.EffectsEstimated(order_id=order.order_id, part=0, reason="He is receptive."))
+    sl.add(ev.InfluenceDecided(order_id=order.order_id, part=0, on=FILED, accepted=agreed))
+    doc = next(p for p in land(sl, order) if isinstance(p, ev.DocumentIssued))
+    wheeler = sl.state.entities[sl.entity("wheeler")]
+    assert doc.document.author == wheeler.entity_id
+    said = _answer(doc)
+    assert said.startswith("I ")
+    assert wheeler.name not in said and "Wheeler" not in said
+    assert " them" not in said
 
 
 def _refused(sl: Slice) -> tuple[rx.RoutedOrder, ev.DocumentIssued]:
@@ -467,4 +486,30 @@ def test_an_unreachable_target_was_not_approached(
     monkeypatch.setattr(reach, "channels_to", lambda *a, **k: ())
     _, doc = _refused(sl)
     body = _lines(doc)
-    assert "no way to reach" in body and "would not be moved" not in body
+    assert "no way to reach" in body and "cannot agree" not in body
+
+
+def test_an_unreachable_target_does_not_write_the_paper(
+    sl: Slice, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(reach, "channels_to", lambda *a, **k: ())
+    _, doc = _refused(sl)
+    wheeler = sl.entity("wheeler")
+    assert doc.document.author != wheeler
+    assert doc.document.author in {
+        c.person for c in sl.state.cards[sl.entity("roosevelt")].inner_circle
+    }
+    assert sl.state.entities[wheeler].name in doc.document.title
+
+
+def test_an_unreachable_approach_from_a_seat_with_no_circle_is_not_a_letter_to_oneself(
+    sl: Slice, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(reach, "channels_to", lambda *a, **k: ())
+    roosevelt = sl.entity("roosevelt")
+    order = influence(sl, False)
+    card = sl.state.cards[roosevelt].model_copy(update={"inner_circle": ()})
+    state = sl.state.model_copy(update={"cards": {**sl.state.cards, roosevelt: card}})
+    author, _ = reporter(state, state.routed[order.order_id], 0)
+    assert author != roosevelt
+    assert author == sl.entity("wheeler")

@@ -26,7 +26,7 @@ test('a roster person with sidecar text gets the full dossier, in order', () => 
   assert.equal(m.full, true);
   assert.equal(m.listed, false);
   assert.deepEqual(heads(m), ['Side', 'Who they are', 'Their reach', 'Your arena', 'Biography', 'As history had it', 'In their words', 'A fact']);
-  assert.deepEqual(get(m, 'Side'), ['Interventionists and United States']);
+  assert.deepEqual(get(m, 'Side'), ['United States']);
   assert.deepEqual(get(m, 'Your arena'), [fdr.dossier.arena]);
   assert.deepEqual(get(m, 'As history had it'), [...fdr.dossier.history, 'Not binding: you may do otherwise.']);
   assert.deepEqual(get(m, 'In their words'), [`“${fdr.dossier.quote}”`, `— ${fdr.dossier.source}`]);

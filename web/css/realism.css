@@ -20,6 +20,10 @@
 .realism-screen .frame-head button { white-space: nowrap; }
 .realism-screen .frame-head .rl-clock { flex: 0 1 auto; flex-shrink: 1; min-width: 8rem; }
 .realism-screen .frame-head .rl-pace { display: block; max-width: 30rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--chrome-fg-muted); }
+/* At phone width the clock line wraps rather than cutting off what comes next. */
+@media (max-width: 600px) {
+  .realism-screen .frame-head .rl-pace { white-space: normal; overflow: visible; }
+}
 .realism-screen .frame-head .rl-pace svg { vertical-align: -2px; margin-right: var(--space-1); }
 .realism-screen .head-right .muted { white-space: nowrap; }
 .rl-page h2 { font: 400 20px/1.3 var(--font-head); letter-spacing: 0; text-transform: none; color: var(--fg-strong); }
@@ -100,6 +104,8 @@ button.danger { background: var(--danger); color: var(--on-accent); border-color
   .screen.war-screen.realism-screen { height: auto; min-height: 100vh; }
   .rl-room, .rl-room.wide { grid-template-columns: 1fr; }
   .rl-col-body { overflow: visible; }
+  /* One column: Widen would change nothing. */
+  .rl-papers > .rl-col-head { display: none; }
 }
 
 .rl-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }

@@ -120,6 +120,12 @@ legend { font-weight: 600; font-size: 13px; padding: 0; margin-bottom: 4px; }
 .frame-head button:hover:not(:disabled) { border-color: var(--chrome-accent-strong); color: var(--chrome-accent-strong); }
 .icon-btn { padding: 6px; }
 .frame-head :focus-visible { outline-color: var(--chrome-accent-strong); }
+/* At phone width the account line goes (Sign out stays), so the controls sit on one row. */
+@media (max-width: 600px) {
+  .head-right { flex-wrap: wrap; justify-content: flex-end; }
+  .head-right > .muted { display: none; }
+  .frame-head button { white-space: nowrap; }
+}
 
 /* --- paper sheets ---------------------------------------------------------------- */
 .paper {

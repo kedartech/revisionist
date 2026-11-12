@@ -22,7 +22,7 @@
 .rl-cd-head {
   display: flex;
   gap: 1rem;
-  align-items: flex-end;
+  align-items: flex-start;
   padding-bottom: 0.75rem;
   margin-bottom: 1rem;
   border-bottom: 1px var(--border-sheet) var(--rule);

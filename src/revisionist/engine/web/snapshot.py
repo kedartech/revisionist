@@ -25,6 +25,7 @@ from revisionist.core.dashboard import dashboard
 from revisionist.core.ids import CampaignId, EntityId, SeatId
 from revisionist.core.ontology import AssetStatus, ClockStatus, EntityKind, Phase, SeatKind
 from revisionist.core.project import project
+from revisionist.core.realism.war import polity_of
 from revisionist.core.referee import holds
 from revisionist.core.state import State, View
 from revisionist.engine import scheduler as sch
@@ -100,6 +101,13 @@ def schedule_info(store: PostgresEventStore, campaign_id: CampaignId, now: Any) 
     }
 
 
+def _polity_name(state: State, side: EntityId) -> str:
+    """The country a side belongs to (a bloc inside it names the country), or the side's own
+    name when it sits under no country."""
+    polity = polity_of(state, side)
+    return state.entities[polity if polity is not None else side].name
+
+
 def roster(state: State, people: Mapping[EntityId, Dossier] | None = None) -> list[dict[str, Any]]:
     """The public roster, as ``roster_lines`` shows it, in parts, each with its dossier."""
     out = []
@@ -117,6 +125,7 @@ def roster(state: State, people: Mapping[EntityId, Dossier] | None = None) -> li
                     {
                         "contest": state.contests[s.contest_id].name,
                         "side": state.entities[s.side].name,
+                        "polity": _polity_name(state, s.side),
                     }
                     for s in ch.sides
                     if s.contest_id in state.contests

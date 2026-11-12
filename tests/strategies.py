@@ -780,15 +780,17 @@ realism_payloads = st.one_of(
             unique_by=lambda a: a.key,
         ).map(tuple),
     ),
-    st.builds(
-        ev.AnswerPlanned,
-        figure=entity_ids,
-        key=labels,
-        on=in_world_dates,
-        due=in_world_dates,
-        cause=st.none() | order_ids,
-        toward=st.none() | entity_ids,
-    ).filter(lambda e: e.due >= e.on),
+    in_world_dates.flatmap(
+        lambda on: st.builds(
+            ev.AnswerPlanned,
+            figure=entity_ids,
+            key=labels,
+            on=st.just(on),
+            due=st.integers(0, 30).map(lambda n: on + timedelta(days=n)),
+            cause=st.none() | order_ids,
+            toward=st.none() | entity_ids,
+        )
+    ),
     st.builds(
         ev.AnswerMade,
         figure=entity_ids,

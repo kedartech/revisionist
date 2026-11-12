@@ -21,6 +21,15 @@ from revisionist.core.realism.geography import Feature, Sight, SightRef
 from revisionist.core.state import State
 from revisionist.core.visibility import Scope, Visibility
 
+NO_CHANGE = "No change since"
+"""The one line of a page that would say word for word what the feed last stated."""
+RESTATE_DAYS = 14
+"""[proposed] A feed states its page in full again once its last full page is this old,
+so a sighting on the map is not drawn as stale (``STALE_DAYS`` in the web snapshot)."""
+
+TITLE = 60
+"""A document title's length limit (``Label``)."""
+
 
 def seed_for_day(campaign_id: CampaignId, today: date) -> str:
     return hashlib.blake2b(
@@ -93,25 +102,37 @@ def _holders(state: State, feed: Feed) -> frozenset[SeatId]:
     return frozenset(s.seat_id for s in state.seats.values() if s.embodies in persons)
 
 
-def _repeats(state: State, feed: Feed, body: tuple[BodyField, ...]) -> bool:
-    """The page would say word for word what the feed's last page said. Only a page of
-    figures counts: a page with no lines (a cable the prose writes from its title) is
-    never a repeat, and a sighting confirms where a force still is, which the map reads."""
-    if not body or any(line.sight is not None for line in body):
-        return False
-    last = max(
-        (d.view for d in state.documents.values() if d.truth.feed == feed.feed_id),
+def _last_full(state: State, feed: Feed) -> DocumentView | None:
+    """The feed's latest page that stated its lines, passing over no-change pages."""
+    return max(
+        (
+            d.view
+            for d in state.documents.values()
+            if d.truth.feed == feed.feed_id and [line.label for line in d.view.body] != [NO_CHANGE]
+        ),
         key=lambda v: v.issued,
         default=None,
     )
-    return last is not None and last.body == body
+
+
+def _repeats(state: State, feed: Feed, body: tuple[BodyField, ...], today: date) -> date | None:
+    """The day of the feed's last full page when today's page would say it again word for
+    word, sightings included, and that page is under ``RESTATE_DAYS`` old; else None. A page
+    with no lines (a cable the prose writes from its title) is never a repeat."""
+    if not body:
+        return None
+    last = _last_full(state, feed)
+    if last is None or last.body != body or (today - last.issued).days >= RESTATE_DAYS:
+        return None
+    return last.issued
 
 
 def issue(state: State, feed: Feed, today: date, seed: str) -> ev.DocumentIssued | None:
     """The document ``feed`` issues today, or None when no seat holds the feed
-    (a non-public scope needs a holder, and a feed no one receives is not a document),
-    when every line it would carry is left blank (nothing to state), or when the page
-    would repeat the feed's last one word for word."""
+    (a non-public scope needs a holder, and a feed no one receives is not a document)
+    or when every line it would carry is left blank (nothing to state). A page that would
+    repeat the feed's last full page word for word is one line instead: no change since
+    that page's date. It places nothing, so the map keeps the full page's sighting."""
     holders = _holders(state, feed)
     if not holders:
         return None
@@ -129,8 +150,19 @@ def issue(state: State, feed: Feed, today: date, seed: str) -> ev.DocumentIssued
         if line is not None:
             seen.append(SightRef(feature_id=fid, places=f.places))
             body.append(line)
-    if (body and all(line.value is None for line in body)) or _repeats(state, feed, tuple(body)):
+    if body and all(line.value is None for line in body):
         return None
+    title = f"{feed.name}, {today.isoformat()}"
+    since = _repeats(state, feed, tuple(body), today)
+    if since is not None:
+        body, seen = [BodyField(label=NO_CHANGE, value=f"{since.day} {since:%B %Y}")], []
+        tail = f", {today.isoformat()}: no change"
+        name = (
+            feed.name
+            if len(feed.name) + len(tail) <= TITLE
+            else feed.name[: TITLE - len(tail) - 1] + "…"
+        )
+        title = name + tail
     doc_id = DocumentId(derived_id(state.campaign_id, feed.feed_id, today.isoformat()))
     arrives = today + timedelta(days=(feed.latency_days or 0) + feed.bias.delay_days)
     view = DocumentView(
@@ -141,7 +173,7 @@ def issue(state: State, feed: Feed, today: date, seed: str) -> ev.DocumentIssued
         arrives=arrives,
         channel=feed.channel,
         classification=feed.classification,
-        title=f"{feed.name}, {today.isoformat()}",
+        title=title,
         body=tuple(body),
         scope=Scope(visibility=Visibility.PRIVATE, known_by=holders),
     )

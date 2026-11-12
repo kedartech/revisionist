@@ -36,13 +36,9 @@ PROSE_BY_TITLE: Mapping[str, str] = {
         "Madam,\n\nMy count of the Council as it stands: 8 votes for the levy. I have counted "
         "twice. I will write again when it moves.\n\nB. Tull"
     ),
-    "Bram's count of the Council, 1900-04-09": (
-        "Madam,\n\nThe count holds at 8 votes for the levy. Nobody has come over and nobody "
-        "has gone off; I give it you as I find it.\n\nB. Tull"
-    ),
-    "Bram's count of the Council, 1900-04-16": (
-        "Madam,\n\nStill 8 votes for the levy by my reckoning. I would sooner send you a dull "
-        "count than a hopeful one.\n\nB. Tull"
+    "Bram's count of the Council, 1900-04-10: no change": (
+        "Madam,\n\nNo change in my count since 2 April 1900. I will write again when it "
+        "moves.\n\nB. Tull"
     ),
     "A note from Cora Senn": (
         "Dear First Citizen,\n\nWe enrolled 3 bills this week, all in good order. As to the "
@@ -171,14 +167,12 @@ AB_BY_MODEL_AND_TITLE: Mapping[tuple[str, str], str] = {
         "no number on war with Germany or on helping Britain whatever the risk, and I'd "
         "rather give you none than a guess.\n\nSteve"
     ),
-    ("claude-haiku-5-5", "Atlantic reports from the Navy Department, 1941-09-09"): (
-        "September losses to U-boats still stand at 209835 GRT; 30 boats operational in the "
-        "Atlantic. The Atlantic Fleet is at Norfolk.\n\nH. R. Stark"
+    ("claude-haiku-5-5", "The Speaker's count, 1941-09-16"): (
+        "Mr. President, the House still stands at 267 Democrats and 162 Republicans. Sam Rayburn"
     ),
-    ("claude-sonnet-5-5", "Atlantic reports from the Navy Department, 1941-09-09"): (
-        "Mr. President,\n\nNo change worth the name since my last: losses for September at "
-        "209,835 GRT and some 30 boats at sea in the Atlantic. The fleet is at Norfolk and the "
-        "convoys keep their routes.\n\nRespectfully,\nH. R. Stark"
+    ("claude-sonnet-5-5", "The Speaker's count, 1941-09-16"): (
+        "Mr. President,\n\nThe House is as it was: 267 Democrats and 162 Republicans. I'll "
+        "tell you the minute that changes.\n\nSam"
     ),
 }
 

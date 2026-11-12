@@ -18,7 +18,7 @@
 .rl-dos-head {
   display: flex;
   gap: 1rem;
-  align-items: flex-end;
+  align-items: flex-start;
   padding-bottom: 0.75rem;
   border-bottom: 1px var(--border-sheet) var(--rule);
 }

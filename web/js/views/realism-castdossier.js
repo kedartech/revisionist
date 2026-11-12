@@ -3,6 +3,7 @@
 // <name>" and Close.
 
 import { h } from '../dom.js';
+import { sideName } from './realism-castcard.js';
 import { portraitNode } from './realism-dossier.js';
 
 export const DRAW_NOTE = 'Drawing up their papers takes about a minute.';
@@ -22,7 +23,8 @@ const one = (x) => lines([x]);
  * - `full`: the dossier has a bio. `listed`: `person` is a listed figure, not a roster entry
  *   (it has `power` and no `pitch`).
  * - `sections`, `{ heading, lines }`, only those with content, in this order:
- *   Side (roster: the distinct `sides[].side` joined by " and "; figure: `side`),
+ *   Side (roster: the distinct countries, `sideName` of each of `sides`, joined by " and ";
+ *   figure: `side`),
  *   Title (figure only), Kind of power (figure only), Who they are (`pitch`),
  *   Their reach (`reach`), Your arena (`arena`), Biography (`bio`),
  *   As history had it (the `history` lines, then the line "Not binding: you may do otherwise."),
@@ -33,7 +35,7 @@ export function castDossierModel(person, dossier) {
   const p = person ?? {};
   const d = dossier ?? {};
   const listed = Boolean(text(p.power)) && !text(p.pitch);
-  const sides = Array.isArray(p.sides) ? [...new Set(lines(p.sides.map((s) => s?.side)))] : [];
+  const sides = Array.isArray(p.sides) ? [...new Set(lines(p.sides.map(sideName)))] : [];
   const history = lines(Array.isArray(d.history) ? d.history : []);
   const quote = text(d.quote);
   const source = text(d.source);

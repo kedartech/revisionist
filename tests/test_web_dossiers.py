@@ -246,6 +246,26 @@ def test_for_people_keys_each_roster_person_by_entity(world: str) -> None:
             assert out[eid] == d  # type: ignore[index]
 
 
+def test_each_roster_side_names_the_country_it_belongs_to() -> None:
+    from revisionist.engine.web.snapshot import roster
+
+    state, _ = campaign("autumn-1941")
+    by_name = {c["name"]: c["sides"] for c in roster(state)}
+    assert by_name["Franklin D. Roosevelt"] == [
+        {
+            "contest": "Revising the Neutrality Act",
+            "side": "Aid-to-Britain bloc",
+            "polity": "United States",
+        },
+        {
+            "contest": "The US-Japan negotiations",
+            "side": "United States",
+            "polity": "United States",
+        },
+    ]
+    assert {s["polity"] for s in by_name["Hideki Tojo"]} == {"Japan"}
+
+
 def test_for_people_skips_sidecar_people_not_in_the_campaign() -> None:
     state, events = campaign("engine-v2-slice-1941")
     out = dossiers.for_people(state, events)

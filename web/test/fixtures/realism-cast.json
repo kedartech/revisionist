@@ -25,11 +25,13 @@
       "sides": [
         {
           "contest": "Neutrality revision",
-          "side": "Interventionists"
+          "side": "Interventionists",
+          "polity": "United States"
         },
         {
           "contest": "US-Japan talks",
-          "side": "United States"
+          "side": "United States",
+          "polity": "United States"
         }
       ]
     },
@@ -58,7 +60,8 @@
       "sides": [
         {
           "contest": "The Atlantic war",
-          "side": "United Kingdom"
+          "side": "United Kingdom",
+          "polity": "United Kingdom"
         }
       ]
     },

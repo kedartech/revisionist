@@ -20,7 +20,7 @@ const [fdr, churchill, wheeler] = fixture.roster;
 test('a card reads the name, the sides in words and the pitch', () => {
   const m = cardModel(fdr, null);
   assert.equal(m.name, 'Franklin D. Roosevelt');
-  assert.equal(m.side, 'Interventionists and United States');
+  assert.equal(m.side, 'United States');
   assert.equal(m.pitch, fdr.pitch);
   assert.equal(m.monogram, 'FR');
   assert.equal(m.tag, null);
@@ -39,6 +39,16 @@ test('missing sides and pitch hide their lines, a repeated side is said once', (
   assert.equal(m.pitch, null);
   const twice = cardModel({ ...fdr, sides: [{ contest: 'a', side: 'Allies' }, { contest: 'b', side: 'Allies' }] }, null);
   assert.equal(twice.side, 'Allies');
+});
+
+test('a side names its country; an older payload with no country names the side', () => {
+  const two = [
+    { contest: 'a', side: 'Aid-to-Britain bloc', polity: 'United States' },
+    { contest: 'b', side: 'Japan', polity: 'Japan' },
+  ];
+  assert.equal(cardModel({ ...fdr, sides: two }, null).side, 'United States and Japan');
+  const old = [{ contest: 'a', side: 'Aid-to-Britain bloc' }];
+  assert.equal(cardModel({ ...fdr, sides: old }, null).side, 'Aid-to-Britain bloc');
 });
 
 test('no raw key or ISO date in the model', () => {

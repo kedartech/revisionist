@@ -5,11 +5,19 @@
 import { h } from '../dom.js';
 import { monogram, portraitNode } from './realism-dossier.js';
 
+/** A roster side's country (`polity`), or the side itself when the payload has no country; '' when neither. */
+export function sideName(s) {
+  const polity = typeof s?.polity === 'string' ? s.polity.trim() : '';
+  if (polity) return polity;
+  return typeof s?.side === 'string' ? s.side.trim() : '';
+}
+
 /**
  * The card's model for a roster entry `person` (snapshot.roster: name, pitch, reach, taken,
  * sides [{contest, side}], dossier) seen by a viewer who plays `mine` (a name, or null):
  * `{ name, side, pitch, monogram, tag, credit, label }`.
- * - `side`: the distinct `sides[].side` names joined by " and ", in order; null when none.
+ * - `side`: the distinct countries of `sides` (`polity`, or `side` when an older payload has
+ *   no `polity`) joined by " and ", in order; null when none.
  * - `pitch`: the pitch, or null when empty.
  * - `monogram`: `monogram(name)`.
  * - `tag`: "You" when `person.name === mine`, else "Taken" when `person.taken`, else null.
@@ -19,7 +27,7 @@ import { monogram, portraitNode } from './realism-dossier.js';
 export function cardModel(person, mine) {
   const name = person?.name ?? '';
   const sides = Array.isArray(person?.sides) ? person.sides : [];
-  const names = [...new Set(sides.map((s) => (typeof s?.side === 'string' ? s.side.trim() : '')).filter(Boolean))];
+  const names = [...new Set(sides.map(sideName).filter(Boolean))];
   const pitch = typeof person?.pitch === 'string' ? person.pitch.trim() : '';
   const credit = typeof person?.dossier?.credit === 'string' ? person.dossier.credit.trim() : '';
   const tag = mine && name === mine ? 'You' : person?.taken ? 'Taken' : null;

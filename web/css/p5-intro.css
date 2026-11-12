@@ -71,8 +71,18 @@
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
-  align-items: flex-end;
+  align-items: flex-start;
   margin-bottom: 1rem;
+}
+
+/* The splash is longer than a phone screen: keep Take your desk in reach while it scrolls. */
+.rl-intro-splash .rl-intro-take {
+  position: sticky;
+  bottom: 0;
+  margin-top: 1.5rem;
+  /* a band of page colour the width of the screen behind the button, so text scrolls under it */
+  box-shadow: 0 0 0 100vmax var(--bg);
+  clip-path: inset(-0.75rem -100vmax -2rem);
 }
 
 .rl-intro-splash-head h2 {
@@ -199,4 +209,16 @@
   line-height: 1.5;
   color: var(--fg-read);
   overflow-wrap: anywhere;
+}
+
+/* Phone width: the name goes under the portrait (the h2 rule above sets a 12rem basis, which in a
+   column would be its height). */
+@media (max-width: 30rem) {
+  .rl-intro-splash-head {
+    flex-direction: column;
+  }
+
+  .rl-intro-splash-head h2 {
+    flex: none;
+  }
 }

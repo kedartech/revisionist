@@ -1041,6 +1041,7 @@ payloads = st.one_of(
         ),
     ),
     st.builds(ev.CharacterClaimed, seat_id=seat_ids, entity_id=entity_ids),
+    st.builds(ev.CharacterReleased, seat_id=seat_ids, entity_id=entity_ids),
     st.builds(ev.SessionZeroClosed),
     st.builds(
         ev.SeasonEnded,

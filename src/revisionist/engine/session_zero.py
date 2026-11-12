@@ -402,11 +402,26 @@ def _unclaimed_seat(state: State, seat: SeatId) -> None:
         raise StepRefusedError(f"You already play {state.seats[seat].name}.")
 
 
+def _releases(store: EventStore, campaign_id: CampaignId, entity: EntityId) -> int:
+    """How many times ``entity`` has been given up in this campaign."""
+    return sum(
+        isinstance(e.payload, ev.CharacterReleased) and e.payload.entity_id == entity
+        for e in store.read(campaign_id)
+    )
+
+
+def _claim_id(campaign_id: CampaignId, entity: EntityId, releases: int) -> str:
+    if releases == 0:
+        return derived_id(campaign_id, "claim", entity)  # the ID every game before undo used
+    return derived_id(campaign_id, "claim", entity, releases)
+
+
 def claim(store: EventStore, campaign_id: CampaignId, seat: SeatId, name: str) -> str:
     """Take a character from the roster. Returns the seat's name.
 
-    The event ID is derived from the character, so two players racing for the
-    same person cannot both land: the store refuses the second (decision 35).
+    The event ID is derived from the character and how often it has been
+    released, so two players racing for the same person cannot both land: the
+    store refuses the second (decision 35).
     """
     state = _open(store, campaign_id)
     _unclaimed_seat(state, seat)
@@ -428,11 +443,43 @@ def claim(store: EventStore, campaign_id: CampaignId, seat: SeatId, name: str) -
             store,
             campaign_id,
             [(claimed, PUBLIC, seat)],
-            first_id=derived_id(campaign_id, "claim", ch.entity_id),
+            first_id=_claim_id(
+                campaign_id, ch.entity_id, _releases(store, campaign_id, ch.entity_id)
+            ),
         )
     except StoreError as exc:
         raise taken from exc
     return state.entities[ch.entity_id].name
+
+
+def release(store: EventStore, campaign_id: CampaignId, seat: SeatId) -> str:
+    """Give up the seat's character before the game begins. Returns the character's name.
+
+    The seat goes with it; the character's card stays, so a later claim of the
+    same person makes no model call.
+    """
+    state = _open(store, campaign_id)
+    if state.ruleset != "realism":
+        raise StepRefusedError("A pick is final in this game.")
+    if seat not in state.seats:
+        raise StepRefusedError("You have not chosen anyone yet.")
+    entity = state.seats[seat].embodies
+    name = state.entities[entity].name
+    released = ev.CharacterReleased(seat_id=seat, entity_id=entity)
+    first = derived_id(campaign_id, "release", entity, _releases(store, campaign_id, entity))
+    try:
+        # Numbered after the state read above, not a fresh one: anything another writer
+        # logs in between takes this seq, so a release never lands after Begin closes
+        # Session Zero or after the same pick was already released.
+        store.append_all(_events(state, campaign_id, [(released, PUBLIC, seat)], first_id=first))
+    except StoreError as exc:
+        now = load_state(store, campaign_id)
+        if now.phase is not Phase.SESSION_ZERO:
+            raise StepRefusedError(f"The game has begun. You play {name}.") from exc
+        if now.seats.get(seat) is None or now.seats[seat].embodies != entity:
+            raise StepRefusedError(f"{name} was already given up.") from exc
+        raise StepRefusedError("The game changed at that moment. Try again.") from exc
+    return name
 
 
 SEARCH_SCHEMA: dict[str, Any] = {

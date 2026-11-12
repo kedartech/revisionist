@@ -298,6 +298,24 @@ def _mutate(state: State, event: Event) -> State:
                     "roster": _put(state.roster, ch.entity_id, ch),
                 }
             )
+        case ev.CharacterReleased():
+            if state.ruleset != "realism":
+                raise FoldError("a pick is released only in a realism campaign")
+            if state.phase is not Phase.SESSION_ZERO:
+                raise FoldError("a character is released during Session Zero")
+            seat = _need(state.seats, p.seat_id, "seat")
+            ch = _need(state.roster, p.entity_id, "character")
+            if seat.embodies != p.entity_id or ch.claimed_by != p.seat_id:
+                raise FoldError(f"seat {p.seat_id} does not play {p.entity_id}")
+            ch = ch.model_copy(update={"claimed_by": None})
+            return state.model_copy(
+                update={
+                    "seats": {k: v for k, v in state.seats.items() if k != p.seat_id},
+                    "roster": _put(state.roster, ch.entity_id, ch),
+                    "styles": {k: v for k, v in state.styles.items() if k != p.seat_id},
+                    "standing": {k: v for k, v in state.standing.items() if k != p.seat_id},
+                }
+            )
         case ev.SessionZeroClosed():
             if state.phase is not Phase.SESSION_ZERO:
                 raise FoldError("Session Zero is not open")

@@ -64,6 +64,8 @@ def build(state: State, log: Iterable[Event]) -> Reveal:
             name = p.name
         elif isinstance(p, ev.PlayStyleSet) and p.seat_id in styles:
             styles[p.seat_id].append(_style_words(p))
+        elif isinstance(p, ev.CharacterReleased) and p.seat_id in styles:
+            styles[p.seat_id].clear()  # set for a person the seat gave up
         elif isinstance(p, ev.OrderRouted) and e.scope.visibility is Visibility.COVERT:
             if p.order.issuer in covert:
                 covert[p.order.issuer].extend(_part_words(state, x) for x in p.order.parts)

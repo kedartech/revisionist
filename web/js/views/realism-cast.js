@@ -37,7 +37,7 @@ export function pickLock() {
 const picks = pickLock();
 
 /** Said in the confirm step before a pick. */
-export const CONFIRM_NOTE = 'You keep this seat for the whole game.';
+export const CONFIRM_NOTE = 'You can change your mind until the host begins the game.';
 
 /** How long the client waits on Begin before it gives up the crawl and says so. */
 export const BEGIN_WAIT_MS = 5 * 60 * 1000;
@@ -55,6 +55,42 @@ function pick(out, name, refresh) {
       out.replaceChildren(h('p', { class: 'form-error' }, ex.message));
     }
   });
+}
+
+/** Give up the person this seat plays; the reply goes in `out`. Shares the pick lock. */
+export function release(out, refresh) {
+  return picks.run(async () => {
+    try {
+      const r = await api.newGame('unpick', {});
+      out.replaceChildren(reply(r.reply));
+      if (!r.refused) await refresh?.();
+    } catch (ex) {
+      out.replaceChildren(h('p', { class: 'form-error' }, ex.message));
+    }
+  });
+}
+
+/** "Choose someone else", behind one confirm step. `onRelease` runs only on Yes. */
+export function releaseControl({ name, onRelease }) {
+  const box = h('div', { class: 'release' });
+  const ask = () => {
+    const yes = h('button', { type: 'button' }, 'Yes, choose again');
+    const keep = h('button', { type: 'button', class: 'primary' }, `Keep ${name}`);
+    yes.addEventListener('click', () => onRelease());
+    keep.addEventListener('click', () => {
+      offer();
+      box.querySelector('button')?.focus();
+    });
+    box.replaceChildren(h('p', {}, `Give up ${name} and choose again?`), h('div', { class: 'row' }, keep, yes));
+    keep.focus();
+  };
+  const offer = () => {
+    const open = h('button', { type: 'button' }, 'Choose someone else');
+    open.addEventListener('click', ask);
+    box.replaceChildren(open);
+  };
+  offer();
+  return box;
 }
 
 async function issue(out, button) {
@@ -237,7 +273,8 @@ export function realismCast(ctx) {
               h('section', { class: 'rl-cast', 'aria-labelledby': 'rl-cast-title' },
                 h('h2', { id: 'rl-cast-title' }, 'The cast'),
                 h('div', { class: 'rl-cast-cards' }, cards)),
-              mine ? playStyle() : others),
+              mine ? playStyle() : others,
+              mine ? releaseControl({ name: mine, onRelease: () => release(out, refresh) }) : null),
             game.host ? hostPanel(game, refresh) : null)))));
   return screen;
 }

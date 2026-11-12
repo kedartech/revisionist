@@ -9,10 +9,10 @@ import { fileURLToPath } from 'node:url';
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const read = (f) => readFileSync(join(WEB, f), 'utf8');
 
-test('the room draws the tray and the acknowledgement threads through the unit modules', () => {
+test('the room draws the tray, and the threads read the papers from the same listing', () => {
   const room = read('js/views/realism-room.js');
   assert.match(room, /trayView\(rv\.documents/);
-  assert.match(room, /ackThread\(rv\.documents, person, open\)/);
+  assert.match(room, /threadItems\(\{ person: name, counsel: rv\.counsel \?\? \[\], documents: rv\.documents \}\)/);
 });
 
 test('every unit has replaced its contract stub', () => {

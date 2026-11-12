@@ -3,6 +3,7 @@ seat's alone, the world does not move, and truth never reaches the model."""
 
 import json
 from collections.abc import Sequence
+from datetime import date, timedelta
 from typing import get_type_hints
 
 import pytest
@@ -24,6 +25,7 @@ from revisionist.core.realism.reach import channels_to, takes_meeting
 from revisionist.core.report import leak_report
 from revisionist.core.sealing import seal_holder
 from revisionist.core.state import State
+from revisionist.core.visibility import PUBLIC as PUBLIC_SCOPE
 from revisionist.core.visibility import Scope, Visibility, private_to
 from revisionist.engine import campaign as cmp
 from revisionist.engine import counsel
@@ -40,6 +42,7 @@ from revisionist.engine.counsel import (
 from revisionist.engine.llm import RecordedTransport, Reply, Request, TransportError
 from revisionist.engine.store import EventStore, MemoryStore, load_state
 from revisionist.engine.web import server
+from revisionist.engine.web.realism_snapshot import counsel_lines
 from tests.counsel_scenario import CANARY, QUESTION, hopkins, plant_memo, roosevelt_seat, ticked
 from tests.handwritten import COUNSEL
 from tests.test_realism_tick import CAMPAIGN
@@ -335,3 +338,47 @@ def test_a_counsellor_takes_a_person_view_never_state() -> None:
     seq: Sequence[Counsellor] = [Echo()]
     out = consult(store, CAMPAIGN, roosevelt_seat(store), hopkins(store), QUESTION, seq[0])
     assert out.text.endswith("papers")
+
+
+def advance_to(store: EventStore, day: date) -> None:
+    state = load_state(store, CAMPAIGN)
+    store.append_all(
+        [
+            ev.Event(
+                event_id=EventId(derived_id(CAMPAIGN, "advance", day.isoformat())),
+                campaign_id=CAMPAIGN,
+                seq=state.last_seq + 1,
+                tick=state.tick,
+                scope=PUBLIC_SCOPE,
+                payload=ev.DateAdvanced(to=day),
+                versions=cmp.versions(),
+            )
+        ]
+    )
+
+
+def test_counsel_lines_carry_the_day_they_were_held_and_the_tie() -> None:
+    store = ready()
+    seat = roosevelt_seat(store)
+    first = load_state(store, CAMPAIGN).in_world_date
+    assert first is not None
+
+    class Says:
+        def speak(
+            self, person: PersonView, asker: Asker, channel: ChannelKind, question: str
+        ) -> Spoken:
+            return Spoken(text="Noted.")
+
+    consult(store, CAMPAIGN, seat, hopkins(store), "Harry, a word?", Says())
+    later = first + timedelta(days=3)
+    advance_to(store, later)
+    consult(store, CAMPAIGN, seat, person_named(store, MOLOTOV), "Trucks or tanks?", Says())
+    state = load_state(store, CAMPAIGN)
+    lines = counsel_lines(project(state, seat), list(store.read(CAMPAIGN)), seat)
+    assert [(x["person"], x["question"], x["tie"]) for x in lines] == [
+        (MOLOTOV, "Trucks or tanks?", "outer"),
+        ("Harry L. Hopkins", "Harry, a word?", "inner"),
+    ]
+    assert [x["day_iso"] for x in lines] == [later.isoformat(), first.isoformat()]
+    assert lines[0]["day"] == f"{later.day} {later:%B %Y}"
+    assert lines[0]["answer"] == "Noted." and lines[0]["channel"] == "telephone"

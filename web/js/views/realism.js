@@ -1,5 +1,5 @@
 // Realism views: the in-tray, a document page, the directive form, the situation board, the
-// aide's brief, conversation bubbles, the pace header and the standard forms. Each takes the
+// aide's brief, the pace header and the standard forms. Each takes the
 // realism_api JSON and returns a node.
 
 import { h, icon } from '../dom.js';
@@ -243,39 +243,6 @@ export function briefBlock(brief, on, { reading = false, said = null } = {}) {
       : h('p', { class: 'rl-none' }, said ?? 'Your aide reads the papers on your desk after each wake and tells you what matters.'),
     h('button', { type: 'button', class: 'rl-btn', onclick: () => on.brief?.() }, brief ? 'Brief me again' : 'Brief me'),
   ];
-}
-
-/** One line of a conversation: who said it, and the words. `extra` goes under the words. */
-export function bubble(mine, who, text, extra = null) {
-  return h('li', { class: `rl-msg ${mine ? 'mine' : 'theirs'}` },
-    h('p', { class: 'rl-msg-who' }, who),
-    h('p', { class: 'rl-msg-text' }, text),
-    extra);
-}
-
-/** The thread with one contact: their answers to the seat's questions, oldest first. */
-export function counselThread(person, counsel) {
-  const lines = counsel.filter((c) => c.person === person).slice().reverse();
-  if (!lines.length) return h('p', { class: 'rl-none' }, `You have not consulted ${person} yet.`);
-  return h('ol', { class: 'rl-thread rl-answers', role: 'list' }, lines.flatMap((c) => [
-    c.question ? bubble(true, 'You', c.question) : null,
-    h('li', { class: 'rl-msg theirs rl-answer' },
-      h('p', { class: 'rl-msg-who rl-answer-head' }, h('strong', {}, c.person), h('span', { class: 'rl-via' }, channelWord(c.channel))),
-      h('p', { class: 'rl-msg-text rl-answer-a' }, c.answer)),
-  ]));
-}
-
-/** The help desk with the aide: the seat's questions, and the aide's answers and notes. */
-export function helpThread(help, useDraft) {
-  if (!help.length) {
-    return h('p', { class: 'rl-none' },
-      'Ask your aide how to do something: which form does it, whom it goes through, or whether it lies beyond your office. If an order does not go through, your aide says why here.');
-  }
-  return h('ol', { class: 'rl-thread', role: 'list' }, help.map((m) => (m.from === 'you'
-    ? bubble(true, 'You', m.text)
-    : bubble(false, 'Your aide', m.text, m.lever
-      ? h('button', { type: 'button', class: 'rl-btn', onclick: () => useDraft?.({ lever: m.lever }) }, `Open “${m.label ?? m.lever}”`)
-      : null))));
 }
 
 export function paceHeader(clock) {

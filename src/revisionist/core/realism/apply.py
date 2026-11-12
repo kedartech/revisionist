@@ -366,10 +366,19 @@ def _lines(text: str, label: str) -> list[BodyField]:
 
 
 def _aide(state: State, issuer: EntityId) -> EntityId:
-    """Who reports a command the issuer carries out in person: the first of their inner
-    circle, so no one writes a report to themselves. The issuer when they have none."""
+    """Who reports a command the issuer carries out in person, so no one writes a report
+    to themselves: the first of their inner circle who serves them (the issuer is among
+    that person's principals), else the first of the circle. An inner circle can open
+    with a foreign head reached by cable, who would not report on the issuer's own acts.
+    The issuer when they have no inner circle."""
     card = state.cards.get(issuer)
-    return card.inner_circle[0].person if card is not None and card.inner_circle else issuer
+    if card is None or not card.inner_circle:
+        return issuer
+    for contact in card.inner_circle:
+        aide = state.cards.get(contact.person)
+        if aide is not None and issuer in aide.principals:
+            return contact.person
+    return card.inner_circle[0].person
 
 
 def reporter(state: State, order: RoutedOrder, part: int) -> tuple[EntityId, ChannelKind]:

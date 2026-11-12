@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { beginSend, endSend, happenedDue, orderContacts, uiFor } from '../js/views/realism-room.js';
+import { beginSend, endSend, happenedDue, orderContacts, uiFor, whileSending } from '../js/views/realism-room.js';
 import { happenedStore } from '../js/views/realism-happened.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
@@ -102,8 +102,16 @@ test('a sent message clears its draft; a failed or refused one keeps the words a
 
 test('the room holds a wake and every other call while a message is out', () => {
   const room = read('js/views/realism-room.js');
-  assert.match(room, /if \(ui\.busy \|\| ui\.pending\) return;/);
+  assert.match(room, /if \(ui\.busy\) return;\n    if \(ui\.pending\) \{[^}]*ui\.error = whileSending\(ui\);\n      showStatus\(\);\n      return;/);
   assert.match(room, /work\.idle = \(\) => !ui\.busy && !ui\.pending;/);
   assert.match(room, /beginSend\(ui, thread, text\)/);
   assert.match(room, /endSend\(ui, /);
+});
+
+test('while a message is out, any other action says why it waits instead of doing nothing', () => {
+  assert.equal(whileSending({ pending: null }), null);
+  assert.equal(whileSending({ pending: { thread: 'Harold R. Stark', text: 'Iceland?' } }),
+    'Harold R. Stark is answering your message. Try again when the answer is in.');
+  assert.equal(whileSending({ pending: { thread: 'aide', text: 'How?' } }),
+    'Your aide is answering your message. Try again when the answer is in.');
 });

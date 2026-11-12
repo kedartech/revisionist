@@ -13,4 +13,5 @@
 
 @media (max-width: 480px) {
   .rl-msgr-panel { inset: 0; width: auto; max-height: none; border: 0; box-shadow: none; }
+  .rl-msgr-head { min-height: 44px; display: flex; align-items: center; padding-right: 56px; }
 }

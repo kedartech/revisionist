@@ -5,14 +5,23 @@ import { h } from '../dom.js';
 import { powersSentence } from '../realism-rules.js';
 import { channelsLine, reachGroups } from './realism-reach.js';
 
+const NOTE = 'A message changes nothing in the world and files no order.';
 const KEY_OF = { 'Inner circle': 'inner_circle', Government: 'government', Foreign: 'foreign', Other: 'other' };
+
+/** What the seat may do with a contact: `{ message, order }`, from its channels and channel keys. */
+function canOf(contact) {
+  return {
+    message: (contact.channels ?? []).length > 0,
+    order: (contact.channel_keys ?? []).length > 0,
+  };
+}
 
 /**
  * The four reach groups in order (`reachGroups`, realism-reach.js), empty ones dropped, as
  * `{ key, heading, rows }` with rows `{ name, title, how, can }`: `how` from `channelsLine`,
- * `can` 'message' for a name in `inner` (the inner circle's names) and 'order' otherwise.
+ * `can` from `canOf`.
  */
-export function contactRows(reach, inner) {
+export function contactRows(reach) {
   return reachGroups(reach).map((g) => ({
     key: KEY_OF[g.heading],
     heading: g.heading,
@@ -20,7 +29,7 @@ export function contactRows(reach, inner) {
       name: p.name,
       title: p.title || null,
       how: channelsLine(p.channels) || null,
-      can: (inner ?? []).includes(p.name) ? 'message' : 'order',
+      can: canOf(p),
     })),
   }));
 }
@@ -54,36 +63,36 @@ function rowButton(row, selected, onSelect) {
   row.how ? h('span', { class: 'rl-ct-row-how' }, row.how) : null);
 }
 
-function detailPane(contact, can, { onSelect, onMessage, onOrder }) {
+function detailPane(contact, { inner, onSelect, onMessage, onOrder }) {
   const d = contactDetail(contact);
-  const act = can === 'message'
-    ? h('button', { type: 'button', class: 'rl-ct-act', onclick: () => onMessage?.(contact.name) }, 'Message')
-    : h('button', { type: 'button', class: 'rl-ct-act', onclick: () => onOrder?.(contact) }, 'Write them an order');
+  const can = canOf(contact);
+  const acts = h('div', { class: 'rl-ct-acts' },
+    can.message ? h('button', { type: 'button', class: 'rl-ct-act', onclick: () => onMessage?.(contact.name) }, 'Message') : null,
+    can.order ? h('button', { type: 'button', class: 'rl-ct-act', onclick: () => onOrder?.(contact) }, 'Write them an order') : null);
   return h('div', { class: 'rl-ct-detail' },
     h('button', { type: 'button', class: 'rl-ct-back', onclick: () => onSelect?.(null) }, 'Back'),
     h('h3', { class: 'rl-ct-name' }, contact.name),
     d.office ? h('p', { class: 'rl-ct-office' }, d.office) : null,
     d.powers ? h('p', { class: 'rl-ct-powers' }, d.powers) : null,
     d.how ? h('p', { class: 'rl-ct-how' }, d.how) : null,
-    act);
+    acts,
+    (inner ?? []).includes(contact.name) ? null : h('p', { class: 'rl-ct-note' }, NOTE));
 }
 
 /**
- * The tab: the groups of rows; a row opens `selected`'s detail via `onSelect(name)`, with
- * "Message" (`onMessage(name)`) for the inner circle or "Write them an order"
- * (`onOrder(contact)`) for anyone else.
+ * The tab, headed "New message": the groups of rows; a row opens `selected`'s detail via
+ * `onSelect(name)`, with "Message" (`onMessage(name)`) and "Write them an order"
+ * (`onOrder(contact)`) where the seat can do them. `inner` names the inner circle, for whom a
+ * message needs no note.
  */
 export function contactsTab(reach, { inner, selected, onSelect, onMessage, onOrder }) {
-  const groups = contactRows(reach, inner);
+  const groups = contactRows(reach);
   const section = (...children) => h('section', { class: 'rl-ct', 'aria-labelledby': 'rl-ct-title' },
-    h('h2', { id: 'rl-ct-title' }, 'Contacts'), ...children);
+    h('h2', { id: 'rl-ct-title' }, 'New message'), ...children);
   if (!groups.length) return section(h('p', { class: 'rl-ct-empty' }, 'No one is within reach.'));
 
   const picked = selected ? findContact(reach, selected) : null;
-  if (picked) {
-    const can = (inner ?? []).includes(picked.name) ? 'message' : 'order';
-    return section(detailPane(picked, can, { onSelect, onMessage, onOrder }));
-  }
+  if (picked) return section(detailPane(picked, { inner, onSelect, onMessage, onOrder }));
   return section(...groups.map((g) => {
     const id = `rl-ct-${g.key}`;
     return h('section', { class: 'rl-ct-group', 'aria-labelledby': id },

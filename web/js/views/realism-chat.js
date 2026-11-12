@@ -25,6 +25,16 @@ export function unread(counts, seen) {
 }
 
 /**
+ * The marks with any above its thread's count brought down to it (the server keeps the aide's
+ * lines in memory, so a restart shrinks that thread); `marks` itself when nothing changes.
+ */
+export function settleMarks(counts, marks) {
+  const high = Object.keys(marks ?? {}).filter((k) => k in counts && marks[k] > counts[k]);
+  if (!high.length) return marks;
+  return { ...marks, ...Object.fromEntries(high.map((k) => [k, counts[k]])) };
+}
+
+/**
  * The lines seen per thread, kept under `rv.chat.seen.<campaignId>`: `{ read(), write(seen) }`.
  * `read()` gives `{}` for a missing or broken value; with no storage both do nothing.
  */
@@ -140,5 +150,6 @@ function thread(opts) {
     onBack: () => onState({ ...state, thread: null }),
     onOpen: opts.onOpen,
     onDraft: opts.useDraft,
+    onType: (text) => opts.onType?.(key, text),
   });
 }

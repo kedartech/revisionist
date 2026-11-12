@@ -23,7 +23,9 @@
   justify-self: start; padding: 0.375rem 0.75rem; border: 1px solid var(--field-border);
   border-radius: 4px; background: var(--surface-2); color: var(--fg-strong); font: inherit; cursor: pointer;
 }
+.rl-ct-acts { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .rl-ct-act { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.rl-ct-note { color: var(--fg); }
 @container (min-width: 22rem) {
   .rl-ct-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 0.75rem; }
   .rl-ct-row-how { grid-column: 1 / -1; }

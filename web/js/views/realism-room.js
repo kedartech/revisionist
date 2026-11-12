@@ -12,7 +12,7 @@ import { browserStorage } from '../theme.js';
 import { briefBlock, directiveForm, paceHeader } from './realism.js';
 import { header } from './frame.js';
 import { needsAnswer } from './realism-answer.js';
-import { chatDock, seenStore, threadCounts } from './realism-chat.js';
+import { chatDock, seenStore, settleMarks, threadCounts } from './realism-chat.js';
 import { contactsTab } from './realism-contacts.js';
 import { characterDossier, settingDossier } from './realism-dossier.js';
 import { standardForms } from './realism-forms.js';
@@ -71,6 +71,14 @@ export function beginSend(state, thread, text) {
   state.pending = { thread, text: said };
   state.error = null;
   return true;
+}
+
+/** Why another action waits while a message is out, or null when none is. */
+export function whileSending(state) {
+  const thread = state.pending?.thread;
+  if (!thread) return null;
+  const who = thread === 'aide' ? 'Your aide' : thread;
+  return `${who} is answering your message. Try again when the answer is in.`;
 }
 
 /**
@@ -206,7 +214,13 @@ export function realismRoom(ctx) {
    * the wake also lays the overlay over the room; the redraw removes it.
    */
   async function work(message, fn) {
-    if (ui.busy || ui.pending) return;
+    if (ui.busy) return;
+    if (ui.pending) {
+      // one call at a time: say why the click waits rather than drop it with no word
+      ui.error = whileSending(ui);
+      showStatus();
+      return;
+    }
     ui.busy = message;
     ui.error = null;
     const clicked = document.activeElement;
@@ -441,7 +455,9 @@ export function realismRoom(ctx) {
   function dock() {
     const all = threads();
     const counts = threadCounts(all);
-    const marks = seen.read();
+    const read = seen.read();
+    const marks = settleMarks(counts, read);
+    if (marks !== read) seen.write(marks);
     const thread = ui.chat.open ? ui.chat.thread : null;
     if (thread && thread in counts && marks[thread] !== counts[thread]) seen.write({ ...marks, [thread]: counts[thread] });
     const inner = rv.desk.inner_circle.map((c) => c.person);
@@ -459,6 +475,8 @@ export function realismRoom(ctx) {
       consult: (to, text) => send(to, 'consult', { to }, text),
       onOpen: open,
       useDraft,
+      // kept as typed, with no redraw, so a redraw or a thread switch keeps the words
+      onType: (key, text) => { ui.drafts = { ...ui.drafts, [key]: text }; },
       contactsTab: contactsTab(rv.reach, {
         inner,
         selected: ui.contact,

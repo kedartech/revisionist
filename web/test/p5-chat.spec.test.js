@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { SEEN_PREFIX, seenStore, threadCounts, unread } from '../js/views/realism-chat.js';
+import { SEEN_PREFIX, seenStore, settleMarks, threadCounts, unread } from '../js/views/realism-chat.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const read = (f) => readFileSync(join(WEB, f), 'utf8');
@@ -66,4 +66,11 @@ test('the dock composes the launcher, the list, the thread and the typing indica
   assert.doesNotMatch(src, /from '\.\/realism\.js'/);
   assert.match(src, /'Escape'/);
   assert.match(read('css/p5-chat.css'), /@media[^{]*max-width:\s*480px/);
+});
+
+test('a mark above its thread\'s count (the server forgot its aide lines) comes down, so new lines show as unread', () => {
+  assert.deepEqual(settleMarks({ aide: 1, 'Harry Hopkins': 4 }, { aide: 6, 'Harry Hopkins': 2, Gone: 3 }),
+    { aide: 1, 'Harry Hopkins': 2, Gone: 3 });
+  const same = { aide: 2 };
+  assert.equal(settleMarks({ aide: 3 }, same), same, 'unchanged marks come back as they were');
 });

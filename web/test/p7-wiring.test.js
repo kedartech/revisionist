@@ -77,7 +77,17 @@ test('a thread with someone outside the inner circle, a message going out and th
   assert.match(words(node), /A message changes nothing in the world and files no order\./);
   assert.equal(node.querySelectorAll('.rl-th-bubble.mine').length, 3);
   assert.match(words(node.querySelector('.rl-typing')), /Harold R\. Stark is writing/);
-  assert.equal(node.querySelector('.rl-th-compose textarea').disabled, true);
+  assert.equal(node.querySelector('.rl-th-compose textarea').readOnly, true);
+});
+
+test('words typed in a thread reach the room under that thread, and the room keeps them without a redraw', () => {
+  const typed = [];
+  const node = dock({ open: true, tab: 'chats', thread: 'Harry Hopkins' }, { onType: (k, t) => typed.push([k, t]) });
+  const ta = node.querySelector('.rl-th-compose textarea');
+  ta.value = 'And the tanks';
+  ta.dispatchEvent({ type: 'input', stopPropagation() {} });
+  assert.deepEqual(typed, [['Harry Hopkins', 'And the tanks']]);
+  assert.match(read('js/views/realism-room.js'), /onType: \(key, text\) => \{ ui\.drafts = \{ \.\.\.ui\.drafts, \[key\]: text \}; \}/);
 });
 
 test('every unit has replaced its contract stub', () => {

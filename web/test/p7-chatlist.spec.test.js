@@ -99,3 +99,9 @@ test('rows fit a phone and take colours from the tokens', () => {
   assert.match(css, /\.rl-cl-preview\s*\{[^}]*(text-overflow|overflow-wrap)/);
   assert.doesNotMatch(css, /#[0-9a-fA-F]{3,8}\b/);
 });
+
+test('a contact with no name on record still gets a row', () => {
+  const rows = chatRows({ ...input, threads: { aide: [], '': [at('theirs', 'Unsigned.', '1941-10-12')] } });
+  assert.equal(rows.length, 2);
+  assert.equal(typeof rows[1].initials, 'string');
+});

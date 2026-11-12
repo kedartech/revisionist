@@ -22,6 +22,7 @@ For a run with no model calls, serve with web/test/e2e/serve_canned.py.
 """
 
 import json
+import re
 import sys
 import time
 from pathlib import Path
@@ -268,6 +269,13 @@ def play_from_dossier(page: Page, report: dict, name: str) -> None:
     check("the cast dossier carries the arena", "your arena" in heads, str(heads))
     shoot(page, "00x-cast-dossier")
     page.get_by_role("button", name=f"Play {name}").click()
+    yes = dialog.get_by_role("button", name=f"Yes, play {name}")
+    yes.wait_for(timeout=10_000)
+    check(
+        "a pick asks first, with focus on Yes",
+        bool(page.evaluate("() => document.activeElement?.textContent?.startsWith('Yes, play')")),
+    )
+    yes.click()
     page.get_by_role("heading", name=f"You are {name}").wait_for(timeout=60_000)
 
 
@@ -279,7 +287,11 @@ def begin_with_crawl(page: Page, report: dict) -> None:
     paragraphs = crawl.locator(".rl-intro-crawl p").count()
     report["crawl_paragraphs"] = paragraphs
     check("Begin plays the opening crawl", paragraphs > 0, str(paragraphs))
+    go = crawl.get_by_role("button", name="Continue")
+    held = go.is_disabled() or crawl.locator(".rl-intro-status", has_text="Ready").count() == 1
+    check("Continue waits while Begin runs", held)
     crawl.locator(".rl-intro-status", has_text="Ready").wait_for(timeout=120_000)
+    check("Continue opens once the game is ready", go.is_enabled())
     shoot(page, "00y-crawl")
     crawl.get_by_role("button", name="Continue").click()
 
@@ -366,8 +378,8 @@ def wake_header(page: Page, report: dict[str, object], host: bool) -> None:
         page.get_by_role("button", name="Done for today").count() >= 1,
     )
     check(
-        "only the host can run the day now",
-        page.get_by_role("button", name=RUN_NOW).count() == (1 if host else 0),
+        "Run the day now is hidden (a one-player game, or a seat that is not the host)",
+        page.get_by_role("button", name=RUN_NOW).count() == 0,
     )
 
 
@@ -524,46 +536,55 @@ def orders(page: Page, report: dict[str, object], v2: bool) -> None:
 
 
 def messenger(page: Page, report: dict[str, object]) -> None:
-    page.get_by_role("button", name="Messages").click()
+    page.get_by_role("button", name=re.compile(r"^Messages")).click()
     dock = page.locator(".rl-msgr")
     dock.get_by_role("tab", name="Chats").wait_for()
-    dock.get_by_role("button", name="Your aide").click()
+    rows = dock.locator(".rl-cl-row")
+    check("the chats list opens with the aide first", "Your aide" in rows.first.inner_text())
+    rows.first.click()
     page.locator(".rl-msgr .rl-brief").wait_for(timeout=WAKE_MS)
     report["aide_brief"] = page.locator(".rl-msgr .rl-brief").inner_text()[:600]
     check("the aide's thread holds its brief", len(str(report["aide_brief"])) > 20)
-    thread = page.locator(".rl-msgr ol.rl-thread > li")
-    lines = thread.count()
-    page.locator(".rl-msgr").get_by_label("Message", exact=True).fill("How do I move a fleet?")
-    page.locator(".rl-msgr").get_by_role("button", name="Send").click()
-    page.locator(".rl-msgr ol.rl-thread > li").nth(lines + 1).wait_for(timeout=WAKE_MS)
+    check("with the brief open the composer stays in the dock", composer_in_dock(page))
+    theirs = dock.locator(".rl-th-bubble.theirs:not(.rl-typing)")
+    before = theirs.count()
+    send(page, "How do I move a fleet?")
+    check(
+        "while a message is out the composer waits and the room does not",
+        not dock.locator(".rl-th-input").is_editable() and room_free(page),
+    )
+    check("focus stays in the dock while a message is out", in_messenger(page))
+    theirs.nth(before).wait_for(timeout=WAKE_MS)
     page.wait_for_timeout(300)
     check(
-        "the aide answers in its thread",
-        thread.count() >= lines + 2 and "Your aide" in thread.last.inner_text(),
-        f"{lines} -> {thread.count()}",
+        "the aide answers in its thread", theirs.count() > before, f"{before} -> {theirs.count()}"
     )
+    check("the typing bubble goes when the answer comes", dock.locator(".rl-typing").count() == 0)
     check("focus stays in the messenger after the aide answers", in_messenger(page))
     shoot(page, "08-aide-thread")
     axe(page, "aide thread")
-    page.locator(".rl-msgr").get_by_role("button", name="Back").click()
-    person = page.locator(".rl-msgr .rl-msgr-item").nth(1)
-    who = person.locator(".rl-msgr-item-text").inner_text().split("\n")[0]
-    person.click()
-    page.locator(".rl-msgr").get_by_label("Message", exact=True).fill(
-        "Should we wait for the Senate before we move?"
-    )
-    page.locator(".rl-msgr").get_by_role("button", name="Send").click()
-    page.locator(".rl-msgr .rl-answer").first.wait_for(timeout=WAKE_MS)
-    report["consult"] = page.locator(".rl-msgr .rl-answer").first.inner_text()
+    dock.get_by_label("Message", exact=True).fill("A draft I have not sent")
+    dock.get_by_role("button", name="Back").click()
+    rows.first.click()
     check(
-        f"a consult with {who} shows the answer", page.locator(".rl-msgr .rl-answer").count() >= 1
+        "a draft survives leaving the thread",
+        dock.get_by_label("Message", exact=True).input_value() == "A draft I have not sent",
     )
+    dock.get_by_label("Message", exact=True).fill("")
+    dock.get_by_role("button", name="Back").click()
+    person = rows.nth(1)
+    who = person.locator(".rl-cl-name").inner_text()
+    person.click()
+    before = theirs.count()
+    send(page, "Should we wait for the Senate before we move?")
+    theirs.nth(before).wait_for(timeout=WAKE_MS)
+    report["consult"] = theirs.last.inner_text()
+    check(f"a consult with {who} shows the answer", theirs.count() > before)
     check("focus stays in the messenger after a consult", in_messenger(page))
     shoot(page, "09-consult")
-    page.locator(".rl-msgr").get_by_role("button", name="Back").click()
-    page.locator(".rl-msgr").get_by_role("tab", name="Contacts").click()
-    contacts = page.locator(".rl-msgr")
-    report["contacts"] = contacts.inner_text()[:1200]
+    dock.get_by_role("button", name="Back").click()
+    dock.get_by_role("tab", name="Contacts").click()
+    report["contacts"] = dock.inner_text()[:1200]
     check(
         "contacts are grouped",
         any(
@@ -572,9 +593,71 @@ def messenger(page: Page, report: dict[str, object]) -> None:
     )
     shoot(page, "10-contacts")
     axe(page, "contacts")
+    outsider(page, report)
     page.keyboard.press("Escape")
     page.wait_for_timeout(200)
     check("Esc closes the messenger", page.locator(".rl-msgr-panel").count() == 0)
+
+
+def composer_in_dock(page: Page) -> bool:
+    """The Send button sits inside the dock and on screen, not under the launcher."""
+    return bool(
+        page.evaluate(
+            """() => {
+      const p = document.querySelector('.rl-msgr-panel')?.getBoundingClientRect();
+      const s = document.querySelector('.rl-msgr .rl-th-send')?.getBoundingClientRect();
+      return !!p && !!s && s.bottom <= p.bottom + 1
+        && s.bottom <= innerHeight && s.right <= innerWidth;
+    }"""
+        )
+    )
+
+
+def send(page: Page, text: str) -> None:
+    dock = page.locator(".rl-msgr")
+    dock.get_by_label("Message", exact=True).fill(text)
+    dock.get_by_role("button", name="Send").click()
+
+
+def room_free(page: Page) -> bool:
+    """The desk is not behind a busy overlay while a message is out."""
+    return page.locator(".rl-busy, [aria-busy='true']").count() == 0
+
+
+def outsider(page: Page, report: dict[str, object]) -> None:
+    """Message the first contact outside the inner circle, if the seat can reach one."""
+    dock = page.locator(".rl-msgr")
+    rows = dock.locator(".rl-ct-row")
+    for i in range(rows.count()):
+        rows.nth(i).click()
+        if (
+            dock.locator(".rl-ct-note").count()
+            and dock.get_by_role("button", name="Message", exact=True).count()
+        ):
+            break
+        dock.locator(".rl-ct-back").click()
+    else:
+        report["outsider"] = "no reachable outsider"
+        return
+    who = dock.locator(".rl-ct-name").inner_text()
+    dock.get_by_role("button", name="Message", exact=True).click()
+    check(
+        f"a thread with {who} says a message changes nothing",
+        dock.locator(".rl-th-tie").count() == 1,
+    )
+    theirs = dock.locator(".rl-th-bubble.theirs:not(.rl-typing)")
+    send(page, "Where do you stand on the convoy question?")
+    dock.locator(".rl-typing").wait_for(state="detached", timeout=WAKE_MS)
+    page.wait_for_timeout(300)
+    said = theirs.last.inner_text() if theirs.count() else ""
+    error = page.locator("[role=alert]").all_inner_texts()
+    report["outsider"] = {"who": who, "answer": said[:400], "refused": error}
+    check(
+        f"{who} answers or declines in words",
+        bool(said) or any("did not answer" in e for e in error),
+    )
+    shoot(page, "11-outsider")
+    dock.get_by_role("button", name="Back").click()
 
 
 def in_messenger(page: Page) -> bool:
@@ -597,8 +680,6 @@ def after_wake(page: Page, report: dict[str, object], host: bool) -> None:
         not any(c.isdigit() and "-" in t for t in titles for c in t[-3:]),
     )
     shoot(page, "12-room-after-day")
-    if host:
-        advance(page, "13-run-now", RUN_NOW)
 
 
 def narrow(page: Page) -> None:
@@ -612,6 +693,29 @@ def narrow(page: Page) -> None:
     )
     page.screenshot(path=str(OUT / "14n-room-390x844.png"), full_page=True)
     axe(page, "narrow room")
+    page.get_by_role("button", name=re.compile(r"^Messages")).click()
+    page.locator(".rl-msgr .rl-cl-row").first.click()
+    page.locator(".rl-msgr .rl-th-send").wait_for()
+    check("a narrow dock keeps the composer on screen", composer_in_dock(page))
+    check(
+        "a narrow dock's launcher covers no message or control",
+        bool(
+            page.evaluate(
+                """() => {
+      const b = document.querySelector('.rl-msgr-btn').getBoundingClientRect();
+      const hit = (r) => !(r.right <= b.left || r.left >= b.right
+        || r.bottom <= b.top || r.top >= b.bottom);
+      const parts = '.rl-th, .rl-th-compose, .rl-msgr-tabs, .rl-th-head';
+      return ![...document.querySelectorAll(parts)].some((e) => hit(e.getBoundingClientRect()));
+    }"""
+            )
+        ),
+    )
+    width = page.evaluate("document.documentElement.scrollWidth")
+    check("a narrow dock has no sideways scroll", width <= 390, str(width))
+    page.screenshot(path=str(OUT / "14n-aide-390x844.png"))
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(200)
     page.set_viewport_size({"width": SIZE[0], "height": SIZE[1]})
     page.wait_for_timeout(300)
 

@@ -41,6 +41,13 @@ test('a paper that acknowledges or answers an order is a reply; any other is a l
   assert.deepEqual(threadItems({ ...base, person: 'Burton K. Wheeler' }), []);
 });
 
+test('on one day, the papers that arrived come before a consult held that day', () => {
+  // Papers arrive when the wake opens; the seat consults after reading them.
+  const counsel = [{ person: 'Harry Hopkins', channel: 'telephone', question: 'Is the memo right?', answer: 'It is.', day: '16 October 1941', day_iso: '1941-10-16', tie: 'inner' }];
+  const documents = { documents: [{ id: 'd-memo-1015', author: 'Harry Hopkins', title: 'Lend-Lease shipments, September tonnage', arrives: '1941-10-16' }] };
+  assert.deepEqual(threadItems({ counsel, documents, person: 'Harry Hopkins' }).map((i) => i.kind), ['letter', 'counsel', 'counsel']);
+});
+
 test('an answer with no question on record shows the answer alone', () => {
   const counsel = [{ ...fixture.counsel[3], question: '' }];
   assert.deepEqual(threadItems({ counsel, documents: { documents: [] }, person: 'Harry Hopkins' }), [HOPKINS[1]]);
@@ -68,12 +75,13 @@ test('consecutive lines from one side make a group, labelled with its last day',
 
 function view(over = {}) {
   installDom();
-  const calls = { send: [], back: 0, open: [], draft: [] };
+  const calls = { send: [], back: 0, open: [], draft: [], type: [] };
   const out = threadView({
     name: 'Harry Hopkins', title: 'Special Assistant to the President', tie: 'inner', dossier: null,
     lead: null, items: HOPKINS, pending: null, draft: '', typing: null,
     onSend: (t) => calls.send.push(t), onBack: () => { calls.back += 1; },
     onOpen: (d) => calls.open.push(d), onDraft: (d) => calls.draft.push(d),
+    onType: (t) => calls.type.push(t),
     ...over,
   });
   assert.ok(Array.isArray(out) && out.length, 'an array of nodes');
@@ -126,6 +134,16 @@ test('an aide line with a form offers it; the lead sits above the lines', () => 
   assert.deepEqual(calls.draft, [{ lever: 'send_bill' }]);
 });
 
+test('the lead scrolls with the lines, so a long brief never pushes the composer out of the dock', () => {
+  installDom();
+  const lead = document.createElement('div');
+  lead.className = 'rl-brief-slot';
+  const { box } = view({ name: 'Your aide', title: null, items: threadItems({ ...base, person: 'aide' }), lead });
+  const th = box.querySelector('.rl-th');
+  assert.equal(box.querySelector('.rl-brief-slot').parentNode, th);
+  assert.equal(th.children[0].className, 'rl-brief-slot');
+});
+
 test('a message going out: shown as sent, the other side writing, the composer held', () => {
   installDom();
   const typing = document.createElement('div');
@@ -135,8 +153,28 @@ test('a message going out: shown as sent, the other side writing, the composer h
   assert.equal(words(mine[mine.length - 1]), 'And the tanks?');
   assert.ok(box.querySelector('.rl-typing'));
   const form = box.querySelector('.rl-th-compose');
-  assert.equal(form.querySelector('textarea').disabled, true);
+  // Held, not disabled: a disabled field drops focus to the page, and Esc stops closing the dock.
+  const ta = form.querySelector('textarea');
+  assert.equal(ta.disabled, false);
+  assert.equal(ta.readOnly, true);
+  assert.equal(ta.getAttribute('aria-disabled'), 'true');
   assert.equal(form.querySelector('button').disabled, true);
+});
+
+test('the words being typed go to the room as they are typed, so a redraw keeps them', () => {
+  const { box, calls } = view();
+  const ta = box.querySelector('.rl-th-compose textarea');
+  ta.value = 'Will the tan';
+  ta.dispatchEvent({ type: 'input', stopPropagation() {} });
+  assert.deepEqual(calls.type, ['Will the tan']);
+});
+
+test('Enter while an input method is composing does not send', () => {
+  const { box, calls } = view();
+  const ta = box.querySelector('.rl-th-compose textarea');
+  ta.value = '戦車';
+  ta.dispatchEvent({ type: 'keydown', key: 'Enter', shiftKey: false, isComposing: true, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() {} });
+  assert.deepEqual(calls.send, []);
 });
 
 test('the composer: the draft kept, Enter sends, Shift+Enter does not, and submit sends', () => {

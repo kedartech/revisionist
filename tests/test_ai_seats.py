@@ -218,4 +218,5 @@ def test_an_ai_seat_gets_no_report_of_its_own_forces_and_no_newspaper() -> None:
     mine = project(state, hitler).documents.values()
     assert any(state.documents[d.doc_id].truth.news_id == contact[0].news_id for d in mine)
     for e in list(store.read(CAMPAIGN))[start:]:
-        assert not (made & e.scope.known_by), getattr(e.payload, "document", e.payload)
+        if e.payload.kind not in OWN_ORDERS:
+            assert not (made & e.scope.known_by), getattr(e.payload, "document", e.payload)

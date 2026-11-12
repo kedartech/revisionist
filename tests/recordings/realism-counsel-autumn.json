@@ -1,53 +1,53 @@
 {
- "6647f9ef71f93bed904e9d7f": {
+ "6aa60f5a2334c41bb33d41a0": {
   "call_class": "counsel",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## You are\nHarry L. Hopkins, Special assistant to the President\n\n## Today\n1941-09-15\n\n## Your papers\n[{\"kind\": \"letter\",",
+  "prompt_head": "## You are\nHarry L. Hopkins, Special assistant to the President\nVoice: Wry, informal and direct; cuts to \"what do you ne",
   "reply": {
    "cached_tokens": 263,
-   "input_tokens": 453,
+   "input_tokens": 411,
+   "model": "claude-sonnet-5-5",
+   "output": {
+    "text": "Mr. President, I have only their letter of request so far, and it gives no figures I would put in front of you. From what I saw in Moscow they need everything, but I would not guess at numbers until the full list comes through. When it does, I will bring it to you myself."
+   },
+   "output_tokens": 71,
+   "usd": 0.001532
+  }
+ },
+ "b5dbd42ff118da1dd24f489e": {
+  "call_class": "counsel",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## You are\nHarry L. Hopkins, Special assistant to the President\nVoice: Wry, informal and direct; cuts to \"what do you ne",
+  "reply": {
+   "cached_tokens": 263,
+   "input_tokens": 411,
+   "model": "claude-sonnet-5-5",
+   "output": {
+    "text": "Mr. President, I have only their letter of request so far, and it gives no figures I would put in front of you. From what I saw in Moscow they need everything, but I would not guess at numbers until the full list comes through. When it does, I will bring it to you myself."
+   },
+   "output_tokens": 71,
+   "usd": 0.001532
+  }
+ },
+ "c42ff2d2d428c9570741d033": {
+  "call_class": "counsel",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## You are\nHarry L. Hopkins, Special assistant to the President\nVoice: Wry, informal and direct; cuts to \"what do you ne",
+  "reply": {
+   "cached_tokens": 263,
+   "input_tokens": 479,
    "model": "claude-sonnet-5-5",
    "output": {
     "text": "Mr. President, going by the list as Harriman sent it, tanks come first: they ask for 500 a month, and 400 aircraft a month behind that. That is what they asked for, mind you, not what they will get. I can't tell you yet what we can ship against it; that is a question for the Army and for the British, who will want their share. My advice is to tell Stalin something definite soon, even if it is less than the list."
    },
    "output_tokens": 106,
-   "usd": 0.001966
-  }
- },
- "ac5d3e58fd10611036b4b403": {
-  "call_class": "counsel",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## You are\nHarry L. Hopkins, Special assistant to the President\n\n## Today\n1941-09-06\n\n## Your papers\n[{\"kind\": \"letter\",",
-  "reply": {
-   "cached_tokens": 263,
-   "input_tokens": 384,
-   "model": "claude-sonnet-5-5",
-   "output": {
-    "text": "Mr. President, I have only their letter of request so far, and it gives no figures I would put in front of you. From what I saw in Moscow they need everything, but I would not guess at numbers until the full list comes through. When it does, I will bring it to you myself."
-   },
-   "output_tokens": 71,
-   "usd": 0.001478
-  }
- },
- "c538f6d80b0a8fd86e59a02d": {
-  "call_class": "counsel",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## You are\nHarry L. Hopkins, Special assistant to the President\n\n## Today\n1941-09-15\n\n## Your papers\n[{\"kind\": \"letter\",",
-  "reply": {
-   "cached_tokens": 263,
-   "input_tokens": 384,
-   "model": "claude-sonnet-5-5",
-   "output": {
-    "text": "Mr. President, I have only their letter of request so far, and it gives no figures I would put in front of you. From what I saw in Moscow they need everything, but I would not guess at numbers until the full list comes through. When it does, I will bring it to you myself."
-   },
-   "output_tokens": 71,
-   "usd": 0.001478
+   "usd": 0.002018
   }
  }
 }

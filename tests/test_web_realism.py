@@ -32,7 +32,7 @@ from revisionist.core.realism.document import (
 from revisionist.core.visibility import PUBLIC
 from revisionist.core.world_compile import resolve_keys
 from revisionist.engine import campaign as cmp
-from revisionist.engine import realism_tick, session_zero
+from revisionist.engine import counsel, realism_tick, session_zero
 from revisionist.engine.store import load_state
 from revisionist.engine.web.accounts import WebSeats
 from tests.test_web import Client, Web, _florence, web  # noqa: F401
@@ -651,18 +651,40 @@ def test_consult_asks_a_contact_and_keeps_the_answer_for_the_seat_only(web: Web)
     assert len(realism_of(ada)["counsel"]) == 1
 
 
-def test_consult_reaches_a_person_outside_the_inner_circle(web: Web) -> None:  # noqa: F811
+def outsider_game(web: Web) -> tuple[Realism, Client]:  # noqa: F811
     game = Realism(web)
     game.seat("ada", "ada")
     bram = game.seat("bram", "bram")
     game.open_play()
     game.first_tick()
     assert "Cora Senn" not in {c["person"] for c in realism_of(bram)["desk"]["inner_circle"]}
+    return game, bram
+
+
+def test_consult_reaches_a_person_outside_the_inner_circle(
+    web: Web,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The decline roll is keyed on the campaign id, which is new on every run: fix it here.
+    monkeypatch.setattr(counsel, "takes_meeting", lambda *_: True)
+    game, bram = outsider_game(web)
     aide(game, {"text": "Ask me again after the vote."})
     status, out = post(bram, "consult", to="Cora Senn", question="Where does Ada stand?")
     assert status == 200 and not out["refused"], out
     (held,) = realism_of(bram)["counsel"]
     assert held["person"] == "Cora Senn" and held["answer"] == "Ask me again after the vote."
+
+
+def test_an_outsider_who_declines_is_a_refusal_and_nothing_is_kept(
+    web: Web,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(counsel, "takes_meeting", lambda *_: False)
+    game, bram = outsider_game(web)
+    aide(game, {"text": "Never sent."})
+    status, out = post(bram, "consult", to="Cora Senn", question="Where does Ada stand?")
+    assert status == 200 and out == {"reply": "Cora Senn did not answer.", "refused": True}
+    assert realism_of(bram)["counsel"] == []
 
 
 def test_only_the_host_pauses_resumes_and_ends_the_game(web: Web) -> None:  # noqa: F811

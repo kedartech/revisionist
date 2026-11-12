@@ -1,35 +1,13 @@
 {
- "227e07f19770e619f25a2394": {
-  "call_class": "prose",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nCora Senn, Clerk of the Council\n\n## Pages to write\n[{\"doc_id\": \"3MQ10ZP4PV7SVCYSQ3JX63MM0Y\", \"kind\": \"letter\",",
-  "reply": {
-   "cached_tokens": 377,
-   "input_tokens": 478,
-   "model": "claude-sonnet-5-5",
-   "output": {
-    "pages": [
-     {
-      "doc_id": "3MQ10ZP4PV7SVCYSQ3JX63MM0Y",
-      "prose": "Dear First Citizen,\n\nWe enrolled 3 bills this week, all in good order. As to the clerks absent, I would rather not set down a figure until the roll is checked.\n\nC. Senn"
-     }
-    ]
-   },
-   "output_tokens": 59,
-   "usd": 0.001546
-  }
- },
- "75338d1a05d78744fb6a14f8": {
+ "42629a9764ba393767ffd97a": {
   "call_class": "prose",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
   "note": "hand-written for tests; not a model reply",
   "prompt_head": "## Author\nBram Tull, Speaker of the Council\nVoice: Careful; counts before he speaks.\n\n## Pages to write\n[{\"doc_id\": \"4ET",
   "reply": {
-   "cached_tokens": 377,
-   "input_tokens": 659,
+   "cached_tokens": 1011,
+   "input_tokens": 1390,
    "model": "claude-sonnet-5-5",
    "output": {
     "pages": [
@@ -48,7 +26,29 @@
     ]
    },
    "output_tokens": 148,
-   "usd": 0.002798
+   "usd": 0.00426
+  }
+ },
+ "723c086ca9183abd48964c4e": {
+  "call_class": "prose",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Author\nCora Senn, Clerk of the Council\n\n## Pages to write\n[{\"doc_id\": \"3MQ10ZP4PV7SVCYSQ3JX63MM0Y\", \"kind\": \"letter\",",
+  "reply": {
+   "cached_tokens": 1011,
+   "input_tokens": 1140,
+   "model": "claude-sonnet-5-5",
+   "output": {
+    "pages": [
+     {
+      "doc_id": "3MQ10ZP4PV7SVCYSQ3JX63MM0Y",
+      "prose": "Dear First Citizen,\n\nWe enrolled 3 bills this week, all in good order. As to the clerks absent, I would rather not set down a figure until the roll is checked.\n\nC. Senn"
+     }
+    ]
+   },
+   "output_tokens": 59,
+   "usd": 0.00287
   }
  }
 }

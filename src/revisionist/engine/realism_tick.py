@@ -290,15 +290,16 @@ def _prose(em: Emitter, writer: ProseWriter) -> tuple[list[Event], list[CallCost
     dropped: list[str] = []
     for author_id in sorted(by_author):
         pages = sorted(by_author[author_id], key=lambda v: (v.issued, v.doc_id))
+        author = author_of(em.state, author_id, pages)
         try:
-            written = writer.write(author_of(em.state, author_id, pages), pages)
+            written = writer.write(author, pages)
         except TransportError as exc:
             log.warning("prose call for %s failed: %s", author_id, exc)
             dropped += [f"{p.doc_id}: call failed" for p in pages]
             continue
         if written.cost is not None:
             costs.append(written.cost)
-        keep, refused = accepted(pages, written)
+        keep, refused = accepted(pages, written, author)
         dropped += [f"{r.doc_id}: {r.reason}" for r in refused]
         for page in pages:
             if page.doc_id in keep:

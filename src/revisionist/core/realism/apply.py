@@ -12,10 +12,12 @@ from datetime import date, timedelta
 from revisionist.core import events as ev
 from revisionist.core.canary import scan_text
 from revisionist.core.ids import (
+    CampaignId,
     DocumentId,
     EntityId,
     FactId,
     FeatureId,
+    OrderId,
     RelationshipId,
     SeatId,
     derived_id,
@@ -393,6 +395,11 @@ def reporter(state: State, order: RoutedOrder, part: int) -> tuple[EntityId, Cha
     return author, channels[0] if channels else ChannelKind.IN_PERSON
 
 
+def report_doc_id(campaign_id: CampaignId, order_id: OrderId, part: int) -> DocumentId:
+    """The id of the paper the issuer gets for one applied part."""
+    return DocumentId(derived_id(campaign_id, "report", order_id, part))
+
+
 def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.DocumentIssued | None:
     """The paper the issuer gets for one applied part. None for a seat nobody plays."""
     if part >= len(order.parts) or order.issuer not in actors.readers(state):
@@ -434,7 +441,7 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
         body += _lines(safe(answer(state, order, routed)), "Answer")
     elif routed.reason:
         body += _lines(safe(routed.reason), "Account")
-    doc_id = DocumentId(derived_id(state.campaign_id, "report", order.order_id, part))
+    doc_id = report_doc_id(state.campaign_id, order.order_id, part)
     return ev.DocumentIssued(
         document=DocumentView(
             doc_id=doc_id,
@@ -459,6 +466,7 @@ __all__ = [
     "describe",
     "outcome",
     "report",
+    "report_doc_id",
     "reporter",
     "shift",
     "zone_name",

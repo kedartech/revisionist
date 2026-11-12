@@ -22,9 +22,10 @@ from revisionist.core._base import Model
 from revisionist.core.events import CallCost
 from revisionist.core.ids import DocumentId, EntityId
 from revisionist.core.realism.document import DocumentKind, DocumentView
-from revisionist.core.realism.prose import invented_numbers
+from revisionist.core.realism.prose import invented_numbers, numbers_in
 from revisionist.core.state import State
 from revisionist.engine.llm import Request, Transport, prompt_text, prompt_version
+from revisionist.engine.prose_context import page_context
 
 PROSE_MODEL = "claude-sonnet-5-5"
 """[proposed] The P0 A/B (``scripts/prose_ab.py``) decides; ``REVISIONIST_MODEL_PROSE``
@@ -41,6 +42,9 @@ class Author(Model):
     voice: str = ""
     to: dict[DocumentId, str] = Field(default_factory=dict)
     """The office each private page is addressed to; a public page has none."""
+    context: dict[DocumentId, dict[str, Any]] = Field(default_factory=dict)
+    """Why each private page is written (``prose_context.page_context``): its reader, the
+    reader's own words for the order it answers, its purpose, the author's aims."""
 
 
 class Written(Model):
@@ -68,8 +72,9 @@ def _addressee(state: State, page: DocumentView) -> str:
 
 
 def author_of(state: State, entity: EntityId, pages: Sequence[DocumentView] = ()) -> Author:
-    """The author block for ``entity``: the name, the office, the card's voice and who each
-    of ``pages`` is addressed to. Read here, from the state, so no writer ever needs one."""
+    """The author block for ``entity``: the name, the office, the card's voice, who each
+    of ``pages`` is addressed to and why it is written. Read here, from the state, so no
+    writer ever needs one."""
     card = state.cards.get(entity)
     outlet = state.outlets.get(entity) if card is None else None
     return Author(
@@ -78,6 +83,7 @@ def author_of(state: State, entity: EntityId, pages: Sequence[DocumentView] = ()
         office=card.office if card is not None else "newspaper" if outlet is not None else "",
         voice=card.voice if card is not None else outlet.voice if outlet is not None else "",
         to={p.doc_id: to for p in pages if (to := _addressee(state, p))},
+        context={p.doc_id: ctx for p in pages if (ctx := page_context(state, p))},
     )
 
 
@@ -131,6 +137,7 @@ def page_lines(page: DocumentView, author: Author) -> dict[str, Any]:
             for line in page.body
             if line.value is not None
         ],
+        **({"context": author.context[page.doc_id]} if page.doc_id in author.context else {}),
     }
 
 
@@ -241,10 +248,11 @@ class Rejected:
 
 
 def accepted(
-    pages: Sequence[DocumentView], written: Written
+    pages: Sequence[DocumentView], written: Written, author: Author | None = None
 ) -> tuple[dict[DocumentId, str], list[Rejected]]:
     """The prose that passes: one per page asked for, non-empty, within length and
-    stating no figure the page lacks. The rest is logged and dropped."""
+    stating no figure the page lacks, apart from one in the reader's own words for the
+    order the page answers (``author.context``). The rest is logged and dropped."""
     keep: dict[DocumentId, str] = {}
     dropped: list[Rejected] = []
     for page in pages:
@@ -255,7 +263,8 @@ def accepted(
         if len(text) > 4000:
             dropped.append(Rejected(page.doc_id, f"{len(text)} characters, over 4000"))
             continue
-        invented = invented_numbers(text, page)
+        asked = author.context.get(page.doc_id, {}).get("asked", "") if author else ""
+        invented = tuple(n for n in invented_numbers(text, page) if n not in numbers_in(asked))
         if invented:
             dropped.append(Rejected(page.doc_id, f"states figures not on the page: {invented}"))
             continue

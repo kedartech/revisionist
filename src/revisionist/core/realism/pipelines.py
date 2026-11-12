@@ -11,7 +11,7 @@ its last step settles as enacted; a refusal settles it as refused.
 from datetime import date, timedelta
 
 from revisionist.core import events as ev
-from revisionist.core.ids import DocumentId, EntityId, OrderId, derived_id
+from revisionist.core.ids import CampaignId, DocumentId, EntityId, OrderId, derived_id
 from revisionist.core.ontology import Controller
 from revisionist.core.realism import actors, resolvers
 from revisionist.core.realism.card import (
@@ -246,6 +246,24 @@ def _trim_title(text: str, limit: int = 60) -> str:
     return text[: limit - 1].rsplit(" ", 1)[0].rstrip(" ,:;") + "…"
 
 
+def reply_doc_id(campaign_id: CampaignId, order_id: OrderId, n: int) -> DocumentId:
+    """The id of the word that comes back on the ``n``th step outcome of an order."""
+    return DocumentId(derived_id(campaign_id, "reply", order_id, n))
+
+
+def order_words(state: State, order: Order) -> str:
+    """What a standing-form order asked, in words: the form's label and its terms
+    ("Propose a levy (Rate 8, Purpose For the harbour)")."""
+    lever = _lever(state, order)
+    specs = {p.name: p for p in lever.params}
+    terms = ", ".join(
+        f"{_param_label(specs.get(k), k)} {_param_value(specs.get(k), v)}"
+        for k, v in order.params.items()
+    )
+    label = lever.label or words(lever.name)
+    return f"{label} ({terms})" if terms else label
+
+
 def _reply(
     state: State, order: Order, outcome: StepOutcome, status: OrderStatus | None
 ) -> ev.DocumentIssued | None:
@@ -280,7 +298,7 @@ def _reply(
     ]
     if status is not None:
         body.append(BodyField(label="Outcome", value=status.value))
-    doc_id = DocumentId(derived_id(state.campaign_id, "reply", order.order_id, len(order.outcomes)))
+    doc_id = reply_doc_id(state.campaign_id, order.order_id, len(order.outcomes))
     return ev.DocumentIssued(
         document=DocumentView(
             doc_id=doc_id,
@@ -397,4 +415,11 @@ def human_step(
     return _act(state, order, action, today, amended or {})[1]
 
 
-__all__ = ["RealismStep", "human_step", "run_pipelines", "waiting_on_human"]
+__all__ = [
+    "RealismStep",
+    "human_step",
+    "order_words",
+    "reply_doc_id",
+    "run_pipelines",
+    "waiting_on_human",
+]

@@ -506,6 +506,11 @@ def _check_answers(world: WorldFile, sections: Mapping[str, str], problems: list
             _ref(problems, where, when.by, "entity", sections)
             _ref(problems, where, when.party, "entity", sections)
             _ref(problems, where, a.until, "history", sections)
+            used = [p for lv in forms.get(when.lever or "", []) for p in lv.params]
+            used += [p for p in own[act.lever].params] if act.lever in own else []
+            named = set(when.params) | set(act.params)
+            if any(sp.kind is ParamKind.ENTITY and sp.name in named for sp in used):
+                problems.append(f"{where}: names a person or place by a form's parameter")
             if when.lever is not None:
                 found = forms.get(when.lever, [])
                 if not found:

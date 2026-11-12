@@ -346,6 +346,9 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return private_to(state.mandates[payload.mandate_id].seat_id)
     if isinstance(payload, ev.OrderRouted):
         return private_to(payload.order.issuer)
+    if isinstance(payload, ev.AnswerPlanned | ev.AnswerMade):
+        seat = actors.seat_of(state, payload.figure)
+        return private_to(seat) if seat is not None else PUBLIC
     if isinstance(payload, ev.OrderDrafted) and payload.order.issuer not in actors.readers(state):
         return private_to(payload.order.issuer)
     return PUBLIC  # a player's ``order_drafted`` too, as ``file_order`` lands it
@@ -415,7 +418,13 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     for oid in pending:
         order = state.orders[oid]
         add(apply_changes(state, ON_ORDER[resolver_for(state, order)](state, order)))
-    day, first = before, before + timedelta(days=1)
+    closed = max((i + 1 for i, e in enumerate(events) if e.kind == "tick_closed"), default=0)
+    between = frozenset(  # forms a player carried through between ticks, dated ``before``
+        e.payload.order_id
+        for e in events[closed:]
+        if isinstance(e.payload, ev.OrderSettled) and e.payload.status is OrderStatus.ENACTED
+    )
+    day = before
     while day < until:
         day += timedelta(days=1)
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))
@@ -448,7 +457,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         out.extend(docs)
         add(mandates.settle_due(state, day))
         add(mandates.issue_due(state, day))
-        planned = answering.plan(state, day, since=before if day == first else None)
+        planned = answering.plan(state, day, since=before, between=between)
         add(planned)
         while made := answering.make(state, day):
             add(made)

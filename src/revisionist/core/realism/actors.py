@@ -15,6 +15,14 @@ def readers(state: State) -> frozenset[SeatId]:
     return frozenset(s.seat_id for s in state.seats.values() if s.kind is not SeatKind.FACTION)
 
 
+def seat_of(state: State, person: EntityId) -> SeatId | None:
+    """The AI seat of a person nobody plays."""
+    held = [s for s in state.seats.values() if s.embodies == person]
+    if len(held) == 1 and held[0].kind is SeatKind.FACTION:
+        return held[0].seat_id
+    return None
+
+
 def unseated(state: State, people: Iterable[EntityId]) -> list[ev.SeatCreated]:
     """An AI seat for each of ``people`` who has a card and no seat, in person order."""
     seated = {s.embodies for s in state.seats.values()}
@@ -34,4 +42,4 @@ def unseated(state: State, people: Iterable[EntityId]) -> list[ev.SeatCreated]:
     ]
 
 
-__all__ = ["readers", "unseated"]
+__all__ = ["readers", "seat_of", "unseated"]

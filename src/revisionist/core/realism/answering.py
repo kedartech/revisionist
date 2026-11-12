@@ -20,7 +20,6 @@ from typing import NamedTuple
 from revisionist.core import events as ev
 from revisionist.core.goals import Ordered
 from revisionist.core.ids import EntityId, MandateId, OrderId, SeatId, derived_id
-from revisionist.core.ontology import SeatKind
 from revisionist.core.realism import actors, opponents
 from revisionist.core.realism.agenda import (
     MANDATE_CAP,
@@ -119,14 +118,6 @@ def _retired(state: State, answer: Answer) -> bool:
     return item is not None and item.fired
 
 
-def _seat(state: State, figure: EntityId) -> SeatId | None:
-    """The person's AI seat, while nobody plays them."""
-    held = [s for s in state.seats.values() if s.embodies == figure]
-    if len(held) == 1 and held[0].kind is SeatKind.FACTION:
-        return held[0].seat_id
-    return None
-
-
 def answerers(state: State) -> list[EntityId]:
     """The unplayed people with written answers, in id order."""
     played = {state.seats[s].embodies for s in actors.readers(state)}
@@ -138,15 +129,23 @@ def _counterparty(answer: Answer) -> EntityId | None:
     return effect.counterparty if isinstance(effect, Deal) else None
 
 
-def plan(state: State, day: date, since: date | None = None) -> list[ev.Payload]:
-    """The answers taken up on ``day``: set off by what landed from ``since`` (default
-    ``day``) to ``day``, or by their cadence. Each is preceded, where it costs regard,
-    by the change to the person's regard for whoever acted."""
-    landed = [a for d in _days(since or day, day) for a in acts_on(state, d)]
+def plan(
+    state: State, day: date, since: date | None = None, between: frozenset[OrderId] = frozenset()
+) -> list[ev.Payload]:
+    """The answers taken up on ``day``: set off by what landed on ``day``, by an act in
+    ``between`` that landed from ``since`` on (a form carried through between ticks,
+    which no earlier day's walk saw), or by their cadence. Each is preceded, where it
+    costs regard, by the change to the person's regard for whoever acted."""
+    landed = [
+        a
+        for d in _days(since or day, day)
+        for a in acts_on(state, d)
+        if d == day or a.order_id in between
+    ]
     world = PassWorld(state)
     out: list[ev.Payload] = []
     for figure in answerers(state):
-        seat = _seat(state, figure)
+        seat = actors.seat_of(state, figure)
         if seat is None:
             continue
         held = state.answers.get(figure, {})
@@ -264,7 +263,7 @@ def _twin(state: State, seat: SeatId, lever: str, params: dict[str, int | str]) 
 
 def _make(state: State, figure: EntityId, answer: Answer, day: date) -> list[ev.Payload]:
     """The order, or the approach, the answer files on ``day``, then its record."""
-    seat = _seat(state, figure)
+    seat = actors.seat_of(state, figure)
     oid = OrderId(derived_id(state.campaign_id, "answer", figure, answer.key, day.isoformat()))
 
     def made(**kw: object) -> ev.AnswerMade:

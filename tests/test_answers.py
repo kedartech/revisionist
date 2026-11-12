@@ -14,6 +14,7 @@ from revisionist.core.realism import answering, opponents
 from revisionist.core.realism.agenda import MandateKind
 from revisionist.core.realism.answer import AnswerAct, AnswerWhen
 from revisionist.core.realism.apply import shift
+from revisionist.core.realism.card import ParamKind, ParamSpec
 from revisionist.core.realism.effect import Deal, MakeStatement, MoveForce, ShiftDisposition
 from revisionist.core.realism.pass_world import PassWorld
 from revisionist.core.realism.pipeline import OrderStatus
@@ -487,3 +488,55 @@ def test_a_fall_in_regard_names_the_act_that_caused_it() -> None:
     assert changed and changed[0].standing.stance is Stance.HOSTILE
     assert changed[0].standing.cause is StanceCause.DISPOSITION
     assert changed[0].standing.order == order
+
+
+def test_an_answer_may_not_name_an_entity_parameter() -> None:
+    cards = list(DECL.cards)
+    i = next(i for i, c in enumerate(cards) if c.person == "roosevelt")
+    lever = cards[i].levers[0]
+    who = ParamSpec(name="whom", kind=ParamKind.ENTITY)
+    named = lever.model_copy(update={"name": "name_someone", "params": (who,)})
+    act = AnswerAct(lever="name_someone", params={"whom": "stalin"})
+    answer = cards[i].answers[0].model_copy(update={"act": act})
+    cards[i] = cards[i].model_copy(
+        update={"levers": (*cards[i].levers, named), "answers": (answer,)}
+    )
+    with pytest.raises(WorldError) as err:
+        compile_world(DECL.model_copy(update={"cards": tuple(cards)}), CAMPAIGN, cmp.versions())
+    assert "names a person or place" in str(err.value), str(err.value)
+
+
+def test_what_an_ai_head_plans_is_scoped_to_its_own_seat() -> None:
+    store, _, _ = _roosevelt_shoots()
+    _tick_until(
+        store,
+        lambda s: (
+            (log := s.answers.get(KEYS["hitler"], {}).get("spare_american_ships")) is not None
+            and log.made is not None
+        ),
+    )
+    state = load_state(store, CAMPAIGN)
+    seen = 0
+    for e in store.read(CAMPAIGN):
+        if isinstance(e.payload, ev.AnswerPlanned | ev.AnswerMade):
+            seat = next(s for s, h in state.seats.items() if h.embodies == e.payload.figure)
+            assert e.scope.known_by == frozenset({seat}), e.payload.kind
+            seen += 1
+    assert seen
+
+
+def test_an_act_from_the_last_wake_is_read_again_only_if_it_landed_between_ticks() -> None:
+    store, _, order = _roosevelt_shoots()
+    _tick_until(store, lambda s: s.orders[order].status is OrderStatus.ENACTED)
+    state = load_state(store, CAMPAIGN).model_copy(update={"answers": {}})
+    landed = state.orders[order].outcomes[-1].on
+    after = landed + timedelta(days=1)
+
+    def hitler_plans(between: frozenset[OrderId]) -> bool:
+        return any(
+            isinstance(p, ev.AnswerPlanned) and p.figure == KEYS["hitler"]
+            for p in answering.plan(state, after, since=landed, between=between)
+        )
+
+    assert not hitler_plans(frozenset())
+    assert hitler_plans(frozenset({order}))

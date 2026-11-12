@@ -133,9 +133,12 @@ OWN_ORDERS = frozenset(
         "effects_applied",
         "influence_decided",
         "relationship_set",
+        "answer_planned",
+        "answer_made",
     }
 )
-"""What an AI seat may be scoped: the orders its answers file, as a player's are."""
+"""What an AI seat may be scoped: its answers and the orders they file, as a player's
+orders are scoped to the player."""
 
 
 def test_a_page_only_an_ai_seat_holds_is_never_sent_to_the_writer() -> None:

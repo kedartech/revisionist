@@ -642,6 +642,9 @@ def test_consult_asks_a_contact_and_keeps_the_answer_for_the_seat_only(web: Web)
         "channel": "letter",
         "question": "Will the levy pass?",
         "answer": "The Council will not move before the harvest.",
+        "day": "9 April 1900",
+        "day_iso": "1900-04-09",
+        "tie": "inner",
     }
     assert realism_of(bram)["counsel"] == []
     _, far = post(ada, "consult", to="Nobody Here", question="Hello?")
@@ -673,6 +676,7 @@ def test_consult_reaches_a_person_outside_the_inner_circle(
     assert status == 200 and not out["refused"], out
     (held,) = realism_of(bram)["counsel"]
     assert held["person"] == "Cora Senn" and held["answer"] == "Ask me again after the vote."
+    assert held["tie"] == "outer"
 
 
 def test_an_outsider_who_declines_is_a_refusal_and_nothing_is_kept(

@@ -1,7 +1,4 @@
-/* p5-chat.css: the messenger (Train 2, unit C1). Tokens only (web/css/tokens.css). */
-
-.rl-msgr-btn { position: fixed; right: var(--space-4); bottom: var(--space-4); z-index: 40; display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--accent-bg); color: var(--on-accent); border: 1px solid var(--accent); border-radius: var(--radius); font: 600 13px/1.4 var(--font-chrome); cursor: pointer; }
-.rl-msgr-count { min-width: 1.4rem; padding: 0 var(--space-1); background: var(--field); color: var(--fg-strong); border: 1px solid var(--field-border); border-radius: var(--radius); text-align: center; font: 600 12px/1.4 var(--font-chrome); }
+/* p5-chat.css: the messenger panel and its tabs. Tokens only (web/css/tokens.css). */
 
 .rl-msgr-panel { position: fixed; right: var(--space-4); bottom: calc(var(--space-4) + 2.5rem); z-index: 50; width: 380px; max-height: min(70vh, 40rem); display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); box-sizing: border-box; background: var(--surface); color: var(--fg); border: 1px solid var(--rule); box-shadow: var(--shadow-sheet); font: 13px/1.4 var(--font-chrome); }
 .rl-msgr-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
@@ -10,21 +7,11 @@
 .rl-msgr-tab { flex: 1 1 0; min-width: 0; padding: var(--space-1) var(--space-2); background: var(--field); color: var(--fg-strong); border: 1px solid var(--rule); border-radius: var(--radius); font: 600 12px/1.4 var(--font-chrome); cursor: pointer; }
 .rl-msgr-tab[aria-selected="true"] { background: var(--accent-bg); color: var(--on-accent); border-color: var(--accent); }
 
-.rl-msgr-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); min-height: 0; overflow-y: auto; }
-.rl-msgr-item { position: relative; display: flex; align-items: center; gap: var(--space-2); width: 100%; min-width: 0; padding: var(--space-2); background: var(--field); color: var(--fg-strong); border: 1px solid var(--rule); border-radius: var(--radius); font: 13px/1.3 var(--font-chrome); text-align: left; cursor: pointer; }
-.rl-msgr-item-text { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
-.rl-msgr-item-title { font-size: 11px; color: var(--fg-muted); }
-.rl-msgr-dot { flex: none; width: 8px; height: 8px; border-radius: 999px; background: var(--danger); }
-
 .rl-msgr-body { display: grid; gap: var(--space-3); min-height: 0; overflow-y: auto; }
-.rl-msgr-compose { display: grid; gap: var(--space-2); }
-.rl-msgr-compose textarea { width: 100%; box-sizing: border-box; min-height: 4.5rem; padding: var(--space-2); background: var(--field); color: var(--fg-strong); border: 1px solid var(--field-border); border-radius: var(--radius); font: 14px/1.4 var(--font-read); resize: vertical; }
-.rl-msgr-send, .rl-msgr-back { padding: var(--space-1) var(--space-3); border-radius: var(--radius); font: 600 13px/1.4 var(--font-chrome); cursor: pointer; }
-.rl-msgr-send { justify-self: end; background: var(--accent-bg); color: var(--on-accent); border: 1px solid var(--accent); }
-.rl-msgr-back { flex: none; background: var(--field); color: var(--fg-strong); border: 1px solid var(--field-border); }
 
-.rl-msgr-btn:focus-visible, .rl-msgr-tab:focus-visible, .rl-msgr-item:focus-visible, .rl-msgr-send:focus-visible, .rl-msgr-back:focus-visible, .rl-msgr-compose textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-msgr-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 @media (max-width: 480px) {
   .rl-msgr-panel { inset: 0; width: auto; max-height: none; border: 0; box-shadow: none; }
+  .rl-msgr-head { min-height: 44px; display: flex; align-items: center; padding-right: 56px; }
 }

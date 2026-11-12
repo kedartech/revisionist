@@ -1199,5 +1199,62 @@
         ]
       }
     ]
-  }
+  },
+  "counsel": [
+    {
+      "person": "Harold R. Stark",
+      "channel": "in_person",
+      "question": "Can the escorts reach Iceland by the 25th?",
+      "answer": "Two destroyer divisions can. A third only if King releases it.",
+      "day": "19 October 1941",
+      "day_iso": "1941-10-19",
+      "tie": "outer"
+    },
+    {
+      "person": "Harry Hopkins",
+      "channel": "in_person",
+      "question": "Will Moscow hold through the winter?",
+      "answer": "Harriman thinks so, if the tanks arrive before the ports freeze.",
+      "day": "17 October 1941",
+      "day_iso": "1941-10-17",
+      "tie": "inner"
+    },
+    {
+      "person": "Harold R. Stark",
+      "channel": "in_person",
+      "question": "What does the Navy need to escort past Iceland?",
+      "answer": "Clear orders to shoot first, Mr. President.",
+      "day": "15 October 1941",
+      "day_iso": "1941-10-15",
+      "tie": "outer"
+    },
+    {
+      "person": "Harry Hopkins",
+      "channel": "in_person",
+      "question": "How much did we ship in September?",
+      "answer": "Short of the promise by a third. My memo has the figures.",
+      "day": "13 October 1941",
+      "day_iso": "1941-10-13",
+      "tie": "inner"
+    }
+  ],
+  "help": [
+    {
+      "from": "you",
+      "text": "How do I get a bill to the floor?",
+      "on": "1941-10-14"
+    },
+    {
+      "from": "aide",
+      "text": "Through the Speaker: Sam Rayburn schedules it. The bill form does it.",
+      "on": "1941-10-14",
+      "lever": "send_bill",
+      "label": "Send a bill to Congress"
+    },
+    {
+      "from": "aide",
+      "text": "Your order to Wheeler did not go through: he would not take it while the rallies go on.",
+      "on": "1941-10-16"
+    }
+  ]
 }

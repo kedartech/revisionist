@@ -228,7 +228,7 @@ class App:
                     wake_at,
                 )
                 seat_view["realism"]["counsel"] = realism_snapshot.counsel_lines(
-                    project(state, link.seat_id), counsel.counsel_records(log_now, link.seat_id)
+                    project(state, link.seat_id), log_now, link.seat_id
                 )
                 seat_view["realism"]["wake_tick"] = state.tick
                 seat_view["realism"]["wake"] = wake_api.wake_header(

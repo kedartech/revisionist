@@ -28,6 +28,7 @@ from revisionist.engine.web.realism_api import (
     BodyLine,
     Clock,
     ContactLine,
+    CounselLine,
     Desk,
     DirectiveProposal,
     DocumentListing,
@@ -506,18 +507,30 @@ def _spoken_day(day: date) -> str:
     return f"{day.day} {day:%B %Y}"
 
 
-def counsel_lines(view: View, held: Iterable[ev.CounselHeld]) -> list[dict[str, str]]:
-    """The seat's own consultations, newest first: who, how, the question and the answer."""
-    out = []
-    for c in held:
-        asked, _, answer = c.text.partition("\n\n")
+def counsel_lines(view: View, events: Iterable[Event], seat: SeatId) -> list[CounselLine]:
+    """The seat's own consultations, newest first: who, how, the question, the answer, the
+    in-world day each was held (the last ``date_advanced`` before it) and the tie."""
+    card = view.cards.get(view.me.embodies)
+    inner = {c.person for c in card.inner_circle} if card is not None else set()
+    out: list[CounselLine] = []
+    day: date | None = None
+    for e in events:
+        p = e.payload
+        if isinstance(p, ev.DateAdvanced):
+            day = p.to
+        if not isinstance(p, ev.CounselHeld) or p.seat_id != seat:
+            continue
+        asked, _, answer = p.text.partition("\n\n")
         question = asked.removeprefix("You asked: ") if asked.startswith("You asked: ") else ""
         out.append(
             {
-                "person": view.entities[c.person].name if c.person in view.entities else "",
-                "channel": c.channel.value,
+                "person": view.entities[p.person].name if p.person in view.entities else "",
+                "channel": p.channel.value,
                 "question": question,
-                "answer": answer if question else c.text,
+                "answer": answer if question else p.text,
+                "day": _spoken_day(day) if day is not None else "",
+                "day_iso": day.isoformat() if day is not None else "",
+                "tie": "inner" if p.person in inner else "outer",
             }
         )
     return out[::-1]

@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { happenedDue, orderContacts, uiFor } from '../js/views/realism-room.js';
+import { beginSend, endSend, happenedDue, orderContacts, uiFor, whileSending } from '../js/views/realism-room.js';
 import { happenedStore } from '../js/views/realism-happened.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
@@ -37,6 +37,8 @@ test('the room keeps its picks for one game and starts clean in another', () => 
   assert.equal(other.orderTo, null);
   assert.equal(other.contact, null);
   assert.deepEqual(other.chat, { open: false, tab: 'chats', thread: null });
+  assert.equal(other.pending, null);
+  assert.deepEqual(other.drafts, {});
 });
 
 test('closing the What happened sheet by any means counts as seen', () => {
@@ -65,4 +67,51 @@ test('the desk foot repeats Done for today without a second live count', () => {
   const src = read('js/views/realism-wake.js');
   const foot = src.slice(src.indexOf('export function commitPanel'), src.indexOf('/** The order the aide read'));
   assert.doesNotMatch(foot, /aria-live/);
+});
+
+test('a message send holds only its own thread, and one at a time', () => {
+  const ui = { busy: null, pending: null, drafts: { 'Harry Hopkins': 'old' }, error: 'stale' };
+  assert.equal(beginSend(ui, 'Harry Hopkins', '   '), false, 'blank text is not sent');
+  assert.equal(ui.pending, null);
+  assert.equal(beginSend(ui, 'Harry Hopkins', ' Will Moscow hold? '), true);
+  assert.deepEqual(ui.pending, { thread: 'Harry Hopkins', text: 'Will Moscow hold?' });
+  assert.equal(ui.error, null);
+  assert.equal(beginSend(ui, 'aide', 'And the bill?'), false, 'a second send waits');
+  assert.equal(beginSend({ busy: 'Running the day…', pending: null, drafts: {} }, 'aide', 'Hello'), false, 'not while the room is busy');
+});
+
+test('a sent message clears its draft; a failed or refused one keeps the words and says why', () => {
+  const ui = { busy: null, pending: null, drafts: { 'Harry Hopkins': 'old', aide: 'keep' }, error: null };
+  beginSend(ui, 'Harry Hopkins', 'Will Moscow hold?');
+  endSend(ui, { refused: false, reply: 'Harry Hopkins has answered.' });
+  assert.equal(ui.pending, null);
+  assert.deepEqual(ui.drafts, { aide: 'keep' });
+  assert.equal(ui.error, null);
+
+  beginSend(ui, 'Fumimaro Konoe', 'Will Tokyo talk?');
+  endSend(ui, { refused: true, reply: 'Fumimaro Konoe did not answer.' });
+  assert.equal(ui.pending, null);
+  assert.equal(ui.drafts['Fumimaro Konoe'], 'Will Tokyo talk?');
+  assert.equal(ui.error, 'Fumimaro Konoe did not answer.');
+
+  beginSend(ui, 'aide', 'How do I send a bill?');
+  endSend(ui, { error: 'The model cannot be reached just now.' });
+  assert.equal(ui.drafts.aide, 'How do I send a bill?');
+  assert.equal(ui.error, 'The model cannot be reached just now.');
+});
+
+test('the room holds a wake and every other call while a message is out', () => {
+  const room = read('js/views/realism-room.js');
+  assert.match(room, /if \(ui\.busy\) return;\n    if \(ui\.pending\) \{[^}]*ui\.error = whileSending\(ui\);\n      showStatus\(\);\n      return;/);
+  assert.match(room, /work\.idle = \(\) => !ui\.busy && !ui\.pending;/);
+  assert.match(room, /beginSend\(ui, thread, text\)/);
+  assert.match(room, /endSend\(ui, /);
+});
+
+test('while a message is out, any other action says why it waits instead of doing nothing', () => {
+  assert.equal(whileSending({ pending: null }), null);
+  assert.equal(whileSending({ pending: { thread: 'Harold R. Stark', text: 'Iceland?' } }),
+    'Harold R. Stark is answering your message. Try again when the answer is in.');
+  assert.equal(whileSending({ pending: { thread: 'aide', text: 'How?' } }),
+    'Your aide is answering your message. Try again when the answer is in.');
 });

@@ -1,8 +1,12 @@
-// The messenger (Train 2 unit C1): a fixed "Messages" button with the unread count, and a
-// panel with Chats (your aide, then each inner-circle person) and Contacts.
+// The messenger: the launcher with the unread count, and a panel with Chats (one row per
+// conversation) and Contacts. This module composes the launcher, the list, the thread and the
+// typing indicator, and keeps the unread marks.
 
 import { h } from '../dom.js';
-import { counselThread, helpThread } from './realism.js';
+import { chatLauncher } from './realism-launcher.js';
+import { chatList, chatRows } from './realism-chatlist.js';
+import { threadView } from './realism-thread.js';
+import { typingBubble, typingFor } from './realism-typing.js';
 
 export const SEEN_PREFIX = 'rv.chat.seen.';
 
@@ -18,6 +22,16 @@ export function unread(counts, seen) {
     }
   }
   return { total, fresh };
+}
+
+/**
+ * The marks with any above its thread's count brought down to it (the server keeps the aide's
+ * lines in memory, so a restart shrinks that thread); `marks` itself when nothing changes.
+ */
+export function settleMarks(counts, marks) {
+  const high = Object.keys(marks ?? {}).filter((k) => k in counts && marks[k] > counts[k]);
+  if (!high.length) return marks;
+  return { ...marks, ...Object.fromEntries(high.map((k) => [k, counts[k]])) };
 }
 
 /**
@@ -45,49 +59,68 @@ export function seenStore(storage, campaignId) {
   };
 }
 
+/** Lines from the other side per thread (`threads` as `threadItems` gives them): what unread counts. */
+export function threadCounts(threads) {
+  const counts = {};
+  for (const [key, items] of Object.entries(threads ?? {})) {
+    counts[key] = (items ?? []).filter((i) => i.side === 'theirs').length;
+  }
+  return counts;
+}
+
+const GROUPS = ['inner_circle', 'government', 'foreign', 'other'];
+
+/** The reach entry called `name`, and whether it is in the inner circle. */
+function contactOf(reach, name) {
+  for (const key of GROUPS) {
+    const hit = (reach?.[key] ?? []).find((c) => c.name === name);
+    if (hit) return { contact: hit, inner: key === 'inner_circle' };
+  }
+  return { contact: null, inner: false };
+}
+
 /**
- * The dock. `opts`: `{ state, onState(next), counts, seen, contacts, counsel, help, brief,
- * ask(text), consult(person, text), useDraft(d), ackThread(person), contactsTab }`.
- * `state` is `{ open, tab: 'chats' | 'contacts', thread: null | 'aide' | name }`, kept by the
- * room. Chats lists "Your aide" then each of `contacts` (desk.inner_circle) with a dot when
- * fresh; a thread shows its lines as `bubble`s newest last (`helpThread`, `counselThread`,
- * realism.js), the aide's opening with `brief` (a node), and a composer at the foot.
+ * The dock. `opts`: `{ state, onState(next), threads, seen, reach, record, pending, drafts,
+ * brief, dossierFor(name), ask(text), consult(name, text), onOpen(doc), useDraft(d),
+ * contactsTab }`. `state` is `{ open, tab: 'chats' | 'contacts', thread: null | 'aide' | name }`,
+ * kept by the room; `threads` maps 'aide' and each contact's name to its items; `pending` is the
+ * message being sent (`{ thread, text }`) or null; `drafts` the text kept per thread.
  * Opening a thread calls `onState` with it; the room marks it seen. Esc and the button close it.
  */
 export function chatDock(opts) {
-  const { state, onState, counts, seen } = opts;
-  const { total, fresh } = unread(counts, seen);
+  const { state, onState, threads, seen } = opts;
+  const { total } = unread(threadCounts(threads), seen);
   const close = () => onState({ ...state, open: false });
   const escape = (e) => { if (e.key === 'Escape') close(); };
 
   return h('div', { class: 'rl-msgr' },
-    h('button', {
-      type: 'button',
-      class: 'rl-msgr-btn',
-      'aria-expanded': String(state.open),
-      onclick: () => onState({ ...state, open: !state.open }),
-      onkeydown: state.open ? escape : null,
-    }, 'Messages', total > 0 ? h('span', { class: 'rl-msgr-count' }, String(total), h('span', { class: 'sr-only' }, ' unread')) : null),
-    state.open ? panel(opts, fresh, escape) : null);
+    chatLauncher({
+      open: state.open,
+      total,
+      onToggle: () => onState({ ...state, open: !state.open }),
+      onKey: state.open ? escape : null,
+    }),
+    state.open ? panel(opts, escape) : null);
 }
 
-function panel(opts, fresh, escape) {
-  const { state, onState, contacts = [] } = opts;
+function panel(opts, escape) {
+  const { state, onState } = opts;
   const tab = (key, label) => h('button', {
     type: 'button',
     role: 'tab',
     class: 'rl-msgr-tab',
     'aria-selected': String(state.tab === key),
-    onclick: () => onState({ ...state, tab: key }),
+    onclick: () => onState({ ...state, tab: key, thread: key === 'chats' ? state.thread : null }),
   }, label);
 
   let body;
   if (state.tab === 'contacts') body = h('div', { class: 'rl-msgr-body' }, opts.contactsTab ?? null);
   else if (state.thread) body = thread(opts);
   else {
-    body = h('ol', { class: 'rl-msgr-list', role: 'list' },
-      h('li', null, listItem(opts, 'aide', 'Your aide', null, fresh.includes('aide'))),
-      contacts.map((c) => h('li', null, listItem(opts, c.person, c.person, c.title, fresh.includes(c.person)))));
+    body = h('div', { class: 'rl-msgr-body' }, chatList({
+      rows: chatRows({ threads: opts.threads, reach: opts.reach, record: opts.record, seen: opts.seen }),
+      onOpen: (key) => onState({ ...state, thread: key }),
+    }));
   }
 
   return h('section', { class: 'rl-msgr-panel', 'aria-labelledby': 'rl-msgr-title', onkeydown: escape },
@@ -97,41 +130,26 @@ function panel(opts, fresh, escape) {
     body);
 }
 
-function listItem(opts, key, name, title, isFresh) {
-  return h('button', {
-    type: 'button',
-    class: 'rl-msgr-item',
-    onclick: () => opts.onState({ ...opts.state, thread: key }),
-  },
-  isFresh ? h('span', { class: 'rl-msgr-dot', 'aria-hidden': 'true' }) : null,
-  isFresh ? h('span', { class: 'sr-only' }, 'New: ') : null,
-  h('span', { class: 'rl-msgr-item-text' },
-    h('span', {}, name),
-    title ? h('span', { class: 'rl-msgr-item-title' }, title) : null));
-}
-
 function thread(opts) {
-  const { state, onState } = opts;
-  const aide = state.thread === 'aide';
-  const name = aide ? 'Your aide' : state.thread;
-  const lines = aide
-    ? [opts.brief ?? null, helpThread(opts.help ?? [], opts.useDraft)]
-    : [counselThread(name, opts.counsel ?? []), opts.ackThread?.(name) ?? null];
-  const send = (e) => {
-    e.preventDefault();
-    const text = e.currentTarget.elements.text.value.trim();
-    if (!text) return;
-    if (aide) opts.ask(text);
-    else opts.consult(name, text);
-  };
-
-  return [
-    h('div', { class: 'rl-msgr-head' },
-      h('button', { type: 'button', class: 'rl-msgr-back', onclick: () => onState({ ...state, thread: null }) }, 'Back'),
-      h('h3', { class: 'rl-msgr-name' }, name)),
-    h('div', { class: 'rl-msgr-body' }, lines),
-    h('form', { class: 'rl-msgr-compose', onsubmit: send },
-      h('textarea', { name: 'text', rows: 3, 'aria-label': 'Message', placeholder: 'Write a message' }),
-      h('button', { type: 'submit', class: 'rl-msgr-send' }, 'Send')),
-  ];
+  const { state, onState, pending } = opts;
+  const key = state.thread;
+  const aide = key === 'aide';
+  const { contact, inner } = aide ? { contact: null, inner: true } : contactOf(opts.reach, key);
+  const writing = typingFor(pending, key);
+  return threadView({
+    name: aide ? 'Your aide' : key,
+    title: contact?.title ?? null,
+    tie: inner ? 'inner' : 'outer',
+    dossier: aide ? null : opts.dossierFor?.(key) ?? null,
+    lead: aide ? opts.brief ?? null : null,
+    items: opts.threads?.[key] ?? [],
+    pending: pending?.thread === key ? pending : null,
+    draft: opts.drafts?.[key] ?? '',
+    typing: writing ? typingBubble(writing) : null,
+    onSend: (text) => (aide ? opts.ask(text) : opts.consult(key, text)),
+    onBack: () => onState({ ...state, thread: null }),
+    onOpen: opts.onOpen,
+    onDraft: opts.useDraft,
+    onType: (text) => opts.onType?.(key, text),
+  });
 }

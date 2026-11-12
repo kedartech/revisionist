@@ -11,9 +11,8 @@ import { worldDate } from '../rules.js';
 import { browserStorage } from '../theme.js';
 import { briefBlock, directiveForm, paceHeader } from './realism.js';
 import { header } from './frame.js';
-import { ackThread } from './realism-acks.js';
 import { needsAnswer } from './realism-answer.js';
-import { chatDock, seenStore } from './realism-chat.js';
+import { chatDock, seenStore, settleMarks, threadCounts } from './realism-chat.js';
 import { contactsTab } from './realism-contacts.js';
 import { characterDossier, settingDossier } from './realism-dossier.js';
 import { standardForms } from './realism-forms.js';
@@ -24,6 +23,7 @@ import { introStage, markIntro, seatSplash, splashModel, startOverview } from '.
 import { newsBlock, whatChanged } from './realism-news.js';
 import { orderCards } from './realism-orders.js';
 import { overlayLines, wakeOverlay } from './realism-overlay.js';
+import { threadItems } from './realism-thread.js';
 import { trayView } from './realism-tray.js';
 import { RUNNING, commitPanel, orderCard, stylePicker, wakeHeader } from './realism-wake.js';
 
@@ -31,7 +31,7 @@ const freshUi = (game) => ({
   game, wide: false, page: null, said: null, error: null, busy: null,
   filter: 'all', sort: 'newest', draft: null, proposal: null, autoFor: null,
   chat: { open: false, tab: 'chats', thread: null }, contact: null, orderTo: null,
-  happenedSeen: null, refocusChat: false, brief: null,
+  happenedSeen: null, refocusChat: false, brief: null, pending: null, drafts: {},
 });
 let ui = freshUi(null);
 
@@ -58,6 +58,44 @@ export function orderContacts(inner, c) {
  */
 export function happenedDue(page, store, seen) {
   return Boolean(page) && shouldShow(page, store) && page.number > (seen ?? 0);
+}
+
+/**
+ * Start a message to `thread`: refused (false) while the room is busy, while another message
+ * is out, or for blank text. Otherwise `ui.pending` holds `{ thread, text }` and the old error
+ * clears. Only the composer is held while it is out.
+ */
+export function beginSend(state, thread, text) {
+  const said = (text ?? '').trim();
+  if (state.busy || state.pending || !said) return false;
+  state.pending = { thread, text: said };
+  state.error = null;
+  return true;
+}
+
+/** Why another action waits while a message is out, or null when none is. */
+export function whileSending(state) {
+  const thread = state.pending?.thread;
+  if (!thread) return null;
+  const who = thread === 'aide' ? 'Your aide' : thread;
+  return `${who} is answering your message. Try again when the answer is in.`;
+}
+
+/**
+ * The message is answered or failed: `pending` clears. A sent message drops that thread's
+ * draft; a failed or refused one keeps the words in its composer and says why in `error`.
+ */
+export function endSend(state, outcome) {
+  const { thread, text } = state.pending ?? {};
+  state.pending = null;
+  if (!thread) return;
+  const { [thread]: _kept, ...others } = state.drafts ?? {};
+  if (outcome.error || outcome.refused) {
+    state.drafts = { ...others, [thread]: text };
+    state.error = outcome.error ?? outcome.reply ?? 'The message was not sent.';
+  } else {
+    state.drafts = others;
+  }
 }
 
 /** Browser storage, or nothing where it is blocked: the units take it as a parameter. */
@@ -177,6 +215,12 @@ export function realismRoom(ctx) {
    */
   async function work(message, fn) {
     if (ui.busy) return;
+    if (ui.pending) {
+      // one call at a time: say why the click waits rather than drop it with no word
+      ui.error = whileSending(ui);
+      showStatus();
+      return;
+    }
     ui.busy = message;
     ui.error = null;
     const clicked = document.activeElement;
@@ -206,7 +250,7 @@ export function realismRoom(ctx) {
       if (ui.refocusChat) refocus(ui.chat, true);
     }
   }
-  work.idle = () => !ui.busy;
+  work.idle = () => !ui.busy && !ui.pending;
 
   let status = null;
   function showStatus() {
@@ -355,42 +399,84 @@ export function realismRoom(ctx) {
         orderCards(rv.record, rv.orders, (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v)))));
   }
 
-  /** Lines in each thread, to mark the ones with something new since last seen. */
-  function chatCounts() {
-    const counts = { aide: (rv.help ?? []).filter((m) => m.from === 'aide').length };
-    for (const c of rv.desk.inner_circle) counts[c.person] = (rv.counsel ?? []).filter((x) => x.person === c.person).length;
-    return counts;
+  /**
+   * Every conversation: the aide's always, each contact the seat can reach with at least one
+   * item (their answers, the seat's questions, papers they wrote), and the open one even if empty.
+   */
+  function threads() {
+    const out = { aide: threadItems({ person: 'aide', help: rv.help ?? [] }) };
+    const names = new Set(['inner_circle', 'government', 'foreign', 'other']
+      .flatMap((k) => (rv.reach?.[k] ?? []).map((c) => c.name)));
+    for (const name of names) {
+      const items = threadItems({ person: name, counsel: rv.counsel ?? [], documents: rv.documents });
+      if (items.length || ui.chat.thread === name) out[name] = items;
+    }
+    return out;
   }
 
   /** A redraw drops focus; put it back in the messenger so Esc and the keyboard keep working. */
   function refocus(chat, compose = false) {
     ui.refocusChat = false;
     const panel = root.querySelector('.rl-msgr-panel');
-    const inThread = compose ? '.rl-msgr-compose textarea' : '.rl-msgr-back';
+    const inThread = compose ? '.rl-th-compose textarea' : '.rl-th-back';
     const target = !chat.open ? root.querySelector('.rl-msgr-btn')
       : panel?.querySelector(chat.thread ? inThread : '[role="tab"][aria-selected="true"]');
     target?.focus();
   }
 
+  /**
+   * Send a message: the thread shows it at once with the other side writing, only the
+   * composer is held, and the room is re-read when the answer is in. A failure keeps the words.
+   */
+  async function send(thread, action, body, text) {
+    if (!beginSend(ui, thread, text)) return;
+    showStatus();
+    rerender();
+    refocus(ui.chat, true);
+    let outcome;
+    try {
+      const r = await api.realism(action, { ...body, question: ui.pending.text });
+      outcome = { refused: Boolean(r.refused), reply: r.reply || null };
+      ui.said = r.refused ? null : outcome.reply;
+    } catch (ex) {
+      outcome = { error: ex.message };
+    }
+    endSend(ui, outcome);
+    ui.refocusChat = true;
+    try {
+      await refresh();
+    } catch (ex) {
+      ui.error = ex.message;
+      rerender();
+      refocus(ui.chat, true);
+    }
+  }
+
   function dock() {
-    const counts = chatCounts();
-    const marks = seen.read();
+    const all = threads();
+    const counts = threadCounts(all);
+    const read = seen.read();
+    const marks = settleMarks(counts, read);
+    if (marks !== read) seen.write(marks);
     const thread = ui.chat.open ? ui.chat.thread : null;
     if (thread && thread in counts && marks[thread] !== counts[thread]) seen.write({ ...marks, [thread]: counts[thread] });
     const inner = rv.desk.inner_circle.map((c) => c.person);
     return chatDock({
       state: ui.chat,
       onState: (next) => { ui.chat = next; rerender(); refocus(next); },
-      counts,
+      threads: all,
       seen: seen.read(),
-      contacts: rv.desk.inner_circle,
-      counsel: rv.counsel ?? [],
-      help: rv.help ?? [],
+      reach: rv.reach,
+      record: rv.record,
+      pending: ui.pending,
+      drafts: ui.drafts,
       brief: briefSlot,
-      ask: (question) => act('Your aide is looking into it…', 'help', { question }),
-      consult: (to, question) => act(`Waiting for ${to} to answer…`, 'consult', { to, question }),
+      ask: (text) => send('aide', 'help', {}, text),
+      consult: (to, text) => send(to, 'consult', { to }, text),
+      onOpen: open,
       useDraft,
-      ackThread: (person) => ackThread(rv.documents, person, open),
+      // kept as typed, with no redraw, so a redraw or a thread switch keeps the words
+      onType: (key, text) => { ui.drafts = { ...ui.drafts, [key]: text }; },
       contactsTab: contactsTab(rv.reach, {
         inner,
         selected: ui.contact,
@@ -399,7 +485,7 @@ export function realismRoom(ctx) {
           rerender();
           root.querySelector(name ? '.rl-msgr-panel .rl-ct-back' : '.rl-msgr-panel [role="tab"][aria-selected="true"]')?.focus();
         },
-        onMessage: (name) => { ui.chat = { open: true, tab: 'chats', thread: name }; rerender(); refocus(ui.chat); },
+        onMessage: (name) => { ui.chat = { open: true, tab: 'chats', thread: name }; rerender(); refocus(ui.chat, true); },
         onOrder: (c) => {
           ui.orderTo = c;
           ui.proposal = null;

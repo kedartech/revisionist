@@ -374,6 +374,20 @@ class OrderResult(TypedDict):
     parts: list[ResultPart]
 
 
+class CounselLine(TypedDict):
+    """One consultation, as the seat saw it: who, how, the words, the in-world day it was
+    held (in words and ISO, empty before the calendar has a date) and whether the person
+    is in the seat's inner circle."""
+
+    person: str
+    channel: str
+    question: str
+    answer: str
+    day: str
+    day_iso: str
+    tie: Literal["inner", "outer"]
+
+
 class ReachContact(TypedDict):
     name: str
     title: str | None

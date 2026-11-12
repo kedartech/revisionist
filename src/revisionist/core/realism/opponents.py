@@ -131,15 +131,15 @@ def weight(state: State, figure: EntityId, seat: SeatId) -> int:
 def _order_behind(
     landed: Sequence[ev.Payload], figure: EntityId, person: EntityId
 ) -> OrderId | None:
-    """The order whose effects set the pair's relationship: effects land before
-    the ``effects_applied`` that closes their part."""
-    hit = False
+    """The last order whose effects set the pair's relationship: effects land
+    before the ``effects_applied`` that closes their part."""
+    hit, order = False, None
     for payload in landed:
         if isinstance(payload, ev.RelationshipSet):
             hit = hit or {payload.relationship.a, payload.relationship.b} == {figure, person}
         elif isinstance(payload, ev.EffectsApplied) and hit:
-            return payload.order_id
-    return None
+            hit, order = False, payload.order_id
+    return order
 
 
 def _ranked(
@@ -190,9 +190,10 @@ def settle(
             stances[figure] = stance
             if was is not None and stance is was.stance:
                 continue
+            order = _order_behind(landed, figure, person)
             if was is None:
                 cause = StanceCause.START
-            elif got.side != was.side:
+            elif got.side != was.side and order is None:
                 cause = StanceCause.SIDES
             else:
                 cause = StanceCause.DISPOSITION
@@ -203,11 +204,7 @@ def settle(
                 side=got.side,
                 disposition=got.disposition,
                 cause=cause,
-                order=(
-                    _order_behind(landed, figure, person)
-                    if cause is StanceCause.DISPOSITION
-                    else None
-                ),
+                order=order if cause is StanceCause.DISPOSITION else None,
             )
             out.append(ev.StanceChanged(seat_id=seat, figure=figure, standing=standing))
         active = _ranked(state, seat, stances, wake_start)

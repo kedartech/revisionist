@@ -21,6 +21,7 @@ from revisionist.engine.web.realism_api import Threat
 
 FIRM_DAYS, DATED_DAYS = 7, 30
 """Evidence this many days old or less reads as firm, then as dated, then as old [proposed]."""
+UNKNOWN = "Cause not known."
 
 
 def _evidence(state: State, view: View, figure: EntityId, start: date) -> date:
@@ -60,14 +61,13 @@ def _cause(state: State, view: View, figure: EntityId, standing: Standing) -> st
     if standing.cause is StanceCause.START:
         return "As things stood at the start."
     if standing.cause is StanceCause.SIDES:
-        polity = polity_of(state, figure)
-        mine = polity_of(state, view.me.embodies)
-        if any({w.a, w.b} == {polity, mine} for w in view.wars.values()):
+        pair = {polity_of(state, figure), polity_of(state, view.me.embodies)}
+        if any({w.a, w.b} == pair and w.since <= standing.on for w in view.wars.values()):
             return "Your countries went to war."
-        return "A contest between you was settled."
+        return UNKNOWN  # a contest opening or closing: not every contest is the seat's to see
     if standing.order is not None and standing.order in view.routed:
         return f"After your order of {view.routed[standing.order].filed:%-d %B %Y}."
-    return "Cause not known."
+    return UNKNOWN
 
 
 def seat_threats(state: State, seat: SeatId, view: View) -> list[Threat]:

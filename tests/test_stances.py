@@ -9,6 +9,7 @@ from revisionist.core import events as ev
 from revisionist.core.fold import replay
 from revisionist.core.ids import (
     CampaignId,
+    ContestId,
     DocumentId,
     EntityId,
     EventId,
@@ -17,7 +18,7 @@ from revisionist.core.ids import (
     SeatId,
     derived_id,
 )
-from revisionist.core.ontology import Relationship
+from revisionist.core.ontology import Contest, ContestKind, Relationship
 from revisionist.core.project import project
 from revisionist.core.realism import opponents
 from revisionist.core.realism.card import ChannelKind, Conflict
@@ -25,6 +26,7 @@ from revisionist.core.realism.document import Document, DocumentKind, DocumentTr
 from revisionist.core.realism.effect import Route, RoutedOrder, RoutedPart
 from revisionist.core.realism.stance import Stance, StanceCause, band, step
 from revisionist.core.realism.war import War, war_id_for
+from revisionist.core.sealing import needs_admin_read
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, private_to
 from revisionist.core.world_compile import compile_world, resolve_keys
@@ -479,3 +481,96 @@ def test_the_client_fixture_carries_a_threat_in_the_servers_shape() -> None:
     fixture = Path(__file__).parents[1] / "web" / "test" / "fixtures" / "realism-seat.json"
     threats = json.loads(fixture.read_text())["threats"]
     assert threats and all(set(t) == set(Threat.__annotations__) for t in threats)
+
+
+def at_war_with(state: State, a: EntityId, b: EntityId, who: EntityId, since: date) -> State:
+    war = War(war_id=war_id_for(a, b), a=a, b=b, since=since, declared_by=who)
+    return state.model_copy(update={"wars": {**state.wars, war.war_id: war}})
+
+
+def rivals(state: State, a: EntityId, b: EntityId) -> State:
+    contest = Contest(
+        contest_id=ContestId(derived_id(state.campaign_id, "contest", a, b)),
+        kind=ContestKind.RIVALRY,
+        name="The Far East",
+        prize="Who holds Malaya.",
+        sides=(a, b),
+        track=0,
+        momentum=0,
+        countdown_days=30,
+        scope=PUBLIC,
+    )
+    return state.model_copy(update={"contests": {**state.contests, contest.contest_id: contest}})
+
+
+def test_a_stance_and_a_ranking_are_not_shown_to_a_host_without_an_admin_read() -> None:
+    store, _seat, _keys = begun()
+    state = bare(load_state(store, CAMPAIGN))
+    made = opponents.settle(state, date(1941, 9, 2))
+    assert {p.kind for p in made} == {"stance_changed", "opponents_ranked"}
+    assert all(needs_admin_read(_event(state, p, i)) for i, p in enumerate(made))
+
+
+def test_a_war_is_named_as_the_cause_only_for_a_change_it_caused() -> None:
+    store, seat, keys = begun()
+    state = load_state(store, CAMPAIGN)
+    uk, japan, konoe = keys["uk"], keys["japan"], keys["konoe"]
+    fought = at_war_with(state, uk, japan, keys["churchill"], date(1941, 9, 5))
+    turned = on_day(settled(fought, date(1941, 9, 5)), date(1941, 9, 6))
+    assert turned.stances[seat][konoe][-1].cause is StanceCause.SIDES
+    line = shown(turned, seat)["Fumimaro Konoe"]
+    assert (line["as_of"], line["cause"]) == ("1941-09-05", "Your countries went to war.")
+    # a turn that came of something else, with a war only later
+    crossed = settled(rivals(state, uk, japan), date(1941, 9, 5))
+    assert crossed.stances[seat][konoe][-1].cause is StanceCause.SIDES
+    heard = letter_from(on_day(crossed, date(1941, 9, 8)), konoe, seat, date(1941, 9, 6))
+    assert shown(heard, seat)["Fumimaro Konoe"]["cause"] == "Cause not known."
+    later = at_war_with(crossed, uk, japan, keys["churchill"], date(1941, 9, 20))
+    assert shown(on_day(later, date(1941, 9, 25)), seat)["Fumimaro Konoe"]["cause"] == (
+        "Cause not known."
+    )
+
+
+def test_a_change_of_regard_today_is_the_cause_even_if_the_sides_moved_before() -> None:
+    store, seat, keys = begun()
+    state = bare(load_state(store, CAMPAIGN))
+    hitler, churchill = keys["hitler"], keys["churchill"]
+    hated = settled(regard(state, hitler, churchill, -5, seat), date(1941, 9, 2))
+    assert now(hated, seat, hitler) is Stance.HOSTILE
+    war = next(c for c in hated.contests.values() if keys["germany"] in c.sides)
+    over = hated.model_copy(
+        update={
+            "contests": {**hated.contests, war.contest_id: war.model_copy(update={"decided": True})}
+        }
+    )
+    over = settled(over, date(1941, 9, 3))
+    assert len(over.stances[seat][hitler]) == 1  # -5: still hostile, nothing logged for him
+    warmer = regard(over, hitler, churchill, -1, seat)
+    order = OrderId(derived_id(CAMPAIGN, "order", "x"))
+    landed: list[ev.Payload] = [
+        ev.RelationshipSet(relationship=next(iter(warmer.relationships.values()))),
+        ev.EffectsApplied(order_id=order, part=0, on=date(1941, 9, 9)),
+    ]
+    (change,) = [
+        p
+        for p in opponents.settle(warmer, date(1941, 9, 9), landed)
+        if isinstance(p, ev.StanceChanged)
+    ]
+    assert change.standing.stance is Stance.NEUTRAL
+    assert (change.standing.cause, change.standing.order) == (StanceCause.DISPOSITION, order)
+
+
+def test_the_order_named_is_the_last_to_set_the_regard_that_day() -> None:
+    store, seat, keys = begun()
+    state = load_state(store, CAMPAIGN)
+    soured = regard(state, keys["stalin"], keys["churchill"], -4, seat)
+    rel = ev.RelationshipSet(relationship=next(iter(soured.relationships.values())))
+    first, last = (OrderId(derived_id(CAMPAIGN, "order", k)) for k in ("a", "b"))
+    landed: list[ev.Payload] = [
+        rel,
+        ev.EffectsApplied(order_id=first, part=0, on=date(1941, 9, 5)),
+        rel,
+        ev.EffectsApplied(order_id=last, part=0, on=date(1941, 9, 5)),
+    ]
+    change = opponents.settle(soured, date(1941, 9, 5), landed)[0]
+    assert isinstance(change, ev.StanceChanged) and change.standing.order == last

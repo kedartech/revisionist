@@ -11,6 +11,7 @@ from revisionist.core import events as ev
 from revisionist.core.goals import Ordered, goal_met
 from revisionist.core.ids import EntityId, MandateId, OrderId, SeatId, derived_id
 from revisionist.core.ontology import EntityKind
+from revisionist.core.realism import actors
 from revisionist.core.realism.agenda import (
     MANDATE_CAP,
     Mandate,
@@ -75,7 +76,11 @@ def _acts(state: State, kind: EffectKind, today: date) -> list[tuple[OrderId, Se
 def _firings(state: State, t: MandateTemplate, today: date) -> list[tuple[SeatId, OrderId | None]]:
     """Each seat the template reaches today, with the order it answers (blowback)."""
     people: set[EntityId] = set(t.to)
-    held = sorted(s.seat_id for s in state.seats.values() if s.embodies in people)
+    held = sorted(
+        s.seat_id
+        for s in state.seats.values()
+        if s.embodies in people and s.seat_id in actors.readers(state)
+    )
     trigger = t.trigger
     match trigger.on:
         case TriggerKind.HISTORY:

@@ -42,7 +42,7 @@ from revisionist.core.ids import (
     derived_id,
 )
 from revisionist.core.ontology import Phase
-from revisionist.core.realism import apply, mandates, process
+from revisionist.core.realism import actors, apply, mandates, process
 from revisionist.core.realism.advance import Wake, next_wake
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.arrivals import arrivals
@@ -63,7 +63,7 @@ from revisionist.core.realism.route import due_executions, route
 from revisionist.core.realism.war_rules import contacts, order_refusal
 from revisionist.core.resolution import TickStage
 from revisionist.core.state import State
-from revisionist.core.visibility import PUBLIC, Scope, private_to
+from revisionist.core.visibility import PUBLIC, Scope, Visibility, private_to
 from revisionist.engine import campaign as cmp
 from revisionist.engine import session_zero
 from revisionist.engine.emit import Emitter, tail
@@ -276,7 +276,7 @@ def _prose(em: Emitter, writer: ProseWriter) -> tuple[list[Event], list[CallCost
     by_author: dict[EntityId, list[DocumentView]] = {}
     for doc_id in issued:
         page = em.state.documents[doc_id].view
-        if page.prose is None and not _nothing_stated(page):
+        if page.prose is None and not _nothing_stated(page) and _has_reader(em.state, page):
             by_author.setdefault(page.author, []).append(page)
     versions = em.versions.model_copy(
         update={"prompt": ",".join(x for x in (em.versions.prompt, prose_prompt_version()) if x)}
@@ -304,6 +304,13 @@ def _prose(em: Emitter, writer: ProseWriter) -> tuple[list[Event], list[CallCost
                 )
                 batch.append(e.model_copy(update={"versions": versions}))
     return batch, costs, dropped
+
+
+def _has_reader(state: State, page: DocumentView) -> bool:
+    """A public page, or one a seat with a desk holds: prose is written to be read."""
+    return page.scope.visibility is Visibility.PUBLIC or bool(
+        page.scope.known_by & actors.readers(state)
+    )
 
 
 def _nothing_stated(page: DocumentView) -> bool:

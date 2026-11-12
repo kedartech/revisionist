@@ -279,6 +279,15 @@ def test_the_prompt_names_who_writes_the_account() -> None:
     assert said == sl.state.entities[aide].name != sl.state.entities[sl.entity("roosevelt")].name
 
 
+def test_an_approach_account_is_not_written_in_the_targets_voice() -> None:
+    sl, oid = _scenario()
+    said = _order_block(es.estimator_prompt(sl.state, oid, 0))["reported_by"]
+    names = {sl.state.entities[sl.entity(k)].name for k in ("wheeler", "roosevelt")}
+    assert said not in names
+    circle = sl.state.cards[sl.entity("roosevelt")].inner_circle
+    assert said in {sl.state.entities[c.person].name for c in circle}
+
+
 def test_the_account_is_asked_for_in_the_reporters_own_words() -> None:
     from revisionist.engine.llm import prompt_text
 

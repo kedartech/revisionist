@@ -21,6 +21,7 @@ from revisionist.core.realism.apply import (
     apply_due,
     as_carried,
     report,
+    reporter,
 )
 from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.geography import SPEED_KM_PER_DAY, Feature, km_between
@@ -499,3 +500,16 @@ def test_an_unreachable_target_does_not_write_the_paper(
         c.person for c in sl.state.cards[sl.entity("roosevelt")].inner_circle
     }
     assert sl.state.entities[wheeler].name in doc.document.title
+
+
+def test_an_unreachable_approach_from_a_seat_with_no_circle_is_not_a_letter_to_oneself(
+    sl: Slice, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(reach, "channels_to", lambda *a, **k: ())
+    roosevelt = sl.entity("roosevelt")
+    order = influence(sl, False)
+    card = sl.state.cards[roosevelt].model_copy(update={"inner_circle": ()})
+    state = sl.state.model_copy(update={"cards": {**sl.state.cards, roosevelt: card}})
+    author, _ = reporter(state, state.routed[order.order_id], 0)
+    assert author != roosevelt
+    assert author == sl.entity("wheeler")

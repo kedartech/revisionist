@@ -390,19 +390,27 @@ def _aide(state: State, issuer: EntityId) -> EntityId:
 def reporter(state: State, order: RoutedOrder, part: int) -> tuple[EntityId, ChannelKind]:
     """Who writes the issuer's paper on one part, and the channel it comes by. An
     approach is answered by its target, unless no channel reaches them: then the
-    issuer's own staff report that it never went."""
+    issuer's own staff report that it never went (the target still, for an issuer with
+    no staff, rather than a letter to themselves)."""
     routed = order.parts[part]
     issuer = state.seats[order.issuer].embodies
-    if (
-        routed.route is Route.INFLUENCE
-        and routed.target is not None
-        and reach.channels_to(state, issuer, routed.target)
-    ):
-        author = routed.target
+    if routed.route is Route.INFLUENCE and routed.target is not None:
+        staff = _aide(state, issuer)
+        reached = reach.channels_to(state, issuer, routed.target)
+        author = routed.target if reached or staff == issuer else staff
     else:
         author = routed.executor if routed.executor is not None else _aide(state, issuer)
     channels = reach.channels_to(state, issuer, author) if author != issuer else ()
     return author, channels[0] if channels else ChannelKind.IN_PERSON
+
+
+def account_by(state: State, order: RoutedOrder, part: int) -> EntityId:
+    """Whose words the estimator's account of one part is written in: the paper's author,
+    except on an approach. Its paper speaks from the target's decision, and the account
+    is shown to the issuer before that, so it comes from the issuer's own staff."""
+    if order.parts[part].route is Route.INFLUENCE:
+        return _aide(state, state.seats[order.issuer].embodies)
+    return reporter(state, order, part)[0]
 
 
 def report_doc_id(campaign_id: CampaignId, order_id: OrderId, part: int) -> DocumentId:
@@ -470,6 +478,7 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
 
 
 __all__ = [
+    "account_by",
     "answer",
     "apply_due",
     "as_carried",

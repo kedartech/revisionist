@@ -1,5 +1,5 @@
 {
- "7519a70b00e6b458d7f533f1": {
+ "4034100de1bd7177157b152e": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -25,12 +25,12 @@
    "usd": 0.0
   }
  },
- "92e66fae52d1452b4706cee5": {
+ "77ad9c965fe34d33a8a5566c": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply (quantity)",
-  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"4W7GBHN946QWXFJTADTT7CJMGV\",\"issuer\":\"Frank",
+  "note": "hand-written for tests; not a model reply (figure)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"ZZPE3Q51YWBGEV3Q49DSSZN4CY\",\"issuer\":\"Frank",
   "reply": {
    "cached_tokens": 0,
    "input_tokens": 0,
@@ -38,19 +38,19 @@
    "output": {
     "effects": [
      {
-      "bloc": "isolationists",
-      "count": 40,
-      "kind": "set_votes"
+      "kind": "figure",
+      "percent": 10,
+      "quantity": "W449JZD1QF2WJM8J2HZGAQ8TC9"
      }
     ],
-    "rationale": "A count, which no effect may carry.",
-    "reason": "Forty votes fall away."
+    "rationale": "The order plainly bears on the Democrats' strength; ten percent.",
+    "reason": "The count rises as the Hill takes the lobbying to heart."
    },
    "output_tokens": 0,
    "usd": 0.0
   }
  },
- "bab63a221ca5423a6774f3c2": {
+ "848e25456c77d8337c65fea7": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -76,12 +76,12 @@
    "usd": 0.0
   }
  },
- "ead04c64b5ebbad8f8fad3d1": {
+ "f2df0b727f266a8dd852278d": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply (figure)",
-  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"ZZPE3Q51YWBGEV3Q49DSSZN4CY\",\"issuer\":\"Frank",
+  "note": "hand-written for tests; not a model reply (quantity)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"4W7GBHN946QWXFJTADTT7CJMGV\",\"issuer\":\"Frank",
   "reply": {
    "cached_tokens": 0,
    "input_tokens": 0,
@@ -89,13 +89,13 @@
    "output": {
     "effects": [
      {
-      "kind": "figure",
-      "percent": 10,
-      "quantity": "W449JZD1QF2WJM8J2HZGAQ8TC9"
+      "bloc": "isolationists",
+      "count": 40,
+      "kind": "set_votes"
      }
     ],
-    "rationale": "The order plainly bears on the Democrats' strength; ten percent.",
-    "reason": "The count rises as the Hill takes the lobbying to heart."
+    "rationale": "A count, which no effect may carry.",
+    "reason": "Forty votes fall away."
    },
    "output_tokens": 0,
    "usd": 0.0

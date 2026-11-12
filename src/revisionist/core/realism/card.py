@@ -209,6 +209,18 @@ class Desk(CardFace):
         return self
 
 
+class Conflict(Model):
+    """Something the person is set against, as the world file declares it."""
+
+    against: EntityId
+    """A person, or a polity for everyone in it."""
+    over: Label
+    """What it is over, in words a seat may be shown."""
+    irreducible: bool = False
+    """No standing with the person ends it: their stance toward whoever it names
+    never rises above obstructing."""
+
+
 class SeatCard(Desk):
     """The whole card. The policy fields below are how code runs an unclaimed person;
     they never leave the engine."""
@@ -222,8 +234,14 @@ class SeatCard(Desk):
     competence: int = Field(default=3, ge=0, le=5)
     """Engine v2: how well the person carries out a command (fidelity, spec §8.2).
     3 is ordinary. [proposed]"""
+    # Left out of the dump while empty, so a campaign whose cards carry neither
+    # keeps its state hash.
+    allies: tuple[EntityId, ...] = Field(default=(), exclude_if=lambda v: not v)
+    """The polities and people this person stands with."""
+    opposes: tuple[Conflict, ...] = Field(default=(), max_length=6, exclude_if=lambda v: not v)
+    """What this person is set against."""
 
-    late_fields: ClassVar[frozenset[str]] = Desk.late_fields | {"competence"}
+    late_fields: ClassVar[frozenset[str]] = Desk.late_fields | {"competence", "allies", "opposes"}
 
     def face(self) -> CardFace:
         return CardFace.model_validate(self.model_dump(include=set(CardFace.model_fields)))
@@ -237,6 +255,7 @@ __all__ = [
     "Aim",
     "CardFace",
     "ChannelKind",
+    "Conflict",
     "Contact",
     "Desk",
     "Domain",

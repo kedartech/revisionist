@@ -61,8 +61,9 @@ def needs_admin_read(event: Event) -> bool:
 
     The envelope is not enough: ``delta_applied`` is logged Public even when its
     delta creates a covert fact. Realism truth has no seat to be scoped to, so a
-    document's truth half, a card's AI policy and an engine-only quantity count
-    as private whatever their envelope says.
+    document's truth half, a card's AI policy, an engine-only quantity, and the
+    stances and opponents the engine works out count as private whatever their
+    envelope says.
     """
     if seal_holder(event) is not None:
         return True
@@ -70,6 +71,8 @@ def needs_admin_read(event: Event) -> bool:
     if isinstance(p, ev.CardsDeclared | ev.DocumentIssued | ev.EffectsEstimated):
         return True
     if isinstance(p, ev.OrderRouted | ev.PlayStyleSet):
+        return True
+    if isinstance(p, ev.StanceChanged | ev.OpponentsRanked):
         return True
     if isinstance(p, ev.QuantitySet) and p.quantity.scope is None:
         return True

@@ -78,7 +78,15 @@ from revisionist.core.ontology import (
     SeatKind,
 )
 from revisionist.core.realism.agenda import MandateKind, MandateTemplate, Trigger, TriggerKind
-from revisionist.core.realism.card import Contact, Domain, Lever, ParamKind, Reach, SeatCard
+from revisionist.core.realism.card import (
+    Conflict,
+    Contact,
+    Domain,
+    Lever,
+    ParamKind,
+    Reach,
+    SeatCard,
+)
 from revisionist.core.realism.document import Feed
 from revisionist.core.realism.effect import ESTIMATED_ONLY
 from revisionist.core.realism.geography import FORCES, Feature, Leg
@@ -402,6 +410,8 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
         for k in c.inner_circle:
             person(where, k.person)
         _refs(problems, where, c.reach.chain, "entity", sections)
+        _refs(problems, where, c.allies, "entity", sections)
+        _refs(problems, where, [x.against for x in c.opposes], "entity", sections)
         domains = [dm.name for dm in c.authority]
         if len(set(domains)) != len(domains):
             problems.append(f"{where}: an authority domain is named twice")
@@ -1136,6 +1146,11 @@ def _card(c: CardDecl, ids: Mapping[str, str]) -> SeatCard:
             heads=c.reach.heads,
         ),
         aims=c.aims,
+        allies=tuple(EntityId(ids[k]) for k in c.allies),
+        opposes=tuple(
+            Conflict(against=EntityId(ids[x.against]), over=x.over, irreducible=x.irreducible)
+            for x in c.opposes
+        ),
     )
 
 

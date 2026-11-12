@@ -1,0 +1,12 @@
+/* p8-threats.css: the opponents list at the top of the orders column. Tokens only (web/css/tokens.css). */
+.rl-threats { font: 14px/1.5 var(--font-chrome); color: var(--fg); min-width: 0; }
+.rl-threats h2 { margin: 0 0 var(--space-2); font: 600 14px/1.3 var(--font-head); letter-spacing: 0.04em; text-transform: uppercase; color: var(--fg-strong); }
+.rl-threat-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+.rl-threat { padding: var(--space-2) var(--space-3); background: var(--field); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-threat p { margin: 0; overflow-wrap: anywhere; }
+.rl-threat-who { color: var(--fg-strong); }
+.rl-threat-office, .rl-threat-known, .rl-threat-over { font-size: 13px; }
+.rl-threat-stance { font-weight: 600; }
+.rl-threat-hostile { color: var(--danger); }
+.rl-threat-obstructing { color: var(--warn); }
+.rl-threat-trend { font-size: 13px; }

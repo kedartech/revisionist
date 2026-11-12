@@ -1726,6 +1726,32 @@
         "title": "CommitmentStatusSet",
         "type": "object"
       },
+      "Conflict": {
+        "additionalProperties": false,
+        "description": "Something the person is set against, as the world file declares it.",
+        "properties": {
+          "against": {
+            "title": "Against",
+            "type": "string"
+          },
+          "irreducible": {
+            "default": false,
+            "title": "Irreducible",
+            "type": "boolean"
+          },
+          "over": {
+            "maxLength": 60,
+            "title": "Over",
+            "type": "string"
+          }
+        },
+        "required": [
+          "against",
+          "over"
+        ],
+        "title": "Conflict",
+        "type": "object"
+      },
       "Contact": {
         "additionalProperties": false,
         "description": "A person in the inner circle, and how the words travel.",
@@ -5239,6 +5265,36 @@
         "title": "OperationResolved",
         "type": "object"
       },
+      "OpponentsRanked": {
+        "additionalProperties": false,
+        "description": "The people actively opposing a seat, as the truth has it. Engine only.",
+        "properties": {
+          "active": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Active",
+            "type": "array"
+          },
+          "kind": {
+            "const": "opponents_ranked",
+            "default": "opponents_ranked",
+            "title": "Kind",
+            "type": "string"
+          },
+          "seat_id": {
+            "title": "Seat Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seat_id",
+          "active"
+        ],
+        "title": "OpponentsRanked",
+        "type": "object"
+      },
       "Option": {
         "additionalProperties": false,
         "description": "A guided step or a beginner option: an ordinary order and what it risks,\nas the seat understands it.",
@@ -7046,6 +7102,14 @@
             "title": "Aims",
             "type": "array"
           },
+          "allies": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Allies",
+            "type": "array"
+          },
           "authority": {
             "default": [],
             "items": {
@@ -7129,6 +7193,15 @@
             "maxLength": 60,
             "title": "Office",
             "type": "string"
+          },
+          "opposes": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Conflict"
+            },
+            "maxItems": 6,
+            "title": "Opposes",
+            "type": "array"
           },
           "person": {
             "title": "Person",
@@ -7650,6 +7723,114 @@
           "places"
         ],
         "title": "SightRef",
+        "type": "object"
+      },
+      "Stance": {
+        "description": "Worst first, so the order of the members is the order of the stances.",
+        "enum": [
+          "hostile",
+          "obstructing",
+          "neutral",
+          "cooperative",
+          "aligned"
+        ],
+        "title": "Stance",
+        "type": "string"
+      },
+      "StanceCause": {
+        "enum": [
+          "start",
+          "sides",
+          "disposition"
+        ],
+        "title": "StanceCause",
+        "type": "string"
+      },
+      "StanceChanged": {
+        "additionalProperties": false,
+        "description": "A person nobody plays took a new stance toward a seat. Engine only: the seat\nis shown the stance as its staff last had evidence for it.",
+        "properties": {
+          "figure": {
+            "title": "Figure",
+            "type": "string"
+          },
+          "kind": {
+            "const": "stance_changed",
+            "default": "stance_changed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "seat_id": {
+            "title": "Seat Id",
+            "type": "string"
+          },
+          "standing": {
+            "$ref": "#/$defs/Standing"
+          }
+        },
+        "required": [
+          "seat_id",
+          "figure",
+          "standing"
+        ],
+        "title": "StanceChanged",
+        "type": "object"
+      },
+      "Standing": {
+        "additionalProperties": false,
+        "description": "One person's stance toward one seat, from the day it took hold.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/StanceCause"
+          },
+          "disposition": {
+            "maximum": 5,
+            "minimum": -5,
+            "title": "Disposition",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Order"
+          },
+          "score": {
+            "maximum": 20,
+            "minimum": -20,
+            "title": "Score",
+            "type": "integer"
+          },
+          "side": {
+            "maximum": 5,
+            "minimum": -5,
+            "title": "Side",
+            "type": "integer"
+          },
+          "stance": {
+            "$ref": "#/$defs/Stance"
+          }
+        },
+        "required": [
+          "on",
+          "stance",
+          "score",
+          "side",
+          "disposition",
+          "cause"
+        ],
+        "title": "Standing",
         "type": "object"
       },
       "StatementIssued": {
@@ -8439,6 +8620,7 @@
             "news_reported": "#/$defs/NewsReported",
             "operation_opened": "#/$defs/OperationOpened",
             "operation_resolved": "#/$defs/OperationResolved",
+            "opponents_ranked": "#/$defs/OpponentsRanked",
             "options_offered": "#/$defs/OptionsOffered",
             "order_drafted": "#/$defs/OrderDrafted",
             "order_executed": "#/$defs/OrderExecuted",
@@ -8460,6 +8642,7 @@
             "session_zero_closed": "#/$defs/SessionZeroClosed",
             "session_zero_opened": "#/$defs/SessionZeroOpened",
             "settings_set": "#/$defs/SettingsSet",
+            "stance_changed": "#/$defs/StanceChanged",
             "statement_issued": "#/$defs/StatementIssued",
             "tick_closed": "#/$defs/TickClosed",
             "tick_opened": "#/$defs/TickOpened",
@@ -8660,6 +8843,12 @@
           },
           {
             "$ref": "#/$defs/NewsReported"
+          },
+          {
+            "$ref": "#/$defs/StanceChanged"
+          },
+          {
+            "$ref": "#/$defs/OpponentsRanked"
           },
           {
             "$ref": "#/$defs/CounselHeld"
@@ -9527,6 +9716,32 @@
         ],
         "title": "CommitmentStatus",
         "type": "string"
+      },
+      "Conflict": {
+        "additionalProperties": false,
+        "description": "Something the person is set against, as the world file declares it.",
+        "properties": {
+          "against": {
+            "title": "Against",
+            "type": "string"
+          },
+          "irreducible": {
+            "default": false,
+            "title": "Irreducible",
+            "type": "boolean"
+          },
+          "over": {
+            "maxLength": 60,
+            "title": "Over",
+            "type": "string"
+          }
+        },
+        "required": [
+          "against",
+          "over"
+        ],
+        "title": "Conflict",
+        "type": "object"
       },
       "Contact": {
         "additionalProperties": false,
@@ -12571,6 +12786,14 @@
             "title": "Aims",
             "type": "array"
           },
+          "allies": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Allies",
+            "type": "array"
+          },
           "authority": {
             "default": [],
             "items": {
@@ -12654,6 +12877,15 @@
             "maxLength": 60,
             "title": "Office",
             "type": "string"
+          },
+          "opposes": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Conflict"
+            },
+            "maxItems": 6,
+            "title": "Opposes",
+            "type": "array"
           },
           "person": {
             "title": "Person",
@@ -13025,6 +13257,84 @@
           "places"
         ],
         "title": "SightRef",
+        "type": "object"
+      },
+      "Stance": {
+        "description": "Worst first, so the order of the members is the order of the stances.",
+        "enum": [
+          "hostile",
+          "obstructing",
+          "neutral",
+          "cooperative",
+          "aligned"
+        ],
+        "title": "Stance",
+        "type": "string"
+      },
+      "StanceCause": {
+        "enum": [
+          "start",
+          "sides",
+          "disposition"
+        ],
+        "title": "StanceCause",
+        "type": "string"
+      },
+      "Standing": {
+        "additionalProperties": false,
+        "description": "One person's stance toward one seat, from the day it took hold.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/StanceCause"
+          },
+          "disposition": {
+            "maximum": 5,
+            "minimum": -5,
+            "title": "Disposition",
+            "type": "integer"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Order"
+          },
+          "score": {
+            "maximum": 20,
+            "minimum": -20,
+            "title": "Score",
+            "type": "integer"
+          },
+          "side": {
+            "maximum": 5,
+            "minimum": -5,
+            "title": "Side",
+            "type": "integer"
+          },
+          "stance": {
+            "$ref": "#/$defs/Stance"
+          }
+        },
+        "required": [
+          "on",
+          "stance",
+          "score",
+          "side",
+          "disposition",
+          "cause"
+        ],
+        "title": "Standing",
         "type": "object"
       },
       "Step": {
@@ -13639,6 +13949,16 @@
         "title": "News",
         "type": "object"
       },
+      "opponents": {
+        "additionalProperties": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "title": "Opponents",
+        "type": "object"
+      },
       "orders": {
         "additionalProperties": {
           "$ref": "#/$defs/Order"
@@ -13747,6 +14067,19 @@
           ],
           "world_days_per_tick": 7
         }
+      },
+      "stances": {
+        "additionalProperties": {
+          "additionalProperties": {
+            "items": {
+              "$ref": "#/$defs/Standing"
+            },
+            "type": "array"
+          },
+          "type": "object"
+        },
+        "title": "Stances",
+        "type": "object"
       },
       "standing": {
         "additionalProperties": {

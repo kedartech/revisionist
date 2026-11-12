@@ -28,6 +28,7 @@ FINGERPRINTS: dict[str, str] = {
     "22": "9d6463f137de16ca071cf2933fee9d701300d198c4e1fdbac2ccdd81bf04018b",
     "23": "756a7f8aa87e26b1f8efdda4d5812bc98e2913978e854776e2e9d80b469c9065",
     "24": "c127f82e94590fdaa8e0ed5704989a59a4143dbb145eb66f2c799d342feb8f80",
+    "25": "a95ce957edf238d4d4c7f0e5e7d7e7aaf1c120f9219158c077a27fbac23ccbb0",
 }
 
 

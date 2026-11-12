@@ -551,6 +551,17 @@ def orders(page: Page, report: dict[str, object], v2: bool) -> None:
     )
     report["orders"] = page.locator(".rl-oc").inner_text()[:1200]
     check("your orders are in words", "_" not in str(report["orders"]))
+    if not v2:  # the slice declares no allies or conflicts, so it has no opponents list
+        listed = page.locator(".rl-threats")
+        report["opponents"] = listed.inner_text()[:600] if listed.count() else ""
+        said = str(report["opponents"]).lower()
+        check(
+            "the opponents list says who is set against you and as of when",
+            all(
+                w in said for w in ("opponents", "hideki tojo", "obstructing", "as of 1 september")
+            ),
+            said[:200],
+        )
     shoot(page, "07-orders")
     axe(page, "orders")
 

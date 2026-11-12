@@ -24,6 +24,7 @@ import { newsBlock, whatChanged } from './realism-news.js';
 import { orderCards } from './realism-orders.js';
 import { overlayLines, wakeOverlay } from './realism-overlay.js';
 import { threadItems } from './realism-thread.js';
+import { threatsPanel } from './realism-threats.js';
 import { trayView } from './realism-tray.js';
 import { RUNNING, commitPanel, orderCard, stylePicker, wakeHeader } from './realism-wake.js';
 
@@ -396,6 +397,7 @@ export function realismRoom(ctx) {
   function sideColumn() {
     return h('aside', { class: 'rl-col rl-side', 'aria-label': 'Your orders' },
       h('div', { class: 'rl-col-body' },
+        threatsPanel(rv.threats),
         orderCards(rv.record, rv.orders, (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v)))));
   }
 

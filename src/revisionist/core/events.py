@@ -13,7 +13,8 @@ SessionZeroOpened, CharacterListed, CharacterClaimed,
 CharacterReleased, SessionZeroClosed, SeasonEnded, GoalSet, GoalProgressed, GoalMet, GoalUndone,
 TickOpened, TickClosed``, and for realism campaigns ``CardsDeclared,
 DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, QuantitySet,
-FeatureSet, WarDeclared, NewsReported``, and under engine v2 ``OrderRouted, OrderExecuted,
+FeatureSet, WarDeclared, NewsReported, StanceChanged, OpponentsRanked``, and under engine v2
+``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet``.
 
@@ -74,6 +75,7 @@ from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelit
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import Order, OrderStatus, Pipeline, StepOutcome
 from revisionist.core.realism.quantity import Quantity
+from revisionist.core.realism.stance import Standing
 from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.resolution import FeasibilityBand, OutcomeTier, RejectionReason, TickStage
 from revisionist.core.settings import Settings
@@ -624,6 +626,24 @@ class NewsReported(Model):
     news: NewsEvent
 
 
+class StanceChanged(Model):
+    """A person nobody plays took a new stance toward a seat. Engine only: the seat
+    is shown the stance as its staff last had evidence for it."""
+
+    kind: Literal["stance_changed"] = "stance_changed"
+    seat_id: SeatId
+    figure: EntityId
+    standing: Standing
+
+
+class OpponentsRanked(Model):
+    """The people actively opposing a seat, as the truth has it. Engine only."""
+
+    kind: Literal["opponents_ranked"] = "opponents_ranked"
+    seat_id: SeatId
+    active: tuple[EntityId, ...] = Field(max_length=4)
+
+
 class CounselHeld(Model):
     """A seat consulted a person on its card. The words are prose and change nothing;
     a record, sealed with the seat's key like an order's text."""
@@ -885,6 +905,8 @@ Payload = Annotated[
     | FeatureSet
     | WarDeclared
     | NewsReported
+    | StanceChanged
+    | OpponentsRanked
     | CounselHeld
     | DirectiveGiven
     | OrderRouted
@@ -949,6 +971,8 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "quantity_set",
         "feature_set",
         "war_declared",
+        "stance_changed",
+        "opponents_ranked",
         "news_reported",
         "order_routed",
         "order_executed",

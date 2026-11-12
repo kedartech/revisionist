@@ -436,6 +436,7 @@ pipelines:
 cards:
   # --- the eight playable cards ---
   - person: roosevelt
+    allies: [uk, china]
     office: President of the United States
     playable: true
     principals: [usa]
@@ -544,6 +545,7 @@ cards:
         summary: "Decide how the aid programme is shared out."
     reach: {rank: 5, chain: [usa], heads: true}
   - person: churchill
+    allies: [usa, ussr]
     office: Prime Minister of the United Kingdom
     playable: true
     principals: [commons]
@@ -619,6 +621,7 @@ cards:
         summary: "Treat with other governments, through the Foreign Secretary."
     reach: {rank: 5, chain: [uk], heads: true}
   - person: stalin
+    allies: [uk]
     office: Chairman of the Council of People's Commissars
     playable: true
     principals: [ussr]
@@ -688,6 +691,7 @@ cards:
         summary: "Treat with other governments, through the Commissar for Foreign Affairs."
     reach: {rank: 5, chain: [ussr], heads: true}
   - person: hitler
+    allies: [italy, japan]
     office: Fuehrer and Reich Chancellor
     playable: true
     principals: [germany]
@@ -768,6 +772,7 @@ cards:
         summary: "Treat with other governments, through the Foreign Minister."
     reach: {rank: 5, chain: [germany], heads: true}
   - person: konoe
+    allies: [germany, italy]
     office: Prime Minister of Japan
     playable: true
     principals: [hirohito]
@@ -829,6 +834,7 @@ cards:
         summary: "Negotiate with the United States, through the Ambassador in Washington."
     reach: {rank: 4, chain: [japan]}
   - person: tojo
+    allies: [germany, italy]
     office: War Minister of Japan
     playable: true
     principals: [konoe]
@@ -884,6 +890,7 @@ cards:
         summary: "Speak for the Army's position."
     reach: {rank: 3, chain: [japan]}
   - person: mussolini
+    allies: [germany, japan]
     office: Duce and Prime Minister of Italy
     playable: true
     principals: [victor_emmanuel]
@@ -937,6 +944,7 @@ cards:
         summary: "Appoint and dismiss ministers and commanders."
     reach: {rank: 4, chain: [italy], heads: true}
   - person: chiang
+    allies: [usa]
     office: Chairman of the National Government of China
     playable: true
     principals: [china]

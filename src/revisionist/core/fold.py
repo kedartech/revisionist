@@ -398,6 +398,8 @@ def _mutate(state: State, event: Event) -> State:
             | ev.FeatureSet()
             | ev.WarDeclared()
             | ev.NewsReported()
+            | ev.StanceChanged()
+            | ev.OpponentsRanked()
         ):
             if state.ruleset != "realism":
                 raise FoldError(f"{event.kind} belongs to a realism campaign")
@@ -455,6 +457,8 @@ def _realism(state: State, p: ev.Payload) -> State:
                     *(k.person for k in c.inner_circle),
                     *(dm.executor for dm in c.authority if dm.executor is not None),
                     *c.reach.chain,
+                    *c.allies,
+                    *(x.against for x in c.opposes),
                 ]
                 for entity in [*named, *([c.successor] if c.successor else [])]:
                     _need(state.entities, entity, "entity")
@@ -595,6 +599,24 @@ def _realism(state: State, p: ev.Payload) -> State:
         case ev.NewsReported():
             _fresh(state.news, p.news.news_id, "news")
             return state.model_copy(update={"news": _put(state.news, p.news.news_id, p.news)})
+        case ev.StanceChanged():
+            _need(state.seats, p.seat_id, "seat")
+            _need(state.cards, p.figure, "card")
+            held = state.stances.get(p.seat_id, {})
+            past = held.get(p.figure, ())
+            if past and (p.standing.on < past[-1].on or p.standing.stance is past[-1].stance):
+                raise FoldError(f"stance of {p.figure}: not a change, or dated before the last")
+            held = _put(held, p.figure, (*past, p.standing))
+            return state.model_copy(update={"stances": _put(state.stances, p.seat_id, held)})
+        case ev.OpponentsRanked():
+            _need(state.seats, p.seat_id, "seat")
+            if len(set(p.active)) != len(p.active):
+                raise FoldError(f"opponents of {p.seat_id}: a person is listed twice")
+            for figure in p.active:
+                _need(state.cards, figure, "card")
+            return state.model_copy(
+                update={"opponents": _put(state.opponents, p.seat_id, p.active)}
+            )
         case _:
             raise FoldError(f"kind {p.kind!r} is not a realism record")
 

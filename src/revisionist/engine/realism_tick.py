@@ -42,7 +42,7 @@ from revisionist.core.ids import (
     derived_id,
 )
 from revisionist.core.ontology import Phase
-from revisionist.core.realism import actors, apply, mandates, process
+from revisionist.core.realism import actors, apply, mandates, opponents, process
 from revisionist.core.realism.advance import Wake, next_wake
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.arrivals import arrivals
@@ -354,7 +354,8 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     commands fall due, processes open, influence is decided, ready parts apply, the
     orders enacted that day are resolved, then what moves with time, then arrivals, contacts and the
     press, then the feeds that fall due issue, dated that day, then mandates settle and
-    issue. Each step sees the state after the ones before it."""
+    issue, then stances and each seat's opponents are worked out. Each step sees the
+    state after the ones before it."""
     state = em.state
     out: list[Event] = []
 
@@ -364,6 +365,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         state = replay(batch, initial=state)
         out.extend(batch)
 
+    wake_start = dict(state.opponents)
     pending = _unresolved(events)
     for oid in pending:
         order = state.orders[oid]
@@ -377,7 +379,8 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(due_executions(state, day))
         add(process.open_processes(state, day))
         add(process.influence_due(state, day))
-        add(apply.apply_due(state, day))
+        landed = apply.apply_due(state, day)
+        add(landed)
         for step in steps:
             if isinstance(step, ev.OrderSettled) and step.status is OrderStatus.ENACTED:
                 order = state.orders[step.order_id]
@@ -400,6 +403,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         out.extend(docs)
         add(mandates.settle_due(state, day))
         add(mandates.issue_due(state, day))
+        add(opponents.settle(state, day, landed, wake_start))
     return out
 
 
@@ -438,6 +442,7 @@ def open_play(store: EventStore, campaign_id: CampaignId) -> None:
             matter = mandates.opening(state, seat, state.in_world_date)
             if matter is not None:
                 batch.append(em.event(matter, scope=matter.mandate.scope))
+        batch += [em.event(p) for p in opponents.settle(state, state.in_world_date)]
     em.commit(batch)
 
 

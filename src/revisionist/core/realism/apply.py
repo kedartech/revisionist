@@ -337,17 +337,21 @@ def outcome(part: PartView) -> str:
     return _CARRIED[part.fidelity] if part.fidelity is not None else "carried out"
 
 
+AGREED = "I will do as you ask."
+REFUSED = "I cannot agree to what you ask."
+
+
 def answer(state: State, order: RoutedOrder, part: RoutedPart) -> str:
-    """What came of an approach, in line with the decision: agreed; never reached (no
-    channel to them); or would not be moved, with the same hint on every refusal."""
+    """What came of an approach, in line with the decision and in the target's own
+    words, since the target writes the paper: agreed; or refused, with the same hint on
+    every refusal. Never reached (no channel to them) is the issuer's staff speaking."""
     assert part.target is not None
-    name = _name(state, part.target)
     issuer = state.seats[order.issuer].embodies
     if part.accepted:
-        return f"{name} agreed to what you asked."
+        return AGREED
     if not reach.channels_to(state, issuer, part.target):
         return process.NO_REACH
-    return f"{name} would not be moved. {process.REFUSED_HINT}"
+    return f"{REFUSED} {process.REFUSED_HINT}"
 
 
 def _lines(text: str, label: str) -> list[BodyField]:
@@ -384,10 +388,16 @@ def _aide(state: State, issuer: EntityId) -> EntityId:
 
 
 def reporter(state: State, order: RoutedOrder, part: int) -> tuple[EntityId, ChannelKind]:
-    """Who writes the issuer's paper on one part, and the channel it comes by."""
+    """Who writes the issuer's paper on one part, and the channel it comes by. An
+    approach is answered by its target, unless no channel reaches them: then the
+    issuer's own staff report that it never went."""
     routed = order.parts[part]
     issuer = state.seats[order.issuer].embodies
-    if routed.route is Route.INFLUENCE and routed.target is not None:
+    if (
+        routed.route is Route.INFLUENCE
+        and routed.target is not None
+        and reach.channels_to(state, issuer, routed.target)
+    ):
         author = routed.target
     else:
         author = routed.executor if routed.executor is not None else _aide(state, issuer)
@@ -413,7 +423,7 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
         return REASON_WITHHELD if scan_text(state, order.issuer, text) else text
 
     if routed.route is Route.INFLUENCE and routed.target is not None:
-        title = f"Your approach to {_name(state, author)}: {outcome(routed)}"
+        title = f"Your approach to {_name(state, routed.target)}: {outcome(routed)}"
     else:
         partial = _partial_move(routed)
         if partial is None:

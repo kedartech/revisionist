@@ -145,6 +145,8 @@ button.danger { background: var(--danger); color: var(--on-accent); border-color
 .rl-body dt { color: var(--fg); }
 .rl-body dd { margin: 0; font-variant-numeric: tabular-nums; }
 .rl-body dt, .rl-body dd { overflow-wrap: anywhere; }
+.rl-sheet-note { margin: var(--space-1) 0 0; font: italic 13px/1.4 var(--font-chrome); color: var(--fg); }
+.rl-sheet .rl-body { grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); }
 .rl-prose p { margin: 0 0 var(--space-3); font-family: var(--font-read); }
 
 .rl-desk-block { margin-bottom: var(--space-4); }

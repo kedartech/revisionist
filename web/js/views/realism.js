@@ -5,7 +5,7 @@
 import { h, icon } from '../dom.js';
 import {
   TRAY_FILTERS, addressLine, channelWord, directiveChannel, classificationWord, figureValue, filterInTray, linesHeading, paceLine,
-  reportLine, runLine, sortInTray, trayCounts, trendLine,
+  reportLine, runLine, sheetLines, sortInTray, trayCounts, trendLine,
 } from '../realism-rules.js';
 import { worldDate } from '../rules.js';
 
@@ -68,12 +68,16 @@ export function inTray(listing, onOpen, opts = {}) {
         : h('p', { class: 'rl-none' }, 'Nothing in this tray.')));
 }
 
-/** The page's figures; a line with no figure is left off rather than marked as missing. */
-function figures(lines) {
-  const shown = lines.filter((b) => b.value !== null);
+/**
+ * The page's figures; a line with no figure is left off rather than marked as missing.
+ * Without a letter the lines are the whole paper, shown as a plain summary sheet.
+ */
+function figures(lines, written) {
+  const shown = sheetLines(lines);
   if (!shown.length) return null;
-  return h('section', { class: 'rl-figures' },
-    h('h3', {}, linesHeading(shown)),
+  return h('section', { class: written ? 'rl-figures' : 'rl-figures rl-sheet' },
+    h('h3', {}, written ? linesHeading(shown) : 'Summary sheet'),
+    written ? null : h('p', { class: 'rl-sheet-note' }, 'No covering letter came with this paper.'),
     h('dl', { class: 'rl-body' }, shown.map((b) => [
       h('dt', {}, b.label),
       h('dd', {}, `${b.value}${b.unit ? ` ${b.unit}` : ''}`),
@@ -89,7 +93,7 @@ export function documentPage(page) {
     h('h2', { id: 'rl-page-h' }, item.title),
     h('p', { class: 'rl-page-from' }, `From ${item.author}, issued ${worldDate(item.issued)}, arrived ${worldDate(item.arrives)}`),
     paragraphs.length ? h('div', { class: 'rl-prose' }, paragraphs.map((p) => h('p', {}, p))) : null,
-    figures(page.body));
+    figures(page.body, paragraphs.length > 0));
 }
 
 /** An opened folder: the paper on the folder's inside, with Close folder and Flag/Unflag. */

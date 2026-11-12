@@ -198,7 +198,7 @@ def test_a_decided_approach_reads_as_the_decision_not_the_estimate() -> None:
     _land_reports(sl, date(1941, 9, 14))
     [part] = results(sl.state, sl.fdr)[0]["parts"]
     assert part["accepted"] is False
-    assert "receptive" not in str(part["reason"]) and "would not be moved" in str(part["reason"])
+    assert "receptive" not in str(part["reason"]) and "cannot agree" in str(part["reason"])
 
 
 def _land_reports(sl: Slice, on: date) -> None:

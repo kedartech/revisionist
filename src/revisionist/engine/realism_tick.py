@@ -268,8 +268,10 @@ def _estimate(em: Emitter, transport: Transport) -> None:
 
 def _prose(em: Emitter, writer: ProseWriter) -> tuple[list[Event], list[CallCost], list[str]]:
     """``document_written`` for each page issued since the last tick closed that has no
-    prose yet, one writer call per author. A failed call leaves its pages bare, and so
-    does a page whose every line lacks a figure: there is nothing on it to write up."""
+    prose yet, one writer call per author. A page whose draft fails the check is sent
+    once more, with the fault named; one that fails again keeps its lines alone. A
+    failed call leaves its pages bare, and so does a page whose every line lacks a
+    figure: there is nothing on it to write up."""
     log_now = list(em.store.read(em.state.campaign_id))
     start = max((i + 1 for i, e in enumerate(log_now) if e.kind == "tick_closed"), default=0)
     issued = [
@@ -300,6 +302,18 @@ def _prose(em: Emitter, writer: ProseWriter) -> tuple[list[Event], list[CallCost
         if written.cost is not None:
             costs.append(written.cost)
         keep, refused = accepted(pages, written, author)
+        if refused:
+            again = {r.doc_id: r.reason for r in refused}
+            retry = author.model_copy(update={"refused": again})
+            try:
+                second = writer.write(retry, [p for p in pages if p.doc_id in again])
+            except TransportError as exc:
+                log.warning("second prose call for %s failed: %s", author_id, exc)
+            else:
+                if second.cost is not None:
+                    costs.append(second.cost)
+                more, refused = accepted([p for p in pages if p.doc_id in again], second, author)
+                keep |= more
         dropped += [f"{r.doc_id}: {r.reason}" for r in refused]
         for page in pages:
             if page.doc_id in keep:

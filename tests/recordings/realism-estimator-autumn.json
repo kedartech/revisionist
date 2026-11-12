@@ -1,10 +1,10 @@
 {
- "24aa08c5c80b4288d83358f8": {
+ "7519a70b00e6b458d7f533f1": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply (figure)",
-  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"ZZPE3Q51YWBGEV3Q49DSSZN4CY\",\"issuer\":\"Frank",
+  "note": "hand-written for tests; not a model reply (shift)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"J8PGQ0WA0J43MQN5T5HKKKK68F\",\"issuer\":\"Frank",
   "reply": {
    "cached_tokens": 0,
    "input_tokens": 0,
@@ -12,19 +12,20 @@
    "output": {
     "effects": [
      {
-      "kind": "figure",
-      "percent": 10,
-      "quantity": "W449JZD1QF2WJM8J2HZGAQ8TC9"
+      "change": -1,
+      "kind": "disposition",
+      "of": "THFN18W8WRFX8EF1JVQBF8C2R0",
+      "toward": "Z1YMP565PJFGVNTHDHMPYR57K0"
      }
     ],
-    "rationale": "The order plainly bears on the Democrats' strength; ten percent.",
-    "reason": "The count rises as the Hill takes the lobbying to heart."
+    "rationale": "Wheeler resents being lobbied; one step down.",
+    "reason": "The Senate will notice."
    },
    "output_tokens": 0,
    "usd": 0.0
   }
  },
- "39eacdc74a491c52d803acbf": {
+ "92e66fae52d1452b4706cee5": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -49,7 +50,7 @@
    "usd": 0.0
   }
  },
- "9361d3950fbe030d823f39a5": {
+ "bab63a221ca5423a6774f3c2": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -75,12 +76,12 @@
    "usd": 0.0
   }
  },
- "a52bb590f180f233f663b805": {
+ "ead04c64b5ebbad8f8fad3d1": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply (shift)",
-  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"J8PGQ0WA0J43MQN5T5HKKKK68F\",\"issuer\":\"Frank",
+  "note": "hand-written for tests; not a model reply (figure)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"ZZPE3Q51YWBGEV3Q49DSSZN4CY\",\"issuer\":\"Frank",
   "reply": {
    "cached_tokens": 0,
    "input_tokens": 0,
@@ -88,14 +89,13 @@
    "output": {
     "effects": [
      {
-      "change": -1,
-      "kind": "disposition",
-      "of": "THFN18W8WRFX8EF1JVQBF8C2R0",
-      "toward": "Z1YMP565PJFGVNTHDHMPYR57K0"
+      "kind": "figure",
+      "percent": 10,
+      "quantity": "W449JZD1QF2WJM8J2HZGAQ8TC9"
      }
     ],
-    "rationale": "Wheeler resents being lobbied; one step down.",
-    "reason": "The Senate will notice."
+    "rationale": "The order plainly bears on the Democrats' strength; ten percent.",
+    "reason": "The count rises as the Hill takes the lobbying to heart."
    },
    "output_tokens": 0,
    "usd": 0.0

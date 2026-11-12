@@ -12,6 +12,7 @@ from revisionist import cli
 from revisionist.core import events as ev
 from revisionist.core.ids import DocumentId, EventId, OrderId, QuantityId, derived_id
 from revisionist.core.project import project
+from revisionist.core.realism.actors import readers
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.document import (
     BodyField,
@@ -77,7 +78,7 @@ def test_toy_levy_settles_through_the_pipeline_and_documents_arrive() -> None:
     for _ in range(3):
         run("tick", "--offline")
         store, state = current()
-        (seat,) = state.seats
+        (seat,) = readers(state)
         today = state.in_world_date
         assert today is not None
         mine = {k for k, d in state.documents.items() if d.view.scope.visible_to(seat)}
@@ -145,7 +146,7 @@ def test_a_truth_canary_reaches_no_view_snapshot_or_report() -> None:
     run("new", "realism-toy", "--seat", "ada")
     run("tick", "--offline")
     store, state = current()
-    (seat,) = state.seats
+    (seat,) = readers(state)
     today = state.in_world_date
     assert today is not None
     doc_id = DocumentId(derived_id(state.campaign_id, "canary-doc"))
@@ -256,7 +257,7 @@ def test_prose_counsel_and_the_aide_through_the_cli_leak_nothing(
 
     assert state.documents
     assert all(bool(d.view.prose) == stated(d.view) for d in state.documents.values())
-    (seat,) = state.seats
+    (seat,) = readers(state)
     assert all(bool(p.prose) == stated(p) for p in project(state, seat).documents.values())
 
     monkeypatch.setattr(cli, "transport_factory", lambda: RecordedTransport(COUNSEL))

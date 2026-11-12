@@ -55,6 +55,7 @@ from revisionist.core.ontology import (
     SeatKind,
 )
 from revisionist.core.realism.agenda import Mandate, MandateTemplate, PlayStyle
+from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.card import CardFace, Desk, SeatCard
 from revisionist.core.realism.document import Document, DocumentView, Feed
 from revisionist.core.realism.effect import EffectKind, RoutedOrder, RoutedOrderView
@@ -181,6 +182,10 @@ class State(_World):
         default_factory=dict, exclude_if=lambda v: not v
     )
     """The people actively opposing each seat. Engine only."""
+    answers: dict[EntityId, dict[str, AnswerLog]] = Field(
+        default_factory=dict, exclude_if=lambda v: not v
+    )
+    """The last time each unplayed person took up each answer. Engine only."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "routed",
@@ -191,6 +196,7 @@ class State(_World):
         "outlets",
         "stances",
         "opponents",
+        "answers",
         "cards",
         "feeds",
         "pipelines",

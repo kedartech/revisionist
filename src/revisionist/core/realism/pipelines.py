@@ -13,7 +13,7 @@ from datetime import date, timedelta
 from revisionist.core import events as ev
 from revisionist.core.ids import DocumentId, EntityId, OrderId, derived_id
 from revisionist.core.ontology import Controller
-from revisionist.core.realism import resolvers
+from revisionist.core.realism import actors, resolvers
 from revisionist.core.realism.card import (
     ChannelKind,
     Lever,
@@ -250,9 +250,9 @@ def _reply(
     state: State, order: Order, outcome: StepOutcome, status: OrderStatus | None
 ) -> ev.DocumentIssued | None:
     """The word that comes back to the issuer from the person at the step, or None
-    when that person is the issuer's own."""
+    when that person is the issuer's own or nobody plays the issuer."""
     seat = state.seats[order.issuer]
-    if outcome.person == seat.embodies:
+    if outcome.person == seat.embodies or order.issuer not in actors.readers(state):
         return None
     lever = _lever(state, order)
     specs = {p.name: p for p in lever.params}

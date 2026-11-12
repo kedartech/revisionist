@@ -20,6 +20,7 @@ from pydantic import Field, StringConstraints, model_validator
 
 from revisionist.core._base import Label, Model
 from revisionist.core.ids import EntityId, FeatureId, FeedId, PipelineId
+from revisionist.core.realism.answer import Answer, ParamValue
 from revisionist.core.realism.effect import EffectKind
 from revisionist.core.realism.quantity import ResolverKey
 
@@ -80,10 +81,6 @@ class ParamSpec(Model):
         if self.choice_labels and len(self.choice_labels) != len(self.choices):
             raise ValueError(f"parameter {self.name}: needs one choice label per choice")
         return self
-
-
-ParamValue = int | Annotated[str, StringConstraints(max_length=200)]
-"""An int, an enum choice, an entity ID or a short text, as the spec says."""
 
 
 class Lever(Model):
@@ -240,8 +237,22 @@ class SeatCard(Desk):
     """The polities and people this person stands with."""
     opposes: tuple[Conflict, ...] = Field(default=(), max_length=6, exclude_if=lambda v: not v)
     """What this person is set against."""
+    answers: tuple[Answer, ...] = Field(default=(), max_length=8, exclude_if=lambda v: not v)
+    """What this person does back when someone acts, while nobody plays them."""
 
-    late_fields: ClassVar[frozenset[str]] = Desk.late_fields | {"competence", "allies", "opposes"}
+    late_fields: ClassVar[frozenset[str]] = Desk.late_fields | {
+        "competence",
+        "allies",
+        "opposes",
+        "answers",
+    }
+
+    @model_validator(mode="after")
+    def _distinct_answers(self) -> "SeatCard":
+        keys = [a.key for a in self.answers]
+        if len(set(keys)) != len(keys):
+            raise ValueError(f"card {self.person}: an answer is named twice")
+        return self
 
     def face(self) -> CardFace:
         return CardFace.model_validate(self.model_dump(include=set(CardFace.model_fields)))

@@ -39,6 +39,7 @@ from revisionist.core.ontology import (
     SeatKind,
 )
 from revisionist.core.realism.agenda import MandateKind, TriggerKind
+from revisionist.core.realism.answer import Answer
 from revisionist.core.realism.card import Aim, ChannelKind, ParamSpec
 from revisionist.core.realism.document import Bias, Classification, DocumentKind
 from revisionist.core.realism.effect import EffectKind
@@ -447,6 +448,9 @@ class CardDecl(Model):
     allies: tuple[Key, ...] = ()
     """Polity or person keys this person stands with."""
     opposes: tuple[ConflictDecl, ...] = Field(default=(), max_length=6)
+    answers: tuple[Answer, ...] = Field(default=(), max_length=8)
+    """What the person does back while nobody plays them. Keys stand where ids go:
+    ``by``, ``party``, ``until`` and the people and places an act's effect names."""
 
 
 class TriggerDecl(Model):

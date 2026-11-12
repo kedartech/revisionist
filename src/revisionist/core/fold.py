@@ -16,6 +16,8 @@ import json
 from collections.abc import Iterable, Mapping
 from datetime import date
 
+from pydantic import ValidationError
+
 from revisionist.core import delta as d
 from revisionist.core import events as ev
 from revisionist.core.events import MUTATING_KINDS, Event
@@ -39,6 +41,8 @@ from revisionist.core.ontology import (
     SeatStatus,
 )
 from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, opening_id
+from revisionist.core.realism.answer import AnswerLog
+from revisionist.core.realism.card import SeatCard
 from revisionist.core.realism.document import Document
 from revisionist.core.realism.effect import (
     IRREVERSIBLE,
@@ -400,6 +404,9 @@ def _mutate(state: State, event: Event) -> State:
             | ev.NewsReported()
             | ev.StanceChanged()
             | ev.OpponentsRanked()
+            | ev.CardAmended()
+            | ev.AnswerPlanned()
+            | ev.AnswerMade()
         ):
             if state.ruleset != "realism":
                 raise FoldError(f"{event.kind} belongs to a realism campaign")
@@ -608,6 +615,45 @@ def _realism(state: State, p: ev.Payload) -> State:
                 raise FoldError(f"stance of {p.figure}: not a change, or dated before the last")
             held = _put(held, p.figure, (*past, p.standing))
             return state.model_copy(update={"stances": _put(state.stances, p.seat_id, held)})
+        case ev.CardAmended():
+            card = _need(state.cards, p.person, "card")
+            for entity in [*p.allies, *(x.against for x in p.opposes)]:
+                _need(state.entities, entity, "entity")
+            try:
+                amended = SeatCard.model_validate(
+                    card.model_dump()
+                    | {"allies": p.allies, "opposes": p.opposes, "answers": p.answers}
+                )
+            except ValidationError as exc:
+                raise FoldError(f"card {p.person}: {exc.errors()[0]['msg']}") from None
+            return state.model_copy(update={"cards": _put(state.cards, p.person, amended)})
+        case ev.AnswerPlanned():
+            card = _need(state.cards, p.figure, "card")
+            if all(a.key != p.key for a in card.answers):
+                raise FoldError(f"{p.figure} has no answer {p.key!r}")
+            taken = state.answers.get(p.figure, {})
+            last = taken.get(p.key)
+            if last is not None and (last.made is None or p.on < last.planned):
+                raise FoldError(f"answer {p.key} of {p.figure}: one is still to be made")
+            log = AnswerLog(planned=p.on, due=p.due, cause=p.cause, toward=p.toward)
+            return state.model_copy(
+                update={"answers": _put(state.answers, p.figure, _put(taken, p.key, log))}
+            )
+        case ev.AnswerMade():
+            taken = state.answers.get(p.figure, {})
+            last = taken.get(p.key)
+            if last is None or last.made is not None or p.on < last.due:
+                raise FoldError(f"answer {p.key} of {p.figure}: nothing due to be made")
+            if p.order is not None and p.order not in state.orders and p.order not in state.routed:
+                raise FoldError(f"answer {p.key} of {p.figure}: no order {p.order}")
+            if p.mandate is not None:
+                _need(state.mandates, p.mandate, "mandate")
+            made = last.model_copy(
+                update={"made": p.on, "order": p.order, "mandate": p.mandate, "refusal": p.refusal}
+            )
+            return state.model_copy(
+                update={"answers": _put(state.answers, p.figure, _put(taken, p.key, made))}
+            )
         case ev.OpponentsRanked():
             _need(state.seats, p.seat_id, "seat")
             if len(set(p.active)) != len(p.active):

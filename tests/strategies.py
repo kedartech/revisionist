@@ -58,6 +58,7 @@ from revisionist.core.ontology import (
     SeatKind,
 )
 from revisionist.core.realism import agenda as ra
+from revisionist.core.realism import answer as rans
 from revisionist.core.realism import card as rc
 from revisionist.core.realism import document as rd
 from revisionist.core.realism import effect as rx
@@ -749,6 +750,53 @@ realism_payloads = st.one_of(
         ev.OpponentsRanked,
         seat_id=seat_ids,
         active=st.lists(entity_ids, max_size=4, unique=True).map(tuple),
+    ),
+    st.builds(
+        ev.CardAmended,
+        person=entity_ids,
+        allies=st.lists(entity_ids, max_size=3).map(tuple),
+        opposes=st.lists(
+            st.builds(rc.Conflict, against=entity_ids, over=labels, irreducible=st.booleans()),
+            max_size=3,
+        ).map(tuple),
+        answers=st.lists(
+            st.builds(
+                rans.Answer,
+                key=labels,
+                aim=st.integers(1, 3),
+                when=st.builds(
+                    rans.AnswerWhen,
+                    lever=labels,
+                    by=entity_ids,
+                    human=st.booleans(),
+                ),
+                gate=st.frozensets(st.sampled_from(rs.Stance)),
+                act=st.builds(rans.AnswerAct, lever=labels),
+                delay_days=st.integers(0, 30),
+                cooldown_days=st.integers(1, 365),
+                helps=st.booleans(),
+            ),
+            max_size=2,
+            unique_by=lambda a: a.key,
+        ).map(tuple),
+    ),
+    in_world_dates.flatmap(
+        lambda on: st.builds(
+            ev.AnswerPlanned,
+            figure=entity_ids,
+            key=labels,
+            on=st.just(on),
+            due=st.integers(0, 30).map(lambda n: on + timedelta(days=n)),
+            cause=st.none() | order_ids,
+            toward=st.none() | entity_ids,
+        )
+    ),
+    st.builds(
+        ev.AnswerMade,
+        figure=entity_ids,
+        key=labels,
+        on=in_world_dates,
+        order=order_ids,
     ),
     st.builds(
         ev.CounselHeld,

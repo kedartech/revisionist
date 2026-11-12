@@ -389,6 +389,29 @@ def test_a_command_with_no_executor_is_reported_by_an_aide_not_the_issuer(sl: Sl
     assert doc.document.author == sl.state.cards[roosevelt].inner_circle[0].person
 
 
+def test_the_aide_who_reports_is_one_who_serves_the_issuer_not_a_foreign_head(
+    sl: Slice,
+) -> None:
+    order = sl.shoot_on_sight(
+        domain="public_word", executor=None, effect=rx.MakeStatement(theme="the Atlantic")
+    )
+    executed(sl, order, rx.Fidelity.FULL)
+    roosevelt = sl.entity("roosevelt")
+    card = sl.state.cards[roosevelt]
+    serving = [c for c in card.inner_circle if roosevelt in sl.state.cards[c.person].principals]
+    assert serving, "the slice gives Roosevelt at least one contact who serves him"
+    foreign = next(
+        p for p, c in sl.state.cards.items() if p != roosevelt and roosevelt not in c.principals
+    )
+    first = card.inner_circle[0].model_copy(update={"person": foreign})
+    cards = dict(sl.state.cards)
+    cards[roosevelt] = card.model_copy(update={"inner_circle": (first, *card.inner_circle)})
+    state = sl.state.model_copy(update={"cards": cards})
+    doc = report(state, state.routed[order.order_id], 0, FILED)
+    assert doc is not None
+    assert doc.document.author == serving[0].person
+
+
 def _lines(doc: ev.DocumentIssued) -> str:
     return " ".join(str(line.value) for line in doc.document.body)
 

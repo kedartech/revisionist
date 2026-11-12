@@ -4,6 +4,7 @@ from datetime import date
 
 from revisionist.core import events as ev
 from revisionist.core.ids import DocumentId, EntityId, SeatId, derived_id
+from revisionist.core.realism import actors
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.document import (
     Classification,
@@ -50,7 +51,7 @@ def _page(
 def news_pages(state: State, day: date) -> list[ev.DocumentIssued]:
     """One page per reported event per outlet that some seat reads, once the event is due."""
     readers: dict[EntityId, set[SeatId]] = {}
-    for seat in state.seats:
+    for seat in sorted(actors.readers(state)):
         outlet = outlet_for(state, seat)
         if outlet is not None:
             readers.setdefault(outlet.outlet_id, set()).add(seat)

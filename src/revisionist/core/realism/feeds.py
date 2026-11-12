@@ -10,6 +10,7 @@ from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.ids import CampaignId, DocumentId, SeatId, derived_id
+from revisionist.core.realism import actors
 from revisionist.core.realism.document import (
     BodyField,
     DocumentTruth,
@@ -99,7 +100,11 @@ def _sight(state: State, seed: str, feed: Feed, f: Feature) -> BodyField | None:
 
 def _holders(state: State, feed: Feed) -> frozenset[SeatId]:
     persons = {p for p, c in state.cards.items() if feed.feed_id in c.feeds}
-    return frozenset(s.seat_id for s in state.seats.values() if s.embodies in persons)
+    return frozenset(
+        s.seat_id
+        for s in state.seats.values()
+        if s.embodies in persons and s.seat_id in actors.readers(state)
+    )
 
 
 def _last_full(state: State, feed: Feed) -> DocumentView | None:

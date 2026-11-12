@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from revisionist.core import events as ev
 from revisionist.core.ids import DocumentId, EntityId, FeatureId, SeatId, derived_id
 from revisionist.core.ontology import EntityKind
-from revisionist.core.realism import reach
+from revisionist.core.realism import actors, reach
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import ChannelKind, Desk
 from revisionist.core.realism.document import (
@@ -134,7 +134,9 @@ def _commanders(state: State, fid: FeatureId) -> list[tuple[SeatId, EntityId]]:
             continue
         author = domain.executor if domain.executor is not None else card.person
         out.extend(
-            (seat.seat_id, author) for seat in state.seats.values() if seat.embodies == card.person
+            (seat.seat_id, author)
+            for seat in state.seats.values()
+            if seat.embodies == card.person and seat.seat_id in actors.readers(state)
         )
     return sorted(out)
 

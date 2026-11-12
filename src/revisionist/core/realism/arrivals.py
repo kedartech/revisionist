@@ -4,7 +4,7 @@ from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.ids import DocumentId, EntityId, FeatureId, SeatId, derived_id
-from revisionist.core.realism import reach
+from revisionist.core.realism import actors, reach
 from revisionist.core.realism.card import ChannelKind, Desk, words
 from revisionist.core.realism.document import (
     BodyField,
@@ -88,7 +88,7 @@ def arrivals(before: State, after: State, day: date) -> list[ev.Payload]:
                 continue
             author = domain.executor if domain.executor is not None else card.person
             for seat in after.seats.values():
-                if seat.embodies != card.person:
+                if seat.embodies != card.person or seat.seat_id not in actors.readers(after):
                     continue
                 doc = _report(after, fid, card.person, author, seat.seat_id, day)
                 if doc is not None:

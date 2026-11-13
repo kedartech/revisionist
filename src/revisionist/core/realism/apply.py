@@ -6,7 +6,6 @@ ruled, an influence decided. ``apply_due`` lands ``effects_applied`` for each, a
 pipeline's resolver, not here.
 """
 
-import math
 from datetime import date, timedelta
 
 from revisionist.core import events as ev
@@ -54,9 +53,9 @@ from revisionist.core.realism.effect import (
     SetEngagement,
     ShiftDisposition,
 )
-from revisionist.core.realism.geography import SPEED_KM_PER_DAY, km_between
 from revisionist.core.realism.land import allocate, appointment, deal, investigate, statement
 from revisionist.core.realism.pass_world import PassWorld
+from revisionist.core.realism.routing import travel_days
 from revisionist.core.state import State
 from revisionist.core.visibility import private_to
 
@@ -129,13 +128,11 @@ def _move(world: PassWorld, effect: MoveForce, on: date) -> list[ev.Payload]:
         update["posture"] = effect.posture
     here = force.places[0]
     if effect.to is not None and effect.to != here:
-        # Travel as ``resolvers.movement.resolve`` computes it: great-circle distance
-        # at the kind's pace, at least a day.
-        origin = world.state.entities[here].at
-        dest = world.state.entities[effect.to].at
-        km = 0 if origin is None or dest is None else km_between(origin, dest)
-        days = max(1, math.ceil(km / SPEED_KM_PER_DAY[force.kind]))
-        update |= {"bound_for": effect.to, "arrives": as_of + timedelta(days=days), "legs": ()}
+        # Travel as ``resolvers.movement.resolve`` computes it; a fleet with no open
+        # sea route keeps its course and takes only the posture.
+        days = travel_days(world.state, force, effect.to)
+        if days is not None:
+            update |= {"bound_for": effect.to, "arrives": as_of + timedelta(days=days), "legs": ()}
     elif effect.to is not None:
         update |= {"bound_for": None, "arrives": None, "legs": ()}
     moved = force.model_copy(update=update)

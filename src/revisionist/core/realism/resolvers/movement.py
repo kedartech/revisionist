@@ -2,20 +2,22 @@
 
 An enacted order whose lever names it sends one force to one place: the lever's
 ``force`` parameter names a feature key and ``to`` a place key. The force sets
-out the day the order settles and arrives after the great-circle distance at its
-kind's pace; it stays where it was until then. Only the issuer's own side moves:
+out the day the order settles and arrives after its route at its kind's pace (a
+fleet sails by sea, through the passages open to its side; armies and air groups
+go straight); it stays where it was until then. A fleet with no open sea route
+does not sail. Only the issuer's own side moves:
 an order naming another side's force changes nothing. An order drops the moves
 history still had for that force. Fronts and routes move only with history.
 """
 
-import math
 from datetime import date, timedelta
 
 from revisionist.core.ids import EntityId, FeatureId
 from revisionist.core.ontology import EntityKind
 from revisionist.core.realism import resolvers as rs
-from revisionist.core.realism.geography import FORCES, SPEED_KM_PER_DAY, Feature, km_between
+from revisionist.core.realism.geography import FORCES, Feature
 from revisionist.core.realism.pipeline import Order, OrderStatus
+from revisionist.core.realism.routing import travel_days
 from revisionist.core.state import State
 from revisionist.core.world_compile import object_id
 
@@ -56,9 +58,9 @@ def resolve(state: State, order: Order) -> tuple[Feature, ...]:
                 update={"bound_for": None, "arrives": None, "legs": (), "as_of": as_of}
             ),
         )
-    origin = state.entities[here].at
-    km = 0 if origin is None else km_between(origin, to.at)
-    days = max(1, math.ceil(km / SPEED_KM_PER_DAY[force.kind]))
+    days = travel_days(state, force, to.entity_id)
+    if days is None:
+        return ()
     return (
         force.model_copy(
             update={

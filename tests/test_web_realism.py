@@ -214,6 +214,7 @@ def test_me_carries_the_realism_block_for_a_realism_seat(solo: tuple[Realism, Cl
         "clock",
         "map",
         "threats",
+        "people",
         "counsel",
         "wake_tick",
         "wake",

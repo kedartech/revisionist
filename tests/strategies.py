@@ -439,6 +439,9 @@ history_events = st.builds(
     on_date=in_world_dates,
     condition=st.none() | conditions,
     weight=st.integers(1, 3),
+    headline=st.none() | st.text(min_size=1, max_size=60),
+    subject=st.none() | entity_ids,
+    obj=st.none() | entity_ids,
 )
 
 any_scheduled_events = scheduled_events | history_events

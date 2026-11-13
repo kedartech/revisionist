@@ -263,9 +263,13 @@ class ScheduledEvent(Model):
     weight: int = Field(default=1, ge=1, le=3)
     """How central it was: divergence rises by this much if it is skipped."""
     skipped: bool = False
+    headline: Label | None = None
+    """For a history event, what the news says when it fires in public. None: no news."""
+    subject: EntityId | None = None
+    obj: EntityId | None = None
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
-        {"source", "on_date", "condition", "weight", "skipped"}
+        {"source", "on_date", "condition", "weight", "skipped", "headline", "subject", "obj"}
     )
 
     @model_validator(mode="after")

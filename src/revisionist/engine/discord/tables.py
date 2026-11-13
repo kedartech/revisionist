@@ -143,6 +143,15 @@ class Invites:
         )
         return code
 
+    def campaign_of(self, code: str, now: datetime) -> CampaignId | None:
+        """The game an unspent, unexpired code seats a player in. Reads only."""
+        row = self.conn.execute(
+            "SELECT campaign_id FROM discord_invites"
+            " WHERE code_hash = %s AND used_at IS NULL AND expires_at > %s",
+            (code_hash(code), now),
+        ).fetchone()
+        return None if row is None else CampaignId(row[0])
+
     def redeem(
         self,
         code: str,

@@ -20,7 +20,7 @@ from revisionist.core.ids import EntityId
 from revisionist.core.ontology import EntityKind
 from revisionist.core.realism.geography import SPEED_KM_PER_DAY, Feature, FeatureKind, km_between
 from revisionist.core.realism.war import at_war
-from revisionist.core.state import State
+from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
 
 Point = tuple[float, float]
@@ -119,7 +119,7 @@ def sea_of(where: Point) -> str:
     )[1]
 
 
-def _closed(state: State, side: EntityId | None, door: Door) -> bool:
+def _closed(state: State | View, side: EntityId | None, door: Door) -> bool:
     if side is None or door.holder is None:
         return False
     holder = state.entities.get(EntityId(object_id(state.campaign_id, "entity", door.holder)))
@@ -128,7 +128,9 @@ def _closed(state: State, side: EntityId | None, door: Door) -> bool:
     return at_war(state, side, holder.entity_id)
 
 
-def sea_route(state: State, side: EntityId | None, origin: Point, dest: Point) -> SeaRoute | None:
+def sea_route(
+    state: State | View, side: EntityId | None, origin: Point, dest: Point
+) -> SeaRoute | None:
     """The shortest way by sea from ``origin`` to ``dest`` for a fleet of ``side``,
     or None when every way passes a door closed to it."""
     start, goal = sea_of(origin), sea_of(dest)
@@ -159,18 +161,40 @@ def sea_route(state: State, side: EntityId | None, origin: Point, dest: Point) -
 def travel_days(state: State, force: Feature, to: EntityId) -> int | None:
     """Days for ``force`` to reach ``to`` from where it is, at least one; None for a
     fleet with no open way by sea."""
-    origin = state.entities[force.places[0]].at
-    dest = state.entities[to].at
+    return days_between(state, force.kind, force.side, force.places[0], to)
+
+
+def days_between(
+    world: State | View,
+    kind: FeatureKind,
+    side: EntityId | None,
+    here: EntityId,
+    to: EntityId,
+) -> int | None:
+    """Days for a force of ``kind`` and ``side`` to go from ``here`` to ``to``, at least
+    one; None for a fleet with no open way by sea. A seat's view reads the same wars,
+    so its day counts are the resolver's."""
+    origin = world.entities[here].at
+    dest = world.entities[to].at
     if origin is None or dest is None:
         km = 0
-    elif force.kind is FeatureKind.FLEET:
-        route = sea_route(state, force.side, origin, dest)
+    elif kind is FeatureKind.FLEET:
+        route = sea_route(world, side, origin, dest)
         if route is None:
             return None
         km = route.km
     else:
         km = km_between(origin, dest)
-    return max(1, math.ceil(km / SPEED_KM_PER_DAY[force.kind]))
+    return max(1, math.ceil(km / SPEED_KM_PER_DAY[kind]))
 
 
-__all__ = ["DOORS", "SEAS", "Door", "SeaRoute", "sea_of", "sea_route", "travel_days"]
+__all__ = [
+    "DOORS",
+    "SEAS",
+    "Door",
+    "SeaRoute",
+    "days_between",
+    "sea_of",
+    "sea_route",
+    "travel_days",
+]

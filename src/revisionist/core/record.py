@@ -103,7 +103,7 @@ def _form_words(view: View, order: Order) -> str:
     )
     label = (lever.label if lever is not None else "") or words(order.lever)
     specs = {p.name: p for p in lever.params} if lever is not None else {}
-    terms = [str(_param_value(specs.get(k), v)) for k, v in order.params.items()]
+    terms = [str(_param_value(specs.get(k), v, view)) for k, v in order.params.items()]
     return f"{label}: {', '.join(terms)}" if terms else label
 
 

@@ -51,7 +51,12 @@ from revisionist.core.realism.document import DocumentView, Feed
 from revisionist.core.realism.effect import Effect, PartRef, Route, RoutedOrder, RoutedPart
 from revisionist.core.realism.feeds import due_feeds, issue, seed_for_day
 from revisionist.core.realism.pipeline import SETTLED, Order, OrderStatus, StepAction
-from revisionist.core.realism.pipelines import human_step, run_pipelines
+from revisionist.core.realism.pipelines import (
+    destination,
+    human_step,
+    place_named,
+    run_pipelines,
+)
 from revisionist.core.realism.press import news_pages
 from revisionist.core.realism.resolvers import (
     ON_DAY,
@@ -574,6 +579,13 @@ def _fits(spec: ParamSpec, raw: str) -> ParamValue:
     return raw
 
 
+def _place(state: State, spec: ParamSpec, raw: str) -> str:
+    """A destination: one of the form's own choices, or any place with a position."""
+    if raw in spec.choices or place_named(state, raw) is not None:
+        return raw
+    raise ValueError(f"{spec.name}: {raw!r} is not a place on the map")
+
+
 def file_order(
     store: EventStore, campaign_id: CampaignId, seat: SeatId, lever: str, given: dict[str, str]
 ) -> Order:
@@ -596,7 +608,11 @@ def draft_order(state: State, seat: SeatId, lever: str, given: dict[str, str]) -
     wanted = {p.name for p in found.params}
     if set(given) != wanted:
         raise ValueError(f"{lever} takes exactly: {', '.join(sorted(wanted)) or 'no parameters'}")
-    params = {p.name: _fits(p, given[p.name]) for p in found.params}
+    to = destination(found)
+    params = {
+        p.name: _place(state, p, given[p.name]) if p is to else _fits(p, given[p.name])
+        for p in found.params
+    }
     refused = order_refusal(state, seat, lever, given)
     if refused:
         raise ValueError(refused)

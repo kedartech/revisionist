@@ -1,10 +1,9 @@
 /* p5-press.css: the press paper keeps its newspaper look under the terminal theme. */
 
 .rl-page.rl-page-press {
-  border: 2px var(--border-sheet) var(--fg-read);
+  border: 2px solid var(--fg-read);
   background: var(--surface);
   color: var(--fg-read);
-  box-shadow: var(--shadow-sheet);
   font-family: var(--font-read);
 }
 
@@ -18,7 +17,6 @@
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--fg-strong);
-  transform: rotate(var(--tilt-stamp));
 }
 
 .rl-page-press h2 {

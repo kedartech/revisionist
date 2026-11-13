@@ -103,7 +103,6 @@
   font-size: 0.7rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  transform: rotate(var(--tilt-stamp));
 }
 
 @container (max-width: 14rem) {

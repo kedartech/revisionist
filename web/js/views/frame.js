@@ -2,7 +2,7 @@
 
 import { api } from '../api.js';
 import { h, icon, reply } from '../dom.js';
-import { themeControl } from '../theme-setting.js';
+import { effectsControl } from '../theme.js';
 
 /** A header title: a button that opens a dossier when `onClick` is given, else plain text. */
 function titleOf(text, onClick, label) {
@@ -14,9 +14,9 @@ function titleOf(text, onClick, label) {
 /**
  * `identity` is { name, office, principal } of the person the player plays, shown under the
  * game's name. `onSetting` and `onIdentity` make the game's name and the person's name open
- * their dossiers. `theme` is { theme, effects, onChange } for the theme control.
+ * their dossiers. `effects` is { effects, onChange } for the Screen effects toggle.
  */
-export function header({ me, game, role, extra = [], refresh, signOut, identity = null, onSetting = null, onIdentity = null, theme = null }) {
+export function header({ me, game, role, extra = [], refresh, signOut, identity = null, onSetting = null, onIdentity = null, effects = null }) {
   const bugDialog = bugReport(refresh);
   const name = game?.name ?? 'Revisionist';
   return h('header', { class: 'frame-head' },
@@ -33,7 +33,7 @@ export function header({ me, game, role, extra = [], refresh, signOut, identity 
       : null,
     ...extra,
     h('div', { class: 'head-right' },
-      theme ? themeControl(theme) : null,
+      effects ? effectsControl(effects) : null,
       h('span', { class: 'muted' }, 'Signed in as ', me.account.handle),
       game ? h('button', {
         type: 'button', class: 'icon-btn', 'aria-label': 'Report a bug', title: 'Report a bug',

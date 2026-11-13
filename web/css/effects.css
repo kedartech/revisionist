@@ -1,5 +1,5 @@
-/* Screen effects, off unless rv.effects is "on" (js/theme.js sets data-effects on the root).
-   Every rule is scoped to that attribute, so the default page is untouched. */
+/* Screen effects, on unless rv.effects is "off" (js/theme.js sets data-effects on the root).
+   Every rule is scoped to that attribute, so turning them off leaves the plain page. */
 
 html[data-effects="on"] body::after {
   content: '';

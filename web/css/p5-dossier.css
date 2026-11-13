@@ -1,14 +1,13 @@
 /* The character and setting dossiers (Train 2 unit D). Every selector sits under .rl-dos. */
 
 .rl-dos {
-  border: 1px var(--border-sheet) var(--rule);
+  border: 1px solid var(--rule);
   background: var(--surface);
   color: var(--fg-read);
   font-family: var(--font-read);
   width: min(34rem, 92vw);
   max-height: 88vh;
   padding: 1.25rem;
-  box-shadow: var(--shadow-sheet);
 }
 
 .rl-dos::backdrop {
@@ -20,7 +19,7 @@
   gap: 1rem;
   align-items: flex-start;
   padding-bottom: 0.75rem;
-  border-bottom: 1px var(--border-sheet) var(--rule);
+  border-bottom: 1px solid var(--rule);
 }
 
 .rl-dos-figure {
@@ -33,7 +32,7 @@
   display: block;
   width: 9rem;
   height: auto;
-  border: 1px var(--border-sheet) var(--field-border);
+  border: 1px solid var(--field-border);
 }
 
 .rl-dos-credit {

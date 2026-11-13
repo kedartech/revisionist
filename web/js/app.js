@@ -3,8 +3,7 @@
 
 import { api } from './api.js';
 import { h } from './dom.js';
-import { applyTheme, browserStorage, effectsOn, themeName } from './theme.js';
-import { themeStore } from './theme-setting.js';
+import { applyEffects, browserStorage, effectsOn, saveEffects } from './theme.js';
 import { join, recover, recoveryCodes, signIn, signUp } from './views/auth.js';
 import { newGame } from './views/new-game.js';
 import { realismCast } from './views/realism-cast.js';
@@ -14,7 +13,7 @@ import { sessionZero } from './views/session-zero.js';
 import { warRoom } from './views/war-room.js';
 
 const root = document.getElementById('app');
-applyTheme(document.documentElement, browserStorage(window));
+applyEffects(document.documentElement, browserStorage(window));
 let route = location.hash.slice(1) || 'signin';
 let pendingCodes = null;
 
@@ -82,16 +81,15 @@ async function render() {
   }
   const refresh = async () => render();
   const storage = browserStorage(window);
-  const theme = {
-    theme: themeName(storage),
+  const effects = {
     effects: effectsOn(storage),
-    onChange: (next, effects) => {
-      themeStore(storage).save(next, effects);
-      applyTheme(document.documentElement, storage);
+    onChange: (on) => {
+      saveEffects(storage, on);
+      applyEffects(document.documentElement, storage);
       render();
     },
   };
-  const ctx = { me, refresh, signOut, go, theme };
+  const ctx = { me, refresh, signOut, go, effects };
   const finished = me.finished.find((f) => route === `reveal/${f.id}`);
   if (finished) {
     show(realismReveal({ ...ctx, finished }));

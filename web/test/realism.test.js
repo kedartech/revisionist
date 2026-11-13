@@ -1,6 +1,6 @@
 // Unit tests for the realism rules, against the fixture. Run: node --test web/test/
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -83,12 +83,20 @@ test('classification and channel words cover every value and reject strangers', 
 });
 
 test('realism files never show a percentage or talk of chances', () => {
-  const files = ['js/realism-rules.js', 'js/views/realism.js', 'js/views/realism-map.js', 'css/realism.css', 'test/fixtures/realism-seat.json'];
+  const files = ['js/realism-rules.js', 'js/views/realism.js', 'js/views/realism-map.js', 'test/fixtures/realism-seat.json'];
   const chance = new RegExp(['od', 'ds'].join(''), 'i');
   for (const f of files) {
     const text = readFileSync(join(WEB, f), 'utf8');
     assert.doesNotMatch(text, /%/, f);
     assert.doesNotMatch(text, chance, f);
+  }
+  // a stylesheet shows words only through content:, so no content value may carry one either
+  const css = join(WEB, 'css');
+  for (const f of readdirSync(css).filter((n) => n.endsWith('.css'))) {
+    for (const m of readFileSync(join(css, f), 'utf8').matchAll(/content\s*:\s*([^;}]*)/g)) {
+      assert.doesNotMatch(m[1], /%/, `${f}: ${m[0]}`);
+      assert.doesNotMatch(m[1], chance, `${f}: ${m[0]}`);
+    }
   }
 });
 

@@ -23,6 +23,8 @@ import { introStage, markIntro, seatSplash, splashModel, startOverview } from '.
 import { newsBlock, whatChanged } from './realism-news.js';
 import { orderCards } from './realism-orders.js';
 import { overlayLines, wakeOverlay } from './realism-overlay.js';
+import { statusStrip, summaryTiles } from './realism-status.js';
+import { sideSwitch, tabBar } from './realism-tabs.js';
 import { threadItems } from './realism-thread.js';
 import { threatsPanel } from './realism-threats.js';
 import { trayView } from './realism-tray.js';
@@ -33,6 +35,7 @@ const freshUi = (game) => ({
   filter: 'all', sort: 'newest', draft: null, proposal: null, autoFor: null,
   chat: { open: false, tab: 'chats', thread: null }, contact: null, orderTo: null,
   happenedSeen: null, refocusChat: false, brief: null, pending: null, drafts: {},
+  tab: 'desk', side: 'papers',
 });
 let ui = freshUi(null);
 
@@ -309,7 +312,7 @@ export function realismRoom(ctx) {
       rerender();
       if (focus) root.querySelector(`#rl-filter-${key}`)?.focus();
     };
-    return h('section', { class: 'rl-col rl-papers', 'aria-label': 'Papers' },
+    return h('section', { class: 'rl-col rl-papers', 'data-tab': 'papers', 'aria-label': 'Papers' },
       h('div', { class: 'rl-col-head' }, widen),
       h('div', { class: 'rl-col-body' },
         trayView(rv.documents, open, {
@@ -369,7 +372,7 @@ export function realismRoom(ctx) {
     const directive = ui.proposal
       ? orderCard(ui.proposal, { onSign: signed, onRevise: () => { ui.proposal = null; ui.said = null; rerender(); } })
       : orderForm();
-    return h('section', { class: 'rl-col rl-desk-col', 'aria-label': 'Desk' },
+    return h('section', { class: 'rl-col rl-desk-col', 'data-tab': 'desk', 'aria-label': 'Desk' },
       h('div', { class: 'rl-col-body' },
         stylePicker(rv.style, { act }),
         needsAnswer(rv.agenda, { act }),
@@ -395,7 +398,7 @@ export function realismRoom(ctx) {
   }
 
   function sideColumn() {
-    return h('aside', { class: 'rl-col rl-side', 'aria-label': 'Your orders' },
+    return h('aside', { class: 'rl-col rl-side', 'data-tab': 'orders', 'aria-label': 'Your orders' },
       h('div', { class: 'rl-col-body' },
         threatsPanel(rv.threats),
         orderCards(rv.record, rv.orders, (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v)))));
@@ -465,7 +468,7 @@ export function realismRoom(ctx) {
     const inner = rv.desk.inner_circle.map((c) => c.person);
     return chatDock({
       state: ui.chat,
-      onState: (next) => { ui.chat = next; rerender(); refocus(next); },
+      onState: (next) => { if (!next.open && ui.tab === 'messages') ui.tab = 'desk'; ui.chat = next; rerender(); refocus(next); },
       threads: all,
       seen: seen.read(),
       reach: rv.reach,
@@ -493,6 +496,7 @@ export function realismRoom(ctx) {
           ui.proposal = null;
           ui.draft = { to: c.name, channel: c.channel_keys?.[0] ?? '', text: ui.draft?.text ?? '' };
           ui.chat = { ...ui.chat, open: false };
+          ui.tab = 'desk';
           rerender();
           root.querySelector('.rl-write textarea')?.focus();
         },
@@ -558,6 +562,13 @@ export function realismRoom(ctx) {
   }
 
   let pending = null;
+  /** A tab, tile or side switch picks the panel to show; Messages also opens the messenger. */
+  const pick = ({ tab, side }) => {
+    if (tab) ui.tab = tab;
+    if (side) ui.side = side;
+    if (tab === 'messages') ui.chat.open = true;
+    rerender();
+  };
   function build() {
     const [menuBtn, menu] = gameMenu(game, ctx, work);
     const { character, setting, happened, intro: opening } = sheets();
@@ -577,9 +588,14 @@ export function realismRoom(ctx) {
         onSetting: setting && work.idle() ? () => setting.showModal() : null,
         onIdentity: character && work.idle() ? () => character.showModal() : null,
       }),
+      statusStrip(rv, ui, { act }),
       status,
+      summaryTiles(rv, pick),
       newsBlock(whatChanged(rv.documents), (id) => open({ id })),
-      h('main', { class: `rl-room${ui.wide ? ' wide' : ''}` }, papers(), deskColumn(), sideColumn()),
+      sideSwitch(ui, pick),
+      h('main', { class: `rl-room${ui.wide ? ' wide' : ''}`, 'data-view': ui.tab, 'data-side': ui.side },
+        papers(), deskColumn(), sideColumn()),
+      tabBar(rv, ui, pick),
       dock(),
       menu, character, setting, happened, opening,
     ].filter(Boolean);

@@ -20,9 +20,8 @@
   width: min(100%, 36rem);
   padding: var(--space-5);
   background: var(--surface);
-  border: 1px var(--border-sheet) var(--rule);
+  border: 1px solid var(--rule);
   border-radius: var(--radius);
-  box-shadow: var(--shadow-sheet);
 }
 
 .rl-ovl-msg {

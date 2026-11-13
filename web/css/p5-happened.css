@@ -8,8 +8,7 @@ dialog.rl-hap {
   max-height: 88vh;
   overflow-y: auto;
   padding: var(--space-5);
-  box-shadow: var(--shadow-sheet);
-  border: var(--border-sheet) var(--rule);
+  border: solid var(--rule);
 }
 dialog.rl-hap::backdrop { background: var(--backdrop); }
 

@@ -2,67 +2,6 @@
    (the design export's own tokens). Signal colours never stand alone: each
    carries an icon and a word in the markup (design rule 6). */
 
-*, *::before, *::after { box-sizing: border-box; }
-html, body { height: 100%; }
-body {
-  margin: 0;
-  background: var(--chrome-bg);
-  color: var(--fg-strong);
-  font: 14px/1.5 var(--font-chrome);
-  font-variant-numeric: tabular-nums;
-}
-#app { min-height: 100%; }
-.loading { color: var(--chrome-fg-muted); padding: var(--space-6); }
-h1, h2, h3 { margin: 0; font-weight: 400; }
-h1 { font: 400 26px/1.25 var(--font-head); }
-h2 { font: 600 12px/1.4 var(--font-chrome); letter-spacing: .08em; text-transform: uppercase; color: var(--fg); }
-p { margin: 0; }
-a { color: var(--info); }
-button, input, textarea, select { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.num { font-variant-numeric: tabular-nums; }
-.small { font-size: 12px; }
-.muted { color: var(--fg-muted); }
-.hint { color: var(--fg-muted); font-size: 12px; }
-.row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-.row.between { justify-content: space-between; }
-.row.end { justify-content: flex-end; }
-.stack { display: flex; flex-direction: column; min-width: 0; }
-.grow { flex: 1; min-width: 200px; }
-.eyebrow { font: 600 11px/1.3 var(--font-chrome); letter-spacing: .1em; text-transform: uppercase; color: var(--chrome-fg-muted); }
-.paper .eyebrow, .sz .eyebrow { color: var(--fg-muted); }
-
-/* --- controls --------------------------------------------------------------- */
-button {
-  cursor: pointer;
-  border: 1px solid var(--field-border);
-  background: var(--field);
-  border-radius: var(--radius);
-  padding: 6px 12px;
-  display: inline-flex; align-items: center; gap: 6px;
-}
-button:hover:not(:disabled) { border-color: var(--accent); }
-button:disabled { cursor: not-allowed; opacity: .6; }
-button.primary { background: var(--accent-bg); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
-button.primary:hover:not(:disabled) { background: var(--accent-hover); }
-input, textarea, select {
-  width: 100%;
-  border: 1px solid var(--field-border);
-  background: var(--field);
-  border-radius: var(--radius);
-  padding: 7px 9px;
-}
-textarea { resize: vertical; font-family: var(--font-read); }
-label { font-weight: 600; font-size: 13px; }
-.field { display: flex; flex-direction: column; gap: 4px; }
-.form-error { color: var(--danger); font-weight: 600; }
-fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
-legend { font-weight: 600; font-size: 13px; padding: 0; margin-bottom: 4px; }
-.check { display: flex; gap: 8px; align-items: center; font-weight: 400; }
-.check input { width: auto; }
-.tag { border: 1px solid var(--rule); border-radius: var(--radius); padding: 0 6px; font-size: 11px; color: var(--fg); }
-
 /* --- the rule-bearing pieces ------------------------------------------------- */
 .vis { display: inline-flex; align-items: center; gap: 4px; font: 600 11px/1.2 var(--font-chrome); letter-spacing: .04em; white-space: nowrap; }
 .vis-public { color: var(--fg); }
@@ -78,7 +17,6 @@ legend { font-weight: 600; font-size: 13px; padding: 0; margin-bottom: 4px; }
 .segs span.on { background: var(--accent-bg); border-color: var(--accent); }
 .caution { color: var(--warn); display: inline-flex; gap: 3px; align-items: center; font-weight: 600; }
 .settled { color: var(--ok); display: inline-flex; gap: 3px; align-items: center; font-weight: 600; }
-
 /* --- auth (B1-B4) ---------------------------------------------------------- */
 .auth { min-height: 100vh; display: grid; place-items: center; padding: var(--space-6) var(--space-4); }
 .auth-card {
@@ -95,56 +33,6 @@ legend { font-weight: 600; font-size: 13px; padding: 0; margin-bottom: 4px; }
 .auth-foot { font-size: 13px; color: var(--fg); }
 .codes { columns: 2; margin: 0; padding-left: 1.6em; font-family: var(--font-code); font-size: 15px; }
 .codes li { padding: 2px 0; }
-
-/* --- frame header -------------------------------------------------------------- */
-.screen { min-height: 100vh; display: flex; flex-direction: column; }
-.screen.war-screen { height: 100vh; min-height: 0; }
-.frame-head {
-  min-height: 56px;
-  display: flex; flex-wrap: wrap; align-items: center; column-gap: 14px; row-gap: 6px;
-  padding: 6px 12px;
-  background: var(--chrome-bg);
-  border-bottom: 1px solid var(--chrome-rule);
-  color: var(--chrome-fg);
-}
-.frame-head .title { font: 400 16px/1.3 var(--font-head); color: var(--chrome-fg); }
-.frame-head .muted { color: var(--chrome-fg-muted); }
-/* the game's name and the person's name open their dossiers */
-.frame-head button.head-link { padding: 0; border: 0; background: none; text-align: left; cursor: pointer; text-decoration: underline dotted var(--chrome-fg-muted); text-underline-offset: 3px; }
-.frame-head button.head-link:hover, .frame-head button.head-link:focus-visible { text-decoration-style: solid; text-decoration-color: var(--chrome-accent); }
-.frame-head .office, .frame-head .answers-to { font: 12px/1.3 var(--font-chrome); }
-.brand-mark { color: var(--chrome-accent); display: inline-flex; }
-.divider { width: 1px; align-self: stretch; background: var(--chrome-rule); }
-.head-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); }
-.frame-head button { background: transparent; color: var(--chrome-fg); border-color: var(--chrome-field-border); }
-.frame-head button:hover:not(:disabled) { border-color: var(--chrome-accent-strong); color: var(--chrome-accent-strong); }
-.icon-btn { padding: 6px; }
-.frame-head :focus-visible { outline-color: var(--chrome-accent-strong); }
-/* At phone width the account line goes (Sign out stays), so the controls sit on one row. */
-@media (max-width: 600px) {
-  .head-right { flex-wrap: wrap; justify-content: flex-end; }
-  .head-right > .muted { display: none; }
-  .frame-head button { white-space: nowrap; }
-}
-
-/* --- paper sheets ---------------------------------------------------------------- */
-.paper {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: var(--space-5);
-  display: flex; flex-direction: column; gap: var(--space-4);
-  box-shadow: var(--shadow-sheet);
-}
-.paper-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); }
-.paper.empty { color: var(--fg); }
-.prose { display: flex; flex-direction: column; gap: var(--space-3); max-width: 72ch; }
-.dispatch, .prose.dispatch { font: 15px/1.6 var(--font-read); color: var(--fg-strong); }
-.reply { display: flex; flex-direction: column; gap: 4px; }
-.reply ul { margin: 0; padding-left: 1.2em; }
-.reply .gap { height: 6px; }
-.outcome:empty { display: none; }
-.outcome { background: var(--surface-2); border-left: 3px solid var(--fg); padding: var(--space-3); border-radius: var(--radius); }
-
 /* --- Session Zero ----------------------------------------------------------------- */
 .sz { flex: 1; display: grid; grid-template-columns: 240px minmax(0, 1fr); background: var(--bg); min-height: 0; }
 .rail { background: var(--surface-2); border-right: 1px solid var(--rule); padding: var(--space-5) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
@@ -180,7 +68,6 @@ form[aria-label="Agent design"] button { justify-self: start; }
 .seat-card dt { color: var(--fg-muted); }
 .seat-card dd { margin: 0; }
 .seat-card h2 { font: 400 22px var(--font-head); text-transform: none; letter-spacing: 0; color: var(--fg-strong); }
-
 /* --- war room --------------------------------------------------------------------- */
 .contests {
   background: var(--surface-2);
@@ -198,7 +85,6 @@ form[aria-label="Agent design"] button { justify-self: start; }
 .track { position: relative; height: 10px; border: 1px solid var(--fg); background: var(--field); }
 .track .mid { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--fg-muted); }
 .track .marker { position: absolute; top: -4px; bottom: -4px; width: 4px; margin-left: -2px; background: var(--accent-bg); }
-
 .war {
   flex: 1; min-height: 0;
   display: grid; grid-template-columns: minmax(296px, 22%) minmax(0, 1fr) minmax(320px, 27%);
@@ -219,7 +105,6 @@ form[aria-label="Agent design"] button { justify-self: start; }
 .goal-text { font-family: var(--font-read); }
 .rival ol { margin: 4px 0 0; padding-left: 1.2em; font-size: 13px; }
 .rival-name { font-weight: 600; margin-right: 6px; }
-
 .col-centre { min-height: 0; display: flex; flex-direction: column; background: var(--surface); }
 .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--rule); padding: 0 var(--space-4); background: var(--surface-2); }
 .tabs button { border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: transparent; padding: 10px 14px; color: var(--fg); }
@@ -231,7 +116,6 @@ form[aria-label="Agent design"] button { justify-self: start; }
 .ticks [aria-current] { font-weight: 700; }
 .facts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .facts li { padding: 4px 0; border-bottom: 1px solid var(--rule); }
-
 .order-box { border-top: 1px solid var(--accent); background: var(--surface-2); padding: var(--space-4) var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); }
 .order-row { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-end; }
 .segs-row { display: flex; }
@@ -239,11 +123,10 @@ form[aria-label="Agent design"] button { justify-self: start; }
 .segs-row .seg:first-child { border-radius: var(--radius) 0 0 var(--radius); margin-left: 0; }
 .segs-row .seg:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
 .segs-row .seg[aria-checked="true"] { background: var(--surface); box-shadow: inset 0 -3px 0 var(--accent); position: relative; }
-
 .col-right { min-height: 0; border-left: 1px solid var(--accent); display: flex; flex-direction: column; }
 .agent { flex: 1; min-height: 0; display: flex; flex-direction: column; border-bottom: 1px solid var(--rule); }
 .agent-head { display: flex; gap: var(--space-3); align-items: center; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--rule); }
-.portrait { width: 40px; height: 40px; border: 2px var(--border-portrait) var(--fg); display: grid; place-items: center; font: 400 20px var(--font-head); background: var(--surface); flex: none; }
+.portrait { width: 40px; height: 40px; border: 2px solid var(--fg); display: grid; place-items: center; font: 400 20px var(--font-head); background: var(--surface); flex: none; }
 .agent-name { font: 400 16px var(--font-head); }
 .chat { flex: 1; min-height: 120px; overflow-y: auto; padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
 .chat .me { align-self: flex-end; background: var(--surface); border: 1px solid var(--rule); padding: 6px 10px; border-radius: var(--radius); max-width: 85%; }
@@ -252,19 +135,15 @@ form[aria-label="Agent design"] button { justify-self: start; }
 .chronicle { max-height: 40%; overflow-y: auto; padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
 .chronicle ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .chronicle li { display: flex; flex-direction: column; border-bottom: 1px solid var(--rule); padding-bottom: 4px; }
-
-dialog.sheet { border: 0; border-radius: var(--radius); background: var(--surface); color: var(--fg-strong); width: min(520px, 92vw); padding: var(--space-5); }
-dialog.sheet::backdrop { background: var(--backdrop); }
-dialog.sheet form { display: flex; flex-direction: column; gap: var(--space-3); }
-
 @media (max-width: 1100px) {
-  .screen.war-screen { height: auto; min-height: 100vh; }
   .war { grid-template-columns: 1fr; }
   .col-left, .col-right { border: 0; border-bottom: 1px solid var(--accent); }
   .sz { grid-template-columns: 1fr; }
   .split { grid-template-columns: 1fr; }
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 /* A taken figure reads dimmer by its name, not by fading the whole card: faded tags fail contrast. */
 .char.taken { opacity: 1; }
 .char.taken .char-name { color: var(--fg); }
+/* The character-select screen's cast: a grid of cards (realism-cast.js) */
+.rl-cast { margin-block: 1rem; }
+.rl-cast-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .75rem; }

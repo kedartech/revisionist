@@ -1,0 +1,58 @@
+/* The map. Shape says side, fill and line say certainty; colour is a third cue only. Tokens only. */
+.rl-map { font: 14px/1.5 var(--font-chrome); color: var(--fg-strong); }
+.rl-map h2 { font: 600 16px/1.3 var(--font-chrome); margin: 0 0 var(--space-1); }
+.rl-filter[aria-pressed="true"] { background: var(--accent-bg); color: var(--on-accent); font-weight: 600; }
+.rl-map-figure { margin: 0; border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; }
+.rl-map-svg { display: block; height: auto; max-height: 70vh; font-family: var(--font-chrome); }
+.rl-map-sea { fill: var(--chart-sea); }
+.rl-map-land { fill: var(--chart-land); fill-rule: evenodd; stroke: var(--chart-line); stroke-width: 0.6px; vector-effect: non-scaling-stroke; }
+.rl-map-place circle { fill: var(--fg-muted); }
+.rl-map-place text { fill: var(--fg); }
+.rl-mk { --side: var(--fg-strong); cursor: pointer; }
+.rl-side-own { --side: var(--info); }
+.rl-side-other { --side: var(--danger); }
+.rl-mk-shape { fill: var(--surface); stroke: var(--side); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.rl-c-known .rl-mk-shape { fill: var(--side); }
+.rl-mk-glyph { fill: none; stroke: var(--side); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.rl-c-known .rl-mk-glyph { stroke: var(--surface); }
+.rl-c-stale .rl-mk-shape { stroke-dasharray: 3 2; }
+.rl-c-stale { opacity: 0.75; }
+.rl-mk-tick { stroke: var(--fg-strong); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.rl-mk-name { fill: var(--fg-strong); font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.rl-mk-line { fill: none; stroke: var(--side); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.rl-mk-front .rl-mk-line { stroke-width: 5px; stroke-linejoin: round; opacity: 0.8; }
+.rl-mk-route .rl-mk-line { stroke-dasharray: 6 4; }
+.rl-c-stale .rl-mk-line { stroke-dasharray: 2 3; }
+.rl-mk-hit { fill: none; stroke: transparent; stroke-width: 14px; vector-effect: non-scaling-stroke; }
+.rl-mk-ring { fill: none; stroke: var(--info); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.rl-mk.selected .rl-mk-line { stroke-width: 4px; }
+.rl-mk:focus { outline: none; }
+.rl-mk:focus-visible .rl-mk-shape, .rl-mk:focus-visible .rl-mk-line { stroke: var(--info); stroke-width: 3px; }
+.rl-legend { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); margin: var(--space-3) 0 0; padding: 0; list-style: none; font-size: 13px; color: var(--fg); }
+.rl-legend li { display: flex; align-items: center; gap: var(--space-1); }
+.rl-legend svg { cursor: default; }
+.rl-map-detail { margin-top: var(--space-4); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-map-detail h3 { margin: 0 0 var(--space-2); font: 700 15px/1.35 var(--font-head); }
+.rl-map-detail dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
+.rl-map-detail dt { font-weight: 600; }
+.rl-map-detail dd { margin: 0; }
+.rl-map-list { border-collapse: collapse; font-size: 14px; }
+.rl-map-list caption { text-align: left; font-weight: 600; margin-bottom: var(--space-2); }
+.rl-map-list th, .rl-map-list td { padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; }
+.rl-find { padding: 2px var(--space-2); background: var(--surface-2); color: var(--fg-strong); border: 1px solid var(--field-border); border-radius: var(--radius); font: 13px/1.4 var(--font-chrome); cursor: pointer; white-space: nowrap; }
+.rl-find:focus-visible, .rl-submit:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 640px) {
+  .rl-map-list thead { display: none; }
+  .rl-map-list tr { display: grid; padding: var(--space-2) 0; border-bottom: 1px solid var(--rule); }
+  .rl-map-list th, .rl-map-list td { border: 0; padding: 0; }
+}
+/* the seat's own movement orders on the map */
+.rl-mk-order { pointer-events: none; }
+.rl-mk-arrow { stroke: var(--info); stroke-width: 2px; stroke-dasharray: 5 4; fill: none; vector-effect: non-scaling-stroke; }
+.rl-mk-arrowhead { fill: var(--info); }
+.rl-mk-goal { fill: none; stroke: var(--info); stroke-width: 2px; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; }
+.rl-o-under_way .rl-mk-arrow, .rl-o-under_way .rl-mk-goal { stroke: var(--ok); }
+.rl-o-under_way .rl-mk-arrowhead { fill: var(--ok); }
+.rl-map-orders { margin-top: var(--space-4); }
+.rl-map-orders h3 { margin: 0 0 var(--space-1); font: 600 14px/1.3 var(--font-chrome); }
+.rl-map-orders ul { margin: 0 0 var(--space-2); padding-left: var(--space-4); }

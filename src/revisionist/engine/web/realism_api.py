@@ -429,6 +429,9 @@ class AgendaItem(TypedDict):
     text: str
     issued: str
     deadline: str
+    cause: str | None
+    """The headline of the news behind the history event that issued it, once a page of
+    that news has reached the seat; None otherwise."""
     options: list[AgendaOption]
     """Beginner: what to choose from. Empty otherwise."""
     plan: list[AgendaOption]

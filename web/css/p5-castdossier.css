@@ -127,8 +127,10 @@
   margin-top: 1rem;
 }
 
+/* Focusing a foot button scrolls the rest of the foot and the dialog padding into view. */
 .rl-cd-foot button {
   font-family: var(--font-chrome);
+  scroll-margin-block-end: calc(var(--space-7) + var(--space-5));
 }
 
 .rl-cd-ask {

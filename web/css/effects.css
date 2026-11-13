@@ -1,5 +1,5 @@
-/* Screen effects, off unless rv.effects is "on" (js/theme.js sets data-effects on the root).
-   Every rule is scoped to that attribute, so the default page is untouched. */
+/* Screen effects, on unless rv.effects is "off" (js/theme.js sets data-effects on the root).
+   Every rule is scoped to that attribute, so turning them off leaves the plain page. */
 
 html[data-effects="on"] body::after {
   content: '';
@@ -7,9 +7,11 @@ html[data-effects="on"] body::after {
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  background: repeating-linear-gradient(to bottom,
-    transparent 0 2px,
-    color-mix(in srgb, var(--fg) 7%, transparent) 2px 3px);
+  background:
+    radial-gradient(ellipse at center, transparent 60%, color-mix(in srgb, var(--bg) 35%, transparent) 100%),
+    repeating-linear-gradient(to bottom,
+      transparent 0 2px,
+      color-mix(in srgb, var(--fg) 4%, transparent) 2px 3px);
 }
 
 html[data-effects="on"] h1,

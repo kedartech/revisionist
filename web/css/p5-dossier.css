@@ -1,14 +1,15 @@
 /* The character and setting dossiers (Train 2 unit D). Every selector sits under .rl-dos. */
 
 .rl-dos {
-  border: 1px var(--border-sheet) var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--fg-read);
   font-family: var(--font-read);
+  container-type: inline-size;
   width: min(34rem, 92vw);
   max-height: 88vh;
   padding: 1.25rem;
-  box-shadow: var(--shadow-sheet);
 }
 
 .rl-dos::backdrop {
@@ -20,7 +21,7 @@
   gap: 1rem;
   align-items: flex-start;
   padding-bottom: 0.75rem;
-  border-bottom: 1px var(--border-sheet) var(--rule);
+  border-bottom: 1px solid var(--rule);
 }
 
 .rl-dos-figure {
@@ -33,7 +34,9 @@
   display: block;
   width: 9rem;
   height: auto;
-  border: 1px var(--border-sheet) var(--field-border);
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border: 1px solid var(--field-border);
 }
 
 .rl-dos-credit {
@@ -53,6 +56,7 @@
   border: 1px solid var(--field-border);
   font-family: var(--font-head);
   font-size: 1.5rem;
+  font-weight: 600;
   color: var(--fg-strong);
 }
 
@@ -126,7 +130,7 @@
   font-family: var(--font-chrome);
 }
 
-@media (max-width: 30rem) {
+@container (max-width: 30rem) {
   .rl-dos-head {
     flex-direction: column;
     align-items: flex-start;

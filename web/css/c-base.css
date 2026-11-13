@@ -1,0 +1,81 @@
+/* Base: the page, type, controls and shared sheets. Tokens only (web/css/tokens.css). */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--chrome-bg);
+  color: var(--fg-strong);
+  font: 14px/1.5 var(--font-chrome);
+  font-variant-numeric: tabular-nums;
+}
+#app { min-height: 100%; }
+.loading { color: var(--chrome-fg-muted); padding: var(--space-6); }
+h1, h2, h3 { margin: 0; font-weight: 400; }
+h1 { font: 400 26px/1.25 var(--font-head); }
+h2 { font: 600 12px/1.4 var(--font-chrome); letter-spacing: .08em; text-transform: uppercase; color: var(--fg); }
+p { margin: 0; }
+a { color: var(--info); }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.num { font-variant-numeric: tabular-nums; }
+.small { font-size: 12px; }
+.muted { color: var(--fg-muted); }
+.hint { color: var(--fg-muted); font-size: 12px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.row.between { justify-content: space-between; }
+.row.end { justify-content: flex-end; }
+.stack { display: flex; flex-direction: column; min-width: 0; }
+.grow { flex: 1; min-width: 200px; }
+.eyebrow { font: 600 11px/1.3 var(--font-chrome); letter-spacing: .1em; text-transform: uppercase; color: var(--chrome-fg-muted); }
+.paper .eyebrow, .sz .eyebrow { color: var(--fg-muted); }
+/* --- controls --------------------------------------------------------------- */
+button {
+  cursor: pointer;
+  border: 1px solid var(--field-border);
+  background: var(--field);
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { cursor: not-allowed; opacity: .6; }
+button.primary { background: var(--accent-bg); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
+button.primary:hover:not(:disabled) { background: var(--accent-hover); }
+input, textarea, select {
+  width: 100%;
+  border: 1px solid var(--field-border);
+  background: var(--field);
+  border-radius: var(--radius);
+  padding: 7px 9px;
+}
+textarea { resize: vertical; font-family: var(--font-read); }
+label { font-weight: 600; font-size: 13px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.form-error { color: var(--danger); font-weight: 600; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+legend { font-weight: 600; font-size: 13px; padding: 0; margin-bottom: 4px; }
+.check { display: flex; gap: 8px; align-items: center; font-weight: 400; }
+.check input { width: auto; }
+/* --- paper sheets ---------------------------------------------------------------- */
+.paper {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: var(--space-5);
+  display: flex; flex-direction: column; gap: var(--space-4);
+}
+.paper-head { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); }
+.paper.empty { color: var(--fg); }
+.prose { display: flex; flex-direction: column; gap: var(--space-3); max-width: 72ch; }
+.dispatch, .prose.dispatch { font: 15px/1.6 var(--font-read); color: var(--fg-strong); }
+.reply { display: flex; flex-direction: column; gap: 4px; }
+.reply ul { margin: 0; padding-left: 1.2em; }
+.reply .gap { height: 6px; }
+.outcome:empty { display: none; }
+.outcome { background: var(--surface-2); border-left: 3px solid var(--fg); padding: var(--space-3); border-radius: var(--radius); }
+dialog.sheet { border: 0; border-radius: var(--radius); background: var(--surface); color: var(--fg-strong); width: min(520px, 92vw); padding: var(--space-5); }
+dialog.sheet::backdrop { background: var(--backdrop); }
+dialog.sheet form { display: flex; flex-direction: column; gap: var(--space-3); }
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

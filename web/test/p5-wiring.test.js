@@ -22,7 +22,6 @@ const UNITS = {
   D: ['js/views/realism-dossier.js', 'css/p5-dossier.css'],
   W: ['js/views/realism-happened.js', 'css/p5-happened.css'],
   V: ['js/views/realism-overlay.js', 'css/p5-overlay.css'],
-  TH1: ['js/theme-setting.js', 'css/p5-theme.css'],
   TH2: [null, 'css/effects.css'],
   TH3: [null, 'css/p5-press.css'],
 };
@@ -51,15 +50,38 @@ test('the room calls each unit with the data the server sends', () => {
   }
 });
 
-test('the header opens the dossiers and carries the theme control', () => {
+test('the room wires the console strip, tiles and panel switches once, for every unit', () => {
+  const room = read('js/views/realism-room.js');
+  for (const call of [
+    /import \{ statusStrip, summaryTiles \} from '\.\/realism-status\.js';/,
+    /import \{ sideSwitch, tabBar \} from '\.\/realism-tabs\.js';/,
+    /statusStrip\(rv, ui, \{ act \}\)/,
+    /summaryTiles\(rv, pick\)/,
+    /sideSwitch\(ui, pick\)/,
+    /tabBar\(rv, ui, pick\)/,
+    /'data-view': ui\.tab/,
+    /'data-side': ui\.side/,
+    /class: 'rl-col rl-papers', 'data-tab': 'papers'/,
+    /class: 'rl-col rl-desk-col', 'data-tab': 'desk'/,
+    /class: 'rl-col rl-side', 'data-tab': 'orders'/,
+    /tab: 'desk', side: 'papers'/,
+    /onState: \(next\) => \{ if \(!next\.open && ui\.tab === 'messages'\) ui\.tab = 'desk';/,
+    /ui\.chat = \{ \.\.\.ui\.chat, open: false \};\n\s*ui\.tab = 'desk';/,
+  ]) assert.match(room, call);
+  for (const css of ['c-base', 'ui-kit', 'c-header', 'c-shell', 'c-map']) {
+    assert.match(read('index.html'), new RegExp(`href="/css/${css}\\.css"`), css);
+  }
+});
+
+test('the header opens the dossiers and carries the Screen effects toggle', () => {
   const frame = read('js/views/frame.js');
-  assert.match(frame, /themeControl\(theme\)/);
+  assert.match(frame, /effectsControl\(effects\)/);
   assert.match(frame, /onSetting/);
   assert.match(frame, /onIdentity/);
   assert.match(frame, /Answers to \$\{identity\.principal\}/);
   const app = read('js/app.js');
-  assert.match(app, /themeStore\(storage\)\.save\(next, effects\)/);
-  assert.match(app, /applyTheme\(document\.documentElement, storage\)/);
+  assert.match(app, /saveEffects\(storage, on\)/);
+  assert.match(app, /applyEffects\(document\.documentElement, storage\)/);
 });
 
 test('every unit has replaced its contract stub', () => {

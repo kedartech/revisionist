@@ -55,7 +55,7 @@ test('the panel lists each opponent under its heading, in the order sent', () =>
   assert.equal(panel.querySelector('h2').textContent, 'Opponents');
   const rows = panel.querySelectorAll('li');
   assert.equal(rows.length, 2);
-  assert.match(words(rows[0]), /^Adolf Hitler Führer and Reich Chancellor ?Hostile Hardening ?As of 1 September 1941\. As things stood at the start\.$/);
+  assert.match(words(rows[0]), /^Adolf Hitler Führer and Reich Chancellor ?Hostile ↗ Hardening ?As of 1 September 1941\. As things stood at the start\. ?Firm$/);
   assert.match(words(rows[1]), /^Benito Mussolini/);
   assert.ok(rows[0].querySelector('.rl-threat-stance').className.includes('rl-threat-hostile'));
 });

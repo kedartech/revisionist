@@ -5,8 +5,9 @@ the code `new`, starts the ready-made game as its host and plays Franklin D. Roo
 With the code `v2` it starts the engine-v2 slice from the timeline instead and checks
 the timeline, who held power and the play style first.
 Checks the room: the header names the player and its two names open the setting and the
-character dossiers; the game menu; the wake header with "Done for today" and the host's
-"Run the day now"; the in-tray's grouped rows, an opened paper, flagging and the filters;
+character dossiers; the game menu; the wake header with the host's "Run the day now" and
+the status strip with the date and "Done for today"; the in-tray's grouped rows, an
+opened paper, flagging and the filters;
 needs-your-answer, ideas, the standard forms, a directive read by the aide (signed when it
 reads as an order, revised when it cannot be sent) and the orders column; the messenger
 with the aide's thread, a question to the aide, a consult and the contacts tab; a day run
@@ -104,7 +105,7 @@ def advance(page: Page, name: str, button: str = "Done for today") -> None:
     """Run the day (the only player, so it runs) with the call held, and check the busy
     state and the overlay while it runs, then the What happened sheet after."""
     page.evaluate(SLOW_ADVANCE)
-    number = wake_number(page)
+    before = world_day(page)
     go = page.get_by_role("button", name=button).first
     go.click()
     if button == RUN_NOW:
@@ -131,8 +132,8 @@ def advance(page: Page, name: str, button: str = "Done for today") -> None:
     shoot(page, f"{name}-busy")
     page.locator(".rl-status.said").filter(has_text="calendar moves").wait_for(timeout=WAKE_MS)
     page.wait_for_timeout(300)
-    after = wake_number(page)
-    check(f"{name}: the wake moves on", after == number + 1, f"{number} -> {after}")
+    after = world_day(page)
+    check(f"{name}: the day moves on", after != before, f"{before} -> {after}")
     check(f"{name}: the overlay is gone", page.locator(".rl-ovl").count() == 0)
     sheet = page.locator("dialog.rl-hap[open]")
     sheet.wait_for(timeout=5_000)
@@ -144,9 +145,9 @@ def advance(page: Page, name: str, button: str = "Done for today") -> None:
     check(f"{name}: What happened closes", page.locator("dialog.rl-hap[open]").count() == 0)
 
 
-def wake_number(page: Page) -> int:
-    text = page.locator(".rl-wake").first.inner_text()
-    return int(text.split("Wake ", 1)[1].split()[0])
+def world_day(page: Page) -> str:
+    """The world date the status strip shows (the room names no wake number)."""
+    return page.locator(".rl-strip .rl-date").first.inner_text()
 
 
 def fill(form: Locator) -> None:
@@ -390,12 +391,19 @@ def header_and_menu(page: Page, report: dict[str, object], host: bool) -> None:
 def wake_header(page: Page, report: dict[str, object], host: bool) -> None:
     wake = page.locator(".frame-head .rl-wake")
     report["wake_header"] = wake.inner_text()
-    check("the header shows the wake", "Wake " in wake.inner_text(), wake.inner_text())
+    check("the header names no wake number", "Wake " not in wake.inner_text(), wake.inner_text())
+    strip = page.get_by_role("region", name="Where the day stands")
+    check("the status strip shows the world date", strip.locator(".rl-date").count() == 1)
+    check(
+        "the header leaves the date to the strip",
+        page.locator(".frame-head .rl-clock .title").count() == 0,
+    )
     check("the header says when the wake closes", "Closes " in wake.inner_text())
     check("the header counts players done", "done" in wake.inner_text())
     check(
-        "the header offers Done for today",
-        page.get_by_role("button", name="Done for today").count() >= 1,
+        "the strip offers Done for today and the header does not",
+        strip.get_by_role("button", name="Done for today").count() == 1
+        and page.locator(".frame-head").get_by_role("button", name="Done for today").count() == 0,
     )
     check(
         "Run the day now is hidden (a one-player game, or a seat that is not the host)",
@@ -640,14 +648,18 @@ def messenger(page: Page, report: dict[str, object]) -> None:
 
 
 def composer_in_dock(page: Page) -> bool:
-    """The Send button sits inside the dock and on screen, not under the launcher."""
+    """The Send button sits inside the dock and on screen, not under the launcher or the
+    phone's tab bar."""
     return bool(
         page.evaluate(
             """() => {
       const p = document.querySelector('.rl-msgr-panel')?.getBoundingClientRect();
       const s = document.querySelector('.rl-msgr .rl-th-send')?.getBoundingClientRect();
+      const bar = document.querySelector('.rl-tabbar');
+      const floor = bar && getComputedStyle(bar).display !== 'none'
+        ? bar.getBoundingClientRect().top : innerHeight;
       return !!p && !!s && s.bottom <= p.bottom + 1
-        && s.bottom <= innerHeight && s.right <= innerWidth;
+        && s.bottom <= floor + 1 && s.right <= innerWidth;
     }"""
         )
     )
@@ -754,7 +766,15 @@ def narrow(page: Page) -> None:
     width = page.evaluate("document.documentElement.scrollWidth")
     check("a narrow dock has no sideways scroll", width <= 390, str(width))
     page.screenshot(path=str(OUT / "14n-aide-390x844.png"))
-    page.keyboard.press("Escape")
+    page.get_by_role("navigation", name="Room panels").get_by_role("button", name="Papers").click()
+    page.wait_for_timeout(200)
+    panel = page.locator(".rl-msgr-panel")
+    check(
+        "a narrow room's Papers tab closes the messenger over it",
+        panel.count() == 0 or not panel.first.is_visible(),
+    )
+    if panel.count() and panel.first.is_visible():
+        page.keyboard.press("Escape")
     page.wait_for_timeout(200)
     page.set_viewport_size({"width": SIZE[0], "height": SIZE[1]})
     page.wait_for_timeout(300)

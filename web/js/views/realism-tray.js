@@ -3,7 +3,13 @@
 import { h } from '../dom.js';
 import { TRAY_FILTERS, filterInTray, sortInTray, trayCounts } from '../realism-rules.js';
 import { worldDate } from '../rules.js';
+import { panelHead, tag } from './ui-kit.js';
 import { dossier } from './realism.js';
+
+const KIND_TAG = Object.freeze({
+  cable: ['cable', 'info'], intercept: ['intercept', 'intel'], press: ['press', 'warn'],
+  fleet: ['order', 'ok'], route: ['order', 'ok'],
+});
 
 /** Fold same-group papers into one row at the place of the group's newest paper. Does not mutate `items`. */
 export function trayRows(items) {
@@ -48,7 +54,7 @@ function tabBar(filter, counts, onFilter) {
       if (to > last) to = 0;
       onFilter?.(TRAY_FILTERS[to][0], true);
     },
-  }, word, h('span', { class: 'rl-count' }, ` ${counts[key]}`)));
+  }, word, h('span', { class: 'rl-count n' }, ` ${counts[key]}`)));
 }
 
 function moveFocus(e) {
@@ -61,14 +67,16 @@ function moveFocus(e) {
 }
 
 function paperRow(item, onOpen, open, nested) {
+  const [word, tone] = KIND_TAG[item.kind] ?? ['report', 'quiet'];
   return h('button', {
-    type: 'button', role: 'option', class: `rl-row rl-row-paper${nested ? ' rl-row-nested' : ''}`,
+    type: 'button', role: 'option', class: `rl-row rl-row-paper${item.unread ? ' unread' : ''}${nested ? ' rl-row-nested' : ''}`,
     'aria-selected': String(open?.id === item.id), onclick: () => onOpen?.(item), onkeydown: moveFocus,
   },
-  h('span', { class: item.unread ? 'rl-dot rl-dot-on' : 'rl-dot', title: item.unread ? 'Unread' : '' }),
   h('span', { class: 'rl-row-main' },
     h('span', { class: 'rl-row-from' }, item.author),
     h('span', { class: 'rl-row-title' }, item.title)),
+  tag(word, tone),
+  item.unread ? h('span', { class: 'rl-row-unread' }, 'Unread') : null,
   h('span', { class: 'rl-row-date' }, worldDate(item.arrives)),
   item.flagged ? h('span', { class: 'rl-flag', title: 'Flagged' }, 'Flagged') : null);
 }
@@ -137,20 +145,21 @@ export function trayView(listing, onOpen, opts = {}) {
     : sorted.length
       ? [h('ul', { class: 'rl-rows', role: 'listbox', 'aria-label': 'Papers' }, rowNodes(trayRows(sorted), onOpen, open))]
       : [];
-  return h('section', { class: 'rl-tray', 'aria-labelledby': 'rl-tray-h' },
-    h('h2', { id: 'rl-tray-h' }, 'In-tray'),
-    h('div', { class: 'rl-bar' },
-      h('div', { role: 'tablist', 'aria-label': 'Show papers', class: 'rl-filters' }, tabBar(filter, counts, onFilter)),
+  return h('section', { class: 'rl-tray panel', 'aria-label': 'In-tray' },
+    panelHead('In-tray', listing.unread, [
       h('label', { class: 'rl-sort' }, 'Sort ',
         h('select', { name: 'sort', onchange: (e) => onSort?.(e.target.value) },
           h('option', { value: 'newest', selected: sort === 'newest' }, 'Newest first'),
-          h('option', { value: 'oldest', selected: sort === 'oldest' }, 'Oldest first')))),
-    h('div', { role: 'tabpanel', id: 'rl-folders', 'aria-labelledby': `rl-filter-${filter}` },
-      h('div', { class: `rl-mail${page ? ' rl-mail-open' : ''}` },
-        h('div', { class: 'rl-mail-list' },
-          lists.length ? lists : h('p', { class: 'rl-none' }, 'Nothing in this tray.')),
-        h('div', { class: 'rl-mail-pane' },
-          page
-            ? dossier(page, { onClose: opts.onClose, onFlag: opts.onFlag })
-            : h('p', { class: 'rl-none' }, 'Choose a paper to read it here.')))));
+          h('option', { value: 'oldest', selected: sort === 'oldest' }, 'Oldest first'))),
+    ]),
+    h('div', { class: 'rl-tray-body' },
+      h('div', { role: 'tablist', 'aria-label': 'Show papers', class: 'seg' }, tabBar(filter, counts, onFilter)),
+      h('div', { role: 'tabpanel', id: 'rl-folders', 'aria-labelledby': `rl-filter-${filter}` },
+        h('div', { class: `rl-mail${page ? ' rl-mail-open' : ''}` },
+          h('div', { class: 'rl-mail-list' },
+            lists.length ? lists : h('p', { class: 'rl-none' }, 'Nothing in this tray.')),
+          h('div', { class: 'rl-mail-pane' },
+            page
+              ? dossier(page, { onClose: opts.onClose, onFlag: opts.onFlag })
+              : h('p', { class: 'rl-none' }, 'Choose a paper to read it here.'))))));
 }

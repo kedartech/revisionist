@@ -23,6 +23,8 @@ import { introStage, markIntro, seatSplash, splashModel, startOverview } from '.
 import { newsBlock, whatChanged } from './realism-news.js';
 import { orderCards } from './realism-orders.js';
 import { overlayLines, wakeOverlay } from './realism-overlay.js';
+import { statusStrip, summaryTiles } from './realism-status.js';
+import { sideSwitch, tabBar } from './realism-tabs.js';
 import { threadItems } from './realism-thread.js';
 import { threatsPanel } from './realism-threats.js';
 import { trayView } from './realism-tray.js';
@@ -33,6 +35,7 @@ const freshUi = (game) => ({
   filter: 'all', sort: 'newest', draft: null, proposal: null, autoFor: null,
   chat: { open: false, tab: 'chats', thread: null }, contact: null, orderTo: null,
   happenedSeen: null, refocusChat: false, brief: null, pending: null, drafts: {},
+  tab: 'desk', side: 'papers',
 });
 let ui = freshUi(null);
 
@@ -97,6 +100,49 @@ export function endSend(state, outcome) {
   } else {
     state.drafts = others;
   }
+}
+
+/**
+ * A tab, tile or side switch picks the panel to show. Messages opens the messenger; on a phone,
+ * where the messenger covers the room, any other tab closes it so the panel picked is the one seen.
+ */
+export function pickPanel(state, { tab, side }, phone) {
+  if (tab) state.tab = tab;
+  if (side) state.side = side;
+  if (tab === 'messages') state.chat = { ...state.chat, open: true };
+  else if (tab && phone) state.chat = { ...state.chat, open: false };
+}
+
+/** Whether the room is at phone width, where the tab bar shows (c-shell.css). */
+const phoneWidth = () => Boolean(globalThis.matchMedia?.('(max-width: 767px)').matches);
+
+/** Where focus goes when the messenger closes: its launcher, or on a phone (launcher hidden) the Messages tab. */
+export function closedChatTarget(root, phone) {
+  if (!phone) return root.querySelector('.rl-msgr-btn');
+  return [...root.querySelectorAll('.rl-tabbar button')].find((b) => b.textContent.startsWith('Messages')) ?? null;
+}
+
+const SWITCHES = ['.rl-tabbar', '.rl-sideswitch', '.rl-tiles'];
+
+/** The panel switch a focused button belongs to and its place there, or null for any other element. */
+export function switchPlace(el) {
+  for (const sel of SWITCHES) {
+    const group = el?.closest?.(sel);
+    if (group) return { sel, at: [...group.querySelectorAll('button')].indexOf(el) };
+  }
+  return null;
+}
+
+/** The button at that place in a redrawn room. */
+export function switchAt(root, place) {
+  if (!place) return null;
+  return root.querySelector(place.sel)?.querySelectorAll('button')[place.at] ?? null;
+}
+
+/** The aide has written: its thread opens, and the phone tab bar marks Messages. */
+export function openAide(state) {
+  state.chat = { open: true, tab: 'chats', thread: 'aide' };
+  state.tab = 'messages';
 }
 
 /** Browser storage, or nothing where it is blocked: the units take it as a parameter. */
@@ -272,7 +318,7 @@ export function realismRoom(ctx) {
     const r = await api.realism(action, body);
     ui.said = r.reply || null;
     // the aide has written: a failed order, or an answer; open its thread
-    if (r.help) ui.chat = { open: true, tab: 'chats', thread: 'aide' };
+    if (r.help) openAide(ui);
     then?.(r);
   });
 
@@ -309,7 +355,7 @@ export function realismRoom(ctx) {
       rerender();
       if (focus) root.querySelector(`#rl-filter-${key}`)?.focus();
     };
-    return h('section', { class: 'rl-col rl-papers', 'aria-label': 'Papers' },
+    return h('section', { class: 'rl-col rl-papers', 'data-tab': 'papers', 'aria-label': 'Papers' },
       h('div', { class: 'rl-col-head' }, widen),
       h('div', { class: 'rl-col-body' },
         trayView(rv.documents, open, {
@@ -369,7 +415,7 @@ export function realismRoom(ctx) {
     const directive = ui.proposal
       ? orderCard(ui.proposal, { onSign: signed, onRevise: () => { ui.proposal = null; ui.said = null; rerender(); } })
       : orderForm();
-    return h('section', { class: 'rl-col rl-desk-col', 'aria-label': 'Desk' },
+    return h('section', { class: 'rl-col rl-desk-col', 'data-tab': 'desk', 'aria-label': 'Desk' },
       h('div', { class: 'rl-col-body' },
         stylePicker(rv.style, { act }),
         needsAnswer(rv.agenda, { act }),
@@ -395,7 +441,7 @@ export function realismRoom(ctx) {
   }
 
   function sideColumn() {
-    return h('aside', { class: 'rl-col rl-side', 'aria-label': 'Your orders' },
+    return h('aside', { class: 'rl-col rl-side', 'data-tab': 'orders', 'aria-label': 'Your orders' },
       h('div', { class: 'rl-col-body' },
         threatsPanel(rv.threats),
         orderCards(rv.record, rv.orders, (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v)))));
@@ -421,7 +467,7 @@ export function realismRoom(ctx) {
     ui.refocusChat = false;
     const panel = root.querySelector('.rl-msgr-panel');
     const inThread = compose ? '.rl-th-compose textarea' : '.rl-th-back';
-    const target = !chat.open ? root.querySelector('.rl-msgr-btn')
+    const target = !chat.open ? closedChatTarget(root, phoneWidth())
       : panel?.querySelector(chat.thread ? inThread : '[role="tab"][aria-selected="true"]');
     target?.focus();
   }
@@ -465,7 +511,7 @@ export function realismRoom(ctx) {
     const inner = rv.desk.inner_circle.map((c) => c.person);
     return chatDock({
       state: ui.chat,
-      onState: (next) => { ui.chat = next; rerender(); refocus(next); },
+      onState: (next) => { if (!next.open && ui.tab === 'messages') ui.tab = 'desk'; ui.chat = next; rerender(); refocus(next); },
       threads: all,
       seen: seen.read(),
       reach: rv.reach,
@@ -493,6 +539,7 @@ export function realismRoom(ctx) {
           ui.proposal = null;
           ui.draft = { to: c.name, channel: c.channel_keys?.[0] ?? '', text: ui.draft?.text ?? '' };
           ui.chat = { ...ui.chat, open: false };
+          ui.tab = 'desk';
           rerender();
           root.querySelector('.rl-write textarea')?.focus();
         },
@@ -558,13 +605,20 @@ export function realismRoom(ctx) {
   }
 
   let pending = null;
+  const pick = (p) => {
+    const place = switchPlace(document.activeElement);
+    pickPanel(ui, p, phoneWidth());
+    rerender();
+    if (p.tab === 'messages') refocus(ui.chat);
+    else switchAt(root, place)?.focus();
+  };
   function build() {
     const [menuBtn, menu] = gameMenu(game, ctx, work);
     const { character, setting, happened, intro: opening } = sheets();
     pending = opening ?? happened;
     const extra = [
       h('span', { class: 'divider', 'aria-hidden': 'true' }),
-      h('div', { class: 'stack rl-clock' }, h('span', { class: 'title' }, worldDate(rv.clock.world_date)), paceHeader(rv.clock)),
+      h('div', { class: 'stack rl-clock' }, paceHeader(rv.clock)),
       wakeHeader(rv.wake, { act }),
       menuBtn,
     ];
@@ -577,9 +631,14 @@ export function realismRoom(ctx) {
         onSetting: setting && work.idle() ? () => setting.showModal() : null,
         onIdentity: character && work.idle() ? () => character.showModal() : null,
       }),
+      statusStrip(rv, ui, { act }),
       status,
+      summaryTiles(rv, pick),
       newsBlock(whatChanged(rv.documents), (id) => open({ id })),
-      h('main', { class: `rl-room${ui.wide ? ' wide' : ''}` }, papers(), deskColumn(), sideColumn()),
+      sideSwitch(ui, pick),
+      h('main', { class: `rl-room${ui.wide ? ' wide' : ''}`, 'data-view': ui.tab, 'data-side': ui.side },
+        papers(), deskColumn(), sideColumn()),
+      tabBar(rv, ui, pick),
       dock(),
       menu, character, setting, happened, opening,
     ].filter(Boolean);

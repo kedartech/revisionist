@@ -1,124 +1,79 @@
-/* Revisionist design tokens. Semantic names only: a stylesheet never names a colour or a font.
-   The terminal theme is :root; the paper theme is html[data-theme="paper"] (set from js/theme.js).
-   Both blocks define the same names. A text token must reach 4.5:1 on the grounds it sits on,
-   a border or focus token 3:1; web/test/theme.test.js computes every pair. */
+/* Revisionist design tokens: the one console theme. Semantic names only: a stylesheet never
+   names a colour or a font. A text token must reach 4.5:1 on the grounds it sits on, a border
+   or focus token 3:1; web/test/theme.test.js computes every pair. A colour never carries
+   meaning alone: a word or an icon goes with it. */
 :root {
   /* Grounds */
-  --bg: #050a07;
-  --surface: #0a120d;
-  --surface-2: #0e1a13;
-  --field: #0c1711;
-  --cover: #0e1a13;                /* a closed in-tray folder */
-  --cover-open: #12241a;           /* a read one */
-  --cover-edge: #17402a;           /* decorative edge only */
+  --bg: #0b0f14;
+  --surface: #10161d;
+  --surface-2: #151c25;
+  --surface-3: #1b2430;
+  --field: #0b0f14;
+  --cover: #151c25;                /* a closed in-tray folder */
+  --cover-open: #1b2430;           /* a read one */
+  --cover-edge: #34475c;           /* decorative edge only */
   --backdrop: rgb(0 0 0 / .7);
 
   /* Text */
-  --fg: #3fd374;
-  --fg-strong: #7dffa8;
-  --fg-read: #bfe8cc;              /* long prose */
-  --fg-muted: #33a35e;             /* 6.2 on bg */
+  --fg: #c5d0db;
+  --fg-strong: #eef3f8;
+  --fg-read: #d6dee6;              /* long prose */
+  --fg-muted: #8a9bad;             /* 5.5 on surface-3 */
 
-  /* Lines. --rule is decoration only (1.7:1); a field border and a focus ring use their own tokens */
-  --rule: #17402a;
-  --field-border: #33a35e;
-  --focus: #7dffa8;
+  /* Lines. --rule and --rule-strong are decoration only; a field border and a focus ring use their own tokens */
+  --rule: #243040;
+  --rule-strong: #34475c;
+  --field-border: #60768e;
+  --focus: #4cc9f0;
 
-  /* A selected or primary control */
-  --accent: #3fd374;
-  --accent-bg: #3fd374;
-  --accent-hover: #7dffa8;
-  --on-accent: #050a07;
+  /* A selected or primary control: green is the action colour */
+  --accent: #3ddc84;
+  --accent-bg: #2fc774;
+  --accent-hover: #5fe69c;
+  --on-accent: #04140b;
 
-  /* Status: always with an icon or a word beside it */
-  --warn: #ffb000;
-  --danger: #ff5f56;
-  --ok: #5fe08a;
-  --info: #5fd7ff;
+  /* Status and intelligence: always with an icon or a word beside it */
+  --ok: #3ddc84;
+  --info: #4cc9f0;
+  --warn: #ffb547;
+  --danger: #ff6b6b;
+  --intel: #b8a4ff;
+
+  /* A soft ground under each accent (12% of it over --surface) */
+  --accent-soft: #152e29;
+  --ok-soft: #152e29;
+  --info-soft: #172b36;
+  --warn-soft: #2d2922;
+  --danger-soft: #2d2026;
+  --intel-soft: #242738;
 
   /* The header frame */
-  --chrome-bg: #050a07;
-  --chrome-fg: #bfe8cc;
-  --chrome-fg-muted: #33a35e;
-  --chrome-accent: #3fd374;
-  --chrome-accent-strong: #7dffa8;
-  --chrome-field-border: #33a35e;
-  --chrome-rule: #17402a;
+  --chrome-bg: #10161d;
+  --chrome-fg: #d6dee6;
+  --chrome-fg-muted: #8a9bad;
+  --chrome-accent: #3ddc84;
+  --chrome-accent-strong: #6ee6a4;
+  --chrome-field-border: #60768e;
+  --chrome-rule: #243040;
 
-  /* Chart colours (the unused map code keeps these) */
-  --chart-sea: #0a120d;
-  --chart-land: #12241a;
-  --chart-line: #33a35e;
+  /* Chart colours */
+  --chart-sea: #0c1622;
+  --chart-land: #1b2430;
+  --chart-line: #60768e;
 
-  /* The parts of the paper look that are not colour */
-  --tilt-stamp: 0deg;
-  --tilt-folder: 0deg;
-  --shadow-sheet: none;
-  --border-sheet: solid;           /* a read folder's edge */
-  --border-portrait: solid;
-  --radius: 0;
+  /* Portraits: a phosphor duotone, shadows to --duo-dark and highlights to --duo-light */
+  --duo-dark: #06180d;
+  --duo-light: #8dffb4;
+  --scanline: rgb(0 0 0 / .28);
+
+  --radius: 6px;
 
   /* Type */
   --font-chrome: 'IBM Plex Mono', ui-monospace, Menlo, monospace;       /* labels, numbers, dates */
   --font-read: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;    /* long prose */
-  --font-head: 'IBM Plex Mono', ui-monospace, Menlo, monospace;         /* headings */
-}
-
-html[data-theme="paper"] {
-  --bg: #D8CFBA;
-  --surface: #F2ECDF;
-  --surface-2: #E4DCCB;
-  --field: #FAF7F0;
-  --cover: #D9C48F;
-  --cover-open: #E8D9AE;
-  --cover-edge: #8A7544;
-  --backdrop: rgb(0 0 0 / .6);
-
-  --fg: #4D463B;
-  --fg-strong: #1F1B16;
-  --fg-read: #1F1B16;
-  --fg-muted: #5F574A;
-
-  --rule: #B5AA93;
-  --field-border: #7A705F;
-  --focus: #2A3D66;
-
-  --accent: #1F1B16;
-  --accent-bg: #1F1B16;
-  --accent-hover: #000000;
-  --on-accent: #F2ECDF;
-
-  --warn: #7A4E0C;
-  --danger: #9B2C22;
-  --ok: #2E5A3C;
-  --info: #2A3D66;
-
-  --chrome-bg: #000000;
-  --chrome-fg: #EDE3D1;
-  --chrome-fg-muted: #A89A86;
-  --chrome-accent: #B87333;
-  --chrome-accent-strong: #D08A49;
-  --chrome-field-border: #85705A;
-  --chrome-rule: #4A2F16;
-
-  --chart-sea: #C9D1CC;
-  --chart-land: #EFE8D8;
-  --chart-line: #7E9AA0;
-
-  --tilt-stamp: -2deg;
-  --tilt-folder: -.6deg;
-  --shadow-sheet: 0 1px 0 #B5AA93;
-  --border-sheet: dashed;
-  --border-portrait: double;
-  --radius: 2px;
-
-  --font-chrome: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;
-  --font-read: 'Courier Prime', 'Courier New', monospace;
-  --font-head: 'Libre Caslon Text', Georgia, serif;
-}
-
-:root {
+  --font-head: 'IBM Plex Sans', 'Helvetica Neue', Arial, sans-serif;    /* headings, semibold */
   --font-code: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  --font-press: 'Libre Caslon Text', Georgia, serif;                    /* the period press */
 
   /* Spacing: 4 px base */
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;

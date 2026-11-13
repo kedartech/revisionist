@@ -2,6 +2,7 @@
 
 import { h } from '../dom.js';
 import { worldDate } from '../rules.js';
+import { tag } from './ui-kit.js';
 
 /** The papers in `listing` that acknowledge an order and come from `person`, newest first. */
 export function ackLines(listing, person) {
@@ -21,10 +22,9 @@ export function ackThread(listing, person, onOpen) {
   const lines = ackLines(listing, person);
   if (!lines.length) return null;
   return h('section', { class: 'rl-acks', 'aria-labelledby': 'rl-acks-h' },
-    h('h3', { id: 'rl-acks-h' }, 'Acknowledgements'),
+    h('h3', { id: 'rl-acks-h', class: 'lbl' }, 'Acknowledgements'),
     h('ul', { class: 'rl-acks-list' }, lines.map((l) => h('li', null,
       h('button', { type: 'button', class: 'rl-ack', onclick: () => onOpen({ id: l.id }) },
-        l.unread ? h('span', { class: 'rl-ack-dot', 'aria-hidden': 'true' }) : null,
-        l.unread ? h('span', { class: 'sr-only' }, 'Unread: ') : null,
+        l.unread ? tag('Unread', 'danger') : null,
         `${l.title} — ${l.day}`)))));
 }

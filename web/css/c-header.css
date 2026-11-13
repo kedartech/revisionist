@@ -1,0 +1,92 @@
+/* The frame header, the wake in it and the game menu. Tokens only (web/css/tokens.css). */
+.frame-head {
+  min-height: 56px;
+  display: flex; flex-wrap: wrap; align-items: center; column-gap: 14px; row-gap: 6px;
+  padding: 6px 12px;
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--chrome-rule);
+  color: var(--chrome-fg);
+}
+.frame-head .title { font: 400 16px/1.3 var(--font-head); color: var(--chrome-fg); }
+.frame-head .muted { color: var(--chrome-fg-muted); }
+/* the game's name and the person's name open their dossiers */
+.frame-head button.head-link { padding: 0; border: 0; background: none; text-align: left; cursor: pointer; text-decoration: underline dotted var(--chrome-fg-muted); text-underline-offset: 3px; }
+.frame-head button.head-link:hover, .frame-head button.head-link:focus-visible { text-decoration-style: solid; text-decoration-color: var(--chrome-accent); }
+.frame-head .office, .frame-head .answers-to { font: 12px/1.3 var(--font-chrome); }
+.brand-mark { color: var(--chrome-accent); display: inline-flex; }
+.divider { width: 1px; align-self: stretch; background: var(--chrome-rule); }
+.head-right { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); }
+.frame-head button { background: transparent; color: var(--chrome-fg); border-color: var(--chrome-field-border); }
+.frame-head button:hover:not(:disabled) { border-color: var(--chrome-accent-strong); color: var(--chrome-accent-strong); }
+.icon-btn { padding: 6px; }
+.frame-head .rl-effects { white-space: nowrap; }
+.frame-head .rl-effects[aria-pressed="true"] { background: var(--accent-bg); color: var(--on-accent); border-color: var(--accent); }
+.frame-head :focus-visible { outline-color: var(--chrome-accent-strong); }
+/* At phone width the account line goes (Sign out stays), so the controls sit on one row. */
+@media (max-width: 600px) {
+  .head-right { flex-wrap: wrap; justify-content: flex-end; }
+  .head-right > .muted { display: none; }
+  .frame-head button { white-space: nowrap; }
+}
+.frame-head .identity { padding-left: var(--space-3); border-left: 1px solid var(--chrome-rule); }
+.frame-head .identity .office { font: 12px/1.3 var(--font-chrome); }
+/* One line while it fits; on a narrower window the wake and the account move to a second line. */
+.realism-screen .frame-head { flex-wrap: wrap; }
+.realism-screen .frame-head > *, .realism-screen .head-right > * { flex-shrink: 0; }
+.realism-screen .head-right { flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 600px) {
+  .realism-screen .head-right > .muted { display: none; }
+}
+.realism-screen .frame-head button { white-space: nowrap; }
+.realism-screen .frame-head .rl-clock { flex: 0 1 auto; flex-shrink: 1; min-width: 8rem; }
+.realism-screen .frame-head .rl-pace { display: block; max-width: 30rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--chrome-fg-muted); }
+/* At phone width the clock line wraps rather than cutting off what comes next. */
+@media (max-width: 600px) {
+  .realism-screen .frame-head .rl-pace { white-space: normal; overflow: visible; }
+}
+.realism-screen .frame-head .rl-pace svg { vertical-align: -2px; margin-right: var(--space-1); }
+.realism-screen .head-right .muted { white-space: nowrap; }
+.rl-menu-btn { display: inline-flex; align-items: center; gap: var(--space-1); }
+.rl-menu-body { display: grid; gap: var(--space-2); }
+.rl-menu [hidden] { display: none; }
+.rl-menu-body h2 { margin: 0 0 var(--space-2); font: 400 20px/1.3 var(--font-head); }
+.rl-menu-body h3 { margin: var(--space-3) 0 0; font: 600 12px/1.3 var(--font-chrome); letter-spacing: .06em; text-transform: uppercase; color: var(--fg); }
+.rl-menu-body .hint { margin: 0; }
+.rl-confirm { padding: var(--space-3); border: 1px solid var(--danger); border-radius: var(--radius); background: var(--field); }
+.rl-confirm p { margin: 0 0 var(--space-2); }
+button.danger { background: var(--danger); color: var(--on-accent); border-color: var(--danger); font-weight: 600; }
+.rl-pace { display: flex; align-items: center; gap: var(--space-2); margin: 0; font: 13px/1.4 var(--font-chrome); color: var(--fg); }
+/* the wake in the room's header */
+.rl-wake { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); min-width: 0; max-width: 100%; padding-left: var(--space-3); border-left: 1px solid var(--chrome-rule); }
+.frame-head .rl-wake button.primary, .frame-head .rl-wake button.primary:hover:not(:disabled) { background: var(--chrome-accent); color: var(--chrome-bg); border-color: var(--chrome-accent); }
+.rl-wake-line { font: 12px/1.3 var(--font-chrome); white-space: nowrap; }
+.rl-wake-hint { margin: 0; font: 12px/1.4 var(--font-chrome); }
+.rl-committed { display: inline-flex; align-items: center; gap: var(--space-1); font: 600 13px/1.4 var(--font-chrome); }
+.frame-head .rl-committed { color: var(--chrome-fg); }
+/* the confirm opens over the page's paper, but sits inside the header in the DOM */
+.frame-head .rl-close-wake h2 { margin: 0 0 var(--space-2); font: 400 20px/1.3 var(--font-head); color: var(--fg-strong); }
+.frame-head .rl-close-wake p { margin: 0 0 var(--space-3); font: 14px/1.5 var(--font-chrome); color: var(--fg-strong); }
+.frame-head .rl-close-wake button.ghost, .frame-head .rl-close-wake button.ghost:hover:not(:disabled) { background: var(--field); color: var(--fg-strong); border-color: var(--field-border); }
+.frame-head .rl-close-wake button.danger, .frame-head .rl-close-wake button.danger:hover:not(:disabled) { background: var(--danger); color: var(--on-accent); border-color: var(--danger); }
+.frame-head .rl-close-wake :focus-visible { outline-color: var(--focus); }
+@media (max-width: 900px) {
+  .realism-screen .frame-head { flex-wrap: wrap; }
+}
+/* the status strip under the header, and the tiles row */
+.rl-strip { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); padding: var(--space-2) var(--space-3); background: var(--surface); border-bottom: 1px solid var(--rule); color: var(--fg-strong); container-type: inline-size; }
+.rl-strip .rl-date { font: 600 14px/1.3 var(--font-chrome); font-variant-numeric: tabular-nums; }
+.rl-countdown { font: 13px/1.3 var(--font-chrome); font-variant-numeric: tabular-nums; color: var(--warn); }
+.rl-done-bar { display: inline-flex; gap: var(--space-1); }
+.rl-done-bar > span { width: 18px; height: 8px; border-radius: 2px; border: 1px solid var(--rule-strong); background: var(--surface-2); }
+.rl-done-bar > span.on { background: var(--ok); border-color: var(--ok); }
+.rl-strip .rl-committed { margin-left: auto; font: 600 13px/1.4 var(--font-chrome); color: var(--ok); }
+.rl-strip .btn-1 { margin-left: auto; animation: rl-pulse 2.4s ease-in-out infinite; }
+@keyframes rl-pulse { 50% { outline: 2px solid var(--focus); outline-offset: 2px; } }
+@media (prefers-reduced-motion: reduce) {
+  .rl-strip .btn-1 { animation: none; }
+}
+.rl-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--space-3); padding: var(--space-3); container-type: inline-size; }
+.rl-tiles .tile-n { font-variant-numeric: tabular-nums; }
+@container (max-width: 30rem) {
+  .rl-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

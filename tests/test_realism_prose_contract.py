@@ -78,7 +78,7 @@ def test_a_person_holds_their_own_pages_and_their_feeds_never_truth() -> None:
     toy.add(later, scope=later.document.scope)
     state = toy.state
     bram = toy.entity("bram")
-    seen = project_person(state, bram)  # Bram wrote both; only the arrived one is held
+    seen = project_person(state, bram, toy.bram)  # Bram wrote both; only the arrived one is held
     assert [d.doc_id for d in seen.documents] == [issued.document.doc_id]
     assert seen.voice == state.cards[bram].voice
     dump = seen.model_dump_json()
@@ -92,14 +92,17 @@ def test_a_person_holds_their_own_pages_and_their_feeds_never_truth() -> None:
         "voice",
         "today",
         "documents",
+        "news",
+        "mandates",
     }
-    ada = project_person(state, toy.entity("ada"))  # Ada's seat holds what reached her
+    ada = project_person(state, toy.entity("ada"), toy.ada)  # Ada's seat holds what reached her
     assert [d.doc_id for d in ada.documents] == [issued.document.doc_id]
 
 
 def test_a_person_projection_needs_a_known_person() -> None:
+    toy = Toy()
     with pytest.raises(KeyError):
-        project_person(Toy().state, EntityId("nobody"))
+        project_person(toy.state, EntityId("nobody"), toy.ada)
 
 
 def _page(*body: BodyField, title: str = "") -> DocumentView:

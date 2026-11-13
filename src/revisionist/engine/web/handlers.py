@@ -10,6 +10,8 @@ and the CLI; a web account is never the host.
 from collections.abc import Callable
 from datetime import datetime
 
+from revisionist.core.ids import CampaignId
+from revisionist.core.ontology import Phase
 from revisionist.engine import scheduler as sch
 from revisionist.engine.discord import handlers as dh
 from revisionist.engine.discord.handlers import BotConfig, Handlers
@@ -25,6 +27,8 @@ WEB = "web"
 NOT_LINKED = "You don't hold a seat in this game. Ask the host for an invite code, then join."
 JOINED_ZERO = "You are in. Session Zero is open: choose who you will play from the roster."
 WELCOME = "Your briefing appears here after each tick."
+BEGUN = "This game has already begun, so it cannot take a new player."
+BUSY = "The game is busy with another change. Try again in a moment."
 
 
 class WebHandlers(Handlers):
@@ -79,35 +83,60 @@ class WebHandlers(Handlers):
             dh.log.exception("web join: cannot open the store")
             return dh.BROKEN
         try:
-            seats = WebSeats(store.conn)
             if self.seat_of(store, user_id) is not None:
                 return dh.ALREADY_SEATED
-
-            def bind(campaign_id: object, seat_id: object) -> None:
-                seats.link(campaign_id, seat_id, user_id)  # type: ignore[arg-type]
-
-            try:
-                got = Invites(store.conn).redeem(
-                    code, person(user_id), WEB, self.clock(), bind=bind
-                )
-            except LinkError:
-                got = None
-            if got is None:
+            invites = Invites(store.conn)
+            game = invites.campaign_of(code, self.clock())
+            if game is None:
                 return dh.BAD_CODE
-            campaign_id, seat_id = got
-            dh.log.info("web join: account %s now holds %s in %s", user_id, seat_id, campaign_id)
-            seat = load_state(store, campaign_id).seats.get(seat_id)
-            if seat is None:
-                return JOINED_ZERO
-            return f"You hold {seat.name}. {WELCOME}"
+            # The game's lock, as Begin holds it: no join lands between Begin's check for
+            # waiting players and its last write.
+            table = sch.ScheduleTable(store.conn)
+            if not table.try_lock(game):
+                return BUSY
+            try:
+                return self._redeem(store, invites, user_id, code, game)
+            finally:
+                table.unlock(game)
         except Exception:
             dh.log.exception("web join failed")
             return dh.BROKEN
         finally:
             store.close()
 
+    def _redeem(
+        self,
+        store: PostgresEventStore,
+        invites: Invites,
+        user_id: str,
+        code: str,
+        game: CampaignId,
+    ) -> str:
+        """Spend the code on this account, with ``game``'s lock held. A realism game
+        that has begun takes no one new: its seats are people chosen in Session Zero."""
+        state = load_state(store, game)
+        if state.ruleset == "realism" and state.phase is not Phase.SESSION_ZERO:
+            return BEGUN
+        seats = WebSeats(store.conn)
+
+        def bind(campaign_id: object, seat_id: object) -> None:
+            seats.link(campaign_id, seat_id, user_id)  # type: ignore[arg-type]
+
+        try:
+            got = invites.redeem(code, person(user_id), WEB, self.clock(), bind=bind)
+        except LinkError:
+            got = None
+        if got is None:
+            return dh.BAD_CODE
+        campaign_id, seat_id = got
+        dh.log.info("web join: account %s now holds %s in %s", user_id, seat_id, campaign_id)
+        seat = state.seats.get(seat_id)
+        if seat is None:
+            return JOINED_ZERO
+        return f"You hold {seat.name}. {WELCOME}"
+
     def _welcome(self, user_id: str, campaign_id: object, seat_name: str) -> str:
         return WELCOME
 
 
-__all__ = ["JOINED_ZERO", "NOT_LINKED", "WEB", "WebHandlers"]
+__all__ = ["BEGUN", "BUSY", "JOINED_ZERO", "NOT_LINKED", "WEB", "WebHandlers"]

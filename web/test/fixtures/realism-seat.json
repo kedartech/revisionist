@@ -970,6 +970,7 @@
         "text": "Keep the convoys moving to Iceland.",
         "issued": "12 October 1941",
         "deadline": "26 October 1941",
+        "cause": "USS Greer and U-652 exchange fire south of Iceland",
         "options": [
           {
             "label": "Order the escort forward",

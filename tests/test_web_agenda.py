@@ -1,11 +1,16 @@
 """The agenda on the web (Phase 4 unit S2): mandates, options, plans, picking, the style."""
 
 import re
+from datetime import date
 from typing import Any
 
 from revisionist.core import events as ev
+from revisionist.core import history
 from revisionist.core.ids import SeatId
+from revisionist.core.project import project
+from revisionist.core.realism import mandates, press
 from revisionist.core.realism.agenda import PlayStyle
+from revisionist.core.realism.document import DocumentKind
 from revisionist.core.state import State
 from revisionist.core.visibility import private_to
 from revisionist.engine import options
@@ -117,6 +122,60 @@ def test_set_style_parses_and_refuses() -> None:
     assert agenda_api.seat_style(load_state(store, CAMPAIGN), sl.fdr) == "beginner"
     assert agenda_api.set_style(store, CAMPAIGN, sl.fdr, "reckless")["refused"]
     assert agenda_api.seat_style(load_state(store, CAMPAIGN), sl.fdr) == "beginner"
+
+
+GREER_DAY = date(1941, 9, 4)
+GREER = "USS Greer and U-652 exchange fire south of Iceland"
+GREER_CRISIS = "After the Greer, set the Navy's rules in the western Atlantic."
+
+
+def _greer(printed: bool, wheeler_only: bool = False) -> tuple[Slice, MemoryStore]:
+    """The slice on the Greer's day: the event fires and is news, its crisis reaches
+    Roosevelt beside a crisis no template issued. ``printed``: the press pages of that
+    news are issued to their readers, or with ``wheeler_only`` to Wheeler alone."""
+    sl = Slice()
+    sl.add(ev.DateAdvanced(to=GREER_DAY))
+    sl.add(ev.MandateIssued(mandate=sl.mandate(1, sl.fdr, issued=GREER_DAY)), private_to(sl.fdr))
+    settled = history.settle(sl.state, GREER_DAY)
+    for fired in settled:
+        sl.add(fired)
+    for reported in history.news(sl.state, settled, GREER_DAY):
+        sl.add(reported)
+    for page in press.news_pages(sl.state, GREER_DAY) if printed else []:
+        if wheeler_only:
+            scope = private_to(sl.wheeler)
+            page = page.model_copy(
+                update={"document": page.document.model_copy(update={"scope": scope})}
+            )
+        sl.add(page, page.document.scope)
+    for issued in mandates.issue_due(sl.state, GREER_DAY):
+        assert isinstance(issued, ev.MandateIssued)
+        sl.add(issued, issued.mandate.scope)
+    store = MemoryStore()
+    store.append_all(sl.events)
+    return sl, store
+
+
+def _causes(store: MemoryStore, seat: SeatId) -> dict[str, str | None]:
+    return {i["text"]: i["cause"] for i in _block(store, seat)["items"]}
+
+
+def test_a_history_crisis_carries_the_headline_the_seat_read() -> None:
+    sl, store = _greer(printed=True)
+    assert _causes(store, sl.fdr) == {GREER_CRISIS: GREER, "Keep the convoys moving.": None}
+
+
+def test_a_mandate_no_history_issued_has_no_cause() -> None:
+    sl, store = _world(PlayStyle.BEGINNER)
+    assert [i["cause"] for i in _block(store, sl.fdr)["items"]] == [None]
+
+
+def test_no_cause_until_the_seat_holds_the_news() -> None:
+    for sl, store in (_greer(printed=False), _greer(printed=True, wheeler_only=True)):
+        state = load_state(store, CAMPAIGN)
+        assert [n.headline for n in state.news.values()] == [GREER]
+        assert _causes(store, sl.fdr) == {GREER_CRISIS: None, "Keep the convoys moving.": None}
+    assert any(d.kind is DocumentKind.PRESS for d in project(state, sl.wheeler).documents.values())
 
 
 def test_no_player_facing_string_holds_an_underscore() -> None:

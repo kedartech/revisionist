@@ -10,12 +10,55 @@
   animation: rl-intro-fade 1500ms ease-out both;
 }
 
-.rl-intro-crawl p:nth-child(2) {
-  animation-delay: 2.5s;
+/* Each start is the sum of the holds before it (short 4 s, medium 8 s, long 12 s, xlong 14 s),
+   for the second and third paragraphs. */
+.rl-intro-crawl p.rl-at-4 {
+  animation-delay: 4s;
 }
 
-.rl-intro-crawl p:nth-child(3) {
-  animation-delay: 5s;
+.rl-intro-crawl p.rl-at-8 {
+  animation-delay: 8s;
+}
+
+.rl-intro-crawl p.rl-at-12 {
+  animation-delay: 12s;
+}
+
+.rl-intro-crawl p.rl-at-14 {
+  animation-delay: 14s;
+}
+
+.rl-intro-crawl p.rl-at-16 {
+  animation-delay: 16s;
+}
+
+.rl-intro-crawl p.rl-at-18 {
+  animation-delay: 18s;
+}
+
+.rl-intro-crawl p.rl-at-20 {
+  animation-delay: 20s;
+}
+
+.rl-intro-crawl p.rl-at-22 {
+  animation-delay: 22s;
+}
+
+.rl-intro-crawl p.rl-at-24 {
+  animation-delay: 24s;
+}
+
+.rl-intro-crawl p.rl-at-26 {
+  animation-delay: 26s;
+}
+
+.rl-intro-crawl p.rl-at-28 {
+  animation-delay: 28s;
+}
+
+/* A click or key on the crawl: every paragraph at once. */
+.rl-intro[data-shown] .rl-intro-crawl p {
+  animation: none;
 }
 
 @keyframes rl-intro-fade {

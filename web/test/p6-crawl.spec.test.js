@@ -98,9 +98,74 @@ test('the crawl fades in turn and stays: opacity only, no movement', () => {
   assert.match(body, /opacity:\s*0\b/);
   assert.match(body, /opacity:\s*1\b/);
   assert.doesNotMatch(body, /transform|translate|top:|margin/);
-  assert.match(css, /\.rl-intro-crawl p:nth-child\(2\)\s*\{\s*animation-delay:\s*2\.5s;\s*\}/);
-  assert.match(css, /\.rl-intro-crawl p:nth-child\(3\)\s*\{\s*animation-delay:\s*5s;\s*\}/);
+  assert.doesNotMatch(css, /\.rl-intro-crawl p:nth-child/, 'the hold classes time the paragraphs, not their position');
 });
+
+test('holdClass: about 3.5 words a second, at least 4 s and at most 14 s, by band', () => {
+  const { holdClass, HOLD_SECONDS, SHORT_MAX_WORDS, MEDIUM_MAX_WORDS, LONG_MAX_WORDS } = crawlView;
+  assert.deepEqual(Object.keys(HOLD_SECONDS), ['short', 'medium', 'long', 'xlong']);
+  assert.ok(Object.isFrozen(HOLD_SECONDS));
+  assert.equal(HOLD_SECONDS.short, 4);
+  assert.equal(HOLD_SECONDS.xlong, 14);
+  assert.equal(SHORT_MAX_WORDS / 3.5, HOLD_SECONDS.short);
+  assert.equal(MEDIUM_MAX_WORDS / 3.5, HOLD_SECONDS.medium);
+  assert.equal(LONG_MAX_WORDS / 3.5, HOLD_SECONDS.long);
+  assert.ok(LONG_MAX_WORDS / 3.5 < HOLD_SECONDS.xlong);
+  const cases = [
+    [0, 'short'], [1, 'short'], [SHORT_MAX_WORDS, 'short'],
+    [SHORT_MAX_WORDS + 1, 'medium'], [MEDIUM_MAX_WORDS, 'medium'],
+    [MEDIUM_MAX_WORDS + 1, 'long'], [LONG_MAX_WORDS, 'long'],
+    [LONG_MAX_WORDS + 1, 'xlong'], [400, 'xlong'],
+    [Number.NaN, 'short'], [undefined, 'short'], [-3, 'short'],
+  ];
+  for (const [n, want] of cases) assert.equal(holdClass(n), want, `${n} words`);
+});
+
+test('each paragraph carries its hold class and starts when the ones before it have held', () => {
+  const { HOLD_SECONDS } = crawlView;
+  const say = (n) => Array.from({ length: n }, (_, i) => `w${i}`).join(' ');
+  const { dialog } = crawlOf({ paragraphs: [say(10), say(40), say(20)] });
+  const ps = dialog.querySelectorAll('.rl-intro-crawl p');
+  assert.deepEqual(ps.map((p) => p.className), [
+    'rl-hold-short rl-at-0',
+    `rl-hold-long rl-at-${HOLD_SECONDS.short}`,
+    `rl-hold-medium rl-at-${HOLD_SECONDS.short + HOLD_SECONDS.long}`,
+  ]);
+  assert.equal(words(ps[1]), say(40));
+  const autumn = crawlOf({}).dialog.querySelectorAll('.rl-intro-crawl p').map((p) => p.className.split(' ')[0]);
+  assert.deepEqual(autumn, fixture.setting.crawl.map((p) => `rl-hold-${crawlView.holdClass(p.split(/\s+/).length)}`));
+});
+
+test('the stylesheet has a delay rule for every start the classes can reach, and no others', () => {
+  const { HOLD_SECONDS } = crawlView;
+  const css = noComments(read('css/p5-crawl.css'));
+  const holds = Object.values(HOLD_SECONDS);
+  const max = crawlParagraphs({ crawl: Array(10).fill('x') }).length;
+  let starts = new Set([0]);
+  const reach = new Set();
+  for (let i = 1; i < max; i += 1) {
+    starts = new Set([...starts].flatMap((s) => holds.map((h) => s + h)));
+    for (const s of starts) reach.add(s);
+  }
+  for (const s of reach) {
+    assert.match(css, new RegExp(`\\.rl-intro-crawl p\\.rl-at-${s}\\s*\\{\\s*animation-delay:\\s*${s}s;\\s*\\}`), `start ${s}s`);
+  }
+  const rules = [...css.matchAll(/\.rl-at-(\d+)\b/g)].map((m) => Number(m[1]));
+  assert.deepEqual([...new Set(rules)].sort((a, b) => a - b), [...reach].sort((a, b) => a - b), 'capped at the reachable starts');
+});
+
+for (const how of ['click', 'keydown']) {
+  test(`a ${how} on the crawl shows every paragraph at once; Continue still waits on Begin`, () => {
+    const { dialog, done, cont } = crawlOf({ ready: false });
+    assert.equal(dialog.hasAttribute('data-shown'), false);
+    fire(dialog, how);
+    assert.equal(dialog.hasAttribute('data-shown'), true);
+    assert.equal(cont.disabled, true);
+    assert.equal(done.length, 0);
+    const css = noComments(read('css/p5-crawl.css'));
+    assert.match(css, /\.rl-intro\[data-shown\] \.rl-intro-crawl p\s*\{\s*animation:\s*none;\s*\}/);
+  });
+}
 
 test('the phrases show one at a time by CSS, a still first line under reduced motion', () => {
   const css = noComments(read('css/p5-crawl.css'));

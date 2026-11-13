@@ -43,6 +43,13 @@ RADIUS: dict[FeatureKind, Radius] = {
     R: Radius(1, 2),  # [proposed] about 1,000 and 2,000 km
 }
 
+RAID_DAYS: dict[FeatureKind, int] = {
+    F: 30,  # [proposed] then it must put in at the nearest friendly base
+    R: 3,  # [proposed] then back to a base
+}
+"""Days a force may stay away from its side's bases while it raids; past that it turns for
+the nearest one. A kind not listed (an army) has no limit."""
+
 
 class Base(NamedTuple):
     sides: frozenset[str]
@@ -216,6 +223,51 @@ def _name(world: State | View, at: EntityId | None) -> str:
 WORDS = {F: ("a fleet", "sail"), A: ("an army", "march"), R: ("an air group", "flight")}
 
 
+def _sights(world: State | View, seen: Iterable[Sight] | None) -> Iterable[Sight]:
+    """``seen``, or when None a state's own features (nothing for a view)."""
+    if seen is not None:
+        return seen
+    feats = world.features.values() if isinstance(world, State) else ()
+    return [Sight(kind=f.kind, side=f.side, places=f.places) for f in feats]
+
+
+def _same_land(world: State | View, name: str, kind: FeatureKind, a: EntityId, b: EntityId) -> bool:
+    """An army goes only between places on one land; other forces go anywhere."""
+    if kind is not A:
+        return True
+    lands = {_id(world, k): v for k, v in LANDS.get(name, {}).items()}
+    return None in (lands.get(a), lands.get(b)) or lands.get(a) == lands.get(b)
+
+
+def _nearest(
+    world: State | View, name: str, force: Force, own: list[EntityId], to: EntityId
+) -> tuple[EntityId | None, int | None]:
+    """Of the bases in ``own`` the force can get to, the one nearest ``to``, and its days
+    there (None: no way there)."""
+    kind, side = force.kind, force.side
+    workable = [
+        b
+        for b in own
+        if _same_land(world, name, kind, force.at, b)
+        and (b == force.at or _days(world, kind, side, force.at, b) is not None)
+    ]
+    ranked = [(_days(world, kind, side, b, to), b) for b in workable]
+    best = min(ranked, key=lambda x: (math.inf if x[0] is None else x[0], str(x[1])), default=None)
+    return (None, None) if best is None else (best[1], best[0])
+
+
+def nearest_base(world: State | View, force: Feature | Force) -> EntityId | None:
+    """The base of ``force``'s side and kind nearest where it is, among those it can get to;
+    None when the world has no table, the force has no side, or no base will do."""
+    if isinstance(force, Feature):
+        force = Force(force.kind, force.side, force.places[0])
+    name = world_of(world)
+    if name is None or force.side is None:
+        return None
+    own = _bases(world, name, force, _sights(world, None))
+    return _nearest(world, name, force, own, force.at)[0]
+
+
 def reach(
     world: State | View,
     force: Feature | Force,
@@ -230,48 +282,21 @@ def reach(
     name = world_of(world)
     if name is None or force.side is None or force.kind not in RADIUS:
         return None
-    if seen is None:
-        feats = world.features.values() if isinstance(world, State) else ()
-        seen = [Sight(kind=f.kind, side=f.side, places=f.places) for f in feats]
-    lands = LANDS.get(name, {})
-    keys = {_id(world, k): v for k, v in lands.items()}
-
-    def land(p: EntityId) -> str | None:
-        return keys.get(p)
-
-    def same_land(a: EntityId, b: EntityId) -> bool:
-        return force.kind is not A or None in (land(a), land(b)) or land(a) == land(b)
-
     kind, side = force.kind, force.side
-    own = _bases(world, name, force, seen)
-
-    def nearest() -> tuple[EntityId | None, int | None]:
-        """Of the bases the force can get to, the one nearest ``to``, and its days there
-        (None: no way there)."""
-        workable = [
-            b
-            for b in own
-            if same_land(force.at, b)
-            and (b == force.at or _days(world, kind, side, force.at, b) is not None)
-        ]
-        ranked = [(_days(world, kind, side, b, to), b) for b in workable]
-        best = min(
-            ranked, key=lambda x: (math.inf if x[0] is None else x[0], str(x[1])), default=None
-        )
-        return (None, None) if best is None else (best[1], best[0])
+    own = _bases(world, name, force, _sights(world, seen))
 
     noun, verb = WORDS[kind]
     side_name = _name(world, side)
 
     def refused(why: str) -> Reach:
-        base, days = nearest()
+        base, days = _nearest(world, name, force, own, to)
         if base is not None:
             why += f" The nearest base it can work from is {_name(world, base)}."
         return Reach(Tier.REFUSED, base, days, why)
 
     if to != force.at and _days(world, kind, side, force.at, to) is None:
         return refused(f"No sea passage open to {side_name}'s fleets reaches {_name(world, to)}.")
-    if not same_land(force.at, to):
+    if not _same_land(world, name, kind, force.at, to):
         return refused(
             f"{_name(world, to)} is across the sea, and {noun} crosses the sea only by sealift,"
             " which the game does not have yet."
@@ -299,10 +324,12 @@ __all__ = [
     "FRONT_PLACES",
     "LANDS",
     "RADIUS",
+    "RAID_DAYS",
     "Base",
     "Force",
     "Radius",
     "Reach",
     "Tier",
+    "nearest_base",
     "reach",
 ]

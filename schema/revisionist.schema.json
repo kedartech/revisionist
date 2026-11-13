@@ -3978,6 +3978,19 @@
           "kind": {
             "$ref": "#/$defs/FeatureKind"
           },
+          "left_base_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Left Base On"
+          },
           "legs": {
             "default": [],
             "items": {
@@ -11394,6 +11407,19 @@
           },
           "kind": {
             "$ref": "#/$defs/FeatureKind"
+          },
+          "left_base_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Left Base On"
           },
           "legs": {
             "default": [],

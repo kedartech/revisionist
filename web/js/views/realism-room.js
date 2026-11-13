@@ -66,13 +66,16 @@ export function happenedDue(page, store, seen) {
 
 /**
  * Start a message to `thread`: refused (false) while the room is busy, while another message
- * is out, or for blank text. Otherwise `ui.pending` holds `{ thread, text }` and the old error
- * clears. Only the composer is held while it is out.
+ * is out, or for blank text. Otherwise `ui.pending` holds `{ thread, text }`, the thread's
+ * draft is dropped so its composer draws empty, and the old error clears. Only the composer
+ * is held while it is out.
  */
 export function beginSend(state, thread, text) {
   const said = (text ?? '').trim();
   if (state.busy || state.pending || !said) return false;
   state.pending = { thread, text: said };
+  const { [thread]: _sent, ...others } = state.drafts ?? {};
+  state.drafts = others;
   state.error = null;
   return true;
 }
@@ -86,8 +89,8 @@ export function whileSending(state) {
 }
 
 /**
- * The message is answered or failed: `pending` clears. A sent message drops that thread's
- * draft; a failed or refused one keeps the words in its composer and says why in `error`.
+ * The message is answered or failed: `pending` clears. A sent message leaves that thread's
+ * draft empty; a failed or refused one puts the words back in its composer and says why in `error`.
  */
 export function endSend(state, outcome) {
   const { thread, text } = state.pending ?? {};

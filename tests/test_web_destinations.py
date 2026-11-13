@@ -4,16 +4,21 @@ force of the form would take to get there from where the seat's latest page plac
 
 import json
 import math
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from revisionist.core.ids import EntityId
+from revisionist.core.events import Event
+from revisionist.core.ids import EntityId, FeatureId
 from revisionist.core.project import project
+from revisionist.core.realism import routing
 from revisionist.core.realism.geography import SPEED_KM_PER_DAY, FeatureKind, km_between
 from revisionist.core.realism.pipelines import order_words
+from revisionist.core.realism.war import War, war_id_for
 from revisionist.core.record import _form_words
+from revisionist.core.state import State
 from revisionist.engine.store import load_state
 from revisionist.engine.web import destinations
 from revisionist.engine.web import realism_snapshot as rs
@@ -38,6 +43,22 @@ def fdr(web: Web) -> tuple[Realism, Client]:  # noqa: F811
 def param(client: Client, lever: str, name: str) -> dict[str, Any]:
     levers = {x["name"]: x for x in realism_of(client)["desk"]["levers"]}
     return next(p for p in levers[lever]["params"] if p["name"] == name)
+
+
+def state_of(game: Realism) -> State:
+    store = game.web.app.open()
+    try:
+        return load_state(store, game.campaign)
+    finally:
+        store.close()
+
+
+def events_of(game: Realism) -> list[Event]:
+    store = game.web.app.open()
+    try:
+        return list(store.read(game.campaign))
+    finally:
+        store.close()
 
 
 def places(client: Client) -> dict[str, dict[str, Any]]:
@@ -81,18 +102,40 @@ def test_places_are_grouped_by_what_the_seats_pages_show(fdr: tuple[Realism, Cli
     assert shown == sorted(shown, key=order.index)
 
 
-def test_days_run_from_where_the_seats_page_places_each_fleet(
-    fdr: tuple[Realism, Client],
-) -> None:
+def test_days_are_the_movement_resolvers_own_count(fdr: tuple[Realism, Client]) -> None:
+    """Each fleet's page places it where it truly is here, so every day count must be
+    what the movement resolver would take: by sea, through the open passages."""
     game, ada = fdr
-    found = places(ada)
-    fleet = FeatureKind.FLEET
-    assert found["Argentia"]["days"] == {
-        "us_atlantic_fleet": days(game, fleet, "norfolk", "argentia"),
-        "us_pacific_fleet": days(game, fleet, "pearl_harbor_base", "argentia"),
-    }
-    assert found["Norfolk"]["days"]["us_atlantic_fleet"] == 0
-    assert found["Pearl Harbor"]["days"]["us_pacific_fleet"] == 0
+    state = state_of(game)
+    found = param(ada, "move_fleet", "to")["places"]
+    for key in ("us_atlantic_fleet", "us_pacific_fleet"):
+        force = state.features[FeatureId(game.ids[key])]
+        for p in found:
+            to = EntityId(game.ids[p["value"]])
+            want = 0 if to == force.places[0] else routing.travel_days(state, force, to)
+            assert p["days"][key] == want, (key, p["label"])
+    argentia = places(ada)["Argentia"]["days"]["us_pacific_fleet"]
+    assert argentia > days(game, FeatureKind.FLEET, "pearl_harbor_base", "argentia")  # by Panama
+    assert places(ada)["Norfolk"]["days"]["us_atlantic_fleet"] == 0
+
+
+def test_a_place_no_open_passage_reaches_has_no_day_count(fdr: tuple[Realism, Client]) -> None:
+    """At war with Britain, an American fleet cannot pass Gibraltar or Suez: the
+    Mediterranean is out of reach, as the resolver has it."""
+    game, _ = fdr
+    state = state_of(game)
+    usa, uk = EntityId(game.ids["usa"]), EntityId(game.ids["uk"])
+    war = War(war_id=war_id_for(usa, uk), a=usa, b=uk, since=date(1941, 9, 4), declared_by=usa)
+    state = state.model_copy(update={"wars": {war.war_id: war}})
+    view = project(state, next(iter(state.seats)))
+    known = destinations.Known(
+        keys=destinations.place_keys(state, events_of(game)),
+        forces={"us_atlantic_fleet": "US Atlantic Fleet", "us_pacific_fleet": "US Pacific Fleet"},
+    )
+    lever = next(x for x in rs.desk(view, known)["levers"] if x["name"] == "move_fleet")
+    to = {p["label"]: p for p in next(p for p in lever["params"] if p["name"] == "to")["places"]}
+    assert to["Rome"]["days"] == {"us_atlantic_fleet": None, "us_pacific_fleet": None}
+    assert to["Argentia"]["days"]["us_atlantic_fleet"] is not None
 
 
 def test_a_move_in_the_truth_does_not_move_the_day_count(fdr: tuple[Realism, Client]) -> None:

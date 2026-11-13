@@ -473,7 +473,7 @@
                 "label": "Pearl Harbor",
                 "group": "own",
                 "days": {
-                  "us_atlantic_fleet": 18,
+                  "us_atlantic_fleet": 26,
                   "us_pacific_fleet": null
                 }
               },
@@ -509,7 +509,7 @@
                 "label": "Tokyo",
                 "group": "other",
                 "days": {
-                  "us_atlantic_fleet": 25,
+                  "us_atlantic_fleet": 38,
                   "us_pacific_fleet": null
                 }
               }

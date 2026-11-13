@@ -4,10 +4,11 @@ The form's destination opens to every place on the seat's map, not only the choi
 was written with. Each place is grouped and given a day count from the seat's own pages
 only, as the map is: a place is the seat's own, an ally's, on a route or contested because
 a page the seat holds says a force, route or front is there, and the days run from where
-the latest such page places the form's force. Nothing is read from the engine's truth.
+the latest such page places the form's force, by the movement resolver's own route
+(``routing.days_between``: by sea through the passages open to its side, given the wars
+the view holds, which are public). Nothing is read from the engine's truth.
 """
 
-import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -17,13 +18,9 @@ from revisionist.core.events import Event
 from revisionist.core.ids import DocumentId, EntityId
 from revisionist.core.realism.card import Lever, ParamSpec
 from revisionist.core.realism.document import BodyField, DocumentView
-from revisionist.core.realism.geography import (
-    FORCES,
-    SPEED_KM_PER_DAY,
-    FeatureKind,
-    km_between,
-)
+from revisionist.core.realism.geography import FORCES, FeatureKind
 from revisionist.core.realism.pipelines import place_named
+from revisionist.core.realism.routing import days_between
 from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
 from revisionist.engine import campaign as cmp
@@ -94,14 +91,6 @@ def latest_sightings(view: View) -> Sightings:
     return latest
 
 
-def travel_days(view: View, kind: FeatureKind, origin: EntityId, to: EntityId) -> int:
-    """The movement resolver's count: the great-circle distance at the kind's pace, at
-    least a day."""
-    a, b = view.entities[origin].at, view.entities[to].at
-    km = 0 if a is None or b is None else km_between(a, b)
-    return max(1, math.ceil(km / SPEED_KM_PER_DAY[kind]))
-
-
 def _groups(
     view: View, spec: ParamSpec, seen: Sightings, allies: frozenset[EntityId]
 ) -> dict[EntityId, Group]:
@@ -135,18 +124,20 @@ def _groups(
     return out
 
 
-def _origins(
-    lever: Lever, forces: Mapping[str, str], seen: Sightings
-) -> dict[str, tuple[FeatureKind, EntityId] | None]:
-    """For each force the form offers: its kind and where the latest page places it."""
+Origin = tuple[FeatureKind, EntityId | None, EntityId]
+"""A force's kind, side, and where the latest page places it."""
+
+
+def _origins(lever: Lever, forces: Mapping[str, str], seen: Sightings) -> dict[str, Origin | None]:
+    """For each force the form offers: its kind, side and place as its latest page has them."""
     spec = next((p for p in lever.params if p.name == FORCE), None)
-    out: dict[str, tuple[FeatureKind, EntityId] | None] = {}
+    out: dict[str, Origin | None] = {}
     for key in spec.choices if spec is not None else ():
         out[key] = None
         for kind in sorted(FORCES):
             hit = seen.get((forces.get(key, ""), kind.value))
             if hit is not None and hit[2].sight is not None:
-                out[key] = (kind, hit[2].sight.places[0])
+                out[key] = (kind, hit[2].sight.side, hit[2].sight.places[0])
     return out
 
 
@@ -177,8 +168,8 @@ def place_choices(view: View, lever: Lever, spec: ParamSpec, known: Known) -> li
                     force: None
                     if at is None
                     else 0
-                    if at[1] == place
-                    else travel_days(view, at[0], at[1], place)
+                    if at[2] == place
+                    else days_between(view, at[0], at[1], at[2], place)
                     for force, at in origins.items()
                 },
             )
@@ -194,5 +185,4 @@ __all__ = [
     "own_sides",
     "place_choices",
     "place_keys",
-    "travel_days",
 ]

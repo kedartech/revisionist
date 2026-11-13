@@ -148,7 +148,8 @@ class PlaceChoice(TypedDict):
     Contested: on a front, or another side's force is placed there. Other: the rest."""
     days: dict[str, int | None]
     """For each choice of the form's ``force``: days to arrive from where the seat's
-    latest page places that force (0 if it is there); None when no page places it."""
+    latest page places that force (0 if it is there), by the movement resolver's route;
+    None when no page places it, or when no passage open to its side reaches the place."""
 
 
 class LeverParam(TypedDict):

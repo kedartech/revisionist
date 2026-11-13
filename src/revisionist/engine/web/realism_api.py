@@ -269,6 +269,50 @@ class Threat(TypedDict):
     """Why the stance changed, in words, where the seat saw it."""
 
 
+class PeopleMeter(TypedDict):
+    """One staff assessment of a person in five steps, never the engine's number."""
+
+    step: int | None
+    """1 the worst to 5 the best; None when the staff have nothing to go on."""
+    word: str
+    as_of: str | None
+    """The day of the evidence it rests on (ISO date); None with none."""
+    confidence: Literal["firm", "dated", "old"] | None
+    """From the age of that evidence."""
+
+
+class PersonLine(TypedDict):
+    """One person on the People roster, as the seat's staff know them."""
+
+    person: str
+    name: str
+    office: str
+    stance: PeopleMeter | None
+    """Toward the seat, fogged as the opponents list is. Only for the people weighed
+    against the seat; None for everyone else."""
+    trend: Literal["worse", "better", "steady"] | None
+    """The stance against the one the staff knew before it; None with no stance."""
+    over: list[str]
+    """What the world file says the two are at odds over."""
+    at_war: bool
+    """The person's country and the seat's are at war."""
+    last_answer: str | None
+    """Their latest answer to one of the seat's orders, in words, with its date."""
+    regard: PeopleMeter
+    """Their disposition toward the seat's person, where the seat knows it."""
+    reliability: PeopleMeter
+    """How they carried the seat's own orders: fidelity, lateness and refusals."""
+
+
+class People(TypedDict):
+    """The People roster: the leaders weighed against the seat, the seat's own chain
+    and inner circle, and everyone else with an office."""
+
+    opponents: list[PersonLine]
+    yours: list[PersonLine]
+    others: list[PersonLine]
+
+
 class MapPlace(TypedDict):
     name: str
     lat: float
@@ -631,6 +675,9 @@ __all__ = [
     "OrderResult",
     "OrderTrack",
     "OrderTracker",
+    "People",
+    "PeopleMeter",
+    "PersonLine",
     "PlaceChoice",
     "ReachContact",
     "ReachGroups",

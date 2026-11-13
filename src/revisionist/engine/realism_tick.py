@@ -417,7 +417,8 @@ def _due_again_by(feed: Feed, day: date, until: date) -> bool:
 
 def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> list[Event]:
     """Every day from ``before`` + 1 to ``until``, earliest first. Each day: orders
-    move, history fires or skips what fell due (opinion reads fired incidents),
+    move, history fires or skips what fell due and reports what fired in public as news
+    (opinion reads fired incidents),
     commands fall due, processes open, influence is decided, ready parts apply, the
     orders enacted that day are resolved, then what moves with time, then arrivals, contacts and the
     press, then the feeds that fall due issue, dated that day, then mandates settle and
@@ -450,7 +451,9 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         day += timedelta(days=1)
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))
         add(steps)
-        add(history.settle(state, day))
+        settled = history.settle(state, day)
+        add(settled)
+        add(history.news(state, settled, day))
         add(due_executions(state, day))
         add(process.open_processes(state, day))
         add(process.influence_due(state, day))

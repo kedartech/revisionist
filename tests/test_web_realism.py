@@ -635,13 +635,13 @@ def test_consult_asks_a_contact_and_keeps_the_answer_for_the_seat_only(web: Web)
     game.open_play()
     game.first_tick()
     aide(game, {"text": "The Council will not move before the harvest."})
-    status, out = post(ada, "consult", to="Bram Tull", question="Will the levy pass?")
+    status, out = post(ada, "consult", to="Cora Senn", question="Will the levy pass?")
     assert status == 200 and not out["refused"], out
-    assert out["reply"] == "Bram Tull has answered."
+    assert out["reply"] == "Cora Senn has answered."
     (held,) = realism_of(ada)["counsel"]
     assert held == {
-        "person": "Bram Tull",
-        "channel": "letter",
+        "person": "Cora Senn",
+        "channel": "in_person",
         "question": "Will the levy pass?",
         "answer": "The Council will not move before the harvest.",
         "day": "9 April 1900",
@@ -649,9 +649,12 @@ def test_consult_asks_a_contact_and_keeps_the_answer_for_the_seat_only(web: Web)
         "tie": "inner",
     }
     assert realism_of(bram)["counsel"] == []
+    status, held_by_bram = post(ada, "consult", to="Bram Tull", question="Will the levy pass?")
+    assert held_by_bram["refused"], held_by_bram
+    assert held_by_bram["reply"] == "Bram Tull speaks for themselves: write to them."
     _, far = post(ada, "consult", to="Nobody Here", question="Hello?")
     assert far["refused"]
-    status, empty = post(ada, "consult", to="Bram Tull", question="   ")
+    status, empty = post(ada, "consult", to="Cora Senn", question="   ")
     assert status == 400 or empty["refused"], empty
     assert len(realism_of(ada)["counsel"]) == 1
 

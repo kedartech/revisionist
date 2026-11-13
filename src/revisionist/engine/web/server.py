@@ -83,6 +83,7 @@ READY = ("autumn-1941", "engine-v2-slice-1941")
 OFFERED = ("autumn-1941",)
 """[proposed] Those the new-game screen lists: the slice is started by name only."""
 MODEL_DOWN = "The model cannot be reached just now. Try again in a minute."
+BUSY = "The game is busy with another change. Try again in a moment."
 HELP_KEPT = 40
 """Lines of each seat's talk with its aide kept in memory [proposed]."""
 SEALED_BY_COMMIT = frozenset({"lever", "sign", "option", "file", "step"})
@@ -618,48 +619,68 @@ class App:
                 return self._start(store, account, action, body)
             if link is None:
                 raise ApiError(HTTPStatus.BAD_REQUEST, NOT_LINKED)
-            cid = link.campaign_id
-            state = load_state(store, cid)
-            if state.ruleset != "realism" or state.phase is not Phase.SESSION_ZERO:
-                raise ApiError(HTTPStatus.BAD_REQUEST, "This game is not choosing its people.")
-            if action == "pick":
-                return self._pick(store, state, link.seat_id, _text(body, "name", 120))
-            if action == "unpick":
-                named = _text(body, "name", 120, required=False)
-                return self._unpick(store, state, account, link.seat_id, named)
-            if action == "style":
-                return dict(
-                    agenda_api.set_style(store, cid, link.seat_id, _text(body, "style", 20))
-                )
-            if action not in ("invite", "begin"):
-                raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
-            if WebSeats(store.conn).host(cid) != account.account_id:
-                return {"reply": "Only the host can do that.", "refused": True}
-            if action == "invite":
-                code = Invites(store.conn).issue(cid, SeatId(new_id()), self.clock())
-                return {
-                    "reply": "Send this code to one player privately. It works once.",
-                    "refused": False,
-                    "code": code,
-                }
-            waiting = [
-                s for s in WebSeats(store.conn).for_campaign(cid) if s.seat_id not in state.seats
-            ]
-            if waiting:
-                return {"reply": f"Still to choose: {len(waiting)} player(s).", "refused": True}
+            # The scheduler's per-game lock: no other choice, release or Begin lands between
+            # Begin's check for waiting players and its last write, and no pass runs a tick
+            # on a game half begun.
+            table = sch.ScheduleTable(store.conn)
+            if not table.try_lock(link.campaign_id):
+                return {"reply": BUSY, "refused": True}
             try:
-                realism_tick.open_play(store, cid)
-            except session_zero.StepRefusedError as exc:
-                return {"reply": str(exc), "refused": True}
-            wake_api.start_play(store, cid, self.clock(), tools=self._tools())
-            self.spawn(lambda: self._build_rest(cid))
-            return {
-                "reply": "The game has begun. The rest of the cast is being drawn up "
-                "and will act on their own.",
-                "refused": False,
-            }
+                return self._session_zero(
+                    store, account, link.campaign_id, link.seat_id, action, body
+                )
+            finally:
+                table.unlock(link.campaign_id)
         finally:
             store.close()
+
+    def _session_zero(
+        self,
+        store: PostgresEventStore,
+        account: Account,
+        cid: CampaignId,
+        seat: SeatId,
+        action: str,
+        body: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Pick, unpick, style, invite or begin, with the game's lock held."""
+        state = load_state(store, cid)
+        if state.ruleset != "realism" or state.phase is not Phase.SESSION_ZERO:
+            raise ApiError(HTTPStatus.BAD_REQUEST, "This game is not choosing its people.")
+        if action == "pick":
+            return self._pick(store, state, seat, _text(body, "name", 120))
+        if action == "unpick":
+            named = _text(body, "name", 120, required=False)
+            return self._unpick(store, state, account, seat, named)
+        if action == "style":
+            return dict(agenda_api.set_style(store, cid, seat, _text(body, "style", 20)))
+        if action not in ("invite", "begin"):
+            raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
+        if WebSeats(store.conn).host(cid) != account.account_id:
+            return {"reply": "Only the host can do that.", "refused": True}
+        if action == "invite":
+            code = Invites(store.conn).issue(cid, SeatId(new_id()), self.clock())
+            return {
+                "reply": "Send this code to one player privately. It works once.",
+                "refused": False,
+                "code": code,
+            }
+        waiting = [
+            s for s in WebSeats(store.conn).for_campaign(cid) if s.seat_id not in state.seats
+        ]
+        if waiting:
+            return {"reply": f"Still to choose: {len(waiting)} player(s).", "refused": True}
+        try:
+            realism_tick.open_play(store, cid)
+        except session_zero.StepRefusedError as exc:
+            return {"reply": str(exc), "refused": True}
+        wake_api.start_play(store, cid, self.clock(), tools=self._tools())
+        self.spawn(lambda: self._build_rest(cid))
+        return {
+            "reply": "The game has begun. The rest of the cast is being drawn up "
+            "and will act on their own.",
+            "refused": False,
+        }
 
     def _start(
         self, store: PostgresEventStore, account: Account, action: str, body: dict[str, Any]

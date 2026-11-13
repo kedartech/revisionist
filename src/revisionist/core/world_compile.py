@@ -344,6 +344,8 @@ def _check_v3(world: WorldFile, sections: Mapping[str, str], problems: list[str]
         for leaf in leaves(h.condition):
             for name, section in _CONDITION_REFS.items():
                 _ref(problems, where, getattr(leaf, name, None), section, sections)
+        _ref(problems, where, h.subject, "entity", sections)
+        _ref(problems, where, h.obj, "entity", sections)
     for c in world.roster:
         where = f"character {c.entity}"
         seen: set[str] = set()
@@ -909,6 +911,9 @@ def _emit(
             on_date=h.on_date,
             condition=_bind(h.condition, ids),
             weight=h.weight,
+            headline=h.headline,
+            subject=_maybe(ids, h.subject, EntityId),
+            obj=_maybe(ids, h.obj, EntityId),
         )
         out.append((ev.ScheduledEventCreated(scheduled=scheduled), scope))
     for s in world.seats:

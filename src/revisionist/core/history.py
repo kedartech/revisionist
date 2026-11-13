@@ -10,8 +10,12 @@ from datetime import date
 
 from revisionist.core import events as ev
 from revisionist.core.goals import goal_met
+from revisionist.core.ids import derived_id
 from revisionist.core.ontology import ScheduledEvent, ScheduleSource
+from revisionist.core.realism.document import BodyField
+from revisionist.core.realism.war import NewsEvent, NewsTopic
 from revisionist.core.state import State, View
+from revisionist.core.visibility import Visibility
 
 
 def _pending(events: Iterable[ScheduledEvent]) -> list[ScheduledEvent]:
@@ -47,6 +51,31 @@ def settle(
             continue
         out.append(ev.ScheduledEventSkipped(scheduled_id=s.scheduled_id))
         out.append(ev.DivergenceChanged(change=s.weight, reason=f"{s.name} did not happen"[:200]))
+    return out
+
+
+def news(state: State, settled: Iterable[ev.Payload], day: date) -> list[ev.NewsReported]:
+    """The news of each event in ``settled`` that fired in public with a headline.
+
+    The news id comes from the scheduled id, so a replay names the same item.
+    """
+    out: list[ev.NewsReported] = []
+    for e in settled:
+        if not isinstance(e, ev.ScheduledEventFired):
+            continue
+        s = state.scheduled[e.scheduled_id]
+        if s.headline is None or s.subject is None or s.scope.visibility is not Visibility.PUBLIC:
+            continue
+        item = NewsEvent(
+            news_id=derived_id(state.campaign_id, "news", "history", s.scheduled_id),
+            on=day,
+            topic=NewsTopic.EVENT,
+            subject=s.subject,
+            obj=s.obj,
+            facts=(BodyField(label="Date", value=f"{day.day} {day:%B %Y}"),),
+            headline=s.headline,
+        )
+        out.append(ev.NewsReported(news=item))
     return out
 
 

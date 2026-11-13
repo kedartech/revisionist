@@ -13,7 +13,7 @@ import pytest
 from revisionist.core.events import Event
 from revisionist.core.ids import EntityId, FeatureId
 from revisionist.core.project import project
-from revisionist.core.realism import routing
+from revisionist.core.realism import bases, routing
 from revisionist.core.realism.geography import SPEED_KM_PER_DAY, FeatureKind, km_between
 from revisionist.core.realism.pipelines import order_words
 from revisionist.core.realism.war import War, war_id_for
@@ -143,6 +143,61 @@ def test_a_move_in_the_truth_does_not_move_the_day_count(fdr: tuple[Realism, Cli
     before = places(ada)["Argentia"]["days"]
     set_feature(game, "us_atlantic_fleet", places=(EntityId(game.ids["argentia"]),))
     assert places(ada)["Argentia"]["days"] == before
+
+
+def test_each_place_carries_its_reach_per_force(fdr: tuple[Realism, Client]) -> None:
+    """The fleets' pages place them where they truly are, so each tier is the rule's own;
+    a refused place stays listed, with its reason and the nearest base it can work from."""
+    game, ada = fdr
+    state = state_of(game)
+    key = {v: k for k, v in game.ids.items()}
+    found = param(ada, "move_fleet", "to")["places"]
+    for name in ("us_atlantic_fleet", "us_pacific_fleet"):
+        force = state.features[FeatureId(game.ids[name])]
+        for p in found:
+            want = bases.reach(state, force, EntityId(game.ids[p["value"]]))
+            assert want is not None
+            assert p["reach"][name] == {
+                "tier": want.tier.value,
+                "base": key[want.base] if want.base is not None else None,
+                "reason": want.reason,
+            }, (name, p["label"])
+    shown = places(ada)
+    assert shown["Reykjavik"]["reach"]["us_atlantic_fleet"]["tier"] == "sustained"
+    assert shown["Kure"]["reach"]["us_pacific_fleet"]["tier"] == "raid"
+    china = shown["Chungking"]["reach"]["us_atlantic_fleet"]
+    assert china["tier"] == "refused" and china["base"] == "pearl_harbor_base"
+    assert "Pearl Harbor" in china["reason"]
+
+
+def test_an_army_form_reads_the_front_from_the_seats_pages(web: Web) -> None:  # noqa: F811
+    game = Realism(web, "autumn-1941")
+    joe = game.seat("joe", "stalin")
+    game.open_play()
+    game.first_tick()
+    to = {p["label"]: p for p in param(joe, "move_army", "to")["places"]}
+    assert to["Moscow"]["reach"] == {
+        "soviet_western_front": {"tier": "sustained", "base": "moscow", "reason": None}
+    }
+    smolensk = to["Smolensk"]["reach"]["soviet_western_front"]
+    assert smolensk["tier"] == "sustained"  # the front runs through it on his page
+    london = to["London"]["reach"]["soviet_western_front"]
+    assert london["tier"] == "refused" and "sealift" in london["reason"]
+    set_feature(
+        game, "eastern_front", places=tuple(EntityId(game.ids[k]) for k in ("kalinin", "kharkov"))
+    )
+    again = {p["label"]: p for p in param(joe, "move_army", "to")["places"]}
+    assert again["Smolensk"]["reach"] == to["Smolensk"]["reach"]  # the truth moved, no page did
+
+
+def test_a_force_no_page_places_has_no_reach(fdr: tuple[Realism, Client]) -> None:
+    game, _ = fdr
+    state = state_of(game)
+    blind = project(state, next(iter(state.seats))).model_copy(update={"documents": {}})
+    known = destinations.Known(keys=destinations.place_keys(state, events_of(game)))
+    lever = next(x for x in rs.desk(blind, known)["levers"] if x["name"] == "move_fleet")
+    to = next(p for p in lever["params"] if p["name"] == "to")
+    assert to["places"] and all(r is None for p in to["places"] for r in p["reach"].values())
 
 
 def test_a_front_and_an_enemy_army_make_a_place_contested(web: Web) -> None:  # noqa: F811

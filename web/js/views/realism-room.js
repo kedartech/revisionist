@@ -116,6 +116,35 @@ export function pickPanel(state, { tab, side }, phone) {
 /** Whether the room is at phone width, where the tab bar shows (c-shell.css). */
 const phoneWidth = () => Boolean(globalThis.matchMedia?.('(max-width: 767px)').matches);
 
+/** Where focus goes when the messenger closes: its launcher, or on a phone (launcher hidden) the Messages tab. */
+export function closedChatTarget(root, phone) {
+  if (!phone) return root.querySelector('.rl-msgr-btn');
+  return [...root.querySelectorAll('.rl-tabbar button')].find((b) => b.textContent.startsWith('Messages')) ?? null;
+}
+
+const SWITCHES = ['.rl-tabbar', '.rl-sideswitch', '.rl-tiles'];
+
+/** The panel switch a focused button belongs to and its place there, or null for any other element. */
+export function switchPlace(el) {
+  for (const sel of SWITCHES) {
+    const group = el?.closest?.(sel);
+    if (group) return { sel, at: [...group.querySelectorAll('button')].indexOf(el) };
+  }
+  return null;
+}
+
+/** The button at that place in a redrawn room. */
+export function switchAt(root, place) {
+  if (!place) return null;
+  return root.querySelector(place.sel)?.querySelectorAll('button')[place.at] ?? null;
+}
+
+/** The aide has written: its thread opens, and the phone tab bar marks Messages. */
+export function openAide(state) {
+  state.chat = { open: true, tab: 'chats', thread: 'aide' };
+  state.tab = 'messages';
+}
+
 /** Browser storage, or nothing where it is blocked: the units take it as a parameter. */
 const storage = () => browserStorage(window);
 
@@ -289,7 +318,7 @@ export function realismRoom(ctx) {
     const r = await api.realism(action, body);
     ui.said = r.reply || null;
     // the aide has written: a failed order, or an answer; open its thread
-    if (r.help) ui.chat = { open: true, tab: 'chats', thread: 'aide' };
+    if (r.help) openAide(ui);
     then?.(r);
   });
 
@@ -438,7 +467,7 @@ export function realismRoom(ctx) {
     ui.refocusChat = false;
     const panel = root.querySelector('.rl-msgr-panel');
     const inThread = compose ? '.rl-th-compose textarea' : '.rl-th-back';
-    const target = !chat.open ? root.querySelector('.rl-msgr-btn')
+    const target = !chat.open ? closedChatTarget(root, phoneWidth())
       : panel?.querySelector(chat.thread ? inThread : '[role="tab"][aria-selected="true"]');
     target?.focus();
   }
@@ -577,8 +606,11 @@ export function realismRoom(ctx) {
 
   let pending = null;
   const pick = (p) => {
+    const place = switchPlace(document.activeElement);
     pickPanel(ui, p, phoneWidth());
     rerender();
+    if (p.tab === 'messages') refocus(ui.chat);
+    else switchAt(root, place)?.focus();
   };
   function build() {
     const [menuBtn, menu] = gameMenu(game, ctx, work);

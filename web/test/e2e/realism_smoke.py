@@ -648,14 +648,18 @@ def messenger(page: Page, report: dict[str, object]) -> None:
 
 
 def composer_in_dock(page: Page) -> bool:
-    """The Send button sits inside the dock and on screen, not under the launcher."""
+    """The Send button sits inside the dock and on screen, not under the launcher or the
+    phone's tab bar."""
     return bool(
         page.evaluate(
             """() => {
       const p = document.querySelector('.rl-msgr-panel')?.getBoundingClientRect();
       const s = document.querySelector('.rl-msgr .rl-th-send')?.getBoundingClientRect();
+      const bar = document.querySelector('.rl-tabbar');
+      const floor = bar && getComputedStyle(bar).display !== 'none'
+        ? bar.getBoundingClientRect().top : innerHeight;
       return !!p && !!s && s.bottom <= p.bottom + 1
-        && s.bottom <= innerHeight && s.right <= innerWidth;
+        && s.bottom <= floor + 1 && s.right <= innerWidth;
     }"""
         )
     )

@@ -30,7 +30,8 @@
 .rl-msgr-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 @media (max-width: 767px) {
-  .rl-msgr-panel { inset: 0; width: auto; max-height: none; border: 0; border-radius: 0; box-shadow: none; }
+  /* the panel stops at the tab bar's top edge (c-shell.css: 44px buttons and a 1px rule) */
+  .rl-msgr-panel { inset: 0 0 45px; width: auto; max-height: none; border: 0; border-radius: 0; box-shadow: none; }
   .rl-msgr-head { min-height: 44px; display: flex; align-items: center; padding-right: 56px; }
 }
 

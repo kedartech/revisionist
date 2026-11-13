@@ -44,7 +44,7 @@ from revisionist.engine.store import EventStore, MemoryStore, load_state
 from revisionist.engine.web import server
 from revisionist.engine.web.realism_snapshot import counsel_lines
 from tests.counsel_scenario import CANARY, QUESTION, hopkins, plant_memo, roosevelt_seat, ticked
-from tests.handwritten import COUNSEL
+from tests.handwritten import COUNSEL, COUNSEL_BY_QUESTION, GREER_QUESTION, greer_fired
 from tests.test_realism_tick import CAMPAIGN
 
 
@@ -79,16 +79,19 @@ def test_the_request_holds_only_the_persons_projection() -> None:
     asker = Asker(
         name="Franklin D. Roosevelt", office=state.cards[state.seats[seat].embodies].office
     )
-    seen = project_person(state, person)
+    seen = project_person(state, person, seat)
     assert req.prompt == counsel_prompt(seen, asker, ChannelKind.IN_PERSON, QUESTION)
     assert req.call_class == "counsel"
     mine = project(state, seat).documents
-    not_his = [d for k, d in mine.items() if k not in {x.doc_id for x in seen.documents}]
-    assert not_his, "Roosevelt should hold pages Hopkins does not"
-    for page in not_his:
-        assert page.title not in req.prompt
+    assert set(mine) <= {x.doc_id for x in seen.documents}, "Hopkins knows the desk he serves"
     for page in seen.documents:
         assert page.title in req.prompt
+    marshall = project_person(state, person_named(store, "George C. Marshall"), seat)
+    not_his = [d for k, d in mine.items() if k not in {x.doc_id for x in marshall.documents}]
+    assert not_his, "Roosevelt should hold pages Marshall does not"
+    told = counsel_prompt(marshall, asker, ChannelKind.IN_PERSON, QUESTION)
+    for page in not_his:
+        assert page.title not in told
 
 
 def test_the_reply_is_private_to_the_seat_and_its_cost_is_logged() -> None:
@@ -382,3 +385,18 @@ def test_counsel_lines_carry_the_day_they_were_held_and_the_tie() -> None:
     assert [x["day_iso"] for x in lines] == [later.isoformat(), first.isoformat()]
     assert lines[0]["day"] == f"{later.day} {later:%B %Y}"
     assert lines[0]["answer"] == "Noted." and lines[0]["channel"] == "telephone"
+
+
+GREER = "The Greer has been fired on: settle the U-boats' rules toward American ships."
+
+
+def test_raeder_asked_after_the_greer_knows_the_crisis_on_his_principals_desk() -> None:
+    store = MemoryStore()
+    seat, raeder = greer_fired(store)
+    state = load_state(store, CAMPAIGN)
+    assert GREER in [m.text for m in state.mandates.values() if m.seat_id == seat]
+    transport = Capturing()
+    out = consult(store, CAMPAIGN, seat, raeder, GREER_QUESTION, ClaudeCounsellor(transport))
+    (req,) = transport.sent
+    assert "## Before your principal\n" in req.prompt and GREER in req.prompt
+    assert out.text.endswith(COUNSEL_BY_QUESTION[GREER_QUESTION])

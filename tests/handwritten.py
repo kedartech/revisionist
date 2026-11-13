@@ -11,9 +11,13 @@ and marks the entry ``hand_written``. Regenerate after changing a prompt:
 import json
 from collections.abc import Callable, Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from revisionist.core.ids import EntityId, SeatId
 from revisionist.engine.llm import Reply, Request
+
+if TYPE_CHECKING:
+    from revisionist.engine.store import EventStore
 
 RECORDINGS = Path(__file__).parent / "recordings"
 PROSE = RECORDINGS / "realism-prose-toy.json"
@@ -63,7 +67,16 @@ COUNSEL_BY_QUESTION: Mapping[str, str] = {
         "I would not guess at numbers until the full list comes through. When it does, I "
         "will bring it to you myself."
     ),
+    "Raeder, what should the U-boats do about the Americans now?": (
+        "Mein Fuehrer, the matter before you is the Greer: she has been fired on, and the "
+        "U-boats' rules toward American ships must be settled. My papers give me nothing "
+        "more on the incident itself, and I will not guess at it. The Navy's case stands as "
+        "I have always put it: the Americans escort the convoys in all but name, and our "
+        "commanders cannot fight with one hand tied. I ask that they be free to defend "
+        "themselves against any escort that attacks them. The decision is yours."
+    ),
 }
+GREER_QUESTION = "Raeder, what should the U-boats do about the Americans now?"
 
 
 def counsel_reply(request: Request) -> Any:
@@ -260,7 +273,26 @@ def record_counsel() -> None:
     plant_memo(store)
     consult(store, CAMPAIGN, seat, person, QUESTION, ClaudeCounsellor(hand))
     _record_cli(hand, ["consult", "hopkins", WIRING_QUESTION])
+    store = MemoryStore()
+    seat, raeder = greer_fired(store)
+    consult(store, CAMPAIGN, seat, raeder, GREER_QUESTION, ClaudeCounsellor(hand))
     hand.save(COUNSEL)
+
+
+def greer_fired(store: "EventStore") -> tuple[SeatId, EntityId]:
+    """Hitler seated in autumn-1941 and one offline tick, which fires the Greer on 4 Sep
+    and puts the U-boat crisis on his desk. Returns his seat and Raeder."""
+    from revisionist.core.realism.actors import readers
+    from revisionist.engine.prose import TemplateProseWriter
+    from revisionist.engine.realism_tick import run_realism_tick
+    from revisionist.engine.store import load_state
+    from tests.test_realism_tick import CAMPAIGN, seated
+
+    seated(store, "autumn-1941", "hitler")
+    run_realism_tick(store, CAMPAIGN, prose=TemplateProseWriter())
+    state = load_state(store, CAMPAIGN)
+    (seat,) = readers(state)
+    return seat, next(e for e, x in state.entities.items() if x.name == "Erich Raeder")
 
 
 def record_aide() -> None:

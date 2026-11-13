@@ -496,6 +496,15 @@ def orders(page: Page, report: dict[str, object], v2: bool) -> None:
     check("the standard forms list instruments", instruments.count() > 0)
     snake = [t for t in instruments.locator("strong").all_inner_texts() if "_" in t]
     check("instrument names are in words", not snake, ", ".join(snake))
+    fleet = page.locator("form.rl-form[aria-label='Move a fleet'] select[name='to'] option")
+    if fleet.count():
+        places = [t.strip() for t in fleet.all_text_contents()[1:]]
+        report["fleet_places"] = places
+        check(
+            "the fleet form offers every place on the map, in words",
+            len(places) > 4 and not [t for t in places if "_" in t],
+            str(len(places)),
+        )
     people = page.locator("form.rl-directive .rl-recipient")
     titles = people.locator(".rl-person-title").all_inner_texts()
     report["recipients"] = people.all_inner_texts()

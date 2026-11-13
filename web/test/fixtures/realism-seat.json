@@ -336,7 +336,8 @@
                 "value": "draft_extension",
                 "label": "Extend the draft"
               }
-            ]
+            ],
+            "places": []
           },
           {
             "name": "sponsor",
@@ -344,7 +345,8 @@
             "kind": "entity",
             "lo": null,
             "hi": null,
-            "choices": []
+            "choices": [],
+            "places": []
           }
         ]
       },
@@ -373,7 +375,8 @@
                 "value": "china",
                 "label": "China"
               }
-            ]
+            ],
+            "places": []
           },
           {
             "name": "share_pct",
@@ -381,7 +384,136 @@
             "kind": "int",
             "lo": 0,
             "hi": 100,
-            "choices": []
+            "choices": [],
+            "places": []
+          }
+        ]
+      },
+      {
+        "name": "move_fleet",
+        "label": "Move a fleet",
+        "summary": "Send a fleet to another base. The Navy Department carries it out.",
+        "pipeline": "naval_order",
+        "params": [
+          {
+            "name": "force",
+            "label": "Which fleet",
+            "kind": "enum",
+            "lo": null,
+            "hi": null,
+            "choices": [
+              {
+                "value": "us_atlantic_fleet",
+                "label": "The Atlantic Fleet"
+              },
+              {
+                "value": "us_pacific_fleet",
+                "label": "The Pacific Fleet"
+              }
+            ],
+            "places": []
+          },
+          {
+            "name": "to",
+            "label": "To",
+            "kind": "enum",
+            "lo": null,
+            "hi": null,
+            "choices": [
+              {
+                "value": "argentia",
+                "label": "Argentia"
+              },
+              {
+                "value": "norfolk",
+                "label": "Norfolk"
+              },
+              {
+                "value": "pearl_harbor_base",
+                "label": "Pearl Harbor"
+              },
+              {
+                "value": "scapa_flow",
+                "label": "Scapa Flow"
+              },
+              {
+                "value": "halifax_port",
+                "label": "Halifax"
+              },
+              {
+                "value": "lorient",
+                "label": "Lorient"
+              },
+              {
+                "value": "tokyo",
+                "label": "Tokyo"
+              }
+            ],
+            "places": [
+              {
+                "value": "argentia",
+                "label": "Argentia",
+                "group": "own",
+                "days": {
+                  "us_atlantic_fleet": 5,
+                  "us_pacific_fleet": null
+                }
+              },
+              {
+                "value": "norfolk",
+                "label": "Norfolk",
+                "group": "own",
+                "days": {
+                  "us_atlantic_fleet": 0,
+                  "us_pacific_fleet": null
+                }
+              },
+              {
+                "value": "pearl_harbor_base",
+                "label": "Pearl Harbor",
+                "group": "own",
+                "days": {
+                  "us_atlantic_fleet": 18,
+                  "us_pacific_fleet": null
+                }
+              },
+              {
+                "value": "scapa_flow",
+                "label": "Scapa Flow",
+                "group": "allied",
+                "days": {
+                  "us_atlantic_fleet": 13,
+                  "us_pacific_fleet": null
+                }
+              },
+              {
+                "value": "halifax_port",
+                "label": "Halifax",
+                "group": "route",
+                "days": {
+                  "us_atlantic_fleet": 4,
+                  "us_pacific_fleet": null
+                }
+              },
+              {
+                "value": "lorient",
+                "label": "Lorient",
+                "group": "contested",
+                "days": {
+                  "us_atlantic_fleet": 14,
+                  "us_pacific_fleet": null
+                }
+              },
+              {
+                "value": "tokyo",
+                "label": "Tokyo",
+                "group": "other",
+                "days": {
+                  "us_atlantic_fleet": 25,
+                  "us_pacific_fleet": null
+                }
+              }
+            ]
           }
         ]
       }

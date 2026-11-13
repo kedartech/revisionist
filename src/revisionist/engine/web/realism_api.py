@@ -136,6 +136,21 @@ class LeverChoice(TypedDict):
     label: str
 
 
+class PlaceChoice(TypedDict):
+    """One place a movement form can send a force to, as the seat's own pages show it."""
+
+    value: str
+    """What is posted back: the same value as its entry in ``choices``."""
+    label: str
+    group: Literal["own", "allied", "route", "contested", "other"]
+    """Own: the form's own destinations and places the seat's papers put its own forces.
+    Allied: an ally's force is placed there. Route: on a convoy route a page shows.
+    Contested: on a front, or another side's force is placed there. Other: the rest."""
+    days: dict[str, int | None]
+    """For each choice of the form's ``force``: days to arrive from where the seat's
+    latest page places that force (0 if it is there); None when no page places it."""
+
+
 class LeverParam(TypedDict):
     name: str
     label: str
@@ -143,6 +158,9 @@ class LeverParam(TypedDict):
     lo: int | None
     hi: int | None
     choices: list[LeverChoice]
+    places: list[PlaceChoice]
+    """A movement form's destination: every place in ``choices``, grouped and with days.
+    Empty for every other parameter, and when the campaign's world file cannot be read."""
 
 
 class LeverLine(TypedDict):
@@ -612,6 +630,7 @@ __all__ = [
     "OrderResult",
     "OrderTrack",
     "OrderTracker",
+    "PlaceChoice",
     "ReachContact",
     "ReachGroups",
     "RecordBlock",

@@ -4,14 +4,22 @@ Atlantic losses from U-boat strength and escort level. Churchill's
 ``convoy_orders`` and Mussolini's ``libya_convoys`` change nothing in this wave.
 Once the escort level has reached 1 the escort factor counts from that month, even
 if a later order holds the ships in port.
+
+Where the fleets are counts, read as the month ends (before that day's arrivals): the
+escort factor applies only while a fleet of the escorting side lies in the North
+Atlantic, and the U-boats sink nothing while no fleet of their side lies there. A
+side with no fleet on the map is taken to be on station.
 """
 
 from datetime import date, timedelta
 
+from revisionist.core.ids import EntityId
 from revisionist.core.realism import resolvers as rs
+from revisionist.core.realism.geography import FeatureKind
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.quantity import QuantityChange
 from revisionist.core.realism.resolvers.votes import put
+from revisionist.core.realism.war import polity_of
 from revisionist.core.state import State
 
 ESCORT_LEVEL = {"hold_in_port": 0, "escort_convoys": 1, "shoot_on_sight": 2}
@@ -22,6 +30,7 @@ ESCORT_STEP_PM = 150  # [fitted] to the Oct (176,622) and Nov (120,541) record
 ESCORT_FLOOR_PM = 500  # [proposed]
 UNRESTRICTED_PM = 1300  # [proposed]
 NOISE_PM = 80  # [proposed] friction keeps losses within +-8%
+NORTH_ATLANTIC = ((0.0, 70.0), (-82.0, 0.0))  # [proposed] latitude, longitude bounds
 MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
 
 
@@ -54,6 +63,29 @@ def _escorted_since(state: State, today: date) -> date | None:
     return min(days, default=None)
 
 
+def _in_north_atlantic(state: State, place: EntityId) -> bool:
+    here = state.entities.get(place)
+    if here is None or here.at is None:
+        return False
+    (south, north), (west, east) = NORTH_ATLANTIC
+    return south <= here.at[0] <= north and west <= here.at[1] <= east
+
+
+def _on_station(state: State, key: str) -> bool:
+    """Whether a fleet of the side that owns quantity ``key`` lies in the North
+    Atlantic; true when that side has no fleet on the map."""
+    q = state.quantities.get(rs.qid(state, key))
+    side = None if q is None or q.owner is None else polity_of(state, q.owner)
+    if side is None:
+        return True
+    fleets = [
+        f
+        for f in state.features.values()
+        if f.kind is FeatureKind.FLEET and f.side is not None and polity_of(state, f.side) == side
+    ]
+    return not fleets or any(_in_north_atlantic(state, f.places[0]) for f in fleets)
+
+
 def on_day(state: State, today: date) -> tuple[QuantityChange, ...]:
     """On the 1st, the month just ended's losses, if that quantity is still a gap."""
     if today.day != 1:
@@ -65,7 +97,9 @@ def on_day(state: State, today: date) -> tuple[QuantityChange, ...]:
     boats = rs.value(state, "uboats_operational")
     if boats is None:
         return ()
-    since = _escorted_since(state, last)
+    if not _on_station(state, "uboats_operational"):
+        boats = 0
+    since = _escorted_since(state, last) if _on_station(state, "us_atlantic_escort") else None
     months = 0 if since is None else (last.year - since.year) * 12 + last.month - since.month
     escort_pm = max(ESCORT_FLOOR_PM, 1000 - ESCORT_STEP_PM * months)
     posture_pm = UNRESTRICTED_PM if rs.value(state, "uboat_posture") == 1 else 1000

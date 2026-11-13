@@ -12,9 +12,10 @@ from datetime import date
 from revisionist.core import events as ev
 from revisionist.core import record
 from revisionist.core.events import Event
-from revisionist.core.ids import CampaignId, EntityId, MandateId, SeatId
+from revisionist.core.ids import CampaignId, EntityId, MandateId, SeatId, derived_id
 from revisionist.core.project import project
-from revisionist.core.realism.agenda import Offer, Option, PlayStyle
+from revisionist.core.realism import mandates
+from revisionist.core.realism.agenda import Offer, Option, PlayStyle, TriggerKind
 from revisionist.core.realism.effect import RoutedPart
 from revisionist.core.state import State, View
 from revisionist.engine import options, realism_tick
@@ -96,12 +97,33 @@ def _listed(
     ], False
 
 
+def _causes(state: State, seat: SeatId, view: View) -> dict[MandateId, str]:
+    """The headline behind each of the seat's mandates a history event issued, only where
+    a page of that news is in the seat's view."""
+    read = {
+        doc.truth.news_id
+        for doc in state.documents.values()
+        if doc.view.doc_id in view.documents and doc.truth.news_id is not None
+    }
+    out: dict[MandateId, str] = {}
+    for template in state.templates.values():
+        trigger = template.trigger
+        if trigger.on is not TriggerKind.HISTORY or trigger.history is None:
+            continue
+        news_id = derived_id(state.campaign_id, "news", "history", trigger.history)
+        news = state.news.get(news_id)
+        if news is not None and news_id in read:
+            out[mandates._mandate_id(state, template, seat)] = news.headline
+    return out
+
+
 def agenda(state: State, seat: SeatId, log: Iterable[Event]) -> AgendaBlock:
     """Each live mandate and the seat's offers from ``log``, all from its own view."""
     view = project(state, seat)
     events = list(log)
     made = _latest(events, seat, _wake(state))
     filed = _filed(events, seat, made.wake) if made is not None else []
+    causes = _causes(state, seat, view)
     items: list[AgendaItem] = []
     initiative: list[AgendaOption] = []
     by_mandate: dict[MandateId | None, int] = {}
@@ -122,6 +144,7 @@ def agenda(state: State, seat: SeatId, log: Iterable[Event]) -> AgendaBlock:
                 text=mandate.text,
                 issued=_day(mandate.issued),
                 deadline=_day(mandate.expires),
+                cause=causes.get(mandate.mandate_id),
                 options=[] if plan else listed,
                 plan=listed if plan else [],
             )

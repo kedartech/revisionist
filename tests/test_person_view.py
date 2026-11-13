@@ -117,19 +117,20 @@ def prompt(view: PersonView) -> str:
     return counsel_prompt(view, Asker(name="Franklin D. Roosevelt"), ChannelKind.CABLE, QUESTION)
 
 
-def test_a_human_seats_private_page_stays_out_when_another_seat_consults_that_person(
+def test_a_human_seats_private_page_stays_out_of_what_another_seat_would_hear(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     store, roosevelt, churchill = churchills_pages(HUMAN_CANARY)
     state = played_by_a_human(load_state(store, CAMPAIGN), churchill)
     assert state.seats[seat_of(state, churchill)].controller is Controller.HUMAN
+    text = prompt(project_person(state, churchill, roosevelt))
+    assert SHARED in text
+    assert HUMAN_CANARY not in text
     monkeypatch.setattr(counsel, "load_state", lambda *_: state)
     transport = Kept()
-    with pytest.raises(TransportError):
+    with pytest.raises(counsel.CounselRefusedError, match="speaks for themselves"):
         consult(store, CAMPAIGN, roosevelt, churchill, QUESTION, ClaudeCounsellor(transport))
-    (req,) = transport.sent
-    assert SHARED in req.prompt
-    assert HUMAN_CANARY not in req.system + req.prompt
+    assert transport.sent == []
 
 
 def test_an_ai_seats_private_page_stays_out_of_the_counsel_request() -> None:

@@ -3,6 +3,7 @@
 import { h } from '../dom.js';
 import { worldDate } from '../rules.js';
 import { partLines } from './realism-wake.js';
+import { chip, stepper } from './ui-kit.js';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
   'September', 'October', 'November', 'December'];
@@ -125,6 +126,8 @@ export function orderGroups(record, tracker) {
 
 export const NO_ORDERS = 'No orders yet. Pick an idea or write one.';
 
+const KIT_TONE = { need: 'warn', moving: 'info', ok: 'ok', bad: 'danger', quiet: 'quiet' };
+
 /**
  * The right column, headed "Your orders": cards that need the seat first, each with
  * `stepForm(trackerOrder)` under it, then the moving ones, then a folded "Finished (n)";
@@ -138,11 +141,12 @@ export function orderCards(record, tracker, stepForm) {
   const trackerOrder = (e) => (tracker?.orders ?? []).find((o) => o.id === e.track) ?? null;
   const card = (e, form = false) => {
     const t = trackerOrder(e);
-    const chip = orderChip(e, t);
+    const status = orderChip(e, t);
     return h('li', { class: 'rl-oc-card' },
       e.asked ? h('p', { class: 'rl-oc-ask' }, e.asked) : null,
-      h('span', { class: `rl-oc-chip rl-oc-${chip.tone}` }, chip.word),
+      chip(status.word, KIT_TONE[status.tone]),
       orderLines(e).map((line) => h('p', { class: 'rl-oc-line' }, line)),
+      t ? stepper(t.steps, t.at_step) : null,
       form && t ? stepForm(t) : null);
   };
   const { need, moving, finished } = orderGroups(record, tracker);

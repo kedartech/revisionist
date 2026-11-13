@@ -1,4 +1,6 @@
-// Spec for Train 3 unit TH4, written with contract K3: the unit makes it pass and never edits it.
+// Portraits in the console theme: a phosphor duotone from two tokens, so every photograph
+// reads as one set. The frame is filled with --duo-light, the grey image multiplies onto it,
+// ::after lightens the blacks to --duo-dark and ::before draws the scanlines.
 // Run: node --test web/test/
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -13,6 +15,8 @@ const read = (f) => readFileSync(join(WEB, f), 'utf8');
 const raw = read('css/p5-portrait.css');
 const css = raw.replace(/\/\*[\s\S]*?\*\//g, '');
 const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ sel: m[1].trim(), body: m[2] }));
+const on = (re) => rules.filter((r) => r.sel.split(',').some((s) => re.test(s.trim())));
+const has = (list, re) => list.some((r) => re.test(r.body));
 
 test('a portrait path only from a bare lowercase image name', () => {
   assert.equal(portraitSrc('roosevelt.jpg'), '/assets/portraits/roosevelt.jpg');
@@ -22,18 +26,33 @@ test('a portrait path only from a bare lowercase image name', () => {
   }
 });
 
-test('the terminal look: a green duotone on the image and scanlines over the frame', () => {
-  const img = rules.filter((r) => /\.portrait\b(?![-\w])/.test(r.sel) && !/data-theme="paper"/.test(r.sel));
-  assert.ok(img.some((r) => /filter\s*:/.test(r.body)), 'a filter on .portrait');
-  const frame = rules.filter((r) => /\.portrait-frame::after/.test(r.sel));
-  assert.ok(frame.some((r) => /repeating-linear-gradient/.test(r.body)), 'scanlines on .portrait-frame::after');
+test('the frame is filled with the light tone and isolates its blend', () => {
+  const frame = on(/^\.portrait-frame$/);
+  assert.ok(has(frame, /background\s*:\s*var\(--duo-light\)/), 'frame filled with --duo-light');
+  assert.ok(has(frame, /isolation\s*:\s*isolate/), 'isolation: isolate');
+  assert.ok(has(frame, /position\s*:\s*relative/), 'the frame places its layers');
 });
 
-test('none of it under paper, and a monogram is left alone', () => {
-  const paper = rules.filter((r) => /html\[data-theme="paper"\]/.test(r.sel));
-  assert.ok(paper.some((r) => /\.portrait\b/.test(r.sel) && /filter\s*:\s*none/.test(r.body)), 'paper resets the filter');
-  assert.ok(paper.some((r) => /\.portrait-frame::after/.test(r.sel) && /(content\s*:\s*none|display\s*:\s*none)/.test(r.body)), 'paper drops the scanlines');
-  assert.ok(!rules.some((r) => /portrait-mono/.test(r.sel) && /filter/.test(r.body)), 'no filter on a monogram');
+test('the grey image multiplies onto the frame', () => {
+  const img = on(/\.portrait-frame\s*>\s*\.portrait$/);
+  assert.ok(has(img, /filter\s*:\s*grayscale\(1\)/), 'a grey filter on the image');
+  assert.ok(has(img, /mix-blend-mode\s*:\s*multiply/), 'the blend sits on the image itself');
+});
+
+test('::after lightens the blacks to the dark tone and ::before draws the scanlines', () => {
+  const after = on(/^\.portrait-frame::after$/);
+  assert.ok(has(after, /background\s*:\s*var\(--duo-dark\)/), '::after is --duo-dark');
+  assert.ok(has(after, /mix-blend-mode\s*:\s*lighten/), '::after lightens');
+  const before = on(/^\.portrait-frame::before$/);
+  assert.ok(has(before, /repeating-linear-gradient/), 'scanlines on ::before');
+  assert.ok(has(before, /z-index\s*:\s*1/), 'the scanlines sit over the blend');
+  const off = on(/^html\[data-effects="off"\] \.portrait-frame::before$/);
+  assert.ok(has(off, /content\s*:\s*none/), 'the scanlines go with the screen effects');
+});
+
+test('one theme only, and a monogram is left alone', () => {
+  assert.doesNotMatch(css, /data-theme/);
+  assert.ok(!rules.some((r) => /portrait-mono/.test(r.sel) && /filter|blend/.test(r.body)), 'no filter on a monogram');
 });
 
 test('scoped, tokens only, linked, no stub left', () => {

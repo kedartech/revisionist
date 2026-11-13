@@ -9,3 +9,9 @@
   /* The dock fills the screen: the launcher, its only close on a phone, moves up beside the title. */
   .rl-msgr-btn[aria-expanded="true"] { top: var(--space-2); right: var(--space-3); bottom: auto; }
 }
+
+@media (max-width: 767px) {
+  .rl-msgr-btn { display: none; }
+  /* The open dock fills the screen; its launcher stays as the close beside the title. */
+  .rl-msgr-btn[aria-expanded="true"] { display: inline-flex; top: var(--space-2); right: var(--space-3); bottom: auto; }
+}

@@ -3,6 +3,7 @@
 
 import { h, icon } from '../dom.js';
 import { optionLines } from './realism-wake.js';
+import { panelHead } from './ui-kit.js';
 
 const sameWords = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
 
@@ -30,7 +31,7 @@ function optionRow(o, act) {
     o.taken
       ? h('span', { class: 'rl-idea-filed' }, icon('check'), 'Filed')
       : h('button', {
-        type: 'button', class: 'rl-btn', 'aria-label': `Choose: ${o.label}`,
+        type: 'button', class: 'rl-btn btn-1', 'aria-label': `Choose: ${o.label}`,
         onclick: () => act('Filing it…', 'option', { pick: o.pick }),
       }, 'Choose'));
 }
@@ -47,7 +48,7 @@ function draftRow(d, useDraft) {
     h('p', { class: 'rl-idea-label' }, h('strong', {}, d.label)),
     d.terms?.length ? h('ul', { class: 'rl-idea-terms' }, d.terms.map((t) => h('li', {}, t))) : null,
     h('button', {
-      type: 'button', class: 'rl-btn', 'aria-label': `Open the form: ${d.label}`,
+      type: 'button', class: 'rl-btn btn-1', 'aria-label': `Open the form: ${d.label}`,
       onclick: () => useDraft(d),
     }, 'Open the form'));
 }
@@ -74,9 +75,7 @@ export function ideasPanel(agenda, brief, { act, useDraft }) {
     ? h('ul', { class: 'rl-idea-rows', role: 'list' }, drafts.map((d) => draftRow(d, useDraft)))
     : null;
   if (!plan && !offers && !suggested) return null;
-  return h('section', { class: 'rl-idea-panel', 'aria-labelledby': 'rl-idea-h' },
-    h('h2', { id: 'rl-idea-h' }, 'Ideas'),
-    plan,
-    offers,
-    suggested);
+  return h('section', { class: 'panel rl-idea-panel', 'aria-label': 'Ideas' },
+    panelHead('Ideas'),
+    h('div', { class: 'rl-idea-body' }, plan, offers, suggested));
 }

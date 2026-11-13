@@ -69,8 +69,13 @@ class Feature(Model):
     """Engine v2: a force's posture, set by an applied order. None: as authored."""
     engagement: Engagement | None = None
     """Engine v2: a force's rules of engagement, set by an applied order. None: as authored."""
+    left_base_on: date | None = None
+    """A fleet or air group away from its side's bases: the day it left the last one. None
+    at a base, for an army, and for a force no move has started the clock for."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"in_service", "posture", "engagement"})
+    late_fields: ClassVar[frozenset[str]] = frozenset(
+        {"in_service", "posture", "engagement", "left_base_on"}
+    )
 
     @model_validator(mode="after")
     def _shape(self) -> "Feature":

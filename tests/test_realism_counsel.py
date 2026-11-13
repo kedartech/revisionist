@@ -389,6 +389,7 @@ def test_counsel_lines_carry_the_day_they_were_held_and_the_tie() -> None:
 
 
 GREER = "The Greer has been fired on: settle the U-boats' rules toward American ships."
+GREER_HEADLINE = "USS Greer and U-652 exchange fire south of Iceland"
 
 
 def test_raeder_asked_after_the_greer_knows_the_crisis_on_his_principals_desk() -> None:
@@ -400,6 +401,7 @@ def test_raeder_asked_after_the_greer_knows_the_crisis_on_his_principals_desk() 
     out = consult(store, CAMPAIGN, seat, raeder, GREER_QUESTION, ClaudeCounsellor(transport))
     (req,) = transport.sent
     assert "## Before your principal\n" in req.prompt and GREER in req.prompt
+    assert "## The news\n" in req.prompt and GREER_HEADLINE in req.prompt
     assert out.text.endswith(COUNSEL_BY_QUESTION[GREER_QUESTION])
 
 

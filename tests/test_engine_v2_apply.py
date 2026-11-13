@@ -11,7 +11,7 @@ import pytest
 
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, FactId, FeatureId, OrderId, RelationshipId, derived_id
-from revisionist.core.ontology import Relationship
+from revisionist.core.ontology import Entity, EntityKind, Relationship
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism import reach
 from revisionist.core.realism.agenda import Ask
@@ -26,6 +26,8 @@ from revisionist.core.realism.apply import (
 from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.geography import SPEED_KM_PER_DAY, Feature, km_between
 from revisionist.core.realism.resolvers import movement
+from revisionist.core.realism.routing import sea_route
+from revisionist.core.realism.war import War, war_id_for
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, Visibility, private_to
 from revisionist.core.world_compile import compile_world, resolve_keys
@@ -253,6 +255,57 @@ def test_a_move_sets_the_voyage_as_the_movement_resolver_would(sl: Slice) -> Non
     assert ft.places == (sl.entity("norfolk"),)
     (arrived,) = movement.on_day(sl.state, ft.arrives)
     assert arrived.places == (argentia,) and arrived.bound_for is None
+
+
+def _a_place(sl: Slice, key: str, where: tuple[float, float]) -> EntityId:
+    place = EntityId(derived_id(CAMPAIGN, "test-place", key))
+    sl.add(
+        ev.EntityCreated(
+            entity=Entity(entity_id=place, kind=EntityKind.LOCATION, name=key, at=where)
+        )
+    )
+    return place
+
+
+def test_a_fleet_sent_to_another_sea_sails_its_route(sl: Slice) -> None:
+    f = sl.feature("us_atlantic_fleet")
+    pearl = _a_place(sl, "pearl", (21.4, -158.0))
+    order = sl.shoot_on_sight(effect=rx.MoveForce(force=f, to=pearl))
+    executed(sl, order, rx.Fidelity.FULL)
+    land(sl, order)
+    ft = sl.state.features[f]
+    origin = sl.state.entities[sl.entity("norfolk")].at
+    assert origin is not None
+    route = sea_route(sl.state, ft.side, origin, (21.4, -158.0))
+    assert route is not None and route.via == ("panama",)
+    days = -(-route.km // SPEED_KM_PER_DAY[ft.kind])
+    assert ft.bound_for == pearl and ft.arrives == FILED + timedelta(days=days)
+
+
+def test_a_fleet_with_no_open_sea_route_keeps_its_place_and_takes_the_posture(
+    sl: Slice,
+) -> None:
+    f = sl.feature("us_atlantic_fleet")
+    leningrad = _a_place(sl, "leningrad", (59.9, 30.3))
+    usa, germany = sl.entity("usa"), sl.entity("germany")
+    sl.add(
+        ev.WarDeclared(
+            war=War(
+                war_id=war_id_for(usa, germany),
+                a=usa,
+                b=germany,
+                since=FILED,
+                declared_by=sl.entity("roosevelt"),
+            )
+        )
+    )
+    move = rx.MoveForce(force=f, to=leningrad, posture=rx.Posture.PATROL)
+    order = sl.shoot_on_sight(effect=move)
+    executed(sl, order, rx.Fidelity.FULL)
+    land(sl, order)
+    ft = sl.state.features[f]
+    assert ft.places == (sl.entity("norfolk"),) and ft.bound_for is None
+    assert ft.posture is rx.Posture.PATROL
 
 
 def test_a_force_sent_where_it_is_only_changes_posture(sl: Slice) -> None:

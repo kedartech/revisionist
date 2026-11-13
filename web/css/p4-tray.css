@@ -79,9 +79,13 @@
 .rl-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .rl-row-nested { margin-top: var(--space-1); padding-left: var(--space-5); }
 .rl-row-main { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.rl-row-from { font-weight: 600; }
+.rl-row-from { font: 600 12px/1.4 var(--font-chrome); }
 .rl-row-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rl-row-date, .rl-row-unread, .rl-flag { font-size: 12px; white-space: nowrap; }
+.rl-row-date { font-family: var(--font-chrome); }
+.rl-row-unread { font-weight: 600; }
+.rl-row-paper.unread { box-shadow: inset 3px 0 0 var(--info); }
+.rl-row-paper.unread .rl-row-title { font-weight: 600; }
 .rl-dot { flex: none; width: 0.6rem; height: 0.6rem; border-radius: 50%; border: 1px solid var(--field-border); }
 .rl-dot-on { background: var(--info); border-color: var(--info); }
 .rl-row-group[aria-expanded="true"] { font-weight: 600; }
@@ -90,6 +94,8 @@
 .rl-tray-head { margin: 0; font: 600 12px/1.3 var(--font-head); text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-muted); }
 /* The papers column is narrow unless widened, so the panes follow the column, not the screen. */
 .rl-tray { container-type: inline-size; }
+.rl-tray-body { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3); }
+.rl-tray div.seg { flex-wrap: wrap; }
 @container (max-width: 36rem) {
   .rl-mail { grid-template-columns: minmax(0, 1fr); }
   .rl-mail-open .rl-mail-list { display: none; }

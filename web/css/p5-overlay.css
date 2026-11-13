@@ -26,7 +26,7 @@
 
 .rl-ovl-msg {
   margin: 0;
-  font: 400 18px/1.3 var(--font-head);
+  font: 600 18px/1.3 var(--font-head);
   letter-spacing: .06em;
   text-transform: uppercase;
   overflow-wrap: anywhere;

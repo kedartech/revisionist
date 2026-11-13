@@ -25,10 +25,10 @@
   border-radius: var(--radius);
   padding: var(--space-6);
   display: flex; flex-direction: column; gap: var(--space-4);
-  box-shadow: 0 0 0 1px var(--chrome-rule);
+  border: 1px solid var(--rule);
 }
 .auth-card form, .codes-block { display: flex; flex-direction: column; gap: var(--space-3); }
-.brand { display: flex; align-items: center; gap: var(--space-2); font: 400 18px var(--font-head); color: var(--fg-strong); }
+.brand { display: flex; align-items: center; gap: var(--space-2); font: 600 18px var(--font-head); color: var(--fg-strong); }
 .lede { color: var(--fg); }
 .auth-foot { font-size: 13px; color: var(--fg); }
 .codes { columns: 2; margin: 0; padding-left: 1.6em; font-family: var(--font-code); font-size: 15px; }
@@ -51,9 +51,8 @@
 .search .row input { flex: 1; width: auto; }
 .roster { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-3); margin-top: var(--space-3); }
 .char { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
-.char.taken { opacity: .7; }
 .char-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
-.char-name { font: 400 17px var(--font-head); }
+.char-name { font: 600 17px var(--font-head); }
 .char button { align-self: flex-start; margin-top: auto; }
 .aside-card { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); position: sticky; top: 0; }
 .offers { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
@@ -67,7 +66,7 @@ form[aria-label="Agent design"] button { justify-self: start; }
 .seat-card dl { display: grid; grid-template-columns: 80px 1fr; gap: 4px var(--space-3); margin: 0; }
 .seat-card dt { color: var(--fg-muted); }
 .seat-card dd { margin: 0; }
-.seat-card h2 { font: 400 22px var(--font-head); text-transform: none; letter-spacing: 0; color: var(--fg-strong); }
+.seat-card h2 { font: 600 22px var(--font-head); text-transform: none; letter-spacing: 0; color: var(--fg-strong); }
 /* --- war room --------------------------------------------------------------------- */
 .contests {
   background: var(--surface-2);
@@ -77,7 +76,7 @@ form[aria-label="Agent design"] button { justify-self: start; }
   column-gap: 40px; row-gap: 10px;
 }
 .contest-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
-.contest-name { font: 400 15px var(--font-head); }
+.contest-name { font: 600 15px var(--font-head); }
 .contest .num { font-weight: 600; }
 .track-row { display: grid; grid-template-columns: minmax(0, 28%) minmax(120px, 1fr) minmax(0, 28%); gap: var(--space-2); align-items: center; font-size: 12px; color: var(--fg); margin-top: 4px; }
 .track-row .side { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -126,8 +125,8 @@ form[aria-label="Agent design"] button { justify-self: start; }
 .col-right { min-height: 0; border-left: 1px solid var(--accent); display: flex; flex-direction: column; }
 .agent { flex: 1; min-height: 0; display: flex; flex-direction: column; border-bottom: 1px solid var(--rule); }
 .agent-head { display: flex; gap: var(--space-3); align-items: center; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--rule); }
-.portrait { width: 40px; height: 40px; border: 2px solid var(--fg); display: grid; place-items: center; font: 400 20px var(--font-head); background: var(--surface); flex: none; }
-.agent-name { font: 400 16px var(--font-head); }
+.portrait { width: 40px; height: 40px; border: 2px solid var(--fg); display: grid; place-items: center; font: 600 20px var(--font-head); background: var(--surface); flex: none; }
+.agent-name { font: 600 16px var(--font-head); }
 .chat { flex: 1; min-height: 120px; overflow-y: auto; padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
 .chat .me { align-self: flex-end; background: var(--surface); border: 1px solid var(--rule); padding: 6px 10px; border-radius: var(--radius); max-width: 85%; }
 .chat .them { align-self: flex-start; font-family: var(--font-read); max-width: 95%; }
@@ -142,7 +141,6 @@ form[aria-label="Agent design"] button { justify-self: start; }
   .split { grid-template-columns: 1fr; }
 }
 /* A taken figure reads dimmer by its name, not by fading the whole card: faded tags fail contrast. */
-.char.taken { opacity: 1; }
 .char.taken .char-name { color: var(--fg); }
 /* The character-select screen's cast: a grid of cards (realism-cast.js) */
 .rl-cast { margin-block: 1rem; }

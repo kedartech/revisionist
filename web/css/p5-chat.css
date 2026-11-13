@@ -14,11 +14,11 @@
 .rl-msg .rl-btn { margin-top: var(--space-2); }
 .rl-msg-who { font: 600 12px/1.3 var(--font-chrome); color: var(--fg); }
 .rl-msg-text { white-space: pre-wrap; }
-.rl-msg.mine { margin-left: var(--space-5); background: var(--surface-2); }
-.rl-msg.theirs { margin-right: var(--space-3); background: var(--field); border-left: 3px solid var(--rule); font-family: var(--font-read); }
+.rl-msg.mine { margin-left: var(--space-5); background: var(--accent-soft); }
+.rl-msg.theirs { margin-right: var(--space-3); background: var(--surface-2); border-left: 3px solid var(--rule); font-family: var(--font-read); }
 .rl-msg.theirs .rl-msg-who { font-family: var(--font-chrome); }
 
-.rl-msgr-panel { position: fixed; right: var(--space-4); bottom: calc(var(--space-4) + 2.5rem); z-index: 50; width: 380px; max-height: min(70vh, 40rem); display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); box-sizing: border-box; background: var(--surface); color: var(--fg); border: 1px solid var(--rule); font: 13px/1.4 var(--font-chrome); }
+.rl-msgr-panel { position: fixed; right: var(--space-4); bottom: calc(var(--space-4) + 2.5rem); z-index: 50; width: 380px; max-height: min(70vh, 40rem); display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); box-sizing: border-box; background: var(--surface); color: var(--fg); border: 1px solid var(--rule); border-radius: var(--radius); font: 13px/1.4 var(--font-chrome); }
 .rl-msgr-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .rl-msgr-title, .rl-msgr-name { margin: 0; font: 600 13px/1.3 var(--font-head); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-strong); }
 .rl-msgr-tabs { display: flex; gap: var(--space-1); }
@@ -29,7 +29,11 @@
 
 .rl-msgr-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-@media (max-width: 480px) {
-  .rl-msgr-panel { inset: 0; width: auto; max-height: none; border: 0; box-shadow: none; }
+@media (max-width: 767px) {
+  .rl-msgr-panel { inset: 0; width: auto; max-height: none; border: 0; border-radius: 0; box-shadow: none; }
   .rl-msgr-head { min-height: 44px; display: flex; align-items: center; padding-right: 56px; }
+}
+
+@media (max-width: 480px) {
+  .rl-msgr-panel { padding: var(--space-3); }
 }

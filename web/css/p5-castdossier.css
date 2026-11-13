@@ -2,12 +2,14 @@
 
 .rl-cd {
   box-sizing: border-box;
+  container-type: inline-size;
   width: min(44rem, 92vw);
   max-width: 44rem;
   max-height: 90vh;
   overflow-y: auto;
   padding: 1.25rem;
   border: 1px solid var(--rule);
+  border-radius: var(--radius);
   background: var(--surface);
   color: var(--fg-read);
   font-family: var(--font-read);
@@ -37,6 +39,8 @@
   display: block;
   width: 6rem;
   height: auto;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
   border: 1px solid var(--field-border);
 }
 
@@ -57,6 +61,7 @@
   border: 1px solid var(--field-border);
   font-family: var(--font-head);
   font-size: 1.5rem;
+  font-weight: 600;
   color: var(--fg-strong);
 }
 
@@ -78,7 +83,7 @@
   margin: 0 0 0.35rem;
   font-family: var(--font-head);
   font-size: 0.8rem;
-  font-weight: 400;
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--fg-muted);
@@ -131,6 +136,7 @@
   margin: 0;
   font-family: var(--font-head);
   font-size: 0.9rem;
+  font-weight: 600;
   color: var(--fg-strong);
 }
 
@@ -142,11 +148,7 @@
   color: var(--fg-muted);
 }
 
-@media (max-width: 30rem) {
-  .rl-cd {
-    padding: 1rem;
-  }
-
+@container (max-width: 30rem) {
   .rl-cd-head {
     flex-direction: column;
     align-items: flex-start;

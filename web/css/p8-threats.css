@@ -6,7 +6,12 @@
 .rl-threat p { margin: 0; overflow-wrap: anywhere; }
 .rl-threat-who { color: var(--fg-strong); }
 .rl-threat-office, .rl-threat-known, .rl-threat-over { font-size: 13px; }
-.rl-threat-stance { font-weight: 600; }
+.rl-threat-stance { display: inline-flex; }
 .rl-threat-hostile { color: var(--danger); }
 .rl-threat-obstructing { color: var(--warn); }
-.rl-threat-trend { font-size: 13px; }
+.rl-threat-trend { font-size: 13px; color: var(--fg-read); }
+.rl-threat-arrow { margin-right: var(--space-1); }
+.rl-threat-conf { display: flex; align-items: center; gap: var(--space-2); font-size: 13px; color: var(--fg-muted); }
+.rl-pips { display: inline-flex; gap: var(--space-1); }
+.rl-pip { width: 8px; height: 8px; border: 1px solid var(--fg-muted); border-radius: 50%; background: none; }
+.rl-pip.on { background: var(--fg-strong); border-color: var(--fg-strong); }

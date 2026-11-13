@@ -104,7 +104,7 @@ def advance(page: Page, name: str, button: str = "Done for today") -> None:
     """Run the day (the only player, so it runs) with the call held, and check the busy
     state and the overlay while it runs, then the What happened sheet after."""
     page.evaluate(SLOW_ADVANCE)
-    number = wake_number(page)
+    before = world_day(page)
     go = page.get_by_role("button", name=button).first
     go.click()
     if button == RUN_NOW:
@@ -131,8 +131,8 @@ def advance(page: Page, name: str, button: str = "Done for today") -> None:
     shoot(page, f"{name}-busy")
     page.locator(".rl-status.said").filter(has_text="calendar moves").wait_for(timeout=WAKE_MS)
     page.wait_for_timeout(300)
-    after = wake_number(page)
-    check(f"{name}: the wake moves on", after == number + 1, f"{number} -> {after}")
+    after = world_day(page)
+    check(f"{name}: the day moves on", after != before, f"{before} -> {after}")
     check(f"{name}: the overlay is gone", page.locator(".rl-ovl").count() == 0)
     sheet = page.locator("dialog.rl-hap[open]")
     sheet.wait_for(timeout=5_000)
@@ -144,9 +144,9 @@ def advance(page: Page, name: str, button: str = "Done for today") -> None:
     check(f"{name}: What happened closes", page.locator("dialog.rl-hap[open]").count() == 0)
 
 
-def wake_number(page: Page) -> int:
-    text = page.locator(".rl-wake").first.inner_text()
-    return int(text.split("Wake ", 1)[1].split()[0])
+def world_day(page: Page) -> str:
+    """The world date the status strip shows (the room names no wake number)."""
+    return page.locator(".rl-strip .rl-date").first.inner_text()
 
 
 def fill(form: Locator) -> None:
@@ -390,7 +390,9 @@ def header_and_menu(page: Page, report: dict[str, object], host: bool) -> None:
 def wake_header(page: Page, report: dict[str, object], host: bool) -> None:
     wake = page.locator(".frame-head .rl-wake")
     report["wake_header"] = wake.inner_text()
-    check("the header shows the wake", "Wake " in wake.inner_text(), wake.inner_text())
+    check("the header names no wake number", "Wake " not in wake.inner_text(), wake.inner_text())
+    strip = page.get_by_role("region", name="Where the day stands")
+    check("the status strip shows the world date", strip.locator(".rl-date").count() == 1)
     check("the header says when the wake closes", "Closes " in wake.inner_text())
     check("the header counts players done", "done" in wake.inner_text())
     check(

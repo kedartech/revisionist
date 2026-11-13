@@ -3,9 +3,12 @@
 
 import { h } from '../dom.js';
 import { worldDate } from '../rules.js';
+import { chip } from './ui-kit.js';
 
 const TREND = { worse: 'Hardening', better: 'Easing', steady: '' };
+const ARROW = { worse: '↗', better: '↘' };
 const AGE = { firm: '', dated: ' Some weeks old.', old: ' Old news: it may have changed.' };
+const CONFIDENCE = { firm: ['Firm', 3], dated: ['Dated', 2], old: ['Old', 1] };
 
 /** One plain record per threat, in the order the server sent them (most hostile first). */
 export function threatLines(threats) {
@@ -28,12 +31,21 @@ export function threatsPanel(threats) {
   if (!lines.length) return null;
   return h('section', { class: 'rl-threats', 'aria-labelledby': 'rl-threats-h' },
     h('h2', { id: 'rl-threats-h' }, 'Opponents'),
-    h('ul', { class: 'rl-threat-list' }, lines.map((l) => h('li', { class: 'rl-threat' },
-      h('p', { class: 'rl-threat-who' }, h('strong', null, l.name), ' ', h('span', { class: 'rl-threat-office' }, l.office)),
-      h('p', { class: 'rl-threat-how' },
-        h('span', { class: `rl-threat-stance rl-threat-${l.stance}` }, l.label),
-        l.trend ? ' ' : null,
-        l.trend ? h('span', { class: 'rl-threat-trend' }, l.trend) : null),
-      l.over ? h('p', { class: 'rl-threat-over' }, l.over) : null,
-      h('p', { class: 'rl-threat-known' }, `${l.known} ${l.cause}`)))));
+    h('ul', { class: 'rl-threat-list' }, lines.map((l, i) => {
+      const [word, pips] = CONFIDENCE[threats[i].confidence] ?? ['', 0];
+      return h('li', { class: 'rl-threat' },
+        h('p', { class: 'rl-threat-who' }, h('strong', null, l.name), ' ', h('span', { class: 'rl-threat-office' }, l.office)),
+        h('p', { class: 'rl-threat-how' },
+          h('span', { class: `rl-threat-stance rl-threat-${l.stance}` },
+            chip(l.label, l.stance === 'hostile' ? 'danger' : 'warn')),
+          l.trend ? ' ' : null,
+          l.trend ? h('span', { class: 'rl-threat-trend' },
+            h('span', { class: 'rl-threat-arrow', 'aria-hidden': 'true' }, ARROW[threats[i].trend]), ` ${l.trend}`) : null),
+        l.over ? h('p', { class: 'rl-threat-over' }, l.over) : null,
+        h('p', { class: 'rl-threat-known' }, `${l.known} ${l.cause}`),
+        h('p', { class: 'rl-threat-conf' },
+          h('span', { class: 'rl-pips', 'aria-hidden': 'true' },
+            [1, 2, 3].map((n) => h('span', { class: n <= pips ? 'rl-pip on' : 'rl-pip' }))),
+          ` ${word}`));
+    })));
 }

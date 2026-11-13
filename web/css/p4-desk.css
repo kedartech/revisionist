@@ -29,7 +29,9 @@
 .rl-powers { margin: 0; }
 .rl-desk ul:not(.rl-instruments):not(.rl-contacts) { list-style: disc; padding-left: var(--space-5); }
 .rl-instruments { display: grid; gap: var(--space-3); }
-.rl-instrument { padding: var(--space-3); background: var(--field); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-instrument { padding: var(--space-3); background: var(--surface-2); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-write textarea { width: 100%; min-width: 0; padding: var(--space-2) var(--space-3); background: var(--field); color: var(--fg-strong); border: 1px solid var(--field-border); border-radius: var(--radius); font: 14px/1.5 var(--font-read); }
+.rl-write textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .rl-instrument-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .rl-summary { margin: var(--space-1) 0 var(--space-2); color: var(--fg); }
 .rl-contacts li { padding: var(--space-1) 0; }

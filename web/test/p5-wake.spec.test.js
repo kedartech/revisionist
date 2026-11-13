@@ -45,7 +45,7 @@ test('the views use the words, and the old ones are gone', () => {
   assert.match(views, /DONE_HINT/);
   assert.match(views, /RUN_NOW\.heading/);
   assert.match(views, /act\(RUNNING, 'close'/);
-  assert.match(src, /`Wake \$\{wake\.wake\}`/);
+  assert.doesNotMatch(src, /Wake \$\{wake\.wake\}/, 'the header names no wake number');
   for (const old of ['Close the wake now', 'Close this wake?', 'Commit my orders', 'players committed']) assert.ok(!src.includes(old), old);
 });
 

@@ -1,9 +1,6 @@
 /* The room's shell: the screen, the status line, the columns and their shared parts. Tokens only. */
 .screen { min-height: 100vh; display: flex; flex-direction: column; }
 .screen.war-screen { height: 100vh; min-height: 0; }
-@media (max-width: 1100px) {
-  .screen.war-screen { height: auto; min-height: 100vh; }
-}
 .rl-tray, .rl-tracker, .rl-desk { font: 14px/1.5 var(--font-chrome); color: var(--fg-strong); }
 .rl-tray h2, .rl-tracker h2, .rl-desk h2 { font: 600 16px/1.3 var(--font-chrome); margin: 0 0 var(--space-3); }
 .rl-orders, .rl-steps, .rl-desk ul, .rl-folders { list-style: none; margin: 0; padding: 0; }
@@ -40,11 +37,30 @@ button.rl-working::after { content: ""; display: inline-block; width: 10px; heig
 .rl-person-title { font: 12px/1.3 var(--font-chrome); color: var(--fg-muted); }
 .rl-via { margin-left: var(--space-2); font: 12px/1.3 var(--font-chrome); color: var(--fg-muted); }
 .rl-side .rl-col-body { display: grid; gap: var(--space-5); align-content: start; }
-@media (max-width: 1100px) {
+.rl-tabbar { display: none; }
+.rl-sideswitch { display: none; }
+@media (min-width: 1200px) {
+  .rl-room { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 340px); }
+  .rl-room.wide { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 300px); }
+}
+@media (min-width: 768px) and (max-width: 1199px) {
+  .rl-sideswitch { display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-4); background: var(--surface-2); border-bottom: 1px solid var(--rule); }
+  .rl-room, .rl-room.wide { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); }
+  .rl-room > [data-tab="papers"], .rl-room > [data-tab="orders"] { grid-column: 1; grid-row: 1; }
+  .rl-room > [data-tab="desk"] { grid-column: 2; grid-row: 1; }
+  .rl-room[data-side="papers"] > [data-tab="orders"], .rl-room[data-side="orders"] > [data-tab="papers"] { display: none; }
+}
+@media (max-width: 767px) {
   .screen.war-screen.realism-screen { height: auto; min-height: 100vh; }
-  .rl-room, .rl-room.wide { grid-template-columns: 1fr; }
+  .rl-room, .rl-room.wide { grid-template-columns: minmax(0, 1fr); padding-bottom: calc(56px + var(--space-4)); }
+  .rl-room > [data-tab] { display: none; }
+  .rl-room[data-view="papers"] > [data-tab="papers"], .rl-room[data-view="desk"] > [data-tab="desk"], .rl-room[data-view="orders"] > [data-tab="orders"] { display: flex; }
   .rl-col-body { overflow: visible; }
   .rl-papers > .rl-col-head { display: none; }
+  .rl-tabbar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; left: 0; right: 0; bottom: 0; z-index: 52; background: var(--surface-2); border-top: 1px solid var(--rule-strong); }
+  .rl-tabbar button { min-height: 44px; padding: var(--space-2) var(--space-1); display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); background: transparent; color: var(--fg-strong); border: 0; border-radius: 0; font: 600 13px/1.3 var(--font-chrome); cursor: pointer; }
+  .rl-tabbar button[aria-current="page"] { background: var(--accent-bg); color: var(--on-accent); }
+  .rl-tabbar button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 }
 .rl-btn { padding: var(--space-1) var(--space-3); background: var(--field); color: var(--fg-strong); border: 1px solid var(--field-border); border-radius: var(--radius); font: 600 13px/1.4 var(--font-chrome); cursor: pointer; }
 .rl-btn[aria-pressed="true"] { background: var(--accent-bg); color: var(--on-accent); }

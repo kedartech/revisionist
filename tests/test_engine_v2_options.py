@@ -5,6 +5,7 @@ rebuilds it. No test here calls a model.
 """
 
 import json
+import logging
 import re
 from datetime import date
 from pathlib import Path
@@ -396,6 +397,81 @@ def test_band_f_fog(recorded: RecordedTransport) -> None:
             assert scan(sl.state, sl.events) == []
     # the reply really did carry the canary: nothing was dropped by accident
     assert any(REASON_CANARY in json.dumps(e["reply"]) for e in recorded.entries.values())
+
+
+# --- what is dropped is logged ----------------------------------------------------
+
+
+def _lines(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [r.getMessage() for r in caplog.records if r.name == "revisionist.engine.options"]
+
+
+def _today(sl: Slice) -> date | None:
+    return project(sl.state, sl.fdr).in_world_date
+
+
+def _drops(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [line for line in _lines(caplog) if "dropped" in line]
+
+
+def test_each_dropped_model_idea_is_logged_once_with_its_reason(
+    recorded: RecordedTransport, caplog: pytest.LogCaptureFixture
+) -> None:
+    sl = _scenario(PlayStyle.BEGINNER)
+    with caplog.at_level(logging.INFO, logger="revisionist.engine.options"):
+        offered = options.offer(sl.state, sl.fdr, recorded)
+    assert offered is not None
+    head = f"options for {sl.fdr} on {_today(sl)}: dropped"
+    ghost = f"{head} 'Press a stranger': names something the seat cannot see"
+    oil = f"{head} 'Hand over oil': has no route"
+    # one line per idea per reply: the mandate's reply and the initiative reply
+    assert sorted(_drops(caplog)) == sorted([ghost, oil, ghost, oil])
+    assert all(r.levelno == logging.INFO for r in caplog.records)
+    kept = {o.label for of in offered.offers for o in of.options}
+    assert not any(label in line for label in kept for line in _drops(caplog))
+
+
+def test_a_model_idea_the_schema_refuses_is_logged_with_its_label_cut(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    sl = _scenario(PlayStyle.BEGINNER)
+    p = _parts(sl)
+    long = "L" * 120
+    bad = [{"label": long, "asks": "not a list", "risk": "-"}, 7]
+    reply = {"options": [p["patrol"], *bad, p["word"], p["press"]]}
+    script = _Script({(s, m): reply for s in ("beginner", "guided") for m in (True, False)})
+    with caplog.at_level(logging.INFO, logger="revisionist.engine.options"):
+        options.offer(sl.state, sl.fdr, script)
+    head = f"options for {sl.fdr} on {_today(sl)}: dropped"
+    schema = "not valid against the schema"
+    cut = f"{head} {'L' * 80!r}: {schema}"
+    assert sorted(_drops(caplog)) == sorted([cut, f"{head} '': {schema}"] * 2)
+
+
+def test_a_leaking_idea_is_logged_without_its_words(
+    recorded: RecordedTransport, caplog: pytest.LogCaptureFixture
+) -> None:
+    sl = _scenario(PlayStyle.BEGINNER, canary=True)
+    with caplog.at_level(logging.INFO, logger="revisionist.engine.options"):
+        options.offer(sl.state, sl.fdr, recorded)
+    leaks = [line for line in _drops(caplog) if "leaks" in line]
+    assert len(leaks) == 6  # three leaking ideas in each of two replies
+    assert "CANARY" not in caplog.text
+
+
+def test_the_fallback_is_logged_once_per_offer_it_stands_in_for(
+    recorded: RecordedTransport, caplog: pytest.LogCaptureFixture
+) -> None:
+    sl = _scenario(PlayStyle.BEGINNER)
+    with caplog.at_level(logging.INFO, logger="revisionist.engine.options"):
+        options.offer(sl.state, sl.fdr, recorded)
+        options.offer(sl.state, sl.fdr, None)
+    fallback = [line for line in _lines(caplog) if "desk" in line]
+    # the initiative reply kept two; the offline offer made no call and says nothing
+    assert fallback == [
+        f"options for {sl.fdr} on {_today(sl)}: 2 model idea(s) kept, too few; "
+        "the desk's list stands in, 0 taken before left out"
+    ]
 
 
 # --- the aide ---------------------------------------------------------------------

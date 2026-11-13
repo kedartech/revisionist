@@ -7,6 +7,7 @@ have typed. The generator reads only the seat's projected ``View``.
 """
 
 import json
+import logging
 from collections.abc import Callable, Iterable
 from datetime import date
 from typing import Any
@@ -46,6 +47,8 @@ from revisionist.engine.llm import Request, Transport, TransportError, cli_schem
 from revisionist.engine.realism_tick import _append, _pending_effects, _pending_words, _words
 from revisionist.engine.store import EventStore, load_state
 
+log = logging.getLogger(__name__)
+
 OPTIONS_MODEL = "claude-haiku-5-5"
 """[proposed] The option generator's model."""
 CALL_CLASS = "options"
@@ -67,6 +70,8 @@ OFFER_MEMORY = 2  # [proposed] earlier wakes whose offers the generator is shown
 PAPERS_SHOWN = 12  # [proposed] new papers the generator is shown, newest kept
 PAPER_LINES = 4  # [proposed] stated lines shown per paper
 ORDERS_SHOWN = 12  # [proposed] orders shown per list, newest kept
+LABEL_LOGGED = 80
+"""Characters of a dropped idea's label written to the log; no other model text is."""
 
 last_cost: CallCost | None = None
 """Summed cost of the model calls the latest ``offer`` or ``aide_asks`` made; None if none."""
@@ -341,17 +346,24 @@ def _routes(state: State, seat: SeatId, option: Option, today: date) -> bool:
 
 
 Repeats = Callable[[Option], bool]
+Drop = Callable[[str, str], None]
+"""Told of each idea left out: its label and the reason."""
 
 
-def _on_its_way(state: State, seat: SeatId, today: date) -> Repeats:
-    """Whether an option holds an ask the seat has sent and not yet had settled, or
-    the same ask twice, by the rule ``realism_tick.commit_order`` refuses a filing
-    under: picking such an option would be refused, so it is not offered."""
-    pending = _pending_effects(state, seat)
-    sent = _pending_words(state, seat)
+def _matches(
+    state: State,
+    seat: SeatId,
+    today: date,
+    effects: Iterable[Effect],
+    words: Iterable[tuple[str, EntityId | None]],
+) -> Repeats:
+    """Whether an option holds one of ``effects`` or ``words``, or the same ask twice.
+    A typed ask is compared by its effect; a free-text ask by its words and whom
+    its route sends it to."""
+    known, sent = list(effects), set(words)
 
     def repeats(option: Option) -> bool:
-        effects, said = list(pending), set(sent)
+        effects, said = list(known), set(sent)
         for ask in option.asks:
             if ask.effect is not None:
                 if ask.effect in effects:
@@ -370,25 +382,62 @@ def _on_its_way(state: State, seat: SeatId, today: date) -> Repeats:
     return repeats
 
 
+def _on_its_way(state: State, seat: SeatId, today: date) -> Repeats:
+    """Whether an option holds an ask the seat has sent and not yet had settled, or
+    the same ask twice, by the rule ``realism_tick.commit_order`` refuses a filing
+    under: picking such an option would be refused, so it is not offered."""
+    return _matches(state, seat, today, _pending_effects(state, seat), _pending_words(state, seat))
+
+
+def _taken_before(state: State, seat: SeatId, today: date) -> Repeats:
+    """Whether an option holds an ask the seat has filed at any time in this game,
+    settled or not, compared as ``_on_its_way`` compares."""
+    effects: list[Effect] = []
+    words: set[tuple[str, EntityId | None]] = set()
+    for order in state.routed.values():
+        if order.issuer != seat:
+            continue
+        for part in order.parts:
+            if part.effect is not None:
+                effects.append(part.effect)
+            elif part.ask.strip():
+                words.add((_words(part.ask), part.target or part.executor))
+    return _matches(state, seat, today, effects, words)
+
+
+def _fault(
+    state: State, seat: SeatId, view: View, option: Option, today: date, repeats: Repeats | None
+) -> str | None:
+    if not _named_ok(view, option):
+        return "names something the seat cannot see"
+    if not _routes(state, seat, option, today):
+        return "has no route"
+    if repeats is not None and repeats(option):
+        return "repeats an order on its way"
+    if scan_text(state, seat, option.model_dump_json()):
+        return "leaks what the seat may not know"
+    return None
+
+
 def _clean(
     state: State,
     seat: SeatId,
     view: View,
     options: Iterable[Option],
     repeats: Repeats | None = None,
+    dropped: Drop | None = None,
 ) -> list[Option]:
     today = view.in_world_date
     if today is None:
         return []
     kept: list[Option] = []
     for option in options:
-        if not _named_ok(view, option) or not _routes(state, seat, option, today):
-            continue
-        if repeats is not None and repeats(option):
-            continue
-        if scan_text(state, seat, option.model_dump_json()):
-            continue
-        kept.append(option)
+        fault = _fault(state, seat, view, option, today, repeats)
+        if fault is None:
+            kept.append(option)
+        elif dropped is not None:
+            # a leaking label is itself the leak, so it is not written down
+            dropped("" if fault.startswith("leaks") else option.label, fault)
     return kept
 
 
@@ -441,13 +490,19 @@ def _ask_model(
         )
     )
     raw = reply.output.get("options") if isinstance(reply.output, dict) else None
+    seat, today = view.viewer, view.in_world_date
+
+    def dropped(label: str, why: str) -> None:
+        log.info("options for %s on %s: dropped %r: %s", seat, today, label[:LABEL_LOGGED], why)
+
     parsed: list[Option] = []
     for item in raw if isinstance(raw, list) else []:
         try:
             parsed.append(Option.model_validate(item))
         except ValidationError:
-            continue
-    return _history_marked(view, _clean(state, view.viewer, view, parsed, repeats))
+            label = item.get("label") if isinstance(item, dict) else None
+            dropped(label if isinstance(label, str) else "", "not valid against the schema")
+    return _history_marked(view, _clean(state, seat, view, parsed, repeats, dropped))
 
 
 def _options_for(
@@ -458,15 +513,28 @@ def _options_for(
     transport: Transport | None,
     memory: Record | None = None,
     repeats: Repeats | None = None,
+    taken: Repeats | None = None,
 ) -> tuple[Option, ...]:
-    """Model options when a transport is given and enough survive; else the template."""
+    """Model options when a transport is given and enough survive; else the template,
+    less any idea ``taken`` names."""
+    asked: list[Option] = []
     if transport is not None:
         asked = _ask_model(state, view, mandate, style, transport, memory, repeats)
         got = _pick_valid(asked, style)
         if got:
             return got
     pool = _clean(state, view.viewer, view, _candidates(view, mandate), repeats)
-    return _pick(pool, style)
+    fresh = [o for o in pool if taken is None or not taken(o)]
+    if transport is not None:
+        log.info(
+            "options for %s on %s: %d model idea(s) kept, too few; "
+            "the desk's list stands in, %d taken before left out",
+            view.viewer,
+            view.in_world_date,
+            len(asked),
+            len(pool) - len(fresh),
+        )
+    return _pick(fresh, style)
 
 
 def _pick_valid(options: list[Option], style: PlayStyle) -> tuple[Option, ...]:
@@ -490,8 +558,9 @@ def offer(
     state: State, seat: SeatId, transport: Transport | None, memory: Record | None = None
 ) -> ev.OptionsOffered | None:
     """What ``seat`` is offered this wake, or None for a free or AI seat. Nothing the
-    seat already has on its way is offered. ``memory`` is the seat's edition of the
-    record, for the model to read."""
+    seat already has on its way is offered, and the desk's own list leaves out what
+    the seat has filed before. ``memory`` is the seat's edition of the record, for
+    the model to read."""
     global last_cost
     last_cost = None
     held = state.seats.get(seat)
@@ -502,10 +571,11 @@ def offer(
     view = project(state, seat)
     today = view.in_world_date
     repeats = _on_its_way(state, seat, today) if today is not None else None
+    taken = _taken_before(state, seat, today) if today is not None else None
     asked: list[Mandate | None] = [*_live(view)[: MAX_OFFERS - 1], None]
     offers: list[Offer] = []
     for mandate in asked:
-        options = _options_for(state, view, mandate, style, transport, memory, repeats)
+        options = _options_for(state, view, mandate, style, transport, memory, repeats, taken)
         if options:
             offers.append(
                 Offer(

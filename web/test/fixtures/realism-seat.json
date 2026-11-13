@@ -1416,5 +1416,135 @@
       "text": "Your order to Wheeler did not go through: he would not take it while the rallies go on.",
       "on": "1941-10-16"
     }
-  ]
+  ],
+  "people": {
+    "opponents": [
+      {
+        "person": "5N8PBKG20BG60A3PXHDSCX8KDQ",
+        "name": "Adolf Hitler",
+        "office": "Fuehrer and Reich Chancellor",
+        "stance": {
+          "step": 1,
+          "word": "Hostile",
+          "as_of": "1941-09-01",
+          "confidence": "dated"
+        },
+        "trend": "steady",
+        "over": [
+          "the blockade and the war at sea"
+        ],
+        "at_war": false,
+        "last_answer": null,
+        "regard": {
+          "step": null,
+          "word": "Unknown",
+          "as_of": null,
+          "confidence": null
+        },
+        "reliability": {
+          "step": null,
+          "word": "Untested",
+          "as_of": null,
+          "confidence": null
+        }
+      },
+      {
+        "person": "C1GF7K677JE0H66EVTR4GCXE7D",
+        "name": "Joseph Stalin",
+        "office": "Chairman of the Council of People's Commissars",
+        "stance": {
+          "step": 4,
+          "word": "Cooperative",
+          "as_of": "1941-09-16",
+          "confidence": "firm"
+        },
+        "trend": "steady",
+        "over": [],
+        "at_war": false,
+        "last_answer": null,
+        "regard": {
+          "step": 4,
+          "word": "Warm",
+          "as_of": "1941-09-16",
+          "confidence": "firm"
+        },
+        "reliability": {
+          "step": null,
+          "word": "Untested",
+          "as_of": null,
+          "confidence": null
+        }
+      }
+    ],
+    "yours": [
+      {
+        "person": "6MWZDKE8ZJTXETRPA23GYW4X6K",
+        "name": "Anthony Eden",
+        "office": "Foreign Secretary",
+        "stance": null,
+        "trend": null,
+        "over": [],
+        "at_war": false,
+        "last_answer": null,
+        "regard": {
+          "step": null,
+          "word": "Unknown",
+          "as_of": null,
+          "confidence": null
+        },
+        "reliability": {
+          "step": null,
+          "word": "Untested",
+          "as_of": null,
+          "confidence": null
+        }
+      },
+      {
+        "person": "63A3RZNQ0CYKDN5BVGECWKQT4P",
+        "name": "Sir Dudley Pound",
+        "office": "First Sea Lord and Chairman of the Chiefs of Staff",
+        "stance": null,
+        "trend": null,
+        "over": [],
+        "at_war": false,
+        "last_answer": null,
+        "regard": {
+          "step": null,
+          "word": "Unknown",
+          "as_of": null,
+          "confidence": null
+        },
+        "reliability": {
+          "step": 3,
+          "word": "Uneven",
+          "as_of": "1941-09-12",
+          "confidence": "dated"
+        }
+      }
+    ],
+    "others": [
+      {
+        "person": "WQ1FF1C63737PE82A3M9Y5EZ5S",
+        "name": "Cordell Hull",
+        "office": "Secretary of State",
+        "stance": null,
+        "trend": null,
+        "over": [],
+        "at_war": false,
+        "last_answer": null,
+        "regard": {
+          "step": null,
+          "word": "Unknown",
+          "as_of": null,
+          "confidence": null
+        },
+        "reliability": {
+          "step": null,
+          "word": "Untested",
+          "as_of": null,
+          "confidence": null
+        }
+      }
+    ]
+  }
 }

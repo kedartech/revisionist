@@ -32,6 +32,7 @@ from revisionist.engine.web.destinations import (
     own_sides,
     place_choices,
 )
+from revisionist.engine.web.people import seat_people
 from revisionist.engine.web.realism_api import (
     BodyLine,
     Clock,
@@ -600,6 +601,7 @@ def seat_realism(
         "clock": clock(view, next_wake_at, waiting_on, 0, wake.to.isoformat()),
         "map": seat_map(view, forces, state.pipelines),
         "threats": seat_threats(state, seat, view),
+        "people": seat_people(state, seat, view),
     }
 
 

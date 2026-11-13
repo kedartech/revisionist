@@ -205,6 +205,9 @@ schedule:
     on_date: 1941-09-04
     condition: {check: entity_is, entity: roosevelt, status: active}
     weight: 2
+    headline: USS Greer and U-652 exchange fire south of Iceland
+    subject: usa
+    obj: germany
   - key: arms_window
     name: Congress can take up arming merchant ships (20 Sep)
     on_date: 1941-09-20

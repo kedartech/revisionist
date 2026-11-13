@@ -1763,56 +1763,83 @@ schedule:
     on_date: 1941-09-04
     condition: {check: quantity_at, quantity: uboats_operational, op: ge, value: 1}
     weight: 2
+    headline: USS Greer and U-652 exchange fire south of Iceland
+    subject: usa
+    obj: germany
   - key: konoe_resigns
     name: Konoe cabinet resigns (16 Oct)
     on_date: 1941-10-16
     condition: {check: act_of, person: konoe}
     weight: 3
+    headline: Konoe's cabinet resigns
+    subject: konoe
   - key: house_arms_merchant_ships
     name: House votes 259-138 to arm merchant ships (17 Oct)
     on_date: 1941-10-17
     condition: {check: act_of, person: roosevelt, lever: send_bill, params: {bill: neutrality_revision}, past_step: 0}
     weight: 2
+    headline: The House votes 259 to 138 to arm merchant ships
+    subject: house
   - key: kearny_hit
     name: "Kearny torpedoed, 11 killed, convoy SC-48 (17 Oct)"
     on_date: 1941-10-17
     condition: {check: act_of, person: roosevelt, lever: naval_order, params: {order: shoot_on_sight}}
     weight: 2
+    headline: USS Kearny is torpedoed off Iceland; eleven killed
+    subject: usa
   - key: tojo_cabinet
     name: Tojo cabinet formed (18 Oct)
     on_date: 1941-10-18
     condition: {check: all_of, conditions: [{check: act_of, person: konoe}, {check: act_of, person: tojo}]}
     weight: 3
+    headline: Tojo forms a cabinet
+    subject: tojo
   - key: reuben_james_sunk
     name: Reuben James sunk by U-552 (31 Oct)
     on_date: 1941-10-31
     condition: {check: act_of, person: roosevelt, lever: naval_order, params: {order: shoot_on_sight}}
     weight: 2
+    headline: USS Reuben James is sunk by U-552
+    subject: usa
+    obj: germany
   - key: soviet_lend_lease_finding
     name: Soviet Lend-Lease eligibility finding (7 Nov)
     on_date: 1941-11-07
     condition: {check: act_of, person: roosevelt, lever: lend_lease_finding, params: {recipient: ussr}}
     weight: 2
+    headline: The Soviet Union is made eligible for Lend-Lease
+    subject: roosevelt
+    obj: ussr
   - key: senate_neutrality_vote
     name: Senate passes Neutrality revision 50-37 (7 Nov)
     on_date: 1941-11-07
     condition: {check: act_of, person: roosevelt, lever: send_bill, params: {bill: neutrality_revision}, past_step: 2}
     weight: 3
+    headline: The Senate passes the Neutrality revision, 50 to 37
+    subject: senate
   - key: house_concurrence
     name: House concurs in the Senate amendment 212-194 (13 Nov)
     on_date: 1941-11-13
     condition: {check: act_of, person: roosevelt, lever: send_bill, params: {bill: neutrality_revision}, past_step: 2}
     weight: 3
+    headline: The House agrees to the Senate's revision, 212 to 194
+    subject: house
   - key: hull_note
     name: Hull note delivered to Nomura (26 Nov)
     on_date: 1941-11-26
     condition: {check: act_of, person: hull}
     weight: 3
+    headline: Hull hands his note to Ambassador Nomura
+    subject: hull
+    obj: nomura
   - key: pearl_harbor
     name: Japan attacks Pearl Harbor (7 Dec)
     on_date: 1941-12-07
     condition: {check: all_of, conditions: [{check: act_of, person: konoe}, {check: act_of, person: tojo, lever: mobilisation_plan}]}
     weight: 3
+    headline: Japan attacks Pearl Harbor
+    subject: japan
+    obj: usa
 
 notes:
   - "Allied merchant losses to U-boats: Sep 209,835 GRT is the quantity; Oct 176,622 and Nov 120,541 GRT are the record for the shipping resolver."

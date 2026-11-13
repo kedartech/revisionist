@@ -1,7 +1,7 @@
 /* Phase 4 new styles (wave 2). Tokens only (web/css/tokens.css). */
 .tl-point .tag { align-self: center; }
 .held { margin-top: var(--space-4); }
-.held h3 { font: 400 17px var(--font-head); margin: var(--space-3) 0 0; }
+.held h3 { font: 600 17px var(--font-head); margin: var(--space-3) 0 0; }
 .held h4 { font-size: 13px; color: var(--fg); margin: 0 0 var(--space-1); }
 .held input[type="search"] { display: block; margin: var(--space-1) 0 var(--space-2); max-width: 28rem; width: 100%; }
 .held-figures { list-style: none; margin: 0; padding: 0; }

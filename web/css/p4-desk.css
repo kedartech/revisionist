@@ -1,19 +1,53 @@
 /* Phase 4 desk styles (wave 2). Tokens only (web/css/tokens.css). */
-
-/* the wake in the room's header */
-.rl-wake { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); min-width: 0; max-width: 100%; padding-left: var(--space-3); border-left: 1px solid var(--chrome-rule); }
-.frame-head .rl-wake button.primary, .frame-head .rl-wake button.primary:hover:not(:disabled) { background: var(--chrome-accent); color: var(--chrome-bg); border-color: var(--chrome-accent); }
-.rl-wake-line { font: 12px/1.3 var(--font-chrome); white-space: nowrap; }
-.rl-wake-hint { margin: 0; font: 12px/1.4 var(--font-chrome); }
-.rl-committed { display: inline-flex; align-items: center; gap: var(--space-1); font: 600 13px/1.4 var(--font-chrome); }
-.frame-head .rl-committed { color: var(--chrome-fg); }
-/* the confirm opens over the page's paper, but sits inside the header in the DOM */
-.frame-head .rl-close-wake h2 { margin: 0 0 var(--space-2); font: 400 20px/1.3 var(--font-head); color: var(--fg-strong); }
-.frame-head .rl-close-wake p { margin: 0 0 var(--space-3); font: 14px/1.5 var(--font-chrome); color: var(--fg-strong); }
-.frame-head .rl-close-wake button.ghost, .frame-head .rl-close-wake button.ghost:hover:not(:disabled) { background: var(--field); color: var(--fg-strong); border-color: var(--field-border); }
-.frame-head .rl-close-wake button.danger, .frame-head .rl-close-wake button.danger:hover:not(:disabled) { background: var(--danger); color: var(--on-accent); border-color: var(--danger); }
-.frame-head .rl-close-wake :focus-visible { outline-color: var(--focus); }
-
+.rl-office h2 { font: 400 20px/1.3 var(--font-head); letter-spacing: 0; text-transform: none; color: var(--fg-strong); }
+.rl-contacts li { display: flex; align-items: center; gap: var(--space-2); }
+.rl-recipients { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: var(--space-2); margin: 0; padding: 0; border: 0; }
+.rl-recipients legend { padding: 0; margin-bottom: var(--space-1); font: 600 13px/1.3 var(--font-chrome); }
+.rl-recipient { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2); background: var(--field); border: 1px solid var(--rule); border-radius: var(--radius); cursor: pointer; }
+.rl-recipient:has(input:checked) { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.rl-recipient input { flex: none; width: auto; margin: 3px 0 0; }
+.rl-recipient .rl-person { flex: 1; text-align: left; }
+.rl-desk-col .rl-form { max-width: 36rem; }
+.rl-aide, .rl-pending { font: 14px/1.5 var(--font-chrome); color: var(--fg-strong); }
+.rl-aide h2, .rl-pending h2 { font: 600 16px/1.3 var(--font-chrome); margin: 0 0 var(--space-2); }
+.rl-aide h3 { margin: var(--space-3) 0 var(--space-1); font: 600 12px/1.3 var(--font-chrome); letter-spacing: .06em; text-transform: uppercase; color: var(--fg); }
+.rl-brief p { margin: 0 0 var(--space-2); }
+.rl-brief-slot { display: grid; gap: var(--space-2); justify-items: start; }
+.rl-brief-reading { display: flex; align-items: center; gap: var(--space-2); margin: 0; color: var(--fg); }
+.rl-brief > p:first-child { max-height: 12rem; overflow-y: auto; }
+.rl-brief-due { display: flex; gap: var(--space-1); align-items: center; color: var(--danger); }
+.rl-drafts, .rl-answers { list-style: none; margin: 0 0 var(--space-2); padding: 0; display: grid; gap: var(--space-2); }
+.rl-drafts > li { padding: var(--space-2); background: var(--field); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-answer { padding: var(--space-2) var(--space-3); background: var(--field); border-left: 3px solid var(--rule); }
+.rl-answer p { margin: 0 0 var(--space-1); }
+.rl-answer-q { font-style: italic; color: var(--fg); }
+.rl-answer-a { font-family: var(--font-read); white-space: pre-wrap; }
+.rl-desk-block { margin-bottom: var(--space-4); }
+.rl-office { margin-bottom: var(--space-4); padding: var(--space-4); background: var(--surface-2); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-office h2 { margin: 0 0 var(--space-1); }
+.rl-office p { margin: 0; }
+.rl-powers { margin: 0; }
+.rl-desk ul:not(.rl-instruments):not(.rl-contacts) { list-style: disc; padding-left: var(--space-5); }
+.rl-instruments { display: grid; gap: var(--space-3); }
+.rl-instrument { padding: var(--space-3); background: var(--surface-2); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-write textarea { width: 100%; min-width: 0; padding: var(--space-2) var(--space-3); background: var(--field); color: var(--fg-strong); border: 1px solid var(--field-border); border-radius: var(--radius); font: 14px/1.5 var(--font-read); }
+.rl-write textarea:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-instrument-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.rl-summary { margin: var(--space-1) 0 var(--space-2); color: var(--fg); }
+.rl-contacts li { padding: var(--space-1) 0; }
+.rl-terms { margin: 0 0 var(--space-1); padding-left: var(--space-4); color: var(--fg); }
+.rl-desk h3 { margin: 0 0 var(--space-1); font: 600 12px/1.3 var(--font-chrome); letter-spacing: .06em; text-transform: uppercase; color: var(--fg); }
+.rl-none, .rl-horizon { color: var(--fg-muted); margin: 0 0 var(--space-3); }
+.rl-form { display: grid; gap: var(--space-3); max-width: 28rem; }
+.rl-form h3 { margin: 0; font: 600 15px/1.3 var(--font-chrome); }
+.rl-field { display: grid; gap: var(--space-1); }
+.rl-field label { font: 600 13px/1.3 var(--font-chrome); }
+.rl-field input, .rl-field select, .rl-field textarea { padding: var(--space-2); background: var(--field); color: var(--fg-strong); border: 1px solid var(--field-border); border-radius: var(--radius); font: 14px/1.4 var(--font-chrome); }
+.rl-submit { justify-self: start; padding: var(--space-2) var(--space-4); background: var(--accent-bg); color: var(--on-accent); border: 0; border-radius: var(--radius); font: 600 14px/1.3 var(--font-chrome); cursor: pointer; }
+.rl-proposal { padding: var(--space-3); background: var(--field); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-address { margin: 0; font: 600 13px/1.4 var(--font-chrome); color: var(--fg); }
+.rl-words { margin: var(--space-2) 0; padding-left: var(--space-3); border-left: 2px solid var(--rule); white-space: pre-wrap; overflow-wrap: anywhere; }
+.rl-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
 /* how you play */
 .rl-style { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: var(--space-2) var(--space-3); margin: 0 0 var(--space-4); padding: var(--space-3); background: var(--surface-2); border: 1px solid var(--rule); border-radius: var(--radius); font: 14px/1.5 var(--font-chrome); color: var(--fg-strong); }
 .rl-style legend { padding: 0 var(--space-1); font: 600 13px/1.3 var(--font-chrome); }
@@ -21,7 +55,6 @@
 .rl-style-choice input { flex: none; width: auto; margin: 0; }
 .rl-style-choice input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .rl-style-note { margin: var(--space-1) 0 0; font-size: 13px; line-height: 1.4; color: var(--fg); }
-
 /* the agenda and the seat's own initiative */
 .rl-agenda { margin-bottom: var(--space-4); font: 14px/1.5 var(--font-chrome); color: var(--fg-strong); }
 .rl-agenda h2 { margin: 0 0 var(--space-2); font: 600 16px/1.3 var(--font-chrome); }
@@ -37,17 +70,13 @@
 .rl-offer-line { margin: 0; font-size: 13px; color: var(--fg); }
 .rl-as-it-happened { padding: 0 var(--space-2); border: 1px solid var(--warn); color: var(--warn); font: 700 11px/1.6 var(--font-chrome); letter-spacing: .08em; text-transform: uppercase; }
 .rl-plan { display: grid; gap: var(--space-2); margin: 0; padding-left: var(--space-5); }
-
 /* how each order landed */
 .rl-results { font: 14px/1.5 var(--font-chrome); color: var(--fg-strong); }
 .rl-results h2 { margin: 0 0 var(--space-2); font: 600 16px/1.3 var(--font-chrome); }
 .rl-result-parts { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
-
 /* the commit at the foot of the desk: wide screens have the header's */
 .rl-commit-foot { display: none; }
-
 @media (max-width: 900px) {
-  .realism-screen .frame-head { flex-wrap: wrap; }
   .rl-commit-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--rule); font: 14px/1.5 var(--font-chrome); color: var(--fg-strong); }
   .rl-commit-foot p { margin: 0; }
 }

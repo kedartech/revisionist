@@ -136,6 +136,17 @@ class LeverChoice(TypedDict):
     label: str
 
 
+class PlaceReach(TypedDict):
+    """How far a force's side can hold it at a place, by the reach rule."""
+
+    tier: Literal["sustained", "operate", "raid", "refused"]
+    base: str | None
+    """The base the tier is measured from (the place itself when sustained); for a refusal,
+    the nearest base the force can work from. None when there is none."""
+    reason: str | None
+    """Why the place is refused, naming that base. None for every other tier."""
+
+
 class PlaceChoice(TypedDict):
     """One place a movement form can send a force to, as the seat's own pages show it."""
 
@@ -150,6 +161,10 @@ class PlaceChoice(TypedDict):
     """For each choice of the form's ``force``: days to arrive from where the seat's
     latest page places that force (0 if it is there), by the movement resolver's route;
     None when no page places it, or when no passage open to its side reaches the place."""
+    reach: dict[str, PlaceReach | None]
+    """For each choice of the form's ``force``: its tier at the place, from where the seat's
+    latest page places it and the forces and fronts its pages show. A refused place stays
+    listed. None when no page places the force, or the world has no bases."""
 
 
 class LeverParam(TypedDict):
@@ -679,6 +694,7 @@ __all__ = [
     "PeopleMeter",
     "PersonLine",
     "PlaceChoice",
+    "PlaceReach",
     "ReachContact",
     "ReachGroups",
     "RecordBlock",

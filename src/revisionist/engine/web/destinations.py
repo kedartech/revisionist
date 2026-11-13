@@ -6,7 +6,9 @@ only, as the map is: a place is the seat's own, an ally's, on a route or contest
 a page the seat holds says a force, route or front is there, and the days run from where
 the latest such page places the form's force, by the movement resolver's own route
 (``routing.days_between``: by sea through the passages open to its side, given the wars
-the view holds, which are public). Nothing is read from the engine's truth.
+the view holds, which are public). Each place also carries each force's tier by the reach
+rule (``bases.reach``), with the fronts and forces read from the same pages. Nothing is read
+from the engine's truth.
 """
 
 from collections.abc import Iterable, Mapping
@@ -16,16 +18,17 @@ from typing import Literal
 
 from revisionist.core.events import Event
 from revisionist.core.ids import DocumentId, EntityId
+from revisionist.core.realism.bases import Force, Reach, reach
 from revisionist.core.realism.card import Lever, ParamSpec
 from revisionist.core.realism.document import BodyField, DocumentView
-from revisionist.core.realism.geography import FORCES, FeatureKind
+from revisionist.core.realism.geography import FORCES, FeatureKind, Sight
 from revisionist.core.realism.pipelines import place_named
 from revisionist.core.realism.routing import days_between
 from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
 from revisionist.engine import campaign as cmp
 from revisionist.engine.web.dossiers import world_key
-from revisionist.engine.web.realism_api import PlaceChoice
+from revisionist.engine.web.realism_api import PlaceChoice, PlaceReach
 
 Group = Literal["own", "allied", "route", "contested", "other"]
 GROUPS: tuple[Group, ...] = ("own", "allied", "route", "contested", "other")
@@ -141,6 +144,13 @@ def _origins(lever: Lever, forces: Mapping[str, str], seen: Sightings) -> dict[s
     return out
 
 
+def _reach(found: Reach | None, keys: Mapping[EntityId, str]) -> PlaceReach | None:
+    if found is None:
+        return None
+    base = keys.get(found.base) if found.base is not None else None
+    return PlaceReach(tier=found.tier.value, base=base, reason=found.reason)
+
+
 def place_choices(view: View, lever: Lever, spec: ParamSpec, known: Known) -> list[PlaceChoice]:
     """Every place the seat's map has, grouped, with days per force of the form; ``[]``
     without the world's keys."""
@@ -154,6 +164,7 @@ def place_choices(view: View, lever: Lever, spec: ParamSpec, known: Known) -> li
     seen = latest_sightings(view)
     groups = _groups(view, spec, seen, known.allies)
     origins = _origins(lever, known.forces, seen)
+    sights: list[Sight] = [line.sight for _, _, line in seen.values() if line.sight is not None]
     out: list[PlaceChoice] = []
     for place, key in offered.items():
         found = place_named(view, key)
@@ -170,6 +181,12 @@ def place_choices(view: View, lever: Lever, spec: ParamSpec, known: Known) -> li
                     else 0
                     if at[2] == place
                     else days_between(view, at[0], at[1], at[2], place)
+                    for force, at in origins.items()
+                },
+                reach={
+                    force: None
+                    if at is None
+                    else _reach(reach(view, Force(*at), place, sights), offered)
                     for force, at in origins.items()
                 },
             )

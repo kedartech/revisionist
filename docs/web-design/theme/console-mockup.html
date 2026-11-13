@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en" data-pal="b" data-fx="on" data-tint="phosphor">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revisionist - console theme mockup v2</title>
+<style>
+@font-face{font-family:'IBM Plex Mono';src:url('../../../web/fonts/ibm-plex-mono.woff2') format('woff2');font-weight:400}
+@font-face{font-family:'IBM Plex Mono';src:url('../../../web/fonts/ibm-plex-mono-medium.woff2') format('woff2');font-weight:500 700}
+@font-face{font-family:'IBM Plex Sans';src:url('../../../web/fonts/ibm-plex-sans.woff2') format('woff2');font-weight:100 700}
+@font-face{font-family:'Libre Caslon Text';src:url('../../../web/fonts/libre-caslon-text.woff2') format('woff2')}
+
+/* ---------- Palette B: neutral console, green = action / your side ---------- */
+:root{
+  --bg:#0b0f14; --surface:#10161d; --surface-2:#151c25; --surface-3:#1b2430;
+  --rule:#243040; --rule-strong:#34475c;
+  --fg:#c5d0db; --fg-strong:#eef3f8; --fg-read:#d6dee6; --fg-muted:#8a9bad;
+  --accent:#3ddc84; --accent-bg:#2fc774; --on-accent:#04140b; --accent-soft:rgb(61 220 132 / .12);
+  --info:#4cc9f0; --info-soft:rgb(76 201 240 / .12);
+  --warn:#ffb547; --warn-soft:rgb(255 181 71 / .12);
+  --danger:#ff6b6b; --danger-soft:rgb(255 107 107 / .12);
+  --intel:#b8a4ff; --intel-soft:rgb(184 164 255 / .12);
+  --focus:#4cc9f0;
+  --scan:rgb(255 255 255 / .025);
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --read:'IBM Plex Sans','Helvetica Neue',Arial,sans-serif;
+  --r:6px;
+}
+/* ---------- Palette A: green stays dominant, accents added ---------- */
+html[data-pal="a"]{
+  --bg:#050a07; --surface:#09110c; --surface-2:#0d1811; --surface-3:#122117;
+  --rule:#173a26; --rule-strong:#21543a;
+  --fg:#a9dcb9; --fg-strong:#dfffe9; --fg-read:#cfe9d7; --fg-muted:#5fae7c;
+  --accent:#3fd374; --accent-bg:#3fd374; --on-accent:#03110a; --accent-soft:rgb(63 211 116 / .12);
+  --focus:#7dffa8; --scan:rgb(125 255 168 / .04);
+}
+
+/* ---------- Portrait duotone: shadows -> --duo-dark, highlights -> --duo-light.
+   The grey image multiplies onto a frame filled with the light colour; ::after lightens the
+   blacks up to the dark colour; ::before draws the scanlines. Tokens only, no JS, CSP-safe.
+   (Blending pseudo-elements over a filtered <img> rendered plain grey in Chrome: the blend
+   has to sit on the img itself.) ---------- */
+html[data-tint="phosphor"]{ --duo-light:#8dffb4; --duo-dark:#06180d; }
+html[data-tint="monitor"] { --duo-light:#9fe6ff; --duo-dark:#061420; }
+html[data-tint="amber"]   { --duo-light:#ffc46b; --duo-dark:#1d1004; }
+html[data-tint="sepia"]   { --duo-light:#f3e2c0; --duo-dark:#2a1d10; }
+.pf{position:relative;display:block;overflow:hidden;isolation:isolate;background:var(--duo-light);border-radius:4px;line-height:0}
+.pf img{display:block;width:100%;height:100%;object-fit:cover;filter:grayscale(1) contrast(1.2) brightness(1.15);mix-blend-mode:multiply}
+.pf::after{content:"";position:absolute;inset:0;mix-blend-mode:lighten;background:var(--duo-dark);pointer-events:none}
+.pf::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:repeating-linear-gradient(to bottom,transparent 0 2px,rgb(0 0 0 / .28) 2px 3px)}
+html[data-fx="off"] .pf::before{content:none}
+html[data-tint="none"] .pf,.pf.raw{background:none}
+html[data-tint="none"] .pf img,.pf.raw img{filter:none;mix-blend-mode:normal}
+html[data-tint="none"] .pf::before,html[data-tint="none"] .pf::after,.pf.raw::before,.pf.raw::after{content:none}
+
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 var(--read)}
+body{min-height:100vh;display:flex;flex-direction:column}
+html[data-fx="on"] body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
+  background:repeating-linear-gradient(to bottom,transparent 0 2px,var(--scan) 2px 3px),
+             radial-gradient(ellipse at center,transparent 60%,rgb(0 0 0 / .35) 100%)}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.mono{font-family:var(--mono)}
+.lbl{font:500 11px/1.2 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--fg-muted)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---------- Buttons: three levels ---------- */
+.btn{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:6px 14px;border-radius:var(--r);font:500 13px/1 var(--read);border:1px solid transparent}
+.btn-1{background:var(--accent-bg);color:var(--on-accent);font-weight:600}
+.btn-1:hover{filter:brightness(1.1)}
+.btn-2{background:transparent;border-color:var(--rule-strong);color:var(--fg-strong)}
+.btn-2:hover{border-color:var(--accent);color:var(--accent)}
+.btn-3{background:none;border:0;padding:6px 4px;color:var(--info);text-decoration:underline;text-underline-offset:3px}
+
+/* ---------- Status strip ---------- */
+.strip{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:20px;padding:8px 18px;background:var(--surface);border-bottom:1px solid var(--rule)}
+.brand{font:600 13px/1 var(--mono);letter-spacing:.14em;color:var(--fg-strong)}
+.brand b{color:var(--accent)}
+.seat{display:flex;align-items:center;gap:10px;padding-left:18px;border-left:1px solid var(--rule)}
+.seat .pf{width:34px;height:44px}
+.seat strong{display:block;color:var(--fg-strong);font-size:14px;line-height:1.2}
+.seat span{font-size:12px;color:var(--fg-muted)}
+.stat{display:flex;flex-direction:column;gap:3px;padding-left:18px;border-left:1px solid var(--rule)}
+.stat .v{font:500 15px/1 var(--mono);color:var(--fg-strong);font-variant-numeric:tabular-nums}
+.stat .v.warn{color:var(--warn)}
+.done-bar{display:flex;gap:3px} .done-bar i{width:22px;height:6px;border-radius:2px;background:var(--rule-strong)} .done-bar i.on{background:var(--accent)}
+.strip .sp{flex:1}
+.live{display:inline-flex;align-items:center;gap:6px;font:500 11px/1 var(--mono);color:var(--accent);letter-spacing:.08em}
+.live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 6px var(--accent);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.live::before{animation:none}}
+
+/* ---------- KPI tiles ---------- */
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;padding:14px 18px 0}
+.tile{position:relative;display:flex;align-items:center;gap:14px;padding:12px 14px;background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);text-align:left}
+.tile::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:2px;background:var(--c)}
+.tile .big{font:500 26px/1 var(--mono);color:var(--c);font-variant-numeric:tabular-nums}
+.tile .t{color:var(--fg-strong);font-size:13px;font-weight:500}
+.tile .s{color:var(--fg-muted);font-size:12px}
+.tile:hover{border-color:var(--c)}
+.c-info{--c:var(--info)} .c-warn{--c:var(--warn)} .c-ok{--c:var(--accent)} .c-danger{--c:var(--danger)} .c-intel{--c:var(--intel)}
+
+/* ---------- Panels ---------- */
+.room{display:grid;grid-template-columns:minmax(300px,1fr) minmax(420px,1.5fr) minmax(300px,1fr);gap:12px;padding:14px 18px 18px;flex:1}
+.panel{position:relative;background:var(--surface);border:1px solid var(--rule);border-radius:var(--r);display:flex;flex-direction:column;min-width:0}
+.panel::before,.panel::after{content:"";position:absolute;width:10px;height:10px;border-color:var(--accent);border-style:solid;pointer-events:none}
+.panel::before{top:-1px;left:-1px;border-width:2px 0 0 2px;border-top-left-radius:var(--r)}
+.panel::after{bottom:-1px;right:-1px;border-width:0 2px 2px 0;border-bottom-right-radius:var(--r)}
+.ph{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--rule)}
+.ph h2{margin:0;font:600 12px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--fg-strong)}
+.ph .badge{margin-left:2px}
+.ph .sp{flex:1}
+.pb{padding:12px 14px;display:flex;flex-direction:column;gap:12px;min-height:0}
+.badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;font:600 11px/1 var(--mono);background:var(--c,var(--info));color:var(--bg)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+
+/* Segmented filter */
+.seg{display:flex;padding:3px;gap:2px;background:var(--bg);border:1px solid var(--rule);border-radius:var(--r)}
+.seg button{flex:1;border:0;background:none;padding:6px 8px;border-radius:4px;font:500 12px/1 var(--read);color:var(--fg-muted)}
+.seg button[aria-selected="true"]{background:var(--surface-3);color:var(--fg-strong);box-shadow:inset 0 -2px 0 var(--info)}
+.seg button .n{font-family:var(--mono);margin-left:4px;color:var(--info)}
+
+/* Tray rows */
+.rows{display:flex;flex-direction:column;margin:0 -14px}
+.row{display:grid;grid-template-columns:4px 1fr auto;gap:0 12px;padding:10px 14px;border-top:1px solid var(--rule);align-items:start;text-align:left;background:none;border-left:0;border-right:0;border-bottom:0}
+.row:hover{background:var(--surface-2)}
+.row .bar{grid-row:1/3;align-self:stretch;border-radius:2px;background:transparent}
+.row.unread .bar{background:var(--info)}
+.row .ti{color:var(--fg);font-size:14px;line-height:1.3}
+.row.unread .ti{color:var(--fg-strong);font-weight:600}
+.row .meta{grid-column:2;display:flex;gap:8px;align-items:center;font:12px/1.4 var(--mono);color:var(--fg-muted);margin-top:3px}
+.row .when{font:12px/1.3 var(--mono);color:var(--fg-muted);white-space:nowrap}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:1px 6px;border-radius:3px;font:500 10px/1.6 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent)}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:10px;font:500 11px/1.4 var(--mono);color:var(--c);border:1px solid color-mix(in srgb,var(--c) 55%,transparent)}
+
+/* Alert */
+.alert{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;padding:12px 14px;border:1px solid var(--danger);border-left-width:4px;border-radius:var(--r);background:var(--danger-soft)}
+.alert .ic{grid-row:1/4;font:700 18px/1 var(--mono);color:var(--danger)}
+.alert strong{color:var(--fg-strong)} .alert p{margin:0;color:var(--fg-read);font-size:13px}
+.alert .acts{display:flex;gap:8px;margin-top:6px}
+
+/* Ideas */
+.ideas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.idea{padding:12px;background:var(--surface-2);border:1px solid var(--rule);border-radius:var(--r);display:flex;flex-direction:column;gap:8px}
+.idea h3{margin:0;font:600 14px/1.3 var(--read);color:var(--fg-strong)}
+.idea p{margin:0;font-size:13px;color:var(--fg-read)}
+.idea .tag{align-self:flex-start}
+.idea .foot{display:flex;gap:8px;align-items:center;margin-top:auto}
+
+/* Order stepper */
+.order{padding:10px 12px;background:var(--surface-2);border:1px solid var(--rule);border-radius:var(--r)}
+.order .top{display:flex;gap:8px;align-items:baseline}
+.order .top strong{color:var(--fg-strong);font-weight:600;font-size:14px}
+.order .top .sp{flex:1}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);margin-top:10px;counter-reset:s}
+.step{position:relative;padding-top:14px;font:11px/1.2 var(--mono);color:var(--fg-muted)}
+.step::before{content:"";position:absolute;top:3px;left:0;right:0;height:3px;background:var(--rule-strong)}
+.step::after{content:"";position:absolute;top:0;left:0;width:9px;height:9px;border-radius:50%;background:var(--surface-2);border:2px solid var(--rule-strong)}
+.step.done::before,.step.done::after{background:var(--accent);border-color:var(--accent)}
+.step.now{color:var(--fg-strong)} .step.now::after{background:var(--warn);border-color:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)}
+.step.done{color:var(--fg)}
+
+/* Composer */
+.composer textarea{width:100%;min-height:72px;resize:vertical;padding:10px 12px;background:var(--bg);color:var(--fg-strong);border:1px solid var(--rule-strong);border-radius:var(--r);font:14px/1.5 var(--read)}
+.composer textarea::placeholder{color:var(--fg-muted)}
+.composer .acts{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+
+/* People with stance meter */
+.people{display:flex;flex-direction:column;gap:2px;margin:0 -14px}
+.person{display:grid;grid-template-columns:44px 1fr;gap:12px;padding:8px 14px;align-items:center;border-top:1px solid var(--rule)}
+.person .pf{width:44px;height:58px}
+.person .nm{color:var(--fg-strong);font-weight:600;font-size:14px;line-height:1.2}
+.person .ro{color:var(--fg-muted);font-size:12px}
+.stance{display:flex;align-items:center;gap:8px;margin-top:5px}
+.meter{display:flex;gap:2px}
+.meter i{width:14px;height:6px;border-radius:1px;background:var(--rule-strong)}
+.meter i.on{background:var(--c)}
+.stance .w{font:500 11px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--c)}
+.s-hostile{--c:var(--danger)} .s-cold{--c:var(--warn)} .s-neutral{--c:var(--fg-muted)} .s-warm{--c:var(--info)} .s-close{--c:var(--accent)}
+
+/* Intercept (press keeps period type) */
+.intercept{border:1px dashed var(--intel);border-radius:var(--r);padding:10px 12px;background:var(--intel-soft)}
+.intercept .paper{margin-top:6px;font:15px/1.35 'Libre Caslon Text',Georgia,serif;color:var(--fg-strong)}
+
+/* Tint picker strip (mockup only) */
+.tints{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.tints figure{margin:0;display:flex;flex-direction:column;gap:6px}
+.tints .pf{width:100%;aspect-ratio:3/4;height:auto}
+.tints figcaption{font:11px/1.2 var(--mono);color:var(--fg-muted);text-align:center}
+
+/* Mockup controls */
+.mock{position:fixed;right:12px;bottom:12px;z-index:60;display:flex;gap:6px;flex-wrap:wrap;max-width:420px;justify-content:flex-end;padding:8px;background:var(--surface-3);border:1px solid var(--rule-strong);border-radius:var(--r);font:11px/1 var(--mono)}
+.mock button{padding:4px 7px;border-radius:3px;border:1px solid var(--rule-strong);background:var(--bg);color:var(--fg)}
+.mock button[aria-pressed="true"]{background:var(--info);color:var(--bg);border-color:var(--info)}
+
+/* ---------- Phone tab bar ---------- */
+.tabbar{display:none}
+
+/* ---------- Responsive ---------- */
+.sideswitch{display:none}
+.btn,.stat .v,.seat strong,.seat span{white-space:nowrap}
+@media (max-width:1199px){
+  .brand,.live{display:none}
+  .strip{flex-wrap:wrap;row-gap:8px}
+  .seat{padding-left:0;border-left:0}
+  .room{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);grid-template-rows:auto 1fr;align-items:start}
+  .room .p-desk{grid-column:1;grid-row:1/3}
+  .sideswitch{display:flex;grid-column:2;grid-row:1}
+  .room .p-tray,.room .p-intel{grid-column:2;grid-row:2;display:none}
+  .room .p-tray.side,.room .p-intel.side{display:flex}
+}
+@media (max-width:767px){
+  body{padding-bottom:64px}
+  .strip{flex-wrap:wrap;gap:8px 14px;padding:8px 12px}
+  .strip .brand,.strip .sp,.strip .hide-s{display:none}
+  .seat{padding-left:0;border-left:0;flex:1}
+  .stat{padding-left:12px}
+  .tiles{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:10px 12px 0}
+  .tile{flex-direction:column;align-items:flex-start;gap:4px;padding:8px 8px 8px 12px}
+  .tile .big{font-size:20px} .tile .s{display:none} .tile .t{font-size:11px}
+  .room{display:block;padding:10px 12px 12px}
+  .sideswitch{display:none!important}
+  .room > .panel{display:none} .room > .panel.show{display:flex}
+  .room > .panel.side:not(.show){display:none}
+  .ideas{grid-template-columns:1fr}
+  .btn{min-height:44px}
+  .row{padding-top:12px;padding-bottom:12px}
+  .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--rule)}
+  .tabbar button{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:56px;padding:8px 2px;border:0;background:none;color:var(--fg-muted);font:500 10px/1 var(--mono);letter-spacing:.06em;text-transform:uppercase}
+  .tabbar button .g{font-size:17px;line-height:1}
+  .tabbar button[aria-selected="true"]{color:var(--accent);box-shadow:inset 0 2px 0 var(--accent)}
+  .tabbar .badge{position:absolute;top:5px;left:calc(50% + 6px);height:16px;min-width:16px;font-size:10px}
+  .mock{bottom:68px;left:8px;right:8px;max-width:none}
+}
+</style>
+</head>
+<body>
+
+<header class="strip">
+  <div class="brand">REVISIONIST <b>//</b> AUTUMN 1941</div>
+  <div class="seat">
+    <span class="pf"><img src="../../../web/assets/portraits/roosevelt.jpg" alt=""></span>
+    <div><strong>Franklin D. Roosevelt</strong><span>President, United States</span></div>
+  </div>
+  <div class="stat hide-s"><span class="lbl">Date</span><span class="v">14 Oct 1941</span></div>
+  <div class="stat"><span class="lbl">Wake</span><span class="v">04</span></div>
+  <div class="stat"><span class="lbl">Wake closes</span><span class="v warn" id="cd">1d 06:12:40</span></div>
+  <div class="stat hide-s"><span class="lbl">Players done 1/2</span><span class="done-bar"><i class="on"></i><i></i></span></div>
+  <span class="sp"></span>
+  <span class="live hide-s">LIVE</span>
+  <button class="btn btn-2 hide-s">Messages <span class="badge c-info">3</span></button>
+  <button class="btn btn-1 hide-s">Done for today</button>
+</header>
+
+<section class="tiles" aria-label="Summary">
+  <button class="tile c-info"><span class="big">3</span><span><span class="t">Unread</span><br><span class="s">papers in the tray</span></span></button>
+  <button class="tile c-warn"><span class="big">2</span><span><span class="t">Due soon</span><br><span class="s">within 3 days</span></span></button>
+  <button class="tile c-ok"><span class="big">4</span><span><span class="t">Orders</span><br><span class="s">on the way</span></span></button>
+  <button class="tile c-danger"><span class="big">1</span><span><span class="t">Alert</span><br><span class="s">needs a decision</span></span></button>
+</section>
+
+<main class="room">
+  <div class="seg sideswitch" role="tablist" aria-label="Side panel">
+    <button role="tab" aria-selected="true" data-side="tray">In-Tray<span class="n">3</span></button>
+    <button role="tab" aria-selected="false" data-side="intel">Leaders</button>
+  </div>
+  <!-- In-Tray -->
+  <section class="panel p-tray show" data-tab="tray">
+    <div class="ph"><h2>In-Tray</h2><span class="badge c-info">3</span><span class="sp"></span><button class="btn btn-3">Mark all read</button></div>
+    <div class="pb">
+      <div class="seg" role="tablist">
+        <button role="tab" aria-selected="true">All<span class="n">9</span></button>
+        <button role="tab" aria-selected="false">Unread<span class="n">3</span></button>
+        <button role="tab" aria-selected="false">Reports</button>
+        <button role="tab" aria-selected="false">Press</button>
+      </div>
+      <div class="rows">
+        <button class="row unread"><span class="bar"></span><span class="ti">U-boat contact off Iceland: USS Kearny struck</span><span class="when">14 Oct</span>
+          <span class="meta"><span class="tag c-danger">Urgent</span>Knox, Navy</span></button>
+        <button class="row unread"><span class="bar"></span><span class="ti">Lend-Lease shipments for October</span><span class="when">13 Oct</span>
+          <span class="meta"><span class="tag c-info">Report</span>Hopkins</span></button>
+        <button class="row unread"><span class="bar"></span><span class="ti">Der Reichsbote: "Roosevelt's war by stealth"</span><span class="when">13 Oct</span>
+          <span class="meta"><span class="tag c-intel">Intercept</span>Berlin press</span></button>
+        <button class="row"><span class="bar"></span><span class="ti">On your order: Atlantic escort extended to 26&deg;W</span><span class="when">12 Oct</span>
+          <span class="meta"><span class="tag c-ok">Order</span>Stark</span></button>
+        <button class="row"><span class="bar"></span><span class="ti">Neutrality Act revision: whip count</span><span class="when">11 Oct</span>
+          <span class="meta"><span class="tag c-warn">Due 17 Oct</span>Rayburn</span></button>
+        <button class="row"><span class="bar"></span><span class="ti">Tokyo talks: Nomura asks for a leaders' meeting</span><span class="when">10 Oct</span>
+          <span class="meta"><span class="tag c-info">Cable</span>Hull, State</span></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Desk -->
+  <section class="panel p-desk" data-tab="desk">
+    <div class="ph"><h2>Desk</h2><span class="sp"></span><span class="chip c-warn">2 due</span></div>
+    <div class="pb">
+      <div class="alert" role="alert">
+        <span class="ic">!</span>
+        <strong>Crisis: USS Kearny torpedoed, 11 dead</strong>
+        <p>The press has it by morning. Congress votes on arming merchant ships within the week.</p>
+        <div class="acts"><button class="btn btn-1">Address the nation</button><button class="btn btn-2">Ask Hopkins</button></div>
+      </div>
+      <div class="lbl">Ideas from your staff</div>
+      <div class="ideas">
+        <div class="idea"><span class="tag c-info">Hopkins</span><h3>Arm the merchant fleet</h3><p>Ask Congress to repeal sections 2 and 3 of the Neutrality Act while the Kearny is front-page news.</p>
+          <div class="foot"><button class="btn btn-1">Draft order</button><button class="btn btn-3">Why</button></div></div>
+        <div class="idea"><span class="tag c-info">Hull</span><h3>Keep Tokyo talking</h3><p>Answer Nomura without committing to a meeting; buy time for the Philippines build-up.</p>
+          <div class="foot"><button class="btn btn-1">Draft order</button><button class="btn btn-3">Why</button></div></div>
+      </div>
+      <div class="lbl">Orders on the way</div>
+      <div class="order"><div class="top"><strong>Atlantic escort to 26&deg;W</strong><span class="sp"></span><span class="chip c-ok">Landed</span></div>
+        <div class="steps"><span class="step done">Filed</span><span class="step done">Routed</span><span class="step done">Under way</span><span class="step done">Done</span></div></div>
+      <div class="order"><div class="top"><strong>B-17s to the Philippines</strong><span class="sp"></span><span class="chip c-warn">Arrives ~2 Nov</span></div>
+        <div class="steps"><span class="step done">Filed</span><span class="step done">Routed</span><span class="step now">Under way</span><span class="step">Done</span></div></div>
+      <div class="composer"><div class="lbl" style="margin-bottom:6px">Directive</div>
+        <textarea placeholder="Write an order in your own words..."></textarea>
+        <div class="acts"><button class="btn btn-2">Standard forms</button><button class="btn btn-1">File order</button></div></div>
+    </div>
+  </section>
+
+  <!-- People / intel -->
+  <section class="panel p-intel" data-tab="intel">
+    <div class="ph"><h2>Leaders</h2><span class="sp"></span><span class="lbl">as your staff read them</span></div>
+    <div class="pb">
+      <div class="people">
+        <div class="person"><span class="pf"><img src="../../../web/assets/portraits/churchill.jpg" alt=""></span><div><div class="nm">Winston Churchill</div><div class="ro">Prime Minister, Britain</div>
+          <div class="stance s-close"><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i></span><span class="w">Close</span></div></div></div>
+        <div class="person"><span class="pf"><img src="../../../web/assets/portraits/stalin.jpg" alt=""></span><div><div class="nm">Joseph Stalin</div><div class="ro">General Secretary, USSR</div>
+          <div class="stance s-warm"><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></span><span class="w">Warm</span></div></div></div>
+        <div class="person"><span class="pf"><img src="../../../web/assets/portraits/wheeler.jpg" alt=""></span><div><div class="nm">Burton K. Wheeler</div><div class="ro">Senator, Montana</div>
+          <div class="stance s-cold"><span class="meter"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></span><span class="w">Cold</span></div></div></div>
+        <div class="person"><span class="pf"><img src="../../../web/assets/portraits/konoe.jpg" alt=""></span><div><div class="nm">Fumimaro Konoe</div><div class="ro">Prime Minister, Japan</div>
+          <div class="stance s-neutral"><span class="meter"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span><span class="w">Neutral</span></div></div></div>
+        <div class="person"><span class="pf"><img src="../../../web/assets/portraits/hitler.jpg" alt=""></span><div><div class="nm">Adolf Hitler</div><div class="ro">F&uuml;hrer, Germany</div>
+          <div class="stance s-hostile"><span class="meter"><i class="on"></i><i></i><i></i><i></i><i></i></span><span class="w">Hostile</span></div></div></div>
+      </div>
+      <div class="intercept"><span class="tag c-intel">Intercept</span><div class="paper">"The American President wages his war by stealth, one convoy at a time."</div><div class="lbl" style="margin-top:6px">Der Reichsbote, 13 Oct</div></div>
+      <div class="lbl">Mockup only: portrait tint options</div>
+      <div class="tints">
+        <figure data-t="phosphor"><span class="pf"><img src="../../../web/assets/portraits/mussolini.jpg" alt=""></span><figcaption>phosphor</figcaption></figure>
+        <figure data-t="monitor"><span class="pf"><img src="../../../web/assets/portraits/mussolini.jpg" alt=""></span><figcaption>monitor</figcaption></figure>
+        <figure data-t="amber"><span class="pf"><img src="../../../web/assets/portraits/mussolini.jpg" alt=""></span><figcaption>amber</figcaption></figure>
+        <figure data-t="sepia"><span class="pf"><img src="../../../web/assets/portraits/mussolini.jpg" alt=""></span><figcaption>sepia</figcaption></figure>
+        <figure data-t="none"><span class="pf"><img src="../../../web/assets/portraits/mussolini.jpg" alt=""></span><figcaption>none</figcaption></figure>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav class="tabbar" role="tablist" aria-label="Room">
+  <button role="tab" aria-selected="true" data-go="tray"><span class="g">&#9636;</span>In-Tray<span class="badge c-info">3</span></button>
+  <button role="tab" aria-selected="false" data-go="desk"><span class="g">&#9638;</span>Desk<span class="badge c-danger">1</span></button>
+  <button role="tab" aria-selected="false" data-go="desk"><span class="g">&#10148;</span>Orders</button>
+  <button role="tab" aria-selected="false" data-go="intel"><span class="g">&#9673;</span>Leaders</button>
+  <button role="tab" aria-selected="false"><span class="g">&#9993;</span>Messages<span class="badge c-info">3</span></button>
+</nav>
+
+<div class="mock" aria-label="Mockup controls">
+  <button data-k="pal" data-v="b">B console</button><button data-k="pal" data-v="a">A green</button>
+  <button data-k="fx" data-v="on">CRT on</button><button data-k="fx" data-v="off">CRT off</button>
+  <button data-k="tint" data-v="phosphor">phosphor</button><button data-k="tint" data-v="monitor">monitor</button>
+  <button data-k="tint" data-v="amber">amber</button><button data-k="tint" data-v="none">no tint</button>
+</div>
+
+<script>
+// Mockup only. Query params ?pal=a|b&fx=on|off&tint=...&tab=tray|desk|intel set the state for screenshots.
+const root = document.documentElement, q = new URLSearchParams(location.search);
+for (const k of ['pal','fx','tint']) if (q.get(k)) root.dataset[k] = q.get(k);
+// Per-figure tints in the comparison strip: each figure scopes its own tokens.
+const T = {phosphor:['#8dffb4','#06180d'],monitor:['#9fe6ff','#061420'],amber:['#ffc46b','#1d1004'],sepia:['#f3e2c0','#2a1d10']};
+document.querySelectorAll('.tints figure').forEach(f => {
+  const t = T[f.dataset.t];
+  if (t) { f.style.setProperty('--duo-light', t[0]); f.style.setProperty('--duo-dark', t[1]); }
+  else f.querySelector('.pf').classList.add('raw');
+});
+if (q.get('clean')) document.querySelector('.mock').remove();
+function sync(){ document.querySelectorAll('.mock button').forEach(b => b.setAttribute('aria-pressed', root.dataset[b.dataset.k] === b.dataset.v)); }
+document.querySelectorAll('.mock button').forEach(b => b.onclick = () => { root.dataset[b.dataset.k] = b.dataset.v; sync(); });
+sync();
+function show(tab){
+  document.querySelectorAll('.room > .panel').forEach(p => p.classList.toggle('show', p.dataset.tab === tab));
+  document.querySelectorAll('.tabbar button').forEach(b => b.setAttribute('aria-selected', b.dataset.go === tab && !b.dataset.dup));
+}
+document.querySelectorAll('.tabbar button').forEach((b,i) => { if (i === 2) b.dataset.dup = 1; b.onclick = () => b.dataset.go && show(b.dataset.go); });
+if (q.get('tab')) show(q.get('tab'));
+function side(t){
+  document.querySelectorAll('.room > .panel').forEach(p => p.classList.toggle('side', p.dataset.tab === t));
+  document.querySelectorAll('.sideswitch button').forEach(b => b.setAttribute('aria-selected', b.dataset.side === t));
+}
+document.querySelectorAll('.sideswitch button').forEach(b => b.onclick = () => side(b.dataset.side));
+side(q.get('side') || 'tray');
+let s = 1*86400 + 6*3600 + 12*60 + 40;
+setInterval(() => { s--; const d = Math.floor(s/86400), h = Math.floor(s%86400/3600), m = Math.floor(s%3600/60), x = s%60;
+  document.getElementById('cd').textContent = `${d}d ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`; }, 1000);
+</script>
+</body>
+</html>

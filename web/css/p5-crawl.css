@@ -4,6 +4,7 @@
   margin: 0 0 1.25rem;
   font-family: var(--font-head);
   font-size: 1.35rem;
+  font-weight: 600;
   line-height: 1.5;
   color: var(--accent);
   animation: rl-intro-fade 1500ms ease-out both;

@@ -5,7 +5,8 @@ An enacted order whose lever names it sends one force to one place: the lever's
 out the day the order settles and arrives after its route at its kind's pace (a
 fleet sails by sea, through the passages open to its side; armies and air groups
 go straight); it stays where it was until then. A fleet with no open sea route
-does not sail. Only the issuer's own side moves:
+does not sail, and no force goes beyond its side's reach (``bases.reach``). Only the
+issuer's own side moves:
 an order naming another side's force changes nothing. An order drops the moves
 history still had for that force. Fronts and routes move only with history.
 """
@@ -15,6 +16,7 @@ from datetime import date, timedelta
 from revisionist.core.ids import EntityId, FeatureId
 from revisionist.core.ontology import EntityKind
 from revisionist.core.realism import resolvers as rs
+from revisionist.core.realism.bases import Tier, reach
 from revisionist.core.realism.geography import FORCES, Feature
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.routing import travel_days
@@ -58,6 +60,9 @@ def resolve(state: State, order: Order) -> tuple[Feature, ...]:
                 update={"bound_for": None, "arrives": None, "legs": (), "as_of": as_of}
             ),
         )
+    found = reach(state, force, to.entity_id)
+    if found is not None and found.tier is Tier.REFUSED:
+        return ()
     days = travel_days(state, force, to.entity_id)
     if days is None:
         return ()

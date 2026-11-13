@@ -11,7 +11,7 @@ import pytest
 from revisionist.core import events as ev
 from revisionist.core.fold import state_hash
 from revisionist.core.ids import DocumentId, EntityId, EventId, SeatId, derived_id
-from revisionist.core.ontology import EntityKind
+from revisionist.core.ontology import Controller, EntityKind
 from revisionist.core.project import project
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.document import (
@@ -27,8 +27,9 @@ from revisionist.core.sealing import seal_holder
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC as PUBLIC_SCOPE
 from revisionist.core.visibility import Scope, Visibility, private_to
+from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
-from revisionist.engine import counsel
+from revisionist.engine import counsel, realism_tick, session_zero
 from revisionist.engine.counsel import (
     Asker,
     ClaudeCounsellor,
@@ -400,3 +401,85 @@ def test_raeder_asked_after_the_greer_knows_the_crisis_on_his_principals_desk() 
     (req,) = transport.sent
     assert "## Before your principal\n" in req.prompt and GREER in req.prompt
     assert out.text.endswith(COUNSEL_BY_QUESTION[GREER_QUESTION])
+
+
+class Counting:
+    """A counsellor that answers and keeps the name of everyone it spoke as."""
+
+    def __init__(self) -> None:
+        self.spoke: list[str] = []
+
+    def speak(
+        self, person: PersonView, asker: Asker, channel: ChannelKind, question: str
+    ) -> Spoken:
+        self.spoke.append(person.name)
+        cost = ev.CallCost(call_class="counsel", model="m", input_tokens=1, output_tokens=1, usd=0)
+        return Spoken(text="In my view, wait.", cost=cost)
+
+
+def humans(store: EventStore, *who: str) -> dict[str, SeatId]:
+    """Autumn 1941 with a human seated as each of ``who``, play open."""
+    decl = cmp.load_world(cmp.world_path("autumn-1941"))
+    store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))
+    keys = resolve_keys(decl, CAMPAIGN)
+    seats: dict[str, SeatId] = {}
+    for key in who:
+        person = EntityId(keys[key])
+        seats[key] = SeatId(derived_id(CAMPAIGN, "seat", person))
+        name = load_state(store, CAMPAIGN).entities[person].name
+        session_zero.claim(store, CAMPAIGN, seats[key], name)
+    realism_tick.open_play(store, CAMPAIGN)
+    return seats
+
+
+def test_a_person_another_human_plays_speaks_for_themselves(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = MemoryStore()
+    seats = humans(store, "roosevelt", "churchill", "stalin")
+    state = load_state(store, CAMPAIGN)
+    me = state.seats[seats["roosevelt"]].embodies
+    inner = {c.person for c in state.cards[me].inner_circle}
+    churchill = state.seats[seats["churchill"]].embodies
+    stalin = state.seats[seats["stalin"]].embodies
+    assert churchill in inner and stalin not in inner
+    assert all(s.controller is Controller.HUMAN for s in state.seats.values())
+
+    def no_roll(*_: object) -> bool:
+        raise AssertionError("a meeting roll was spent")
+
+    monkeypatch.setattr(counsel, "takes_meeting", no_roll)
+    before = list(store.read(CAMPAIGN))
+    counting = Counting()
+    for person, name in ((churchill, "Winston Churchill"), (stalin, "Joseph Stalin")):
+        with pytest.raises(CounselRefusedError) as refused:
+            consult(store, CAMPAIGN, seats["roosevelt"], person, QUESTION, counting)
+        assert str(refused.value) == f"{name} speaks for themselves: write to them."
+        assert counting.spoke == []
+    assert list(store.read(CAMPAIGN)) == before
+
+
+def test_only_a_person_another_human_plays_is_refused() -> None:
+    store = MemoryStore()
+    seats = humans(store, "roosevelt", "churchill")
+    counting = Counting()
+    hopkins_ = hopkins(store)
+    out = consult(store, CAMPAIGN, seats["roosevelt"], hopkins_, QUESTION, counting)
+    assert out.person == "Harry L. Hopkins" and counting.spoke == ["Harry L. Hopkins"]
+    kinds = [type(e.payload) for e in store.read(CAMPAIGN)][-2:]
+    assert kinds == [ev.CounselHeld, ev.CostLogged]
+    me = load_state(store, CAMPAIGN).seats[seats["roosevelt"]].embodies
+    with pytest.raises(CounselRefusedError, match="is not within your reach"):
+        consult(store, CAMPAIGN, seats["roosevelt"], me, QUESTION, counting)
+    assert counting.spoke == ["Harry L. Hopkins"]
+
+
+def test_a_person_an_ai_seat_holds_is_still_voiced() -> None:
+    store = ready()
+    state = load_state(store, CAMPAIGN)
+    churchill = person_named(store, "Winston Churchill")
+    (holder,) = [s for s in state.seats.values() if s.embodies == churchill]
+    assert holder.controller is Controller.AI
+    counting = Counting()
+    out = consult(store, CAMPAIGN, roosevelt_seat(store), churchill, QUESTION, counting)
+    assert out.person == "Winston Churchill" and counting.spoke == ["Winston Churchill"]

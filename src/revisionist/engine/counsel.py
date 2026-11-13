@@ -18,7 +18,7 @@ from revisionist.core._base import Model
 from revisionist.core.events import CallCost, Event
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId, EntityId, EventId, SeatId
-from revisionist.core.ontology import EntityKind, EntityStatus
+from revisionist.core.ontology import Controller, EntityKind, EntityStatus
 from revisionist.core.project import project
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.document import BodyField
@@ -163,9 +163,11 @@ def consult(
     """Put ``question`` to ``person`` over the seat's channel to them: the card's channel for
     the inner circle, else the first channel that reaches them, and then the person may
     decline as they would a meeting (one roll per tick, whatever the words). An outsider,
-    or a person another seat holds, speaks only from pages the seat also holds. Raises
-    ``CounselRefusedError`` for anyone the seat cannot reach, an outsider who declines, or
-    an empty question; ``TransportError`` propagates and nothing is written."""
+    or a person another seat holds, speaks only from pages the seat also holds; a person
+    another human plays is never voiced, and no roll is spent on them. Raises
+    ``CounselRefusedError`` for a person another human plays, anyone the seat cannot
+    reach, an outsider who declines, or an empty question; ``TransportError`` propagates
+    and nothing is written."""
     state = load_state(store, campaign_id)
     if state.ruleset != "realism":
         raise CounselRefusedError("counsel is for realism campaigns")
@@ -173,6 +175,10 @@ def consult(
     if not question or len(question) > QUESTION_MAX:
         raise CounselRefusedError(f"ask a question of 1 to {QUESTION_MAX} characters")
     me = state.seats[seat]
+    if _played_by_another(state, seat, person):
+        raise CounselRefusedError(
+            f"{state.entities[person].name} speaks for themselves: write to them."
+        )
     card = state.cards.get(me.embodies)
     contact = next((c for c in card.inner_circle if c.person == person), None) if card else None
     channel = contact.channel if contact is not None else _outer_channel(state, seat, person)
@@ -225,6 +231,14 @@ def consult(
         channel=channel,
         text=text,
         event_id=held.event_id,
+    )
+
+
+def _played_by_another(state: State, seat: SeatId, person: EntityId) -> bool:
+    """Whether a human holds ``person`` from a seat other than ``seat``."""
+    return any(
+        s.seat_id != seat and s.embodies == person and s.controller is Controller.HUMAN
+        for s in state.seats.values()
     )
 
 

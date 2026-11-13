@@ -19,6 +19,7 @@ from revisionist.core.project import project
 from revisionist.core.realism.advance import next_wake
 from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, words
 from revisionist.core.realism.document import BodyField, DocumentView
+from revisionist.core.realism.effect import PartView
 from revisionist.core.realism.pipeline import Order, OrderStatus, Pipeline, StepAction, StepOutcome
 from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
@@ -91,12 +92,12 @@ def _spoken_title(title: str) -> str:
     return f"{title[: found.start()]}, {day.day} {day:%B %Y}"
 
 
-def _answers(view: View) -> set[DocumentId]:
-    """The ids of the report papers on the parts of the seat's own routed orders."""
+def _answers(view: View) -> dict[DocumentId, PartView]:
+    """The report papers on the parts of the seat's own routed orders, each with its part."""
     return {
-        DocumentId(derived_id(view.campaign_id, "report", order.order_id, i))
+        DocumentId(derived_id(view.campaign_id, "report", order.order_id, i)): part
         for order in view.routed.values()
-        for i in range(len(order.parts))
+        for i, part in enumerate(order.parts)
     }
 
 
@@ -106,7 +107,7 @@ def _item(
     doc: DocumentView,
     unread: bool,
     flagged: bool,
-    answers: set[DocumentId],
+    answers: Mapping[DocumentId, PartView],
 ) -> DocumentListItem:
     return DocumentListItem(
         id=doc_id,
@@ -120,7 +121,7 @@ def _item(
         unread=unread,
         flagged=flagged,
         group=feed_group(doc.title),
-        ack=acknowledgement(doc),
+        ack=acknowledgement(doc, answers.get(doc_id)),
         answer=doc_id in answers,
     )
 

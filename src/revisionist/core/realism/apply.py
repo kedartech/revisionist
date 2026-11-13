@@ -450,9 +450,6 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
     body = [BodyField(label="Ordered", value=safe(describe(state, routed))[:LINE])]
     if routed.refusal:
         body.append(BodyField(label="Refused under", value=safe(routed.refusal)[:LINE]))
-    elif routed.fidelity is not None:
-        carried = "posture only" if _partial_move(routed) is not None else routed.fidelity.value
-        body.append(BodyField(label="Carried out", value=carried))
     if routed.route is Route.INFLUENCE and routed.target is not None:
         # The estimator writes before the target decides, so its words can contradict
         # the answer; the account of an approach comes from the decision itself.

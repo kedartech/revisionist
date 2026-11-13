@@ -194,7 +194,21 @@ def test_a_partly_carried_move_says_the_force_stayed_and_took_the_posture(sl: Sl
     executed(sl, order, rx.Fidelity.PARTIAL)
     doc = next(p for p in land(sl, order) if isinstance(p, ev.DocumentIssued))
     assert doc.document.title == "US Atlantic Fleet stayed at Norfolk; took the Escort posture"
-    assert BodyField(label="Carried out", value="posture only") in doc.document.body
+    assert not any(b.label == "Carried out" for b in doc.document.body)
+
+
+VERDICTS = {f.value for f in rx.Fidelity} | {"posture only"}
+
+
+@pytest.mark.parametrize("fidelity", list(rx.Fidelity))
+def test_the_officers_report_gives_no_verdict_on_how_the_order_was_carried_out(
+    sl: Slice, fidelity: rx.Fidelity
+) -> None:
+    order = sl.shoot_on_sight()
+    executed(sl, order, fidelity)
+    doc = next(p for p in land(sl, order) if isinstance(p, ev.DocumentIssued))
+    assert [b.label for b in doc.document.body] == ["Ordered"]
+    assert not any(str(b.value) in VERDICTS for b in doc.document.body)
 
 
 def test_a_zone_given_as_a_place_id_is_titled_by_name(sl: Slice) -> None:
@@ -216,7 +230,10 @@ def test_a_refusal_applies_nothing_and_names_the_rule(sl: Slice) -> None:
     doc = out[1]
     assert isinstance(doc, ev.DocumentIssued)
     assert doc.document.title.endswith(": refused")
-    assert any(b.value == "loyalty -4: Stark will not carry it out" for b in doc.document.body)
+    assert (
+        BodyField(label="Refused under", value="loyalty -4: Stark will not carry it out")
+        in doc.document.body
+    )
 
 
 # --- moving a force ---------------------------------------------------------------

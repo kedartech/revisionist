@@ -16,6 +16,23 @@
    "usd": 0.003614
   }
  },
+ "8a65407f09c95001d3b4d5d7": {
+  "call_class": "counsel",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## You are\nHarry L. Hopkins, Special assistant to the President\nVoice: Wry, informal and direct; cuts to \"what do you ne",
+  "reply": {
+   "cached_tokens": 312,
+   "input_tokens": 1293,
+   "model": "claude-sonnet-5-5",
+   "output": {
+    "text": "Mr. President, I have only their letter of request so far, and it gives no figures I would put in front of you. From what I saw in Moscow they need everything, but I would not guess at numbers until the full list comes through. When it does, I will bring it to you myself."
+   },
+   "output_tokens": 71,
+   "usd": 0.003296
+  }
+ },
  "a25fff391842c025ece2589b": {
   "call_class": "counsel",
   "hand_written": true,
@@ -48,23 +65,6 @@
    },
    "output_tokens": 121,
    "usd": 0.002814
-  }
- },
- "e7fbb9794e0ead8f00155c9d": {
-  "call_class": "counsel",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## You are\nHarry L. Hopkins, Special assistant to the President\nVoice: Wry, informal and direct; cuts to \"what do you ne",
-  "reply": {
-   "cached_tokens": 312,
-   "input_tokens": 1308,
-   "model": "claude-sonnet-5-5",
-   "output": {
-    "text": "Mr. President, I have only their letter of request so far, and it gives no figures I would put in front of you. From what I saw in Moscow they need everything, but I would not guess at numbers until the full list comes through. When it does, I will bring it to you myself."
-   },
-   "output_tokens": 71,
-   "usd": 0.003326
   }
  }
 }

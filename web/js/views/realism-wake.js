@@ -172,14 +172,13 @@ export function canRunNow(wake) {
   return Boolean(wake.can_close && (wake.humans > 1 || !wake.deadline));
 }
 
-/** The wake in the room's header: when it closes, the count, commit and close. */
+/** The wake in the room's header: when it closes, the count and close; the status strip carries the commit. */
 export function wakeHeader(wake, { act }) {
   const closes = deadlineWords(wake.deadline);
   return h('div', { class: 'rl-wake' },
     h('div', { class: 'stack' },
       closes ? h('span', { class: 'muted rl-wake-line' }, closes) : null,
       h('span', { class: 'muted rl-wake-line', role: 'status', 'aria-live': 'polite' }, commitCount(wake))),
-    commitControl(wake, act),
     canRunNow(wake) ? closeWake(act) : null);
 }
 

@@ -102,6 +102,20 @@ export function endSend(state, outcome) {
   }
 }
 
+/**
+ * A tab, tile or side switch picks the panel to show. Messages opens the messenger; on a phone,
+ * where the messenger covers the room, any other tab closes it so the panel picked is the one seen.
+ */
+export function pickPanel(state, { tab, side }, phone) {
+  if (tab) state.tab = tab;
+  if (side) state.side = side;
+  if (tab === 'messages') state.chat = { ...state.chat, open: true };
+  else if (tab && phone) state.chat = { ...state.chat, open: false };
+}
+
+/** Whether the room is at phone width, where the tab bar shows (c-shell.css). */
+const phoneWidth = () => Boolean(globalThis.matchMedia?.('(max-width: 767px)').matches);
+
 /** Browser storage, or nothing where it is blocked: the units take it as a parameter. */
 const storage = () => browserStorage(window);
 
@@ -562,11 +576,8 @@ export function realismRoom(ctx) {
   }
 
   let pending = null;
-  /** A tab, tile or side switch picks the panel to show; Messages also opens the messenger. */
-  const pick = ({ tab, side }) => {
-    if (tab) ui.tab = tab;
-    if (side) ui.side = side;
-    if (tab === 'messages') ui.chat.open = true;
+  const pick = (p) => {
+    pickPanel(ui, p, phoneWidth());
     rerender();
   };
   function build() {
@@ -575,7 +586,7 @@ export function realismRoom(ctx) {
     pending = opening ?? happened;
     const extra = [
       h('span', { class: 'divider', 'aria-hidden': 'true' }),
-      h('div', { class: 'stack rl-clock' }, h('span', { class: 'title' }, worldDate(rv.clock.world_date)), paceHeader(rv.clock)),
+      h('div', { class: 'stack rl-clock' }, paceHeader(rv.clock)),
       wakeHeader(rv.wake, { act }),
       menuBtn,
     ];

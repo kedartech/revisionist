@@ -5,8 +5,9 @@ the code `new`, starts the ready-made game as its host and plays Franklin D. Roo
 With the code `v2` it starts the engine-v2 slice from the timeline instead and checks
 the timeline, who held power and the play style first.
 Checks the room: the header names the player and its two names open the setting and the
-character dossiers; the game menu; the wake header with "Done for today" and the host's
-"Run the day now"; the in-tray's grouped rows, an opened paper, flagging and the filters;
+character dossiers; the game menu; the wake header with the host's "Run the day now" and
+the status strip with the date and "Done for today"; the in-tray's grouped rows, an
+opened paper, flagging and the filters;
 needs-your-answer, ideas, the standard forms, a directive read by the aide (signed when it
 reads as an order, revised when it cannot be sent) and the orders column; the messenger
 with the aide's thread, a question to the aide, a consult and the contacts tab; a day run
@@ -393,11 +394,16 @@ def wake_header(page: Page, report: dict[str, object], host: bool) -> None:
     check("the header names no wake number", "Wake " not in wake.inner_text(), wake.inner_text())
     strip = page.get_by_role("region", name="Where the day stands")
     check("the status strip shows the world date", strip.locator(".rl-date").count() == 1)
+    check(
+        "the header leaves the date to the strip",
+        page.locator(".frame-head .rl-clock .title").count() == 0,
+    )
     check("the header says when the wake closes", "Closes " in wake.inner_text())
     check("the header counts players done", "done" in wake.inner_text())
     check(
-        "the header offers Done for today",
-        page.get_by_role("button", name="Done for today").count() >= 1,
+        "the strip offers Done for today and the header does not",
+        strip.get_by_role("button", name="Done for today").count() == 1
+        and page.locator(".frame-head").get_by_role("button", name="Done for today").count() == 0,
     )
     check(
         "Run the day now is hidden (a one-player game, or a seat that is not the host)",
@@ -756,7 +762,15 @@ def narrow(page: Page) -> None:
     width = page.evaluate("document.documentElement.scrollWidth")
     check("a narrow dock has no sideways scroll", width <= 390, str(width))
     page.screenshot(path=str(OUT / "14n-aide-390x844.png"))
-    page.keyboard.press("Escape")
+    page.get_by_role("navigation", name="Room panels").get_by_role("button", name="Papers").click()
+    page.wait_for_timeout(200)
+    panel = page.locator(".rl-msgr-panel")
+    check(
+        "a narrow room's Papers tab closes the messenger over it",
+        panel.count() == 0 or not panel.first.is_visible(),
+    )
+    if panel.count() and panel.first.is_visible():
+        page.keyboard.press("Escape")
     page.wait_for_timeout(200)
     page.set_viewport_size({"width": SIZE[0], "height": SIZE[1]})
     page.wait_for_timeout(300)

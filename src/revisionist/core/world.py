@@ -205,6 +205,7 @@ class HistoryDecl(Model):
     """An item on history's clock (spec §5.4): what really followed the start date.
 
     The condition names keys, like a goal's. ``weight`` is how central it was.
+    With a ``headline``, the event is reported as news when it fires in public.
     """
 
     key: Key
@@ -213,6 +214,18 @@ class HistoryDecl(Model):
     condition: WinCondition
     weight: int = Field(default=1, ge=1, le=3)
     scope: ScopeSpec = "public"
+    headline: Label | None = None
+    """Plain words, no date."""
+    subject: Key | None = None
+    """An entity key: who the news is about."""
+    obj: Key | None = None
+    """An entity key: who it was done to, if anyone."""
+
+    @model_validator(mode="after")
+    def _headline_has_a_subject(self) -> "HistoryDecl":
+        if self.headline is not None and self.subject is None:
+            raise ValueError("a headline needs a subject")
+        return self
 
 
 class SideDecl(Model):

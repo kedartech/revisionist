@@ -39,6 +39,8 @@ class NewsTopic(StrEnum):
     DEAL = "deal"
     CONTACT = "contact"
     VOTE = "vote"
+    EVENT = "event"
+    """A history event that fired."""
 
 
 class NewsEvent(Model):

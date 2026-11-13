@@ -5623,7 +5623,8 @@
           "appointment",
           "deal",
           "contact",
-          "vote"
+          "vote",
+          "event"
         ],
         "title": "NewsTopic",
         "type": "string"
@@ -7183,9 +7184,34 @@
             "title": "Fired",
             "type": "boolean"
           },
+          "headline": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Headline"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "obj": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Obj"
           },
           "on_date": {
             "anyOf": [
@@ -7239,6 +7265,18 @@
             ],
             "default": null,
             "title": "Source Intent"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject"
           },
           "weight": {
             "default": 1,
@@ -12453,7 +12491,8 @@
           "appointment",
           "deal",
           "contact",
-          "vote"
+          "vote",
+          "event"
         ],
         "title": "NewsTopic",
         "type": "string"
@@ -13436,9 +13475,34 @@
             "title": "Fired",
             "type": "boolean"
           },
+          "headline": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Headline"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "obj": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Obj"
           },
           "on_date": {
             "anyOf": [
@@ -13492,6 +13556,18 @@
             ],
             "default": null,
             "title": "Source Intent"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject"
           },
           "weight": {
             "default": 1,
@@ -18107,9 +18183,34 @@
             "title": "Fired",
             "type": "boolean"
           },
+          "headline": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Headline"
+          },
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "obj": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Obj"
           },
           "on_date": {
             "anyOf": [
@@ -18163,6 +18264,18 @@
             ],
             "default": null,
             "title": "Source Intent"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Subject"
           },
           "weight": {
             "default": 1,

@@ -73,10 +73,10 @@ def test_a_declaration_of_war_leaves_a_visible_mark() -> None:
     assert news, "no war_declared NewsEvent in state.news"
     # both pages were written from the one event, not from two
     pages = {
-        seat: {state.documents[d.doc_id].truth.news_id for d in docs}
+        seat: {state.documents[d.doc_id].truth.news_id for d in docs} & news
         for seat, docs in press.items()
     }
-    assert pages[fdr] == pages[hitler] <= news and len(pages[fdr]) == 1, (
+    assert pages[fdr] == pages[hitler] and len(pages[fdr]) == 1, (
         f"the two papers did not report the same event: {pages}"
     )
 

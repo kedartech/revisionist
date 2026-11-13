@@ -1,8 +1,11 @@
 """Ideas with memory: the option generator reads the seat's record, and never
 offers what the seat already has on its way."""
 
+import logging
 from datetime import date, timedelta
 from pathlib import Path
+
+import pytest
 
 from revisionist.core import events as ev
 from revisionist.core import record
@@ -168,6 +171,86 @@ class _Says:
 
     def call(self, request: Request) -> Reply:
         return Reply(self.reply, "hand", 0, 0, 0, 0.0)
+
+
+def _settled(t: Table, tmp_path: Path, *taken: Option) -> list[str]:
+    """Files each idea in wake 0, plays to wake 1 with all of them settled, and
+    returns wake 1's initiative offer when the model offers nothing usable."""
+    for option in taken:
+        realism_tick.commit_order(t.store, CAMPAIGN, t.fdr, option.asks)
+    play(t, tmp_path, T0 + timedelta(hours=13))
+    state = t.state
+    assert state.wake is not None and state.wake.number == 1
+    assert realism_tick._pending_effects(state, t.fdr) == []
+    assert realism_tick._pending_words(state, t.fdr) == set()
+    made = options.offer(state, t.fdr, _Spy())
+    assert made is not None
+    return [o.label for o in made.offers[-1].options]
+
+
+def test_an_idea_taken_in_an_earlier_wake_is_not_in_the_fallback_offer(tmp_path: Path) -> None:
+    t = _beginner()
+    first, *rest = options.template_options(project(t.state, t.fdr), None, PlayStyle.BEGINNER)
+    after = _settled(t, tmp_path, first)
+    assert first.label not in after
+    assert [o.label for o in rest] == after[: len(rest)]
+
+
+def test_the_fallback_offers_fewer_rather_than_repeat_a_taken_idea(tmp_path: Path) -> None:
+    t = _beginner()
+    taken = options.template_options(project(t.state, t.fdr), None, PlayStyle.BEGINNER)[:3]
+    after = _settled(t, tmp_path, *taken)
+    assert after == ["Press Harold R. Stark for support", "Press Sam Rayburn for support"]
+
+
+def test_words_pressed_on_a_person_before_are_not_in_the_fallback_offer() -> None:
+    t = _beginner()
+    press = options.template_options(project(t.state, t.fdr), None, PlayStyle.BEGINNER)[3]
+    assert press.label == "Press Harold R. Stark for support"
+    realism_tick.commit_order(t.store, CAMPAIGN, t.fdr, press.asks)
+    state = t.state
+    # an influence ask settles only on an estimator ruling: mark it applied by hand
+    (order,) = [o for o in state.routed.values() if o.issuer == t.fdr]
+    (part,) = order.parts
+    landed = part.model_copy(update={"applied": state.in_world_date})
+    settled = order.model_copy(update={"parts": (landed,)})
+    state = state.model_copy(update={"routed": {**state.routed, order.order_id: settled}})
+    assert realism_tick._pending_words(state, t.fdr) == set()
+    made = options.offer(state, t.fdr, _Spy())
+    assert made is not None
+    labels = [o.label for o in made.offers[-1].options]
+    assert press.label not in labels and "Press Sam Rayburn for support" in labels
+
+
+def test_model_ideas_are_not_held_to_the_taken_before_rule(tmp_path: Path) -> None:
+    t = _beginner()
+    ideas = options.template_options(project(t.state, t.fdr), None, PlayStyle.BEGINNER)
+    _settled(t, tmp_path, ideas[0])
+    made = options.offer(t.state, t.fdr, _Says(list(ideas)))
+    assert made is not None
+    assert [o.label for o in made.offers[-1].options] == [o.label for o in ideas]
+
+
+def test_a_model_idea_already_on_its_way_is_logged_and_the_fallback_says_why(
+    caplog: pytest.LogCaptureFixture, tmp_path: Path
+) -> None:
+    t = _beginner()
+    ideas = options.template_options(project(t.state, t.fdr), None, PlayStyle.BEGINNER)
+    _settled(t, tmp_path, ideas[0])
+    realism_tick.commit_order(t.store, CAMPAIGN, t.fdr, ideas[1].asks)
+    with caplog.at_level(logging.INFO, logger="revisionist.engine.options"):
+        made = options.offer(t.state, t.fdr, _Says([ideas[1], ideas[2]]))
+    assert made is not None
+    lines = [r.getMessage() for r in caplog.records if r.name == "revisionist.engine.options"]
+    dropped = [line for line in lines if "dropped" in line]
+    # one reply per offer, and the idea is dropped once from each
+    assert dropped == [
+        f"options for {t.fdr} on 1941-09-03: dropped {ideas[1].label!r}: "
+        "repeats an order on its way"
+    ] * len(made.offers)
+    fallback = [line for line in lines if "desk" in line]
+    assert len(fallback) == len(made.offers)
+    assert all("1 model idea" in x and "1 taken before" in x for x in fallback)
 
 
 def test_an_option_that_repeats_its_own_ask_is_not_offered() -> None:

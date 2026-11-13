@@ -457,6 +457,14 @@
                 "days": {
                   "us_atlantic_fleet": 5,
                   "us_pacific_fleet": null
+                },
+                "reach": {
+                  "us_atlantic_fleet": {
+                    "tier": "sustained",
+                    "base": "argentia",
+                    "reason": null
+                  },
+                  "us_pacific_fleet": null
                 }
               },
               {
@@ -465,6 +473,14 @@
                 "group": "own",
                 "days": {
                   "us_atlantic_fleet": 0,
+                  "us_pacific_fleet": null
+                },
+                "reach": {
+                  "us_atlantic_fleet": {
+                    "tier": "sustained",
+                    "base": "norfolk",
+                    "reason": null
+                  },
                   "us_pacific_fleet": null
                 }
               },
@@ -475,6 +491,14 @@
                 "days": {
                   "us_atlantic_fleet": 26,
                   "us_pacific_fleet": null
+                },
+                "reach": {
+                  "us_atlantic_fleet": {
+                    "tier": "sustained",
+                    "base": "pearl_harbor_base",
+                    "reason": null
+                  },
+                  "us_pacific_fleet": null
                 }
               },
               {
@@ -483,6 +507,14 @@
                 "group": "allied",
                 "days": {
                   "us_atlantic_fleet": 13,
+                  "us_pacific_fleet": null
+                },
+                "reach": {
+                  "us_atlantic_fleet": {
+                    "tier": "operate",
+                    "base": "reykjavik",
+                    "reason": null
+                  },
                   "us_pacific_fleet": null
                 }
               },
@@ -493,6 +525,14 @@
                 "days": {
                   "us_atlantic_fleet": 4,
                   "us_pacific_fleet": null
+                },
+                "reach": {
+                  "us_atlantic_fleet": {
+                    "tier": "operate",
+                    "base": "argentia",
+                    "reason": null
+                  },
+                  "us_pacific_fleet": null
                 }
               },
               {
@@ -502,6 +542,14 @@
                 "days": {
                   "us_atlantic_fleet": 14,
                   "us_pacific_fleet": null
+                },
+                "reach": {
+                  "us_atlantic_fleet": {
+                    "tier": "operate",
+                    "base": "reykjavik",
+                    "reason": null
+                  },
+                  "us_pacific_fleet": null
                 }
               },
               {
@@ -510,6 +558,14 @@
                 "group": "other",
                 "days": {
                   "us_atlantic_fleet": 38,
+                  "us_pacific_fleet": null
+                },
+                "reach": {
+                  "us_atlantic_fleet": {
+                    "tier": "raid",
+                    "base": "pearl_harbor_base",
+                    "reason": null
+                  },
                   "us_pacific_fleet": null
                 }
               }

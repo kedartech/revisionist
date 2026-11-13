@@ -1257,6 +1257,9 @@ cards:
     principals: [usa]
     powers: [preside over the Senate, break tied votes]
     inner_circle: [{person: roosevelt, channel: in_person}]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 4}
     horizon_days: 7
   - person: hull
     office: Secretary of State
@@ -1271,6 +1274,9 @@ cards:
     pipelines: [appeal_through_soong]
     constraints: [acts only on the President's instruction]
     personal: [in poor health; wants no war with Japan]
+    loyalty: 1
+    competence: 3
+    reach: {rank: 4}
     horizon_days: 7
   - person: welles
     office: Under Secretary of State
@@ -1278,6 +1284,9 @@ cards:
     principals: [hull]
     powers: [run the Department's daily business]
     inner_circle: [{person: roosevelt, channel: in_person}, {person: hull, channel: in_person}]
+    loyalty: 0
+    competence: 4
+    reach: {rank: 2}
     horizon_days: 7
   - person: grew
     office: US Ambassador to Japan
@@ -1286,6 +1295,9 @@ cards:
     powers: [report from Tokyo, present US notes to the Japanese Government]
     inner_circle: [{person: hull, channel: cable}]
     constraints: [acts through the Department]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 2}
     horizon_days: 7
   - person: stimson
     office: Secretary of War
@@ -1293,6 +1305,9 @@ cards:
     principals: [roosevelt]
     powers: [administer the War Department]
     inner_circle: [{person: roosevelt, channel: in_person}, {person: marshall, channel: in_person}]
+    loyalty: 1
+    competence: 3
+    reach: {rank: 4}
     horizon_days: 7
   - person: marshall
     office: Army Chief of Staff
@@ -1300,6 +1315,9 @@ cards:
     principals: [stimson]
     powers: [direct the Army General Staff]
     inner_circle: [{person: roosevelt, channel: in_person}, {person: stark, channel: in_person}]
+    loyalty: 1
+    competence: 4
+    reach: {rank: 3}
     horizon_days: 7
   - person: knox
     office: Secretary of the Navy
@@ -1307,6 +1325,9 @@ cards:
     principals: [roosevelt]
     powers: [administer the Navy Department]
     inner_circle: [{person: roosevelt, channel: in_person}, {person: stark, channel: in_person}]
+    loyalty: 1
+    competence: 3
+    reach: {rank: 4}
     horizon_days: 7
   - person: stark
     office: Chief of Naval Operations
@@ -1320,6 +1341,9 @@ cards:
     feeds: [atlantic_reports, magic_intercepts]
     pipelines: [naval_order]
     constraints: [orders to the fleets go through the Navy chain of command]
+    loyalty: 1
+    competence: 3
+    reach: {rank: 3}
     horizon_days: 7
   - person: king
     office: Commander in Chief, Atlantic Fleet
@@ -1329,6 +1353,9 @@ cards:
     inner_circle: [{person: stark, channel: cable}]
     feeds: [atlantic_reports]
     pipelines: [naval_order]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 2}
     horizon_days: 7
   - person: kramer
     office: Navy communications intelligence translator
@@ -1336,6 +1363,9 @@ cards:
     principals: [stark]
     powers: [translate and brief intercepts]
     inner_circle: [{person: stark, channel: in_person}]
+    loyalty: 0
+    competence: 4
+    reach: {rank: 1}
     horizon_days: 3
   - person: morgenthau
     office: Secretary of the Treasury
@@ -1343,6 +1373,9 @@ cards:
     principals: [roosevelt]
     powers: [administer the Treasury, freeze foreign assets]
     inner_circle: [{person: roosevelt, channel: in_person}]
+    loyalty: 2
+    competence: 3
+    reach: {rank: 3}
     horizon_days: 7
   - person: hopkins
     office: Special assistant to the President
@@ -1356,6 +1389,9 @@ cards:
     feeds: [soviet_requests]
     pipelines: [lend_lease_allocation, soviet_aid_request]
     personal: [chronically ill, often lives in the White House]
+    loyalty: 2
+    competence: 3
+    reach: {rank: 1}
     horizon_days: 7
   - person: stettinius
     office: Lend-Lease Administrator (appointed 28 Oct 1941)
@@ -1364,6 +1400,9 @@ cards:
     powers: [administer Lend-Lease allocations]
     inner_circle: [{person: hopkins, channel: in_person}, {person: roosevelt, channel: in_person}]
     pipelines: [lend_lease_allocation]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 3}
     horizon_days: 7
   - person: early
     office: White House press secretary
@@ -1373,18 +1412,27 @@ cards:
     inner_circle: [{person: roosevelt, channel: in_person}]
     feeds: [gallup_polls]
     pipelines: [public_address]
+    loyalty: 1
+    competence: 3
+    reach: {rank: 1}
     horizon_days: 3
   - person: wh_clerk
     office: White House executive clerk
     voice: "Neutral, formal and exact; records times, names and papers, never offers an opinion."
     principals: [roosevelt]
     powers: [draft and file executive orders]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 0}
     horizon_days: 2
   - person: cable_clerk
     office: State Department cable room
     voice: "Terse cable-room form; logs, numbers and forwards, nothing more."
     principals: [hull]
     powers: [encipher and send cables]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 0}
     horizon_days: 2
   - person: rayburn
     office: Speaker of the House of Representatives
@@ -1395,6 +1443,9 @@ cards:
     feeds: [house_whip_count]
     pipelines: [bill_through_congress]
     constraints: [the Democratic majority in the House is thin on neutrality]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 4}
     horizon_days: 7
   - person: mccormack
     office: House Majority Leader
@@ -1402,12 +1453,18 @@ cards:
     principals: [rayburn]
     powers: [schedule floor business, count votes]
     inner_circle: [{person: rayburn, channel: in_person}]
+    loyalty: 2
+    competence: 3
+    reach: {rank: 3}
     horizon_days: 7
   - person: house_clerk
     office: House committee clerk
     voice: "Dry committee-room register; dates, votes and amendments, set down exactly."
     principals: [rayburn]
     powers: [report and calendar bills]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 0}
     horizon_days: 2
   - person: barkley
     office: Senate Majority Leader
@@ -1418,6 +1475,9 @@ cards:
     feeds: [senate_whip_count]
     pipelines: [bill_through_congress]
     constraints: [Senate rules allow extended debate]
+    loyalty: 1
+    competence: 3
+    reach: {rank: 4}
     horizon_days: 7
   - person: wheeler
     office: Senator for Montana
@@ -1426,6 +1486,9 @@ cards:
     powers: [vote and speak in the Senate]
     inner_circle: [{person: nye, channel: in_person}]
     interests: [keep the United States out of the war]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 2}
     horizon_days: 7
   - person: nye
     office: Senator for North Dakota
@@ -1434,6 +1497,9 @@ cards:
     powers: [vote and speak in the Senate]
     inner_circle: [{person: wheeler, channel: in_person}]
     interests: [keep the United States out of the war]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 2}
     horizon_days: 7
   - person: eden
     office: Foreign Secretary
@@ -1441,6 +1507,9 @@ cards:
     principals: [churchill]
     powers: [conduct British foreign policy]
     inner_circle: [{person: churchill, channel: in_person}, {person: halifax, channel: cable}]
+    loyalty: 1
+    competence: 3
+    reach: {rank: 4}
     horizon_days: 7
   - person: halifax
     office: British Ambassador to the United States
@@ -1448,6 +1517,9 @@ cards:
     principals: [eden]
     powers: [represent the Government in Washington]
     inner_circle: [{person: eden, channel: cable}, {person: hull, channel: in_person}]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 2}
     horizon_days: 7
   - person: pound
     office: First Sea Lord and Chairman of the Chiefs of Staff
@@ -1456,6 +1528,9 @@ cards:
     powers: [direct the Royal Navy, chair the Chiefs of Staff]
     inner_circle: [{person: churchill, channel: in_person}]
     pipelines: [cos_directive]
+    loyalty: 1
+    competence: 3
+    reach: {rank: 3}
     horizon_days: 7
   - person: ismay
     office: Chief Staff Officer to the Minister of Defence
@@ -1463,18 +1538,27 @@ cards:
     principals: [churchill]
     powers: [carry the Chiefs' papers to the War Cabinet]
     inner_circle: [{person: churchill, channel: in_person}]
+    loyalty: 1
+    competence: 3
+    reach: {rank: 2}
     horizon_days: 2
   - person: uk_cipher_clerk
     office: Downing Street cipher room
     voice: "Clipped cipher-room form; groups, times and routing, no comment."
     principals: [churchill]
     powers: [encipher and send cables]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 0}
     horizon_days: 2
   - person: bbc_clerk
     office: BBC duty officer
     voice: "Measured duty-log tone; times, items and transmissions, scrupulously neutral."
     principals: [churchill]
     powers: [schedule a broadcast]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 0}
     horizon_days: 2
   - person: hirohito
     office: Emperor of Japan
@@ -1486,6 +1570,9 @@ cards:
     inner_circle: [{person: konoe, channel: in_person}, {person: tojo, channel: in_person}]
     pipelines: [japan_state_policy]
     constraints: [by convention does not overrule a unanimous conference]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 5}
     horizon_days: 14
   - person: nomura
     office: Japanese Ambassador to the United States
@@ -1493,6 +1580,9 @@ cards:
     principals: [konoe]
     powers: [negotiate under instruction]
     inner_circle: [{person: hull, channel: in_person}, {person: konoe, channel: cable}]
+    loyalty: 1
+    competence: 2
+    reach: {rank: 2}
     horizon_days: 7
   - person: kurusu
     office: Japanese Ambassador to Germany
@@ -1500,6 +1590,9 @@ cards:
     principals: [konoe]
     powers: [represent Japan in Berlin]
     inner_circle: [{person: ribbentrop, channel: in_person}]
+    loyalty: 0
+    competence: 4
+    reach: {rank: 2}
     horizon_days: 7
   - person: sugiyama
     office: Chief of the Army General Staff
@@ -1508,6 +1601,9 @@ cards:
     powers: [direct Army operations, sit in the Liaison Conference]
     inner_circle: [{person: tojo, channel: in_person}, {person: nagano, channel: in_person}]
     pipelines: [japan_state_policy]
+    loyalty: 0
+    competence: 2
+    reach: {rank: 3}
     horizon_days: 7
   - person: nagano
     office: Chief of the Navy General Staff
@@ -1516,12 +1612,18 @@ cards:
     powers: [direct Navy operations, sit in the Liaison Conference]
     inner_circle: [{person: tojo, channel: in_person}, {person: sugiyama, channel: in_person}]
     pipelines: [japan_state_policy]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 3}
     horizon_days: 7
   - person: cabinet_clerk
     office: Cabinet Secretariat
     voice: "Formal secretariat register; minutes, dates and decisions, set down without comment."
     principals: [konoe]
     powers: [issue cabinet statements]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 0}
     horizon_days: 2
   - person: goering
     office: Reichsmarschall
@@ -1529,6 +1631,9 @@ cards:
     principals: [hitler]
     powers: [command the Luftwaffe, run the Four Year Plan]
     inner_circle: [{person: hitler, channel: in_person}]
+    loyalty: 1
+    competence: 2
+    reach: {rank: 4}
     horizon_days: 7
   - person: ribbentrop
     office: Reich Foreign Minister
@@ -1536,6 +1641,9 @@ cards:
     principals: [hitler]
     powers: [conduct German foreign policy]
     inner_circle: [{person: hitler, channel: in_person}]
+    loyalty: 1
+    competence: 3
+    reach: {rank: 4}
     horizon_days: 7
   - person: raeder
     office: Commander in Chief of the Navy
@@ -1545,6 +1653,9 @@ cards:
     inner_circle: [{person: hitler, channel: in_person}]
     feeds: [german_naval_reports]
     pipelines: [okw_directive]
+    loyalty: 2
+    competence: 3
+    reach: {rank: 3}
     horizon_days: 7
   - person: jodl
     office: Chief of Wehrmacht Operations Staff
@@ -1552,6 +1663,9 @@ cards:
     principals: [hitler]
     powers: [draft Fuehrer directives]
     inner_circle: [{person: hitler, channel: in_person}]
+    loyalty: 2
+    competence: 4
+    reach: {rank: 3}
     horizon_days: 3
   - person: victor_emmanuel
     office: King of Italy
@@ -1559,6 +1673,9 @@ cards:
     principals: [italy]
     powers: [head of state, nominal supreme command]
     inner_circle: [{person: mussolini, channel: in_person}]
+    loyalty: 0
+    competence: 3
+    reach: {rank: 5}
     horizon_days: 14
   - person: cavallero
     office: Chief of the Comando Supremo
@@ -1567,6 +1684,9 @@ cards:
     powers: [direct Italian operations]
     inner_circle: [{person: mussolini, channel: in_person}]
     pipelines: [comando_supremo_order]
+    loyalty: 1
+    competence: 2
+    reach: {rank: 3}
     horizon_days: 7
   - person: molotov
     office: People's Commissar for Foreign Affairs
@@ -1576,6 +1696,9 @@ cards:
     inner_circle: [{person: stalin, channel: in_person}]
     feeds: [soviet_requests]
     pipelines: [gko_decree, soviet_aid_request]
+    loyalty: 2
+    competence: 3
+    reach: {rank: 4}
     horizon_days: 7
   - person: shaposhnikov
     office: Chief of the General Staff
@@ -1585,6 +1708,9 @@ cards:
     inner_circle: [{person: stalin, channel: in_person}]
     feeds: [stavka_situation]
     pipelines: [gko_decree]
+    loyalty: 2
+    competence: 4
+    reach: {rank: 3}
     horizon_days: 7
   - person: he_yingqin
     office: Chief of the General Staff, China
@@ -1593,6 +1719,9 @@ cards:
     powers: [direct operations under the Commission]
     inner_circle: [{person: chiang, channel: in_person}]
     pipelines: [mac_order]
+    loyalty: 1
+    competence: 3
+    reach: {rank: 3}
     horizon_days: 7
   - person: soong
     office: Chiang's personal representative in Washington
@@ -1601,6 +1730,9 @@ cards:
     powers: [negotiate for aid]
     inner_circle: [{person: chiang, channel: cable}, {person: hull, channel: in_person}]
     pipelines: [appeal_through_soong]
+    loyalty: 1
+    competence: 3
+    reach: {rank: 2}
     horizon_days: 7
 
 # Nobody is pre-seated: players claim playable cards at Session Zero.

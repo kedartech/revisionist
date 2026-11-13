@@ -159,9 +159,10 @@ def test_only_a_living_person_the_seat_can_reach_can_be_consulted() -> None:
     assert held(store) == []
 
 
-MOLOTOV = "Vyacheslav Molotov"
-SEALED = "Molotov's own note on the Moscow talks, for no one else"
-SHARED = "Molotov to the President, on the supply protocol"
+# Rank 3, so a head of government outside his chain is always met.
+OUTER = "Boris Shaposhnikov"
+SEALED = "Shaposhnikov's own note on the Moscow front, for no one else"
+SHARED = "Shaposhnikov to the President, on the supply protocol"
 
 
 def person_named(store: EventStore, name: str) -> EntityId:
@@ -217,8 +218,8 @@ def test_an_outer_contact_is_consulted_over_the_first_channel_that_reaches_them(
     state = load_state(store, CAMPAIGN)
     seat = roosevelt_seat(store)
     me = state.seats[seat].embodies
-    molotov = person_named(store, MOLOTOV)
-    assert molotov not in {c.person for c in state.cards[me].inner_circle}
+    outer = person_named(store, OUTER)
+    assert outer not in {c.person for c in state.cards[me].inner_circle}
     channels: list[ChannelKind] = []
 
     class Keep:
@@ -228,9 +229,9 @@ def test_an_outer_contact_is_consulted_over_the_first_channel_that_reaches_them(
             channels.append(channel)
             return Spoken(text="We need lorries before tanks.")
 
-    out = consult(store, CAMPAIGN, seat, molotov, QUESTION, Keep())
-    assert out.person == MOLOTOV
-    assert channels == [out.channel] and out.channel == channels_to(state, me, molotov)[0]
+    out = consult(store, CAMPAIGN, seat, outer, QUESTION, Keep())
+    assert out.person == OUTER
+    assert channels == [out.channel] and out.channel == channels_to(state, me, outer)[0]
     (h,) = held(store)
     assert isinstance(h.payload, ev.CounselHeld) and h.payload.channel == out.channel
     assert h.scope == private_to(seat)
@@ -239,12 +240,12 @@ def test_an_outer_contact_is_consulted_over_the_first_channel_that_reaches_them(
 def test_an_outer_contact_speaks_only_from_pages_the_asking_seat_also_holds() -> None:
     store = ready()
     seat = roosevelt_seat(store)
-    molotov = person_named(store, MOLOTOV)
-    plant_page(store, molotov, SEALED, private_to(SeatId(derived_id(CAMPAIGN, "x"))), "sealed")
-    plant_page(store, molotov, SHARED, private_to(seat), "shared")
+    outer = person_named(store, OUTER)
+    plant_page(store, outer, SEALED, private_to(SeatId(derived_id(CAMPAIGN, "x"))), "sealed")
+    plant_page(store, outer, SHARED, private_to(seat), "shared")
     transport = Kept()
     with pytest.raises(TransportError):
-        consult(store, CAMPAIGN, seat, molotov, QUESTION, ClaudeCounsellor(transport))
+        consult(store, CAMPAIGN, seat, outer, QUESTION, ClaudeCounsellor(transport))
     (req,) = transport.sent
     assert SHARED in req.prompt
     assert SEALED not in req.prompt
@@ -273,9 +274,9 @@ def test_a_name_resolves_to_the_inner_circle_first_and_an_unclear_one_is_refused
     seat = roosevelt_seat(store)
     state = with_twin(load_state(store, CAMPAIGN), hopkins(store), "twin-hopkins")
     assert server._reachable(state, seat, "Harry L. Hopkins") == hopkins(store)
-    state = with_twin(state, person_named(store, MOLOTOV), "twin-molotov")
+    state = with_twin(state, person_named(store, OUTER), "twin-outer")
     with pytest.raises(ValueError, match="More than one"):
-        server._reachable(state, seat, MOLOTOV)
+        server._reachable(state, seat, OUTER)
 
 
 def test_an_outsider_who_would_not_take_a_meeting_does_not_answer() -> None:
@@ -299,7 +300,7 @@ def test_a_person_with_no_channel_is_refused(monkeypatch: pytest.MonkeyPatch) ->
             store,
             CAMPAIGN,
             roosevelt_seat(store),
-            person_named(store, MOLOTOV),
+            person_named(store, OUTER),
             QUESTION,
             ClaudeCounsellor(Capturing()),
         )
@@ -376,11 +377,11 @@ def test_counsel_lines_carry_the_day_they_were_held_and_the_tie() -> None:
     consult(store, CAMPAIGN, seat, hopkins(store), "Harry, a word?", Says())
     later = first + timedelta(days=3)
     advance_to(store, later)
-    consult(store, CAMPAIGN, seat, person_named(store, MOLOTOV), "Trucks or tanks?", Says())
+    consult(store, CAMPAIGN, seat, person_named(store, OUTER), "Trucks or tanks?", Says())
     state = load_state(store, CAMPAIGN)
     lines = counsel_lines(project(state, seat), list(store.read(CAMPAIGN)), seat)
     assert [(x["person"], x["question"], x["tie"]) for x in lines] == [
-        (MOLOTOV, "Trucks or tanks?", "outer"),
+        (OUTER, "Trucks or tanks?", "outer"),
         ("Harry L. Hopkins", "Harry, a word?", "inner"),
     ]
     assert [x["day_iso"] for x in lines] == [later.isoformat(), first.isoformat()]

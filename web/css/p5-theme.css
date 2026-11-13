@@ -1,6 +1,0 @@
-/* The header's theme control. Colours come from the header's own button rule in app.css;
-   only the pressed Effects toggle and the focus ring are set here. */
-.rl-theme { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-.rl-theme button { padding: var(--space-1) var(--space-2); font: 12px/1.2 var(--font-chrome); white-space: nowrap; }
-.rl-theme button[aria-pressed="true"] { background: var(--accent-bg); color: var(--on-accent); border-color: var(--accent); }
-.rl-theme button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

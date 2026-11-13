@@ -1,38 +1,44 @@
-// The theme setting: Paper (the default) or Terminal, kept in the browser under `rv.theme`,
-// and the screen effects, off unless `rv.effects` is "on".
+// The screen effects, on unless `rv.effects` is "off", and the one header toggle for them.
 // Storage is a parameter, so nothing here touches `window` when the module is imported.
 
-export const THEMES = ['terminal', 'paper'];
-export const DEFAULT_THEME = 'paper';
-export const THEME_KEY = 'rv.theme';
+import { h } from './dom.js';
+
 export const EFFECTS_KEY = 'rv.effects';
 
-/** The stored theme, or `DEFAULT_THEME` when it is missing, unknown or storage is blocked. */
-export function themeName(storage) {
+/** False only when `rv.effects` is "off"; true when missing, unknown or storage is blocked. */
+export function effectsOn(storage) {
   try {
-    const stored = storage?.getItem(THEME_KEY);
-    return THEMES.includes(stored) ? stored : DEFAULT_THEME;
+    return storage?.getItem(EFFECTS_KEY) !== 'off';
   } catch {
-    return DEFAULT_THEME;
+    return true;
   }
 }
 
-/** True only when `rv.effects` is "on"; false when missing or storage is blocked. */
-export function effectsOn(storage) {
+/** Keeps the setting as "on" or "off"; where storage is blocked it applies for this visit only. */
+export function saveEffects(storage, on) {
   try {
-    return storage?.getItem(EFFECTS_KEY) === 'on';
+    storage?.setItem(EFFECTS_KEY, on ? 'on' : 'off');
   } catch {
-    return false;
+    // storage blocked: the change still applies for this visit
   }
 }
 
 /**
- * Sets `data-theme` and `data-effects` on the page's root element: the CSP allows a
- * stylesheet keyed on an attribute, not inline style.
+ * Sets `data-effects` on the page's root element: the CSP allows a stylesheet keyed on an
+ * attribute, not inline style.
  */
-export function applyTheme(root, storage) {
-  root.dataset.theme = themeName(storage);
+export function applyEffects(root, storage) {
   root.dataset.effects = effectsOn(storage) ? 'on' : 'off';
+}
+
+/** The header's "Screen effects" button, pressed while they are on; a click asks for the other state. */
+export function effectsControl({ effects, onChange }) {
+  return h('button', {
+    type: 'button',
+    class: 'rl-effects',
+    'aria-pressed': effects ? 'true' : 'false',
+    onclick: () => onChange(!effects),
+  }, 'Screen effects');
 }
 
 /** The page's `localStorage`, or undefined where the browser blocks reading it. */

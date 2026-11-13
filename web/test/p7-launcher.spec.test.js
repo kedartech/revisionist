@@ -53,3 +53,15 @@ test('a chat glyph, a large target, and clear of the tray on a phone', () => {
   assert.match(css, /@media[^{]*max-width:\s*480px[^{]*\{[^}]*\.rl-msgr-btn/);
   assert.doesNotMatch(css, /#[0-9a-fA-F]{3,8}\b/, 'colours come from the tokens');
 });
+
+test('on a phone the open launcher stays, beside the title, as the full-screen panel\'s close', () => {
+  const css = read('css/p5-launcher.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  const at = css.indexOf('@media (max-width: 767px)');
+  assert.ok(at >= 0, 'a block under 768 px');
+  const phone = css.slice(at, css.indexOf('\n}', at));
+  const open = /\.rl-msgr-btn\[aria-expanded="true"\]\s*\{([^}]*)\}/.exec(phone);
+  assert.ok(open, 'a rule for the open launcher under 768 px');
+  assert.match(open[1], /display:\s*inline-flex/);
+  assert.match(open[1], /top:\s*var\(--space-2\)/);
+  assert.match(open[1], /bottom:\s*auto/);
+});

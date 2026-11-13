@@ -1,7 +1,7 @@
-/* p5-forms.css: unit M3 of Train 2. */
+/* p5-forms.css: unit M3 of Train 2. Tokens only (web/css/tokens.css). */
 
-.rl-forms { margin-bottom: 1rem; }
-.rl-forms > summary { cursor: pointer; padding: 0.5rem 0; font: 600 12px/1.3 var(--font-head); letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg); }
+.rl-forms { margin-bottom: var(--space-4); padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-forms > summary { cursor: pointer; padding: var(--space-2) 0; font: 600 12px/1.3 var(--font-chrome); letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg); }
 .rl-forms > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.rl-forms > .rl-instruments { margin: 0.75rem 0 0; padding: 0; list-style: none; }
-.rl-forms-note { margin: 0.75rem 0 0; color: var(--fg-muted); }
+.rl-forms > .rl-instruments { margin: var(--space-3) 0 0; padding: 0; list-style: none; }
+.rl-forms-note { margin: var(--space-3) 0 0; color: var(--fg-muted); }

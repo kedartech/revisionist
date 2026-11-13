@@ -1,10 +1,11 @@
 """Counsel (realism, Phase 4): a seat consults a person on its card and hears them out.
 
 The counsel model speaks as that person from a ``PersonView`` (their face, their
-voice and the pages they hold as of today, from ``core.realism.person``), never from
-``State``. Counsel changes nothing in the world, costs no in-world days [proposed]
-and never files an order: the reply lands as a ``counsel_held`` record private to
-the seat, sealed with the seat's key, and the call's cost as ``cost_logged``.
+voice, the pages they hold as of today, the news, and the asker's desk when they serve
+the asker, from ``core.realism.person``), never from ``State``. Counsel changes nothing
+in the world, costs no in-world days [proposed] and never files an order: the reply
+lands as a ``counsel_held`` record private to the seat, sealed with the seat's key, and
+the call's cost as ``cost_logged``.
 """
 
 import json
@@ -20,6 +21,7 @@ from revisionist.core.ids import CampaignId, EntityId, EventId, SeatId
 from revisionist.core.ontology import EntityKind, EntityStatus
 from revisionist.core.project import project
 from revisionist.core.realism.card import ChannelKind
+from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.person import PersonView, project_person
 from revisionist.core.realism.reach import channels_to, takes_meeting
 from revisionist.core.state import State
@@ -62,9 +64,21 @@ COUNSEL_SCHEMA: dict[str, Any] = {
 }
 
 
+def _lines(body: Sequence[BodyField]) -> list[dict[str, Any]]:
+    return [
+        {
+            "label": x.label,
+            "value": "not stated" if x.value is None else x.value,
+            **({"unit": x.unit} if x.unit else {}),
+        }
+        for x in body
+    ]
+
+
 def counsel_prompt(person: PersonView, asker: Asker, channel: ChannelKind, question: str) -> str:
     """The person first (stable across questions, so a provider cache can reuse it), then
-    their papers, then the question."""
+    their papers, the news and their principal's mandates where they have any, then the
+    question."""
     if not isinstance(person, PersonView):
         raise TypeError(f"counsel takes a PersonView, not {type(person).__name__}")
     office = person.face.office if person.face is not None else ""
@@ -76,22 +90,29 @@ def counsel_prompt(person: PersonView, asker: Asker, channel: ChannelKind, quest
             "title": d.title,
             "issued": d.issued.isoformat(),
             "channel": d.channel.value,
-            "lines": [
-                {
-                    "label": x.label,
-                    "value": "not stated" if x.value is None else x.value,
-                    **({"unit": x.unit} if x.unit else {}),
-                }
-                for x in d.body
-            ],
+            "lines": _lines(d.body),
             **({"text": d.prose} if d.prose else {}),
         }
         for d in person.documents
     ]
+    news = [
+        {
+            "on": n.on.isoformat(),
+            "headline": n.headline,
+            **({"lines": _lines(n.facts)} if n.facts else {}),
+        }
+        for n in person.news
+    ]
+    blocks = f"## Your papers\n{json.dumps(papers, ensure_ascii=False)}\n\n"
+    if news:
+        blocks += f"## The news\n{json.dumps(news, ensure_ascii=False)}\n\n"
+    if person.mandates:
+        blocks += (
+            f"## Before your principal\n{json.dumps(list(person.mandates), ensure_ascii=False)}\n\n"
+        )
     who = asker.name + (f", {asker.office}" if asker.office else "")
     return (
-        f"{head}{voice}\n\n## Today\n{person.today.isoformat()}\n\n"
-        f"## Your papers\n{json.dumps(papers, ensure_ascii=False)}\n\n"
+        f"{head}{voice}\n\n## Today\n{person.today.isoformat()}\n\n{blocks}"
         f"## {who} asks you, by {channel.value.replace('_', ' ')}\n{question}"
     )
 
@@ -140,11 +161,11 @@ def consult(
     counsellor: Counsellor,
 ) -> Counsel:
     """Put ``question`` to ``person`` over the seat's channel to them: the card's channel for
-    the inner circle, else the first channel that reaches them, and then the person speaks
-    only from pages the seat also holds, and may decline as they would a meeting (one roll
-    per tick, whatever the words). Raises ``CounselRefusedError`` for anyone the seat
-    cannot reach, an outsider who declines, or an empty question; ``TransportError``
-    propagates and nothing is written."""
+    the inner circle, else the first channel that reaches them, and then the person may
+    decline as they would a meeting (one roll per tick, whatever the words). An outsider,
+    or a person another seat holds, speaks only from pages the seat also holds. Raises
+    ``CounselRefusedError`` for anyone the seat cannot reach, an outsider who declines, or
+    an empty question; ``TransportError`` propagates and nothing is written."""
     state = load_state(store, campaign_id)
     if state.ruleset != "realism":
         raise CounselRefusedError("counsel is for realism campaigns")
@@ -164,7 +185,7 @@ def consult(
     if contact is None and not takes_meeting(state, me.embodies, person, "counsel", state.tick):
         raise CounselRefusedError(f"{state.entities[person].name} did not answer.")
     asker = Asker(name=state.entities[me.embodies].name, office=card.office)
-    seen = project_person(state, person, asker=None if contact is not None else seat)
+    seen = project_person(state, person, seat)
     spoken = counsellor.speak(seen, asker, channel, question)
     if not spoken.text:
         raise CounselRefusedError(f"{state.entities[person].name} had nothing to say")

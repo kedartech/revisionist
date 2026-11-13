@@ -53,6 +53,7 @@ from revisionist.engine.store import load_state
 from revisionist.engine.tick import NotInPlayError
 from revisionist.engine.web import (
     agenda_api,
+    destinations,
     dossiers,
     new_game_api,
     reach_groups,
@@ -227,6 +228,7 @@ class App:
                     realism_snapshot.read_ids(log_now, link.seat_id),
                     realism_snapshot.flagged_ids(log_now, link.seat_id),
                     wake_at,
+                    destinations.place_keys(state, log_now),
                 )
                 seat_view["realism"]["counsel"] = realism_snapshot.counsel_lines(
                     project(state, link.seat_id), log_now, link.seat_id

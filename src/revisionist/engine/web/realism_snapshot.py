@@ -18,13 +18,20 @@ from revisionist.core.ontology import EntityKind
 from revisionist.core.project import project
 from revisionist.core.realism.advance import next_wake
 from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, words
-from revisionist.core.realism.document import BodyField, DocumentView
+from revisionist.core.realism.document import DocumentView
 from revisionist.core.realism.effect import PartView
 from revisionist.core.realism.pipeline import Order, OrderStatus, Pipeline, StepAction, StepOutcome
+from revisionist.core.realism.pipelines import destination, place_named
 from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
 from revisionist.engine.aide import AideBrief
 from revisionist.engine.directive import Proposal, channels
+from revisionist.engine.web.destinations import (
+    Known,
+    latest_sightings,
+    own_sides,
+    place_choices,
+)
 from revisionist.engine.web.realism_api import (
     BodyLine,
     Clock,
@@ -70,10 +77,12 @@ def _choices(spec: ParamSpec) -> list[LeverChoice]:
     return [LeverChoice(value=v, label=t) for v, t in zip(spec.choices, spoken, strict=True)]
 
 
-def _term(spec: ParamSpec, value: int | str) -> str:
+def _term(spec: ParamSpec, value: int | str, view: View | None = None) -> str:
     shown = str(value)
     if spec.kind is ParamKind.ENUM:
-        shown = next((c["label"] for c in _choices(spec) if c["value"] == value), words(shown))
+        place = place_named(view, shown) if view is not None else None
+        named = place.name if place is not None else words(shown)
+        shown = next((c["label"] for c in _choices(spec) if c["value"] == value), named)
     return f"{_param_label(spec)}: {shown}"
 
 
@@ -215,25 +224,12 @@ def situation(view: View) -> Situation:
 
 STALE_DAYS = 14
 """[proposed] A position older than this is drawn as stale."""
-_DEPTH = 8
 
 
 def _place(view: View, e: EntityId) -> MapPlace:
     at = view.entities[e].at
     assert at is not None  # a sighting names only places with a position (world_compile)
     return MapPlace(name=view.entities[e].name, lat=at[0], lon=at[1])
-
-
-def _sides(view: View) -> set[EntityId]:
-    """The viewer's person and everything above it: what counts as its own side."""
-    out: set[EntityId] = set()
-    at: EntityId | None = view.me.embodies
-    for _ in range(_DEPTH):
-        if at is None or at not in view.entities:
-            break
-        out.add(at)
-        at = view.entities[at].parent
-    return out
 
 
 def _map_orders(
@@ -306,13 +302,8 @@ def seat_map(
     if not places:
         return None
     today = view.in_world_date
-    own = _sides(view)
-    latest: dict[tuple[str, str], tuple[DocumentId, DocumentView, BodyField]] = {}
-    arrived = sorted(view.documents.items(), key=lambda kv: (kv[1].arrives, kv[1].issued, kv[0]))
-    for doc_id, doc in arrived:
-        for b in doc.body:
-            if b.sight is not None:
-                latest[(b.label, b.sight.kind.value)] = (doc_id, doc, b)
+    own = own_sides(view)
+    latest = latest_sightings(view)
     marks: list[MapMark] = []
     for (label, _), (doc_id, doc, b) in sorted(latest.items(), key=lambda kv: kv[0]):
         sight = b.sight
@@ -374,7 +365,7 @@ def _track(view: View, order: Order, pipeline: Pipeline) -> OrderTrack:
         lever=order.lever,
         label=lever_label(lever) if lever is not None else words(order.lever),
         terms=[
-            _term(specs[k], v) if k in specs else f"{words(k)}: {v}"
+            _term(specs[k], v, view) if k in specs else f"{words(k)}: {v}"
             for k, v in order.params.items()
         ],
         pipeline=pipeline.name,
@@ -415,8 +406,24 @@ def clock(
     )
 
 
-def desk(view: View) -> Desk:
-    """The viewer's own card, without its AI policy fields (they are not in a view)."""
+def _lever_param(view: View, lever: Lever, p: ParamSpec, known: Known) -> LeverParam:
+    places = place_choices(view, lever, p, known) if p is destination(lever) else []
+    return LeverParam(
+        name=p.name,
+        label=_param_label(p),
+        kind=p.kind.value,
+        lo=p.lo,
+        hi=p.hi,
+        choices=[LeverChoice(value=x["value"], label=x["label"]) for x in places]
+        if places
+        else _choices(p),
+        places=places,
+    )
+
+
+def desk(view: View, known: Known | None = None) -> Desk:
+    """The viewer's own card, without its AI policy fields (they are not in a view).
+    With ``known``, a movement form's destination offers every place on the map."""
     card = view.desk
     if card is None:
         raise ValueError(f"no card for the person {view.me.embodies}")
@@ -429,17 +436,7 @@ def desk(view: View) -> Desk:
                 label=lever_label(lever),
                 summary=lever.summary,
                 pipeline=lever.pipeline,
-                params=[
-                    LeverParam(
-                        name=p.name,
-                        label=_param_label(p),
-                        kind=p.kind.value,
-                        lo=p.lo,
-                        hi=p.hi,
-                        choices=_choices(p),
-                    )
-                    for p in lever.params
-                ],
+                params=[_lever_param(view, lever, p, known or Known()) for p in lever.params],
             )
             for lever in card.levers
         ],
@@ -577,9 +574,18 @@ def seat_realism(
     read: set[DocumentId],
     flagged: set[DocumentId],
     next_wake_at: str | None,
+    place_keys: Mapping[EntityId, str] | None = None,
 ) -> dict[str, Any]:
-    """The ``view.realism`` block of ``/api/me``: tray, desk, situation, orders, clock and map."""
+    """The ``view.realism`` block of ``/api/me``: tray, desk, situation, orders, clock and map.
+    ``place_keys`` (``destinations.place_keys``) opens movement forms to every place."""
     view = project(state, seat)
+    forces = _force_names(state, view)
+    card = state.cards.get(view.me.embodies)
+    known = Known(
+        keys=place_keys or {},
+        forces=forces,
+        allies=frozenset(card.allies if card is not None else ()),
+    )
     today = view.in_world_date
     if today is None:
         raise ValueError("a realism campaign has an in-world date")
@@ -588,11 +594,11 @@ def seat_realism(
     waiting_on = None if wake.reason.what == "horizon" else wake.reason.label
     return {
         "documents": documents(view, read, flagged),
-        "desk": desk(view),
+        "desk": desk(view, known),
         "situation": situation(view),
         "orders": orders(view, state.pipelines),
         "clock": clock(view, next_wake_at, waiting_on, 0, wake.to.isoformat()),
-        "map": seat_map(view, _force_names(state, view), state.pipelines),
+        "map": seat_map(view, forces, state.pipelines),
         "threats": seat_threats(state, seat, view),
     }
 

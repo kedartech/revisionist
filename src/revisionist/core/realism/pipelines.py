@@ -12,7 +12,7 @@ from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.ids import CampaignId, DocumentId, EntityId, OrderId, derived_id
-from revisionist.core.ontology import Controller
+from revisionist.core.ontology import Controller, Entity, EntityKind
 from revisionist.core.realism import actors, resolvers
 from revisionist.core.realism.card import (
     ChannelKind,
@@ -38,8 +38,9 @@ from revisionist.core.realism.pipeline import (
     StepOutcome,
     step_due,
 )
-from revisionist.core.state import State
+from revisionist.core.state import State, View
 from revisionist.core.visibility import PUBLIC, Scope, Visibility
+from revisionist.core.world_compile import object_id
 
 RealismStep = ev.OrderStepTaken | ev.OrderSettled | ev.DocumentIssued
 
@@ -184,14 +185,40 @@ def _param_label(spec: ParamSpec | None, name: str) -> str:
     return (spec.label if spec is not None else "") or words(name)
 
 
-def _param_value(spec: ParamSpec | None, value: ParamValue) -> int | str:
-    """A parameter's value in words: an enum choice by its label, never its key."""
+DESTINATION = {"movement": "to"}
+"""For each resolver that sends a force somewhere, the parameter that names where. It
+takes any place with a position, not only the choices its form was written with."""
+
+
+def destination(lever: Lever) -> ParamSpec | None:
+    """The lever's parameter naming where a force is sent; None when it has none."""
+    name = DESTINATION.get(lever.resolver)
+    return next((p for p in lever.params if p.name == name and p.kind is ParamKind.ENUM), None)
+
+
+def place_named(where: State | View, key: str) -> Entity | None:
+    """The place a world key names, if the campaign has it and it has a position."""
+    found = where.entities.get(EntityId(object_id(where.campaign_id, "entity", key)))
+    if found is None or found.kind is not EntityKind.LOCATION or found.at is None:
+        return None
+    return found
+
+
+def _param_value(
+    spec: ParamSpec | None, value: ParamValue, where: State | View | None = None
+) -> int | str:
+    """A parameter's value in words: an enum choice by its label, a place by its name,
+    never its key."""
     if isinstance(value, int):
         return value
     if spec is not None and spec.kind is ParamKind.ENUM and value in spec.choices:
         if spec.choice_labels:
             return spec.choice_labels[spec.choices.index(value)]
         return words(value)[:60]
+    if spec is not None and spec.kind is ParamKind.ENUM and where is not None:
+        place = place_named(where, value)
+        if place is not None:
+            return place.name[:60]
     return value[:60]
 
 
@@ -200,7 +227,7 @@ def _leak(state: State, order: Order, author: EntityId, on: date) -> ev.Document
     lever = _lever(state, order)
     specs = {p.name: p for p in lever.params}
     body = tuple(
-        BodyField(label=_param_label(specs.get(k), k), value=_param_value(specs.get(k), v))
+        BodyField(label=_param_label(specs.get(k), k), value=_param_value(specs.get(k), v, state))
         for k, v in order.params.items()
     )
     return ev.DocumentIssued(
@@ -257,7 +284,7 @@ def order_words(state: State, order: Order) -> str:
     lever = _lever(state, order)
     specs = {p.name: p for p in lever.params}
     terms = ", ".join(
-        f"{_param_label(specs.get(k), k)} {_param_value(specs.get(k), v)}"
+        f"{_param_label(specs.get(k), k)} {_param_value(specs.get(k), v, state)}"
         for k, v in order.params.items()
     )
     label = lever.label or words(lever.name)
@@ -282,7 +309,7 @@ def _reply(
     lead = lever.params[0] if lever.params else None
     given = order.params.get(lead.name) if lead is not None else None
     if lead is not None and lead.choice_labels and isinstance(given, str):
-        title = f"On your order: {_param_value(lead, given)}"
+        title = f"On your order: {_param_value(lead, given, state)}"
     else:
         title = f"On your order: {label}"
     body = [
@@ -291,7 +318,7 @@ def _reply(
         *(
             BodyField(
                 label=f"Changed: {_param_label(specs.get(k), k)}"[:60],
-                value=_param_value(specs.get(k), v),
+                value=_param_value(specs.get(k), v, state),
             )
             for k, v in outcome.amended.items()
         ),
@@ -416,9 +443,12 @@ def human_step(
 
 
 __all__ = [
+    "DESTINATION",
     "RealismStep",
+    "destination",
     "human_step",
     "order_words",
+    "place_named",
     "reply_doc_id",
     "run_pipelines",
     "waiting_on_human",

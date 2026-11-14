@@ -49,6 +49,8 @@ dialog.rl-pd::backdrop { background: var(--backdrop); }
 @media (max-width: 767px) {
   /* the messenger launcher hides on a phone; the icon sits above the tab bar (c-shell.css: 44px and a 1px rule) */
   .rl-press-btn { right: var(--space-3); bottom: calc(45px + var(--space-3)); }
+  /* room below the last card for the icon, so it never sits over the end of a column */
+  .rl-room, .rl-room.wide { padding-bottom: calc(45px + var(--space-3) + 44px + var(--space-4)); }
   dialog.rl-pd { inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0; border-radius: 0; }
   .rl-pd-tabs { flex-wrap: nowrap; overflow-x: auto; }
 }

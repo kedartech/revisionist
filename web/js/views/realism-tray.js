@@ -135,12 +135,19 @@ function sectionList(section, onOpen, open) {
 }
 
 /**
- * The tray panel. `opts`: { filter, sort, onFilter, onSort, page, onClose, onFlag, wide }.
- * The press is not In-Tray: its pages are on the newspaper desk, so the tray neither lists nor counts them.
+ * The listing as the tray holds it: the press is not In-Tray (its pages are on the newspaper
+ * desk), so its pages are left out and `unread` counts the rest. `listing` is not changed.
  */
+export function trayListing(listing) {
+  const documents = listing.documents.filter((d) => d.kind !== 'press');
+  return { ...listing, documents, unread: trayCounts(documents).unread };
+}
+
+/** The tray panel, over `trayListing(listing)`. `opts`: { filter, sort, onFilter, onSort, page, onClose, onFlag, wide }. */
 export function trayView(listing, onOpen, opts = {}) {
   const { filter = 'all', sort = 'newest', onFilter, onSort, page } = opts;
-  const papers = listing.documents.filter((d) => d.kind !== 'press');
+  const tray = trayListing(listing);
+  const papers = tray.documents;
   const counts = trayCounts(papers);
   const open = page?.item;
   const sorted = sortInTray(filterInTray(papers, filter), sort);

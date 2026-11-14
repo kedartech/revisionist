@@ -11,7 +11,7 @@ import { buttons, installDom, words } from './dom-fake.js';
 import {
   PRESS_SEEN_PREFIX, pressCounts, pressDock, pressFocus, pressMarks, pressPapers, pressSeen, pressTab, pressUnread,
 } from '../js/views/realism-press.js';
-import { trayView } from '../js/views/realism-tray.js';
+import { trayListing, trayView } from '../js/views/realism-tray.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const read = (f) => readFileSync(join(WEB, f), 'utf8');
@@ -168,6 +168,16 @@ test('the room wires the desk beside Messages, and What changed opens it', () =>
   assert.ok(room.includes("from './realism-press.js'"));
   assert.ok(room.includes('pressDock('));
   assert.match(room, /newsBlock\(whatChanged\(rv\.documents\), \(id\) => readPress\(/);
+});
+
+test('the tray\'s listing leaves the press out and counts unread without it', () => {
+  installDom();
+  const listing = { unread: 3, flagged: 0, documents: ITEMS };
+  const tray = trayListing(listing);
+  assert.deepEqual(tray.documents.map((d) => d.id), ['m1', 'c1']);
+  assert.equal(tray.unread, 0);
+  assert.equal(trayListing({ ...listing, documents: [...ITEMS, doc('u1', { unread: true })] }).unread, 1);
+  assert.equal(listing.documents.length, ITEMS.length, 'the listing itself is left alone');
 });
 
 test('phone: the desk fills the screen; the files write no inline style and no HTML', () => {

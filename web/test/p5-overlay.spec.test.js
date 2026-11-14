@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import * as overlay from '../js/views/realism-overlay.js';
 import { QUIET_LINES, overlayLines, wakeOverlay } from '../js/views/realism-overlay.js';
-import { installDom } from './dom-fake.js';
+import { installDom, words } from './dom-fake.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const read = (f) => readFileSync(join(WEB, f), 'utf8');
@@ -85,4 +85,129 @@ test('one delay rule per slot, a cycle of eight times three seconds, no style at
   assert.match(css, /animation: rl-ovl-show 24s linear infinite both;/);
   const src = read('js/views/realism-overlay.js');
   assert.doesNotMatch(src, /style=|\.style\.|'style'/);
+});
+
+// W1: while the wake runs the overlay also shows what is already known: your orders on
+// their way (one line each, to whom) and your own forces under way on a compact map.
+// Own marks and under-way orders only; nothing another side's papers report.
+
+const ORDER = (over) => ({
+  order: 'o-x', force: 'Task Force 1', mark: null, to: { name: 'Halifax', lat: 44.6, lon: -63.6 },
+  status: 'under_way', with_person: null, filed: '1941-10-15', ...over,
+});
+const withOrders = (orders) => ({ ...fixture.map, orders });
+const ovlMap = (layer) => layer.querySelector('figure.rl-ovl-map');
+const settle = () => new Promise((r) => setImmediate(r));
+
+test('the room hands the overlay its map and its record while the wake runs', () => {
+  const room = read('js/views/realism-room.js');
+  assert.match(room, /wakeOverlay\(\{ message, lines: overlayLines\(rv\.setting, rv\.wake\.wake\), map: rv\.map, orders: rv\.record\?\.orders \}\)/);
+});
+
+test('the overlay map draws your own marks only, never what another side is reported doing', () => {
+  installDom();
+  assert.ok(fixture.map.marks.some((m) => m.side === 'other'), 'the fixture holds other sides\' marks');
+  const layer = wakeOverlay({ message: 'm', lines: [], map: fixture.map, orders: [] });
+  const fig = ovlMap(layer);
+  assert.ok(fig, 'a map is drawn');
+  const marks = fig.querySelectorAll('g.rl-mk');
+  assert.deepEqual(marks.map((g) => g.classList.contains('rl-side-own')), [true]);
+  assert.match(words(fig), /US Atlantic Fleet/);
+  for (const m of fixture.map.marks.filter((x) => x.side !== 'own')) assert.ok(!words(layer).includes(m.name), m.name);
+});
+
+test('the overlay map draws your orders under way only, and nothing in it takes focus', () => {
+  installDom();
+  const awaiting = fixture.map.orders[0];
+  assert.equal(awaiting.status, 'awaiting');
+  const layer = wakeOverlay({ message: 'm', lines: [], map: withOrders([awaiting, ORDER({})]), orders: [] });
+  const drawn = ovlMap(layer).querySelectorAll('g.rl-mk-order');
+  assert.deepEqual(drawn.map((g) => g.classList.contains('rl-o-under_way')), [true]);
+  assert.match(words(layer), /Under way: Task Force 1/);
+  assert.doesNotMatch(words(layer), /Ordered: /);
+  assert.equal(layer.querySelectorAll('[tabindex]').length, 0);
+  assert.equal(layer.querySelectorAll('[role="button"]').length, 0);
+});
+
+test('your orders on their way: one line each, to whom, moving orders only', () => {
+  installDom();
+  const want = [
+    'Give a naval order: Escort the convoys, The Iceland route · with Franklin D. Roosevelt',
+    'Escort the convoys to Iceland and shoot on sight · to Harold R. Stark',
+    'Send a bill to Congress: Revise the Neutrality Act · with Sam Rayburn',
+  ];
+  assert.deepEqual(overlay.leavingLines(fixture.record.orders), want);
+  const layer = wakeOverlay({ message: 'm', lines: [], map: null, orders: fixture.record.orders });
+  assert.deepEqual(layer.querySelectorAll('ul.rl-ovl-orders li').map(words), want);
+  assert.equal(overlay.leavingLines([{ asked: 'On my own', to: null, holder: null, moving: true }])[0], 'On my own');
+});
+
+test('at most ORDER_LINES order lines, then how many more', () => {
+  installDom();
+  const n = overlay.ORDER_LINES + 3;
+  const many = Array.from({ length: n }, (_, i) => ({ asked: `Order ${i + 1}`, to: 'Stark', holder: 'Stark', moving: true }));
+  const lines = overlay.leavingLines(many);
+  assert.equal(lines.length, overlay.ORDER_LINES + 1);
+  assert.equal(lines.at(-1), 'and 3 more');
+});
+
+test('the animated marks are capped by MAP_MOVES, with one delay rule per move in the stylesheet', () => {
+  installDom();
+  const cap = overlay.MAP_MOVES;
+  assert.ok(Number.isInteger(cap) && cap > 0);
+  const orders = Array.from({ length: cap + 3 }, (_, i) => ORDER({ order: `o-${i}`, force: `Force ${i + 1}` }));
+  const fig = ovlMap(wakeOverlay({ message: 'm', lines: [], map: withOrders(orders), orders: [] }));
+  assert.equal(fig.querySelectorAll('g.rl-mk-order').length, cap + 3);
+  const going = fig.querySelectorAll('g.rl-ovl-go');
+  assert.equal(going.length, cap);
+  assert.deepEqual(going.map((g) => g.className.match(/rl-ovl-go-(\d+)/)[1]).map(Number),
+    Array.from({ length: cap }, (_, i) => i + 1));
+  const css = read('css/p5-overlay.css');
+  const slots = [...css.matchAll(/\.rl-ovl-go-(\d+) \.rl-mk-arrow,\s*\.rl-ovl-go-\1 \.rl-mk-goal\s*\{\s*animation-delay:/g)];
+  assert.deepEqual(slots.map((m) => Number(m[1])), Array.from({ length: cap }, (_, i) => i + 1));
+  // only a capped mark moves: every map animation in the sheet is under .rl-ovl-go
+  for (const [, sel] of css.matchAll(/([^{}]*)\{[^}]*\banimation(?:-name)?\s*:\s*(?!none)[^;]*;/g)) {
+    if (/rl-mk|rl-map/.test(sel)) assert.match(sel, /\.rl-ovl-go\b/, sel.trim());
+  }
+});
+
+test('under reduced motion the map stands still', () => {
+  const css = read('css/p5-overlay.css');
+  const still = css.match(/@media \(prefers-reduced-motion: reduce\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(still, /\.rl-ovl-go \.rl-mk-arrow,\s*\.rl-ovl-go \.rl-mk-goal\s*\{\s*animation:\s*none;\s*\}/);
+});
+
+test('no map in the payload, or nothing of your own on it: no map, the lines as before', () => {
+  installDom();
+  for (const map of [undefined, null, { places: [], marks: [], orders: [] },
+    { ...fixture.map, marks: fixture.map.marks.filter((m) => m.side !== 'own'), orders: fixture.map.orders }]) {
+    const layer = wakeOverlay({ message: 'm', lines: ['A line.'], map });
+    assert.equal(ovlMap(layer), null);
+    assert.equal(layer.querySelector('ul.rl-ovl-orders'), null);
+    assert.deepEqual(layer.querySelectorAll('li.rl-ovl-line').map(words), ['A line.']);
+  }
+});
+
+test('coastlines come from the land file, fetched once; without it the map still draws', async () => {
+  const doc = installDom();
+  await settle();
+  const was = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async (url) => {
+    calls += 1;
+    assert.equal(url, '/assets/land-110m.json');
+    return { ok: true, json: async () => ({ rings: [[[-60, 40], [-50, 40], [-50, 50], [-60, 50]]] }) };
+  };
+  try {
+    const layer = wakeOverlay({ message: 'm', lines: [], map: fixture.map, orders: [] });
+    doc.body.append(layer);
+    assert.ok(ovlMap(layer).querySelector('svg'), 'drawn before the land arrives');
+    await settle();
+    assert.ok(ovlMap(layer).querySelector('path.rl-map-land'), 'land drawn once it arrives');
+    const again = wakeOverlay({ message: 'm', lines: [], map: fixture.map, orders: [] });
+    assert.ok(ovlMap(again).querySelector('path.rl-map-land'), 'land kept for the next run');
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = was;
+  }
 });

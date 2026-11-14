@@ -71,7 +71,7 @@ from revisionist.core.realism.agenda import (
     PlayStyle,
 )
 from revisionist.core.realism.answer import Answer
-from revisionist.core.realism.card import ChannelKind, Conflict, ParamValue, SeatCard
+from revisionist.core.realism.card import Address, ChannelKind, Conflict, ParamValue, SeatCard
 from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
@@ -648,8 +648,9 @@ class OpponentsRanked(Model):
 
 class CardAmended(Model):
     """A game takes the world file's word on who a person stands with and against, how
-    they answer and how they write, replacing what its card held. Engine only: these are
-    AI policy. ``voice`` None leaves the card's voice as it was."""
+    they answer, how they write and how they are addressed, replacing what its card held.
+    Engine only: these are AI policy. ``voice`` or ``addressed_as`` None leaves the card's
+    value as it was."""
 
     kind: Literal["card_amended"] = "card_amended"
     person: EntityId
@@ -657,8 +658,9 @@ class CardAmended(Model):
     opposes: tuple[Conflict, ...] = Field(default=(), max_length=6)
     answers: tuple[Answer, ...] = Field(default=(), max_length=8)
     voice: str | None = Field(default=None, max_length=200)
+    addressed_as: Address | None = None
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"voice"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"voice", "addressed_as"})
 
 
 class AnswerPlanned(Model):

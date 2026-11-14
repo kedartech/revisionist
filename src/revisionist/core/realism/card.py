@@ -206,6 +206,10 @@ class Desk(CardFace):
         return self
 
 
+Address = Annotated[str, StringConstraints(min_length=1, max_length=60)]
+"""A form of address, written by hand in the world file."""
+
+
 class Conflict(Model):
     """Something the person is set against, as the world file declares it."""
 
@@ -239,6 +243,8 @@ class SeatCard(Desk):
     """What this person is set against."""
     answers: tuple[Answer, ...] = Field(default=(), max_length=8, exclude_if=lambda v: not v)
     """What this person does back when someone acts, while nobody plays them."""
+    addressed_as: Address | None = Field(default=None, exclude_if=lambda v: v is None)
+    """How a letter to this person opens ("Mr. President"). Read by the prose model only."""
 
     late_fields: ClassVar[frozenset[str]] = Desk.late_fields | {
         "competence",

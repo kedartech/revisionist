@@ -2,9 +2,9 @@
 
 The writer takes views only, so what it may know about a page beyond its lines is read
 from state here and handed over as plain data on the ``Author`` block: who the page goes
-to, the reader's own words for the order the page answers, what the page is for, how the
-author stands to the reader, and the author's own aims (an author may give a view only
-where it follows from them).
+to and how the reader is addressed, the reader's own words for the order the page
+answers, what the page is for, how the author stands to the reader, and the author's own
+aims (an author may give a view only where it follows from them).
 
 Only a private page held by one seat gets a context: a public page is addressed to no
 one. An order's words reach a page only when the page is the paper on that order and the
@@ -72,6 +72,8 @@ def page_context(state: State, page: DocumentView) -> dict[str, Any]:
     ctx: dict[str, Any] = {
         "to": {"name": name, **({"office": reader_card.office} if reader_card else {})}
     }
+    if reader_card is not None and reader_card.addressed_as is not None:
+        ctx["to_addressed_as"] = reader_card.addressed_as
     card = state.cards.get(page.author)
     if card is not None and reader in card.principals:
         ctx["stands"] = f"answers to {name}"

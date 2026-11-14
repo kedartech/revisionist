@@ -138,15 +138,15 @@ GREER_NEWS = {"headline": "US destroyer Greer and a U-boat exchange fire", "subj
 
 
 def headlined(entries: dict[str, dict[str, Any]]) -> WorldFile:
-    """autumn-1941 with its own headlines taken off and the given keys added to the named
-    history entries."""
+    """autumn-1941 with its own headlines and its deck of developments taken off, and the
+    given keys added to the named history entries."""
     world = cmp.load_world(cmp.world_path("autumn-1941"))
     bare = {"headline": None, "subject": None, "obj": None}
     schedule = tuple(
         HistoryDecl.model_validate({**h.model_dump(), **bare, **entries.get(h.key, {})})
         for h in world.schedule
     )
-    return world.model_copy(update={"schedule": schedule})
+    return world.model_copy(update={"schedule": schedule, "developments": ()})
 
 
 def rigged(world: WorldFile, key: str | None = None) -> Rig:

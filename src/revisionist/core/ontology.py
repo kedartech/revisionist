@@ -29,6 +29,7 @@ from revisionist.core.ids import (
     SeatId,
 )
 from revisionist.core.intent import Verb
+from revisionist.core.realism.effect import FIGURE_CAP, MoveFigure, ShiftDisposition
 from revisionist.core.visibility import Scope
 
 if TYPE_CHECKING:
@@ -241,6 +242,20 @@ class ScheduleSource(StrEnum):
     """Queued by a resolved order or a clock."""
     HISTORY = "history"
     """On history's clock: what really followed the start date (spec §5.4)."""
+    DEVELOPMENT = "development"
+    """From the world's deck: drawn once per campaign to a day in its window, if at all."""
+
+
+class DevelopmentCategory(StrEnum):
+    TECHNOLOGY = "technology"
+    PUBLIC_FIGURES = "public_figures"
+    ESPIONAGE = "espionage"
+    UNREST = "unrest"
+    WEATHER = "weather"
+
+
+DevelopmentEffect = Annotated[MoveFigure | ShiftDisposition, Field(discriminator="kind")]
+"""What a development may do beyond its news: move a figure or a disposition."""
 
 
 class ScheduledEvent(Model):
@@ -257,9 +272,10 @@ class ScheduledEvent(Model):
     fired: bool = False
     source: ScheduleSource = ScheduleSource.PLAY
     on_date: date | None = None
-    """The in-world date it is due. Set exactly when ``source`` is history."""
+    """The in-world date it is due, or a development's first possible day. Set exactly
+    for history events and developments."""
     condition: "WinCondition | None" = None
-    """What must still hold for it to fire as recorded. History events only."""
+    """What must still hold for it to fire. History events and developments only."""
     weight: int = Field(default=1, ge=1, le=3)
     """How central it was: divergence rises by this much if it is skipped."""
     skipped: bool = False
@@ -267,17 +283,51 @@ class ScheduledEvent(Model):
     """For a history event, what the news says when it fires in public. None: no news."""
     subject: EntityId | None = None
     obj: EntityId | None = None
+    category: DevelopmentCategory | None = None
+    """Set exactly for a development, as are ``window_end`` and ``chance``."""
+    window_end: date | None = None
+    """A development's last possible day; ``on_date`` is its first."""
+    chance: int | None = Field(default=None, ge=1, le=100)
+    """Percent: how likely the draw is to give a development a day at all."""
+    effects: tuple[DevelopmentEffect, ...] = Field(default=(), max_length=4)
+    """Engine only. What a development does when it fires, beyond its news."""
+    asks: tuple[Label, ...] = Field(default=(), max_length=2)
+    """Orders a development suggests, offered as ideas. It never files one itself."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
-        {"source", "on_date", "condition", "weight", "skipped", "headline", "subject", "obj"}
+        {
+            "source",
+            "on_date",
+            "condition",
+            "weight",
+            "skipped",
+            "headline",
+            "subject",
+            "obj",
+            "category",
+            "window_end",
+            "chance",
+            "effects",
+            "asks",
+        }
     )
 
     @model_validator(mode="after")
     def _history_has_a_date(self) -> "ScheduledEvent":
-        if (self.source is ScheduleSource.HISTORY) != (self.on_date is not None):
-            raise ValueError("a history event has a date, and only a history event")
-        if self.condition is not None and self.source is not ScheduleSource.HISTORY:
-            raise ValueError("only a history event carries a condition")
+        dated = self.source is not ScheduleSource.PLAY
+        if dated != (self.on_date is not None):
+            raise ValueError("a history event or development has a date, and only those")
+        if self.condition is not None and not dated:
+            raise ValueError("only a history event or development carries a condition")
+        drawn = (self.category, self.window_end, self.chance)
+        if (self.source is ScheduleSource.DEVELOPMENT) != all(v is not None for v in drawn):
+            raise ValueError("a development has a category, window and chance, and only it")
+        if self.source is not ScheduleSource.DEVELOPMENT and (self.effects or self.asks):
+            raise ValueError("only a development carries effects or asks")
+        if any(isinstance(e, MoveFigure) and abs(e.percent) > FIGURE_CAP for e in self.effects):
+            raise ValueError(f"a development moves a figure by at most {FIGURE_CAP} percent")
+        if self.window_end is not None and self.on_date and self.window_end < self.on_date:
+            raise ValueError("a window ends on or after it starts")
         if self.fired and self.skipped:
             raise ValueError("an event either fired or was skipped")
         return self

@@ -1,0 +1,148 @@
+# Developments for autumn-1941: public events the world may produce, each drawn
+# once per campaign to a day in its window (or to none, as its chance gives) and
+# fired on that day if its condition holds. Effects are limited to a figure or a
+# disposition; asks are offered to the seats as ideas, never filed.
+# Draft deck, values live until Josh marks the sheet
+# (inbox/reports/2026-11-13-revisionist-dv-deck-sheet.md).
+world: autumn-1941
+developments:
+  - key: dev_duquesne_trial
+    name: The Duquesne spy ring goes on trial in Brooklyn
+    category: espionage
+    window: {start: 1941-09-03, end: 1941-09-10}
+    chance: 100
+    headline: Thirty-three accused German agents on trial
+    subject: usa
+    obj: germany
+    effects:
+      - {kind: figure, quantity: gallup_declare_war_germany, percent: 2}
+    source: "FBI, 'Duquesne Spy Ring', FBI History, Famous Cases (trial opened 3 Sep 1941)"
+
+  - key: dev_hollywood_hearings
+    name: The Senate's hearings on war propaganda in films
+    category: public_figures
+    window: {start: 1941-09-09, end: 1941-09-12}
+    chance: 90
+    condition: {check: entity_is, entity: nye, status: active}
+    headline: Senators open hearings on Hollywood war films
+    subject: nye
+    obj: usa
+    effects:
+      - {kind: disposition, of: nye, toward: roosevelt, change: -1}
+    asks:
+      - Speak up for the film studios
+    source: "US Senate, Interstate Commerce subcommittee, hearings on S. Res. 152, 77th Cong., 1st sess. (9-26 Sep 1941)"
+
+  - key: dev_lindbergh_des_moines
+    name: Lindbergh's Des Moines speech
+    category: public_figures
+    window: {start: 1941-09-08, end: 1941-09-15}
+    chance: 90
+    headline: Lindbergh names the war agitators at Des Moines
+    subject: noninterventionists
+    effects:
+      - {kind: figure, quantity: gallup_help_britain, percent: 2}
+    asks:
+      - Answer Lindbergh in a public statement
+    source: "A. Scott Berg, Lindbergh (1998), ch. 14 (speech of 11 Sep 1941)"
+
+  - key: dev_yugoslav_rising
+    name: The rising in Serbia
+    category: unrest
+    window: {start: 1941-09-20, end: 1941-10-05}
+    chance: 90
+    headline: Partisans hold the Serbian town of Uzice
+    subject: germany
+    asks:
+      - Send aid to the Yugoslav resistance
+    source: "Jozo Tomasevich, War and Revolution in Yugoslavia: Occupation and Collaboration (2001), ch. 4"
+
+  - key: dev_liberty_fleet_day
+    name: The first Liberty ship is launched
+    category: technology
+    window: {start: 1941-09-27, end: 1941-09-27}
+    chance: 100
+    headline: The Patrick Henry leads fourteen ships down the ways
+    subject: usa
+    source: "Frederic C. Lane, Ships for Victory (1951), ch. 5 (27 Sep 1941)"
+
+  - key: dev_maud_report
+    name: The MAUD report reaches Washington
+    category: technology
+    window: {start: 1941-10-03, end: 1941-10-15}
+    chance: 80
+    headline: British scientists judge a uranium bomb possible
+    subject: uk
+    obj: usa
+    asks:
+      - Fund a crash programme on uranium
+    source: "Hewlett and Anderson, The New World, 1939-1946 (1962), ch. 2 (Bush briefs Roosevelt, 9 Oct 1941)"
+
+  - key: dev_autumn_mud
+    name: The autumn rains on the Eastern Front
+    category: weather
+    window: {start: 1941-10-07, end: 1941-10-20}
+    chance: 100
+    headline: Rain turns the roads before Moscow to mud
+    subject: ussr
+    obj: germany
+    source: "Glantz and House, When Titans Clashed (1995), ch. 5"
+
+  - key: dev_moscow_panic
+    name: Panic in Moscow
+    category: unrest
+    window: {start: 1941-10-15, end: 1941-10-18}
+    chance: 70
+    headline: Moscow empties as ministries leave for Kuibyshev
+    subject: ussr
+    asks:
+      - Speed supplies to the Soviet Union
+    source: "Rodric Braithwaite, Moscow 1941 (2006), ch. 12 (16 Oct 1941)"
+
+  - key: dev_sorge_arrest
+    name: Sorge's arrest in Tokyo
+    category: espionage
+    window: {start: 1941-10-14, end: 1941-10-22}
+    chance: 70
+    headline: Tokyo police arrest a German correspondent as a spy
+    subject: japan
+    obj: germany
+    effects:
+      - {kind: disposition, of: hitler, toward: konoe, change: -1}
+    source: "Robert Whymant, Stalin's Spy (1996), ch. 19 (arrest of 18 Oct 1941)"
+
+  - key: dev_nantes_hostages
+    name: The Nantes and Chateaubriant hostages
+    category: unrest
+    window: {start: 1941-10-20, end: 1941-10-26}
+    chance: 80
+    headline: Germans shoot French hostages after a killing in Nantes
+    subject: germany
+    effects:
+      - {kind: figure, quantity: gallup_declare_war_germany, percent: 2}
+    asks:
+      - Condemn the shooting of hostages
+    source: "Roosevelt, statement on the execution of hostages, 25 Oct 1941, Public Papers and Addresses (1941 vol.)"
+
+  - key: dev_captive_mines_strike
+    name: The captive coal mines strike
+    category: unrest
+    window: {start: 1941-10-27, end: 1941-11-17}
+    chance: 80
+    headline: Miners walk out of the steel companies' coal pits
+    subject: usa
+    effects:
+      - {kind: figure, quantity: gallup_fdr_about_right, percent: -2}
+    asks:
+      - Call the miners back to work
+    source: "Dubofsky and Van Tine, John L. Lewis: A Biography (1977), ch. 16"
+
+  - key: dev_early_frost
+    name: The first hard frost before Moscow
+    category: weather
+    window: {start: 1941-11-03, end: 1941-11-12}
+    chance: 100
+    headline: Frost hardens the roads before Moscow
+    subject: ussr
+    obj: germany
+    source: "Glantz and House, When Titans Clashed (1995), ch. 5"

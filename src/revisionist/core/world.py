@@ -35,6 +35,7 @@ from revisionist.core.ontology import (
     CommitmentStatus,
     ContestKind,
     Controller,
+    DevelopmentCategory,
     EntityKind,
     SeatKind,
 )
@@ -42,7 +43,7 @@ from revisionist.core.realism.agenda import MandateKind, TriggerKind
 from revisionist.core.realism.answer import Answer
 from revisionist.core.realism.card import Address, Aim, ChannelKind, ParamSpec
 from revisionist.core.realism.document import Bias, Classification, DocumentKind
-from revisionist.core.realism.effect import EffectKind
+from revisionist.core.realism.effect import DISPOSITION_CAP, FIGURE_CAP, EffectKind
 from revisionist.core.realism.geography import FeatureKind
 from revisionist.core.realism.pipeline import StepAction, StepKind
 from revisionist.core.realism.quantity import ResolverKey
@@ -225,6 +226,84 @@ class HistoryDecl(Model):
     def _headline_has_a_subject(self) -> "HistoryDecl":
         if self.headline is not None and self.subject is None:
             raise ValueError("a headline needs a subject")
+        return self
+
+
+class WindowDecl(Model):
+    """The days a development may fall on, both inclusive."""
+
+    start: date
+    end: date
+
+    @model_validator(mode="after")
+    def _in_order(self) -> "WindowDecl":
+        if self.end < self.start:
+            raise ValueError("a window ends on or after it starts")
+        return self
+
+
+class FigureDecl(Model):
+    """Move a figure by a percent of its value. ``quantity`` is a quantity key."""
+
+    kind: Literal["figure"] = "figure"
+    quantity: Key
+    percent: int = Field(ge=-FIGURE_CAP, le=FIGURE_CAP)
+
+    @model_validator(mode="after")
+    def _moves(self) -> "FigureDecl":
+        if self.percent == 0:
+            raise ValueError("a figure change moves the figure")
+        return self
+
+
+class DispositionDecl(Model):
+    """Move how ``of`` regards ``toward``. Both are entity keys."""
+
+    kind: Literal["disposition"] = "disposition"
+    of: Key
+    toward: Key
+    change: int = Field(ge=-DISPOSITION_CAP, le=DISPOSITION_CAP)
+
+    @model_validator(mode="after")
+    def _moves(self) -> "DispositionDecl":
+        if self.change == 0 or self.of == self.toward:
+            raise ValueError("a disposition change moves one party toward another")
+        return self
+
+
+DevelopmentEffectDecl = Annotated[FigureDecl | DispositionDecl, Field(discriminator="kind")]
+
+
+class DevelopmentDecl(Model):
+    """A public development from the world's deck (``worlds/developments/<world>.yaml``).
+
+    Drawn once per campaign to a day in ``window``, or to none, as ``chance`` gives;
+    on that day it fires if ``condition`` holds and is skipped otherwise. When it
+    fires it is reported as news and its effects apply. ``asks`` are orders it
+    suggests to the seats; it never files one.
+    """
+
+    key: Key
+    name: str = Field(max_length=120)
+    category: DevelopmentCategory
+    window: WindowDecl
+    chance: int = Field(default=100, ge=1, le=100)
+    condition: WinCondition | None = None
+    headline: Label
+    """Plain words, no date."""
+    subject: Key
+    """An entity key: who the news is about."""
+    obj: Key | None = None
+    effects: tuple[DevelopmentEffectDecl, ...] = Field(default=(), max_length=4)
+    asks: tuple[Label, ...] = Field(default=(), max_length=2)
+    source: str | None = Field(default=None, max_length=200)
+    """A citation in words."""
+    gap: bool = False
+
+    @model_validator(mode="after")
+    def _cited_or_gap(self) -> "DevelopmentDecl":
+        if (self.source is None) == (not self.gap):
+            raise ValueError("give exactly one of source: <citation> or gap: true")
         return self
 
 
@@ -507,6 +586,13 @@ Slug = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_-]*$", max_lengt
 """A world's file name: lowercase, digits, underscores and hyphens."""
 
 
+class DevelopmentDeck(Model):
+    """The sidecar file beside a world: its deck of developments."""
+
+    world: Slug
+    developments: tuple[DevelopmentDecl, ...] = ()
+
+
 class WorldFile(Model):
     world: Slug
     """Slug. Becomes ``CampaignCreated.world``."""
@@ -543,6 +629,8 @@ class WorldFile(Model):
     """Engine v2: mandate templates. Realism only."""
     outlets: tuple[OutletDecl, ...] = ()
     """Each polity's newspaper. Realism only."""
+    developments: tuple[DevelopmentDecl, ...] = ()
+    """The deck, read from the sidecar file, not from the world file itself."""
 
 
 __all__ = [
@@ -557,10 +645,15 @@ __all__ = [
     "ConflictDecl",
     "ContactDecl",
     "ContestDecl",
+    "DevelopmentDeck",
+    "DevelopmentDecl",
+    "DevelopmentEffectDecl",
+    "DispositionDecl",
     "EntityDecl",
     "FactDecl",
     "FeatureDecl",
     "FeedDecl",
+    "FigureDecl",
     "GoalDecl",
     "HistoryDecl",
     "Key",
@@ -580,5 +673,6 @@ __all__ = [
     "SourceDecl",
     "StepDecl",
     "TriggerDecl",
+    "WindowDecl",
     "WorldFile",
 ]

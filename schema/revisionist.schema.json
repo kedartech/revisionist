@@ -2863,6 +2863,17 @@
         "title": "DeltaRejected",
         "type": "object"
       },
+      "DevelopmentCategory": {
+        "enum": [
+          "technology",
+          "public_figures",
+          "espionage",
+          "unrest",
+          "weather"
+        ],
+        "title": "DevelopmentCategory",
+        "type": "string"
+      },
       "DirectiveGiven": {
         "additionalProperties": false,
         "description": "A seat signed a directive: its own words to a contact, and the order the aide\nread them as, filed in the same batch. A record, sealed with the seat's key.",
@@ -7156,7 +7167,8 @@
       "ScheduleSource": {
         "enum": [
           "play",
-          "history"
+          "history",
+          "development"
         ],
         "title": "ScheduleSource",
         "type": "string"
@@ -7165,6 +7177,41 @@
         "additionalProperties": false,
         "description": "Something due to happen. Play events fire at a tick; history events fire on\nan in-world date if their condition still holds, and are skipped otherwise.",
         "properties": {
+          "asks": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Asks",
+            "type": "array"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DevelopmentCategory"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "chance": {
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Chance"
+          },
           "condition": {
             "anyOf": [
               {
@@ -7226,6 +7273,29 @@
             ],
             "default": null,
             "title": "Condition"
+          },
+          "effects": {
+            "default": [],
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "disposition": "#/$defs/ShiftDisposition",
+                  "figure": "#/$defs/MoveFigure"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/MoveFigure"
+                },
+                {
+                  "$ref": "#/$defs/ShiftDisposition"
+                }
+              ]
+            },
+            "maxItems": 4,
+            "title": "Effects",
+            "type": "array"
           },
           "fire_at_tick": {
             "minimum": 0,
@@ -7337,6 +7407,19 @@
             "minimum": 1,
             "title": "Weight",
             "type": "integer"
+          },
+          "window_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Window End"
           }
         },
         "required": [
@@ -10884,6 +10967,17 @@
         "title": "Deal",
         "type": "object"
       },
+      "DevelopmentCategory": {
+        "enum": [
+          "technology",
+          "public_figures",
+          "espionage",
+          "unrest",
+          "weather"
+        ],
+        "title": "DevelopmentCategory",
+        "type": "string"
+      },
       "Disclosure": {
         "additionalProperties": false,
         "description": "Reveal a fact to the public, or conceal it.",
@@ -13500,7 +13594,8 @@
       "ScheduleSource": {
         "enum": [
           "play",
-          "history"
+          "history",
+          "development"
         ],
         "title": "ScheduleSource",
         "type": "string"
@@ -13509,6 +13604,41 @@
         "additionalProperties": false,
         "description": "Something due to happen. Play events fire at a tick; history events fire on\nan in-world date if their condition still holds, and are skipped otherwise.",
         "properties": {
+          "asks": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Asks",
+            "type": "array"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DevelopmentCategory"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "chance": {
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Chance"
+          },
           "condition": {
             "anyOf": [
               {
@@ -13570,6 +13700,29 @@
             ],
             "default": null,
             "title": "Condition"
+          },
+          "effects": {
+            "default": [],
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "disposition": "#/$defs/ShiftDisposition",
+                  "figure": "#/$defs/MoveFigure"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/MoveFigure"
+                },
+                {
+                  "$ref": "#/$defs/ShiftDisposition"
+                }
+              ]
+            },
+            "maxItems": 4,
+            "title": "Effects",
+            "type": "array"
           },
           "fire_at_tick": {
             "minimum": 0,
@@ -13681,6 +13834,19 @@
             "minimum": 1,
             "title": "Weight",
             "type": "integer"
+          },
+          "window_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Window End"
           }
         },
         "required": [
@@ -16313,6 +16479,17 @@
         "title": "Desk",
         "type": "object"
       },
+      "DevelopmentCategory": {
+        "enum": [
+          "technology",
+          "public_figures",
+          "espionage",
+          "unrest",
+          "weather"
+        ],
+        "title": "DevelopmentCategory",
+        "type": "string"
+      },
       "Disclosure": {
         "additionalProperties": false,
         "description": "Reveal a fact to the public, or conceal it.",
@@ -17412,6 +17589,34 @@
         "title": "Mode",
         "type": "string"
       },
+      "MoveFigure": {
+        "additionalProperties": false,
+        "description": "A figure no resolver computes, moved by a percent of its value. Only the\nestimator returns it: a seat never orders one.",
+        "properties": {
+          "kind": {
+            "const": "figure",
+            "default": "figure",
+            "title": "Kind",
+            "type": "string"
+          },
+          "percent": {
+            "maximum": 100,
+            "minimum": -100,
+            "title": "Percent",
+            "type": "integer"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quantity",
+          "percent"
+        ],
+        "title": "MoveFigure",
+        "type": "object"
+      },
       "MoveForce": {
         "additionalProperties": false,
         "description": "Move a force, posture it, or both.",
@@ -18222,7 +18427,8 @@
       "ScheduleSource": {
         "enum": [
           "play",
-          "history"
+          "history",
+          "development"
         ],
         "title": "ScheduleSource",
         "type": "string"
@@ -18231,6 +18437,41 @@
         "additionalProperties": false,
         "description": "Something due to happen. Play events fire at a tick; history events fire on\nan in-world date if their condition still holds, and are skipped otherwise.",
         "properties": {
+          "asks": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Asks",
+            "type": "array"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DevelopmentCategory"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "chance": {
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Chance"
+          },
           "condition": {
             "anyOf": [
               {
@@ -18292,6 +18533,29 @@
             ],
             "default": null,
             "title": "Condition"
+          },
+          "effects": {
+            "default": [],
+            "items": {
+              "discriminator": {
+                "mapping": {
+                  "disposition": "#/$defs/ShiftDisposition",
+                  "figure": "#/$defs/MoveFigure"
+                },
+                "propertyName": "kind"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/MoveFigure"
+                },
+                {
+                  "$ref": "#/$defs/ShiftDisposition"
+                }
+              ]
+            },
+            "maxItems": 4,
+            "title": "Effects",
+            "type": "array"
           },
           "fire_at_tick": {
             "minimum": 0,
@@ -18403,6 +18667,19 @@
             "minimum": 1,
             "title": "Weight",
             "type": "integer"
+          },
+          "window_end": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Window End"
           }
         },
         "required": [

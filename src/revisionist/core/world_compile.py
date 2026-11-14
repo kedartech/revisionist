@@ -90,7 +90,14 @@ from revisionist.core.realism.card import (
     SeatCard,
 )
 from revisionist.core.realism.document import Feed
-from revisionist.core.realism.effect import ESTIMATED_ONLY, EffectKind, MoveForce, SetEngagement
+from revisionist.core.realism.effect import (
+    ESTIMATED_ONLY,
+    EffectKind,
+    MoveFigure,
+    MoveForce,
+    SetEngagement,
+    ShiftDisposition,
+)
 from revisionist.core.realism.geography import FORCES, Feature, Leg
 from revisionist.core.realism.pipeline import Pipeline, Step
 from revisionist.core.realism.quantity import Quantity
@@ -101,7 +108,9 @@ from revisionist.core.world import (
     CardDecl,
     Cited,
     ClauseDecl,
+    DevelopmentDecl,
     EntityDecl,
+    FigureDecl,
     GoalDecl,
     LeverDecl,
     MandateDecl,
@@ -205,6 +214,7 @@ def _keyed(world: WorldFile) -> list[tuple[str, str]]:
     keyed += [("feed", d.key) for d in world.feeds]
     keyed += [("pipeline", d.key) for d in world.pipelines]
     keyed += [("mandate", d.key) for d in world.mandates]
+    keyed += [("development", d.key) for d in world.developments]
     return keyed
 
 
@@ -253,6 +263,27 @@ def _check_scope(
 
 
 # --- validation ---------------------------------------------------------------
+
+
+def _check_developments(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    if world.developments and world.start_date is None:
+        problems.append("developments: a deck needs a start_date")
+    for d in world.developments:
+        where = f"development {d.key}"
+        if world.start_date is not None and d.window.start < world.start_date:
+            problems.append(f"{where}: its window opens before the start date")
+        if d.condition is not None:
+            if depth(d.condition) > MAX_DEPTH or len(leaves(d.condition)) > MAX_PARTS:
+                problems.append(f"{where}: condition too large")
+            for leaf in leaves(d.condition):
+                for name, section in _CONDITION_REFS.items():
+                    _ref(problems, where, getattr(leaf, name, None), section, sections)
+        _refs(problems, where, [k for k in (d.subject, d.obj) if k is not None], "entity", sections)
+        for e in d.effects:
+            if isinstance(e, FigureDecl):
+                _ref(problems, where, e.quantity, "quantity", sections)
+            else:
+                _refs(problems, where, [e.of, e.toward], "entity", sections)
 
 
 def _check(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
@@ -346,6 +377,7 @@ def _check_v3(world: WorldFile, sections: Mapping[str, str], problems: list[str]
                 _ref(problems, where, getattr(leaf, name, None), section, sections)
         _ref(problems, where, h.subject, "entity", sections)
         _ref(problems, where, h.obj, "entity", sections)
+    _check_developments(world, sections, problems)
     for c in world.roster:
         where = f"character {c.entity}"
         seen: set[str] = set()
@@ -757,6 +789,34 @@ def _check_goals(world: WorldFile, sections: Mapping[str, str], problems: list[s
             canaries.add(g.canary)
 
 
+def _development(d: DevelopmentDecl, ids: Mapping[str, str]) -> ScheduledEvent:
+    effects: list[MoveFigure | ShiftDisposition] = [
+        MoveFigure(quantity=QuantityId(ids[e.quantity]), percent=e.percent)
+        if isinstance(e, FigureDecl)
+        else ShiftDisposition(
+            of=EntityId(ids[e.of]), toward=EntityId(ids[e.toward]), change=e.change
+        )
+        for e in d.effects
+    ]
+    return ScheduledEvent(
+        scheduled_id=ScheduledEventId(ids[d.key]),
+        fire_at_tick=0,
+        name=d.name,
+        scope=PUBLIC,
+        source=ScheduleSource.DEVELOPMENT,
+        on_date=d.window.start,
+        condition=None if d.condition is None else _bind(d.condition, ids),
+        headline=d.headline,
+        subject=EntityId(ids[d.subject]),
+        obj=_maybe(ids, d.obj, EntityId),
+        category=d.category,
+        window_end=d.window.end,
+        chance=d.chance,
+        effects=tuple(effects),
+        asks=d.asks,
+    )
+
+
 def _bind(c: WinCondition, ids: Mapping[str, str]) -> WinCondition:
     """The same condition with every key replaced by its ID."""
     if isinstance(c, AllOf | AnyOf):
@@ -973,6 +1033,8 @@ def _emit(
             aliases=ch.aliases,
         )
         out.append((ev.CharacterListed(character=character), PUBLIC))
+    for d in world.developments:
+        out.append((ev.ScheduledEventCreated(scheduled=_development(d, ids)), PUBLIC))
     if world.start:
         out.append((ev.SessionZeroOpened(start=world.start, notes=world.notes), PUBLIC))
     return out

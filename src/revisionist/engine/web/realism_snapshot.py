@@ -12,6 +12,7 @@ from datetime import date
 from typing import Any, Literal
 
 from revisionist.core import events as ev
+from revisionist.core import history
 from revisionist.core.events import Event
 from revisionist.core.ids import DocumentId, EntityId, FeatureId, PipelineId, SeatId, derived_id
 from revisionist.core.ontology import EntityKind
@@ -60,6 +61,7 @@ from revisionist.engine.web.realism_api import (
     SituationReading,
     SituationSource,
     StepLine,
+    WorldDevelopment,
 )
 from revisionist.engine.web.threats import seat_threats
 from revisionist.engine.web.tray import acknowledgement, feed_group
@@ -600,6 +602,20 @@ def _force_names(state: State, view: View) -> tuple[dict[str, str], dict[str, tu
     return names, held
 
 
+def world_news(view: View) -> list[WorldDevelopment]:
+    """The public developments that have fired, newest first: "The world" tab."""
+    return [
+        WorldDevelopment(
+            id=s.scheduled_id,
+            on=day.isoformat(),
+            category=s.category.value.replace("_", " ").capitalize() if s.category else "",
+            headline=s.headline or s.name,
+            asks=list(s.asks),
+        )
+        for day, s in history.fired_developments(view)
+    ]
+
+
 def seat_realism(
     state: State,
     seat: SeatId,
@@ -608,7 +624,8 @@ def seat_realism(
     next_wake_at: str | None,
     place_keys: Mapping[EntityId, str] | None = None,
 ) -> dict[str, Any]:
-    """The ``view.realism`` block of ``/api/me``: tray, desk, situation, orders, clock and map.
+    """The ``view.realism`` block of ``/api/me``: tray, desk, situation, orders, clock, map,
+    threats, people and the world's developments.
     ``place_keys`` (``destinations.place_keys``) opens movement forms to every place."""
     view = project(state, seat)
     forces, held = _force_names(state, view)
@@ -634,6 +651,7 @@ def seat_realism(
         "map": seat_map(view, forces, state.pipelines),
         "threats": seat_threats(state, seat, view),
         "people": seat_people(state, seat, view),
+        "world": world_news(view),
     }
 
 
@@ -653,4 +671,5 @@ __all__ = [
     "seat_realism",
     "situation",
     "words",
+    "world_news",
 ]

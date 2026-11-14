@@ -328,6 +328,20 @@ class People(TypedDict):
     others: list[PersonLine]
 
 
+class WorldDevelopment(TypedDict):
+    """One public development that has fired, for "The world" tab of the press desk."""
+
+    id: str
+    """An opaque token."""
+    on: str
+    """The in-world day it happened, ISO."""
+    category: str
+    """In words ("Public figures", "Weather")."""
+    headline: str
+    asks: list[str]
+    """The orders it suggests, in words; it never files one itself."""
+
+
 class MapPlace(TypedDict):
     name: str
     lat: float

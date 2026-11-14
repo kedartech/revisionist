@@ -1,5 +1,5 @@
 {
- "bd66ad93e6b5e85feb36eedc": {
+ "b162d2ba1f2fc23535692017": {
   "call_class": "aide",
   "hand_written": true,
   "model": "claude-haiku-5-5",
@@ -7,7 +7,7 @@
   "prompt_head": "## Your principal\nFranklin D. Roosevelt, President of the United States\n\n## Their levers\n[{\"lever\": \"send_bill\", \"params",
   "reply": {
    "cached_tokens": 238,
-   "input_tokens": 1641,
+   "input_tokens": 1460,
    "model": "claude-haiku-5-5",
    "output": {
     "drafts": [
@@ -36,10 +36,10 @@
     "summary": "Admiral Stark's Atlantic report puts Allied merchant losses to U-boats this month at 209,835, with 30 U-boats operational in the Atlantic. The Speaker counts 267 House Democrats to 162 Republicans; the Majority Leader gives no figure yet for the Senate neutrality vote. Gallup has 55 calling your course about right. MAGIC and State have nothing firm on Japanese oil stocks, and the Prime Minister's cables carry no figures."
    },
    "output_tokens": 179,
-   "usd": 0.0002536
+   "usd": 0.0002355
   }
  },
- "bfeda822682f40ed0cfa0073": {
+ "de40cecab4c4ee98499ba921": {
   "call_class": "aide",
   "hand_written": true,
   "model": "claude-haiku-5-5",
@@ -47,7 +47,7 @@
   "prompt_head": "## Your principal\nFranklin D. Roosevelt, President of the United States\n\n## Their levers\n[{\"lever\": \"send_bill\", \"params",
   "reply": {
    "cached_tokens": 238,
-   "input_tokens": 1305,
+   "input_tokens": 2108,
    "model": "claude-haiku-5-5",
    "output": {
     "drafts": [
@@ -76,7 +76,7 @@
     "summary": "Admiral Stark's Atlantic report puts Allied merchant losses to U-boats this month at 209,835, with 30 U-boats operational in the Atlantic. The Speaker counts 267 House Democrats to 162 Republicans; the Majority Leader gives no figure yet for the Senate neutrality vote. Gallup has 55 calling your course about right. MAGIC and State have nothing firm on Japanese oil stocks, and the Prime Minister's cables carry no figures."
    },
    "output_tokens": 179,
-   "usd": 0.00022
+   "usd": 0.0003003
   }
  }
 }

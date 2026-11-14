@@ -6,6 +6,7 @@ ruled, an influence decided. ``apply_due`` lands ``effects_applied`` for each, a
 pipeline's resolver, not here.
 """
 
+from collections.abc import Sequence
 from datetime import date, timedelta
 
 from revisionist.core import events as ev
@@ -21,7 +22,7 @@ from revisionist.core.ids import (
     SeatId,
     derived_id,
 )
-from revisionist.core.ontology import Relationship
+from revisionist.core.ontology import Relationship, ScheduleSource
 from revisionist.core.realism import actors, process, reach
 from revisionist.core.realism.card import ChannelKind, words
 from revisionist.core.realism.document import (
@@ -58,7 +59,7 @@ from revisionist.core.realism.land import allocate, appointment, deal, investiga
 from revisionist.core.realism.pass_world import PassWorld
 from revisionist.core.realism.routing import travel_days
 from revisionist.core.state import State
-from revisionist.core.visibility import private_to
+from revisionist.core.visibility import PUBLIC, Scope, private_to
 
 # Copied from ``engine.estimate.REASON_WITHHELD``: the core never imports the engine.
 REASON_WITHHELD = "The referee's account of this cannot be shown to you."
@@ -171,6 +172,11 @@ def _engage(
 
 
 def shift(world: PassWorld, effect: ShiftDisposition, issuer_seat: SeatId) -> ev.Payload:
+    return _shift(world, effect, private_to(issuer_seat))  # [proposed]
+
+
+def _shift(world: PassWorld, effect: ShiftDisposition, scope: Scope) -> ev.Payload:
+    """Move the disposition between the two; a relationship new to the world takes ``scope``."""
     now = world.relationship(effect.of, effect.toward)
     if now is None:
         rel = Relationship(
@@ -180,7 +186,7 @@ def shift(world: PassWorld, effect: ShiftDisposition, issuer_seat: SeatId) -> ev
             a=effect.of,
             b=effect.toward,
             disposition=max(-5, min(5, effect.change)),
-            scope=private_to(issuer_seat),  # [proposed]
+            scope=scope,
         )
     else:
         rel = now.model_copy(
@@ -238,6 +244,26 @@ def _figure(world: PassWorld, effect: MoveFigure, on: date) -> list[ev.Payload]:
 
 def _toward_zero(n: int, d: int) -> int:
     return -(-n // d) if n < 0 else n // d
+
+
+def developed(state: State, settled: Sequence[ev.Payload], on: date) -> list[ev.Payload]:
+    """What each development that fired in ``settled`` does beyond its news: a figure
+    moved by its percent, a disposition shifted. A development is public, so a
+    relationship it makes is public. It never files an order."""
+    world = PassWorld(state)
+    out: list[ev.Payload] = []
+    for e in settled:
+        if not isinstance(e, ev.ScheduledEventFired):
+            continue
+        s = state.scheduled[e.scheduled_id]
+        if s.source is not ScheduleSource.DEVELOPMENT:
+            continue
+        for effect in s.effects:
+            if isinstance(effect, MoveFigure):
+                out += _figure(world, effect, on)
+            else:
+                out.append(_shift(world, effect, PUBLIC))
+    return out
 
 
 def apply_due(state: State, today: date) -> list[ev.Payload]:
@@ -487,6 +513,7 @@ __all__ = [
     "apply_due",
     "as_carried",
     "describe",
+    "developed",
     "outcome",
     "report",
     "report_doc_id",

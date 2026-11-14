@@ -97,6 +97,20 @@ def developments_due(
     return out
 
 
+def fired_developments(world: State | View) -> list[tuple[date, ScheduledEvent]]:
+    """The public developments that have fired in ``world``, each with the day the draw
+    gave it (the day it fired), newest first, ties broken by id."""
+    out = [
+        (day, s)
+        for s in world.scheduled.values()
+        if s.source is ScheduleSource.DEVELOPMENT
+        and s.fired
+        and s.scope.visibility is Visibility.PUBLIC
+        and (day := drawn_day(world.campaign_id, s)) is not None
+    ]
+    return sorted(out, key=lambda p: (p[0], p[1].scheduled_id), reverse=True)
+
+
 def news(state: State, settled: Iterable[ev.Payload], day: date) -> list[ev.NewsReported]:
     """The news of each event in ``settled`` that fired in public with a headline.
 

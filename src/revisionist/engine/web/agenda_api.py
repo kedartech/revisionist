@@ -2,7 +2,8 @@
 
 Options come from ``OptionsOffered``, produced at wake open by ``options.offer``.
 Picking one files it through the ordinary order path, so it is what a free player
-could have typed.
+could have typed. A beginner is also offered the asks of the developments that just
+fired; those are written as orders, never filed from the offer.
 """
 
 import re
@@ -10,7 +11,7 @@ from collections.abc import Iterable
 from datetime import date
 
 from revisionist.core import events as ev
-from revisionist.core import record
+from revisionist.core import history, record
 from revisionist.core.events import Event
 from revisionist.core.ids import CampaignId, EntityId, MandateId, SeatId, derived_id
 from revisionist.core.project import project
@@ -24,6 +25,8 @@ from revisionist.engine.web.realism_api import AgendaBlock, AgendaItem, AgendaOp
 
 _PICK = re.compile(r"w(\d+)\.o(\d+)\.p(\d+)")
 _STALE = "That offer has lapsed. Look at what you are offered now."
+_NEWS = re.compile(r"n\.[0-9A-Z]{26}\.\d")
+_WRITE_IT = "Write it as an order to the person who should carry it out."
 
 
 def _day(day: date) -> str:
@@ -117,6 +120,32 @@ def _causes(state: State, seat: SeatId, view: View) -> dict[MandateId, str]:
     return out
 
 
+def _news_asks(view: View, events: list[Event]) -> list[AgendaOption]:
+    """The asks of each public development that fired in the latest stretch (since the
+    tick before the last closed), offered as ideas. Choosing one files nothing: the seat
+    writes it as an order to whoever should carry it out."""
+    closed = [i for i, e in enumerate(events) if e.kind == "tick_closed"]
+    since = closed[-2] + 1 if len(closed) > 1 else 0
+    fresh = {
+        e.payload.scheduled_id
+        for e in events[since:]
+        if isinstance(e.payload, ev.ScheduledEventFired)
+    }
+    return [
+        AgendaOption(
+            label=text,
+            to=None,
+            risk=f"From the news: {s.headline or s.name}.",
+            historical=False,
+            pick=f"n.{s.scheduled_id}.{k}",
+            taken=False,
+        )
+        for _, s in history.fired_developments(view)
+        if s.scheduled_id in fresh
+        for k, text in enumerate(s.asks)
+    ]
+
+
 def agenda(state: State, seat: SeatId, log: Iterable[Event]) -> AgendaBlock:
     """Each live mandate and the seat's offers from ``log``, all from its own view."""
     view = project(state, seat)
@@ -149,7 +178,10 @@ def agenda(state: State, seat: SeatId, log: Iterable[Event]) -> AgendaBlock:
                 plan=listed if plan else [],
             )
         )
-    return AgendaBlock(style=seat_style(state, seat), items=items, initiative=initiative)
+    style = seat_style(state, seat)
+    if style == PlayStyle.BEGINNER.value:
+        initiative += _news_asks(view, events)
+    return AgendaBlock(style=style, items=items, initiative=initiative)
 
 
 def seat_style(state: State, seat: SeatId) -> str:
@@ -178,6 +210,8 @@ def set_style(store: EventStore, campaign_id: CampaignId, seat: SeatId, style: s
 
 def pick_option(store: EventStore, campaign_id: CampaignId, seat: SeatId, pick: str) -> Reply:
     """File the offered option ``pick`` names with ``realism_tick.commit_order``."""
+    if _NEWS.fullmatch(pick):
+        return Reply(reply=_WRITE_IT, refused=True)
     state = load_state(store, campaign_id)
     found = _PICK.fullmatch(pick)
     made = _latest(store.read(campaign_id), seat, _wake(state))

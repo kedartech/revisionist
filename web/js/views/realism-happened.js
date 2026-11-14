@@ -1,6 +1,7 @@
 // "What happened" (Train 2 unit W): the sheet that opens once when a new wake opens.
 
 import { h } from '../dom.js';
+import { aideBriefing, briefingLines, slowOrders } from './realism-briefing.js';
 
 export const HAPPENED_PREFIX = 'rv.happened.';
 
@@ -83,26 +84,27 @@ export function shouldShow(wake, store) {
 }
 
 /**
- * A `<dialog class="rl-hap">` headed "What happened": "It is <date>. <n> days have passed.",
- * the lines, "<n> new papers in your tray", the changed figures, and "To the desk", which
- * calls `onClose()`; the room then stores the wake number.
+ * A `<dialog class="rl-hap">` headed "What happened": the aide's briefing (`briefingLines`),
+ * "It is <date>. <n> days have passed.", the lines the briefing did not tell, "<n> new papers in your tray", and "To the
+ * desk", which calls `onClose()`; the room then stores the wake number. The figures that moved
+ * are in the briefing.
  */
-export function happenedSheet({ record, situation, date, onClose }) {
+export function happenedSheet({ record, situation, agenda, date, onClose }) {
   const days = record?.wake?.days_passed;
   const daysLine = days === 1 ? '1 day has passed.' : days > 0 ? `${days} days have passed.` : null;
   const when = [date && `It is ${date}.`, daysLine].filter(Boolean).join(' ');
   const papers = record?.wake?.papers;
   const paperLine = papers === 1 ? '1 new paper in your tray' : papers > 0 ? `${papers} new papers in your tray` : null;
-  const lines = happenedLines(record);
-  const figures = changedFigures(situation);
+  // an order the aide's briefing tells is not told again in the list under it
+  const told = new Set(slowOrders(record).map((o) => o.id));
+  const lines = happenedLines({ ...record, orders: (record?.orders ?? []).filter((o) => !told.has(o.id)) });
 
   return h('dialog', { class: 'rl-hap', 'aria-labelledby': 'rl-hap-title' },
     h('h2', { id: 'rl-hap-title' }, 'What happened'),
+    aideBriefing({ lines: briefingLines({ record, situation, agenda }) }),
     when ? h('p', { class: 'rl-hap-when' }, when) : null,
     lines.length ? h('ul', { class: 'rl-hap-lines' }, lines.map((l) => h('li', {}, l))) : null,
     paperLine ? h('p', { class: 'rl-hap-papers' }, paperLine) : null,
-    figures.length ? h('h3', {}, 'Figures that moved') : null,
-    figures.length ? h('ul', { class: 'rl-hap-figures' }, figures.map((l) => h('li', {}, l))) : null,
     h('div', { class: 'rl-hap-actions' },
       h('button', { type: 'button', onclick: () => onClose() }, 'To the desk')));
 }

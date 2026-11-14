@@ -564,7 +564,7 @@ export function realismRoom(ctx) {
     const page = rv.record?.wake;
     const happened = happenedDue(page, shown, ui.happenedSeen)
       ? happenedSheet({
-        record: rv.record, situation: rv.situation, date,
+        record: rv.record, situation: rv.situation, agenda: rv.agenda, date,
         onClose: () => happened?.close(),
       })
       : null;

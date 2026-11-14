@@ -542,6 +542,15 @@ cards:
         params:
           - {name: force, kind: enum, choices: [us_atlantic_fleet, us_pacific_fleet], label: "Which fleet", choice_labels: ["The Atlantic Fleet", "The Pacific Fleet"]}
           - {name: to, kind: enum, choices: [norfolk, argentia, reykjavik, pearl_harbor_base], label: "To", choice_labels: ["Norfolk", "Argentia", "Reykjavik", "Pearl Harbor"]}
+      - name: detach_fleet
+        pipeline: naval_order
+        resolver: movement
+        label: "Detach part of a fleet"
+        summary: "Send part of a fleet's strength to another place; the rest stays where it is. The Navy Department carries it out."
+        params:
+          - {name: force, kind: enum, choices: [us_atlantic_fleet, us_pacific_fleet], label: "Which fleet", choice_labels: ["The Atlantic Fleet", "The Pacific Fleet"]}
+          - {name: to, kind: enum, choices: [norfolk, argentia, reykjavik, pearl_harbor_base], label: "To", choice_labels: ["Norfolk", "Argentia", "Reykjavik", "Pearl Harbor"]}
+          - {name: strength, kind: int, lo: 1, hi: 4, label: "How much of its strength"}
       - name: public_address
         pipeline: public_address
         resolver: opinion
@@ -672,6 +681,15 @@ cards:
         params:
           - {name: force, kind: enum, choices: [home_fleet], label: "Which fleet", choice_labels: ["The Home Fleet"]}
           - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool"]}
+      - name: detach_fleet
+        pipeline: cos_directive
+        resolver: movement
+        label: "Detach part of a fleet"
+        summary: "Tell the Admiralty to send part of the Home Fleet to another place; the rest stays where it is."
+        params:
+          - {name: force, kind: enum, choices: [home_fleet], label: "Which fleet", choice_labels: ["The Home Fleet"]}
+          - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool"]}
+          - {name: strength, kind: int, lo: 1, hi: 4, label: "How much of its strength"}
       - name: broadcast
         pipeline: press_broadcast
         resolver: opinion

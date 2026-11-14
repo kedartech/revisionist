@@ -24,6 +24,16 @@
 .rl-place.refused { cursor: not-allowed; color: var(--fg-muted); }
 .rl-place-why { margin: 0 0 var(--space-1) calc(var(--space-2) + var(--space-5)); font-size: 13px; color: var(--fg); overflow-wrap: anywhere; }
 
+/* The strength stepper on the split form: one less, the number, one more. */
+.rl-stepper { display: inline-flex; align-items: stretch; gap: var(--space-1); justify-self: start; }
+.rl-stepper > input { width: 4rem; text-align: center; }
+.rl-step { min-width: 36px; padding: 0 var(--space-2); background: var(--surface-2); color: var(--fg-strong); border: 1px solid var(--field-border); border-radius: var(--radius); font: 600 18px/1 var(--font-chrome); cursor: pointer; }
+.rl-step:hover { background: var(--surface-3); }
+.rl-step:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-step[aria-disabled="true"] { color: var(--fg-muted); cursor: not-allowed; }
+.rl-step[aria-disabled="true"]:hover { background: var(--surface-2); }
+
 @media (pointer: coarse) {
   .rl-place { min-height: 44px; }
+  .rl-step { min-width: 44px; min-height: 44px; }
 }

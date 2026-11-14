@@ -2,6 +2,8 @@
    crawl's own rules are in p5-crawl.css. Both dialogs fill the viewport. */
 
 .rl-intro {
+  /* how long the splash takes to fade in over the crawl's page */
+  --rl-intro-fade: 600ms;
   box-sizing: border-box;
   container-type: inline-size;
   width: 100vw;
@@ -67,6 +69,21 @@
 .rl-intro-take:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+/* The crawl's page stays and the splash's text fades in over it: the dialog keeps its opaque
+   background, so the room under it never shows through. */
+.rl-intro-splash > * {
+  animation: rl-intro-in var(--rl-intro-fade) ease-out both;
+}
+
+@keyframes rl-intro-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .rl-intro-splash-head {
@@ -185,4 +202,10 @@
 .rl-intro-paper:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rl-intro-splash > * {
+    animation: none;
+  }
 }

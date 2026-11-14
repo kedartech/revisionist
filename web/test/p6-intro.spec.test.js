@@ -282,3 +282,42 @@ test('no HTML parsing, no inline style, no stub left, linked and scoped', () => 
   const sels = [...outer.matchAll(/([^{}]+)\{/g)].flatMap((m) => m[1].split(',')).map((s) => s.trim()).filter(Boolean);
   for (const sel of sels) assert.match(sel, /\.rl-intro/, sel);
 });
+
+// I3: the crawl fades into the splash; focus lands on the splash heading.
+const uncomment = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
+const bodyOf = (css, sel) => {
+  const at = css.search(new RegExp(`(^|\\})\\s*${sel.replace(/[.*>()[\]]/g, '\\$&')}\\s*\\{`));
+  if (at < 0) return null;
+  const open = css.indexOf('{', at + 1);
+  return css.slice(open + 1, css.indexOf('}', open));
+};
+
+test('the splash fades in over about 600 ms, from a named token', () => {
+  const css = uncomment(read('css/p5-intro.css'));
+  const frame = bodyOf(css, '.rl-intro');
+  assert.match(frame, /--rl-intro-fade:\s*600ms;/);
+  const kids = bodyOf(css, '.rl-intro-splash > *');
+  assert.ok(kids, 'a rule fades the splash content');
+  const [, name] = kids.match(/animation:\s*([\w-]+)\s+var\(--rl-intro-fade\)[^;]*\bboth\b/) ?? [];
+  assert.ok(name, kids);
+  const keys = css.match(new RegExp(`@keyframes ${name}\\s*\\{\\s*from\\s*\\{\\s*opacity:\\s*0;\\s*\\}\\s*to\\s*\\{\\s*opacity:\\s*1;\\s*\\}\\s*\\}`));
+  assert.ok(keys, `@keyframes ${name} from opacity 0 to 1`);
+  assert.doesNotMatch(bodyOf(css, '.rl-intro-splash') ?? '', /animation|opacity/, 'the dialog itself stays opaque, so the room never shows through');
+});
+
+test('under reduced motion the splash does not fade', () => {
+  const css = uncomment(read('css/p5-intro.css'));
+  const at = css.indexOf('@media (prefers-reduced-motion: reduce)');
+  assert.ok(at >= 0, 'a reduced-motion block');
+  const block = css.slice(at, css.indexOf('}\n}', at) + 3);
+  assert.match(block, /\.rl-intro-splash > \*\s*\{\s*animation:\s*none;\s*\}/);
+});
+
+test('the splash heading takes focus when the dialog opens', () => {
+  installDom();
+  const d = splash(OVERVIEW);
+  const head = d.querySelector('h2');
+  assert.equal(head.getAttribute('tabindex'), '-1', 'focusable from code only');
+  assert.ok(head.hasAttribute('autofocus'), 'the dialog focuses it on showModal');
+  assert.equal(d.querySelectorAll('[autofocus]').length, 1, 'nothing else claims the first focus');
+});

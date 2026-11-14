@@ -191,7 +191,7 @@ function greetingBlock(greeting, brief) {
 
 /**
  * `<dialog class="rl-intro rl-intro-splash" aria-labelledby="rl-intro-splash-title">` from a
- * `splashModel`: the h2 title, the office and answers-to lines, the aide's greeting
+ * `splashModel`: the h2 title (it takes focus when the dialog opens), the office and answers-to lines, the aide's greeting
  * (`aideBriefing`), "How you start", "Your first papers" (each title opens its paper through
  * `onPaper(paper)` after the splash is done), "Open matters", each section only when it has
  * lines, and a primary "Take your desk" button. The button, a paper and Esc call `onDone()`
@@ -221,7 +221,7 @@ export function seatSplash({ model, onDone, onPaper, brief } = {}) {
     oncancel: (e) => { e.preventDefault(); finish(); },
   },
     h('header', { class: 'rl-intro-splash-head' },
-      h('h2', { id: 'rl-intro-splash-title' }, m.title ?? '')),
+      h('h2', { id: 'rl-intro-splash-title', tabindex: '-1', autofocus: true }, m.title ?? '')),
     m.office ? h('p', { class: 'rl-intro-office' }, m.office) : null,
     m.answersTo ? h('p', { class: 'rl-intro-answers' }, m.answersTo) : null,
     aide,

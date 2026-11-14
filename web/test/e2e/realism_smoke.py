@@ -332,6 +332,10 @@ def through_intro(page: Page, report: dict) -> None:
     title = splash.locator("h2").inner_text()
     report["splash_title"] = title
     check("the splash names the seat", title.lower().startswith("you are "), title)
+    check(
+        "focus lands on the splash heading",
+        bool(page.evaluate("() => document.activeElement?.id === 'rl-intro-splash-title'")),
+    )
     check("the aide greets the seat on the splash", splash.locator("section.rl-brief").count() == 1)
     check(
         "the splash leaves the portrait and biography to the select card",

@@ -8,6 +8,7 @@ from revisionist.core.ontology import EntityKind
 from revisionist.core.realism import actors, reach
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import ChannelKind, Desk
+from revisionist.core.realism.detachments import DETACHMENTS_PER_SIDE
 from revisionist.core.realism.document import (
     BodyField,
     Classification,
@@ -16,7 +17,7 @@ from revisionist.core.realism.document import (
     DocumentView,
 )
 from revisionist.core.realism.effect import Engagement, SetEngagement
-from revisionist.core.realism.geography import FORCES, Feature, FeatureKind, in_play
+from revisionist.core.realism.geography import FORCES, Feature, in_play
 from revisionist.core.realism.war import NewsEvent, NewsTopic, War, at_war, polity_of
 from revisionist.core.state import State
 from revisionist.core.visibility import private_to
@@ -24,10 +25,6 @@ from revisionist.core.world_compile import object_id
 
 LINE = 60
 REFUSAL = 200
-
-DETACHMENTS_PER_SIDE = {FeatureKind.FLEET: 2, FeatureKind.ARMY: 0, FeatureKind.AIR: 1}
-"""[proposed] The most detachments of each kind of force a side may have in play at once.
-An army detachment would make every front place it stood on a base for its side."""
 
 
 def _clip(text: str, limit: int = LINE) -> str:

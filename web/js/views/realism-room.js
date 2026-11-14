@@ -25,7 +25,7 @@ import { orderCards } from './realism-orders.js';
 import { overlayLines, wakeOverlay } from './realism-overlay.js';
 import { statusStrip, summaryTiles } from './realism-status.js';
 import { sideSwitch, tabBar } from './realism-tabs.js';
-import { threadItems } from './realism-thread.js';
+import { followThread, threadItems } from './realism-thread.js';
 import { threatsPanel } from './realism-threats.js';
 import { trayView } from './realism-tray.js';
 import { RUNNING, commitPanel, orderCard, stylePicker, wakeHeader } from './realism-wake.js';
@@ -254,7 +254,12 @@ export function realismRoom(ctx) {
   if (!rv.brief && ui.brief?.tick === rv.wake_tick) rv.brief = ui.brief.brief;
   const seatName = game.view.seat?.name ?? '';
   const root = h('div', { class: 'screen war-screen realism-screen' });
-  const rerender = () => root.replaceChildren(...build());
+  // a redraw rebuilds the open thread: put the reader back where they were reading
+  const follow = () => followThread(ui.chat, root.querySelector('.rl-msgr-panel .rl-th'));
+  const rerender = () => {
+    root.replaceChildren(...build());
+    follow();
+  };
   const seen = seenStore(storage(), game.id);
   const shown = happenedStore(storage(), game.id);
 
@@ -652,6 +657,7 @@ export function realismRoom(ctx) {
   else autoBrief();
   // a dialog opens only once it is in the page
   queueMicrotask(() => {
+    follow();
     if (pending?.isConnected && !pending.open) pending.showModal();
     else if (ui.refocusChat) refocus(ui.chat, true); // the reply redrew the room under the player
   });

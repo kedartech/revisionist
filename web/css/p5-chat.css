@@ -29,6 +29,11 @@
 
 .rl-msgr-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
+@media (min-width: 1200px) {
+  /* a desktop has the room for a real conversation window; it opens at full size even when the thread is short */
+  .rl-msgr-panel { width: min(36rem, calc(100vw - 2 * var(--space-6))); height: min(78vh, 48rem); max-height: none; }
+}
+
 @media (max-width: 767px) {
   /* the panel stops at the tab bar's top edge (c-shell.css: 44px buttons and a 1px rule) */
   .rl-msgr-panel { inset: 0 0 45px; width: auto; max-height: none; border: 0; border-radius: 0; box-shadow: none; }

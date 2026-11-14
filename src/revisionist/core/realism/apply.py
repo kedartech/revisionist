@@ -53,6 +53,7 @@ from revisionist.core.realism.effect import (
     SetEngagement,
     ShiftDisposition,
 )
+from revisionist.core.realism.geography import in_play
 from revisionist.core.realism.land import allocate, appointment, deal, investigate, statement
 from revisionist.core.realism.pass_world import PassWorld
 from revisionist.core.realism.routing import travel_days
@@ -146,9 +147,18 @@ def _engage(
     if effect.force is not None:
         named = [effect.force]
     else:
-        # [proposed] no force named: every force in the issuer's authority domains.
+        # [proposed] no force named: every force in the issuer's authority domains, with
+        # the detachments of those forces still in play.
         card = world.state.cards.get(issuer)
-        named = sorted({f for d in card.authority for f in d.forces}) if card else []
+        domain = {f for d in card.authority for f in d.forces} if card else set()
+        named = sorted(
+            domain
+            | {
+                f.feature_id
+                for f in world.features.values()
+                if f.detached_from in domain and in_play(f)
+            }
+        )
     out: list[ev.Payload] = []
     for fid in named:
         force = world.features.get(fid)

@@ -16,7 +16,7 @@ from revisionist.core.realism.document import (
     DocumentView,
 )
 from revisionist.core.realism.effect import Engagement, SetEngagement
-from revisionist.core.realism.geography import FORCES, Feature
+from revisionist.core.realism.geography import FORCES, Feature, FeatureKind, in_play
 from revisionist.core.realism.war import NewsEvent, NewsTopic, War, at_war, polity_of
 from revisionist.core.state import State
 from revisionist.core.visibility import private_to
@@ -24,6 +24,10 @@ from revisionist.core.world_compile import object_id
 
 LINE = 60
 REFUSAL = 200
+
+DETACHMENTS_PER_SIDE = {FeatureKind.FLEET: 2, FeatureKind.ARMY: 0, FeatureKind.AIR: 1}
+"""[proposed] The most detachments of each kind of force a side may have in play at once.
+An army detachment would make every front place it stood on a base for its side."""
 
 
 def _clip(text: str, limit: int = LINE) -> str:
@@ -43,11 +47,50 @@ def _own_polity(state: State, seat: SeatId) -> EntityId | None:
     return polity_of(state, held.embodies) if held is not None else None
 
 
+def _detach_refusal(state: State, params: dict[str, str]) -> str:
+    """Why part of this force may not be detached: its side has as many detachments of its
+    kind in play as it may, or the force would keep less than strength 1. Empty if it may,
+    and for a force or strength the order does not name in a form the engine can read."""
+    force = state.features.get(
+        FeatureId(object_id(state.campaign_id, "feature", params.get("force", "")))
+    )
+    try:
+        strength = int(params.get("strength", ""))
+    except ValueError:
+        return ""
+    if force is None or force.kind not in FORCES or force.side is None:
+        return ""
+    kind = force.kind.value
+    cap = DETACHMENTS_PER_SIDE[force.kind]
+    if cap == 0:
+        article = "an" if kind[0] in "aeiou" else "a"
+        return f"No side may detach part of {article} {kind}."
+    out = sum(
+        f.kind is force.kind and f.side == force.side and f.detached_from is not None and in_play(f)
+        for f in state.features.values()
+    )
+    if out >= cap:
+        return _clip(
+            f"{state.entities[force.side].name} already has {cap} {kind} detachments out, "
+            "the most a side may have at once.",
+            REFUSAL,
+        )
+    if force.tier - strength < 1:
+        return _clip(
+            f"{force.name} has strength {force.tier}, "
+            f"so at most {max(force.tier - 1, 0)} of it can be detached.",
+            REFUSAL,
+        )
+    return ""
+
+
 def order_refusal(state: State, seat: SeatId, lever: str, params: dict[str, str]) -> str:
     """The words for why the seat may not pull this lever now; empty if it may."""
     own = _own_polity(state, seat)
     if own is None:
         return ""
+    if lever == "detach_fleet":
+        return _detach_refusal(state, params)
     if lever == "uboat_directive" and params.get("posture") == "attack_us_shipping":
         usa = _world_entity(state, "usa")
         if usa is None or at_war(state, own, usa):
@@ -98,7 +141,7 @@ def ask_refusal(state: State, seat: SeatId, ask: Ask) -> str:
     sides = {
         polity_of(state, f.side)
         for f in state.features.values()
-        if f.kind in FORCES and f.side is not None and f.places[0] == place
+        if f.kind in FORCES and in_play(f) and f.side is not None and f.places[0] == place
     }
     others = sorted(
         (s for s in sides if s is not None and s != own), key=lambda s: state.entities[s].name
@@ -124,7 +167,11 @@ def _in_contact(war: War, a: Feature, b: Feature) -> bool:
 
 
 def _commanders(state: State, fid: FeatureId) -> list[tuple[SeatId, EntityId]]:
-    """Each seat that commands the force, with the person who answers for it."""
+    """Each seat that commands the force, with the person who answers for it. A
+    detachment answers to whoever commands the force it was detached from."""
+    held = state.features.get(fid)
+    if held is not None and held.detached_from is not None:
+        fid = held.detached_from
     out: list[tuple[SeatId, EntityId]] = []
     for card in state.cards.values():
         if not isinstance(card, Desk):
@@ -172,7 +219,8 @@ def _report(
 def contacts(state: State, day: date) -> list[ev.Payload]:
     """What forces in contact do on ``day``: one news item and a report to each commander."""
     forces = sorted(
-        (f for f in state.features.values() if f.kind in FORCES), key=lambda f: f.feature_id
+        (f for f in state.features.values() if f.kind in FORCES and in_play(f)),
+        key=lambda f: f.feature_id,
     )
     out: list[ev.Payload] = []
     issued: set[DocumentId] = set()

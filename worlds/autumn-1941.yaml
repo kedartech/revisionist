@@ -132,6 +132,10 @@ entities:
   - {key: gazzetta_impero, kind: org, name: "Gazzetta dell'Impero", parent: italy, tags: [press]}
   - {key: krasnaya_zarya, kind: org, name: "Krasnaya Zarya", parent: ussr, tags: [press]}
   - {key: chungking_herald, kind: org, name: "The Chungking Herald", parent: china, tags: [press]}
+  - {key: heartland_sentinel, kind: org, name: "The Heartland Sentinel", parent: usa, tags: [press, opposition]}
+  # A neutral country with no people in play: it exists for its paper.
+  - {key: switzerland, kind: polity, name: Switzerland}
+  - {key: alpine_gazette, kind: org, name: "The Alpine Gazette", parent: switzerland, tags: [press, neutral]}
 
 # Invented papers: any match to a real one is accidental.
 outlets:
@@ -163,6 +167,18 @@ outlets:
     polity: china
     name: "The Chungking Herald"
     voice: "Nationalist Chinese daily. Defiant; appeals for Allied aid; reports Japanese outrages."
+  # Each seat reads three papers: its home paper; its country's opposition daily
+  # (tagged opposition), or where there is none, as in a censored state, the
+  # neutral paper (tagged neutral); and the home paper of the first power its
+  # card opposes.
+  - key: heartland_sentinel
+    polity: usa
+    name: "The Heartland Sentinel"
+    voice: "Midwestern isolationist daily. Distrusts the Administration and foreign entanglements; quotes the America First Committee and the Senate's noninterventionists; warns that aid to Britain leads to war."
+  - key: alpine_gazette
+    polity: switzerland
+    name: "The Alpine Gazette"
+    voice: "Neutral Swiss daily. Sober and even-handed; reports each side's claims as claims; says plainly what cannot be confirmed; watches trade, refugees and the Red Cross."
 
 assets:
   - {key: us_presidency, kind: office, name: President of the United States, tier: 5, controller: roosevelt}

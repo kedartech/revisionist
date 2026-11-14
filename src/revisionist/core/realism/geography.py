@@ -72,9 +72,14 @@ class Feature(Model):
     left_base_on: date | None = None
     """A fleet or air group away from its side's bases: the day it left the last one. None
     at a base, for an army, and for a force no move has started the clock for."""
+    detached_from: FeatureId | None = None
+    """A detachment: the force it was split from. None for a force of its own."""
+    rejoined_on: date | None = None
+    """A detachment that has merged back into its parent: the day it did. It is out of
+    play from then on. None while it is in play."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
-        {"in_service", "posture", "engagement", "left_base_on"}
+        {"in_service", "posture", "engagement", "left_base_on", "detached_from", "rejoined_on"}
     )
 
     @model_validator(mode="after")
@@ -88,7 +93,14 @@ class Feature(Model):
             raise ValueError(f"feature {self.feature_id}: bound_for and arrives go together")
         if self.bound_for is not None and not force:
             raise ValueError(f"feature {self.feature_id}: only a force moves by order")
+        if self.detached_from is not None and not force:
+            raise ValueError(f"feature {self.feature_id}: only a force is detached")
         return self
+
+
+def in_play(feature: Feature) -> bool:
+    """False for a detachment that has rejoined its parent; True for every other feature."""
+    return feature.rejoined_on is None
 
 
 class Sight(Model):
@@ -127,5 +139,6 @@ __all__ = [
     "Leg",
     "Sight",
     "SightRef",
+    "in_play",
     "km_between",
 ]

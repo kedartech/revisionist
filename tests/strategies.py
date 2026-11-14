@@ -687,6 +687,8 @@ def features(draw: st.DrawFn) -> rg.Feature:
         in_service=draw(st.none() | in_world_dates),
         posture=draw(st.none() | st.sampled_from(list(rx.Posture))) if force else None,
         engagement=draw(st.none() | st.sampled_from(list(rx.Engagement))) if force else None,
+        detached_from=draw(st.none() | feature_ids) if force else None,
+        rejoined_on=draw(st.none() | in_world_dates) if force else None,
     )
 
 

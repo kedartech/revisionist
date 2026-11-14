@@ -14,13 +14,16 @@ viewer's own person as a desk; AI policy fields never leave the state.
 Engine v2 adds three more. A seat sees its own routed orders, never the
 estimator's effects; its own play style; and only its own mandates. The shared
 wake is public: who has committed, never what.
+
+A development is the engine's until it fires: its window, chance, condition, effects
+and asks are not in a view before then, and a skipped one never is.
 """
 
 from collections.abc import Mapping
 from typing import Protocol
 
-from revisionist.core.ids import DocumentId, SeatId
-from revisionist.core.ontology import Seat
+from revisionist.core.ids import DocumentId, ScheduledEventId, SeatId
+from revisionist.core.ontology import ScheduledEvent, ScheduleSource, Seat
 from revisionist.core.realism.document import DocumentView
 from revisionist.core.state import SeatFace, State, View
 from revisionist.core.visibility import Scope
@@ -33,6 +36,16 @@ class HasScope(Protocol):
 
 def _visible[K, S: HasScope](items: Mapping[K, S], seat: SeatId) -> dict[K, S]:
     return {k: v for k, v in items.items() if v.scope.visible_to(seat)}
+
+
+def _scheduled(
+    items: Mapping[ScheduledEventId, ScheduledEvent], seat: SeatId
+) -> dict[ScheduledEventId, ScheduledEvent]:
+    return {
+        k: v
+        for k, v in _visible(items, seat).items()
+        if v.source is not ScheduleSource.DEVELOPMENT or v.fired
+    }
 
 
 def face(seat: Seat) -> SeatFace:
@@ -66,7 +79,7 @@ def project(state: State, seat: SeatId) -> View:
         meters=_visible(state.meters, seat),
         clocks=_visible(state.clocks, seat),
         facts=_visible(state.facts, seat),
-        scheduled=_visible(state.scheduled, seat),
+        scheduled=_scheduled(state.scheduled, seat),
         commitments=_visible(state.commitments, seat),
         goals=_visible(state.goals, seat),
         mandates=_visible(state.mandates, seat),

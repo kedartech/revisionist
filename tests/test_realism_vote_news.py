@@ -273,18 +273,20 @@ def test_the_press_page_holds_only_the_public_facts() -> None:
     r.add(ev.FactAsserted(fact=fact))
     (item,) = decided(r, "neutrality_revision")
     pages = news_pages(r.state, item.on)
-    assert len(pages) == 2
+    # Ledger, Sentinel, Chronicle, Alpine Gazette, and the Reichsbote both seats read.
+    assert len(pages) == 5
     for page in pages:
         r.add(page)
     dump = "".join(p.model_dump_json() for p in pages)
     assert SECRET not in dump and str(WHIP) not in dump
     r.state = r.state.model_copy(update={"in_world_date": item.on})
     for seat in (roosevelt, churchill):
-        (held,) = (
+        held = [
             d for d in project(r.state, seat).documents.values() if d.kind is DocumentKind.PRESS
-        )
-        assert held.body == item.facts
-        assert r.state.documents[held.doc_id].truth.news_id == item.news_id
+        ]
+        assert len(held) == 3
+        assert {d.body for d in held} == {item.facts}
+        assert {r.state.documents[d.doc_id].truth.news_id for d in held} == {item.news_id}
 
 
 @pytest.mark.usefixtures("db", "fixed_campaign")
@@ -312,4 +314,4 @@ def test_a_bill_passed_in_play_is_on_the_seat_press_after_the_next_wake() -> Non
         for d in view.documents.values()
         if d.kind is DocumentKind.PRESS and state.documents[d.doc_id].truth.news_id == item.news_id
     ]
-    assert len(pages) == 1 and pages[0].body == item.facts
+    assert len(pages) == 3 and {p.body for p in pages} == {item.facts}

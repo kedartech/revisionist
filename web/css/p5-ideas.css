@@ -10,3 +10,9 @@
 .rl-idea-terms { margin: var(--space-1) 0 0; padding-left: var(--space-4); font-size: 13px; color: var(--fg); overflow-wrap: anywhere; }
 .rl-idea-row > .btn-1 { margin-top: var(--space-2); background: var(--accent-bg); color: var(--on-accent); border-color: var(--accent-bg); }
 .rl-idea-filed { display: inline-flex; align-items: center; gap: var(--space-1); margin-top: var(--space-2); font-size: 13px; color: var(--fg); }
+
+/* The desk's agenda items: a crisis alert's cause and failure lines, any item's failure line. */
+.alert-acts > .rl-crisis-cause, .alert-acts > .rl-crisis-fail { flex-basis: 100%; }
+.rl-crisis-cause { margin: 0; font: 600 13px/1.5 var(--font-chrome); color: var(--fg-strong); overflow-wrap: anywhere; }
+.rl-crisis-fail { margin: 0; font: 13px/1.5 var(--font-chrome); color: var(--fg-muted); overflow-wrap: anywhere; }
+.rl-ans-dates > .chip { margin-left: var(--space-1); vertical-align: middle; }

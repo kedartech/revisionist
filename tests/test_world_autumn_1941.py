@@ -93,7 +93,7 @@ def test_no_quantity_holds_a_value_outside_the_source_note() -> None:
 def test_every_card_lever_names_a_resolver_and_a_card_pipeline() -> None:
     for c in _world().cards:
         assert all(lv.pipeline in c.pipelines for lv in c.levers), c.person
-    assert all(2 <= len(c.levers) <= 6 for c in _world().cards if c.playable)
+    assert all(2 <= len(c.levers) <= 7 for c in _world().cards if c.playable)
 
 
 def test_every_playable_card_has_authority_or_a_rank() -> None:

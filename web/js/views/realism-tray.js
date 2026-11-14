@@ -134,19 +134,30 @@ function sectionList(section, onOpen, open) {
     h('ul', { class: 'rl-rows', role: 'listbox', 'aria-labelledby': id }, rowNodes(section.rows, onOpen, open)));
 }
 
-/** The tray panel. `opts`: { filter, sort, onFilter, onSort, page, onClose, onFlag, wide }. */
+/**
+ * The listing as the tray holds it: the press is not In-Tray (its pages are on the newspaper
+ * desk), so its pages are left out and `unread` counts the rest. `listing` is not changed.
+ */
+export function trayListing(listing) {
+  const documents = listing.documents.filter((d) => d.kind !== 'press');
+  return { ...listing, documents, unread: trayCounts(documents).unread };
+}
+
+/** The tray panel, over `trayListing(listing)`. `opts`: { filter, sort, onFilter, onSort, page, onClose, onFlag, wide }. */
 export function trayView(listing, onOpen, opts = {}) {
   const { filter = 'all', sort = 'newest', onFilter, onSort, page } = opts;
-  const counts = trayCounts(listing.documents);
+  const tray = trayListing(listing);
+  const papers = tray.documents;
+  const counts = trayCounts(papers);
   const open = page?.item;
-  const sorted = sortInTray(filterInTray(listing.documents, filter), sort);
+  const sorted = sortInTray(filterInTray(papers, filter), sort);
   const lists = filter === 'all'
     ? traySections(sorted).map((s) => sectionList(s, onOpen, open))
     : sorted.length
       ? [h('ul', { class: 'rl-rows', role: 'listbox', 'aria-label': 'Papers' }, rowNodes(trayRows(sorted), onOpen, open))]
       : [];
   return h('section', { class: 'rl-tray panel', 'aria-label': 'In-tray' },
-    panelHead('In-tray', listing.unread, [
+    panelHead('In-tray', counts.unread, [
       h('label', { class: 'rl-sort' }, 'Sort ',
         h('select', { name: 'sort', onchange: (e) => onSort?.(e.target.value) },
           h('option', { value: 'newest', selected: sort === 'newest' }, 'Newest first'),

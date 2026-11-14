@@ -136,7 +136,10 @@ export function paceLine(clock) {
   const weekday = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
   const parts = [`${weekday} ${worldDate(clock.world_date)}`];
   if (clock.waiting_on) {
-    parts.push(clock.next_world_date ? `next: ${clock.waiting_on}, about ${shortDate(clock.next_world_date)}` : `next: ${clock.waiting_on}`);
+    const about = clock.next_world_date ? shortDate(clock.next_world_date) : null;
+    // a reason named with its own date ("... (4 Sep)") is not given the date again
+    const named = about && new RegExp(`(^|\\D)${about}\\b`).test(clock.waiting_on);
+    parts.push(about && !named ? `next: ${clock.waiting_on}, about ${about}` : `next: ${clock.waiting_on}`);
   } else if (clock.next_world_date) {
     parts.push(`nothing due before about ${shortDate(clock.next_world_date)}`);
   }

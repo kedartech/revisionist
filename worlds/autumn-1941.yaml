@@ -132,6 +132,10 @@ entities:
   - {key: gazzetta_impero, kind: org, name: "Gazzetta dell'Impero", parent: italy, tags: [press]}
   - {key: krasnaya_zarya, kind: org, name: "Krasnaya Zarya", parent: ussr, tags: [press]}
   - {key: chungking_herald, kind: org, name: "The Chungking Herald", parent: china, tags: [press]}
+  - {key: heartland_sentinel, kind: org, name: "The Heartland Sentinel", parent: usa, tags: [press, opposition]}
+  # A neutral country with no people in play: it exists for its paper.
+  - {key: switzerland, kind: polity, name: Switzerland}
+  - {key: alpine_gazette, kind: org, name: "The Alpine Gazette", parent: switzerland, tags: [press, neutral]}
 
 # Invented papers: any match to a real one is accidental.
 outlets:
@@ -163,6 +167,18 @@ outlets:
     polity: china
     name: "The Chungking Herald"
     voice: "Nationalist Chinese daily. Defiant; appeals for Allied aid; reports Japanese outrages."
+  # Each seat reads three papers: its home paper; its country's opposition daily
+  # (tagged opposition), or where there is none, as in a censored state, the
+  # neutral paper (tagged neutral); and the home paper of the first power its
+  # card opposes.
+  - key: heartland_sentinel
+    polity: usa
+    name: "The Heartland Sentinel"
+    voice: "Midwestern isolationist daily. Distrusts the Administration and foreign entanglements; quotes the America First Committee and the Senate's noninterventionists; warns that aid to Britain leads to war."
+  - key: alpine_gazette
+    polity: switzerland
+    name: "The Alpine Gazette"
+    voice: "Neutral Swiss daily. Sober and even-handed; reports each side's claims as claims; says plainly what cannot be confirmed; watches trade, refugees and the Red Cross."
 
 assets:
   - {key: us_presidency, kind: office, name: President of the United States, tier: 5, controller: roosevelt}
@@ -305,6 +321,21 @@ features:
   - {key: hx_route, kind: route, name: HX convoys, side: uk, places: [halifax_port, north_atlantic, liverpool], gap: true}
   - {key: sc_route, kind: route, name: SC convoys, side: uk, places: [sydney_cb, north_atlantic, liverpool], gap: true}
   - {key: arctic_route, kind: route, name: Arctic convoys, side: uk, places: [reykjavik, archangel], gap: true}
+  # Each stands at the base of its side and kind nearest where the record has it (the base
+  # table in core/realism/bases.py). Strengths are tiers, not counts.
+  - {key: hawaiian_department, kind: army, name: Hawaiian Department, side: usa, tier: 3, places: [pearl_harbor_base], gap: true}
+  - {key: hawaiian_air_force, kind: air, name: Hawaiian Air Force, side: usa, tier: 3, places: [pearl_harbor_base], gap: true}
+  - {key: western_approaches, kind: fleet, name: Western Approaches escort groups, side: uk, tier: 3, places: [liverpool], gap: true}
+  - {key: home_forces, kind: army, name: Home Forces, side: uk, tier: 4, places: [london], gap: true}
+  - {key: bomber_command, kind: air, name: RAF Bomber Command, side: uk, tier: 3, places: [london], gap: true}
+  - {key: replacement_army, kind: army, name: Replacement Army, side: germany, tier: 3, places: [berlin], gap: true}
+  - {key: luftwaffe_centre, kind: air, name: Luftwaffe Command Centre, side: germany, tier: 3, places: [berlin], gap: true}
+  - {key: general_defence_command, kind: army, name: General Defence Command, side: japan, tier: 3, places: [tokyo], gap: true}
+  - {key: southern_army, kind: army, name: Southern Army, side: japan, tier: 4, places: [tokyo], in_service: 1941-11-06, gap: true}
+  - {key: eleventh_air_fleet, kind: air, name: Eleventh Air Fleet, side: japan, tier: 3, places: [kure], gap: true}
+  - {key: baltic_fleet, kind: fleet, name: Red Banner Baltic Fleet, side: ussr, tier: 3, places: [leningrad], gap: true}
+  - {key: northern_fleet, kind: fleet, name: Northern Fleet, side: ussr, tier: 2, places: [archangel], gap: true}
+  - {key: leningrad_front, kind: army, name: Leningrad Front, side: ussr, tier: 4, places: [leningrad], gap: true}
 
 feeds:
   - {key: state_dept_reports, name: State Department memoranda, author: hull, kind: memo, channel: letter, classification: confidential, reports: [japan_oil_stocks], every_days: 7, latency_days: 1, assumed: true, gap: true}
@@ -527,6 +558,15 @@ cards:
         params:
           - {name: force, kind: enum, choices: [us_atlantic_fleet, us_pacific_fleet], label: "Which fleet", choice_labels: ["The Atlantic Fleet", "The Pacific Fleet"]}
           - {name: to, kind: enum, choices: [norfolk, argentia, reykjavik, pearl_harbor_base], label: "To", choice_labels: ["Norfolk", "Argentia", "Reykjavik", "Pearl Harbor"]}
+      - name: detach_fleet
+        pipeline: naval_order
+        resolver: movement
+        label: "Detach part of a fleet"
+        summary: "Send part of a fleet's strength to another place; the rest stays where it is. The Navy Department carries it out."
+        params:
+          - {name: force, kind: enum, choices: [us_atlantic_fleet, us_pacific_fleet], label: "Which fleet", choice_labels: ["The Atlantic Fleet", "The Pacific Fleet"]}
+          - {name: to, kind: enum, choices: [norfolk, argentia, reykjavik, pearl_harbor_base], label: "To", choice_labels: ["Norfolk", "Argentia", "Reykjavik", "Pearl Harbor"]}
+          - {name: strength, kind: int, lo: 1, hi: 4, label: "How much of its strength"}
       - name: public_address
         pipeline: public_address
         resolver: opinion
@@ -570,6 +610,7 @@ cards:
       - "Protect the Atlantic convoys against German submarines."
       - "Hold Japan in check with the oil embargo and talks while the Army and Navy rearm."
     voice: Warm, confident, evasive when pressed; never commits to a date for war.
+    addressed_as: "Mr. President"
     interests: [aid to Britain and the Soviet Union, keeping the public behind him]
     # Authority and reach are design values [proposed]; the offices are as of 1 Sep 1941.
     authority:
@@ -656,6 +697,15 @@ cards:
         params:
           - {name: force, kind: enum, choices: [home_fleet], label: "Which fleet", choice_labels: ["The Home Fleet"]}
           - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool"]}
+      - name: detach_fleet
+        pipeline: cos_directive
+        resolver: movement
+        label: "Detach part of a fleet"
+        summary: "Tell the Admiralty to send part of the Home Fleet to another place; the rest stays where it is."
+        params:
+          - {name: force, kind: enum, choices: [home_fleet], label: "Which fleet", choice_labels: ["The Home Fleet"]}
+          - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool"]}
+          - {name: strength, kind: int, lo: 1, hi: 4, label: "How much of its strength"}
       - name: broadcast
         pipeline: press_broadcast
         resolver: opinion
@@ -682,6 +732,7 @@ cards:
       - "Bring the United States into the war."
       - "Send what aid can be spared to the Soviet Union, and hold Egypt and the Middle East."
     voice: Sonorous, combative, given to long dictated minutes and set-piece speeches.
+    addressed_as: "Prime Minister"
     interests: [bring America into the war, hold the Atlantic supply line]
     authority:
       - name: naval_operations
@@ -779,6 +830,7 @@ cards:
       - "Move war industry east of the Urals and keep the Red Army supplied."
       - "Press Britain and the United States for supplies and a second front."
     voice: Blunt, suspicious, speaks in short orders and rarely explains.
+    addressed_as: "Comrade Stalin"
     interests: [Western supply, a second front, survival of Moscow]
     authority:
       - name: military_operations
@@ -898,6 +950,7 @@ cards:
       - "Starve Britain of supplies by submarine war in the Atlantic."
     successor: goering
     voice: Hectoring, monologuing, prone to grievance and vast promises.
+    addressed_as: "Mein Führer"
     interests: [defeat the Soviet Union, cut British supply by sea]
     authority:
       - name: uboat_war
@@ -995,6 +1048,7 @@ cards:
       - "Seek a meeting with Roosevelt before the Army's deadline for war runs out."
       - "Hold the cabinet together between the Army, the Navy and the Court."
     voice: Courtly, indecisive, speaks in hints and defers to the Throne.
+    addressed_as: "Prime Minister"
     interests: [settlement with the United States, avoid a break with the Army]
     authority:
       - name: cabinet
@@ -1091,6 +1145,7 @@ cards:
       - "Hold the government to its deadline: if talks fail by early October, prepare for war."
       - "Secure the oil and resources of Southeast Asia."
     voice: Clipped, bureaucratic and rigid; speaks for the Army's position.
+    addressed_as: "General Tojo"
     interests: [keep the China gains, a deadline for the talks]
     authority:
       - name: army_administration
@@ -1156,6 +1211,7 @@ cards:
       - "Keep Italy's place beside Germany, with an Italian corps on the Eastern Front."
       - "Keep the supply route to North Africa open against attacks from Malta."
     voice: Theatrical, boastful, with a defensive edge about Germany.
+    addressed_as: "Duce"
     interests: [keep pace with Germany, hold North Africa]
     authority:
       - name: supreme_command
@@ -1233,6 +1289,7 @@ cards:
       - "Secure American and British loans and arms, and the Burma Road supply line."
       - "Prevent any American settlement with Japan made at China's expense."
     voice: Stern, moralising, impatient with allies who promise more than they send.
+    addressed_as: "Generalissimo"
     interests: [American aid, keep Japan tied down in China]
     authority:
       - name: military_affairs
@@ -1254,6 +1311,7 @@ cards:
   - person: wallace
     office: Vice President of the United States
     voice: "Earnest, idealistic and a little mystical; speaks of the common man and the long future, short on small talk."
+    addressed_as: "Mr. Vice President"
     principals: [usa]
     powers: [preside over the Senate, break tied votes]
     inner_circle: [{person: roosevelt, channel: in_person}]
@@ -1264,6 +1322,7 @@ cards:
   - person: hull
     office: Secretary of State
     voice: "Slow, moralising Tennessee cadence; lectures on principle and fair trade, bristles at any slight to his department."
+    addressed_as: "Mr. Secretary"
     principals: [roosevelt]
     powers: [conduct negotiations under instruction]
     inner_circle:
@@ -1281,6 +1340,7 @@ cards:
   - person: welles
     office: Under Secretary of State
     voice: "Cold, precise and formal; polished diplomatic prose with every word weighed."
+    addressed_as: "Mr. Under Secretary"
     principals: [hull]
     powers: [run the Department's daily business]
     inner_circle: [{person: roosevelt, channel: in_person}, {person: hull, channel: in_person}]
@@ -1291,6 +1351,7 @@ cards:
   - person: grew
     office: US Ambassador to Japan
     voice: "Patient, cultivated and carefully hedged; long dispatches urging talks, and warning Japan may act with sudden force."
+    addressed_as: "Mr. Ambassador"
     principals: [hull]
     powers: [report from Tokyo, present US notes to the Japanese Government]
     inner_circle: [{person: hull, channel: cable}]
@@ -1302,6 +1363,7 @@ cards:
   - person: stimson
     office: Secretary of War
     voice: "Stern, upright and old-school; argues for firmness and plain dealing, impatient with half measures."
+    addressed_as: "Mr. Secretary"
     principals: [roosevelt]
     powers: [administer the War Department]
     inner_circle: [{person: roosevelt, channel: in_person}, {person: marshall, channel: in_person}]
@@ -1312,6 +1374,7 @@ cards:
   - person: marshall
     office: Army Chief of Staff
     voice: "Reserved, exact and unsentimental; states the Army's needs in men, months and money, never flatters."
+    addressed_as: "General Marshall"
     principals: [stimson]
     powers: [direct the Army General Staff]
     inner_circle: [{person: roosevelt, channel: in_person}, {person: stark, channel: in_person}]
@@ -1322,6 +1385,7 @@ cards:
   - person: knox
     office: Secretary of the Navy
     voice: "Brisk newspaperman's punch; hawkish and blunt, quick to make the Navy's case in public."
+    addressed_as: "Mr. Secretary"
     principals: [roosevelt]
     powers: [administer the Navy Department]
     inner_circle: [{person: roosevelt, channel: in_person}, {person: stark, channel: in_person}]
@@ -1332,6 +1396,7 @@ cards:
   - person: stark
     office: Chief of Naval Operations
     voice: "Courteous, careful and wordy; writes long, chatty letters to his admirals and hedges his forecasts."
+    addressed_as: "Admiral Stark"
     principals: [knox]
     powers: [direct the operating forces under the President]
     inner_circle:
@@ -1348,6 +1413,7 @@ cards:
   - person: king
     office: Commander in Chief, Atlantic Fleet
     voice: "Gruff and curt; gives orders, not reasons, and expects them carried out at once."
+    addressed_as: "Admiral King"
     principals: [stark]
     powers: [command the Atlantic Fleet, order escorts and patrols]
     inner_circle: [{person: stark, channel: cable}]
@@ -1360,6 +1426,7 @@ cards:
   - person: kramer
     office: Navy communications intelligence translator
     voice: "Precise translator's register; marks the urgent passage and adds one short note of his own."
+    addressed_as: "Commander Kramer"
     principals: [stark]
     powers: [translate and brief intercepts]
     inner_circle: [{person: stark, channel: in_person}]
@@ -1370,6 +1437,7 @@ cards:
   - person: morgenthau
     office: Secretary of the Treasury
     voice: "Anxious, persistent and loyal; presses for action on money and aid, and keeps a record of every word said."
+    addressed_as: "Mr. Secretary"
     principals: [roosevelt]
     powers: [administer the Treasury, freeze foreign assets]
     inner_circle: [{person: roosevelt, channel: in_person}]
@@ -1380,6 +1448,7 @@ cards:
   - person: hopkins
     office: Special assistant to the President
     voice: "Wry, informal and direct; cuts to \"what do you need\", speaks for the President in plain American."
+    addressed_as: "Mr. Hopkins"
     principals: [roosevelt]
     powers: [coordinate aid to the Allies for the President]
     inner_circle:
@@ -1396,6 +1465,7 @@ cards:
   - person: stettinius
     office: Lend-Lease Administrator (appointed 28 Oct 1941)
     voice: "Smooth, affable executive; talks in schedules, tonnage and goodwill."
+    addressed_as: "Mr. Stettinius"
     principals: [roosevelt]
     powers: [administer Lend-Lease allocations]
     inner_circle: [{person: hopkins, channel: in_person}, {person: roosevelt, channel: in_person}]
@@ -1407,6 +1477,7 @@ cards:
   - person: early
     office: White House press secretary
     voice: "Crisp newsroom manner; thinks in headlines and deadlines, guards the President's line."
+    addressed_as: "Mr. Early"
     principals: [roosevelt]
     powers: [hold press conferences, release statements]
     inner_circle: [{person: roosevelt, channel: in_person}]
@@ -1419,6 +1490,7 @@ cards:
   - person: wh_clerk
     office: White House executive clerk
     voice: "Neutral, formal and exact; records times, names and papers, never offers an opinion."
+    addressed_as: "Sir"
     principals: [roosevelt]
     powers: [draft and file executive orders]
     loyalty: 0
@@ -1428,6 +1500,7 @@ cards:
   - person: cable_clerk
     office: State Department cable room
     voice: "Terse cable-room form; logs, numbers and forwards, nothing more."
+    addressed_as: "Sir"
     principals: [hull]
     powers: [encipher and send cables]
     loyalty: 0
@@ -1437,6 +1510,7 @@ cards:
   - person: rayburn
     office: Speaker of the House of Representatives
     voice: "Plain-spoken Texan of few words; counts votes privately and keeps every promise he makes."
+    addressed_as: "Mr. Speaker"
     principals: [house]
     powers: [recognise members on the floor, refer bills to committee]
     inner_circle: [{person: roosevelt, channel: telephone}, {person: mccormack, channel: in_person}]
@@ -1450,6 +1524,7 @@ cards:
   - person: mccormack
     office: House Majority Leader
     voice: "Genial, talkative Boston Democrat; loyal to the leadership, works members one at a time."
+    addressed_as: "Mr. McCormack"
     principals: [rayburn]
     powers: [schedule floor business, count votes]
     inner_circle: [{person: rayburn, channel: in_person}]
@@ -1460,6 +1535,7 @@ cards:
   - person: house_clerk
     office: House committee clerk
     voice: "Dry committee-room register; dates, votes and amendments, set down exactly."
+    addressed_as: "Sir"
     principals: [rayburn]
     powers: [report and calendar bills]
     loyalty: 0
@@ -1469,6 +1545,7 @@ cards:
   - person: barkley
     office: Senate Majority Leader
     voice: "Folksy Kentucky storyteller; a loyal floor leader who makes his argument with a joke."
+    addressed_as: "Senator Barkley"
     principals: [senate]
     powers: [schedule floor business, count votes]
     inner_circle: [{person: roosevelt, channel: telephone}, {person: rayburn, channel: telephone}]
@@ -1482,6 +1559,7 @@ cards:
   - person: wheeler
     office: Senator for Montana
     voice: "Sharp, sardonic Montana populist; attacks the \"war party\" in blunt stump language."
+    addressed_as: "Senator Wheeler"
     principals: [senate]
     powers: [vote and speak in the Senate]
     inner_circle: [{person: nye, channel: in_person}]
@@ -1493,6 +1571,7 @@ cards:
   - person: nye
     office: Senator for North Dakota
     voice: "Indignant crusader; sees bankers and munitions makers behind every step toward war."
+    addressed_as: "Senator Nye"
     principals: [senate]
     powers: [vote and speak in the Senate]
     inner_circle: [{person: wheeler, channel: in_person}]
@@ -1504,6 +1583,7 @@ cards:
   - person: eden
     office: Foreign Secretary
     voice: "Polished, courteous and diplomatic; careful drafts, eager for agreement, quick to feel a slight."
+    addressed_as: "Foreign Secretary"
     principals: [churchill]
     powers: [conduct British foreign policy]
     inner_circle: [{person: churchill, channel: in_person}, {person: halifax, channel: cable}]
@@ -1514,6 +1594,7 @@ cards:
   - person: halifax
     office: British Ambassador to the United States
     voice: "Aristocratic, mild and devout; slow, reasonable sentences, ill at ease with American bluntness."
+    addressed_as: "Lord Halifax"
     principals: [eden]
     powers: [represent the Government in Washington]
     inner_circle: [{person: eden, channel: cable}, {person: hull, channel: in_person}]
@@ -1524,6 +1605,7 @@ cards:
   - person: pound
     office: First Sea Lord and Chairman of the Chiefs of Staff
     voice: "Spare and laconic; says little, carries the Admiralty's weight himself and is slow to hand it on."
+    addressed_as: "First Sea Lord"
     principals: [churchill]
     powers: [direct the Royal Navy, chair the Chiefs of Staff]
     inner_circle: [{person: churchill, channel: in_person}]
@@ -1535,6 +1617,7 @@ cards:
   - person: ismay
     office: Chief Staff Officer to the Minister of Defence
     voice: "Tactful, good-humoured go-between; smooths quarrels between Churchill and the Chiefs and writes plainly."
+    addressed_as: "General Ismay"
     principals: [churchill]
     powers: [carry the Chiefs' papers to the War Cabinet]
     inner_circle: [{person: churchill, channel: in_person}]
@@ -1545,6 +1628,7 @@ cards:
   - person: uk_cipher_clerk
     office: Downing Street cipher room
     voice: "Clipped cipher-room form; groups, times and routing, no comment."
+    addressed_as: "Sir"
     principals: [churchill]
     powers: [encipher and send cables]
     loyalty: 0
@@ -1554,6 +1638,7 @@ cards:
   - person: bbc_clerk
     office: BBC duty officer
     voice: "Measured duty-log tone; times, items and transmissions, scrupulously neutral."
+    addressed_as: "Sir"
     principals: [churchill]
     powers: [schedule a broadcast]
     loyalty: 0
@@ -1563,6 +1648,7 @@ cards:
   - person: hirohito
     office: Emperor of Japan
     voice: "Sparse, oblique and formal; speaks rarely, through questions and verse, never a plain command."
+    addressed_as: "Your Majesty"
     principals: [japan]
     powers:
       - sanction decisions of the Imperial Conference
@@ -1577,6 +1663,7 @@ cards:
   - person: nomura
     office: Japanese Ambassador to the United States
     voice: "Earnest, plain-spoken old admiral, ill at home in diplomacy; hopes aloud for a settlement."
+    addressed_as: "Mr. Ambassador"
     principals: [konoe]
     powers: [negotiate under instruction]
     inner_circle: [{person: hull, channel: in_person}, {person: konoe, channel: cable}]
@@ -1587,6 +1674,7 @@ cards:
   - person: kurusu
     office: Japanese Ambassador to Germany
     voice: "Fluent, urbane career diplomat; smooth English and guarded commitments."
+    addressed_as: "Mr. Ambassador"
     principals: [konoe]
     powers: [represent Japan in Berlin]
     inner_circle: [{person: ribbentrop, channel: in_person}]
@@ -1597,6 +1685,7 @@ cards:
   - person: sugiyama
     office: Chief of the Army General Staff
     voice: "Pliant and evasive; gives the Army's hopeful estimates and falters when pressed."
+    addressed_as: "General Sugiyama"
     principals: [hirohito]
     powers: [direct Army operations, sit in the Liaison Conference]
     inner_circle: [{person: tojo, channel: in_person}, {person: nagano, channel: in_person}]
@@ -1608,6 +1697,7 @@ cards:
   - person: nagano
     office: Chief of the Navy General Staff
     voice: "Grave and fatalistic; argues the oil is running out and time favours the enemy."
+    addressed_as: "Admiral Nagano"
     principals: [hirohito]
     powers: [direct Navy operations, sit in the Liaison Conference]
     inner_circle: [{person: tojo, channel: in_person}, {person: sugiyama, channel: in_person}]
@@ -1619,6 +1709,7 @@ cards:
   - person: cabinet_clerk
     office: Cabinet Secretariat
     voice: "Formal secretariat register; minutes, dates and decisions, set down without comment."
+    addressed_as: "Sir"
     principals: [konoe]
     powers: [issue cabinet statements]
     loyalty: 0
@@ -1628,6 +1719,7 @@ cards:
   - person: goering
     office: Reichsmarschall
     voice: "Boastful, jovial and grandiose; promises what the Luftwaffe will do and waves bad news away."
+    addressed_as: "Herr Reichsmarschall"
     principals: [hitler]
     powers: [command the Luftwaffe, run the Four Year Plan]
     inner_circle: [{person: hitler, channel: in_person}]
@@ -1638,6 +1730,7 @@ cards:
   - person: ribbentrop
     office: Reich Foreign Minister
     voice: "Pompous, stiff and vain; repeats the Fuehrer's line and lectures foreign envoys."
+    addressed_as: "Herr Reichsminister"
     principals: [hitler]
     powers: [conduct German foreign policy]
     inner_circle: [{person: hitler, channel: in_person}]
@@ -1648,6 +1741,7 @@ cards:
   - person: raeder
     office: Commander in Chief of the Navy
     voice: "Correct, formal and austere; argues the Navy's Atlantic case to the Fuehrer with stiff loyalty."
+    addressed_as: "Herr Großadmiral"
     principals: [hitler]
     powers: [direct the Kriegsmarine and the U-boat arm]
     inner_circle: [{person: hitler, channel: in_person}]
@@ -1660,6 +1754,7 @@ cards:
   - person: jodl
     office: Chief of Wehrmacht Operations Staff
     voice: "Cool, precise staff officer; terse military prose, devoted to the Fuehrer's direction."
+    addressed_as: "Herr General"
     principals: [hitler]
     powers: [draft Fuehrer directives]
     inner_circle: [{person: hitler, channel: in_person}]
@@ -1670,6 +1765,7 @@ cards:
   - person: victor_emmanuel
     office: King of Italy
     voice: "Dry, reserved and sceptical; few words, keeps his own counsel."
+    addressed_as: "Your Majesty"
     principals: [italy]
     powers: [head of state, nominal supreme command]
     inner_circle: [{person: mussolini, channel: in_person}]
@@ -1680,6 +1776,7 @@ cards:
   - person: cavallero
     office: Chief of the Comando Supremo
     voice: "Smooth and optimistic staff manager; tells superiors what they hope to hear and defers to the Germans."
+    addressed_as: "General Cavallero"
     principals: [mussolini]
     powers: [direct Italian operations]
     inner_circle: [{person: mussolini, channel: in_person}]
@@ -1691,6 +1788,7 @@ cards:
   - person: molotov
     office: People's Commissar for Foreign Affairs
     voice: "Stubborn, flat and repetitive; restates the demand until the other side tires."
+    addressed_as: "Comrade Molotov"
     principals: [stalin]
     powers: [conduct Soviet diplomacy, sit on the State Defence Committee]
     inner_circle: [{person: stalin, channel: in_person}]
@@ -1703,6 +1801,7 @@ cards:
   - person: shaposhnikov
     office: Chief of the General Staff
     voice: "Courteous old-school staff officer; methodical and calm, addresses colleagues as \"my dear fellow\"."
+    addressed_as: "Comrade Marshal"
     principals: [stalin]
     powers: [direct the General Staff, advise Stavka]
     inner_circle: [{person: stalin, channel: in_person}]
@@ -1715,6 +1814,7 @@ cards:
   - person: he_yingqin
     office: Chief of the General Staff, China
     voice: "Cautious, loyal and bureaucratic; reports the Army's shortages and favours delay over risk."
+    addressed_as: "General He"
     principals: [chiang]
     powers: [direct operations under the Commission]
     inner_circle: [{person: chiang, channel: in_person}]
@@ -1726,6 +1826,7 @@ cards:
   - person: soong
     office: Chiang's personal representative in Washington
     voice: "Brisk, Western-educated banker; presses hard for money and aircraft in fluent American English."
+    addressed_as: "Dr. Soong"
     principals: [chiang]
     powers: [negotiate for aid]
     inner_circle: [{person: chiang, channel: cable}, {person: hull, channel: in_person}]

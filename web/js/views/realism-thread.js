@@ -7,11 +7,11 @@ import { portraitNode } from './realism-dossier.js';
 
 /**
  * The thread's items, oldest first, each `{ side, kind, text, day, iso, docId, lever, label }`:
- * `side` 'mine' or 'theirs'; `kind` 'counsel', 'reply', 'letter' or 'help'; `day` the in-world
+ * `side` 'mine' or 'theirs'; `kind` 'counsel', 'letter' or 'help'; `day` the in-world
  * date in words and `iso` the same date as YYYY-MM-DD (both '' when unknown); `docId` the paper
  * an item opens, else null; `lever` and `label` only on an aide line that offers a form.
  * `person` 'aide' reads `help`; any other name reads `counsel` (their answers and the seat's
- * questions) and the papers in `documents` (a listing) that they wrote.
+ * questions) and, as one line each, the letters in `documents` (a listing) that they wrote.
  */
 export function threadItems({ person, counsel, documents, help } = {}) {
   const items = person === 'aide' ? aideItems(help) : contactItems(person, counsel, documents);
@@ -39,12 +39,11 @@ function aideItems(help) {
 function contactItems(person, counsel, documents) {
   const out = [];
   // Papers first: on one day they arrive when the wake opens, before any consult.
-  for (const d of (documents?.documents ?? []).filter((d) => d.author === person)) {
-    const reply = d.ack || d.answer;
+  for (const d of (documents?.documents ?? []).filter((d) => d.author === person && isLetter(d))) {
     out.push({
       side: 'theirs',
-      kind: reply ? 'reply' : 'letter',
-      text: reply ? d.title : `Letter received: ${d.title}`,
+      kind: 'letter',
+      text: `Letter received: ${d.title}`,
       day: worldDate(d.arrives),
       iso: d.arrives ?? '',
       docId: d.id,
@@ -56,6 +55,11 @@ function contactItems(person, counsel, documents) {
     out.push({ side: 'theirs', kind: 'counsel', text: c.answer, day: c.day ?? '', iso: c.day_iso ?? '', docId: null });
   }
   return out;
+}
+
+/** A letter the contact wrote of their own accord; reports, memos and replies to orders stay in the In-Tray. */
+function isLetter(d) {
+  return d.kind === 'letter' && !d.ack && !d.answer;
 }
 
 function compare(a, b) {
@@ -72,6 +76,38 @@ export function groupItems(items) {
   }
   for (const g of groups) g.day = g.items.at(-1).day;
   return groups;
+}
+
+/** How far above the foot (px) a reader still counts as reading the newest message. */
+export const FOLLOW_SLACK = 24;
+
+/**
+ * Where the thread scrolls after a redraw. `prev` is the saved box `{ thread, top, height,
+ * client }` (scrollTop, scrollHeight, clientHeight), null when none was saved; `next` the new
+ * box. A reader at the foot (within FOLLOW_SLACK), or one opening the thread, goes to the new
+ * foot; a reader who scrolled back keeps the offset.
+ */
+export function followNew(prev, next) {
+  const foot = Math.max(0, next.height - next.client);
+  if (!prev || prev.thread !== next.thread) return foot;
+  if (prev.height - prev.client - prev.top <= FOLLOW_SLACK) return foot;
+  return Math.min(prev.top, foot);
+}
+
+/**
+ * Scroll a freshly drawn `.rl-th` (null when no thread is drawn) to the place `chat.scroll`
+ * holds, and keep `chat.scroll` current as the reader scrolls. With no thread drawn the place
+ * is dropped, so the next open lands at the newest message.
+ */
+export function followThread(chat, el) {
+  if (!el) {
+    chat.scroll = null;
+    return;
+  }
+  const box = () => ({ thread: chat.thread, top: el.scrollTop, height: el.scrollHeight, client: el.clientHeight });
+  el.scrollTop = followNew(chat.scroll, box());
+  // the scroll event of a set scrollTop can land after a redraw has replaced this element
+  el.addEventListener('scroll', () => { if (el.isConnected) chat.scroll = box(); });
 }
 
 /**

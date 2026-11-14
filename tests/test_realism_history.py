@@ -260,4 +260,4 @@ def test_a_tick_reports_the_fired_event_on_each_press() -> None:
         if d.kind is DocumentKind.PRESS
         and state.documents[d.doc_id].truth.news_id == news[0].news_id
     ]
-    assert len(pages) == 1
+    assert len(pages) == 3 and {p.body for p in pages} == {news[0].facts}

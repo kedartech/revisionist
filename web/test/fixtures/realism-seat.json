@@ -407,6 +407,10 @@
                 "label": "The Atlantic Fleet"
               },
               {
+                "value": "us_atlantic_fleet__d1",
+                "label": "US Atlantic Fleet detachment 1"
+              },
+              {
                 "value": "us_pacific_fleet",
                 "label": "The Pacific Fleet"
               }
@@ -456,6 +460,7 @@
                 "group": "own",
                 "days": {
                   "us_atlantic_fleet": 5,
+                  "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 },
                 "reach": {
@@ -464,6 +469,7 @@
                     "base": "argentia",
                     "reason": null
                   },
+                  "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 }
               },
@@ -473,6 +479,7 @@
                 "group": "own",
                 "days": {
                   "us_atlantic_fleet": 0,
+                  "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 },
                 "reach": {
@@ -481,6 +488,7 @@
                     "base": "norfolk",
                     "reason": null
                   },
+                  "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 }
               },
@@ -490,6 +498,7 @@
                 "group": "own",
                 "days": {
                   "us_atlantic_fleet": 26,
+                  "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 },
                 "reach": {
@@ -498,6 +507,7 @@
                     "base": "pearl_harbor_base",
                     "reason": null
                   },
+                  "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 }
               },
@@ -507,6 +517,7 @@
                 "group": "allied",
                 "days": {
                   "us_atlantic_fleet": 13,
+                  "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 },
                 "reach": {
@@ -515,6 +526,7 @@
                     "base": "reykjavik",
                     "reason": null
                   },
+                  "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 }
               },
@@ -524,6 +536,7 @@
                 "group": "route",
                 "days": {
                   "us_atlantic_fleet": 4,
+                  "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 },
                 "reach": {
@@ -532,6 +545,7 @@
                     "base": "argentia",
                     "reason": null
                   },
+                  "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 }
               },
@@ -541,6 +555,7 @@
                 "group": "contested",
                 "days": {
                   "us_atlantic_fleet": 14,
+                  "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 },
                 "reach": {
@@ -549,6 +564,7 @@
                     "base": "reykjavik",
                     "reason": null
                   },
+                  "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 }
               },
@@ -558,6 +574,7 @@
                 "group": "other",
                 "days": {
                   "us_atlantic_fleet": 38,
+                  "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 },
                 "reach": {
@@ -566,6 +583,7 @@
                     "base": "pearl_harbor_base",
                     "reason": null
                   },
+                  "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 }
               }

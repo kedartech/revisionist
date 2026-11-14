@@ -37,6 +37,7 @@ from revisionist.core.ids import (
     DocumentId,
     EntityId,
     EventId,
+    FeatureId,
     OrderId,
     SeatId,
     derived_id,
@@ -46,10 +47,11 @@ from revisionist.core.realism import actors, answering, apply, mandates, opponen
 from revisionist.core.realism.advance import Wake, next_wake
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.arrivals import arrivals
-from revisionist.core.realism.card import ParamKind, ParamSpec, ParamValue
+from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, ParamValue
 from revisionist.core.realism.document import DocumentView, Feed
 from revisionist.core.realism.effect import Effect, PartRef, Route, RoutedOrder, RoutedPart
 from revisionist.core.realism.feeds import due_feeds, issue, seed_for_day
+from revisionist.core.realism.geography import in_play
 from revisionist.core.realism.pipeline import SETTLED, Order, OrderStatus, StepAction
 from revisionist.core.realism.pipelines import (
     destination,
@@ -64,12 +66,13 @@ from revisionist.core.realism.resolvers import (
     apply_changes,
     resolver_for,
 )
+from revisionist.core.realism.resolvers.movement import FORCE, STRENGTH
 from revisionist.core.realism.route import due_executions, route
 from revisionist.core.realism.war_rules import contacts, order_refusal
 from revisionist.core.resolution import TickStage
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, Scope, Visibility, private_to
-from revisionist.core.world_compile import card_policy
+from revisionist.core.world_compile import card_policy, object_id
 from revisionist.engine import campaign as cmp
 from revisionist.engine import session_zero
 from revisionist.engine.emit import Emitter, tail
@@ -596,6 +599,30 @@ def _place(state: State, spec: ParamSpec, raw: str) -> str:
     raise ValueError(f"{spec.name}: {raw!r} is not a place on the map")
 
 
+def _force(state: State, spec: ParamSpec, raw: str) -> str:
+    """A force to move: one of the form's own choices, or a detachment of one in play."""
+    found = state.features.get(FeatureId(object_id(state.campaign_id, "feature", raw)))
+    parents = {FeatureId(object_id(state.campaign_id, "feature", c)) for c in spec.choices}
+    if found is not None and in_play(found) and found.detached_from in parents:
+        return raw
+    return str(_fits(spec, raw))
+
+
+def _widened(state: State, found: Lever, spec: ParamSpec, raw: str) -> ParamValue:
+    """A parameter's value. The destination takes any place and a movement form's force a
+    detachment of its choices; a split form's force takes only its choices, since a
+    detachment is not split again."""
+    if spec is destination(found):
+        return _place(state, spec, raw)
+    if (
+        found.resolver == "movement"
+        and spec.name == FORCE
+        and all(p.name != STRENGTH for p in found.params)
+    ):
+        return _force(state, spec, raw)
+    return _fits(spec, raw)
+
+
 def file_order(
     store: EventStore, campaign_id: CampaignId, seat: SeatId, lever: str, given: dict[str, str]
 ) -> Order:
@@ -618,11 +645,7 @@ def draft_order(state: State, seat: SeatId, lever: str, given: dict[str, str]) -
     wanted = {p.name for p in found.params}
     if set(given) != wanted:
         raise ValueError(f"{lever} takes exactly: {', '.join(sorted(wanted)) or 'no parameters'}")
-    to = destination(found)
-    params = {
-        p.name: _place(state, p, given[p.name]) if p is to else _fits(p, given[p.name])
-        for p in found.params
-    }
+    params = {p.name: _widened(state, found, p, given[p.name]) for p in found.params}
     refused = order_refusal(state, seat, lever, given)
     if refused:
         raise ValueError(refused)

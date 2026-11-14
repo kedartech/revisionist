@@ -222,7 +222,7 @@ def test_other_parameters_carry_no_places(fdr: tuple[Realism, Client]) -> None:
     for lever in realism_of(ada)["desk"]["levers"]:
         for p in lever["params"]:
             assert set(p) == set(LeverParam.__annotations__)
-            if (lever["name"], p["name"]) != ("move_fleet", "to"):
+            if (lever["name"], p["name"]) not in {("move_fleet", "to"), ("detach_fleet", "to")}:
                 assert p["places"] == [], (lever["name"], p["name"])
 
 

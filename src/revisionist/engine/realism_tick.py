@@ -375,10 +375,10 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
 
 
 def _amend(em: Emitter, events: Sequence[Event]) -> list[Event]:
-    """Bring each card's allies, conflicts, answers and voice up to the world file the
-    game was compiled from, so a game begun before they were written takes them at its next
-    wake. Nothing when the file is gone or no longer compiles, and nothing for a card
-    the game could not take (it names something the game does not have)."""
+    """Bring each card's allies, conflicts, answers, voice and form of address up to the
+    world file the game was compiled from, so a game begun before they were written takes
+    them at its next wake. Nothing when the file is gone or no longer compiles, and nothing
+    for a card the game could not take (it names something the game does not have)."""
     name = next(
         (e.payload.world for e in events if isinstance(e.payload, ev.CampaignCreated)), None
     )
@@ -393,11 +393,18 @@ def _amend(em: Emitter, events: Sequence[Event]) -> list[Event]:
     state = em.state
     for amendment in policy:
         card = state.cards.get(amendment.person)
-        if card is None or (card.allies, card.opposes, card.answers, card.voice) == (
+        if card is None or (
+            card.allies,
+            card.opposes,
+            card.answers,
+            card.voice,
+            card.addressed_as,
+        ) == (
             amendment.allies,
             amendment.opposes,
             amendment.answers,
             amendment.voice,
+            amendment.addressed_as,
         ):
             continue
         probe = Emitter(em.store, state, em.versions).event(amendment)

@@ -12,7 +12,15 @@ from revisionist.core.realism.document import (
     DocumentTruth,
     DocumentView,
 )
-from revisionist.core.realism.war import NewsEvent, Outlet, outlet_for
+from revisionist.core.realism.war import (
+    NEUTRAL,
+    OPPOSITION,
+    NewsEvent,
+    Outlet,
+    paper_of,
+    polity_of,
+    tagged,
+)
 from revisionist.core.state import State
 from revisionist.core.visibility import Scope, Visibility
 
@@ -48,12 +56,42 @@ def _page(
     )
 
 
+def _adversary(state: State, person: EntityId, polity: EntityId) -> Outlet | None:
+    """The home paper of the first power the person's card opposes that is not their own
+    and has a paper; failing that, of a power at war with theirs."""
+    card = state.cards.get(person)
+    against = [polity_of(state, c.against) for c in card.opposes] if card is not None else []
+    for war in sorted(state.wars.values(), key=lambda w: w.war_id):
+        if polity in (war.a, war.b):
+            against.append(war.b if war.a == polity else war.a)
+    for other in against:
+        if other is not None and other != polity:
+            paper = paper_of(state, other)
+            if paper is not None:
+                return paper
+    return None
+
+
+def papers(state: State, person: EntityId) -> tuple[Outlet, ...]:
+    """The papers a person's desk reads: home, then the domestic opposition's or else a
+    neutral one, then an adversary's. None at all where their country has no paper."""
+    polity = polity_of(state, person)
+    home = paper_of(state, polity) if polity is not None else None
+    if polity is None or home is None:
+        return ()
+    second = tagged(state, OPPOSITION, polity) or tagged(state, NEUTRAL)
+    out: list[Outlet] = []
+    for paper in (home, second, _adversary(state, person, polity)):
+        if paper is not None and paper not in out:
+            out.append(paper)
+    return tuple(out)
+
+
 def news_pages(state: State, day: date) -> list[ev.DocumentIssued]:
     """One page per reported event per outlet that some seat reads, once the event is due."""
     readers: dict[EntityId, set[SeatId]] = {}
     for seat in sorted(actors.readers(state)):
-        outlet = outlet_for(state, seat)
-        if outlet is not None:
+        for outlet in papers(state, state.seats[seat].embodies):
             readers.setdefault(outlet.outlet_id, set()).add(seat)
     out: list[ev.DocumentIssued] = []
     for news_id in sorted(state.news):

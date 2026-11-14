@@ -57,6 +57,12 @@ class NewsEvent(Model):
     """Neutral, plain words."""
 
 
+OPPOSITION = "opposition"
+"""Entity tag on a paper of the domestic opposition: read second at home, never the home paper."""
+NEUTRAL = "neutral"
+"""Entity tag on a neutral country's paper: read second where no opposition paper exists."""
+
+
 class Outlet(Model):
     """A seat's newspaper: the voice its press is written in."""
 
@@ -87,22 +93,55 @@ def polity_of(state: "State", entity: EntityId) -> EntityId | None:
     return None
 
 
+def paper_of(state: "State", polity: EntityId) -> Outlet | None:
+    """The polity's home paper: its first outlet that is not an opposition daily."""
+    return next(
+        (
+            o
+            for o in state.outlets.values()
+            if o.polity == polity and OPPOSITION not in _tags(state, o.outlet_id)
+        ),
+        None,
+    )
+
+
+def _tags(state: "State", entity: EntityId) -> frozenset[str]:
+    here = state.entities.get(entity)
+    return here.tags if here is not None else frozenset()
+
+
 def outlet_for(state: "State", seat: SeatId) -> Outlet | None:
-    """The outlet of the polity the person the seat embodies belongs to."""
+    """The home paper of the polity the person the seat embodies belongs to."""
     held = state.seats.get(seat)
     if held is None:
         return None
     polity = polity_of(state, held.embodies)
-    return next((o for o in state.outlets.values() if o.polity == polity), None)
+    return paper_of(state, polity) if polity is not None else None
+
+
+def tagged(state: "State", tag: str, polity: EntityId | None = None) -> Outlet | None:
+    """The first outlet carrying ``tag``, of ``polity`` when one is given."""
+    return next(
+        (
+            o
+            for o in state.outlets.values()
+            if (polity is None or o.polity == polity) and tag in _tags(state, o.outlet_id)
+        ),
+        None,
+    )
 
 
 __all__ = [
+    "NEUTRAL",
+    "OPPOSITION",
     "NewsEvent",
     "NewsTopic",
     "Outlet",
     "War",
     "at_war",
     "outlet_for",
+    "paper_of",
     "polity_of",
+    "tagged",
     "war_id_for",
 ]

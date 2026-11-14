@@ -17,6 +17,11 @@ move: the day it sets out, or on arrival, the day it set out if it left a base a
 else the day it arrives. One that has been out longer than its kind's raid limit
 (``bases.RAID_DAYS``) while at a raid place turns for the base nearest it, unless it is
 already bound for a base. Armies keep no clock.
+
+An order that also names a ``strength`` splits the force instead (``detachments``): that
+much of it sets out as a detachment on the course a move would take, and the rest stays.
+Each day, after arrivals, a detachment standing still where its force stands still
+merges back. A detachment that has merged is out of play: no order or day moves it.
 """
 
 from datetime import date, timedelta
@@ -25,13 +30,14 @@ from revisionist.core.ids import EntityId, FeatureId
 from revisionist.core.ontology import EntityKind
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.bases import RAID_DAYS, Force, Tier, nearest_base, reach, world_of
-from revisionist.core.realism.geography import FORCES, Feature
+from revisionist.core.realism.detachments import rejoin, split
+from revisionist.core.realism.geography import FORCES, Feature, in_play
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.routing import travel_days
 from revisionist.core.state import State
 from revisionist.core.world_compile import object_id
 
-FORCE, TO = "force", "to"
+FORCE, TO, STRENGTH = "force", "to", "strength"
 DEPTH = 8
 """How far up a person's parents their side may lie (person, body, polity)."""
 
@@ -93,57 +99,67 @@ def _turned(state: State, f: Feature, today: date) -> Feature | None:
     )
 
 
+def _sent(state: State, force: Feature, to: EntityId, as_of: date) -> Feature | None:
+    """``force`` under way to ``to`` from ``as_of``, halted if it is already there, or
+    None when the place is out of its reach or it has no route."""
+    here = force.places[0]
+    if to == here:
+        return force.model_copy(
+            update={
+                "bound_for": None,
+                "arrives": None,
+                "legs": (),
+                "as_of": as_of,
+                **_clock(state, force, here, as_of, as_of),
+            }
+        )
+    found = reach(state, force, to)
+    if found is not None and found.tier is Tier.REFUSED:
+        return None
+    days = travel_days(state, force, to)
+    if days is None:
+        return None
+    return force.model_copy(
+        update={
+            "bound_for": to,
+            "arrives": as_of + timedelta(days=days),
+            "legs": (),
+            "as_of": as_of,
+            **({"left_base_on": force.left_base_on or as_of} if _timed(state, force) else {}),
+        }
+    )
+
+
 def resolve(state: State, order: Order) -> tuple[Feature, ...]:
-    """The force under way, or halted if sent where it already is."""
+    """The force under way, or halted if sent where it already is; for an order that
+    names a strength, the force and the detachment it sends."""
     if order.status is not OrderStatus.ENACTED:
         return ()
     cid = state.campaign_id
-    force = state.features.get(FeatureId(object_id(cid, "feature", str(order.params.get(FORCE)))))
+    key = str(order.params.get(FORCE))
+    force = state.features.get(FeatureId(object_id(cid, "feature", key)))
     to = state.entities.get(EntityId(object_id(cid, "entity", str(order.params.get(TO)))))
-    if force is None or force.kind not in FORCES or force.side is None:
+    if force is None or force.kind not in FORCES or force.side is None or not in_play(force):
         return ()
     if to is None or to.kind is not EntityKind.LOCATION or to.at is None:
         return ()
     if not _of_side(state, state.seats[order.issuer].embodies, force.side):
         return ()
-    as_of = max(rs.settled_on(order), force.as_of)
-    here = force.places[0]
-    if to.entity_id == here:
-        return (
-            force.model_copy(
-                update={
-                    "bound_for": None,
-                    "arrives": None,
-                    "legs": (),
-                    "as_of": as_of,
-                    **_clock(state, force, here, as_of, as_of),
-                }
-            ),
-        )
-    found = reach(state, force, to.entity_id)
-    if found is not None and found.tier is Tier.REFUSED:
+    sent = _sent(state, force, to.entity_id, max(rs.settled_on(order), force.as_of))
+    if sent is None:
         return ()
-    days = travel_days(state, force, to.entity_id)
-    if days is None:
-        return ()
-    return (
-        force.model_copy(
-            update={
-                "bound_for": to.entity_id,
-                "arrives": as_of + timedelta(days=days),
-                "legs": (),
-                "as_of": as_of,
-                **({"left_base_on": force.left_base_on or as_of} if _timed(state, force) else {}),
-            }
-        ),
-    )
+    if STRENGTH in order.params:
+        return split(state, force, key, order.params[STRENGTH], sent)
+    return (sent,)
 
 
 def on_day(state: State, today: date) -> tuple[Feature, ...]:
-    """Forces arriving today, history's moves that fall due, and raiders out too long
-    turned for base."""
+    """Forces arriving today, history's moves that fall due, raiders out too long turned
+    for base, and detachments that stand still with their force merged back."""
     out: list[Feature] = []
     for f in sorted(state.features.values(), key=lambda x: x.feature_id):
+        if not in_play(f):
+            continue
         if f.bound_for is not None and f.arrives is not None and f.arrives <= today:
             out.append(
                 f.model_copy(
@@ -170,4 +186,5 @@ def on_day(state: State, today: date) -> tuple[Feature, ...]:
             )
         elif (back := _turned(state, f, today)) is not None:
             out.append(back)
-    return tuple(out)
+    moved = {f.feature_id: f for f in out}
+    return tuple({**moved, **rejoin({**state.features, **moved}, today)}.values())

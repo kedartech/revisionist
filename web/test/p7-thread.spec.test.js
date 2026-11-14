@@ -7,6 +7,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { installDom, words } from './dom-fake.js';
+import { settleMarks, threadCounts, unread } from '../js/views/realism-chat.js';
 import { groupItems, threadItems, threadView } from '../js/views/realism-thread.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
@@ -26,25 +27,65 @@ const HOPKINS = [
   item('theirs', 'counsel', 'Harriman thinks so, if the tanks arrive before the ports freeze.', '1941-10-17'),
 ];
 
-test('a contact: questions and answers, and the papers they wrote, oldest first', () => {
-  assert.deepEqual(threadItems({ ...base, person: 'Harry Hopkins' }), HOPKINS);
+test('a contact: questions and answers oldest first; a memo they wrote stays in the In-Tray', () => {
+  assert.deepEqual(threadItems({ ...base, person: 'Harry Hopkins' }), [HOPKINS[0], HOPKINS[1], HOPKINS[3], HOPKINS[4]]);
 });
 
-test('a paper that acknowledges or answers an order is a reply; any other is a letter', () => {
-  assert.deepEqual(threadItems({ ...base, person: 'Sam Rayburn' }), [
-    item('theirs', 'reply', 'On your order: Send a bill to Congress', '1941-10-12', 'd-reply-1012'),
-    item('theirs', 'letter', 'Letter received: House count on the Neutrality Act revision', '1941-10-19', 'd-whip-1017'),
+const paper = (id, kind, title, arrives, extra = {}) => ({ id, kind, title, author: 'Harry Hopkins', arrives, ack: false, answer: false, ...extra });
+const PAPERS = { documents: [
+  paper('d-memo', 'memo', 'Shipping figures', '1941-10-14'),
+  paper('d-report', 'report', 'Escorts in the North Atlantic', '1941-10-15'),
+  paper('d-ack', 'letter', 'On your order: Send a bill to Congress', '1941-10-15', { ack: true }),
+  paper('d-answer', 'memo', 'On your order: Speak to the Speaker', '1941-10-16', { answer: true }),
+  paper('d-letter', 'letter', 'From Moscow, privately', '1941-10-16'),
+] };
+const COUNSEL = [
+  { person: 'Harry Hopkins', question: 'Will Moscow hold?', answer: 'If the tanks arrive.', day: '17 October 1941', day_iso: '1941-10-17' },
+  { person: 'Harry Hopkins', question: 'How much did we ship?', answer: 'A third short.', day: '13 October 1941', day_iso: '1941-10-13' },
+];
+
+test('a thread holds the conversation and one line for each letter; memos, reports, acknowledgements and answers stay out', () => {
+  assert.deepEqual(threadItems({ person: 'Harry Hopkins', counsel: COUNSEL, documents: PAPERS }), [
+    item('mine', 'counsel', 'How much did we ship?', '1941-10-13'),
+    item('theirs', 'counsel', 'A third short.', '1941-10-13'),
+    item('theirs', 'letter', 'Letter received: From Moscow, privately', '1941-10-16', 'd-letter'),
+    item('mine', 'counsel', 'Will Moscow hold?', '1941-10-17'),
+    item('theirs', 'counsel', 'If the tanks arrive.', '1941-10-17'),
   ]);
-  assert.deepEqual(threadItems({ ...base, person: 'Admiral Ernest King' }), [
-    item('theirs', 'reply', 'Atlantic Fleet escort status', '1941-10-12', 'd-report-1010'),
-  ]);
+});
+
+test('papers that acknowledge or answer an order, or report, are not in the thread', () => {
+  assert.deepEqual(threadItems({ ...base, person: 'Sam Rayburn' }), []);
+  assert.deepEqual(threadItems({ ...base, person: 'Admiral Ernest King' }), []);
   assert.deepEqual(threadItems({ ...base, person: 'Burton K. Wheeler' }), []);
+});
+
+test('the letter line opens the letter', () => {
+  const items = threadItems({ person: 'Harry Hopkins', counsel: COUNSEL, documents: PAPERS });
+  const { box, calls } = view({ items });
+  const open = box.querySelectorAll('.rl-th-open');
+  assert.equal(open.length, 1);
+  assert.equal(words(open[0]), 'Letter received: From Moscow, privately');
+  open[0].click();
+  assert.deepEqual(calls.open, [{ id: 'd-letter' }]);
+});
+
+test('unread for a contact is their unread answers and letter lines; a mark kept from the papers settles down', () => {
+  const threads = { 'Harry Hopkins': threadItems({ person: 'Harry Hopkins', counsel: COUNSEL, documents: PAPERS }) };
+  const counts = threadCounts(threads);
+  assert.deepEqual(counts, { 'Harry Hopkins': 3 });
+  // Read when the thread still held every paper Hopkins wrote: 2 answers and 5 papers.
+  const marks = settleMarks(counts, { 'Harry Hopkins': 7 });
+  assert.deepEqual(marks, { 'Harry Hopkins': 3 });
+  const counsel = [{ person: 'Harry Hopkins', question: 'And the ports?', answer: 'Open until December.', day: '18 October 1941', day_iso: '1941-10-18' }, ...COUNSEL];
+  const next = threadCounts({ 'Harry Hopkins': threadItems({ person: 'Harry Hopkins', counsel, documents: PAPERS }) });
+  assert.deepEqual(unread(next, marks), { total: 1, fresh: ['Harry Hopkins'] });
 });
 
 test('on one day, the papers that arrived come before a consult held that day', () => {
   // Papers arrive when the wake opens; the seat consults after reading them.
   const counsel = [{ person: 'Harry Hopkins', channel: 'telephone', question: 'Is the memo right?', answer: 'It is.', day: '16 October 1941', day_iso: '1941-10-16', tie: 'inner' }];
-  const documents = { documents: [{ id: 'd-memo-1015', author: 'Harry Hopkins', title: 'Lend-Lease shipments, September tonnage', arrives: '1941-10-16' }] };
+  const documents = { documents: [{ id: 'd-letter-1016', kind: 'letter', author: 'Harry Hopkins', title: 'Lend-Lease shipments, September tonnage', arrives: '1941-10-16' }] };
   assert.deepEqual(threadItems({ counsel, documents, person: 'Harry Hopkins' }).map((i) => i.kind), ['letter', 'counsel', 'counsel']);
 });
 

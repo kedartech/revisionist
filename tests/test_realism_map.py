@@ -53,7 +53,7 @@ def move(r: Rig, person: str, lever: str, pipeline: str, days: list[date], **p: 
 def test_the_1941_map_compiles_with_its_forces_fronts_and_routes() -> None:
     r = Rig()
     kinds = sorted(f.kind.value for f in r.state.features.values())
-    assert kinds.count("fleet") == 5 and kinds.count("army") == 2
+    assert kinds.count("fleet") == 8 and kinds.count("army") == 8 and kinds.count("air") == 4
     assert kinds.count("front") == 1 and kinds.count("route") == 3
     for f in r.state.features.values():
         for p in f.places:

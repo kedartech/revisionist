@@ -41,7 +41,7 @@ test('the room calls each unit with the data the server sends', () => {
     /settingDossier\(\{ name: game\.name, setting: rv\.setting/,
     /happenedSheet\(\{/,
     /happenedDue\(page, shown, ui\.happenedSeen\)/,
-    /wakeOverlay\(\{ message, lines: overlayLines\(rv\.setting, rv\.wake\.wake\) \}\)/,
+    /wakeOverlay\(\{ message, lines: overlayLines\(rv\.setting, rv\.wake\.wake\), map: rv\.map, orders: rv\.record\?\.orders \}\)/,
     /seenStore\(storage\(\), game\.id\)/,
     /happenedStore\(storage\(\), game\.id\)/,
   ]) assert.match(room, call);

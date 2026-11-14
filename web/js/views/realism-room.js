@@ -287,7 +287,7 @@ export function realismRoom(ctx) {
     showStatus();
     if (message === RUNNING) {
       ui.runFrom = { wake: rv.record?.wake?.number ?? 0, map: rv.map ?? null }; // What happened replays the moves
-      const layer = wakeOverlay({ message, lines: overlayLines(rv.setting, rv.wake.wake) });
+      const layer = wakeOverlay({ message, lines: overlayLines(rv.setting, rv.wake.wake), map: rv.map, orders: rv.record?.orders });
       if (layer) root.append(layer);
     }
     try {

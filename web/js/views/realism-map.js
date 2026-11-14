@@ -29,11 +29,17 @@ function label(mark) {
   return `${mark.name}: ${markKindWord(mark.kind)}, ${sideLine(mark)}, ${certaintyWord(mark.certainty)}, ${whereLine(mark)}`;
 }
 
-/** The drawing: sea, land, the places the marks name, then lines under forces. */
-function drawing(map, land, opts) {
-  const box = mapBox(map, opts.scope);
+/**
+ * The drawing: sea, land, the places the marks name, then lines under forces. `opts.still`
+ * draws a picture only: no mark takes focus or a click (the wake overlay holds the room).
+ * `opts.compact`: drawn small, so marks and names are drawn larger for the width.
+ */
+export function mapDrawing(map, land, opts = {}) {
+  const fit = mapBox(map, opts.scope);
+  // names are drawn east of their marks: room for them at the larger compact size
+  const box = opts.compact ? { ...fit, east: Math.min(fit.east + (fit.east - fit.west) * 0.3, 180) } : fit;
   const proj = projection(box);
-  const size = proj.width / 55;
+  const size = proj.width / (opts.compact ? 26 : 55);
   const orders = map.orders ?? [];
   const named = new Set([...map.marks.flatMap((m) => m.places.map((p) => p.name)), ...orders.map((o) => o.to.name)]);
   const inBox = (p) => p.lon >= box.west && p.lon <= box.east && p.lat >= box.south && p.lat <= box.north;
@@ -48,8 +54,9 @@ function drawing(map, land, opts) {
 
   const marks = sortMarks(map.marks).map((m) => {
     const select = () => opts.onSelect?.(m.name);
-    const common = {
-      class: `rl-mk rl-mk-${m.kind} rl-side-${m.side} rl-c-${m.certainty}${opts.selected === m.name ? ' selected' : ''}`,
+    const look = `rl-mk rl-mk-${m.kind} rl-side-${m.side} rl-c-${m.certainty}${opts.selected === m.name ? ' selected' : ''}`;
+    const common = opts.still ? { class: look } : {
+      class: look,
       tabindex: 0,
       role: 'button',
       'aria-label': label(m),
@@ -88,7 +95,7 @@ function drawing(map, land, opts) {
 
   return svg('svg', {
     class: 'rl-map-svg', viewBox: `0 0 ${proj.width} ${proj.height}`, preserveAspectRatio: 'xMidYMid meet',
-    role: 'group', 'aria-label': 'Map of what your papers report',
+    role: opts.still ? 'img' : 'group', 'aria-label': opts.label ?? 'Map of what your papers report',
   },
   svg('rect', { x: 0, y: 0, width: proj.width, height: proj.height, class: 'rl-map-sea' }),
   land ? svg('path', { d: landPath(land.rings, box, proj), class: 'rl-map-land' }) : null,
@@ -183,6 +190,6 @@ export function mapView(map, land, opts = {}) {
     empty,
     mode === 'list'
       ? [map.marks.length ? table(map, find) : null, ordered]
-      : [h('figure', { class: 'rl-map-figure' }, drawing(map, land, { ...opts, scope })), legend(),
+      : [h('figure', { class: 'rl-map-figure' }, mapDrawing(map, land, { ...opts, scope })), legend(),
         selected ? detail(selected, opts.onOpen) : null, ordered]);
 }

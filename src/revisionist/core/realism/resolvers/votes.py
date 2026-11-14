@@ -11,16 +11,22 @@ Phase 6.
 Votes are computed at settlement, so a bill that fails the House still reached
 the President's desk in the pipeline (2f: moving the floor vote into the step is
 later work).
+
+A decided bill is public news, once: a neutral headline, each chamber's count as the
+world publishes it, and the result. Whip counts are papers, never news.
 """
 
 from datetime import date, timedelta
 
-from revisionist.core.ids import OrderId
+from revisionist.core.ids import OrderId, derived_id
 from revisionist.core.realism import resolvers as rs
+from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.effect import Clause, ClauseKind, ProposeMeasure
 from revisionist.core.realism.pipeline import ADVANCES, Order, OrderStatus
-from revisionist.core.realism.quantity import QuantityChange
+from revisionist.core.realism.quantity import Quantity, QuantityChange
+from revisionist.core.realism.war import NewsEvent, NewsTopic
 from revisionist.core.state import State
+from revisionist.core.visibility import Visibility
 
 LEVER = "send_bill"
 
@@ -206,6 +212,78 @@ def put(state: State, key: str, value: int, as_of: date) -> QuantityChange | Non
     return QuantityChange(quantity_id=rs.qid(state, key), value=value, as_of=as_of)
 
 
-def on_day(state: State, today: date) -> tuple[QuantityChange, ...]:
-    """Votes move with orders only: nothing changes with time alone."""
-    return ()
+CHAMBER_NAMES = {"house": "House", "senate": "Senate", "concur": "House concurrence"}
+FAILED_IN = {"house": "the House", "senate": "the Senate", "concur": "the House"}
+HEADLINE_MAX = 60
+LOOKBACK_DAYS = 1
+"""A player's last step between wakes settles a bill on the day before the wake's
+first day, so the news looks back one day; an older decision is never reported."""
+
+
+def _public(q: Quantity | None) -> bool:
+    return q is not None and q.scope is not None and q.scope.visibility is Visibility.PUBLIC
+
+
+def _bill(order: Order) -> str | None:
+    """The bill key an enacted order's votes were written under, as the votes resolver
+    chose it; None for any other order."""
+    if order.status is not OrderStatus.ENACTED:
+        return None
+    if order.measure is not None:
+        title = order.measure.title
+        known = (k for k, m in HISTORICAL.items() if m.title == title and k in TALLIES)
+        return next(known, NOVEL_REFERENCE)
+    bill = order.params.get("bill")
+    return str(bill) if order.lever == LEVER and bill in TALLIES else None
+
+
+def news(state: State, order: Order, today: date) -> NewsEvent | None:
+    """The public record of a bill decided on ``today`` or the day before, read from the
+    counts the world publishes; None when there is none or it is already reported."""
+    bill = _bill(order)
+    day = rs.settled_on(order)
+    if bill is None or not today - timedelta(days=LOOKBACK_DAYS) <= day <= today:
+        return None
+    flag = state.quantities.get(rs.qid(state, f"{bill}_passed"))
+    if flag is None or flag.owner is None or flag.value is None or not _public(flag):
+        return None
+    if flag.as_of != day:  # the result on record is not this order's
+        return None
+    news_id = derived_id(state.campaign_id, "news", "vote", order.order_id)
+    if news_id in state.news:
+        return None
+    counts: list[tuple[str, int, int]] = []
+    for chamber in TALLIES[bill]:
+        yeas = state.quantities.get(rs.qid(state, f"{bill}_{chamber}_yeas"))
+        nays = state.quantities.get(rs.qid(state, f"{bill}_{chamber}_nays"))
+        if yeas is None or nays is None or not (_public(yeas) and _public(nays)):
+            continue
+        if yeas.value is not None and nays.value is not None:
+            counts.append((chamber, yeas.value, nays.value))
+    title = order.measure.title if order.measure is not None else HISTORICAL[bill].title
+    if flag.value:
+        headline = f"{title} passes Congress"
+    else:
+        lost = next((FAILED_IN[c] for c, yeas, nays in counts if yeas <= nays), "Congress")
+        headline = f"{title} fails in {lost}"
+    if len(headline) > HEADLINE_MAX:
+        headline = headline[: HEADLINE_MAX - 1] + "…"
+    return NewsEvent(
+        news_id=news_id,
+        on=day,
+        topic=NewsTopic.VOTE,
+        subject=flag.owner,
+        headline=headline,
+        facts=(
+            *(BodyField(label=CHAMBER_NAMES[c], value=f"{y} to {n}") for c, y, n in counts),
+            BodyField(label="Result", value="Passed" if flag.value else "Failed"),
+            BodyField(label="Date", value=f"{day.day} {day:%B %Y}"),
+        ),
+    )
+
+
+def on_day(state: State, today: date) -> tuple["rs.Change", ...]:
+    """The news of each bill decided today or the day before; tallies move with orders
+    only."""
+    orders = sorted(state.orders.values(), key=lambda o: o.order_id)
+    return tuple(n for n in (news(state, o, today) for o in orders) if n is not None)

@@ -25,6 +25,7 @@ import { newsBlock, whatChanged } from './realism-news.js';
 import { orderCards } from './realism-orders.js';
 import { pressCounts, pressDock, pressFocus, pressMarks, pressPapers, pressSeen, pressTab } from './realism-press.js';
 import { overlayLines, wakeOverlay } from './realism-overlay.js';
+import { peopleRoster, personDossier } from './realism-people.js';
 import { statusStrip, summaryTiles } from './realism-status.js';
 import { sideSwitch, tabBar } from './realism-tabs.js';
 import { followThread, threadItems } from './realism-thread.js';
@@ -37,7 +38,7 @@ const freshUi = (game) => ({
   filter: 'all', sort: 'newest', draft: null, proposal: null, autoFor: null,
   chat: { open: false, tab: 'chats', thread: null }, contact: null, orderTo: null,
   happenedSeen: null, refocusChat: false, brief: null, pending: null, drafts: {}, runFrom: null,
-  tab: 'desk', side: 'papers', press: { open: false, tab: null }, pressPage: null,
+  tab: 'desk', side: 'papers', press: { open: false, tab: null }, pressPage: null, peopleTab: 'opponents',
 });
 let ui = freshUi(null);
 
@@ -466,10 +467,34 @@ export function realismRoom(ctx) {
     item.querySelector('input, select, textarea')?.focus();
   }
 
+  /** A roster row opens that person's dossier over the room; closing it puts focus back on the row. */
+  function openPerson(line, tab) {
+    const from = document.activeElement;
+    const dossier = personDossier(line, tab, {
+      onClose: () => {
+        dossier.remove();
+        if (from?.isConnected) from.focus();
+      },
+    });
+    root.append(dossier);
+    dossier.showModal();
+  }
+
+  /** A roster tab is picked: the redraw keeps focus on that tab's button. */
+  function pickPeople(key) {
+    ui.peopleTab = key;
+    rerender();
+    root.querySelector('.rl-people .seg button[aria-pressed="true"]')?.focus();
+  }
+
   function sideColumn() {
+    // the People roster replaces the Opponents panel; a view without it keeps the old panel
+    const people = rv.people
+      ? peopleRoster(rv.people, { tab: ui.peopleTab, onTab: pickPeople, onOpen: openPerson })
+      : threatsPanel(rv.threats);
     return h('aside', { class: 'rl-col rl-side', 'data-tab': 'orders', 'aria-label': 'Your orders' },
       h('div', { class: 'rl-col-body' },
-        threatsPanel(rv.threats),
+        people,
         orderCards(rv.record, rv.orders, (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v)))));
   }
 

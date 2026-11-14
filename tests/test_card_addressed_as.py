@@ -26,7 +26,10 @@ from tests.test_engine_v2_contract import Slice
 from tests.test_prose_context import _page, _reported
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
-DECL = cmp.load_world(cmp.world_path("autumn-1941"))
+WORLD = cmp.load_world(cmp.world_path("autumn-1941"))
+DECL = WORLD.model_copy(
+    update={"cards": tuple(c.model_copy(update={"addressed_as": None}) for c in WORLD.cards)}
+)
 KEYS = {k: EntityId(v) for k, v in resolve_keys(DECL, CAMPAIGN).items()}
 FORMS = {"roosevelt": "Mr. President", "churchill": "Prime Minister", "hitler": "Mein Führer"}
 ADDRESSED = DECL.model_copy(

@@ -6,20 +6,62 @@ to and how the reader is addressed, the reader's own words for the order the pag
 answers, what the page is for, how the author stands to the reader, and the author's own
 aims (an author may give a view only where it follows from them).
 
+How long a page runs is read from the page alone (``band``): the channel it went by sets
+the register, a message, a cable or a letter, and a press item or a formal kind keeps
+its own form. The band is a target; the facts on the page win over it.
+
 Only a private page held by one seat gets a context: a public page is addressed to no
 one. An order's words reach a page only when the page is the paper on that order and the
 order is the holder's own, so nothing another seat asked can reach a reader.
 """
 
-from typing import Any
+from typing import Any, NamedTuple
 
 from revisionist.core.ids import DocumentId
 from revisionist.core.realism.apply import outcome, report_doc_id
-from revisionist.core.realism.document import DocumentView
+from revisionist.core.realism.card import ChannelKind
+from revisionist.core.realism.document import DocumentKind, DocumentView
 from revisionist.core.realism.effect import Fidelity, Route, RoutedPart
 from revisionist.core.realism.pipelines import order_words, reply_doc_id
 from revisionist.core.state import State
 from revisionist.core.visibility import Visibility
+
+
+class Band(NamedTuple):
+    """The words a page of one register aims for."""
+
+    low: int
+    high: int
+
+
+MESSAGE = Band(10, 40)
+CABLE = Band(30, 80)
+LETTER = Band(80, 200)
+
+_BY_CHANNEL: dict[ChannelKind, Band] = {
+    ChannelKind.IN_PERSON: MESSAGE,
+    ChannelKind.TELEPHONE: MESSAGE,
+    ChannelKind.RADIO: MESSAGE,
+    ChannelKind.CABLE: CABLE,
+    ChannelKind.LETTER: LETTER,
+    ChannelKind.COURIER: LETTER,
+}
+_OWN_FORM = frozenset(
+    {
+        DocumentKind.PRESS,
+        DocumentKind.POLL,
+        DocumentKind.WHIP_COUNT,
+        DocumentKind.INTERCEPT,
+        DocumentKind.TRANSCRIPT,
+    }
+)
+
+
+def band(page: DocumentView) -> Band | None:
+    """The band for ``page``'s channel; None for a press item, a formal kind, or a page
+    that went out through the press."""
+    return None if page.kind in _OWN_FORM else _BY_CHANNEL.get(page.channel)
+
 
 _WARNS = {Fidelity.LOOSE, Fidelity.PARTIAL}
 
@@ -91,4 +133,4 @@ def page_context(state: State, page: DocumentView) -> dict[str, Any]:
     return ctx
 
 
-__all__ = ["page_context"]
+__all__ = ["CABLE", "LETTER", "MESSAGE", "Band", "band", "page_context"]

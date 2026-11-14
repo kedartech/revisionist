@@ -25,7 +25,7 @@ from revisionist.core.realism.document import DocumentKind, DocumentView
 from revisionist.core.realism.prose import invented_numbers, numbers_in
 from revisionist.core.state import State
 from revisionist.engine.llm import Request, Transport, prompt_text, prompt_version
-from revisionist.engine.prose_context import page_context
+from revisionist.engine.prose_context import band, page_context
 
 PROSE_MODEL = "claude-sonnet-5-5"
 """[proposed] The P0 A/B (``scripts/prose_ab.py``) decides; ``REVISIONIST_MODEL_PROSE``
@@ -126,6 +126,7 @@ def page_lines(page: DocumentView, author: Author) -> dict[str, Any]:
         "title": page.title,
         "author": author.name,
         **({"to": author.to[page.doc_id]} if page.doc_id in author.to else {}),
+        **({"length": f"{b.low} to {b.high} words"} if (b := band(page)) is not None else {}),
         "issued": page.issued.isoformat(),
         "arrives": page.arrives.isoformat(),
         "channel": page.channel.value,

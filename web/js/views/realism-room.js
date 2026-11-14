@@ -19,6 +19,7 @@ import { standardForms } from './realism-forms.js';
 import { happenedSheet, happenedStore, shouldShow } from './realism-happened.js';
 import { ideasPanel } from './realism-ideas.js';
 import { crawlParagraphs, introCrawl } from './realism-crawl.js';
+import { runMoves } from './realism-moves.js';
 import { introStage, markIntro, seatSplash, splashModel, startOverview } from './realism-intro.js';
 import { newsBlock, whatChanged } from './realism-news.js';
 import { orderCards } from './realism-orders.js';
@@ -34,7 +35,7 @@ const freshUi = (game) => ({
   game, wide: false, page: null, said: null, error: null, busy: null,
   filter: 'all', sort: 'newest', draft: null, proposal: null, autoFor: null,
   chat: { open: false, tab: 'chats', thread: null }, contact: null, orderTo: null,
-  happenedSeen: null, refocusChat: false, brief: null, pending: null, drafts: {},
+  happenedSeen: null, refocusChat: false, brief: null, pending: null, drafts: {}, runFrom: null,
   tab: 'desk', side: 'papers',
 });
 let ui = freshUi(null);
@@ -285,6 +286,7 @@ export function realismRoom(ctx) {
     for (const el of root.querySelectorAll('button, select, textarea, input')) el.disabled = true;
     showStatus();
     if (message === RUNNING) {
+      ui.runFrom = { wake: rv.record?.wake?.number ?? 0, map: rv.map ?? null }; // What happened replays the moves
       const layer = wakeOverlay({ message, lines: overlayLines(rv.setting, rv.wake.wake), map: rv.map, orders: rv.record?.orders });
       if (layer) root.append(layer);
     }
@@ -564,7 +566,8 @@ export function realismRoom(ctx) {
     const page = rv.record?.wake;
     const happened = happenedDue(page, shown, ui.happenedSeen)
       ? happenedSheet({
-        record: rv.record, situation: rv.situation, date,
+        record: rv.record, situation: rv.situation, agenda: rv.agenda, date,
+        moves: runMoves(ui.runFrom, page, rv.map), places: rv.map?.places,
         onClose: () => happened?.close(),
       })
       : null;

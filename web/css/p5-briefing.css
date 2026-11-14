@@ -1,0 +1,46 @@
+/* p5-briefing.css: the aide's briefing at the head of What happened (and the splash). Tokens only. */
+
+.rl-brief {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--info);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  min-width: 0;
+}
+.rl-brief-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.rl-brief-portrait {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+}
+.rl-brief .rl-brief-who {
+  margin: 0;
+  font: 600 12px/1.2 var(--font-chrome);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--fg-muted);
+}
+.rl-brief .rl-brief-lead {
+  margin: 0 0 var(--space-2);
+  font: 400 0.95rem/1.5 var(--font-read);
+  color: var(--fg-read);
+}
+.rl-brief .rl-brief-lines {
+  margin: 0;
+  padding: 0 0 0 var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font: 400 0.9rem/1.45 var(--font-read);
+  color: var(--fg-read);
+}
+.rl-brief-lines li { min-width: 0; overflow-wrap: anywhere; }

@@ -39,6 +39,8 @@ class NewsTopic(StrEnum):
     DEAL = "deal"
     CONTACT = "contact"
     VOTE = "vote"
+    POLL = "poll"
+    """A published opinion poll figure that moved."""
     EVENT = "event"
     """A history event that fired."""
 

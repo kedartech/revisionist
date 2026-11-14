@@ -5676,6 +5676,7 @@
           "deal",
           "contact",
           "vote",
+          "poll",
           "event"
         ],
         "title": "NewsTopic",
@@ -12596,6 +12597,7 @@
           "deal",
           "contact",
           "vote",
+          "poll",
           "event"
         ],
         "title": "NewsTopic",

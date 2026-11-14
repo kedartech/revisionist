@@ -1,4 +1,21 @@
 {
+ "196c1494af42b5b0c1224187": {
+  "call_class": "counsel",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## You are\nHarry L. Hopkins, Special assistant to the President\nVoice: Wry, informal and direct; cuts to \"what do you ne",
+  "reply": {
+   "cached_tokens": 312,
+   "input_tokens": 2169,
+   "model": "claude-sonnet-5-5",
+   "output": {
+    "text": "Mr. President, I have only their letter of request so far, and it gives no figures I would put in front of you. From what I saw in Moscow they need everything, but I would not guess at numbers until the full list comes through. When it does, I will bring it to you myself."
+   },
+   "output_tokens": 71,
+   "usd": 0.005048
+  }
+ },
  "309d9e7a25f89bbe588bc45e": {
   "call_class": "counsel",
   "hand_written": true,
@@ -16,7 +33,7 @@
    "usd": 0.003816
   }
  },
- "72b5a59785aa74507695c269": {
+ "4a65f02f5a1afcad57bf1a55": {
   "call_class": "counsel",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -24,30 +41,13 @@
   "prompt_head": "## You are\nHarry L. Hopkins, Special assistant to the President\nVoice: Wry, informal and direct; cuts to \"what do you ne",
   "reply": {
    "cached_tokens": 312,
-   "input_tokens": 1781,
+   "input_tokens": 2237,
    "model": "claude-sonnet-5-5",
    "output": {
     "text": "Mr. President, going by the list as Harriman sent it, tanks come first: they ask for 500 a month, and 400 aircraft a month behind that. That is what they asked for, mind you, not what they will get. I can't tell you yet what we can ship against it; that is a question for the Army and for the British, who will want their share. My advice is to tell Stalin something definite soon, even if it is less than the list."
    },
    "output_tokens": 106,
-   "usd": 0.004622
-  }
- },
- "e5b08ccc956253c8cd21e1ef": {
-  "call_class": "counsel",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## You are\nHarry L. Hopkins, Special assistant to the President\nVoice: Wry, informal and direct; cuts to \"what do you ne",
-  "reply": {
-   "cached_tokens": 312,
-   "input_tokens": 1712,
-   "model": "claude-sonnet-5-5",
-   "output": {
-    "text": "Mr. President, I have only their letter of request so far, and it gives no figures I would put in front of you. From what I saw in Moscow they need everything, but I would not guess at numbers until the full list comes through. When it does, I will bring it to you myself."
-   },
-   "output_tokens": 71,
-   "usd": 0.004134
+   "usd": 0.005534
   }
  },
  "e5c9e0952cd868ba18818cb9": {

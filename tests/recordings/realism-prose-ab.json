@@ -21,70 +21,26 @@
    "usd": 0.0001709
   }
  },
- "3384c41c4d176527ffe6fe86": {
+ "23b365e8857bd8f33879b90b": {
   "call_class": "prose",
   "hand_written": true,
   "model": "claude-haiku-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nSam Rayburn, Speaker of the House of Representatives\nVoice: Plain-spoken Texan of few words; counts votes priv",
+  "prompt_head": "## Author\nThe Heartland Sentinel, newspaper\nVoice: Midwestern isolationist daily. Distrusts the Administration and forei",
   "reply": {
    "cached_tokens": 1187,
-   "input_tokens": 1328,
+   "input_tokens": 1376,
    "model": "claude-haiku-5-5",
    "output": {
     "pages": [
      {
-      "doc_id": "60ATBCTZ2KYC0K2G20C4ZF9REH",
-      "prose": "Mr. President, the House still stands at 267 Democrats and 162 Republicans. Sam Rayburn"
-     }
-    ]
-   },
-   "output_tokens": 38,
-   "usd": 0.0001518
-  }
- },
- "380b74672dbbad571c9687e3": {
-  "call_class": "prose",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nSam Rayburn, Speaker of the House of Representatives\nVoice: Plain-spoken Texan of few words; counts votes priv",
-  "reply": {
-   "cached_tokens": 1187,
-   "input_tokens": 1328,
-   "model": "claude-sonnet-5-5",
-   "output": {
-    "pages": [
-     {
-      "doc_id": "60ATBCTZ2KYC0K2G20C4ZF9REH",
-      "prose": "Mr. President,\n\nThe House is as it was: 267 Democrats and 162 Republicans. I'll tell you the minute that changes.\n\nSam"
-     }
-    ]
-   },
-   "output_tokens": 47,
-   "usd": 0.003126
-  }
- },
- "5529f9b9943094bfb0581ecd": {
-  "call_class": "prose",
-  "hand_written": true,
-  "model": "claude-haiku-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nStephen T. Early, White House press secretary\nVoice: Crisp newsroom manner; thinks in headlines and deadlines,",
-  "reply": {
-   "cached_tokens": 1187,
-   "input_tokens": 1313,
-   "model": "claude-haiku-5-5",
-   "output": {
-    "pages": [
-     {
-      "doc_id": "K2JFTV447NE1W5B78144V8GG5D",
-      "prose": "Gallup now shows 56 percent saying your course is about right. Nothing new on war with Germany or on aid to Britain at risk of war.\n\nSteve Early"
+      "doc_id": "CCG2869DE5Z2SW7R3CY1W4FPT0",
+      "prose": "Gallup reports 56 percent of Americans call the President's course about right, up from 55 percent in the previous poll. Released 8 September 1941."
      }
     ]
    },
    "output_tokens": 53,
-   "usd": 0.0001578
+   "usd": 0.0001641
   }
  },
  "666ec5324b89fbf51e685465": {
@@ -109,6 +65,50 @@
    "usd": 0.0001508
   }
  },
+ "737b821aabd7d644ff5da3d3": {
+  "call_class": "prose",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Author\nDer Reichsbote, newspaper\nVoice: Party-line German daily. Triumphant and defiant; blames Germany's enemies; pr",
+  "reply": {
+   "cached_tokens": 1187,
+   "input_tokens": 1354,
+   "model": "claude-sonnet-5-5",
+   "output": {
+    "pages": [
+     {
+      "doc_id": "7DG4JJTQTYK2Z4BJFMNS41FYF2",
+      "prose": "WASHINGTON, 8 September 1941. Roosevelt's pollsters report a gain of a single point: 56 percent of Americans now call his course about right, against 55 percent before."
+     }
+    ]
+   },
+   "output_tokens": 58,
+   "usd": 0.003288
+  }
+ },
+ "839987f78744c3347c5cb00f": {
+  "call_class": "prose",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Author\nThe Heartland Sentinel, newspaper\nVoice: Midwestern isolationist daily. Distrusts the Administration and forei",
+  "reply": {
+   "cached_tokens": 1187,
+   "input_tokens": 1376,
+   "model": "claude-sonnet-5-5",
+   "output": {
+    "pages": [
+     {
+      "doc_id": "CCG2869DE5Z2SW7R3CY1W4FPT0",
+      "prose": "The White House will make much of one point. Gallup's figure for those who think the President's course about right stands at 56 percent this 8 September 1941, against 55 percent last time."
+     }
+    ]
+   },
+   "output_tokens": 63,
+   "usd": 0.003382
+  }
+ },
  "9bc48adb861633f8f0650e32": {
   "call_class": "prose",
   "hand_written": true,
@@ -129,6 +129,28 @@
    },
    "output_tokens": 62,
    "usd": 0.003276
+  }
+ },
+ "adea8cccc6324af25a760168": {
+  "call_class": "prose",
+  "hand_written": true,
+  "model": "claude-haiku-5-5",
+  "note": "hand-written for tests; not a model reply",
+  "prompt_head": "## Author\nDer Reichsbote, newspaper\nVoice: Party-line German daily. Triumphant and defiant; blames Germany's enemies; pr",
+  "reply": {
+   "cached_tokens": 1187,
+   "input_tokens": 1354,
+   "model": "claude-haiku-5-5",
+   "output": {
+    "pages": [
+     {
+      "doc_id": "7DG4JJTQTYK2Z4BJFMNS41FYF2",
+      "prose": "WASHINGTON, 8 September 1941. The American Gallup survey puts approval of Roosevelt's course at 56 percent, against 55 percent in the previous poll."
+     }
+    ]
+   },
+   "output_tokens": 53,
+   "usd": 0.0001619
   }
  },
  "bcfae70c9f0bdeb7365fd699": {
@@ -173,28 +195,6 @@
    },
    "output_tokens": 55,
    "usd": 0.0001588
-  }
- },
- "d8366ccba1963b3086a122ca": {
-  "call_class": "prose",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Author\nStephen T. Early, White House press secretary\nVoice: Crisp newsroom manner; thinks in headlines and deadlines,",
-  "reply": {
-   "cached_tokens": 1187,
-   "input_tokens": 1313,
-   "model": "claude-sonnet-5-5",
-   "output": {
-    "pages": [
-     {
-      "doc_id": "K2JFTV447NE1W5B78144V8GG5D",
-      "prose": "Boss,\n\nA small move our way: 56 percent now call your course about right. Still no number on war with Germany or on helping Britain whatever the risk, and I'd rather give you none than a guess.\n\nSteve"
-     }
-    ]
-   },
-   "output_tokens": 67,
-   "usd": 0.003296
   }
  },
  "e5944304fe04e0278db8cd3e": {

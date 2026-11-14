@@ -8,7 +8,9 @@ the latest such page places the form's force, by the movement resolver's own rou
 (``routing.days_between``: by sea through the passages open to its side, given the wars
 the view holds, which are public). Each place also carries each force's tier by the reach
 rule (``bases.reach``), with the fronts and forces read from the same pages. Nothing is read
-from the engine's truth.
+from the engine's truth. A movement form also moves its fleets' detachments in play, so each
+of those gets days and reach too, once a page places it; a split form does not, since a
+detachment is not split again.
 """
 
 from collections.abc import Iterable, Mapping
@@ -23,6 +25,7 @@ from revisionist.core.realism.card import Lever, ParamSpec
 from revisionist.core.realism.document import BodyField, DocumentView
 from revisionist.core.realism.geography import FORCES, FeatureKind, Sight
 from revisionist.core.realism.pipelines import place_named
+from revisionist.core.realism.resolvers.movement import STRENGTH
 from revisionist.core.realism.routing import days_between
 from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
@@ -47,6 +50,8 @@ class Known:
     """The world key of each place, by its id. Empty: forms keep their own choices."""
     forces: Mapping[str, str] = field(default_factory=dict)
     """Each force key the seat's forms offer, and the name its pages give it."""
+    detachments: Mapping[str, tuple[str, ...]] = field(default_factory=dict)
+    """The keys of each offered force's detachments in play (named in ``forces``)."""
     allies: frozenset[EntityId] = frozenset()
     """The sides the seat's own card counts as allies."""
 
@@ -131,14 +136,30 @@ Origin = tuple[FeatureKind, EntityId | None, EntityId]
 """A force's kind, side, and where the latest page places it."""
 
 
-def _origins(lever: Lever, forces: Mapping[str, str], seen: Sightings) -> dict[str, Origin | None]:
+def takes_detachments(lever: Lever) -> bool:
+    """A movement form moves its forces' detachments too; a split form does not."""
+    return lever.resolver == "movement" and all(p.name != STRENGTH for p in lever.params)
+
+
+def force_keys(lever: Lever, spec: ParamSpec, known: Known) -> list[str]:
+    """The forces a form's force parameter offers: its own choices, each followed on a
+    movement form by that force's detachments in play."""
+    out: list[str] = []
+    for key in spec.choices:
+        out.append(key)
+        if takes_detachments(lever):
+            out.extend(known.detachments.get(key, ()))
+    return out
+
+
+def _origins(lever: Lever, known: Known, seen: Sightings) -> dict[str, Origin | None]:
     """For each force the form offers: its kind, side and place as its latest page has them."""
     spec = next((p for p in lever.params if p.name == FORCE), None)
     out: dict[str, Origin | None] = {}
-    for key in spec.choices if spec is not None else ():
+    for key in force_keys(lever, spec, known) if spec is not None else ():
         out[key] = None
         for kind in sorted(FORCES):
-            hit = seen.get((forces.get(key, ""), kind.value))
+            hit = seen.get((known.forces.get(key, ""), kind.value))
             if hit is not None and hit[2].sight is not None:
                 out[key] = (kind, hit[2].sight.side, hit[2].sight.places[0])
     return out
@@ -163,7 +184,7 @@ def place_choices(view: View, lever: Lever, spec: ParamSpec, known: Known) -> li
             offered[found.entity_id] = key
     seen = latest_sightings(view)
     groups = _groups(view, spec, seen, known.allies)
-    origins = _origins(lever, known.forces, seen)
+    origins = _origins(lever, known, seen)
     sights: list[Sight] = [line.sight for _, _, line in seen.values() if line.sight is not None]
     out: list[PlaceChoice] = []
     for place, key in offered.items():
@@ -198,8 +219,10 @@ def place_choices(view: View, lever: Lever, spec: ParamSpec, known: Known) -> li
 __all__ = [
     "GROUPS",
     "Known",
+    "force_keys",
     "latest_sightings",
     "own_sides",
     "place_choices",
     "place_keys",
+    "takes_detachments",
 ]

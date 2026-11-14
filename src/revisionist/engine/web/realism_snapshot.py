@@ -20,6 +20,7 @@ from revisionist.core.realism.advance import next_wake
 from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, words
 from revisionist.core.realism.document import DocumentView
 from revisionist.core.realism.effect import PartView
+from revisionist.core.realism.geography import in_play
 from revisionist.core.realism.pipeline import Order, OrderStatus, Pipeline, StepAction, StepOutcome
 from revisionist.core.realism.pipelines import destination, place_named
 from revisionist.core.state import State, View
@@ -27,7 +28,9 @@ from revisionist.core.world_compile import object_id
 from revisionist.engine.aide import AideBrief
 from revisionist.engine.directive import Proposal, channels
 from revisionist.engine.web.destinations import (
+    FORCE,
     Known,
+    force_keys,
     latest_sightings,
     own_sides,
     place_choices,
@@ -407,8 +410,19 @@ def clock(
     )
 
 
+def _force_choices(lever: Lever, p: ParamSpec, known: Known) -> list[LeverChoice]:
+    """A form's forces: its own choices, each followed on a movement form by that force's
+    detachments in play, under the names the state gives them."""
+    own = {c["value"]: c for c in _choices(p)}
+    return [
+        own.get(k) or LeverChoice(value=k, label=known.forces.get(k, words(k)))
+        for k in force_keys(lever, p, known)
+    ]
+
+
 def _lever_param(view: View, lever: Lever, p: ParamSpec, known: Known) -> LeverParam:
     places = place_choices(view, lever, p, known) if p is destination(lever) else []
+    own = _force_choices(lever, p, known) if p.name == FORCE else _choices(p)
     return LeverParam(
         name=p.name,
         label=_param_label(p),
@@ -417,7 +431,7 @@ def _lever_param(view: View, lever: Lever, p: ParamSpec, known: Known) -> LeverP
         hi=p.hi,
         choices=[LeverChoice(value=x["value"], label=x["label"]) for x in places]
         if places
-        else _choices(p),
+        else own,
         places=places,
     )
 
@@ -553,20 +567,37 @@ def flagged_ids(events: Iterable[Event], seat: SeatId) -> set[DocumentId]:
     return {k for k, v in standing.items() if v}
 
 
-def _force_names(state: State, view: View) -> dict[str, str]:
-    """Each force key the seat's movement levers offer, and that force's name."""
-    out: dict[str, str] = {}
+def _detachments(state: State, key: str) -> list[tuple[str, str]]:
+    """The key and name of each detachment in play of the force ``key``, by slot."""
+    parent = FeatureId(object_id(state.campaign_id, "feature", key))
+    out: list[tuple[str, str]] = []
+    for n in range(1, len(state.features) + 1):
+        slot = f"{key}__d{n}"
+        f = state.features.get(FeatureId(object_id(state.campaign_id, "feature", slot)))
+        if f is not None and f.detached_from == parent and in_play(f):
+            out.append((slot, f.name))
+    return out
+
+
+def _force_names(state: State, view: View) -> tuple[dict[str, str], dict[str, tuple[str, ...]]]:
+    """Each force key the seat's movement levers offer, with its detachments in play, and
+    that force's name; then the keys of each offered force's detachments."""
+    names: dict[str, str] = {}
+    held: dict[str, tuple[str, ...]] = {}
     for x in view.desk.levers if view.desk is not None else ():
         if x.resolver != "movement":
             continue
         for p in x.params:
-            if p.name != "force":
+            if p.name != FORCE:
                 continue
             for key in p.choices:
                 f = state.features.get(FeatureId(object_id(state.campaign_id, "feature", key)))
                 if f is not None:
-                    out[key] = f.name
-    return out
+                    names[key] = f.name
+                    found = _detachments(state, key)
+                    held[key] = tuple(k for k, _ in found)
+                    names.update(found)
+    return names, held
 
 
 def seat_realism(
@@ -580,11 +611,12 @@ def seat_realism(
     """The ``view.realism`` block of ``/api/me``: tray, desk, situation, orders, clock and map.
     ``place_keys`` (``destinations.place_keys``) opens movement forms to every place."""
     view = project(state, seat)
-    forces = _force_names(state, view)
+    forces, held = _force_names(state, view)
     card = state.cards.get(view.me.embodies)
     known = Known(
         keys=place_keys or {},
         forces=forces,
+        detachments=held,
         allies=frozenset(card.allies if card is not None else ()),
     )
     today = view.in_world_date

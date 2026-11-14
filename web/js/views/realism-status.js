@@ -42,10 +42,14 @@ export function statusStrip(rv, ui, { act }) {
       : null);
 }
 
-/** `summaryTiles(rv, pick)`: Unread, Due, Orders under way, Threats; a tile click calls `pick({ tab })`. */
+/**
+ * `summaryTiles(rv, pick)`: Unread, Due, Orders under way, Threats; a tile click calls `pick({ tab })`.
+ * Due counts the dated agenda items, the ones the desk lists when the tile opens it; orders that
+ * need a decision are counted on the Orders tab badge.
+ */
 export function summaryTiles(rv, pick) {
   const orders = rv.orders?.orders ?? [];
-  const due = (rv.agenda?.items ?? []).filter((i) => i.deadline).length + orders.filter((o) => o.decision_needed).length;
+  const due = (rv.agenda?.items ?? []).filter((i) => i.deadline).length;
   const going = orders.filter((o) => !SETTLED.has(o.status)).length;
   const t = (n, label, tone, tab) => tile(n, label, null, tone, () => pick({ tab }));
   return h('div', { class: 'rl-tiles' },

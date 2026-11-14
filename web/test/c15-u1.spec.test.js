@@ -89,7 +89,7 @@ test('four tiles count from the seat\'s own data, each a button that picks its p
   assert.equal(all.length, 4);
   const read = (label) => all.find((t) => words(t.querySelector('.tile-label') ?? t).includes(label));
   assert.equal(words(read('Unread').querySelector('.tile-n')), '5');
-  assert.equal(words(read('Due').querySelector('.tile-n')), '2', 'a dated agenda item and an order that needs you');
+  assert.equal(words(read('Due').querySelector('.tile-n')), '1', 'dated agenda items only; orders that need you are on the Orders badge');
   assert.equal(words(read('Orders under way').querySelector('.tile-n')), '3');
   assert.equal(words(read('Threats').querySelector('.tile-n')), '1');
   for (const t of all) assert.equal(t.tagName.toLowerCase(), 'button');

@@ -305,6 +305,21 @@ features:
   - {key: hx_route, kind: route, name: HX convoys, side: uk, places: [halifax_port, north_atlantic, liverpool], gap: true}
   - {key: sc_route, kind: route, name: SC convoys, side: uk, places: [sydney_cb, north_atlantic, liverpool], gap: true}
   - {key: arctic_route, kind: route, name: Arctic convoys, side: uk, places: [reykjavik, archangel], gap: true}
+  # Each stands at the base of its side and kind nearest where the record has it (the base
+  # table in core/realism/bases.py). Strengths are tiers, not counts.
+  - {key: hawaiian_department, kind: army, name: Hawaiian Department, side: usa, tier: 3, places: [pearl_harbor_base], gap: true}
+  - {key: hawaiian_air_force, kind: air, name: Hawaiian Air Force, side: usa, tier: 3, places: [pearl_harbor_base], gap: true}
+  - {key: western_approaches, kind: fleet, name: Western Approaches escort groups, side: uk, tier: 3, places: [liverpool], gap: true}
+  - {key: home_forces, kind: army, name: Home Forces, side: uk, tier: 4, places: [london], gap: true}
+  - {key: bomber_command, kind: air, name: RAF Bomber Command, side: uk, tier: 3, places: [london], gap: true}
+  - {key: replacement_army, kind: army, name: Replacement Army, side: germany, tier: 3, places: [berlin], gap: true}
+  - {key: luftwaffe_centre, kind: air, name: Luftwaffe Command Centre, side: germany, tier: 3, places: [berlin], gap: true}
+  - {key: general_defence_command, kind: army, name: General Defence Command, side: japan, tier: 3, places: [tokyo], gap: true}
+  - {key: southern_army, kind: army, name: Southern Army, side: japan, tier: 4, places: [tokyo], in_service: 1941-11-06, gap: true}
+  - {key: eleventh_air_fleet, kind: air, name: Eleventh Air Fleet, side: japan, tier: 3, places: [kure], gap: true}
+  - {key: baltic_fleet, kind: fleet, name: Red Banner Baltic Fleet, side: ussr, tier: 3, places: [leningrad], gap: true}
+  - {key: northern_fleet, kind: fleet, name: Northern Fleet, side: ussr, tier: 2, places: [archangel], gap: true}
+  - {key: leningrad_front, kind: army, name: Leningrad Front, side: ussr, tier: 4, places: [leningrad], gap: true}
 
 feeds:
   - {key: state_dept_reports, name: State Department memoranda, author: hull, kind: memo, channel: letter, classification: confidential, reports: [japan_oil_stocks], every_days: 7, latency_days: 1, assumed: true, gap: true}

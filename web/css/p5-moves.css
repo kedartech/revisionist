@@ -1,0 +1,33 @@
+/* p5-moves.css: where forces moved, in What happened. Tokens only. */
+
+.rl-moves { margin: var(--space-4) 0 0; min-width: 0; }
+.rl-moves-body {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+.rl-moves .rl-map-figure { margin: 0; border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; }
+.rl-moves .rl-map-svg { width: 100%; max-height: 40vh; }
+.rl-moves .rl-mk { cursor: default; }
+/* at sheet width the drawing's names are too small to read and run off the east edge; the list
+   beside the map names each move, and each mark keeps its title and label */
+.rl-moves .rl-map-svg text { display: none; }
+.rl-moves .rl-moves-list { margin: 0; }
+.rl-moves-list li::marker { color: var(--side, var(--fg-muted)); }
+.rl-moves-list .rl-side-own { --side: var(--info); }
+.rl-moves-list .rl-side-other { --side: var(--danger); }
+
+/* the routes draw in once; the drawn state is the resting one */
+.rl-moves .rl-mk { animation: rl-moves-in 900ms ease-out both; }
+@keyframes rl-moves-in {
+  from { opacity: 0; }
+}
+
+@media (max-width: 640px) {
+  .rl-moves-body { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rl-moves .rl-mk { animation: none; }
+}

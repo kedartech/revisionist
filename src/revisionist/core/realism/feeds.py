@@ -18,7 +18,7 @@ from revisionist.core.realism.document import (
     Feed,
     TruthRef,
 )
-from revisionist.core.realism.geography import Feature, Sight, SightRef
+from revisionist.core.realism.geography import Feature, Sight, SightRef, in_play
 from revisionist.core.state import State
 from revisionist.core.visibility import Scope, Visibility
 
@@ -98,6 +98,21 @@ def _sight(state: State, seed: str, feed: Feed, f: Feature) -> BodyField | None:
     )
 
 
+def _sighted(state: State, feed: Feed) -> list[Feature]:
+    """The features the feed sights: each one it names, followed by that force's
+    detachments still in play, by name."""
+    out: list[Feature] = []
+    for fid in feed.sights:
+        out.append(state.features[fid])
+        out.extend(
+            sorted(
+                (f for f in state.features.values() if f.detached_from == fid and in_play(f)),
+                key=lambda f: (f.name, f.feature_id),
+            )
+        )
+    return out
+
+
 def _holders(state: State, feed: Feed) -> frozenset[SeatId]:
     persons = {p for p, c in state.cards.items() if feed.feed_id in c.feeds}
     return frozenset(
@@ -149,11 +164,10 @@ def issue(state: State, feed: Feed, today: date, seed: str) -> ev.DocumentIssued
         claimed = None if q.value is None else _report(seed, feed, qid, q.value)
         body.append(BodyField(label=q.name, value=claimed, unit=q.unit))
     seen: list[SightRef] = []
-    for fid in feed.sights:
-        f = state.features[fid]
+    for f in _sighted(state, feed):
         line = _sight(state, seed, feed, f)
         if line is not None:
-            seen.append(SightRef(feature_id=fid, places=f.places))
+            seen.append(SightRef(feature_id=f.feature_id, places=f.places))
             body.append(line)
     if body and all(line.value is None for line in body):
         return None

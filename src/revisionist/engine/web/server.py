@@ -132,12 +132,15 @@ class App:
         briefings: Path,
         secure_cookie: bool = False,
         offline_prose: bool = False,
+        template_aide: bool = False,
     ) -> None:
         self.dsn = dsn
         self.static = static.resolve()
         self.clock = clock
         self.secure_cookie = secure_cookie
         self.offline_prose = offline_prose
+        self.template_aide = template_aide
+        """The aide's brief and help desk from templates while prose keeps the transport."""
         self.transport_factory = transport_factory
         self.briefings = briefings
         self.handlers = WebHandlers(
@@ -355,7 +358,7 @@ class App:
                         return snapshot.checked(state, seat, out | {"brief": kept})
                     writer: aide.AideWriter = (
                         aide.TemplateAide()
-                        if self.offline_prose
+                        if self.offline_prose or self.template_aide
                         else aide.ClaudeAide(self.transport_factory())
                     )
                     try:
@@ -499,7 +502,7 @@ class App:
         """The aide answers a question, or explains what just failed; the thread."""
         helper: aide_help.Helper = (
             aide_help.TemplateHelper()
-            if self.offline_prose
+            if self.offline_prose or self.template_aide
             else aide_help.ClaudeHelper(self.transport_factory())
         )
         said = aide_help.answer(project(state, seat), asked, helper, failed)

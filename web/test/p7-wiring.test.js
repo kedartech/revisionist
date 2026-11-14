@@ -60,13 +60,13 @@ test('closed: the launcher with the unread count from every thread', () => {
   const btn = node.querySelector('.rl-msgr-btn');
   assert.ok(btn, 'the launcher');
   assert.equal(btn.getAttribute('aria-expanded'), 'false');
-  assert.equal(words(btn.querySelector('.rl-msgr-count')), '9 unread');
+  assert.equal(words(btn.querySelector('.rl-msgr-count')), '6 unread');
 });
 
 test('open on Chats: a row per conversation, the aide first', () => {
   const node = dock({ open: true, tab: 'chats', thread: null });
   const rows = node.querySelectorAll('.rl-cl-row');
-  assert.equal(rows.length, 4);
+  assert.equal(rows.length, 3);
   assert.match(words(rows[0]), /Your aide/);
 });
 

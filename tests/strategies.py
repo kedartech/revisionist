@@ -45,6 +45,7 @@ from revisionist.core.ontology import (
     Commitment,
     Contest,
     ContestKind,
+    DevelopmentCategory,
     Entity,
     EntityKind,
     EntityStatus,
@@ -444,7 +445,6 @@ history_events = st.builds(
     obj=st.none() | entity_ids,
 )
 
-any_scheduled_events = scheduled_events | history_events
 
 # --- realism ------------------------------------------------------------------
 
@@ -841,6 +841,33 @@ def dispositions(draw: st.DrawFn) -> rx.ShiftDisposition:
     of, toward = draw(st.lists(entity_ids, min_size=2, max_size=2, unique=True))
     change = draw(st.sampled_from([-2, -1, 1, 2]))
     return rx.ShiftDisposition(of=of, toward=toward, change=change)
+
+
+@st.composite
+def development_events(draw: st.DrawFn) -> ScheduledEvent:
+    start = draw(in_world_dates)
+    figures = st.builds(
+        rx.MoveFigure, quantity=quantity_ids, percent=st.sampled_from([-10, -3, 1, 10])
+    )
+    return ScheduledEvent(
+        scheduled_id=draw(scheduled_ids),
+        fire_at_tick=0,
+        name=draw(short_text),
+        scope=draw(scopes()),
+        source=ScheduleSource.DEVELOPMENT,
+        on_date=start,
+        window_end=start + timedelta(days=draw(st.integers(0, 60))),
+        chance=draw(st.integers(1, 100)),
+        category=draw(st.sampled_from(list(DevelopmentCategory))),
+        condition=draw(st.none() | conditions),
+        headline=draw(st.none() | st.text(min_size=1, max_size=60)),
+        subject=draw(st.none() | entity_ids),
+        effects=tuple(draw(st.lists(figures | dispositions(), max_size=4))),
+        asks=tuple(draw(st.lists(labels, max_size=2))),
+    )
+
+
+any_scheduled_events = scheduled_events | history_events | development_events()
 
 
 move_forces = st.one_of(

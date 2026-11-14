@@ -5,12 +5,13 @@ condition still holds and are skipped otherwise; a skip raises divergence by
 the event's weight.
 """
 
+import hashlib
 from collections.abc import Iterable
-from datetime import date
+from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.goals import goal_met
-from revisionist.core.ids import derived_id
+from revisionist.core.ids import CampaignId, derived_id
 from revisionist.core.ontology import ScheduledEvent, ScheduleSource
 from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.war import NewsEvent, NewsTopic
@@ -51,6 +52,48 @@ def settle(
             continue
         out.append(ev.ScheduledEventSkipped(scheduled_id=s.scheduled_id))
         out.append(ev.DivergenceChanged(change=s.weight, reason=f"{s.name} did not happen"[:200]))
+    return out
+
+
+def drawn_day(campaign_id: CampaignId, s: ScheduledEvent) -> date | None:
+    """The day the draw gives a development in this campaign, or None if it never comes.
+
+    Seeded by the campaign and the development alone, so a replay, another tick
+    length or another development in the deck draws the same.
+    """
+    if s.source is not ScheduleSource.DEVELOPMENT or s.on_date is None or s.window_end is None:
+        return None
+    seed = "\x1f".join((campaign_id, "draw", s.scheduled_id)).encode()
+    n = int.from_bytes(hashlib.blake2b(seed, digest_size=16).digest(), "big")
+    if n % 100 >= (s.chance or 0):
+        return None
+    return s.on_date + timedelta(days=(n // 100) % ((s.window_end - s.on_date).days + 1))
+
+
+def developments_due(
+    state: State, today: date
+) -> list[ev.ScheduledEventFired | ev.ScheduledEventSkipped]:
+    """Fire each pending development drawn to a day on or before ``today`` whose
+    condition holds; skip it if the condition fails then, or if the draw gave it
+    no day and its window has closed. A skip adds no divergence: the deck is what
+    might have happened, not the record."""
+    out: list[ev.ScheduledEventFired | ev.ScheduledEventSkipped] = []
+    pending = (
+        s
+        for s in state.scheduled.values()
+        if s.source is ScheduleSource.DEVELOPMENT and not s.fired and not s.skipped
+    )
+    for s in sorted(pending, key=lambda s: (s.on_date or today, s.scheduled_id)):
+        day = drawn_day(state.campaign_id, s)
+        if day is None:
+            if s.window_end is not None and s.window_end <= today:
+                out.append(ev.ScheduledEventSkipped(scheduled_id=s.scheduled_id))
+            continue
+        if day > today:
+            continue
+        holds = s.condition is None or goal_met(state, s.condition)
+        kind = ev.ScheduledEventFired if holds else ev.ScheduledEventSkipped
+        out.append(kind(scheduled_id=s.scheduled_id))
     return out
 
 

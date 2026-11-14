@@ -21,7 +21,7 @@ from revisionist.core.ids import CampaignId, EventId, SeatId
 from revisionist.core.ontology import Controller, SeatKind
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, private_to
-from revisionist.core.world import WorldFile
+from revisionist.core.world import DevelopmentDeck, WorldFile
 from revisionist.core.world_compile import compile_world
 from revisionist.engine.ids import new_id
 from revisionist.engine.llm import ClaudeCli, Transport, prompt_versions
@@ -94,7 +94,15 @@ def world_path(name: str) -> Path:
 
 
 def load_world(path: Path) -> WorldFile:
-    return WorldFile.model_validate(yaml.safe_load(path.read_text()))
+    """The world file, with the deck from ``developments/<name>.yaml`` beside it if any."""
+    world = WorldFile.model_validate(yaml.safe_load(path.read_text()))
+    sidecar = path.parent / "developments" / path.name
+    if not sidecar.is_file():
+        return world
+    deck = DevelopmentDeck.model_validate(yaml.safe_load(sidecar.read_text()))
+    if deck.world != world.world:
+        raise ValueError(f"{sidecar} is the deck of {deck.world!r}, not of {world.world!r}")
+    return world.model_copy(update={"developments": deck.developments})
 
 
 def new_campaign(store: EventStore, world: WorldFile) -> CampaignId:

@@ -30,7 +30,7 @@ test('the room calls each unit with the data the server sends', () => {
   const room = read('js/views/realism-room.js');
   for (const call of [
     /trayView\(rv\.documents, open/,
-    /needsAnswer\(rv\.agenda, \{ act \}\)/,
+    /needsAnswer\(rv\.agenda, \{ act, today: rv\.clock\.world_date \}\)/,
     /ideasPanel\(rv\.agenda, rv\.brief, \{ act, useDraft \}\)/,
     /standardForms\(rv\.desk, \{/,
     /commitPanel\(rv\.wake, \{ act \}\)/,

@@ -3,6 +3,7 @@
 
 import { h, icon } from '../dom.js';
 import { itemDates, itemHeading, optionLines } from './realism-wake.js';
+import { agendaEntry, deadlineChip } from './realism-ideas.js';
 import { requestChoices } from './realism-requests.js';
 
 /**
@@ -65,17 +66,18 @@ function choicesBlock(choices, act) {
  * The section headed "Needs your answer". An option's "Choose" calls
  * `act('Filing it…', 'option', { pick })`; a guided plan has one "File this plan"; no
  * choices reads "Answer it with an order of your own."; with nothing waiting,
- * "Nothing is waiting on you. Your ideas are below.".
+ * "Nothing is waiting on you. Your ideas are below.". Each item is drawn by `agendaEntry`
+ * (a crisis as an alert) and its dates carry `deadlineChip` against `today`, the world date.
  */
-export function needsAnswer(agenda, { act }) {
+export function needsAnswer(agenda, { act, today }) {
   const items = answerItems(agenda);
+  const raw = new Map((agenda.items ?? []).map((i) => [i.id, i]));
   return h('section', { class: 'rl-ans', 'aria-labelledby': 'rl-ans-h' },
     h('h2', { id: 'rl-ans-h' }, 'Needs your answer'),
     items.length
       ? h('ul', { class: 'rl-ans-items', role: 'list' }, items.map((item) => h('li', { class: 'rl-ans-item' },
-        h('h3', {}, item.heading),
-        item.text ? h('p', { class: 'rl-ans-text' }, item.text) : null,
-        item.dates ? h('p', { class: 'rl-ans-dates' }, item.dates) : null,
-        choicesBlock(item.choices, act))))
+        agendaEntry(raw.get(item.id), item.heading, item.text, [
+          item.dates ? h('p', { class: 'rl-ans-dates' }, item.dates, ' ', deadlineChip(raw.get(item.id).deadline, today)) : null,
+          choicesBlock(item.choices, act)]))))
       : h('p', { class: 'rl-ans-none' }, 'Nothing is waiting on you. Your ideas are below.'));
 }

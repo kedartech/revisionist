@@ -445,7 +445,7 @@ export function realismRoom(ctx) {
     return h('section', { class: 'rl-col rl-desk-col', 'data-tab': 'desk', 'aria-label': 'Desk' },
       h('div', { class: 'rl-col-body' },
         stylePicker(rv.style, { act }),
-        needsAnswer(rv.agenda, { act }),
+        needsAnswer(rv.agenda, { act, today: rv.clock.world_date }),
         ideasSlot,
         h('section', { class: 'rl-write', 'aria-label': ui.proposal ? 'Your order, to sign' : 'Write an order' }, directive),
         standardForms(rv.desk, {

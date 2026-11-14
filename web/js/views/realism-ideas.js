@@ -1,11 +1,75 @@
 // "Ideas" (Train 2 unit M2): orders the seat could file now, the initiative offer and the
 // aide's suggested drafts in one list.
+// Also the desk's agenda item parts: a crisis as an alert, failure sentences, deadline chips.
 
 import { h, icon } from '../dom.js';
 import { optionLines } from './realism-wake.js';
-import { panelHead } from './ui-kit.js';
+import { alertBox, chip, panelHead } from './ui-kit.js';
 
 const sameWords = (s) => String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+/**
+ * What failing an agenda item costs, by kind (`AgendaItem.kind`, lower case). An order and a
+ * crisis fail at their date and the failure counts against the seat; blowback and an
+ * opportunity only lapse (core/realism/mandates.py `_FAILS`, `_PAID`).
+ */
+export const FAIL_SENTENCES = Object.freeze({
+  order: 'If it is not done by its date the order fails, and a failed order counts heavily against you.',
+  crisis: 'If it is not met by its date the crisis fails, and that counts against you.',
+  blowback: 'If it is not met by its date it lapses, at no further cost to you.',
+  opportunity: 'Ignoring it costs nothing: the window simply closes.',
+});
+
+/** Days left at or under which a deadline chip reads as danger. */
+export const DUE_DANGER_DAYS = 7;
+/** Days left at or under which a deadline chip reads as a warning; beyond it, info. */
+export const DUE_WARN_DAYS = 21;
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+  'September', 'October', 'November', 'December'];
+const DAY_MS = 86400000;
+
+/** A day as "26 October 1941" or "1941-10-26" to a day count; null for anything else. */
+function dayCount(day) {
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day ?? '');
+  if (iso) return Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])) / DAY_MS;
+  const w = /^(\d{1,2}) ([A-Z][a-z]+) (\d{4})$/.exec(day ?? '');
+  const month = w ? MONTHS.indexOf(w[2]) : -1;
+  return month < 0 ? null : Date.UTC(Number(w[3]), month, Number(w[1])) / DAY_MS;
+}
+
+/** Whole days from `today` (the world date) to `deadline`; null when either is not a day. */
+export function daysLeft(deadline, today) {
+  const due = dayCount(deadline);
+  const now = dayCount(today);
+  return due === null || now === null ? null : due - now;
+}
+
+/** "6 days left" as a `chip`, toned by `DUE_DANGER_DAYS` and `DUE_WARN_DAYS`; null when undated. */
+export function deadlineChip(deadline, today) {
+  const days = daysLeft(deadline, today);
+  if (days === null) return null;
+  const tone = days <= DUE_DANGER_DAYS ? 'danger' : days <= DUE_WARN_DAYS ? 'warn' : 'info';
+  const word = days <= 0 ? 'Due today' : `${days} ${days === 1 ? 'day' : 'days'} left`;
+  return chip(word, tone);
+}
+
+/**
+ * One agenda item's own parts on the desk: `head` is the item's title, `text` its text,
+ * `rest` the nodes under it (dates, choices). A crisis is an `alertBox` with the cause line
+ * (`AgendaItem.cause`, nothing when null) and its failure sentence; any other kind is a plain
+ * heading with its failure sentence. Never an alert for an opportunity.
+ */
+export function agendaEntry(item, head, text, rest) {
+  const kind = String(item.kind ?? '').toLowerCase();
+  const sentence = Object.hasOwn(FAIL_SENTENCES, kind) ? FAIL_SENTENCES[kind] : null;
+  const fail = sentence ? h('p', { class: 'rl-crisis-fail' }, sentence) : null;
+  if (kind === 'crisis') {
+    const cause = item.cause ? h('p', { class: 'rl-crisis-cause' }, `Behind it: ${item.cause}`) : null;
+    return [alertBox(head, text, [cause, fail].filter(Boolean)), rest];
+  }
+  return [h('h3', {}, head), text ? h('p', { class: 'rl-ans-text' }, text) : null, fail, rest];
+}
 
 /**
  * The list: `agenda.initiative` options as `{ type: 'option', label, to, risk, historical,

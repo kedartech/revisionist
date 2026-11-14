@@ -5,10 +5,63 @@ on:
   push:
     branches: [main]
 
+# The merge helper and the branch rules read one check: `gates`, the last job here.
 jobs:
-  gates:
+  changes:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 5
+    outputs:
+      python: ${{ steps.decide.outputs.python }}
+    steps:
+      # A pull request checks out its merge commit; its first parent is the base.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Decide whether the Python tests run
+        id: decide
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            git diff --name-only --no-renames HEAD^1 HEAD > "$RUNNER_TEMP/changed.txt"
+            cat "$RUNNER_TEMP/changed.txt"
+            python3 scripts/ci_changes.py decide < "$RUNNER_TEMP/changed.txt" | tee -a "$GITHUB_OUTPUT"
+          else
+            echo python=true | tee -a "$GITHUB_OUTPUT"
+          fi
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv python install 3.12
+      - run: uv lock --check
+      - run: uv sync --frozen
+      - run: uv run --frozen ruff check .
+      - run: uv run --frozen ruff format --check .
+      - run: uv run --frozen mypy
+
+  node:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run node tests
+        run: node --test test/*.test.js
+        working-directory: web
+
+  pytest:
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    name: pytest ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      # A failing shard leaves the others running, so every failure is reported.
+      fail-fast: false
+      matrix:
+        # The shard count is the length of this list; scripts/ci_shard.py splits by it.
+        shard: [1, 2, 3, 4]
     services:
       postgres:
         image: postgres:16
@@ -30,19 +83,62 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv python install 3.12
-      # pg_dump, pg_restore and psql for the backup and restore-drill test, at the
-      # service's major version: a newer pg_dump writes settings 16 cannot restore.
-      - run: |
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
-          sudo apt-get update && sudo apt-get install -y postgresql-client-16 rsync
-      - run: echo /usr/lib/postgresql/16/bin >> "$GITHUB_PATH"
-      - run: uv lock --check
+      - name: Install the Postgres 16 client
+        run: bash scripts/ci_pg_client.sh
       - run: uv sync --frozen
-      - run: uv run --frozen ruff check .
-      - run: uv run --frozen ruff format --check .
-      - run: uv run --frozen mypy
-      - run: uv run --frozen pytest --cov=revisionist.core --cov-report=term-missing
-      - run: node --test test/*.test.js
-        working-directory: web
+      - name: Run pytest shard
+        env:
+          TOTAL: ${{ strategy.job-total }}
+          INDEX: ${{ strategy.job-index }}
+        run: |
+          files=$(python3 scripts/ci_shard.py --total "$TOTAL" --index "$INDEX")
+          echo "shard $((INDEX + 1)) of $TOTAL: $(echo "$files" | wc -l) files"
+          # One path per word: test paths hold no spaces.
+          # shellcheck disable=SC2086
+          uv run --frozen pytest $files
+
+  # One coverage run on main, outside `gates`: pull requests get the shards only.
+  coverage:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      REVISIONIST_TEST_PG_ADMIN_DSN: postgresql://postgres:postgres@localhost:5432/postgres
+      REVISIONIST_REQUIRE_PG: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv python install 3.12
+      - name: Install the Postgres 16 client
+        run: bash scripts/ci_pg_client.sh
+      - run: uv sync --frozen
+      - name: Run pytest with coverage
+        run: uv run --frozen pytest --cov=revisionist.core --cov-report=term-missing
+
+  gates:
+    if: always()
+    needs: [changes, lint, node, pytest]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check every job passed or was skipped on purpose
+        env:
+          RESULT_CHANGES: ${{ needs.changes.result }}
+          RESULT_LINT: ${{ needs.lint.result }}
+          RESULT_NODE: ${{ needs.node.result }}
+          RESULT_PYTEST: ${{ needs.pytest.result }}
+          RESULT_PYTHON: ${{ needs.changes.outputs.python }}
+        run: python3 scripts/ci_changes.py gate

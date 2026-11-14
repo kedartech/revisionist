@@ -333,13 +333,22 @@ export function realismRoom(ctx) {
     }
   }
 
-  const act = (message, action, body, then) => work(message, async () => {
-    const r = await api.realism(action, body);
-    ui.said = r.reply || null;
-    // the aide has written: a failed order, or an answer; open its thread
-    if (r.help) openAide(ui);
-    then?.(r);
-  });
+  /** The idea behind "Choose" when it is an order the news suggests (pick `n.…`), else null. */
+  const newsIdea = (action, body) => (action === 'option' && String(body?.pick ?? '').startsWith('n.')
+    ? rv.agenda.initiative.find((o) => o.pick === body.pick) ?? null : null);
+
+  const act = (message, action, body, then) => {
+    // an order the news suggests is written, not filed: its words go into the order form
+    const news = newsIdea(action, body);
+    if (news) return writeOrder(news.label);
+    return work(message, async () => {
+      const r = await api.realism(action, body);
+      ui.said = r.reply || null;
+      // the aide has written: a failed order, or an answer; open its thread
+      if (r.help) openAide(ui);
+      then?.(r);
+    });
+  };
 
   /** The aide reads the order; nothing is filed until the player signs. */
   const ask = (draft) => {
@@ -602,7 +611,7 @@ export function realismRoom(ctx) {
   function pressDesk() {
     const papers = pressPapers(rv.documents.documents);
     const read = pressSeenBy.read();
-    const marks = pressMarks(pressCounts(papers), read, { ...ui.press, tab: pressTab(papers, ui.press.tab) });
+    const marks = pressMarks(pressCounts(papers), read, { ...ui.press, tab: pressTab(papers, ui.press.tab, Array.isArray(rv.world)) });
     if (marks !== read) pressSeenBy.write(marks);
     return pressDock({
       state: ui.press,
@@ -618,7 +627,20 @@ export function realismRoom(ctx) {
       onOpen: readPress,
       onClosePage: () => { ui.pressPage = null; rerender(); },
       onFlag: (on) => flag(on, ui.pressPage),
+      world: rv.world,
+      onAsk: writeOrder,
     });
+  }
+
+  /** An order a development suggests: its words go into the order form on the desk, nothing is filed. */
+  function writeOrder(text) {
+    ui.proposal = null;
+    ui.draft = { to: ui.draft?.to ?? '', channel: ui.draft?.channel ?? '', text };
+    ui.press = { ...ui.press, open: false };
+    ui.pressPage = null;
+    ui.tab = 'desk';
+    rerender();
+    root.querySelector('.rl-write textarea')?.focus();
   }
 
   /** The two dossiers behind the header's names, and the sheet a new wake opens with. */

@@ -1621,5 +1621,23 @@
         }
       }
     ]
-  }
+  },
+  "world": [
+    {
+      "id": "01JDV2W0RLD00000000000000B",
+      "on": "1941-09-11",
+      "category": "Public figures",
+      "headline": "Lindbergh names the war agitators at Des Moines",
+      "asks": [
+        "Answer Lindbergh in a public statement"
+      ]
+    },
+    {
+      "id": "01JDV2W0RLD00000000000000A",
+      "on": "1941-09-04",
+      "category": "Espionage",
+      "headline": "Thirty-three accused German agents on trial",
+      "asks": []
+    }
+  ]
 }

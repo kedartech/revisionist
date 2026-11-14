@@ -1,7 +1,8 @@
 // The press desk: a newspaper icon beside Messages with the unread count, and a modal with one
 // tab per paper (outlet), its pages newest first. A page opens as the paper view does in the
 // tray. The press is not In-Tray, so the tray leaves it out. Unread follows the messenger: a
-// mark per paper of the pages seen, kept in this browser.
+// mark per paper of the pages seen, kept in this browser. After the papers, "The world": the
+// public developments that have fired, each with the orders it suggests (DV2).
 
 import { h, svg } from '../dom.js';
 import { worldDate } from '../rules.js';
@@ -9,6 +10,9 @@ import { SEEN_PREFIX, seenStore, settleMarks, unread } from './realism-chat.js';
 import { dossier } from './realism.js';
 
 export const PRESS_SEEN_PREFIX = `${SEEN_PREFIX}press.`;
+
+/** The tab value of "The world"; no paper is named so. */
+export const WORLD_TAB = '#world';
 
 /** The press marks for `campaignId`: the messenger's store under its own key. */
 export function pressSeen(storage, campaignId) {
@@ -38,8 +42,12 @@ export function pressUnread(papers, marks) {
   return unread(pressCounts(papers), marks).total;
 }
 
-/** The paper on show: `picked` while that paper is there, else the first; null with no paper. */
-export function pressTab(papers, picked) {
+/**
+ * The tab on show: "The world" when picked and `world` (the server sends it), else `picked` while
+ * that paper is there, else the first paper; null with no paper.
+ */
+export function pressTab(papers, picked, world = false) {
+  if (world && picked === WORLD_TAB) return WORLD_TAB;
   return papers.some((p) => p.outlet === picked) ? picked : papers[0]?.outlet ?? null;
 }
 
@@ -86,19 +94,49 @@ function pageRow(d, onOpen) {
     h('span', { class: 'rl-row-date' }, worldDate(d.arrives))));
 }
 
+function askRow(text, onAsk) {
+  return h('li', {},
+    h('span', { class: 'rl-world-ask' }, text),
+    onAsk
+      ? h('button', {
+        type: 'button', class: 'rl-btn', 'aria-label': `Write it as an order: ${text}`, onclick: () => onAsk(text),
+      }, 'Write it as an order')
+      : null);
+}
+
+/** The public developments, newest first; each ask hands its words to `onAsk`. */
+function worldList(world, onAsk) {
+  if (!world.length) return h('p', { class: 'rl-none' }, 'Nothing in the world has made the news yet.');
+  const newest = world.slice().sort((a, b) => b.on.localeCompare(a.on) || b.id.localeCompare(a.id));
+  return h('ul', { class: 'rl-rows rl-pd-world', 'aria-label': 'The world' },
+    newest.map((d) => h('li', { class: 'rl-world-item' },
+      h('p', { class: 'rl-world-meta' }, `${worldDate(d.on)} · ${d.category}`),
+      h('h3', { class: 'rl-world-head' }, d.headline),
+      d.asks.length ? h('ul', { class: 'rl-world-asks', 'aria-label': 'It suggests' }, d.asks.map((a) => askRow(a, onAsk))) : null)));
+}
+
 function desk(opts, tab) {
   const { state, onState, papers, marks } = opts;
   const paper = papers.find((p) => p.outlet === tab);
+  const world = Array.isArray(opts.world) ? opts.world : null;
+  const onWorld = world !== null && tab === WORLD_TAB;
   const fresh = (p) => Math.max(0, p.pages.length - (marks?.[p.outlet] ?? 0));
-  const tabs = papers.length
+  const worldTab = world !== null
+    ? h('button', {
+      type: 'button', role: 'tab', 'aria-selected': String(onWorld), onclick: () => onState({ ...state, tab: WORLD_TAB }),
+    }, 'The world')
+    : null;
+  const tabs = papers.length || worldTab
     ? h('div', { class: 'seg rl-pd-tabs', role: 'tablist', 'aria-label': 'Papers' },
       papers.map((p) => h('button', {
         type: 'button', role: 'tab', 'aria-selected': String(p.outlet === tab),
         onclick: () => onState({ ...state, tab: p.outlet }),
-      }, p.outlet, fresh(p) && p.outlet !== tab ? h('span', { class: 'n' }, ` ${fresh(p)}`) : null)))
+      }, p.outlet, fresh(p) && p.outlet !== tab ? h('span', { class: 'n' }, ` ${fresh(p)}`) : null)),
+      worldTab)
     : null;
   let body;
   if (opts.page) body = dossier(opts.page, { onClose: opts.onClosePage, onFlag: opts.onFlag });
+  else if (onWorld) body = worldList(world, opts.onAsk);
   else if (paper) body = h('ul', { class: 'rl-rows rl-pd-list', 'aria-label': paper.outlet }, paper.pages.map((d) => pageRow(d, opts.onOpen)));
   else body = h('p', { class: 'rl-none' }, 'No paper has reached you yet.');
 
@@ -116,18 +154,21 @@ function desk(opts, tab) {
     h('h2', { id: 'rl-pd-title' }, 'Newspapers'),
     h('button', { type: 'button', class: 'rl-btn rl-pd-close', onclick: () => dialog.close() }, 'Close')),
   tabs,
-  h('div', { class: 'rl-pd-body', role: paper ? 'tabpanel' : null, 'aria-label': paper?.outlet ?? null }, body));
+  h('div', {
+    class: 'rl-pd-body', role: paper || onWorld ? 'tabpanel' : null, 'aria-label': onWorld ? 'The world' : paper?.outlet ?? null,
+  }, body));
   return dialog;
 }
 
 /**
  * The icon and, while `state.open`, the desk. `opts`: `{ state, onState(next), papers, marks,
- * page, onOpen(doc), onClosePage(), onFlag(on) }`; `state` is `{ open, tab }`, kept by the room;
- * `page` is the open page (as the tray's reading pane holds it) or null.
+ * page, onOpen(doc), onClosePage(), onFlag(on), world, onAsk(text) }`; `state` is `{ open, tab }`,
+ * kept by the room; `page` is the open page (as the tray's reading pane holds it) or null;
+ * `world` is the server's list of developments (no tab when absent).
  */
 export function pressDock(opts) {
   const { state, onState, papers, marks } = opts;
-  const tab = pressTab(papers, state.tab);
+  const tab = pressTab(papers, state.tab, Array.isArray(opts.world));
   return h('div', { class: 'rl-press' },
     launcher(state, pressUnread(papers, marks), onState),
     state.open ? desk(opts, tab) : null);

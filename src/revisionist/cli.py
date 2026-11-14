@@ -1344,6 +1344,11 @@ WEB_STATIC = Path(__file__).resolve().parents[2] / "web"
 """The client in the repo's ``web/`` folder, served as static files."""
 
 
+class WebTransport(StrEnum):
+    CLAUDE = "claude"
+    OPENROUTER = "openrouter"
+
+
 @web_app.command("serve")
 def web_serve(
     host: Annotated[str, typer.Option("--host", help="Address to bind; keep it private")] = (
@@ -1357,6 +1362,14 @@ def web_serve(
         bool,
         typer.Option("--offline-prose", help="Write realism pages from templates, not a model."),
     ] = False,
+    transport: Annotated[
+        WebTransport,
+        typer.Option(
+            "--transport",
+            help="claude: the Claude CLI. openrouter: free models only, key from "
+            "$REVISIONIST_OPENROUTER_KEY, the aide from templates.",
+        ),
+    ] = WebTransport.CLAUDE,
 ) -> None:
     """The web client and its JSON API, in the foreground. Plain HTTP: bind it to
     a private address such as the tailnet, never a public one."""
@@ -1369,13 +1382,24 @@ def web_serve(
     if not (root / "index.html").is_file():
         raise _fail(f"no web client at {root} (index.html missing)")
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+    factory: Callable[[], Transport] = lambda: transport_factory()  # noqa: E731
+    if transport is WebTransport.OPENROUTER:
+        from revisionist.engine.openrouter import OpenRouterTransport
+
+        try:
+            shared = OpenRouterTransport.from_env()
+            shared.start()
+        except TransportError as exc:
+            raise _fail(str(exc)) from None
+        factory = lambda: shared  # noqa: E731
     app_ = App(
         cmp.db_target(),
         root,
-        transport_factory=lambda: transport_factory(),
+        transport_factory=factory,
         clock=lambda: clock(),
         briefings=cmp.briefings_dir(),
         offline_prose=offline_prose,
+        template_aide=transport is WebTransport.OPENROUTER,
     )
     typer.echo(f"web client on http://{host}:{port}/", err=True)
     serve(app_, host, port)

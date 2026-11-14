@@ -27,8 +27,8 @@ const memory = () => {
 const broken = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } };
 const { desk } = fixture;
 const fdr = fixture.roster[0];
-// the room's view carries the tray's rows as `documents`
-const view = { ...room, documents: room.listing.documents };
+// the room's view carries the tray's listing (`{ documents, unread, flagged }`) as `documents`
+const view = { ...room, documents: room.listing };
 
 const FORCES = ['US Atlantic Fleet: Reykjavik'];
 const FIGURES = [
@@ -147,7 +147,7 @@ test('first matter: a deadline the text already names is not repeated', () => {
 });
 
 test('first papers: no acknowledgements or answers, one row per feed, at most PAPERS_MAX, in tray order', () => {
-  assert.deepEqual(openingPapers(view.documents), PAPERS);
+  assert.deepEqual(openingPapers(room.listing.documents), PAPERS);
   assert.equal(PAPERS_MAX, 5);
   const paper = (id, group = null, extra = {}) => ({ id, title: `Paper ${id}`, author: 'Harry Hopkins', group, ack: false, answer: false, ...extra });
   const docs = [

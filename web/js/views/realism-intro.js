@@ -70,8 +70,9 @@ export function openMatters(agenda) {
 }
 
 /**
- * What the seat starts with, for the splash: own forces, the figures on the desk, the first
- * matter, the first papers (`openingPapers`), the open matters (`openMatters`) and the day.
+ * What the seat starts with, for the splash, from the room's view: own forces, the figures on
+ * the desk, the first matter, the first papers (`openingPapers` of the tray listing's
+ * `documents`), the open matters (`openMatters`) and the day.
  */
 export function startOverview({ map, situation, agenda, documents, clock } = {}) {
   const orders = list(map?.orders);
@@ -96,7 +97,7 @@ export function startOverview({ map, situation, agenda, documents, clock } = {})
     forces,
     figures,
     first: item ? dueText(item) : null,
-    papers: openingPapers(documents),
+    papers: openingPapers(documents?.documents),
     matters: openMatters(agenda),
     day: text(clock?.world_date) ? worldDate(clock.world_date) : null,
   };

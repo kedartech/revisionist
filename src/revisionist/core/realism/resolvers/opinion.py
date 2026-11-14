@@ -4,8 +4,9 @@ Public opinion, moving with a lag. An address moves the target; each Monday the
 Gallup "about right" figure steps one point toward it. Other opinion levers
 (Churchill's broadcast, cabinet statements, Chiang's appeal) change nothing yet.
 
-A move in the published figure is public news, once per move: a neutral headline, the
-new figure and the one before it. The target it is heading for stays private.
+A move in the published figure is public news, once per move: a neutral headline short
+enough that the figure survives the outlet name in a press title, the new figure and the
+one before it. The target it is heading for stays private.
 """
 
 from datetime import date, timedelta
@@ -71,7 +72,7 @@ def news(state: State, before: int, after: int, today: date) -> NewsEvent | None
         on=today,
         topic=NewsTopic.POLL,
         subject=q.owner,
-        headline=f"Gallup: Roosevelt's course 'about right' {way} to {after}%",
+        headline=f"Poll: Roosevelt's course {way} to {after}%",
         facts=(
             BodyField(label=q.name, value=after, unit=q.unit),
             BodyField(label="Previous poll", value=before, unit=q.unit),

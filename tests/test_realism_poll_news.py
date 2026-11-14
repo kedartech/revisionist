@@ -8,7 +8,7 @@ from revisionist.core import events as ev
 from revisionist.core.ids import EntityId
 from revisionist.core.project import project
 from revisionist.core.realism.document import BodyField, DocumentKind
-from revisionist.core.realism.press import news_pages
+from revisionist.core.realism.press import LINE, news_pages
 from revisionist.core.realism.resolvers import ON_DAY, Change, opinion, qid, value
 from revisionist.core.realism.war import NewsEvent, NewsTopic
 from revisionist.core.visibility import Scope, private_to
@@ -49,7 +49,7 @@ def test_a_rise_on_monday_is_one_news_item_with_the_figure() -> None:
     assert item.on == MONDAY
     assert item.subject == EntityId(r.ids["usa"])
     assert item.obj is None
-    assert item.headline == "Gallup: Roosevelt's course 'about right' up to 56%"
+    assert item.headline == "Poll: Roosevelt's course up to 56%"
     assert item.facts == (
         BodyField(label=FIGURE, value=56, unit="percent"),
         BodyField(label="Previous poll", value=55, unit="percent"),
@@ -61,7 +61,7 @@ def test_a_fall_reads_down() -> None:
     r = rig()
     r.set_value("opinion_target", 50)
     (item,) = poll_news(opinion.on_day(r.state, MONDAY))
-    assert item.headline == "Gallup: Roosevelt's course 'about right' down to 54%"
+    assert item.headline == "Poll: Roosevelt's course down to 54%"
     assert item.facts[0].value == 54
     assert item.facts[1].value == 55
 
@@ -134,3 +134,15 @@ def test_each_seat_press_prints_the_public_facts() -> None:
         assert len(held) == 3
         assert {d.body for d in held} == {item.facts}
         assert {r.state.documents[d.doc_id].truth.news_id for d in held} == {item.news_id}
+
+
+def test_the_figure_survives_the_longest_outlet_name_in_a_press_title() -> None:
+    r = Rig()
+    r.seat("roosevelt")
+    r.close_session_zero()
+    r.set_value("gallup_fdr_about_right", 100)
+    r.set_value("opinion_target", 0)
+    (item,) = poll_news(opinion.on_day(r.state, MONDAY))
+    longest = max(len(o.name) for o in r.state.outlets.values())
+    assert longest + len(": ") + len(item.headline) <= LINE
+    assert item.headline.endswith(" down to 99%")

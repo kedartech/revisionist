@@ -171,21 +171,22 @@ AB_BY_MODEL_AND_TITLE: Mapping[tuple[str, str], str] = {
         "given me anything I'd trust on a declaration against Germany, nor on helping Britain "
         "at the risk of war; I'll chase them for it.\n\nSteve"
     ),
-    ("claude-haiku-5-5", "Gallup polls, 1941-09-09"): (
-        "Gallup now shows 56 percent saying your course is about right. Nothing new on war "
-        "with Germany or on aid to Britain at risk of war.\n\nSteve Early"
+    ("claude-haiku-5-5", "Der Reichsbote: Poll: Roosevelt's course up to 56%"): (
+        "WASHINGTON, 8 September 1941. The American Gallup survey puts approval of Roosevelt's "
+        "course at 56 percent, against 55 percent in the previous poll."
     ),
-    ("claude-sonnet-5-5", "Gallup polls, 1941-09-09"): (
-        "Boss,\n\nA small move our way: 56 percent now call your course about right. Still "
-        "no number on war with Germany or on helping Britain whatever the risk, and I'd "
-        "rather give you none than a guess.\n\nSteve"
+    ("claude-sonnet-5-5", "Der Reichsbote: Poll: Roosevelt's course up to 56%"): (
+        "WASHINGTON, 8 September 1941. Roosevelt's pollsters report a gain of a single point: "
+        "56 percent of Americans now call his course about right, against 55 percent before."
     ),
-    ("claude-haiku-5-5", "The Speaker's count, 1941-09-16"): (
-        "Mr. President, the House still stands at 267 Democrats and 162 Republicans. Sam Rayburn"
+    ("claude-haiku-5-5", "The Heartland Sentinel: Poll: Roosevelt's course up to 56%"): (
+        "Gallup reports 56 percent of Americans call the President's course about right, up "
+        "from 55 percent in the previous poll. Released 8 September 1941."
     ),
-    ("claude-sonnet-5-5", "The Speaker's count, 1941-09-16"): (
-        "Mr. President,\n\nThe House is as it was: 267 Democrats and 162 Republicans. I'll "
-        "tell you the minute that changes.\n\nSam"
+    ("claude-sonnet-5-5", "The Heartland Sentinel: Poll: Roosevelt's course up to 56%"): (
+        "The White House will make much of one point. Gallup's figure for those who think the "
+        "President's course about right stands at 56 percent this 8 September 1941, against "
+        "55 percent last time."
     ),
 }
 

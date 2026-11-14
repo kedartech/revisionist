@@ -620,15 +620,36 @@ def messenger(page: Page, report: dict[str, object]) -> None:
     )
     dock.get_by_label("Message", exact=True).fill("")
     dock.get_by_role("button", name="Back").click()
-    person = rows.nth(1)
-    who = person.locator(".rl-cl-name").inner_text()
-    person.click()
+    report["chat_rows"] = rows.count()
+    if rows.count() > 1:
+        person = rows.nth(1)
+        who = person.locator(".rl-cl-name").inner_text()
+        person.click()
+    else:
+        # A thread holds conversation and letters only, so before any consult a contact
+        # may have no row yet; start one from Contacts.
+        dock.get_by_role("tab", name="Contacts").click()
+        cards = dock.locator(".rl-ct-row")
+        for i in range(cards.count()):
+            cards.nth(i).click()
+            if dock.get_by_role("button", name="Message", exact=True).count():
+                break
+            dock.locator(".rl-ct-back").click()
+        who = dock.locator(".rl-ct-name").first.inner_text()
+        dock.get_by_role("button", name="Message", exact=True).click()
     before = theirs.count()
     send(page, "Should we wait for the Senate before we move?")
     theirs.nth(before).wait_for(timeout=WAKE_MS)
     report["consult"] = theirs.last.inner_text()
     check(f"a consult with {who} shows the answer", theirs.count() > before)
     check("focus stays in the messenger after a consult", in_messenger(page))
+    papers = dock.locator(".rl-th .rl-th-open").all_inner_texts()
+    report["consult_papers"] = papers
+    check(
+        f"{who}'s thread holds a line for each letter and no other paper",
+        all(t.startswith("Letter received: ") for t in papers),
+        str(papers),
+    )
     shoot(page, "09-consult")
     dock.get_by_role("button", name="Back").click()
     dock.get_by_role("tab", name="Contacts").click()

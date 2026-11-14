@@ -7,11 +7,11 @@ import { portraitNode } from './realism-dossier.js';
 
 /**
  * The thread's items, oldest first, each `{ side, kind, text, day, iso, docId, lever, label }`:
- * `side` 'mine' or 'theirs'; `kind` 'counsel', 'reply', 'letter' or 'help'; `day` the in-world
+ * `side` 'mine' or 'theirs'; `kind` 'counsel', 'letter' or 'help'; `day` the in-world
  * date in words and `iso` the same date as YYYY-MM-DD (both '' when unknown); `docId` the paper
  * an item opens, else null; `lever` and `label` only on an aide line that offers a form.
  * `person` 'aide' reads `help`; any other name reads `counsel` (their answers and the seat's
- * questions) and the papers in `documents` (a listing) that they wrote.
+ * questions) and, as one line each, the letters in `documents` (a listing) that they wrote.
  */
 export function threadItems({ person, counsel, documents, help } = {}) {
   const items = person === 'aide' ? aideItems(help) : contactItems(person, counsel, documents);
@@ -39,12 +39,11 @@ function aideItems(help) {
 function contactItems(person, counsel, documents) {
   const out = [];
   // Papers first: on one day they arrive when the wake opens, before any consult.
-  for (const d of (documents?.documents ?? []).filter((d) => d.author === person)) {
-    const reply = d.ack || d.answer;
+  for (const d of (documents?.documents ?? []).filter((d) => d.author === person && isLetter(d))) {
     out.push({
       side: 'theirs',
-      kind: reply ? 'reply' : 'letter',
-      text: reply ? d.title : `Letter received: ${d.title}`,
+      kind: 'letter',
+      text: `Letter received: ${d.title}`,
       day: worldDate(d.arrives),
       iso: d.arrives ?? '',
       docId: d.id,
@@ -56,6 +55,11 @@ function contactItems(person, counsel, documents) {
     out.push({ side: 'theirs', kind: 'counsel', text: c.answer, day: c.day ?? '', iso: c.day_iso ?? '', docId: null });
   }
   return out;
+}
+
+/** A letter the contact wrote of their own accord; reports, memos and replies to orders stay in the In-Tray. */
+function isLetter(d) {
+  return d.kind === 'letter' && !d.ack && !d.answer;
 }
 
 function compare(a, b) {

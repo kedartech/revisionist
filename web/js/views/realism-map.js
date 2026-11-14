@@ -7,6 +7,9 @@ import {
   certaintyWord, landPath, mapBox, mapOrderLine, markKindWord, projection, sideLine, sightedLine, sortMarks, whereLine,
 } from '../realism-rules.js';
 
+/** A detachment's mark, as a share of a whole force's. */
+const DETACHED_SIZE = 0.7;
+
 /** The marker for a force: shape says side, fill and line say certainty, a glyph says kind. */
 function forceGlyph(mark, size) {
   const r = size / 2;
@@ -25,8 +28,17 @@ function forceGlyph(mark, size) {
   return [shape, inner, tick];
 }
 
+/** The engine names a detachment "<fleet's name> detachment <n>"; a page sights it by that name. */
+const DETACHMENT = / detachment \d+$/;
+
+/** A mark that a page names as a fleet's detachment. */
+const detached = (mark) => DETACHMENT.test(mark.name);
+
+/** What a mark is, in words: "Fleet", or "Fleet detachment" for a detachment. */
+const whatWord = (mark) => (detached(mark) ? `${markKindWord(mark.kind)} detachment` : markKindWord(mark.kind));
+
 function label(mark) {
-  return `${mark.name}: ${markKindWord(mark.kind)}, ${sideLine(mark)}, ${certaintyWord(mark.certainty)}, ${whereLine(mark)}`;
+  return `${mark.name}: ${whatWord(mark)}, ${sideLine(mark)}, ${certaintyWord(mark.certainty)}, ${whereLine(mark)}`;
 }
 
 /**
@@ -54,7 +66,7 @@ export function mapDrawing(map, land, opts = {}) {
 
   const marks = sortMarks(map.marks).map((m) => {
     const select = () => opts.onSelect?.(m.name);
-    const look = `rl-mk rl-mk-${m.kind} rl-side-${m.side} rl-c-${m.certainty}${opts.selected === m.name ? ' selected' : ''}`;
+    const look = `rl-mk rl-mk-${m.kind}${detached(m) ? ' rl-mk-detached' : ''} rl-side-${m.side} rl-c-${m.certainty}${opts.selected === m.name ? ' selected' : ''}`;
     const common = opts.still ? { class: look } : {
       class: look,
       tabindex: 0,
@@ -74,7 +86,7 @@ export function mapDrawing(map, land, opts = {}) {
     const [x, y] = at(m.places[0]);
     return svg('g', { ...common, transform: `translate(${x} ${y})` },
       opts.selected === m.name ? svg('circle', { r: size * 1.3, class: 'rl-mk-ring' }) : null,
-      forceGlyph(m, size),
+      forceGlyph(m, detached(m) ? size * DETACHED_SIZE : size),
       svg('text', { x: size * 1.1, y: size * 1.4, 'font-size': size * 0.75, class: 'rl-mk-name' }, m.name),
       svg('title', {}, label(m)));
   });
@@ -118,8 +130,11 @@ function legendLine(kind) {
     svg('polyline', { points: '2,6 26,6', class: 'rl-mk-line' }));
 }
 
-function legend() {
+/** The key; a line for detachments once the map shows one. */
+function legend(map) {
   const item = (swatch, words) => h('li', {}, swatch, h('span', {}, words));
+  const small = () => svg('svg', { viewBox: '-14 -14 28 28', width: 22, height: 22, 'aria-hidden': 'true', focusable: 'false', class: 'rl-mk rl-mk-detached rl-side-own rl-c-reported' },
+    forceGlyph({ kind: 'fleet', side: 'own', certainty: 'reported' }, 12 * DETACHED_SIZE));
   return h('ul', { class: 'rl-legend', 'aria-label': 'Key' },
     item(legendSwatch('army', 'own', 'reported'), 'Yours'),
     item(legendSwatch('army', 'other', 'reported'), 'Foreign'),
@@ -129,14 +144,15 @@ function legend() {
     item(svg('svg', { viewBox: '0 0 28 12', width: 28, height: 12, 'aria-hidden': 'true', focusable: 'false', class: 'rl-mk-order' },
       svg('polyline', { points: '2,6 26,6', class: 'rl-mk-arrow' })), 'Your order to move, until a page reports it there'),
     item(legendLine('front'), 'Front'),
-    item(legendLine('route'), 'Convoy route'));
+    item(legendLine('route'), 'Convoy route'),
+    map.marks.some(detached) ? item(small(), 'Detachment: part of a fleet sent off on its own') : null);
 }
 
 function detail(mark, onOpen) {
   return h('section', { class: 'rl-map-detail', 'aria-labelledby': 'rl-map-detail-h' },
     h('h3', { id: 'rl-map-detail-h' }, mark.name),
     h('dl', {},
-      h('dt', {}, 'What'), h('dd', {}, markKindWord(mark.kind)),
+      h('dt', {}, 'What'), h('dd', {}, whatWord(mark)),
       h('dt', {}, 'Side'), h('dd', {}, sideLine(mark)),
       h('dt', {}, 'Certainty'), h('dd', {}, certaintyWord(mark.certainty)),
       h('dt', {}, 'Where'), h('dd', {}, whereLine(mark))),
@@ -150,7 +166,7 @@ function table(map, onFind) {
     h('thead', {}, h('tr', {}, ['Name', 'What', 'Side', 'Certainty', 'Where', 'Source', ''].map((c) => h('th', { scope: 'col' }, c)))),
     h('tbody', {}, sortMarks(map.marks).map((m) => h('tr', { class: `rl-c-${m.certainty}` },
       h('th', { scope: 'row' }, m.name),
-      h('td', {}, markKindWord(m.kind)),
+      h('td', {}, whatWord(m)),
       h('td', {}, sideLine(m)),
       h('td', {}, certaintyWord(m.certainty)),
       h('td', {}, whereLine(m)),
@@ -190,6 +206,6 @@ export function mapView(map, land, opts = {}) {
     empty,
     mode === 'list'
       ? [map.marks.length ? table(map, find) : null, ordered]
-      : [h('figure', { class: 'rl-map-figure' }, mapDrawing(map, land, { ...opts, scope })), legend(),
+      : [h('figure', { class: 'rl-map-figure' }, mapDrawing(map, land, { ...opts, scope })), legend(map),
         selected ? detail(selected, opts.onOpen) : null, ordered]);
 }

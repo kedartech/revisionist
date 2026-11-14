@@ -100,11 +100,80 @@ function placePicker(item, param, forceLabel) {
   draw();
 }
 
-/** `instrument(lever, ...)`, with a place picker for each param that carries places. */
+/** The split form's param for how much of a fleet's strength goes. */
+const STRENGTH = 'strength';
+
+/** A detachment's force key: its fleet's key, then `__d` and its number. */
+const DETACHED = /^(.+)__d\d+$/;
+
+/** `value` as a whole number inside `lo` to `hi`; not a number: `lo`. */
+export function stepTo(value, lo, hi) {
+  const n = Math.round(Number(value));
+  if (!Number.isFinite(n)) return lo;
+  return Math.min(hi, Math.max(lo, n));
+}
+
+/**
+ * The force choices in groups, in the server's order: a fleet with detachments on offer
+ * heads a group of itself and them; any other choice is a group of one.
+ */
+export function forceGroups(choices) {
+  const groups = new Map(choices.filter((c) => !DETACHED.test(c.value)).map((c) => [c.value, [c]]));
+  const out = [];
+  for (const c of choices) {
+    const parent = groups.get(DETACHED.exec(c.value)?.[1]);
+    if (parent) parent.push(c);
+    else out.push(groups.get(c.value) ?? [c]);
+  }
+  return out;
+}
+
+/** Redraw the force select's options with each detachment under its fleet, as an optgroup. */
+function groupForces(item, param) {
+  const select = item.querySelector(`select[name="${FORCE}"]`);
+  if (!select) return;
+  const option = (c) => h('option', { value: c.value }, c.label);
+  select.replaceChildren(h('option', { value: '' }, 'Choose…'),
+    ...forceGroups(param.choices).map((g) => (g.length > 1 ? h('optgroup', { label: g[0].label }, g.map(option)) : option(g[0]))));
+}
+
+/**
+ * Wrap the number field `instrument` drew for `param` in a stepper: one less, the field,
+ * one more. It starts at the least; a button at its end says so (`aria-disabled`, so it
+ * keeps focus) and does nothing; a typed number is brought inside the bounds.
+ */
+function strengthStepper(item, param) {
+  const input = item.querySelector(`input[name="${param.name}"]`);
+  if (!input || param.lo === null || param.hi === null) return;
+  const step = (word, sign, glyph) => h('button', {
+    type: 'button', class: 'rl-step', 'aria-label': word, 'aria-controls': input.id,
+    onclick: () => set(Number(input.value) + sign),
+  }, glyph);
+  const less = step('One less', -1, '−');
+  const more = step('One more', 1, '+');
+  function set(value) {
+    input.value = String(stepTo(value, param.lo, param.hi));
+    less.setAttribute('aria-disabled', String(Number(input.value) <= param.lo));
+    more.setAttribute('aria-disabled', String(Number(input.value) >= param.hi));
+  }
+  input.addEventListener('change', () => set(input.value));
+  const box = h('div', { class: 'rl-stepper', role: 'group', 'aria-label': param.label });
+  input.before(box);
+  box.append(less, input, more);
+  set(param.lo);
+}
+
+/**
+ * `instrument(lever, ...)`, with the force select's detachments grouped under their fleets,
+ * a place picker for each param that carries places, and a stepper for a strength.
+ */
 function formFor(lever, opts) {
   const item = instrument(lever, opts);
-  const forceLabel = lever.params.find((p) => p.name === FORCE)?.label ?? 'the force';
+  const force = lever.params.find((p) => p.name === FORCE);
+  const forceLabel = force?.label ?? 'the force';
+  if (force?.kind === 'enum') groupForces(item, force);
   for (const p of lever.params) if (p.places?.length) placePicker(item, p, forceLabel);
+  for (const p of lever.params) if (p.name === STRENGTH && p.kind === 'int') strengthStepper(item, p);
   return item;
 }
 

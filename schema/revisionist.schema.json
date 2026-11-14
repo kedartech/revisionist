@@ -3961,6 +3961,18 @@
             "default": null,
             "title": "Bound For"
           },
+          "detached_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Detached From"
+          },
           "engagement": {
             "anyOf": [
               {
@@ -4036,6 +4048,19 @@
               }
             ],
             "default": null
+          },
+          "rejoined_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Rejoined On"
           },
           "side": {
             "anyOf": [
@@ -11405,6 +11430,18 @@
             "default": null,
             "title": "Bound For"
           },
+          "detached_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Detached From"
+          },
           "engagement": {
             "anyOf": [
               {
@@ -11480,6 +11517,19 @@
               }
             ],
             "default": null
+          },
+          "rejoined_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Rejoined On"
           },
           "side": {
             "anyOf": [

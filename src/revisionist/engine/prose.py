@@ -5,7 +5,8 @@ and an ``Author`` (a name and the card's voice), and passing a ``State`` or a
 ``DocumentTruth`` is a type error before it is a leak. The engine batches pages by
 author, one call per author per wake, and checks every number in the reply against
 the page (``core.realism.prose``); a page whose prose states a figure it does not
-carry keeps its body lines alone.
+carry keeps its body lines alone. A message with more facts than a few spoken sentences
+can hold (``as_sheet``) is never sent to the model: it is shown as its sheet of lines.
 
 ``TemplateProseWriter`` is the offline path: plain period sentences, no model.
 """
@@ -25,11 +26,14 @@ from revisionist.core.realism.document import DocumentKind, DocumentView
 from revisionist.core.realism.prose import invented_numbers, numbers_in
 from revisionist.core.state import State
 from revisionist.engine.llm import Request, Transport, prompt_text, prompt_version
-from revisionist.engine.prose_context import page_context
+from revisionist.engine.prose_context import MESSAGE, band, page_context
 
 PROSE_MODEL = "claude-sonnet-5-5"
 """[proposed] The P0 A/B (``scripts/prose_ab.py``) decides; ``REVISIONIST_MODEL_PROSE``
 overrides it per call, as for every call class."""
+SHEET_FACTS = 3
+"""[proposed] The most facts a message is written up with; one with more is shown as its
+sheet of lines. The blind A/B (``scripts/prose_ab.py``) sets it."""
 log = logging.getLogger(__name__)
 
 
@@ -89,6 +93,16 @@ def author_of(state: State, entity: EntityId, pages: Sequence[DocumentView] = ()
     )
 
 
+def as_sheet(page: DocumentView) -> bool:
+    """True for a message (in person, by telephone or radio) with more than
+    ``SHEET_FACTS`` facts. A fact is a line with a figure; a ``(cont.)`` piece of a long
+    line is the same fact as its first piece."""
+    if band(page) != MESSAGE:
+        return False
+    facts = {line.label.removesuffix(" (cont.)") for line in page.body if line.value is not None}
+    return len(facts) > SHEET_FACTS
+
+
 def _views_only(pages: Sequence[object]) -> Sequence[DocumentView]:
     for page in pages:
         if not isinstance(page, DocumentView):
@@ -126,6 +140,7 @@ def page_lines(page: DocumentView, author: Author) -> dict[str, Any]:
         "title": page.title,
         "author": author.name,
         **({"to": author.to[page.doc_id]} if page.doc_id in author.to else {}),
+        **({"length": f"{b.low} to {b.high} words"} if (b := band(page)) is not None else {}),
         "issued": page.issued.isoformat(),
         "arrives": page.arrives.isoformat(),
         "channel": page.channel.value,
@@ -179,6 +194,9 @@ class ClaudeProseWriter:
         )
 
     def write(self, author: Author, pages: Sequence[DocumentView]) -> Written:
+        pages = [p for p in _views_only(pages) if not as_sheet(p)]
+        if not pages:
+            return Written(prose={})
         req = self.request(author, pages)
         self.requests.append(req)
         reply = self.transport.call(req)
@@ -262,10 +280,13 @@ def accepted(
 ) -> tuple[dict[DocumentId, str], list[Rejected]]:
     """The prose that passes: one per page asked for, non-empty, within length and
     stating no figure the page lacks, apart from one in the reader's own words for the
-    order the page answers (``author.context``). The rest is logged and dropped."""
+    order the page answers (``author.context``). The rest is logged and dropped. A page
+    shown as its sheet (``as_sheet``) is neither kept nor dropped."""
     keep: dict[DocumentId, str] = {}
     dropped: list[Rejected] = []
     for page in pages:
+        if as_sheet(page):
+            continue
         text = written.prose.get(page.doc_id)
         if not text:
             dropped.append(Rejected(page.doc_id, "returned no text for the page"))
@@ -292,6 +313,7 @@ def prose_prompt_version() -> str:
 __all__ = [
     "PROSE_MODEL",
     "PROSE_SCHEMA",
+    "SHEET_FACTS",
     "Author",
     "ClaudeProseWriter",
     "ProseWriter",
@@ -299,6 +321,7 @@ __all__ = [
     "TemplateProseWriter",
     "Written",
     "accepted",
+    "as_sheet",
     "author_of",
     "prose_prompt",
     "prose_prompt_version",

@@ -40,7 +40,7 @@ from revisionist.core.ontology import (
 )
 from revisionist.core.realism.agenda import MandateKind, TriggerKind
 from revisionist.core.realism.answer import Answer
-from revisionist.core.realism.card import Aim, ChannelKind, ParamSpec
+from revisionist.core.realism.card import Address, Aim, ChannelKind, ParamSpec
 from revisionist.core.realism.document import Bias, Classification, DocumentKind
 from revisionist.core.realism.effect import EffectKind
 from revisionist.core.realism.geography import FeatureKind
@@ -464,6 +464,8 @@ class CardDecl(Model):
     answers: tuple[Answer, ...] = Field(default=(), max_length=8)
     """What the person does back while nobody plays them. Keys stand where ids go:
     ``by``, ``party``, ``until`` and the people and places an act's effect names."""
+    addressed_as: Address | None = None
+    """How a letter to the person opens ("Mr. President")."""
 
 
 class TriggerDecl(Model):

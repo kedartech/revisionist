@@ -42,9 +42,10 @@ FIELDS = ("entities", "quantities", "feeds", "pipelines", "cards", "mandates")
 BUILT_RESOLVERS = ("votes", "shipping", "production", "opinion")
 """What a built lever may name. A movement or war lever offers forces and places by key,
 and a figure's card declares neither: its say over forces is an authority domain."""
-HAND_WRITTEN = ("allies", "opposes", "answers")
-"""Card fields a build is not asked for: who stands with and against whom, and what
-they do back, is written by hand, so a built figure takes no stance and never acts."""
+HAND_WRITTEN = ("allies", "opposes", "answers", "addressed_as")
+"""Card fields a build is not asked for: who stands with and against whom, what they do
+back and how they are addressed are written by hand, so a built figure takes no stance,
+never acts and is addressed by name and office."""
 
 
 def _refs(node: Any) -> set[str]:

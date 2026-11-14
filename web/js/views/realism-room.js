@@ -23,6 +23,7 @@ import { runMoves } from './realism-moves.js';
 import { introStage, markIntro, seatSplash, splashModel, startOverview } from './realism-intro.js';
 import { newsBlock, whatChanged } from './realism-news.js';
 import { orderCards } from './realism-orders.js';
+import { pressCounts, pressDock, pressFocus, pressMarks, pressPapers, pressSeen, pressTab } from './realism-press.js';
 import { overlayLines, wakeOverlay } from './realism-overlay.js';
 import { statusStrip, summaryTiles } from './realism-status.js';
 import { sideSwitch, tabBar } from './realism-tabs.js';
@@ -36,7 +37,7 @@ const freshUi = (game) => ({
   filter: 'all', sort: 'newest', draft: null, proposal: null, autoFor: null,
   chat: { open: false, tab: 'chats', thread: null }, contact: null, orderTo: null,
   happenedSeen: null, refocusChat: false, brief: null, pending: null, drafts: {}, runFrom: null,
-  tab: 'desk', side: 'papers',
+  tab: 'desk', side: 'papers', press: { open: false, tab: null }, pressPage: null,
 });
 let ui = freshUi(null);
 
@@ -257,12 +258,19 @@ export function realismRoom(ctx) {
   const root = h('div', { class: 'screen war-screen realism-screen' });
   // a redraw rebuilds the open thread: put the reader back where they were reading
   const follow = () => followThread(ui.chat, root.querySelector('.rl-msgr-panel .rl-th'));
+  // the desk is a modal dialog: a redraw rebuilds it, and it is shown again once in the page
+  const showDesk = () => {
+    const desk = root.querySelector('dialog.rl-pd');
+    if (desk?.isConnected && !desk.open) desk.showModal();
+  };
   const rerender = () => {
     root.replaceChildren(...build());
     follow();
+    showDesk();
   };
   const seen = seenStore(storage(), game.id);
   const shown = happenedStore(storage(), game.id);
+  const pressSeenBy = pressSeen(storage(), game.id);
 
   /**
    * Run one slow call: the status line says what is happening in plain words, every
@@ -350,9 +358,17 @@ export function realismRoom(ctx) {
     ui.said = null;
   });
 
-  const flag = (on) => work(on ? 'Flagging it…' : 'Unflagging it…', async () => {
-    await api.realism('flag', { doc_id: ui.page.item.id, flagged: on });
-    ui.page.item.flagged = on;
+  const flag = (on, page = ui.page) => work(on ? 'Flagging it…' : 'Unflagging it…', async () => {
+    await api.realism('flag', { doc_id: page.item.id, flagged: on });
+    page.item.flagged = on;
+  });
+
+  /** A press page opens on the newspaper desk, at its paper's tab. */
+  const readPress = (d) => work('Fetching the paper…', async () => {
+    const outlet = rv.documents.documents.find((x) => x.id === d.id)?.author ?? ui.press.tab;
+    ui.press = { open: true, tab: outlet };
+    ui.pressPage = await api.realism('read', { doc_id: d.id });
+    ui.said = null;
   });
 
   function papers() {
@@ -557,6 +573,29 @@ export function realismRoom(ctx) {
     });
   }
 
+  /** The newspaper icon beside Messages, and the desk while it is open; the paper on show is marked seen. */
+  function pressDesk() {
+    const papers = pressPapers(rv.documents.documents);
+    const read = pressSeenBy.read();
+    const marks = pressMarks(pressCounts(papers), read, { ...ui.press, tab: pressTab(papers, ui.press.tab) });
+    if (marks !== read) pressSeenBy.write(marks);
+    return pressDock({
+      state: ui.press,
+      onState: (next) => {
+        if (!next.open || next.tab !== ui.press.tab) ui.pressPage = null;
+        ui.press = next;
+        rerender();
+        if (!next.open) pressFocus(root);
+      },
+      papers,
+      marks,
+      page: ui.pressPage,
+      onOpen: readPress,
+      onClosePage: () => { ui.pressPage = null; rerender(); },
+      onFlag: (on) => flag(on, ui.pressPage),
+    });
+  }
+
   /** The two dossiers behind the header's names, and the sheet a new wake opens with. */
   function sheets() {
     const date = worldDate(rv.clock.world_date);
@@ -645,12 +684,13 @@ export function realismRoom(ctx) {
       statusStrip(rv, ui, { act }),
       status,
       summaryTiles(rv, pick),
-      newsBlock(whatChanged(rv.documents), (id) => open({ id })),
+      newsBlock(whatChanged(rv.documents), (id) => readPress({ id })),
       sideSwitch(ui, pick),
       h('main', { class: `rl-room${ui.wide ? ' wide' : ''}`, 'data-view': ui.tab, 'data-side': ui.side },
         papers(), deskColumn(), sideColumn()),
       tabBar(rv, ui, pick),
       dock(),
+      pressDesk(),
       menu, character, setting, happened, opening,
     ].filter(Boolean);
   }
@@ -661,6 +701,7 @@ export function realismRoom(ctx) {
   // a dialog opens only once it is in the page
   queueMicrotask(() => {
     follow();
+    showDesk();
     if (pending?.isConnected && !pending.open) pending.showModal();
     else if (ui.refocusChat) refocus(ui.chat, true); // the reply redrew the room under the player
   });

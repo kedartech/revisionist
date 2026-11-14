@@ -1,10 +1,11 @@
-"""Letters (train L): how long a page runs for the channel it went by, how its reader is
-addressed, and the plain sheet an over-full message gets instead of prose.
+"""Letters (train L): how long a page runs for the channel it went by and how its reader
+is addressed.
 
 A message said in person, by telephone or by radio, a cable and a letter each have a
 word band; a press item and the formal kinds keep their own form and get none. The band
-is a target: every line is still stated, and the number check still refuses a figure
-the page does not carry.
+is a target: every line is still stated, a spoken message with many facts is written
+up like any other page, and the number check still refuses a figure the page does not
+carry.
 """
 
 from collections.abc import Sequence
@@ -26,7 +27,6 @@ from revisionist.engine.prose import (
     ClaudeProseWriter,
     Written,
     accepted,
-    as_sheet,
     author_of,
     page_lines,
     template_prose,
@@ -140,30 +140,7 @@ def test_a_reader_with_no_form_of_address_gets_none_in_the_prompt() -> None:
     assert "to_addressed_as" not in page_lines(page, author).get("context", {})
 
 
-# --- the plain sheet for an over-full message -------------------------------------------
-
-
-def test_a_message_with_more_than_three_facts_is_shown_as_a_sheet() -> None:
-    _, page = _stark()
-    for channel in (ChannelKind.IN_PERSON, ChannelKind.TELEPHONE, ChannelKind.RADIO):
-        assert not as_sheet(_as(page, DocumentKind.REPORT, channel, 3)), channel
-        assert as_sheet(_as(page, DocumentKind.REPORT, channel, 4)), channel
-
-
-def test_only_the_message_band_turns_a_full_page_into_a_sheet() -> None:
-    _, page = _stark()
-    for channel in (ChannelKind.CABLE, ChannelKind.LETTER, ChannelKind.COURIER):
-        assert not as_sheet(_as(page, DocumentKind.REPORT, channel, 9)), channel
-    assert not as_sheet(_as(page, DocumentKind.WHIP_COUNT, ChannelKind.TELEPHONE, 9))
-
-
-def test_a_line_with_no_figure_and_a_continued_line_are_not_extra_facts() -> None:
-    _, page = _stark()
-    msg = _as(page, DocumentKind.REPORT, ChannelKind.TELEPHONE, 3)
-    blank = msg.model_copy(update={"body": (*msg.body, BodyField(label="Unknown", value=None))})
-    assert not as_sheet(blank)
-    cont = BodyField(label="Line 2 (cont.)", value="and more")
-    assert not as_sheet(msg.model_copy(update={"body": (*msg.body, cont)}))
+# --- a full spoken message is written up -------------------------------------------------
 
 
 class Recording:
@@ -184,29 +161,25 @@ class Recording:
         )
 
 
-def test_the_model_is_never_asked_to_write_a_sheet() -> None:
+def test_the_model_is_asked_to_write_a_message_with_many_facts() -> None:
     state, page = _stark()
-    sheet = _as(page, DocumentKind.REPORT, ChannelKind.TELEPHONE, 5)
-    transport = Recording()
-    writer = ClaudeProseWriter(transport)
-    out = writer.write(author_of(state, sheet.author, [sheet]), [sheet])
-    assert transport.sent == [] and out.prose == {} and out.cost is None
-    short = _as(page, DocumentKind.REPORT, ChannelKind.TELEPHONE, 2).model_copy(
-        update={"doc_id": DocumentId("SHORT")}
-    )
-    writer.write(author_of(state, sheet.author, [sheet, short]), [sheet, short])
-    (req,) = transport.sent
-    assert "SHORT" in req.prompt and sheet.doc_id not in req.prompt
+    for channel in (ChannelKind.IN_PERSON, ChannelKind.TELEPHONE, ChannelKind.RADIO):
+        full = _as(page, DocumentKind.REPORT, channel, 6)
+        transport = Recording()
+        ClaudeProseWriter(transport).write(author_of(state, full.author, [full]), [full])
+        (req,) = transport.sent
+        assert full.doc_id in req.prompt, channel
 
 
-def test_a_sheet_is_neither_kept_nor_refused() -> None:
+def test_a_message_with_many_facts_is_kept_or_refused_like_any_page() -> None:
     state, page = _stark()
-    sheet = _as(page, DocumentKind.REPORT, ChannelKind.TELEPHONE, 5)
-    author = author_of(state, sheet.author, [sheet])
-    keep, refused = accepted([sheet], Written(prose={sheet.doc_id: template_prose(author, sheet)}))
-    assert keep == {} and refused == []
-    keep, refused = accepted([sheet], Written(prose={}), author)
-    assert keep == {} and refused == []
+    full = _as(page, DocumentKind.REPORT, ChannelKind.TELEPHONE, 6)
+    author = author_of(state, full.author, [full])
+    written = template_prose(author, full)
+    keep, refused = accepted([full], Written(prose={full.doc_id: written}), author)
+    assert keep == {full.doc_id: written} and refused == []
+    keep, refused = accepted([full], Written(prose={}), author)
+    assert keep == {} and [r.doc_id for r in refused] == [full.doc_id]
 
 
 # --- the number check with the new context ----------------------------------------------
@@ -264,17 +237,15 @@ def _plant_message(store: EventStore, facts: int) -> DocumentId:
     return doc_id
 
 
-@pytest.mark.parametrize(("facts", "sheet"), [(3, False), (4, True)])
-def test_the_stage_leaves_a_full_message_as_its_sheet_without_a_retry(
-    facts: int, sheet: bool
-) -> None:
+@pytest.mark.parametrize("facts", [3, 4, 6])
+def test_the_stage_writes_up_a_telephoned_message_once(facts: int) -> None:
     store = MemoryStore()
     seated(store)
     doc = _plant_message(store, facts)
     writer = Counting()
     result = run_realism_tick(store, CAMPAIGN, prose=writer)
     prose = load_state(store, CAMPAIGN).documents[doc].view.prose
-    assert (prose is None) is sheet
+    assert prose is not None
     assert not any(d.startswith(doc) for d in result.prose_dropped)
     cora_calls: Sequence[tuple[str, tuple[DocumentId, ...]]] = [
         c for c in writer.calls if doc in c[1]

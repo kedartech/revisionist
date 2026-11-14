@@ -2,6 +2,8 @@
    crawl's own rules are in p5-crawl.css. Both dialogs fill the viewport. */
 
 .rl-intro {
+  /* how long the splash takes to fade in over the crawl's page */
+  --rl-intro-fade: 600ms;
   box-sizing: border-box;
   container-type: inline-size;
   width: 100vw;
@@ -69,6 +71,21 @@
   outline-offset: 2px;
 }
 
+/* The crawl's page stays and the splash's text fades in over it: the dialog keeps its opaque
+   background, so the room under it never shows through. */
+.rl-intro-splash > * {
+  animation: rl-intro-in var(--rl-intro-fade) ease-out both;
+}
+
+@keyframes rl-intro-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .rl-intro-splash-head {
   display: flex;
   flex-wrap: wrap;
@@ -90,43 +107,6 @@
 .rl-intro-splash-head h2 {
   margin: 0;
   min-width: 0;
-  flex: 1 1 12rem;
-}
-
-.rl-intro-figure {
-  margin: 0;
-  flex: 0 0 auto;
-  max-width: 8rem;
-}
-
-.rl-intro-portrait {
-  display: block;
-  width: 8rem;
-  height: auto;
-  aspect-ratio: 3 / 4;
-  object-fit: cover;
-  border: 1px solid var(--field-border);
-}
-
-.rl-intro-credit {
-  margin-top: 0.25rem;
-  font-family: var(--font-chrome);
-  font-size: 0.7rem;
-  color: var(--fg-muted);
-}
-
-.rl-intro-mono {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 4.5rem;
-  height: 4.5rem;
-  border: 1px solid var(--field-border);
-  font-family: var(--font-head);
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--fg-strong);
 }
 
 .rl-intro-office {
@@ -140,40 +120,6 @@
   margin: 0 0 1rem;
   font-family: var(--font-chrome);
   font-size: 0.8rem;
-  color: var(--fg-muted);
-}
-
-.rl-intro-arena {
-  margin: 0 0 1.25rem;
-  font-family: var(--font-read);
-  font-size: 1rem;
-  line-height: 1.55;
-  color: var(--fg-read);
-}
-
-.rl-intro-history h3 {
-  margin: 0 0 0.5rem;
-  font-family: var(--font-head);
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--fg-strong);
-}
-
-.rl-intro-history ul {
-  margin: 0 0 0.5rem;
-  padding-left: 1.25rem;
-  font-family: var(--font-read);
-  font-size: 0.95rem;
-  line-height: 1.5;
-  color: var(--fg-read);
-}
-
-.rl-intro-note {
-  margin: 0 0 1.25rem;
-  font-family: var(--font-chrome);
-  font-size: 0.75rem;
   color: var(--fg-muted);
 }
 
@@ -209,8 +155,30 @@
   overflow-wrap: anywhere;
 }
 
-.rl-intro-first {
+.rl-intro-splash .rl-brief {
+  margin: 0 0 1.25rem;
+}
+
+.rl-intro-papers,
+.rl-intro-matters {
+  margin: 0 0 1.25rem;
+}
+
+.rl-intro-papers h3,
+.rl-intro-matters h3 {
   margin: 0 0 0.5rem;
+  font-family: var(--font-head);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-strong);
+}
+
+.rl-intro-papers ul,
+.rl-intro-matters ul {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
   font-family: var(--font-read);
   font-size: 0.95rem;
   line-height: 1.5;
@@ -218,14 +186,26 @@
   overflow-wrap: anywhere;
 }
 
-/* Narrow column: the name goes under the portrait (the h2 rule above sets a 12rem basis, which in a
-   column would be its height). */
-@container (max-width: 30rem) {
-  .rl-intro-splash-head {
-    flex-direction: column;
-  }
+/* A paper's title reads as a link into the tray. */
+.rl-intro-paper {
+  padding: 0.1rem 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
 
-  .rl-intro-splash-head h2 {
-    flex: none;
+.rl-intro-paper:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rl-intro-splash > * {
+    animation: none;
   }
 }

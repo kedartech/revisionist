@@ -653,11 +653,15 @@ export function realismRoom(ctx) {
       const s = seatSplash({
         name: seatName,
         model: splashModel(seatName, rv.desk, rv.dossier, startOverview(rv)),
-        dossier: rv.dossier,
+        brief: () => rv.brief,
         onDone: () => {
           markIntro(storage(), game.id, 'splash');
           drop(s);
           if (after?.isConnected && !after.open) after.showModal();
+        },
+        onPaper: (p) => {
+          pickPanel(ui, { tab: 'papers', side: 'papers' }, phoneWidth());
+          open({ id: p.id });
         },
       });
       return s;

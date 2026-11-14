@@ -1,0 +1,32 @@
+/* p9-people.css: the People roster in the orders column, and its person dossier. Tokens only (web/css/tokens.css). */
+.rl-people { display: grid; gap: var(--space-2); min-width: 0; font: 14px/1.5 var(--font-chrome); color: var(--fg); }
+.rl-people .seg { flex-wrap: wrap; }
+.rl-pp-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
+.rl-pp-row { width: 100%; display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); box-sizing: border-box; text-align: left; background: var(--field); color: var(--fg); border: 1px solid var(--rule); border-radius: var(--radius); font: inherit; cursor: pointer; }
+.rl-pp-row:hover { border-color: var(--rule-strong); }
+.rl-pp-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-pp-who { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--space-2); min-width: 0; }
+.rl-pp-name { font-weight: 600; color: var(--fg-strong); }
+.rl-pp-office { font-size: 13px; color: var(--fg-muted); overflow-wrap: anywhere; }
+.rl-pp-meters { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
+
+.rl-pp-meter { display: inline-flex; align-items: center; gap: var(--space-1); font-size: 13px; white-space: nowrap; }
+.rl-pp-label { color: var(--fg-muted); }
+.rl-pp-word { color: var(--fg-strong); }
+.rl-pp-meter.none .rl-pp-word { font-style: italic; color: var(--fg-muted); }
+.rl-pp-bar { --c: var(--fg-muted); display: inline-flex; gap: 2px; margin-left: var(--space-1); }
+.rl-pp-cell { width: 6px; height: 10px; border: 1px solid var(--c); border-radius: 1px; background: none; }
+.rl-pp-cell.on { background: var(--c); }
+.rl-pp-bar.step-1 { --c: var(--danger); }
+.rl-pp-bar.step-2 { --c: var(--warn); }
+.rl-pp-bar.step-3 { --c: var(--fg-muted); }
+.rl-pp-bar.step-4 { --c: var(--info); }
+.rl-pp-bar.step-5 { --c: var(--ok); }
+
+.rl-pp-items { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.rl-pp-item { display: grid; gap: 2px; }
+.rl-pp-when { font: 12px/1.4 var(--font-chrome); color: var(--fg-muted); }
+
+@media (pointer: coarse) {
+  .rl-pp-row { min-height: 44px; }
+}

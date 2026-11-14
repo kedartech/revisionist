@@ -513,6 +513,7 @@ seat_cards = st.builds(
     loyalty=st.integers(-5, 5),
     doctrine=st.lists(labels, max_size=2).map(tuple),
     interests=st.lists(labels, max_size=2).map(tuple),
+    addressed_as=st.none() | labels,
 )
 
 biases = st.builds(
@@ -686,6 +687,8 @@ def features(draw: st.DrawFn) -> rg.Feature:
         in_service=draw(st.none() | in_world_dates),
         posture=draw(st.none() | st.sampled_from(list(rx.Posture))) if force else None,
         engagement=draw(st.none() | st.sampled_from(list(rx.Engagement))) if force else None,
+        detached_from=draw(st.none() | feature_ids) if force else None,
+        rejoined_on=draw(st.none() | in_world_dates) if force else None,
     )
 
 
@@ -783,6 +786,7 @@ realism_payloads = st.one_of(
             unique_by=lambda a: a.key,
         ).map(tuple),
         voice=st.none() | st.text(max_size=200),
+        addressed_as=st.none() | labels,
     ),
     in_world_dates.flatmap(
         lambda on: st.builds(

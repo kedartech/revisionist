@@ -1310,8 +1310,22 @@
       },
       "CardAmended": {
         "additionalProperties": false,
-        "description": "A game takes the world file's word on who a person stands with and against, how\nthey answer and how they write, replacing what its card held. Engine only: these are\nAI policy. ``voice`` None leaves the card's voice as it was.",
+        "description": "A game takes the world file's word on who a person stands with and against, how\nthey answer, how they write and how they are addressed, replacing what its card held.\nEngine only: these are AI policy. ``voice`` or ``addressed_as`` None leaves the card's\nvalue as it was.",
         "properties": {
+          "addressed_as": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Addressed As"
+          },
           "allies": {
             "default": [],
             "items": {
@@ -3947,6 +3961,18 @@
             "default": null,
             "title": "Bound For"
           },
+          "detached_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Detached From"
+          },
           "engagement": {
             "anyOf": [
               {
@@ -4022,6 +4048,19 @@
               }
             ],
             "default": null
+          },
+          "rejoined_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Rejoined On"
           },
           "side": {
             "anyOf": [
@@ -7605,6 +7644,20 @@
         "additionalProperties": false,
         "description": "The whole card. The policy fields below are how code runs an unclaimed person;\nthey never leave the engine.",
         "properties": {
+          "addressed_as": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Addressed As"
+          },
           "aims": {
             "default": [],
             "items": {
@@ -11377,6 +11430,18 @@
             "default": null,
             "title": "Bound For"
           },
+          "detached_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Detached From"
+          },
           "engagement": {
             "anyOf": [
               {
@@ -11452,6 +11517,19 @@
               }
             ],
             "default": null
+          },
+          "rejoined_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Rejoined On"
           },
           "side": {
             "anyOf": [
@@ -13727,6 +13805,20 @@
         "additionalProperties": false,
         "description": "The whole card. The policy fields below are how code runs an unclaimed person;\nthey never leave the engine.",
         "properties": {
+          "addressed_as": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Addressed As"
+          },
           "aims": {
             "default": [],
             "items": {

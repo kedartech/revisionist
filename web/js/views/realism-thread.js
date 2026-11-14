@@ -74,6 +74,38 @@ export function groupItems(items) {
   return groups;
 }
 
+/** How far above the foot (px) a reader still counts as reading the newest message. */
+export const FOLLOW_SLACK = 24;
+
+/**
+ * Where the thread scrolls after a redraw. `prev` is the saved box `{ thread, top, height,
+ * client }` (scrollTop, scrollHeight, clientHeight), null when none was saved; `next` the new
+ * box. A reader at the foot (within FOLLOW_SLACK), or one opening the thread, goes to the new
+ * foot; a reader who scrolled back keeps the offset.
+ */
+export function followNew(prev, next) {
+  const foot = Math.max(0, next.height - next.client);
+  if (!prev || prev.thread !== next.thread) return foot;
+  if (prev.height - prev.client - prev.top <= FOLLOW_SLACK) return foot;
+  return Math.min(prev.top, foot);
+}
+
+/**
+ * Scroll a freshly drawn `.rl-th` (null when no thread is drawn) to the place `chat.scroll`
+ * holds, and keep `chat.scroll` current as the reader scrolls. With no thread drawn the place
+ * is dropped, so the next open lands at the newest message.
+ */
+export function followThread(chat, el) {
+  if (!el) {
+    chat.scroll = null;
+    return;
+  }
+  const box = () => ({ thread: chat.thread, top: el.scrollTop, height: el.scrollHeight, client: el.clientHeight });
+  el.scrollTop = followNew(chat.scroll, box());
+  // the scroll event of a set scrollTop can land after a redraw has replaced this element
+  el.addEventListener('scroll', () => { if (el.isConnected) chat.scroll = box(); });
+}
+
 /**
  * The open thread: `{ name, title, tie, dossier, lead, items, pending, draft, typing, onSend,
  * onBack, onOpen, onDraft, onType }`, as an array of nodes for the panel. `onType(text)` hears

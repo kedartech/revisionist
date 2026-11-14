@@ -621,8 +621,8 @@ def _realism(state: State, p: ev.Payload) -> State:
                 _need(state.entities, entity, "entity")
             try:
                 policy = {"allies": p.allies, "opposes": p.opposes, "answers": p.answers}
-                voice = {} if p.voice is None else {"voice": p.voice}
-                amended = SeatCard.model_validate(card.model_dump() | policy | voice)
+                late = {k: v for k in ("voice", "addressed_as") if (v := getattr(p, k)) is not None}
+                amended = SeatCard.model_validate(card.model_dump() | policy | late)
             except ValidationError as exc:
                 raise FoldError(f"card {p.person}: {exc.errors()[0]['msg']}") from None
             return state.model_copy(update={"cards": _put(state.cards, p.person, amended)})

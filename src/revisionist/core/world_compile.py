@@ -1236,6 +1236,7 @@ def _card(c: CardDecl, ids: Mapping[str, str]) -> SeatCard:
             for x in c.opposes
         ),
         answers=tuple(_answer(a, ids) for a in c.answers),
+        addressed_as=c.addressed_as,
     )
 
 
@@ -1263,8 +1264,9 @@ def _answer(a: Answer, ids: Mapping[str, str]) -> Answer:
 
 
 def card_policy(world: WorldFile, campaign_id: CampaignId) -> list[ev.CardAmended]:
-    """Each card's allies, conflicts, answers and voice as the world file has them now, as
-    the amendment that would bring a game's copy of the card up to it. Raises WorldError."""
+    """Each card's allies, conflicts, answers, voice and form of address as the world file
+    has them now, as the amendment that would bring a game's copy of the card up to it.
+    Raises WorldError."""
     ids = resolve_keys(world, campaign_id)
     out: list[ev.CardAmended] = []
     for c in world.cards:
@@ -1276,6 +1278,7 @@ def card_policy(world: WorldFile, campaign_id: CampaignId) -> list[ev.CardAmende
                 opposes=card.opposes,
                 answers=card.answers,
                 voice=card.voice,
+                addressed_as=card.addressed_as,
             )
         )
     return out

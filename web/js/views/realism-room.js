@@ -285,7 +285,7 @@ export function realismRoom(ctx) {
     for (const el of root.querySelectorAll('button, select, textarea, input')) el.disabled = true;
     showStatus();
     if (message === RUNNING) {
-      const layer = wakeOverlay({ message, lines: overlayLines(rv.setting, rv.wake.wake) });
+      const layer = wakeOverlay({ message, lines: overlayLines(rv.setting, rv.wake.wake), map: rv.map, orders: rv.record?.orders });
       if (layer) root.append(layer);
     }
     try {

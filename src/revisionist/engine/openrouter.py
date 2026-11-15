@@ -14,19 +14,25 @@ Guards, each refusing with ``TransportError`` before a request leaves:
 - at most ``PER_MINUTE`` calls a minute, across every kind;
 - a day-quota 429 refuses every call until 00:00 UTC.
 
+A reply holding a bracketed capitals label (``[ADDRESS]``, ``[PERSON_NAME]``) that the
+request did not send is refused, and no other model is tried: such a label is what the
+account's Sensitive Info guardrail puts in the prompt in place of the words it hides,
+so every model would be answering the same damaged prompt.
+
 The key comes from ``$REVISIONIST_OPENROUTER_KEY`` and goes only into the request's
-Authorization header. Errors and log lines carry a status code, a model id or a call
-kind, never a header, a response body, a prompt or a reply.
+Authorization header. Errors and log lines carry a status code, a model id, a call
+kind or a guardrail label, never a header, a response body, a prompt or a reply.
 """
 
 import json
 import logging
 import os
+import re
 import threading
 import time
 import urllib.error
 import urllib.request
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -59,7 +65,11 @@ UPSTREAM_STRIKES = 3
 UPSTREAM_REST_S = 600.0
 MINUTE_WAIT_S = 60.0
 PRICES = ("prompt", "completion", "request", "image", "web_search", "internal_reasoning")
+LABEL = re.compile(r"\[[A-Z][A-Z_]{2,}(?::[\w-]{1,40})?\]")
+"""A guardrail's stand-in for redacted text: ``[ADDRESS]``, ``[EMAIL]``, ``[SECRET:<id>]``."""
 log = logging.getLogger(__name__)
+_labels_logged: set[str] = set()
+_labels_lock = threading.Lock()
 
 
 def free_id(model: object) -> str:
@@ -107,6 +117,37 @@ def _limit(body: Any) -> str:
     if any(w in text for w in ("per-min", "per min")):
         return "minute"
     return "upstream"
+
+
+def _strings(value: Any) -> Iterator[str]:
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for k, v in value.items():
+            yield from _strings(k)
+            yield from _strings(v)
+    elif isinstance(value, list):
+        for v in value:
+            yield from _strings(v)
+
+
+def redaction_labels(output: Any, request: Request) -> list[str]:
+    """The labels in ``output``'s strings that neither the system text nor the prompt holds."""
+    sent = set(LABEL.findall(request.system)) | set(LABEL.findall(request.prompt))
+    found = {m for text in _strings(output) for m in LABEL.findall(text)}
+    return sorted(found - sent)
+
+
+def _refuse_redacted(model: str, labels: list[str]) -> None:
+    with _labels_lock:
+        new = [x for x in labels if x not in _labels_logged]
+        _labels_logged.update(new)
+    if new:
+        log.warning("openrouter: %s replied with %s", model, ", ".join(new))
+    raise TransportError(
+        f"openrouter: {model} replied with {', '.join(labels)}: the prompt was redacted "
+        "before any model read it; check the account's Sensitive Info guardrail"
+    )
 
 
 def read_json(text: str) -> Any:
@@ -328,7 +369,7 @@ class OpenRouterTransport:
             if status != 200:
                 log.warning("openrouter: http %d from %s (%s)", status, model, request.call_class)
                 return None
-            return self._reply(model, resp, usage)
+            return self._reply(model, resp, usage, request)
         return None
 
     def _strike(self, model: str) -> None:
@@ -361,7 +402,7 @@ class OpenRouterTransport:
             }
         return body
 
-    def _reply(self, model: str, resp: Any, usage: Any) -> Reply | None:
+    def _reply(self, model: str, resp: Any, usage: Any, request: Request) -> Reply | None:
         choices = resp.get("choices") if isinstance(resp, dict) else None
         first = choices[0] if isinstance(choices, list) and choices else {}
         message = first.get("message") if isinstance(first, dict) else None
@@ -373,6 +414,8 @@ class OpenRouterTransport:
         if not isinstance(output, dict):
             log.warning("openrouter: no JSON object from %s", model)
             return None
+        if labels := redaction_labels(output, request):
+            _refuse_redacted(model, labels)
         used = usage if isinstance(usage, dict) else {}
         return Reply(
             output=output,
@@ -392,4 +435,5 @@ __all__ = [
     "OpenRouterTransport",
     "free_id",
     "listed_free",
+    "redaction_labels",
 ]

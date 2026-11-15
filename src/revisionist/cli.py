@@ -1405,4 +1405,28 @@ def web_serve(
     serve(app_, host, port)
 
 
+@web_app.command("check-transport")
+def web_check_transport(
+    transport: Annotated[
+        WebTransport,
+        typer.Option("--transport", help="openrouter: the free models of the routing table."),
+    ] = WebTransport.OPENROUTER,
+) -> None:
+    """Send each free model one fixed text of places, names, a date and a number and ask
+    for it back. Exit 0: every word came back. 1: a word was lost; check the account's
+    guardrails. 2: no verdict. Run it before serving the free instance."""
+    from revisionist.engine import transport_check
+
+    if transport is not WebTransport.OPENROUTER:
+        raise _fail("check-transport checks the openrouter transport only", EXIT_REFUSED)
+    try:
+        shared, ids = transport_check.openrouter()
+    except TransportError as exc:
+        raise _fail(str(exc), transport_check.NO_VERDICT) from None
+    verdicts = transport_check.run(shared, ids)
+    for line in transport_check.report(verdicts):
+        typer.echo(line)
+    raise typer.Exit(transport_check.exit_code(verdicts))
+
+
 __all__ = ["EXIT_ERROR", "EXIT_LEAK", "EXIT_REFUSED", "app", "transport_factory"]

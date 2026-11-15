@@ -305,10 +305,15 @@ def _with_moves(made: ev.OptionsOffered, state: State) -> ev.OptionsOffered:
     return made.model_copy(update={"offers": offers})
 
 
-def test_filing_an_action_is_the_same_with_and_without_the_fields() -> None:
+@pytest.mark.parametrize("style", [PlayStyle.BEGINNER, PlayStyle.GUIDED])
+def test_filing_an_action_is_the_same_with_and_without_the_fields(style: PlayStyle) -> None:
+    """The order filed is the same. A beginner's single-ask option is also ticked through
+    and the whole log compared; a guided plan's later rolls are seeded by its fresh order
+    id, so two filings of one plan differ there with or without the fields."""
+    filed: list[list[str]] = []
     logs: list[list[str]] = []
     for moves in (False, True):
-        store, seat = _store(PlayStyle.BEGINNER)
+        store, seat = _store(style)
         state = load_state(store, CAMPAIGN)
         made = options.offer(state, seat, None)
         assert made is not None
@@ -320,10 +325,16 @@ def test_filing_an_action_is_the_same_with_and_without_the_fields() -> None:
         assert bool(block["initiative"][0]["expects"]) is moves
         done = agenda_api.pick_option(store, CAMPAIGN, seat, pick)
         assert not done["refused"]
-        rt.run_realism_tick(store, CAMPAIGN)
-        logs.append(_normalised(store))
-    assert logs[0] == logs[1]
-    assert any("order_executed" in row for row in logs[0])
+        filed.append(_normalised(store))
+        if style is PlayStyle.BEGINNER:
+            rt.run_realism_tick(store, CAMPAIGN)
+            logs.append(_normalised(store))
+    assert filed[0] == filed[1] and '"kind":"order_routed"' in filed[0][0]
+    if style is PlayStyle.GUIDED:
+        assert filed[0][0].count('"route":') >= 3
+    else:
+        assert logs[0] == logs[1]
+        assert any("order_executed" in row for row in logs[0])
 
 
 def test_no_rule_reads_expects_or_risks() -> None:

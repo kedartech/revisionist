@@ -1521,6 +1521,36 @@
           "word": "Untested",
           "as_of": null,
           "confidence": null
+        },
+        "holds": [],
+        "load": 0,
+        "tally": {
+          "passed": 0,
+          "hurried": 0,
+          "held": 0,
+          "amended": 0,
+          "refused": 0,
+          "leaked": 0
+        },
+        "pace": {
+          "step": null,
+          "word": "Untested",
+          "as_of": null,
+          "confidence": null
+        },
+        "standing": {
+          "step": 5,
+          "word": "Paramount",
+          "as_of": null,
+          "confidence": null
+        },
+        "bloc": "Germany",
+        "channel": null,
+        "power": {
+          "step": 5,
+          "word": "Overwhelming",
+          "as_of": "1941-10-18",
+          "confidence": "firm"
         }
       },
       {
@@ -1548,6 +1578,39 @@
           "word": "Untested",
           "as_of": null,
           "confidence": null
+        },
+        "holds": [],
+        "load": 0,
+        "tally": {
+          "passed": 0,
+          "hurried": 0,
+          "held": 0,
+          "amended": 0,
+          "refused": 0,
+          "leaked": 0
+        },
+        "pace": {
+          "step": null,
+          "word": "Untested",
+          "as_of": null,
+          "confidence": null
+        },
+        "standing": {
+          "step": 5,
+          "word": "Paramount",
+          "as_of": null,
+          "confidence": null
+        },
+        "bloc": "Soviet Union",
+        "channel": {
+          "channel": "cable",
+          "days": 0
+        },
+        "power": {
+          "step": 5,
+          "word": "Overwhelming",
+          "as_of": null,
+          "confidence": null
         }
       }
     ],
@@ -1572,7 +1635,49 @@
           "word": "Untested",
           "as_of": null,
           "confidence": null
-        }
+        },
+        "holds": [],
+        "load": 0,
+        "tally": {
+          "passed": 1,
+          "hurried": 0,
+          "held": 0,
+          "amended": 0,
+          "refused": 0,
+          "leaked": 0
+        },
+        "pace": {
+          "step": 4,
+          "word": "On time",
+          "as_of": "1941-10-03",
+          "confidence": "dated"
+        },
+        "standing": {
+          "step": 4,
+          "word": "Senior",
+          "as_of": null,
+          "confidence": null
+        },
+        "bloc": "United Kingdom",
+        "channel": {
+          "channel": "in_person",
+          "days": 1
+        },
+        "power": null,
+        "loyalty": {
+          "step": 4,
+          "word": "Loyal",
+          "as_of": null,
+          "confidence": null
+        },
+        "competence": {
+          "step": 3,
+          "word": "Capable",
+          "as_of": null,
+          "confidence": null
+        },
+        "wants": [],
+        "holds_to": []
       },
       {
         "person": "63A3RZNQ0CYKDN5BVGECWKQT4P",
@@ -1594,7 +1699,58 @@
           "word": "Uneven",
           "as_of": "1941-09-12",
           "confidence": "dated"
-        }
+        },
+        "holds": [
+          {
+            "id": "o-home-fleet",
+            "label": "Move the Home Fleet",
+            "since": "1941-10-14",
+            "held_days": 6,
+            "days": 2,
+            "read": "may hold it"
+          }
+        ],
+        "load": 1,
+        "tally": {
+          "passed": 2,
+          "hurried": 0,
+          "held": 1,
+          "amended": 0,
+          "refused": 0,
+          "leaked": 0
+        },
+        "pace": {
+          "step": 3,
+          "word": "Slow",
+          "as_of": "1941-10-09",
+          "confidence": "firm"
+        },
+        "standing": {
+          "step": 3,
+          "word": "Established",
+          "as_of": null,
+          "confidence": null
+        },
+        "bloc": "Chiefs of Staff Committee",
+        "channel": {
+          "channel": "in_person",
+          "days": 1
+        },
+        "power": null,
+        "loyalty": {
+          "step": 4,
+          "word": "Loyal",
+          "as_of": null,
+          "confidence": null
+        },
+        "competence": {
+          "step": 3,
+          "word": "Capable",
+          "as_of": null,
+          "confidence": null
+        },
+        "wants": [],
+        "holds_to": []
       }
     ],
     "others": [
@@ -1618,7 +1774,32 @@
           "word": "Untested",
           "as_of": null,
           "confidence": null
-        }
+        },
+        "holds": [],
+        "load": 0,
+        "tally": {
+          "passed": 0,
+          "hurried": 0,
+          "held": 0,
+          "amended": 0,
+          "refused": 0,
+          "leaked": 0
+        },
+        "pace": {
+          "step": null,
+          "word": "Untested",
+          "as_of": null,
+          "confidence": null
+        },
+        "standing": {
+          "step": 4,
+          "word": "Senior",
+          "as_of": null,
+          "confidence": null
+        },
+        "bloc": "Department of State",
+        "channel": null,
+        "power": null
       }
     ]
   },

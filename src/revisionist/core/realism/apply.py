@@ -24,6 +24,7 @@ from revisionist.core.ids import (
 )
 from revisionist.core.ontology import Relationship, ScheduleSource
 from revisionist.core.realism import actors, process, reach
+from revisionist.core.realism.bases import crossing
 from revisionist.core.realism.card import ChannelKind, words
 from revisionist.core.realism.document import (
     BodyField,
@@ -129,13 +130,21 @@ def _move(world: PassWorld, effect: MoveForce, on: date) -> list[ev.Payload]:
     if effect.posture is not None:
         update["posture"] = effect.posture
     here = force.places[0]
-    if effect.to is not None and effect.to != here:
+    # This path neither draws nor gives back a lift (``sealift``): an army sent across the
+    # sea, or already on a lift, keeps its course and takes only the posture.
+    lifted = force.bound_for is not None and crossing(
+        world.state, force.kind, here, force.bound_for
+    )
+    if effect.to is None or lifted:
+        pass
+    elif effect.to != here:
         # Travel as ``resolvers.movement.resolve`` computes it; a fleet with no open
         # sea route keeps its course and takes only the posture.
-        days = travel_days(world.state, force, effect.to)
+        crosses = crossing(world.state, force.kind, here, effect.to)
+        days = None if crosses else travel_days(world.state, force, effect.to)
         if days is not None:
             update |= {"bound_for": effect.to, "arrives": as_of + timedelta(days=days), "legs": ()}
-    elif effect.to is not None:
+    else:
         update |= {"bound_for": None, "arrives": None, "legs": ()}
     moved = force.model_copy(update=update)
     world.features[effect.force] = moved

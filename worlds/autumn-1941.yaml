@@ -279,6 +279,9 @@ quantities:
   - {key: us_atlantic_escort, owner: usa, name: "US Atlantic escort (0 none, 1 escort, 2 shoot on sight)", unit: level, computed: true}
   - {key: uboat_posture, owner: germany, name: "U-boat posture to US ships (0 restrict, 1 open)", unit: level, computed: true}
   - {key: opinion_target, owner: usa, name: "Where 'about right' is heading", unit: percent, computed: true}
+  # Sealift (R6): [proposed] 300,000 GRT, one lift of Home Forces at a time; unsourced (candidate:
+  # Behrens, Merchant Shipping and the Demands of War, 1955). Drawn and given back by core/realism/sealift.py.
+  - {key: uk_sealift_grt, owner: uk, name: British shipping free for troop lift, value: 300000, unit: GRT, gap: true}
 
 # The map. Positions and dates are approximate and unsourced (gap: true): a
 # force's legs are where the record has it if nobody orders it elsewhere.
@@ -349,7 +352,7 @@ feeds:
   - {key: churchill_cables, name: Churchill's cables, author: churchill, kind: cable, channel: cable, classification: secret, sights: [home_fleet, arctic_route], every_days: 3, latency_days: 1, assumed: true, gap: true}
   - {key: soviet_requests, name: Soviet requests for aid, author: molotov, kind: letter, channel: courier, classification: confidential, every_days: 14, latency_days: 7, assumed: true, gap: true}
   - {key: german_naval_reports, name: Kriegsmarine reports, author: raeder, kind: report, channel: courier, classification: secret, reports: [uboats_operational, uboat_losses_sep, uboat_losses_oct, uboat_losses_nov], sights: [uboat_arm, home_fleet, hx_route], every_days: 7, latency_days: 1, assumed: true, gap: true}
-  - {key: admiralty_reports, name: Admiralty reports, author: pound, kind: report, channel: courier, classification: secret, reports: [uboat_losses_sep, uboat_losses_oct, uboat_losses_nov], sights: [home_fleet, uboat_arm, hx_route, sc_route, arctic_route], every_days: 7, latency_days: 1, assumed: true, gap: true}
+  - {key: admiralty_reports, name: Admiralty reports, author: pound, kind: report, channel: courier, classification: secret, reports: [uboat_losses_sep, uboat_losses_oct, uboat_losses_nov, uk_sealift_grt], sights: [home_fleet, uboat_arm, hx_route, sc_route, arctic_route], every_days: 7, latency_days: 1, assumed: true, gap: true}
   - {key: okw_situation, name: OKW situation reports, author: jodl, kind: report, channel: courier, classification: secret, sights: [army_group_centre, soviet_western_front, eastern_front], every_days: 3, latency_days: 1, assumed: true, gap: true}
   - {key: stavka_situation, name: General Staff situation reports, author: shaposhnikov, kind: report, channel: courier, classification: secret, reports: [soviet_lend_lease_eligible, lend_lease_share_ussr], sights: [soviet_western_front, army_group_centre, eastern_front], every_days: 3, latency_days: 0, assumed: true, gap: true}
 

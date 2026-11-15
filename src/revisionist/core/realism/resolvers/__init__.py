@@ -73,7 +73,7 @@ ON_ORDER: dict[ResolverKey, OrderFn] = {
     "shipping": shipping.resolve,
     "production": production.resolve,
     "opinion": opinion.resolve,
-    "movement": movement.resolve,
+    "movement": movement.order_changes,
     "war": war.resolve,
 }
 ON_DAY: dict[ResolverKey, DayFn] = {
@@ -81,7 +81,7 @@ ON_DAY: dict[ResolverKey, DayFn] = {
     "shipping": shipping.on_day,
     "production": production.on_day,
     "opinion": opinion.on_day,
-    "movement": movement.on_day,
+    "movement": movement.day_changes,
     "war": war.on_day,
 }
 

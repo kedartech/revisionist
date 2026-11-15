@@ -27,7 +27,7 @@ import { introStage, markIntro, seatSplash, splashModel, startOverview } from '.
 import { newsBlock, whatChanged } from './realism-news.js';
 import { orderCards } from './realism-orders.js';
 import { pressCounts, pressDock, pressFocus, pressMarks, pressPapers, pressSeen, pressTab } from './realism-press.js';
-import { overlayLines, wakeOverlay } from './realism-overlay.js';
+import { overlayLines, wakeOverlay, withPlayback } from './realism-overlay.js';
 import { peopleRoster, personDossier } from './realism-people.js';
 import { stakesStrip } from './realism-stakes.js';
 import { statusStrip, summaryTiles } from './realism-status.js';
@@ -359,7 +359,7 @@ export function realismRoom(ctx) {
     showStatus();
     if (message === RUNNING) {
       ui.runFrom = { wake: rv.record?.wake?.number ?? 0, map: rv.map ?? null }; // What happened replays the moves
-      const layer = wakeOverlay({ message, lines: overlayLines(rv.setting, rv.wake.wake), map: rv.map, orders: rv.record?.orders });
+      const layer = withPlayback(wakeOverlay({ message, lines: overlayLines(rv.setting, rv.wake.wake), map: rv.map, orders: rv.record?.orders }), { court: rv.court, stakes: rv.stakes });
       if (layer) root.append(layer);
     }
     try {

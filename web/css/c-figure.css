@@ -1,0 +1,47 @@
+/* c-figure.css: the figure card (realism-figure.js), a dossier dialog in fixed groups. The frame,
+   head and foot come from p5-dossier.css (.rl-dos); the bar cells and their step colours from
+   p9-people.css (.rl-pp-bar). Tokens only (web/css/tokens.css). */
+.rl-fc { width: min(40rem, 94vw); font: 14px/1.45 var(--font-chrome); color: var(--fg); }
+.rl-fc-head { align-items: center; }
+.rl-fc-who { display: grid; gap: 2px; min-width: 0; }
+.rl-fc-office, .rl-fc-sub { margin: 0; color: var(--fg-muted); overflow-wrap: anywhere; }
+.rl-fc-sub { font-size: 13px; }
+
+.rl-fc-figure { margin: 0; flex: 0 0 auto; max-width: 5.5rem; }
+.rl-fc-portrait { display: block; width: 5.5rem; height: auto; aspect-ratio: 3 / 4; object-fit: cover; border: 1px solid var(--field-border); }
+.rl-fc-credit { margin-top: var(--space-1); font-size: 0.65rem; color: var(--fg-muted); }
+.rl-fc-mono { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 4.5rem; height: 5.5rem; border: 1px solid var(--field-border); font: 600 1.5rem/1 var(--font-head); color: var(--fg-strong); }
+
+.rl-fc-grp { padding: var(--space-3) 0; border-bottom: 1px solid var(--rule); display: grid; gap: var(--space-1); min-width: 0; }
+.rl-fc-grp:last-of-type { border-bottom: 0; }
+.rl-fc-h { margin: 0 0 var(--space-1); font: 600 0.75rem/1.2 var(--font-head); text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-muted); }
+
+.rl-fc-row { display: grid; grid-template-columns: 7rem 3.5rem minmax(0, 1fr); gap: var(--space-2); align-items: center; }
+.rl-fc-label { color: var(--fg-muted); }
+.rl-fc-word { color: var(--fg-strong); overflow-wrap: anywhere; }
+.rl-fc-row.none .rl-fc-word { font-style: italic; color: var(--fg-muted); }
+.rl-fc-row .rl-pp-bar { margin-left: 0; }
+.rl-fc-row .rl-pp-cell { width: 8px; }
+.rl-fc-when { font-style: normal; font-size: 12px; color: var(--fg-muted); }
+
+.rl-fc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-2); }
+.rl-fc-now { display: grid; gap: 2px; padding: var(--space-2) var(--space-3); border: 1px solid var(--accent); border-radius: var(--radius); }
+.rl-fc-now > strong { color: var(--accent); font-weight: 600; }
+.rl-fc-read strong { color: var(--fg-strong); }
+
+.rl-fc-tally { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin: var(--space-1) 0 0; font-size: 13px; color: var(--fg-muted); }
+.rl-fc-tally b { font-weight: 600; color: var(--fg-strong); }
+
+.rl-fc-fact { display: grid; gap: 2px; }
+.rl-fc-fact + .rl-fc-fact { margin-top: var(--space-1); }
+.rl-fc-tags { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.rl-fc-tag { padding: 1px var(--space-2); border: 1px solid var(--rule-strong); border-radius: var(--radius); color: var(--fg-strong); }
+
+/* Keep the face beside the name at phone width (p5-dossier.css stacks the dossier head there). */
+@container (max-width: 30rem) {
+  .rl-fc-head { flex-direction: row; align-items: flex-start; gap: var(--space-3); }
+  .rl-fc-figure { max-width: 4rem; }
+  .rl-fc-portrait { width: 4rem; }
+  .rl-fc-mono { width: 3.5rem; height: 4.25rem; font-size: 1.1rem; }
+  .rl-fc-row { grid-template-columns: 6rem 3.25rem minmax(0, 1fr); gap: var(--space-1); }
+}

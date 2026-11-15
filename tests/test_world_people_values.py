@@ -221,6 +221,50 @@ def _order(lever: str, **params: str | int) -> Order:
     )
 
 
+def _touched(state: State, order: Order) -> set[str]:
+    """The topics the order touches, each asked of the holder's rule through a card that
+    wants that topic alone."""
+    card = next(iter(state.cards.values()))
+    return {
+        key
+        for key in state.topics
+        if pipelines._interest(state, order, card.model_copy(update={"wants": (key,)})) == 2
+    }
+
+
+def test_each_scripted_order_touches_exactly_its_topics() -> None:
+    state, _ = _state()
+    orders = {
+        "neutrality bill": (
+            _order("send_bill", bill="neutrality_revision", urgency="urgent"),
+            {"legislation", "neutrality_repeal"},
+        ),
+        "draft bill": (
+            _order("send_bill", bill="draft_extension", urgency="ordinary"),
+            {"legislation", "the_draft"},
+        ),
+        "finding for Britain": (
+            _order("lend_lease_finding", recipient="uk", share_pct=10),
+            {"lend_lease", "aid_britain"},
+        ),
+        "finding for the Soviet Union": (
+            _order("lend_lease_finding", recipient="ussr", share_pct=10),
+            {"lend_lease", "aid_soviet"},
+        ),
+        "shoot on sight": (
+            _order("naval_order", order="shoot_on_sight", zone="western_atlantic"),
+            {"naval_engagement", "atlantic_escort"},
+        ),
+        "address on the seas": (
+            _order("public_address", theme="freedom_of_the_seas"),
+            {"public_opinion", "freedom_of_seas"},
+        ),
+    }
+    assert {k: _touched(state, o) for k, (o, _) in orders.items()} == {
+        k: want for k, (_, want) in orders.items()
+    }
+
+
 def test_an_order_touches_what_the_holder_wants_and_not_what_they_do_not() -> None:
     state, ids = _state()
     rayburn = state.cards[EntityId(ids["rayburn"])]

@@ -22,6 +22,7 @@
 .rl-place-name { min-width: 0; overflow-wrap: anywhere; }
 .rl-place-days { grid-column: 3; justify-self: end; font-size: 13px; color: var(--fg); text-align: end; }
 .rl-place.refused { cursor: not-allowed; color: var(--fg-muted); }
+.rl-place-lift { grid-column: 2 / -1; font-size: 13px; color: var(--fg); overflow-wrap: anywhere; }
 .rl-place-why { margin: 0 0 var(--space-1) calc(var(--space-2) + var(--space-5)); font-size: 13px; color: var(--fg); overflow-wrap: anywhere; }
 
 /* The strength stepper on the split form: one less, the number, one more. */

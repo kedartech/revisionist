@@ -8,6 +8,8 @@ import {
   stanceWords, theatreAreas, whereLine,
 } from '../realism-rules.js';
 
+const r2 = (n) => Math.round(n * 100) / 100;
+
 /** A detachment's mark, as a share of a whole force's. */
 const DETACHED_SIZE = 0.7;
 
@@ -107,16 +109,48 @@ function capitalPins(map, at, size, opts) {
 }
 
 /**
+ * The places an open movement form offers (`opts.targets`), each a ring with its days and, for
+ * a lift, the tonnage line and a sea leg from `from`. A click or Enter on one is
+ * `opts.onTarget(value)` (which refuses a refused place); a refused one is marked
+ * `aria-disabled`. The chosen one is pressed.
+ */
+function targetRings(targets, at, size, onTarget) {
+  return targets.map((t) => {
+    const [x, y] = at(t.place);
+    const pick = () => onTarget?.(t.value);
+    const note = [t.days, t.lift].filter(Boolean);
+    const said = [t.days, t.liftWords ?? t.lift].filter(Boolean);
+    const words = `Send to ${t.place.name}${said.length ? `: ${said.join('. ')}` : ''}`;
+    const [fx, fy] = t.lift && t.from ? at(t.from) : [x, y];
+    return svg('g', {
+      class: `rl-map-target${t.refused ? ' refused' : ''}${t.chosen ? ' chosen' : ''}`, 'data-place': t.place.name,
+      tabindex: 0, role: 'button', 'aria-label': words,
+      'aria-pressed': String(t.chosen), 'aria-disabled': t.refused ? 'true' : null,
+      onclick: pick,
+      onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } },
+    },
+    fx !== x || fy !== y ? svg('path', { d: `M${r2(fx)} ${r2(fy)}L${r2(x)} ${r2(y)}`, class: 'rl-map-sealeg' }) : null,
+    svg('g', { transform: `translate(${x} ${y})` },
+      svg('circle', { r: size * 0.75, class: 'rl-target-ring' }),
+      note.map((line, i) => svg('text', { x: size / 3, y: size * (1.1 + i * 0.8), 'font-size': size * 0.6, class: 'rl-target-note' }, line))),
+    svg('title', {}, words));
+  });
+}
+
+/**
  * The drawing: sea, land, the places the marks name, then lines under forces. `opts.still`
  * draws a picture only: no mark takes focus or a click (the wake overlay holds the room).
  * `opts.compact`: drawn small, so marks and names are drawn larger for the width.
  * `opts.theatres`: each theatre drawn as a labelled box around its places. `opts.layer`
  * 'diplomatic': the capitals in place of forces and orders (`opts.openCapital(capital)` gives
- * what a pick on one opens, or null when nothing does).
+ * what a pick on one opens, or null when nothing does). `opts.targets`: the places an open
+ * movement form offers, lit and taken into the box (`targetRings`).
  */
 export function mapDrawing(map, land, opts = {}) {
   const diplomatic = opts.layer === 'diplomatic';
-  const fit = mapBox(diplomatic ? { places: map.places, marks: capitalMarks(map), orders: [] } : map, opts.scope);
+  const targets = diplomatic || opts.still ? [] : opts.targets ?? [];
+  const lit = targets.length ? { ...map, marks: [...map.marks, { places: targets.map((t) => t.place) }] } : map;
+  const fit = mapBox(diplomatic ? { places: map.places, marks: capitalMarks(map), orders: [] } : lit, opts.scope);
   // names are drawn east of their marks: room for them at the larger compact size
   const box = opts.compact ? { ...fit, east: Math.min(fit.east + (fit.east - fit.west) * 0.3, 180) } : fit;
   const proj = projection(box);
@@ -124,7 +158,7 @@ export function mapDrawing(map, land, opts = {}) {
   const orders = diplomatic ? [] : map.orders ?? [];
   const named = diplomatic
     ? new Set((map.capitals ?? []).map((c) => c.place.name))
-    : new Set([...map.marks.flatMap((m) => m.places.map((p) => p.name)), ...orders.map((o) => o.to.name)]);
+    : new Set([...map.marks.flatMap((m) => m.places.map((p) => p.name)), ...orders.map((o) => o.to.name), ...targets.map((t) => t.place.name)]);
   const inBox = (p) => p.lon >= box.west && p.lon <= box.east && p.lat >= box.south && p.lat <= box.north;
   const at = (p) => [proj.x(p.lon), proj.y(p.lat)];
 
@@ -188,6 +222,7 @@ export function mapDrawing(map, land, opts = {}) {
   }, svg('path', { d: 'M0 0L10 5L0 10Z', class: 'rl-mk-arrowhead' }))),
   places,
   arrows,
+  targetRings(targets.filter((t) => inBox(t.place)), at, size, opts.onTarget),
   marks);
 }
 

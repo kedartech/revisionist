@@ -412,6 +412,102 @@ def test_the_body_pins_the_free_model_and_sends_the_schema(
     assert reply.cost("options").model == ERNIE
 
 
+# --- a reply written from a redacted prompt ------------------------------------------
+
+
+def says(output: Any) -> tuple[int, Any]:
+    return 200, {"choices": [{"message": {"content": json.dumps(output)}}]}
+
+
+REDACTED = says({"pages": [{"doc_id": "d1", "prose": "The fleet sails from [ADDRESS] at dawn."}]})
+
+
+@pytest.fixture
+def unlogged(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(orr, "_labels_logged", set(), raising=False)
+
+
+def test_a_reply_with_a_redaction_label_is_refused_and_no_other_model_is_tried(
+    fake: Fake, script: Script, clock: Clock, unlogged: None
+) -> None:
+    script.chat[ERNIE] = [REDACTED]
+    with pytest.raises(TransportError, match=r"\[ADDRESS\].*Sensitive Info") as info:
+        make(fake, clock).call(req("prose"))
+    assert posted(script) == [ERNIE]
+    assert "fleet" not in str(info.value)
+
+
+def test_each_label_is_logged_once_per_process(
+    fake: Fake, script: Script, clock: Clock, unlogged: None, caplog: pytest.LogCaptureFixture
+) -> None:
+    script.chat[ERNIE] = [REDACTED]
+    caplog.set_level(logging.WARNING, logger=orr.__name__)
+    for t in (make(fake, clock), make(fake, clock)):
+        with pytest.raises(TransportError):
+            t.call(req("prose"))
+    assert [r.getMessage().count("[ADDRESS]") for r in caplog.records] == [1]
+
+
+def test_a_label_the_request_itself_holds_is_not_a_fault(
+    fake: Fake, script: Script, clock: Clock, unlogged: None
+) -> None:
+    script.chat[ERNIE] = [says({"pages": [{"prose": "Signed [PERSON_NAME] at [ADDRESS]."}]})]
+    r = req("prose")
+    asked = Request(
+        call_class=r.call_class,
+        model=r.model,
+        system=r.system + " Leave [PERSON_NAME] as it is.",
+        prompt="Fill in the form: [ADDRESS].",
+        schema=r.schema,
+    )
+    reply = make(fake, clock).call(asked)
+    assert posted(script) == [ERNIE]
+    assert reply.output["pages"][0]["prose"] == "Signed [PERSON_NAME] at [ADDRESS]."
+
+
+def test_a_redacted_prose_reply_leaves_each_page_its_lines(
+    fake: Fake, script: Script, clock: Clock, unlogged: None
+) -> None:
+    from revisionist.engine.prose import ClaudeProseWriter
+    from revisionist.engine.realism_tick import run_realism_tick
+    from revisionist.engine.store import MemoryStore, load_state
+    from tests.prose_scenario import scenario
+    from tests.test_realism_prose import Failing
+    from tests.test_realism_tick import CAMPAIGN
+
+    script.chat[ERNIE] = [REDACTED]
+    bodies = {}
+    for name, transport in (("failed", Failing()), ("redacted", make(fake, clock))):
+        store = MemoryStore()
+        scenario(store)
+        result = run_realism_tick(store, CAMPAIGN, prose=ClaudeProseWriter(transport))
+        docs = load_state(store, CAMPAIGN).documents.values()
+        assert docs and all(d.view.prose is None and d.view.body for d in docs)
+        assert result.prose_dropped and all("call failed" in w for w in result.prose_dropped)
+        bodies[name] = {d.view.doc_id: d.view.body for d in docs}
+    assert bodies["redacted"] == bodies["failed"]
+    assert posted(script) == [ERNIE, ERNIE]  # one call per author, one model each
+
+
+def test_a_redacted_options_reply_falls_back_to_the_template_options(
+    fake: Fake, script: Script, clock: Clock, unlogged: None
+) -> None:
+    from revisionist.core.realism.agenda import PlayStyle
+    from revisionist.engine import options
+    from tests.test_engine_v2_options import _scenario
+
+    sl = _scenario(PlayStyle.BEGINNER)
+    template = options.offer(sl.state, sl.fdr, None)
+    assert template is not None
+    ideas = [o.model_dump(mode="json") for o in template.offers[-1].options]
+    for idea in ideas:
+        idea["label"] = f"{idea['label']} at [ADDRESS]"
+    script.chat[ERNIE] = [says({"options": ideas})]
+    offered = options.offer(sl.state, sl.fdr, make(fake, clock))
+    assert template is not None and offered == template
+    assert posted(script) == [ERNIE] * len(template.offers)
+
+
 # --- the three 429 cases ------------------------------------------------------------
 
 

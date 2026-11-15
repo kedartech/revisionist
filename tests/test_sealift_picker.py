@@ -137,6 +137,7 @@ def test_a_force_no_page_places_has_no_lift() -> None:
 def test_a_truth_change_with_no_page_changes_nothing_in_the_picker() -> None:
     r, _ = churchill_placed()
     before = places(r)
+    assert before["reykjavik"]["lift"][ARMY] is not None
     r.set_value(POOL, 10_000, START)
     home = r.state.features[FeatureId(r.ids[ARMY])]
     r.fold_changes((home.model_copy(update={"places": (EntityId(r.ids["liverpool"]),)}),))

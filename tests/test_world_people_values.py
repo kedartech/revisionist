@@ -224,7 +224,7 @@ def _order(lever: str, **params: str | int) -> Order:
 def _touched(state: State, order: Order) -> set[str]:
     """The topics the order touches, each asked of the holder's rule through a card that
     wants that topic alone."""
-    card = next(iter(state.cards.values()))
+    card = next(iter(state.cards.values())).model_copy(update={"holds_to": ()})
     return {
         key
         for key in state.topics

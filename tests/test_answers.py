@@ -150,7 +150,10 @@ def test_an_act_sets_off_an_answer_at_a_cost_in_regard() -> None:
     drop = log[log.index(hitler) - 1]
     assert isinstance(drop, ev.RelationshipSet)
     rel = drop.relationship
-    assert {rel.a, rel.b} == {KEYS["hitler"], KEYS["roosevelt"]} and rel.disposition == -1
+    start = next(
+        (r.disposition for r in DECL.relationships if {r.a, r.b} == {"hitler", "roosevelt"}), 0
+    )
+    assert {rel.a, rel.b} == {KEYS["hitler"], KEYS["roosevelt"]} and rel.disposition == start - 1
     assert all(p.key != "unrestricted_after_all" for p in planned)  # gate: hostile only
 
 

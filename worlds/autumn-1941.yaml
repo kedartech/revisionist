@@ -465,6 +465,32 @@ pipelines:
       - {person: soong, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend]}
       - {person: hull, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, refuse]}
 
+# Topics [proposed] (SHT, 14 Nov sheet): the matters Roosevelt's people want and hold to.
+# An order touches a topic when its form is one of `levers`, one of its effects has a
+# kind in `effects`, or one of its own words is in `words`.
+topics:
+  - {key: lend_lease, name: Lend-Lease, levers: [lend_lease_finding], words: [lend, lease]}
+  - {key: aid_britain, name: Aid to Britain, levers: [cable_to_churchill], words: [uk, britain, british, churchill]}
+  - {key: aid_soviet, name: Aid to the Soviet Union, words: [ussr, soviet, russia, moscow]}
+  - {key: aid_china, name: Aid to China, words: [china, chinese, chiang, burma]}
+  - {key: rearmament, name: Rearmament and war production, effects: [allocate], words: [production, munitions, aircraft, tanks, rearmament]}
+  - {key: atlantic_escort, name: Escort of the Atlantic convoys, words: [escort, convoys, convoy, atlantic, iceland]}
+  - {key: naval_engagement, name: Rules for engaging at sea, effects: [engagement], words: [shoot, sight, engagement]}
+  - {key: fleet_movements, name: Where the fleets lie, levers: [move_fleet, detach_fleet], effects: [move_force], words: [fleet]}
+  - {key: pacific_fleet, name: The Pacific Fleet, words: [pacific, pearl, harbor]}
+  - {key: freedom_of_seas, name: Freedom of the seas, words: [seas, freedom, shipping]}
+  - {key: europe_first, name: Germany first, words: [germany, german, europe, uboat]}
+  - {key: the_draft, name: The draft, words: [draft, selective, conscription]}
+  - {key: neutrality_repeal, name: Repeal of the Neutrality Act, words: [neutrality, merchant, arm]}
+  - {key: legislation, name: Bills before Congress, levers: [send_bill], effects: [measure], words: [bill, congress]}
+  - {key: public_opinion, name: The public's view, levers: [public_address], effects: [statement], words: [address, public, opinion]}
+  - {key: national_unity, name: National unity, words: [unity, national]}
+  - {key: japan_talks, name: The talks with Japan, words: [japan, japanese, talks, modus, vivendi]}
+  - {key: diplomacy, name: Settlement by negotiation, effects: [deal], words: [negotiation, settlement, treaty, agreement]}
+  - {key: free_trade, name: Free trade, words: [trade, tariff, tariffs, reciprocal]}
+  - {key: finance, name: Credit and the Treasury, words: [credit, dollars, finance, treasury, gold, loan]}
+  - {key: embargo, name: Embargo and freezing of assets, words: [embargo, oil, freeze, sanctions, exports]}
+
 cards:
   # --- the eight playable cards ---
   # opposes: who each head is set against and over what (shown in the Opponents list).
@@ -1336,6 +1362,8 @@ cards:
     personal: [in poor health; wants no war with Japan]
     loyalty: 1
     competence: 3
+    wants: [japan_talks, diplomacy]
+    holds_to: [free_trade]
     reach: {rank: 4}
     horizon_days: 7
   - person: welles
@@ -1369,7 +1397,9 @@ cards:
     powers: [administer the War Department]
     inner_circle: [{person: roosevelt, channel: in_person}, {person: marshall, channel: in_person}]
     loyalty: 1
-    competence: 3
+    competence: 4
+    wants: [rearmament, atlantic_escort]
+    holds_to: [aid_britain]
     reach: {rank: 4}
     horizon_days: 7
   - person: marshall
@@ -1380,7 +1410,9 @@ cards:
     powers: [direct the Army General Staff]
     inner_circle: [{person: roosevelt, channel: in_person}, {person: stark, channel: in_person}]
     loyalty: 1
-    competence: 4
+    competence: 5
+    wants: [rearmament, the_draft]
+    holds_to: [europe_first]
     reach: {rank: 3}
     horizon_days: 7
   - person: knox
@@ -1392,6 +1424,8 @@ cards:
     inner_circle: [{person: roosevelt, channel: in_person}, {person: stark, channel: in_person}]
     loyalty: 1
     competence: 3
+    wants: [atlantic_escort, naval_engagement]
+    holds_to: [freedom_of_seas]
     reach: {rank: 4}
     horizon_days: 7
   - person: stark
@@ -1409,6 +1443,8 @@ cards:
     constraints: [orders to the fleets go through the Navy chain of command]
     loyalty: 1
     competence: 3
+    wants: [atlantic_escort, pacific_fleet]
+    holds_to: [europe_first]
     reach: {rank: 3}
     horizon_days: 7
   - person: king
@@ -1421,7 +1457,9 @@ cards:
     feeds: [atlantic_reports]
     pipelines: [naval_order]
     loyalty: 0
-    competence: 3
+    competence: 4
+    wants: [naval_engagement, fleet_movements]
+    holds_to: [atlantic_escort]
     reach: {rank: 2}
     horizon_days: 7
   - person: kramer
@@ -1444,6 +1482,8 @@ cards:
     inner_circle: [{person: roosevelt, channel: in_person}]
     loyalty: 2
     competence: 3
+    wants: [aid_china, finance]
+    holds_to: [embargo]
     reach: {rank: 3}
     horizon_days: 7
   - person: hopkins
@@ -1459,8 +1499,10 @@ cards:
     feeds: [soviet_requests]
     pipelines: [lend_lease_allocation, soviet_aid_request]
     personal: [chronically ill, often lives in the White House]
-    loyalty: 2
-    competence: 3
+    loyalty: 3
+    competence: 4
+    wants: [lend_lease, aid_soviet]
+    holds_to: [aid_britain]
     reach: {rank: 1}
     horizon_days: 7
   - person: stettinius
@@ -1471,8 +1513,10 @@ cards:
     powers: [administer Lend-Lease allocations]
     inner_circle: [{person: hopkins, channel: in_person}, {person: roosevelt, channel: in_person}]
     pipelines: [lend_lease_allocation]
-    loyalty: 0
-    competence: 3
+    loyalty: 1
+    competence: 4
+    wants: [rearmament, aid_soviet]
+    holds_to: [lend_lease]
     reach: {rank: 3}
     horizon_days: 7
   - person: early
@@ -1484,8 +1528,10 @@ cards:
     inner_circle: [{person: roosevelt, channel: in_person}]
     feeds: [gallup_polls]
     pipelines: [public_address]
-    loyalty: 1
+    loyalty: 2
     competence: 3
+    wants: [public_opinion]
+    holds_to: [national_unity]
     reach: {rank: 1}
     horizon_days: 3
   - person: wh_clerk
@@ -1518,8 +1564,10 @@ cards:
     feeds: [house_whip_count]
     pipelines: [bill_through_congress]
     constraints: [the Democratic majority in the House is thin on neutrality]
-    loyalty: 0
-    competence: 3
+    loyalty: 1
+    competence: 4
+    wants: [the_draft, neutrality_repeal]
+    holds_to: [legislation]
     reach: {rank: 4}
     horizon_days: 7
   - person: mccormack
@@ -1553,8 +1601,10 @@ cards:
     feeds: [senate_whip_count]
     pipelines: [bill_through_congress]
     constraints: [Senate rules allow extended debate]
-    loyalty: 1
+    loyalty: 2
     competence: 3
+    wants: [neutrality_repeal, lend_lease]
+    holds_to: [legislation]
     reach: {rank: 4}
     horizon_days: 7
   - person: wheeler
@@ -1970,6 +2020,52 @@ roster:
     reach: The Military Affairs Commission, the Burma Road, and Soong in Washington.
     composite: false
     sides: [{contest: us_japan_talks, side: china}]
+
+# Starting regard [proposed] (SHT, 14 Nov sheet), -2 to 2: between Roosevelt and
+# each of his people, and between each pair of the eight leaders. Public, as the
+# compile scopes a relationship that names no scope.
+relationships:
+  - {key: roosevelt_hull, a: roosevelt, b: hull, disposition: 1}
+  - {key: roosevelt_hopkins, a: roosevelt, b: hopkins, disposition: 2}
+  - {key: roosevelt_stimson, a: roosevelt, b: stimson, disposition: 1}
+  - {key: roosevelt_knox, a: roosevelt, b: knox, disposition: 1}
+  - {key: roosevelt_marshall, a: roosevelt, b: marshall, disposition: 1}
+  - {key: roosevelt_stark, a: roosevelt, b: stark, disposition: 1}
+  - {key: roosevelt_king, a: roosevelt, b: king, disposition: 0}
+  - {key: roosevelt_early, a: roosevelt, b: early, disposition: 2}
+  - {key: roosevelt_rayburn, a: roosevelt, b: rayburn, disposition: 1}
+  - {key: roosevelt_barkley, a: roosevelt, b: barkley, disposition: 2}
+  - {key: roosevelt_morgenthau, a: roosevelt, b: morgenthau, disposition: 2}
+  - {key: roosevelt_stettinius, a: roosevelt, b: stettinius, disposition: 1}
+  - {key: roosevelt_wh_clerk, a: roosevelt, b: wh_clerk, disposition: 0}
+  - {key: roosevelt_churchill, a: roosevelt, b: churchill, disposition: 2}
+  - {key: roosevelt_stalin, a: roosevelt, b: stalin, disposition: 1}
+  - {key: roosevelt_hitler, a: roosevelt, b: hitler, disposition: -2}
+  - {key: roosevelt_konoe, a: roosevelt, b: konoe, disposition: -1}
+  - {key: roosevelt_tojo, a: roosevelt, b: tojo, disposition: -2}
+  - {key: roosevelt_mussolini, a: roosevelt, b: mussolini, disposition: -2}
+  - {key: roosevelt_chiang, a: roosevelt, b: chiang, disposition: 1}
+  - {key: churchill_stalin, a: churchill, b: stalin, disposition: 1}
+  - {key: churchill_hitler, a: churchill, b: hitler, disposition: -2}
+  - {key: churchill_konoe, a: churchill, b: konoe, disposition: -1}
+  - {key: churchill_tojo, a: churchill, b: tojo, disposition: -2}
+  - {key: churchill_mussolini, a: churchill, b: mussolini, disposition: -2}
+  - {key: churchill_chiang, a: churchill, b: chiang, disposition: 0}
+  - {key: stalin_hitler, a: stalin, b: hitler, disposition: -2}
+  - {key: stalin_konoe, a: stalin, b: konoe, disposition: 0}
+  - {key: stalin_tojo, a: stalin, b: tojo, disposition: -1}
+  - {key: stalin_mussolini, a: stalin, b: mussolini, disposition: -2}
+  - {key: stalin_chiang, a: stalin, b: chiang, disposition: 0}
+  - {key: hitler_konoe, a: hitler, b: konoe, disposition: 1}
+  - {key: hitler_tojo, a: hitler, b: tojo, disposition: 1}
+  - {key: hitler_mussolini, a: hitler, b: mussolini, disposition: 2}
+  - {key: hitler_chiang, a: hitler, b: chiang, disposition: -1}
+  - {key: konoe_tojo, a: konoe, b: tojo, disposition: -1}
+  - {key: konoe_mussolini, a: konoe, b: mussolini, disposition: 1}
+  - {key: konoe_chiang, a: konoe, b: chiang, disposition: -2}
+  - {key: tojo_mussolini, a: tojo, b: mussolini, disposition: 1}
+  - {key: tojo_chiang, a: tojo, b: chiang, disposition: -2}
+  - {key: mussolini_chiang, a: mussolini, b: chiang, disposition: -1}
 
 contests:
   - key: neutrality_revision

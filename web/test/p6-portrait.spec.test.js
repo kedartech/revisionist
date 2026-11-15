@@ -46,8 +46,9 @@ test('::after lightens the blacks to the dark tone and ::before draws the scanli
   const before = on(/^\.portrait-frame::before$/);
   assert.ok(has(before, /repeating-linear-gradient/), 'scanlines on ::before');
   assert.ok(has(before, /z-index\s*:\s*1/), 'the scanlines sit over the blend');
-  const off = on(/^html\[data-effects="off"\] \.portrait-frame::before$/);
-  assert.ok(has(off, /content\s*:\s*none/), 'the scanlines go with the screen effects');
+  assert.doesNotMatch(css, /data-effects/, 'the scanlines are built in, with no setting');
+  const contrast = /@media \(prefers-contrast: more\)\s*\{([^{}]*\{[^{}]*\})*\s*\}/.exec(css);
+  assert.ok(contrast && /\.portrait-frame::before\s*\{[^}]*content\s*:\s*none/.test(contrast[0]), 'the scanlines go under high contrast');
 });
 
 test('one theme only, and a monogram is left alone', () => {

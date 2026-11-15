@@ -2,28 +2,31 @@
 
 import { api } from '../api.js';
 import { h, icon, reply } from '../dom.js';
-import { effectsControl } from '../theme.js';
 
-/** A header title: a button that opens a dossier when `onClick` is given, else plain text. */
-function titleOf(text, onClick, label) {
+/**
+ * A header title: a button that opens a dossier when `onClick` is given, else plain text.
+ * `extra` adds classes: the game's name alone takes `rl-cursor`, the blinking cursor.
+ */
+function titleOf(text, onClick, label, extra = '') {
+  const cls = extra ? `title ${extra}` : 'title';
   return onClick
-    ? h('button', { type: 'button', class: 'title head-link', 'aria-haspopup': 'dialog', 'aria-label': label, onclick: onClick }, text)
-    : h('span', { class: 'title' }, text);
+    ? h('button', { type: 'button', class: `${cls} head-link`, 'aria-haspopup': 'dialog', 'aria-label': label, onclick: onClick }, text)
+    : h('span', { class: cls }, text);
 }
 
 /**
  * `identity` is { name, office, principal } of the person the player plays, shown under the
  * game's name. `onSetting` and `onIdentity` make the game's name and the person's name open
- * their dossiers. `effects` is { effects, onChange } for the Screen effects toggle.
+ * their dossiers. Only the game's name carries the blinking cursor (css/effects.css).
  */
-export function header({ me, game, role, extra = [], refresh, signOut, identity = null, onSetting = null, onIdentity = null, effects = null }) {
+export function header({ me, game, role, extra = [], refresh, signOut, identity = null, onSetting = null, onIdentity = null }) {
   const bugDialog = bugReport(refresh);
   const name = game?.name ?? 'Revisionist';
   return h('header', { class: 'frame-head' },
     h('span', { class: 'brand-mark', 'aria-hidden': 'true' }, icon('mark', 22)),
     h('div', { class: 'stack' },
       h('span', { class: 'eyebrow' }, role),
-      titleOf(name, onSetting, `${name}: open the setting`)),
+      titleOf(name, onSetting, `${name}: open the setting`, 'rl-cursor')),
     identity?.name
       ? h('div', { class: 'stack identity' },
         h('span', { class: 'eyebrow' }, 'Playing as'),
@@ -33,7 +36,6 @@ export function header({ me, game, role, extra = [], refresh, signOut, identity 
       : null,
     ...extra,
     h('div', { class: 'head-right' },
-      effects ? effectsControl(effects) : null,
       h('span', { class: 'muted' }, 'Signed in as ', me.account.handle),
       game ? h('button', {
         type: 'button', class: 'icon-btn', 'aria-label': 'Report a bug', title: 'Report a bug',

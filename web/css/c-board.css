@@ -1,0 +1,33 @@
+/* The Board view: the Theatre or Court beside the selected piece and the order form; the switch
+   between Board and Desk. Tokens only. */
+.rl-viewswitch { display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-4); background: var(--surface-2); border-bottom: 1px solid var(--rule); }
+.rl-viewswitch .rl-btn, .rl-boardswitch .rl-btn { min-height: 32px; }
+.rl-board { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: 1px; background: var(--rule); }
+.rl-board-main, .rl-board-side { min-height: 0; min-width: 0; overflow-y: auto; padding: var(--space-4); background: var(--surface); }
+.rl-board-main { display: flex; flex-direction: column; gap: var(--space-3); background: var(--bg); }
+.rl-boardswitch { display: flex; gap: var(--space-2); }
+.rl-board .rl-map-svg { width: 100%; }
+/* room under the last part for the floating messenger and press buttons */
+.rl-board-side { display: flex; flex-direction: column; gap: var(--space-4); padding-bottom: calc(56px + var(--space-4)); }
+.rl-court h2, .rl-piece h2 { font: 600 16px/1.3 var(--font-chrome); margin: 0 0 var(--space-2); color: var(--fg-strong); }
+.rl-court, .rl-piece { font: 14px/1.5 var(--font-chrome); color: var(--fg-strong); }
+.rl-piece { padding: var(--space-3) var(--space-4); background: var(--surface-2); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-piece p { margin: var(--space-2) 0 0; }
+.rl-piece dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
+.rl-piece dt { font-weight: 600; }
+.rl-piece dd { margin: 0; }
+.rl-piece .rl-btn { margin-top: var(--space-3); }
+.rl-viewswitch .rl-btn:focus-visible, .rl-boardswitch .rl-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+@media (max-width: 1023px) {
+  .rl-board { grid-template-columns: minmax(0, 1fr) minmax(0, 320px); }
+}
+
+@media (max-width: 767px) {
+  /* the tab bar carries Board and the desk's panels, so the view switch is not drawn twice */
+  .rl-viewswitch { display: none; }
+  .rl-tabbar.rl-tabbar-board { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .rl-board { grid-template-columns: minmax(0, 1fr); padding-bottom: calc(45px + var(--space-3) + 44px + var(--space-4)); }
+  .rl-board-main, .rl-board-side { overflow-y: visible; padding: var(--space-3); }
+  .rl-viewswitch .rl-btn, .rl-boardswitch .rl-btn { min-height: 44px; }
+}

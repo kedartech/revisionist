@@ -1,8 +1,9 @@
-// The realism room: one surface for a seat in a realism game. The in-tray on the left; in
-// the middle what needs an answer, ideas, the order being written or signed, the standard
-// forms and the commit; the seat's orders on the right; the messenger floating over it.
-// The header's two names open the setting and the character dossiers. Built from
-// view.realism (realism_api.py).
+// The realism room: one surface for a seat in a realism game, in two views with one switch.
+// Desk: the in-tray on the left; in the middle what needs an answer, ideas, the order being
+// written or signed, the standard forms and the commit; the seat's orders on the right.
+// Board: the Theatre or the Court beside the selected piece and the order form. The
+// messenger floats over either. The header's two names open the setting and the character
+// dossiers. Built from view.realism (realism_api.py).
 
 import { api } from '../api.js';
 import { h, icon } from '../dom.js';
@@ -10,6 +11,7 @@ import { STEP_ACTIONS, entityChoices } from '../realism-rules.js';
 import { worldDate } from '../rules.js';
 import { browserStorage } from '../theme.js';
 import { briefBlock, directiveForm, paceHeader } from './realism.js';
+import { boardView, viewSwitch, withBoard } from './realism-board.js';
 import { header } from './frame.js';
 import { needsAnswer } from './realism-answer.js';
 import { chatDock, seenStore, settleMarks, threadCounts } from './realism-chat.js';
@@ -39,6 +41,7 @@ const freshUi = (game) => ({
   chat: { open: false, tab: 'chats', thread: null }, contact: null, orderTo: null,
   happenedSeen: null, refocusChat: false, brief: null, pending: null, drafts: {}, runFrom: null, offer: null, menuCall: false,
   tab: 'desk', side: 'papers', press: { open: false, tab: null }, pressPage: null, peopleTab: 'opponents',
+  view: 'desk', board: 'theatre', piece: null, theatre: { mode: 'map', scope: 'reports' },
 });
 let ui = freshUi(null);
 
@@ -147,11 +150,20 @@ export function endSend(state, outcome) {
 }
 
 /**
- * A tab, tile or side switch picks the panel to show. Messages opens the messenger; on a phone,
- * where the messenger covers the room, any other tab closes it so the panel picked is the one seen.
+ * A tab, tile or switch picks what to show. `view` is Board or Desk; the Board tab picks the
+ * Board, and a desk panel's tab (Papers, Desk, Orders) the Desk. `board`, `piece` and `theatre`
+ * are the board's switch, its selected piece and the map's switches. Messages opens the
+ * messenger; on a phone, where the messenger covers the room, any other tab closes it so the
+ * panel picked is the one seen.
  */
-export function pickPanel(state, { tab, side }, phone) {
-  if (tab) state.tab = tab;
+export function pickPanel(state, { tab, side, view, board, piece, theatre }, phone) {
+  if (tab === 'board') state.view = 'board';
+  else if (tab && tab !== 'messages') state.view = 'desk';
+  if (view) state.view = view;
+  if (board) state.board = board;
+  if (piece !== undefined) state.piece = piece;
+  if (theatre) state.theatre = theatre;
+  if (tab) state.tab = tab === 'board' ? 'desk' : tab;
   if (side) state.side = side;
   if (tab === 'messages') state.chat = { ...state.chat, open: true };
   else if (tab && phone) state.chat = { ...state.chat, open: false };
@@ -166,7 +178,7 @@ export function closedChatTarget(root, phone) {
   return [...root.querySelectorAll('.rl-tabbar button')].find((b) => b.textContent.startsWith('Messages')) ?? null;
 }
 
-const SWITCHES = ['.rl-tabbar', '.rl-sideswitch', '.rl-tiles'];
+const SWITCHES = ['.rl-tabbar', '.rl-sideswitch', '.rl-tiles', '.rl-viewswitch', '.rl-board-main'];
 
 /** The panel switch a focused button belongs to and its place there, or null for any other element. */
 export function switchPlace(el) {
@@ -416,6 +428,8 @@ export function realismRoom(ctx) {
   const open = (d) => work('Fetching the paper…', async () => {
     ui.page = await api.realism('read', { doc_id: d.id });
     ui.said = null;
+    // the paper opens in the in-tray, which is on the Desk view
+    if (ui.view === 'board') pickPanel(ui, { tab: 'papers', side: 'papers' }, phoneWidth());
   });
 
   const flag = (on, page = ui.page) => work(on ? 'Flagging it…' : 'Unflagging it…', async () => {
@@ -497,17 +511,22 @@ export function realismRoom(ctx) {
     }
   }
 
-  function deskColumn() {
+  /** The order being written or signed, and the line that asks before a typed draft is replaced. */
+  function writeBlock() {
     const directive = ui.proposal
       ? orderCard(ui.proposal, { onSign: signed, onRevise: () => { ui.proposal = null; ui.said = null; rerender(); } })
       : orderForm();
+    return h('section', { class: 'rl-write', 'aria-label': ui.proposal ? 'Your order, to sign' : 'Write an order' }, directive,
+      ui.offer != null ? offerLine({ onReplace: () => answerOffer(true), onKeep: () => answerOffer(false) }) : null);
+  }
+
+  function deskColumn() {
     return h('section', { class: 'rl-col rl-desk-col', 'data-tab': 'desk', 'aria-label': 'Desk' },
       h('div', { class: 'rl-col-body' },
         stylePicker(rv.style, { act }),
         needsAnswer(rv.agenda, { act, today: rv.clock.world_date }),
         ideasSlot,
-        h('section', { class: 'rl-write', 'aria-label': ui.proposal ? 'Your order, to sign' : 'Write an order' }, directive,
-          ui.offer != null ? offerLine({ onReplace: () => answerOffer(true), onKeep: () => answerOffer(false) }) : null),
+        writeBlock(),
         standardForms(rv.desk, {
           onSubmit: (v) => act('Sending it…', 'lever', v),
           entities: entityChoices(rv.desk),
@@ -517,6 +536,10 @@ export function realismRoom(ctx) {
 
   /** Open a standard form on the desk, for a draft the aide suggested. */
   function useDraft(d) {
+    if (ui.view === 'board') { // the standard forms are on the Desk view
+      ui.view = 'desk';
+      rerender();
+    }
     const item = root.querySelector(`.rl-instrument[data-lever="${CSS.escape(d.lever)}"]`);
     if (!item) return;
     const fold = item.closest('details');
@@ -768,6 +791,7 @@ export function realismRoom(ctx) {
     pickPanel(ui, p, phoneWidth());
     rerender();
     if (p.tab === 'messages') refocus(ui.chat);
+    else if (p.piece) root.querySelector('.rl-board .rl-mk[aria-pressed="true"]')?.focus();
     else switchAt(root, place)?.focus();
   };
   function build() {
@@ -791,12 +815,18 @@ export function realismRoom(ctx) {
       }),
       statusStrip(rv, ui, { act }),
       status,
-      summaryTiles(rv, pick),
-      newsBlock(whatChanged(rv.documents), (id) => readPress({ id })),
-      sideSwitch(ui, pick),
-      h('main', { class: `rl-room${ui.wide ? ' wide' : ''}`, 'data-view': ui.tab, 'data-side': ui.side },
-        papers(), deskColumn(), sideColumn()),
-      tabBar(rv, ui, pick),
+      viewSwitch(ui, pick),
+      ...(ui.view === 'board' ? [
+        newsBlock(whatChanged(rv.documents), (id) => readPress({ id })),
+        boardView(rv, ui, { pick, act, write: writeBlock(), open }),
+      ] : [
+        summaryTiles(rv, pick),
+        newsBlock(whatChanged(rv.documents), (id) => readPress({ id })),
+        sideSwitch(ui, pick),
+        h('main', { class: `rl-room${ui.wide ? ' wide' : ''}`, 'data-view': ui.tab, 'data-side': ui.side },
+          papers(), deskColumn(), sideColumn()),
+      ]),
+      withBoard(tabBar(rv, ui, pick), ui, pick),
       dock(),
       pressDesk(),
       menu, character, setting, happened, opening,

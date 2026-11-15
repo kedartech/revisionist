@@ -1685,5 +1685,270 @@
         "days_left": 6
       }
     ]
+  },
+  "court": {
+    "paths": [
+      {
+        "id": "3V2DEMCEN6BN89DRHN92VF3JV3",
+        "name": "A bill through Congress",
+        "forms": [
+          "Send a bill to Congress"
+        ],
+        "steps": [
+          {
+            "person": "ABAZ0TGFM42G2BDHEC49BPG0B7",
+            "name": "Sam Rayburn",
+            "office": "Speaker of the House of Representatives",
+            "kind": "decision",
+            "days": 8,
+            "you": false,
+            "orders": [
+              {
+                "id": "o-neutrality",
+                "label": "Send a bill to Congress",
+                "since": "1941-10-12",
+                "held_days": 8
+              }
+            ]
+          },
+          {
+            "person": "MJSK60FF7N5M4KPWED58S5KMZ1",
+            "name": "House committee clerk",
+            "office": "House committee clerk",
+            "kind": "clerical",
+            "days": 1,
+            "you": false,
+            "orders": []
+          },
+          {
+            "person": "29SSDJAY2G6PSPCZRV6S8D2NQ6",
+            "name": "Alben W. Barkley",
+            "office": "Senate Majority Leader",
+            "kind": "decision",
+            "days": 20,
+            "you": false,
+            "orders": []
+          },
+          {
+            "person": "Z1YMP565PJFGVNTHDHMPYR57K0",
+            "name": "Franklin D. Roosevelt",
+            "office": "President of the United States",
+            "kind": "decision",
+            "days": 10,
+            "you": true,
+            "orders": []
+          }
+        ]
+      },
+      {
+        "id": "NZ2GSW1V81CC7Y1WE4XSMCVR3B",
+        "name": "A naval order",
+        "forms": [
+          "Give a naval order",
+          "Move a fleet",
+          "Detach part of a fleet"
+        ],
+        "steps": [
+          {
+            "person": "VAKP5F7QBGTN3YCP8CKDF4TN1E",
+            "name": "Harold R. Stark",
+            "office": "Chief of Naval Operations",
+            "kind": "decision",
+            "days": 2,
+            "you": false,
+            "orders": [
+              {
+                "id": "o-convoy",
+                "label": "Give a naval order",
+                "since": "1941-10-19",
+                "held_days": 1
+              }
+            ]
+          },
+          {
+            "person": "ZFETMYXT9BKFX06XENSQ55QDXB",
+            "name": "Ernest J. King",
+            "office": "Commander in Chief, Atlantic Fleet",
+            "kind": "decision",
+            "days": 2,
+            "you": false,
+            "orders": []
+          }
+        ]
+      },
+      {
+        "id": "3KN8KYWGJYGXGHXQS81TF26V9S",
+        "name": "A cable to the Prime Minister",
+        "forms": [
+          "Cable the Prime Minister"
+        ],
+        "steps": [
+          {
+            "person": "N1KP12AH2BHZDB33RMAFMK9ASV",
+            "name": "State Department cable clerk",
+            "office": "State Department cable room",
+            "kind": "clerical",
+            "days": 1,
+            "you": false,
+            "orders": []
+          },
+          {
+            "person": "4MS66JQ7ES33ZG7KPMSE6H4WBG",
+            "name": "Winston Churchill",
+            "office": "Prime Minister of the United Kingdom",
+            "kind": "decision",
+            "days": 2,
+            "you": false,
+            "orders": []
+          }
+        ]
+      },
+      {
+        "id": "0B47V4KX0MMFAJE39ZCXH7TABQ",
+        "name": "A Lend-Lease allocation",
+        "forms": [
+          "Allocate Lend-Lease aid"
+        ],
+        "steps": [
+          {
+            "person": "KCGWPP4ACP8FAQ882NJAGZB8H5",
+            "name": "Harry L. Hopkins",
+            "office": "Special assistant to the President",
+            "kind": "decision",
+            "days": 2,
+            "you": false,
+            "orders": []
+          },
+          {
+            "person": "NGVJZXMX2JQ52YVWBT9PPK77N9",
+            "name": "Edward R. Stettinius Jr.",
+            "office": "Lend-Lease Administrator (appointed 28 Oct 1941)",
+            "kind": "decision",
+            "days": 2,
+            "you": false,
+            "orders": []
+          },
+          {
+            "person": "Z1YMP565PJFGVNTHDHMPYR57K0",
+            "name": "Franklin D. Roosevelt",
+            "office": "President of the United States",
+            "kind": "decision",
+            "days": 2,
+            "you": true,
+            "orders": []
+          }
+        ]
+      },
+      {
+        "id": "EHYZF6YW0JCZN25K5GXAW2D42Q",
+        "name": "A public address",
+        "forms": [
+          "Address the nation"
+        ],
+        "steps": [
+          {
+            "person": "FH1G9QGK7SHNNYZ83CTMST2ZM3",
+            "name": "Stephen T. Early",
+            "office": "White House press secretary",
+            "kind": "clerical",
+            "days": 1,
+            "you": false,
+            "orders": []
+          }
+        ]
+      }
+    ],
+    "ring": [
+      {
+        "person": "WQ1FF1C63737PE82A3M9Y5EZ5S",
+        "name": "Cordell Hull",
+        "office": "Secretary of State",
+        "channel": "in_person"
+      },
+      {
+        "person": "XR21GGDNXQNFPX7ZKQPDJSEVEN",
+        "name": "Henry L. Stimson",
+        "office": "Secretary of War",
+        "channel": "in_person"
+      },
+      {
+        "person": "YJ0YXV37N7JATQDHK3NAM3DRGX",
+        "name": "Frank Knox",
+        "office": "Secretary of the Navy",
+        "channel": "in_person"
+      },
+      {
+        "person": "5A6R8V9KNTD3VXHQSCSDDZ8VSZ",
+        "name": "George C. Marshall",
+        "office": "Army Chief of Staff",
+        "channel": "in_person"
+      },
+      {
+        "person": "175CE1SQX8BM95D7TE5YP8KSNS",
+        "name": "Henry A. Wallace",
+        "office": "Vice President of the United States",
+        "channel": "in_person"
+      },
+      {
+        "person": "ND2V3WZ97CFMFBVNJB59R2DMDP",
+        "name": "Henry Morgenthau Jr.",
+        "office": "Secretary of the Treasury",
+        "channel": "in_person"
+      },
+      {
+        "person": "2FCY7F4GSB5AGY48KCD94GD0XX",
+        "name": "White House executive clerk",
+        "office": "White House executive clerk",
+        "channel": "in_person"
+      }
+    ],
+    "chambers": [
+      {
+        "name": "House of Representatives",
+        "seats": [
+          {
+            "party": "Democrats",
+            "seats": 267
+          },
+          {
+            "party": "Republicans",
+            "seats": 162
+          },
+          {
+            "party": "Other members",
+            "seats": 5
+          }
+        ],
+        "carries": 218,
+        "votes": [
+          {
+            "name": "House vote on draft extension",
+            "yeas": 203,
+            "nays": 202,
+            "as_of": "1941-08-12"
+          }
+        ]
+      },
+      {
+        "name": "Senate",
+        "seats": [
+          {
+            "party": "Democrats",
+            "seats": 66
+          },
+          {
+            "party": "Republicans",
+            "seats": 28
+          },
+          {
+            "party": "Other members",
+            "seats": 2
+          }
+        ],
+        "carries": 49,
+        "votes": []
+      }
+    ],
+    "load_limit": 2
   }
 }

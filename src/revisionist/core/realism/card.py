@@ -13,6 +13,7 @@ Three nested shapes, by who may read them:
 - ``SeatCard``: the desk plus the policy the engine runs an AI person by. Engine only.
 """
 
+from collections.abc import Iterable
 from enum import StrEnum
 from typing import Annotated, ClassVar
 
@@ -222,6 +223,26 @@ class Conflict(Model):
     never rises above obstructing."""
 
 
+class Topic(Model):
+    """A matter people want or hold to, named by the world file. An order touches it
+    by its lever, the kind of a typed effect it carries, or one of its own words.
+    Engine only."""
+
+    key: Label
+    name: Label
+    levers: tuple[Label, ...] = ()
+    effects: tuple[EffectKind, ...] = ()
+    words: tuple[Label, ...] = ()
+    """Lower-case words."""
+
+    def touched(self, lever: str | None, kinds: Iterable[str], words: Iterable[str]) -> bool:
+        return (
+            (lever is not None and lever in self.levers)
+            or not set(self.effects).isdisjoint(kinds)
+            or not set(self.words).isdisjoint(words)
+        )
+
+
 class SeatCard(Desk):
     """The whole card. The policy fields below are how code runs an unclaimed person;
     they never leave the engine."""
@@ -245,12 +266,19 @@ class SeatCard(Desk):
     """What this person does back when someone acts, while nobody plays them."""
     addressed_as: Address | None = Field(default=None, exclude_if=lambda v: v is None)
     """How a letter to this person opens ("Mr. President"). Read by the prose model only."""
+    wants: tuple[Label, ...] = Field(default=(), exclude_if=lambda v: not v)
+    """Keys of the topics this person wants. Either list set, the topics replace the
+    free-text interests and doctrine where an order's appeal is weighed."""
+    holds_to: tuple[Label, ...] = Field(default=(), exclude_if=lambda v: not v)
+    """Keys of the topics this person holds to."""
 
     late_fields: ClassVar[frozenset[str]] = Desk.late_fields | {
         "competence",
         "allies",
         "opposes",
         "answers",
+        "wants",
+        "holds_to",
     }
 
     @model_validator(mode="after")
@@ -259,6 +287,10 @@ class SeatCard(Desk):
         if len(set(keys)) != len(keys):
             raise ValueError(f"card {self.person}: an answer is named twice")
         return self
+
+    def topics(self) -> tuple[Label, ...]:
+        """The keys of every topic the person wants or holds to."""
+        return (*self.wants, *self.holds_to)
 
     def face(self) -> CardFace:
         return CardFace.model_validate(self.model_dump(include=set(CardFace.model_fields)))
@@ -283,5 +315,6 @@ __all__ = [
     "Reach",
     "SeatCard",
     "Tie",
+    "Topic",
     "words",
 ]

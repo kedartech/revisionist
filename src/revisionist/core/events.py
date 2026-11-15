@@ -71,7 +71,14 @@ from revisionist.core.realism.agenda import (
     PlayStyle,
 )
 from revisionist.core.realism.answer import Answer
-from revisionist.core.realism.card import Address, ChannelKind, Conflict, ParamValue, SeatCard
+from revisionist.core.realism.card import (
+    Address,
+    ChannelKind,
+    Conflict,
+    ParamValue,
+    SeatCard,
+    Topic,
+)
 from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
@@ -536,8 +543,10 @@ class CardsDeclared(Model):
     """Engine v2: the mandates the world issues when their triggers fire."""
     outlets: tuple[Outlet, ...] = ()
     """Each polity's newspaper, for the press to word public news in."""
+    topics: tuple[Topic, ...] = ()
+    """What people want and hold to, for the cards to name."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"templates", "outlets"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"templates", "outlets", "topics"})
 
 
 class DocumentIssued(Model):

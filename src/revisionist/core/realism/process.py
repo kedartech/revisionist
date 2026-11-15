@@ -142,11 +142,18 @@ def _score(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[int, in
             (r.disposition for r in state.relationships.values() if {r.a, r.b} == {target, issuer}),
             0,
         )
-    # interest: the typed effects against the card's interests and doctrine, never ask words
+    # interest: the typed effects against the card's topics when it names any, else
+    # against its interests and doctrine; never ask words
     held = (*card.interests, *card.doctrine) if card else ()
+    mine = {w for e in effects for w in _effect_words(e)}
     if any(_keeps_out(i) for i in held) and any(_warlike(e) for e in effects):
         interest = -INTEREST_POINTS
-    elif {w for e in effects for w in _effect_words(e)} & _words(" ".join(held)):
+    elif card is not None and card.topics():
+        kinds = {e.kind for e in effects}
+        topics = [state.topics[k] for k in card.topics() if k in state.topics]
+        touched = any(t.touched(None, kinds, mine) for t in topics)
+        interest = INTEREST_POINTS if touched else 0
+    elif mine & _words(" ".join(held)):
         interest = INTEREST_POINTS
     else:
         interest = 0

@@ -20,6 +20,7 @@ from revisionist.core.realism.card import (
     ParamKind,
     ParamSpec,
     ParamValue,
+    SeatCard,
     words,
 )
 from revisionist.core.realism.document import (
@@ -115,6 +116,31 @@ def _words(text: str) -> set[str]:
     return set(text.lower().replace("_", " ").split())
 
 
+def _kinds(state: State, order: Order) -> set[str]:
+    """The kinds of the typed effects the order carries."""
+    kinds = {"measure"} if order.measure is not None else set()
+    ref = order.routed_from
+    routed = state.routed.get(ref.order_id) if ref is not None else None
+    if ref is not None and routed is not None and ref.part < len(routed.parts):
+        effect = routed.parts[ref.part].effect
+        kinds |= {effect.kind} if effect is not None else set()
+    return kinds
+
+
+def _interest(state: State, order: Order, card: SeatCard | None) -> int:
+    """2 when the order touches what the holder cares about: the topics on the card
+    when it names any, else its interests and doctrine read as words. [proposed]"""
+    mine = _words(order.lever) | {
+        w for v in order.params.values() if isinstance(v, str) for w in _words(v)
+    }
+    if card is not None and card.topics():
+        kinds = _kinds(state, order)
+        topics = [state.topics[k] for k in card.topics() if k in state.topics]
+        return 2 if any(t.touched(order.lever, kinds, mine) for t in topics) else 0
+    held = _words(" ".join((*card.interests, *card.doctrine))) if card else set()
+    return 2 if mine & held else 0
+
+
 def _policy(
     state: State,
     orders: dict[OrderId, Order],
@@ -127,11 +153,7 @@ def _policy(
     person = steps[order.step].person
     card = state.cards.get(person)
     loyalty = card.loyalty if card else 0
-    mine = _words(order.lever) | {
-        w for v in order.params.values() if isinstance(v, str) for w in _words(v)
-    }
-    held = _words(" ".join((*card.interests, *card.doctrine))) if card else set()
-    interest = 2 if mine & held else 0
+    interest = _interest(state, order, card)
     n = sum(
         1
         for o in orders.values()

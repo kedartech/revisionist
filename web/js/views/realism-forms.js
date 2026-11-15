@@ -166,12 +166,15 @@ function strengthStepper(item, param) {
 /**
  * `instrument(lever, ...)`, with the force select's detachments grouped under their fleets,
  * a place picker for each param that carries places, and a stepper for a strength.
+ * `opts.force`: the force choice the form starts on, so the picker shows its days and reach.
  */
-function formFor(lever, opts) {
+export function standardForm(lever, { force: chosen = null, ...opts } = {}) {
   const item = instrument(lever, opts);
   const force = lever.params.find((p) => p.name === FORCE);
   const forceLabel = force?.label ?? 'the force';
   if (force?.kind === 'enum') groupForces(item, force);
+  const select = item.querySelector(`select[name="${FORCE}"]`);
+  if (select && chosen && force?.choices.some((c) => c.value === chosen)) select.value = chosen;
   for (const p of lever.params) if (p.places?.length) placePicker(item, p, forceLabel);
   for (const p of lever.params) if (p.name === STRENGTH && p.kind === 'int') strengthStepper(item, p);
   return item;
@@ -189,6 +192,6 @@ export function standardForms(desk, { onSubmit, entities }) {
   return h('details', { class: 'rl-forms' },
     h('summary', {}, formsSummary(levers)),
     h('ul', { class: 'rl-instruments', role: 'list' },
-      levers.map((lever) => formFor(lever, { onSubmit, entities }))),
+      levers.map((lever) => standardForm(lever, { onSubmit, entities }))),
     h('p', { class: 'rl-forms-note' }, 'For anything a form does not cover, write the order in your own words.'));
 }

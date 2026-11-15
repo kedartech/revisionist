@@ -322,15 +322,22 @@ def test_a_place_without_a_theatre_stores_as_before() -> None:
 def test_a_stored_game_is_not_amended_with_topics_wants_or_theatres(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # autumn 1941 as a game stored before the world named topics, wants or theatres
     stored = AUTUMN.model_copy(
-        update={"entities": tuple(e.model_copy(update={"theatre": None}) for e in AUTUMN.entities)}
+        update={
+            "topics": (),
+            "cards": tuple(
+                c.model_copy(update={"wants": (), "holds_to": ()}) for c in AUTUMN.cards
+            ),
+            "entities": tuple(e.model_copy(update={"theatre": None}) for e in AUTUMN.entities),
+        }
     )
     store = MemoryStore()
     store.append_all(compile_world(stored, CAMPAIGN, cmp.versions()))
     roosevelt = EntityId(resolve_keys(AUTUMN, CAMPAIGN)["roosevelt"])
     realism_tick.seat_player(store, CAMPAIGN, roosevelt)
     tagged = _world(
-        AUTUMN,
+        stored,
         topics=(BILLS, NEUTRALITY),
         places={"washington": "North America"},
         roosevelt={"wants": ("bills",)},

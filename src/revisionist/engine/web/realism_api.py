@@ -342,6 +342,43 @@ class WorldDevelopment(TypedDict):
     """The orders it suggests, in words; it never files one itself."""
 
 
+class StakeLean(TypedDict):
+    """Which way a contest's track leans, once it has moved in this game. Never the track."""
+
+    step: int
+    """1 to 10 across the track: 10 is wholly the first side's way, 1 wholly against it."""
+    favours: str | None
+    """The side the track favours now, by name; None when level or a trial not yet passed."""
+
+
+class Stake(TypedDict):
+    """One contest the seat's view holds."""
+
+    name: str
+    prize: str
+    sides: list[str]
+    """Each side by name, in the contest's order."""
+    days_left: int
+    """Days from the world date to the deciding day; 0 once it is past."""
+    lean: StakeLean | None
+    """None until the contest's track has moved in this game."""
+
+
+class StakeMandate(TypedDict):
+    """One of the seat's own open mandates."""
+
+    text: str
+    days_left: int
+    """Days from the world date to its deadline; 0 once it is past."""
+
+
+class Stakes(TypedDict):
+    """What is at stake for the seat: open contests, then its own open mandates, soonest first."""
+
+    contests: list[Stake]
+    mandates: list[StakeMandate]
+
+
 class MapPlace(TypedDict):
     name: str
     lat: float
@@ -729,6 +766,10 @@ __all__ = [
     "SituationFigure",
     "SituationReading",
     "SituationSource",
+    "Stake",
+    "StakeLean",
+    "StakeMandate",
+    "Stakes",
     "StepLine",
     "Threat",
     "TimelinePoint",

@@ -90,7 +90,11 @@ def test_roosevelt_cannot_name_home_forces(lever: str) -> None:
         draft_order(r.state, r.seats["roosevelt"], lever, given)
 
 
-def test_churchill_files_home_forces_to_reykjavik_and_the_order_runs_its_pipeline() -> None:
+def test_churchill_files_home_forces_to_reykjavik_and_the_order_runs_its_pipeline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The order id seeds each step's friction: a random id stalled Pound's step in ~1 run in 10.
+    monkeypatch.setattr(realism_tick, "new_id", lambda: "01ARZ3NDEKTSV4RRFFQ69G5FAV")
     store = MemoryStore()
     decl = cmp.load_world(cmp.world_path("autumn-1941"))
     store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))

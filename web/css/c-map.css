@@ -56,3 +56,25 @@
 .rl-map-orders { margin-top: var(--space-4); }
 .rl-map-orders h3 { margin: 0 0 var(--space-1); font: 600 14px/1.3 var(--font-chrome); }
 .rl-map-orders ul { margin: 0 0 var(--space-2); padding-left: var(--space-4); }
+/* the theatre board: the map fills the board's width; theatres are labelled boxes under the marks */
+.rl-theatre .rl-map-figure { background: var(--chart-sea); }
+.rl-theatre .rl-map-svg { width: 100%; max-height: calc(100vh - 160px); }
+.rl-theatre-area rect { fill: none; stroke: var(--chart-line); stroke-width: 1.5px; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
+.rl-theatre-area text { fill: var(--fg-muted); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; paint-order: stroke; stroke: var(--chart-sea); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.rl-theatre-key rect { fill: none; stroke: var(--chart-line); stroke-width: 1.5px; stroke-dasharray: 6 4; }
+/* the diplomatic layer: a star at each capital, its colour the stance (the words say it too) */
+.rl-cap, .rl-cap-key { --stance: var(--fg-muted); }
+.rl-cap[role="button"] { cursor: pointer; }
+.rl-cap.rl-stance-1 { --stance: var(--danger); }
+.rl-cap.rl-stance-2 { --stance: var(--warn); }
+.rl-cap.rl-stance-4, .rl-cap.rl-stance-5 { --stance: var(--ok); }
+.rl-cap-shape { fill: var(--stance); stroke: var(--surface); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.rl-cap-stance { fill: var(--fg); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.rl-cap-war circle { fill: var(--surface); stroke: var(--danger); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.rl-cap-war path { fill: none; stroke: var(--danger); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.rl-cap:focus { outline: none; }
+.rl-cap:focus-visible .rl-cap-shape { stroke: var(--focus); stroke-width: 3px; }
+/* the forms that can move a picked force, under the map */
+.rl-theatre-forms { margin-top: var(--space-4); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-theatre-forms h3 { margin: 0 0 var(--space-2); font: 600 15px/1.35 var(--font-chrome); }
+.rl-theatre-forms ul { margin: 0; padding: 0; list-style: none; }

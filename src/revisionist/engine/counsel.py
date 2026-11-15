@@ -34,6 +34,8 @@ from revisionist.engine.store import EventStore, load_state
 COUNSEL_MODEL = "claude-sonnet-5-5"
 """[proposed] ``REVISIONIST_MODEL_COUNSEL`` overrides it per call."""
 QUESTION_MAX = 1000
+COUNSEL_PER_TICK = 8
+"""[proposed] Questions a seat may put to a model in one tick, whoever it asks."""
 
 
 class Asker(Model):
@@ -166,8 +168,8 @@ def consult(
     or a person another seat holds, speaks only from pages the seat also holds; a person
     another human plays is never voiced, and no roll is spent on them. Raises
     ``CounselRefusedError`` for a person another human plays, anyone the seat cannot
-    reach, an outsider who declines, or an empty question; ``TransportError`` propagates
-    and nothing is written."""
+    reach, a seat that has put ``COUNSEL_PER_TICK`` questions this tick, an outsider who
+    declines, or an empty question; ``TransportError`` propagates and nothing is written."""
     state = load_state(store, campaign_id)
     if state.ruleset != "realism":
         raise CounselRefusedError("counsel is for realism campaigns")
@@ -187,6 +189,10 @@ def consult(
         raise CounselRefusedError(
             f"{state.entities[person].name if person in state.entities else person} is not "
             f"within your reach" + (f" (you can consult: {names})" if names else "")
+        )
+    if _asked_this_tick(store, campaign_id, seat, state.tick) >= COUNSEL_PER_TICK:
+        raise CounselRefusedError(
+            f"You have put {COUNSEL_PER_TICK} questions in this wake; ask again in the next."
         )
     if contact is None and not takes_meeting(state, me.embodies, person, "counsel", state.tick):
         raise CounselRefusedError(f"{state.entities[person].name} did not answer.")
@@ -234,6 +240,15 @@ def consult(
     )
 
 
+def _asked_this_tick(store: EventStore, campaign_id: CampaignId, seat: SeatId, tick: int) -> int:
+    """The seat's counsel held in ``tick``: each one a question that reached a model."""
+    return sum(
+        1
+        for e in store.read(campaign_id)
+        if e.tick == tick and isinstance(e.payload, ev.CounselHeld) and e.payload.seat_id == seat
+    )
+
+
 def _played_by_another(state: State, seat: SeatId, person: EntityId) -> bool:
     """Whether a human holds ``person`` from a seat other than ``seat``."""
     return any(
@@ -265,6 +280,7 @@ def counsel_records(events: Sequence[Event], seat: SeatId) -> list[ev.CounselHel
 
 __all__ = [
     "COUNSEL_MODEL",
+    "COUNSEL_PER_TICK",
     "Asker",
     "ClaudeCounsellor",
     "Counsel",

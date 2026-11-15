@@ -1,0 +1,8 @@
+/* The cost strip under an open standard form: who carries it first, the days, their load,
+   and a warning line when the load is at the limit. Tokens only. */
+.rl-cost { display: grid; gap: 2px; max-width: 28rem; margin-top: var(--space-3); padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--info); border-radius: var(--radius); font: 13px/1.4 var(--font-chrome); color: var(--fg); overflow-wrap: anywhere; }
+.rl-cost p { margin: 0; }
+.rl-cost-who { font-weight: 600; color: var(--fg-strong); }
+.rl-cost-days, .rl-cost-load { color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+.rl-cost[data-slow="true"] { border-left-color: var(--warn); }
+.rl-cost-slow { margin-top: 2px; padding: 2px var(--space-2); background: var(--warn-soft); border-radius: var(--radius); color: var(--fg-strong); }

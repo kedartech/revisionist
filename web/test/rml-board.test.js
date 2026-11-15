@@ -121,10 +121,10 @@ test('the Theatre draws the seat\'s map, one mark for each mark it holds', () =>
   assert.deepEqual(picked, [{ board: 'court' }]);
 });
 
-test('the Court says it is not built yet and draws no map', () => {
+test('the Court draws the court\'s paths and no map', () => {
   const board = boardView(rv(), ui({ board: 'court' }), { pick: () => {}, act: () => {}, write: write() });
   assert.deepEqual(pressed(board.querySelector('.rl-boardswitch')), ['Court']);
-  assert.match(words(board.querySelector('.rl-board-main')), /not built yet/);
+  assert.ok(board.querySelector('.rl-board-main .rl-court-paths'), 'the court board');
   assert.equal(board.querySelector('svg.rl-map-svg'), null);
 });
 

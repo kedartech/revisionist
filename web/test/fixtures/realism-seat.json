@@ -798,42 +798,50 @@
       {
         "name": "Halifax",
         "lat": 44.6,
-        "lon": -63.6
+        "lon": -63.6,
+        "theatre": "North America"
       },
       {
         "name": "Liverpool",
         "lat": 53.4,
-        "lon": -3.0
+        "lon": -3.0,
+        "theatre": "North Atlantic"
       },
       {
         "name": "Lorient",
         "lat": 47.7,
-        "lon": -3.4
+        "lon": -3.4,
+        "theatre": "North Atlantic"
       },
       {
         "name": "North Atlantic",
         "lat": 55.0,
-        "lon": -30.0
+        "lon": -30.0,
+        "theatre": "North Atlantic"
       },
       {
         "name": "Pearl Harbor",
         "lat": 21.4,
-        "lon": -158.0
+        "lon": -158.0,
+        "theatre": "Asia-Pacific"
       },
       {
         "name": "Reykjavik",
         "lat": 64.1,
-        "lon": -21.9
+        "lon": -21.9,
+        "theatre": "North Atlantic"
       },
       {
         "name": "Scapa Flow",
         "lat": 58.9,
-        "lon": -3.1
+        "lon": -3.1,
+        "theatre": "North Atlantic"
       },
       {
         "name": "Washington",
         "lat": 38.9,
-        "lon": -77.0
+        "lon": -77.0,
+        "theatre": "North America"
       }
     ],
     "marks": [
@@ -850,17 +858,20 @@
           {
             "name": "Halifax",
             "lat": 44.6,
-            "lon": -63.6
+            "lon": -63.6,
+            "theatre": "North America"
           },
           {
             "name": "North Atlantic",
             "lat": 55.0,
-            "lon": -30.0
+            "lon": -30.0,
+            "theatre": "North Atlantic"
           },
           {
             "name": "Liverpool",
             "lat": 53.4,
-            "lon": -3.0
+            "lon": -3.0,
+            "theatre": "North Atlantic"
           }
         ]
       },
@@ -877,7 +888,8 @@
           {
             "name": "Scapa Flow",
             "lat": 58.9,
-            "lon": -3.1
+            "lon": -3.1,
+            "theatre": "North Atlantic"
           }
         ]
       },
@@ -894,7 +906,8 @@
           {
             "name": "Lorient",
             "lat": 47.7,
-            "lon": -3.4
+            "lon": -3.4,
+            "theatre": "North Atlantic"
           }
         ]
       },
@@ -911,7 +924,8 @@
           {
             "name": "Reykjavik",
             "lat": 64.1,
-            "lon": -21.9
+            "lon": -21.9,
+            "theatre": "North Atlantic"
           }
         ]
       }
@@ -924,11 +938,46 @@
         "to": {
           "name": "Argentia",
           "lat": 47.3,
-          "lon": -54.0
+          "lon": -54.0,
+          "theatre": "North America"
         },
         "status": "awaiting",
         "with_person": "Harold R. Stark",
         "filed": "1941-10-02"
+      }
+    ],
+    "capitals": [
+      {
+        "place": {
+          "name": "Berlin",
+          "lat": 52.5,
+          "lon": 13.4,
+          "theatre": "Europe"
+        },
+        "name": "Adolf Hitler",
+        "stance": {
+          "step": 1,
+          "word": "Hostile",
+          "as_of": "1941-09-01",
+          "confidence": "dated"
+        },
+        "at_war": false
+      },
+      {
+        "place": {
+          "name": "Moscow",
+          "lat": 55.8,
+          "lon": 37.6,
+          "theatre": "Moscow front"
+        },
+        "name": "Joseph Stalin",
+        "stance": {
+          "step": 4,
+          "word": "Cooperative",
+          "as_of": "1941-09-16",
+          "confidence": "firm"
+        },
+        "at_war": false
       }
     ]
   },
@@ -996,7 +1045,42 @@
             "risk": "The Germans may take it as an act of war.",
             "historical": true,
             "pick": "p1",
-            "taken": false
+            "taken": false,
+            "expects": [
+              {
+                "on": "figure",
+                "name": "Allied merchant losses to U-boats, Sep 1941",
+                "direction": "gain",
+                "size": 1,
+                "sure": "likely"
+              },
+              {
+                "on": "stance",
+                "name": "Adolf Hitler",
+                "direction": "cost",
+                "size": 1,
+                "sure": "guess"
+              },
+              {
+                "on": "regard",
+                "name": "Sir Dudley Pound",
+                "direction": "gain",
+                "size": 1,
+                "sure": "firm"
+              },
+              {
+                "on": "stake",
+                "name": "Revising the Neutrality Act",
+                "direction": "gain",
+                "size": 1,
+                "sure": "likely"
+              }
+            ],
+            "risks": {
+              "escalation": 2,
+              "refusal": 0,
+              "exposure": 1
+            }
           }
         ],
         "plan": [
@@ -1006,7 +1090,21 @@
             "risk": "Word of the count may get out.",
             "historical": false,
             "pick": "p3",
-            "taken": false
+            "taken": false,
+            "expects": [
+              {
+                "on": "stake",
+                "name": "Revising the Neutrality Act",
+                "direction": "gain",
+                "size": 2,
+                "sure": "guess"
+              }
+            ],
+            "risks": {
+              "escalation": 0,
+              "refusal": 1,
+              "exposure": 2
+            }
           }
         ]
       }
@@ -1018,7 +1116,21 @@
         "risk": "Word of the count may get out.",
         "historical": false,
         "pick": "p2",
-        "taken": true
+        "taken": true,
+        "expects": [
+          {
+            "on": "regard",
+            "name": "Cordell Hull",
+            "direction": "cost",
+            "size": 1,
+            "sure": "guess"
+          }
+        ],
+        "risks": {
+          "escalation": 0,
+          "refusal": 1,
+          "exposure": 2
+        }
       }
     ]
   },
@@ -1521,6 +1633,36 @@
           "word": "Untested",
           "as_of": null,
           "confidence": null
+        },
+        "holds": [],
+        "load": 0,
+        "tally": {
+          "passed": 0,
+          "hurried": 0,
+          "held": 0,
+          "amended": 0,
+          "refused": 0,
+          "leaked": 0
+        },
+        "pace": {
+          "step": null,
+          "word": "Untested",
+          "as_of": null,
+          "confidence": null
+        },
+        "standing": {
+          "step": 5,
+          "word": "Paramount",
+          "as_of": null,
+          "confidence": null
+        },
+        "bloc": "Germany",
+        "channel": null,
+        "power": {
+          "step": 5,
+          "word": "Overwhelming",
+          "as_of": "1941-10-18",
+          "confidence": "firm"
         }
       },
       {
@@ -1548,6 +1690,39 @@
           "word": "Untested",
           "as_of": null,
           "confidence": null
+        },
+        "holds": [],
+        "load": 0,
+        "tally": {
+          "passed": 0,
+          "hurried": 0,
+          "held": 0,
+          "amended": 0,
+          "refused": 0,
+          "leaked": 0
+        },
+        "pace": {
+          "step": null,
+          "word": "Untested",
+          "as_of": null,
+          "confidence": null
+        },
+        "standing": {
+          "step": 5,
+          "word": "Paramount",
+          "as_of": null,
+          "confidence": null
+        },
+        "bloc": "Soviet Union",
+        "channel": {
+          "channel": "cable",
+          "days": 0
+        },
+        "power": {
+          "step": 5,
+          "word": "Overwhelming",
+          "as_of": null,
+          "confidence": null
         }
       }
     ],
@@ -1572,7 +1747,49 @@
           "word": "Untested",
           "as_of": null,
           "confidence": null
-        }
+        },
+        "holds": [],
+        "load": 0,
+        "tally": {
+          "passed": 1,
+          "hurried": 0,
+          "held": 0,
+          "amended": 0,
+          "refused": 0,
+          "leaked": 0
+        },
+        "pace": {
+          "step": 4,
+          "word": "On time",
+          "as_of": "1941-10-03",
+          "confidence": "dated"
+        },
+        "standing": {
+          "step": 4,
+          "word": "Senior",
+          "as_of": null,
+          "confidence": null
+        },
+        "bloc": "United Kingdom",
+        "channel": {
+          "channel": "in_person",
+          "days": 1
+        },
+        "power": null,
+        "loyalty": {
+          "step": 4,
+          "word": "Loyal",
+          "as_of": null,
+          "confidence": null
+        },
+        "competence": {
+          "step": 3,
+          "word": "Capable",
+          "as_of": null,
+          "confidence": null
+        },
+        "wants": [],
+        "holds_to": []
       },
       {
         "person": "63A3RZNQ0CYKDN5BVGECWKQT4P",
@@ -1594,7 +1811,58 @@
           "word": "Uneven",
           "as_of": "1941-09-12",
           "confidence": "dated"
-        }
+        },
+        "holds": [
+          {
+            "id": "o-home-fleet",
+            "label": "Move the Home Fleet",
+            "since": "1941-10-14",
+            "held_days": 6,
+            "days": 2,
+            "read": "may hold it"
+          }
+        ],
+        "load": 1,
+        "tally": {
+          "passed": 2,
+          "hurried": 0,
+          "held": 1,
+          "amended": 0,
+          "refused": 0,
+          "leaked": 0
+        },
+        "pace": {
+          "step": 3,
+          "word": "Slow",
+          "as_of": "1941-10-09",
+          "confidence": "firm"
+        },
+        "standing": {
+          "step": 3,
+          "word": "Established",
+          "as_of": null,
+          "confidence": null
+        },
+        "bloc": "Chiefs of Staff Committee",
+        "channel": {
+          "channel": "in_person",
+          "days": 1
+        },
+        "power": null,
+        "loyalty": {
+          "step": 4,
+          "word": "Loyal",
+          "as_of": null,
+          "confidence": null
+        },
+        "competence": {
+          "step": 3,
+          "word": "Capable",
+          "as_of": null,
+          "confidence": null
+        },
+        "wants": [],
+        "holds_to": []
       }
     ],
     "others": [
@@ -1618,7 +1886,32 @@
           "word": "Untested",
           "as_of": null,
           "confidence": null
-        }
+        },
+        "holds": [],
+        "load": 0,
+        "tally": {
+          "passed": 0,
+          "hurried": 0,
+          "held": 0,
+          "amended": 0,
+          "refused": 0,
+          "leaked": 0
+        },
+        "pace": {
+          "step": null,
+          "word": "Untested",
+          "as_of": null,
+          "confidence": null
+        },
+        "standing": {
+          "step": 4,
+          "word": "Senior",
+          "as_of": null,
+          "confidence": null
+        },
+        "bloc": "Department of State",
+        "channel": null,
+        "power": null
       }
     ]
   },

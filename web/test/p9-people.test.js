@@ -76,7 +76,11 @@ test('loyalty and competence only for your own people', () => {
     assert.doesNotMatch(words(personDossier(full[tab][0], tab, {})), /Loyalty|Competence/, `${tab} dossier`);
   }
   assert.match(words(personDossier(full.yours[0], 'yours', {})), /Loyalty Devoted.*Competence Weak/);
-  assert.deepEqual(labels(rows(roster(people, 'yours'))[0]), ['Reliability', 'Regard'], 'the view on main holds neither');
+  assert.deepEqual(
+    labels(rows(roster(people, 'yours'))[0]),
+    ['Loyalty', 'Competence', 'Reliability', 'Regard'],
+    'the view sends both for your own people',
+  );
 });
 
 test('untested reliability is the word, not a zero bar; a held step is a five-step bar by class', () => {

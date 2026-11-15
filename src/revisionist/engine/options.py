@@ -43,6 +43,7 @@ from revisionist.core.realism.route import route
 from revisionist.core.record import Record, WakePage
 from revisionist.core.state import State, View
 from revisionist.core.visibility import private_to
+from revisionist.engine import expects
 from revisionist.engine.llm import Request, Transport, TransportError, cli_schema, prompt_text
 from revisionist.engine.realism_tick import _append, _pending_effects, _pending_words, _words
 from revisionist.engine.store import EventStore, load_state
@@ -171,11 +172,15 @@ def _since(view: View, memory: Record) -> dict[str, Any]:
 
 
 def options_prompt(
-    view: View, mandate: Mandate | None, style: PlayStyle, memory: Record | None = None
+    view: View,
+    mandate: Mandate | None,
+    style: PlayStyle,
+    memory: Record | None = None,
+    targets: expects.Targets | None = None,
 ) -> str:
     """The seat's own view, compact: desk, mandate, date, the objects it may name.
     With ``memory`` (the seat's edition of the record), also what has happened since
-    the last wake."""
+    the last wake. With ``targets``, what an expected move may name."""
     desk = view.desk
     names = {e.entity_id: e.name for e in view.entities.values()}
     seat: dict[str, Any] = {"name": view.me.name, "entity": view.me.embodies}
@@ -215,6 +220,8 @@ def options_prompt(
             for x in view.facts.values()
         ],
     }
+    if targets is not None:
+        world["may_expect"] = expects.prompt_targets(targets)
     wanted = "3 or 4 options" if style is PlayStyle.BEGINNER else "one plan of 3 to 5 asks"
     since = _since(view, memory) if memory is not None else {}
     return (
@@ -465,11 +472,12 @@ def _ask_model(
     repeats: Repeats | None = None,
 ) -> list[Option]:
     global last_cost
+    found = expects.targets(state, view)
     request = Request(
         call_class=CALL_CLASS,
         model=OPTIONS_MODEL,
         system=prompt_text(PROMPT),
-        prompt=options_prompt(view, mandate, style, memory),
+        prompt=options_prompt(view, mandate, style, memory, found),
         schema=cli_schema(OPTIONS_SCHEMA),
     )
     try:
@@ -495,13 +503,26 @@ def _ask_model(
     def dropped(label: str, why: str) -> None:
         log.info("options for %s on %s: dropped %r: %s", seat, today, label[:LABEL_LOGGED], why)
 
+    def left(why: str) -> None:
+        log.info("options for %s on %s: %s", seat, today, why)
+
     parsed: list[Option] = []
     for item in raw if isinstance(raw, list) else []:
+        # what the staff expect is screened on its own: a bad entry never costs the option
+        fields = dict(item) if isinstance(item, dict) else item
+        moves = fields.pop("expects", None) if isinstance(fields, dict) else None
+        levels = fields.pop("risks", None) if isinstance(fields, dict) else None
         try:
-            parsed.append(Option.model_validate(item))
+            option = Option.model_validate(fields)
         except ValidationError:
             label = item.get("label") if isinstance(item, dict) else None
             dropped(label if isinstance(label, str) else "", "not valid against the schema")
+            continue
+        update = {
+            "expects": expects.screen(moves, found, left),
+            "risks": expects.risks(levels, left),
+        }
+        parsed.append(option.model_copy(update=update))
     return _history_marked(view, _clean(state, seat, view, parsed, repeats, dropped))
 
 

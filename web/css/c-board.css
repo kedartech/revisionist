@@ -1,5 +1,6 @@
 /* The Board view: the Theatre or Court beside the selected piece and the order form; the switch
-   between Board and Desk. Tokens only. */
+   between Board and Desk; on a phone the picked piece's panel as a sheet from the bottom.
+   Tokens only. */
 .rl-viewswitch { display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-4); background: var(--surface-2); border-bottom: 1px solid var(--rule); }
 .rl-viewswitch .rl-btn, .rl-boardswitch .rl-btn { min-height: 32px; }
 .rl-board { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: 1px; background: var(--rule); }
@@ -18,6 +19,11 @@
 .rl-piece dd { margin: 0; }
 .rl-piece .rl-btn { margin-top: var(--space-3); }
 .rl-viewswitch .rl-btn:focus-visible, .rl-boardswitch .rl-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* a picked person's card from the Court (c-court.css draws its box; the panel is the box here) */
+.rl-piece .rl-court-sel { padding: 0; background: none; border: 0; }
+.rl-piece h3 { font: 600 14px/1.3 var(--font-chrome); margin: 0; color: var(--fg-strong); }
+.rl-piece h4 { font: 600 0.75rem/1.2 var(--font-head); text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 var(--space-1); color: var(--fg-muted); }
+.rl-piece .rl-sheet-close { display: none; }
 
 @media (max-width: 1023px) {
   .rl-board { grid-template-columns: minmax(0, 1fr) minmax(0, 320px); }
@@ -30,4 +36,16 @@
   .rl-board { grid-template-columns: minmax(0, 1fr); padding-bottom: calc(45px + var(--space-3) + 44px + var(--space-4)); }
   .rl-board-main, .rl-board-side { overflow-y: visible; padding: var(--space-3); }
   .rl-viewswitch .rl-btn, .rl-boardswitch .rl-btn { min-height: 44px; }
+}
+
+@media (max-width: 600px) {
+  /* the picked piece's panel rises over the board from the bottom: above the tab bar (c-shell.css:
+     44px and a 1px rule), under the open messenger, with room at its foot for the press icon */
+  .rl-board-side .rl-piece.rl-sheet { position: fixed; left: 0; right: 0; bottom: 45px; z-index: 49; max-height: 60vh; overflow-y: auto; margin: 0; border-width: 1px 0 0; border-color: var(--rule-strong); border-radius: var(--radius) var(--radius) 0 0; padding-bottom: calc(44px + var(--space-3) * 2); }
+  /* the close keeps its own row at the top right and stays in sight while the sheet scrolls */
+  .rl-piece .rl-sheet-close { display: flex; position: sticky; top: 0; z-index: 1; width: fit-content; min-height: 44px; margin: 0 0 var(--space-2) auto; }
+  /* the court's paths keep their squares in one row and scroll sideways */
+  .rl-board .rl-court-line { flex-wrap: nowrap; overflow-x: auto; padding-bottom: var(--space-2); }
+  .rl-board .rl-court-step { flex: none; }
+  .rl-board .rl-court-sq { min-width: 8rem; max-width: 12rem; }
 }

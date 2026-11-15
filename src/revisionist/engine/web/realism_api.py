@@ -13,7 +13,7 @@ builder must keep:
   ``next_wake_at``.
 """
 
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 
 class DocumentListItem(TypedDict):
@@ -296,6 +296,43 @@ class PeopleMeter(TypedDict):
     """From the age of that evidence."""
 
 
+class PersonHold(TypedDict):
+    """One of the seat's own orders waiting at the person's step."""
+
+    id: str
+    """The order's id, as in ``orders``."""
+    label: str
+    since: str
+    """The in-world day it reached this step (ISO). A stall there does not move it."""
+    held_days: int
+    days: int | None
+    """The days the step is stated to take; None while that is an unsourced gap."""
+    read: Literal["likely to pass it", "may hold it", "likely to hold or refuse it"] | None
+    """The staff's read of what the person will do with it, from their loyalty, the
+    order's topics and the seat's own load on them, with no roll. Only for the seat's
+    own chain and inner circle; None for anyone else or a step a player holds."""
+
+
+class PersonTally(TypedDict):
+    """What the person did with the seat's own orders at their step, by action. A hold
+    or a leak counts only once the seat has the reply that says so."""
+
+    passed: int
+    hurried: int
+    held: int
+    amended: int
+    refused: int
+    leaked: int
+
+
+class PersonChannel(TypedDict):
+    """How the seat reaches a member of its inner circle first, and the days it takes."""
+
+    channel: str
+    """``ChannelKind`` value."""
+    days: int
+
+
 class PersonLine(TypedDict):
     """One person on the People roster, as the seat's staff know them."""
 
@@ -317,6 +354,31 @@ class PersonLine(TypedDict):
     """Their disposition toward the seat's person, where the seat knows it."""
     reliability: PeopleMeter
     """How they carried the seat's own orders: fidelity, lateness and refusals."""
+    holds: list[PersonHold]
+    """The seat's own orders waiting on them, oldest first. Never another seat's."""
+    load: int
+    """How many of the seat's own orders they hold."""
+    tally: PersonTally
+    pace: PeopleMeter
+    """Days taken at their step against the days stated, over the seat's own orders
+    they moved on; "Untested" with none."""
+    standing: PeopleMeter
+    """Their rank in the world, in five steps."""
+    bloc: str | None
+    """The name of the body they belong to (Navy Department, Senate); None with none."""
+    channel: PersonChannel | None
+    """For a member of the seat's inner circle; None for anyone else."""
+    power: PeopleMeter | None
+    """For a leader weighed against the seat: rank, a step higher once the seat's own
+    pages place three forces of theirs. None for everyone else."""
+    loyalty: NotRequired[PeopleMeter]
+    """Only for the seat's own chain and inner circle; absent for anyone else."""
+    competence: NotRequired[PeopleMeter]
+    """Only for the seat's own chain and inner circle; absent for anyone else."""
+    wants: NotRequired[list[str]]
+    """The names of the topics they want. Only for the seat's own chain and inner circle."""
+    holds_to: NotRequired[list[str]]
+    """The names of the topics they hold to. Only for the seat's own chain and inner circle."""
 
 
 class People(TypedDict):
@@ -466,6 +528,8 @@ class MapPlace(TypedDict):
     name: str
     lat: float
     lon: float
+    theatre: str | None
+    """The theatre the world file puts the place in; None when it names none."""
 
 
 class MapMark(TypedDict):
@@ -503,6 +567,17 @@ class MapOrder(TypedDict):
     filed: str
 
 
+class MapCapital(TypedDict):
+    """A leader the People roster weighs against the seat, at their own place."""
+
+    place: MapPlace
+    name: str
+    stance: PeopleMeter
+    """The roster's stance for them, fogged as the roster fogs it."""
+    at_war: bool
+    """Their country and the seat's are at war."""
+
+
 class SeatMap(TypedDict):
     """The map: places are public; marks come from arrived pages only, never the record."""
 
@@ -510,6 +585,9 @@ class SeatMap(TypedDict):
     marks: list[MapMark]
     orders: list[MapOrder]
     """The seat's own movement orders: what it has ordered, not where anything is."""
+    capitals: list[MapCapital]
+    """For each leader on the roster's opponents with a stance and a place, most hostile
+    first. A leader with no stance or no place has none."""
 
 
 class Reply(TypedDict):
@@ -535,6 +613,30 @@ class WakeHeader(TypedDict):
     """True when this account may press "Close the wake now"."""
 
 
+class AgendaExpect(TypedDict):
+    """One move the seat's staff expect an offered order to make. Staff opinion: no rule
+    reads it."""
+
+    on: str
+    """What it points at: "regard", "stance", "stake" or "figure"."""
+    name: str
+    """The person, leader, stake or figure, by name."""
+    direction: str
+    """"gain" for the seat, "cost" against it."""
+    size: int
+    """One step or two."""
+    sure: str
+    """How sure the staff are: "firm", "likely" or "guess"."""
+
+
+class AgendaRisks(TypedDict):
+    """How much the staff think an offered order risks, each 0 (none) to 3."""
+
+    escalation: int
+    refusal: int
+    exposure: int
+
+
 class AgendaOption(TypedDict):
     """One offered order, as the seat understands it."""
 
@@ -549,6 +651,11 @@ class AgendaOption(TypedDict):
     taken: bool
     """True once the seat has filed exactly this option's asks in the open wake. The
     steps of a guided plan share one value."""
+    expects: list[AgendaExpect]
+    """What the staff expect it to move, only what is still in the seat's view; empty
+    for the desk's own list. The steps of a guided plan share the plan's."""
+    risks: AgendaRisks | None
+    """None where the staff gave no levels. The steps of a guided plan share the plan's."""
 
 
 class AgendaItem(TypedDict):
@@ -828,6 +935,7 @@ __all__ = [
     "LeverChoice",
     "LeverLine",
     "LeverParam",
+    "MapCapital",
     "MapMark",
     "MapOrder",
     "MapPlace",
@@ -837,7 +945,10 @@ __all__ = [
     "OrderTracker",
     "People",
     "PeopleMeter",
+    "PersonChannel",
+    "PersonHold",
     "PersonLine",
+    "PersonTally",
     "PlaceChoice",
     "PlaceReach",
     "ReachContact",

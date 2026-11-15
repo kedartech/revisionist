@@ -3759,6 +3759,70 @@
         "title": "EntityStatusSet",
         "type": "object"
       },
+      "Expect": {
+        "additionalProperties": false,
+        "description": "One move the seat's staff expect an option to make. Staff talk, not a forecast:\nno rule reads it, and filing the option is the same with or without it.",
+        "properties": {
+          "direction": {
+            "$ref": "#/$defs/ExpectDirection"
+          },
+          "on": {
+            "$ref": "#/$defs/ExpectOn"
+          },
+          "size": {
+            "maximum": 2,
+            "minimum": 1,
+            "title": "Size",
+            "type": "integer"
+          },
+          "sure": {
+            "$ref": "#/$defs/ExpectSure"
+          },
+          "target": {
+            "maxLength": 60,
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "target",
+          "direction",
+          "size",
+          "sure"
+        ],
+        "title": "Expect",
+        "type": "object"
+      },
+      "ExpectDirection": {
+        "enum": [
+          "gain",
+          "cost"
+        ],
+        "title": "ExpectDirection",
+        "type": "string"
+      },
+      "ExpectOn": {
+        "description": "What an expected move points at. Each is something the seat's view holds.",
+        "enum": [
+          "regard",
+          "stance",
+          "stake",
+          "figure"
+        ],
+        "title": "ExpectOn",
+        "type": "string"
+      },
+      "ExpectSure": {
+        "description": "How sure the staff are.",
+        "enum": [
+          "firm",
+          "likely",
+          "guess"
+        ],
+        "title": "ExpectSure",
+        "type": "string"
+      },
       "Fact": {
         "additionalProperties": false,
         "description": "A structured truth with an ACL. Never prose.",
@@ -5857,6 +5921,15 @@
             "title": "Asks",
             "type": "array"
           },
+          "expects": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Expect"
+            },
+            "maxItems": 4,
+            "title": "Expects",
+            "type": "array"
+          },
           "historical": {
             "default": false,
             "title": "Historical",
@@ -5873,6 +5946,17 @@
             "maxLength": 300,
             "title": "Risk",
             "type": "string"
+          },
+          "risks": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Risks"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "to": {
             "anyOf": [
@@ -6832,6 +6916,37 @@
           "relationship_id"
         ],
         "title": "RelationshipTagSet",
+        "type": "object"
+      },
+      "Risks": {
+        "additionalProperties": false,
+        "description": "How much the staff think an option risks, each from 0 (none) to 3. No rule reads it.",
+        "properties": {
+          "escalation": {
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Escalation",
+            "type": "integer"
+          },
+          "exposure": {
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Exposure",
+            "type": "integer"
+          },
+          "refusal": {
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Refusal",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "escalation",
+          "refusal",
+          "exposure"
+        ],
+        "title": "Risks",
         "type": "object"
       },
       "Rolled": {

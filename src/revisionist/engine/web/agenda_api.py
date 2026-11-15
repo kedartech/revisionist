@@ -19,9 +19,16 @@ from revisionist.core.realism import mandates
 from revisionist.core.realism.agenda import Offer, Option, PlayStyle, TriggerKind
 from revisionist.core.realism.effect import RoutedPart
 from revisionist.core.state import State, View
-from revisionist.engine import options, realism_tick
+from revisionist.engine import expects, options, realism_tick
 from revisionist.engine.store import EventStore, load_state
-from revisionist.engine.web.realism_api import AgendaBlock, AgendaItem, AgendaOption, Reply
+from revisionist.engine.web.realism_api import (
+    AgendaBlock,
+    AgendaExpect,
+    AgendaItem,
+    AgendaOption,
+    AgendaRisks,
+    Reply,
+)
 
 _PICK = re.compile(r"w(\d+)\.o(\d+)\.p(\d+)")
 _STALE = "That offer has lapsed. Look at what you are offered now."
@@ -70,8 +77,31 @@ def _token(wake: int, offer: int, option: int) -> str:
     return f"w{wake}.o{offer}.p{option}"
 
 
+def _moves(found: expects.Targets, option: Option) -> list[AgendaExpect]:
+    """The option's expected moves by name, less any whose target has left the view."""
+    out: list[AgendaExpect] = []
+    for move in option.expects:
+        name = expects.name(found, move)
+        if name is not None:
+            out.append(
+                AgendaExpect(
+                    on=move.on.value,
+                    name=name,
+                    direction=move.direction.value,
+                    size=move.size,
+                    sure=move.sure.value,
+                )
+            )
+    return out
+
+
 def _shown(
-    view: View, option: Option, pick: str, taken: bool, label: str | None = None
+    view: View,
+    found: expects.Targets,
+    option: Option,
+    pick: str,
+    taken: bool,
+    label: str | None = None,
 ) -> AgendaOption:
     return AgendaOption(
         label=label or option.label,
@@ -80,11 +110,23 @@ def _shown(
         historical=option.historical,
         pick=pick,
         taken=taken,
+        expects=_moves(found, option),
+        risks=None
+        if option.risks is None
+        else AgendaRisks(
+            escalation=option.risks.escalation,
+            refusal=option.risks.refusal,
+            exposure=option.risks.exposure,
+        ),
     )
 
 
 def _listed(
-    view: View, made: ev.OptionsOffered, index: int, filed: list[tuple[RoutedPart, ...]]
+    view: View,
+    found: expects.Targets,
+    made: ev.OptionsOffered,
+    index: int,
+    filed: list[tuple[RoutedPart, ...]],
 ) -> tuple[list[AgendaOption], bool]:
     """The offer's options for the client; a guided plan is its asks in order, every
     step carrying the plan's one token and one taken flag. The flag: whether it is a plan."""
@@ -93,9 +135,9 @@ def _listed(
         plan = offer.options[0]
         pick = _token(made.wake, index, 0)
         taken = record.taken(plan.asks, filed)
-        return [_shown(view, plan, pick, taken, a.ask) for a in plan.asks], True
+        return [_shown(view, found, plan, pick, taken, a.ask) for a in plan.asks], True
     return [
-        _shown(view, o, _token(made.wake, index, n), record.taken(o.asks, filed))
+        _shown(view, found, o, _token(made.wake, index, n), record.taken(o.asks, filed))
         for n, o in enumerate(offer.options)
     ], False
 
@@ -139,6 +181,8 @@ def _news_asks(view: View, events: list[Event]) -> list[AgendaOption]:
             historical=False,
             pick=f"n.{s.scheduled_id}.{k}",
             taken=False,
+            expects=[],
+            risks=None,
         )
         for _, s in history.fired_developments(view)
         if s.scheduled_id in fresh
@@ -153,18 +197,19 @@ def agenda(state: State, seat: SeatId, log: Iterable[Event]) -> AgendaBlock:
     made = _latest(events, seat, _wake(state))
     filed = _filed(events, seat, made.wake) if made is not None else []
     causes = _causes(state, seat, view)
+    found = expects.targets(state, view)
     items: list[AgendaItem] = []
     initiative: list[AgendaOption] = []
     by_mandate: dict[MandateId | None, int] = {}
     if made is not None:
         by_mandate = {o.mandate_id: i for i, o in enumerate(made.offers)}
         if None in by_mandate:
-            initiative = _listed(view, made, by_mandate[None], filed)[0]
+            initiative = _listed(view, found, made, by_mandate[None], filed)[0]
     for mandate in options._live(view):
         listed: list[AgendaOption] = []
         plan = False
         if made is not None and mandate.mandate_id in by_mandate:
-            listed, plan = _listed(view, made, by_mandate[mandate.mandate_id], filed)
+            listed, plan = _listed(view, found, made, by_mandate[mandate.mandate_id], filed)
         items.append(
             AgendaItem(
                 id=mandate.mandate_id,

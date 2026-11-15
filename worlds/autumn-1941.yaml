@@ -736,6 +736,14 @@ cards:
           - {name: force, kind: enum, choices: [home_fleet], label: "Which fleet", choice_labels: ["The Home Fleet"]}
           - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool"]}
           - {name: strength, kind: int, lo: 1, hi: 4, label: "How much of its strength"}
+      - name: move_army
+        pipeline: cos_directive
+        resolver: movement
+        label: "Move an army"
+        summary: "Tell the Chiefs of Staff where Home Forces are to stand; across the sea they sail on Britain's shipping."
+        params:
+          - {name: force, kind: enum, choices: [home_forces], label: "Which army", choice_labels: ["Home Forces"]}
+          - {name: to, kind: enum, choices: [london, liverpool, reykjavik], label: "To", choice_labels: ["London", "Liverpool", "Reykjavik"]}
       - name: broadcast
         pipeline: press_broadcast
         resolver: opinion
@@ -770,6 +778,11 @@ cards:
         executor: pound
         forces: [home_fleet]
         summary: "Orders to the Home Fleet, carried out by the First Sea Lord."
+      - name: army_operations
+        effects: [move_force, engagement]
+        executor: ismay
+        forces: [home_forces]
+        summary: "Orders to Home Forces, passed on through the Chiefs of Staff by Ismay."
       - name: public_word
         effects: [statement]
         summary: "Speak to the House and the nation."

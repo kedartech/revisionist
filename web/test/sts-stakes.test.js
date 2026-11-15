@@ -128,6 +128,7 @@ test('contests alone, or mandates alone, still draw the strip', () => {
 
 test('the room shows the strip right under the status strip on the Desk view', () => {
   const root = room();
+  buttons(root.querySelector('.rl-viewswitch'), 'Desk')[0].click();
   assert.ok(root.querySelector('main.rl-room'), 'the Desk view');
   const next = afterStrip(root);
   assert.ok(next?.classList.contains('rl-stakes'), 'the stakes strip follows the status strip');

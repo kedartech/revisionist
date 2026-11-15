@@ -19,8 +19,6 @@
 .frame-head button { background: transparent; color: var(--chrome-fg); border-color: var(--chrome-field-border); }
 .frame-head button:hover:not(:disabled) { border-color: var(--chrome-accent-strong); color: var(--chrome-accent-strong); }
 .icon-btn { padding: 6px; }
-.frame-head .rl-effects { white-space: nowrap; }
-.frame-head .rl-effects[aria-pressed="true"] { background: var(--accent-bg); color: var(--on-accent); border-color: var(--accent); }
 .frame-head :focus-visible { outline-color: var(--chrome-accent-strong); }
 /* At phone width the account line goes (Sign out stays), so the controls sit on one row. */
 @media (max-width: 600px) {

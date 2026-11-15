@@ -1,7 +1,8 @@
-/* Screen effects, on unless rv.effects is "off" (js/theme.js sets data-effects on the root).
-   Every rule is scoped to that attribute, so turning them off leaves the plain page. */
+/* Screen effects, always on: scanlines with a vignette, a glow on headings, and one blinking
+   cursor after the game's name (js/views/frame.js gives that title .rl-cursor). There is no
+   setting. Reduced motion stops the blink; high contrast drops the scanlines and vignette. */
 
-html[data-effects="on"] body::after {
+body::after {
   content: '';
   position: fixed;
   inset: 0;
@@ -14,14 +15,14 @@ html[data-effects="on"] body::after {
       color-mix(in srgb, var(--fg) 4%, transparent) 2px 3px);
 }
 
-html[data-effects="on"] h1,
-html[data-effects="on"] h2,
-html[data-effects="on"] h3,
-html[data-effects="on"] .title {
+h1,
+h2,
+h3,
+.title {
   text-shadow: 0 0 0.5rem color-mix(in srgb, var(--fg-strong) 45%, transparent);
 }
 
-html[data-effects="on"] .frame-head .title::after {
+.frame-head .rl-cursor::after {
   content: '';
   display: inline-block;
   width: 0.6em;
@@ -38,5 +39,9 @@ html[data-effects="on"] .frame-head .title::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html[data-effects="on"] .frame-head .title::after { animation: none; }
+  .frame-head .rl-cursor::after { animation: none; }
+}
+
+@media (prefers-contrast: more) {
+  body::after { content: none; }
 }

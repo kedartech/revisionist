@@ -37,7 +37,7 @@ const freshUi = (game) => ({
   game, wide: false, page: null, said: null, error: null, busy: null,
   filter: 'all', sort: 'newest', draft: null, proposal: null, autoFor: null,
   chat: { open: false, tab: 'chats', thread: null }, contact: null, orderTo: null,
-  happenedSeen: null, refocusChat: false, brief: null, pending: null, drafts: {}, runFrom: null,
+  happenedSeen: null, refocusChat: false, brief: null, pending: null, drafts: {}, runFrom: null, offer: null, menuCall: false,
   tab: 'desk', side: 'papers', press: { open: false, tab: null }, pressPage: null, peopleTab: 'opponents',
 });
 let ui = freshUi(null);
@@ -81,6 +81,44 @@ export function beginSend(state, thread, text) {
   state.drafts = others;
   state.error = null;
   return true;
+}
+
+export const REPLACE_ASK = 'Replace your draft with this order?';
+
+const putOrder = (state, text) => {
+  state.offer = null;
+  state.proposal = null;
+  state.draft = { to: state.draft?.to ?? '', channel: state.draft?.channel ?? '', text };
+};
+
+/**
+ * Words for the order form from outside it (an order a development or the news suggests).
+ * Over a draft the player has typed they wait in `offer` until the player picks Replace
+ * (false); with no typed draft they go straight into the form (true).
+ */
+export function offerOrder(state, text) {
+  const typed = (state.draft?.text ?? '').trim();
+  if (typed && typed !== text.trim()) {
+    state.offer = text;
+    return false;
+  }
+  putOrder(state, text);
+  return true;
+}
+
+/** The player's answer to the offer: Replace puts its words in the form, Keep mine drops it. */
+export function settleOffer(state, replace) {
+  if (replace && state.offer != null) putOrder(state, state.offer);
+  else state.offer = null;
+}
+
+/** The line under the order form that asks before a typed draft is replaced. */
+export function offerLine({ onReplace, onKeep }) {
+  return h('div', { class: 'rl-confirm rl-offer', role: 'group', 'aria-label': REPLACE_ASK },
+    h('p', {}, REPLACE_ASK),
+    h('div', { class: 'row' },
+      h('button', { type: 'button', class: 'danger', onclick: onReplace }, 'Replace'),
+      h('button', { type: 'button', class: 'ghost', onclick: onKeep }, 'Keep mine')));
 }
 
 /** Why another action waits while a message is out, or null when none is. */
@@ -166,34 +204,45 @@ function stepForm(order, act) {
 }
 
 /** The game menu: pause, resume and end for the host; how to start another game. */
-function gameMenu(game, ctx, work) {
+export function gameMenu(game, ctx, work) {
   const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
   const dialog = h('dialog', { class: 'sheet rl-menu', 'aria-labelledby': 'rl-menu-h' });
   const close = () => dialog.close();
-  const call = async (action) => {
+  const closeBtn = h('button', { type: 'button', class: 'ghost', onclick: close }, 'Close');
+  // One call at a time. The guard lives in the room's state, which outlasts a redraw of the
+  // menu; the menu's buttons other than Close are held until the call is answered.
+  const hold = (on) => {
+    ui.menuCall = on;
+    for (const b of dialog.querySelectorAll('button')) if (b !== closeBtn) b.disabled = on;
+  };
+  const run = async (fn) => {
+    if (ui.menuCall) return;
+    hold(true);
     out.replaceChildren('Working…');
     try {
-      const r = await api.game(action);
-      if (r.refused) { out.replaceChildren(r.reply); return; }
-      ui.said = r.reply;
-      close();
-      if (action === 'end') ctx.go('new');
-      else if (action === 'leave') ctx.go('home');
-      else await ctx.refresh();
+      await fn();
     } catch (ex) {
       out.replaceChildren(h('span', { class: 'form-error', role: 'alert' }, ex.message));
+    } finally {
+      hold(false);
     }
   };
+  const call = (action) => run(async () => {
+    const r = await api.game(action);
+    if (r.refused) { out.replaceChildren(r.reply); return; }
+    ui.said = r.reply;
+    close();
+    if (action === 'end') ctx.go('new');
+    else if (action === 'leave') ctx.go('home');
+    else await ctx.refresh();
+  });
   const hours = h('input', { id: 'rl-wake-hours', name: 'hours', type: 'number', min: 1, max: 168, step: 1, required: true });
-  const setHours = async () => {
+  const setHours = () => {
     if (!hours.reportValidity()) return;
-    out.replaceChildren('Working…');
-    try {
+    return run(async () => {
       const r = await api.game('wake-hours', { hours: Number(hours.value) });
       out.replaceChildren(r.reply);
-    } catch (ex) {
-      out.replaceChildren(h('span', { class: 'form-error', role: 'alert' }, ex.message));
-    }
+    });
   };
   const confirmEnd = h('div', { class: 'rl-confirm', hidden: true },
     h('p', {}, h('strong', {}, `End ${game.name} for everyone?`),
@@ -242,7 +291,7 @@ function gameMenu(game, ctx, work) {
       ? 'You play one game at a time. End this one, and you can start another straight away.'
       : 'You play one game at a time. Leave this one, and you can join or start another.'),
     out,
-    h('div', { class: 'row end' }, h('button', { type: 'button', class: 'ghost', onclick: close }, 'Close'))));
+    h('div', { class: 'row end' }, closeBtn)));
   const open = h('button', {
     type: 'button', class: 'rl-menu-btn', 'aria-haspopup': 'dialog', onclick: () => { work.idle() && dialog.showModal(); },
   }, 'Game', icon('chevron', 12));
@@ -353,6 +402,7 @@ export function realismRoom(ctx) {
   /** The aide reads the order; nothing is filed until the player signs. */
   const ask = (draft) => {
     ui.draft = draft;
+    ui.offer = null; // the player sent their own words: the offered ones no longer wait
     return act('Your aide is reading it…', 'order', draft, (r) => {
       ui.proposal = r.proposal ?? null;
       if (ui.proposal) ui.said = null; // the card says it
@@ -456,7 +506,8 @@ export function realismRoom(ctx) {
         stylePicker(rv.style, { act }),
         needsAnswer(rv.agenda, { act, today: rv.clock.world_date }),
         ideasSlot,
-        h('section', { class: 'rl-write', 'aria-label': ui.proposal ? 'Your order, to sign' : 'Write an order' }, directive),
+        h('section', { class: 'rl-write', 'aria-label': ui.proposal ? 'Your order, to sign' : 'Write an order' }, directive,
+          ui.offer != null ? offerLine({ onReplace: () => answerOffer(true), onKeep: () => answerOffer(false) }) : null),
         standardForms(rv.desk, {
           onSubmit: (v) => act('Sending it…', 'lever', v),
           entities: entityChoices(rv.desk),
@@ -634,11 +685,17 @@ export function realismRoom(ctx) {
 
   /** An order a development suggests: its words go into the order form on the desk, nothing is filed. */
   function writeOrder(text) {
-    ui.proposal = null;
-    ui.draft = { to: ui.draft?.to ?? '', channel: ui.draft?.channel ?? '', text };
+    const written = offerOrder(ui, text);
     ui.press = { ...ui.press, open: false };
     ui.pressPage = null;
     ui.tab = 'desk';
+    rerender();
+    root.querySelector(written ? '.rl-write textarea' : '.rl-offer button.ghost')?.focus();
+  }
+
+  /** Replace or Keep mine on the offer line; focus goes back to the order's words. */
+  function answerOffer(replace) {
+    settleOffer(ui, replace);
     rerender();
     root.querySelector('.rl-write textarea')?.focus();
   }

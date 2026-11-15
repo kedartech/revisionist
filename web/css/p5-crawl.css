@@ -1,4 +1,5 @@
-/* The opening crawl: the paragraphs fade in turn, and the Begin phrases take turns in one cell. */
+/* The opening crawl: the paragraphs type themselves out (realism-crawl.js), and the Begin
+   phrases take turns in one cell. */
 
 .rl-intro-crawl p {
   margin: 0 0 1.25rem;
@@ -7,67 +8,11 @@
   font-weight: 600;
   line-height: 1.5;
   color: var(--accent);
-  animation: rl-intro-fade 1500ms ease-out both;
 }
 
-/* Each start is the sum of the holds before it (short 4 s, medium 8 s, long 12 s, xlong 14 s),
-   for the second and third paragraphs. */
-.rl-intro-crawl p.rl-at-4 {
-  animation-delay: 4s;
-}
-
-.rl-intro-crawl p.rl-at-8 {
-  animation-delay: 8s;
-}
-
-.rl-intro-crawl p.rl-at-12 {
-  animation-delay: 12s;
-}
-
-.rl-intro-crawl p.rl-at-14 {
-  animation-delay: 14s;
-}
-
-.rl-intro-crawl p.rl-at-16 {
-  animation-delay: 16s;
-}
-
-.rl-intro-crawl p.rl-at-18 {
-  animation-delay: 18s;
-}
-
-.rl-intro-crawl p.rl-at-20 {
-  animation-delay: 20s;
-}
-
-.rl-intro-crawl p.rl-at-22 {
-  animation-delay: 22s;
-}
-
-.rl-intro-crawl p.rl-at-24 {
-  animation-delay: 24s;
-}
-
-.rl-intro-crawl p.rl-at-26 {
-  animation-delay: 26s;
-}
-
-.rl-intro-crawl p.rl-at-28 {
-  animation-delay: 28s;
-}
-
-/* A click or key on the crawl: every paragraph at once. */
-.rl-intro[data-shown] .rl-intro-crawl p {
-  animation: none;
-}
-
-@keyframes rl-intro-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+/* The part still to type holds its place, so the lines are set once and nothing moves. */
+.rl-intro-crawl .rl-intro-untyped {
+  visibility: hidden;
 }
 
 .rl-intro-phrases {
@@ -138,10 +83,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rl-intro-crawl p {
-    animation: none;
-  }
-
   .rl-intro-phrases li {
     animation: none;
   }

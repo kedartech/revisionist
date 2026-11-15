@@ -1,6 +1,6 @@
-// Spec for unit Q5, written with contract KQ: the unit makes it pass and never edits it.
-// The crawl fades in, Continue waits until the game is ready, and the phrases say what
-// Begin is doing. Run: node --test web/test/
+// Spec for the opening crawl: each paragraph types itself out letter by letter, Continue
+// waits until the game is ready, and the phrases say what Begin is doing. Timers are a
+// fake passed in, so a tick is one timer firing. Run: node --test web/test/
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -25,15 +25,46 @@ const PHRASES = [
   'Opening the first day.',
 ];
 
+// A fake timer pair: `set` queues, `tick()` fires the oldest pending callback and returns its delay.
+const fakeTimers = () => {
+  const queue = [];
+  let id = 0;
+  return {
+    sets: 0,
+    set(fn, ms) {
+      this.sets += 1;
+      id += 1;
+      queue.push({ id, fn, ms });
+      return id;
+    },
+    clear(k) {
+      const i = queue.findIndex((x) => x.id === k);
+      if (i >= 0) queue.splice(i, 1);
+    },
+    get pending() { return queue.map((x) => x.ms); },
+    tick() {
+      const next = queue.shift();
+      next?.fn();
+      return next?.ms;
+    },
+  };
+};
+
 const crawlOf = (opts) => {
   const doc = installDom();
   const done = [];
-  const dialog = introCrawl({ title: 'Autumn 1941', paragraphs: fixture.setting.crawl, onDone: () => done.push(1), ...opts });
+  const timers = fakeTimers();
+  const dialog = introCrawl({ title: 'Autumn 1941', paragraphs: fixture.setting.crawl, onDone: () => done.push(1), timers, ...opts });
   doc.body.append(dialog);
   dialog.showModal();
   const cont = buttons(dialog, 'Continue')[0];
-  return { doc, dialog, done, cont };
+  return { doc, dialog, done, cont, timers: opts?.timers ?? timers };
 };
+
+const paras = (dialog) => dialog.querySelectorAll('.rl-intro-crawl p');
+const typed = (p) => p.querySelector('.rl-intro-typed').textContent;
+const untyped = (p) => p.querySelector('.rl-intro-untyped').textContent;
+const key = (el, k) => el.dispatchEvent({ type: 'keydown', key: k, target: null, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() {} });
 
 test('the crawl: trimmed paragraphs, empties dropped, three at most', () => {
   assert.deepEqual(crawlParagraphs(fixture.setting), fixture.setting.crawl);
@@ -89,97 +120,130 @@ test('the phrases: six fixed lines, one item each, hidden from screen readers', 
   assert.equal(list.getAttribute('role'), null, 'the status line stays the one live region');
 });
 
-test('the crawl fades in turn and stays: opacity only, no movement', () => {
-  const css = noComments(read('css/p5-crawl.css'));
-  const frames = [...css.matchAll(/@keyframes\s+([\w-]+)\s*\{((?:[^{}]*\{[^{}]*\})*[^{}]*)\}/g)];
-  const used = css.match(/\.rl-intro-crawl p\s*\{[^}]*animation:\s*([\w-]+)[^;]*\bboth\b[^;]*;/);
-  assert.ok(used, 'the paragraphs run a keyframes animation with fill both');
-  const body = frames.find((m) => m[1] === used[1])?.[2] ?? '';
-  assert.match(body, /opacity:\s*0\b/);
-  assert.match(body, /opacity:\s*1\b/);
-  assert.doesNotMatch(body, /transform|translate|top:|margin/);
-  assert.doesNotMatch(css, /\.rl-intro-crawl p:nth-child/, 'the hold classes time the paragraphs, not their position');
-});
 
-test('holdClass: about 3.5 words a second, at least 4 s and at most 14 s, by band', () => {
-  const { holdClass, HOLD_SECONDS, SHORT_MAX_WORDS, MEDIUM_MAX_WORDS, LONG_MAX_WORDS } = crawlView;
-  assert.deepEqual(Object.keys(HOLD_SECONDS), ['short', 'medium', 'long', 'xlong']);
-  assert.ok(Object.isFrozen(HOLD_SECONDS));
-  assert.equal(HOLD_SECONDS.short, 4);
-  assert.equal(HOLD_SECONDS.xlong, 14);
-  assert.equal(SHORT_MAX_WORDS / 3.5, HOLD_SECONDS.short);
-  assert.equal(MEDIUM_MAX_WORDS / 3.5, HOLD_SECONDS.medium);
-  assert.equal(LONG_MAX_WORDS / 3.5, HOLD_SECONDS.long);
-  assert.ok(LONG_MAX_WORDS / 3.5 < HOLD_SECONDS.xlong);
-  const cases = [
-    [0, 'short'], [1, 'short'], [SHORT_MAX_WORDS, 'short'],
-    [SHORT_MAX_WORDS + 1, 'medium'], [MEDIUM_MAX_WORDS, 'medium'],
-    [MEDIUM_MAX_WORDS + 1, 'long'], [LONG_MAX_WORDS, 'long'],
-    [LONG_MAX_WORDS + 1, 'xlong'], [400, 'xlong'],
-    [Number.NaN, 'short'], [undefined, 'short'], [-3, 'short'],
-  ];
-  for (const [n, want] of cases) assert.equal(holdClass(n), want, `${n} words`);
-});
-
-test('each paragraph carries its hold class and starts when the ones before it have held', () => {
-  const { HOLD_SECONDS } = crawlView;
-  const say = (n) => Array.from({ length: n }, (_, i) => `w${i}`).join(' ');
-  const { dialog } = crawlOf({ paragraphs: [say(10), say(40), say(20)] });
-  const ps = dialog.querySelectorAll('.rl-intro-crawl p');
-  assert.deepEqual(ps.map((p) => p.className), [
-    'rl-hold-short rl-at-0',
-    `rl-hold-long rl-at-${HOLD_SECONDS.short}`,
-    `rl-hold-medium rl-at-${HOLD_SECONDS.short + HOLD_SECONDS.long}`,
-  ]);
-  assert.equal(words(ps[1]), say(40));
-  const autumn = crawlOf({}).dialog.querySelectorAll('.rl-intro-crawl p').map((p) => p.className.split(' ')[0]);
-  assert.deepEqual(autumn, fixture.setting.crawl.map((p) => `rl-hold-${crawlView.holdClass(p.split(/\s+/).length)}`));
-});
-
-test('the stylesheet has a delay rule for every start the classes can reach, and no others', () => {
-  const { HOLD_SECONDS } = crawlView;
-  const css = noComments(read('css/p5-crawl.css'));
-  const holds = Object.values(HOLD_SECONDS);
-  const max = crawlParagraphs({ crawl: Array(10).fill('x') }).length;
-  let starts = new Set([0]);
-  const reach = new Set();
-  for (let i = 1; i < max; i += 1) {
-    starts = new Set([...starts].flatMap((s) => holds.map((h) => s + h)));
-    for (const s of starts) reach.add(s);
+test('typing: after k ticks the first paragraph shows its first k characters; the next waits for it and the pause', () => {
+  const { CHARS_PER_SECOND, PAUSE_MS } = crawlView;
+  assert.equal(CHARS_PER_SECOND, 40);
+  assert.equal(PAUSE_MS, 600);
+  const step = 1000 / CHARS_PER_SECOND;
+  const one = 'Hello there.';
+  const two = 'Second one.';
+  const { dialog, timers } = crawlOf({ paragraphs: [one, two] });
+  const [p1, p2] = paras(dialog);
+  assert.equal(typed(p1), '');
+  assert.equal(typed(p2), '');
+  assert.deepEqual(timers.pending, [step], 'one timer out, at the typing rate');
+  for (let k = 1; k <= one.length; k += 1) {
+    assert.equal(timers.tick(), step);
+    assert.equal(typed(p1), one.slice(0, k), `after ${k} ticks`);
+    assert.equal(typed(p2), '', `the second paragraph waits (tick ${k})`);
   }
-  for (const s of reach) {
-    assert.match(css, new RegExp(`\\.rl-intro-crawl p\\.rl-at-${s}\\s*\\{\\s*animation-delay:\\s*${s}s;\\s*\\}`), `start ${s}s`);
-  }
-  const rules = [...css.matchAll(/\.rl-at-(\d+)\b/g)].map((m) => Number(m[1]));
-  assert.deepEqual([...new Set(rules)].sort((a, b) => a - b), [...reach].sort((a, b) => a - b), 'capped at the reachable starts');
+  assert.deepEqual(timers.pending, [PAUSE_MS], 'the pause comes after a whole paragraph');
+  assert.equal(typed(p2), '');
+  assert.equal(timers.tick(), PAUSE_MS);
+  assert.equal(typed(p2), 'S');
+  while (timers.pending.length) timers.tick();
+  assert.equal(typed(p1), one);
+  assert.equal(typed(p2), two);
 });
 
-for (const how of ['click', 'keydown']) {
-  test(`a ${how} on the crawl shows every paragraph at once; Continue still waits on Begin`, () => {
-    const { dialog, done, cont } = crawlOf({ ready: false });
-    assert.equal(dialog.hasAttribute('data-shown'), false);
-    fire(dialog, how);
-    assert.equal(dialog.hasAttribute('data-shown'), true);
+test('the whole text is there for a screen reader from the start; the typed copy is hidden from it', () => {
+  const text = 'Autumn, and the war is two years old.';
+  const { dialog, timers } = crawlOf({ paragraphs: [text] });
+  const [p] = paras(dialog);
+  const said = p.querySelector('.rl-intro-said');
+  assert.ok(said?.matches('.sr-only'), 'the full text sits in a screen-reader-only span');
+  assert.equal(said.textContent, text);
+  assert.equal(said.getAttribute('aria-hidden'), null);
+  for (const cls of ['.rl-intro-typed', '.rl-intro-untyped']) assert.equal(p.querySelector(cls).getAttribute('aria-hidden'), 'true', cls);
+  for (let k = 0; k <= text.length; k += 1) {
+    assert.equal(typed(p) + untyped(p), text, 'typed and still to type make the whole paragraph, so nothing moves');
+    assert.equal(said.textContent, text);
+    timers.tick();
+  }
+  const css = noComments(read('css/p5-crawl.css'));
+  assert.match(css, /\.rl-intro-untyped\s*\{[^}]*visibility:\s*hidden;/, 'the part still to type holds its place, unseen');
+});
+
+for (const [how, act] of [['Enter', (d) => key(d, 'Enter')], ['Space', (d) => key(d, ' ')], ['a click', (d) => fire(d, 'click')]]) {
+  test(`${how} mid-paragraph shows the whole paragraph and starts the pause; Continue still waits on Begin`, () => {
+    const { PAUSE_MS } = crawlView;
+    const one = 'The first paragraph.';
+    const two = 'The second.';
+    const { dialog, done, cont, timers } = crawlOf({ ready: false, paragraphs: [one, two] });
+    const [p1, p2] = paras(dialog);
+    timers.tick();
+    timers.tick();
+    timers.tick();
+    assert.equal(typed(p1), 'The');
+    act(dialog);
+    assert.equal(typed(p1), one);
+    assert.equal(untyped(p1), '');
+    assert.equal(typed(p2), '');
+    assert.deepEqual(timers.pending, [PAUSE_MS], 'the typing timer is dropped and the pause starts');
+    act(dialog);
+    assert.equal(typed(p2), '', 'during the pause it does nothing');
+    assert.deepEqual(timers.pending, [PAUSE_MS]);
+    timers.tick();
+    assert.equal(typed(p2), 'T');
     assert.equal(cont.disabled, true);
     assert.equal(done.length, 0);
-    const css = noComments(read('css/p5-crawl.css'));
-    assert.match(css, /\.rl-intro\[data-shown\] \.rl-intro-crawl p\s*\{\s*animation:\s*none;\s*\}/);
   });
 }
 
-test('the phrases show one at a time by CSS, a still first line under reduced motion', () => {
+test('other keys leave the typing alone', () => {
+  const { dialog, timers } = crawlOf({ paragraphs: ['Some words here.'] });
+  const [p] = paras(dialog);
+  timers.tick();
+  for (const k of ['a', 'Tab', 'Shift', 'ArrowDown']) key(dialog, k);
+  assert.equal(typed(p), 'S');
+});
+
+test('reduced motion: every paragraph whole on first draw, and no timer was set', () => {
+  const was = globalThis.matchMedia;
+  const asked = [];
+  try {
+    globalThis.matchMedia = (q) => {
+      asked.push(q);
+      return { matches: q === '(prefers-reduced-motion: reduce)' };
+    };
+    const { dialog, timers } = crawlOf({});
+    assert.ok(asked.includes('(prefers-reduced-motion: reduce)'));
+    assert.deepEqual(paras(dialog).map(typed), fixture.setting.crawl);
+    assert.deepEqual(paras(dialog).map(untyped), fixture.setting.crawl.map(() => ''));
+    assert.equal(timers.sets, 0);
+    globalThis.matchMedia = () => ({ matches: false });
+    const moving = crawlOf({});
+    assert.equal(typed(paras(moving.dialog)[0]), '');
+    assert.equal(moving.timers.sets, 1);
+  } finally {
+    globalThis.matchMedia = was;
+  }
+});
+
+test('closing the crawl stops the typing', () => {
+  const { dialog, timers } = crawlOf({});
+  timers.tick();
+  assert.equal(timers.pending.length, 1);
+  dialog.close();
+  assert.deepEqual(timers.pending, []);
+});
+
+test('no caret on the crawl; the phrases show one at a time by CSS, a still first line under reduced motion', () => {
+  const { dialog } = crawlOf({});
+  assert.equal(dialog.querySelectorAll('.rl-cursor').length, 0);
   const css = noComments(read('css/p5-crawl.css'));
+  assert.doesNotMatch(css, /::?(after|before)|rl-cursor|caret/);
   for (let i = 1; i <= PHRASES.length; i += 1) {
     assert.match(css, new RegExp(`\\.rl-intro-phrases li:nth-child\\(${i}\\)\\s*\\{\\s*animation-delay:`), `delay rule ${i}`);
   }
   const reduced = css.slice(css.indexOf('@media (prefers-reduced-motion: reduce)'));
-  assert.match(reduced, /\.rl-intro-crawl p/);
   assert.match(reduced, /\.rl-intro-phrases li:first-child/);
 });
 
-test('no timers, no HTML parsing, no inline style, no stub left, linked and scoped', () => {
+test('one timer at a time and only the ones passed in; no HTML parsing, no inline style, linked and scoped', () => {
   const src = read('js/views/realism-crawl.js');
-  assert.doesNotMatch(src, /setInterval|setTimeout|requestAnimationFrame/);
+  assert.doesNotMatch(src, /setInterval|requestAnimationFrame/);
   assert.doesNotMatch(src, /innerHTML|outerHTML|insertAdjacentHTML|style=|\.style\.|'style'|contract stub/);
   const raw = read('css/p5-crawl.css');
   assert.doesNotMatch(raw, /contract stub/);

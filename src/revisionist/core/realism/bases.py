@@ -4,9 +4,13 @@ A force at one of its side's bases is sustained. Within its kind's operating rad
 such a base it operates; beyond that, up to its raid radius, it raids; past that the move
 is refused. Radii are days of travel by the movement resolver's own route
 (``routing.days_between``: fleets by sea, armies and air groups straight), so they read in
-the unit the place picker shows. An army reaches only over land: an army sent across the
-sea is refused (it would need sealift). For an army, a front place counts as one of its
-side's bases while an army of that side stands there or a front runs through it.
+the unit the place picker shows. An army marches only over land; it crosses the sea only by
+sealift (``sealift``): its side needs a pool of shipping, a fleet base of its own on the
+army's land to embark at, the place it is sent to must be a fleet base of its side, and a
+way by sea must be open to its side's fleets. Such a place reads as sustained, for once
+ashore the army holds it: for an army, a fleet base of its side counts as one of its bases
+while an army of that side stands there, and a front place does while an army of that side
+stands there or a front runs through it.
 
 Bases are fixed for the game: a base taken or blockaded still counts. A refusal names its
 reason and the nearest base the force can work from: the base of its side and kind
@@ -21,9 +25,10 @@ from collections.abc import Iterable
 from enum import StrEnum
 from typing import NamedTuple
 
-from revisionist.core.ids import EntityId
+from revisionist.core.ids import EntityId, QuantityId
+from revisionist.core.realism import sealift
 from revisionist.core.realism.geography import Feature, FeatureKind, Sight
-from revisionist.core.realism.routing import days_between
+from revisionist.core.realism.routing import days_between, sea_route
 from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
 
@@ -168,7 +173,8 @@ class Reach(NamedTuple):
     """The base the tier is measured from (the place itself when sustained); for a
     refusal, the nearest base the force can work from. None when there is none."""
     days: int | None
-    """Days from that base to the place; 0 when sustained."""
+    """Days from that base to the place; 0 when sustained; None for a refused landing,
+    whose base is the nearest port of its side the army could land at."""
     reason: str | None
     """Why the move is refused, naming that base. None unless refused."""
 
@@ -203,15 +209,37 @@ def _held(world: State | View, name: str, force: Force, seen: Iterable[Sight]) -
     return out & {_id(world, k) for k in FRONT_PLACES.get(name, ())}
 
 
+def _ports(world: State | View, name: str, side: EntityId) -> list[EntityId]:
+    """The fleet bases of ``side``, in table order: where an army embarks and lands."""
+    return [
+        _id(world, key)
+        for key, b in BASES[name].items()
+        if F in b.kinds and any(_id(world, s) == side for s in b.sides)
+    ]
+
+
+def _landed(world: State | View, name: str, force: Force, seen: Iterable[Sight]) -> set[EntityId]:
+    """Ports of ``force``'s side where an army of that side stands (``force`` included)."""
+    assert force.side is not None
+    out = {force.at}
+    for s in seen:
+        if s.kind is A and s.side == force.side:
+            out.update(s.places)
+    return out & set(_ports(world, name, force.side))
+
+
 def _bases(world: State | View, name: str, force: Force, seen: Iterable[Sight]) -> list[EntityId]:
     """The places that serve ``force`` as a base, in table order."""
+    seen = list(seen)
     out = [
         _id(world, key)
         for key, b in BASES[name].items()
         if force.kind in b.kinds and any(_id(world, s) == force.side for s in b.sides)
     ]
     if force.kind is A:
-        out += sorted(_held(world, name, force, seen) - set(out))
+        out += sorted(
+            (_held(world, name, force, seen) | _landed(world, name, force, seen)) - set(out)
+        )
     return out
 
 
@@ -237,6 +265,95 @@ def _same_land(world: State | View, name: str, kind: FeatureKind, a: EntityId, b
         return True
     lands = {_id(world, k): v for k, v in LANDS.get(name, {}).items()}
     return None in (lands.get(a), lands.get(b)) or lands.get(a) == lands.get(b)
+
+
+def _land(world: State | View, name: str, at: EntityId) -> str | None:
+    return {_id(world, k): v for k, v in LANDS.get(name, {}).items()}.get(at)
+
+
+def crossing(world: State | View, kind: FeatureKind, a: EntityId, b: EntityId) -> bool:
+    """Whether a force of ``kind`` going from ``a`` to ``b`` crosses the sea by sealift: an
+    army between two lands, in a world with a table."""
+    name = world_of(world)
+    return name is not None and not _same_land(world, name, kind, a, b)
+
+
+def _pool(world: State | View, name: str, side: EntityId) -> str | None:
+    """The key of ``side``'s shipping pool; None when it has none. A state must hold the
+    quantity (a stored game compiled without it has no lift); a seat's view, which never
+    holds it, goes by the table."""
+    for side_key, key in sealift.POOLS.get(name, {}).items():
+        if _id(world, side_key) != side:
+            continue
+        held = QuantityId(object_id(world.campaign_id, "quantity", key)) in world.quantities
+        return key if isinstance(world, View) or held else None
+    return None
+
+
+def pool_key(world: State | View, side: EntityId) -> str | None:
+    """The world-file key of ``side``'s shipping pool; None when it cannot lift."""
+    name = world_of(world)
+    return None if name is None else _pool(world, name, side)
+
+
+class _NoLift(NamedTuple):
+    reason: str
+    port: EntityId | None = None
+    """The nearest port it could land at, for a place with none of its side's."""
+    lead: bool = True
+    """Whether the reason follows the words on sealift (else it stands alone)."""
+
+
+def _lift(world: State | View, name: str, force: Force, to: EntityId) -> sealift.Lift | _NoLift:
+    """The lift that takes army ``force`` across the sea to ``to``, or why there is none."""
+    side = force.side
+    assert side is not None
+    side_name = _name(world, side)
+    pool = _pool(world, name, side)
+    if pool is None:
+        return _NoLift(f"{side_name} has no shipping to lift an army.")
+    ports = _ports(world, name, side)
+    land = _land(world, name, force.at)
+    start = sealift.embark(
+        world, side, force.at, [p for p in ports if _land(world, name, p) == land]
+    )
+    if start is None:
+        return _NoLift(f"{side_name} has no port on this army's land where it can embark.")
+    if to not in ports:
+        dest = world.entities[to].at
+        ranked = [
+            (route.km, str(p), p)
+            for p in ports
+            if _land(world, name, p) != land
+            and (pt := world.entities[p].at) is not None
+            and dest is not None
+            and (route := sea_route(world, side, pt, dest)) is not None
+        ]
+        best = min(ranked, default=None)
+        port = None if best is None else best[2]
+        why = f"An army lands only at a port of {side_name}, and {_name(world, to)} is none."
+        if port is not None:
+            why += f" The nearest it could land at is {_name(world, port)}."
+        return _NoLift(why, port)
+    days = sealift.lift_days(world, side, start[0], start[1], to)
+    if days is None:
+        return _NoLift(
+            f"No sea passage open to {side_name}'s fleets reaches {_name(world, to)}.",
+            lead=False,
+        )
+    return sealift.Lift(start[0], days, pool)
+
+
+def lift(world: State | View, force: Feature | Force, to: EntityId) -> sealift.Lift | None:
+    """How army ``force`` crosses the sea to ``to``; None when it does not cross (another
+    kind, or the same land), when the world has no table, or when the lift is refused."""
+    if isinstance(force, Feature):
+        force = Force(force.kind, force.side, force.places[0])
+    name = world_of(world)
+    if name is None or force.side is None or _same_land(world, name, force.kind, force.at, to):
+        return None
+    found = _lift(world, name, force, to)
+    return found if isinstance(found, sealift.Lift) else None
 
 
 def _nearest(
@@ -297,10 +414,15 @@ def reach(
     if to != force.at and _days(world, kind, side, force.at, to) is None:
         return refused(f"No sea passage open to {side_name}'s fleets reaches {_name(world, to)}.")
     if not _same_land(world, name, kind, force.at, to):
-        return refused(
-            f"{_name(world, to)} is across the sea, and {noun} crosses the sea only by sealift,"
-            " which the game does not have yet."
-        )
+        found = _lift(world, name, force, to)
+        if isinstance(found, sealift.Lift):
+            return Reach(Tier.SUSTAINED, to, 0, None)
+        if not found.lead:
+            return refused(found.reason)
+        why = f"{_name(world, to)} is across the sea, and {noun} crosses it only by sealift."
+        if found.port is not None:
+            return Reach(Tier.REFUSED, found.port, None, f"{why} {found.reason}")
+        return refused(f"{why} {found.reason}")
     if to in own:
         return Reach(Tier.SUSTAINED, to, 0, None)
     measured = [(d, str(b), b) for b in own if (d := _days(world, kind, side, b, to)) is not None]
@@ -330,6 +452,9 @@ __all__ = [
     "Radius",
     "Reach",
     "Tier",
+    "crossing",
+    "lift",
     "nearest_base",
+    "pool_key",
     "reach",
 ]

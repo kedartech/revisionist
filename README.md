@@ -88,6 +88,14 @@ uv run revisionist web serve
 
 `web serve` takes three flags: `--host` (default `127.0.0.1`), `--port` (default `8740`) and `--static` (the client folder, default `web/`). It also takes `--offline-prose`, which writes realism pages from templates instead of a model. The server is plain HTTP. Bind it to a private address such as a tailnet address, never a public one.
 
+`web serve --transport openrouter` runs the room on free OpenRouter models instead of the `claude` CLI. It reads the key from `REVISIONIST_OPENROUTER_KEY`, refuses any model that is not free, and writes the aide's brief from templates. Before serving it, run the transport check:
+
+```sh
+uv run revisionist web check-transport --transport openrouter
+```
+
+It sends each model in the routing table one fixed text of places, names, a date and a number, and asks for it back. Exit 0 means every word came back. Exit 1 means a model lost a word: a guardrail on the OpenRouter account, such as Sensitive Info, is rewriting prompts, so check the account before serving. Exit 2 means no verdict: the key is missing or a model could not be reached.
+
 The header has a theme setting. **Terminal** (green on black) is the default. **Paper** is a typed-paper look. An **Effects** toggle turns the screen effects on or off, and it is off by default. The choice is kept in the browser under `rv.theme` and `rv.effects`. The client is plain ES modules in `web/js/`, with views in `web/js/views/` and styles in `web/css/`. It has no build step.
 
 ## Discord

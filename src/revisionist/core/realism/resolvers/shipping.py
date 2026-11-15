@@ -9,6 +9,10 @@ Where the fleets are counts, read as the month ends (before that day's arrivals)
 escort factor applies only while a fleet of the escorting side lies in the North
 Atlantic, and the U-boats sink nothing while no fleet of their side lies there. A
 side with no fleet on the map is taken to be on station.
+
+The month's losses also take a share from Britain's troop-lift pool (sealift, R6), so an
+escort order that cuts the losses keeps British lift free. A sourced month takes nothing,
+and the pool never falls below 0.
 """
 
 from datetime import date, timedelta
@@ -31,6 +35,9 @@ ESCORT_FLOOR_PM = 500  # [proposed]
 UNRESTRICTED_PM = 1300  # [proposed]
 NOISE_PM = 80  # [proposed] friction keeps losses within +-8%
 NORTH_ATLANTIC = ((0.0, 70.0), (-82.0, 0.0))  # [proposed] latitude, longitude bounds
+LOSS_SHARE_PCT = 10  # [proposed] sealift plan, section 3
+LOSS_POOLS = ("uk_sealift_grt",)
+"""The troop-lift pools that bear a share of the month's losses: Britain's."""
 MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
 
 
@@ -86,8 +93,20 @@ def _on_station(state: State, key: str) -> bool:
     return not fleets or any(_in_north_atlantic(state, f.places[0]) for f in fleets)
 
 
+def moved(state: State, key: str, delta: int, on: date) -> QuantityChange | None:
+    """The pool ``key`` moved by ``delta`` on ``on``, never below 0 and dated no earlier
+    than its own date; None when the world holds no figure for it or nothing changes."""
+    q = state.quantities.get(rs.qid(state, key))
+    if q is None or q.value is None or max(0, q.value + delta) == q.value:
+        return None
+    return QuantityChange(
+        quantity_id=q.quantity_id, value=max(0, q.value + delta), as_of=max(on, q.as_of)
+    )
+
+
 def on_day(state: State, today: date) -> tuple[QuantityChange, ...]:
-    """On the 1st, the month just ended's losses, if that quantity is still a gap."""
+    """On the 1st, the month just ended's losses, if that quantity is still a gap, and
+    each lift pool's share of them."""
     if today.day != 1:
         return ()
     last = today - timedelta(days=1)
@@ -105,5 +124,5 @@ def on_day(state: State, today: date) -> tuple[QuantityChange, ...]:
     posture_pm = UNRESTRICTED_PM if rs.value(state, "uboat_posture") == 1 else 1000
     noise_pm = 1000 - NOISE_PM + rs.friction(state, key, n=2 * NOISE_PM + 1)
     losses = round(PER_BOAT_GRT * boats * escort_pm * posture_pm * noise_pm / 10**9)
-    change = put(state, key, losses, last)
-    return () if change is None else (change,)
+    shares = (moved(state, k, -(losses * LOSS_SHARE_PCT // 100), last) for k in LOSS_POOLS)
+    return tuple(c for c in (put(state, key, losses, last), *shares) if c is not None)

@@ -38,9 +38,11 @@ CANARY = "CANARY-PE1-7f3a"
 
 
 def begun() -> tuple[State, SeatId, dict[str, EntityId]]:
-    """Churchill seated in autumn 1941, before any wake: stances as at the start."""
+    """Churchill seated in autumn 1941, before any wake: stances as at the start. The
+    world's starting regard is left out, so each test makes the relationships it reads."""
     store = MemoryStore()
     decl = cmp.load_world(cmp.world_path("autumn-1941"))
+    decl = decl.model_copy(update={"relationships": ()})
     store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))
     keys = {k: EntityId(v) for k, v in resolve_keys(decl, CAMPAIGN).items()}
     realism_tick.seat_player(store, CAMPAIGN, keys["churchill"])

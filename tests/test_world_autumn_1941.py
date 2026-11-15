@@ -20,6 +20,10 @@ PLAYABLE = {
     "chiang",
 }
 
+# Unsourced values a plan Josh approved puts in the world as [proposed], each marked
+# gap: true until a source is named (sealift plan, section 3).
+PROPOSED_VALUES = {"uk_sealift_grt": 300_000}
+
 # Every value in the Phase 0b source note (SOURCES.md); a quantity may hold only these.
 SOURCED_VALUES = {
     203,  # House, draft extension, yeas
@@ -79,7 +83,7 @@ def test_every_quantity_is_cited_a_gap_or_computed() -> None:
         if q.computed:
             assert q.value is None and q.source is None and not q.gap, q.key
         elif q.gap:
-            assert q.value is None and q.source is None, q.key
+            assert q.source is None and q.value == PROPOSED_VALUES.get(q.key), q.key
         else:
             assert q.source in declared and q.value is not None, q.key
 
@@ -87,6 +91,8 @@ def test_every_quantity_is_cited_a_gap_or_computed() -> None:
 def test_no_quantity_holds_a_value_outside_the_source_note() -> None:
     values = {q.key: q.value for q in _world().quantities if q.value is not None}
     stray = {k: v for k, v in values.items() if v not in SOURCED_VALUES}
+    assert stray == PROPOSED_VALUES
+    stray = {k: v for k, v in stray.items() if k not in PROPOSED_VALUES}
     assert not stray
 
 

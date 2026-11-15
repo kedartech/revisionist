@@ -129,6 +129,7 @@ entities = st.builds(
     parent=st.none() | entity_ids,
     location=st.none() | entity_ids,
     tags=tags,
+    theatre=st.none() | short_text,
 )
 
 assets = st.builds(
@@ -514,6 +515,17 @@ seat_cards = st.builds(
     doctrine=st.lists(labels, max_size=2).map(tuple),
     interests=st.lists(labels, max_size=2).map(tuple),
     addressed_as=st.none() | labels,
+    wants=st.lists(labels, max_size=2).map(tuple),
+    holds_to=st.lists(labels, max_size=2).map(tuple),
+)
+
+topics = st.builds(
+    rc.Topic,
+    key=labels,
+    name=labels,
+    levers=st.lists(labels, max_size=2).map(tuple),
+    effects=st.lists(effect_kinds, max_size=2).map(tuple),
+    words=st.lists(labels, max_size=2).map(tuple),
 )
 
 biases = st.builds(
@@ -727,6 +739,7 @@ realism_payloads = st.one_of(
         feeds=st.lists(feeds, max_size=2).map(tuple),
         pipelines=st.lists(pipelines, max_size=2).map(tuple),
         templates=st.lists(mandate_templates(), max_size=2).map(tuple),
+        topics=st.lists(topics, max_size=2).map(tuple),
     ),
     st.builds(ev.FeatureSet, feature=features()),
     documents_issued(),
@@ -1225,6 +1238,7 @@ ALL_MODEL_STRATEGIES: dict[str, st.SearchStrategy[object]] = {
     "Goal": cast(st.SearchStrategy[object], goals()),
     "Event": cast(st.SearchStrategy[object], events),
     "SeatCard": cast(st.SearchStrategy[object], seat_cards),
+    "Topic": cast(st.SearchStrategy[object], topics),
     "Feed": cast(st.SearchStrategy[object], feeds),
     "Pipeline": cast(st.SearchStrategy[object], pipelines),
     "Order": cast(st.SearchStrategy[object], orders),

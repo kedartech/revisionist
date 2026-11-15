@@ -24,6 +24,7 @@ from datetime import date
 from typing import Annotated, Literal
 
 from pydantic import Field, StringConstraints, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from revisionist.core._base import Label, Model
 from revisionist.core.goals import WinCondition
@@ -78,6 +79,9 @@ class EntityDecl(Model):
     tags: tuple[Label, ...] = ()
     at: tuple[Latitude, Longitude] | None = None
     """A place's latitude and longitude, for the map."""
+    theatre: SkipJsonSchema[Label | None] = None
+    """The theatre a place sits in, for the map. Written by hand: not offered to a
+    model drafting a world."""
 
 
 class AssetDecl(Model):
@@ -545,6 +549,20 @@ class CardDecl(Model):
     ``by``, ``party``, ``until`` and the people and places an act's effect names."""
     addressed_as: Address | None = None
     """How a letter to the person opens ("Mr. President")."""
+    wants: SkipJsonSchema[tuple[Key, ...]] = ()
+    """Topic keys. Written by hand, like ``holds_to``: not offered to a model."""
+    holds_to: SkipJsonSchema[tuple[Key, ...]] = ()
+
+
+class TopicDecl(Model):
+    """A matter people want or hold to. ``levers`` are lever names on cards in this
+    world, ``effects`` effect kinds, ``words`` lower-case words."""
+
+    key: Key
+    name: Label
+    levers: tuple[Label, ...] = ()
+    effects: tuple[Label, ...] = ()
+    words: tuple[Label, ...] = ()
 
 
 class TriggerDecl(Model):
@@ -631,6 +649,8 @@ class WorldFile(Model):
     """Each polity's newspaper. Realism only."""
     developments: tuple[DevelopmentDecl, ...] = ()
     """The deck, read from the sidecar file, not from the world file itself."""
+    topics: tuple[TopicDecl, ...] = ()
+    """What people want and hold to, named once. Realism only."""
 
 
 __all__ = [
@@ -672,6 +692,7 @@ __all__ = [
     "Slug",
     "SourceDecl",
     "StepDecl",
+    "TopicDecl",
     "TriggerDecl",
     "WindowDecl",
     "WorldFile",

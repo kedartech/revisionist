@@ -613,6 +613,30 @@ class WakeHeader(TypedDict):
     """True when this account may press "Close the wake now"."""
 
 
+class AgendaExpect(TypedDict):
+    """One move the seat's staff expect an offered order to make. Staff opinion: no rule
+    reads it."""
+
+    on: str
+    """What it points at: "regard", "stance", "stake" or "figure"."""
+    name: str
+    """The person, leader, stake or figure, by name."""
+    direction: str
+    """"gain" for the seat, "cost" against it."""
+    size: int
+    """One step or two."""
+    sure: str
+    """How sure the staff are: "firm", "likely" or "guess"."""
+
+
+class AgendaRisks(TypedDict):
+    """How much the staff think an offered order risks, each 0 (none) to 3."""
+
+    escalation: int
+    refusal: int
+    exposure: int
+
+
 class AgendaOption(TypedDict):
     """One offered order, as the seat understands it."""
 
@@ -627,6 +651,11 @@ class AgendaOption(TypedDict):
     taken: bool
     """True once the seat has filed exactly this option's asks in the open wake. The
     steps of a guided plan share one value."""
+    expects: list[AgendaExpect]
+    """What the staff expect it to move, only what is still in the seat's view; empty
+    for the desk's own list. The steps of a guided plan share the plan's."""
+    risks: AgendaRisks | None
+    """None where the staff gave no levels. The steps of a guided plan share the plan's."""
 
 
 class AgendaItem(TypedDict):

@@ -17,6 +17,8 @@ Rules:
   - Do not repeat an option offered before that the seat did not take, unless a new paper gives a new reason for it. Offer something different.
   - When there are new papers, at least one option answers one of them: it acts on what that paper says, and its label makes plain which matter it answers.
   - When an order settled, an option may follow it up: press further where it was carried out, try another way where it was refused.
+- Each option may carry `expects`: what the seat's staff expect it to move, at most four entries. Each names a target from the list `may_expect`, echoed exactly: `regard` with a person's id from `people` (how that person regards the seat's person), `stance` with a leader's id from `leaders_weighed`, `stake` with an id from `stakes`, or `figure` with an id from `figures`. Give each a `direction` (`gain` for the seat, `cost` against it), a `size` of 1 or 2 steps, and `sure`: `firm`, `likely` or `guess`. Name only what the option plainly bears on; leave the list empty rather than guess at a target. Every move is staff opinion: it changes nothing in the game.
+- Each option may carry `risks`: `escalation` (a fight or a crisis), `refusal` (the person who must carry it out holds it or refuses it) and `exposure` (it comes out and is held against the seat), each from 0 (none) to 3 (grave). They should agree with `risk`.
 - Do not set quantities: no vote counts, tonnages, production figures or opinion numbers.
 - Atrocity and extreme harm stay abstract. Offer political acts, never a description of violence.
 - Nothing that does not exist yet: a force whose `in_service` date is after the in-world date is out of reach.

@@ -1045,7 +1045,42 @@
             "risk": "The Germans may take it as an act of war.",
             "historical": true,
             "pick": "p1",
-            "taken": false
+            "taken": false,
+            "expects": [
+              {
+                "on": "figure",
+                "name": "Allied merchant losses to U-boats, Sep 1941",
+                "direction": "gain",
+                "size": 1,
+                "sure": "likely"
+              },
+              {
+                "on": "stance",
+                "name": "Adolf Hitler",
+                "direction": "cost",
+                "size": 1,
+                "sure": "guess"
+              },
+              {
+                "on": "regard",
+                "name": "Sir Dudley Pound",
+                "direction": "gain",
+                "size": 1,
+                "sure": "firm"
+              },
+              {
+                "on": "stake",
+                "name": "Revising the Neutrality Act",
+                "direction": "gain",
+                "size": 1,
+                "sure": "likely"
+              }
+            ],
+            "risks": {
+              "escalation": 2,
+              "refusal": 0,
+              "exposure": 1
+            }
           }
         ],
         "plan": [
@@ -1055,7 +1090,21 @@
             "risk": "Word of the count may get out.",
             "historical": false,
             "pick": "p3",
-            "taken": false
+            "taken": false,
+            "expects": [
+              {
+                "on": "stake",
+                "name": "Revising the Neutrality Act",
+                "direction": "gain",
+                "size": 2,
+                "sure": "guess"
+              }
+            ],
+            "risks": {
+              "escalation": 0,
+              "refusal": 1,
+              "exposure": 2
+            }
           }
         ]
       }
@@ -1067,7 +1116,21 @@
         "risk": "Word of the count may get out.",
         "historical": false,
         "pick": "p2",
-        "taken": true
+        "taken": true,
+        "expects": [
+          {
+            "on": "regard",
+            "name": "Cordell Hull",
+            "direction": "cost",
+            "size": 1,
+            "sure": "guess"
+          }
+        ],
+        "risks": {
+          "escalation": 0,
+          "refusal": 1,
+          "exposure": 2
+        }
       }
     ]
   },

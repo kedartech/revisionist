@@ -528,6 +528,8 @@ class MapPlace(TypedDict):
     name: str
     lat: float
     lon: float
+    theatre: str | None
+    """The theatre the world file puts the place in; None when it names none."""
 
 
 class MapMark(TypedDict):
@@ -565,6 +567,17 @@ class MapOrder(TypedDict):
     filed: str
 
 
+class MapCapital(TypedDict):
+    """A leader the People roster weighs against the seat, at their own place."""
+
+    place: MapPlace
+    name: str
+    stance: PeopleMeter
+    """The roster's stance for them, fogged as the roster fogs it."""
+    at_war: bool
+    """Their country and the seat's are at war."""
+
+
 class SeatMap(TypedDict):
     """The map: places are public; marks come from arrived pages only, never the record."""
 
@@ -572,6 +585,9 @@ class SeatMap(TypedDict):
     marks: list[MapMark]
     orders: list[MapOrder]
     """The seat's own movement orders: what it has ordered, not where anything is."""
+    capitals: list[MapCapital]
+    """For each leader on the roster's opponents with a stance and a place, most hostile
+    first. A leader with no stance or no place has none."""
 
 
 class Reply(TypedDict):
@@ -890,6 +906,7 @@ __all__ = [
     "LeverChoice",
     "LeverLine",
     "LeverParam",
+    "MapCapital",
     "MapMark",
     "MapOrder",
     "MapPlace",

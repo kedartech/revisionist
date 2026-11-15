@@ -50,11 +50,13 @@ from revisionist.engine.web.realism_api import (
     LeverChoice,
     LeverLine,
     LeverParam,
+    MapCapital,
     MapMark,
     MapOrder,
     MapPlace,
     OrderTrack,
     OrderTracker,
+    People,
     SeatMap,
     Situation,
     SituationFigure,
@@ -233,9 +235,30 @@ STALE_DAYS = 14
 
 
 def _place(view: View, e: EntityId) -> MapPlace:
-    at = view.entities[e].at
+    place = view.entities[e]
+    at = place.at
     assert at is not None  # a sighting names only places with a position (world_compile)
-    return MapPlace(name=view.entities[e].name, lat=at[0], lon=at[1])
+    return MapPlace(name=place.name, lat=at[0], lon=at[1], theatre=place.theatre)
+
+
+def _capitals(view: View, people: People) -> list[MapCapital]:
+    """Each leader the roster weighs against the seat who has a stance there and a
+    placed location of their own, with the roster's own stance and war flag."""
+    out: list[MapCapital] = []
+    for line in people["opponents"]:
+        leader = view.entities.get(EntityId(line["person"]))
+        home = view.entities.get(leader.location) if leader and leader.location else None
+        if line["stance"] is None or home is None or home.at is None:
+            continue
+        out.append(
+            MapCapital(
+                place=_place(view, home.entity_id),
+                name=line["name"],
+                stance=line["stance"],
+                at_war=line["at_war"],
+            )
+        )
+    return out
 
 
 def _map_orders(
@@ -282,7 +305,7 @@ def _map_orders(
                 order=order.order_id,
                 force=named,
                 mark=mark["name"] if mark is not None else None,
-                to=MapPlace(name=to.name, lat=to.at[0], lon=to.at[1]),
+                to=MapPlace(name=to.name, lat=to.at[0], lon=to.at[1], theatre=to.theatre),
                 status="awaiting" if moving else "under_way",
                 with_person=view.entities[holder].name if holder in view.entities else None,
                 filed=order.filed.isoformat(),
@@ -295,11 +318,12 @@ def seat_map(
     view: View,
     forces: Mapping[str, str] | None = None,
     pipelines: Mapping[PipelineId, Pipeline] | None = None,
+    people: People | None = None,
 ) -> SeatMap | None:
-    """Every placed feature as the latest arrived page has it, and the seat's own
-    movement orders; None for a world with no positions (the client hides the map).
-    ``forces`` names the mark for each force key an order can name (the caller's, as
-    ``pipelines`` is)."""
+    """Every placed feature as the latest arrived page has it, the seat's own movement
+    orders and the capitals of the leaders ``people`` (the roster) weighs against it;
+    None for a world with no positions (the client hides the map). ``forces`` names the
+    mark for each force key an order can name (the caller's, as ``pipelines`` is)."""
     places = [
         _place(view, k)
         for k, e in sorted(view.entities.items(), key=lambda kv: (kv[1].name, kv[0]))
@@ -332,7 +356,8 @@ def seat_map(
             )
         )
     orders = _map_orders(view, marks, forces or {}, pipelines or {})
-    return SeatMap(places=places, marks=marks, orders=orders)
+    capitals = _capitals(view, people) if people is not None else []
+    return SeatMap(places=places, marks=marks, orders=orders, capitals=capitals)
 
 
 def _step_lines(order: Order, pipeline: Pipeline, view: View) -> list[StepLine]:
@@ -642,15 +667,16 @@ def seat_realism(
     wake = next_wake(state, today)
     # the horizon is not a thing anyone is waiting on: the client says nothing is due
     waiting_on = None if wake.reason.what == "horizon" else wake.reason.label
+    people = seat_people(state, seat, view)
     return {
         "documents": documents(view, read, flagged),
         "desk": desk(view, known),
         "situation": situation(view),
         "orders": orders(view, state.pipelines),
         "clock": clock(view, next_wake_at, waiting_on, 0, wake.to.isoformat()),
-        "map": seat_map(view, forces, state.pipelines),
+        "map": seat_map(view, forces, state.pipelines, people),
         "threats": seat_threats(state, seat, view),
-        "people": seat_people(state, seat, view),
+        "people": people,
         "world": world_news(view),
     }
 

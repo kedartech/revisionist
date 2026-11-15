@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { installDom, words } from './dom-fake.js';
+import { buttons, installDom, words } from './dom-fake.js';
 
 installDom();
 globalThis.window = globalThis;
@@ -36,7 +36,7 @@ const line = (strip, cls) => {
   return el ? words(el) : null;
 };
 
-/** The whole room for a fresh game, in the page, with no model or server behind it. */
+/** The whole room for a fresh game, in the page, on the Desk view where the standard forms are. */
 function room(over = {}) {
   const doc = installDom();
   api.realism = async () => ({});
@@ -45,6 +45,7 @@ function room(over = {}) {
   const root = realismRoom({ me, refresh: async () => {}, go: () => {} });
   Object.getPrototypeOf(root).scrollIntoView ??= function scrollIntoView() {};
   doc.body.append(root);
+  buttons(root.querySelector('.rl-viewswitch'), 'Desk')[0].click();
   return root;
 }
 

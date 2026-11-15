@@ -1,9 +1,9 @@
 // The realism room: one surface for a seat in a realism game, in two views with one switch.
 // Desk: the in-tray on the left; in the middle what needs an answer, ideas, the order being
 // written or signed, the standard forms and the commit; the seat's orders on the right.
-// Board: the Theatre or the Court beside the selected piece and the order form. The
-// messenger floats over either. The header's two names open the setting and the character
-// dossiers. Built from view.realism (realism_api.py).
+// Board, the view it opens on: the Theatre or the Court beside the selected piece and the
+// order form. The messenger floats over either. The header's two names open the setting and
+// the character dossiers. Built from view.realism (realism_api.py).
 
 import { api } from '../api.js';
 import { h, icon } from '../dom.js';
@@ -43,7 +43,7 @@ const freshUi = (game) => ({
   chat: { open: false, tab: 'chats', thread: null }, contact: null, orderTo: null,
   happenedSeen: null, refocusChat: false, brief: null, pending: null, drafts: {}, runFrom: null, offer: null, menuCall: false,
   tab: 'desk', side: 'papers', press: { open: false, tab: null }, pressPage: null, peopleTab: 'opponents',
-  view: 'desk', board: 'theatre', piece: null, theatre: { mode: 'map', scope: 'reports' },
+  view: 'board', board: 'theatre', piece: null, theatre: { mode: 'map', scope: 'reports' },
 });
 let ui = freshUi(null);
 

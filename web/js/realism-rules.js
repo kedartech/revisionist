@@ -277,6 +277,70 @@ export function sortMarks(marks) {
   return [...marks].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
 }
 
+/** The box, in degrees, around a set of places. */
+function placesBox(places) {
+  const lons = places.map((p) => p.lon);
+  const lats = places.map((p) => p.lat);
+  return { west: Math.min(...lons), east: Math.max(...lons), south: Math.min(...lats), north: Math.max(...lats) };
+}
+
+/**
+ * Each theatre the places name, by name, with the box (in degrees) around its places. A
+ * theatre whose places lie closer across the date line than around the map has two parts,
+ * one each side of it. A place with no theatre is in none.
+ */
+export function theatreAreas(places) {
+  const by = new Map();
+  for (const p of places) if (p.theatre) by.set(p.theatre, [...(by.get(p.theatre) ?? []), p]);
+  return [...by.keys()].sort((a, b) => a.localeCompare(b)).map((name) => {
+    const group = by.get(name);
+    const lons = [...new Set(group.map((p) => p.lon))].sort((a, b) => a - b);
+    let gap = lons[0] + 360 - lons.at(-1);
+    let cut = null;
+    for (let i = 1; i < lons.length; i += 1) {
+      if (lons[i] - lons[i - 1] > gap) { gap = lons[i] - lons[i - 1]; cut = lons[i]; }
+    }
+    if (cut === null) return { name, parts: [placesBox(group)] };
+    return { name, parts: [placesBox(group.filter((p) => p.lon >= cut)), placesBox(group.filter((p) => p.lon < cut))] };
+  });
+}
+
+/** A stance's word, with its step when the staff hold one: "Hostile, 1 of 5", or "Unknown". */
+export function stanceWords(stance) {
+  const step = Number.isInteger(stance?.step) && stance.step >= 1 && stance.step <= 5 ? stance.step : null;
+  return step ? `${stance.word}, ${step} of 5` : stance.word;
+}
+
+/** A capital on the map in words: "Adolf Hitler, Berlin: Hostile, 1 of 5", then ", at war" when it is. */
+export function capitalLine(c) {
+  return `${c.name}, ${c.place.name}: ${stanceWords(c.stance)}${c.at_war ? ', at war' : ''}`;
+}
+
+/** A form's force choice in words as a name: its label without a leading "The". */
+const choiceName = (label) => label.replace(/^The /, '');
+
+/**
+ * The seat's forms that can move the force a map mark names: each form with a force list and
+ * a destination that carries places, where one force's label is the mark's name, or that
+ * name's last words once a leading "The" is dropped ("The Atlantic Fleet" for "US Atlantic
+ * Fleet"). `[{ lever, force }]`, `force` being the choice's value; a foreign mark has none.
+ */
+export function formsMoving(levers, mark) {
+  if (mark?.side !== 'own' || mark.places?.length !== 1) return [];
+  const out = [];
+  for (const lever of levers ?? []) {
+    const param = lever.params.find((p) => p.name === 'force' && p.kind === 'enum');
+    if (!param || !lever.params.some((p) => p.places?.length)) continue;
+    const exact = param.choices.find((c) => c.label === mark.name);
+    const named = exact ?? param.choices.find((c) => {
+      const words = choiceName(c.label);
+      return mark.name === words || mark.name.endsWith(` ${words}`);
+    });
+    if (named) out.push({ lever, force: named.value });
+  }
+  return out;
+}
+
 const MIN_SPAN = Object.freeze({ lon: 30, lat: 18 });
 
 /** The box to draw, in degrees: what the marks (or, with none, the places) span,

@@ -11,6 +11,12 @@ rule (``bases.reach``), with the fronts and forces read from the same pages. Not
 from the engine's truth. A movement form also moves its fleets' detachments in play, so each
 of those gets days and reach too, once a page places it; a split form does not, since a
 detachment is not split again.
+
+An army sent across the sea goes by sealift (``bases.lift``): its days are the march to its
+port and the voyage, and its ``lift`` gives the tonnage the lift needs and its side's pool as
+the seat's latest page reporting it gave the figure (None before any page has). The tonnage
+is the sealift rule's for the seat's own army at its strength, which the seat knows as it
+knows its own detachments (``Known``); the pool's figure is only ever the page's.
 """
 
 from collections.abc import Iterable, Mapping
@@ -19,8 +25,9 @@ from functools import lru_cache
 from typing import Literal
 
 from revisionist.core.events import Event
-from revisionist.core.ids import DocumentId, EntityId
-from revisionist.core.realism.bases import Force, Reach, reach
+from revisionist.core.ids import DocumentId, EntityId, FeatureId, QuantityId
+from revisionist.core.realism import sealift
+from revisionist.core.realism.bases import Force, Reach, lift, reach, world_of
 from revisionist.core.realism.card import Lever, ParamSpec
 from revisionist.core.realism.document import BodyField, DocumentView
 from revisionist.core.realism.geography import FORCES, FeatureKind, Sight
@@ -31,7 +38,7 @@ from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
 from revisionist.engine import campaign as cmp
 from revisionist.engine.web.dossiers import world_key
-from revisionist.engine.web.realism_api import PlaceChoice, PlaceReach
+from revisionist.engine.web.realism_api import PlaceChoice, PlaceLift, PlaceReach
 
 Group = Literal["own", "allied", "route", "contested", "other"]
 GROUPS: tuple[Group, ...] = ("own", "allied", "route", "contested", "other")
@@ -54,6 +61,29 @@ class Known:
     """The keys of each offered force's detachments in play (named in ``forces``)."""
     allies: frozenset[EntityId] = frozenset()
     """The sides the seat's own card counts as allies."""
+    needs: Mapping[str, int] = field(default_factory=dict)
+    """The tonnage a lift of each offered army takes (named in ``forces``)."""
+    pools: Mapping[EntityId, str] = field(default_factory=dict)
+    """Each side that can lift, and the line its pool is reported on in a page."""
+
+
+def lift_facts(state: State, forces: Iterable[str]) -> tuple[dict[str, int], dict[EntityId, str]]:
+    """What a lift needs beyond the seat's view: the tonnage each of ``forces`` that is an
+    army takes, by the sealift rule from its own strength, and the label of each lifting
+    side's pool. Nothing in a world with no pools."""
+    cid = state.campaign_id
+    needs = {}
+    for key in forces:
+        f = state.features.get(FeatureId(object_id(cid, "feature", key)))
+        if f is not None and f.kind is FeatureKind.ARMY:
+            needs[key] = sealift.lift_needed(f)
+    name = world_of(state)
+    pools = {}
+    for side, key in sealift.POOLS.get(name or "", {}).items():
+        q = state.quantities.get(QuantityId(object_id(cid, "quantity", key)))
+        if q is not None:
+            pools[EntityId(object_id(cid, "entity", side))] = q.name
+    return needs, pools
 
 
 def place_keys(state: State, events: Iterable[Event]) -> dict[EntityId, str]:
@@ -97,6 +127,19 @@ def latest_sightings(view: View) -> Sightings:
             if b.sight is not None:
                 latest[(b.label, b.sight.kind.value)] = (doc_id, doc, b)
     return latest
+
+
+def reported(view: View, label: str) -> int | None:
+    """The figure the seat's latest arrived page gives on the line ``label``; None before
+    any page has stated one."""
+    out: int | None = None
+    for _, doc in sorted(
+        view.documents.items(), key=lambda kv: (kv[1].arrives, kv[1].issued, kv[0])
+    ):
+        for b in doc.body:
+            if b.label == label and b.sight is None and isinstance(b.value, int):
+                out = b.value
+    return out
 
 
 def _groups(
@@ -172,6 +215,12 @@ def _reach(found: Reach | None, keys: Mapping[EntityId, str]) -> PlaceReach | No
     return PlaceReach(tier=found.tier.value, base=base, reason=found.reason)
 
 
+def _lift(found: sealift.Lift | None, need: int | None, figure: int | None) -> PlaceLift | None:
+    if found is None or need is None:
+        return None
+    return PlaceLift(need=need, reported=figure)
+
+
 def place_choices(view: View, lever: Lever, spec: ParamSpec, known: Known) -> list[PlaceChoice]:
     """Every place the seat's map has, grouped, with days per force of the form; ``[]``
     without the world's keys."""
@@ -186,11 +235,16 @@ def place_choices(view: View, lever: Lever, spec: ParamSpec, known: Known) -> li
     groups = _groups(view, spec, seen, known.allies)
     origins = _origins(lever, known, seen)
     sights: list[Sight] = [line.sight for _, _, line in seen.values() if line.sight is not None]
+    figures = {side: reported(view, label) for side, label in known.pools.items()}
     out: list[PlaceChoice] = []
     for place, key in offered.items():
         found = place_named(view, key)
         if found is None or found.entity_id != place:
             continue
+        by_sea = {
+            force: None if at is None else lift(view, Force(*at), place)
+            for force, at in origins.items()
+        }
         out.append(
             PlaceChoice(
                 value=key,
@@ -201,6 +255,8 @@ def place_choices(view: View, lever: Lever, spec: ParamSpec, known: Known) -> li
                     if at is None
                     else 0
                     if at[2] == place
+                    else ship.days
+                    if (ship := by_sea[force]) is not None
                     else days_between(view, at[0], at[1], at[2], place)
                     for force, at in origins.items()
                 },
@@ -208,6 +264,12 @@ def place_choices(view: View, lever: Lever, spec: ParamSpec, known: Known) -> li
                     force: None
                     if at is None
                     else _reach(reach(view, Force(*at), place, sights), offered)
+                    for force, at in origins.items()
+                },
+                lift={
+                    force: None
+                    if at is None or at[1] is None
+                    else _lift(by_sea[force], known.needs.get(force), figures.get(at[1]))
                     for force, at in origins.items()
                 },
             )
@@ -221,8 +283,10 @@ __all__ = [
     "Known",
     "force_keys",
     "latest_sightings",
+    "lift_facts",
     "own_sides",
     "place_choices",
     "place_keys",
+    "reported",
     "takes_detachments",
 ]

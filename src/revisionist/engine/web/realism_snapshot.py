@@ -33,6 +33,7 @@ from revisionist.engine.web.destinations import (
     Known,
     force_keys,
     latest_sightings,
+    lift_facts,
     own_sides,
     place_choices,
 )
@@ -655,11 +656,14 @@ def seat_realism(
     view = project(state, seat)
     forces, held = _force_names(state, view)
     card = state.cards.get(view.me.embodies)
+    needs, pools = lift_facts(state, forces)
     known = Known(
         keys=place_keys or {},
         forces=forces,
         detachments=held,
         allies=frozenset(card.allies if card is not None else ()),
+        needs=needs,
+        pools=pools,
     )
     today = view.in_world_date
     if today is None:

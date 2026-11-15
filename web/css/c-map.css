@@ -78,3 +78,15 @@
 .rl-theatre-forms { margin-top: var(--space-4); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); }
 .rl-theatre-forms h3 { margin: 0 0 var(--space-2); font: 600 15px/1.35 var(--font-chrome); }
 .rl-theatre-forms ul { margin: 0; padding: 0; list-style: none; }
+/* moves picked on the map: each place an open movement form offers is a ring with its days; a click picks it */
+.rl-map-target { cursor: pointer; }
+.rl-target-ring { fill: var(--info-soft); fill-opacity: 0.35; stroke: var(--info); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.rl-target-note { fill: var(--fg-strong); font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.rl-map-target:hover .rl-target-ring { stroke-width: 3px; }
+.rl-map-target.chosen .rl-target-ring { fill: var(--accent-soft); fill-opacity: 0.9; stroke: var(--accent); stroke-width: 3px; }
+.rl-map-target.refused { cursor: not-allowed; }
+.rl-map-target.refused .rl-target-ring { fill: none; stroke: var(--fg-muted); stroke-dasharray: 3 2; }
+.rl-map-target.refused .rl-target-note { fill: var(--fg-muted); }
+.rl-map-target:focus { outline: none; }
+.rl-map-target:focus-visible .rl-target-ring { stroke: var(--focus); stroke-width: 3px; }
+.rl-map-sealeg { fill: none; stroke: var(--info); stroke-width: 1.5px; stroke-dasharray: 2 4; stroke-linecap: round; vector-effect: non-scaling-stroke; pointer-events: none; }

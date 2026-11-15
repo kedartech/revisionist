@@ -42,15 +42,35 @@ export function tierLabel(reach) {
   return reach ? TIERS[reach.tier][0] : null;
 }
 
+const grt = (n) => `${n.toLocaleString('en-US')} GRT`;
+
+/**
+ * A `PlaceLift` in words, as the sealift plan words it: the tonnage the lift needs against the
+ * pool the seat's latest page reported, or that no page has; null when there is none.
+ */
+export function liftLabel(lift) {
+  if (!lift) return null;
+  return `By sea: needs ${grt(lift.need)}; ${lift.reported === null ? 'not yet reported' : `${grt(lift.reported)} reported free`}`;
+}
+
+/** The same, short enough to stand beside a place on the map: "Lift 200,000 GRT · 300,000 GRT free". */
+export function liftNote(lift) {
+  if (!lift) return null;
+  return `Lift ${grt(lift.need)} · ${lift.reported === null ? 'not yet reported' : `${grt(lift.reported)} free`}`;
+}
+
 let pickerSeq = 0;
 
 /**
  * Replace the select `instrument` drew for `param` in `item` with the place picker: a hidden
  * field with the select's id and name (what the form reads on submit), and one radio per
  * place under its group. Days and reach follow the form's force select; a place refused for
- * that force is disabled, with its reason.
+ * that force is disabled, with its reason. `onPlaces(state)` is told the picker's state each
+ * time it draws, a place is chosen, or the form opens or closes: `{ open, places, force,
+ * value, choose }`, where `choose(value)` picks a place as its radio would (a refused place is
+ * cleared as the list clears it) and answers whether it was picked.
  */
-function placePicker(item, param, forceLabel) {
+function placePicker(item, param, forceLabel, onPlaces) {
   const select = item.querySelector(`select[name="${param.name}"]`);
   if (!select) return;
   const force = item.querySelector(`select[name="${FORCE}"]`);
@@ -59,12 +79,26 @@ function placePicker(item, param, forceLabel) {
   const hint = h('p', { class: 'rl-places-hint' },
     `Choose ${forceLabel.toLowerCase()} first to see the days and the reach of each place.`);
   const list = h('div', { class: 'rl-places-list' });
-  const choose = (value) => { field.value = value; };
+  const toggle = item.querySelector('.rl-instrument-head [aria-expanded]');
+  const tell = () => onPlaces?.({
+    open: toggle?.getAttribute('aria-expanded') === 'true',
+    places: param.places,
+    force: force?.value ?? '',
+    value: field.value,
+    choose: (value) => {
+      if (!param.places.some((p) => p.value === value)) return false;
+      field.value = value;
+      draw();
+      return field.value === value;
+    },
+  });
+  const choose = (value) => { field.value = value; tell(); };
 
   const placeRow = (place, key, n) => {
     const reach = key ? place.reach?.[key] ?? null : null;
     const refused = reach?.tier === 'refused';
-    if (refused && field.value === place.value) choose('');
+    if (refused && field.value === place.value) field.value = '';
+    const lift = key ? liftLabel(place.lift?.[key] ?? null) : null;
     const why = refused ? h('p', { class: 'rl-place-why', id: `${id}-why-${n}` }, reach.reason ?? '') : null;
     return h('li', {},
       h('label', { class: `rl-place${refused ? ' refused' : ''}` },
@@ -75,7 +109,8 @@ function placePicker(item, param, forceLabel) {
         }),
         h('span', { class: 'rl-place-name' }, place.label),
         key ? h('span', { class: 'rl-place-days' }, daysLabel(place.days?.[key] ?? null)) : null,
-        reach ? h('span', { class: 'rl-place-tier' }, tag(tierLabel(reach), TIERS[reach.tier][1])) : null),
+        reach ? h('span', { class: 'rl-place-tier' }, tag(tierLabel(reach), TIERS[reach.tier][1])) : null,
+        lift ? h('span', { class: 'rl-place-lift' }, lift) : null),
       why);
   };
 
@@ -92,10 +127,12 @@ function placePicker(item, param, forceLabel) {
     }).filter(Boolean));
     if (key) hint.remove();
     else if (!hint.parentNode) list.before(hint);
+    tell();
   };
 
   const picker = h('fieldset', { class: 'rl-places' }, h('legend', {}, param.label), field, list);
   force?.addEventListener('change', draw);
+  toggle?.addEventListener('click', tell);
   select.closest('.rl-field').replaceChildren(picker);
   draw();
 }
@@ -167,15 +204,16 @@ function strengthStepper(item, param) {
  * `instrument(lever, ...)`, with the force select's detachments grouped under their fleets,
  * a place picker for each param that carries places, and a stepper for a strength.
  * `opts.force`: the force choice the form starts on, so the picker shows its days and reach.
+ * `opts.onPlaces`: told the place picker's state (`placePicker`).
  */
-export function standardForm(lever, { force: chosen = null, ...opts } = {}) {
+export function standardForm(lever, { force: chosen = null, onPlaces = null, ...opts } = {}) {
   const item = instrument(lever, opts);
   const force = lever.params.find((p) => p.name === FORCE);
   const forceLabel = force?.label ?? 'the force';
   if (force?.kind === 'enum') groupForces(item, force);
   const select = item.querySelector(`select[name="${FORCE}"]`);
   if (select && chosen && force?.choices.some((c) => c.value === chosen)) select.value = chosen;
-  for (const p of lever.params) if (p.places?.length) placePicker(item, p, forceLabel);
+  for (const p of lever.params) if (p.places?.length) placePicker(item, p, forceLabel, onPlaces);
   for (const p of lever.params) if (p.name === STRENGTH && p.kind === 'int') strengthStepper(item, p);
   return item;
 }

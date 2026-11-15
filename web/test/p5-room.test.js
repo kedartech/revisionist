@@ -48,10 +48,9 @@ test('closing the What happened sheet by any means counts as seen', () => {
 });
 
 test('the page reads browser storage only through browserStorage', () => {
-  for (const f of ['js/app.js', 'js/views/realism-room.js']) {
-    assert.doesNotMatch(read(f), /window\.localStorage/, f);
-    assert.match(read(f), /browserStorage\(window\)/, f);
-  }
+  // the shell read storage only for the screen effects setting, gone since 14 Nov
+  for (const f of ['js/app.js', 'js/views/realism-room.js']) assert.doesNotMatch(read(f), /window\.localStorage/, f);
+  assert.match(read('js/views/realism-room.js'), /browserStorage\(window\)/);
 });
 
 test('What happened shows once per wake even where storage is blocked', () => {

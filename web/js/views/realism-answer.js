@@ -5,6 +5,7 @@ import { h, icon } from '../dom.js';
 import { itemDates, itemHeading, optionLines } from './realism-wake.js';
 import { agendaEntry, deadlineChip } from './realism-ideas.js';
 import { requestChoices } from './realism-requests.js';
+import { readLines, staffRead } from './realism-estimate.js';
 
 /**
  * Every live item, leader requests (`issuer` set) first, then desk matters, each as
@@ -32,7 +33,8 @@ function optionRow(o, act) {
   const action = optionAction(o);
   return h('li', { class: 'rl-ans-option' },
     h('p', { class: 'rl-ans-label' }, h('strong', {}, o.label)),
-    optionLines(o).map((line) => h('p', { class: 'rl-ans-line' }, line)),
+    optionLines(readLines(o)).map((line) => h('p', { class: 'rl-ans-line' }, line)),
+    staffRead(o),
     action.button
       ? h('button', {
         type: 'button', class: 'rl-ans-choose', 'aria-label': `Choose: ${o.label}`,
@@ -46,7 +48,8 @@ function planRow(steps, act) {
   return [
     h('ol', { class: 'rl-ans-plan' }, steps.map((s) => h('li', { class: 'rl-ans-step' },
       h('p', { class: 'rl-ans-label' }, h('strong', {}, s.label)),
-      optionLines(s).map((line) => h('p', { class: 'rl-ans-line' }, line))))),
+      optionLines(readLines(s)).map((line) => h('p', { class: 'rl-ans-line' }, line))))),
+    staffRead(first),
     first.taken
       ? h('span', { class: 'rl-ans-filed' }, icon('check'), 'Filed')
       : h('button', {

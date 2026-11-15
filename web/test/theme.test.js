@@ -1,6 +1,6 @@
 // The theme contract: one console theme in one token block, semantic tokens only, every var()
 // defined, colour literals in tokens.css alone, and text pairs that pass AA on every ground.
-// The screen effects are on unless turned off, with one header toggle.
+// The screen effects are built in, with no setting and no toggle (14 Nov).
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
@@ -8,8 +8,7 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import * as theme from '../js/theme.js';
-import { EFFECTS_KEY, applyEffects, browserStorage, effectsControl, effectsOn, saveEffects } from '../js/theme.js';
-import { buttons, installDom } from './dom-fake.js';
+import { browserStorage } from '../js/theme.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const CSS = join(WEB, 'css');
@@ -144,53 +143,12 @@ test('text pairs reach 4.5:1, borders and focus 3:1, each accent on every surfac
   assert.deepEqual(low, []);
 });
 
-test('effects are on unless stored as off, and the root carries the setting', () => {
-  const store = (v) => ({ getItem: (k) => (k === EFFECTS_KEY ? v : null) });
-  for (const v of [null, 'on', 'yes', '']) assert.equal(effectsOn(store(v)), true, String(v));
-  assert.equal(effectsOn(store('off')), false);
-  assert.equal(effectsOn({ getItem: () => { throw new Error('blocked'); } }), true);
-  assert.equal(effectsOn(undefined), true);
-  const root = { dataset: {} };
-  applyEffects(root, store('off'));
-  assert.deepEqual(root.dataset, { effects: 'off' });
-  applyEffects(root, undefined);
-  assert.deepEqual(root.dataset, { effects: 'on' });
-});
-
-test('saving the effects writes on or off, and blocked storage is safe', () => {
-  const data = new Map();
-  const s = { getItem: (k) => data.get(k) ?? null, setItem: (k, v) => data.set(k, String(v)) };
-  saveEffects(s, false);
-  assert.equal(data.get(EFFECTS_KEY), 'off');
-  assert.equal(effectsOn(s), false);
-  saveEffects(s, true);
-  assert.equal(data.get(EFFECTS_KEY), 'on');
-  assert.doesNotThrow(() => saveEffects({ setItem: () => { throw new Error('blocked'); } }, true));
-  assert.doesNotThrow(() => saveEffects(undefined, true));
-});
-
-test('one Screen effects toggle: pressed while on, a click asks for the other state', () => {
-  installDom();
-  const calls = [];
-  const host = document.createElement('div');
-  const on = effectsControl({ effects: true, onChange: (v) => calls.push(v) });
-  host.append(on);
-  assert.equal(buttons(host, 'Screen effects').length, 1, 'one button named Screen effects');
-  assert.equal(on.getAttribute('aria-pressed'), 'true');
-  on.click();
-  const off = effectsControl({ effects: false, onChange: (v) => calls.push(v) });
-  assert.equal(off.getAttribute('aria-pressed'), 'false');
-  off.click();
-  assert.deepEqual(calls, [false, true]);
-});
-
-test('the header carries the effects toggle and the shell passes the effects setting', () => {
+test('the screen effects setting is gone: no toggle, no stored value, no root attribute', () => {
+  for (const name of ['EFFECTS_KEY', 'effectsOn', 'saveEffects', 'applyEffects', 'effectsControl']) assert.ok(!(name in theme), name);
   const frame = readFileSync(join(WEB, 'js/views/frame.js'), 'utf8');
-  assert.match(frame, /effectsControl\(effects\)/);
-  assert.doesNotMatch(frame, /themeControl|theme-setting/);
+  assert.doesNotMatch(frame, /effectsControl|themeControl|theme-setting/);
   const app = readFileSync(join(WEB, 'js/app.js'), 'utf8');
-  assert.match(app, /saveEffects\(storage, on\)/);
-  assert.match(app, /applyEffects\(document\.documentElement, storage\)/);
+  assert.doesNotMatch(app, /saveEffects|applyEffects|dataset\.effects/);
   assert.doesNotMatch(app, /theme-setting|themeName|applyTheme/);
 });
 

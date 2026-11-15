@@ -1,7 +1,7 @@
 // Spec for 15a unit U8 (sheets and overlays), written with the console contract: the unit makes
 // it pass and never edits it. The press keeps its period face inside a violet intercept frame;
 // sheet heads read like the kit panel head; the CRT scanlines soften and gain a light vignette,
-// still only while the screen effects are on.
+// and are always drawn (the screen effects are built in since 14 Nov).
 // Run: node --test web/test/
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -34,9 +34,9 @@ test('sheet heads read like the kit panel head', () => {
   assert.match(ovl, /font:\s*600\b/);
 });
 
-test('softer scanlines and a light vignette, only while the effects are on', () => {
+test('softer scanlines and a light vignette, always drawn', () => {
   const fx = uncomment(read('css/effects.css'));
-  const screen = rule(fx, 'html[data-effects="on"] body::after');
+  const screen = rule(fx, 'body::after');
   assert.match(screen, /repeating-linear-gradient/);
   assert.match(screen, /radial-gradient/, 'a vignette');
   const mix = /color-mix\(in srgb, var\(--fg\) (\d+)%/.exec(screen);

@@ -13,20 +13,20 @@ const fixture = JSON.parse(read('test/fixtures/realism-seat.json'));
 const css = read('css/effects.css').replace(/\/\*[\s\S]*?\*\//g, '');
 const blocks = (text) => [...text.matchAll(/([^{}]+)\{/g)].map((m) => m[1].trim()).filter(Boolean);
 
-test('every effect rule is scoped to effects on, or is a keyframe or the reduced-motion block', () => {
+test('every effect rule is unconditional, with no setting to scope it (screen effects built in, 14 Nov)', () => {
   const outer = css.replace(/@keyframes[^{]+\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, '').replace(/@media[^{]+\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, '');
   const selectors = blocks(outer).flatMap((s) => s.split(','));
   assert.ok(selectors.length >= 3, 'scanlines, glow and the cursor');
-  for (const sel of selectors) assert.match(sel.trim(), /^html\[data-effects="on"\]/, sel);
+  for (const sel of selectors) assert.doesNotMatch(sel.trim(), /data-effects/, sel);
 });
 
 test('scanlines, glow and a blinking cursor, all stopped under reduced motion', () => {
   assert.match(css, /@keyframes/);
   assert.match(css, /text-shadow/);
   assert.match(css, /repeating-linear-gradient/);
-  const reduced = /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*)\}\s*$/m.exec(css);
+  const reduced = /@media \(prefers-reduced-motion: reduce\)\s*\{([^{}]*\{[^{}]*\})*\s*\}/.exec(css);
   assert.ok(reduced, 'a reduced-motion block');
-  assert.match(reduced[1], /animation:\s*none/);
+  assert.match(reduced[0], /animation:\s*none/);
 });
 
 test('linked from the page, colours only from tokens', () => {

@@ -396,18 +396,19 @@ def _amend(em: Emitter, events: Sequence[Event]) -> list[Event]:
     state = em.state
     for amendment in policy:
         card = state.cards.get(amendment.person)
+        # A late field the world file leaves unset keeps the card's value in the fold,
+        # so it is compared only when set.
+        late = [k for k in sorted(ev.CardAmended.late_fields) if getattr(amendment, k) is not None]
         if card is None or (
             card.allies,
             card.opposes,
             card.answers,
-            card.voice,
-            card.addressed_as,
+            *(getattr(card, k) for k in late),
         ) == (
             amendment.allies,
             amendment.opposes,
             amendment.answers,
-            amendment.voice,
-            amendment.addressed_as,
+            *(getattr(amendment, k) for k in late),
         ):
             continue
         probe = Emitter(em.store, state, em.versions).event(amendment)

@@ -31,6 +31,7 @@ from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
 from revisionist.engine import counsel, realism_tick, session_zero
 from revisionist.engine.counsel import (
+    COUNSEL_PER_TICK,
     Asker,
     ClaudeCounsellor,
     Counsellor,
@@ -41,6 +42,7 @@ from revisionist.engine.counsel import (
     counsel_records,
 )
 from revisionist.engine.llm import RecordedTransport, Reply, Request, TransportError
+from revisionist.engine.prose import TemplateProseWriter
 from revisionist.engine.store import EventStore, MemoryStore, load_state
 from revisionist.engine.web import server
 from revisionist.engine.web.realism_snapshot import counsel_lines
@@ -486,3 +488,79 @@ def test_a_person_an_ai_seat_holds_is_still_voiced() -> None:
     counting = Counting()
     out = consult(store, CAMPAIGN, roosevelt_seat(store), churchill, QUESTION, counting)
     assert out.person == "Winston Churchill" and counting.spoke == ["Winston Churchill"]
+
+
+AT_LIMIT = f"You have put {COUNSEL_PER_TICK} questions in this wake; ask again in the next."
+
+
+def test_the_limit_is_eight_a_seat_a_tick() -> None:
+    assert COUNSEL_PER_TICK == 8
+
+
+def test_the_question_past_the_limit_is_refused_and_no_model_is_called(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    store = ready()
+    seat = roosevelt_seat(store)
+    counting = Counting()
+    for _ in range(COUNSEL_PER_TICK - 1):
+        consult(store, CAMPAIGN, seat, hopkins(store), QUESTION, counting)
+    with pytest.raises(TransportError):
+        consult(store, CAMPAIGN, seat, hopkins(store), QUESTION, ClaudeCounsellor(Kept()))
+    with pytest.raises(CounselRefusedError):
+        consult(store, CAMPAIGN, seat, hopkins(store), "   ", counting)
+    consult(store, CAMPAIGN, seat, hopkins(store), QUESTION, counting)
+    assert len(counting.spoke) == COUNSEL_PER_TICK
+
+    def no_roll(*_: object) -> bool:
+        raise AssertionError("a meeting roll was spent")
+
+    monkeypatch.setattr(counsel, "takes_meeting", no_roll)
+    before = list(store.read(CAMPAIGN))
+    for person in (hopkins(store), person_named(store, OUTER)):
+        with pytest.raises(CounselRefusedError) as refused:
+            consult(store, CAMPAIGN, seat, person, QUESTION, counting)
+        assert str(refused.value) == AT_LIMIT
+    assert len(counting.spoke) == COUNSEL_PER_TICK
+    assert list(store.read(CAMPAIGN)) == before
+
+
+def test_questions_to_outer_contacts_count_too(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(counsel, "takes_meeting", lambda *_: True)
+    store = ready()
+    seat = roosevelt_seat(store)
+    counting = Counting()
+    for _ in range(COUNSEL_PER_TICK):
+        consult(store, CAMPAIGN, seat, person_named(store, OUTER), QUESTION, counting)
+    with pytest.raises(CounselRefusedError, match="ask again in the next"):
+        consult(store, CAMPAIGN, seat, hopkins(store), QUESTION, counting)
+
+
+def test_the_count_starts_again_when_the_tick_closes() -> None:
+    store = ready()
+    seat = roosevelt_seat(store)
+    counting = Counting()
+    for _ in range(COUNSEL_PER_TICK):
+        consult(store, CAMPAIGN, seat, hopkins(store), QUESTION, counting)
+    tick = load_state(store, CAMPAIGN).tick
+    realism_tick.run_realism_tick(store, CAMPAIGN, prose=TemplateProseWriter())
+    assert load_state(store, CAMPAIGN).tick == tick + 1
+    out = consult(store, CAMPAIGN, seat, hopkins(store), QUESTION, counting)
+    assert out.person == "Harry L. Hopkins" and len(counting.spoke) == COUNSEL_PER_TICK + 1
+
+
+def test_a_seat_at_the_limit_does_not_hold_back_another_seat() -> None:
+    store = MemoryStore()
+    seats = humans(store, "roosevelt", "churchill")
+    state = load_state(store, CAMPAIGN)
+    fdr = state.seats[seats["roosevelt"]].embodies
+    card = state.cards[state.seats[seats["churchill"]].embodies]
+    theirs = next(c.person for c in card.inner_circle if c.person != fdr)
+    counting = Counting()
+    for _ in range(COUNSEL_PER_TICK):
+        consult(store, CAMPAIGN, seats["roosevelt"], hopkins(store), QUESTION, counting)
+    with pytest.raises(CounselRefusedError, match="ask again in the next"):
+        consult(store, CAMPAIGN, seats["roosevelt"], hopkins(store), QUESTION, counting)
+    out = consult(store, CAMPAIGN, seats["churchill"], theirs, QUESTION, counting)
+    assert out.person == state.entities[theirs].name
+    assert len(counting.spoke) == COUNSEL_PER_TICK + 1

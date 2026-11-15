@@ -28,6 +28,7 @@ import { orderCards } from './realism-orders.js';
 import { pressCounts, pressDock, pressFocus, pressMarks, pressPapers, pressSeen, pressTab } from './realism-press.js';
 import { overlayLines, wakeOverlay } from './realism-overlay.js';
 import { peopleRoster, personDossier } from './realism-people.js';
+import { stakesStrip } from './realism-stakes.js';
 import { statusStrip, summaryTiles } from './realism-status.js';
 import { sideSwitch, tabBar } from './realism-tabs.js';
 import { followThread, threadItems } from './realism-thread.js';
@@ -814,6 +815,7 @@ export function realismRoom(ctx) {
         onIdentity: character && work.idle() ? () => character.showModal() : null,
       }),
       statusStrip(rv, ui, { act }),
+      stakesStrip(rv.stakes),
       status,
       viewSwitch(ui, pick),
       ...(ui.view === 'board' ? [

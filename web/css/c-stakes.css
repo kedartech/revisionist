@@ -1,0 +1,20 @@
+/* The stakes strip under the status strip: one tile per contest, then one per open mandate.
+   The tiles scroll sideways inside the strip, so the page never grows past the viewport.
+   Tokens only. */
+.rl-stakes { background: var(--surface); border-bottom: 1px solid var(--rule); }
+.rl-stakes-list { display: flex; gap: var(--space-2); margin: 0; padding: var(--space-2) var(--space-3); list-style: none; overflow-x: auto; scrollbar-width: thin; }
+.rl-stake { flex: 0 0 auto; display: flex; flex-direction: column; gap: 2px; min-width: 11rem; max-width: 18rem; padding: var(--space-2) var(--space-3); background: var(--surface-2); border: 1px solid var(--rule); border-radius: var(--radius); font: 13px/1.35 var(--font-chrome); color: var(--fg); }
+.rl-stake[data-kind="mandate"] { border-left: 3px solid var(--warn); }
+.rl-stake-kind { font: 600 11px/1.3 var(--font-chrome); text-transform: uppercase; letter-spacing: 0.06em; color: var(--warn); }
+.rl-stake-name { font: 600 13px/1.35 var(--font-head); color: var(--fg-strong); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.rl-stake-days { font-variant-numeric: tabular-nums; color: var(--fg-muted); }
+.rl-stake-lean { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; }
+.rl-stake-bar { display: inline-flex; gap: 2px; }
+.rl-stake-bar span { width: 10px; height: 6px; border-radius: 1px; background: var(--surface-3); border: 1px solid var(--rule-strong); }
+.rl-stake-bar span.on { background: var(--info); border-color: var(--info); }
+.rl-stake-side { font-size: 12px; color: var(--fg-muted); }
+
+@media (max-width: 767px) {
+  .rl-stakes-list { padding: var(--space-2); }
+  .rl-stake { min-width: 9.5rem; max-width: 14rem; }
+}

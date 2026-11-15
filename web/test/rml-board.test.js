@@ -1,5 +1,5 @@
-// Board and Desk views: one switch between the room as it is (Desk, the first view) and the
-// Board, whose Theatre or Court sits beside the selected piece's panel and the order form.
+// Board and Desk views: one switch between the room as it is (Desk) and the Board (the first
+// view), whose Theatre or Court sits beside the selected piece's panel and the order form.
 // Run: node --test web/test/
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -37,12 +37,13 @@ const write = () => {
   return el;
 };
 
-test('the room opens on the Desk view, with a switch to Board', () => {
+test('the room has a switch to Desk, which draws the desk in place of the board', () => {
   const { root } = room();
   const sw = root.querySelector('.rl-viewswitch');
   assert.ok(sw, 'a view switch');
   assert.deepEqual(sw.querySelectorAll('button').map(words), ['Board', 'Desk']);
-  assert.deepEqual(pressed(sw), ['Desk']);
+  buttons(sw, 'Desk')[0].click();
+  assert.deepEqual(pressed(root.querySelector('.rl-viewswitch')), ['Desk']);
   assert.ok(root.querySelector('main.rl-room'), 'the desk columns');
   assert.equal(root.querySelector('.rl-board'), null, 'no board');
 });
@@ -79,9 +80,9 @@ test('on a phone the tab bar starts with Board, and a tap on it opens the board'
   assert.ok(root.querySelector('main.rl-room'), 'a desk panel tab brings the desk back');
 });
 
-test('a fresh room is on the Desk view with the Theatre picked', () => {
+test('a fresh room is on the Board view with the Theatre picked', () => {
   const state = uiFor(`g-${Math.random()}`);
-  assert.equal(state.view, 'desk');
+  assert.equal(state.view, 'board');
   assert.equal(state.board, 'theatre');
 });
 

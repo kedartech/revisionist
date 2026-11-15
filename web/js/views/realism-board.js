@@ -1,6 +1,7 @@
-// The Board view: a Theatre or Court switch, the chosen board, and to its right the selected
-// piece's panel above the order form. The Desk view is the room's columns (realism-room.js);
-// one switch picks between the two. Nothing here touches the page on import.
+// The Board view, the room's first view: a Theatre or Court switch, the chosen board, and to
+// its right the selected piece's panel above the order form; on a phone a picked piece's panel
+// is a sheet from the bottom (c-board.css). The Desk view is the room's columns
+// (realism-room.js); one switch picks between the two. Nothing here touches the page on import.
 
 import { h } from '../dom.js';
 import { certaintyWord, markKindWord, sideLine, sightedLine, whereLine } from '../realism-rules.js';
@@ -53,14 +54,41 @@ function selectedMark(rv, piece) {
   return (rv.map?.marks ?? []).find((m) => m.name === piece.name) ?? null;
 }
 
-/** The selected piece's panel: what it is and where, or how to pick one; `open` opens its page. */
-export function piecePanel(rv, piece, open) {
+const NOTHING = {
+  theatre: 'Nothing is selected. Pick a force on the map to see it here.',
+  court: 'Nothing is selected. Pick a person on the court to see their card here.',
+};
+
+/** What can be picked on either board: a force's mark, a person's square or chip. */
+const PICKABLE = '.rl-board-main .rl-mk, .rl-board-main .rl-court-sq, .rl-board-main .rl-court-chip';
+
+/** Close drops the pick, then puts focus back on what was picked, so a keyboard keeps its place. */
+function closePick(pick) {
+  const all = () => [...(document.body?.querySelectorAll(PICKABLE) ?? [])];
+  const at = all().findIndex((el) => el.getAttribute('aria-pressed') === 'true');
+  pick?.({ piece: null });
+  if (at >= 0) all()[at]?.focus?.();
+}
+
+/** A picked piece's panel, with a Close that drops the pick (shown on a phone, where it is a sheet). */
+function sheet(attrs, pick, ...body) {
+  return h('section', { class: 'rl-piece rl-sheet', ...attrs },
+    h('button', { type: 'button', class: 'rl-btn rl-sheet-close', onclick: () => closePick(pick) }, 'Close'),
+    ...body);
+}
+
+/**
+ * The selected piece's panel: what it is and where, or how to pick one on `board`; `open` opens
+ * its page. `card` is a picked person's card from the Court, shown in place of a force.
+ */
+export function piecePanel(rv, piece, open, { board = 'theatre', card = null, pick } = {}) {
+  if (card) return sheet({ 'aria-label': 'Selected' }, pick, card);
   const mark = selectedMark(rv, piece);
   if (!mark) {
     return h('section', { class: 'rl-piece', 'aria-label': 'Selected' },
-      h('p', { class: 'muted' }, 'Nothing is selected. Pick a force on the map to see it here.'));
+      h('p', { class: 'muted' }, NOTHING[board] ?? NOTHING.theatre));
   }
-  return h('section', { class: 'rl-piece', 'aria-labelledby': 'rl-piece-h' },
+  return sheet({ 'aria-labelledby': 'rl-piece-h' }, pick,
     h('h2', { id: 'rl-piece-h' }, mark.name),
     h('dl', {},
       h('dt', {}, 'What'), h('dd', {}, markKindWord(mark.kind)),
@@ -74,19 +102,37 @@ export function piecePanel(rv, piece, open) {
 }
 
 /**
+ * The Court draws a picked person's card in its own column; the Board takes it out for the side
+ * panel, and drops that column when the card was all it held. Null when no one is picked.
+ */
+function liftCard(court) {
+  const card = court.querySelector('.rl-court-sel');
+  if (!card) return null;
+  const column = card.parentNode;
+  card.remove();
+  if (column?.classList.contains('rl-court-aside') && !column.children.length) {
+    column.parentNode?.classList.add('single');
+    column.remove();
+  }
+  return card;
+}
+
+/**
  * `boardView(rv, ui, { pick, act, write, open })`: the Board. `ui.board` picks Theatre or Court
  * (`pick({ board })`); `ui.piece` is the selected piece; `write` is the room's order form;
  * `open({ id })` opens a paper.
  */
 export function boardView(rv, ui, { pick, act, write, open }) {
-  const board = ui.board === 'court'
+  const which = ui.board === 'court' ? 'court' : 'theatre';
+  const board = which === 'court'
     ? courtBoard(rv, ui, { pick, act })
     : theatreBoard(rv, ui, { pick, act });
-  return h('main', { class: 'rl-board', 'data-board': ui.board === 'court' ? 'court' : 'theatre' },
+  const card = which === 'court' ? liftCard(board) : null;
+  return h('main', { class: 'rl-board', 'data-board': which },
     h('section', { class: 'rl-board-main', 'aria-label': 'Board' },
-      pressGroup('rl-boardswitch', 'Board', BOARDS, ui.board === 'court' ? 'court' : 'theatre', (b) => pick({ board: b })),
+      pressGroup('rl-boardswitch', 'Board', BOARDS, which, (b) => pick({ board: b })),
       board),
     h('aside', { class: 'rl-board-side', 'aria-label': 'Selected piece and order' },
-      piecePanel(rv, ui.piece, open),
+      piecePanel(rv, ui.piece, open, { board: which, card, pick }),
       write));
 }

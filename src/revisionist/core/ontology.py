@@ -68,8 +68,10 @@ class Entity(Model):
     tags: frozenset[str] = frozenset()
     at: tuple[float, float] | None = None
     """A place's (latitude, longitude), for the map. Realism only."""
+    theatre: Label | None = None
+    """The theatre a place sits in, for the map. Public; no rule reads it."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"at"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"at", "theatre"})
 
 
 class AssetKind(StrEnum):

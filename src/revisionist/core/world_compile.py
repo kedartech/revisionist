@@ -88,6 +88,7 @@ from revisionist.core.realism.card import (
     ParamSpec,
     Reach,
     SeatCard,
+    Topic,
 )
 from revisionist.core.realism.document import Feed
 from revisionist.core.realism.effect import (
@@ -116,6 +117,7 @@ from revisionist.core.world import (
     MandateDecl,
     ScopeDecl,
     ScopeSpec,
+    TopicDecl,
     WorldFile,
 )
 
@@ -215,6 +217,7 @@ def _keyed(world: WorldFile) -> list[tuple[str, str]]:
     keyed += [("pipeline", d.key) for d in world.pipelines]
     keyed += [("mandate", d.key) for d in world.mandates]
     keyed += [("development", d.key) for d in world.developments]
+    keyed += [("topic", d.key) for d in world.topics]
     return keyed
 
 
@@ -403,6 +406,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "sources",
             "mandates",
             "outlets",
+            "topics",
         ):
             if getattr(world, name):
                 problems.append(f"{name}: only a realism world has {name}")
@@ -460,6 +464,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             _refs(problems, f"{where}: domain {dm.name}", dm.forces, "feature", sections)
         _refs(problems, where, c.feeds, "feed", sections)
         _refs(problems, where, c.pipelines, "pipeline", sections)
+        _refs(problems, where, [*c.wants, *c.holds_to], "topic", sections)
         person(where, c.successor)
         levers = [lv.name for lv in c.levers]
         if len(set(levers)) != len(levers):
@@ -470,6 +475,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             if lv.resolver == "movement":
                 _check_movement(world, f"{where}: lever {lv.name}", lv, problems)
     _check_answers(world, sections, problems)
+    _check_topics(world, problems)
     playable = {c.person for c in world.cards if c.playable}
     listed = {ch.entity for ch in world.roster}
     # A listed person with no card yet is built when picked (compile_figure).
@@ -583,6 +589,25 @@ def _check_answers(world: WorldFile, sections: Mapping[str, str], problems: list
                         problems.append(f"{where}: {force} is not under {c.person}")
 
 
+def _check_topics(world: WorldFile, problems: list[str]) -> None:
+    """A topic names only levers some card has and effect kinds the engine knows."""
+    levers = {lv.name for c in world.cards for lv in c.levers}
+    kinds = {k.value for k in EffectKind}
+    for t in world.topics:
+        problems += [f"topic {t.key}: unknown lever {x}" for x in t.levers if x not in levers]
+        problems += [f"topic {t.key}: unknown effect kind {x}" for x in t.effects if x not in kinds]
+
+
+def _topic(t: TopicDecl) -> Topic:
+    return Topic(
+        key=t.key,
+        name=t.name,
+        levers=t.levers,
+        effects=tuple(EffectKind(x) for x in t.effects),
+        words=t.words,
+    )
+
+
 def _placed(world: WorldFile) -> set[str]:
     return {d.key for d in world.entities if d.kind is EntityKind.LOCATION and d.at is not None}
 
@@ -592,6 +617,8 @@ def _check_features(world: WorldFile, sections: Mapping[str, str], problems: lis
     for d in world.entities:
         if d.at is not None and d.kind is not EntityKind.LOCATION:
             problems.append(f"entity {d.key}: only a place has a position")
+        if d.theatre is not None and d.kind is not EntityKind.LOCATION:
+            problems.append(f"entity {d.key}: only a place has a theatre")
     placed = _placed(world)
     bodies = {
         d.key
@@ -1116,7 +1143,12 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
         for o in world.outlets
     )
     declared = ev.CardsDeclared(
-        cards=cards, feeds=feeds, pipelines=pipelines, templates=templates, outlets=outlets
+        cards=cards,
+        feeds=feeds,
+        pipelines=pipelines,
+        templates=templates,
+        outlets=outlets,
+        topics=tuple(_topic(t) for t in world.topics),
     )
     out.append((declared, PUBLIC))
     return out
@@ -1131,6 +1163,7 @@ def _entity(e: EntityDecl, ids: Mapping[str, str]) -> Entity:
         location=_maybe(ids, e.location, EntityId),
         tags=frozenset(e.tags),
         at=e.at,
+        theatre=e.theatre,
     )
 
 
@@ -1276,6 +1309,8 @@ def _card(c: CardDecl, ids: Mapping[str, str]) -> SeatCard:
         competence=c.competence,
         doctrine=c.doctrine,
         interests=c.interests,
+        wants=c.wants,
+        holds_to=c.holds_to,
         authority=tuple(
             Domain(
                 name=dm.name,

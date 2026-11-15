@@ -1431,6 +1431,14 @@
             },
             "title": "Templates",
             "type": "array"
+          },
+          "topics": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Topic"
+            },
+            "title": "Topics",
+            "type": "array"
           }
         },
         "title": "CardsDeclared",
@@ -3628,6 +3636,19 @@
             "title": "Tags",
             "type": "array",
             "uniqueItems": true
+          },
+          "theatre": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Theatre"
           }
         },
         "required": [
@@ -7811,6 +7832,15 @@
             "title": "Feeds",
             "type": "array"
           },
+          "holds_to": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Holds To",
+            "type": "array"
+          },
           "horizon_days": {
             "maximum": 365,
             "minimum": 1,
@@ -7931,6 +7961,15 @@
             "maxLength": 200,
             "title": "Voice",
             "type": "string"
+          },
+          "wants": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Wants",
+            "type": "array"
           }
         },
         "required": [
@@ -8742,6 +8781,54 @@
           "stage"
         ],
         "title": "TickStageCompleted",
+        "type": "object"
+      },
+      "Topic": {
+        "additionalProperties": false,
+        "description": "A matter people want or hold to, named by the world file. An order touches it\nby its lever, the kind of a typed effect it carries, or one of its own words.\nEngine only.",
+        "properties": {
+          "effects": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/EffectKind"
+            },
+            "title": "Effects",
+            "type": "array"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "levers": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Levers",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "words": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Words",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "Topic",
         "type": "object"
       },
       "Trigger": {
@@ -11364,6 +11451,19 @@
             "title": "Tags",
             "type": "array",
             "uniqueItems": true
+          },
+          "theatre": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Theatre"
           }
         },
         "required": [
@@ -14056,6 +14156,15 @@
             "title": "Feeds",
             "type": "array"
           },
+          "holds_to": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Holds To",
+            "type": "array"
+          },
           "horizon_days": {
             "maximum": 365,
             "minimum": 1,
@@ -14176,6 +14285,15 @@
             "maxLength": 200,
             "title": "Voice",
             "type": "string"
+          },
+          "wants": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Wants",
+            "type": "array"
           }
         },
         "required": [
@@ -14668,6 +14786,54 @@
           "on"
         ],
         "title": "StepOutcome",
+        "type": "object"
+      },
+      "Topic": {
+        "additionalProperties": false,
+        "description": "A matter people want or hold to, named by the world file. An order touches it\nby its lever, the kind of a typed effect it carries, or one of its own words.\nEngine only.",
+        "properties": {
+          "effects": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/EffectKind"
+            },
+            "title": "Effects",
+            "type": "array"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "levers": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Levers",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "words": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Words",
+            "type": "array"
+          }
+        },
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "Topic",
         "type": "object"
       },
       "Trigger": {
@@ -15341,6 +15507,16 @@
         "default": 0,
         "title": "Tick",
         "type": "integer"
+      },
+      "topics": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Topic"
+        },
+        "propertyNames": {
+          "maxLength": 60
+        },
+        "title": "Topics",
+        "type": "object"
       },
       "wake": {
         "anyOf": [
@@ -16793,6 +16969,19 @@
             "title": "Tags",
             "type": "array",
             "uniqueItems": true
+          },
+          "theatre": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Theatre"
           }
         },
         "required": [

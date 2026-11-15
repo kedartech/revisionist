@@ -438,6 +438,10 @@ def _realism(state: State, p: ev.Payload) -> State:
     """Store and update realism records. Deciding what they say is the engine's job."""
     match p:
         case ev.CardsDeclared():
+            topics = dict(state.topics)
+            for topic in p.topics:
+                _fresh(topics, topic.key, "topic")
+                topics[topic.key] = topic
             pipelines = dict(state.pipelines)
             for pl in p.pipelines:
                 _fresh(pipelines, pl.pipeline_id, "pipeline")
@@ -476,6 +480,8 @@ def _realism(state: State, p: ev.Payload) -> State:
                     _need(feeds, fid, "feed")
                 for pid in c.pipelines:
                     _need(pipelines, pid, "pipeline")
+                for key in c.topics():
+                    _need(topics, key, "topic")
                 for lever in c.levers:
                     if lever.pipeline not in c.pipelines:
                         raise FoldError(
@@ -502,6 +508,7 @@ def _realism(state: State, p: ev.Payload) -> State:
                     "pipelines": pipelines,
                     "templates": templates,
                     "outlets": outlets,
+                    "topics": topics,
                 }
             )
         case ev.DocumentIssued():

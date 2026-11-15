@@ -471,6 +471,11 @@
                   },
                   "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
+                },
+                "lift": {
+                  "us_atlantic_fleet": null,
+                  "us_atlantic_fleet__d1": null,
+                  "us_pacific_fleet": null
                 }
               },
               {
@@ -488,6 +493,11 @@
                     "base": "norfolk",
                     "reason": null
                   },
+                  "us_atlantic_fleet__d1": null,
+                  "us_pacific_fleet": null
+                },
+                "lift": {
+                  "us_atlantic_fleet": null,
                   "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 }
@@ -509,6 +519,11 @@
                   },
                   "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
+                },
+                "lift": {
+                  "us_atlantic_fleet": null,
+                  "us_atlantic_fleet__d1": null,
+                  "us_pacific_fleet": null
                 }
               },
               {
@@ -526,6 +541,11 @@
                     "base": "reykjavik",
                     "reason": null
                   },
+                  "us_atlantic_fleet__d1": null,
+                  "us_pacific_fleet": null
+                },
+                "lift": {
+                  "us_atlantic_fleet": null,
                   "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 }
@@ -547,6 +567,11 @@
                   },
                   "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
+                },
+                "lift": {
+                  "us_atlantic_fleet": null,
+                  "us_atlantic_fleet__d1": null,
+                  "us_pacific_fleet": null
                 }
               },
               {
@@ -566,6 +591,11 @@
                   },
                   "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
+                },
+                "lift": {
+                  "us_atlantic_fleet": null,
+                  "us_atlantic_fleet__d1": null,
+                  "us_pacific_fleet": null
                 }
               },
               {
@@ -583,6 +613,11 @@
                     "base": "pearl_harbor_base",
                     "reason": null
                   },
+                  "us_atlantic_fleet__d1": null,
+                  "us_pacific_fleet": null
+                },
+                "lift": {
+                  "us_atlantic_fleet": null,
                   "us_atlantic_fleet__d1": null,
                   "us_pacific_fleet": null
                 }

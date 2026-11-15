@@ -147,6 +147,15 @@ class PlaceReach(TypedDict):
     """Why the place is refused, naming that base. None for every other tier."""
 
 
+class PlaceLift(TypedDict):
+    """What an army's crossing by sea to a place takes, as the seat's own papers show it."""
+
+    need: int
+    """The tonnage the lift draws from its side's pool, by the sealift rule."""
+    reported: int | None
+    """The side's pool as the seat's latest page reporting it gave it; None before any has."""
+
+
 class PlaceChoice(TypedDict):
     """One place a movement form can send a force to, as the seat's own pages show it."""
 
@@ -159,12 +168,17 @@ class PlaceChoice(TypedDict):
     Contested: on a front, or another side's force is placed there. Other: the rest."""
     days: dict[str, int | None]
     """For each choice of the form's ``force``: days to arrive from where the seat's
-    latest page places that force (0 if it is there), by the movement resolver's route;
-    None when no page places it, or when no passage open to its side reaches the place."""
+    latest page places that force (0 if it is there), by the movement resolver's route (for
+    an army crossing by sealift, the march to its port and the voyage); None when no page
+    places it, or when no passage open to its side reaches the place."""
     reach: dict[str, PlaceReach | None]
     """For each choice of the form's ``force``: its tier at the place, from where the seat's
     latest page places it and the forces and fronts its pages show. A refused place stays
     listed. None when no page places the force, or the world has no bases."""
+    lift: dict[str, PlaceLift | None]
+    """For each choice of the form's ``force``: what its crossing by sea to the place takes,
+    from where the seat's latest page places it. None when it does not cross by sealift
+    (another kind, its own land, a refused crossing, a side with no pool) or no page places it."""
 
 
 class LeverParam(TypedDict):
@@ -950,6 +964,7 @@ __all__ = [
     "PersonLine",
     "PersonTally",
     "PlaceChoice",
+    "PlaceLift",
     "PlaceReach",
     "ReachContact",
     "ReachGroups",

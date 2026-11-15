@@ -22,6 +22,13 @@ An order that also names a ``strength`` splits the force instead (``detachments`
 much of it sets out as a detachment on the course a move would take, and the rest stays.
 Each day, after arrivals, a detachment standing still where its force stands still
 merges back. A detachment that has merged is out of play: no order or day moves it.
+
+An army sent across the sea goes by sealift (``sealift``, ``bases.lift``): it arrives
+after the march to its port and the voyage, and the order draws the lift from its side's
+pool the day it sets out. A pool too small for the lift moves nothing and draws nothing.
+The lift is given back the day the army lands (``day_changes``), or the day a later order
+changes its course, which draws again if that course also crosses the sea. Each change to
+a pool is dated no earlier than the pool's own date, and several on one day add up.
 """
 
 from datetime import date, timedelta
@@ -29,11 +36,23 @@ from datetime import date, timedelta
 from revisionist.core.ids import EntityId, FeatureId
 from revisionist.core.ontology import EntityKind
 from revisionist.core.realism import resolvers as rs
-from revisionist.core.realism.bases import RAID_DAYS, Force, Tier, nearest_base, reach, world_of
+from revisionist.core.realism.bases import (
+    RAID_DAYS,
+    Force,
+    Tier,
+    crossing,
+    lift,
+    nearest_base,
+    pool_key,
+    reach,
+    world_of,
+)
 from revisionist.core.realism.detachments import rejoin, split
 from revisionist.core.realism.geography import FORCES, Feature, in_play
 from revisionist.core.realism.pipeline import Order, OrderStatus
+from revisionist.core.realism.quantity import QuantityChange
 from revisionist.core.realism.routing import travel_days
+from revisionist.core.realism.sealift import lift_needed
 from revisionist.core.state import State
 from revisionist.core.world_compile import object_id
 
@@ -99,6 +118,20 @@ def _turned(state: State, f: Feature, today: date) -> Feature | None:
     )
 
 
+def _at_sea(state: State, f: Feature) -> bool:
+    """Whether ``f`` is an army under way on a lift, whose tonnage is out of its pool."""
+    return f.bound_for is not None and crossing(state, f.kind, f.places[0], f.bound_for)
+
+
+def _pool_change(state: State, key: str, delta: int, on: date) -> QuantityChange | None:
+    """The pool ``key`` moved by ``delta`` on ``on`` (no earlier than its own date); None
+    when it holds no figure or would fall below 0."""
+    q = state.quantities.get(rs.qid(state, key))
+    if q is None or q.value is None or q.value + delta < 0:
+        return None
+    return QuantityChange(quantity_id=q.quantity_id, value=q.value + delta, as_of=max(on, q.as_of))
+
+
 def _sent(state: State, force: Feature, to: EntityId, as_of: date) -> Feature | None:
     """``force`` under way to ``to`` from ``as_of``, halted if it is already there, or
     None when the place is out of its reach or it has no route."""
@@ -116,7 +149,8 @@ def _sent(state: State, force: Feature, to: EntityId, as_of: date) -> Feature | 
     found = reach(state, force, to)
     if found is not None and found.tier is Tier.REFUSED:
         return None
-    days = travel_days(state, force, to)
+    by_sea = lift(state, force, to)
+    days = travel_days(state, force, to) if by_sea is None else by_sea.days
     if days is None:
         return None
     return force.model_copy(
@@ -132,25 +166,71 @@ def _sent(state: State, force: Feature, to: EntityId, as_of: date) -> Feature | 
 
 def resolve(state: State, order: Order) -> tuple[Feature, ...]:
     """The force under way, or halted if sent where it already is; for an order that
-    names a strength, the force and the detachment it sends."""
+    names a strength, the force and the detachment it sends. Nothing for a lift its
+    side's pool cannot carry (``order_changes`` adds the pool's change)."""
+    return _resolved(state, order)[0]
+
+
+def order_changes(state: State, order: Order) -> tuple[Feature | QuantityChange, ...]:
+    """``resolve``'s moves, with the pool as a lift taken or given back leaves it."""
+    moved, pool = _resolved(state, order)
+    return moved if pool is None else (*moved, pool)
+
+
+def _resolved(state: State, order: Order) -> tuple[tuple[Feature, ...], QuantityChange | None]:
     if order.status is not OrderStatus.ENACTED:
-        return ()
+        return (), None
     cid = state.campaign_id
     key = str(order.params.get(FORCE))
     force = state.features.get(FeatureId(object_id(cid, "feature", key)))
     to = state.entities.get(EntityId(object_id(cid, "entity", str(order.params.get(TO)))))
     if force is None or force.kind not in FORCES or force.side is None or not in_play(force):
-        return ()
+        return (), None
     if to is None or to.kind is not EntityKind.LOCATION or to.at is None:
-        return ()
+        return (), None
     if not _of_side(state, state.seats[order.issuer].embodies, force.side):
-        return ()
-    sent = _sent(state, force, to.entity_id, max(rs.settled_on(order), force.as_of))
+        return (), None
+    set_out = max(rs.settled_on(order), force.as_of)
+    sent = _sent(state, force, to.entity_id, set_out)
     if sent is None:
-        return ()
+        return (), None
     if STRENGTH in order.params:
-        return split(state, force, key, order.params[STRENGTH], sent)
-    return (sent,)
+        return split(state, force, key, order.params[STRENGTH], sent), None
+    return _shipped(state, force, sent, set_out)
+
+
+def _shipped(
+    state: State, force: Feature, sent: Feature, set_out: date
+) -> tuple[tuple[Feature, ...], QuantityChange | None]:
+    """``sent`` with its pool's change: the lift it is on given back, the lift it now
+    takes drawn. Nothing when the pool cannot carry the new lift."""
+    by_sea = lift(state, force, sent.bound_for) if sent.bound_for is not None else None
+    back = lift_needed(force) if _at_sea(state, force) else 0
+    if by_sea is None and not back:
+        return (sent,), None
+    assert force.side is not None  # resolve moves only a force with a side
+    key = by_sea.pool if by_sea is not None else pool_key(state, force.side)
+    if key is None:
+        return (sent,), None
+    change = _pool_change(state, key, back - (lift_needed(force) if by_sea else 0), set_out)
+    if change is None:
+        return ((), None) if by_sea is not None else ((sent,), None)
+    return (sent,), change
+
+
+def day_changes(state: State, today: date) -> tuple[Feature | QuantityChange, ...]:
+    """``on_day``'s moves, and each pool with the lifts that land today given back."""
+    moved = on_day(state, today)
+    back: dict[str, int] = {}
+    for f in moved:
+        was = state.features.get(f.feature_id)
+        if was is None or not _at_sea(state, was) or f.bound_for is not None:
+            continue
+        key = pool_key(state, was.side) if was.side is not None else None
+        if key is not None and f.places == (was.bound_for,):
+            back[key] = back.get(key, 0) + lift_needed(was)
+    given = (_pool_change(state, k, n, today) for k, n in sorted(back.items()))
+    return (*moved, *(c for c in given if c is not None))
 
 
 def on_day(state: State, today: date) -> tuple[Feature, ...]:

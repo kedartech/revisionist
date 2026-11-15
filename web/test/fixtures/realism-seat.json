@@ -1639,5 +1639,51 @@
       "headline": "Thirty-three accused German agents on trial",
       "asks": []
     }
-  ]
+  ],
+  "stakes": {
+    "contests": [
+      {
+        "name": "Revising the Neutrality Act",
+        "prize": "Whether Congress repeals the 1939 Act's bans on arming merchant ships and on war zones.",
+        "sides": [
+          "Aid-to-Britain bloc",
+          "Non-interventionist bloc"
+        ],
+        "days_left": 24,
+        "lean": {
+          "step": 7,
+          "favours": "Aid-to-Britain bloc"
+        }
+      },
+      {
+        "name": "The US-Japan negotiations",
+        "prize": "Whether talks end in a modus vivendi or in war in the Pacific.",
+        "sides": [
+          "United States",
+          "Japan",
+          "China"
+        ],
+        "days_left": 48,
+        "lean": null
+      },
+      {
+        "name": "The war against Germany",
+        "prize": "Whether Britain's sea supply holds, the Soviet front survives, and America is drawn in.",
+        "sides": [
+          "United Kingdom",
+          "Germany",
+          "Soviet Union",
+          "Italy"
+        ],
+        "days_left": 48,
+        "lean": null
+      }
+    ],
+    "mandates": [
+      {
+        "text": "Keep the convoys moving to Iceland.",
+        "days_left": 6
+      }
+    ]
+  }
 }

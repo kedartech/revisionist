@@ -73,15 +73,14 @@ test('the room wires the console strip, tiles and panel switches once, for every
   }
 });
 
-test('the header opens the dossiers and carries the Screen effects toggle', () => {
+test('the header opens the dossiers and carries no Screen effects toggle', () => {
   const frame = read('js/views/frame.js');
-  assert.match(frame, /effectsControl\(effects\)/);
+  assert.doesNotMatch(frame, /effectsControl|Screen effects/);
   assert.match(frame, /onSetting/);
   assert.match(frame, /onIdentity/);
   assert.match(frame, /Answers to \$\{identity\.principal\}/);
   const app = read('js/app.js');
-  assert.match(app, /saveEffects\(storage, on\)/);
-  assert.match(app, /applyEffects\(document\.documentElement, storage\)/);
+  assert.doesNotMatch(app, /saveEffects|applyEffects|effectsOn/);
 });
 
 test('every unit has replaced its contract stub', () => {

@@ -1,6 +1,6 @@
-// The opening crawl (split out of realism-intro.js): the scene-setting paragraphs shown
-// while the host's Begin runs and to every other player on first entry, and the phrases
-// that say what Begin is doing.
+// The opening crawl (split out of realism-intro.js): the scene-setting paragraphs, typed
+// out letter by letter while the host's Begin runs and to every other player on first
+// entry, and the phrases that say what Begin is doing.
 
 import { h } from '../dom.js';
 
@@ -13,49 +13,96 @@ export function crawlParagraphs(setting) {
   return lines(setting?.crawl).slice(0, CRAWL_MAX);
 }
 
-// How long a paragraph holds before the next comes in, by length: about 3.5 words a
-// second, at least 4 s and at most 14 s. Provisional until Josh has read a crawl at pace.
-export const SHORT_MAX_WORDS = 14;
-export const MEDIUM_MAX_WORDS = 28;
-export const LONG_MAX_WORDS = 42;
-export const HOLD_SECONDS = Object.freeze({ short: 4, medium: 8, long: 12, xlong: 14 });
+// The typing pace. [proposed] until Josh has read a crawl at this pace.
+export const CHARS_PER_SECOND = 40;
+export const PAUSE_MS = 600;
 
-/** The hold class for a paragraph of `words` words: `short`, `medium`, `long` or `xlong`. */
-export function holdClass(words) {
-  if (!(words > SHORT_MAX_WORDS)) return 'short';
-  if (words <= MEDIUM_MAX_WORDS) return 'medium';
-  if (words <= LONG_MAX_WORDS) return 'long';
-  return 'xlong';
+const realTimers = {
+  set: (fn, ms) => setTimeout(fn, ms),
+  clear: (id) => clearTimeout(id),
+};
+
+const reducedMotion = () => Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+
+// A paragraph is three spans: the whole text for a screen reader, then the typed part and
+// the part still to type, both hidden from it. The part still to type keeps its place unseen,
+// so lines do not reflow and nothing below moves while the text comes in.
+function paragraph(text, whole) {
+  const typed = h('span', { class: 'rl-intro-typed', 'aria-hidden': 'true' }, whole ? text : '');
+  const rest = h('span', { class: 'rl-intro-untyped', 'aria-hidden': 'true' }, whole ? '' : text);
+  const el = h('p', {}, h('span', { class: 'rl-intro-said sr-only' }, text), typed, rest);
+  return { el, chars: [...text], typed, rest };
 }
 
-// Each paragraph starts once the ones before it have held: `rl-at-<s>` names that start,
-// and the stylesheet carries one delay rule for each start three paragraphs can reach.
-function timed(paragraphs) {
-  let at = 0;
-  return paragraphs.map((p) => {
-    const hold = holdClass(p.split(/\s+/).filter(Boolean).length);
-    const el = h('p', { class: `rl-hold-${hold} rl-at-${at}` }, p);
-    at += HOLD_SECONDS[hold];
-    return el;
-  });
+// Types each paragraph a character per timer at CHARS_PER_SECOND, with PAUSE_MS between
+// paragraphs; one timer is out at a time. `skip()` finishes the paragraph being typed and
+// starts the pause; `stop()` drops the pending timer.
+function typist(paras, timers) {
+  let i = 0;
+  let n = 0;
+  let timer = null;
+  let typing = false;
+  const later = (fn, ms) => {
+    timer = timers.set(() => {
+      timer = null;
+      fn();
+    }, ms);
+  };
+  const stop = () => {
+    if (timer !== null) timers.clear(timer);
+    timer = null;
+  };
+  const show = () => {
+    const { chars, typed, rest } = paras[i];
+    typed.textContent = chars.slice(0, n).join('');
+    rest.textContent = chars.slice(n).join('');
+  };
+  const next = () => {
+    typing = false;
+    i += 1;
+    n = 0;
+    if (i < paras.length) later(type, PAUSE_MS);
+  };
+  function type() {
+    typing = true;
+    n += 1;
+    show();
+    if (n < paras[i].chars.length) later(type, 1000 / CHARS_PER_SECOND);
+    else next();
+  }
+  const skip = () => {
+    if (!typing) return;
+    stop();
+    n = paras[i].chars.length;
+    show();
+    next();
+  };
+  if (paras.length) later(type, 1000 / CHARS_PER_SECOND);
+  return { skip, stop };
 }
+
+const SKIP_KEYS = new Set(['Enter', ' ']);
 
 /**
  * `<dialog class="rl-intro" aria-labelledby="rl-intro-title">`: an h2 `title` (the game's
  * name), the paragraphs inside `.rl-intro-crawl`, a `p.rl-intro-status[role=status]` the
  * caller writes progress into, and a "Continue" button. Continue, and the dialog's `cancel`
  * (Esc), call `onDone()` once, and only once the dialog is ready: `ready: false` holds both
- * until `markReady(dialog)`. A click or key on the dialog shows every paragraph at once
- * (`data-shown`); it does not touch Continue. Under reduced motion the text is static (CSS).
+ * until `markReady(dialog)`. Each paragraph types itself out after the one before it; a
+ * click, Enter or Space finishes the paragraph being typed and does not touch Continue.
+ * Closing the dialog stops the typing. Under reduced motion every paragraph is whole at once
+ * and no timer is set. `timers` is `{ set(fn, ms), clear(id) }`, the page's timers by default.
  */
-export function introCrawl({ title, paragraphs = [], ready = true, onDone } = {}) {
+export function introCrawl({ title, paragraphs = [], ready = true, onDone, timers = realTimers } = {}) {
   let done = false;
   const finish = () => {
     if (done) return;
     done = true;
     onDone?.();
   };
-  const showAll = () => dialog.setAttribute('data-shown', '');
+  const still = reducedMotion();
+  const paras = paragraphs.map((text) => paragraph(text, still));
+  const typing = still ? null : typist(paras, timers);
   const dialog = h('dialog', {
     class: 'rl-intro',
     'aria-labelledby': 'rl-intro-title',
@@ -64,11 +111,14 @@ export function introCrawl({ title, paragraphs = [], ready = true, onDone } = {}
       e.preventDefault();
       if (dialog.hasAttribute('data-ready')) finish();
     },
-    onclick: showAll,
-    onkeydown: showAll,
+    onclose: () => typing?.stop(),
+    onclick: () => typing?.skip(),
+    onkeydown: (e) => {
+      if (SKIP_KEYS.has(e.key)) typing?.skip();
+    },
   },
     h('h2', { id: 'rl-intro-title' }, title ?? ''),
-    h('div', { class: 'rl-intro-crawl' }, timed(paragraphs)),
+    h('div', { class: 'rl-intro-crawl' }, paras.map((p) => p.el)),
     h('p', { class: 'rl-intro-status', role: 'status', 'aria-live': 'polite' }),
     h('button', { type: 'button', class: 'rl-intro-continue', disabled: !ready, onclick: finish }, 'Continue'));
   return dialog;

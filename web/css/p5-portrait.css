@@ -35,6 +35,7 @@
   pointer-events: none;
 }
 
-html[data-effects="off"] .portrait-frame::before {
-  content: none;
+/* the scanlines are always drawn, except where the system asks for more contrast */
+@media (prefers-contrast: more) {
+  .portrait-frame::before { content: none; }
 }

@@ -17,6 +17,7 @@ import { needsAnswer } from './realism-answer.js';
 import { chatDock, seenStore, settleMarks, threadCounts } from './realism-chat.js';
 import { contactsTab } from './realism-contacts.js';
 import { characterDossier, settingDossier } from './realism-dossier.js';
+import { withCostStrips } from './realism-estimate.js';
 import { standardForms } from './realism-forms.js';
 import { happenedSheet, happenedStore, shouldShow } from './realism-happened.js';
 import { ideasPanel } from './realism-ideas.js';
@@ -528,10 +529,10 @@ export function realismRoom(ctx) {
         needsAnswer(rv.agenda, { act, today: rv.clock.world_date }),
         ideasSlot,
         writeBlock(),
-        standardForms(rv.desk, {
+        withCostStrips(standardForms(rv.desk, {
           onSubmit: (v) => act('Sending it…', 'lever', v),
           entities: entityChoices(rv.desk),
-        }),
+        }), rv.desk?.levers, rv.court),
         commitPanel(rv.wake, { act })));
   }
 

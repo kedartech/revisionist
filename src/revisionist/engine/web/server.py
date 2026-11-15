@@ -53,6 +53,7 @@ from revisionist.engine.store import load_state
 from revisionist.engine.tick import NotInPlayError
 from revisionist.engine.web import (
     agenda_api,
+    court,
     destinations,
     dossiers,
     new_game_api,
@@ -245,6 +246,7 @@ class App:
                 seat_view["realism"]["results"] = results.results(state, link.seat_id)
                 seat_view["realism"]["reach"] = reach_groups.reach(state, link.seat_id)
                 seat_view["realism"]["stakes"] = stakes.seat_stakes(state, link.seat_id, log_now)
+                seat_view["realism"]["court"] = court.seat_court(state, link.seat_id)
                 seat_view["realism"]["style"] = agenda_api.seat_style(state, link.seat_id)
                 seat_view["realism"]["brief"] = self._brief_for(
                     link.campaign_id, link.seat_id, state.tick

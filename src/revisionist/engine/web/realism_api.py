@@ -379,6 +379,89 @@ class Stakes(TypedDict):
     mandates: list[StakeMandate]
 
 
+class CourtOrder(TypedDict):
+    """One of the seat's own orders waiting at a step."""
+
+    id: str
+    """The order's id, as in ``orders``."""
+    label: str
+    since: str
+    """The in-world day it reached this step (ISO). A stall there does not move it."""
+    held_days: int
+
+
+class CourtStep(TypedDict):
+    """One person on a path, in the order an order reaches them."""
+
+    person: str
+    name: str
+    office: str | None
+    """The office on the person's public card face; None without a card."""
+    kind: Literal["decision", "clerical"]
+    days: int | None
+    """The days the step typically takes; None while that is an unsourced gap."""
+    you: bool
+    """The step is the seat's own person."""
+    orders: list[CourtOrder]
+    """The seat's own orders waiting here, oldest first. Never another seat's."""
+
+
+class CourtPath(TypedDict):
+    """One pipeline the seat's own forms use."""
+
+    id: str
+    name: str
+    forms: list[str]
+    """The labels of the seat's forms that travel it."""
+    steps: list[CourtStep]
+
+
+class CourtRing(TypedDict):
+    """One of the seat's inner circle or chain who is on no path."""
+
+    person: str
+    name: str
+    office: str | None
+    channel: str
+    """The channel the seat reaches them by first."""
+
+
+class ChamberSeats(TypedDict):
+    party: str
+    seats: int
+
+
+class ChamberVote(TypedDict):
+    """A public vote in the chamber, as its yeas and nays."""
+
+    name: str
+    yeas: int
+    nays: int
+    as_of: str
+
+
+class Chamber(TypedDict):
+    """A body of the seat's own country that owns public seat figures."""
+
+    name: str
+    seats: list[ChamberSeats]
+    carries: int
+    """The yeas that carry a vote when every member votes: more than half the seats."""
+    votes: list[ChamberVote]
+    """Newest first; only votes with both figures set."""
+
+
+class Court(TypedDict):
+    """The seat's own people on the paths its forms travel, with its orders on them,
+    the circle and chain no path reaches, and its country's chambers."""
+
+    paths: list[CourtPath]
+    ring: list[CourtRing]
+    chambers: list[Chamber]
+    load_limit: int
+    """The orders a person carries before load counts against an order."""
+
+
 class MapPlace(TypedDict):
     name: str
     lat: float
@@ -724,8 +807,16 @@ __all__ = [
     "AgendaItem",
     "AgendaOption",
     "BodyLine",
+    "Chamber",
+    "ChamberSeats",
+    "ChamberVote",
     "Clock",
     "ContactLine",
+    "Court",
+    "CourtOrder",
+    "CourtPath",
+    "CourtRing",
+    "CourtStep",
     "Desk",
     "DirectiveProposal",
     "DocumentListItem",

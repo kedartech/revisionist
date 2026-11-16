@@ -30,12 +30,14 @@ export function happenedLines(record) {
   const settled = record?.wake?.settled ?? [];
   return (record?.orders ?? [])
     .filter((o) => o.moving || settled.includes(o.id))
-    .map((o) => {
-      const said = o.said ? ` “${o.said}”` : '';
-      if (o.moving) return `“${o.asked}” is under way${o.holder ? `, with ${o.holder}` : ''}.${said}`;
-      const phrase = STATUS_SENTENCE[o.status];
-      return phrase ? `“${o.asked}” ${phrase}.${said}` : `“${o.asked}”: ${o.status}.${said}`;
-    });
+    .map(orderSentence);
+}
+
+function orderSentence(o) {
+  const said = o.said ? ` “${o.said}”` : '';
+  if (o.moving) return `“${o.asked}” is under way${o.holder ? `, with ${o.holder}` : ''}.${said}`;
+  const phrase = STATUS_SENTENCE[o.status];
+  return phrase ? `“${o.asked}” ${phrase}.${said}` : `“${o.asked}”: ${o.status}.${said}`;
 }
 
 /**
@@ -108,6 +110,65 @@ export function happenedSheet({ record, situation, agenda, date, moves, places, 
     lines.length ? h('ul', { class: 'rl-hap-lines' }, lines.map((l) => h('li', {}, l))) : null,
     paperLine ? h('p', { class: 'rl-hap-papers' }, paperLine) : null,
     movesBlock({ moves, places }),
+    h('div', { class: 'rl-hap-actions' },
+      h('button', { type: 'button', onclick: () => onClose() }, 'To the desk')));
+}
+
+export const MISSED_TITLE = 'What you missed';
+
+/** The pages of a `catchup` reply, oldest wake first; a reply that is not a list of pages gives none. */
+export function missedPages(reply) {
+  const pages = Array.isArray(reply?.pages) ? reply.pages : [];
+  return pages.filter((p) => Number.isInteger(p?.number)).sort((a, b) => a.number - b.number);
+}
+
+/**
+ * The owner's note for a wake the aide played, from the page's `aide_filed` (the server sends the
+ * key to the owner only): "Your aide played wake N for you: <orders>.", or "... and filed nothing."
+ * when it filed none; null on a page with no such key.
+ */
+export function aideNote(page) {
+  const filed = page?.aide_filed;
+  if (!Array.isArray(filed)) return null;
+  return filed.length
+    ? `Your aide played wake ${page.number} for you: ${filed.join('; ')}.`
+    : `Your aide played wake ${page.number} for you and filed nothing.`;
+}
+
+/** One sentence for each order the page settled that the record holds (an id it does not hold is left out). */
+export function missedLines(page, record) {
+  const settled = page?.settled ?? [];
+  return (record?.orders ?? []).filter((o) => settled.includes(o.id)).map(orderSentence);
+}
+
+function missedPage(page, record) {
+  const days = page.days_passed;
+  const daysLine = days === 1 ? '1 day has passed.' : days > 0 ? `${days} days have passed.` : null;
+  const lines = missedLines(page, record);
+  const dropped = Array.isArray(page.held_dropped) ? page.held_dropped : [];
+  const papers = page.papers;
+  const paperLine = papers === 1 ? '1 new paper reached your tray.' : papers > 0 ? `${papers} new papers reached your tray.` : null;
+  const note = aideNote(page);
+  const told = daysLine || lines.length || dropped.length || paperLine || note;
+  return h('section', { class: 'rl-missed-page', 'aria-labelledby': `rl-missed-w${page.number}` },
+    h('h3', { id: `rl-missed-w${page.number}` }, page.opened ? `Wake ${page.number}: ${page.opened}` : `Wake ${page.number}`),
+    note ? h('p', { class: 'rl-missed-aide' }, note) : null,
+    daysLine ? h('p', {}, daysLine) : null,
+    lines.length ? h('ul', { class: 'rl-hap-lines' }, lines.map((l) => h('li', {}, l))) : null,
+    dropped.length ? h('ul', { class: 'rl-missed-dropped' }, dropped.map((l) => h('li', {}, l))) : null,
+    paperLine ? h('p', { class: 'rl-hap-papers' }, paperLine) : null,
+    told ? null : h('p', {}, 'Nothing reached you in this wake.'));
+}
+
+/**
+ * A `<dialog class="rl-hap rl-missed">` headed "What you missed": one section for each page of the
+ * `catchup` reply (`missedPages`), oldest first, and "To the desk", which calls `onClose()`. `record`
+ * is the room's record, whose orders the settled ids name. No animation, no storage.
+ */
+export function missedSheet({ pages, record, onClose }) {
+  return h('dialog', { class: 'rl-hap rl-missed', 'aria-labelledby': 'rl-missed-title' },
+    h('h2', { id: 'rl-missed-title' }, MISSED_TITLE),
+    pages.map((p) => missedPage(p, record)),
     h('div', { class: 'rl-hap-actions' },
       h('button', { type: 'button', onclick: () => onClose() }, 'To the desk')));
 }

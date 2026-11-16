@@ -6,14 +6,20 @@ desk shows decision needed); anyone else follows a deterministic policy read
 from their card, with seeded friction. A leak issues a press document. An
 amendment is a typed edit that fits the lever's parameter spec. An order through
 its last step settles as enacted; a refusal settles it as refused.
+
+Nobody waits on a person (DUE): a decision step a human seat holds on another
+seat's order puts the order before that seat as one paper, and falls due
+``process.ANSWER_DAYS`` after the step's own due day; then the card takes it,
+holding rather than passing an order that cannot be undone. A step on a seat's
+own order that its own person holds still waits for that seat.
 """
 
 from datetime import date, timedelta
 
 from revisionist.core import events as ev
-from revisionist.core.ids import CampaignId, DocumentId, EntityId, OrderId, derived_id
+from revisionist.core.ids import CampaignId, DocumentId, EntityId, OrderId, SeatId, derived_id
 from revisionist.core.ontology import Controller, Entity, EntityKind
-from revisionist.core.realism import actors, resolvers
+from revisionist.core.realism import actors, process, resolvers
 from revisionist.core.realism.card import (
     ChannelKind,
     Lever,
@@ -30,6 +36,7 @@ from revisionist.core.realism.document import (
     DocumentTruth,
     DocumentView,
 )
+from revisionist.core.realism.effect import IRREVERSIBLE
 from revisionist.core.realism.pipeline import (
     ADVANCES,
     Order,
@@ -58,6 +65,35 @@ def waiting_on_human(state: State, order: Order) -> bool:
     return any(
         s.embodies == step.person and s.controller is Controller.HUMAN for s in state.seats.values()
     )
+
+
+def held_by_another(state: State, order: Order) -> SeatId | None:
+    """The human seat holding the decision step the order waits at, when that seat
+    is not the order's issuer; None otherwise, and for an order not waiting on one."""
+    if not waiting_on_human(state, order):
+        return None
+    seat = process.holder(state, state.pipelines[order.pipeline].steps[order.step].person)
+    return seat if seat is not None and seat != order.issuer else None
+
+
+def _arrived(order: Order) -> date:
+    """The day the order reached the step it is at."""
+    return order.outcomes[-1].on if order.outcomes else order.filed
+
+
+def held_due(state: State, order: Order) -> date | None:
+    """The day the card takes a decision step another human seat holds on this order:
+    the step's due day plus ``ANSWER_DAYS`` (from its arrival when the step has no
+    length). None when the order is not waiting on another seat."""
+    if held_by_another(state, order) is None:
+        return None
+    due = step_due(order, state.pipelines[order.pipeline]) or _arrived(order)
+    return due + timedelta(days=process.ANSWER_DAYS)
+
+
+def held_paper_id(campaign_id: CampaignId, order_id: OrderId, step: int) -> DocumentId:
+    """The id of the paper that puts an order before the seat holding its step."""
+    return DocumentId(derived_id(campaign_id, "held-paper", order_id, step))
 
 
 STALLS_TO_LAPSE = 3  # [proposed] the third stall at one step lapses the order
@@ -184,6 +220,30 @@ def _policy(
         held = StepAction.STALL if action is StepAction.REFUSE else StepAction.PASS
         return (held if held in allowed else StepAction.PASS), {}
     return action, amended
+
+
+def irreversible(state: State, order: Order) -> bool:
+    """True when the order, carried through, takes a step that cannot be undone: an
+    ``IRREVERSIBLE`` kind, or a form or measure titled as a declaration."""
+    lever = _lever(state, order)
+    titles = (lever.name, lever.label, order.measure.title if order.measure else "")
+    return bool(_kinds(state, order) & {k.value for k in IRREVERSIBLE}) or any(
+        process.declares(t) for t in titles
+    )
+
+
+def _held_policy(
+    state: State, orders: dict[OrderId, Order], order: Order, seed: str
+) -> tuple[StepAction, dict[str, ParamValue]] | None:
+    """The card's decision for a human-held step that fell due unanswered. It never
+    moves on an order that cannot be undone: it holds it, else refuses it. None when
+    the step allows neither, so the order waits for its holder."""
+    allowed = state.pipelines[order.pipeline].steps[order.step].allowed
+    action, amended = _policy(state, orders, order, seed, allowed)
+    if action not in ADVANCES or not irreversible(state, order):
+        return action, amended
+    held = next((a for a in (StepAction.STALL, StepAction.REFUSE) if a in allowed), None)
+    return None if held is None else (held, {})
 
 
 def _trim(state: State, order: Order) -> dict[str, ParamValue]:
@@ -367,6 +427,26 @@ def _reply(
     )
 
 
+def _held_paper(state: State, order: Order, seat: SeatId) -> ev.DocumentIssued:
+    """The one paper that puts another seat's order before the seat holding its step."""
+    due = held_due(state, order)
+    assert due is not None
+    issuer = state.seats[order.issuer].embodies
+    label = _lever(state, order).label or words(order.lever)
+    on = _arrived(order)
+    return process.held_paper(
+        state,
+        held_paper_id(state.campaign_id, order.order_id, order.step),
+        seat,
+        issuer=issuer,
+        title=f"For your decision: {label}",
+        said=[("Order", order_words(state, order))],
+        issued=on,
+        arrives_on=on,
+        due=due,
+    )
+
+
 def _act(
     state: State,
     order: Order,
@@ -409,39 +489,60 @@ def _act(
 
 def run_pipelines(state: State, today: date, seed: str) -> list[RealismStep]:
     """Every AI and clerical step due on or before ``today``, in date order, each
-    dated the day it fell due, plus the settlements and leaks they cause. Steps
-    held by a human are left waiting. Pure: same state, day and seed, same list.
+    dated the day it fell due, plus the settlements and leaks they cause. A step a
+    human holds on another seat's order is put before that seat as a paper, and taken
+    by the card on its held due day; one on the seat's own order waits. Pure: same
+    state, day and seed, same list.
 
     ``expedite`` advances like ``pass``: it has no timing effect yet."""
-    orders = {
-        o.order_id: o
-        for o in state.orders.values()
-        if o.status is OrderStatus.MOVING and not waiting_on_human(state, o)
-    }
+    orders = {o.order_id: o for o in state.orders.values() if o.status is OrderStatus.MOVING}
     events: list[RealismStep] = []
+    told = set(state.documents)
+
+    def tell(order: Order) -> None:
+        seat = held_by_another(state, order)
+        if seat is None or order.status is not OrderStatus.MOVING:
+            return
+        doc_id = held_paper_id(state.campaign_id, order.order_id, order.step)
+        if doc_id not in told and _arrived(order) <= today:
+            told.add(doc_id)
+            events.append(_held_paper(state, order, seat))
+
+    for oid in sorted(orders):
+        tell(orders[oid])
     while True:
         due = sorted(
             (d, oid)
             for oid, o in orders.items()
-            if o.status is OrderStatus.MOVING
-            and (d := step_due(o, state.pipelines[o.pipeline])) is not None
-            and d <= today
+            if o.status is OrderStatus.MOVING and (d := _due(state, o)) is not None and d <= today
         )
         if not due:
             return events
         on, oid = due[0]
         order = orders[oid]
         step = state.pipelines[order.pipeline].steps[order.step]
-        if waiting_on_human(state, order):
-            del orders[oid]
-            continue
         amended: dict[str, ParamValue] = {}
-        if step.kind is StepKind.CLERICAL:
+        if waiting_on_human(state, order):
+            decided = _held_policy(state, orders, order, seed)
+            if decided is None:
+                del orders[oid]
+                continue
+            action, amended = decided
+        elif step.kind is StepKind.CLERICAL:
             action = StepAction.PASS
         else:
             action, amended = _policy(state, orders, order, seed, step.allowed)
         orders[oid], out = _act(state, order, action, on, amended)
         events += out
+        tell(orders[oid])
+
+
+def _due(state: State, order: Order) -> date | None:
+    """When the runner next acts on a moving order: its step's due day; for a step a
+    human holds, the held due day on another seat's order, else never."""
+    if waiting_on_human(state, order):
+        return held_due(state, order)
+    return step_due(order, state.pipelines[order.pipeline])
 
 
 def human_step(
@@ -470,7 +571,11 @@ __all__ = [
     "DESTINATION",
     "RealismStep",
     "destination",
+    "held_by_another",
+    "held_due",
+    "held_paper_id",
     "human_step",
+    "irreversible",
     "order_words",
     "place_named",
     "reply_doc_id",

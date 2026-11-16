@@ -23,8 +23,8 @@ function menu(game, answer) {
   uiFor(`g-${Math.random()}`);
   const calls = [];
   const out = deferred();
-  // the menu also reads the notice address when it opens: that read is tested in answer.test.js
-  api.game = (action, body) => { if (action !== 'notice-address') calls.push([action, body]); return answer ?? out.promise; };
+  // the menu also reads the notice address and the leaders to hand over when it opens: those reads are tested in answer.test.js and handover.test.js
+  api.game = (action, body) => { if (!['notice-address', 'handover-list'].includes(action)) calls.push([action, body]); return answer ?? out.promise; };
   const ctx = { go: () => {}, refresh: async () => {} };
   const [open, dialog] = gameMenu(game, ctx, { idle: () => true });
   doc.body.append(open, dialog);

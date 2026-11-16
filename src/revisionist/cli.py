@@ -1029,6 +1029,28 @@ def admin_new_master_key(
     typer.echo(f"wrote {path}; set REVISIONIST_MASTER_KEY_FILE={path}")
 
 
+class WebTransport(StrEnum):
+    CLAUDE = "claude"
+    OPENROUTER = "openrouter"
+
+
+SCHEDULER_TRANSPORT_ENV = "REVISIONIST_SCHEDULER_TRANSPORT"
+"""``claude`` or ``openrouter``: what ``scheduler run`` ticks on when no flag is given. Each
+instance names its own in its env file (``deploy/systemd/revisionist-scheduler@.service``)."""
+
+
+def _openrouter_factory() -> Callable[[], Transport]:
+    """One shared, guarded, free-models-only transport; the claude CLI is never built."""
+    from revisionist.engine.openrouter import OpenRouterTransport
+
+    try:
+        shared = OpenRouterTransport.from_env()
+        shared.start()
+    except TransportError as exc:
+        raise _fail(str(exc)) from None
+    return lambda: shared
+
+
 # --- revisionist scheduler -------------------------------------------------------------
 
 scheduler_app = typer.Typer(
@@ -1061,15 +1083,30 @@ def _scheduled(store: "PostgresEventStore", campaign: str | None) -> list[sch.Sc
 
 
 @scheduler_app.command("run")
-def scheduler_run(campaign: CampaignOpt = None, offline: Offline = False) -> None:
+def scheduler_run(
+    campaign: CampaignOpt = None,
+    offline: Offline = False,
+    transport: Annotated[
+        WebTransport,
+        typer.Option(
+            "--transport",
+            envvar=SCHEDULER_TRANSPORT_ENV,
+            help="claude: the Claude CLI. openrouter: free models only, key from "
+            "$REVISIONIST_OPENROUTER_KEY, as `web serve --transport openrouter`.",
+        ),
+    ] = WebTransport.CLAUDE,
+) -> None:
     """Tick every due campaign once. Exit 3 on a leak, 1 when a campaign was paused."""
     store = _pg_store()
     try:
+        factory: Callable[[], Transport] = lambda: transport_factory()  # noqa: E731
+        if transport is WebTransport.OPENROUTER and not offline:
+            factory = _openrouter_factory()
         outcomes = sch.run(
             store,
             clock,
             offline=offline,
-            transport_factory=transport_factory,
+            transport_factory=factory,
             briefings=cmp.briefings_dir(),
             warn=lambda message: typer.echo(message, err=True),
             campaign=CampaignId(campaign) if campaign else None,
@@ -1344,11 +1381,6 @@ WEB_STATIC = Path(__file__).resolve().parents[2] / "web"
 """The client in the repo's ``web/`` folder, served as static files."""
 
 
-class WebTransport(StrEnum):
-    CLAUDE = "claude"
-    OPENROUTER = "openrouter"
-
-
 @web_app.command("serve")
 def web_serve(
     host: Annotated[str, typer.Option("--host", help="Address to bind; keep it private")] = (
@@ -1384,14 +1416,7 @@ def web_serve(
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     factory: Callable[[], Transport] = lambda: transport_factory()  # noqa: E731
     if transport is WebTransport.OPENROUTER:
-        from revisionist.engine.openrouter import OpenRouterTransport
-
-        try:
-            shared = OpenRouterTransport.from_env()
-            shared.start()
-        except TransportError as exc:
-            raise _fail(str(exc)) from None
-        factory = lambda: shared  # noqa: E731
+        factory = _openrouter_factory()
     app_ = App(
         cmp.db_target(),
         root,

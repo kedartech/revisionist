@@ -27,7 +27,7 @@ from revisionist.core.realism.effect import IRREVERSIBLE, EffectKind, Route
 from revisionist.core.realism.pipeline import step_due
 from revisionist.core.visibility import private_to
 from revisionist.engine import campaign as cmp
-from revisionist.engine import options, realism_tick
+from revisionist.engine import catchup, options, realism_tick
 from revisionist.engine import scheduler as sch
 from revisionist.engine.pg_store import PostgresEventStore
 from revisionist.engine.store import MemoryStore
@@ -420,7 +420,8 @@ def everything_sent_to(client: Client, *replies: Any) -> str:
 
 def test_5_the_aide_is_unleaked(web: Web) -> None:  # noqa: F811
     """No other seat's view holds ``by_aide`` or ``timed_out``: over every payload the
-    server sends, the page state, every paper and every reply."""
+    server sends, the page state, every paper and every reply, the catch-up included,
+    and over the catch-up seam the second run's playback reads."""
     game = Realism(web, world=WORLD)
     ada = game.seat("ada", "roosevelt")
     game.seat("bea", "churchill")
@@ -438,9 +439,20 @@ def test_5_the_aide_is_unleaked(web: Web) -> None:  # noqa: F811
         if isinstance(e.payload, ev.WakeCommitted) and e.payload.by_aide
     ]
     assert [p.seat_id for p in played] == [seat_of(game, "churchill")] * 2
-    sent = everything_sent_to(ada, *replies)
-    for word in ("by_aide", "timed_out", "aide_orders"):
+    _, caught_up = post(ada, "catchup", first=0, last=1)
+    assert [p["number"] for p in caught_up["pages"]] == [0, 1], caught_up
+    sent = everything_sent_to(ada, *replies, caught_up)
+    for word in ("by_aide", "timed_out", "aide_orders", "aide_filed"):
         assert word not in sent, word
+    store = game.web.app.open()
+    try:
+        seam = catchup.seat_events(store, game.campaign, seat_of(game, "roosevelt"), 0, 2)
+    finally:
+        store.close()
+    assert seam, "the seam holds Roosevelt's wakes"
+    fed = json.dumps([f.event.model_dump(mode="json") for f in seam])
+    for word in ("by_aide", "timed_out", "aide_orders"):
+        assert word not in fed, word
 
 
 # --- 6. Catch-up is complete ------------------------------------------------------
@@ -469,11 +481,6 @@ def catchup_pages(client: Client) -> list[dict[str, Any]]:
     return list(out["pages"])
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="CUP: the server has no catch-up yet",
-)
 def test_6_catch_up_is_complete_from_the_server(web: Web) -> None:  # noqa: F811
     """A seat away for three wakes gets a page for each, from a fresh browser."""
     _, fresh = away_for_three_wakes(web)

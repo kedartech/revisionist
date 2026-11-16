@@ -18,6 +18,7 @@ from revisionist.core import events as ev
 from revisionist.core._base import Model
 from revisionist.core.canary import scan_text
 from revisionist.core.events import CallCost
+from revisionist.core.goals import Ordered, leaves
 from revisionist.core.ids import CampaignId, EntityId, FeatureId, SeatId
 from revisionist.core.ontology import Controller, EntityKind, ScheduleSource
 from revisionist.core.project import project
@@ -31,6 +32,7 @@ from revisionist.core.realism.agenda import (
 )
 from revisionist.core.realism.effect import (
     IRREVERSIBLE,
+    Deal,
     Effect,
     EffectKind,
     Engagement,
@@ -612,9 +614,17 @@ def offer(
     )
 
 
+def _wants_a_deal(mandate: Mandate) -> bool:
+    """An opening met by the seat's own deal: the aide leaves it to lapse."""
+    return any(
+        isinstance(c, Ordered) and c.effect is EffectKind.DEAL for c in leaves(mandate.condition)
+    )
+
+
 def aide_asks(state: State, seat: SeatId, transport: Transport | None) -> list[tuple[Ask, ...]]:
     """The orders an aide files for an absent seat, one per live mandate: its first
-    beginner option, less any irreversible ask the seat has not put in a standing order."""
+    beginner option, less any irreversible ask the seat has not put in a standing order,
+    and less any deal. A mandate a deal would meet is skipped, so the opening lapses."""
     global last_cost
     last_cost = None
     if seat not in state.seats:
@@ -623,15 +633,20 @@ def aide_asks(state: State, seat: SeatId, transport: Transport | None) -> list[t
     allowed = state.standing.get(seat, frozenset())
     orders: list[tuple[Ask, ...]] = []
     for mandate in _live(view):
+        if _wants_a_deal(mandate):
+            continue
         options = _options_for(state, view, mandate, PlayStyle.BEGINNER, transport)
         if not options:
             continue
         asks = tuple(
             a
             for a in options[0].asks
-            if a.effect is None
-            or EffectKind(a.effect.kind) not in IRREVERSIBLE
-            or EffectKind(a.effect.kind) in allowed
+            if not isinstance(a.effect, Deal)
+            and (
+                a.effect is None
+                or EffectKind(a.effect.kind) not in IRREVERSIBLE
+                or EffectKind(a.effect.kind) in allowed
+            )
         )
         if asks:
             orders.append(asks)

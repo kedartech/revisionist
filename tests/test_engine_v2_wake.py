@@ -8,10 +8,20 @@ from pathlib import Path
 import pytest
 
 from revisionist.core import events as ev
-from revisionist.core.ids import CampaignId, EntityId, EventId, FeatureId, SeatId, derived_id
+from revisionist.core.goals import AnyOf, Ordered, WinCondition
+from revisionist.core.ids import (
+    CampaignId,
+    EntityId,
+    EventId,
+    FeatureId,
+    MandateId,
+    SeatId,
+    derived_id,
+)
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism.advance import next_wake
-from revisionist.core.realism.agenda import Ask, PlayStyle
+from revisionist.core.realism.agenda import Ask, Mandate, MandateKind, Option, PlayStyle
+from revisionist.core.realism.effect import EffectKind
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, private_to
 from revisionist.core.world_compile import compile_world, resolve_keys
@@ -313,3 +323,155 @@ def test_the_aides_commit_is_sealed_to_its_owner_and_names_its_orders(
     assert close.scope == PUBLIC
     assert close.payload == ev.WakeClosed(wake=0, timed_out=(t.winston,), how="deadline")
     assert t.state.wake is not None and t.state.wake.committed == {t.fdr, t.winston}
+
+
+# --- The aide is bounded (ABD): no deal accepted, offers lapse ---------------------
+
+
+def _deal(t: Table, *, accept: bool) -> Ask:
+    terms = rx.Deal(
+        counterparty=t.entity("roosevelt"),
+        accept=accept,
+        offer=() if accept else ("bases in the West Indies",),
+    )
+    return Ask(ask=f"{'accept' if accept else 'offer'} a deal with the President", effect=terms)
+
+
+def _say(theme: str) -> Ask:
+    return Ask(ask=f"Say plainly: {theme}", effect=rx.MakeStatement(theme=theme))
+
+
+def _opening(t: Table, text: str, condition: WinCondition) -> MandateId:
+    """A mandate put to Churchill's seat with the given condition, live for ten days."""
+    assert t.winston is not None
+    state = t.state
+    today = state.in_world_date
+    assert today is not None
+    mandate_id = MandateId(derived_id(CAMPAIGN, "abd-opening", text))
+    mandate = Mandate(
+        mandate_id=mandate_id,
+        seat_id=t.winston,
+        kind=MandateKind.OPPORTUNITY,
+        text=text,
+        condition=condition,
+        issued=today,
+        expires=today + timedelta(days=10),
+        scope=private_to(t.winston),
+    )
+    t.store.append_all(
+        [
+            ev.Event(
+                event_id=EventId(derived_id(CAMPAIGN, "abd-opening-event", mandate_id)),
+                campaign_id=CAMPAIGN,
+                seq=state.last_seq + 1,
+                tick=state.tick,
+                scope=private_to(t.winston),
+                payload=ev.MandateIssued(mandate=mandate),
+                versions=cmp.versions(),
+            )
+        ]
+    )
+    return mandate_id
+
+
+def _offered_by_mandate(
+    monkeypatch: pytest.MonkeyPatch, by_text: dict[str, tuple[Ask, ...]]
+) -> list[str]:
+    """Each mandate is offered the one option named for its text; returns the
+    mandates the aide asked options for."""
+    asked: list[str] = []
+
+    def offered(
+        state: State, view: object, mandate: Mandate | None, *a: object, **k: object
+    ) -> tuple[Option, ...]:
+        assert mandate is not None
+        asked.append(mandate.text)
+        asks = by_text.get(mandate.text, (_say("the convoys"),))
+        return (Option(label=f"answer {mandate.text}", asks=asks),)
+
+    monkeypatch.setattr(options, "_options_for", offered)
+    return asked
+
+
+def test_the_aide_files_no_deal_offered_or_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
+    t = Table(MemoryStore())
+    assert t.winston is not None
+    _opening(
+        t,
+        "Speak to the Commons.",
+        Ordered(person=t.entity("churchill"), effect=EffectKind.STATEMENT),
+    )
+    both = (_deal(t, accept=True), _deal(t, accept=False), _say("the Commons"))
+    _offered_by_mandate(monkeypatch, {"Speak to the Commons.": both})
+    filed = [a for order in options.aide_asks(t.state, t.winston, None) for a in order]
+    assert _say("the Commons") in filed
+    assert [a for a in filed if isinstance(a.effect, rx.Deal)] == []
+
+
+def test_an_order_that_is_only_a_deal_is_not_filed(monkeypatch: pytest.MonkeyPatch) -> None:
+    t = Table(MemoryStore())
+    assert t.winston is not None
+    _opening(
+        t,
+        "Answer the Americans.",
+        Ordered(person=t.entity("churchill"), effect=EffectKind.STATEMENT),
+    )
+    _offered_by_mandate(monkeypatch, {"Answer the Americans.": (_deal(t, accept=True),)})
+    orders = options.aide_asks(t.state, t.winston, None)
+    assert orders and all(orders), orders
+    assert all(not isinstance(a.effect, rx.Deal) for order in orders for a in order)
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_the_aide_leaves_an_opening_met_only_by_a_deal_to_lapse(
+    monkeypatch: pytest.MonkeyPatch, nested: bool
+) -> None:
+    t = Table(MemoryStore())
+    assert t.winston is not None
+    deal: WinCondition = Ordered(person=t.entity("churchill"), effect=EffectKind.DEAL)
+    condition: WinCondition = AnyOf(conditions=(deal,)) if nested else deal
+    _opening(t, "The Americans offer fifty destroyers.", condition)
+    welcome = (_say("the American offer is welcome"),)
+    asked = _offered_by_mandate(monkeypatch, {"The Americans offer fifty destroyers.": welcome})
+    orders = options.aide_asks(t.state, t.winston, None)
+    assert "The Americans offer fifty destroyers." not in asked
+    assert asked, "the seat's other mandate is still played"
+    assert all(welcome[0] not in order for order in orders)
+
+
+def test_the_aide_still_plays_a_mandate_met_by_another_kind(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    t = Table(MemoryStore())
+    assert t.winston is not None
+    _opening(
+        t,
+        "Speak to the Commons.",
+        Ordered(person=t.entity("churchill"), effect=EffectKind.STATEMENT),
+    )
+    asked = _offered_by_mandate(monkeypatch, {})
+    options.aide_asks(t.state, t.winston, None)
+    assert "Speak to the Commons." in asked
+
+
+def test_the_close_files_no_deal_whatever_the_aide_is_given(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    t = Table(MemoryStore())
+    assert t.winston is not None
+    given = [(_deal(t, accept=True), _say("the convoys")), (_deal(t, accept=False),)]
+    monkeypatch.setattr(options, "aide_asks", lambda state, seat, transport: given)
+    filed: list[Ask] = []
+    real = realism_tick.commit_order
+
+    def spy(store: EventStore, cid: CampaignId, seat: SeatId, asks: Sequence[Ask]) -> object:
+        filed.extend(asks)
+        return real(store, cid, seat, asks)
+
+    monkeypatch.setattr(realism_tick, "commit_order", spy)
+    wake.open_wake(t.store, CAMPAIGN, T0)
+    wake.commit(t.store, CAMPAIGN, t.fdr, T0)
+    wake.close_wake(t.store, CAMPAIGN, T0 + timedelta(hours=12), None)
+    assert filed == [_say("the convoys")]
+    (aide,) = [p for p in t.payloads(ev.WakeCommitted) if p.by_aide]
+    assert len(aide.aide_orders) == 1, "the aide's commit names the one order it filed"

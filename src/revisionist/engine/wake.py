@@ -12,7 +12,7 @@ from revisionist.core import record
 from revisionist.core.ids import CampaignId, EventId, OrderId, SeatId
 from revisionist.core.ontology import Controller
 from revisionist.core.realism.agenda import STANDING_DEFAULT, Ask
-from revisionist.core.realism.effect import IRREVERSIBLE
+from revisionist.core.realism.effect import IRREVERSIBLE, Deal
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, Scope, private_to
 from revisionist.engine import campaign as cmp
@@ -115,12 +115,17 @@ def wake_due(state: State, now: datetime) -> bool:
 
 
 def _allowed(state: State, seat: SeatId, order: tuple[Ask, ...]) -> tuple[Ask, ...]:
-    """The aide never takes an irreversible step without a standing order naming it."""
+    """The aide never takes an irreversible step without a standing order naming it,
+    and never makes or accepts a deal: a deal is the seat's own to strike."""
     standing = state.standing.get(seat, STANDING_DEFAULT)
     return tuple(
         a
         for a in order
-        if a.effect is None or a.effect.kind not in IRREVERSIBLE or a.effect.kind in standing
+        if a.effect is None
+        or (
+            not isinstance(a.effect, Deal)
+            and (a.effect.kind not in IRREVERSIBLE or a.effect.kind in standing)
+        )
     )
 
 

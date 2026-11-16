@@ -233,6 +233,47 @@ function stepForm(order, act) {
   h('button', { type: 'submit', class: 'rl-submit' }, 'Take the step'));
 }
 
+/**
+ * The host's "Hand a leader to a new player": the leaders nobody plays, each with a button that asks
+ * the server for one invite code. `api.game('handover-list')` resolves to `{ reply, refused, leaders:
+ * [{ key, name, office }] }` and `api.game('handover', { leader })` to `{ reply, refused, code,
+ * from_wake }`. The list is read when the menu opens and is not held by `run`, so a slow read never
+ * blocks Pause or Leave; the hand-over call goes through the menu's one-call guard.
+ */
+function handoverSection({ api, run }) {
+  const says = h('p', { class: 'hint rl-handover-says', role: 'status', 'aria-live': 'polite' });
+  const list = h('ul', { class: 'rl-handover-list' });
+  const code = h('div', { class: 'rl-handover-code' });
+  const hand = (leader) => run(async () => {
+    const r = await api.game('handover', { leader: leader.key });
+    says.replaceChildren(r.reply ?? '');
+    if (r.refused || !r.code) { code.replaceChildren(); return; }
+    const field = h('input', { id: 'rl-handover-code', name: 'code', type: 'text', readonly: true, value: r.code, onfocus: (e) => e.target.select?.() });
+    code.replaceChildren(h('label', { for: 'rl-handover-code' }, 'Invite code'), field);
+    field.focus();
+  });
+  const row = (leader) => {
+    const id = `rl-handover-${leader.key}`;
+    return h('li', {},
+      h('span', { id }, h('strong', {}, leader.name), ` · ${leader.office}`),
+      h('button', { type: 'button', class: 'ghost', 'aria-describedby': id, onclick: () => hand(leader) }, 'Hand to a new player'));
+  };
+  const load = async () => {
+    try {
+      const r = await api.game('handover-list');
+      says.replaceChildren(r.reply ?? '');
+      list.replaceChildren(...(r.refused ? [] : (r.leaders ?? []).map(row)));
+    } catch (ex) {
+      says.replaceChildren(ex.message);
+    }
+  };
+  const nodes = h('section', { class: 'rl-handover' },
+    h('h3', {}, 'Hand a leader to a new player'),
+    h('p', { class: 'hint' }, 'The hand-over takes effect at the next wake. Send the code to the new player privately; it works once.'),
+    list, code, says);
+  return { nodes, load };
+}
+
 /** The game menu: pause, resume and end for the host; how to start another game. */
 export function gameMenu(game, ctx, work) {
   const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
@@ -251,6 +292,7 @@ export function gameMenu(game, ctx, work) {
     out.replaceChildren('Working…');
     try {
       await fn();
+      if (out.textContent === 'Working…') out.replaceChildren();
     } catch (ex) {
       out.replaceChildren(h('span', { class: 'form-error', role: 'alert' }, ex.message));
     } finally {
@@ -267,6 +309,7 @@ export function gameMenu(game, ctx, work) {
     else await ctx.refresh();
   });
   const notices = noticesSection({ api, run });
+  const handover = game.host ? handoverSection({ api, run }) : null;
   const hours = h('input', { id: 'rl-wake-hours', name: 'hours', type: 'number', min: 1, max: 168, step: 1, required: true });
   const setHours = () => {
     if (!hours.reportValidity()) return;
@@ -305,6 +348,7 @@ export function gameMenu(game, ctx, work) {
           : h('button', { type: 'button', class: 'ghost', onclick: () => call('pause') }, 'Pause'),
         endBtn),
       confirmEnd,
+      handover.nodes,
       h('div', { class: 'rl-field' }, h('label', { for: 'rl-wake-hours' }, 'Hours per wake'),
         h('div', { class: 'row' }, hours,
           h('button', { type: 'button', class: 'ghost', onclick: setHours }, 'Set'))),
@@ -325,7 +369,7 @@ export function gameMenu(game, ctx, work) {
     out,
     h('div', { class: 'row end' }, closeBtn)));
   const open = h('button', {
-    type: 'button', class: 'rl-menu-btn', 'aria-haspopup': 'dialog', onclick: () => { if (work.idle()) { dialog.showModal(); notices.load(); } },
+    type: 'button', class: 'rl-menu-btn', 'aria-haspopup': 'dialog', onclick: () => { if (work.idle()) { dialog.showModal(); handover?.load(); notices.load(); } },
   }, 'Game', icon('chevron', 12));
   return [open, dialog];
 }

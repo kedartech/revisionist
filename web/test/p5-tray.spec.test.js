@@ -6,7 +6,11 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { traySections, trayRows } from '../js/views/realism-tray.js';
+import { TRAY_FILTERS, filterInTray, trayCounts, unreadCount } from '../js/realism-rules.js';
+import { installDom, words } from './dom-fake.js';
+import { traySections, trayListing, trayRows, trayView } from '../js/views/realism-tray.js';
+
+installDom();
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const read = (f) => readFileSync(join(WEB, f), 'utf8');
@@ -49,4 +53,30 @@ test('the tray view draws the sections', () => {
   const src = read('js/views/realism-tray.js');
   const view = src.slice(src.indexOf('export function trayView'));
   assert.match(view, /traySections\(/);
+});
+
+const receipt = (id, extra = {}) => doc(id, { ack: true, unread: true, ...extra });
+
+test('there is no acknowledgements filter', () => {
+  assert.deepEqual(TRAY_FILTERS.map(([key]) => key), ['all', 'unread', 'read', 'flagged', 'news']);
+  assert.ok(!('acks' in trayCounts([receipt('k1')])));
+  assert.throws(() => filterInTray([receipt('k1')], 'acks'));
+});
+
+test('a receipt is in no filter, read or unread', () => {
+  const items = [doc('r1', { unread: true }), receipt('k1'), receipt('k2', { unread: false, flagged: true })];
+  for (const [key] of TRAY_FILTERS) assert.ok(filterInTray(items, key).every((d) => !d.ack), key);
+  assert.deepEqual(trayCounts(items), { all: 1, unread: 1, read: 0, flagged: 0, news: 1 });
+});
+
+test('an unread receipt adds nothing to the unread counts', () => {
+  const items = [doc('r1', { unread: true }), receipt('k1'), receipt('k2')];
+  assert.equal(unreadCount(items), 1);
+  assert.equal(trayListing({ documents: items, unread: 3 }).unread, 1);
+});
+
+test('the filter bar draws no acknowledgements tab', () => {
+  const tabs = [...trayView(fixture.listing, () => {}, { filter: 'all', sort: 'newest' }).querySelectorAll('[role="tab"]')];
+  assert.equal(tabs.length, 5);
+  assert.ok(tabs.every((t) => !/Acknowledgements/.test(words(t))));
 });

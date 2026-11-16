@@ -1,7 +1,5 @@
-/* In-Tray follow-up, unit T2. Tokens only (web/css/tokens.css). */
-.rl-acks { margin-top: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--rule); }
-.rl-acks h3 { margin: 0 0 var(--space-1); }
-.rl-acks-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
-.rl-ack { all: unset; display: inline-flex; align-items: center; gap: var(--space-1); cursor: pointer; font: 14px/1.4 var(--font-chrome); color: var(--info); }
-.rl-ack:hover, .rl-ack:focus-visible { text-decoration: underline; }
-.rl-ack:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* The receipt on an order's ledger line. Tokens only (web/css/tokens.css). */
+.rl-receipt { padding: 0 var(--space-2); background: var(--surface); color: var(--info); border: 1px solid var(--rule); border-radius: var(--radius); font: 12px/1.6 var(--font-chrome); text-align: left; overflow-wrap: anywhere; cursor: pointer; }
+.rl-receipt:hover { text-decoration: underline; }
+.rl-receipt:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 480px) { .rl-receipt { min-height: 44px; } }

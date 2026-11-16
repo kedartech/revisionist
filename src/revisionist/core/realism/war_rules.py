@@ -7,6 +7,8 @@ from revisionist.core.ids import DocumentId, EntityId, FeatureId, SeatId, derive
 from revisionist.core.ontology import EntityKind
 from revisionist.core.realism import actors, reach
 from revisionist.core.realism.agenda import Ask
+from revisionist.core.realism.bases import Tier
+from revisionist.core.realism.bases import reach as reach_of
 from revisionist.core.realism.card import ChannelKind, Desk
 from revisionist.core.realism.detachments import DETACHMENTS_PER_SIDE
 from revisionist.core.realism.document import (
@@ -81,11 +83,33 @@ def _detach_refusal(state: State, params: dict[str, str]) -> str:
     return ""
 
 
+def _reach_refusal(state: State, seat: SeatId, lever: str, params: dict[str, str]) -> str:
+    """Why the seat's own force may not be sent where the order says: the place is beyond
+    what its side's bases allow. Empty if it may, and for anything the movement rule does
+    not act on."""
+    card = state.cards.get(state.seats[seat].embodies)
+    found = None if card is None else next((x for x in card.levers if x.name == lever), None)
+    if found is None or found.resolver != "movement":
+        return ""
+    force = state.features.get(
+        FeatureId(object_id(state.campaign_id, "feature", params.get("force", "")))
+    )
+    to = _world_entity(state, params.get("to", ""))
+    if force is None or force.kind not in FORCES or to is None:
+        return ""
+    found_reach = reach_of(state, force, to)
+    if found_reach is None or found_reach.tier is not Tier.REFUSED:
+        return ""
+    return _clip(found_reach.reason or "", REFUSAL)
+
+
 def order_refusal(state: State, seat: SeatId, lever: str, params: dict[str, str]) -> str:
     """The words for why the seat may not pull this lever now; empty if it may."""
     own = _own_polity(state, seat)
     if own is None:
         return ""
+    if refused := _reach_refusal(state, seat, lever, params):
+        return refused
     if lever == "detach_fleet":
         return _detach_refusal(state, params)
     if lever == "uboat_directive" and params.get("posture") == "attack_us_shipping":

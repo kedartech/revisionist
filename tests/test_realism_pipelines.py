@@ -423,6 +423,7 @@ def test_autumn_1941_runs_and_folds() -> None:
 # Steps of autumn-1941 whose `allowed` list has no refusal: (pipeline, step index, person).
 NO_REFUSAL_STEPS = [
     ("lend_lease_allocation", 0, "hopkins"),
+    ("okw_army_directive", 0, "jodl"),
     ("reich_declaration", 0, "ribbentrop"),
     ("gko_decree", 0, "shaposhnikov"),
     ("gko_decree", 1, "molotov"),
@@ -495,7 +496,7 @@ def test_a_refusal_at_a_step_that_allows_none_becomes_a_stall(
     assert [(t.order_id, t.outcome.step, t.outcome.action) for t in taken] == [(oid, step, S.STALL)]
 
 
-def test_the_six_steps_listed_are_every_step_of_autumn_1941_that_allows_no_refusal() -> None:
+def test_the_steps_listed_are_every_step_of_autumn_1941_that_allows_no_refusal() -> None:
     world = cmp.load_world(cmp.world_path("autumn-1941"))
     found = [
         (pl.key, i, s.person)

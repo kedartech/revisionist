@@ -53,13 +53,13 @@ export function sortInTray(items, order = 'newest') {
 }
 
 export function unreadCount(items) {
-  return items.filter((d) => d.unread).length;
+  return items.filter((d) => !d.ack && d.unread).length;
 }
 
-/** The in-tray filters, in the order the bar shows them. Acknowledgements (`ack`) live in the
- * conversation with their author; only their own filter shows them in the tray. */
+/** The in-tray filters, in the order the bar shows them. An acknowledgement (`ack`) is in none:
+ * its order's ledger line carries it as a receipt. */
 export const TRAY_FILTERS = Object.freeze([
-  ['all', 'All'], ['unread', 'Unread'], ['read', 'Read'], ['flagged', 'Flagged'], ['news', 'News'], ['acks', 'Acknowledgements'],
+  ['all', 'All'], ['unread', 'Unread'], ['read', 'Read'], ['flagged', 'Flagged'], ['news', 'News'],
 ]);
 
 const KEEP = Object.freeze({
@@ -68,7 +68,6 @@ const KEEP = Object.freeze({
   read: (d) => !d.ack && !d.unread,
   flagged: (d) => !d.ack && d.flagged,
   news: (d) => !d.ack && !d.group,
-  acks: (d) => d.ack,
 });
 
 export function filterInTray(items, filter) {

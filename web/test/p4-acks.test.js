@@ -1,72 +1,76 @@
-// Unit tests for the acknowledgement helpers, against the fixture. Run: node --test web/test/
+// Unit tests for the receipt on an order's ledger line, against the fixture. Run: node --test web/test/
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { ackLines, ackThread } from '../js/views/realism-acks.js';
+import { installDom, words } from './dom-fake.js';
+
+installDom();
+const acks = await import('../js/views/realism-acks.js');
+const { orderCards } = await import('../js/views/realism-orders.js');
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
-const fixture = JSON.parse(readFileSync(join(WEB, 'test', 'fixtures', 'realism-seat.json'), 'utf8'));
-const listing = fixture.listing;
+const read = (f) => readFileSync(join(WEB, f), 'utf8');
+const fixture = JSON.parse(read('test/fixtures/realism-seat.json'));
+const receipted = fixture.record.orders.filter((o) => o.receipt);
+const cardsOf = (record, onOpen) => [...orderCards(record, fixture.orders, () => null, onOpen).querySelectorAll('.rl-oc-card')];
 
-const row = (over) => ({
-  id: 'd-x', kind: 'letter', title: 'On your order: Something', author: 'Sam Rayburn',
-  issued: '1941-10-01', arrives: '1941-10-02', channel: 'letter', classification: 'open',
-  unread: false, flagged: false, group: null, ack: true, ...over,
+test('the fixture has one receipted order, so the cards below prove something', () => {
+  assert.equal(receipted.length, 1);
 });
 
-test('ackLines returns the fixture acknowledgement by its author', () => {
-  assert.deepEqual(ackLines(listing, 'Sam Rayburn'), [
-    { id: 'd-reply-1012', title: 'Send a bill to Congress', day: '12 October 1941', unread: false },
-  ]);
+test('receiptLine is null for an order with no receipt, or from a payload without the key', () => {
+  assert.equal(acks.receiptLine(null, () => {}), null);
+  assert.equal(acks.receiptLine(undefined, () => {}), null);
 });
 
-test('ackLines is empty for a person with no acknowledgements', () => {
-  assert.deepEqual(ackLines(listing, 'Harry Hopkins'), []);
-  assert.deepEqual(ackLines(listing, 'Admiral Ernest King'), []);
+test('receiptLine words the receipt and its day, as a button that names what it opens', () => {
+  const btn = acks.receiptLine(receipted[0].receipt, () => {});
+  assert.equal(btn.tagName, 'BUTTON');
+  assert.equal(btn.getAttribute('type'), 'button');
+  assert.ok(btn.classList.contains('rl-receipt'));
+  assert.equal(words(btn), 'Passed on, 12 October 1941');
+  assert.equal(btn.getAttribute('aria-label'), 'Open the paper: Passed on, 12 October 1941');
 });
 
-test('ackLines ignores papers that are not acknowledgements, even from the same author', () => {
-  const docs = { documents: [row({ id: 'a', ack: false }), row({ id: 'b', author: 'Someone Else' })] };
-  assert.deepEqual(ackLines(docs, 'Sam Rayburn'), []);
+test('pressing the receipt opens the paper by its id', () => {
+  const opened = [];
+  acks.receiptLine({ word: 'Carried out in full', day: '21 October 1941', doc: 'd-x' }, (d) => opened.push(d)).click();
+  assert.deepEqual(opened, [{ id: 'd-x' }]);
 });
 
-test('ackLines sorts newest arrival first, ties by id', () => {
-  const docs = { documents: [
-    row({ id: 'm', arrives: '1941-10-03' }),
-    row({ id: 'z', arrives: '1941-10-05' }),
-    row({ id: 'b', arrives: '1941-10-05' }),
-    row({ id: 'a', arrives: '1941-10-01' }),
-  ] };
-  assert.deepEqual(ackLines(docs, 'Sam Rayburn').map((l) => l.id), ['b', 'z', 'm', 'a']);
+test('the acknowledgement list and its helpers are gone', () => {
+  assert.equal(acks.ackLines, undefined);
+  assert.equal(acks.ackThread, undefined);
 });
 
-test('ackLines drops the "On your order: " prefix only, and reports unread', () => {
-  const docs = { documents: [
-    row({ id: 'p', title: 'On your order: Hold the convoy', unread: true }),
-    row({ id: 'q', title: 'Not On your order: kept', arrives: '1941-10-01' }),
-  ] };
-  assert.deepEqual(ackLines(docs, 'Sam Rayburn'), [
-    { id: 'p', title: 'Hold the convoy', day: '2 October 1941', unread: true },
-    { id: 'q', title: 'Not On your order: kept', day: '1 October 1941', unread: false },
-  ]);
+test('a receipted order card shows its receipt and opens the paper; the others show none', () => {
+  const opened = [];
+  const withReceipt = cardsOf(fixture.record, (d) => opened.push(d)).filter((c) => c.querySelector('.rl-receipt'));
+  assert.equal(withReceipt.length, 1);
+  assert.ok(words(withReceipt[0]).includes('Revise the Neutrality Act'));
+  withReceipt[0].querySelector('.rl-receipt').click();
+  assert.deepEqual(opened, [{ id: 'd-reply-1012' }]);
 });
 
-test('ackLines does not mutate the listing', () => {
-  const docs = { documents: [
-    row({ id: 'a', arrives: '1941-10-01' }),
-    row({ id: 'b', arrives: '1941-10-09' }),
-  ] };
-  const before = JSON.stringify(docs);
-  const order = docs.documents.map((d) => d.id);
-  ackLines(docs, 'Sam Rayburn');
-  assert.equal(JSON.stringify(docs), before);
-  assert.deepEqual(docs.documents.map((d) => d.id), order);
+test('every order card keeps its one status chip beside the receipt', () => {
+  for (const card of cardsOf(fixture.record, () => {})) assert.equal(card.querySelectorAll('.chip').length, 1, words(card));
 });
 
-test('ackThread is null when there are no acknowledgements', () => {
-  assert.equal(ackThread(listing, 'Harry Hopkins', () => {}), null);
-  assert.equal(ackThread({ documents: [] }, 'Sam Rayburn', () => {}), null);
+test('an order card from a payload without the key, or drawn with no handler, still draws', () => {
+  const bare = { ...fixture.record, orders: fixture.record.orders.map(({ receipt, ...rest }) => rest) };
+  assert.equal(cardsOf(bare, () => {}).filter((c) => c.querySelector('.rl-receipt')).length, 0);
+  assert.equal(cardsOf(fixture.record).filter((c) => c.querySelector('.rl-receipt')).length, 1);
+});
+
+test('the room opens a receipt through the same reader as a tray row', () => {
+  assert.match(read('js/views/realism-room.js'), /orderCards\(rv\.record, rv\.orders, [^\n]*\n?[^\n]*\bopen\b/);
+});
+
+test('the receipt is styled with tokens only', () => {
+  const css = read('css/p4-acks.css').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(css, /\.rl-receipt\b/);
+  assert.doesNotMatch(css, /#[0-9a-fA-F]{3,8}\b/);
 });

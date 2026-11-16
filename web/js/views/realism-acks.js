@@ -1,30 +1,16 @@
-// Acknowledgements in the conversation with their author (In-Tray follow-up, unit T2).
+// The receipt on an order's ledger line: what a paper that only acknowledged the order said.
 
 import { h } from '../dom.js';
-import { worldDate } from '../rules.js';
-import { tag } from './ui-kit.js';
 
-/** The papers in `listing` that acknowledge an order and come from `person`, newest first. */
-export function ackLines(listing, person) {
-  return listing.documents
-    .filter((d) => d.ack === true && d.author === person)
-    .sort((a, b) => (a.arrives < b.arrives ? 1 : a.arrives > b.arrives ? -1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    .map((d) => ({
-      id: d.id,
-      title: d.title.replace(/^On your order: /, ''),
-      day: worldDate(d.arrives),
-      unread: Boolean(d.unread),
-    }));
-}
-
-/** The acknowledgement lines for the open conversation with `person`, or null when there are none. */
-export function ackThread(listing, person, onOpen) {
-  const lines = ackLines(listing, person);
-  if (!lines.length) return null;
-  return h('section', { class: 'rl-acks', 'aria-labelledby': 'rl-acks-h' },
-    h('h3', { id: 'rl-acks-h', class: 'lbl' }, 'Acknowledgements'),
-    h('ul', { class: 'rl-acks-list' }, lines.map((l) => h('li', null,
-      h('button', { type: 'button', class: 'rl-ack', onclick: () => onOpen({ id: l.id }) },
-        l.unread ? tag('Unread', 'danger') : null,
-        `${l.title} — ${l.day}`)))));
+/**
+ * The receipt of one ledger line (`{ word, day, doc }`, `record.orders[].receipt`) as a button
+ * that opens the paper `doc` through `onOpen({ id })`. Null when the order has no receipt.
+ */
+export function receiptLine(receipt, onOpen) {
+  if (!receipt) return null;
+  const text = `${receipt.word}, ${receipt.day}`;
+  return h('button', {
+    type: 'button', class: 'rl-receipt', 'aria-label': `Open the paper: ${text}`,
+    onclick: () => onOpen?.({ id: receipt.doc }),
+  }, text);
 }

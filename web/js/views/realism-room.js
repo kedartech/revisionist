@@ -582,7 +582,7 @@ export function realismRoom(ctx) {
     return h('aside', { class: 'rl-col rl-side', 'data-tab': 'orders', 'aria-label': 'Your orders' },
       h('div', { class: 'rl-col-body' },
         people,
-        orderCards(rv.record, rv.orders, (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v)))));
+        orderCards(rv.record, rv.orders, (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v)), open)));
   }
 
   /**

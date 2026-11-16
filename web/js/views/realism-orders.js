@@ -2,6 +2,7 @@
 
 import { h } from '../dom.js';
 import { worldDate } from '../rules.js';
+import { receiptLine } from './realism-acks.js';
 import { partLines } from './realism-wake.js';
 import { chip, stepper } from './ui-kit.js';
 
@@ -131,9 +132,10 @@ const KIT_TONE = { need: 'warn', moving: 'info', ok: 'ok', bad: 'danger', quiet:
 /**
  * The right column, headed "Your orders": cards that need the seat first, each with
  * `stepForm(trackerOrder)` under it, then the moving ones, then a folded "Finished (n)";
- * with no orders, `NO_ORDERS`.
+ * with no orders, `NO_ORDERS`. A card whose order was only acknowledged shows the receipt, which
+ * opens its paper through `onOpen({ id })`.
  */
-export function orderCards(record, tracker, stepForm) {
+export function orderCards(record, tracker, stepForm, onOpen) {
   const head = h('h2', { id: 'rl-oc-h' }, 'Your orders');
   if (!(record?.orders ?? []).length) {
     return h('section', { class: 'rl-oc', 'aria-labelledby': 'rl-oc-h' }, head, h('p', { class: 'rl-oc-empty' }, NO_ORDERS));
@@ -146,6 +148,7 @@ export function orderCards(record, tracker, stepForm) {
       e.asked ? h('p', { class: 'rl-oc-ask' }, e.asked) : null,
       chip(status.word, KIT_TONE[status.tone]),
       orderLines(e).map((line) => h('p', { class: 'rl-oc-line' }, line)),
+      receiptLine(e.receipt, onOpen),
       t ? stepper(t.steps, t.at_step) : null,
       form && t ? stepForm(t) : null);
   };

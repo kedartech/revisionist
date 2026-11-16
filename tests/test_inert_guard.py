@@ -48,7 +48,9 @@ def test_every_effect_kind_changes_the_world_or_is_named_inert() -> None:
     sl = Slice()
     silent = []
     for name, effect in effects(sl).items():
-        events, revealed = _land(PassWorld(sl.state), effect, sl.fdr, sl.entity("roosevelt"), ON)
+        events, revealed = _land(
+            PassWorld(sl.state), effect, sl.fdr, sl.entity("roosevelt"), ON, sl.entity("stark")
+        )
         if not events and not revealed:
             silent.append(name)
     assert sorted(silent) == sorted(INERT)

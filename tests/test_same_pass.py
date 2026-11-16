@@ -27,7 +27,7 @@ def land_all(sl: Slice, *effects: rx.Effect) -> list[ev.Payload]:
     world = PassWorld(sl.state)
     out: list[ev.Payload] = []
     for effect in effects:
-        landed, _ = _land(world, effect, sl.fdr, sl.entity("roosevelt"), ON)
+        landed, _ = _land(world, effect, sl.fdr, sl.entity("roosevelt"), ON, sl.entity("stark"))
         out += landed
     return out
 

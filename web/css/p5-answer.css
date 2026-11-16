@@ -19,6 +19,9 @@
 .rl-ans-choose:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .rl-ans-filed { display: inline-flex; align-items: center; gap: 0.375rem; justify-self: start; font: 600 0.8125rem/1.4 var(--font-chrome); color: var(--ok); }
 .rl-ans-own, .rl-ans-none { margin: 0; font: 400 0.875rem/1.5 var(--font-chrome); color: var(--fg-muted); }
+.rl-ans-request { display: grid; gap: 0.375rem; min-width: 0; }
+.rl-ans-pair { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.rl-ans-when { margin: 0; font: 400 0.8125rem/1.4 var(--font-chrome); color: var(--fg-muted); }
 
 @container (min-width: 28rem) {
   .rl-ans-option, .rl-ans-step { grid-template-columns: minmax(0, 1fr) auto; align-items: center; }

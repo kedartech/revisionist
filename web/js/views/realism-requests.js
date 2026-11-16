@@ -8,8 +8,15 @@ export function requests(agenda) {
   return (agenda?.items ?? []).filter((item) => item.issuer);
 }
 
-/** What the paper offers: a beginner's options, a guided plan filed in one go, or nothing. */
+/** What the answer sheet says about when an answer lands. */
+export const ANSWER_AT_CLOSE = 'Your answer goes out when the wake closes.';
+
+/**
+ * What the paper offers: a beginner's options, a guided plan filed in one go, or nothing.
+ * Another seat's request (kind \"Request\") is answered with Accept or Decline under any style.
+ */
 export function requestChoices(style, item) {
+  if (item.kind === 'Request') return { kind: 'request', options: [] };
   if (style === 'beginner' && item.options.length) return { kind: 'options', options: item.options };
   if (style === 'guided' && item.plan.length) return { kind: 'plan', options: item.plan };
   return { kind: 'none', options: [] };

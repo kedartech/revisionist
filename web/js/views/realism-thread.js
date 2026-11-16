@@ -110,13 +110,18 @@ export function followThread(chat, el) {
   el.addEventListener('scroll', () => { if (el.isConnected) chat.scroll = box(); });
 }
 
+/** What the thread says of a leader another player holds (the server's own words). */
+export const answersInPerson = (name) => `${name} answers in person. Write to them; your letter reaches their desk.`;
+
 /**
  * The open thread: `{ name, title, tie, dossier, lead, items, pending, draft, typing, onSend,
- * onBack, onOpen, onDraft, onType }`, as an array of nodes for the panel. `onType(text)` hears
- * every keystroke so the room keeps the draft across a redraw. While a message is out the
- * field is read-only, not disabled, so focus (and Esc) stay in the dock.
+ * letter, onBack, onOpen, onDraft, onType }`, as an array of nodes for the panel. `letter` is
+ * true for a leader who answers in person: the composer then writes a letter to their desk and
+ * `onSend` hears its words. `onType(text)` hears every keystroke so the room keeps the draft
+ * across a redraw. While a message is out the field is read-only, not disabled, so focus (and
+ * Esc) stay in the dock.
  */
-export function threadView({ name, title, tie, dossier, lead, items, pending, draft, typing, onSend, onBack, onOpen, onDraft, onType }) {
+export function threadView({ name, title, tie, dossier, lead, items, pending, draft, typing, letter, onSend, onBack, onOpen, onDraft, onType }) {
   const head = h('div', { class: 'rl-th-head' },
     h('button', { type: 'button', class: 'rl-th-back', onclick: () => onBack?.() }, 'Back'),
     portraitNode(name, dossier, 'rl-th'),
@@ -136,7 +141,7 @@ export function threadView({ name, title, tie, dossier, lead, items, pending, dr
     const t = String(text ?? '').trim();
     if (t) onSend?.(t);
   };
-  const ta = h('textarea', { class: 'rl-th-input', rows: 1, 'aria-label': 'Message', value: draft ?? '', 'aria-disabled': pending ? 'true' : null });
+  const ta = h('textarea', { class: 'rl-th-input', rows: 1, 'aria-label': letter ? 'Letter' : 'Message', value: draft ?? '', 'aria-disabled': pending ? 'true' : null });
   ta.readOnly = Boolean(pending);
   ta.addEventListener('input', () => onType?.(ta.value));
   ta.addEventListener('keydown', (e) => {
@@ -150,11 +155,13 @@ export function threadView({ name, title, tie, dossier, lead, items, pending, dr
       e.preventDefault();
       send(ta.value);
     },
-  }, ta, h('button', { type: 'submit', class: 'rl-th-send', disabled: Boolean(pending) }, 'Send'));
+  }, ta, h('button', { type: 'submit', class: 'rl-th-send', disabled: Boolean(pending) }, letter ? 'Send letter' : 'Send'));
 
   return [
     head,
-    tie === 'outer' ? h('p', { class: 'rl-th-tie' }, 'A message changes nothing in the world and files no order.') : null,
+    letter
+      ? h('p', { class: 'rl-th-tie' }, answersInPerson(name))
+      : tie === 'outer' ? h('p', { class: 'rl-th-tie' }, 'A message changes nothing in the world and files no order.') : null,
     thread,
     compose,
   ];

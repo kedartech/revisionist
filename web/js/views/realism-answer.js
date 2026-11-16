@@ -4,7 +4,7 @@
 import { h, icon } from '../dom.js';
 import { itemDates, itemHeading, optionLines } from './realism-wake.js';
 import { agendaEntry, deadlineChip } from './realism-ideas.js';
-import { requestChoices } from './realism-requests.js';
+import { ANSWER_AT_CLOSE, requestChoices } from './realism-requests.js';
 import { readLines, staffRead } from './realism-estimate.js';
 
 /**
@@ -59,7 +59,25 @@ function planRow(steps, act) {
   ];
 }
 
-function choicesBlock(choices, act) {
+/**
+ * Accept and Decline for another seat's request: `act('Sending your answer…', 'answer',
+ * { item, accept })`. The answer is recorded now and takes effect when the wake closes, as the
+ * line under the buttons says.
+ */
+function requestAnswer(id, act) {
+  const when = `rl-ans-when-${id}`;
+  const answer = (accept, word) => h('button', {
+    type: 'button', class: 'rl-ans-choose', 'aria-describedby': when,
+    onclick: () => act('Sending your answer…', 'answer', { item: id, accept }),
+  }, word);
+  return h('div', { class: 'rl-ans-request' },
+    h('div', { class: 'rl-ans-pair' }, answer(true, 'Accept'), answer(false, 'Decline')),
+    h('p', { class: 'rl-ans-when', id: when }, ANSWER_AT_CLOSE));
+}
+
+function choicesBlock(item, act) {
+  const { choices } = item;
+  if (choices.kind === 'request') return requestAnswer(item.id, act);
   if (choices.kind === 'options') return h('ul', { class: 'rl-ans-options', role: 'list' }, choices.options.map((o) => optionRow(o, act)));
   if (choices.kind === 'plan') return planRow(choices.options, act);
   return h('p', { class: 'rl-ans-own' }, 'Answer it with an order of your own.');
@@ -81,6 +99,6 @@ export function needsAnswer(agenda, { act, today }) {
       ? h('ul', { class: 'rl-ans-items', role: 'list' }, items.map((item) => h('li', { class: 'rl-ans-item' },
         agendaEntry(raw.get(item.id), item.heading, item.text, [
           item.dates ? h('p', { class: 'rl-ans-dates' }, item.dates, ' ', deadlineChip(raw.get(item.id).deadline, today)) : null,
-          choicesBlock(item.choices, act)]))))
+          choicesBlock(item, act)]))))
       : h('p', { class: 'rl-ans-none' }, 'Nothing is waiting on you. Your ideas are below.'));
 }

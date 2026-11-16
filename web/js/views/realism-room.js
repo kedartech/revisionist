@@ -20,7 +20,7 @@ import { characterDossier, settingDossier } from './realism-dossier.js';
 import { withCostStrips } from './realism-estimate.js';
 import { standardForms } from './realism-forms.js';
 import { firstWakeCard } from './realism-firstwake.js';
-import { happenedSheet, happenedStore, shouldShow } from './realism-happened.js';
+import { MISSED_TITLE, happenedSheet, happenedStore, missedPages, missedSheet, shouldShow } from './realism-happened.js';
 import { ideasPanel } from './realism-ideas.js';
 import { crawlParagraphs, introCrawl } from './realism-crawl.js';
 import { runMoves } from './realism-moves.js';
@@ -33,6 +33,7 @@ import { peopleRoster, personDossier } from './realism-people.js';
 import { stakesStrip } from './realism-stakes.js';
 import { statusStrip, summaryTiles } from './realism-status.js';
 import { sideSwitch, tabBar } from './realism-tabs.js';
+import { noticesSection } from './realism-notices.js';
 import { followThread, threadItems } from './realism-thread.js';
 import { threatsPanel } from './realism-threats.js';
 import { trayView } from './realism-tray.js';
@@ -42,7 +43,7 @@ const freshUi = (game) => ({
   game, wide: false, page: null, said: null, error: null, busy: null,
   filter: 'all', sort: 'newest', draft: null, proposal: null, autoFor: null,
   chat: { open: false, tab: 'chats', thread: null }, contact: null, orderTo: null,
-  happenedSeen: null, refocusChat: false, brief: null, pending: null, drafts: {}, runFrom: null, offer: null, menuCall: false,
+  happenedSeen: null, missed: null, missedAsked: false, refocusChat: false, brief: null, pending: null, drafts: {}, letters: [], runFrom: null, offer: null, menuCall: false,
   tab: 'desk', side: 'papers', press: { open: false, tab: null }, pressPage: null, peopleTab: 'opponents',
   view: 'board', board: 'theatre', piece: null, theatre: { mode: 'map', scope: 'reports' },
   firstWakeOff: null,
@@ -148,10 +149,23 @@ export function endSend(state, outcome) {
   if (outcome.error || outcome.refused) {
     state.drafts = { ...others, [thread]: text };
     state.error = outcome.error ?? outcome.reply ?? 'The message was not sent.';
+    if (outcome.thread) openLetter(state, outcome.thread);
   } else {
     state.drafts = others;
   }
 }
+
+/**
+ * Counsel was refused because a player holds that leader: their thread opens, its composer now
+ * writes a letter (`letters` lists them once), and the words typed stay in it.
+ */
+export function openLetter(state, name) {
+  if (!state.letters.includes(name)) state.letters = [...state.letters, name];
+  state.chat = { open: true, tab: 'chats', thread: name };
+}
+
+/** The order form's draft for a letter to `name`: the `letter` channel, so it reaches their desk. */
+export const letterDraft = (name, text) => ({ to: name, channel: 'letter', text });
 
 /**
  * A tab, tile or switch picks what to show. `view` is Board or Desk; the Board tab picks the
@@ -252,6 +266,7 @@ export function gameMenu(game, ctx, work) {
     else if (action === 'leave') ctx.go('home');
     else await ctx.refresh();
   });
+  const notices = noticesSection({ api, run });
   const hours = h('input', { id: 'rl-wake-hours', name: 'hours', type: 'number', min: 1, max: 168, step: 1, required: true });
   const setHours = () => {
     if (!hours.reportValidity()) return;
@@ -302,6 +317,7 @@ export function gameMenu(game, ctx, work) {
   dialog.append(h('div', { class: 'rl-menu-body' },
     h('h2', { id: 'rl-menu-h' }, game.name),
     host,
+    notices.nodes,
     h('h3', {}, 'A new game'),
     h('p', { class: 'hint' }, game.host
       ? 'You play one game at a time. End this one, and you can start another straight away.'
@@ -309,7 +325,7 @@ export function gameMenu(game, ctx, work) {
     out,
     h('div', { class: 'row end' }, closeBtn)));
   const open = h('button', {
-    type: 'button', class: 'rl-menu-btn', 'aria-haspopup': 'dialog', onclick: () => { work.idle() && dialog.showModal(); },
+    type: 'button', class: 'rl-menu-btn', 'aria-haspopup': 'dialog', onclick: () => { if (work.idle()) { dialog.showModal(); notices.load(); } },
   }, 'Game', icon('chevron', 12));
   return [open, dialog];
 }
@@ -333,6 +349,12 @@ export function realismRoom(ctx) {
     root.replaceChildren(...build());
     follow();
     showDesk();
+    showMissed();
+  };
+  // a sheet left open stays open over a redraw or a re-read of the room
+  const showMissed = () => {
+    const sheet = root.querySelector('dialog.rl-missed');
+    if (sheet?.isConnected && !sheet.open) sheet.showModal();
   };
   const seen = seenStore(storage(), game.id);
   const shown = happenedStore(storage(), game.id);
@@ -423,6 +445,22 @@ export function realismRoom(ctx) {
       ui.proposal = r.proposal ?? null;
       if (ui.proposal) ui.said = null; // the card says it
     });
+  };
+
+  /**
+   * A letter to a leader a player holds: the order form's draft, read by the aide like any
+   * order, with the signing card on the desk. The messenger closes so the card is in view.
+   */
+  const letter = (to, text) => {
+    const words = (text ?? '').trim();
+    if (!words || ui.busy || ui.pending) return;
+    const { [to]: _sent, ...others } = ui.drafts;
+    ui.drafts = others;
+    ui.orderTo = Object.values(rv.reach ?? {}).flat().find((c) => c.name === to) ?? null;
+    ui.proposal = null;
+    ui.chat = { ...ui.chat, open: false };
+    ui.tab = 'desk';
+    return ask(letterDraft(to, words));
   };
 
   /** File the signed order, which the server holds; a refusal leaves it on the desk to revise. */
@@ -622,7 +660,7 @@ export function realismRoom(ctx) {
     let outcome;
     try {
       const r = await api.realism(action, { ...body, question: ui.pending.text });
-      outcome = { refused: Boolean(r.refused), reply: r.reply || null };
+      outcome = { refused: Boolean(r.refused), reply: r.reply || null, thread: r.thread ?? null };
       ui.said = r.refused ? null : outcome.reply;
     } catch (ex) {
       outcome = { error: ex.message };
@@ -659,6 +697,8 @@ export function realismRoom(ctx) {
       brief: briefSlot,
       ask: (text) => send('aide', 'help', {}, text),
       consult: (to, text) => send(to, 'consult', { to }, text),
+      letters: ui.letters,
+      letter,
       onOpen: open,
       useDraft,
       // kept as typed, with no redraw, so a redraw or a thread switch keeps the words
@@ -725,6 +765,40 @@ export function realismRoom(ctx) {
     settleOffer(ui, replace);
     rerender();
     root.querySelector('.rl-write textarea')?.focus();
+  }
+
+  /** The sheet of wakes this seat missed, while it has not been closed in this room; null otherwise. */
+  function missedDialog() {
+    if (!ui.missed) return null;
+    const sheet = missedSheet({ pages: ui.missed, record: rv.record, onClose: () => sheet.close() });
+    sheet.addEventListener('close', () => { ui.missed = null; });
+    return sheet;
+  }
+
+  /**
+   * Ask the server once for the wakes this seat missed (it names the range from the log) and open
+   * the sheet over whatever is open, so closing it returns to the wake's own sheet. A refusal
+   * leaves the room as it was; a server that did not answer is said in the status line.
+   */
+  async function loadMissed() {
+    if (ui.missedAsked) return;
+    ui.missedAsked = true;
+    let reply;
+    try {
+      reply = await api.catchup();
+    } catch (ex) {
+      if (ex.status === 0 || ex.status >= 500) {
+        ui.error = `${MISSED_TITLE} could not be loaded. ${ex.message}`;
+        showStatus();
+      }
+      return;
+    }
+    const pages = missedPages(reply);
+    if (!pages.length) return;
+    ui.missed = pages;
+    const sheet = missedDialog();
+    root.append(sheet);
+    sheet.showModal();
   }
 
   /** The two dossiers behind the header's names, and the sheet a new wake opens with. */
@@ -841,11 +915,12 @@ export function realismRoom(ctx) {
       withBoard(tabBar(rv, ui, pick), ui, pick),
       dock(),
       pressDesk(),
-      menu, character, setting, happened, opening,
+      menu, character, setting, happened, opening, missedDialog(),
     ].filter(Boolean);
   }
 
   root.append(...build());
+  loadMissed();
   if (rv.brief || ui.autoFor === rv.wake_tick) fillBrief();
   else autoBrief();
   // a dialog opens only once it is in the page
@@ -854,6 +929,7 @@ export function realismRoom(ctx) {
     showDesk();
     if (pending?.isConnected && !pending.open) pending.showModal();
     else if (ui.refocusChat) refocus(ui.chat, true); // the reply redrew the room under the player
+    showMissed(); // over the wake's own sheet
   });
   return root;
 }

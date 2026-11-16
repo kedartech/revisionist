@@ -2,3 +2,4 @@
 
 .rl-done-commit { display: grid; justify-items: start; gap: var(--space-1); min-width: 0; }
 .rl-done-hint { margin: 0; font: 12px/1.4 var(--font-chrome); }
+.rl-comeback { flex-basis: 100%; margin: 0; font: 13px/1.45 var(--font-chrome); color: var(--fg-strong); overflow-wrap: anywhere; }

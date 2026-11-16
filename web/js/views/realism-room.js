@@ -19,6 +19,7 @@ import { contactsTab } from './realism-contacts.js';
 import { characterDossier, settingDossier } from './realism-dossier.js';
 import { withCostStrips } from './realism-estimate.js';
 import { standardForms } from './realism-forms.js';
+import { firstWakeCard } from './realism-firstwake.js';
 import { happenedSheet, happenedStore, shouldShow } from './realism-happened.js';
 import { ideasPanel } from './realism-ideas.js';
 import { crawlParagraphs, introCrawl } from './realism-crawl.js';
@@ -44,6 +45,7 @@ const freshUi = (game) => ({
   happenedSeen: null, refocusChat: false, brief: null, pending: null, drafts: {}, runFrom: null, offer: null, menuCall: false,
   tab: 'desk', side: 'papers', press: { open: false, tab: null }, pressPage: null, peopleTab: 'opponents',
   view: 'board', board: 'theatre', piece: null, theatre: { mode: 'map', scope: 'reports' },
+  firstWakeOff: null,
 });
 let ui = freshUi(null);
 
@@ -796,6 +798,12 @@ export function realismRoom(ctx) {
     else if (p.piece) root.querySelector('.rl-board .rl-mk[aria-pressed="true"]')?.focus();
     else switchAt(root, place)?.focus();
   };
+  /** Hide the first-wake card for this wake, then put focus on the pin (Board) or the view switch. */
+  function dismissFirstWake() {
+    ui.firstWakeOff = rv.wake.wake;
+    rerender();
+    (root.querySelector('.rl-pin') ?? root.querySelector('.rl-viewswitch button'))?.focus();
+  }
   function build() {
     const [menuBtn, menu] = gameMenu(game, ctx, work);
     const { character, setting, happened, intro: opening } = sheets();
@@ -818,6 +826,7 @@ export function realismRoom(ctx) {
       statusStrip(rv, ui, { act }),
       stakesStrip(rv.stakes),
       status,
+      firstWakeCard(rv.wake, { dismissed: ui.firstWakeOff, onDismiss: dismissFirstWake }),
       viewSwitch(ui, pick),
       ...(ui.view === 'board' ? [
         newsBlock(whatChanged(rv.documents), (id) => readPress({ id })),

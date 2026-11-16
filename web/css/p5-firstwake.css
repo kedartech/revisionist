@@ -1,0 +1,14 @@
+/* The first-wake card: three steps, under the status strips, until the seat presses Done.
+   Tokens only. */
+.rl-firstwake { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--space-2) var(--space-5); padding: var(--space-3) var(--space-4); background: var(--accent-soft); border-bottom: 1px solid var(--rule); border-left: 3px solid var(--accent); color: var(--fg-strong); font: 14px/1.5 var(--font-chrome); }
+.rl-firstwake-h { flex-basis: 100%; margin: 0; font: 600 0.75rem/1.2 var(--font-head); text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-muted); }
+.rl-firstwake-steps { flex: 1 1 18rem; min-width: 0; margin: 0; padding-left: var(--space-5); }
+.rl-firstwake-steps li { margin: 0 0 var(--space-1); overflow-wrap: anywhere; }
+.rl-firstwake-dismiss { margin-left: auto; min-height: 32px; }
+.rl-firstwake:focus-within { outline: 2px solid var(--focus); outline-offset: -2px; }
+.rl-firstwake-dismiss:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+@media (max-width: 767px) {
+  .rl-firstwake { padding: var(--space-2) var(--space-3); gap: var(--space-2); }
+  .rl-firstwake-dismiss { min-height: 44px; }
+}

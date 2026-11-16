@@ -434,6 +434,11 @@ pipelines:
     steps:
       - {person: jodl, kind: clerical, days: 1, assumed: true}
       - {person: raeder, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend, refuse]}
+  - key: okw_army_directive
+    name: An OKW army directive
+    gap: true
+    steps:
+      - {person: jodl, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend]}
   - key: reich_declaration
     name: A declaration of war, delivered by the Foreign Office
     gap: true
@@ -961,7 +966,7 @@ cards:
         params:
           - {name: sector, kind: enum, choices: [uboats, aircraft, tanks], label: "Which sector", choice_labels: ["U-boats", "Aircraft", "Tanks"]}
       - name: move_army
-        pipeline: okw_directive
+        pipeline: okw_army_directive
         resolver: movement
         label: "Move Army Group Centre"
         summary: "Direct Army Group Centre on a new objective."
@@ -982,7 +987,7 @@ cards:
       - {person: goering, channel: in_person}
       - {person: mussolini, channel: courier}
     feeds: [german_naval_reports, okw_situation]
-    pipelines: [okw_directive, reich_declaration]
+    pipelines: [okw_directive, okw_army_directive, reich_declaration]
     constraints:
       - the main effort is in the East
       - avoid war with the United States while Russia is unfinished

@@ -44,6 +44,7 @@ from revisionist.core.ontology import (
     Phase,
 )
 from revisionist.core.project import project
+from revisionist.core.realism.agenda import PlayStyle
 from revisionist.core.settings import Settings
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, Scope, private_to
@@ -438,11 +439,18 @@ def claim(store: EventStore, campaign_id: CampaignId, seat: SeatId, name: str) -
             "Choose them from the cast."
         )
     claimed = ev.CharacterClaimed(seat_id=seat, entity_id=ch.entity_id)
+    landed: list[tuple[ev.Payload, Scope, SeatId | None]] = [(claimed, PUBLIC, seat)]
+    if state.ruleset == "realism":
+        # A new player starts on Beginner, in the same batch as the claim: a seat that
+        # never picks a style (or an aide playing it) is still offered its options.
+        # Sealed to the seat, as ``options.set_style`` writes it; a later choice wins.
+        beginner = ev.PlayStyleSet(seat_id=seat, style=PlayStyle.BEGINNER)
+        landed.append((beginner, private_to(seat), seat))
     try:
         _log(
             store,
             campaign_id,
-            [(claimed, PUBLIC, seat)],
+            landed,
             first_id=_claim_id(
                 campaign_id, ch.entity_id, _releases(store, campaign_id, ch.entity_id)
             ),

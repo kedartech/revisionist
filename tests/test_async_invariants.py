@@ -332,11 +332,6 @@ def test_4_the_wake_closes_with_nobody_there(
         store.close()
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="BGS: a claim lands no play style yet, so a seat with none is offered nothing",
-)
 def test_4_the_offers_land_for_seats_that_never_chose_a_style(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

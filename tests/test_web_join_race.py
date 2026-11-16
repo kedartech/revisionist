@@ -162,6 +162,6 @@ def test_no_exit_of_a_join_leaves_the_game_busy(
     assert not new(host, "begin")["refused"]
     assert after.seat("join", code=third) == BEGUN
 
-    assert during == [1, 1]  # the redeem ran with the game's lock held, and only it
+    assert during == [1, 1, 1]  # each redeem, the begun game's too, held the game's lock alone
     assert held and set(held) == {0}
     assert_begun(*settled(web, host))

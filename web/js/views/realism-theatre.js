@@ -145,7 +145,7 @@ export function theatreBoard(rv, ui, { pick, act } = {}) {
     const was = document.activeElement;
     const focused = was?.closest?.('figure.rl-map-figure') === fig ? was.getAttribute('data-place') : null;
     fig.replaceChildren(drawing());
-    if (focused) fig.querySelectorAll('.rl-map-target').find((t) => t.getAttribute('data-place') === focused)?.focus();
+    if (focused) Array.from(fig.querySelectorAll('.rl-map-target')).find((t) => t.getAttribute('data-place') === focused)?.focus();
   };
   if (!coast && theatre.mode === 'map') {
     loadLand()?.then(() => {

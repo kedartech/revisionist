@@ -498,11 +498,6 @@ def test_6_catch_up_is_complete_with_a_replay(web: Web) -> None:  # noqa: F811
 # --- 7. One notice ----------------------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="NTC: no notice is sent yet",
-)
 def test_7_one_notice(web: Web, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:  # noqa: F811
     """A wake opening sends one message per human seat; a commit sends none."""
     outbox = tmp_path / "outbox.jsonl"

@@ -31,7 +31,15 @@ from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import WorldError, compile_world, resolve_keys
 from revisionist.engine import aide as aides
 from revisionist.engine import campaign as cmp
-from revisionist.engine import counsel, host_ops, play, realism_tick, season, session_zero
+from revisionist.engine import (
+    counsel,
+    host_ops,
+    play,
+    realism_tick,
+    season,
+    session_zero,
+    wake_report,
+)
 from revisionist.engine import scheduler as sch
 from revisionist.engine.ids import new_id
 from revisionist.engine.llm import Transport, TransportError
@@ -946,6 +954,25 @@ def db_verify(campaign: CampaignOpt = None) -> None:
         typer.echo(line, err=line.startswith("FAIL "))
     if not ok:
         raise typer.Exit(EXIT_ERROR)
+
+
+@db_app.command("wake-report")
+def db_wake_report(campaign: CampaignOpt = None) -> None:
+    """How each wake closed, each seat's aide wakes and hours to commit, and catch-up
+    coverage. For the operator: it is never served to a seat."""
+    store = cmp.open_store()
+    known = store.campaign_ids()
+    if campaign and CampaignId(campaign) not in known:
+        raise _fail(f"no campaign {campaign}")
+    ids = [CampaignId(campaign)] if campaign else known
+    if not ids:
+        raise _fail("no campaigns to report on")
+    try:
+        report = wake_report.lines(store, ids)
+    except StoreError as exc:
+        raise _fail(str(exc)) from exc
+    for line in report:
+        typer.echo(line)
 
 
 # --- revisionist admin ------------------------------------------------------------

@@ -140,7 +140,7 @@ def test_a_human_held_decision_waits_then_acts() -> None:
     rig = Rig(human="bram")
     rig.add_all(run_pipelines(rig.state, rig.filed + timedelta(days=2), "s"))
     assert waiting_on_human(rig.state, rig.order)
-    late = rig.filed + timedelta(days=40)
+    late = rig.filed + timedelta(days=8)  # the day before the card would take it
     assert run_pipelines(rig.state, late, "s") == []
     out = human_step(rig.state, rig.order_id, S.PASS, late)
     assert isinstance(out[0], ev.OrderStepTaken) and out[0].outcome.on == late
@@ -174,7 +174,7 @@ def test_refuse_settles_refused() -> None:
 
 def test_three_stalls_at_one_step_lapse_the_order() -> None:
     rig = Rig(human="bram")
-    day = rig.filed + timedelta(days=9)
+    day = rig.filed + timedelta(days=8)
     rig.add_all(run_pipelines(rig.state, day, "s"))
     for i in range(2):
         out = _bare(human_step(rig.state, rig.order_id, S.STALL, day + timedelta(days=i)))
@@ -281,7 +281,7 @@ def test_a_choice_leads_the_title_in_its_own_words() -> None:
 
 def test_a_stall_repeated_at_one_step_sends_a_letter_each_time() -> None:
     rig = Rig(human="bram")
-    day = rig.filed + timedelta(days=9)
+    day = rig.filed + timedelta(days=8)
     rig.add_all(run_pipelines(rig.state, day, "s"))
     ids = set()
     for i in range(3):

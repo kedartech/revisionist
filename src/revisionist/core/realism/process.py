@@ -3,18 +3,41 @@
 A process part opens its pipeline as an ``order_drafted`` that carries the part
 (``Order.routed_from``); an influence part is decided by its target's card policy
 as ``influence_decided``.
+
+Nobody waits on a person (DUE): a request at a leader another human seat holds
+reaches that seat as one paper sealed to it, and has a due day. The holder answers
+before it, or the card decides on it, and never with an irreversible step.
 """
 
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from datetime import date, timedelta
 
 from revisionist.core import events as ev
-from revisionist.core.ids import EntityId, OrderId, PipelineId, derived_id
+from revisionist.core.canary import scan_text
+from revisionist.core.ids import (
+    CampaignId,
+    DocumentId,
+    EntityId,
+    OrderId,
+    PipelineId,
+    SeatId,
+    derived_id,
+)
 from revisionist.core.ontology import Controller
 from revisionist.core.realism import reach
+from revisionist.core.realism.card import ChannelKind
+from revisionist.core.realism.document import (
+    BodyField,
+    Classification,
+    DocumentKind,
+    DocumentTruth,
+    DocumentView,
+)
 from revisionist.core.realism.effect import (
+    IRREVERSIBLE,
     ClauseKind,
     Effect,
+    EffectKind,
     PartRef,
     ProposeMeasure,
     Route,
@@ -25,12 +48,18 @@ from revisionist.core.realism.effect import (
 from revisionist.core.realism.pipeline import Order
 from revisionist.core.realism.resolvers import friction
 from revisionist.core.state import State
+from revisionist.core.visibility import private_to
 
 INTEREST_POINTS = 2  # [proposed] an ask that touches what the target cares about
 ACCEPT_AT = 1  # [proposed] the score at which the target goes along
 MIN_WORD = 4  # [proposed] shorter words ("the", "of") say nothing about an interest
 WARLIKE = frozenset({"engagement", "move_force"})
 NO_REACH = "You have no way to reach them."
+ANSWER_DAYS = 2
+"""[proposed] World days a person a human holds has to answer, after the request or
+the decision reaches them; then the card decides (DUE)."""
+LINE = 60
+WITHHELD = "The words of this request cannot be shown to you."
 
 
 def _parts(state: State, route: Route) -> Iterator[tuple[RoutedOrder, int, RoutedPart]]:
@@ -169,16 +198,161 @@ def _score(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[int, in
     return disposition, interest, leverage, d
 
 
-def _human(state: State, who: EntityId) -> bool:
-    return any(s.embodies == who and s.controller is Controller.HUMAN for s in state.seats.values())
+def holder(state: State, who: EntityId) -> SeatId | None:
+    """The human seat that holds ``who``, or None when no human does."""
+    return next(
+        (
+            s.seat_id
+            for s in sorted(state.seats.values(), key=lambda s: s.seat_id)
+            if s.embodies == who and s.controller is Controller.HUMAN
+        ),
+        None,
+    )
+
+
+def declares(title: str) -> bool:
+    """A measure or a form titled as a declaration (spec §4: checked by title)."""
+    return "declar" in title.lower()
+
+
+def irreversible(effects: Iterable[Effect]) -> bool:
+    """True when carrying ``effects`` would take a step that cannot be undone: an
+    ``IRREVERSIBLE`` kind, or a measure titled as a declaration."""
+    return any(
+        EffectKind(e.kind) in IRREVERSIBLE or (isinstance(e, ProposeMeasure) and declares(e.title))
+        for e in effects
+    )
+
+
+def _effects(part: RoutedPart) -> tuple[Effect, ...]:
+    return (*((part.effect,) if part.effect else ()), *part.estimated)
+
+
+def held_by_another(state: State, routed: RoutedOrder, part: RoutedPart) -> SeatId | None:
+    """The human seat a request is put to, when that is not the issuer's own seat."""
+    if part.route is not Route.INFLUENCE or part.target is None:
+        return None
+    seat = holder(state, part.target)
+    return seat if seat is not None and seat != routed.issuer else None
+
+
+def arrives(state: State, routed: RoutedOrder, part: RoutedPart) -> date | None:
+    """The day a request reaches its target, or None when no channel reaches them."""
+    assert part.target is not None
+    channels = reach.channels_to(state, _person(state, routed), part.target)
+    if not channels:
+        return None
+    return routed.filed + timedelta(days=reach.transit_days(channels[0]))
+
+
+def request_due(state: State, routed: RoutedOrder, i: int) -> date | None:
+    """The due day of a request at a leader another human seat holds: filed, plus the
+    way there, plus ``ANSWER_DAYS``. None for any other part, or one that never arrives."""
+    part = routed.parts[i]
+    if held_by_another(state, routed, part) is None:
+        return None
+    on = arrives(state, routed, part)
+    return None if on is None else on + timedelta(days=ANSWER_DAYS)
+
+
+def request_paper_id(campaign_id: CampaignId, order_id: OrderId, part: int) -> DocumentId:
+    """The id of the paper that puts a request before the seat that holds its target."""
+    return DocumentId(derived_id(campaign_id, "request-paper", order_id, part))
+
+
+def day_words(day: date) -> str:
+    return f"{day.day} {day:%B} {day.year}"
+
+
+def held_paper(
+    state: State,
+    doc_id: DocumentId,
+    seat: SeatId,
+    *,
+    issuer: EntityId,
+    title: str,
+    said: list[tuple[str, str]],
+    issued: date,
+    arrives_on: date,
+    due: date,
+) -> ev.DocumentIssued:
+    """The one paper that puts another seat's request or order before ``seat``, sealed
+    to it, from its own staff: who asks, what (``said``: label and words), and by when."""
+    from revisionist.core.realism.apply import _aide, _lines  # apply imports us
+
+    person = state.seats[seat].embodies
+    rows = [
+        BodyField(label="From", value=state.entities[issuer].name[:LINE]),
+        *(row for label, text in said for row in _lines(text, label)),
+        BodyField(label="Answer by", value=day_words(due)),
+    ]
+    safe = [
+        b.model_copy(update={"value": WITHHELD[:LINE]})
+        if isinstance(b.value, str) and scan_text(state, seat, b.value)
+        else b
+        for b in rows
+    ]
+    return ev.DocumentIssued(
+        document=DocumentView(
+            doc_id=doc_id,
+            kind=DocumentKind.MEMO,
+            author=_aide(state, person),
+            issued=issued,
+            arrives=max(issued, arrives_on),
+            channel=ChannelKind.IN_PERSON,
+            classification=Classification.CONFIDENTIAL,  # [proposed]
+            title=title[:LINE],
+            body=tuple(safe),
+            scope=private_to(seat),
+        ),
+        truth=DocumentTruth(doc_id=doc_id),
+    )
+
+
+def _request_paper(state: State, routed: RoutedOrder, i: int, seat: SeatId) -> ev.DocumentIssued:
+    part = routed.parts[i]
+    on = arrives(state, routed, part)
+    due = request_due(state, routed, i)
+    assert on is not None and due is not None
+    issuer = _person(state, routed)
+    said = [("Request", part.ask)]
+    if part.effect is not None:
+        from revisionist.core.realism.apply import describe  # apply imports us
+
+        said.append(("Terms", describe(state, part)))
+    return held_paper(
+        state,
+        request_paper_id(state.campaign_id, routed.order_id, i),
+        seat,
+        issuer=issuer,
+        title=f"A request from {_name(state, issuer)}",
+        said=said,
+        issued=routed.filed,
+        arrives_on=on,
+        due=due,
+    )
+
+
+def _card_answer(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[bool, str]:
+    """The card's answer on the due day: ``decides``, except that it never agrees to an
+    irreversible step for the person a human holds; it declines it instead."""
+    accepted, reason = decides(state, routed, part)
+    if accepted and irreversible(_effects(part)):
+        assert part.target is not None
+        return False, f"{_name(state, part.target)} would not be moved."
+    return accepted, reason
 
 
 def influence_due(state: State, today: date) -> list[ev.Payload]:
-    """A decision for each influence part due by ``today``. A target a human holds
-    is left for that player and blocks nothing else."""
+    """A decision for each influence part due by ``today``. A target another human
+    seat holds gets the request as a paper when it arrives, and decides it until its
+    due day; then the card decides. A target the issuer's own seat holds is left alone."""
     out: list[ev.Payload] = []
     for routed, i, part in _parts(state, Route.INFLUENCE):
-        if part.decided is not None or part.target is None or _human(state, part.target):
+        if part.decided is not None or part.target is None:
+            continue
+        seat = holder(state, part.target)
+        if seat is not None and seat == routed.issuer:
             continue
         channels = reach.channels_to(state, _person(state, routed), part.target)
         if not channels:
@@ -196,7 +370,15 @@ def influence_due(state: State, today: date) -> list[ev.Payload]:
         on = routed.filed + timedelta(days=reach.transit_days(channels[0]))
         if on > today:
             continue
-        accepted, reason = decides(state, routed, part)
+        if seat is not None:
+            if request_paper_id(state.campaign_id, routed.order_id, i) not in state.documents:
+                out.append(_request_paper(state, routed, i, seat))
+            on += timedelta(days=ANSWER_DAYS)
+            if on > today:
+                continue
+            accepted, reason = _card_answer(state, routed, part)
+        else:
+            accepted, reason = decides(state, routed, part)
         out.append(
             ev.InfluenceDecided(
                 order_id=routed.order_id, part=i, on=on, accepted=accepted, reason=reason
@@ -205,4 +387,20 @@ def influence_due(state: State, today: date) -> list[ev.Payload]:
     return out
 
 
-__all__ = ["NO_REACH", "REFUSED_HINT", "decides", "influence_due", "open_processes"]
+__all__ = [
+    "ANSWER_DAYS",
+    "NO_REACH",
+    "REFUSED_HINT",
+    "arrives",
+    "day_words",
+    "decides",
+    "declares",
+    "held_by_another",
+    "held_paper",
+    "holder",
+    "influence_due",
+    "irreversible",
+    "open_processes",
+    "request_due",
+    "request_paper_id",
+]

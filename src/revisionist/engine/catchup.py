@@ -1,0 +1,243 @@
+"""Catch-up: the events a seat's view holds, wake by wake (the catch-up seam).
+
+``seat_events`` is the one fog path every feed reads: the ``catchup`` action's pages
+now, the second run's playback later. An event is kept only if all three hold:
+
+1. its scope, and every scope nested in its payload, is visible to the seat, and what
+   it names is in ``project(state, seat)``: an order, a goal, a contest, a mandate or a
+   history event another seat holds is never in the feed, whatever the envelope says;
+2. its kind is in ``FEED_KINDS``;
+3. for a document, it has arrived (``arrives`` on or before today's in-world date).
+
+Every kind in ``events.Payload`` is in exactly one of ``FEED_KINDS`` or ``NEVER``; a
+test fails on a kind in neither, so a new event kind must be classified here.
+
+Each event belongs to the wake whose record page shows it (``core/record.py``): wake N
+covers the in-world days after wake N-1 opened, up to the day wake N opened. A document
+belongs to the wake in which it arrives; any other event to the later of the wake open
+when it was logged and the wake that holds its day. A document's truth half never
+leaves: the feed carries its view only.
+"""
+
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
+from datetime import date
+
+from revisionist.core import events as ev
+from revisionist.core.events import Event
+from revisionist.core.ids import CampaignId, DocumentId, SeatId
+from revisionist.core.project import project
+from revisionist.core.realism.document import DocumentTruth
+from revisionist.core.sealing import scopes_in
+from revisionist.core.state import State, View
+from revisionist.engine.store import EventStore, load_state
+
+FEED_KINDS: frozenset[str] = frozenset(
+    {
+        # The world as every view holds it.
+        "entity_created",
+        "asset_created",
+        "relationship_set",
+        "meter_created",
+        "clock_created",
+        "fact_asserted",
+        "commitment_created",
+        "contest_created",
+        "contest_moved",
+        "contest_decided",
+        "scheduled_event_fired",
+        "divergence_changed",
+        "date_advanced",
+        "war_declared",
+        "news_reported",
+        "season_ended",
+        "quantity_set",
+        "wake_opened",
+        # The seat's own goals, mandates, papers and orders.
+        "goal_set",
+        "goal_progressed",
+        "goal_met",
+        "goal_undone",
+        "mandate_issued",
+        "mandate_settled",
+        "document_issued",
+        "document_written",
+        "narration_written",
+        "statement_issued",
+        "briefing_delivered",
+        "order_drafted",
+        "order_step_taken",
+        "order_settled",
+        "order_routed",
+        "order_executed",
+        "influence_decided",
+        "effects_applied",
+    }
+)
+
+NEVER: frozenset[str] = frozenset(
+    {
+        # Who sealed the wake, how it closed, and who the aide played (invariant 5).
+        "wake_committed",
+        "wake_closed",
+        # How a seat is run is never shown (spec section 17; decision A).
+        "seat_created",
+        "agent_assigned",
+        "seat_status_set",
+        "session_zero_opened",
+        "character_listed",
+        "character_claimed",
+        "character_released",
+        "session_zero_closed",
+        "play_style_set",
+        # Engine only: the estimator's effects, policy, truth and the people's plans.
+        "effects_estimated",
+        "cards_declared",
+        "card_amended",
+        "stance_changed",
+        "opponents_ranked",
+        "answer_planned",
+        "answer_made",
+        "feature_set",
+        "scheduled_event_created",
+        "scheduled_event_skipped",
+        # Costs, ticks and admin.
+        "cost_logged",
+        "tick_opened",
+        "tick_stage_completed",
+        "tick_closed",
+        "admin_read",
+        "campaign_created",
+        "settings_set",
+        # The first engine's pipeline, whose deltas can carry covert facts under a
+        # public envelope.
+        "order_received",
+        "intent_filed",
+        "intent_rejected",
+        "clarification_asked",
+        "feasibility_rated",
+        "rolled",
+        "delta_proposed",
+        "delta_rejected",
+        "delta_applied",
+        "operation_opened",
+        "operation_resolved",
+        # The seat's own acts as records: they change nothing the world holds.
+        "document_read",
+        "document_flagged",
+        "goal_proposed",
+        "goal_approved",
+        "counsel_held",
+        "directive_given",
+        "options_offered",
+        # A sealed event whose key is gone stays unreadable.
+        "sealed",
+    }
+)
+
+
+@dataclass(frozen=True)
+class SeatEvent:
+    wake: int
+    event: Event
+
+
+def _named(p: ev.Payload, view: View) -> bool:
+    """What the event names is in the seat's view. Several kinds land under a public
+    envelope while what they name is the issuer's or the owner's alone."""
+    match p:
+        case ev.OrderDrafted():
+            return p.order.order_id in view.orders
+        case ev.OrderStepTaken() | ev.OrderSettled():
+            return p.order_id in view.orders
+        case ev.OrderRouted():
+            return p.order.order_id in view.routed
+        case ev.OrderExecuted() | ev.EffectsApplied() | ev.InfluenceDecided():
+            return p.order_id in view.routed
+        case ev.GoalProgressed() | ev.GoalMet() | ev.GoalUndone():
+            return p.goal_id in view.goals
+        case ev.ContestMoved() | ev.ContestDecided():
+            return p.contest_id in view.contests
+        case ev.ScheduledEventFired():
+            return p.scheduled_id in view.scheduled
+        case ev.MandateSettled():
+            return p.mandate_id in view.mandates
+        case ev.QuantitySet():
+            return p.quantity.quantity_id in view.quantities
+        case ev.NarrationWritten() | ev.BriefingDelivered():
+            return p.seat_id == view.viewer
+    return True
+
+
+def _visible(event: Event, view: View) -> bool:
+    scopes = [event.scope, *scopes_in(event.payload)]
+    return all(s.visible_to(view.viewer) for s in scopes) and _named(event.payload, view)
+
+
+def _wake_of_day(opened: Sequence[tuple[int, date]], day: date | None) -> int:
+    """The wake whose page holds ``day``: the first opened on or after it."""
+    if day is None:
+        return 0
+    for number, on in opened:
+        if day <= on:
+            return number
+    return opened[-1][0] + 1 if opened else 0
+
+
+def _view_only(event: Event, payload: ev.DocumentIssued) -> Event:
+    blank = DocumentTruth(doc_id=payload.document.doc_id)
+    return event.model_copy(update={"payload": payload.model_copy(update={"truth": blank})})
+
+
+def feed(
+    state: State, events: Iterable[Event], seat: SeatId, first: int, last: int
+) -> tuple[SeatEvent, ...]:
+    """``seat_events`` over a log already read, ``state`` being its fold."""
+    view = project(state, seat)
+    log = list(events)
+    opened: list[tuple[int, date]] = []
+    today: date | None = None
+    for e in log:
+        if isinstance(e.payload, ev.DateAdvanced):
+            today = e.payload.to
+        elif isinstance(e.payload, ev.WakeOpened) and today is not None:
+            opened.append((e.payload.wake, today))
+    final = state.in_world_date
+
+    out: list[SeatEvent] = []
+    arrived: dict[DocumentId, int] = {}
+    current = 0
+    today = None
+    for e in log:
+        p = e.payload
+        if isinstance(p, ev.DateAdvanced):
+            today = p.to
+        elif isinstance(p, ev.WakeOpened):
+            current = p.wake
+        if e.kind not in FEED_KINDS or not _visible(e, view):
+            continue
+        if isinstance(p, ev.DocumentIssued):
+            if final is None or p.document.arrives > final:
+                continue
+            wake = arrived[p.document.doc_id] = _wake_of_day(opened, p.document.arrives)
+            e = _view_only(e, p)
+        elif isinstance(p, ev.DocumentWritten):
+            if p.doc_id not in arrived:
+                continue
+            wake = max(current, arrived[p.doc_id])
+        else:
+            wake = max(current, _wake_of_day(opened, today))
+        if first <= wake <= last:
+            out.append(SeatEvent(wake=wake, event=e))
+    return tuple(sorted(out, key=lambda f: (f.wake, f.event.seq)))
+
+
+def seat_events(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, first: int, last: int
+) -> tuple[SeatEvent, ...]:
+    """The events ``seat``'s view holds for wakes ``first..last`` inclusive, in order."""
+    state = load_state(store, campaign_id)
+    return feed(state, store.read(campaign_id, 0), seat, first, last)
+
+
+__all__ = ["FEED_KINDS", "NEVER", "SeatEvent", "feed", "seat_events"]

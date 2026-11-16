@@ -54,6 +54,7 @@ from revisionist.engine.store import load_state
 from revisionist.engine.tick import NotInPlayError
 from revisionist.engine.web import (
     agenda_api,
+    catchup_api,
     court,
     destinations,
     dossiers,
@@ -290,6 +291,9 @@ class App:
             ):
                 return {"reply": SEALED, "refused": True}
             try:
+                if action == "catchup":
+                    pages = catchup_api.reply(state, list(store.read(cid)), seat, body)
+                    return snapshot.checked(state, seat, pages)
                 if action == "read":
                     doc_id = DocumentId(_text(body, "doc_id", 64))
                     try:

@@ -6,10 +6,19 @@ import pytest
 
 from revisionist.core import events as ev
 from revisionist.core.fold import replay
-from revisionist.core.ids import CampaignId, EntityId, EventId, OrderId, SeatId, derived_id
+from revisionist.core.ids import (
+    CampaignId,
+    EntityId,
+    EventId,
+    OrderId,
+    PipelineId,
+    SeatId,
+    derived_id,
+)
 from revisionist.core.realism.pipeline import Order, OrderStatus, StepAction
 from revisionist.core.realism.pipelines import (
     RealismStep,
+    _policy,
     human_step,
     run_pipelines,
     waiting_on_human,
@@ -409,3 +418,129 @@ def test_autumn_1941_runs_and_folds() -> None:
     for p in out:
         add(p)
     assert replay(events).orders[oid].step >= 1 or not out
+
+
+# Steps of autumn-1941 whose `allowed` list has no refusal: (pipeline, step index, person).
+NO_REFUSAL_STEPS = [
+    ("lend_lease_allocation", 0, "hopkins"),
+    ("reich_declaration", 0, "ribbentrop"),
+    ("gko_decree", 0, "shaposhnikov"),
+    ("gko_decree", 1, "molotov"),
+    ("soviet_aid_request", 0, "molotov"),
+    ("appeal_through_soong", 0, "soong"),
+]
+
+
+def _autumn_order_at(pipeline: str, step: int, person: str) -> tuple[State, OrderId, date]:
+    """autumn-1941 with one order of ``pipeline`` waiting at ``step``, the day it falls due,
+    and the person at that step given the lowest loyalty a card allows."""
+    world = cmp.load_world(cmp.world_path("autumn-1941"))
+    ids = resolve_keys(world, CAMPAIGN)
+    events = compile_world(world, CAMPAIGN, cmp.versions())
+    seat = SeatId(derived_id(CAMPAIGN, "seat", "roosevelt"))
+    for seq, payload in enumerate(
+        [ev.CharacterClaimed(seat_id=seat, entity_id=ids["roosevelt"]), ev.SessionZeroClosed()],
+        start=len(events),
+    ):
+        events.append(
+            ev.Event(
+                event_id=EventId(derived_id(CAMPAIGN, "test-event", seq)),
+                campaign_id=CAMPAIGN,
+                seq=seq,
+                tick=0,
+                scope=PUBLIC,
+                payload=payload,
+                versions=cmp.versions(),
+            )
+        )
+    state = replay(events)
+    key = EntityId(ids[person])
+    cards = {**state.cards, key: state.cards[key].model_copy(update={"loyalty": -5})}
+    pid = PipelineId(ids[pipeline])
+    held = state.pipelines[pid].steps[step]
+    assert held.person == key and held.kind.value == "decision"
+    filed = date(1941, 10, 1)
+    order = Order(
+        order_id=OrderId(derived_id(CAMPAIGN, "order", pipeline, step)),
+        issuer=seat,
+        lever=state.cards[EntityId(ids["roosevelt"])].levers[0].name,
+        pipeline=pid,
+        step=step,
+        filed=filed,
+    )
+    state = state.model_copy(update={"cards": cards, "orders": {order.order_id: order}})
+    assert held.days is not None
+    return state, order.order_id, filed + timedelta(days=held.days)
+
+
+@pytest.fixture()
+def refusing_draw(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The step's friction draw at its lowest, so the policy score is at or below REFUSE_AT."""
+    from revisionist.core.realism import resolvers
+
+    real = resolvers.friction
+
+    def lowest(state: State, *parts: object, n: int) -> int:
+        return 0 if n == 10 else real(state, *parts, n=n)
+
+    monkeypatch.setattr(resolvers, "friction", lowest)
+
+
+@pytest.mark.parametrize(("pipeline", "step", "person"), NO_REFUSAL_STEPS)
+def test_a_refusal_at_a_step_that_allows_none_becomes_a_stall(
+    refusing_draw: None, pipeline: str, step: int, person: str
+) -> None:
+    state, oid, due = _autumn_order_at(pipeline, step, person)
+    taken = [p for p in run_pipelines(state, due, "s") if isinstance(p, ev.OrderStepTaken)]
+    assert [(t.order_id, t.outcome.step, t.outcome.action) for t in taken] == [(oid, step, S.STALL)]
+
+
+def test_the_six_steps_listed_are_every_step_of_autumn_1941_that_allows_no_refusal() -> None:
+    world = cmp.load_world(cmp.world_path("autumn-1941"))
+    found = [
+        (pl.key, i, s.person)
+        for pl in world.pipelines
+        for i, s in enumerate(pl.steps)
+        if s.kind.value == "decision" and S.REFUSE not in s.allowed
+    ]
+    assert found == NO_REFUSAL_STEPS
+
+
+def test_a_refusal_at_a_step_that_allows_neither_refusal_nor_stall_becomes_a_pass(
+    refusing_draw: None,
+) -> None:
+    state, oid, _ = _autumn_order_at("gko_decree", 1, "molotov")
+    order = state.orders[oid]
+    action, amended = _policy(state, state.orders, order, "s", frozenset({S.PASS, S.EXPEDITE}))
+    assert (action, amended) == (S.PASS, {})
+
+
+def test_a_step_that_allows_refusal_still_refuses(refusing_draw: None) -> None:
+    state, oid, _ = _autumn_order_at("gko_decree", 1, "molotov")
+    order = state.orders[oid]
+    allowed = frozenset({S.PASS, S.STALL, S.REFUSE})
+    action, amended = _policy(state, state.orders, order, "s", allowed)
+    assert (action, amended) == (S.REFUSE, {})
+
+
+def test_a_disallowed_action_other_than_refusal_still_passes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from revisionist.core.realism import resolvers
+
+    real = resolvers.friction
+    monkeypatch.setattr(
+        resolvers,
+        "friction",
+        lambda state, *parts, n: n - 1 if n in (10, 100) else real(state, *parts, n=n),
+    )
+    state, oid, _ = _autumn_order_at("gko_decree", 1, "molotov")
+    person = state.pipelines[state.orders[oid].pipeline].steps[1].person
+    state = _with_loyalty(
+        state, "molotov", resolve_keys(cmp.load_world(cmp.world_path("autumn-1941")), CAMPAIGN), 5
+    )
+    assert state.cards[person].loyalty == 5
+    order = state.orders[oid]
+    wide = frozenset({S.PASS, S.STALL, S.EXPEDITE})
+    assert _policy(state, state.orders, order, "s", wide)[0] is S.EXPEDITE
+    assert _policy(state, state.orders, order, "s", frozenset({S.PASS, S.STALL}))[0] is S.PASS

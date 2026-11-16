@@ -180,7 +180,9 @@ def _policy(
     else:
         action = StepAction.PASS
     if action not in allowed:
-        return StepAction.PASS, {}
+        # A refusal the step does not allow holds the order instead, where a hold is allowed.
+        held = StepAction.STALL if action is StepAction.REFUSE else StepAction.PASS
+        return (held if held in allowed else StepAction.PASS), {}
     return action, amended
 
 

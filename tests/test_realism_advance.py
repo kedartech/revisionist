@@ -16,6 +16,7 @@ from revisionist.core.ids import (
 from revisionist.core.realism.advance import DEFAULT_HORIZON_DAYS, next_wake
 from revisionist.core.realism.feeds import issue
 from revisionist.core.realism.pipeline import Order, StepAction, StepOutcome
+from revisionist.core.realism.process import ANSWER_DAYS
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC
 from revisionist.core.world_compile import compile_world, resolve_keys
@@ -147,7 +148,7 @@ def test_an_order_filed_mid_stretch_shortens_the_wake() -> None:
     assert wake.reason.label == "Propose a levy, now with Cora Senn"
 
 
-def test_a_step_held_by_a_human_adds_no_candidate_and_an_ai_step_does() -> None:
+def test_a_step_held_by_another_human_falls_due_late_and_an_ai_step_on_time() -> None:
     today = Rig().start_day - timedelta(days=30)
     cora = "cora"
 
@@ -161,7 +162,7 @@ def test_a_step_held_by_a_human_adds_no_candidate_and_an_ai_step_does() -> None:
         ),
     )
     wake = next_wake(_with_order(held.state, at_bram), today)
-    assert wake.reason.what == "horizon" and wake.to == today + timedelta(days=7)
+    assert wake.reason.what == "agenda" and wake.to == today + timedelta(days=5 + ANSWER_DAYS)
 
     ai = Rig()
     ai.start("ada")

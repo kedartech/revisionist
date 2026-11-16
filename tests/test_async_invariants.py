@@ -134,11 +134,6 @@ def approach(t: AsyncTable, seat: SeatId, text: str, days: int) -> MandateId:
 # --- 1. Nobody waits on a person --------------------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="DUE: a request or held decision at a human-held leader has no due day yet",
-)
 def test_1_nobody_waits_on_a_person(table: AsyncTable) -> None:
     """Roosevelt and Churchill human, Churchill never commits: no Roosevelt order
     sits at a Churchill step past its due day, and every request has an answer date."""

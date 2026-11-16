@@ -13,14 +13,19 @@ from datetime import date, timedelta
 
 from revisionist.core import history
 from revisionist.core._base import Label, Model
-from revisionist.core.ids import EntityId, SeatId
+from revisionist.core.ids import EntityId, OrderId, SeatId
 from revisionist.core.ontology import Controller
-from revisionist.core.realism import reach
+from revisionist.core.realism import process, reach
 from revisionist.core.realism.agenda import MandateStatus
-from revisionist.core.realism.apply import reporter
+from revisionist.core.realism.apply import describe, reporter
 from revisionist.core.realism.effect import Route, RoutedOrder
 from revisionist.core.realism.pipeline import Order, Step, StepKind, step_due
-from revisionist.core.realism.pipelines import waiting_on_human
+from revisionist.core.realism.pipelines import (
+    held_by_another,
+    held_due,
+    order_words,
+    waiting_on_human,
+)
 from revisionist.core.realism.route import carry_out, execute_on
 from revisionist.core.state import State
 
@@ -49,6 +54,8 @@ class Wake(Model):
     collapsed_days: int
     """Quiet days passed over: ``(to - today).days - 1``."""
 
+
+MATTER_DUE = "A matter put to another desk falls due"
 
 CATEGORIES = ("step", "answer", "history", "agenda", "horizon")
 
@@ -115,11 +122,17 @@ def _stop(state: State, order: Order) -> tuple[date, Step] | None:
 
 def answer_due(state: State, order: RoutedOrder, i: int) -> tuple[date, EntityId] | None:
     """The day the paper on part ``i`` of a routed order reaches its issuer, and who
-    writes it. None when the part has answered, when a player holds the answer, or
-    when nothing will rule on it."""
+    writes it. None when the part has answered, when the issuer's own seat holds the
+    answer, or when nothing will rule on it. A request another player holds always has
+    one: its due day (or the day it was answered) and the way back."""
     part = order.parts[i]
     if part.applied is not None or part.route is Route.PROCESS:
         return None
+    due = process.request_due(state, order, i)
+    if due is not None:
+        settled = max(part.decided, order.filed) if part.decided is not None else due
+        author, channel = reporter(state, order, i)
+        return settled + timedelta(days=reach.transit_days(channel)), author
     if part.effect is None and not (part.was_estimated and (part.estimated or part.reason)):
         return None
     if part.route is Route.COMMAND:
@@ -137,6 +150,94 @@ def answer_due(state: State, order: RoutedOrder, i: int) -> tuple[date, EntityId
         settled = order.filed + timedelta(days=reach.transit_days(channels[0]) if channels else 0)
     author, channel = reporter(state, order, i)
     return settled + timedelta(days=reach.transit_days(channel)), author
+
+
+class Awaiting(Model):
+    """Something another seat put before this one, live until it is decided: a request
+    at its person, or an order at a decision step its person holds. The seat sees it
+    from the day it arrives; the card decides it on ``due`` if the seat has not."""
+
+    order_id: OrderId
+    part: int | None
+    """The request's part; None for an order held at a step."""
+    issuer: str
+    """Who asks, by name."""
+    label: str
+    """What is asked, in words."""
+    terms: str
+    arrived: date
+    due: date
+
+
+def awaiting(state: State, seat: SeatId, today: date) -> list[Awaiting]:
+    """What waits on ``seat`` today, earliest due first. Only the seat's own: nothing
+    another seat holds, and nothing that has not reached it yet."""
+    out: list[Awaiting] = []
+    for routed in state.routed.values():
+        for i, part in enumerate(routed.parts):
+            if part.decided is not None or process.held_by_another(state, routed, part) != seat:
+                continue
+            on = process.arrives(state, routed, part)
+            due = process.request_due(state, routed, i)
+            if on is None or due is None or on > today:
+                continue
+            issuer = state.seats[routed.issuer].embodies
+            terms = describe(state, part) if part.effect is not None else ""
+            out.append(
+                Awaiting(
+                    order_id=routed.order_id,
+                    part=i,
+                    issuer=state.entities[issuer].name,
+                    label=part.ask,
+                    terms=terms,
+                    arrived=on,
+                    due=due,
+                )
+            )
+    for order in state.orders.values():
+        due = held_due(state, order)
+        if due is None or held_by_another(state, order) != seat:
+            continue
+        on = order.outcomes[-1].on if order.outcomes else order.filed
+        if on > today:
+            continue
+        issuer = state.seats[order.issuer].embodies
+        out.append(
+            Awaiting(
+                order_id=order.order_id,
+                part=None,
+                issuer=state.entities[issuer].name,
+                label=_lever_words(state, order),
+                terms=order_words(state, order),
+                arrived=on,
+                due=due,
+            )
+        )
+    return sorted(out, key=lambda a: (a.due, a.order_id, -1 if a.part is None else a.part))
+
+
+def _held(state: State, today: date) -> list[WakeReason]:
+    """A stop for each request or held step another seat put before a player: the day
+    its paper reaches them, so they have a wake to answer in, then its due day. A held
+    step's arrival already stops the clock (``_stop``). The label names nobody: every
+    seat's clock shows it."""
+    found: list[WakeReason] = []
+    for routed in state.routed.values():
+        for i, part in enumerate(routed.parts):
+            due = process.request_due(state, routed, i)
+            on = process.arrives(state, routed, part) if due is not None else None
+            if part.decided is not None or due is None or on is None:
+                continue
+            told = process.request_paper_id(state.campaign_id, routed.order_id, i)
+            # until its paper is out the request has not reached them: a day on or
+            # before today stops the clock tomorrow, the first day it can be issued
+            when = due if told in state.documents else on
+            found.append(_reason("agenda", when, MATTER_DUE, today))
+    for order in state.orders.values():
+        due = held_due(state, order)
+        if due is not None:
+            found.append(_reason("agenda", due, MATTER_DUE, today))
+    return found
 
 
 def _last_answers(state: State, humans: set[SeatId]) -> dict[SeatId, tuple[date, EntityId]]:
@@ -165,6 +266,7 @@ def next_wake(state: State, today: date) -> Wake:
             found.append(
                 _reason("step", when, f"{_lever_words(state, order)}, now with {holder}", today)
             )
+    found += _held(state, today)
     event = history.next_due(state, today + timedelta(days=1))
     if event is not None and event.on_date is not None:
         found.append(_reason("history", event.on_date, event.name, today))
@@ -184,8 +286,10 @@ def next_wake(state: State, today: date) -> Wake:
 __all__ = [
     "DEFAULT_HORIZON_DAYS",
     "QUIET_DAYS",
+    "Awaiting",
     "Wake",
     "WakeReason",
     "answer_due",
+    "awaiting",
     "next_wake",
 ]

@@ -210,7 +210,12 @@ def _shift(world: PassWorld, effect: ShiftDisposition, scope: Scope) -> ev.Paylo
 # record is the routed part and its ``applied`` date. Card loyalty has no event, so a
 # shift of disposition toward a principal moves the relationship only. [proposed]
 def _land(
-    world: PassWorld, effect: EstimatedEffect, issuer_seat: SeatId, issuer: EntityId, on: date
+    world: PassWorld,
+    effect: EstimatedEffect,
+    issuer_seat: SeatId,
+    issuer: EntityId,
+    on: date,
+    author: EntityId,
 ) -> tuple[list[ev.Payload], list[FactId]]:
     match effect:
         case MoveForce():
@@ -232,7 +237,7 @@ def _land(
         case Deal():
             return deal.land(world, effect, issuer_seat, issuer, on)
         case Investigate():
-            return investigate.land(world, effect, issuer_seat, issuer, on)
+            return investigate.land(world, effect, issuer_seat, issuer, on, author)
         case _:
             # Disclosure(reveal=False) changes nothing in this wave. [proposed]
             return [], []
@@ -303,8 +308,9 @@ def apply_due(state: State, today: date) -> list[ev.Payload]:
                 effects += [e for e in part.estimated if isinstance(e, ShiftDisposition)]
             events: list[ev.Payload] = []
             revealed: list[FactId] = []
+            author = reporter(state, order, i)[0]
             for effect in effects:
-                landed, facts = _land(world, effect, issuer_seat, issuer, on)
+                landed, facts = _land(world, effect, issuer_seat, issuer, on, author)
                 events += landed
                 revealed += [f for f in facts if f not in revealed]
             out += events

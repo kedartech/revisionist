@@ -53,6 +53,8 @@ REVISIONIST_BACKUP_DEST=<rsync target, e.g. user@nas:/backups/revisionist, or rc
 | `REVISIONIST_BACKUP_DEST` | off-box copy target. The backup fails if it is unset |
 | `REVISIONIST_APP_ROLE` | role `revisionist db migrate` grants to; default `revisionist_app` |
 | `REVISIONIST_MASTER_KEY_FILE` | path to the 0600 master-key file that seals new campaigns (§9.8); a path, never the key |
+| `REVISIONIST_SCHEDULER_TRANSPORT` | what `revisionist scheduler run` ticks on: `claude` (the default, the Claude CLI on this login) or `openrouter` (free models only). The `--transport` flag wins over it. One value per instance, in that instance's env file (§11) |
+| `REVISIONIST_OPENROUTER_KEY` | the OpenRouter key of an `openrouter` instance, read by `web serve --transport openrouter` and `scheduler run --transport openrouter`; never printed |
 | `REVISIONIST_DISCORD_*` | the Discord bot and DM delivery; see §9 |
 | `REVISIONIST_MODEL_<CALL>` | optional per-call model for the Claude CLI, e.g. `REVISIONIST_MODEL_RESOLVER=claude-haiku-5-5`; must start with `claude-`, otherwise it is ignored with a warning. Call classes: `resolver`, `narrator`, `structure`, `brief`, `deputy`, `session_zero`, `character_search`, `character_record`, `character_pick`, `goal`, `history_brief` |
 
@@ -100,6 +102,7 @@ systemctl --user enable --now revisionist-scheduler.timer revisionist-backup.tim
 systemctl --user list-timers
 ```
 
+- (Two instances, or the free-model transport: use the templated pair of §11 instead of this one.)
 - `revisionist-scheduler.timer` fires every 10 minutes (`Persistent=true`, up to 60 s random delay) and starts `revisionist-scheduler.service`, a oneshot running `revisionist scheduler run`. Each run ticks each due campaign at most once.
 - `revisionist-backup.timer` fires nightly at 03:30 (up to 15 min random delay) and runs `revisionist-backup`.
 - Logs: `journalctl --user -u revisionist-scheduler.service` and `-u revisionist-backup.service`.
@@ -305,3 +308,47 @@ The project was called Wyrd Protocol through Layer 9a. Everything it installed c
 6. Install and enable the new units and scripts as in §5 and §9.3.
 7. Rename the existing dumps so the restore drill finds them: `cd ~/.local/share/revisionist/backups && for f in wyrd-*.dump; do mv "$f" "revisionist-${f#wyrd-}"; done`. Rename the off-box copies the same way, or leave them and remember the old prefix.
 8. Run the restore drill (§7) and `revisionist scheduler status`.
+
+## 11. Two instances: the Claude login and the free models
+
+The home server can run two instances side by side, each with its own database and its own scheduler: one that ticks on the host's Claude login, and one (the share instance) that spends nothing, on free OpenRouter models only. They differ only in their env file.
+
+`revisionist scheduler run` takes `--transport claude|openrouter`; with no flag it reads `REVISIONIST_SCHEDULER_TRANSPORT`, then falls back to `claude`. `openrouter` builds the transport exactly as `web serve --transport openrouter` does: one shared transport, every model id `:free`, usage guarded, and no `claude` process is started. If the key is missing or its usage cannot be read, the run ticks nothing and exits with an error. An `--offline` run builds no transport.
+
+The unit pair `deploy/systemd/revisionist-scheduler@.service` and `revisionist-scheduler@.timer` is a template: the text after the `@` names the instance and its env file, `~/.config/revisionist/<instance>.env`. The file is required; the unit does not start without it. The unit hardening and the 10-minute poll are those of §5.
+
+An instance's env file holds what that instance needs and nothing of the other's. For the Claude instance, `revisionist.env` as in §2, plus `REVISIONIST_SCHEDULER_TRANSPORT=claude` (optional, it is the default). For the free instance (here `share.env`):
+
+```
+REVISIONIST_DB=postgresql://<its own role>:***@127.0.0.1:<port>/<its own database>
+REVISIONIST_BRIEFINGS_DIR=/home/<you>/.local/share/revisionist-share/briefings
+REVISIONIST_OPENROUTER_KEY=<the free-models key>
+REVISIONIST_SCHEDULER_TRANSPORT=openrouter
+# plus REVISIONIST_MASTER_KEY_FILE if that database seals its campaigns (§9.8)
+```
+
+Install, once the instance's database is migrated (§3). Use the templated pair for every instance, and leave the single `revisionist-scheduler.timer` of §5 disabled, or the Claude instance would be polled twice:
+
+```
+cp deploy/systemd/revisionist-scheduler@.service deploy/systemd/revisionist-scheduler@.timer ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user disable --now revisionist-scheduler.timer          # only if §5 enabled it
+systemctl --user enable --now revisionist-scheduler@revisionist.timer revisionist-scheduler@share.timer
+systemctl --user list-timers 'revisionist-scheduler@*'
+journalctl --user -u 'revisionist-scheduler@share.service' -f
+```
+
+`revisionist-scheduler@revisionist` reads `revisionist.env`, so it replaces the single unit of §5 one for one. A per-campaign lock keeps a tick from running twice if two polls overlap.
+
+Check each instance by hand before its timer is on: `(set -a; . ~/.config/revisionist/share.env; set +a; revisionist scheduler status)`, then `revisionist scheduler run --offline` for a dry run with fixture providers.
+
+### 11.1 Solo games already open: the 168-hour step
+
+A wake that is already open keeps the deadline it was opened with: the host's wake-hours setting applies from the *next* wake. Changing the setting therefore does not turn an open solo game into a 168-hour game. Before the timer is first enabled on an instance, for each open solo game on it:
+
+1. `revisionist scheduler pause --campaign <id> --reason "168 h step"`. The timer then leaves the game alone while its old deadline passes.
+2. The host sets the wake hours to 168 in the room's game menu (the `wake-hours` setting, 1 to 168).
+3. The host's next commit closes the open wake and opens the next one, which carries the 168-hour deadline. Check that the room's "closes by" line is seven days ahead.
+4. `revisionist scheduler resume --campaign <id>`. This also clears the failure count.
+
+Do not resume a row whose open wake still shows the old deadline: the first poll after the resume would close that wake at once, with the aide playing the absent seat.

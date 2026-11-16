@@ -85,6 +85,26 @@ def line(roster: People, person: EntityId) -> PersonLine:
     return found
 
 
+OWN_KEYS = frozenset(PersonLine.__annotations__)
+"""The seat's own chain and inner circle: every key, card values and standing too."""
+ELSE_KEYS = frozenset(PersonLine.__required_keys__)
+"""Opponents and everyone else: no card value and no standing, which reads hidden rank."""
+
+
+def assert_group_keys(roster: People) -> None:
+    """Each group's lines carry exactly that group's keys: no key beyond them, none short."""
+    assert ELSE_KEYS < OWN_KEYS
+    groups = (
+        ("opponents", roster["opponents"], ELSE_KEYS),
+        ("yours", roster["yours"], OWN_KEYS),
+        ("others", roster["others"], ELSE_KEYS),
+    )
+    for group, lines, want in groups:
+        assert lines, group
+        for p in lines:
+            assert set(p) == want, (group, p["name"], sorted(set(p) ^ want))
+
+
 def on_day(state: State, day: date) -> State:
     return state.model_copy(update={"in_world_date": day})
 
@@ -280,10 +300,20 @@ def test_an_opponents_loyalty_and_competence_never_appear() -> None:
     text = json.dumps(line(roster, hitler))
     assert "loyalty" not in text and "competence" not in text
     assert '"wants"' not in text and '"holds_to"' not in text
+    assert_group_keys(roster)
     for p in everyone(roster):
-        assert set(PersonLine.__required_keys__) <= set(p) <= set(PersonLine.__annotations__)
-        meters = [p["regard"], p["reliability"], p["pace"], p["standing"]]
-        meters += [m for m in (p["stance"], p["power"], p.get("loyalty"), p.get("competence")) if m]
+        meters = [p["regard"], p["reliability"], p["pace"]]
+        meters += [
+            m
+            for m in (
+                p["stance"],
+                p["power"],
+                p.get("standing"),
+                p.get("loyalty"),
+                p.get("competence"),
+            )
+            if m
+        ]
         for meter in meters:
             assert set(meter) == set(PeopleMeter.__annotations__)
 
@@ -609,7 +639,7 @@ def test_pace_starts_the_clock_when_the_order_reached_the_person() -> None:
     assert line(roster, pound)["pace"]["word"] == "Very late"
 
 
-def test_standing_reads_rank_in_five_steps_for_everyone() -> None:
+def test_standing_reads_rank_in_five_steps_for_the_seats_own_people() -> None:
     state, seat, keys = seated("churchill")
     roster = people(state, seat)
     assert line(roster, keys["pound"])["standing"] == {
@@ -618,9 +648,28 @@ def test_standing_reads_rank_in_five_steps_for_everyone() -> None:
         "as_of": None,
         "confidence": None,
     }
-    assert line(roster, keys["hitler"])["standing"]["step"] == 5
-    assert line(roster, keys["hull"])["standing"]["step"] == 4
-    assert line(roster, keys["bbc_clerk"])["standing"]["step"] == 1
+    pound = state.cards[keys["pound"]]
+    for rank, step in ((0, 1), (1, 1), (4, 4), (5, 5)):
+        ranked = with_card(
+            state, keys["pound"], reach=pound.reach.model_copy(update={"rank": rank})
+        )
+        assert line(people(ranked, seat), keys["pound"])["standing"]["step"] == step
+
+
+def test_standing_is_absent_for_anyone_outside_the_seats_chain_and_inner_circle() -> None:
+    """Standing reads the card's hidden rank, which a seat's view does not hold
+    (``card.py`` public face); like the other card values it reaches only the seat's
+    own chain and inner circle. The opponents' power meter still reads rank, as
+    approved (first-run change 14)."""
+    state, seat, keys = seated("churchill")
+    roster = people(state, seat)
+    assert roster["opponents"] and roster["others"]
+    for p in roster["opponents"] + roster["others"]:
+        assert "standing" not in p, p["name"]
+    for who in ("hitler", "stalin", "hull"):
+        assert "standing" not in line(roster, keys[who])
+    assert all("standing" in p for p in roster["yours"])
+    assert_group_keys(roster)
 
 
 def test_bloc_is_the_name_of_the_persons_parent_body() -> None:
@@ -849,11 +898,7 @@ def test_the_client_fixture_carries_people_in_the_servers_shape() -> None:
     roster = json.loads(fixture.read_text())["people"]
     assert set(roster) == set(People.__annotations__)
     lines = [p for p in everyone(roster)]
-    assert lines and all(
-        set(PersonLine.__required_keys__) <= set(p) <= set(PersonLine.__annotations__)
-        for p in lines
-    )
-    assert any("loyalty" in p for p in lines) and any("loyalty" not in p for p in lines)
+    assert_group_keys(roster)
     meters = [
         m
         for p in lines
@@ -862,7 +907,7 @@ def test_the_client_fixture_carries_people_in_the_servers_shape() -> None:
             p["reliability"],
             p["stance"],
             p["pace"],
-            p["standing"],
+            p.get("standing"),
             p["power"],
             p.get("loyalty"),
             p.get("competence"),

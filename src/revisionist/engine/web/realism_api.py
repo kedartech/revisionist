@@ -376,8 +376,9 @@ class PersonLine(TypedDict):
     pace: PeopleMeter
     """Days taken at their step against the days stated, over the seat's own orders
     they moved on; "Untested" with none."""
-    standing: PeopleMeter
-    """Their rank in the world, in five steps."""
+    standing: NotRequired[PeopleMeter]
+    """Their rank in the world, in five steps. Rank is hidden card policy, so only for
+    the seat's own chain and inner circle; absent for anyone else."""
     bloc: str | None
     """The name of the body they belong to (Navy Department, Senate); None with none."""
     channel: PersonChannel | None

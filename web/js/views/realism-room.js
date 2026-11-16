@@ -20,7 +20,7 @@ import { characterDossier, settingDossier } from './realism-dossier.js';
 import { withCostStrips } from './realism-estimate.js';
 import { standardForms } from './realism-forms.js';
 import { firstWakeCard } from './realism-firstwake.js';
-import { happenedSheet, happenedStore, shouldShow } from './realism-happened.js';
+import { MISSED_TITLE, happenedSheet, happenedStore, missedPages, missedSheet, shouldShow } from './realism-happened.js';
 import { ideasPanel } from './realism-ideas.js';
 import { crawlParagraphs, introCrawl } from './realism-crawl.js';
 import { runMoves } from './realism-moves.js';
@@ -43,7 +43,7 @@ const freshUi = (game) => ({
   game, wide: false, page: null, said: null, error: null, busy: null,
   filter: 'all', sort: 'newest', draft: null, proposal: null, autoFor: null,
   chat: { open: false, tab: 'chats', thread: null }, contact: null, orderTo: null,
-  happenedSeen: null, refocusChat: false, brief: null, pending: null, drafts: {}, letters: [], runFrom: null, offer: null, menuCall: false,
+  happenedSeen: null, missed: null, missedAsked: false, refocusChat: false, brief: null, pending: null, drafts: {}, letters: [], runFrom: null, offer: null, menuCall: false,
   tab: 'desk', side: 'papers', press: { open: false, tab: null }, pressPage: null, peopleTab: 'opponents',
   view: 'board', board: 'theatre', piece: null, theatre: { mode: 'map', scope: 'reports' },
   firstWakeOff: null,
@@ -349,6 +349,12 @@ export function realismRoom(ctx) {
     root.replaceChildren(...build());
     follow();
     showDesk();
+    showMissed();
+  };
+  // a sheet left open stays open over a redraw or a re-read of the room
+  const showMissed = () => {
+    const sheet = root.querySelector('dialog.rl-missed');
+    if (sheet?.isConnected && !sheet.open) sheet.showModal();
   };
   const seen = seenStore(storage(), game.id);
   const shown = happenedStore(storage(), game.id);
@@ -761,6 +767,40 @@ export function realismRoom(ctx) {
     root.querySelector('.rl-write textarea')?.focus();
   }
 
+  /** The sheet of wakes this seat missed, while it has not been closed in this room; null otherwise. */
+  function missedDialog() {
+    if (!ui.missed) return null;
+    const sheet = missedSheet({ pages: ui.missed, record: rv.record, onClose: () => sheet.close() });
+    sheet.addEventListener('close', () => { ui.missed = null; });
+    return sheet;
+  }
+
+  /**
+   * Ask the server once for the wakes this seat missed (it names the range from the log) and open
+   * the sheet over whatever is open, so closing it returns to the wake's own sheet. A refusal
+   * leaves the room as it was; a server that did not answer is said in the status line.
+   */
+  async function loadMissed() {
+    if (ui.missedAsked) return;
+    ui.missedAsked = true;
+    let reply;
+    try {
+      reply = await api.catchup();
+    } catch (ex) {
+      if (ex.status === 0 || ex.status >= 500) {
+        ui.error = `${MISSED_TITLE} could not be loaded. ${ex.message}`;
+        showStatus();
+      }
+      return;
+    }
+    const pages = missedPages(reply);
+    if (!pages.length) return;
+    ui.missed = pages;
+    const sheet = missedDialog();
+    root.append(sheet);
+    sheet.showModal();
+  }
+
   /** The two dossiers behind the header's names, and the sheet a new wake opens with. */
   function sheets() {
     const date = worldDate(rv.clock.world_date);
@@ -875,11 +915,12 @@ export function realismRoom(ctx) {
       withBoard(tabBar(rv, ui, pick), ui, pick),
       dock(),
       pressDesk(),
-      menu, character, setting, happened, opening,
+      menu, character, setting, happened, opening, missedDialog(),
     ].filter(Boolean);
   }
 
   root.append(...build());
+  loadMissed();
   if (rv.brief || ui.autoFor === rv.wake_tick) fillBrief();
   else autoBrief();
   // a dialog opens only once it is in the page
@@ -888,6 +929,7 @@ export function realismRoom(ctx) {
     showDesk();
     if (pending?.isConnected && !pending.open) pending.showModal();
     else if (ui.refocusChat) refocus(ui.chat, true); // the reply redrew the room under the player
+    showMissed(); // over the wake's own sheet
   });
   return root;
 }

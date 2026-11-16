@@ -39,6 +39,8 @@ export const api = {
   seat: (action, body = {}) => call('POST', `/api/seat/${action}`, body),
   /** A realism call: read (resolves to a document page), flag (to { flagged }), directive (to { reply, refused, proposal }), aide (to { reply, refused, brief }), help (to { reply, refused, help }), order (to { reply, refused, proposal }), consult, sign, lever, step, advance, commit, close, style, option, file (to { reply, refused }). */
   realism: (action, body = {}) => call('POST', `/api/realism/${action}`, body),
+  /** The pages for the wakes this seat missed: resolves to { first, last, pages }; a range { first, last } is optional, and with none the server names it. */
+  catchup: (body = {}) => api.realism('catchup', body),
   /** The game menu: pause, resume, end, wake-hours with { hours } (host), leave (anyone else); resolves to { reply, refused }. */
   game: (action, body = {}) => call('POST', `/api/game/${action}`, body),
   /** An ended game this account held a seat in; resolves to its reveal, or { reply, refused }. */

@@ -221,12 +221,20 @@ def test_wheeler_goes_along_when_loyal_and_given_leverage() -> None:
         assert decided.accepted and "agreed" in decided.reason
 
 
-def test_a_target_a_human_holds_is_never_decided_by_code() -> None:
+def test_a_target_a_human_holds_is_decided_by_code_only_on_its_due_day() -> None:
     store, fdr = _seated(human_wheeler=True)
-    _ask_wheeler(store, CAMPAIGN, fdr)
-    rt.run_realism_tick(store, CAMPAIGN)
-    rt.run_realism_tick(store, CAMPAIGN)
-    assert _decisions(store, CAMPAIGN) == []
+    order = _ask_wheeler(store, CAMPAIGN, fdr)
+    due = process.request_due(load_state(store, CAMPAIGN), order, 0)
+    assert due is not None
+    early = process.influence_due(load_state(store, CAMPAIGN), due - timedelta(days=1))
+    assert not [p for p in early if isinstance(p, ev.InfluenceDecided)]
+    for _ in range(8):
+        rt.run_realism_tick(store, CAMPAIGN)
+        today = load_state(store, CAMPAIGN).in_world_date
+        assert today is not None
+        if today >= due:
+            break
+    assert [d.on for d in _decisions(store, CAMPAIGN)] == [due]
 
 
 def test_influence_is_decided_once_deterministically_and_replays() -> None:

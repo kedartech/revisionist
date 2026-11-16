@@ -144,10 +144,16 @@ def decides(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[bool, 
     assert part.target is not None
     name = _name(state, part.target)
     if accepted:
-        return True, f"{name} agreed to what you asked."
+        return True, answer_reason(name, True)
     if interest < 0:
         return False, f"{name} would not be moved: it would take the country nearer the war."
-    return False, f"{name} would not be moved."
+    return False, answer_reason(name, False)
+
+
+def answer_reason(name: str, accepted: bool) -> str:
+    """The issuer's line for a decided request, in the card's plain words: a holder's own
+    answer reads the same as the card's, so it says nothing of who gave it."""
+    return f"{name} agreed to what you asked." if accepted else f"{name} would not be moved."
 
 
 REFUSED_HINT = (
@@ -339,8 +345,25 @@ def _card_answer(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[b
     accepted, reason = decides(state, routed, part)
     if accepted and irreversible(_effects(part)):
         assert part.target is not None
-        return False, f"{_name(state, part.target)} would not be moved."
+        return False, answer_reason(_name(state, part.target), False)
     return accepted, reason
+
+
+def answered(
+    state: State, routed: RoutedOrder, i: int, accepted: bool, on: date
+) -> ev.InfluenceDecided:
+    """The holder's own answer to a request at their person (ANS), dated ``on``: the
+    decision is recorded at once, and like the card's it lands only when a tick applies
+    it (``apply.apply_due``), so it takes effect at the close, never at once. Raises
+    ``ValueError`` when the part is not a request another seat put to a human."""
+    part = routed.parts[i]
+    if held_by_another(state, routed, part) is None or part.decided is not None:
+        raise ValueError("That request is no longer before you.")
+    assert part.target is not None
+    reason = answer_reason(_name(state, part.target), accepted)
+    return ev.InfluenceDecided(
+        order_id=routed.order_id, part=i, on=on, accepted=accepted, reason=reason
+    )
 
 
 def influence_due(state: State, today: date) -> list[ev.Payload]:
@@ -391,6 +414,8 @@ __all__ = [
     "ANSWER_DAYS",
     "NO_REACH",
     "REFUSED_HINT",
+    "answer_reason",
+    "answered",
     "arrives",
     "day_words",
     "decides",

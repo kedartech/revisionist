@@ -128,7 +128,7 @@ def test_a_human_seats_private_page_stays_out_of_what_another_seat_would_hear(
     assert HUMAN_CANARY not in text
     monkeypatch.setattr(counsel, "load_state", lambda *_: state)
     transport = Kept()
-    with pytest.raises(counsel.CounselRefusedError, match="speaks for themselves"):
+    with pytest.raises(counsel.CounselRefusedError, match="answers in person"):
         consult(store, CAMPAIGN, roosevelt, churchill, QUESTION, ClaudeCounsellor(transport))
     assert transport.sent == []
 

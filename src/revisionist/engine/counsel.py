@@ -144,7 +144,17 @@ class ClaudeCounsellor:
 
 
 class CounselRefusedError(ValueError):
-    pass
+    """Why counsel was refused. ``thread``: the person to write to instead, set only for
+    a person another human plays."""
+
+    def __init__(self, reason: str, *, thread: str | None = None) -> None:
+        super().__init__(reason)
+        self.thread = thread
+
+
+ANSWERS_IN_PERSON = "{name} answers in person. Write to them; your letter reaches their desk."
+"""[proposed] The refusal for a person another human plays. The same words whether that
+player is at the table or away."""
 
 
 class Counsel(Model):
@@ -178,9 +188,8 @@ def consult(
         raise CounselRefusedError(f"ask a question of 1 to {QUESTION_MAX} characters")
     me = state.seats[seat]
     if _played_by_another(state, seat, person):
-        raise CounselRefusedError(
-            f"{state.entities[person].name} speaks for themselves: write to them."
-        )
+        name = state.entities[person].name
+        raise CounselRefusedError(ANSWERS_IN_PERSON.format(name=name), thread=name)
     card = state.cards.get(me.embodies)
     contact = next((c for c in card.inner_circle if c.person == person), None) if card else None
     channel = contact.channel if contact is not None else _outer_channel(state, seat, person)

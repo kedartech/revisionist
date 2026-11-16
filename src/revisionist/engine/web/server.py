@@ -89,8 +89,9 @@ MODEL_DOWN = "The model cannot be reached just now. Try again in a minute."
 BUSY = "The game is busy with another change. Try again in a moment."
 HELP_KEPT = 40
 """Lines of each seat's talk with its aide kept in memory [proposed]."""
-SEALED_BY_COMMIT = frozenset({"lever", "sign", "option", "file", "step"})
-"""Actions that file or change an order: refused once the seat has committed the wake."""
+SEALED_BY_COMMIT = frozenset({"lever", "sign", "option", "file", "step", "answer"})
+"""Actions that file or change an order, or answer another seat's request: refused once
+the seat has committed the wake."""
 SEALED = "Your orders for this wake are sealed. They go out when the wake closes."
 
 
@@ -438,6 +439,12 @@ class App:
                 elif action == "option":
                     done = agenda_api.pick_option(store, cid, seat, _text(body, "pick", 120))
                     return snapshot.checked(state, seat, dict(done))
+                elif action == "answer":
+                    accept = body.get("accept")
+                    if not isinstance(accept, bool):
+                        raise ValueError("accept is true or false.")
+                    done = agenda_api.answer(store, cid, seat, _text(body, "item", 64), accept)
+                    return snapshot.checked(state, seat, dict(done))
                 elif action == "order":
                     try:
                         reading = orders_reader.read_order(
@@ -471,6 +478,8 @@ class App:
             except (ValueError, KeyError, NotInPlayError, counsel.CounselRefusedError) as exc:
                 text = str(exc.args[0]) if isinstance(exc, KeyError) and exc.args else str(exc)
                 out = {"reply": text, "refused": True}
+                if isinstance(exc, counsel.CounselRefusedError) and exc.thread is not None:
+                    out["thread"] = exc.thread
                 if action in ("lever", "sign", "directive"):
                     out["help"] = self._aide_note(state, seat, _refused_note(text))
                 return snapshot.checked(state, seat, out)

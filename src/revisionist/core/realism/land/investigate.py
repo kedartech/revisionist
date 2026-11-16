@@ -23,9 +23,15 @@ TITLE = 60
 
 
 def land(
-    world: PassWorld, effect: Investigate, issuer_seat: SeatId, issuer: EntityId, on: date
+    world: PassWorld,
+    effect: Investigate,
+    issuer_seat: SeatId,
+    issuer: EntityId,
+    on: date,
+    author: EntityId,
 ) -> tuple[list[ev.Payload], list[FactId]]:
-    """The issuer's own report on the target, built from facts the issuer can see."""
+    """The issuer's report on the target, built from facts the issuer can see and signed
+    by ``author``, who carried the inquiry out."""
     state = world.state
     doc_id = DocumentId(
         derived_id(
@@ -52,7 +58,7 @@ def land(
     document = DocumentView(
         doc_id=doc_id,
         kind=DocumentKind.REPORT,
-        author=issuer,
+        author=author,
         issued=on,
         arrives=on + timedelta(days=TRANSIT_DAYS),
         channel=ChannelKind.IN_PERSON,

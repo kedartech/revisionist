@@ -42,6 +42,7 @@ def inquire(sl: Slice) -> list[ev.Payload]:
         sl.fdr,
         sl.entity("roosevelt"),
         ON,
+        sl.entity("stark"),
     )
     assert revealed == []
     return landed
@@ -76,7 +77,7 @@ def test_nothing_found_when_no_fact_visible(sl: Slice) -> None:
 def test_report_is_private_confidential_and_arrives_in_two_days(sl: Slice) -> None:
     doc = report(sl).document
     assert doc.kind is DocumentKind.REPORT
-    assert doc.author == sl.entity("roosevelt")
+    assert doc.author == sl.entity("stark")
     assert doc.issued == ON
     assert doc.arrives == ON + timedelta(days=2)
     assert doc.classification is Classification.CONFIDENTIAL

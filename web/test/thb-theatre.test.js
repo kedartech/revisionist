@@ -237,3 +237,58 @@ test('c-map.css draws theatres and capitals with tokens only, and lets the map f
   }
   assert.doesNotMatch(css, /#[0-9a-fA-F]{3,8}\b/, 'tokens only');
 });
+
+/** A DOM list as a browser returns one from `querySelectorAll`: indexed, iterable, no array methods. */
+class NodeList {
+  constructor(items) {
+    items.forEach((n, i) => { this[i] = n; });
+    this.length = items.length;
+  }
+
+  item(i) { return this[i] ?? null; }
+  forEach(fn) { Array.from(this).forEach(fn); }
+  *[Symbol.iterator]() { for (let i = 0; i < this.length; i += 1) yield this[i]; }
+}
+
+/**
+ * Run `fn` with `querySelectorAll` answering a NodeList, as every browser does, and `hidden`
+ * reflecting its attribute (the Draft toggle reads it), both put back after.
+ */
+function withNodeLists(fn) {
+  const proto = Object.getPrototypeOf(document.createElement('div'));
+  const real = proto.querySelectorAll;
+  const hidden = Object.getOwnPropertyDescriptor(proto, 'hidden');
+  proto.querySelectorAll = function nodeList(selector) { return new NodeList(real.call(this, selector)); };
+  Object.defineProperty(proto, 'hidden', {
+    configurable: true,
+    get() { return this.hasAttribute('hidden'); },
+    set(v) { if (v) this.setAttribute('hidden', ''); else this.removeAttribute('hidden'); },
+  });
+  try { return fn(); } finally {
+    proto.querySelectorAll = real;
+    if (hidden) Object.defineProperty(proto, 'hidden', hidden); else delete proto.hidden;
+  }
+}
+
+test('the map redraws under a focused place and focus returns to it (a NodeList has no .find)', () => {
+  const lit = (view) => Array.from(view.querySelectorAll('.rl-map-svg .rl-map-target'));
+  const named = (view, name) => lit(view).find((t) => t.getAttribute('data-place') === name);
+  const piece = { kind: 'force', name: 'US Atlantic Fleet' };
+  withNodeLists(() => {
+    const more = [{ name: 'Argentia', lat: 47.3, lon: -54.0, theatre: 'North America' }, { name: 'Norfolk', lat: 36.9, lon: -76.3, theatre: 'North America' },
+      { name: 'Tokyo', lat: 35.7, lon: 139.7, theatre: 'Asia-Pacific' }];
+    const view = board(rv({ places: [...fixture.map.places, ...more] }), ui({ layer: 'military' }, piece));
+    document.body.append(view);
+    assert.ok(lit(view).length >= 2, 'the open form lights places on the map');
+    const [place] = lit(view).map((t) => t.getAttribute('data-place'));
+    const picked = named(view, place);
+    picked.focus();
+    assert.equal(document.activeElement, picked);
+    // the keyboard pick: Enter on the focused place chooses it and redraws the map
+    for (const fn of picked.listeners.get('keydown') ?? []) fn({ key: 'Enter', preventDefault() {} });
+    const now = document.activeElement;
+    assert.notEqual(now, picked, 'the map was redrawn: the focused place is a new element');
+    assert.equal(now.getAttribute('data-place'), place, 'focus is back on the place just picked');
+    assert.ok(lit(view).includes(now), 'and it is on the redrawn map, not the one it replaced');
+  });
+});

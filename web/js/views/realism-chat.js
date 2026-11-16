@@ -81,8 +81,9 @@ function contactOf(reach, name) {
 
 /**
  * The dock. `opts`: `{ state, onState(next), threads, seen, reach, record, pending, drafts,
- * brief, dossierFor(name), ask(text), consult(name, text), onOpen(doc), useDraft(d),
- * contactsTab }`. `state` is `{ open, tab: 'chats' | 'contacts', thread: null | 'aide' | name }`,
+ * brief, dossierFor(name), ask(text), consult(name, text), letters, letter(name, text), onOpen(doc),
+ * useDraft(d), contactsTab }`. `letters` names the leaders who answer in person; their threads write a
+ * letter through `letter`. `state` is `{ open, tab: 'chats' | 'contacts', thread: null | 'aide' | name }`,
  * kept by the room; `threads` maps 'aide' and each contact's name to its items; `pending` is the
  * message being sent (`{ thread, text }`) or null; `drafts` the text kept per thread.
  * Opening a thread calls `onState` with it; the room marks it seen. Esc and the button close it.
@@ -136,6 +137,7 @@ function thread(opts) {
   const aide = key === 'aide';
   const { contact, inner } = aide ? { contact: null, inner: true } : contactOf(opts.reach, key);
   const writing = typingFor(pending, key);
+  const letter = !aide && (opts.letters ?? []).includes(key);
   return threadView({
     name: aide ? 'Your aide' : key,
     title: contact?.title ?? null,
@@ -146,7 +148,8 @@ function thread(opts) {
     pending: pending?.thread === key ? pending : null,
     draft: opts.drafts?.[key] ?? '',
     typing: writing ? typingBubble(writing) : null,
-    onSend: (text) => (aide ? opts.ask(text) : opts.consult(key, text)),
+    letter,
+    onSend: (text) => (aide ? opts.ask(text) : letter ? opts.letter(key, text) : opts.consult(key, text)),
     onBack: () => onState({ ...state, thread: null }),
     onOpen: opts.onOpen,
     onDraft: opts.useDraft,

@@ -68,6 +68,9 @@ from revisionist.engine.web import (
     stakes,
     wake_api,
 )
+from revisionist.engine.web import (
+    held as held_orders,
+)
 from revisionist.engine.web.accounts import (
     SESSION_DAYS,
     Account,
@@ -92,9 +95,10 @@ BUSY = "The game is busy with another change. Try again in a moment."
 HELP_KEPT = 40
 """Lines of each seat's talk with its aide kept in memory [proposed]."""
 SEALED_BY_COMMIT = frozenset({"lever", "sign", "option", "file", "step", "answer"})
-"""Actions that file or change an order, or answer another seat's request: refused once
-the seat has committed the wake."""
+"""Actions that file or change an order, or answer another seat's request: held for the
+next wake once the seat has committed this one, or while it is closing."""
 SEALED = "Your orders for this wake are sealed. They go out when the wake closes."
+"""The refusal when an order cannot be held (no ``web_held_orders`` table yet)."""
 
 
 def model_down(exc: TransportError) -> str:
@@ -262,6 +266,7 @@ class App:
                 seat_view["realism"]["dossier"] = dossiers.for_people(state, log_now).get(
                     state.seats[link.seat_id].embodies, dossiers.empty_dossier()
                 )
+                game["held"] = held_orders.listing(store, link.campaign_id, link.seat_id)
             out["game"] = game | {"view": seat_view}
             return snapshot.checked(state, link.seat_id, out)
         finally:
@@ -283,16 +288,26 @@ class App:
                 raise ApiError(HTTPStatus.BAD_REQUEST, "The game is not in play yet.")
             seat, cid = link.seat_id, link.campaign_id
             wake = state.wake
-            if (
+            later = (
                 action in SEALED_BY_COMMIT
                 and wake is not None
-                and not wake.closed
-                and seat in wake.committed
-            ):
-                return {"reply": SEALED, "refused": True}
+                and (
+                    (not wake.closed and seat in wake.committed) or held_orders.closing(store, cid)
+                )
+            )
             try:
+                if later:
+                    return snapshot.checked(
+                        state, seat, self._hold(store, state, seat, action, body)
+                    )
                 if action == "catchup":
-                    pages = catchup_api.reply(state, list(store.read(cid)), seat, body)
+                    pages = catchup_api.reply(
+                        state,
+                        list(store.read(cid)),
+                        seat,
+                        body,
+                        held_orders.dropped(store, cid, seat),
+                    )
                     return snapshot.checked(state, seat, pages)
                 if action == "read":
                     doc_id = DocumentId(_text(body, "doc_id", 64))
@@ -491,6 +506,31 @@ class App:
             return snapshot.checked(state, seat, {"reply": reply, "refused": False})
         finally:
             store.close()
+
+    def _hold(
+        self,
+        store: PostgresEventStore,
+        state: State,
+        seat: SeatId,
+        action: str,
+        body: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Keep a sealed action for the next wake, checked as far as this wake allows.
+        Raises ``ValueError`` on one that would be refused now."""
+        cid, wake = state.campaign_id, state.wake
+        assert wake is not None
+        reading = None
+        if action == "file":
+            with self._lock:
+                reading = self._readings.get((cid, seat))
+        args, label = _held_args(store, state, seat, action, body, reading)
+        held_id = held_orders.hold(store, cid, seat, wake.number, action, args, label)
+        if held_id is None:
+            return {"reply": SEALED, "refused": True}
+        if action == "file":
+            with self._lock:
+                self._readings.pop((cid, seat), None)
+        return {"reply": held_orders.HELD, "refused": False, "held": held_id}
 
     def _tools(self) -> wake_api.TickTools:
         return wake_api.TickTools(self.offline_prose, self.transport_factory, self.briefings)
@@ -869,6 +909,54 @@ def _lever_label(state: State, seat: SeatId, name: str) -> str:
     return (
         realism_snapshot.lever_label(found) if found is not None else realism_snapshot.words(name)
     )
+
+
+def _held_args(
+    store: PostgresEventStore,
+    state: State,
+    seat: SeatId,
+    action: str,
+    body: dict[str, Any],
+    reading: orders_reader.Reading | None,
+) -> tuple[dict[str, Any], str]:
+    """What a held action keeps, and its label for the seat. Checked as the action
+    itself checks, against this wake; raises ``ValueError`` as it would."""
+    if action in ("lever", "sign"):
+        lever, params = _text(body, "lever", 120), _params(body)
+        realism_tick.draft_order(state, seat, lever, params)
+        args: dict[str, Any] = {"lever": lever, "params": params}
+        if action == "sign":
+            to = _contact(state, seat, _text(body, "to", 120))
+            text = _text(body, "text", directive.TEXT_MAX, required=False)
+            args |= {"to": to, "channel": _channel(body).value, "text": text}
+        return args, _lever_label(state, seat, lever)
+    if action == "step":
+        order_id, params = _text(body, "order_id", 64), _params(body)
+        try:
+            taken = StepAction(_text(body, "action", 20))
+        except ValueError:
+            raise ValueError(
+                f"The action is one of {', '.join(a.value for a in StepAction)}."
+            ) from None
+        order = state.orders.get(OrderId(order_id))
+        if order is None:
+            raise ValueError(f"no order {order_id}")
+        label = f"{_lever_label(state, order.issuer, order.lever)}: {_DONE[taken]}"
+        return {"order_id": order_id, "action": taken.value, "params": params}, label
+    if action == "option":
+        chosen = agenda_api.offered(store, state.campaign_id, seat, _text(body, "pick", 120))
+        return {"asks": [a.model_dump(mode="json") for a in chosen.asks]}, chosen.label
+    if action == "file":
+        if reading is None or not reading.asks:
+            raise ValueError(orders_reader.NOTHING)
+        who = reading.shown["person"]
+        label = f"Your order to {who}" if who else "Your order"
+        return {"asks": [a.model_dump(mode="json") for a in reading.asks]}, label
+    accept = body.get("accept")
+    if not isinstance(accept, bool):
+        raise ValueError("accept is true or false.")
+    label = "Your answer to a request: " + ("accept" if accept else "decline")
+    return {"item": _text(body, "item", 64), "accept": accept}, label
 
 
 def _refused_note(reason: str) -> str:

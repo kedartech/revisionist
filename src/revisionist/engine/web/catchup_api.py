@@ -5,11 +5,13 @@ after the seat last committed by itself (wake 0 if it never has) to the latest c
 wake; the range comes from the log, never from the browser. Reply
 ``{first, last, pages}``: each page is the record's wake page, its papers counted from
 the catch-up seam, and, only in the owner's own payload and only for a wake the aide
-played for it, ``aide_filed``: what the aide filed, in the order's own words. A page
-takes further optional keys without a breaking change.
+played for it, ``aide_filed``: what the aide filed, in the order's own words; and, only
+in the owner's own payload, ``held_dropped``: a line for each order the seat gave after
+committing that did not go through when this wake opened. A page takes further
+optional keys without a breaking change.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import Any, NotRequired
 
 from revisionist.core import events as ev
@@ -25,6 +27,8 @@ from revisionist.engine.web.record_api import _day, _token
 class CatchupPage(RecordWake):
     aide_filed: NotRequired[list[str]]
     """The labels of the orders the aide filed for this seat in this wake."""
+    held_dropped: NotRequired[list[str]]
+    """The seat's held orders that were due in this wake and did not go through."""
 
 
 def _whole(body: dict[str, Any], key: str) -> int | None:
@@ -74,9 +78,14 @@ def _labels(ledger: record.Record, orders: Sequence[OrderId]) -> list[str]:
 
 
 def reply(
-    state: State, events: Sequence[Event], seat: SeatId, body: dict[str, Any]
+    state: State,
+    events: Sequence[Event],
+    seat: SeatId,
+    body: dict[str, Any],
+    dropped: Mapping[int, list[str]] | None = None,
 ) -> dict[str, Any]:
-    """``seat``'s catch-up. Raises ``ValueError`` on a range it cannot serve."""
+    """``seat``'s catch-up. ``dropped``: the seat's own lines for held orders that did
+    not go through, by wake. Raises ``ValueError`` on a range it cannot serve."""
     commits = _own_commits(events, seat)
     first, last = _range(state, commits, body)
     ledger = record.build(state, events, seat)
@@ -100,6 +109,8 @@ def reply(
         played = commits.get(page.number)
         if played is not None and played.by_aide:
             out["aide_filed"] = _labels(ledger, played.aide_orders)
+        if dropped and dropped.get(page.number):
+            out["held_dropped"] = list(dropped[page.number])
         pages.append(out)
     return {"first": first, "last": last, "pages": pages}
 

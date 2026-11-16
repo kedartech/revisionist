@@ -17,7 +17,7 @@ from revisionist.core.realism import process
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.visibility import Visibility
 from revisionist.engine import realism_tick
-from revisionist.engine.web import server
+from revisionist.engine.web import held
 from tests.test_web import Client, web  # noqa: F401
 from tests.test_web_realism import Realism, post, realism_of
 from tests.test_web_wake import duo, log_of, seat_of, state_of  # noqa: F401
@@ -156,7 +156,7 @@ def test_a_declined_request_is_not_decided_again_by_the_card(
     assert decided.payload.reason == "Winston Churchill would not be moved."
 
 
-def test_an_answer_is_sealed_once_the_seat_has_committed(
+def test_an_answer_after_the_seat_has_committed_is_held_for_the_next_wake(
     duo: tuple[Realism, Client, Client],  # noqa: F811
 ) -> None:
     game, ada, bea = duo
@@ -165,9 +165,15 @@ def test_an_answer_is_sealed_once_the_seat_has_committed(
     order, _ = _request(game)
     status, out = post(bea, "commit")
     assert status == 200 and not out["refused"], out
-    _, sealed = post(bea, "answer", item=item["id"], accept=True)
-    assert sealed == {"reply": server.SEALED, "refused": True}
-    assert _decided(game, order) == []
+    _, kept = post(bea, "answer", item=item["id"], accept=True)
+    assert kept["reply"] == held.HELD and kept["refused"] is False, kept
+    assert _decided(game, order) == [], "nothing lands in the wake the seat sealed"
+    post(ada, "commit")
+    (decided,) = _decided(game, order)
+    assert isinstance(decided.payload, ev.InfluenceDecided) and decided.payload.accepted
+    log = log_of(game)
+    opened = max(i for i, e in enumerate(log) if isinstance(e.payload, ev.WakeOpened))
+    assert log.index(decided) > opened, "filed when the next wake opened"
 
 
 def test_only_the_holder_answers_and_only_once(

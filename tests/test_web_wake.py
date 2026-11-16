@@ -181,14 +181,19 @@ def test_no_wake_open_is_a_refusal(web: Web) -> None:  # noqa: F811
 def test_a_committed_seat_files_nothing_more_this_wake(
     duo: tuple[Realism, Client, Client],
 ) -> None:
+    """Its orders are held for the next wake (tests/test_web_held_orders.py); one
+    that would be refused now is refused, and nothing lands in this wake."""
     game, _ada, bea = duo
+    before = len(log_of(game))
     assert not post(bea, "commit")[1]["refused"]
+    committed = len(log_of(game))
+    assert committed == before + 1
     for action in ("lever", "sign", "option", "file", "step"):
-        _, out = post(bea, action)
-        assert out == {"reply": server.SEALED, "refused": True}, action
+        status, out = post(bea, action)  # an empty body: refused as it is before a commit
+        assert status == 400 or (out["refused"] is True and out["reply"] != server.SEALED), action
     _, still = post(bea, "read")
     assert still != {"reply": server.SEALED, "refused": True}
-    assert state_of(game).tick == 0
+    assert state_of(game).tick == 0 and len(log_of(game)) == committed
 
 
 def test_advance_closes_the_wake_for_an_old_client(solo: tuple[Realism, Client]) -> None:

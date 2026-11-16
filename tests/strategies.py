@@ -1066,10 +1066,25 @@ engine_v2_payloads = st.one_of(
         mandate_id=mandate_ids,
         status=st.sampled_from([s for s in ra.MandateStatus if s is not ra.MandateStatus.LIVE]),
     ),
-    st.builds(ev.WakeOpened, wake=st.integers(0, 500), deadline=deadlines),
-    st.builds(ev.WakeCommitted, wake=st.integers(0, 500), seat_id=seat_ids, by_aide=st.booleans()),
     st.builds(
-        ev.WakeClosed, wake=st.integers(0, 500), timed_out=st.lists(seat_ids, max_size=3).map(tuple)
+        ev.WakeOpened,
+        wake=st.integers(0, 500),
+        deadline=deadlines,
+        opened_at=st.none() | deadlines,
+    ),
+    st.builds(
+        ev.WakeCommitted,
+        wake=st.integers(0, 500),
+        seat_id=seat_ids,
+        by_aide=st.booleans(),
+        at=st.none() | deadlines,
+        aide_orders=st.lists(order_ids, max_size=3).map(tuple),
+    ),
+    st.builds(
+        ev.WakeClosed,
+        wake=st.integers(0, 500),
+        timed_out=st.lists(seat_ids, max_size=3).map(tuple),
+        how=st.none() | st.sampled_from(["all_committed", "deadline", "host"]),
     ),
     st.builds(
         ev.PlayStyleSet,

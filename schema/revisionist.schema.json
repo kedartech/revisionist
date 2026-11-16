@@ -9143,6 +9143,23 @@
       "WakeClosed": {
         "additionalProperties": false,
         "properties": {
+          "how": {
+            "anyOf": [
+              {
+                "enum": [
+                  "all_committed",
+                  "deadline",
+                  "host"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "How"
+          },
           "kind": {
             "const": "wake_closed",
             "default": "wake_closed",
@@ -9171,8 +9188,29 @@
       },
       "WakeCommitted": {
         "additionalProperties": false,
-        "description": "A seat sealed its orders for the wake. Public that it committed, never what.",
+        "description": "A seat sealed its orders for the wake. Public that it committed, never what.\n\nThe aide's commit for an absent seat is sealed to that seat: it names the orders\nthe aide filed, which no other seat may learn.",
         "properties": {
+          "aide_orders": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Aide Orders",
+            "type": "array"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "At"
+          },
           "by_aide": {
             "default": false,
             "title": "By Aide",
@@ -9215,6 +9253,19 @@
             "default": "wake_opened",
             "title": "Kind",
             "type": "string"
+          },
+          "opened_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Opened At"
           },
           "wake": {
             "minimum": 0,

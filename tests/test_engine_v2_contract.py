@@ -382,6 +382,45 @@ def test_a_play_style_and_standing_orders_are_stored(sl: Slice) -> None:
     _refused(sl, reversible, "only irreversible")
 
 
+def test_the_wake_record_loads_old_events_and_dumps_them_as_before() -> None:
+    """Wake events logged before the record's fields read with the defaults and dump
+    byte for byte as they were stored, so stored games replay and hash unchanged."""
+    seat = SeatId(derived_id(CAMPAIGN, "seat", "old"))
+    other = SeatId(derived_id(CAMPAIGN, "seat", "other"))
+    old = [
+        {"kind": "wake_opened", "wake": 0, "deadline": "2026-11-01T12:00:00Z"},
+        {"kind": "wake_committed", "wake": 0, "seat_id": seat, "by_aide": False},
+        {"kind": "wake_committed", "wake": 0, "seat_id": other, "by_aide": True},
+        {"kind": "wake_closed", "wake": 0, "timed_out": [seat]},
+    ]
+    loaded = [ev.Event.model_validate(_envelope(n, raw)).payload for n, raw in enumerate(old)]
+    opened, mine, aide, closed = loaded
+    assert isinstance(opened, ev.WakeOpened) and opened.opened_at is None
+    assert isinstance(mine, ev.WakeCommitted) and (mine.at, mine.aide_orders) == (None, ())
+    assert isinstance(aide, ev.WakeCommitted) and (aide.at, aide.aide_orders) == (None, ())
+    assert isinstance(closed, ev.WakeClosed) and closed.how is None
+    assert [p.model_dump(mode="json") for p in loaded] == old
+    new = ev.WakeCommitted(
+        wake=0, seat_id=seat, by_aide=True, at=DEADLINE, aide_orders=(OrderId("o1"),)
+    ).model_dump(mode="json")
+    assert new["at"] == "2026-11-01T12:00:00Z" and new["aide_orders"] == ["o1"]
+    assert ev.WakeClosed(wake=0, how="deadline").model_dump(mode="json")["how"] == "deadline"
+    with pytest.raises(ValidationError):
+        ev.WakeClosed.model_validate({"kind": "wake_closed", "wake": 0, "how": "aide"})
+
+
+def _envelope(seq: int, payload: dict[str, object]) -> dict[str, object]:
+    return {
+        "event_id": derived_id(CAMPAIGN, "old-wake", str(seq)),
+        "campaign_id": CAMPAIGN,
+        "seq": seq,
+        "tick": 0,
+        "scope": PUBLIC.model_dump(mode="json"),
+        "payload": payload,
+        "versions": cmp.versions().model_dump(mode="json"),
+    }
+
+
 def test_engine_v2_records_are_refused_in_a_legacy_campaign() -> None:
     legacy = compile_world(cmp.load_world(cmp.world_path("salt-strait")), CAMPAIGN, cmp.versions())
     stray = legacy[-1].model_copy(

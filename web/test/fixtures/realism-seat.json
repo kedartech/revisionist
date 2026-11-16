@@ -1295,7 +1295,8 @@
         "moving": true,
         "track": "o-convoy",
         "due": null,
-        "said": null
+        "said": null,
+        "receipt": null
       },
       {
         "id": "a90f3e6b1c22",
@@ -1309,7 +1310,8 @@
         "moving": true,
         "track": null,
         "due": "21 October 1941",
-        "said": null
+        "said": null,
+        "receipt": null
       },
       {
         "id": "0b7d24c9e815",
@@ -1323,7 +1325,12 @@
         "moving": true,
         "track": "o-neutrality",
         "due": null,
-        "said": null
+        "said": null,
+        "receipt": {
+          "word": "Passed on",
+          "day": "12 October 1941",
+          "doc": "d-reply-1012"
+        }
       },
       {
         "id": "e43a91d07f6c",
@@ -1337,7 +1344,8 @@
         "moving": false,
         "track": null,
         "due": null,
-        "said": "Wheeler would not be moved while the America First rallies go on."
+        "said": "Wheeler would not be moved while the America First rallies go on.",
+        "receipt": null
       },
       {
         "id": "7c2f8e0a3d91",
@@ -1351,7 +1359,8 @@
         "moving": false,
         "track": "o-lend",
         "due": null,
-        "said": null
+        "said": null,
+        "receipt": null
       },
       {
         "id": "c1a7e5f20b3d",
@@ -1365,7 +1374,8 @@
         "moving": false,
         "track": null,
         "due": null,
-        "said": "Hull would not act without the Latin American governments."
+        "said": "Hull would not act without the Latin American governments.",
+        "receipt": null
       },
       {
         "id": "c2b8f6031c4e",
@@ -1379,7 +1389,8 @@
         "moving": false,
         "track": null,
         "due": null,
-        "said": null
+        "said": null,
+        "receipt": null
       },
       {
         "id": "c3c907142d5f",
@@ -1393,7 +1404,8 @@
         "moving": false,
         "track": null,
         "due": null,
-        "said": null
+        "said": null,
+        "receipt": null
       },
       {
         "id": "c4da18253e60",
@@ -1407,7 +1419,8 @@
         "moving": false,
         "track": null,
         "due": null,
-        "said": "The Speaker will hold it."
+        "said": "The Speaker will hold it.",
+        "receipt": null
       },
       {
         "id": "c5eb29364f71",
@@ -1421,7 +1434,8 @@
         "moving": false,
         "track": null,
         "due": null,
-        "said": null
+        "said": null,
+        "receipt": null
       },
       {
         "id": "c6fc3a475082",
@@ -1435,7 +1449,8 @@
         "moving": false,
         "track": null,
         "due": null,
-        "said": null
+        "said": null,
+        "receipt": null
       },
       {
         "id": "c70d4b586193",
@@ -1449,7 +1464,8 @@
         "moving": false,
         "track": null,
         "due": null,
-        "said": null
+        "said": null,
+        "receipt": null
       },
       {
         "id": "c81e5c6972a4",
@@ -1463,7 +1479,8 @@
         "moving": false,
         "track": null,
         "due": null,
-        "said": null
+        "said": null,
+        "receipt": null
       }
     ],
     "wake": {

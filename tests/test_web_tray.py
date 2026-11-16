@@ -11,10 +11,11 @@ from revisionist.core.realism import effect as rx
 from revisionist.core.realism.apply import report_doc_id
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.document import BodyField, Classification, DocumentKind, DocumentView
+from revisionist.core.realism.effect import PartView
 from revisionist.core.visibility import PUBLIC
 from revisionist.engine.web.realism_api import DocumentListing, DocumentListItem
 from revisionist.engine.web.realism_snapshot import documents
-from revisionist.engine.web.tray import acknowledgement, feed_group
+from revisionist.engine.web.tray import acknowledgement, feed_group, receipt_word
 from tests.test_engine_v2_apply import FILED, executed, land
 from tests.test_engine_v2_contract import CAMPAIGN, Slice
 
@@ -100,3 +101,33 @@ def test_a_dated_feed_title_names_its_group_and_a_one_off_title_does_not() -> No
     assert feed_group("The Speaker's count, 1941-09-08") == "The Speaker's count"
     assert feed_group("On your order: Attack American ships on sight") is None
     assert feed_group("Moscow situation, week ending 16 October") is None
+
+
+def test_the_receipt_word_is_the_acknowledgements_own_wording() -> None:
+    full = PartView(
+        route=rx.Route.COMMAND,
+        domain="naval_operations",
+        executor=EntityId("A1"),
+        fidelity=rx.Fidelity.FULL,
+        executed=DAY,
+    )
+    assert receipt_word(page(), full) == "Carried out in full"
+    assert receipt_word(page(("What was done", "passed it on"))) == "Passed on"
+    assert receipt_word(page(("What was done", "pressed it forward"))) == "Pressed forward"
+
+
+def test_news_has_no_receipt_word() -> None:
+    loose = PartView(
+        route=rx.Route.COMMAND,
+        domain="naval_operations",
+        executor=EntityId("A1"),
+        fidelity=rx.Fidelity.LOOSE,
+        executed=DAY,
+    )
+    assert receipt_word(page(), loose) is None
+    assert receipt_word(page(("What was done", "held it"))) is None
+    assert receipt_word(page(("Carried out", "full"))) is None
+
+
+def test_a_press_paper_has_no_receipt_word_whatever_its_lines_say() -> None:
+    assert receipt_word(page(("What was done", "passed it on"), kind=DocumentKind.PRESS)) is None

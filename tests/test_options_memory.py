@@ -32,6 +32,8 @@ class _Spy:
 def _beginner() -> Table:
     t = Table(MemoryStore())
     options.set_style(t.store, CAMPAIGN, t.fdr, PlayStyle.BEGINNER)
+    assert t.winston is not None
+    options.set_style(t.store, CAMPAIGN, t.winston, PlayStyle.FREE)
     wake.open_wake(t.store, CAMPAIGN, T0)
     return t
 

@@ -312,7 +312,7 @@ def test_a_release_racing_an_unrelated_write_asks_for_a_retry(
 def test_the_reveal_credits_no_style_from_a_released_pick(web: Web) -> None:  # noqa: F811
     client = _host(web, Fake(PLACED))
     assert not new(client, "pick", name=CHURCHILL)["refused"]
-    assert not new(client, "style", style="beginner")["refused"]
+    assert not new(client, "style", style="guided")["refused"]
     assert not new(client, "unpick")["refused"]
     assert not new(client, "pick", name=HULL)["refused"]
     store = web.app.open()
@@ -321,4 +321,4 @@ def test_the_reveal_credits_no_style_from_a_released_pick(web: Web) -> None:  # 
         (seat,) = reveal.build(load_state(store, cid), store.read(cid))["seats"]
     finally:
         store.close()
-    assert seat["person"] == HULL and seat["styles"] == []
+    assert seat["person"] == HULL and seat["styles"] == ["Beginner"]

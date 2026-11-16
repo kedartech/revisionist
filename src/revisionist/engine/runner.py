@@ -96,6 +96,7 @@ def play_tick(
         opened: int | None = None
         if done.stopped_after is None:
             opened = wk.open_wake(store, campaign_id, when)
+            wake_open.before_offers(store, campaign_id, opened)
             wk.offer_all(store, campaign_id, None if offline else transport_factory())
         found = leak_report(load_state(store, campaign_id), store.read(campaign_id))
         if opened is not None and not found:  # as a public record: only after a clean tick

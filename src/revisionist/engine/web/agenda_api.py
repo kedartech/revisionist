@@ -321,22 +321,31 @@ def set_style(store: EventStore, campaign_id: CampaignId, seat: SeatId, style: s
     return Reply(reply=said[chosen], refused=False)
 
 
-def pick_option(store: EventStore, campaign_id: CampaignId, seat: SeatId, pick: str) -> Reply:
-    """File the offered option ``pick`` names with ``realism_tick.commit_order``."""
+def offered(store: EventStore, campaign_id: CampaignId, seat: SeatId, pick: str) -> Option:
+    """The option ``pick`` names among the seat's offers for the open wake. Raises
+    ``ValueError`` with the player's words when it names none."""
     if _NEWS.fullmatch(pick):
-        return Reply(reply=_WRITE_IT, refused=True)
+        raise ValueError(_WRITE_IT)
     state = load_state(store, campaign_id)
     found = _PICK.fullmatch(pick)
     made = _latest(store.read(campaign_id), seat, _wake(state))
     if found is None or made is None or int(found[1]) != made.wake:
-        return Reply(reply=_STALE, refused=True)
+        raise ValueError(_STALE)
     index, n = int(found[2]), int(found[3])
     if index >= len(made.offers):
-        return Reply(reply=_STALE, refused=True)
+        raise ValueError(_STALE)
     offer: Offer = made.offers[index]
     if n >= len(offer.options):
-        return Reply(reply=_STALE, refused=True)
-    chosen = offer.options[n]
+        raise ValueError(_STALE)
+    return offer.options[n]
+
+
+def pick_option(store: EventStore, campaign_id: CampaignId, seat: SeatId, pick: str) -> Reply:
+    """File the offered option ``pick`` names with ``realism_tick.commit_order``."""
+    try:
+        chosen = offered(store, campaign_id, seat, pick)
+    except ValueError as stale:
+        return Reply(reply=str(stale), refused=True)
     try:
         realism_tick.commit_order(store, campaign_id, seat, chosen.asks)
     except ValueError as refusal:
@@ -344,4 +353,4 @@ def pick_option(store: EventStore, campaign_id: CampaignId, seat: SeatId, pick: 
     return Reply(reply=f"Filed: {chosen.label}.", refused=False)
 
 
-__all__ = ["agenda", "answer", "pick_option", "requests", "seat_style", "set_style"]
+__all__ = ["agenda", "answer", "offered", "pick_option", "requests", "seat_style", "set_style"]

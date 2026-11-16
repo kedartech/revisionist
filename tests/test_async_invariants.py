@@ -361,11 +361,6 @@ def test_5_the_aide_is_bounded_no_irreversible_step(
     assert kinds & IRREVERSIBLE == set(), kinds
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="ABD: the aide does not yet drop a deal from what it files",
-)
 def test_5_the_aide_is_bounded_no_deal_accepted(
     table: AsyncTable, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -533,11 +528,6 @@ def test_7_one_notice(web: Web, monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
 # --- 8. Offers lapse, votes are filed ahead ---------------------------------------
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="ABD: the aide still answers an opening put to an absent seat",
-)
 def test_8_offers_lapse(table: AsyncTable, monkeypatch: pytest.MonkeyPatch) -> None:
     """An offer to an absent seat expires with no change: the aide answers nothing on
     the seat's behalf, and the opening ends expired."""

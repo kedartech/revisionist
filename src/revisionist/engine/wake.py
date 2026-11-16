@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core import record
-from revisionist.core.ids import CampaignId, EventId, SeatId
+from revisionist.core.ids import CampaignId, EventId, OrderId, SeatId
 from revisionist.core.ontology import Controller
 from revisionist.core.realism.agenda import STANDING_DEFAULT, Ask
 from revisionist.core.realism.effect import IRREVERSIBLE
@@ -59,7 +59,7 @@ def open_wake(store: EventStore, campaign_id: CampaignId, now: datetime) -> int:
         raise ValueError(f"wake {state.wake.number} is still open")
     number = 0 if state.wake is None else state.wake.number + 1
     deadline = now + timedelta(hours=state.settings.wake_hours)
-    _land(store, state, ev.WakeOpened(wake=number, deadline=deadline))
+    _land(store, state, ev.WakeOpened(wake=number, deadline=deadline, opened_at=now))
     return number
 
 
@@ -101,7 +101,7 @@ def commit(store: EventStore, campaign_id: CampaignId, seat: SeatId, now: dateti
     wake = state.wake
     if wake is None or wake.closed or seat in wake.committed:
         return False
-    _land(store, state, ev.WakeCommitted(wake=wake.number, seat_id=seat), seat)
+    _land(store, state, ev.WakeCommitted(wake=wake.number, seat_id=seat, at=now), seat)
     return True
 
 
@@ -136,24 +136,32 @@ def close_wake(
     if wake is None or wake.closed:
         return ()
     absent = tuple(s for s in cmp.human_seats(state) if s not in wake.committed)
+    how = _how(absent, wake.deadline, now)
     for seat in absent:
         state = load_state(store, campaign_id)
+        filed: list[OrderId] = []
         for order in options.aide_asks(state, seat, transport):
             asks = _allowed(state, seat, order)
             if not asks:
                 continue
             try:
-                realism_tick.commit_order(store, campaign_id, seat, asks)
+                filed.append(realism_tick.commit_order(store, campaign_id, seat, asks).order_id)
             except ValueError as exc:
                 log.warning("aide order for %s dropped: %s", seat, exc)
-        _land(
-            store,
-            load_state(store, campaign_id),
-            ev.WakeCommitted(wake=wake.number, seat_id=seat, by_aide=True),
-            seat,
+        played = ev.WakeCommitted(
+            wake=wake.number, seat_id=seat, by_aide=True, at=now, aide_orders=tuple(filed)
         )
-    _land(store, load_state(store, campaign_id), ev.WakeClosed(wake=wake.number, timed_out=absent))
+        _land(store, load_state(store, campaign_id), played, seat, private_to(seat))
+    closed = ev.WakeClosed(wake=wake.number, timed_out=absent, how=how)
+    _land(store, load_state(store, campaign_id), closed)
     return absent
+
+
+def _how(absent: tuple[SeatId, ...], deadline: datetime, now: datetime) -> ev.WakeCloseHow:
+    """Every human committed; else the deadline passed; else the host closed it early."""
+    if not absent:
+        return "all_committed"
+    return "deadline" if deadline <= now else "host"
 
 
 __all__ = ["close_wake", "commit", "offer_all", "open_wake", "set_hours", "wake_due"]

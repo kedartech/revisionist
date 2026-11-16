@@ -401,11 +401,6 @@ def test_5_the_aide_is_bounded_no_deal_accepted(
     assert deals == [], deals
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="ABD (with WRC's field): the aide's commit does not yet name the orders it filed",
-)
 def test_5_the_aide_is_owned(table: AsyncTable, monkeypatch: pytest.MonkeyPatch) -> None:
     """The owner's view names the aide's orders."""
     t = table

@@ -13,7 +13,7 @@ from revisionist.core.realism import effect as rx
 from revisionist.core.realism.advance import next_wake
 from revisionist.core.realism.agenda import Ask, PlayStyle
 from revisionist.core.state import State
-from revisionist.core.visibility import private_to
+from revisionist.core.visibility import PUBLIC, private_to
 from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
 from revisionist.engine import options, realism_tick, runner, scheduler, session_zero, wake
@@ -210,7 +210,7 @@ def test_all_committed_closes_before_the_deadline_and_the_scheduler_follows(
     play(t, tmp_path, T0 + timedelta(hours=1))
     after = t.state.wake
     assert before is not None and after is not None and after.number == before.number + 1
-    assert t.payloads(ev.WakeClosed)[-1] == ev.WakeClosed(wake=before.number)
+    assert t.payloads(ev.WakeClosed)[-1] == ev.WakeClosed(wake=before.number, how="all_committed")
 
 
 def test_next_wake_stops_at_a_live_mandate_expiry() -> None:
@@ -231,3 +231,85 @@ def test_next_wake_stops_at_a_live_mandate_expiry() -> None:
     assert found.to == due_on
     assert found.reason.what == "agenda"
     assert found.reason.label == "Keep the convoys moving., due"
+
+
+# --- The wake record (WRC): when it opened, each commit's time, how it closed ---------
+
+
+def _events_of(t: Table, kind: type[ev.Payload]) -> list[ev.Event]:
+    return [e for e in t.store.read(CAMPAIGN) if isinstance(e.payload, kind)]
+
+
+def test_the_record_times_the_opening_and_each_commit() -> None:
+    t = Table(MemoryStore())
+    assert t.winston is not None
+    wake.open_wake(t.store, CAMPAIGN, T0)
+    wake.commit(t.store, CAMPAIGN, t.fdr, T0 + timedelta(minutes=5))
+    wake.commit(t.store, CAMPAIGN, t.winston, T0 + timedelta(hours=3))
+    (opened,) = t.payloads(ev.WakeOpened)
+    assert opened.opened_at == T0
+    assert [(p.seat_id, p.at, p.aide_orders) for p in t.payloads(ev.WakeCommitted)] == [
+        (t.fdr, T0 + timedelta(minutes=5), ()),
+        (t.winston, T0 + timedelta(hours=3), ()),
+    ]
+
+
+def test_a_wake_closes_all_committed_when_every_human_has() -> None:
+    t = Table(MemoryStore())
+    assert t.winston is not None
+    wake.open_wake(t.store, CAMPAIGN, T0)
+    wake.commit(t.store, CAMPAIGN, t.fdr, T0)
+    wake.commit(t.store, CAMPAIGN, t.winston, T0)
+    wake.close_wake(t.store, CAMPAIGN, T0 + timedelta(hours=1), None)
+    assert [p.how for p in t.payloads(ev.WakeClosed)] == ["all_committed"]
+
+
+def test_a_wake_closes_by_deadline_once_it_has_passed(monkeypatch: pytest.MonkeyPatch) -> None:
+    t = Table(MemoryStore())
+    monkeypatch.setattr(options, "aide_asks", lambda state, seat, transport: [])
+    wake.open_wake(t.store, CAMPAIGN, T0)
+    wake.commit(t.store, CAMPAIGN, t.fdr, T0)
+    wake.close_wake(t.store, CAMPAIGN, T0 + timedelta(hours=12), None)
+    assert [p.how for p in t.payloads(ev.WakeClosed)] == ["deadline"]
+
+
+def test_a_wake_closed_early_with_a_seat_out_is_the_host(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    t = Table(MemoryStore())
+    monkeypatch.setattr(options, "aide_asks", lambda state, seat, transport: [])
+    wake.open_wake(t.store, CAMPAIGN, T0)
+    wake.commit(t.store, CAMPAIGN, t.fdr, T0)
+    wake.close_wake(t.store, CAMPAIGN, T0 + timedelta(hours=12) - timedelta(seconds=1), None)
+    assert [p.how for p in t.payloads(ev.WakeClosed)] == ["host"]
+
+
+def test_the_aides_commit_is_sealed_to_its_owner_and_names_its_orders(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    t = Table(MemoryStore())
+    assert t.winston is not None
+    monkeypatch.setattr(options, "aide_asks", lambda state, seat, transport: t.aide_orders())
+    wake.open_wake(t.store, CAMPAIGN, T0)
+    before = set(t.state.routed)
+    wake.commit(t.store, CAMPAIGN, t.fdr, T0)
+    closed_at = T0 + timedelta(hours=12)
+    wake.close_wake(t.store, CAMPAIGN, closed_at, None)
+    filed = tuple(
+        o.order_id
+        for o in t.state.routed.values()
+        if o.issuer == t.winston and o.order_id not in before
+    )
+    assert filed, "the aide filed for Churchill"
+    (mine, aide) = _events_of(t, ev.WakeCommitted)
+    assert mine.scope == PUBLIC and mine.payload == ev.WakeCommitted(wake=0, seat_id=t.fdr, at=T0)
+    assert aide.payload == ev.WakeCommitted(
+        wake=0, seat_id=t.winston, by_aide=True, at=closed_at, aide_orders=filed
+    )
+    assert aide.scope == private_to(t.winston)
+    assert aide.scope.visible_to(t.winston) and not aide.scope.visible_to(t.fdr)
+    # the close stays public: the fold still sees both seats committed
+    (close,) = _events_of(t, ev.WakeClosed)
+    assert close.scope == PUBLIC
+    assert close.payload == ev.WakeClosed(wake=0, timed_out=(t.winston,), how="deadline")
+    assert t.state.wake is not None and t.state.wake.committed == {t.fdr, t.winston}

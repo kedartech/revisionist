@@ -839,16 +839,34 @@ class WakeOpened(Model):
     wake: int = Field(ge=0)
     deadline: datetime
     """Real time. The wake closes at commit-of-all or here, whichever comes first."""
+    opened_at: datetime | None = None
+    """Real time it opened. None in a wake logged before the record had it."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"opened_at"})
 
 
 class WakeCommitted(Model):
-    """A seat sealed its orders for the wake. Public that it committed, never what."""
+    """A seat sealed its orders for the wake. Public that it committed, never what.
+
+    The aide's commit for an absent seat is sealed to that seat: it names the orders
+    the aide filed, which no other seat may learn."""
 
     kind: Literal["wake_committed"] = "wake_committed"
     wake: int = Field(ge=0)
     seat_id: SeatId
     by_aide: bool = False
     """The seat had not committed by the deadline; its aide played it."""
+    at: datetime | None = None
+    """Real time of the commit. None in a commit logged before the record had it."""
+    aide_orders: tuple[OrderId, ...] = ()
+    """The orders the aide filed for the seat, in filing order. Empty for a person's commit."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"at", "aide_orders"})
+
+
+WakeCloseHow = Literal["all_committed", "deadline", "host"]
+"""How a wake closed: every human had committed; its deadline had passed; the host
+closed it early with a seat still out."""
 
 
 class WakeClosed(Model):
@@ -856,6 +874,10 @@ class WakeClosed(Model):
     wake: int = Field(ge=0)
     timed_out: tuple[SeatId, ...] = ()
     """Human seats the aide played."""
+    how: WakeCloseHow | None = None
+    """None in a close logged before the record had it."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"how"})
 
 
 class PlayStyleSet(Model):

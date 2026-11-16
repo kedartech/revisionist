@@ -1,7 +1,9 @@
 """The shared wake (engine v2, spec §4, decision 41).
 
 One wake for the whole table: it opens, each seat commits, and it closes when all
-have committed or at the deadline, the aide playing any seat that has not.
+have committed or at the deadline, the aide playing any seat that has not. A leader
+changes hands only at a close: a player who leaves, or one who takes up a leader nobody
+plays, counts from the next wake.
 """
 
 import logging
@@ -9,11 +11,11 @@ from datetime import datetime, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core import record
-from revisionist.core.ids import CampaignId, EventId, OrderId, SeatId
-from revisionist.core.ontology import Controller
+from revisionist.core.ids import CampaignId, EntityId, EventId, OrderId, SeatId, derived_id
+from revisionist.core.ontology import Controller, Phase
 from revisionist.core.realism.agenda import STANDING_DEFAULT, Ask
 from revisionist.core.realism.effect import IRREVERSIBLE, Deal
-from revisionist.core.state import State
+from revisionist.core.state import State, controller_after, seat_of_person
 from revisionist.core.visibility import PUBLIC, Scope, private_to
 from revisionist.engine import campaign as cmp
 from revisionist.engine import options, realism_tick
@@ -114,6 +116,78 @@ def wake_due(state: State, now: datetime) -> bool:
     return wake.deadline <= now or (bool(humans) and humans <= wake.committed)
 
 
+def seat_for(state: State, person: EntityId) -> SeatId:
+    """The seat ``person`` is played from: theirs, else the id a claim would give."""
+    seat = seat_of_person(state, person)
+    return (
+        seat.seat_id if seat is not None else SeatId(derived_id(state.campaign_id, "seat", person))
+    )
+
+
+def leaders(state: State) -> list[EntityId]:
+    """The leaders the host may hand to a new player: people on the roster, with a card,
+    whom nobody plays once the open wake closes. In name order."""
+    if state.phase is not Phase.PLAY:
+        return []
+    free = [
+        p for p in state.roster if p in state.cards and controller_after(state, p) is Controller.AI
+    ]
+    return sorted(free, key=lambda p: (state.entities[p].name, p))
+
+
+def from_wake(state: State) -> int:
+    """The first wake a leader handed over now is played in: the one after the next close."""
+    wake = state.wake
+    if wake is None:
+        return 1
+    return wake.number + (2 if wake.closed else 1)
+
+
+def hand_over(store: EventStore, campaign_id: CampaignId, person: EntityId) -> SeatId:
+    """A new player takes up ``person`` at the next close; returns the seat they will hold.
+    Raises ``ValueError`` for a leader someone plays or will play."""
+    state = load_state(store, campaign_id)
+    if person not in leaders(state):
+        raise ValueError("That leader cannot be handed over.")
+    seat = seat_for(state, person)
+    handover = ev.SeatHandover(entity_id=person, controller=Controller.HUMAN)
+    _land(store, state, handover, None, private_to(seat))
+    return seat
+
+
+def _person_of(state: State, seat: SeatId) -> EntityId | None:
+    held = state.seats.get(seat)
+    if held is not None:
+        return held.embodies
+    return next((p for p in state.handovers if seat_for(state, p) == seat), None)
+
+
+def joining(state: State, seat: SeatId) -> bool:
+    """A new player has taken up ``seat``, and it is theirs from the next close."""
+    person = _person_of(state, seat)
+    held = state.seats.get(seat)
+    return (
+        person is not None
+        and state.handovers.get(person) is Controller.HUMAN
+        and (held is None or held.controller is not Controller.HUMAN)
+    )
+
+
+def leave(store: EventStore, campaign_id: CampaignId, seat: SeatId, now: datetime) -> None:
+    """The seat's player leaves. From the next close the code runs the leader, whose
+    orders stay in flight; the open wake is sealed for the seat now, so it holds no wake
+    open. Raises ``ValueError`` unless a player holds or is taking up the seat."""
+    state = load_state(store, campaign_id)
+    person = _person_of(state, seat)
+    if person is None or controller_after(state, person) is not Controller.HUMAN:
+        raise ValueError(f"seat {seat} has no player to leave")
+    handover = ev.SeatHandover(entity_id=person, controller=Controller.AI)
+    _land(store, state, handover, seat, private_to(seat))
+    held = state.seats.get(seat)
+    if held is not None and held.controller is Controller.HUMAN:
+        commit(store, campaign_id, seat, now)
+
+
 def _allowed(state: State, seat: SeatId, order: tuple[Ask, ...]) -> tuple[Ask, ...]:
     """The aide never takes an irreversible step without a standing order naming it,
     and never makes or accepts a deal: a deal is the seat's own to strike."""
@@ -169,4 +243,17 @@ def _how(absent: tuple[SeatId, ...], deadline: datetime, now: datetime) -> ev.Wa
     return "deadline" if deadline <= now else "host"
 
 
-__all__ = ["close_wake", "commit", "offer_all", "open_wake", "set_hours", "wake_due"]
+__all__ = [
+    "close_wake",
+    "commit",
+    "from_wake",
+    "hand_over",
+    "joining",
+    "leaders",
+    "leave",
+    "offer_all",
+    "open_wake",
+    "seat_for",
+    "set_hours",
+    "wake_due",
+]

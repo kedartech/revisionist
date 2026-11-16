@@ -10,9 +10,11 @@ and the CLI; a web account is never the host.
 from collections.abc import Callable
 from datetime import datetime
 
-from revisionist.core.ids import CampaignId
+from revisionist.core.ids import CampaignId, EntityId, SeatId
 from revisionist.core.ontology import Phase
+from revisionist.core.state import State
 from revisionist.engine import scheduler as sch
+from revisionist.engine import wake as wk
 from revisionist.engine.discord import handlers as dh
 from revisionist.engine.discord.handlers import BotConfig, Handlers
 from revisionist.engine.discord.tables import Invites, Link, LinkError
@@ -113,10 +115,11 @@ class WebHandlers(Handlers):
         game: CampaignId,
     ) -> str:
         """Spend the code on this account, with ``game``'s lock held. A realism game
-        that has begun takes no one new: its seats are people chosen in Session Zero."""
+        that has begun takes a new player only on a code the host issued for a leader
+        nobody plays (``handover``)."""
         state = load_state(store, game)
         if state.ruleset == "realism" and state.phase is not Phase.SESSION_ZERO:
-            return BEGUN
+            return self._take_up(store, invites, user_id, code, state)
         seats = WebSeats(store.conn)
 
         def bind(campaign_id: object, seat_id: object) -> None:
@@ -134,6 +137,39 @@ class WebHandlers(Handlers):
         if seat is None:
             return JOINED_ZERO
         return f"You hold {seat.name}. {WELCOME}"
+
+    def _take_up(
+        self,
+        store: PostgresEventStore,
+        invites: Invites,
+        user_id: str,
+        code: str,
+        state: State,
+    ) -> str:
+        """Spend a handover code in a game in play: the account holds the leader's seat
+        now and plays it from the next close. Any other code is refused, unspent. The
+        reply's words are [proposed]."""
+        seats = WebSeats(store.conn)
+        taken: list[EntityId] = []
+
+        def bind(campaign_id: CampaignId, seat_id: SeatId) -> None:
+            free = [p for p in wk.leaders(state) if wk.seat_for(state, p) == seat_id]
+            if not free:
+                raise LinkError(f"seat {seat_id} is not a leader to take up")
+            seats.link(campaign_id, seat_id, user_id)
+            wk.hand_over(store, campaign_id, free[0])
+            taken.append(free[0])
+
+        try:
+            got = invites.redeem(code, person(user_id), WEB, self.clock(), bind=bind)
+        except LinkError:
+            return BEGUN
+        if got is None:
+            return dh.BAD_CODE
+        campaign_id, seat_id = got
+        dh.log.info("web join: account %s takes up %s in %s", user_id, seat_id, campaign_id)
+        name = state.entities[taken[0]].name
+        return f"You will play {name} from wake {wk.from_wake(state)}. {WELCOME}"
 
     def _welcome(self, user_id: str, campaign_id: object, seat_name: str) -> str:
         return WELCOME

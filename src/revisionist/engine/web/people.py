@@ -11,13 +11,14 @@ values leave it only for the seat's own chain and inner circle, as below.
 
 The figure card's data (plan item "the figure card's data"; board design §4) adds, for
 everyone: the seat's own orders waiting on the person, what they did with the seat's
-orders at their step and how fast, their standing and their body, and for the inner
-circle the channel. Orders are read from ``view.orders`` (the seat's own only) and the
+orders at their step and how fast, and their body, and for the inner circle the
+channel. Orders are read from ``view.orders`` (the seat's own only) and the
 pipelines from ``state``, as the court reads them. A hold or a leak is the issuer's to
 know only once its reply has arrived (``UNSEEN``). Card values
-(loyalty, competence, the topics wanted and held to) go to the seat's own chain and
-inner circle only; for anyone else those keys are absent. A leader weighed against the
-seat gets a power meter from rank and the forces the seat's own pages place under them.
+(loyalty, competence, the topics wanted and held to) and standing, which reads the
+card's hidden rank, go to the seat's own chain and inner circle only; for anyone else
+those keys are absent. A leader weighed against the seat gets a power meter from rank
+and the forces the seat's own pages place under them (approved; first-run change 14).
 The staff read on an order mirrors the pipeline policy without its draw.
 """
 
@@ -346,14 +347,15 @@ def _line(
         load=len(holds),
         tally=tally,
         pace=pace,
-        standing=_flat(max(1, rank), STANDING),
         bloc=body.name if body is not None else None,
         channel=_channel(view, person),
         power=_power(state, view, person, rank, today) if group == "opponents" else None,
     )
-    card = state.cards[person]
-    if group == "yours" and isinstance(card, SeatCard):
-        out.update(_card_values(state, card))  # type: ignore[typeddict-item]
+    if group == "yours":
+        out["standing"] = _flat(max(1, rank), STANDING)
+        card = state.cards[person]
+        if isinstance(card, SeatCard):
+            out.update(_card_values(state, card))  # type: ignore[typeddict-item]
     return out
 
 

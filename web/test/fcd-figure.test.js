@@ -35,7 +35,8 @@ test('groups come in the fixed order, and a group with nothing in it is not draw
     ['Now', 'Toward you', 'What they can do', 'Their record with you', 'What moves them']);
   assert.deepEqual(heads(figureCard(hitler, 'opponents')),
     ['Toward you', 'What they can do', 'Their record with you', 'Between you']);
-  assert.deepEqual(heads(figureCard(hull, 'others')), ['Toward you', 'What they can do', 'Their record with you']);
+  assert.deepEqual(heads(figureCard(hull, 'others')), ['Toward you', 'Their record with you'],
+    'an outsider has no standing (it reads hidden rank) and no load: no What they can do');
   assert.deepEqual(heads(figureCard(eden, 'yours')),
     ['Toward you', 'What they can do', 'Their record with you'], 'no holds and no topics: no Now, no What moves them');
 });
@@ -93,10 +94,11 @@ test('a leader: stance with its trend, power in place of standing, and Between y
   assert.equal(card.querySelector('.rl-fc-tally'), null, 'no order of yours went through them: no tally');
 });
 
-test('an outsider: regard, standing and record only; Between you is a leader\'s alone', () => {
+test('an outsider: regard and record only; Between you is a leader\'s alone', () => {
   installDom();
   const card = figureCard(hull, 'others');
-  assert.deepEqual(card.querySelectorAll('.rl-fc-label').map(words), ['Regard', 'Standing', 'Reliability', 'Pace']);
+  assert.equal(hull.standing, undefined, 'the server sends no standing for an outsider');
+  assert.deepEqual(card.querySelectorAll('.rl-fc-label').map(words), ['Regard', 'Reliability', 'Pace']);
   const warred = figureCard({ ...hull, at_war: true, last_answer: 'Declined, 2 October 1941.' }, 'others');
   assert.equal(group(warred, 'Between you'), undefined);
   assert.match(words(warred.querySelector('.rl-fc-sub')), /At war with you/, 'a war shows in the head');

@@ -3,7 +3,7 @@
 
 import { h } from '../dom.js';
 import { worldDate, untilText } from '../rules.js';
-import { commitBusy, commitLabel } from './realism-wake.js';
+import { comeBackLine, commitBusy, commitLabel } from './realism-wake.js';
 import { tile } from './ui-kit.js';
 
 const SETTLED = new Set(['enacted', 'refused', 'lapsed', 'withdrawn']);
@@ -24,12 +24,14 @@ function doneBar(wake) {
 /**
  * `statusStrip(rv, ui, { act })`: the strip under the header: the world date and, in
  * multiplayer only, the countdown to the wake's deadline and the players-done bar (counts
- * only), with the primary "Done for today". `act` runs a room call, as the commit panel's does.
+ * only), with the primary "Done for today", then the "when you come back" line on its own
+ * row. `act` runs a room call, as the commit panel's does.
  */
 export function statusStrip(rv, ui, { act }) {
   const wake = rv.wake ?? {};
   const multi = wake.humans > 1;
   const open = Boolean(wake.deadline);
+  const comeBack = comeBackLine(rv);
   return h('div', { class: 'rl-strip', role: 'region', 'aria-label': 'Where the day stands' },
     h('span', { class: 'rl-date' }, worldDate(rv.clock?.world_date)),
     multi && open ? countdown(wake.deadline) : null,
@@ -39,7 +41,8 @@ export function statusStrip(rv, ui, { act }) {
       : null,
     open && wake.you_committed
       ? h('span', { class: 'rl-committed', role: 'status', 'aria-live': 'polite' }, commitLabel(wake))
-      : null);
+      : null,
+    comeBack ? h('p', { class: 'rl-comeback' }, comeBack) : null);
 }
 
 /**

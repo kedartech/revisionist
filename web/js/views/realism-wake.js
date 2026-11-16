@@ -20,6 +20,12 @@ export const STYLES = Object.freeze([
  * the reader's own when left out.
  */
 export function deadlineWords(iso, timeZone) {
+  const when = momentWords(iso, timeZone);
+  return when ? `Closes ${when}` : null;
+}
+
+/** "Monday 2 November, 9 pm": a real-world time in `timeZone` (the reader's own when left out). */
+function momentWords(iso, timeZone) {
   if (!iso) return null;
   const at = new Date(iso);
   if (Number.isNaN(at.getTime())) return null;
@@ -27,7 +33,7 @@ export function deadlineWords(iso, timeZone) {
     weekday: 'long', day: 'numeric', month: 'long', hour: 'numeric', minute: '2-digit', hourCycle: 'h12', timeZone,
   }).formatToParts(at).map((p) => [p.type, p.value]));
   const minutes = parts.minute === '00' ? '' : `:${parts.minute}`;
-  return `Closes ${parts.weekday} ${parts.day} ${parts.month}, ${parts.hour}${minutes} ${parts.dayPeriod.toLowerCase()}`;
+  return `${parts.weekday} ${parts.day} ${parts.month}, ${parts.hour}${minutes} ${parts.dayPeriod.toLowerCase()}`;
 }
 
 export function commitCount(wake) {
@@ -46,7 +52,54 @@ export function commitLabel(wake) {
 }
 
 /** Under the commit button. */
-export const DONE_HINT = 'The day runs when everyone is done.';
+export const DONE_HINT = 'The day runs when everyone is done, or at the close.';
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+  'September', 'October', 'November', 'December'];
+
+/** A world day as "26 October 1941" or "1941-10-26" to a sortable number; null for anything else. */
+function dayKey(day) {
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day ?? '');
+  if (iso) return Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+  const words = /^(\d{1,2}) ([A-Z][a-z]+) (\d{4})$/.exec(day ?? '');
+  const month = words ? MONTHS.indexOf(words[2]) : -1;
+  return month < 0 ? null : Date.UTC(Number(words[3]), month, Number(words[1]));
+}
+
+/** Most dates the "when you come back" line names. [proposed] */
+export const COME_BACK_DATES = 3;
+
+/** What is due and when: the answers still on their way (the record's `due`) and the mandates' deadlines. */
+function dueThings(rv) {
+  const found = [];
+  for (const o of rv.record?.orders ?? []) {
+    if (!o.moving || dayKey(o.due) === null) continue;
+    const who = o.holder ?? o.to;
+    found.push({ key: dayKey(o.due), words: `${who ? `${who}'s` : 'an'} answer due ${dayWords(o.due)}` });
+  }
+  for (const m of rv.agenda?.items ?? []) {
+    if (dayKey(m.deadline) === null) continue;
+    const what = `the ${String(m.kind ?? 'matter').toLowerCase()}${m.issuer ? ` from ${m.issuer}` : ''}`;
+    found.push({ key: dayKey(m.deadline), words: `${what} due ${dayWords(m.deadline)}` });
+  }
+  return found.sort((a, b) => a.key - b.key).slice(0, COME_BACK_DATES).map((d) => d.words);
+}
+
+/**
+ * The line at Done: "When you come back: <up to three dates due>." and when the wake closes
+ * (before Done, with the aide's clause) or the next opens (after). Nothing here reads another
+ * seat's state. Null while no wake is open. `timeZone` is the reader's own when left out.
+ */
+export function comeBackLine(rv, timeZone) {
+  const wake = rv.wake ?? {};
+  const when = momentWords(wake.deadline, timeZone);
+  if (!when) return null;
+  const due = dueThings(rv);
+  const head = `When you come back: ${due.length ? due.join('; ') : 'nothing is due'}.`;
+  return wake.you_committed
+    ? `${head} The next wake opens by ${when}.`
+    : `${head} The wake closes by ${when}; if you have not pressed Done by then, your aide plays your seat.`;
+}
 
 /** The host's confirm before running the wake now. */
 export const RUN_NOW = Object.freeze({

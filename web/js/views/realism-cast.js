@@ -136,10 +136,10 @@ export const PLAY_STYLES = [
   { value: 'free', label: 'Free', line: 'You write every order yourself.' },
 ];
 
-function playStyle() {
+export function playStyle() {
   const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
   const choices = PLAY_STYLES.map((s) => {
-    const radio = h('input', { type: 'radio', name: 'play-style', id: `style-${s.value}`, value: s.value, checked: s.value === 'free' });
+    const radio = h('input', { type: 'radio', name: 'play-style', id: `style-${s.value}`, value: s.value, checked: s.value === 'beginner' });
     radio.addEventListener('change', async () => {
       try {
         const r = await api.newGame('style', { style: s.value });

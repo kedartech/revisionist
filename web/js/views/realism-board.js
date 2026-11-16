@@ -4,10 +4,12 @@
 // (realism-room.js); one switch picks between the two. Nothing here touches the page on import.
 
 import { h } from '../dom.js';
-import { certaintyWord, markKindWord, sideLine, sightedLine, whereLine } from '../realism-rules.js';
+import { aimsBlock, certaintyWord, markKindWord, sideLine, sightedLine, whereLine } from '../realism-rules.js';
 import { courtBoard } from './realism-court.js';
 import { theatreBoard } from './realism-theatre.js';
 
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
+  'September', 'October', 'November', 'December'];
 const VIEWS = [['board', 'Board'], ['desk', 'Desk']];
 const BOARDS = [['theatre', 'Theatre'], ['court', 'Court']];
 
@@ -117,6 +119,54 @@ function liftCard(court) {
   return card;
 }
 
+/** A history-clock date in words ("20 September 1941") as [year, month, day], or null. */
+function parts(on) {
+  const m = /^(\d{1,2}) ([A-Za-z]+) (\d{4})$/.exec(String(on ?? '').trim());
+  const month = m ? MONTHS.indexOf(m[2]) + 1 : 0;
+  return month ? [Number(m[3]), month, Number(m[1])] : null;
+}
+
+const key = ([y, m, d]) => y * 10000 + m * 100 + d;
+
+/**
+ * `nextHistoryDate(setting, today)`: the earliest date on history's clock after `today` (an ISO
+ * world date) as `{ on, what, iso }`, whatever order the dates come in; null when none is left.
+ */
+export function nextHistoryDate(setting, today) {
+  const now = String(today ?? '').split('-').map(Number);
+  if (now.length !== 3 || now.some((n) => !n)) return null;
+  let best = null;
+  for (const entry of Array.isArray(setting?.dates) ? setting.dates : []) {
+    const at = parts(entry?.on);
+    if (at && key(at) > key(now) && (!best || key(at) < key(best.at))) best = { at, entry };
+  }
+  if (!best) return null;
+  const iso = best.at.map((n, i) => String(n).padStart(i ? 2 : 4, '0')).join('-');
+  return { on: String(best.entry.on).trim(), what: String(best.entry.what ?? '').trim(), iso };
+}
+
+/**
+ * The pin: the seat's aims and the next date on history's clock, the first thing on the Board.
+ * A focus stop of its own so a keyboard reaches it before the board. Null with neither to show.
+ */
+export function pinBlock(rv) {
+  const aims = aimsBlock(rv.desk?.aims);
+  const next = nextHistoryDate(rv.setting, rv.clock?.world_date);
+  if (!aims && !next) return null;
+  return h('section', { class: 'rl-pin', tabindex: '0', 'aria-label': 'Pinned: your aims and the next date in history' },
+    aims
+      ? h('div', { class: 'rl-pin-part' },
+        h('h2', { class: 'rl-pin-h' }, 'Your aims'),
+        h('ul', { class: 'rl-pin-aims' }, aims.lines.map((line) => h('li', {}, line))),
+        h('p', { class: 'rl-pin-note muted' }, aims.note))
+      : null,
+    next
+      ? h('div', { class: 'rl-pin-part' },
+        h('h2', { class: 'rl-pin-h' }, 'Next on history\'s clock'),
+        h('p', { class: 'rl-pin-next' }, h('time', { datetime: next.iso }, next.on), next.what ? `: ${next.what}` : null))
+      : null);
+}
+
 /**
  * `boardView(rv, ui, { pick, act, write, open })`: the Board. `ui.board` picks Theatre or Court
  * (`pick({ board })`); `ui.piece` is the selected piece; `write` is the room's order form;
@@ -130,6 +180,7 @@ export function boardView(rv, ui, { pick, act, write, open }) {
   const card = which === 'court' ? liftCard(board) : null;
   return h('main', { class: 'rl-board', 'data-board': which },
     h('section', { class: 'rl-board-main', 'aria-label': 'Board' },
+      pinBlock(rv),
       pressGroup('rl-boardswitch', 'Board', BOARDS, which, (b) => pick({ board: b })),
       board),
     h('aside', { class: 'rl-board-side', 'aria-label': 'Selected piece and order' },

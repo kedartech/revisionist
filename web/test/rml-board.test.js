@@ -209,3 +209,95 @@ test('Open the page on the Board reads the paper and shows it on the Desk, in th
   assert.ok(again.querySelector('main.rl-room'), 'the Desk view');
   assert.match(words(again.querySelector('.rl-papers')), /House count on the Neutrality Act revision/);
 });
+
+const pinFor = (patch = {}, more = {}) => {
+  const view = { ...rv(), ...patch };
+  return boardView(view, ui(more), { pick: () => {}, act: () => {}, write: write() }).querySelector('.rl-pin');
+};
+const withAims = (aims) => ({ desk: { ...fixture.desk, aims } });
+const withDates = (dates, world_date = '1941-10-20') => ({
+  setting: { ...fixture.setting, dates },
+  clock: { ...fixture.clock, world_date },
+});
+
+test('the Board pins the seat\'s aims: .rl-pin-aims, one child element for each aim', () => {
+  const aims = ['Keep Britain supplied.', 'Protect the Atlantic convoys.', 'Stay out of a declared war.'];
+  const list = pinFor(withAims(aims)).querySelector('.rl-pin-aims');
+  assert.ok(list, 'the aims container');
+  assert.deepEqual(list.children.map(words), aims);
+  assert.equal(list.childNodes.length, aims.length, 'nothing but the aims in it');
+});
+
+test('with no aims the pin has no aims container', () => {
+  assert.equal(pinFor(withAims([])).querySelector('.rl-pin-aims'), null);
+  const older = { ...rv(), desk: { ...fixture.desk } };
+  delete older.desk.aims;
+  assert.equal(boardView(older, ui(), { pick: () => {}, act: () => {}, write: write() }).querySelector('.rl-pin-aims'), null);
+});
+
+test('the Board pins the first history date after today, with its words, and not a past one', () => {
+  const pin = pinFor();
+  const next = pin.querySelector('.rl-pin-next');
+  assert.ok(next, 'the next-date line');
+  assert.match(words(next), /31 October 1941/);
+  assert.match(words(next), /USS Reuben James is sunk\./);
+  assert.doesNotMatch(words(pin), /17 October/);
+  assert.doesNotMatch(words(pin), /Kearny/);
+});
+
+test('the pinned date is the earliest one after today whatever order the dates come in, and a date on today is not after it', () => {
+  const dates = [
+    { on: '9 November 1941', what: 'Later.' },
+    { on: '20 October 1941', what: 'Today itself.' },
+    { on: '2 November 1941', what: 'Soonest ahead.' },
+    { on: '1 October 1941', what: 'Past.' },
+  ];
+  const next = pinFor(withDates(dates)).querySelector('.rl-pin-next');
+  assert.match(words(next), /2 November 1941/);
+  assert.match(words(next), /Soonest ahead\./);
+  assert.doesNotMatch(words(next), /Later|Today itself|Past/);
+});
+
+test('past the last date on history\'s clock no date is pinned, and the aims stay', () => {
+  const pin = pinFor(withDates(fixture.setting.dates, '1941-12-07'));
+  assert.equal(pin.querySelector('.rl-pin-next'), null);
+  assert.ok(pin.querySelector('.rl-pin-aims'));
+  assert.equal(pinFor({ setting: null }).querySelector('.rl-pin-next'), null);
+});
+
+test('the pin reads in words: no ISO date, no underscore', () => {
+  assert.doesNotMatch(words(pinFor()), /\d{4}-\d{2}-\d{2}|_/);
+});
+
+test('the pin is the first thing on the Board, on the Theatre and on the Court', () => {
+  for (const board of ['theatre', 'court']) {
+    const view = boardView(rv(), ui({ board }), { pick: () => {}, act: () => {}, write: write() });
+    const main = view.querySelector('.rl-board-main');
+    assert.ok(main.children[0].classList.contains('rl-pin'), board);
+    assert.ok(main.children[1].classList.contains('rl-boardswitch'), board);
+  }
+});
+
+test('keyboard path: the pin takes focus by Tab, is named, and nothing in it has a positive tab index', () => {
+  const pin = pinFor();
+  assert.equal(pin.tagName, 'SECTION');
+  assert.equal(pin.getAttribute('tabindex'), '0');
+  assert.match(pin.getAttribute('aria-label') ?? '', /aims.*next/i);
+  for (const el of [pin, ...pin.querySelectorAll('[tabindex]')]) {
+    const t = el.getAttribute('tabindex');
+    assert.ok(t === null || Number(t) <= 0, `${el.tagName} tabindex ${t}`);
+  }
+  pin.focus();
+  assert.equal(document.activeElement, pin);
+});
+
+test('p5-board.css is linked, holds the pin and scopes every selector to it', () => {
+  const css = readFileSync(new URL('../css/p5-board.css', import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.ok(css.trim().length > 0, 'the stylesheet has rules');
+  assert.match(readFileSync(new URL('../index.html', import.meta.url), 'utf8'), /href="\/css\/p5-board\.css"/);
+  const outer = css.replace(/@(media|container|supports)[^{]+\{/g, '');
+  const sels = [...outer.matchAll(/([^{}]+)\{/g)].flatMap((m) => m[1].split(',')).map((s) => s.trim()).filter(Boolean);
+  assert.ok(sels.length > 0);
+  for (const sel of sels) assert.match(sel, /\.rl-pin/, sel);
+  assert.doesNotMatch(css, /#[0-9a-f]{3,8}\b|\brgba?\(/i, 'tokens only');
+});

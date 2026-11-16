@@ -1,4 +1,6 @@
-"""The agenda on the web (Phase 4 unit S2): live mandates, offered options, the style.
+"""The agenda on the web (Phase 4 unit S2): live mandates, offered options, the style,
+and the requests another seat has put to this seat's person (ANS), each answered with
+``answer``.
 
 Options come from ``OptionsOffered``, produced at wake open by ``options.offer``.
 Picking one files it through the ordinary order path, so it is what a free player
@@ -12,13 +14,15 @@ from datetime import date
 
 from revisionist.core import events as ev
 from revisionist.core import history, record
+from revisionist.core.canary import scan_text
 from revisionist.core.events import Event
 from revisionist.core.ids import CampaignId, EntityId, MandateId, SeatId, derived_id
 from revisionist.core.project import project
-from revisionist.core.realism import mandates
+from revisionist.core.realism import advance, mandates, process
 from revisionist.core.realism.agenda import Offer, Option, PlayStyle, TriggerKind
 from revisionist.core.realism.effect import RoutedPart
 from revisionist.core.state import State, View
+from revisionist.core.visibility import private_to
 from revisionist.engine import expects, options, realism_tick
 from revisionist.engine.store import EventStore, load_state
 from revisionist.engine.web.realism_api import (
@@ -34,6 +38,11 @@ _PICK = re.compile(r"w(\d+)\.o(\d+)\.p(\d+)")
 _STALE = "That offer has lapsed. Look at what you are offered now."
 _NEWS = re.compile(r"n\.[0-9A-Z]{26}\.\d")
 _WRITE_IT = "Write it as an order to the person who should carry it out."
+_GONE = "That request is no longer before you."
+_ANSWERED = {  # [proposed]
+    True: "You agree to {issuer}'s request. Your answer goes out when the wake closes.",
+    False: "You decline {issuer}'s request. Your answer goes out when the wake closes.",
+}
 
 
 def _day(day: date) -> str:
@@ -223,10 +232,69 @@ def agenda(state: State, seat: SeatId, log: Iterable[Event]) -> AgendaBlock:
                 plan=listed if plan else [],
             )
         )
+    items += requests(state, seat)
     style = seat_style(state, seat)
     if style == PlayStyle.BEGINNER.value:
         initiative += _news_asks(view, events)
     return AgendaBlock(style=style, items=items, initiative=initiative)
+
+
+def _asked(state: State, seat: SeatId) -> list[advance.Awaiting]:
+    """The requests before ``seat`` today: another seat's asks at its person that have
+    reached it and are not yet decided. Held decisions at a step are answered at the step."""
+    today = state.in_world_date
+    if today is None:
+        return []
+    return [a for a in advance.awaiting(state, seat, today) if a.part is not None]
+
+
+def _item_id(state: State, asked: advance.Awaiting) -> str:
+    """The request's opaque token: the id of the paper that brought it, which the
+    holder already holds."""
+    assert asked.part is not None
+    return process.request_paper_id(state.campaign_id, asked.order_id, asked.part)
+
+
+def requests(state: State, seat: SeatId) -> list[AgendaItem]:
+    """Each request another seat has put to ``seat``'s person, as an agenda item: who
+    asks, the words and terms, and the due day, after which the card decides. Words a
+    canary would catch for this seat are withheld, as on the paper."""
+    out: list[AgendaItem] = []
+    for asked in _asked(state, seat):
+        text = f"{asked.label} ({asked.terms})" if asked.terms else asked.label
+        if scan_text(state, seat, text):
+            text = process.WITHHELD
+        out.append(
+            AgendaItem(
+                id=_item_id(state, asked),
+                kind="Request",
+                issuer=asked.issuer,
+                text=text,
+                issued=_day(asked.arrived),
+                deadline=_day(asked.due),
+                cause=None,
+                options=[],
+                plan=[],
+            )
+        )
+    return out
+
+
+def answer(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, item: str, accept: bool
+) -> Reply:
+    """The seat answers the request ``item`` names: an ``influence_decided`` dated today,
+    seen by the issuer and the holder. Its effect lands at the next close."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    asked = next((a for a in _asked(state, seat) if _item_id(state, a) == item), None)
+    if asked is None or asked.part is None or today is None:
+        return Reply(reply=_GONE, refused=True)
+    routed = state.routed[asked.order_id]
+    decided = process.answered(state, routed, asked.part, accept, today)
+    scope = private_to(routed.issuer).grant(seat)
+    realism_tick._append(store, state, decided, seat, scope)
+    return Reply(reply=_ANSWERED[accept].format(issuer=asked.issuer), refused=False)
 
 
 def seat_style(state: State, seat: SeatId) -> str:
@@ -276,4 +344,4 @@ def pick_option(store: EventStore, campaign_id: CampaignId, seat: SeatId, pick: 
     return Reply(reply=f"Filed: {chosen.label}.", refused=False)
 
 
-__all__ = ["agenda", "pick_option", "seat_style", "set_style"]
+__all__ = ["agenda", "answer", "pick_option", "requests", "seat_style", "set_style"]

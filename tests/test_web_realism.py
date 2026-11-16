@@ -654,9 +654,13 @@ def test_consult_asks_a_contact_and_keeps_the_answer_for_the_seat_only(web: Web)
     assert realism_of(bram)["counsel"] == []
     status, held_by_bram = post(ada, "consult", to="Bram Tull", question="Will the levy pass?")
     assert held_by_bram["refused"], held_by_bram
-    assert held_by_bram["reply"] == "Bram Tull speaks for themselves: write to them."
+    assert held_by_bram == {
+        "reply": "Bram Tull answers in person. Write to them; your letter reaches their desk.",
+        "refused": True,
+        "thread": "Bram Tull",
+    }
     _, far = post(ada, "consult", to="Nobody Here", question="Hello?")
-    assert far["refused"]
+    assert far["refused"] and "thread" not in far
     status, empty = post(ada, "consult", to="Cora Senn", question="   ")
     assert status == 400 or empty["refused"], empty
     assert len(realism_of(ada)["counsel"]) == 1

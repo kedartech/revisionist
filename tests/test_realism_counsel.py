@@ -437,7 +437,7 @@ def humans(store: EventStore, *who: str) -> dict[str, SeatId]:
     return seats
 
 
-def test_a_person_another_human_plays_speaks_for_themselves(
+def test_a_person_another_human_plays_answers_in_person(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     store = MemoryStore()
@@ -459,7 +459,10 @@ def test_a_person_another_human_plays_speaks_for_themselves(
     for person, name in ((churchill, "Winston Churchill"), (stalin, "Joseph Stalin")):
         with pytest.raises(CounselRefusedError) as refused:
             consult(store, CAMPAIGN, seats["roosevelt"], person, QUESTION, counting)
-        assert str(refused.value) == f"{name} speaks for themselves: write to them."
+        assert str(refused.value) == (
+            f"{name} answers in person. Write to them; your letter reaches their desk."
+        )
+        assert refused.value.thread == name
         assert counting.spoke == []
     assert list(store.read(CAMPAIGN)) == before
 

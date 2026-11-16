@@ -22,7 +22,7 @@ from revisionist.core import delta as d
 from revisionist.core import events as ev
 from revisionist.core.events import MUTATING_KINDS, Event
 from revisionist.core.goals import GoalKind, season_winners
-from revisionist.core.ids import CampaignId, SeatId
+from revisionist.core.ids import CampaignId, SeatId, derived_id
 from revisionist.core.ontology import (
     TRACK_MAX,
     Asset,
@@ -40,7 +40,7 @@ from revisionist.core.ontology import (
     SeatKind,
     SeatStatus,
 )
-from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, opening_id
+from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, PlayStyle, opening_id
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.card import SeatCard
 from revisionist.core.realism.document import Document
@@ -66,7 +66,7 @@ from revisionist.core.realism.effect import (
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import ADVANCES, SETTLED, OrderStatus, StepAction
 from revisionist.core.realism.war import at_war
-from revisionist.core.state import State, Wake
+from revisionist.core.state import State, Wake, controller_after, seat_of_person
 from revisionist.core.visibility import PUBLIC, Scope
 
 
@@ -423,6 +423,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.WakeCommitted()
             | ev.WakeClosed()
             | ev.PlayStyleSet()
+            | ev.SeatHandover()
         ):
             if state.ruleset != "realism":
                 raise FoldError(f"{event.kind} belongs to a realism campaign")
@@ -867,6 +868,7 @@ def _engine_v2(state: State, p: ev.Payload) -> State:
             w = _open_wake(state, p.wake)
             for seat in p.timed_out:
                 _need(state.seats, seat, "seat")
+            state = _hand_over(state)
             return state.model_copy(update={"wake": w.model_copy(update={"closed": True})})
         case ev.PlayStyleSet():
             _need(state.seats, p.seat_id, "seat")
@@ -878,8 +880,57 @@ def _engine_v2(state: State, p: ev.Payload) -> State:
                     "standing": _put(state.standing, p.seat_id, p.standing),
                 }
             )
+        case ev.SeatHandover():
+            if state.phase is not Phase.PLAY:
+                raise FoldError("a leader changes hands only in play")
+            _need(state.entities, p.entity_id, "entity")
+            if controller_after(state, p.entity_id) is p.controller:
+                raise FoldError(f"{p.entity_id} is already {p.controller.value}-run at the close")
+            if p.controller is Controller.HUMAN:
+                _need(state.cards, p.entity_id, "card")
+                humans = {s.embodies for s in state.seats.values()} | set(state.handovers)
+                after = [e for e in humans if controller_after(state, e) is Controller.HUMAN]
+                if len(after) >= state.settings.max_human_seats:
+                    raise FoldError("every human seat is taken")
+            handovers = _put(state.handovers, p.entity_id, p.controller)
+            return state.model_copy(update={"handovers": handovers})
         case _:
             raise FoldError(f"kind {p.kind!r} is not an engine-v2 record")
+
+
+def _hand_over(state: State) -> State:
+    """Apply the leaders' changes of hands at the close. A leaver's seat is run by the
+    code and keeps its kind, so its orders stay in flight. A joiner takes the leader's
+    seat, or a new one with the id a claim would give, and starts on Beginner."""
+    seats, styles, standing = dict(state.seats), dict(state.styles), dict(state.standing)
+    for person, controller in sorted(state.handovers.items()):
+        seat = seat_of_person(state, person)
+        if controller is Controller.AI:
+            if seat is not None:
+                seats[seat.seat_id] = seat.model_copy(update={"controller": Controller.AI})
+            continue
+        if seat is None:
+            seat = Seat(
+                seat_id=SeatId(derived_id(state.campaign_id, "seat", person)),
+                kind=SeatKind.PLAYER,
+                name=state.entities[person].name,
+                embodies=person,
+                slots=state.settings.starting_slots,
+            )
+        slots = seat.slots if seat.kind is SeatKind.PLAYER else state.settings.starting_slots
+        seats[seat.seat_id] = seat.model_copy(
+            update={
+                "kind": SeatKind.PLAYER,
+                "controller": Controller.HUMAN,
+                "slots": slots,
+                "joined_tick": state.tick,
+            }
+        )
+        styles[seat.seat_id] = PlayStyle.BEGINNER
+        standing.pop(seat.seat_id, None)
+    return state.model_copy(
+        update={"seats": seats, "styles": styles, "standing": standing, "handovers": {}}
+    )
 
 
 def _open_wake(state: State, number: int) -> Wake:

@@ -45,6 +45,7 @@ from revisionist.core.ontology import (
     Commitment,
     Contest,
     ContestKind,
+    Controller,
     DevelopmentCategory,
     Entity,
     EntityKind,
@@ -1091,6 +1092,11 @@ engine_v2_payloads = st.one_of(
         seat_id=seat_ids,
         style=st.sampled_from(list(ra.PlayStyle)),
         standing=st.frozensets(st.sampled_from(sorted(rx.IRREVERSIBLE)), max_size=2),
+    ),
+    st.builds(
+        ev.SeatHandover,
+        entity_id=entity_ids,
+        controller=st.sampled_from(list(Controller)),
     ),
     st.builds(
         ev.OptionsOffered,

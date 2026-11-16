@@ -1,8 +1,9 @@
 """The ``catchup`` realism action: a page for every wake the seat missed (CUP).
 
 Request ``{first?: int, last?: int}``. With no range named, the pages run from the wake
-after the seat last committed by itself (wake 0 if it never has) to the latest closed
-wake; the range comes from the log, never from the browser. Reply
+after the seat last committed by itself (wake 0 if it never has, or if a new player has
+taken it up since) to the latest closed wake; the range comes from the log, never from
+the browser. Reply
 ``{first, last, pages}``: each page is the record's wake page, its papers counted from
 the catch-up seam, and, only in the owner's own payload and only for a wake the aide
 played for it, ``aide_filed``: what the aide filed, in the order's own words; and, only
@@ -18,6 +19,7 @@ from revisionist.core import events as ev
 from revisionist.core import record
 from revisionist.core.events import Event
 from revisionist.core.ids import OrderId, SeatId
+from revisionist.core.ontology import Controller
 from revisionist.core.state import State
 from revisionist.engine import catchup
 from revisionist.engine.web.realism_api import RecordWake
@@ -41,13 +43,19 @@ def _whole(body: dict[str, Any], key: str) -> int | None:
 
 
 def _own_commits(events: Sequence[Event], seat: SeatId) -> dict[int, ev.WakeCommitted]:
-    """The seat's commits by wake. A log from before the aide's commit was sealed holds
-    other seats' aide commits under a public envelope, so the seat is matched by name."""
-    return {
-        e.payload.wake: e.payload
-        for e in events
-        if isinstance(e.payload, ev.WakeCommitted) and e.payload.seat_id == seat
-    }
+    """The seat's commits by wake, since its player took it up: a player who joins a
+    seat someone left reads from wake 0, as one who joins a fresh seat does. A log from
+    before the aide's commit was sealed holds other seats' aide commits under a public
+    envelope, so the seat is matched by name."""
+    out: dict[int, ev.WakeCommitted] = {}
+    for e in events:
+        p = e.payload
+        if isinstance(p, ev.SeatHandover) and seat in e.scope.known_by:
+            if p.controller is Controller.HUMAN:
+                out = {}
+        elif isinstance(p, ev.WakeCommitted) and p.seat_id == seat:
+            out[p.wake] = p
+    return out
 
 
 def _range(

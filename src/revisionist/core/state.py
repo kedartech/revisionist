@@ -45,6 +45,7 @@ from revisionist.core.ontology import (
     Clock,
     Commitment,
     Contest,
+    Controller,
     Entity,
     Fact,
     Meter,
@@ -188,6 +189,10 @@ class State(_World):
     """The last time each unplayed person took up each answer. Engine only."""
     topics: dict[Label, Topic] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """What people want and hold to, by key. Engine only."""
+    handovers: dict[EntityId, Controller] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """Leaders changing hands when the open wake closes: ``HUMAN`` for a joiner, ``AI``
+    for a leaver. Engine only, never in a view or the wake: how a seat is run is never
+    shown."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "routed",
@@ -200,6 +205,7 @@ class State(_World):
         "opponents",
         "answers",
         "topics",
+        "handovers",
         "cards",
         "feeds",
         "pipelines",
@@ -244,3 +250,21 @@ class View(_World):
         "orders",
         "quantities",
     }
+
+
+def seat_of_person(state: State, person: EntityId) -> Seat | None:
+    """The seat that acts as ``person``: a player's seat before an AI seat; None if none."""
+    held = sorted(
+        (s for s in state.seats.values() if s.embodies == person),
+        key=lambda s: (s.kind is not SeatKind.PLAYER, s.seat_id),
+    )
+    return held[0] if held else None
+
+
+def controller_after(state: State, person: EntityId) -> Controller:
+    """Who runs ``person`` once the open wake closes: the change waiting for the close,
+    else whoever runs the person's seat now. AI for a person with no seat."""
+    if person in state.handovers:
+        return state.handovers[person]
+    seat = seat_of_person(state, person)
+    return Controller.AI if seat is None else seat.controller

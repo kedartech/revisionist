@@ -10,14 +10,16 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypedDict
 
-from revisionist.core.ids import CampaignId, SeatId
+from revisionist.core.ids import CampaignId, EntityId, SeatId
+from revisionist.core.ontology import Phase
 from revisionist.core.state import State
 from revisionist.engine import campaign as cmp
 from revisionist.engine import realism_tick, runner
 from revisionist.engine import scheduler as sch
 from revisionist.engine import wake as wk
+from revisionist.engine.discord.tables import Invites
 from revisionist.engine.llm import Transport
 from revisionist.engine.prose import ClaudeProseWriter, ProseWriter, TemplateProseWriter
 from revisionist.engine.store import EventStore, load_state
@@ -139,8 +141,11 @@ def commit(
     tools: TickTools,
 ) -> Reply:
     """Seal the seat's orders; close the wake if that was the last."""
-    if _open_number(load_state(store, campaign_id)) is None:
+    opened = load_state(store, campaign_id)
+    if _open_number(opened) is None:
         return Reply(reply=NO_WAKE, refused=True)
+    if wk.joining(opened, seat):
+        return Reply(reply=JOINING, refused=True)
     if not wk.commit(store, campaign_id, seat, now):
         return Reply(reply="You have already committed this wake.", refused=True)
     state = load_state(store, campaign_id)
@@ -152,6 +157,33 @@ def commit(
     return Reply(
         reply=f"Your orders are sealed. Waiting for {waiting} other player(s).", refused=False
     )
+
+
+def leave(
+    store: "PostgresEventStore",
+    campaign_id: CampaignId,
+    seat: SeatId,
+    now: datetime,
+    *,
+    tools: TickTools,
+) -> bool:
+    """The seat's player leaves (``engine.wake.leave``), under the game's lock so the
+    leave cannot land inside a close; then close the wake if that sealed the last seat.
+    False, with nothing logged, while the game is closing a wake. True with nothing
+    logged when no player holds the seat in the log."""
+    table = sch.ScheduleTable(store.conn)
+    if not table.try_lock(campaign_id):
+        return False
+    try:
+        wk.leave(store, campaign_id, seat, now)
+    except ValueError:
+        return True
+    finally:
+        table.unlock(campaign_id)
+    state = load_state(store, campaign_id)
+    if wk.wake_due(state, now):
+        _play(store, campaign_id, _open_number(state), now, tools)
+    return True
 
 
 def close(
@@ -167,6 +199,72 @@ def close(
     if not host:
         return Reply(reply="Only the host can close the wake.", refused=True)
     return _play(store, campaign_id, _open_number(load_state(store, campaign_id)), now, tools)
+
+
+class Leader(TypedDict):
+    """One leader the host may hand to a new player (``handover-list``)."""
+
+    key: str
+    """The person's entity id; ``handover`` takes it back as ``leader``."""
+    name: str
+    office: str
+
+
+JOINING = "You play from the next wake. Your orders now are held for it."
+"""[proposed] The refusal of Done to a player who takes up the seat when this wake closes."""
+NOT_IN_PLAY = "Hand a leader over once the game has begun."
+"""[proposed] The refusal of ``handover-list`` and ``handover`` before play."""
+NOT_FREE = "That leader cannot be handed over."
+"""[proposed] The refusal of ``handover`` for a leader someone plays or will play."""
+
+
+def _in_play(state: State) -> bool:
+    return state.ruleset == "realism" and state.phase is Phase.PLAY
+
+
+def handover_list(state: State) -> dict[str, Any]:
+    """``handover-list`` (the host): the leaders nobody plays at the next close.
+    Reply ``{reply, refused, leaders: [{key, name, office}]}``; the reply's words are
+    [proposed]."""
+    if not _in_play(state):
+        return {"reply": NOT_IN_PLAY, "refused": True, "leaders": []}
+    leaders = [
+        Leader(key=p, name=state.entities[p].name, office=state.cards[p].office)
+        for p in wk.leaders(state)
+    ]
+    reply = (
+        f"{len(leaders)} leader(s) can be handed to a new player."
+        if leaders
+        else "No leader is free to hand over."
+    )
+    return {"reply": reply, "refused": False, "leaders": leaders}
+
+
+def handover(
+    store: "PostgresEventStore", campaign_id: CampaignId, body: dict[str, Any], now: datetime
+) -> dict[str, Any]:
+    """``handover`` (the host), request ``{leader: key}``: an invite code for a leader
+    nobody plays. Reply ``{reply, refused, code, from_wake}``; ``from_wake`` is the first
+    wake the new player counts in if they join now; the reply's words are [proposed].
+    Nothing is logged until the code is redeemed."""
+    refused: dict[str, Any] = {"refused": True, "code": None, "from_wake": None}
+    state = load_state(store, campaign_id)
+    if not _in_play(state):
+        return {"reply": NOT_IN_PLAY, **refused}
+    key = body.get("leader")
+    leader = EntityId(key) if isinstance(key, str) else None
+    if leader is None or leader not in wk.leaders(state):
+        return {"reply": NOT_FREE, **refused}
+    code = Invites(store.conn).issue(campaign_id, wk.seat_for(state, leader), now)
+    first = wk.from_wake(state)
+    name = state.entities[leader].name
+    return {
+        "reply": f"Send this code to the new player privately. It works once: they take up "
+        f"{name} from wake {first}.",
+        "refused": False,
+        "code": code,
+        "from_wake": first,
+    }
 
 
 def set_wake_hours(store: EventStore, campaign_id: CampaignId, hours: int) -> Reply:
@@ -203,10 +301,17 @@ def _calendar_line(today: date | None, reason: str | None) -> str:
 
 
 __all__ = [
+    "JOINING",
+    "NOT_FREE",
+    "NOT_IN_PLAY",
+    "Leader",
     "TickTools",
     "advance",
     "close",
     "commit",
+    "handover",
+    "handover_list",
+    "leave",
     "set_wake_hours",
     "start_play",
     "wake_header",

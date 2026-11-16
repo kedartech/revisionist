@@ -44,6 +44,7 @@ from revisionist.engine import (
 )
 from revisionist.engine import campaign as cmp
 from revisionist.engine import scheduler as sch
+from revisionist.engine import wake as wk
 from revisionist.engine.discord import handlers as dh
 from revisionist.engine.discord.tables import Invites, SeatLinks
 from revisionist.engine.ids import new_id
@@ -99,6 +100,12 @@ SEALED_BY_COMMIT = frozenset({"lever", "sign", "option", "file", "step", "answer
 next wake once the seat has committed this one, or while it is closing."""
 SEALED = "Your orders for this wake are sealed. They go out when the wake closes."
 """The refusal when an order cannot be held (no ``web_held_orders`` table yet)."""
+GAME_ACTIONS = ("pause", "resume", "end", "leave", "wake-hours", "handover-list", "handover")
+HOST_ONLY: dict[str, dict[str, Any]] = {
+    "handover-list": {"leaders": []},
+    "handover": {"code": None, "from_wake": None},
+}
+"""The rest of a host-only action's reply shape, when someone else asks."""
 
 
 def model_down(exc: TransportError) -> str:
@@ -292,7 +299,9 @@ class App:
                 action in SEALED_BY_COMMIT
                 and wake is not None
                 and (
-                    (not wake.closed and seat in wake.committed) or held_orders.closing(store, cid)
+                    (not wake.closed and seat in wake.committed)
+                    or held_orders.closing(store, cid)
+                    or wk.joining(state, seat)
                 )
             )
             try:
@@ -576,11 +585,13 @@ class App:
     # --- the game menu ---------------------------------------------------------
 
     def game(self, account: Account, action: str, body: dict[str, Any]) -> dict[str, Any]:
-        """One ``/api/game/<action>``: the host pauses, resumes, ends the game or sets
-        its wake hours; any other player leaves it. Ending retires it as ``/retire`` does
-        on Discord: it never ticks again, and the log is kept, but every seat stays as
-        finished, for the reveal. Leaving unlinks only the player's own seat; the person
-        stays in the game, played by no one. ``reveal`` reads a game that has ended;
+        """One ``/api/game/<action>``: the host pauses, resumes, ends the game, sets
+        its wake hours, or lists the leaders nobody plays and hands one to a new player
+        (``handover-list``, ``handover``); any other player leaves it. Ending retires it
+        as ``/retire`` does on Discord: it never ticks again, and the log is kept, but
+        every seat stays as finished, for the reveal. Leaving unlinks only the player's
+        own seat; the person stays in the game, run by the code from the next wake.
+        ``reveal`` reads a game that has ended;
         ``notice-address`` reads or sets where the account's wake notices go. A
         refusal is a reply, not an error."""
         store = self.open()
@@ -592,7 +603,7 @@ class App:
             link = self.handlers._game_of(store, account.account_id, "report")
             if isinstance(link, str):
                 raise ApiError(HTTPStatus.BAD_REQUEST, link)
-            if action not in ("pause", "resume", "end", "leave", "wake-hours"):
+            if action not in GAME_ACTIONS:
                 raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
             cid = link.campaign_id
             host = WebSeats(store.conn).host(cid) == account.account_id
@@ -603,13 +614,21 @@ class App:
                         "reply": "The host cannot leave a game. End it instead.",
                         "refused": True,
                     }
+                if not self._hand_back(store, cid, link.seat_id):
+                    return {"reply": BUSY, "refused": True}
                 WebSeats(store.conn).unlink(cid, link.seat_id)
                 with self._lock:
                     self._briefs.pop((cid, link.seat_id), None)
                 log.info("a player left %s (%s) on the web", name, cid)
                 return {"reply": f"You have left {name}.", "refused": False}
             if not host:
-                return {"reply": "Only the host can do that.", "refused": True}
+                return {"reply": "Only the host can do that.", "refused": True} | HOST_ONLY.get(
+                    action, {}
+                )
+            if action == "handover-list":
+                return wake_api.handover_list(load_state(store, cid))
+            if action == "handover":
+                return wake_api.handover(store, cid, body, self.clock())
             if action == "wake-hours":
                 hours = body.get("hours")
                 if not isinstance(hours, int) or isinstance(hours, bool):
@@ -634,6 +653,14 @@ class App:
             return {"reply": f"{name} has ended. Its record is kept.", "refused": False}
         finally:
             store.close()
+
+    def _hand_back(self, store: PostgresEventStore, cid: CampaignId, seat: SeatId) -> bool:
+        """A player leaving a realism game in play hands the leader to the code at the
+        next close and seals the open wake for the seat. False while a wake is closing."""
+        state = load_state(store, cid)
+        if state.ruleset != "realism" or state.phase is not Phase.PLAY:
+            return True
+        return wake_api.leave(store, cid, seat, self.clock(), tools=self._tools())
 
     def _reveal(self, store: PostgresEventStore, account: Account, game: str) -> dict[str, Any]:
         """An ended game's reveal, for an account that held a seat in it. Not through

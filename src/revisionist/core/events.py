@@ -17,7 +17,7 @@ FeatureSet, WarDeclared, NewsReported, StanceChanged, OpponentsRanked, CardAmend
 AnswerPlanned, AnswerMade``, and under engine v2
 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
-WakeCommitted, WakeClosed, PlayStyleSet``.
+WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover``.
 
 Every other kind is a record: it is replayable, searchable and shown by
 ``/why``, but changes no state.
@@ -54,6 +54,7 @@ from revisionist.core.ontology import (
     Clock,
     Commitment,
     Contest,
+    Controller,
     Entity,
     Fact,
     Meter,
@@ -890,6 +891,17 @@ class PlayStyleSet(Model):
     """Standing orders: the irreversible kinds the aide may order while the seat is absent."""
 
 
+class SeatHandover(Model):
+    """A leader changes hands at the next wake boundary: ``HUMAN`` when a new player
+    takes up a leader nobody plays, ``AI`` when the leader's player leaves. The fold holds
+    the change in ``State.handovers`` and applies it when the open wake closes. Sealed to
+    the seat that changes hands: how a seat is run is never shown."""
+
+    kind: Literal["seat_handover"] = "seat_handover"
+    entity_id: EntityId
+    controller: Controller
+
+
 class OptionsOffered(Model):
     """What the option generator offered a seat this wake. A record, sealed to the seat."""
 
@@ -1010,6 +1022,7 @@ Payload = Annotated[
     | WakeCommitted
     | WakeClosed
     | PlayStyleSet
+    | SeatHandover
     | OptionsOffered
     | Sealed,
     Field(discriminator="kind"),
@@ -1078,6 +1091,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "wake_committed",
         "wake_closed",
         "play_style_set",
+        "seat_handover",
     }
 )
 

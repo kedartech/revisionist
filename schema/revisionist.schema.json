@@ -8114,6 +8114,31 @@
         "title": "SeatCreated",
         "type": "object"
       },
+      "SeatHandover": {
+        "additionalProperties": false,
+        "description": "A leader changes hands at the next wake boundary: ``HUMAN`` when a new player\ntakes up a leader nobody plays, ``AI`` when the leader's player leaves. The fold holds\nthe change in ``State.handovers`` and applies it when the open wake closes. Sealed to\nthe seat that changes hands: how a seat is run is never shown.",
+        "properties": {
+          "controller": {
+            "$ref": "#/$defs/Controller"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "seat_handover",
+            "default": "seat_handover",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity_id",
+          "controller"
+        ],
+        "title": "SeatHandover",
+        "type": "object"
+      },
       "SeatKind": {
         "enum": [
           "player",
@@ -9554,6 +9579,7 @@
             "sealed": "#/$defs/Sealed",
             "season_ended": "#/$defs/SeasonEnded",
             "seat_created": "#/$defs/SeatCreated",
+            "seat_handover": "#/$defs/SeatHandover",
             "seat_status_set": "#/$defs/SeatStatusSet",
             "session_zero_closed": "#/$defs/SessionZeroClosed",
             "session_zero_opened": "#/$defs/SessionZeroOpened",
@@ -9813,6 +9839,9 @@
           },
           {
             "$ref": "#/$defs/PlayStyleSet"
+          },
+          {
+            "$ref": "#/$defs/SeatHandover"
           },
           {
             "$ref": "#/$defs/OptionsOffered"
@@ -15468,6 +15497,13 @@
           "$ref": "#/$defs/Goal"
         },
         "title": "Goals",
+        "type": "object"
+      },
+      "handovers": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Controller"
+        },
+        "title": "Handovers",
         "type": "object"
       },
       "in_world_date": {

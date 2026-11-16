@@ -237,8 +237,11 @@ def test_a_beginner_seat_is_offered_options_when_the_wake_opens(
     assert wakes == [0, 1]
 
 
-def test_a_free_seat_is_offered_nothing(solo: tuple[Realism, Client]) -> None:
-    game, _ = solo
+def test_a_free_seat_is_offered_nothing(web: Web) -> None:  # noqa: F811
+    game = Realism(web, world=WORLD)
+    make_host(game, game.seat("ada", "roosevelt"))
+    seat = seat_of(game, "roosevelt")
+    begin(game, lambda store: options.set_style(store, game.campaign, seat, PlayStyle.FREE))
     assert not any(isinstance(e.payload, ev.OptionsOffered) for e in log_of(game))
 
 

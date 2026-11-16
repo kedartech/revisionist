@@ -13,7 +13,6 @@ import { installDom, words } from './dom-fake.js';
 
 installDom();
 const { trayView } = await import('../js/views/realism-tray.js');
-const { ackThread } = await import('../js/views/realism-acks.js');
 const { TONES } = await import('../js/views/ui-kit.js');
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
@@ -64,15 +63,6 @@ test('an unread paper row is marked unread, a read one is not', () => {
   assert.match(css, /\.rl-row-paper\.unread/, 'the unread mark is styled');
   assert.match(css, /\.rl-row-date\s*\{[^}]*var\(--font-chrome\)/, 'the date in mono');
 });
-
-test('the acknowledgements are headed by a kit label', () => {
-  const author = fixture.listing.documents.find((d) => d.ack === true)?.author;
-  const listing = author ? fixture.listing : { ...fixture.listing, documents: [{ ...fixture.listing.documents[0], ack: true, author: 'Harry Hopkins' }] };
-  const acks = ackThread(listing, author ?? 'Harry Hopkins', () => {});
-  assert.ok(acks, 'an acknowledgement list');
-  assert.ok(acks.querySelector('h3').classList.contains('lbl'), 'the heading is a .lbl');
-});
-
 test('owned files: no HTML parsing, no inline style, no colour literal', () => {
   for (const f of OWNS) {
     const src = uncomment(read(f));

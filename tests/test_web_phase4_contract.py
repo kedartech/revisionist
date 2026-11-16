@@ -107,7 +107,7 @@ def test_the_seat_block_carries_the_stub_shapes(solo: tuple[Realism, Client]) ->
     assert set(block["agenda"]) == set(api.AgendaBlock.__annotations__)
     assert block["results"] == []
     assert set(block["reach"]) == set(api.ReachGroups.__annotations__)
-    assert block["style"] == "free"
+    assert block["style"] == "beginner"
     assert set(block["record"]) == set(api.RecordBlock.__annotations__)
     assert set(block["setting"]) == set(api.Setting.__annotations__)
     assert set(block["dossier"]) == set(api.Dossier.__annotations__)

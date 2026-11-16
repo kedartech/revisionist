@@ -7,6 +7,8 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { sideChips, tableRows, figureGroups } from '../js/views/realism-castlist.js';
+import { playStyle } from '../js/views/realism-cast.js';
+import { installDom } from './dom-fake.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const read = (f) => readFileSync(join(WEB, f), 'utf8');
@@ -64,4 +66,11 @@ test('no HTML parsing, no inline style, no stub left, linked and scoped', () => 
   const outer = css.replace(/@(media|container|supports)[^{]+\{/g, '').replace(/@keyframes[^{]+\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, '');
   const sels = [...outer.matchAll(/([^{}]+)\{/g)].flatMap((m) => m[1].split(',')).map((s) => s.trim()).filter(Boolean);
   for (const sel of sels) assert.match(sel, /\.rl-cl/, sel);
+});
+
+test('the style radio starts on Beginner, and only Beginner', () => {
+  installDom();
+  const radios = playStyle().querySelectorAll('input');
+  assert.deepEqual(radios.map((r) => r.value), ['beginner', 'guided', 'free']);
+  assert.deepEqual(radios.filter((r) => r.checked).map((r) => r.value), ['beginner']);
 });

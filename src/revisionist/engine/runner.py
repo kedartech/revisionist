@@ -17,6 +17,7 @@ from revisionist.core.project import project
 from revisionist.core.report import leak_report
 from revisionist.core.resolution import TickStage
 from revisionist.engine import campaign as cmp
+from revisionist.engine import notice, wake_open
 from revisionist.engine import wake as wk
 from revisionist.engine.agent import Agent, held_means
 from revisionist.engine.llm import ClaudeNarrator, ClaudeResolver, Transport, TransportError
@@ -92,10 +93,13 @@ def play_tick(
         )
         for dropped in done.prose_dropped:
             warn(f"  no prose for {dropped}")
+        opened: int | None = None
         if done.stopped_after is None:
-            wk.open_wake(store, campaign_id, when)
+            opened = wk.open_wake(store, campaign_id, when)
             wk.offer_all(store, campaign_id, None if offline else transport_factory())
         found = leak_report(load_state(store, campaign_id), store.read(campaign_id))
+        if opened is not None and not found:  # as a public record: only after a clean tick
+            wake_open.after_open(store, campaign_id, opened, notifier=notice.for_store(store))
         return TickRun(done, briefings, found)
     deliverer = (deliverer_factory or file_deliverer)(store, campaign_id, briefings)
     if offline:

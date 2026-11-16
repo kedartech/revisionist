@@ -37,6 +37,7 @@ from revisionist.engine import (
     cast,
     counsel,
     directive,
+    notice,
     orders_reader,
     realism_tick,
     session_zero,
@@ -535,12 +536,15 @@ class App:
         its wake hours; any other player leaves it. Ending retires it as ``/retire`` does
         on Discord: it never ticks again, and the log is kept, but every seat stays as
         finished, for the reveal. Leaving unlinks only the player's own seat; the person
-        stays in the game, played by no one. ``reveal`` reads a game that has ended. A
+        stays in the game, played by no one. ``reveal`` reads a game that has ended;
+        ``notice-address`` reads or sets where the account's wake notices go. A
         refusal is a reply, not an error."""
         store = self.open()
         try:
             if action == "reveal":  # the game is over: no seat in play to look up
                 return self._reveal(store, account, _text(body, "game", 64))
+            if action == "notice-address":  # the account's own, in a game or not
+                return notice.address_action(store.conn, account.account_id, body)
             link = self.handlers._game_of(store, account.account_id, "report")
             if isinstance(link, str):
                 raise ApiError(HTTPStatus.BAD_REQUEST, link)

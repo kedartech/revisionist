@@ -1685,12 +1685,6 @@
           "as_of": null,
           "confidence": null
         },
-        "standing": {
-          "step": 5,
-          "word": "Paramount",
-          "as_of": null,
-          "confidence": null
-        },
         "bloc": "Germany",
         "channel": null,
         "power": {
@@ -1739,12 +1733,6 @@
         "pace": {
           "step": null,
           "word": "Untested",
-          "as_of": null,
-          "confidence": null
-        },
-        "standing": {
-          "step": 5,
-          "word": "Paramount",
           "as_of": null,
           "confidence": null
         },
@@ -1935,12 +1923,6 @@
         "pace": {
           "step": null,
           "word": "Untested",
-          "as_of": null,
-          "confidence": null
-        },
-        "standing": {
-          "step": 4,
-          "word": "Senior",
           "as_of": null,
           "confidence": null
         },

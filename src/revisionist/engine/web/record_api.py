@@ -13,9 +13,14 @@ from revisionist.core.events import Event
 from revisionist.core.ids import OrderId, SeatId
 from revisionist.core.project import project
 from revisionist.core.realism import advance
+from revisionist.core.realism.apply import report_doc_id
+from revisionist.core.realism.document import DocumentView
+from revisionist.core.realism.effect import PartView
+from revisionist.core.realism.pipelines import reply_doc_id
 from revisionist.core.state import State, View
 from revisionist.engine.web import results
-from revisionist.engine.web.realism_api import RecordBlock, RecordOrder, RecordWake
+from revisionist.engine.web.realism_api import Receipt, RecordBlock, RecordOrder, RecordWake
+from revisionist.engine.web.tray import receipt_word
 
 
 def _day(day: date) -> str:
@@ -30,6 +35,31 @@ def _part_of(key: str) -> tuple[OrderId, int] | None:
     """A routed ledger key is ``<order_id>.<part>``; a standard form's key has no dot."""
     order_id, dot, part = key.rpartition(".")
     return (OrderId(order_id), int(part)) if dot else None
+
+
+def _receipt(state: State, view: View, key: str) -> Receipt | None:
+    """The paper that answers a ledger line, when it only acknowledges the order. A routed
+    part is answered by its report. A form has one reply per step: it takes a receipt only
+    while every reply that reached the seat is a receipt, the latest one giving the line."""
+    part = _part_of(key)
+    found: list[tuple[DocumentView, PartView | None]]
+    if part is not None:
+        order_id, i = part
+        doc = view.documents.get(report_doc_id(state.campaign_id, order_id, i))
+        found = [(doc, view.routed[order_id].parts[i])] if doc is not None else []
+    else:
+        order = view.orders[OrderId(key)]
+        replies = (
+            view.documents.get(reply_doc_id(state.campaign_id, order.order_id, n))
+            for n in range(len(order.outcomes))
+        )
+        found = [(doc, None) for doc in replies if doc is not None]
+    words = [receipt_word(doc, part) for doc, part in found]
+    word = words[-1] if words else None
+    if word is None or None in words:
+        return None
+    doc = found[-1][0]
+    return Receipt(word=word, day=_day(doc.arrives), doc=doc.doc_id)
 
 
 def _entry(state: State, view: View, e: record.OrderEntry) -> RecordOrder:
@@ -55,6 +85,7 @@ def _entry(state: State, view: View, e: record.OrderEntry) -> RecordOrder:
         track=e.key if part is None else None,
         due=due,
         said=said,
+        receipt=_receipt(state, view, e.key),
     )
 
 

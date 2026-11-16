@@ -51,19 +51,26 @@ def _seat_row(game: Realism) -> list[tuple[Any, ...]]:
 
 
 def _same_shape(example: Any, shape: Any) -> None:
-    """Every key the TypedDict declares, recursively through its nested shapes: a list of
-    shapes and an optional shape each need an example."""
-    assert set(example) == set(shape.__annotations__), shape
+    """Every key the TypedDict declares, recursively through its nested shapes."""
+    _same_shapes([example], shape)
+
+
+def _same_shapes(examples: list[Any], shape: Any) -> None:
+    """The examples of one shape (the items of a list, or the one object): each has exactly
+    the declared keys. A nested shape, a list of shapes or an optional shape needs an example
+    somewhere among them, and its examples are checked together."""
+    for example in examples:
+        assert set(example) == set(shape.__annotations__), shape
     for key, kind in shape.__annotations__.items():
         if is_typeddict(kind):
-            _same_shape(example[key], kind)
+            _same_shapes([example[key] for example in examples], kind)
             continue
         args = getattr(kind, "__args__", ())
         if args and is_typeddict(args[0]):
-            assert example[key], f"{shape.__name__}.{key} needs an example"
-            items = example[key] if get_origin(kind) is list else [example[key]]
-            for item in items:
-                _same_shape(item, args[0])
+            given = [example[key] for example in examples if example[key]]
+            assert given, f"{shape.__name__}.{key} needs an example"
+            items = [i for g in given for i in g] if get_origin(kind) is list else given
+            _same_shapes(items, args[0])
 
 
 @pytest.mark.parametrize(

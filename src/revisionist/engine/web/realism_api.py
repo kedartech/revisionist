@@ -835,6 +835,18 @@ class Reveal(TypedDict):
     seats: list[RevealSeat]
 
 
+class Receipt(TypedDict):
+    """The paper that only said an order went through as given, folded into its ledger line
+    (``tray.receipt_word``). A paper that is news is never a receipt."""
+
+    word: str
+    """What it said, in words: "Carried out in full", "Passed on", "Pressed forward"."""
+    day: str
+    """The in-world day the paper arrived, in words."""
+    doc: str
+    """The paper's own id, so the line can open it."""
+
+
 class RecordOrder(TypedDict):
     """One ledger line of the seat's record (``core.record``): a part of a routed order
     or a standard form, in the seat's own words. No entity id, and no order id outside
@@ -861,6 +873,9 @@ class RecordOrder(TypedDict):
     """For a routed part still moving: the day its answer reaches the seat, in words."""
     said: str | None
     """The answer the issued paper gives, else the part's issuer-facing reason, else None."""
+    receipt: Receipt | None
+    """Set when every paper that answers the order only acknowledges it (the latest one);
+    None while any of them is news or none has arrived."""
 
 
 class RecordWake(TypedDict):
@@ -969,6 +984,7 @@ __all__ = [
     "PlaceReach",
     "ReachContact",
     "ReachGroups",
+    "Receipt",
     "RecordBlock",
     "RecordOrder",
     "RecordWake",

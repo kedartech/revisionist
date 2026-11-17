@@ -17,11 +17,12 @@ import pytest
 
 from revisionist.core import events as ev
 from revisionist.core.fold import FoldError, apply
-from revisionist.core.ids import EntityId, EventId, SeatId, derived_id
+from revisionist.core.ids import EntityId, EventId, OrderId, SeatId, derived_id
 from revisionist.core.ontology import Controller, SeatKind
 from revisionist.core.project import project
-from revisionist.core.realism import actors
+from revisionist.core.realism import actors, pipelines, process
 from revisionist.core.realism.agenda import PlayStyle
+from revisionist.core.realism.pipeline import StepAction
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC
 from revisionist.engine import campaign as cmp
@@ -32,6 +33,8 @@ from revisionist.engine.web import dossiers, handlers, held, wake_api
 from tests.async_table import AsyncTable
 from tests.test_engine_v2_wake import CAMPAIGN
 from tests.test_web import Client, Web, web  # noqa: F401
+from tests.test_web_answer import _close, _decided, _file, _request, _until_asked
+from tests.test_web_held_step import _bram_steps, _held_at_bram, _item, toy  # noqa: F401
 from tests.test_web_realism import Realism, make_host, post, realism_of
 from tests.test_web_wake import begin, log_of, seat_of, state_of
 
@@ -486,3 +489,194 @@ def test_a_code_spent_once_the_table_is_full_is_refused_and_stores_nothing(
     finally:
         store.close()
     assert [i.used_at for i in issued if i.seat_id == roosevelt][-1] is None  # not spent
+
+
+# --- a hand-over and the last player's sealed answers and choices ---------------------
+
+
+@pytest.fixture
+def asked(web: Web) -> tuple[Realism, Client, Client]:  # noqa: F811
+    """Ada plays Roosevelt and hosts; Bea plays Churchill, whom Roosevelt asks."""
+    game = Realism(web, world=WORLD)
+    ada = game.seat("ada", "roosevelt")
+    bea = game.seat("bea", "churchill")
+    make_host(game, ada)
+    begin(game)
+    return game, ada, bea
+
+
+def _request_items(client: Client) -> list[dict[str, Any]]:
+    return [i for i in realism_of(client)["agenda"]["items"] if i["kind"] == "Request"]
+
+
+def _join(game: Realism, host: Client, key: str, handle: str) -> Client:
+    """A new player redeems the code the host issues for ``key``'s leader."""
+    code = game_call(host, "handover", leader=game.ids[key])["code"]
+    assert code, f"{key} is not free to hand over"
+    player, _ = game.web.signed_up(handle)
+    assert player.seat("join", code=code) != handlers.BEGUN
+    return player
+
+
+def _card_says(game: Realism) -> tuple[bool, str]:
+    """What the card would answer to Roosevelt's request, read from the state now."""
+    order, i = _request(game)
+    return process._card_answer(state_of(game), order, order.parts[i])
+
+
+def _answered(game: Realism, ada: Client, bea: Client) -> None:
+    """Bea answers Roosevelt's request the other way from the card, so whose answer
+    lands is told apart."""
+    _file(game)
+    item = _until_asked(game, ada, bea)
+    card, _ = _card_says(game)
+    status, out = post(bea, "answer", item=item["id"], accept=not card)
+    assert status == 200 and not out["refused"], out
+    assert _held_answer(state_of(game), game) is (not card)
+
+
+def _held_answer(state: State, game: Realism) -> bool | None:
+    order, i = _request(game)
+    return state.routed[order.order_id].parts[i].held_answer
+
+
+def _closed_with(state: State, *changes: ev.SeatHandover) -> State:
+    """The open wake closed by the fold alone, with ``changes`` logged before it, and
+    the next one opened."""
+    w = state.wake
+    assert w is not None and not w.closed
+    closing: list[ev.Payload] = [*changes, ev.WakeClosed(wake=w.number)]
+    for payload in closing:
+        state = apply(state, _event(state, payload))
+    opened = ev.WakeOpened(wake=w.number + 1, deadline=w.deadline + timedelta(days=1))
+    return apply(state, _event(state, opened))
+
+
+def _to(game: Realism, key: str, controller: Controller) -> ev.SeatHandover:
+    return ev.SeatHandover(entity_id=EntityId(game.ids[key]), controller=controller)
+
+
+def test_a_new_player_in_the_same_wake_inherits_no_sealed_answer(
+    asked: tuple[Realism, Client, Client],
+) -> None:
+    game, ada, bea = asked
+    _answered(game, ada, bea)
+    (item,) = _request_items(bea)
+    game_call(bea, "leave")
+    cat = _join(game, ada, "churchill", "cat")
+    assert not post(ada, "commit")[1]["refused"]  # the close hands Churchill to Cat
+    order, i = _request(game)
+    assert _decided(game, order) == [], "the request was decided before Cat held it"
+    (mine,) = _request_items(cat)
+    assert mine["id"] == item["id"] and mine["cause"] is None, mine
+    assert _held_answer(state_of(game), game) is None
+    card = _card_says(game)
+    due = process.request_due(state_of(game), order, i)
+    assert due is not None
+    for _ in range(6):
+        today = state_of(game).in_world_date
+        assert today is not None
+        if today >= due:
+            break
+        _close(ada, cat)
+    else:
+        raise AssertionError("the due day never came")
+    (decided,) = _decided(game, order)
+    assert isinstance(decided.payload, ev.InfluenceDecided)
+    assert (decided.payload.accepted, decided.payload.reason) == card
+
+
+def test_a_leave_keeps_the_sealed_answer_and_a_later_join_clears_it(
+    asked: tuple[Realism, Client, Client],
+) -> None:
+    game, ada, bea = asked
+    _answered(game, ada, bea)
+    given = _held_answer(state_of(game), game)
+    left = _closed_with(state_of(game), _to(game, "churchill", Controller.AI))
+    assert _held_answer(left, game) is given
+    joined = _closed_with(left, _to(game, "churchill", Controller.HUMAN))
+    assert joined.seats[seat_of(game, "churchill")].controller is Controller.HUMAN
+    assert _held_answer(joined, game) is None
+
+
+def test_a_hand_over_keeps_the_sealed_answers_of_the_players_who_stay(
+    asked: tuple[Realism, Client, Client],
+) -> None:
+    game, ada, bea = asked
+    _answered(game, ada, bea)
+    given = _held_answer(state_of(game), game)
+    state = _closed_with(state_of(game), _to(game, "wheeler", Controller.HUMAN))
+    assert _held_answer(state, game) is given
+
+
+def test_a_join_keeps_the_answer_a_decided_request_was_given(
+    asked: tuple[Realism, Client, Client],
+) -> None:
+    game, ada, bea = asked
+    _answered(game, ada, bea)
+    given = _held_answer(state_of(game), game)
+    state = state_of(game)
+    order, i = _request(game)
+    assert state.in_world_date is not None
+    decided = ev.InfluenceDecided(
+        order_id=order.order_id, part=i, on=state.in_world_date, accepted=bool(given), reason="-"
+    )
+    state = apply(state, _event(state, decided))
+    left = _closed_with(state, _to(game, "churchill", Controller.AI))
+    joined = _closed_with(left, _to(game, "churchill", Controller.HUMAN))
+    assert _held_answer(joined, game) is given
+
+
+def _held_choice(state: State, order_id: OrderId) -> Any:
+    return state.orders[order_id].held_choice
+
+
+def _chose(game: Realism, ada: Client, bram: Client) -> OrderId:
+    """Bram refuses Ada's levy at his step, where the card would pass it."""
+    order_id = _held_at_bram(game, ada, bram)
+    assert not post(bram, "step", order_id=_item(bram)["id"], action="refuse")[1]["refused"]
+    assert _held_choice(state_of(game), order_id) is not None
+    return order_id
+
+
+def test_a_new_player_inherits_no_sealed_step_choice(
+    toy: tuple[Realism, Client, Client],  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(pipelines, "_policy", lambda *_a: (StepAction.PASS, {}))
+    game, ada, bram = toy
+    order_id = _chose(game, ada, bram)
+    item = _item(bram)
+    game_call(bram, "leave")
+    cat = _join(game, ada, "bram", "cat")
+    assert not post(ada, "commit")[1]["refused"]  # the close hands Bram to Cat
+    for _ in range(6):
+        if _bram_steps(game, order_id):
+            break
+        mine = _item(cat)
+        assert mine["id"] == item["id"] and mine["cause"] is None, mine
+        _close(ada, cat)
+    (taken,) = _bram_steps(game, order_id)
+    assert taken.outcome.action is StepAction.PASS, "the last player's choice was taken"
+
+
+def test_a_leave_keeps_the_step_choice_and_a_later_join_clears_it(
+    toy: tuple[Realism, Client, Client],  # noqa: F811
+) -> None:
+    game, ada, bram = toy
+    order_id = _chose(game, ada, bram)
+    left = _closed_with(state_of(game), _to(game, "bram", Controller.AI))
+    assert _held_choice(left, order_id) is not None
+    joined = _closed_with(left, _to(game, "bram", Controller.HUMAN))
+    assert joined.seats[seat_of(game, "bram")].controller is Controller.HUMAN
+    assert _held_choice(joined, order_id) is None
+
+
+def test_a_hand_over_keeps_the_step_choices_of_the_players_who_stay(
+    toy: tuple[Realism, Client, Client],  # noqa: F811
+) -> None:
+    game, ada, bram = toy
+    order_id = _chose(game, ada, bram)
+    chosen = _held_choice(state_of(game), order_id)
+    state = _closed_with(state_of(game), _to(game, "cora", Controller.HUMAN))
+    assert _held_choice(state, order_id) == chosen

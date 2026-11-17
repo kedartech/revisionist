@@ -9,6 +9,11 @@ now, the second run's playback later. An event is kept only if all three hold:
 2. its kind is in ``FEED_KINDS``;
 3. for a document, it has arrived (``arrives`` on or before today's in-world date).
 
+The feed carries nothing the seat's own papers have not: news reaches a seat only as
+its press paper, so ``news_reported`` is never fed; a routed order is fed as its
+issuer's view (``RoutedOrderView``'s fields), never the engine's ``ask``, estimate or
+held answer.
+
 Every kind in ``events.Payload`` is in exactly one of ``FEED_KINDS`` or ``NEVER``; a
 test fails on a kind in neither, so a new event kind must be classified here.
 
@@ -16,7 +21,8 @@ Each event belongs to the wake whose record page shows it (``core/record.py``): 
 covers the in-world days after wake N-1 opened, up to the day wake N opened. A document
 belongs to the wake in which it arrives; any other event to the later of the wake open
 when it was logged and the wake that holds its day. A document's truth half never
-leaves: the feed carries its view only.
+leaves: the feed carries its view only, and a routed order's engine-side fields go
+the same way.
 """
 
 from collections.abc import Iterable, Sequence
@@ -28,6 +34,7 @@ from revisionist.core.events import Event
 from revisionist.core.ids import CampaignId, DocumentId, SeatId
 from revisionist.core.project import project
 from revisionist.core.realism.document import DocumentTruth
+from revisionist.core.realism.effect import RoutedOrder
 from revisionist.core.sealing import scopes_in
 from revisionist.core.state import State, View
 from revisionist.engine.store import EventStore, load_state
@@ -49,7 +56,6 @@ FEED_KINDS: frozenset[str] = frozenset(
         "divergence_changed",
         "date_advanced",
         "war_declared",
-        "news_reported",
         "season_ended",
         "quantity_set",
         "wake_opened",
@@ -94,6 +100,9 @@ NEVER: frozenset[str] = frozenset(
         "character_released",
         "session_zero_closed",
         "play_style_set",
+        # The structured news item: ``State.news`` is engine-only, and a seat learns the
+        # news from its press paper when that arrives (``press.py``), which is fed.
+        "news_reported",
         # Engine only: the estimator's effects, policy, truth and the people's plans.
         "effects_estimated",
         "cards_declared",
@@ -193,6 +202,14 @@ def _view_only(event: Event, payload: ev.DocumentIssued) -> Event:
     return event.model_copy(update={"payload": payload.model_copy(update={"truth": blank})})
 
 
+def _routed_view(event: Event, payload: ev.OrderRouted) -> Event:
+    """The order as its issuer knows it: ``RoutedOrderView``'s fields, with the engine's
+    ``ask``, ``estimated``, ``was_estimated`` and ``held_answer`` at their defaults. The
+    payload stays an ``OrderRouted`` so the event keeps its type and serialises cleanly."""
+    order = RoutedOrder.model_validate(payload.order.view().model_dump())
+    return event.model_copy(update={"payload": payload.model_copy(update={"order": order})})
+
+
 def feed(
     state: State, events: Iterable[Event], seat: SeatId, first: int, last: int
 ) -> tuple[SeatEvent, ...]:
@@ -225,6 +242,9 @@ def feed(
                 continue
             wake = arrived[p.document.doc_id] = _wake_of_day(opened, p.document.arrives)
             e = _view_only(e, p)
+        elif isinstance(p, ev.OrderRouted):
+            e = _routed_view(e, p)
+            wake = max(current, _wake_of_day(opened, today))
         elif isinstance(p, ev.DocumentWritten):
             if p.doc_id not in arrived:
                 continue

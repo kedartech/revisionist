@@ -29,6 +29,7 @@ from revisionist.core.ids import (
 )
 from revisionist.core.project import project
 from revisionist.core.realism import agenda as ra
+from revisionist.core.realism import effect as rx
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.document import (
     DocumentKind,
@@ -85,8 +86,12 @@ def test_never_holds_the_close_the_commit_the_estimates_and_the_costs() -> None:
         "feature_set",
         "cards_declared",
         "agent_assigned",
+        # A seat learns news from its press paper, never from the structured item.
+        "news_reported",
     ):
         assert kind in catchup.NEVER, kind
+    # The seat's own routed order is fed, as its view (``RoutedOrderView``) only.
+    assert "order_routed" in catchup.FEED_KINDS
 
 
 # --- The fog path ------------------------------------------------------------------
@@ -393,6 +398,91 @@ def test_the_feed_keeps_to_the_range(table: AsyncTable, monkeypatch: pytest.Monk
     assert middle == tuple(f for f in whole if 1 <= f.wake <= 2)
     assert {f.wake for f in middle} == {1, 2}
     assert catchup.seat_events(t.store, CAMPAIGN, t.fdr, 2, 1) == ()
+
+
+def test_a_history_event_reaches_no_seat_as_news(
+    table: AsyncTable, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The USS Greer exchange fires in public with a headline; the log holds its news
+    item, and no seat's feed does at any wake."""
+    t = table
+    three_wakes(t, monkeypatch)
+    log = list(t.store.read(CAMPAIGN))
+    assert any(isinstance(e.payload, ev.ScheduledEventFired) for e in log), "a history event"
+    assert any(isinstance(e.payload, ev.NewsReported) for e in log), "its news was logged"
+    for seat in t.seats:
+        found = catchup.seat_events(t.store, CAMPAIGN, seat, 0, 99)
+        assert found, seat
+        assert not [f for f in found if isinstance(f.event.payload, ev.NewsReported)], seat
+    public = ev.Event(
+        event_id=EventId(derived_id(CAMPAIGN, "catch-up-news-public")),
+        campaign_id=CAMPAIGN,
+        seq=t.state.last_seq + 1,
+        tick=t.state.tick,
+        scope=PUBLIC,
+        payload=next(e.payload for e in log if isinstance(e.payload, ev.NewsReported)),
+        versions=cmp.versions(),
+    )
+    for seat in t.seats:
+        fed = catchup.feed(t.state, [*log, public], seat, 0, 99)
+        assert public.event_id not in {f.event.event_id for f in fed}, seat
+
+
+ASKED = "catch-up-canary-asked"
+
+
+def test_a_routed_order_is_fed_as_its_view_only(
+    table: AsyncTable, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The issuer's own routed order reaches its feed with the view's fields and
+    nothing the engine keeps: no ``ask``, no ``estimated`` effect, no held answer."""
+    t = table
+    three_wakes(t, monkeypatch)
+    state = t.state
+    log = list(t.store.read(CAMPAIGN))
+    mine = next(o for o in state.routed.values() if o.issuer == t.fdr)
+    engine_side = mine.model_copy(
+        update={
+            "parts": tuple(
+                p.model_copy(
+                    update={
+                        "ask": ASKED,
+                        "estimated": (rx.MakeStatement(theme=ENGINE_ONLY),),
+                        "was_estimated": True,
+                        "held_answer": True,
+                    }
+                )
+                for p in mine.parts
+            )
+        }
+    )
+    planted = ev.Event(
+        event_id=EventId(derived_id(CAMPAIGN, "catch-up-routed-whole")),
+        campaign_id=CAMPAIGN,
+        seq=state.last_seq + 1,
+        tick=state.tick,
+        scope=private_to(t.fdr),
+        payload=ev.OrderRouted(order=engine_side),
+        versions=cmp.versions(),
+    )
+    logged = {e.event_id: e.payload for e in [*log, planted]}
+    fed = [
+        (f.event.event_id, f.event.payload)
+        for f in catchup.feed(state, [*log, planted], t.fdr, 0, 99)
+        if isinstance(f.event.payload, ev.OrderRouted)
+    ]
+    assert planted.event_id in dict(fed), "the planted order is the seat's own"
+    assert len(fed) > 1, "the seat's routed orders are fed"
+    for event_id, p in fed:
+        whole = json.dumps(p.model_dump(mode="json"))
+        assert ASKED not in whole and ENGINE_ONLY not in whole
+        for part in p.order.parts:
+            assert part.ask == "" and part.estimated == () and part.held_answer is None
+            assert not part.was_estimated
+            assert "ask" not in part.model_dump(mode="json")
+        source = logged[event_id]
+        assert isinstance(source, ev.OrderRouted)
+        assert p.order.view() == source.order.view(), "the view is whole"
 
 
 ID = re.compile(r"\b[0-9A-Za-z]{26}\b|\b[0-9a-f]{32}\b|\b[0-9a-f-]{36}\b")

@@ -61,23 +61,26 @@ function planRow(steps, act) {
 
 /**
  * Accept and Decline for another seat's request: `act('Sending your answer…', 'answer',
- * { item, accept })`. The answer is recorded now and takes effect when the wake closes, as the
- * line under the buttons says.
+ * { item, accept })`. The answer is kept for the seat alone and goes out on the due day, as the
+ * line under the buttons says. Once the seat has answered, `given` (the item's `cause`, for
+ * example "You have agreed to it.") is shown above the buttons, which stay so the answer can
+ * be changed until the seat presses Done.
  */
-function requestAnswer(id, act) {
+function requestAnswer(id, given, act) {
   const when = `rl-ans-when-${id}`;
   const answer = (accept, word) => h('button', {
     type: 'button', class: 'rl-ans-choose', 'aria-describedby': when,
     onclick: () => act('Sending your answer…', 'answer', { item: id, accept }),
   }, word);
   return h('div', { class: 'rl-ans-request' },
+    given ? h('p', { class: 'rl-ans-given' }, given) : null,
     h('div', { class: 'rl-ans-pair' }, answer(true, 'Accept'), answer(false, 'Decline')),
     h('p', { class: 'rl-ans-when', id: when }, ANSWER_AT_CLOSE));
 }
 
-function choicesBlock(item, act) {
+function choicesBlock(item, given, act) {
   const { choices } = item;
-  if (choices.kind === 'request') return requestAnswer(item.id, act);
+  if (choices.kind === 'request') return requestAnswer(item.id, given, act);
   if (choices.kind === 'options') return h('ul', { class: 'rl-ans-options', role: 'list' }, choices.options.map((o) => optionRow(o, act)));
   if (choices.kind === 'plan') return planRow(choices.options, act);
   return h('p', { class: 'rl-ans-own' }, 'Answer it with an order of your own.');
@@ -99,6 +102,6 @@ export function needsAnswer(agenda, { act, today }) {
       ? h('ul', { class: 'rl-ans-items', role: 'list' }, items.map((item) => h('li', { class: 'rl-ans-item' },
         agendaEntry(raw.get(item.id), item.heading, item.text, [
           item.dates ? h('p', { class: 'rl-ans-dates' }, item.dates, ' ', deadlineChip(raw.get(item.id).deadline, today)) : null,
-          choicesBlock(item, act)]))))
+          choicesBlock(item, raw.get(item.id).cause, act)]))))
       : h('p', { class: 'rl-ans-none' }, 'Nothing is waiting on you. Your ideas are below.'));
 }

@@ -82,6 +82,9 @@ NEVER: frozenset[str] = frozenset(
         "wake_closed",
         # How a seat is run is never shown (spec section 17; decision A).
         "seat_handover",
+        # A holder's answer is theirs until the due day decides with it; the seat that
+        # asked reads only that decision (ANS).
+        "request_answered",
         "seat_created",
         "agent_assigned",
         "seat_status_set",

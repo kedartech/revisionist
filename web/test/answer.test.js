@@ -69,14 +69,26 @@ test('a request shows who asks, its terms and its due day', () => {
   assert.match(text, /2 days left/);
 });
 
-test('the buttons say the answer lands when the wake closes, and do not claim an effect now', () => {
+test('the buttons say the answer goes out on the due day and can be changed until then', () => {
   const { node } = section([request()]);
-  assert.match(words(node), /Your answer goes out when the wake closes\./);
+  assert.match(words(node), /Your answer goes out on the day it is due; you can change it until then\./);
   const hint = node.querySelector('.rl-ans-when');
   for (const b of [buttons(node, 'Accept')[0], buttons(node, 'Decline')[0]]) {
     assert.equal(b.getAttribute('aria-describedby'), hint.id);
     assert.equal(b.disabled, false);
   }
+});
+
+test('a request the seat has answered says so, and both answers stay so it can be changed', () => {
+  const { node, calls } = section([request({ cause: 'You have agreed to it.' })]);
+  assert.equal(words(node.querySelector('.rl-ans-given')), 'You have agreed to it.');
+  buttons(node, 'Decline')[0].click();
+  assert.deepEqual(calls.map(([, action, body]) => [action, body]), [['answer', { item: 'p.req1', accept: false }]]);
+});
+
+test('a request not yet answered has no answer line', () => {
+  const { node } = section([request()]);
+  assert.equal(node.querySelector('.rl-ans-given'), null);
 });
 
 test('requests come before desk matters and the Choose button stays on a desk matter', () => {

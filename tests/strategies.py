@@ -1053,6 +1053,13 @@ influence_decided = st.builds(
     reason=st.text(max_size=100),
 )
 
+request_answered = st.builds(
+    ev.RequestAnswered,
+    order_id=order_ids,
+    part=st.integers(0, 7),
+    accepted=st.booleans(),
+)
+
 deadlines = st.datetimes(min_value=datetime(2020, 1, 1), max_value=datetime(2040, 1, 1))
 
 engine_v2_payloads = st.one_of(
@@ -1061,6 +1068,7 @@ engine_v2_payloads = st.one_of(
     effects_estimated(),
     effects_applied,
     influence_decided,
+    request_answered,
     st.builds(ev.MandateIssued, mandate=mandates()),
     st.builds(
         ev.MandateSettled,

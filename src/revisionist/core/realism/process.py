@@ -349,27 +349,32 @@ def _card_answer(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[b
     return accepted, reason
 
 
-def answered(
-    state: State, routed: RoutedOrder, i: int, accepted: bool, on: date
-) -> ev.InfluenceDecided:
-    """The holder's own answer to a request at their person (ANS), dated ``on``: the
-    decision is recorded at once, and like the card's it lands only when a tick applies
-    it (``apply.apply_due``), so it takes effect at the close, never at once. Raises
-    ``ValueError`` when the part is not a request another seat put to a human."""
+def answered(state: State, routed: RoutedOrder, i: int, accepted: bool) -> ev.RequestAnswered:
+    """The holder's own answer to a request at their person (ANS). It is kept, sealed
+    to the holder, until the request's due day, when ``influence_due`` decides with it
+    in the card's place: the issuer learns nothing before then, and the decision is
+    dated and worded as the card's would be. Raises ``ValueError`` when the part is not
+    a request another seat put to a human, or it is already decided."""
     part = routed.parts[i]
     if held_by_another(state, routed, part) is None or part.decided is not None:
         raise ValueError("That request is no longer before you.")
+    return ev.RequestAnswered(order_id=routed.order_id, part=i, accepted=accepted)
+
+
+def _holders_answer(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[bool, str]:
+    """The decision on the due day: the holder's own answer when they gave one, in the
+    card's plain words; else the card's."""
+    if part.held_answer is None:
+        return _card_answer(state, routed, part)
     assert part.target is not None
-    reason = answer_reason(_name(state, part.target), accepted)
-    return ev.InfluenceDecided(
-        order_id=routed.order_id, part=i, on=on, accepted=accepted, reason=reason
-    )
+    return part.held_answer, answer_reason(_name(state, part.target), part.held_answer)
 
 
 def influence_due(state: State, today: date) -> list[ev.Payload]:
     """A decision for each influence part due by ``today``. A target another human
-    seat holds gets the request as a paper when it arrives, and decides it until its
-    due day; then the card decides. A target the issuer's own seat holds is left alone."""
+    seat holds gets the request as a paper when it arrives; on its due day the holder's
+    own answer decides it, or the card when they gave none. A target the issuer's own
+    seat holds is left alone."""
     out: list[ev.Payload] = []
     for routed, i, part in _parts(state, Route.INFLUENCE):
         if part.decided is not None or part.target is None:
@@ -399,7 +404,7 @@ def influence_due(state: State, today: date) -> list[ev.Payload]:
             on += timedelta(days=ANSWER_DAYS)
             if on > today:
                 continue
-            accepted, reason = _card_answer(state, routed, part)
+            accepted, reason = _holders_answer(state, routed, part)
         else:
             accepted, reason = decides(state, routed, part)
         out.append(

@@ -2,9 +2,10 @@
 
 A request at a leader another human seat holds reaches that seat's agenda as an item
 of kind "Request": who asks, the words and terms, and the due day. The holder answers
-it with ``/api/realism/answer`` ``{item, accept}``. The answer is recorded as an
-``influence_decided`` at once; its effect lands when the wake closes, never at once.
-Like any order, an answer is sealed once the seat has committed the wake.
+it with ``/api/realism/answer`` ``{item, accept}``. The answer is kept as a
+``request_answered`` sealed to the holder, who may give it again; on the due day it
+decides the request in the card's place (``tests/test_answer_sealed.py``). Like any
+order, an answer given once the seat has committed the wake is held for the next.
 """
 
 from datetime import date
@@ -110,7 +111,15 @@ def test_the_request_is_on_the_holders_agenda_with_its_terms_and_due_day(
     assert _requests(ada) == []
 
 
-def test_an_answer_is_recorded_at_once_and_lands_at_the_close(
+def _given(game: Realism, order: rx.RoutedOrder) -> list[ev.Event]:
+    return [
+        e
+        for e in log_of(game)
+        if isinstance(e.payload, ev.RequestAnswered) and e.payload.order_id == order.order_id
+    ]
+
+
+def test_an_answer_is_kept_for_the_holder_and_lands_on_the_due_day(
     duo: tuple[Realism, Client, Client],  # noqa: F811
 ) -> None:
     game, ada, bea = duo
@@ -121,22 +130,22 @@ def test_an_answer_is_recorded_at_once_and_lands_at_the_close(
     status, out = post(bea, "answer", item=item["id"], accept=True)
     assert status == 200 and not out["refused"], out
     assert set(out) == {"reply", "refused"}
+    (given,) = _given(game, order)
+    assert isinstance(given.payload, ev.RequestAnswered)
+    assert (given.payload.part, given.payload.accepted) == (i, True)
+    assert given.scope.visibility is Visibility.PRIVATE
+    assert given.scope.known_by == {seat_of(game, "churchill")}
+    assert _decided(game, order) == []
+    (still,) = _requests(bea)
+    assert still["id"] == item["id"]
+    for _ in range(3):
+        _close(ada, bea)
     (decided,) = _decided(game, order)
-    assert isinstance(decided.payload, ev.InfluenceDecided)
-    assert (decided.payload.part, decided.payload.accepted, decided.payload.on) == (
-        i,
-        True,
-        today,
-    )
+    assert isinstance(decided.payload, ev.InfluenceDecided) and decided.payload.accepted
     assert decided.payload.reason == "Winston Churchill agreed to what you asked."
-    assert decided.scope.visibility is Visibility.PRIVATE
-    assert decided.scope.known_by == {seat_of(game, "roosevelt"), seat_of(game, "churchill")}
     assert _requests(bea) == []
-    assert _landed(game, order, i) == [], "the answer took effect before the close"
-    _close(ada, bea)
     (landed,) = _landed(game, order, i)
     assert today is not None and landed.on > today
-    assert len(_decided(game, order)) == 1, "the card decided again"
 
 
 def test_a_declined_request_is_not_decided_again_by_the_card(
@@ -167,16 +176,19 @@ def test_an_answer_after_the_seat_has_committed_is_held_for_the_next_wake(
     assert status == 200 and not out["refused"], out
     _, kept = post(bea, "answer", item=item["id"], accept=True)
     assert kept["reply"] == held.HELD and kept["refused"] is False, kept
-    assert _decided(game, order) == [], "nothing lands in the wake the seat sealed"
+    assert _given(game, order) == [], "nothing is given in the wake the seat sealed"
     post(ada, "commit")
-    (decided,) = _decided(game, order)
-    assert isinstance(decided.payload, ev.InfluenceDecided) and decided.payload.accepted
+    (given,) = _given(game, order)
     log = log_of(game)
     opened = max(i for i, e in enumerate(log) if isinstance(e.payload, ev.WakeOpened))
-    assert log.index(decided) > opened, "filed when the next wake opened"
+    assert log.index(given) > opened, "given when the next wake opened"
+    for _ in range(2):
+        _close(ada, bea)
+    (decided,) = _decided(game, order)
+    assert isinstance(decided.payload, ev.InfluenceDecided) and decided.payload.accepted
 
 
-def test_only_the_holder_answers_and_only_once(
+def test_only_the_holder_answers_and_the_last_answer_stands(
     duo: tuple[Realism, Client, Client],  # noqa: F811
 ) -> None:
     game, ada, bea = duo
@@ -189,12 +201,19 @@ def test_only_the_holder_answers_and_only_once(
     assert unknown["refused"], unknown
     status, loose = post(bea, "answer", item=item["id"], accept="yes")
     assert status == 400 or loose["refused"], loose
-    assert _decided(game, order) == []
+    assert _given(game, order) == []
     _, first = post(bea, "answer", item=item["id"], accept=True)
     assert not first["refused"], first
     _, again = post(bea, "answer", item=item["id"], accept=False)
-    assert again["refused"], again
-    assert len(_decided(game, order)) == 1
+    assert not again["refused"], again
+    assert len(_given(game, order)) == 2 and _decided(game, order) == []
+    for _ in range(3):
+        _close(ada, bea)
+    (decided,) = _decided(game, order)
+    assert isinstance(decided.payload, ev.InfluenceDecided)
+    assert decided.payload.accepted is False
+    _, late = post(bea, "answer", item=item["id"], accept=True)
+    assert late["refused"], late
 
 
 def test_the_holders_answer_reads_as_the_card_would_put_it() -> None:

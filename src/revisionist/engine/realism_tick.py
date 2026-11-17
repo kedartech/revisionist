@@ -79,7 +79,7 @@ from revisionist.core.world_compile import card_policy, object_id
 from revisionist.engine import campaign as cmp
 from revisionist.engine import session_zero
 from revisionist.engine.emit import Emitter, tail
-from revisionist.engine.estimate import CALL_CLASS, estimate
+from revisionist.engine.estimate import CALL_CLASS, aide_orders, estimate
 from revisionist.engine.ids import new_id
 from revisionist.engine.llm import Transport, TransportError
 from revisionist.engine.prose import ProseWriter, accepted, author_of, prose_prompt_version
@@ -266,8 +266,9 @@ def _estimate(em: Emitter, transport: Transport) -> None:
         for i, part in enumerate(o.parts)
         if part.effect is None and not part.was_estimated
     )
+    aided = aide_orders(em.store.read(em.state.campaign_id)) if todo else frozenset()
     for _, order_id, part in todo:
-        ruled = estimate(em.state, order_id, part, transport)
+        ruled = estimate(em.state, order_id, part, transport, aide=order_id in aided)
         issuer = em.state.routed[order_id].issuer
         batch = [em.event(ruled.event, scope=private_to(issuer))]
         if ruled.cost is not None:

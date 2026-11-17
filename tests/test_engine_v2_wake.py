@@ -15,6 +15,7 @@ from revisionist.core.ids import (
     EventId,
     FeatureId,
     MandateId,
+    OrderId,
     SeatId,
     derived_id,
 )
@@ -22,11 +23,13 @@ from revisionist.core.realism import effect as rx
 from revisionist.core.realism.advance import next_wake
 from revisionist.core.realism.agenda import Ask, Mandate, MandateKind, Option, PlayStyle
 from revisionist.core.realism.effect import EffectKind
+from revisionist.core.resolution import TickStage
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, private_to
 from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
 from revisionist.engine import options, realism_tick, runner, scheduler, session_zero, wake
+from revisionist.engine.llm import Reply, Request
 from revisionist.engine.store import EventStore, MemoryStore, SqliteStore, load_state
 from tests.test_engine_v2_contract import Slice
 
@@ -475,3 +478,56 @@ def test_the_close_files_no_deal_whatever_the_aide_is_given(
     assert filed == [_say("the convoys")]
     (aide,) = [p for p in t.payloads(ev.WakeCommitted) if p.by_aide]
     assert len(aide.aide_orders) == 1, "the aide's commit names the one order it filed"
+
+
+class _EstimatorSaying:
+    """An estimator that rules every part it is asked about as a deal with the President."""
+
+    def __init__(self, t: Table) -> None:
+        deal = {
+            "kind": "deal",
+            "counterparty": t.entity("roosevelt"),
+            "accept": False,
+            "offer": ["bases in the West Indies"],
+            "ask": [],
+        }
+        self.ruling = {"effects": [deal], "reason": "He takes it as an offer.", "rationale": "x"}
+        self.calls = 0
+
+    def call(self, request: Request) -> Reply:
+        self.calls += 1
+        return Reply(
+            output=self.ruling, model="m", input_tokens=1, output_tokens=1, cached_tokens=0, usd=0.0
+        )
+
+
+def _estimated_for(t: Table, order: OrderId) -> list[object]:
+    (ruled,) = [p for p in t.payloads(ev.EffectsEstimated) if p.order_id == order]
+    return list(ruled.effects)
+
+
+def test_the_estimator_cannot_hand_the_aide_a_deal(monkeypatch: pytest.MonkeyPatch) -> None:
+    t = Table(MemoryStore())
+    assert t.winston is not None
+    ask = Ask(ask="Ask the President to back our course", target=t.entity("roosevelt"))
+    monkeypatch.setattr(options, "aide_asks", lambda state, seat, transport: [(ask,)])
+    wake.open_wake(t.store, CAMPAIGN, T0)
+    wake.commit(t.store, CAMPAIGN, t.fdr, T0)
+    wake.close_wake(t.store, CAMPAIGN, T0 + timedelta(hours=12), None)
+    (aide,) = [p for p in t.payloads(ev.WakeCommitted) if p.by_aide]
+    (order,) = aide.aide_orders
+    said = _EstimatorSaying(t)
+    realism_tick.run_realism_tick(t.store, CAMPAIGN, stop_after=TickStage.ESTIMATE, estimator=said)
+    assert said.calls == 1, "the estimator was asked about the aide's order"
+    assert _estimated_for(t, order) == [], "no deal stands on an order the aide filed"
+
+
+def test_the_estimator_still_rules_a_deal_on_a_players_own_order() -> None:
+    t = Table(MemoryStore())
+    ask = Ask(ask="Ask the President to back our course", target=t.entity("roosevelt"))
+    assert t.winston is not None
+    order = realism_tick.commit_order(t.store, CAMPAIGN, t.winston, [ask]).order_id
+    said = _EstimatorSaying(t)
+    realism_tick.run_realism_tick(t.store, CAMPAIGN, stop_after=TickStage.ESTIMATE, estimator=said)
+    (deal,) = _estimated_for(t, order)
+    assert isinstance(deal, rx.Deal)

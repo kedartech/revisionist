@@ -22,7 +22,7 @@ from revisionist.core import delta as d
 from revisionist.core import events as ev
 from revisionist.core.events import MUTATING_KINDS, Event
 from revisionist.core.goals import GoalKind, season_winners
-from revisionist.core.ids import CampaignId, SeatId, derived_id
+from revisionist.core.ids import CampaignId, EntityId, SeatId, derived_id
 from revisionist.core.ontology import (
     TRACK_MAX,
     Asset,
@@ -947,7 +947,8 @@ def _held_elsewhere(state: State, o: Order) -> bool:
 def _hand_over(state: State) -> State:
     """Apply the leaders' changes of hands at the close. A leaver's seat is run by the
     code and keeps its kind, so its orders stay in flight. A joiner takes the leader's
-    seat, or a new one with the id a claim would give, and starts on Beginner."""
+    seat, or a new one with the id a claim would give, and starts on Beginner, with none
+    of the answers or step choices the leader's last player kept sealed."""
     seats, styles, standing = dict(state.seats), dict(state.styles), dict(state.standing)
     for person, controller in sorted(state.handovers.items()):
         seat = seat_of_person(state, person)
@@ -974,9 +975,36 @@ def _hand_over(state: State) -> State:
         )
         styles[seat.seat_id] = PlayStyle.BEGINNER
         standing.pop(seat.seat_id, None)
+        state = _unsealed(state, person)
     return state.model_copy(
         update={"seats": seats, "styles": styles, "standing": standing, "handovers": {}}
     )
+
+
+def _unsealed(state: State, person: EntityId) -> State:
+    """``state`` without the answers to undecided requests at ``person`` and the choices
+    at steps ``person`` holds that a last player kept sealed: a new player has given
+    none, so the card decides on the due day unless they do."""
+    routed = dict(state.routed)
+    for oid, o in state.routed.items():
+        parts = tuple(
+            p.model_copy(update={"held_answer": None})
+            if p.target == person and p.decided is None and p.held_answer is not None
+            else p
+            for p in o.parts
+        )
+        if parts != o.parts:
+            routed[oid] = o.model_copy(update={"parts": parts})
+    orders = dict(state.orders)
+    for oid, order in state.orders.items():
+        steps = state.pipelines[order.pipeline].steps
+        if (
+            order.held_choice is not None
+            and order.step < len(steps)
+            and steps[order.step].person == person
+        ):
+            orders[oid] = order.model_copy(update={"held_choice": None})
+    return state.model_copy(update={"routed": routed, "orders": orders})
 
 
 def _open_wake(state: State, number: int) -> Wake:

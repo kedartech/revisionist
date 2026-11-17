@@ -91,6 +91,8 @@ def test_the_issuer_cannot_act_at_the_step_another_player_holds(
 def test_the_holder_decides_a_held_step_before_its_due_day_and_the_card_does_not(
     toy: tuple[Realism, Client, Client],
 ) -> None:
+    """The holder's choice is kept until the held due day (SHS) and taken then, once,
+    in the card's place."""
     game, ada, bram = toy
     order_id = _held_at_bram(game, ada, bram)
     item = _item(bram)
@@ -104,13 +106,15 @@ def test_the_holder_decides_a_held_step_before_its_due_day_and_the_card_does_not
     assert item["deadline"] == f"{due.day} {due:%B %Y}"
     status, out = post(bram, "step", order_id=item["id"], action="pass")
     assert status == 200 and not out["refused"], out
-    (taken,) = _bram_steps(game, order_id)
-    assert (taken.outcome.action, taken.outcome.on) == (StepAction.PASS, today)
-    assert _decisions(bram) == []
-    for _ in range(3):
+    assert _bram_steps(game, order_id) == []
+    for _ in range(6):
+        if state_of(game).in_world_date > due:  # type: ignore[operator]
+            break
         _close(ada, bram)
     assert state_of(game).in_world_date > due  # type: ignore[operator]
-    assert len(_bram_steps(game, order_id)) == 1, "the card decided again"
+    (taken,) = _bram_steps(game, order_id)
+    assert (taken.outcome.action, taken.outcome.on) == (StepAction.PASS, due)
+    assert _decisions(bram) == []
 
 
 def test_the_issuers_order_id_never_reaches_the_holder(
@@ -143,14 +147,16 @@ def test_the_issuer_cannot_act_at_the_holders_step_through_the_held_queue(
         assert held.file_one(store, game.campaign, seat_of(game, "bram"), "step", by_holder) is None
     finally:
         store.close()
-    (taken,) = _bram_steps(game, order_id)
-    assert taken.outcome.action is StepAction.PASS
+    assert _bram_steps(game, order_id) == [], "a held choice is kept until the due day"
+    chosen = state_of(game).orders[order_id].held_choice
+    assert chosen is not None and chosen.action is StepAction.PASS
 
 
 def test_a_step_on_a_seats_own_order_at_its_own_leader_is_still_its_own(
     toy: tuple[Realism, Client, Client],
 ) -> None:
-    """take_step with the holder's seat goes through; with any other seat it is refused."""
+    """take_step with the holder's seat keeps its choice; with any other seat it is
+    refused."""
     game, ada, bram = toy
     order_id = _held_at_bram(game, ada, bram)
     store = game.web.app.open()
@@ -164,4 +170,5 @@ def test_a_step_on_a_seats_own_order_at_its_own_leader_is_still_its_own(
         )
     finally:
         store.close()
-    assert order.step >= 1 and len(_bram_steps(game, order_id)) == 1
+    assert order.held_choice is not None and order.held_choice.action is StepAction.PASS
+    assert _bram_steps(game, order_id) == []

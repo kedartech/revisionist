@@ -455,8 +455,12 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
         domains = [dm.name for dm in c.authority]
         if len(set(domains)) != len(domains):
             problems.append(f"{where}: an authority domain is named twice")
+        if c.playable and c.authority and all(k.person == c.person for k in c.inner_circle):
+            problems.append(f"{where}: has authority but no inner circle to sign its reports")
         for dm in c.authority:
             person(f"{where}: domain {dm.name}", dm.executor)
+            if dm.executor == c.person:
+                problems.append(f"{where}: domain {dm.name}: the person is their own executor")
             if ESTIMATED_ONLY.intersection(dm.effects):
                 problems.append(
                     f"{where}: domain {dm.name}: figure is not something an office orders"

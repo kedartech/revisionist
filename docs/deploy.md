@@ -315,9 +315,9 @@ The home server can run two instances side by side, each with its own database a
 
 `revisionist scheduler run` takes `--transport claude|openrouter`; with no flag it reads `REVISIONIST_SCHEDULER_TRANSPORT`, then falls back to `claude`. `openrouter` builds the transport exactly as `web serve --transport openrouter` does: one shared transport, every model id `:free`, usage guarded, and no `claude` process is started. If the key is missing or its usage cannot be read, the run ticks nothing and exits with an error. An `--offline` run builds no transport.
 
-The unit pair `deploy/systemd/revisionist-scheduler@.service` and `revisionist-scheduler@.timer` is a template: the text after the `@` names the instance and its env file, `~/.config/revisionist/<instance>.env`. The file is required; the unit does not start without it. The unit hardening and the 10-minute poll are those of §5.
+The unit pair `deploy/systemd/revisionist-scheduler@.service` and `revisionist-scheduler@.timer` is a template: the text after the `@` names the instance and its env file, `~/.config/revisionist/<instance>.env`. The file is required; the unit does not start without it. The unit runs `revisionist scheduler run --transport ${REVISIONIST_SCHEDULER_TRANSPORT}`, so the file must also set that variable to `claude` or `openrouter`: with the line missing or empty the run exits with a usage error at start and ticks nothing, and it never falls back to `claude`. The unit hardening and the 10-minute poll are those of §5.
 
-An instance's env file holds what that instance needs and nothing of the other's. For the Claude instance, `revisionist.env` as in §2, plus `REVISIONIST_SCHEDULER_TRANSPORT=claude` (optional, it is the default). For the free instance (here `share.env`):
+An instance's env file holds what that instance needs and nothing of the other's. For the Claude instance, `revisionist.env` as in §2, plus `REVISIONIST_SCHEDULER_TRANSPORT=claude` (required by the templated unit; the single unit of §5 still defaults to `claude`). For the free instance (here `share.env`):
 
 ```
 REVISIONIST_DB=postgresql://<its own role>:***@127.0.0.1:<port>/<its own database>

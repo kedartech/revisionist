@@ -4,6 +4,7 @@ free instance never reaches for the ``claude`` CLI. Nothing is called: ``sch.run
 store are stubs, or the tick runs on a memory store with a recording fake transport."""
 
 import configparser
+import re
 import shlex
 from collections.abc import Callable, Iterator
 from datetime import timedelta
@@ -226,11 +227,44 @@ def _unit(name: str) -> configparser.ConfigParser:
     return parser
 
 
+def _argv(exec_start: str, env: dict[str, str]) -> list[str]:
+    """The argv systemd runs: ``%h`` is the home, ``${NAME}`` one argument, empty when unset."""
+    words = shlex.split(exec_start.replace("%h", "/home/u"))
+    return [re.sub(r"\$\{(\w+)\}", lambda m: env.get(m.group(1), ""), w) for w in words]
+
+
+def test_a_unit_whose_env_file_lacks_the_transport_line_does_not_start(
+    ran: Ran, no_claude: list[str]
+) -> None:
+    service = _unit("revisionist-scheduler@.service")["Service"]
+    argv = _argv(service["ExecStart"], {})
+    result = runner.invoke(cli.app, argv[1:])
+    assert result.exit_code == 2 and ran.runs == 0 and no_claude == []
+
+
+def test_a_unit_whose_env_file_names_openrouter_ticks_on_it(
+    ran: Ran, started: list[object], no_claude: list[str]
+) -> None:
+    service = _unit("revisionist-scheduler@.service")["Service"]
+    argv = _argv(service["ExecStart"], {ENV: "openrouter"})
+    assert runner.invoke(cli.app, argv[1:]).exit_code == 0 and ran.runs == 1
+    assert isinstance(ran.kwargs["transport_factory"](), openrouter.OpenRouterTransport)
+    assert no_claude == []
+
+
+def test_a_unit_whose_env_file_names_claude_ticks_on_it(ran: Ran) -> None:
+    service = _unit("revisionist-scheduler@.service")["Service"]
+    argv = _argv(service["ExecStart"], {ENV: "claude"})
+    assert runner.invoke(cli.app, argv[1:]).exit_code == 0 and ran.runs == 1
+    assert type(ran.kwargs["transport_factory"]()) is ClaudeCli
+
+
 def test_the_service_template_reads_the_instances_own_env_and_runs_the_scheduler() -> None:
     service = _unit("revisionist-scheduler@.service")["Service"]
     assert service["EnvironmentFile"] == "%h/.config/revisionist/%i.env"  # required: no `-`
-    argv = shlex.split(service["ExecStart"].replace("%h", "/home/u"))
-    assert Path(argv[0]).name == "revisionist" and argv[1:] == ["scheduler", "run"]
+    argv = _argv(service["ExecStart"], {ENV: "openrouter"})
+    assert Path(argv[0]).name == "revisionist"
+    assert argv[1:] == ["scheduler", "run", "--transport", "openrouter"]
     assert runner.invoke(cli.app, [*argv[1:], "--help"]).exit_code == 0
     assert (
         service["Type"] == "oneshot"

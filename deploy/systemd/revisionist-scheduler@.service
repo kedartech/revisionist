@@ -1,8 +1,9 @@
 # One scheduler poll for the instance named after the @: `revisionist-scheduler@share.service`
 # reads ~/.config/revisionist/share.env. That file holds the instance's database, its briefings
-# directory and REVISIONIST_SCHEDULER_TRANSPORT=claude|openrouter (openrouter: free models only,
-# REVISIONIST_OPENROUTER_KEY also in the file). User unit: the Claude CLI login for a `claude`
-# instance lives in this user's home. Install and enable: docs/deploy.md §11.
+# directory and REVISIONIST_SCHEDULER_TRANSPORT=claude|openrouter (required: the unit passes it
+# as --transport, so a file without it fails at start and never falls back to claude; openrouter:
+# free models only, REVISIONIST_OPENROUTER_KEY also in the file). User unit: the Claude CLI login
+# for a `claude` instance lives in this user's home. Install and enable: docs/deploy.md §11.
 [Unit]
 Description=Revisionist (%i): tick every due campaign once
 Wants=network-online.target
@@ -14,7 +15,7 @@ EnvironmentFile=%h/.config/revisionist/%i.env
 # `claude` must be on this PATH for an instance whose transport is claude
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
 WorkingDirectory=%h/.local/share/revisionist
-ExecStart=%h/.local/bin/revisionist scheduler run
+ExecStart=%h/.local/bin/revisionist scheduler run --transport ${REVISIONIST_SCHEDULER_TRANSPORT}
 TimeoutStartSec=45min
 Nice=10
 UMask=0077

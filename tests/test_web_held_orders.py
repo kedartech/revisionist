@@ -15,7 +15,7 @@ import psycopg
 import pytest
 
 from revisionist.core import events as ev
-from revisionist.core.ids import CampaignId, EntityId, OrderId, SeatId
+from revisionist.core.ids import CampaignId, EntityId, SeatId
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import ChannelKind
@@ -190,7 +190,7 @@ def test_each_held_action_is_filed_as_the_seat_would_have(
     monkeypatch.setattr(
         realism_tick,
         "take_step",
-        lambda _s, _c, order_id, action, given: calls.append(("step", (order_id, action, given))),
+        lambda _s, _c, who, ref, action, given: calls.append(("step", (who, ref, action, given))),
     )
     store, cid, seat = cast(EventStore, None), CampaignId("c"), SeatId("s")
     signed = {
@@ -212,7 +212,7 @@ def test_each_held_action_is_filed_as_the_seat_would_have(
         lever="send_bill",
         params={"bill": "x"},
     )
-    assert taken == (OrderId("o1"), StepAction.EXPEDITE, {"rate": "3"})
+    assert taken == (seat, "o1", StepAction.EXPEDITE, {"rate": "3"})
 
 
 class Recorder:

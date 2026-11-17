@@ -18,7 +18,7 @@ from revisionist.core.canary import scan_text
 from revisionist.core.events import Event
 from revisionist.core.ids import CampaignId, EntityId, MandateId, SeatId, derived_id
 from revisionist.core.project import project
-from revisionist.core.realism import advance, mandates, process
+from revisionist.core.realism import advance, mandates, pipelines, process
 from revisionist.core.realism.agenda import Offer, Option, PlayStyle, TriggerKind
 from revisionist.core.realism.effect import RoutedPart
 from revisionist.core.state import State, View
@@ -39,6 +39,7 @@ _STALE = "That offer has lapsed. Look at what you are offered now."
 _NEWS = re.compile(r"n\.[0-9A-Z]{26}\.\d")
 _WRITE_IT = "Write it as an order to the person who should carry it out."
 _GONE = "That request is no longer before you."
+HELD_STEP = "Decision"  # [proposed] the kind of a held step on its holder's agenda
 _ANSWERED = {  # [proposed]
     True: "You agree to {issuer}'s request. Your answer goes out when the wake closes.",
     False: "You decline {issuer}'s request. Your answer goes out when the wake closes.",
@@ -233,19 +234,23 @@ def agenda(state: State, seat: SeatId, log: Iterable[Event]) -> AgendaBlock:
             )
         )
     items += requests(state, seat)
+    items += held_steps(state, seat)
     style = seat_style(state, seat)
     if style == PlayStyle.BEGINNER.value:
         initiative += _news_asks(view, events)
     return AgendaBlock(style=style, items=items, initiative=initiative)
 
 
+def _awaiting(state: State, seat: SeatId) -> list[advance.Awaiting]:
+    """What another seat has put before ``seat`` today, reached and not yet decided."""
+    today = state.in_world_date
+    return [] if today is None else advance.awaiting(state, seat, today)
+
+
 def _asked(state: State, seat: SeatId) -> list[advance.Awaiting]:
     """The requests before ``seat`` today: another seat's asks at its person that have
-    reached it and are not yet decided. Held decisions at a step are answered at the step."""
-    today = state.in_world_date
-    if today is None:
-        return []
-    return [a for a in advance.awaiting(state, seat, today) if a.part is not None]
+    reached it and are not yet decided. Held decisions at a step are ``held_steps``."""
+    return [a for a in _awaiting(state, seat) if a.part is not None]
 
 
 def _item_id(state: State, asked: advance.Awaiting) -> str:
@@ -256,28 +261,53 @@ def _item_id(state: State, asked: advance.Awaiting) -> str:
 
 
 def requests(state: State, seat: SeatId) -> list[AgendaItem]:
-    """Each request another seat has put to ``seat``'s person, as an agenda item: who
-    asks, the words and terms, and the due day, after which the card decides. Words a
-    canary would catch for this seat are withheld, as on the paper."""
-    out: list[AgendaItem] = []
-    for asked in _asked(state, seat):
-        text = f"{asked.label} ({asked.terms})" if asked.terms else asked.label
-        if scan_text(state, seat, text):
-            text = process.WITHHELD
-        out.append(
-            AgendaItem(
-                id=_item_id(state, asked),
-                kind="Request",
-                issuer=asked.issuer,
-                text=text,
-                issued=_day(asked.arrived),
-                deadline=_day(asked.due),
-                cause=None,
-                options=[],
-                plan=[],
-            )
+    """Each request another seat has put to ``seat``'s person, as an agenda item of kind
+    "Request", answered with ``answer``."""
+    return [
+        _awaiting_item(state, seat, asked, "Request", _item_id(state, asked))
+        for asked in _asked(state, seat)
+    ]
+
+
+def _awaiting_item(
+    state: State, seat: SeatId, asked: advance.Awaiting, kind: str, item_id: str
+) -> AgendaItem:
+    """One thing another seat put before ``seat``, as an agenda item: who asks, the words
+    and terms, and the due day, after which the card decides. Words a canary would catch
+    for this seat are withheld, as on the paper."""
+    text = f"{asked.label} ({asked.terms})" if asked.terms else asked.label
+    if scan_text(state, seat, text):
+        text = process.WITHHELD
+    return AgendaItem(
+        id=item_id,
+        kind=kind,
+        issuer=asked.issuer,
+        text=text,
+        issued=_day(asked.arrived),
+        deadline=_day(asked.due),
+        cause=None,
+        options=[],
+        plan=[],
+    )
+
+
+def held_steps(state: State, seat: SeatId) -> list[AgendaItem]:
+    """Each decision step ``seat``'s person holds on another seat's order, as an agenda
+    item of kind "Decision". Its id is the paper that brought it, which the ``step``
+    action takes in place of an order id; the order id itself never leaves the engine."""
+    return [
+        _awaiting_item(
+            state,
+            seat,
+            held,
+            HELD_STEP,
+            pipelines.held_paper_id(
+                state.campaign_id, held.order_id, state.orders[held.order_id].step
+            ),
         )
-    return out
+        for held in _awaiting(state, seat)
+        if held.part is None
+    ]
 
 
 def answer(

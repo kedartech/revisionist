@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Annotated
 import typer
 
 from revisionist import __version__
-from revisionist.core.ids import CampaignId, EntityId, EventId, OrderId, SeatId
+from revisionist.core.ids import CampaignId, EntityId, EventId, SeatId
 from revisionist.core.ontology import Controller, EntityKind, Persona, Phase
 from revisionist.core.realism.check import gap_report, gaps, report
 from revisionist.core.realism.pipeline import StepAction
@@ -494,7 +494,7 @@ def step(order_id: str, action: str, params: Pairs = None, seat: PlayerSeat = No
         raise _fail(f"{action!r} is not an action (one of {names})", EXIT_REFUSED) from exc
     try:
         order = realism_tick.take_step(
-            store, campaign_id, OrderId(order_id), taken, _pairs(params or [])
+            store, campaign_id, me, order_id, taken, _pairs(params or [])
         )
     except (ValueError, KeyError) as exc:
         raise _fail(str(exc), EXIT_REFUSED) from exc

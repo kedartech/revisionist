@@ -55,9 +55,12 @@ from revisionist.core.realism.geography import in_play
 from revisionist.core.realism.pipeline import SETTLED, Order, OrderStatus, StepAction
 from revisionist.core.realism.pipelines import (
     destination,
+    held_by_another,
+    held_paper_id,
     human_step,
     place_named,
     run_pipelines,
+    waiting_on_human,
 )
 from revisionist.core.realism.press import news_pages
 from revisionist.core.realism.resolvers import (
@@ -768,18 +771,54 @@ def commit_order(
     return order
 
 
+NOT_YOURS = "That decision is not yours to take."  # [proposed]
+
+
+def held_step_order(state: State, seat: SeatId, ref: str) -> OrderId | None:
+    """The order another seat's step waits on at ``seat``'s person, named by ``ref``:
+    the id of the paper that brought it. None when ``ref`` names no such step."""
+    return next(
+        (
+            order.order_id
+            for order in state.orders.values()
+            if held_by_another(state, order) == seat
+            and held_paper_id(state.campaign_id, order.order_id, order.step) == ref
+        ),
+        None,
+    )
+
+
+def stepped_order(state: State, seat: SeatId, ref: str) -> Order:
+    """The order ``seat`` would act at: ``ref`` is an order id, or the id of the paper
+    that put another seat's order before it. Raises ``ValueError`` when there is no
+    such order, or when its step waits on a person a human seat other than ``seat``
+    holds."""
+    order = state.orders.get(OrderId(ref))
+    if order is None:
+        found = held_step_order(state, seat, ref)
+        order = state.orders.get(found) if found is not None else None
+    if order is None:
+        raise ValueError(f"no order {ref}")
+    if waiting_on_human(state, order):
+        person = state.pipelines[order.pipeline].steps[order.step].person
+        if process.holder(state, person) != seat:
+            raise ValueError(NOT_YOURS)
+    return order
+
+
 def take_step(
     store: EventStore,
     campaign_id: CampaignId,
-    order_id: OrderId,
+    seat: SeatId,
+    ref: str,
     action: StepAction,
     given: dict[str, str],
 ) -> Order:
-    """The human acts at the step they hold, dated today. Raises ``ValueError``."""
+    """``seat`` acts at the step it holds, dated today; ``ref`` as ``stepped_order``
+    takes it. Raises ``ValueError``."""
     state = load_state(store, campaign_id)
-    order = state.orders.get(order_id)
-    if order is None:
-        raise ValueError(f"no order {order_id}")
+    order = stepped_order(state, seat, ref)
+    order_id = order.order_id
     assert state.in_world_date is not None
     levers = state.cards[state.seats[order.issuer].embodies].levers
     specs = {p.name: p for lever in levers if lever.name == order.lever for p in lever.params}
@@ -880,16 +919,19 @@ def _append(
 
 
 __all__ = [
+    "NOT_YOURS",
     "OpeningWritten",
     "RealismTickResult",
     "commit_order",
     "draft_order",
     "file_order",
+    "held_step_order",
     "mark_read",
     "open_play",
     "run_realism_tick",
     "seat_player",
     "set_flag",
+    "stepped_order",
     "take_step",
     "wake_line",
     "write_opening",

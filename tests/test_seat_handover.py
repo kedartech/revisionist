@@ -25,8 +25,9 @@ from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC
 from revisionist.engine import campaign as cmp
 from revisionist.engine import catchup, wake
-from revisionist.engine.store import MemoryStore
-from revisionist.engine.web import dossiers, held, wake_api
+from revisionist.engine.discord.tables import Invites
+from revisionist.engine.store import MemoryStore, load_state
+from revisionist.engine.web import dossiers, handlers, held, wake_api
 from tests.async_table import AsyncTable
 from tests.test_engine_v2_wake import CAMPAIGN
 from tests.test_web import Client, Web, web  # noqa: F401
@@ -208,8 +209,8 @@ def test_a_left_seat_handed_on_goes_back_to_human(table: AsyncTable) -> None:
 
 def _event(state: State, payload: ev.Payload) -> ev.Event:
     return ev.Event(
-        event_id=EventId(derived_id(CAMPAIGN, "probe", state.last_seq)),
-        campaign_id=CAMPAIGN,
+        event_id=EventId(derived_id(state.campaign_id, "probe", state.last_seq)),
+        campaign_id=state.campaign_id,
         seq=state.last_seq + 1,
         tick=state.tick,
         scope=PUBLIC,
@@ -231,6 +232,62 @@ def test_the_fold_refuses_a_handover_that_changes_nothing(table: AsyncTable) -> 
     nobody = ev.SeatHandover(entity_id=EntityId("no-such-person"), controller=Controller.HUMAN)
     with pytest.raises(FoldError):
         apply(state, _event(state, nobody))
+
+
+# --- the human-seat cap ----------------------------------------------------------------
+
+
+def capped(state: State, seats: int) -> ev.Event:
+    """The table's human-seat cap set to ``seats``, as a settings change lands it."""
+    settings = state.settings.model_copy(update={"max_human_seats": seats})
+    return _event(state, ev.SettingsSet(settings=settings))
+
+
+def logged(t: AsyncTable) -> int:
+    return len(list(t.store.read(CAMPAIGN)))
+
+
+def test_a_table_at_the_cap_has_no_leader_to_hand_over(table: AsyncTable) -> None:
+    t = table
+    t.open_play()
+    t.store.append_all([capped(t.state, 2)])  # Roosevelt and Churchill fill it
+    assert wake.leaders(t.state) == []
+    before = logged(t)
+    with pytest.raises(ValueError):
+        hand_over(t, "wheeler")
+    assert logged(t) == before  # refused before anything is logged
+    assert not t.state.handovers  # and the game still loads
+
+
+def test_the_cap_counts_the_players_after_the_close(table: AsyncTable) -> None:
+    t = table
+    t.open_play()
+    t.store.append_all([capped(t.state, 2)])
+    leave(t, t.churchill)  # one player once this wake closes
+    assert set(wake.leaders(t.state)) == {t.entity("wheeler"), t.entity("churchill")}
+    hand_over(t, "wheeler")  # two again
+    assert wake.leaders(t.state) == []
+    before = logged(t)
+    with pytest.raises(ValueError):
+        hand_over(t, "churchill")
+    assert logged(t) == before
+    t.commit(t.fdr)
+    t.close(early(t))
+    state = t.state
+    assert cmp.human_seats(state) == sorted([t.fdr, wake.seat_for(state, t.entity("wheeler"))])
+    assert state.seats[t.churchill].controller is Controller.AI
+
+
+def test_an_event_the_fold_refuses_is_never_stored(table: AsyncTable) -> None:
+    t = table
+    t.open_play()
+    state = t.state
+    before = logged(t)
+    played = ev.SeatHandover(entity_id=t.entity("roosevelt"), controller=Controller.HUMAN)
+    with pytest.raises(FoldError):
+        wake._land(t.store, state, played)
+    assert logged(t) == before
+    assert t.state.last_seq == state.last_seq  # the game still loads
 
 
 # --- on the web ------------------------------------------------------------------------
@@ -332,3 +389,43 @@ def test_a_handed_leader_joins_at_the_next_wake_with_a_catch_up_from_wake_0(
     assert realism_of(ada)["wake"]["wake"] == 2  # wake 2 waits for the joiner
     assert not post(cat, "commit")[1]["refused"]
     assert realism_of(ada)["wake"]["wake"] == 3
+
+
+def test_a_code_spent_once_the_table_is_full_is_refused_and_stores_nothing(
+    duo: tuple[Realism, Client, Client],
+) -> None:
+    game, ada, bea = duo
+    roosevelt = seat_of(game, "roosevelt")
+    game_call(bea, "leave")  # wake 0: Bea's leave seals it for her
+    assert not post(ada, "commit")[1]["refused"]  # wake 1 opens, Roosevelt code-run
+    store = game.web.app.open()
+    try:
+        store.append_all([capped(load_state(store, game.campaign), 2)])
+    finally:
+        store.close()
+    codes = {
+        who: game_call(ada, "handover", leader=game.ids[who])["code"]
+        for who in ("wheeler", "roosevelt")
+    }
+    assert all(codes.values()), codes  # one seat is left, and either leader may take it
+    cat, _ = game.web.signed_up("cat")
+    assert "Wheeler" in cat.seat("join", code=codes["wheeler"])
+    listed = game_call(ada, "handover-list")
+    assert listed["leaders"] == [] and not listed["refused"]
+    refused = game_call(ada, "handover", leader=game.ids["roosevelt"])
+    assert refused == {
+        "reply": wake_api.NOT_FREE,
+        "refused": True,
+        "code": None,
+        "from_wake": None,
+    }
+    dan, _ = game.web.signed_up("dan")
+    assert dan.seat("join", code=codes["roosevelt"]) == handlers.BEGUN
+    state = state_of(game)  # the game still loads
+    assert list(state.handovers) == [EntityId(game.ids["wheeler"])]
+    store = game.web.app.open()
+    try:
+        issued = Invites(store.conn).all(game.campaign)
+    finally:
+        store.close()
+    assert [i.used_at for i in issued if i.seat_id == roosevelt][-1] is None  # not spent

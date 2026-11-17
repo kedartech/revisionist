@@ -3,8 +3,9 @@
 They wait in ``web_held_orders`` and are filed when the next wake opens, in the order
 they were given and before that wake's offers: no seat files into a wake it has sealed,
 and filing needs no client. One that no longer goes through is dropped, and the seat's
-catch-up page for the wake it was due in says so. Each row keeps what the action
-needs, already checked as far as the wake it was given in allows.
+catch-up page for the wake it was due in says so, as does its own payload while that
+wake is open. Each row keeps what the action needs, already checked as far as the wake
+it was given in allows. A new player taking up a seat starts with none of its rows.
 
 The table lives in Postgres only, like every web table. Code that reads it treats a
 missing table (before ``db migrate`` has run 0013) as empty and logs once.
@@ -12,8 +13,9 @@ missing table (before ``db migrate`` has run 0013) as empty and logs once.
 
 import json
 import logging
-from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, TypedDict
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
 from revisionist.core.ids import CampaignId, EntityId, SeatId
 from revisionist.core.realism.agenda import Ask
@@ -32,6 +34,7 @@ log = logging.getLogger(__name__)
 HELD = "Held for the next wake."
 """The reply to an order that is held [proposed]."""
 TABLE = "web_held_orders"
+CLOSE_CLASS = 0x72767363  # "rvsc": first key of the advisory lock that marks a close
 
 
 class Listed(TypedDict):
@@ -41,6 +44,8 @@ class Listed(TypedDict):
     label: str
     wake: int
     """The wake it was given in; it is filed when a later one opens."""
+    dropped: NotRequired[str]
+    """The line saying it did not go through, while the wake it was due in is open."""
 
 
 Filer = Callable[[EventStore, CampaignId, SeatId, str, dict[str, Any]], str | None]
@@ -91,21 +96,40 @@ def _rows(store: EventStore, sql: str, args: tuple[Any, ...]) -> list[tuple[Any,
 
 
 def closing(store: EventStore, campaign_id: CampaignId) -> bool:
-    """Another session holds the campaign's close lock: a wake is closing. Read from
-    ``pg_locks`` rather than by taking the lock, which would turn a close away."""
-    from revisionist.engine.scheduler import (
-        _LOCK_CLASS,
-    )  # it imports the runner, which imports this
-
+    """A close of the campaign's wake is running: some session holds its mark
+    (``marking_close``). A leave, a join or a scheduler pass that closes nothing holds
+    the game's lock but not the mark. Read from ``pg_locks``, so it takes nothing."""
     conn = _conn(store)
     if conn is None:
         return False
     row = conn.execute(
         "SELECT EXISTS (SELECT 1 FROM pg_locks WHERE locktype = 'advisory' AND granted"
         " AND classid = %s::oid AND objid = hashtext(%s)::oid AND objsubid = 2)",
-        (_LOCK_CLASS, campaign_id),
+        (CLOSE_CLASS, campaign_id),
     ).fetchone()
     return bool(row and row[0])
+
+
+@contextmanager
+def marking_close(store: EventStore, campaign_id: CampaignId) -> Iterator[None]:
+    """Mark the campaign as closing a wake while the block runs. The close holds the
+    game's lock already, so nothing waits on the mark; if another session somehow holds
+    it, the campaign reads as closing all the same."""
+    conn = _conn(store)
+    args = (CLOSE_CLASS, campaign_id)
+    row = (
+        None
+        if conn is None
+        else conn.execute("SELECT pg_try_advisory_lock(%s, hashtext(%s))", args).fetchone()
+    )
+    try:
+        yield
+    finally:
+        if conn is not None and row and row[0]:
+            try:
+                conn.execute("SELECT pg_advisory_unlock(%s, hashtext(%s))", args)
+            except Exception:  # the session ends the lock when it closes
+                log.exception("the close mark of %s was not released", campaign_id)
 
 
 def hold(
@@ -136,15 +160,30 @@ def hold(
     return int(row[0])
 
 
-def listing(store: EventStore, campaign_id: CampaignId, seat: SeatId) -> list[Listed]:
-    """The seat's orders still held, oldest first. Only its own payload carries them."""
+def listing(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, open_wake: int | None = None
+) -> list[Listed]:
+    """The seat's orders still held, and those due in ``open_wake`` (the wake now open)
+    that did not go through, with the line saying so; oldest first. Only its own
+    payload carries them."""
     rows = _rows(
         store,
-        "SELECT held_id, label, wake FROM web_held_orders WHERE campaign_id = %s"
-        " AND seat_id = %s AND filed_in IS NULL ORDER BY held_id",
-        (campaign_id, seat),
+        "SELECT held_id, label, wake, dropped FROM web_held_orders WHERE campaign_id = %s"
+        " AND seat_id = %s AND (filed_in IS NULL OR (dropped IS NOT NULL AND filed_in = %s))"
+        " ORDER BY held_id",
+        (campaign_id, seat, open_wake),
     )
-    return [Listed(id=int(r[0]), label=r[1], wake=int(r[2])) for r in rows]
+    out: list[Listed] = []
+    for held_id, label, wake, why in rows:
+        listed = Listed(id=int(held_id), label=label, wake=int(wake))
+        if why is not None:
+            listed["dropped"] = _line(label, why)
+        out.append(listed)
+    return out
+
+
+def _line(label: str, why: str) -> str:
+    return f"{label} was not filed: {why}"
 
 
 def drop(store: EventStore, campaign_id: CampaignId, seat: SeatId, held_id: int) -> bool:
@@ -168,8 +207,29 @@ def dropped(store: EventStore, campaign_id: CampaignId, seat: SeatId) -> dict[in
         " AND seat_id = %s AND dropped IS NOT NULL ORDER BY held_id",
         (campaign_id, seat),
     ):
-        out.setdefault(int(wake), []).append(f"{label} was not filed: {why}")
+        out.setdefault(int(wake), []).append(_line(label, why))
     return out
+
+
+def clear(store: EventStore, campaign_id: CampaignId, seat: SeatId) -> int:
+    """Forget every row of the seat, waiting or done, when a new player takes it up:
+    none of the last player's orders is filed for them and none of their lines is
+    shown. Returns how many rows went. Runs in a savepoint of its own, so a missing
+    table leaves the caller's transaction as it was."""
+    conn = _conn(store)
+    if conn is None:
+        return 0
+    try:
+        with conn.transaction():
+            rows = conn.execute(
+                "DELETE FROM web_held_orders WHERE campaign_id = %s AND seat_id = %s RETURNING 1",
+                (campaign_id, seat),
+            ).fetchall()
+    except Exception as exc:
+        if _is_missing(exc):
+            return 0
+        raise
+    return len(rows)
 
 
 def file_one(
@@ -242,9 +302,11 @@ def file_held(
 
 
 __all__ = [
+    "CLOSE_CLASS",
     "HELD",
     "Filer",
     "Listed",
+    "clear",
     "closing",
     "drop",
     "dropped",
@@ -253,4 +315,5 @@ __all__ = [
     "forget_missing",
     "hold",
     "listing",
+    "marking_close",
 ]

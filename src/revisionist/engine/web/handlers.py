@@ -21,6 +21,7 @@ from revisionist.engine.discord.tables import Invites, Link, LinkError
 from revisionist.engine.llm import Transport
 from revisionist.engine.pg_store import PostgresEventStore
 from revisionist.engine.store import load_state
+from revisionist.engine.web import held
 from revisionist.engine.web.accounts import WebSeats, person
 
 WEB = "web"
@@ -158,6 +159,7 @@ class WebHandlers(Handlers):
                 raise LinkError(f"seat {seat_id} is not a leader to take up")
             seats.link(campaign_id, seat_id, user_id)
             wk.hand_over(store, campaign_id, free[0])
+            held.clear(store, campaign_id, seat_id)  # the last player's held work is theirs
             taken.append(free[0])
 
         try:

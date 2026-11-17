@@ -23,6 +23,7 @@ from revisionist.core.realism.pipeline import StepAction
 from revisionist.engine import campaign as cmp
 from revisionist.engine import directive, orders_reader, realism_tick
 from revisionist.engine import scheduler as sch
+from revisionist.engine import wake as wk
 from revisionist.engine.store import EventStore
 from revisionist.engine.web import held, server
 from revisionist.engine.web.realism_api import OrderProposal
@@ -122,6 +123,11 @@ def test_an_order_held_in_wake_4_is_filed_at_wake_5s_opening_with_nobody_present
     assert held_of(ada) == []
 
 
+def mark_closing(conn: psycopg.Connection[Any], campaign: CampaignId) -> None:
+    """Hold the close's own mark on ``conn``, as a running close does."""
+    conn.execute("SELECT pg_advisory_lock(%s, hashtext(%s))", (held.CLOSE_CLASS, campaign))
+
+
 def test_a_held_order_arriving_while_the_close_lock_is_held_is_not_lost(
     duo: tuple[Realism, Client, Client],
 ) -> None:
@@ -129,6 +135,7 @@ def test_a_held_order_arriving_while_the_close_lock_is_held_is_not_lost(
     with psycopg.connect(game.web.db.app_dsn, autocommit=True) as other:
         closer = sch.ScheduleTable(other)
         assert closer.try_lock(game.campaign)
+        mark_closing(other, game.campaign)
         try:
             _, out = post(ada, "lever", **BILL)
             assert out["reply"] == held.HELD and out["refused"] is False, out
@@ -140,6 +147,50 @@ def test_a_held_order_arriving_while_the_close_lock_is_held_is_not_lost(
     (filed,) = bills(game)
     assert filed > position(game, ev.WakeOpened, wake=1)
     assert held_of(ada) == []
+
+
+def test_an_order_given_while_a_leave_or_a_join_holds_the_game_lock_is_filed_now(
+    duo: tuple[Realism, Client, Client],
+) -> None:
+    game, ada, _bea = duo
+    with psycopg.connect(game.web.db.app_dsn, autocommit=True) as other:
+        leaving = sch.ScheduleTable(other)
+        assert leaving.try_lock(game.campaign)  # a leave or a join's redeem holds this alone
+        try:
+            _, out = post(ada, "lever", **BILL)
+        finally:
+            leaving.unlock(game.campaign)
+    assert out["reply"] != held.HELD and out["refused"] is False, out
+    assert held_of(ada) == []
+    (filed,) = bills(game)  # in wake 0, which is still open
+    opened = state_of(game).wake
+    assert opened is not None and opened.number == 0 and not opened.closed
+    assert log_of(game)[filed].actor == seat_of(game, "roosevelt")
+
+
+def test_the_close_is_marked_closing_while_it_runs_and_not_after(
+    duo: tuple[Realism, Client, Client], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    game, _ada, _bea = duo
+    seen: list[bool] = []
+    close_wake = wk.close_wake
+
+    def watched(*args: Any, **kwargs: Any) -> Any:
+        other = game.web.app.open()
+        try:
+            seen.append(held.closing(other, game.campaign))
+        finally:
+            other.close()
+        return close_wake(*args, **kwargs)
+
+    monkeypatch.setattr(wk, "close_wake", watched)
+    scheduler_close(game)
+    assert seen == [True]
+    store = game.web.app.open()
+    try:
+        assert not held.closing(store, game.campaign)
+    finally:
+        store.close()
 
 
 def test_a_committed_seat_files_nothing_more_this_wake_and_its_orders_are_held(
@@ -315,6 +366,38 @@ def test_a_twin_held_twice_files_once_and_the_second_is_dropped(
     (page,) = out["pages"]
     (line,) = page["held_dropped"]
     assert line.startswith("Send a bill to Congress was not filed: ")
+
+
+def default_pages(client: Client) -> dict[int, dict[str, Any]]:
+    """The seat's catch-up with no range named, by wake."""
+    status, out = post(client, "catchup")
+    assert status == 200, out
+    return {p["number"]: p for p in out["pages"]}
+
+
+def test_a_held_order_dropped_at_the_opening_is_shown_in_that_wake_and_by_default(
+    duo: tuple[Realism, Client, Client],
+) -> None:
+    _game, ada, bea = duo
+    assert not post(ada, "commit")[1]["refused"]
+    for _ in range(2):  # the twin no longer goes through once the first is filed
+        assert post(ada, "lever", **BILL)[1]["reply"] == held.HELD
+    assert not post(bea, "commit")[1]["refused"]  # wake 0 closes; wake 1 opens and files
+
+    (shown,) = held_of(ada)
+    line = shown.pop("dropped")
+    assert line.startswith("Send a bill to Congress was not filed: "), line
+    assert shown == {"id": shown["id"], "label": "Send a bill to Congress", "wake": 0}
+    assert held_of(bea) == []
+    assert default_pages(ada)[1]["held_dropped"] == [line], "the open wake's page says so"
+    assert all("held_dropped" not in p for p in default_pages(bea).values())
+
+    both_commit(ada, bea)  # wake 1 closes: Ada committed it herself
+    assert held_of(ada) == [], "listed only while the wake it was due in is open"
+    assert default_pages(ada)[1]["held_dropped"] == [line], "still there by default"
+
+    both_commit(ada, bea)  # Ada has played on past it
+    assert all("held_dropped" not in p for p in default_pages(ada).values())
 
 
 def test_a_held_order_can_be_dropped_by_its_own_seat_before_it_is_filed(

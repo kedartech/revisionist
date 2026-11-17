@@ -2,12 +2,18 @@
 
 from datetime import date
 
+import pytest
+
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, OrderId, derived_id
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism.apply import apply_due, reporter
+from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.document import DocumentKind
 from revisionist.core.visibility import private_to
+from revisionist.core.world import ContactDecl, WorldFile
+from revisionist.core.world_compile import WorldError, compile_world
+from revisionist.engine import campaign as cmp
 from tests.test_realism_resolvers import CAMPAIGN, Rig
 
 FILED = date(1941, 9, 11)
@@ -71,3 +77,58 @@ def test_with_no_executor_the_inquiry_is_signed_by_the_issuers_aide() -> None:
     assert inq.document.author == author
     (receipt,) = [d for d in docs if d.document.kind is not DocumentKind.REPORT]
     assert receipt.document.author == author
+
+
+PLAYABLE = tuple(
+    sorted(c.person for c in cmp.load_world(cmp.world_path("autumn-1941")).cards if c.playable)
+)
+
+
+@pytest.mark.parametrize("key", PLAYABLE)
+def test_no_playable_leader_signs_his_own_inquiry(key: str) -> None:
+    r = Rig()
+    seat = r.seat(key)
+    r.close_session_zero()
+    card = r.state.cards[EntityId(r.ids[key])]
+    domains = [("public_word", None), *((d.name, d.executor) for d in card.authority)]
+    for n, (domain, executor) in enumerate(domains):
+        order = rx.RoutedOrder(
+            order_id=OrderId(derived_id(CAMPAIGN, "sgn-all", key, n)),
+            issuer=seat,
+            filed=FILED,
+            parts=(rx.RoutedPart(route=rx.Route.COMMAND, domain=domain, executor=executor),),
+        )
+        assert reporter(r.state, order, 0)[0] != r.ids[key]
+
+
+def _world_with(key: str, **changes: object) -> WorldFile:
+    world = cmp.load_world(cmp.world_path("autumn-1941"))
+    cards = tuple(c.model_copy(update=changes) if c.person == key else c for c in world.cards)
+    return world.model_copy(update={"cards": cards})
+
+
+def test_a_world_refuses_a_leader_with_no_one_to_sign_his_inquiries() -> None:
+    world = _world_with("stalin", inner_circle=())
+    with pytest.raises(
+        WorldError, match="card stalin: has authority but no inner circle to sign its reports"
+    ):
+        compile_world(world, CAMPAIGN, cmp.versions())
+
+
+def test_a_world_refuses_a_leader_who_is_his_own_aide() -> None:
+    world = _world_with(
+        "stalin", inner_circle=(ContactDecl(person="stalin", channel=ChannelKind.IN_PERSON),)
+    )
+    with pytest.raises(
+        WorldError, match="card stalin: has authority but no inner circle to sign its reports"
+    ):
+        compile_world(world, CAMPAIGN, cmp.versions())
+
+
+def test_a_world_refuses_a_domain_a_leader_carries_out_himself() -> None:
+    world = cmp.load_world(cmp.world_path("autumn-1941"))
+    stalin = next(c for c in world.cards if c.person == "stalin")
+    domain = stalin.authority[0].model_copy(update={"executor": "stalin"})
+    world = _world_with("stalin", authority=(domain, *stalin.authority[1:]))
+    with pytest.raises(WorldError, match=f"domain {domain.name}: the person is their own executor"):
+        compile_world(world, CAMPAIGN, cmp.versions())

@@ -11,7 +11,7 @@ clamp, failure path and recording under these names.
 """
 
 import json
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import date
 from typing import Any
 
@@ -20,13 +20,14 @@ from pydantic import ValidationError
 from revisionist.core import events as ev
 from revisionist.core._base import Model
 from revisionist.core.canary import scan_text
-from revisionist.core.events import CallCost
+from revisionist.core.events import CallCost, Event
 from revisionist.core.fold import FoldError, _check_effect
 from revisionist.core.ids import EntityId, OrderId, QuantityId
 from revisionist.core.realism.apply import account_by
 from revisionist.core.realism.effect import (
     DISPOSITION_CAP,
     FIGURE_CAP,
+    Deal,
     EffectKind,
     EstimatedEffect,
     MoveFigure,
@@ -160,10 +161,27 @@ def estimator_prompt(state: State, order_id: OrderId, part: int) -> str:
     )
 
 
+def aide_orders(events: Iterable[Event]) -> frozenset[OrderId]:
+    """The orders an aide filed for an absent seat, from the commits that name them."""
+    return frozenset(
+        o
+        for e in events
+        if isinstance(e.payload, ev.WakeCommitted) and e.payload.by_aide
+        for o in e.payload.aide_orders
+    )
+
+
 def clamp(
-    state: State, order: RoutedOrder, effects: Sequence[EstimatedEffect], on: date
+    state: State,
+    order: RoutedOrder,
+    effects: Sequence[EstimatedEffect],
+    on: date,
+    *,
+    aide: bool = False,
 ) -> tuple[tuple[EstimatedEffect, ...], tuple[str, ...]]:
     """Code bounds on whatever the model proposed. Returns the survivors and a line per cut.
+
+    An order the aide filed keeps no deal: a deal is the seat's own to strike.
 
     The disposition cap is per order (spec §8.3): what the order's other parts
     already move, given or estimated, counts against it. A figure's percent is held
@@ -181,6 +199,9 @@ def clamp(
             elif isinstance(given, MoveFigure):
                 scaled[given.quantity] = scaled.get(given.quantity, 0) + given.percent
     for effect in effects:
+        if aide and isinstance(effect, Deal):
+            dropped.append("deal: the aide makes no deal")
+            continue
         try:
             # The fold's own guard, so nothing lands that the fold would refuse.
             _check_effect(state, effect, f"order {order.order_id}", on)
@@ -214,8 +235,11 @@ def clamp(
     return tuple(kept[:MAX_EFFECTS]), tuple(dropped)
 
 
-def estimate(state: State, order_id: OrderId, part: int, transport: Transport) -> Estimate:
-    """Rule on one part. Any failure is a recorded, empty, failed estimate."""
+def estimate(
+    state: State, order_id: OrderId, part: int, transport: Transport, *, aide: bool = False
+) -> Estimate:
+    """Rule on one part; ``aide`` is true for an order the aide filed. Any failure is a
+    recorded, empty, failed estimate."""
     order = state.routed[order_id]
     failed = ev.EffectsEstimated(order_id=order_id, part=part, failed=True, reason=FAILED_REASON)
     request = Request(
@@ -234,7 +258,9 @@ def estimate(state: State, order_id: OrderId, part: int, transport: Transport) -
         ruling = _Ruling.model_validate(reply.output)
     except ValidationError as exc:
         return Estimate(event=failed, cost=cost, dropped=(f"invalid reply: {exc.error_count()}",))
-    effects, dropped = clamp(state, order, ruling.effects, state.in_world_date or order.filed)
+    effects, dropped = clamp(
+        state, order, ruling.effects, state.in_world_date or order.filed, aide=aide
+    )
     reason = ruling.reason.strip()
     if not reason or scan_text(state, order.issuer, reason):
         reason = REASON_WITHHELD

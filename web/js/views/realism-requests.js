@@ -8,8 +8,8 @@ export function requests(agenda) {
   return (agenda?.items ?? []).filter((item) => item.issuer);
 }
 
-/** What the answer sheet says about when an answer lands. */
-export const ANSWER_AT_CLOSE = 'Your answer goes out when the wake closes.';
+/** What the answer sheet says about when an answer lands [proposed]. */
+export const ANSWER_AT_CLOSE = 'Your answer goes out on the day it is due; you can change it until then.';
 
 /**
  * What the paper offers: a beginner's options, a guided plan filed in one go, or nothing.

@@ -17,7 +17,7 @@ FeatureSet, WarDeclared, NewsReported, StanceChanged, OpponentsRanked, CardAmend
 AnswerPlanned, AnswerMade``, and under engine v2
 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
-WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover``.
+WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered``.
 
 Every other kind is a record: it is replayable, searchable and shown by
 ``/why``, but changes no state.
@@ -814,6 +814,19 @@ class InfluenceDecided(Model):
     reason: str = Field(default="", max_length=300)
 
 
+class RequestAnswered(Model):
+    """The holder of a person another seat asked something of gives their answer (ANS).
+    The fold keeps it on the part, engine side, and the request's due-day pass decides
+    with it in the card's place, so the issuer learns nothing before that day and the
+    decision reads the same as the card's. Given again, the later answer stands. Scoped
+    to the holder."""
+
+    kind: Literal["request_answered"] = "request_answered"
+    order_id: OrderId
+    part: int = Field(ge=0, le=7)
+    accepted: bool
+
+
 class MandateIssued(Model):
     """A mandate lands on a seat's agenda (spec §8.5). Scoped to the seat."""
 
@@ -1023,6 +1036,7 @@ Payload = Annotated[
     | WakeClosed
     | PlayStyleSet
     | SeatHandover
+    | RequestAnswered
     | OptionsOffered
     | Sealed,
     Field(discriminator="kind"),
@@ -1092,6 +1106,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "wake_closed",
         "play_style_set",
         "seat_handover",
+        "request_answered",
     }
 )
 

@@ -40,9 +40,11 @@ _NEWS = re.compile(r"n\.[0-9A-Z]{26}\.\d")
 _WRITE_IT = "Write it as an order to the person who should carry it out."
 _GONE = "That request is no longer before you."
 HELD_STEP = "Decision"  # [proposed] the kind of a held step on its holder's agenda
+_GIVEN = {True: "You have agreed to it.", False: "You have declined it."}  # [proposed]
+"""A request's line on its holder's agenda once they have answered it."""
 _ANSWERED = {  # [proposed]
-    True: "You agree to {issuer}'s request. Your answer goes out when the wake closes.",
-    False: "You decline {issuer}'s request. Your answer goes out when the wake closes.",
+    True: "You agree to {issuer}'s request. Your answer goes out on the day it is due.",
+    False: "You decline {issuer}'s request. Your answer goes out on the day it is due.",
 }
 
 
@@ -278,6 +280,9 @@ def _awaiting_item(
     text = f"{asked.label} ({asked.terms})" if asked.terms else asked.label
     if scan_text(state, seat, text):
         text = process.WITHHELD
+    given = None
+    if asked.part is not None:
+        given = state.routed[asked.order_id].parts[asked.part].held_answer
     return AgendaItem(
         id=item_id,
         kind=kind,
@@ -285,7 +290,7 @@ def _awaiting_item(
         text=text,
         issued=_day(asked.arrived),
         deadline=_day(asked.due),
-        cause=None,
+        cause=None if given is None else _GIVEN[given],
         options=[],
         plan=[],
     )
@@ -313,17 +318,15 @@ def held_steps(state: State, seat: SeatId) -> list[AgendaItem]:
 def answer(
     store: EventStore, campaign_id: CampaignId, seat: SeatId, item: str, accept: bool
 ) -> Reply:
-    """The seat answers the request ``item`` names: an ``influence_decided`` dated today,
-    seen by the issuer and the holder. Its effect lands at the next close."""
+    """The seat answers the request ``item`` names: a ``request_answered`` sealed to the
+    seat, so nothing the issuer reads moves. The seat sees it on its agenda and may give
+    it again; on the due day it decides the request in the card's place."""
     state = load_state(store, campaign_id)
-    today = state.in_world_date
     asked = next((a for a in _asked(state, seat) if _item_id(state, a) == item), None)
-    if asked is None or asked.part is None or today is None:
+    if asked is None or asked.part is None:
         return Reply(reply=_GONE, refused=True)
-    routed = state.routed[asked.order_id]
-    decided = process.answered(state, routed, asked.part, accept, today)
-    scope = private_to(routed.issuer).grant(seat)
-    realism_tick._append(store, state, decided, seat, scope)
+    given = process.answered(state, state.routed[asked.order_id], asked.part, accept)
+    realism_tick._append(store, state, given, seat, private_to(seat))
     return Reply(reply=_ANSWERED[accept].format(issuer=asked.issuer), refused=False)
 
 

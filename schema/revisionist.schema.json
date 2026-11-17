@@ -6918,6 +6918,39 @@
         "title": "RelationshipTagSet",
         "type": "object"
       },
+      "RequestAnswered": {
+        "additionalProperties": false,
+        "description": "The holder of a person another seat asked something of gives their answer (ANS).\nThe fold keeps it on the part, engine side, and the request's due-day pass decides\nwith it in the card's place, so the issuer learns nothing before that day and the\ndecision reads the same as the card's. Given again, the later answer stands. Scoped\nto the holder.",
+        "properties": {
+          "accepted": {
+            "title": "Accepted",
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "request_answered",
+            "default": "request_answered",
+            "title": "Kind",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "part": {
+            "maximum": 7,
+            "minimum": 0,
+            "title": "Part",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "order_id",
+          "part",
+          "accepted"
+        ],
+        "title": "RequestAnswered",
+        "type": "object"
+      },
       "Risks": {
         "additionalProperties": false,
         "description": "How much the staff think an option risks, each from 0 (none) to 3. No rule reads it.",
@@ -7248,6 +7281,18 @@
               }
             ],
             "default": null
+          },
+          "held_answer": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Held Answer"
           },
           "pipeline": {
             "anyOf": [
@@ -9572,6 +9617,7 @@
             "play_style_set": "#/$defs/PlayStyleSet",
             "quantity_set": "#/$defs/QuantitySet",
             "relationship_set": "#/$defs/RelationshipSet",
+            "request_answered": "#/$defs/RequestAnswered",
             "rolled": "#/$defs/Rolled",
             "scheduled_event_created": "#/$defs/ScheduledEventCreated",
             "scheduled_event_fired": "#/$defs/ScheduledEventFired",
@@ -9842,6 +9888,9 @@
           },
           {
             "$ref": "#/$defs/SeatHandover"
+          },
+          {
+            "$ref": "#/$defs/RequestAnswered"
           },
           {
             "$ref": "#/$defs/OptionsOffered"
@@ -13834,6 +13883,18 @@
               }
             ],
             "default": null
+          },
+          "held_answer": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Held Answer"
           },
           "pipeline": {
             "anyOf": [

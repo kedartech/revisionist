@@ -334,8 +334,12 @@ class RoutedPart(PartView):
     """The estimator has ruled on this part; it rules once. Its effects may be none."""
     ask: str = Field(default="", max_length=300)
     """The seat's own words for this part, for the estimator to read. Engine-side only."""
+    held_answer: bool | None = None
+    """Influence: the answer the human holder of the target gave (``request_answered``),
+    kept here until the due day, when it decides the part in the card's place. Engine
+    side only: the issuer's view never carries it."""
 
-    late_fields: ClassVar[frozenset[str]] = PartView.late_fields | {"ask"}
+    late_fields: ClassVar[frozenset[str]] = PartView.late_fields | {"ask", "held_answer"}
 
     def view(self) -> PartView:
         return PartView.model_validate(self.model_dump(include=set(PartView.model_fields)))

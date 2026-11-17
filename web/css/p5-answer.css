@@ -21,6 +21,7 @@
 .rl-ans-own, .rl-ans-none { margin: 0; font: 400 0.875rem/1.5 var(--font-chrome); color: var(--fg-muted); }
 .rl-ans-request { display: grid; gap: 0.375rem; min-width: 0; }
 .rl-ans-pair { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.rl-ans-given { margin: 0 0 0.375rem; font: 600 0.875rem/1.4 var(--font-chrome); color: var(--fg); }
 .rl-ans-when { margin: 0; font: 400 0.8125rem/1.4 var(--font-chrome); color: var(--fg-muted); }
 
 @container (min-width: 28rem) {

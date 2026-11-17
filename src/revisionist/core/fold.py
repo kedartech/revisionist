@@ -424,6 +424,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.WakeClosed()
             | ev.PlayStyleSet()
             | ev.SeatHandover()
+            | ev.RequestAnswered()
         ):
             if state.ruleset != "realism":
                 raise FoldError(f"{event.kind} belongs to a realism campaign")
@@ -821,6 +822,15 @@ def _engine_v2(state: State, p: ev.Payload) -> State:
             if part.decided is not None:
                 raise FoldError(f"order {o.order_id} part {p.part} is already decided")
             part = part.model_copy(update={"decided": p.on, "accepted": p.accepted})
+            return _with_part(state, o, p.part, part)
+        case ev.RequestAnswered():
+            o = _need(state.routed, p.order_id, "order")
+            part = _part_at(o, p.part)
+            if part.route is not Route.INFLUENCE:
+                raise FoldError(f"order {o.order_id} part {p.part} is not influence")
+            if part.decided is not None:
+                raise FoldError(f"order {o.order_id} part {p.part} is already decided")
+            part = part.model_copy(update={"held_answer": p.accepted})
             return _with_part(state, o, p.part, part)
         case ev.MandateIssued():
             m = p.mandate

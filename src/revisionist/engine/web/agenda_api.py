@@ -16,11 +16,12 @@ from revisionist.core import events as ev
 from revisionist.core import history, record
 from revisionist.core.canary import scan_text
 from revisionist.core.events import Event
-from revisionist.core.ids import CampaignId, EntityId, MandateId, SeatId, derived_id
+from revisionist.core.ids import CampaignId, EntityId, MandateId, OrderId, SeatId, derived_id
 from revisionist.core.project import project
 from revisionist.core.realism import advance, mandates, pipelines, process
 from revisionist.core.realism.agenda import Offer, Option, PlayStyle, TriggerKind
 from revisionist.core.realism.effect import RoutedPart
+from revisionist.core.realism.pipeline import StepAction
 from revisionist.core.state import State, View
 from revisionist.core.visibility import private_to
 from revisionist.engine import expects, options, realism_tick
@@ -235,6 +236,7 @@ def agenda(state: State, seat: SeatId, log: Iterable[Event]) -> AgendaBlock:
                 cause=causes.get(mandate.mandate_id),
                 options=[] if plan else listed,
                 plan=listed if plan else [],
+                actions=[],
             )
         )
     items += requests(state, seat)
@@ -273,6 +275,14 @@ def requests(state: State, seat: SeatId) -> list[AgendaItem]:
     ]
 
 
+def _step_actions(state: State, order_id: OrderId) -> list[str]:
+    """What a human may do at the step ``order_id`` waits at: the step's own allowed set,
+    without ``amend`` (the room has no terms editor), in ``StepAction`` order."""
+    order = state.orders[order_id]
+    allowed = state.pipelines[order.pipeline].steps[order.step].allowed
+    return [a.value for a in StepAction if a in allowed and a is not StepAction.AMEND]
+
+
 def _awaiting_item(
     state: State, seat: SeatId, asked: advance.Awaiting, kind: str, item_id: str
 ) -> AgendaItem:
@@ -283,6 +293,7 @@ def _awaiting_item(
     if scan_text(state, seat, text):
         text = process.WITHHELD
     cause = None
+    actions: list[str] = []
     if asked.part is not None:
         given = state.routed[asked.order_id].parts[asked.part].held_answer
         cause = None if given is None else _GIVEN[given]
@@ -291,6 +302,7 @@ def _awaiting_item(
         chosen = order.held_choice
         if chosen is not None and chosen.step == order.step:
             cause = _CHOSEN.format(action=chosen.action.value)
+        actions = _step_actions(state, asked.order_id)
     return AgendaItem(
         id=item_id,
         kind=kind,
@@ -301,6 +313,7 @@ def _awaiting_item(
         cause=cause,
         options=[],
         plan=[],
+        actions=actions,
     )
 
 

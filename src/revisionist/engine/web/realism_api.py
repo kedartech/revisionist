@@ -692,6 +692,9 @@ class AgendaItem(TypedDict):
     """Beginner: what to choose from. Empty otherwise."""
     plan: list[AgendaOption]
     """Guided: the plan's steps, in order. Empty otherwise."""
+    actions: list[str]
+    """A held decision: the step actions its step allows, less ``amend``, in the order of
+    ``StepAction``; the ``step`` action takes one. Empty for every other kind."""
 
 
 class AgendaBlock(TypedDict):

@@ -32,6 +32,10 @@ dev = [
     "discord.py>=2.7",
     "cryptography>=43",
 ]
+# Build-time only: the map build script (scripts/, worlds/maps/). The game never imports it.
+map = [
+    "shapely>=2.2,<3",
+]
 
 [build-system]
 requires = ["hatchling"]

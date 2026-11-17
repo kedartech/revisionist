@@ -41,3 +41,16 @@ test('the request reads as a paper from the leader', () => {
   assert.ok(requestTitle(long).length <= 120);
   assert.ok(requestTitle(long).endsWith('…'));
 });
+
+const decision = (extra = {}) => ({ ...item, id: 'p.dec1', kind: 'Decision', options: [], plan: [], actions: ['pass', 'stall', 'refuse'], ...extra });
+
+test('a held decision is decided with its own actions under any play style', () => {
+  for (const style of ['free', 'guided', 'beginner']) {
+    assert.deepEqual(requestChoices(style, decision()), { kind: 'decision', options: [], actions: ['pass', 'stall', 'refuse'] });
+  }
+});
+
+test('a held decision from an older payload has no actions', () => {
+  const { actions, ...older } = decision();
+  assert.deepEqual(requestChoices('beginner', older), { kind: 'decision', options: [], actions: [] });
+});

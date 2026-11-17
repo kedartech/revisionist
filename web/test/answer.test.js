@@ -106,6 +106,76 @@ test('the keyboard path: the two answers are buttons that a key press reaches, A
   for (const b of node.querySelectorAll('button')) assert.equal(b.getAttribute('type'), 'button');
 });
 
+// --- a decision held for another seat -------------------------------------------------
+
+const decision = (extra = {}) => request({
+  id: 'p.dec1', kind: 'Decision', text: 'Release the convoy escort', actions: ['pass', 'expedite', 'stall', 'leak', 'refuse'], ...extra,
+});
+const DECISION_LINE = 'Your decision is kept until it is due. You can change it until then.';
+
+test('a held decision draws one button per allowed action, labelled as the room labels steps', () => {
+  const { node } = section([decision({ actions: ['pass', 'stall', 'refuse'] })]);
+  assert.deepEqual(node.querySelectorAll('button').map(words), ['Pass it on', 'Stall', 'Refuse']);
+  assert.equal(buttons(node, 'Accept').length, 0);
+  assert.equal(buttons(node, 'Decline').length, 0);
+});
+
+test('a decision button posts the step action for that decision, with the item id as the order', () => {
+  const { node, calls } = section([decision()]);
+  buttons(node, 'Stall')[0].click();
+  buttons(node, 'Leak')[0].click();
+  assert.deepEqual(calls.map(([label, action, body]) => [label, action, body]), [
+    ['Recording your decision…', 'step', { order_id: 'p.dec1', action: 'stall', params: {} }],
+    ['Recording your decision…', 'step', { order_id: 'p.dec1', action: 'leak', params: {} }],
+  ]);
+});
+
+test('a held decision says the choice is kept until it is due and can be changed, never to write an order', () => {
+  const { node } = section([decision()]);
+  const text = words(node);
+  assert.ok(text.includes(DECISION_LINE));
+  assert.ok(!text.includes('Answer it with an order of your own.'));
+  assert.ok(!text.includes('Your answer goes out'));
+});
+
+test('a chosen decision shows its cause above the buttons, which stay', () => {
+  const { node, calls } = section([decision({ cause: 'You have chosen to stall.' })]);
+  assert.equal(words(node.querySelector('.rl-ans-given')), 'You have chosen to stall.');
+  const labels = node.querySelectorAll('button').map(words);
+  assert.equal(labels.length, 5);
+  buttons(node, 'Refuse')[0].click();
+  assert.deepEqual(calls[0].slice(1), ['step', { order_id: 'p.dec1', action: 'refuse', params: {} }]);
+});
+
+test('a decision not yet chosen has no choice line', () => {
+  assert.equal(section([decision()]).node.querySelector('.rl-ans-given'), null);
+});
+
+test('a held decision from an older payload draws the line and no buttons', () => {
+  const { actions, ...older } = decision();
+  const { node } = section([older]);
+  assert.equal(node.querySelectorAll('button').length, 0);
+  assert.ok(words(node).includes(DECISION_LINE));
+  assert.ok(!words(node).includes('Answer it with an order of your own.'));
+});
+
+test('the keyboard path: each decision button is a typed button tied to the line, in the offered order', () => {
+  const { node } = section([decision()]);
+  const all = node.querySelectorAll('button');
+  assert.deepEqual(all.map(words), ['Pass it on', 'Expedite', 'Stall', 'Leak', 'Refuse']);
+  const hint = node.querySelector('.rl-ans-when');
+  for (const b of all) {
+    assert.equal(b.getAttribute('type'), 'button');
+    assert.equal(b.getAttribute('aria-describedby'), hint.id);
+    assert.equal(b.disabled, false);
+  }
+});
+
+test('a decision and a request keep their own buttons side by side', () => {
+  const { node } = section([request(), decision({ actions: ['pass'] })]);
+  assert.deepEqual(node.querySelectorAll('button').map(words), ['Accept', 'Decline', 'Pass it on']);
+});
+
 // --- counsel that points to the letter thread ------------------------------------------
 
 const REFUSAL = 'Winston Churchill answers in person. Write to them; your letter reaches their desk.';

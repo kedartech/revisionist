@@ -17,7 +17,7 @@ FeatureSet, WarDeclared, NewsReported, StanceChanged, OpponentsRanked, CardAmend
 AnswerPlanned, AnswerMade``, and under engine v2
 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
-WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered``.
+WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
 
 Every other kind is a record: it is replayable, searchable and shown by
 ``/why``, but changes no state.
@@ -83,7 +83,13 @@ from revisionist.core.realism.card import (
 from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
-from revisionist.core.realism.pipeline import Order, OrderStatus, Pipeline, StepOutcome
+from revisionist.core.realism.pipeline import (
+    Order,
+    OrderStatus,
+    Pipeline,
+    StepAction,
+    StepOutcome,
+)
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
 from revisionist.core.realism.war import NewsEvent, Outlet, War
@@ -827,6 +833,26 @@ class RequestAnswered(Model):
     accepted: bool
 
 
+class StepChosen(Model):
+    """The holder of a decision step on another seat's order chooses what to do there.
+    The fold keeps it on the order, engine side, and on the step's held due day the
+    runner takes the step with it in the card's place, so the issuer learns nothing
+    before that day and the step reads the same as the card's. Chosen again, the later
+    choice stands. Scoped to the holder."""
+
+    kind: Literal["step_chosen"] = "step_chosen"
+    order_id: OrderId
+    step: int = Field(ge=0)
+    action: StepAction
+    amended: dict[Label, ParamValue] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _amend_has_edits(self) -> "StepChosen":
+        if (self.action is StepAction.AMEND) != bool(self.amended):
+            raise ValueError("an amendment, and only an amendment, edits parameters")
+        return self
+
+
 class MandateIssued(Model):
     """A mandate lands on a seat's agenda (spec §8.5). Scoped to the seat."""
 
@@ -1037,6 +1063,7 @@ Payload = Annotated[
     | PlayStyleSet
     | SeatHandover
     | RequestAnswered
+    | StepChosen
     | OptionsOffered
     | Sealed,
     Field(discriminator="kind"),
@@ -1107,6 +1134,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "play_style_set",
         "seat_handover",
         "request_answered",
+        "step_chosen",
     }
 )
 

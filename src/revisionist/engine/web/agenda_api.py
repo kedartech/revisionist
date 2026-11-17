@@ -42,6 +42,8 @@ _GONE = "That request is no longer before you."
 HELD_STEP = "Decision"  # [proposed] the kind of a held step on its holder's agenda
 _GIVEN = {True: "You have agreed to it.", False: "You have declined it."}  # [proposed]
 """A request's line on its holder's agenda once they have answered it."""
+_CHOSEN = "You have chosen to {action}."  # [proposed]
+"""A held decision's line on its holder's agenda once they have chosen."""
 _ANSWERED = {  # [proposed]
     True: "You agree to {issuer}'s request. Your answer goes out on the day it is due.",
     False: "You decline {issuer}'s request. Your answer goes out on the day it is due.",
@@ -280,9 +282,15 @@ def _awaiting_item(
     text = f"{asked.label} ({asked.terms})" if asked.terms else asked.label
     if scan_text(state, seat, text):
         text = process.WITHHELD
-    given = None
+    cause = None
     if asked.part is not None:
         given = state.routed[asked.order_id].parts[asked.part].held_answer
+        cause = None if given is None else _GIVEN[given]
+    else:
+        order = state.orders[asked.order_id]
+        chosen = order.held_choice
+        if chosen is not None and chosen.step == order.step:
+            cause = _CHOSEN.format(action=chosen.action.value)
     return AgendaItem(
         id=item_id,
         kind=kind,
@@ -290,7 +298,7 @@ def _awaiting_item(
         text=text,
         issued=_day(asked.arrived),
         deadline=_day(asked.due),
-        cause=None if given is None else _GIVEN[given],
+        cause=cause,
         options=[],
         plan=[],
     )

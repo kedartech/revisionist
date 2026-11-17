@@ -590,6 +590,17 @@ def step_outcomes(draw: st.DrawFn) -> rp.StepOutcome:
     )
 
 
+@st.composite
+def held_choices(draw: st.DrawFn) -> rp.HeldChoice:
+    action = draw(st.sampled_from(list(rp.StepAction)))
+    amended = draw(st.dictionaries(labels, param_values, min_size=1, max_size=2))
+    return rp.HeldChoice(
+        step=draw(st.integers(0, 11)),
+        action=action,
+        amended=amended if action is rp.StepAction.AMEND else {},
+    )
+
+
 part_refs = st.builds(rx.PartRef, order_id=order_ids, part=st.integers(0, 7))
 
 measures = st.builds(
@@ -615,6 +626,7 @@ orders = st.builds(
     outcomes=st.lists(step_outcomes(), max_size=3).map(tuple),
     routed_from=st.none() | part_refs,
     measure=st.none() | measures,
+    held_choice=st.none() | held_choices(),
 )
 
 
@@ -1060,6 +1072,19 @@ request_answered = st.builds(
     accepted=st.booleans(),
 )
 
+
+@st.composite
+def steps_chosen(draw: st.DrawFn) -> ev.StepChosen:
+    action = draw(st.sampled_from(list(rp.StepAction)))
+    amended = draw(st.dictionaries(labels, param_values, min_size=1, max_size=2))
+    return ev.StepChosen(
+        order_id=draw(order_ids),
+        step=draw(st.integers(0, 11)),
+        action=action,
+        amended=amended if action is rp.StepAction.AMEND else {},
+    )
+
+
 deadlines = st.datetimes(min_value=datetime(2020, 1, 1), max_value=datetime(2040, 1, 1))
 
 engine_v2_payloads = st.one_of(
@@ -1069,6 +1094,7 @@ engine_v2_payloads = st.one_of(
     effects_applied,
     influence_decided,
     request_answered,
+    steps_chosen(),
     st.builds(ev.MandateIssued, mandate=mandates()),
     st.builds(
         ev.MandateSettled,

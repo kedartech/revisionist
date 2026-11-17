@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core import record
+from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId, EntityId, EventId, OrderId, SeatId, derived_id
 from revisionist.core.ontology import Controller, Phase
 from revisionist.core.realism.agenda import STANDING_DEFAULT, Ask
@@ -33,20 +34,20 @@ def _land(
     actor: SeatId | None = None,
     scope: Scope = PUBLIC,
 ) -> None:
-    store.append_all(
-        [
-            ev.Event(
-                event_id=EventId(new_id()),
-                campaign_id=state.campaign_id,
-                seq=state.last_seq + 1,
-                tick=state.tick,
-                actor=actor,
-                scope=scope,
-                payload=payload,
-                versions=cmp.versions(),
-            )
-        ]
+    """Fold the event on ``state``, then store it: an event the fold refuses raises
+    ``FoldError`` here and is never stored, so it cannot stop the game loading."""
+    event = ev.Event(
+        event_id=EventId(new_id()),
+        campaign_id=state.campaign_id,
+        seq=state.last_seq + 1,
+        tick=state.tick,
+        actor=actor,
+        scope=scope,
+        payload=payload,
+        versions=cmp.versions(),
     )
+    replay([event], initial=state)
+    store.append_all([event])
 
 
 def _open(state: State) -> bool:
@@ -124,10 +125,19 @@ def seat_for(state: State, person: EntityId) -> SeatId:
     )
 
 
+def _full(state: State) -> bool:
+    """The players once the open wake closes already fill every human seat. Counted as
+    the fold counts them when a ``SeatHandover`` to a player lands."""
+    people = {s.embodies for s in state.seats.values()} | set(state.handovers)
+    after = [p for p in people if controller_after(state, p) is Controller.HUMAN]
+    return len(after) >= state.settings.max_human_seats
+
+
 def leaders(state: State) -> list[EntityId]:
     """The leaders the host may hand to a new player: people on the roster, with a card,
-    whom nobody plays once the open wake closes. In name order."""
-    if state.phase is not Phase.PLAY:
+    whom nobody plays once the open wake closes. In name order; none while the players
+    after the close fill every human seat."""
+    if state.phase is not Phase.PLAY or _full(state):
         return []
     free = [
         p for p in state.roster if p in state.cards and controller_after(state, p) is Controller.AI
@@ -145,7 +155,8 @@ def from_wake(state: State) -> int:
 
 def hand_over(store: EventStore, campaign_id: CampaignId, person: EntityId) -> SeatId:
     """A new player takes up ``person`` at the next close; returns the seat they will hold.
-    Raises ``ValueError`` for a leader someone plays or will play."""
+    Raises ``ValueError`` for a leader someone plays or will play, and while the players
+    after the close fill every human seat."""
     state = load_state(store, campaign_id)
     if person not in leaders(state):
         raise ValueError("That leader cannot be handed over.")

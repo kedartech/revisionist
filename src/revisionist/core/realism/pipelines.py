@@ -9,8 +9,9 @@ its last step settles as enacted; a refusal settles it as refused.
 
 Nobody waits on a person (DUE): a decision step a human seat holds on another
 seat's order puts the order before that seat as one paper, and falls due
-``process.ANSWER_DAYS`` after the step's own due day; then the card takes it,
-holding rather than passing an order that cannot be undone. A step on a seat's
+``process.ANSWER_DAYS`` after the step's own due day. The holder's choice is kept
+until then (``step_chosen``) and taken that day in the card's place; with none, the
+card takes it, holding rather than passing an order that cannot be undone. A step on a seat's
 own order that its own person holds still waits for that seat.
 """
 
@@ -244,6 +245,18 @@ def _held_policy(
         return action, amended
     held = next((a for a in (StepAction.STALL, StepAction.REFUSE) if a in allowed), None)
     return None if held is None else (held, {})
+
+
+def _held(
+    state: State, orders: dict[OrderId, Order], order: Order, seed: str
+) -> tuple[StepAction, dict[str, ParamValue]] | None:
+    """The decision taken on a held step's due day: the holder's choice when one is kept
+    for this step, else the card's. The card's guard on an order that cannot be undone
+    binds only the card."""
+    chosen = order.held_choice
+    if chosen is not None and chosen.step == order.step:
+        return chosen.action, dict(chosen.amended)
+    return _held_policy(state, orders, order, seed)
 
 
 def _trim(state: State, order: Order) -> dict[str, ParamValue]:
@@ -491,7 +504,8 @@ def run_pipelines(state: State, today: date, seed: str) -> list[RealismStep]:
     """Every AI and clerical step due on or before ``today``, in date order, each
     dated the day it fell due, plus the settlements and leaks they cause. A step a
     human holds on another seat's order is put before that seat as a paper, and taken
-    by the card on its held due day; one on the seat's own order waits. Pure: same
+    on its held due day with the holder's kept choice, else by the card; one on the
+    seat's own order waits. Pure: same
     state, day and seed, same list.
 
     ``expedite`` advances like ``pass``: it has no timing effect yet."""
@@ -523,7 +537,7 @@ def run_pipelines(state: State, today: date, seed: str) -> list[RealismStep]:
         step = state.pipelines[order.pipeline].steps[order.step]
         amended: dict[str, ParamValue] = {}
         if waiting_on_human(state, order):
-            decided = _held_policy(state, orders, order, seed)
+            decided = _held(state, orders, order, seed)
             if decided is None:
                 del orders[oid]
                 continue
@@ -554,6 +568,19 @@ def human_step(
 ) -> list[RealismStep]:
     """A human's decision at the step they hold, with what it causes. Raises
     ``ValueError`` when the order is not waiting on them or the action is not allowed."""
+    order = checked_step(state, order_id, action, amended)
+    return _act(state, order, action, today, amended or {})[1]
+
+
+def checked_step(
+    state: State,
+    order_id: OrderId,
+    action: StepAction,
+    amended: dict[str, ParamValue] | None = None,
+) -> Order:
+    """The order a human may take ``action`` at, with ``amended`` fitting its terms.
+    Raises ``ValueError`` when the order is not waiting on a human or the action is
+    not allowed there."""
     order = state.orders.get(order_id)
     if order is None or not waiting_on_human(state, order):
         raise ValueError(f"order {order_id} is not waiting on a human")
@@ -564,12 +591,13 @@ def human_step(
         raise ValueError("an amendment, and only an amendment, carries edits")
     if amended:
         _check_amended(state, order, amended)
-    return _act(state, order, action, today, amended or {})[1]
+    return order
 
 
 __all__ = [
     "DESTINATION",
     "RealismStep",
+    "checked_step",
     "destination",
     "held_by_another",
     "held_due",

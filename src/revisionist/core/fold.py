@@ -64,7 +64,15 @@ from revisionist.core.realism.effect import (
     ShiftDisposition,
 )
 from revisionist.core.realism.geography import Feature
-from revisionist.core.realism.pipeline import ADVANCES, SETTLED, OrderStatus, StepAction
+from revisionist.core.realism.pipeline import (
+    ADVANCES,
+    SETTLED,
+    HeldChoice,
+    Order,
+    OrderStatus,
+    StepAction,
+    StepKind,
+)
 from revisionist.core.realism.war import at_war
 from revisionist.core.state import State, Wake, controller_after, seat_of_person
 from revisionist.core.visibility import PUBLIC, Scope
@@ -407,6 +415,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.CardAmended()
             | ev.AnswerPlanned()
             | ev.AnswerMade()
+            | ev.StepChosen()
         ):
             if state.ruleset != "realism":
                 raise FoldError(f"{event.kind} belongs to a realism campaign")
@@ -543,7 +552,7 @@ def _realism(state: State, p: ev.Payload) -> State:
             _fresh(state.orders, o.order_id, "order")
             _need(state.seats, o.issuer, "seat")
             _need(state.pipelines, o.pipeline, "pipeline")
-            if o.status is not OrderStatus.MOVING or o.step or o.outcomes:
+            if o.status is not OrderStatus.MOVING or o.step or o.outcomes or o.held_choice:
                 raise FoldError(f"order {o.order_id} must start at its first step")
             if o.routed_from is not None:
                 carried = o.routed_from
@@ -576,8 +585,22 @@ def _realism(state: State, p: ev.Payload) -> State:
                     "params": params,
                     "step": o.step + 1 if out.action in ADVANCES else o.step,
                     "outcomes": (*o.outcomes, out),
+                    "held_choice": None,
                 }
             )
+            return state.model_copy(update={"orders": _put(state.orders, o.order_id, o)})
+        case ev.StepChosen():
+            o = _need(state.orders, p.order_id, "order")
+            if p.step != o.step or not _held_elsewhere(state, o):
+                raise FoldError(
+                    f"order {o.order_id} does not wait at step {p.step} on another seat"
+                )
+            if p.action not in state.pipelines[o.pipeline].steps[o.step].allowed:
+                raise FoldError(f"order {o.order_id}: step {o.step} does not allow that")
+            if not set(p.amended) <= set(o.params):
+                raise FoldError(f"order {o.order_id}: an amendment names a new parameter")
+            choice = HeldChoice(step=p.step, action=p.action, amended=p.amended)
+            o = o.model_copy(update={"held_choice": choice})
             return state.model_copy(update={"orders": _put(state.orders, o.order_id, o)})
         case ev.OrderSettled():
             o = _need(state.orders, p.order_id, "order")
@@ -906,6 +929,19 @@ def _engine_v2(state: State, p: ev.Payload) -> State:
             return state.model_copy(update={"handovers": handovers})
         case _:
             raise FoldError(f"kind {p.kind!r} is not an engine-v2 record")
+
+
+def _held_elsewhere(state: State, o: Order) -> bool:
+    """The moving order waits at a decision step whose person a human seat other than
+    its issuer embodies (``pipelines.held_by_another``, which the fold cannot import)."""
+    steps = state.pipelines[o.pipeline].steps
+    if o.status is not OrderStatus.MOVING or o.step >= len(steps):
+        return False
+    step = steps[o.step]
+    return step.kind is StepKind.DECISION and any(
+        s.embodies == step.person and s.controller is Controller.HUMAN and s.seat_id != o.issuer
+        for s in state.seats.values()
+    )
 
 
 def _hand_over(state: State) -> State:

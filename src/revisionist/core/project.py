@@ -97,7 +97,12 @@ def project(state: State, seat: SeatId) -> View:
         cards={k: c.face() for k, c in state.cards.items()},
         desk=card.desk() if card is not None else None,
         documents=_arrived(state, seat),
-        orders={k: o for k, o in state.orders.items() if o.issuer == seat},
+        # The holder's kept choice at a step is engine side until its due day (SHS).
+        orders={
+            k: o.model_copy(update={"held_choice": None})
+            for k, o in state.orders.items()
+            if o.issuer == seat
+        },
         quantities={
             k: q
             for k, q in state.quantities.items()

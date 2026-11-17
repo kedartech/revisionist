@@ -4676,6 +4676,44 @@
         "title": "GoalUndone",
         "type": "object"
       },
+      "HeldChoice": {
+        "additionalProperties": false,
+        "description": "What the holder of a step on another seat's order chose there. Kept for the\nholder alone until the step's held due day, when the runner takes the step with it\nin the card's place.",
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/StepAction"
+          },
+          "amended": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Amended",
+            "type": "object"
+          },
+          "step": {
+            "minimum": 0,
+            "title": "Step",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step",
+          "action"
+        ],
+        "title": "HeldChoice",
+        "type": "object"
+      },
       "HoldsOffice": {
         "additionalProperties": false,
         "properties": {
@@ -6021,6 +6059,17 @@
             "format": "date",
             "title": "Filed",
             "type": "string"
+          },
+          "held_choice": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/HeldChoice"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "issuer": {
             "title": "Issuer",
@@ -8804,6 +8853,55 @@
         "title": "StepAction",
         "type": "string"
       },
+      "StepChosen": {
+        "additionalProperties": false,
+        "description": "The holder of a decision step on another seat's order chooses what to do there.\nThe fold keeps it on the order, engine side, and on the step's held due day the\nrunner takes the step with it in the card's place, so the issuer learns nothing\nbefore that day and the step reads the same as the card's. Chosen again, the later\nchoice stands. Scoped to the holder.",
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/StepAction"
+          },
+          "amended": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Amended",
+            "type": "object"
+          },
+          "kind": {
+            "const": "step_chosen",
+            "default": "step_chosen",
+            "title": "Kind",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "step": {
+            "minimum": 0,
+            "title": "Step",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "order_id",
+          "step",
+          "action"
+        ],
+        "title": "StepChosen",
+        "type": "object"
+      },
       "StepKind": {
         "enum": [
           "decision",
@@ -9632,6 +9730,7 @@
             "settings_set": "#/$defs/SettingsSet",
             "stance_changed": "#/$defs/StanceChanged",
             "statement_issued": "#/$defs/StatementIssued",
+            "step_chosen": "#/$defs/StepChosen",
             "tick_closed": "#/$defs/TickClosed",
             "tick_opened": "#/$defs/TickOpened",
             "tick_stage_completed": "#/$defs/TickStageCompleted",
@@ -9891,6 +9990,9 @@
           },
           {
             "$ref": "#/$defs/RequestAnswered"
+          },
+          {
+            "$ref": "#/$defs/StepChosen"
           },
           {
             "$ref": "#/$defs/OptionsOffered"
@@ -12244,6 +12346,44 @@
         "title": "GoalKind",
         "type": "string"
       },
+      "HeldChoice": {
+        "additionalProperties": false,
+        "description": "What the holder of a step on another seat's order chose there. Kept for the\nholder alone until the step's held due day, when the runner takes the step with it\nin the card's place.",
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/StepAction"
+          },
+          "amended": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Amended",
+            "type": "object"
+          },
+          "step": {
+            "minimum": 0,
+            "title": "Step",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step",
+          "action"
+        ],
+        "title": "HeldChoice",
+        "type": "object"
+      },
       "HoldsOffice": {
         "additionalProperties": false,
         "properties": {
@@ -13048,6 +13188,17 @@
             "format": "date",
             "title": "Filed",
             "type": "string"
+          },
+          "held_choice": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/HeldChoice"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "issuer": {
             "title": "Issuer",
@@ -17526,6 +17677,44 @@
         "title": "GoalKind",
         "type": "string"
       },
+      "HeldChoice": {
+        "additionalProperties": false,
+        "description": "What the holder of a step on another seat's order chose there. Kept for the\nholder alone until the step's held due day, when the runner takes the step with it\nin the card's place.",
+        "properties": {
+          "action": {
+            "$ref": "#/$defs/StepAction"
+          },
+          "amended": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Amended",
+            "type": "object"
+          },
+          "step": {
+            "minimum": 0,
+            "title": "Step",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "step",
+          "action"
+        ],
+        "title": "HeldChoice",
+        "type": "object"
+      },
       "HoldsOffice": {
         "additionalProperties": false,
         "properties": {
@@ -18120,6 +18309,17 @@
             "format": "date",
             "title": "Filed",
             "type": "string"
+          },
+          "held_choice": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/HeldChoice"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "issuer": {
             "title": "Issuer",

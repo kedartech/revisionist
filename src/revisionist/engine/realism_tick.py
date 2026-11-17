@@ -54,6 +54,7 @@ from revisionist.core.realism.feeds import due_feeds, issue, seed_for_day
 from revisionist.core.realism.geography import in_play
 from revisionist.core.realism.pipeline import SETTLED, Order, OrderStatus, StepAction
 from revisionist.core.realism.pipelines import (
+    checked_step,
     destination,
     held_by_another,
     held_paper_id,
@@ -791,15 +792,15 @@ def held_step_order(state: State, seat: SeatId, ref: str) -> OrderId | None:
 
 def stepped_order(state: State, seat: SeatId, ref: str) -> Order:
     """The order ``seat`` would act at: ``ref`` is an order id, or the id of the paper
-    that put another seat's order before it. Raises ``ValueError`` when there is no
-    such order, or when its step waits on a person a human seat other than ``seat``
-    holds."""
+    that put another seat's order before it. Raises ``ValueError(NOT_YOURS)`` for
+    anything but the seat's own order or one waiting at a step it holds, whether or not
+    the order exists, and for its own order waiting on another human seat."""
     order = state.orders.get(OrderId(ref))
     if order is None:
         found = held_step_order(state, seat, ref)
         order = state.orders.get(found) if found is not None else None
-    if order is None:
-        raise ValueError(f"no order {ref}")
+    if order is None or (order.issuer != seat and held_by_another(state, order) != seat):
+        raise ValueError(NOT_YOURS)
     if waiting_on_human(state, order):
         person = state.pipelines[order.pipeline].steps[order.step].person
         if process.holder(state, person) != seat:
@@ -815,8 +816,10 @@ def take_step(
     action: StepAction,
     given: dict[str, str],
 ) -> Order:
-    """``seat`` acts at the step it holds, dated today; ``ref`` as ``stepped_order``
-    takes it. Raises ``ValueError``."""
+    """``seat`` acts at the step it holds; ``ref`` as ``stepped_order`` takes it. On its
+    own order the step is taken today. On another seat's order the choice is kept,
+    sealed to ``seat``, and taken on the step's held due day in the card's place.
+    Raises ``ValueError``."""
     state = load_state(store, campaign_id)
     order = stepped_order(state, seat, ref)
     order_id = order.order_id
@@ -828,6 +831,11 @@ def take_step(
         if name not in specs:
             raise ValueError(f"order has no parameter {name}")
         amended[name] = _fits(specs[name], raw)
+    if order.issuer != seat:
+        checked_step(state, order_id, action, amended)
+        chosen = ev.StepChosen(order_id=order_id, step=order.step, action=action, amended=amended)
+        _append(store, state, chosen, seat, private_to(seat))
+        return load_state(store, campaign_id).orders[order_id]
     steps = human_step(state, order_id, action, state.in_world_date, amended)
     batch: list[Event] = []
     seq = state.last_seq

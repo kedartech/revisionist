@@ -78,6 +78,22 @@ class StepOutcome(Model):
         return self
 
 
+class HeldChoice(Model):
+    """What the holder of a step on another seat's order chose there. Kept for the
+    holder alone until the step's held due day, when the runner takes the step with it
+    in the card's place."""
+
+    step: int = Field(ge=0)
+    action: StepAction
+    amended: dict[Label, ParamValue] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _amend_has_edits(self) -> "HeldChoice":
+        if (self.action is StepAction.AMEND) != bool(self.amended):
+            raise ValueError("an amendment, and only an amendment, edits parameters")
+        return self
+
+
 class OrderStatus(StrEnum):
     MOVING = "moving"
     ENACTED = "enacted"
@@ -104,8 +120,11 @@ class Order(Model):
     """Engine v2: the process part of a routed order this pipeline order carries."""
     measure: ProposeMeasure | None = None
     """Engine v2: the clauses it carries, for the votes resolver."""
+    held_choice: HeldChoice | None = None
+    """Engine side: the choice the holder of the step it waits at made
+    (``step_chosen``), until a step is taken. Never in the issuer's view."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"routed_from", "measure"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"routed_from", "measure", "held_choice"})
 
 
 def step_due(order: Order, pipeline: Pipeline) -> date | None:
@@ -128,6 +147,7 @@ def step_due(order: Order, pipeline: Pipeline) -> date | None:
 __all__ = [
     "ADVANCES",
     "SETTLED",
+    "HeldChoice",
     "Order",
     "OrderStatus",
     "Pipeline",

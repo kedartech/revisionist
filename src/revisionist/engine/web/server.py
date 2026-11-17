@@ -29,6 +29,7 @@ from revisionist.core.ontology import EntityKind, Persona, Phase
 from revisionist.core.project import project
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.pipeline import OrderStatus, StepAction
+from revisionist.core.realism.pipelines import held_due
 from revisionist.core.state import State
 from revisionist.engine import (
     aide,
@@ -433,10 +434,15 @@ class App:
                     order = realism_tick.take_step(
                         store, cid, seat, _text(body, "order_id", 64), taken, _params(body)
                     )
-                    reply = (
-                        f"{_lever_label(state, seat, order.lever)}: {_DONE[taken]}. "
-                        f"{_STANDING[order.status]}"
-                    )
+                    if order.issuer != seat:
+                        due = held_due(state, order)
+                        assert due is not None
+                        reply = _KEPT.format(day=f"{due.day} {due:%B %Y}")
+                    else:
+                        reply = (
+                            f"{_lever_label(state, seat, order.lever)}: {_DONE[taken]}. "
+                            f"{_STANDING[order.status]}"
+                        )
                 elif action == "advance":
                     host = WebSeats(store.conn).host(cid) == account.account_id
                     try:
@@ -914,6 +920,8 @@ class App:
             store.close()
 
 
+_KEPT = "Your decision is kept until {day}. You can change it until then."  # [proposed]
+"""The reply to a choice at a step the seat holds on another seat's order (SHS)."""
 _DONE: dict[StepAction, str] = {
     StepAction.PASS: "you passed it on",
     StepAction.EXPEDITE: "you pressed it forward",

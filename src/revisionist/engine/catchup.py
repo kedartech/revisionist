@@ -91,6 +91,9 @@ NEVER: frozenset[str] = frozenset(
         # A holder's answer is theirs until the due day decides with it; the seat that
         # asked reads only that decision (ANS).
         "request_answered",
+        # A holder's choice at a step on another seat's order is theirs until the
+        # step's held due day takes it (SHS).
+        "step_chosen",
         "seat_created",
         "agent_assigned",
         "seat_status_set",

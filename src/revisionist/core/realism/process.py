@@ -142,17 +142,28 @@ def decides(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[bool, 
     disposition, interest, leverage, d = _score(state, routed, part)
     accepted = disposition + interest + leverage + d >= ACCEPT_AT
     assert part.target is not None
-    name = _name(state, part.target)
     if accepted:
-        return True, answer_reason(name, True)
+        return True, answer_reason(_name(state, part.target), True)
+    return False, _declined(_name(state, part.target), interest)
+
+
+def declined(state: State, routed: RoutedOrder, part: RoutedPart) -> str:
+    """The issuer's line when ``part`` is declined, whoever declines it: the words hang
+    on the request alone, so they say nothing of whether the card or a holder decided."""
+    assert part.target is not None
+    _, interest, _, _ = _score(state, routed, part)
+    return _declined(_name(state, part.target), interest)
+
+
+def _declined(name: str, interest: int) -> str:
     if interest < 0:
-        return False, f"{name} would not be moved: it would take the country nearer the war."
-    return False, answer_reason(name, False)
+        return f"{name} would not be moved: it would take the country nearer the war."
+    return answer_reason(name, False)
 
 
 def answer_reason(name: str, accepted: bool) -> str:
-    """The issuer's line for a decided request, in the card's plain words: a holder's own
-    answer reads the same as the card's, so it says nothing of who gave it."""
+    """The issuer's line for a decided request, in the card's plain words. A decline
+    goes through ``declined``, which picks the line the request calls for."""
     return f"{name} agreed to what you asked." if accepted else f"{name} would not be moved."
 
 
@@ -344,8 +355,7 @@ def _card_answer(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[b
     irreversible step for the person a human holds; it declines it instead."""
     accepted, reason = decides(state, routed, part)
     if accepted and irreversible(_effects(part)):
-        assert part.target is not None
-        return False, answer_reason(_name(state, part.target), False)
+        return False, declined(state, routed, part)
     return accepted, reason
 
 
@@ -363,11 +373,13 @@ def answered(state: State, routed: RoutedOrder, i: int, accepted: bool) -> ev.Re
 
 def _holders_answer(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[bool, str]:
     """The decision on the due day: the holder's own answer when they gave one, in the
-    card's plain words; else the card's."""
+    words the card would use; else the card's."""
     if part.held_answer is None:
         return _card_answer(state, routed, part)
+    if not part.held_answer:
+        return False, declined(state, routed, part)
     assert part.target is not None
-    return part.held_answer, answer_reason(_name(state, part.target), part.held_answer)
+    return True, answer_reason(_name(state, part.target), True)
 
 
 def influence_due(state: State, today: date) -> list[ev.Payload]:
@@ -425,6 +437,7 @@ __all__ = [
     "day_words",
     "decides",
     "declares",
+    "declined",
     "held_by_another",
     "held_paper",
     "holder",

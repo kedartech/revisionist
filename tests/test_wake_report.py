@@ -12,6 +12,10 @@ from typer.testing import CliRunner
 from revisionist import cli
 from revisionist.core import events as ev
 from revisionist.core.events import Event
+from revisionist.core.fold import replay
+from revisionist.core.ids import FeatureId
+from revisionist.core.realism import effect as rx
+from revisionist.core.realism.agenda import Ask
 from revisionist.engine import catchup, options, wake, wake_report
 from revisionist.engine.store import MemoryStore, SqliteStore, StoreError
 from tests.test_engine_v2_wake import CAMPAIGN, T0, Table
@@ -43,6 +47,27 @@ def played(t: Table) -> list[Event]:
 def table(monkeypatch: pytest.MonkeyPatch) -> Table:
     monkeypatch.setattr(options, "aide_asks", lambda state, seat, transport: [])
     return Table(MemoryStore())
+
+
+@pytest.fixture
+def aided(monkeypatch: pytest.MonkeyPatch) -> Table:
+    """The same table, with an aide that files one order for an absent seat in each wake
+    it plays: the Home Fleet to Reykjavik in the even wakes, to Scapa Flow in the odd.
+    (The aide may not file the First Sea Lord's dismissal: it is irreversible.)"""
+    holder: list[Table] = []
+
+    def asks(state, seat, transport):  # type: ignore[no-untyped-def]
+        assert state.wake is not None
+        t = holder[0]
+        port = "reykjavik" if state.wake.number % 2 == 0 else "scapa_flow"
+        move = rx.MoveForce(
+            force=FeatureId(t.ids["home_fleet"]), to=t.entity(port), posture=rx.Posture.ESCORT
+        )
+        return [(Ask(ask=f"send the Home Fleet to {port}", effect=move, target=None),)]
+
+    monkeypatch.setattr(options, "aide_asks", asks)
+    holder.append(Table(MemoryStore()))
+    return holder[0]
 
 
 def test_each_wake_says_how_it_closed(table: Table) -> None:
@@ -82,28 +107,33 @@ def test_the_aides_commits_are_not_the_players(table: Table) -> None:
     assert churchill.highest == 3.0 and len(churchill.hours) == 1
 
 
-def test_a_return_after_missed_wakes_is_covered_when_every_one_has_a_page(table: Table) -> None:
-    report = wake_report.build(played(table))
-    assert [(r.seat_id, r.wake, r.missed, r.covered) for r in report.returns] == [
-        (table.winston, 2, (0, 1), True)
+def test_a_return_is_covered_when_the_catch_up_reply_serves_every_missed_wake_a_note(
+    aided: Table,
+) -> None:
+    """The aide filed for Churchill in wakes 0 and 1: each page carries its note."""
+    report = wake_report.build(played(aided))
+    assert [(r.seat_id, r.wake, r.missed, r.uncovered, r.covered) for r in report.returns] == [
+        (aided.winston, 2, (0, 1), (), True)
     ]
 
 
-def test_a_return_is_not_covered_when_the_feed_gives_no_page_for_a_missed_wake(
-    table: Table, monkeypatch: pytest.MonkeyPatch
+def test_a_return_is_not_covered_when_the_missed_wakes_hold_only_their_openings(
+    table: Table,
 ) -> None:
-    real = catchup.feed
-
-    def without_wake_one(state, events, seat, first, last):  # type: ignore[no-untyped-def]
-        return tuple(f for f in real(state, events, seat, first, last) if f.wake != 1)
-
-    monkeypatch.setattr(catchup, "feed", without_wake_one)
-    report = wake_report.build(played(table))
-    assert [r.covered for r in report.returns] == [False]
+    """A real log, no patched feed: the aide files nothing, so wakes 0 and 1 hold for
+    Churchill only the public ``wake_opened`` and ``date_advanced`` the catch-up reply
+    gives no page for. Counted on any event in the feed, these wakes would read covered."""
+    events = played(table)
+    report = wake_report.build(events)
+    assert [(r.seat_id, r.wake, r.missed, r.uncovered, r.covered) for r in report.returns] == [
+        (table.winston, 2, (0, 1), (0, 1), False)
+    ]
+    fed = catchup.feed(replay(events), events, table.winston, 0, 1)  # type: ignore[arg-type]
+    assert {f.wake for f in fed} == {0, 1}  # events, but no page
 
 
 def test_the_feed_is_read_as_the_log_stood_at_the_return(
-    table: Table, monkeypatch: pytest.MonkeyPatch
+    aided: Table, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     seen: list[tuple[int, int, int | None]] = []
     real = catchup.feed
@@ -115,7 +145,7 @@ def test_the_feed_is_read_as_the_log_stood_at_the_return(
         return real(state, events, seat, first, last)
 
     monkeypatch.setattr(catchup, "feed", spy)
-    wake_report.build(played(table))
+    wake_report.build(played(aided))
     assert seen == [(0, 1, 2)]
 
 
@@ -186,8 +216,8 @@ def test_a_commit_with_no_time_does_not_hide_the_ones_with(table: Table) -> None
     assert fdr.hours == (2.0, 1.0, 4.0) and fdr.unknown_hours == 1
 
 
-def test_the_text_names_the_wakes_the_seats_and_the_returns(table: Table) -> None:
-    text = wake_report.render(wake_report.build(played(table)))
+def test_the_text_names_the_wakes_the_seats_and_the_returns(aided: Table) -> None:
+    text = wake_report.render(wake_report.build(played(aided)))
     assert text[0] == f"campaign {CAMPAIGN}"
     assert "  wake 0: deadline" in text and "  wake 2: all_committed" in text
     assert "  wake 3: host" in text and "  wake 4: open" in text
@@ -201,6 +231,14 @@ def test_the_text_names_the_wakes_the_seats_and_the_returns(table: Table) -> Non
     ) in text
     assert "catch-up: 1 return after a missed wake; 1 with a page for every wake missed" in text
     assert "  Winston Churchill returned in wake 2 after missing 0-1: every wake had a page" in text
+
+
+def test_the_text_names_the_wakes_that_had_no_page(table: Table) -> None:
+    text = wake_report.render(wake_report.build(played(table)))
+    assert "catch-up: 1 return after a missed wake; 0 with a page for every wake missed" in text
+    assert (
+        "  Winston Churchill returned in wake 2 after missing 0-1: no page for 2 wakes 0-1" in text
+    )
 
 
 def test_a_campaign_with_no_wake_says_so() -> None:

@@ -2,9 +2,11 @@
 
 Per campaign: how each wake closed; per seat, the wakes its aide played and the hours
 from a wake's opening to the seat's own commit; and, for each return after a missed
-wake, whether ``catchup.feed`` gave a page for every wake missed. A log written before
-the wake record shows ``unknown`` where the opening time, a commit's time or the close
-reason is missing.
+wake, whether the catch-up reply (``catchup_api.reply``) served a page for every wake
+missed: one with at least one paper, or the owner's note of what the aide filed. A
+wake's own opening (``wake_opened``, ``date_advanced``) is public and in every feed, so
+it does not make a page. A log written before the wake record shows ``unknown`` where
+the opening time, a commit's time or the close reason is missing.
 
 An operator command (``revisionist db wake-report``) that prints counts and no record's
 content. Nothing a seat reaches imports it.
@@ -19,8 +21,8 @@ from revisionist.core.events import Event
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId, SeatId
 from revisionist.core.ontology import Controller
-from revisionist.engine import catchup
 from revisionist.engine.store import EventStore
+from revisionist.engine.web import catchup_api
 
 UNKNOWN = "unknown"
 OPEN = "open"
@@ -65,7 +67,7 @@ class Return:
     """The wake the seat's player commits in after missing others."""
     missed: tuple[int, ...]
     uncovered: tuple[int, ...]
-    """The missed wakes ``catchup.feed`` held no event for."""
+    """The missed wakes the catch-up reply served no paper or note for."""
 
     @property
     def covered(self) -> bool:
@@ -150,11 +152,11 @@ def _how(closed: ev.WakeClosed | None) -> str:
 
 
 def _uncovered(log: Sequence[Event], seat: SeatId, missed: tuple[int, ...]) -> tuple[int, ...]:
-    """The missed wakes with no event in the seat's feed, read as the log stood when the
-    seat came back."""
-    fed = catchup.feed(replay(log), log, seat, missed[0], missed[-1])
-    held = {f.wake for f in fed}
-    return tuple(n for n in missed if n not in held)
+    """The missed wakes whose catch-up page holds no paper and no aide note, read as the
+    log stood when the seat came back: what the seat's own reply would have served."""
+    reply = catchup_api.reply(replay(log), log, seat, {"first": missed[0], "last": missed[-1]})
+    served = {page["number"] for page in reply["pages"] if page["papers"] or page.get("aide_filed")}
+    return tuple(n for n in missed if n not in served)
 
 
 def _plural(n: int, one: str, many: str | None = None) -> str:

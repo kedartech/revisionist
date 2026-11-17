@@ -11,12 +11,18 @@ export function requests(agenda) {
 /** What the answer sheet says about when an answer lands [proposed]. */
 export const ANSWER_AT_CLOSE = 'Your answer goes out on the day it is due; you can change it until then.';
 
+/** What the answer sheet says about when a held decision lands [proposed]. */
+export const DECISION_AT_DUE = 'Your decision is kept until it is due. You can change it until then.';
+
 /**
  * What the paper offers: a beginner's options, a guided plan filed in one go, or nothing.
- * Another seat's request (kind \"Request\") is answered with Accept or Decline under any style.
+ * Another seat's request (kind \"Request\") is answered with Accept or Decline under any style;
+ * a decision held for another seat (kind \"Decision\") is taken with one of its `actions`, which
+ * an older payload may lack.
  */
 export function requestChoices(style, item) {
   if (item.kind === 'Request') return { kind: 'request', options: [] };
+  if (item.kind === 'Decision') return { kind: 'decision', options: [], actions: item.actions ?? [] };
   if (style === 'beginner' && item.options.length) return { kind: 'options', options: item.options };
   if (style === 'guided' && item.plan.length) return { kind: 'plan', options: item.plan };
   return { kind: 'none', options: [] };

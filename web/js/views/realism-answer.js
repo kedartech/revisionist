@@ -4,7 +4,8 @@
 import { h, icon } from '../dom.js';
 import { itemDates, itemHeading, optionLines } from './realism-wake.js';
 import { agendaEntry, deadlineChip } from './realism-ideas.js';
-import { ANSWER_AT_CLOSE, requestChoices } from './realism-requests.js';
+import { ANSWER_AT_CLOSE, DECISION_AT_DUE, requestChoices } from './realism-requests.js';
+import { STEP_ACTIONS } from '../realism-rules.js';
 import { readLines, staffRead } from './realism-estimate.js';
 
 /**
@@ -78,9 +79,28 @@ function requestAnswer(id, given, act) {
     h('p', { class: 'rl-ans-when', id: when }, ANSWER_AT_CLOSE));
 }
 
+/**
+ * One button per action the held step allows, labelled from `STEP_ACTIONS`:
+ * `act('Recording your decision…', 'step', { order_id: id, action, params: {} })`. As with a
+ * request, `given` (the item's `cause`) is shown above the buttons, which stay so the choice
+ * can be changed until the due day. An item with no actions draws the line alone.
+ */
+function decisionAnswer(id, actions, given, act) {
+  const when = `rl-ans-when-${id}`;
+  const offered = STEP_ACTIONS.filter(([value]) => actions.includes(value));
+  return h('div', { class: 'rl-ans-request' },
+    given ? h('p', { class: 'rl-ans-given' }, given) : null,
+    offered.length ? h('div', { class: 'rl-ans-pair' }, offered.map(([value, label]) => h('button', {
+      type: 'button', class: 'rl-ans-choose', 'aria-describedby': when,
+      onclick: () => act('Recording your decision…', 'step', { order_id: id, action: value, params: {} }),
+    }, label))) : null,
+    h('p', { class: 'rl-ans-when', id: when }, DECISION_AT_DUE));
+}
+
 function choicesBlock(item, given, act) {
   const { choices } = item;
   if (choices.kind === 'request') return requestAnswer(item.id, given, act);
+  if (choices.kind === 'decision') return decisionAnswer(item.id, choices.actions, given, act);
   if (choices.kind === 'options') return h('ul', { class: 'rl-ans-options', role: 'list' }, choices.options.map((o) => optionRow(o, act)));
   if (choices.kind === 'plan') return planRow(choices.options, act);
   return h('p', { class: 'rl-ans-own' }, 'Answer it with an order of your own.');
@@ -89,7 +109,8 @@ function choicesBlock(item, given, act) {
 /**
  * The section headed "Needs your answer". An option's "Choose" calls
  * `act('Filing it…', 'option', { pick })`; a guided plan has one "File this plan"; no
- * choices reads "Answer it with an order of your own."; with nothing waiting,
+ * choices reads "Answer it with an order of your own."; a held decision has a button per
+ * allowed action, from the item's `actions`; with nothing waiting,
  * "Nothing is waiting on you. Your ideas are below.". Each item is drawn by `agendaEntry`
  * (a crisis as an alert) and its dates carry `deadlineChip` against `today`, the world date.
  */

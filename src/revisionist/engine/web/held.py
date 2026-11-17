@@ -15,7 +15,7 @@ import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, TypedDict
 
-from revisionist.core.ids import CampaignId, EntityId, OrderId, SeatId
+from revisionist.core.ids import CampaignId, EntityId, SeatId
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.pipeline import StepAction
@@ -191,7 +191,7 @@ def file_one(
         elif action == "step":
             taken = StepAction(args["action"])
             realism_tick.take_step(
-                store, campaign_id, OrderId(args["order_id"]), taken, args["params"]
+                store, campaign_id, seat, args["order_id"], taken, args["params"]
             )
         elif action in ("option", "file"):
             asks = tuple(Ask.model_validate(a) for a in args["asks"])

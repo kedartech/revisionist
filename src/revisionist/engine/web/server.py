@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from revisionist.core.ids import CampaignId, DocumentId, EntityId, OrderId, SeatId
+from revisionist.core.ids import CampaignId, DocumentId, EntityId, SeatId
 from revisionist.core.ontology import EntityKind, Persona, Phase
 from revisionist.core.project import project
 from revisionist.core.realism.card import ChannelKind
@@ -430,7 +430,7 @@ class App:
                         names = ", ".join(a.value for a in StepAction)
                         raise ValueError(f"The action is one of {names}.") from None
                     order = realism_tick.take_step(
-                        store, cid, OrderId(_text(body, "order_id", 64)), taken, _params(body)
+                        store, cid, seat, _text(body, "order_id", 64), taken, _params(body)
                     )
                     reply = (
                         f"{_lever_label(state, seat, order.lever)}: {_DONE[taken]}. "
@@ -965,9 +965,7 @@ def _held_args(
             raise ValueError(
                 f"The action is one of {', '.join(a.value for a in StepAction)}."
             ) from None
-        order = state.orders.get(OrderId(order_id))
-        if order is None:
-            raise ValueError(f"no order {order_id}")
+        order = realism_tick.stepped_order(state, seat, order_id)
         label = f"{_lever_label(state, order.issuer, order.lever)}: {_DONE[taken]}"
         return {"order_id": order_id, "action": taken.value, "params": params}, label
     if action == "option":

@@ -273,7 +273,8 @@ class App:
                 seat_view["realism"]["dossier"] = dossiers.for_people(state, log_now).get(
                     state.seats[link.seat_id].embodies, dossiers.empty_dossier()
                 )
-                game["held"] = held_orders.listing(store, link.campaign_id, link.seat_id)
+                now_open = state.wake.number if state.wake and not state.wake.closed else None
+                game["held"] = held_orders.listing(store, link.campaign_id, link.seat_id, now_open)
             out["game"] = game | {"view": seat_view}
             return snapshot.checked(state, link.seat_id, out)
         finally:

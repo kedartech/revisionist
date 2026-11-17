@@ -33,6 +33,7 @@ from revisionist.engine.tick import (
     file_intent,
     run_tick,
 )
+from revisionist.engine.web import held
 
 
 @runtime_checkable
@@ -77,31 +78,32 @@ def play_tick(
     if state.phase is not Phase.PLAY:
         raise NotInPlayError(state.phase)  # before any faction spends a model call
     if state.ruleset == "realism":  # code decides outcomes; a model only writes the pages
-        when = now or datetime.now(UTC)
-        if state.wake is not None and not state.wake.closed:
-            wk.close_wake(store, campaign_id, when, None if offline else transport_factory())
-        writer: ProseWriter = (
-            TemplateProseWriter() if offline else ClaudeProseWriter(transport_factory())
-        )
-        done = run_realism_tick(
-            store,
-            campaign_id,
-            versions=cmp.versions(),
-            stop_after=stop_after,
-            prose=writer,
-            estimator=None if offline else transport_factory(),
-        )
-        for dropped in done.prose_dropped:
-            warn(f"  no prose for {dropped}")
-        opened: int | None = None
-        if done.stopped_after is None:
-            opened = wk.open_wake(store, campaign_id, when)
-            wake_open.before_offers(store, campaign_id, opened)
-            wk.offer_all(store, campaign_id, None if offline else transport_factory())
-        found = leak_report(load_state(store, campaign_id), store.read(campaign_id))
-        if opened is not None and not found:  # as a public record: only after a clean tick
-            wake_open.after_open(store, campaign_id, opened, notifier=notice.for_store(store))
-        return TickRun(done, briefings, found)
+        with held.marking_close(store, campaign_id):  # orders given meanwhile are held
+            when = now or datetime.now(UTC)
+            if state.wake is not None and not state.wake.closed:
+                wk.close_wake(store, campaign_id, when, None if offline else transport_factory())
+            writer: ProseWriter = (
+                TemplateProseWriter() if offline else ClaudeProseWriter(transport_factory())
+            )
+            done = run_realism_tick(
+                store,
+                campaign_id,
+                versions=cmp.versions(),
+                stop_after=stop_after,
+                prose=writer,
+                estimator=None if offline else transport_factory(),
+            )
+            for dropped in done.prose_dropped:
+                warn(f"  no prose for {dropped}")
+            opened: int | None = None
+            if done.stopped_after is None:
+                opened = wk.open_wake(store, campaign_id, when)
+                wake_open.before_offers(store, campaign_id, opened)
+                wk.offer_all(store, campaign_id, None if offline else transport_factory())
+            found = leak_report(load_state(store, campaign_id), store.read(campaign_id))
+            if opened is not None and not found:  # as a public record: only after a clean tick
+                wake_open.after_open(store, campaign_id, opened, notifier=notice.for_store(store))
+            return TickRun(done, briefings, found)
     deliverer = (deliverer_factory or file_deliverer)(store, campaign_id, briefings)
     if offline:
         providers = Providers(ScriptedResolver(), TemplateNarrator(), deliverer, KeywordSafety())

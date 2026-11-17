@@ -12,6 +12,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
+import psycopg
 import pytest
 
 from revisionist.core import events as ev
@@ -389,6 +390,62 @@ def test_a_handed_leader_joins_at_the_next_wake_with_a_catch_up_from_wake_0(
     assert realism_of(ada)["wake"]["wake"] == 2  # wake 2 waits for the joiner
     assert not post(cat, "commit")[1]["refused"]
     assert realism_of(ada)["wake"]["wake"] == 3
+
+
+def test_a_new_player_taking_up_a_seat_gets_none_of_the_last_players_held_work(
+    duo: tuple[Realism, Client, Client],
+) -> None:
+    game, ada, bea = duo
+    roosevelt, cid = seat_of(game, "roosevelt"), game.campaign
+    assert not post(bea, "commit")[1]["refused"]
+    for _ in range(2):  # the twin no longer goes through once the first is filed
+        assert post(bea, "lever", **BILL)[1]["reply"] == held.HELD
+    game_call(bea, "leave")
+    assert not post(ada, "commit")[1]["refused"]  # wake 1 opens: the held orders are filed
+    store = game.web.app.open()
+    try:
+        assert held.dropped(store, cid, roosevelt), "Bea's twin was dropped"
+        held.hold(store, cid, roosevelt, 1, "lever", BILL, "Bea's last order, still waiting")
+    finally:
+        store.close()
+
+    code = game_call(ada, "handover", leader=game.ids["roosevelt"])["code"]
+    cat, _ = game.web.signed_up("cat")
+    assert "Roosevelt" in cat.seat("join", code=code)
+    store = game.web.app.open()
+    try:
+        assert held.listing(store, cid, roosevelt) == []
+        assert held.dropped(store, cid, roosevelt) == {}
+    finally:
+        store.close()
+    assert cat.me()["game"]["held"] == []
+    _, pages = post(cat, "catchup")
+    assert pages["first"] == 0 and all("held_dropped" not in p for p in pages["pages"])
+
+    store = game.web.app.open()
+    try:  # what the joiner gives from now on is theirs, and is kept
+        mine = held.hold(store, cid, roosevelt, 1, "lever", BILL, "Cat's own order")
+    finally:
+        store.close()
+    assert [x["id"] for x in cat.me()["game"]["held"]] == [mine]
+
+
+def test_a_seat_is_taken_up_before_db_migrate_has_made_the_held_table(
+    duo: tuple[Realism, Client, Client],
+) -> None:
+    game, ada, bea = duo
+    game_call(bea, "leave")
+    assert not post(ada, "commit")[1]["refused"]
+    with psycopg.connect(game.web.db.admin_dsn, autocommit=True) as conn:
+        conn.execute("DROP TABLE web_held_orders")
+    held.forget_missing()
+    try:
+        code = game_call(ada, "handover", leader=game.ids["roosevelt"])["code"]
+        cat, _ = game.web.signed_up("cat")
+        assert "Roosevelt" in cat.seat("join", code=code)
+    finally:
+        held.forget_missing()
+    assert list(state_of(game).handovers) == [EntityId(game.ids["roosevelt"])]
 
 
 def test_a_code_spent_once_the_table_is_full_is_refused_and_stores_nothing(

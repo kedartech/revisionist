@@ -2,8 +2,9 @@
 
 Request ``{first?: int, last?: int}``. With no range named, the pages run from the wake
 after the seat last committed by itself (wake 0 if it never has, or if a new player has
-taken it up since) to the latest closed wake; the range comes from the log, never from
-the browser. Reply
+taken it up since) to the latest closed wake, and also take in the wake it last committed
+and the open wake when a held order of its own was dropped as that wake opened; the
+range comes from the log, never from the browser. Reply
 ``{first, last, pages}``: each page is the record's wake page, its papers counted from
 the catch-up seam, and, only in the owner's own payload and only for a wake the aide
 played for it, ``aide_filed``: what the aide filed, in the order's own words; and, only
@@ -59,7 +60,10 @@ def _own_commits(events: Sequence[Event], seat: SeatId) -> dict[int, ev.WakeComm
 
 
 def _range(
-    state: State, commits: dict[int, ev.WakeCommitted], body: dict[str, Any]
+    state: State,
+    commits: dict[int, ev.WakeCommitted],
+    body: dict[str, Any],
+    dropped: Mapping[int, list[str]],
 ) -> tuple[int, int]:
     wake = state.wake
     if wake is None:
@@ -69,8 +73,12 @@ def _range(
     if first is None:
         mine = [n for n, c in commits.items() if not c.by_aide]
         first = max(mine) + 1 if mine else 0
+        if mine and not named and dropped.get(max(mine)):
+            first = max(mine)
     if last is None:
         last = wake.number if wake.closed else wake.number - 1
+        if not wake.closed and not named and dropped.get(wake.number):
+            last = wake.number
     if named and not 0 <= first <= last <= wake.number:
         raise ValueError(f"Name wakes from 0 to {wake.number}, the first no later than the last.")
     return first, last
@@ -95,7 +103,7 @@ def reply(
     """``seat``'s catch-up. ``dropped``: the seat's own lines for held orders that did
     not go through, by wake. Raises ``ValueError`` on a range it cannot serve."""
     commits = _own_commits(events, seat)
-    first, last = _range(state, commits, body)
+    first, last = _range(state, commits, body, dropped or {})
     ledger = record.build(state, events, seat)
     fed = catchup.feed(state, events, seat, first, last)
     pages: list[CatchupPage] = []

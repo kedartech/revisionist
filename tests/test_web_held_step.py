@@ -9,6 +9,7 @@ and the issuer's order id never reaches the holder. Same harness as
 """
 
 import json
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -16,14 +17,19 @@ import pytest
 from revisionist.core import events as ev
 from revisionist.core.ids import OrderId
 from revisionist.core.realism import pipelines
+from revisionist.core.realism.agenda import PlayStyle
 from revisionist.core.realism.pipeline import StepAction
 from revisionist.engine import realism_tick
 from revisionist.engine.web import held
+from revisionist.engine.web import realism_api as api
 from tests.test_web import Client, Web, web  # noqa: F401
+from tests.test_web_agenda import _block, _world
+from tests.test_web_answer import _file, _until_asked
 from tests.test_web_realism import Realism, make_host, post, realism_of
-from tests.test_web_wake import begin, log_of, seat_of, state_of
+from tests.test_web_wake import begin, duo, log_of, seat_of, state_of  # noqa: F401
 
 NOT_YOURS = "That decision is not yours to take."
+FIXTURE = Path(__file__).parent.parent / "web" / "test" / "fixtures" / "realism-seat.json"
 LEVY = {"lever": "propose_levy", "params": {"rate": 8, "purpose": "harbour"}}
 
 
@@ -172,3 +178,63 @@ def test_a_step_on_a_seats_own_order_at_its_own_leader_is_still_its_own(
         store.close()
     assert order.held_choice is not None and order.held_choice.action is StepAction.PASS
     assert _bram_steps(game, order_id) == []
+
+
+def test_a_held_decision_lists_the_actions_its_step_allows_less_amend(
+    toy: tuple[Realism, Client, Client],
+) -> None:
+    """The levy's decision step (Bram's) allows pass, stall, amend, refuse and leak; the
+    room has no terms editor, so the list leaves out amend. It is the pipeline's own
+    step, not the clerk's step before it, and it reads the same wherever the step is."""
+    game, ada, bram = toy
+    order_id = _held_at_bram(game, ada, bram)
+    state = state_of(game)
+    order = state.orders[order_id]
+    step = state.pipelines[order.pipeline].steps[order.step]
+    assert StepAction.AMEND in step.allowed and step.allowed != {StepAction.PASS}
+    clerk = state.pipelines[order.pipeline].steps[0].allowed
+    assert clerk == {StepAction.PASS}
+    shown = _item(bram)["actions"]
+    assert shown == ["stall", "leak", "refuse", "pass"]
+    assert set(shown) == {a.value for a in step.allowed} - {"amend"}
+
+
+def test_every_action_a_held_decision_lists_is_one_the_step_takes(
+    toy: tuple[Realism, Client, Client],
+) -> None:
+    game, ada, bram = toy
+    order_id = _held_at_bram(game, ada, bram)
+    item = _item(bram)
+    for action in item["actions"]:
+        status, out = post(bram, "step", order_id=item["id"], action=action)
+        assert status == 200 and not out["refused"], (action, out)
+    assert _bram_steps(game, order_id) == [], "a choice is kept until the due day"
+
+
+def test_a_mandate_lists_no_actions() -> None:
+    sl, store = _world(PlayStyle.BEGINNER)
+    items = _block(store, sl.fdr)["items"]
+    assert items and all(i["kind"] != "Decision" and i["actions"] == [] for i in items)
+
+
+def test_a_request_lists_no_actions(
+    duo: tuple[Realism, Client, Client],  # noqa: F811
+) -> None:
+    game, ada, bea = duo
+    _file(game)
+    request = _until_asked(game, ada, bea)
+    assert request["kind"] == "Request" and request["actions"] == []
+
+
+def test_the_fixtures_agenda_items_have_the_blocks_keys() -> None:
+    items = json.loads(FIXTURE.read_text())["agenda"]["items"]
+    assert items and all(set(i) == set(api.AgendaItem.__annotations__) for i in items)
+
+
+def test_a_live_agenda_item_has_the_blocks_keys(
+    toy: tuple[Realism, Client, Client],
+) -> None:
+    game, ada, bram = toy
+    _held_at_bram(game, ada, bram)
+    shown = realism_of(bram)["agenda"]["items"]
+    assert shown and all(set(i) == set(api.AgendaItem.__annotations__) for i in shown)

@@ -728,9 +728,6 @@ def _check_board(world: WorldFile, sections: Mapping[str, str], problems: list[s
     if world.map is None:
         if areas or world.adjacency or world.regions or world.terrain:
             problems.append("map: the world has areas but no map")
-        for d in world.entities:
-            if d.within is not None:
-                problems.append(f"entity {d.key}: within {d.within}, but the world has no map")
         return
     _check_map_file(world, problems)
     regions = _check_regions(world, problems)
@@ -890,6 +887,8 @@ def _check_entities(world: WorldFile, sections: Mapping[str, str], problems: lis
         where = f"entity {d.key}"
         _ref(problems, where, d.parent, "entity", sections)
         _ref(problems, where, d.location, "entity", sections)
+        if d.within is not None and world.map is None:
+            problems.append(f"{where}: within {d.within}, but the world has no map")
 
 
 def _check_assets(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:

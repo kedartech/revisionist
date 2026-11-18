@@ -261,6 +261,21 @@ def test_the_territory_rules_act_only_on_a_board(tmp_path: Path) -> None:
     assert Rule.TERRITORIES in state.rules
 
 
+def test_a_place_within_an_area_needs_a_map(tmp_path: Path) -> None:
+    def mapless(w: dict[str, Any]) -> None:
+        without_board(w)
+        w["entities"].append({"key": "spa", "kind": "location", "name": "Spa", "within": "isle"})
+
+    problems = refused(variant(tmp_path, mapless))
+    assert "entity spa: within isle, but the world has no map" in problems
+    legacy = cmp.load_world(cmp.world_path("salt-strait"))
+    place = next(e for e in legacy.entities if e.kind is EntityKind.LOCATION)
+    moved = place.model_copy(update={"within": "nowhere"})
+    entities = tuple(moved if e is place else e for e in legacy.entities)
+    problems = refused(legacy.model_copy(update={"entities": entities}))
+    assert f"entity {place.key}: within nowhere, but the world has no map" in problems
+
+
 def test_territories_switched_on_without_a_map_are_refused(tmp_path: Path) -> None:
     def switched(w: dict[str, Any]) -> None:
         without_board(w)

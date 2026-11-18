@@ -25,7 +25,7 @@ from revisionist.core._base import Label, Model
 from revisionist.core.ids import EntityId
 
 if TYPE_CHECKING:
-    from revisionist.core.state import State, View
+    from revisionist.core.state import State
 
 Coords = Literal["lonlat", "flat"]
 """``lonlat``: x is longitude and y latitude, in degrees. ``flat``: units of the
@@ -119,12 +119,11 @@ def adjacent(board: WorldMap, a: EntityId, b: EntityId) -> bool:
     return any(pair(link.a, link.b) == want for link in board.adjacency)
 
 
-def on(state: "State | View") -> bool:
+def on(state: "State") -> bool:
     """Whether the territory rules act in this game: a map, and ``territories`` switched on."""
-    from revisionist.core.state import Rule, State
+    from revisionist.core.state import Rule
 
-    rules = state.rules if isinstance(state, State) else frozenset()
-    return state.map is not None and Rule.TERRITORIES in rules
+    return state.map is not None and Rule.TERRITORIES in state.rules
 
 
 def file_hash(data: bytes) -> str:

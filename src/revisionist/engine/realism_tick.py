@@ -774,6 +774,7 @@ def commit_order(
 
 
 NOT_YOURS = "That decision is not yours to take."  # [proposed]
+NO_AMEND = "That step cannot be amended here."  # [proposed]
 
 
 def held_step_order(state: State, seat: SeatId, ref: str) -> OrderId | None:
@@ -819,9 +820,13 @@ def take_step(
     """``seat`` acts at the step it holds; ``ref`` as ``stepped_order`` takes it. On its
     own order the step is taken today. On another seat's order the choice is kept,
     sealed to ``seat``, and taken on the step's held due day in the card's place.
-    Raises ``ValueError``."""
+    There an amend is refused (``NO_AMEND``): the card's only amend has a fixed shape
+    (``pipelines._trim``), and the issuer's paper prints every change, so any other
+    would tell the issuer a person decided. Raises ``ValueError``."""
     state = load_state(store, campaign_id)
     order = stepped_order(state, seat, ref)
+    if order.issuer != seat and action is StepAction.AMEND:
+        raise ValueError(NO_AMEND)
     order_id = order.order_id
     assert state.in_world_date is not None
     levers = state.cards[state.seats[order.issuer].embodies].levers
@@ -929,6 +934,7 @@ def _append(
 
 __all__ = [
     "NOT_YOURS",
+    "NO_AMEND",
     "OpeningWritten",
     "RealismTickResult",
     "commit_order",

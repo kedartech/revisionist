@@ -42,6 +42,7 @@ from revisionist.engine import (
     orders_reader,
     realism_tick,
     session_zero,
+    withdraw,
 )
 from revisionist.engine import campaign as cmp
 from revisionist.engine import scheduler as sch
@@ -276,6 +277,13 @@ class App:
                 )
                 now_open = state.wake.number if state.wake and not state.wake.closed else None
                 game["held"] = held_orders.listing(store, link.campaign_id, link.seat_id, now_open)
+                game["withdrawable"] = withdraw.withdrawable(
+                    state,
+                    log_now,
+                    link.seat_id,
+                    sealed=held_orders.closing(store, link.campaign_id)
+                    or wk.joining(state, link.seat_id),
+                )
             out["game"] = game | {"view": seat_view}
             return snapshot.checked(state, link.seat_id, out)
         finally:
@@ -509,6 +517,8 @@ class App:
                         with self._lock:
                             self._readings.pop((cid, seat), None)
                     return snapshot.checked(state, seat, dict(done))
+                elif action == "withdraw":
+                    return snapshot.checked(state, seat, self._withdraw(store, state, seat, body))
                 else:
                     raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
             except (ValueError, KeyError, NotInPlayError, counsel.CounselRefusedError) as exc:
@@ -522,6 +532,28 @@ class App:
             return snapshot.checked(state, seat, {"reply": reply, "refused": False})
         finally:
             store.close()
+
+    def _withdraw(
+        self, store: PostgresEventStore, state: State, seat: SeatId, body: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Take back one of the seat's own orders: one filed in the open wake, or one still
+        held for the next. Raises ``ValueError`` with the reason when it cannot be."""
+        cid = state.campaign_id
+        order_id, held_id = body.get("order_id"), body.get("held_id")
+        if (order_id is None) == (held_id is None):
+            raise ValueError("Name the order to withdraw.")
+        if held_id is not None:
+            if isinstance(held_id, bool) or not isinstance(held_id, int):
+                raise ValueError("held_id is a number.")
+            if not held_orders.drop(store, cid, seat, held_id):
+                raise ValueError("There is no such held order of yours to withdraw.")
+            return {"reply": "Withdrawn. It will not be filed.", "refused": False}
+        if not isinstance(order_id, str):
+            raise ValueError("order_id is text.")
+        sealed = held_orders.closing(store, cid) or wk.joining(state, seat)
+        order = withdraw.withdraw_order(store, cid, seat, order_id, sealed=sealed)
+        label = _lever_label(state, seat, order.lever)
+        return {"reply": f"{label}: withdrawn.", "refused": False}
 
     def _hold(
         self,

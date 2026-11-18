@@ -10,6 +10,7 @@ defines the shapes.
 """
 
 from datetime import date, datetime
+from enum import StrEnum
 from typing import ClassVar, Literal
 
 from pydantic import Field
@@ -68,6 +69,35 @@ from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.settings import Settings
 
 Ruleset = Literal["legacy", "realism"]
+
+
+class Rule(StrEnum):
+    """A rule of the territory game a world switches on by name. A stored game, and a
+    world that names none, has none on; every such rule checks its name before it acts."""
+
+    TERRITORIES = "territories"
+    HOLDERS = "holders"
+    ECONOMY = "economy"
+    SUPPLY = "supply"
+    FUEL = "fuel"
+    BATTLES = "battles"
+    REPORTS = "reports"
+    GROUPS = "groups"
+    AGREEMENTS = "agreements"
+    CONFERENCE = "conference"
+    CONTESTS = "contests"
+    AIMS = "aims"
+    AID = "aid"
+    WRITING = "writing"
+    """Free writing moves groups: leans on a live model's reading."""
+    CLAUSE_READER = "clause_reader"
+    """Treaty and bill wording read into clauses by a live model."""
+    WRITTEN_ORDERS = "written_orders"
+    """Written orders checked against their form by a live model."""
+
+
+MODEL_READ_RULES = frozenset({Rule.WRITING, Rule.CLAUSE_READER, Rule.WRITTEN_ORDERS})
+"""The rules that lean on a live model's reading: off in every shipped world."""
 
 
 class Wake(Model):
@@ -193,8 +223,12 @@ class State(_World):
     """Leaders changing hands when the open wake closes: ``HUMAN`` for a joiner, ``AI``
     for a leaver. Engine only, never in a view or the wake: how a seat is run is never
     shown."""
+    rules: frozenset[Rule] = frozenset()
+    """The territory rules switched on, set once by ``campaign_created``. Engine only
+    here; a seat's view gains them when a rule it shows needs them."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
+        "rules",
         "routed",
         "styles",
         "standing",

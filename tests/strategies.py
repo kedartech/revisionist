@@ -68,7 +68,9 @@ from revisionist.core.realism import geography as rg
 from revisionist.core.realism import pipeline as rp
 from revisionist.core.realism import stance as rs
 from revisionist.core.realism.quantity import RESOLVER_KEYS, Quantity
+from revisionist.core.realism.war import War, war_id_for
 from revisionist.core.settings import Settings
+from revisionist.core.state import Rule
 from revisionist.core.visibility import Scope, Visibility
 
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
@@ -744,8 +746,28 @@ def mandate_templates(draw: st.DrawFn) -> ra.MandateTemplate:
     )
 
 
+@st.composite
+def wars(draw: st.DrawFn) -> War:
+    a, b = draw(st.lists(entity_ids, min_size=2, max_size=2, unique=True))
+    return War(
+        war_id=war_id_for(a, b),
+        a=a,
+        b=b,
+        since=draw(in_world_dates),
+        declared_by=draw(entity_ids),
+        declared=draw(st.booleans()),
+    )
+
+
 realism_payloads = st.one_of(
-    st.builds(ev.CampaignCreated, name=short_text, world=short_text, ruleset=st.just("realism")),
+    st.builds(
+        ev.CampaignCreated,
+        name=short_text,
+        world=short_text,
+        ruleset=st.just("realism"),
+        rules=st.frozensets(st.sampled_from(Rule)),
+    ),
+    st.builds(ev.WarDeclared, war=wars()),
     st.builds(
         ev.CardsDeclared,
         cards=st.lists(seat_cards, max_size=2).map(tuple),

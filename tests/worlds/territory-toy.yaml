@@ -1,0 +1,46 @@
+# A toy world for the territory rules (tests only).
+#
+# Two powers already at war on the start date, one leader each, both playable.
+# No rule of the territory game is switched on yet: `rules: []`. Later items add
+# the map, the piece kinds and the rules they test. Every name is invented.
+
+world: territory-toy
+name: Territory Toy
+ruleset: realism
+start: "The Norra-Sudland border, spring 1900"
+start_date: 1900-04-02
+
+rules: []
+
+entities:
+  - {key: norra, kind: polity, name: Norra}
+  - {key: sudland, kind: polity, name: Sudland}
+  - {key: ilse, kind: person, name: Ilse Varg, parent: norra}
+  - {key: tomas, kind: person, name: Tomas Brand, parent: sudland}
+
+sources:
+  - key: toy
+    title: Invented for the toy world
+    note: Not history. Stands in for a real citation in tests.
+    verified: true
+
+wars:
+  - {a: norra, b: sudland, since: 1900-03-01, source: toy}
+
+cards:
+  - person: ilse
+    office: Chancellor of Norra
+    playable: true
+    principals: [norra]
+    horizon_days: 14
+  - person: tomas
+    office: Premier of Sudland
+    playable: true
+    principals: [sudland]
+    horizon_days: 14
+
+seats: []
+
+roster:
+  - {entity: ilse, pitch: The chancellor who started the war., reach: The army of Norra., composite: true}
+  - {entity: tomas, pitch: The premier who must hold the border., reach: The army of Sudland., composite: true}

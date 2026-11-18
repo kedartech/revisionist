@@ -151,7 +151,7 @@ def _mutate(state: State, event: Event) -> State:
     p = event.payload
     match p:
         case ev.CampaignCreated():
-            return state.model_copy(update={"ruleset": p.ruleset})
+            return state.model_copy(update={"ruleset": p.ruleset, "rules": p.rules})
         case ev.SettingsSet():
             return state.model_copy(update={"settings": p.settings})
         case ev.EntityCreated():

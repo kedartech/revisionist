@@ -102,7 +102,7 @@ from revisionist.core.realism.effect import (
 from revisionist.core.realism.geography import FORCES, Feature, Leg
 from revisionist.core.realism.pipeline import Pipeline, Step
 from revisionist.core.realism.quantity import Quantity
-from revisionist.core.realism.war import Outlet
+from revisionist.core.realism.war import Outlet, War, war_id_for
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, Scope, Visibility, private_to
 from revisionist.core.world import (
@@ -407,6 +407,8 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "mandates",
             "outlets",
             "topics",
+            "wars",
+            "rules",
         ):
             if getattr(world, name):
                 problems.append(f"{name}: only a realism world has {name}")
@@ -480,6 +482,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
                 _check_movement(world, f"{where}: lever {lv.name}", lv, problems)
     _check_answers(world, sections, problems)
     _check_topics(world, problems)
+    _check_wars(world, sections, problems)
     playable = {c.person for c in world.cards if c.playable}
     listed = {ch.entity for ch in world.roster}
     # A listed person with no card yet is built when picked (compile_figure).
@@ -515,6 +518,29 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
         for leaf in leaves(m.condition):
             for name, section in _CONDITION_REFS.items():
                 _ref(problems, where, getattr(leaf, name, None), section, sections)
+
+
+def _check_wars(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """Each war between two distinct polities, under way by the start date, once per pair."""
+    names = {d.key: d.name for d in world.entities if d.kind is EntityKind.POLITY}
+    at_war: set[frozenset[str]] = set()
+    for w in world.wars:
+        where = f"war {w.a}-{w.b}"
+        _refs(problems, where, [w.a, w.b], "entity", sections)
+        for side in (w.a, w.b):
+            if sections.get(side) == "entity" and side not in names:
+                problems.append(f"{where}: {side} is not a polity")
+        _check_cited(problems, where, w, sections)
+        if world.start_date is not None and w.since > world.start_date:
+            problems.append(f"{where}: begins after the start date")
+        if w.a == w.b:
+            problems.append(f"{where}: a power cannot be at war with itself")
+        elif frozenset((w.a, w.b)) in at_war:
+            a, b = names.get(w.a, w.a), names.get(w.b, w.b)
+            problems.append(f"{where}: {a} and {b} are already at war")
+        at_war.add(frozenset((w.a, w.b)))
+    if len(set(world.rules)) != len(world.rules):
+        problems.append("rules: a rule is named twice")
 
 
 def _fits(spec: ParamSpec, value: ParamValue, sections: Mapping[str, str]) -> bool:
@@ -882,7 +908,15 @@ def _emit(
     world: WorldFile, ids: Mapping[str, str], sections: Mapping[str, str]
 ) -> list[tuple[ev.Payload, Scope]]:
     out: list[tuple[ev.Payload, Scope]] = [
-        (ev.CampaignCreated(name=world.name, world=world.world, ruleset=world.ruleset), PUBLIC),
+        (
+            ev.CampaignCreated(
+                name=world.name,
+                world=world.world,
+                ruleset=world.ruleset,
+                rules=frozenset(world.rules),
+            ),
+            PUBLIC,
+        ),
         (ev.SettingsSet(settings=world.settings), PUBLIC),
     ]
     out += [(ev.EntityCreated(entity=_entity(e, ids)), PUBLIC) for e in world.entities]
@@ -1155,6 +1189,12 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
         topics=tuple(_topic(t) for t in world.topics),
     )
     out.append((declared, PUBLIC))
+    for w in world.wars:
+        a, b = EntityId(ids[w.a]), EntityId(ids[w.b])
+        war = War(
+            war_id=war_id_for(a, b), a=a, b=b, since=w.since, declared_by=a, declared=w.declared
+        )
+        out.append((ev.WarDeclared(war=war), PUBLIC))
     return out
 
 

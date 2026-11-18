@@ -49,6 +49,7 @@ from revisionist.core.realism.geography import FeatureKind
 from revisionist.core.realism.pipeline import StepAction, StepKind
 from revisionist.core.realism.quantity import ResolverKey
 from revisionist.core.settings import Settings
+from revisionist.core.state import Rule
 from revisionist.core.visibility import Visibility
 
 Key = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]*$", max_length=40)]
@@ -479,6 +480,17 @@ class FeatureDecl(Cited):
     """Engine v2: the day the capability enters service. None: from the start."""
 
 
+class WarDecl(Cited):
+    """A war already under way on the start date. ``a`` and ``b`` are polity keys;
+    ``a`` is the side that began it."""
+
+    a: Key
+    b: Key
+    since: date
+    declared: bool = True
+    """False for a war fought without a formal declaration. Either way it is a war."""
+
+
 class LeverDecl(Model):
     name: Label
     pipeline: Key
@@ -651,6 +663,11 @@ class WorldFile(Model):
     """The deck, read from the sidecar file, not from the world file itself."""
     topics: tuple[TopicDecl, ...] = ()
     """What people want and hold to, named once. Realism only."""
+    wars: SkipJsonSchema[tuple[WarDecl, ...]] = ()
+    """Wars in force on the start date. Realism only. Written by hand: not offered to a model."""
+    rules: SkipJsonSchema[tuple[Rule, ...]] = ()
+    """The territory rules this world switches on, by name; none when left out. Realism
+    only. Written by hand: not offered to a model."""
 
 
 __all__ = [
@@ -694,6 +711,7 @@ __all__ = [
     "StepDecl",
     "TopicDecl",
     "TriggerDecl",
+    "WarDecl",
     "WindowDecl",
     "WorldFile",
 ]

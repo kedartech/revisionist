@@ -13,8 +13,8 @@ SessionZeroOpened, CharacterListed, CharacterClaimed,
 CharacterReleased, SessionZeroClosed, SeasonEnded, GoalSet, GoalProgressed, GoalMet, GoalUndone,
 TickOpened, TickClosed``, and for realism campaigns ``CardsDeclared,
 DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, QuantitySet,
-FeatureSet, WarDeclared, NewsReported, StanceChanged, OpponentsRanked, CardAmended,
-AnswerPlanned, AnswerMade``, and under engine v2
+FeatureSet, WarDeclared, MapDeclared, NewsReported, StanceChanged, OpponentsRanked,
+CardAmended, AnswerPlanned, AnswerMade``, and under engine v2
 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -92,6 +92,7 @@ from revisionist.core.realism.pipeline import (
 )
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
+from revisionist.core.realism.territory import WorldMap
 from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.resolution import FeasibilityBand, OutcomeTier, RejectionReason, TickStage
 from revisionist.core.settings import Settings
@@ -639,6 +640,14 @@ class WarDeclared(Model):
     war: War
 
 
+class MapDeclared(Model):
+    """The board the world file defines: areas, regions, terrain and adjacency, with
+    the map file's name and hash, never its shapes. Public; once, at creation."""
+
+    kind: Literal["map_declared"] = "map_declared"
+    map: WorldMap
+
+
 class NewsReported(Model):
     """A public event, as structured facts. Each seat's press words it later."""
 
@@ -1044,6 +1053,7 @@ Payload = Annotated[
     | QuantitySet
     | FeatureSet
     | WarDeclared
+    | MapDeclared
     | NewsReported
     | StanceChanged
     | OpponentsRanked
@@ -1117,6 +1127,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "quantity_set",
         "feature_set",
         "war_declared",
+        "map_declared",
         "stance_changed",
         "opponents_ranked",
         "card_amended",

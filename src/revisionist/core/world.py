@@ -23,7 +23,7 @@ or ``gap: true``, so an unsourced figure can never pass as a sourced one.
 from datetime import date
 from typing import Annotated, Literal
 
-from pydantic import Field, StringConstraints, model_validator
+from pydantic import Field, StringConstraints, TypeAdapter, WithJsonSchema, model_validator
 from pydantic.json_schema import SkipJsonSchema
 
 from revisionist.core._base import Label, Model
@@ -48,6 +48,7 @@ from revisionist.core.realism.effect import DISPOSITION_CAP, FIGURE_CAP, EffectK
 from revisionist.core.realism.geography import FeatureKind
 from revisionist.core.realism.pipeline import StepAction, StepKind
 from revisionist.core.realism.quantity import ResolverKey
+from revisionist.core.realism.territory import Coords, Sha256, TerrainKind
 from revisionist.core.settings import Settings
 from revisionist.core.state import Rule
 from revisionist.core.visibility import Visibility
@@ -58,6 +59,11 @@ Key = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]*$", max_length=
 
 Latitude = Annotated[float, Field(ge=-90, le=90)]
 Longitude = Annotated[float, Field(ge=-180, le=180)]
+
+_LAT_LON = TypeAdapter(tuple[Latitude, Longitude] | None)
+At = Annotated[tuple[float, float] | None, WithJsonSchema(_LAT_LON.json_schema())]
+"""A place's ``[y, x]``: latitude and longitude, or on a flat map units of its plane.
+Offered to a model as latitude and longitude, the only kind a drafted world has."""
 
 
 class ScopeDecl(Model):
@@ -78,11 +84,13 @@ class EntityDecl(Model):
     parent: Key | None = None
     location: Key | None = None
     tags: tuple[Label, ...] = ()
-    at: tuple[Latitude, Longitude] | None = None
-    """A place's latitude and longitude, for the map."""
+    at: At = None
+    """A place's latitude and longitude, for the map; on a flat map, ``[y, x]`` in its units."""
     theatre: SkipJsonSchema[Label | None] = None
     """The theatre a place sits in, for the map. Written by hand: not offered to a
     model drafting a world."""
+    within: SkipJsonSchema[Key | None] = None
+    """The territory or sea zone a place lies in. Written by hand."""
 
 
 class AssetDecl(Model):
@@ -491,6 +499,69 @@ class WarDecl(Cited):
     """False for a war fought without a formal declaration. Either way it is a war."""
 
 
+MapFile = Annotated[
+    str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]*\.json$", max_length=60)
+]
+"""A map file's name, found under ``maps/`` beside the world file, or beside it."""
+
+
+class MapDecl(Model):
+    """The map file a world's board is drawn from, named by its file and its hash."""
+
+    coords: Coords
+    file: MapFile
+    sha256: Sha256
+    box: tuple[float, float, float, float] | None = None
+    """``[west, south, east, north]``; a ``flat`` map needs one."""
+
+
+class TerrainDecl(Model):
+    key: Key
+    kind: TerrainKind
+
+
+class RegionDecl(Model):
+    key: Key
+    name: Label
+    parent: Key | None = None
+    """The region this one lies in. Regions nest to any depth, never in a cycle."""
+
+
+class TerritoryDecl(Cited):
+    """A land area of the map. Its holder and yields are cited, or marked a gap."""
+
+    key: Key
+    name: Label
+    region: Key
+    terrain: Key
+    holder: Key | None = None
+    """The polity holding it at the start."""
+    yields: dict[Key, Annotated[float, Field(ge=0)]] = Field(default_factory=dict)
+    """What it yields, by resource key."""
+    sites: tuple[Key, ...] = ()
+    """Places in it, each a location entity."""
+    districts: tuple[Key, ...] = ()
+    """Finer shapes in the map file, for drawing only."""
+
+
+class SeaZoneDecl(Model):
+    key: Key
+    name: Label
+    region: Key
+    terrain: Key
+
+
+class LinkDecl(Model):
+    """Two areas joined where they share no border: a strait, a ferry, a causeway."""
+
+    a: Key
+    b: Key
+    crossing: Label
+
+
+AdjacencyDecl = tuple[Key, Key] | LinkDecl
+
+
 class LeverDecl(Model):
     name: Label
     pipeline: Key
@@ -668,9 +739,31 @@ class WorldFile(Model):
     rules: SkipJsonSchema[tuple[Rule, ...]] = ()
     """The territory rules this world switches on, by name; none when left out. Realism
     only. Written by hand: not offered to a model."""
+    map: SkipJsonSchema[MapDecl | None] = None
+    """The map file the board is drawn from. Realism only. The board's keys below are
+    written by hand, or by the map build: none is offered to a model."""
+    terrain: SkipJsonSchema[tuple[TerrainDecl, ...]] = ()
+    regions: SkipJsonSchema[tuple[RegionDecl, ...]] = ()
+    territories: SkipJsonSchema[tuple[TerritoryDecl, ...]] = ()
+    sea_zones: SkipJsonSchema[tuple[SeaZoneDecl, ...]] = ()
+    adjacency: SkipJsonSchema[tuple[AdjacencyDecl, ...]] = ()
+    """Each bordering pair once, in either order."""
+    map_data: SkipJsonSchema[bytes | None] = Field(default=None, exclude=True)
+    """The bytes of the map file ``map`` names, read by the world loader from beside
+    the world file, not from the world file itself. None when no file was found."""
+
+    @model_validator(mode="after")
+    def _places_on_the_globe(self) -> "WorldFile":
+        if self.map is not None and self.map.coords == "flat":
+            return self
+        for e in self.entities:
+            if e.at is not None and not (-90 <= e.at[0] <= 90 and -180 <= e.at[1] <= 180):
+                raise ValueError(f"entity {e.key}: at {list(e.at)} is not latitude, longitude")
+        return self
 
 
 __all__ = [
+    "AdjacencyDecl",
     "AgentDecl",
     "AssetDecl",
     "CardDecl",
@@ -696,19 +789,25 @@ __all__ = [
     "Key",
     "LegDecl",
     "LeverDecl",
+    "LinkDecl",
     "MandateDecl",
+    "MapDecl",
     "MeterDecl",
     "OutletDecl",
     "PipelineDecl",
     "QuantityDecl",
+    "RegionDecl",
     "RelationshipDecl",
     "ScopeDecl",
     "ScopeSpec",
+    "SeaZoneDecl",
     "SeatDecl",
     "SideDecl",
     "Slug",
     "SourceDecl",
     "StepDecl",
+    "TerrainDecl",
+    "TerritoryDecl",
     "TopicDecl",
     "TriggerDecl",
     "WarDecl",

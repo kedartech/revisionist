@@ -67,6 +67,7 @@ from revisionist.core.realism import effect as rx
 from revisionist.core.realism import geography as rg
 from revisionist.core.realism import pipeline as rp
 from revisionist.core.realism import stance as rs
+from revisionist.core.realism import territory as tm
 from revisionist.core.realism.quantity import RESOLVER_KEYS, Quantity
 from revisionist.core.realism.war import War, war_id_for
 from revisionist.core.settings import Settings
@@ -133,6 +134,7 @@ entities = st.builds(
     location=st.none() | entity_ids,
     tags=tags,
     theatre=st.none() | short_text,
+    within=st.none() | entity_ids,
 )
 
 assets = st.builds(
@@ -759,6 +761,49 @@ def wars(draw: st.DrawFn) -> War:
     )
 
 
+labels = st.text(min_size=1, max_size=20)
+sha256s = st.binary(min_size=1, max_size=8).map(lambda b: tm.file_hash(b))
+boxes = st.tuples(*[st.floats(-180, 180, allow_nan=False)] * 4)
+
+world_maps = st.builds(
+    tm.WorldMap,
+    file=labels,
+    sha256=sha256s,
+    coords=st.sampled_from(["lonlat", "flat"]),
+    box=st.none() | boxes,
+    terrain=st.lists(
+        st.builds(tm.Terrain, key=labels, kind=st.sampled_from(tm.TerrainKind)), max_size=2
+    ).map(tuple),
+    regions=st.lists(
+        st.builds(tm.Region, key=labels, name=labels, parent=st.none() | labels), max_size=2
+    ).map(tuple),
+    territories=st.lists(
+        st.builds(
+            tm.Territory,
+            area=entity_ids,
+            key=labels,
+            name=labels,
+            region=labels,
+            terrain=labels,
+            holder=st.none() | entity_ids,
+            yields=st.dictionaries(labels, st.floats(0, 100, allow_nan=False), max_size=2),
+            sites=st.lists(entity_ids, max_size=2).map(tuple),
+            districts=st.lists(labels, max_size=2).map(tuple),
+        ),
+        max_size=2,
+    ).map(tuple),
+    sea_zones=st.lists(
+        st.builds(
+            tm.SeaZone, area=entity_ids, key=labels, name=labels, region=labels, terrain=labels
+        ),
+        max_size=2,
+    ).map(tuple),
+    adjacency=st.lists(
+        st.builds(tm.Link, a=entity_ids, b=entity_ids, crossing=st.none() | labels), max_size=3
+    ).map(tuple),
+)
+
+
 realism_payloads = st.one_of(
     st.builds(
         ev.CampaignCreated,
@@ -768,6 +813,7 @@ realism_payloads = st.one_of(
         rules=st.frozensets(st.sampled_from(Rule)),
     ),
     st.builds(ev.WarDeclared, war=wars()),
+    st.builds(ev.MapDeclared, map=world_maps),
     st.builds(
         ev.CardsDeclared,
         cards=st.lists(seat_cards, max_size=2).map(tuple),
@@ -1326,5 +1372,6 @@ ALL_MODEL_STRATEGIES: dict[str, st.SearchStrategy[object]] = {
     "Offer": cast(st.SearchStrategy[object], offers),
     "Domain": cast(st.SearchStrategy[object], domains),
     "Feature": cast(st.SearchStrategy[object], features()),
+    "WorldMap": cast(st.SearchStrategy[object], world_maps),
     "MandateTemplate": cast(st.SearchStrategy[object], mandate_templates()),
 }

@@ -1,8 +1,9 @@
 # A toy world for the territory rules (tests only).
 #
-# Two powers already at war on the start date, one leader each, both playable.
-# No rule of the territory game is switched on yet: `rules: []`. Later items add
-# the map, the piece kinds and the rules they test. Every name is invented.
+# Two powers already at war on the start date, one leader each, both playable, on a
+# flat map (`toy.map.json` beside this file). No rule of the territory game is
+# switched on yet: `rules: []`. Later items add the piece kinds and the rules they
+# test. Every name is invented.
 
 world: territory-toy
 name: Territory Toy
@@ -17,6 +18,44 @@ entities:
   - {key: sudland, kind: polity, name: Sudland}
   - {key: ilse, kind: person, name: Ilse Varg, parent: norra}
   - {key: tomas, kind: person, name: Tomas Brand, parent: sudland}
+  - {key: norrhavn, kind: location, name: Norrhavn, at: [150, 150], within: norra_plain}
+  - {key: sudby, kind: location, name: Sudby, at: [40, 60], within: sudland_coast}
+
+# The board: a flat plane 300 by 200, four land territories and two sea zones. The
+# isle shares no border with the mainland; a ferry joins it to the Norra plain.
+map: {coords: flat, file: toy.map.json, sha256: c85e9773c786d427609b240ea1c45e21ae5c3c57ae2ab98d6b0d96713a20f28e, box: [0, 0, 300, 200]}
+
+terrain:
+  - {key: hills, kind: land}
+  - {key: plain, kind: land}
+  - {key: shallows, kind: sea}
+  - {key: deep, kind: sea}
+
+regions:
+  - {key: mainland, name: The Mainland}
+  - {key: north, name: The North, parent: mainland}
+  - {key: south, name: The South, parent: mainland}
+  - {key: waters, name: The Waters}
+
+territories:
+  - {key: norra_hills, name: The Norra Hills, region: north, terrain: hills, holder: norra, source: toy}
+  - {key: norra_plain, name: The Norra Plain, region: north, terrain: plain, holder: norra, sites: [norrhavn], source: toy}
+  - {key: sudland_coast, name: The Sudland Coast, region: south, terrain: plain, holder: sudland, sites: [sudby], source: toy}
+  - {key: isle, name: The Isle, region: waters, terrain: hills, holder: sudland, source: toy}
+
+sea_zones:
+  - {key: the_gulf, name: The Gulf, region: waters, terrain: shallows}
+  - {key: open_sea, name: The Open Sea, region: waters, terrain: deep}
+
+adjacency:
+  - [norra_hills, norra_plain]
+  - [norra_hills, sudland_coast]
+  - [norra_plain, the_gulf]
+  - [norra_plain, open_sea]
+  - [sudland_coast, the_gulf]
+  - [the_gulf, open_sea]
+  - [isle, open_sea]
+  - {a: isle, b: norra_plain, crossing: the ferry}
 
 sources:
   - key: toy

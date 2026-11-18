@@ -1,0 +1,230 @@
+# Salt Strait under the current rules: the four polities of Salt Strait on a flat map.
+#
+# The map (`maps/salt-strait-realism.json`) is fictional and written by hand straight into
+# the committed format: no geometry tool, no recipe, no border data. North of the water lie
+# Ostrel and Varda, joined by Harrow Pass; south of it Kesh and the Lune Free Harbours; the
+# Lune Isles stand in the sound. The Salt Strait joins the outer sea to the sound.
+#
+# The world names its own terrain, resources and piece kinds. Two leaders are playable
+# (Varda, Ostrel); Kesh and the Lune Isles are run by code from their cards. Only the
+# territory rule is on; later items add the rest. `worlds/salt-strait.yaml` and
+# `worlds/salt-strait-duo.yaml` are separate worlds and are not read here.
+# Every name and number is invented. [proposed]
+
+world: salt-strait-realism
+name: Salt Strait
+ruleset: realism
+start: "The Salt Strait, spring 1900"
+start_date: 1900-04-02
+
+rules: [territories]
+
+entities:
+  # polities
+  - {key: varda, kind: polity, name: Varda, tags: [hinge, mercantile]}
+  - {key: ostrel, kind: polity, name: Ostrel, tags: [continental, military]}
+  - {key: kesh, kind: polity, name: Kesh, tags: [theocratic, insular]}
+  - {key: lune, kind: polity, name: Lune Isles, tags: [maritime, federated]}
+  # people: a leader and the aide every order and report passes through
+  - {key: oren_vale, kind: person, name: Oren Vale, parent: varda}
+  - {key: mira, kind: person, name: Mira Toll, parent: varda, tags: [chief_of_staff]}
+  - {key: general_aske, kind: person, name: General Aske, parent: ostrel}
+  - {key: sefa, kind: person, name: Sefa Marr, parent: ostrel, tags: [chief_of_staff]}
+  - {key: abbess_ren, kind: person, name: Abbess Ren, parent: kesh}
+  - {key: tam_orrin, kind: person, name: Tam Orrin, parent: kesh}
+  - {key: admiral_quell, kind: person, name: Admiral Quell, parent: lune}
+  - {key: ines_corr, kind: person, name: Ines Corr, parent: lune}
+  # places, `at` as [y, x] on the map's plane
+  - {key: kael, kind: location, name: Kael, at: [330, 80], within: ostrel_heartland, port_on: the_outer_sea}
+  - {key: harrow_fort, kind: location, name: The Harrow Fort, at: [340, 240], within: harrow_pass}
+  - {key: saltworks, kind: location, name: Varda Saltworks, at: [280, 340], within: varda_saltworks, port_on: the_strait}
+  - {key: esk_harbour, kind: location, name: Esk Harbour, at: [260, 470], within: varda_downs, port_on: the_lune_sound}
+  - {key: high_temple, kind: location, name: The High Temple, at: [60, 100], within: kesh_lowlands}
+  - {key: kesh_quay, kind: location, name: Kesh Quay, at: [140, 320], within: kesh_shore, port_on: the_strait}
+  - {key: free_port, kind: location, name: The Free Port, at: [100, 520], within: free_harbours, port_on: the_lune_sound}
+  - {key: lune_haven, kind: location, name: Lune Haven, at: [186, 488], within: lune_isles, port_on: the_lune_sound}
+
+# The board: a flat plane 600 by 400. A band of water runs west to east across the middle.
+map: {coords: flat, file: salt-strait-realism.json, sha256: ad79d2d8bb805dc87236875d31ed1c2537d8733296f11056d526ffe836645a33, box: [0, 0, 600, 400]}
+
+# Harrow Pass is mountain: the one terrain that adds two to a defender.
+terrain:
+  - {key: lowland, kind: land}
+  - {key: heath, kind: land, defence: 1}
+  - {key: crags, kind: land, defence: 2}
+  - {key: narrows, kind: sea}
+  - {key: open_water, kind: sea}
+
+regions:
+  - {key: the_shores, name: The Shores}
+  - {key: the_waters, name: The Waters and the Isles}
+
+territories:
+  - {key: ostrel_heartland, name: The Ostrel Heartland, region: the_shores, terrain: heath, holder: ostrel, sites: [kael], source: salt_strait}
+  - {key: harrow_pass, name: Harrow Pass, region: the_shores, terrain: crags, holder: ostrel, sites: [harrow_fort], source: salt_strait}
+  - {key: varda_saltworks, name: The Saltworks Coast, region: the_shores, terrain: lowland, holder: varda, sites: [saltworks], source: salt_strait}
+  - {key: varda_downs, name: The Varda Downs, region: the_shores, terrain: heath, holder: varda, sites: [esk_harbour], source: salt_strait}
+  - {key: kesh_lowlands, name: The Kesh Lowlands, region: the_shores, terrain: lowland, holder: kesh, sites: [high_temple], source: salt_strait}
+  - {key: kesh_shore, name: The Kesh Shore, region: the_shores, terrain: lowland, holder: kesh, sites: [kesh_quay], source: salt_strait}
+  - {key: free_harbours, name: The Free Harbours, region: the_shores, terrain: lowland, holder: lune, sites: [free_port], source: salt_strait}
+  - {key: lune_isles, name: The Lune Isles, region: the_waters, terrain: heath, holder: lune, sites: [lune_haven], source: salt_strait}
+
+sea_zones:
+  - {key: the_outer_sea, name: The Outer Sea, region: the_waters, terrain: open_water}
+  - {key: the_strait, name: The Salt Strait, region: the_waters, terrain: narrows}
+  - {key: the_lune_sound, name: The Lune Sound, region: the_waters, terrain: open_water}
+
+# Written by hand; `scripts/map_check.py check --world` holds it to what the map derives.
+adjacency:
+  - [free_harbours, kesh_shore]
+  - [free_harbours, the_lune_sound]
+  - [harrow_pass, ostrel_heartland]
+  - [harrow_pass, the_strait]
+  - [harrow_pass, varda_saltworks]
+  - [kesh_lowlands, kesh_shore]
+  - [kesh_lowlands, the_outer_sea]
+  - [kesh_shore, the_strait]
+  - [lune_isles, the_lune_sound]
+  - [ostrel_heartland, the_outer_sea]
+  - [the_lune_sound, the_strait]
+  - [the_lune_sound, varda_downs]
+  - [the_outer_sea, the_strait]
+  - [the_strait, varda_saltworks]
+  - [varda_downs, varda_saltworks]
+
+# One resource for each of the five roles.
+resources:
+  - {key: salt, name: Salt, unit: loads, role: output}
+  - {key: levies, name: Levies, unit: men, role: manpower}
+  - {key: fodder, name: Fodder, unit: carts, role: fuel}
+  - {key: roads, name: Roads, unit: leagues, role: supply}
+  - {key: renown, name: Renown, unit: marks, role: prestige}
+
+# The world's own piece kinds: no air kind.
+piece_kinds:
+  - {key: levy, name: Levy, domain: land, days_per_step: {lowland: 4, heath: 5, crags: 9}}
+  - {key: galley, name: Galley, domain: sea, days_per_step: {narrows: 2, open_water: 3}, max_strength: 3}
+  - {key: rider, name: Rider, domain: envoy, days_per_step: {lowland: 2, heath: 2, crags: 4, narrows: 3, open_water: 4}}
+
+features:
+  - {key: varda_levy, kind: piece, piece: levy, name: The Varda Levy, side: varda, places: [saltworks], source: salt_strait}
+  - {key: varda_galleys, kind: piece, piece: galley, name: The Varda Galleys, side: varda, places: [esk_harbour], source: salt_strait}
+  - {key: varda_rider, kind: piece, piece: rider, name: The Varda Rider, side: varda, places: [saltworks], source: salt_strait}
+  - {key: ostrel_levy, kind: piece, piece: levy, name: The Ostrel Levy, side: ostrel, places: [kael], source: salt_strait}
+  - {key: ostrel_galleys, kind: piece, piece: galley, name: The Ostrel Galleys, side: ostrel, places: [kael], source: salt_strait}
+  - {key: ostrel_rider, kind: piece, piece: rider, name: The Ostrel Rider, side: ostrel, places: [kael], source: salt_strait}
+  - {key: kesh_levy, kind: piece, piece: levy, name: The Temple Levy, side: kesh, places: [high_temple], source: salt_strait}
+  - {key: kesh_rider, kind: piece, piece: rider, name: The Kesh Rider, side: kesh, places: [high_temple], source: salt_strait}
+  - {key: lune_galleys, kind: piece, piece: galley, name: The Lune Galleys, side: lune, places: [lune_haven], source: salt_strait}
+  - {key: lune_levy, kind: piece, piece: levy, name: The Harbour Levy, side: lune, places: [free_port], source: salt_strait}
+
+sources:
+  - key: salt_strait
+    title: Invented for Salt Strait
+    note: A fictional world. Every name and number in it is invented, not history.
+    verified: true
+
+# Each leader's aide reports where the leader's own forces stand.
+feeds:
+  - {key: varda_muster, name: Mira Toll's muster roll, author: mira, kind: report, channel: letter, every_days: 7, latency_days: 1, sights: [varda_levy, varda_galleys, varda_rider], source: salt_strait}
+  - {key: ostrel_muster, name: Sefa Marr's muster roll, author: sefa, kind: report, channel: courier, every_days: 7, latency_days: 1, sights: [ostrel_levy, ostrel_galleys, ostrel_rider], source: salt_strait}
+  - {key: kesh_muster, name: Tam Orrin's muster roll, author: tam_orrin, kind: report, channel: letter, every_days: 7, latency_days: 1, sights: [kesh_levy, kesh_rider], source: salt_strait}
+  - {key: lune_muster, name: Ines Corr's muster roll, author: ines_corr, kind: report, channel: letter, every_days: 7, latency_days: 1, sights: [lune_galleys, lune_levy], source: salt_strait}
+
+# Each leader's order passes through the aide's hands.
+pipelines:
+  - key: varda_order
+    name: An order through the First Minister's office
+    source: salt_strait
+    steps:
+      - {person: mira, kind: clerical, days: 1}
+  - key: ostrel_order
+    name: An order through the Marshal's staff
+    source: salt_strait
+    steps:
+      - {person: sefa, kind: clerical, days: 1}
+  - key: kesh_order
+    name: An order through the Temple chancery
+    source: salt_strait
+    steps:
+      - {person: tam_orrin, kind: clerical, days: 1}
+  - key: lune_order
+    name: An order through the Admiralty of the Isles
+    source: salt_strait
+    steps:
+      - {person: ines_corr, kind: clerical, days: 1}
+
+cards:
+  - person: oren_vale
+    office: First Minister of Varda
+    playable: true
+    principals: [varda]
+    levers:
+      - name: move_force
+        pipeline: varda_order
+        resolver: movement
+        label: "Move a force"
+        params:
+          - {name: force, kind: enum, choices: [varda_levy, varda_galleys, varda_rider], label: "Force"}
+          - {name: to, kind: enum, choices: [ostrel_heartland, harrow_pass, varda_saltworks, varda_downs, kesh_lowlands, kesh_shore, free_harbours, lune_isles, the_outer_sea, the_strait, the_lune_sound], label: "To"}
+    inner_circle:
+      - {person: mira, channel: in_person}
+    feeds: [varda_muster]
+    pipelines: [varda_order]
+    horizon_days: 14
+  - person: general_aske
+    office: Marshal of Ostrel
+    playable: true
+    principals: [ostrel]
+    levers:
+      - name: move_force
+        pipeline: ostrel_order
+        resolver: movement
+        label: "Move a force"
+        params:
+          - {name: force, kind: enum, choices: [ostrel_levy, ostrel_galleys, ostrel_rider], label: "Force"}
+          - {name: to, kind: enum, choices: [ostrel_heartland, harrow_pass, varda_saltworks, varda_downs, kesh_lowlands, kesh_shore, free_harbours, lune_isles, the_outer_sea, the_strait, the_lune_sound], label: "To"}
+    inner_circle:
+      - {person: sefa, channel: in_person}
+    feeds: [ostrel_muster]
+    pipelines: [ostrel_order]
+    horizon_days: 14
+  - person: abbess_ren
+    office: Abbess of the High Pulpit
+    principals: [kesh]
+    levers:
+      - name: move_force
+        pipeline: kesh_order
+        resolver: movement
+        label: "Move a force"
+        params:
+          - {name: force, kind: enum, choices: [kesh_levy, kesh_rider], label: "Force"}
+          - {name: to, kind: enum, choices: [ostrel_heartland, harrow_pass, varda_saltworks, varda_downs, kesh_lowlands, kesh_shore, free_harbours, lune_isles, the_outer_sea, the_strait, the_lune_sound], label: "To"}
+    inner_circle:
+      - {person: tam_orrin, channel: in_person}
+    feeds: [kesh_muster]
+    pipelines: [kesh_order]
+    horizon_days: 14
+  - person: admiral_quell
+    office: Admiral of the Lune Isles
+    principals: [lune]
+    levers:
+      - name: move_force
+        pipeline: lune_order
+        resolver: movement
+        label: "Move a force"
+        params:
+          - {name: force, kind: enum, choices: [lune_galleys, lune_levy], label: "Force"}
+          - {name: to, kind: enum, choices: [ostrel_heartland, harrow_pass, varda_saltworks, varda_downs, kesh_lowlands, kesh_shore, free_harbours, lune_isles, the_outer_sea, the_strait, the_lune_sound], label: "To"}
+    inner_circle:
+      - {person: ines_corr, channel: in_person}
+    feeds: [lune_muster]
+    pipelines: [lune_order]
+    horizon_days: 14
+
+# Nobody is pre-seated: players claim the playable leaders at Session Zero.
+seats: []
+
+roster:
+  - {entity: oren_vale, pitch: The First Minister who keeps the strait open and Varda's., reach: The Saltworks and the Varda galleys., composite: true}
+  - {entity: general_aske, pitch: The Marshal who means to march through Harrow Pass., reach: The Ostrel levy and its galleys., composite: true}

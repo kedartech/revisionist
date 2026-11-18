@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="870" viewBox="0 0 1200 870">
+<style>.area{fill:#efe6cf;stroke:#333;stroke-width:1;fill-rule:evenodd}.sea{fill:#d4e4ef}.backdrop{fill:#ddd;stroke:#999;stroke-width:.5;fill-rule:evenodd}.dim{opacity:.35}.adj{stroke:#a33;stroke-width:1.2}.crossing{stroke:#a33;stroke-width:1.2;stroke-dasharray:2 3}.cut{stroke:#06c;stroke-width:2;fill:none}.cut.gap{stroke-dasharray:6 4}.site{fill:#000}text{font:11px sans-serif}.name{font-weight:bold}.note{font-size:10px}</style>
+<text x="8" y="18" class="name">salt-strait-realism</text>
+<path class="area" d="M44.4,815.2 L414.8,815.2 L414.8,518.9 L44.4,518.9 Z"><title>kesh_lowlands</title></path>
+<path class="area" d="M414.8,815.2 L785.2,815.2 L785.2,518.9 L414.8,518.9 Z"><title>kesh_shore</title></path>
+<path class="area" d="M785.2,815.2 L1155.6,815.2 L1155.6,518.9 L785.2,518.9 Z"><title>free_harbours</title></path>
+<path class="area sea" d="M44.4,518.9 L414.8,518.9 L414.8,370.7 L44.4,370.7 Z"><title>the_outer_sea</title></path>
+<path class="area sea" d="M414.8,518.9 L785.2,518.9 L785.2,370.7 L563.0,370.7 L414.8,370.7 Z"><title>the_strait</title></path>
+<path class="area sea" d="M785.2,518.9 L1155.6,518.9 L1155.6,370.7 L785.2,370.7 Z M933.3,481.9 L933.3,407.8 L1081.5,407.8 L1081.5,481.9 Z"><title>the_lune_sound</title></path>
+<path class="area" d="M933.3,481.9 L1081.5,481.9 L1081.5,407.8 L933.3,407.8 Z"><title>lune_isles</title></path>
+<path class="area" d="M44.4,370.7 L414.8,370.7 L414.8,74.4 L44.4,74.4 Z"><title>ostrel_heartland</title></path>
+<path class="area" d="M414.8,370.7 L563.0,370.7 L563.0,74.4 L414.8,74.4 Z"><title>harrow_pass</title></path>
+<path class="area" d="M563.0,370.7 L785.2,370.7 L785.2,74.4 L563.0,74.4 Z"><title>varda_saltworks</title></path>
+<path class="area" d="M785.2,370.7 L1155.6,370.7 L1155.6,74.4 L785.2,74.4 Z"><title>varda_downs</title></path>
+<line class="adj" x1="970.4" y1="667.0" x2="600.0" y2="667.0"/>
+<line class="adj" x1="970.4" y1="667.0" x2="859.3" y2="444.8"/>
+<line class="adj" x1="488.9" y1="222.6" x2="229.6" y2="222.6"/>
+<line class="adj" x1="488.9" y1="222.6" x2="600.0" y2="444.8"/>
+<line class="adj" x1="488.9" y1="222.6" x2="674.1" y2="222.6"/>
+<line class="adj" x1="229.6" y1="667.0" x2="600.0" y2="667.0"/>
+<line class="adj" x1="229.6" y1="667.0" x2="229.6" y2="444.8"/>
+<line class="adj" x1="600.0" y1="667.0" x2="600.0" y2="444.8"/>
+<line class="adj" x1="1007.4" y1="444.8" x2="859.3" y2="444.8"/>
+<line class="adj" x1="229.6" y1="222.6" x2="229.6" y2="444.8"/>
+<line class="adj" x1="859.3" y1="444.8" x2="600.0" y2="444.8"/>
+<line class="adj" x1="859.3" y1="444.8" x2="970.4" y2="222.6"/>
+<line class="adj" x1="229.6" y1="444.8" x2="600.0" y2="444.8"/>
+<line class="adj" x1="600.0" y1="444.8" x2="674.1" y2="222.6"/>
+<line class="adj" x1="970.4" y1="222.6" x2="674.1" y2="222.6"/>
+<text x="970.4" y="667.0" class="name" text-anchor="middle">The Free Harbours</text>
+<text x="488.9" y="222.6" class="name" text-anchor="middle">Harrow Pass</text>
+<text x="229.6" y="667.0" class="name" text-anchor="middle">The Kesh Lowlands</text>
+<text x="600.0" y="667.0" class="name" text-anchor="middle">The Kesh Shore</text>
+<text x="1007.4" y="444.8" class="name" text-anchor="middle">The Lune Isles</text>
+<text x="229.6" y="222.6" class="name" text-anchor="middle">The Ostrel Heartland</text>
+<text x="859.3" y="444.8" class="name" text-anchor="middle">The Lune Sound</text>
+<text x="229.6" y="444.8" class="name" text-anchor="middle">The Outer Sea</text>
+<text x="600.0" y="444.8" class="name" text-anchor="middle">The Salt Strait</text>
+<text x="970.4" y="222.6" class="name" text-anchor="middle">The Varda Downs</text>
+<text x="674.1" y="222.6" class="name" text-anchor="middle">The Saltworks Coast</text>
+<circle class="site" cx="914.8" cy="333.7" r="2.5"><title>esk_harbour</title></circle>
+<text x="918.8" y="333.7">Esk Harbour</text>
+<circle class="site" cx="1007.4" cy="630.0" r="2.5"><title>free_port</title></circle>
+<text x="1011.4" y="630.0">The Free Port</text>
+<circle class="site" cx="488.9" cy="185.6" r="2.5"><title>harrow_fort</title></circle>
+<text x="492.9" y="185.6">The Harrow Fort</text>
+<circle class="site" cx="229.6" cy="704.1" r="2.5"><title>high_temple</title></circle>
+<text x="233.6" y="704.1">The High Temple</text>
+<circle class="site" cx="192.6" cy="204.1" r="2.5"><title>kael</title></circle>
+<text x="196.6" y="204.1">Kael</text>
+<circle class="site" cx="637.0" cy="555.9" r="2.5"><title>kesh_quay</title></circle>
+<text x="641.0" y="555.9">Kesh Quay</text>
+<circle class="site" cx="948.1" cy="470.7" r="2.5"><title>lune_haven</title></circle>
+<text x="952.1" y="470.7">Lune Haven</text>
+<circle class="site" cx="674.1" cy="296.7" r="2.5"><title>saltworks</title></circle>
+<text x="678.1" y="296.7">Varda Saltworks</text>
+</svg>

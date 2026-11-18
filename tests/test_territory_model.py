@@ -239,6 +239,9 @@ def without_board(w: dict[str, Any]) -> None:
     for key in BOARD_KEYS:
         w.pop(key, None)
     w["entities"] = [e for e in w["entities"] if e["kind"] != "location"]
+    # The pieces stand at the places just removed, and their kinds need a board.
+    w.pop("features", None)
+    w.pop("piece_kinds", None)
 
 
 def test_a_world_with_no_map_has_no_board(tmp_path: Path) -> None:
@@ -543,6 +546,7 @@ def lonlat(w: dict[str, Any]) -> None:
     w["map"] = {"coords": "lonlat", "file": "toy-lonlat.json", "box": [10, 40, 40, 60]}
     w["entities"][4]["at"] = [55, 25]
     w["entities"][5]["at"] = [44, 16]
+    w["entities"][6]["at"] = [45, 25]
 
 
 def degrees(m: dict[str, Any]) -> None:

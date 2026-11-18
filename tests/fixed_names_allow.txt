@@ -1,0 +1,87 @@
+# Ties between the engine's rule code and the 1941 world's keys and names, as of main 7b80813.
+# One line per file and literal: path | literal | reason. The reason is exactly "stored games only"
+# (a stored game still replays the table) or "until <item>" (that item removes the tie, or reduces
+# it to "stored games only"). tests/test_no_fixed_names.py fails on a literal not listed here and
+# on a line whose literal has left its file, so this file only shrinks. An item deletes or
+# re-reasons its own lines; none adds a line without a recorded deviation.
+src/revisionist/core/realism/bases.py | archangel | stored games only
+src/revisionist/core/realism/bases.py | argentia | stored games only
+src/revisionist/core/realism/bases.py | berlin | stored games only
+src/revisionist/core/realism/bases.py | china | stored games only
+src/revisionist/core/realism/bases.py | chungking | stored games only
+src/revisionist/core/realism/bases.py | germany | stored games only
+src/revisionist/core/realism/bases.py | halifax_port | stored games only
+src/revisionist/core/realism/bases.py | hitokappu_bay | stored games only
+src/revisionist/core/realism/bases.py | italy | stored games only
+src/revisionist/core/realism/bases.py | japan | stored games only
+src/revisionist/core/realism/bases.py | kalinin | stored games only
+src/revisionist/core/realism/bases.py | kharkov | stored games only
+src/revisionist/core/realism/bases.py | kiev | stored games only
+src/revisionist/core/realism/bases.py | kure | stored games only
+src/revisionist/core/realism/bases.py | leningrad | stored games only
+src/revisionist/core/realism/bases.py | liverpool | stored games only
+src/revisionist/core/realism/bases.py | london | stored games only
+src/revisionist/core/realism/bases.py | lorient | stored games only
+src/revisionist/core/realism/bases.py | moscow | stored games only
+src/revisionist/core/realism/bases.py | mozhaisk | stored games only
+src/revisionist/core/realism/bases.py | norfolk | stored games only
+src/revisionist/core/realism/bases.py | north_atlantic | stored games only
+src/revisionist/core/realism/bases.py | odessa | stored games only
+src/revisionist/core/realism/bases.py | pearl_harbor_base | stored games only
+src/revisionist/core/realism/bases.py | poltava | stored games only
+src/revisionist/core/realism/bases.py | reykjavik | stored games only
+src/revisionist/core/realism/bases.py | rome | stored games only
+src/revisionist/core/realism/bases.py | scapa_flow | stored games only
+src/revisionist/core/realism/bases.py | smolensk | stored games only
+src/revisionist/core/realism/bases.py | sydney_cb | stored games only
+src/revisionist/core/realism/bases.py | taganrog | stored games only
+src/revisionist/core/realism/bases.py | tokyo | stored games only
+src/revisionist/core/realism/bases.py | uk | stored games only
+src/revisionist/core/realism/bases.py | usa | stored games only
+src/revisionist/core/realism/bases.py | ussr | stored games only
+src/revisionist/core/realism/bases.py | vyazma | stored games only
+src/revisionist/core/realism/bases.py | washington | stored games only
+src/revisionist/core/realism/land/statement.py | opinion_target | until GVR
+src/revisionist/core/realism/resolvers/__init__.py | house | until GVR
+src/revisionist/core/realism/resolvers/__init__.py | senate | until GVR
+src/revisionist/core/realism/resolvers/opinion.py | gallup_fdr_about_right | until GVR
+src/revisionist/core/realism/resolvers/opinion.py | greer_incident | until GVR
+src/revisionist/core/realism/resolvers/opinion.py | kearny_hit | until GVR
+src/revisionist/core/realism/resolvers/opinion.py | national_unity | until GVR
+src/revisionist/core/realism/resolvers/opinion.py | opinion_target | until GVR
+src/revisionist/core/realism/resolvers/opinion.py | public_address | until GVR
+src/revisionist/core/realism/resolvers/opinion.py | reuben_james_sunk | until GVR
+src/revisionist/core/realism/resolvers/production.py | lend_lease_finding | until PRD
+src/revisionist/core/realism/resolvers/production.py | lend_lease_second_appropriation | until PRD
+src/revisionist/core/realism/resolvers/production.py | production_priority | until PRD
+src/revisionist/core/realism/resolvers/production.py | soviet_lend_lease_eligible | until PRD
+src/revisionist/core/realism/resolvers/production.py | ussr | until PRD
+src/revisionist/core/realism/resolvers/shipping.py | naval_order | until SHP
+src/revisionist/core/realism/resolvers/shipping.py | uboat_directive | until SHP
+src/revisionist/core/realism/resolvers/shipping.py | uboat_posture | until SHP
+src/revisionist/core/realism/resolvers/shipping.py | uboats_operational | until SHP
+src/revisionist/core/realism/resolvers/shipping.py | uk_sealift_grt | until SHP
+src/revisionist/core/realism/resolvers/shipping.py | us_atlantic_escort | until SHP
+src/revisionist/core/realism/resolvers/votes.py | Senate | until GVR
+src/revisionist/core/realism/resolvers/votes.py | arm_merchant_ships | until GVR
+src/revisionist/core/realism/resolvers/votes.py | draft_extension | until GVR
+src/revisionist/core/realism/resolvers/votes.py | gallup_fdr_about_right | until GVR
+src/revisionist/core/realism/resolvers/votes.py | house | until GVR
+src/revisionist/core/realism/resolvers/votes.py | lend_lease_appropriation | until GVR
+src/revisionist/core/realism/resolvers/votes.py | neutrality_revision | until GVR
+src/revisionist/core/realism/resolvers/votes.py | senate | until GVR
+src/revisionist/core/realism/resolvers/votes.py | send_bill | until GVR
+src/revisionist/core/realism/resolvers/war.py | declare_war | until GVR
+src/revisionist/core/realism/resolvers/war.py | gallup_declare_war_germany | until GVR
+src/revisionist/core/realism/resolvers/war.py | gallup_help_britain | until GVR
+src/revisionist/core/realism/resolvers/war.py | usa | until GVR
+src/revisionist/core/realism/routing.py | germany | stored games only
+src/revisionist/core/realism/routing.py | north_atlantic | stored games only
+src/revisionist/core/realism/routing.py | uk | stored games only
+src/revisionist/core/realism/routing.py | usa | stored games only
+src/revisionist/core/realism/sealift.py | uk | until SHP
+src/revisionist/core/realism/sealift.py | uk_sealift_grt | until SHP
+src/revisionist/core/realism/war_rules.py | declare_war | until EFD
+src/revisionist/core/realism/war_rules.py | detach_fleet | until EFD
+src/revisionist/core/realism/war_rules.py | uboat_directive | until SHP
+src/revisionist/core/realism/war_rules.py | usa | until SHP

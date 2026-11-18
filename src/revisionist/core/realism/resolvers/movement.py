@@ -29,12 +29,26 @@ pool the day it sets out. A pool too small for the lift moves nothing and draws 
 The lift is given back the day the army lands (``day_changes``), or the day a later order
 changes its course, which draws again if that course also crosses the sea. Each change to
 a pool is dated no earlier than the pool's own date, and several on one day add up.
+
+With ``territories`` on (ADJ), a piece moves by adjacency instead (``territory``): the order
+names an area or a place, the piece takes the course of fewest days for its domain
+(``territory.plan``), and ``walk`` completes each step on the day it falls due, one
+``piece_stepped`` event a step, so the piece stands in each area it passes through. An
+order to a piece under way re-plans from the area it is in. A step into an area held by a
+polity neither its own, an ally, nor at war with it is refused and the piece stops; a step
+into an area where an enemy piece at war stands ends the move there. Both read where the
+pieces stood when the day began, so the order the pieces are walked in changes nothing. A
+land piece's lift is drawn from its nation's pool when the order sets it on a course across
+the sea, and given back the day it lands. The rule above stays as it was for every game
+without ``territories``.
 """
 
 from datetime import date, timedelta
 
-from revisionist.core.ids import EntityId, FeatureId
+from revisionist.core import events as ev
+from revisionist.core.ids import EntityId, FeatureId, QuantityId
 from revisionist.core.ontology import EntityKind
+from revisionist.core.realism import kinds, territory
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.bases import (
     RAID_DAYS,
@@ -48,11 +62,12 @@ from revisionist.core.realism.bases import (
     world_of,
 )
 from revisionist.core.realism.detachments import rejoin, split
-from revisionist.core.realism.geography import FORCES, Feature, in_play
+from revisionist.core.realism.geography import FORCES, Feature, FeatureKind, in_play
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.quantity import QuantityChange
 from revisionist.core.realism.routing import travel_days
 from revisionist.core.realism.sealift import lift_needed
+from revisionist.core.realism.war import at_war
 from revisionist.core.state import State
 from revisionist.core.world_compile import object_id
 
@@ -184,6 +199,8 @@ def _resolved(state: State, order: Order) -> tuple[tuple[Feature, ...], Quantity
     key = str(order.params.get(FORCE))
     force = state.features.get(FeatureId(object_id(cid, "feature", key)))
     to = state.entities.get(EntityId(object_id(cid, "entity", str(order.params.get(TO)))))
+    if force is not None and force.kind is FeatureKind.PIECE and territory.on(state):
+        return _piece_order(state, order, force)
     if force is None or force.kind not in FORCES or force.side is None or not in_play(force):
         return (), None
     if to is None or to.kind is not EntityKind.LOCATION or to.at is None:
@@ -218,6 +235,194 @@ def _shipped(
     return (sent,), change
 
 
+# --- moving by adjacency (ADJ) -----------------------------------------------------
+
+
+def _halted(piece: Feature, as_of: date) -> Feature:
+    """The piece standing still where it is from ``as_of``."""
+    return piece.model_copy(
+        update={
+            "path": (),
+            "step_due": None,
+            "bound_for": None,
+            "arrives": None,
+            "as_of": max(as_of, piece.as_of),
+        }
+    )
+
+
+def _set_on(piece: Feature, course: territory.Plan, to: EntityId, set_out: date) -> Feature:
+    """The piece under way to ``to`` from ``set_out`` along ``course``."""
+    if not course.path:
+        return _halted(piece, set_out).model_copy(update={"legs": ()})
+    return piece.model_copy(
+        update={
+            "path": course.path,
+            "step_due": set_out + timedelta(days=course.days[0]),
+            "bound_for": to,
+            "arrives": set_out + timedelta(days=course.total),
+            "legs": (),
+            "as_of": max(set_out, piece.as_of),
+        }
+    )
+
+
+def _lift_change(state: State, was: Feature, now: Feature, on: date) -> QuantityChange | None:
+    """The pool as a lift is drawn (``now`` crosses the sea, ``was`` did not) or given back
+    (the other way round); None when nothing changes or there is no pool."""
+    before, after = territory.lifted(state, was), territory.lifted(state, now)
+    pool = territory.lift_pool(state, was)
+    if before == after or pool is None:
+        return None
+    tons = territory.lift_tons(was)
+    return _pool_by_id(state, pool, tons if before else -tons, on)
+
+
+def _pool_by_id(state: State, pool: QuantityId, delta: int, on: date) -> QuantityChange | None:
+    q = state.quantities.get(pool)
+    if q is None or q.value is None or q.value + delta < 0:
+        return None
+    return QuantityChange(quantity_id=pool, value=q.value + delta, as_of=max(on, q.as_of))
+
+
+def _piece_order(
+    state: State, order: Order, piece: Feature
+) -> tuple[tuple[Feature, ...], QuantityChange | None]:
+    """An order to a piece with ``territories`` on: re-planned from the area it is in."""
+    cid = state.campaign_id
+    to = state.entities.get(EntityId(object_id(cid, "entity", str(order.params.get(TO)))))
+    if piece.side is None or not in_play(piece) or STRENGTH in order.params:
+        return (), None
+    if to is None or to.kind is not EntityKind.LOCATION:
+        return (), None
+    if not _of_side(state, state.seats[order.issuer].embodies, piece.side):
+        return (), None
+    course = territory.plan(state, piece, to.entity_id)
+    if not isinstance(course, territory.Plan):
+        return (), None
+    set_out = max(rs.settled_on(order), piece.as_of)
+    dest = course.path[-1] if course.path else piece.places[0]
+    sent = _set_on(piece, course, dest, set_out)
+    if territory.lifted(state, sent) and not territory.lifted(state, piece):
+        drawn = _lift_change(state, piece, sent, set_out)
+        return ((sent,), drawn) if drawn is not None else ((), None)
+    return (sent,), _lift_change(state, piece, sent, set_out)
+
+
+Meeting = frozenset[tuple[EntityId, EntityId]]
+"""The areas pieces enter today, each with the nation of the piece entering."""
+
+
+def _enemy_in(state: State, piece: Feature, area: EntityId, meeting: Meeting) -> bool:
+    """Whether a piece of a nation at war with this one's stands in ``area`` as the day
+    begins, or enters it today too."""
+    own = territory.nation(state, piece.side)
+    if own is None:
+        return False
+    there = {n for a, n in meeting if a == area}
+    for other in state.features.values():
+        if other.feature_id == piece.feature_id or not in_play(other):
+            continue
+        theirs = territory.nation(state, other.side)
+        if other.places[0] == area and kinds.is_force(state, other) and theirs is not None:
+            there.add(theirs)
+    return any(n != own and at_war(state, own, n) for n in there)
+
+
+def _course_set(state: State, piece: Feature, today: date) -> tuple[Feature, bool]:
+    """A piece another writer sent (``bound_for`` with no course, as an effect sends it)
+    given its course; a leg of the record falling due turned into a course to its area.
+    The flag says the move is the record's."""
+    if piece.bound_for is not None and not piece.path:
+        course = territory.plan(state, piece, piece.bound_for)
+        if not isinstance(course, territory.Plan):
+            return _halted(piece, today), False
+        return _set_on(piece, course, piece.bound_for, min(piece.as_of, today)), False
+    if piece.bound_for is None and piece.legs and piece.legs[0].since <= today:
+        due = [leg for leg in piece.legs if leg.since <= today]
+        domain = kinds.domain(state, piece)
+        target = None if domain is None else territory.area_of(state, due[-1].places[0], domain)
+        rest = piece.legs[len(due) :]
+        if target is None:
+            return piece.model_copy(update={"legs": rest}), True
+        course = territory.plan(state, piece, target)
+        if not isinstance(course, territory.Plan):
+            return piece.model_copy(update={"legs": rest}), True
+        moved = _set_on(piece, course, target, due[-1].since)
+        return moved.model_copy(update={"legs": rest, "bound_for": None, "arrives": None}), True
+    return piece, piece.bound_for is None and bool(piece.path)
+
+
+def _walk_one(
+    state: State, course: tuple[Feature, bool], today: date, meeting: Meeting
+) -> tuple[Feature, list[ev.Payload]]:
+    """The piece after every step that falls due by ``today``, with one ``piece_stepped``
+    for each. Stances are read from ``state``, where everything stood when the day began,
+    and from ``meeting``, so the order the pieces are walked in changes nothing."""
+    moved, scripted = course
+    cause = territory.StepCause.SCRIPTED if scripted else territory.StepCause.ORDERED
+    out: list[ev.Payload] = []
+    while moved.path and moved.step_due is not None and moved.step_due <= today:
+        entered, on = moved.path[0], moved.step_due
+        if territory.barred(state, moved.side, entered) is not None:
+            moved = _halted(moved, on)
+            break
+        moved, stepped = territory.step(state, moved, entered, on, cause)
+        out.append(stepped)
+        if moved.path and _enemy_in(state, moved, entered, meeting):
+            moved = _halted(moved, on)
+        elif moved.path:
+            days = territory.step_days(state, moved, moved.path[0])
+            if days is None:
+                moved = _halted(moved, on)
+            else:
+                moved = moved.model_copy(update={"step_due": on + timedelta(days=days)})
+    return moved, out
+
+
+def walk(state: State, today: date) -> list[ev.Payload]:
+    """With ``territories`` on: every piece's steps that fall due by ``today``, each piece's
+    ``feature_set`` before its steps' ``piece_stepped`` events, then each pool as the lifts
+    that landed today give their shipping back."""
+    if not territory.on(state):
+        return []
+    out: list[ev.Payload] = []
+    back: dict[QuantityId, int] = {}
+    pieces = sorted(
+        (
+            f
+            for f in state.features.values()
+            if f.kind is FeatureKind.PIECE and f.side is not None and in_play(f)
+        ),
+        key=lambda x: x.feature_id,
+    )
+    courses = {f.feature_id: _course_set(state, f, today) for f in pieces}
+    meeting = frozenset(
+        (c.path[0], n)
+        for c, _ in courses.values()
+        if c.path and c.step_due is not None and c.step_due <= today and kinds.is_force(state, c)
+        if (n := territory.nation(state, c.side)) is not None
+    )
+    for f in pieces:
+        moved, stepped = _walk_one(state, courses[f.feature_id], today, meeting)
+        if moved == f:
+            continue
+        out += [ev.FeatureSet(feature=moved), *stepped]
+        pool = territory.lift_pool(state, f)
+        if pool is not None and territory.lifted(state, f) and not territory.lifted(state, moved):
+            back[pool] = back.get(pool, 0) + territory.lift_tons(f)
+    for pool, tons in sorted(back.items()):
+        change = _pool_by_id(state, pool, tons, today)
+        if change is not None:
+            q = state.quantities[pool]
+            out.append(
+                ev.QuantitySet(
+                    quantity=q.model_copy(update={"value": change.value, "as_of": change.as_of})
+                )
+            )
+    return out
+
+
 def day_changes(state: State, today: date) -> tuple[Feature | QuantityChange, ...]:
     """``on_day``'s moves, and each pool with the lifts that land today given back."""
     moved = on_day(state, today)
@@ -237,9 +442,10 @@ def on_day(state: State, today: date) -> tuple[Feature, ...]:
     """Forces arriving today, history's moves that fall due, raiders out too long turned
     for base, and detachments that stand still with their force merged back."""
     out: list[Feature] = []
+    adjacency = territory.on(state)
     for f in sorted(state.features.values(), key=lambda x: x.feature_id):
-        if not in_play(f):
-            continue
+        if not in_play(f) or (adjacency and f.kind is FeatureKind.PIECE):
+            continue  # with territories on, ``walk`` moves the pieces
         if f.bound_for is not None and f.arrives is not None and f.arrives <= today:
             out.append(
                 f.model_copy(

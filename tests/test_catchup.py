@@ -104,6 +104,13 @@ def test_the_worlds_kinds_are_fed_to_every_seat() -> None:
     assert "kinds_declared" in catchup.FEED_KINDS
 
 
+def test_a_pieces_steps_are_fed_and_feature_set_never_is() -> None:
+    # Playback's source for a seat's own pieces: each step, sealed to the seats of the
+    # piece's nation. The raw feature is never fed.
+    assert "piece_stepped" in catchup.FEED_KINDS
+    assert "feature_set" in catchup.NEVER
+
+
 # --- The fog path ------------------------------------------------------------------
 
 

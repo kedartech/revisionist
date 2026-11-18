@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from revisionist.core import events as ev
 from revisionist.core.ids import DocumentId, EntityId, FeatureId, SeatId, derived_id
 from revisionist.core.ontology import EntityKind
-from revisionist.core.realism import actors, reach
+from revisionist.core.realism import actors, reach, territory
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.bases import Tier
 from revisionist.core.realism.bases import reach as reach_of
@@ -19,7 +19,7 @@ from revisionist.core.realism.document import (
     DocumentView,
 )
 from revisionist.core.realism.effect import Engagement, SetEngagement
-from revisionist.core.realism.geography import FORCES, Feature, in_play
+from revisionist.core.realism.geography import FORCES, Feature, FeatureKind, in_play
 from revisionist.core.realism.war import NewsEvent, NewsTopic, War, at_war, polity_of
 from revisionist.core.state import State
 from revisionist.core.visibility import private_to
@@ -95,12 +95,23 @@ def _reach_refusal(state: State, seat: SeatId, lever: str, params: dict[str, str
         FeatureId(object_id(state.campaign_id, "feature", params.get("force", "")))
     )
     to = _world_entity(state, params.get("to", ""))
+    if force is not None and to is not None and force.kind is FeatureKind.PIECE:
+        return _step_refusal(state, force, to)
     if force is None or force.kind not in FORCES or to is None:
         return ""
     found_reach = reach_of(state, force, to)
     if found_reach is None or found_reach.tier is not Tier.REFUSED:
         return ""
     return _clip(found_reach.reason or "", REFUSAL)
+
+
+def _step_refusal(state: State, piece: Feature, to: EntityId) -> str:
+    """Why a piece may not be sent to ``to`` by adjacency, naming the nearest area it could be
+    sent to; empty if it may, or when ``territories`` is off."""
+    if not territory.on(state):
+        return ""
+    found = territory.plan(state, piece, to)
+    return "" if isinstance(found, territory.Plan) else _clip(found.reason, REFUSAL)
 
 
 def order_refusal(state: State, seat: SeatId, lever: str, params: dict[str, str]) -> str:

@@ -68,10 +68,12 @@ from revisionist.core.realism.resolvers import (
     ON_DAY,
     ON_ORDER,
     apply_changes,
+    movement,
     resolver_for,
 )
 from revisionist.core.realism.resolvers.movement import FORCE, STRENGTH
 from revisionist.core.realism.route import due_executions, route
+from revisionist.core.realism.war import polity_of
 from revisionist.core.realism.war_rules import contacts, order_refusal
 from revisionist.core.resolution import TickStage
 from revisionist.core.state import State
@@ -379,7 +381,19 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return private_to(seat) if seat is not None else PUBLIC
     if isinstance(payload, ev.OrderDrafted) and payload.order.issuer not in actors.readers(state):
         return private_to(payload.order.issuer)
+    if isinstance(payload, ev.PieceStepped):
+        return _nation_scope(state, payload.nation)
     return PUBLIC  # a player's ``order_drafted`` too, as ``file_order`` lands it
+
+
+def _nation_scope(state: State, nation: EntityId) -> Scope:
+    """Sealed to the seats of ``nation``: every seat whose person belongs to it. A nation no
+    seat holds gets a scope no seat holds either (its own derived name)."""
+    seats = frozenset(
+        s.seat_id for s in state.seats.values() if polity_of(state, s.embodies) == nation
+    )
+    held = seats or frozenset({SeatId(derived_id(state.campaign_id, "nation-seats", nation))})
+    return Scope(visibility=Visibility.RESTRICTED, known_by=held)
 
 
 def _amend(em: Emitter, events: Sequence[Event]) -> list[Event]:
@@ -487,6 +501,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         before_on_day = state
         for on_day in ON_DAY.values():
             add(apply_changes(state, on_day(state, day)))
+        add(movement.walk(state, day))
         add(arrivals(before_on_day, state, day))
         add(contacts(state, day))
         add(news_pages(state, day))

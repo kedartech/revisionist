@@ -16,11 +16,13 @@ start_date: 1900-04-02
 rules: []
 
 entities:
-  - {key: norra, kind: polity, name: Norra}
+  - {key: norra, kind: polity, name: Norra, lift_pool: norra_shipping}
   - {key: sudland, kind: polity, name: Sudland}
   - {key: ilse, kind: person, name: Ilse Varg, parent: norra}
   - {key: tomas, kind: person, name: Tomas Brand, parent: sudland}
-  - {key: norrhavn, kind: location, name: Norrhavn, at: [150, 150], within: norra_plain}
+  # Norrhavn is a port on the gulf: a galley there stands in the gulf, and a levy
+  # embarks or lands there. Sudby is not.
+  - {key: norrhavn, kind: location, name: Norrhavn, at: [150, 150], within: norra_plain, port_on: the_gulf}
   - {key: sudby, kind: location, name: Sudby, at: [40, 60], within: sudland_coast}
   - {key: gulf_roads, kind: location, name: The Gulf Roads, at: [150, 50], within: the_gulf}
 
@@ -59,6 +61,10 @@ adjacency:
   - [the_gulf, open_sea]
   - [isle, open_sea]
   - {a: isle, b: norra_plain, crossing: the ferry}
+
+# Norra's shipping, from which a levy's lift across the water is drawn.
+quantities:
+  - {key: norra_shipping, owner: norra, name: Norra's shipping, value: 100000, unit: tons, source: toy}
 
 # What the land yields. Two resources share the output role; none has supply or
 # prestige.

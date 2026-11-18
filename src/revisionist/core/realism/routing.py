@@ -160,7 +160,15 @@ def sea_route(
 
 def travel_days(state: State, force: Feature, to: EntityId) -> int | None:
     """Days for ``force`` to reach ``to`` from where it is, at least one; None for a
-    fleet with no open way by sea."""
+    fleet with no open way by sea. A piece goes by adjacency (``territory.plan``) with
+    ``territories`` on, and has no way at all without."""
+    if force.kind is FeatureKind.PIECE:
+        from revisionist.core.realism import territory
+
+        if not territory.on(state):
+            return None
+        found = territory.plan(state, force, to)
+        return max(1, found.total) if isinstance(found, territory.Plan) else None
     return days_between(state, force.kind, force.side, force.places[0], to)
 
 

@@ -86,6 +86,13 @@ ScopeSpec = Literal["public"] | ScopeDecl
 """``public`` or a mapping ``{visibility: covert, known_by: [north]}``."""
 
 
+class BaseDecl(Model):
+    """A site a side's pieces work from (ADJ): polity keys, and the domains it serves."""
+
+    sides: tuple[Key, ...] = Field(min_length=1)
+    domains: tuple[Literal["land", "sea", "air"], ...] = Field(min_length=1)
+
+
 class EntityDecl(Model):
     key: Key
     kind: EntityKind
@@ -100,6 +107,14 @@ class EntityDecl(Model):
     model drafting a world."""
     within: SkipJsonSchema[Key | None] = None
     """The territory or sea zone a place lies in. Written by hand."""
+    port_on: SkipJsonSchema[Key | None] = None
+    """A port: the sea zone a place within a territory opens on. A sea piece declared there
+    stands in that zone; a land piece embarks and lands there. Written by hand."""
+    base: SkipJsonSchema[BaseDecl | None] = None
+    """A base: the sides it serves and the domains of piece it serves. Written by hand."""
+    lift_pool: SkipJsonSchema[Key | None] = None
+    """A polity's pool of shipping for lifting its land pieces: a quantity key. Written by
+    hand."""
 
 
 class AssetDecl(Model):

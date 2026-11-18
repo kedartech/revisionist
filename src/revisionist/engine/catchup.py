@@ -58,6 +58,8 @@ FEED_KINDS: frozenset[str] = frozenset(
         "war_declared",
         "map_declared",
         "kinds_declared",
+        # A seat's own nation's pieces, step by step (sealed to its seats): playback's source.
+        "piece_stepped",
         "season_ended",
         "quantity_set",
         "wake_opened",

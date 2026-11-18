@@ -61,6 +61,7 @@ from revisionist.engine.web import (
     court,
     destinations,
     dossiers,
+    map_api,
     new_game_api,
     reach_groups,
     realism_snapshot,
@@ -329,6 +330,8 @@ class App:
                         held_orders.dropped(store, cid, seat),
                     )
                     return snapshot.checked(state, seat, pages)
+                if action == "map":
+                    return snapshot.checked(state, seat, dict(map_api.map_reply(state)))
                 if action == "read":
                     doc_id = DocumentId(_text(body, "doc_id", 64))
                     try:

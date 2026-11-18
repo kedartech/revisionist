@@ -2313,5 +2313,444 @@
       }
     ],
     "load_limit": 2
+  },
+  "territory_map": {
+    "places": [
+      {
+        "name": "Norrhavn",
+        "lat": 150.0,
+        "lon": 150.0,
+        "theatre": null
+      },
+      {
+        "name": "Sudby",
+        "lat": 40.0,
+        "lon": 60.0,
+        "theatre": null
+      },
+      {
+        "name": "The Gulf Roads",
+        "lat": 150.0,
+        "lon": 50.0,
+        "theatre": null
+      }
+    ],
+    "marks": [
+      {
+        "key": "mcc620b5ea10b6c18",
+        "name": "The Norra Herald",
+        "kind": "piece",
+        "side": "own",
+        "side_name": "Norra",
+        "certainty": "known",
+        "places": [],
+        "reported": "1900-04-02",
+        "source": "",
+        "document": "",
+        "strength": null,
+        "piece": {
+          "key": "mcc620b5ea10b6c18",
+          "kind": "Herald",
+          "domain": "envoy",
+          "strength": 0,
+          "posture": null,
+          "area": {
+            "key": "norra_plain",
+            "name": "The Norra Plain",
+            "place": null
+          },
+          "waiting": null,
+          "under_way": null,
+          "moves": [
+            {
+              "area": {
+                "key": "isle",
+                "name": "The Isle",
+                "place": null
+              },
+              "path": [
+                {
+                  "key": "isle",
+                  "name": "The Isle",
+                  "place": null
+                }
+              ],
+              "step_days": [
+                3
+              ],
+              "days": 3,
+              "reach": null,
+              "lift": null
+            },
+            {
+              "area": {
+                "key": "open_sea",
+                "name": "The Open Sea",
+                "place": null
+              },
+              "path": [
+                {
+                  "key": "open_sea",
+                  "name": "The Open Sea",
+                  "place": null
+                }
+              ],
+              "step_days": [
+                4
+              ],
+              "days": 4,
+              "reach": null,
+              "lift": null
+            },
+            {
+              "area": {
+                "key": "sudland_coast",
+                "name": "The Sudland Coast",
+                "place": null
+              },
+              "path": [
+                {
+                  "key": "the_gulf",
+                  "name": "The Gulf",
+                  "place": null
+                },
+                {
+                  "key": "sudland_coast",
+                  "name": "The Sudland Coast",
+                  "place": null
+                }
+              ],
+              "step_days": [
+                2,
+                2
+              ],
+              "days": 4,
+              "reach": null,
+              "lift": null
+            },
+            {
+              "area": {
+                "key": "the_gulf",
+                "name": "The Gulf",
+                "place": null
+              },
+              "path": [
+                {
+                  "key": "the_gulf",
+                  "name": "The Gulf",
+                  "place": null
+                }
+              ],
+              "step_days": [
+                2
+              ],
+              "days": 2,
+              "reach": null,
+              "lift": null
+            }
+          ]
+        }
+      },
+      {
+        "key": "mf0ec5848cc6243ea",
+        "name": "The Norra Kites",
+        "kind": "piece",
+        "side": "own",
+        "side_name": "Norra",
+        "certainty": "known",
+        "places": [],
+        "reported": "1900-04-02",
+        "source": "",
+        "document": "",
+        "strength": null,
+        "piece": {
+          "key": "mf0ec5848cc6243ea",
+          "kind": "Kite Wing",
+          "domain": "air",
+          "strength": 0,
+          "posture": null,
+          "area": {
+            "key": "norra_plain",
+            "name": "The Norra Plain",
+            "place": null
+          },
+          "waiting": null,
+          "under_way": null,
+          "moves": [
+            {
+              "area": {
+                "key": "isle",
+                "name": "The Isle",
+                "place": null
+              },
+              "path": [
+                {
+                  "key": "isle",
+                  "name": "The Isle",
+                  "place": null
+                }
+              ],
+              "step_days": [
+                1
+              ],
+              "days": 1,
+              "reach": "operate",
+              "lift": null
+            },
+            {
+              "area": {
+                "key": "open_sea",
+                "name": "The Open Sea",
+                "place": null
+              },
+              "path": [
+                {
+                  "key": "open_sea",
+                  "name": "The Open Sea",
+                  "place": null
+                }
+              ],
+              "step_days": [
+                1
+              ],
+              "days": 1,
+              "reach": "operate",
+              "lift": null
+            },
+            {
+              "area": {
+                "key": "sudland_coast",
+                "name": "The Sudland Coast",
+                "place": null
+              },
+              "path": [
+                {
+                  "key": "the_gulf",
+                  "name": "The Gulf",
+                  "place": null
+                },
+                {
+                  "key": "sudland_coast",
+                  "name": "The Sudland Coast",
+                  "place": null
+                }
+              ],
+              "step_days": [
+                1,
+                1
+              ],
+              "days": 2,
+              "reach": "raid",
+              "lift": null
+            },
+            {
+              "area": {
+                "key": "the_gulf",
+                "name": "The Gulf",
+                "place": null
+              },
+              "path": [
+                {
+                  "key": "the_gulf",
+                  "name": "The Gulf",
+                  "place": null
+                }
+              ],
+              "step_days": [
+                1
+              ],
+              "days": 1,
+              "reach": "operate",
+              "lift": null
+            }
+          ]
+        }
+      },
+      {
+        "key": "m04fca1b11974e90a",
+        "name": "The Norra Levy",
+        "kind": "piece",
+        "side": "own",
+        "side_name": "Norra",
+        "certainty": "known",
+        "places": [],
+        "reported": "1900-04-02",
+        "source": "",
+        "document": "",
+        "strength": null,
+        "piece": {
+          "key": "m04fca1b11974e90a",
+          "kind": "Levy",
+          "domain": "land",
+          "strength": 1,
+          "posture": null,
+          "area": {
+            "key": "norra_plain",
+            "name": "The Norra Plain",
+            "place": null
+          },
+          "waiting": null,
+          "under_way": null,
+          "moves": [
+            {
+              "area": {
+                "key": "isle",
+                "name": "The Isle",
+                "place": null
+              },
+              "path": [
+                {
+                  "key": "isle",
+                  "name": "The Isle",
+                  "place": null
+                }
+              ],
+              "step_days": [
+                7
+              ],
+              "days": 7,
+              "reach": "operate",
+              "lift": null
+            },
+            {
+              "area": {
+                "key": "sudland_coast",
+                "name": "The Sudland Coast",
+                "place": null
+              },
+              "path": [
+                {
+                  "key": "the_gulf",
+                  "name": "The Gulf",
+                  "place": null
+                },
+                {
+                  "key": "sudland_coast",
+                  "name": "The Sudland Coast",
+                  "place": null
+                }
+              ],
+              "step_days": [
+                2,
+                5
+              ],
+              "days": 7,
+              "reach": "operate",
+              "lift": {
+                "tons": 50000,
+                "carrier": "Galley"
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "orders": [],
+    "capitals": [],
+    "areas": [
+      {
+        "key": "norra_hills",
+        "name": "The Norra Hills",
+        "kind": "land",
+        "region": "north",
+        "terrain": "hills",
+        "neighbours": [
+          "norra_plain",
+          "sudland_coast"
+        ]
+      },
+      {
+        "key": "norra_plain",
+        "name": "The Norra Plain",
+        "kind": "land",
+        "region": "north",
+        "terrain": "plain",
+        "neighbours": [
+          "isle",
+          "norra_hills",
+          "open_sea",
+          "the_gulf"
+        ]
+      },
+      {
+        "key": "sudland_coast",
+        "name": "The Sudland Coast",
+        "kind": "land",
+        "region": "south",
+        "terrain": "plain",
+        "neighbours": [
+          "norra_hills",
+          "the_gulf"
+        ]
+      },
+      {
+        "key": "isle",
+        "name": "The Isle",
+        "kind": "land",
+        "region": "waters",
+        "terrain": "hills",
+        "neighbours": [
+          "norra_plain",
+          "open_sea"
+        ]
+      },
+      {
+        "key": "the_gulf",
+        "name": "The Gulf",
+        "kind": "sea",
+        "region": "waters",
+        "terrain": "shallows",
+        "neighbours": [
+          "norra_plain",
+          "open_sea",
+          "sudland_coast"
+        ]
+      },
+      {
+        "key": "open_sea",
+        "name": "The Open Sea",
+        "kind": "sea",
+        "region": "waters",
+        "terrain": "deep",
+        "neighbours": [
+          "isle",
+          "norra_plain",
+          "the_gulf"
+        ]
+      }
+    ],
+    "regions": [
+      {
+        "key": "mainland",
+        "name": "The Mainland",
+        "parent": null
+      },
+      {
+        "key": "north",
+        "name": "The North",
+        "parent": "mainland"
+      },
+      {
+        "key": "south",
+        "name": "The South",
+        "parent": "mainland"
+      },
+      {
+        "key": "waters",
+        "name": "The Waters",
+        "parent": null
+      }
+    ],
+    "coords": "flat",
+    "box": [
+      0.0,
+      0.0,
+      300.0,
+      200.0
+    ],
+    "file": {
+      "name": "toy.map.json",
+      "sha256": "c85e9773c786d427609b240ea1c45e21ae5c3c57ae2ab98d6b0d96713a20f28e"
+    }
   }
 }

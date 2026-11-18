@@ -10,7 +10,7 @@ replace ids wherever a person is shown. ``snapshot.checked`` is the caller's las
 
 import hashlib
 import re
-from collections.abc import Collection, Iterable, Mapping
+from collections.abc import Callable, Collection, Iterable, Mapping
 from datetime import date
 from typing import Any, Literal
 
@@ -39,6 +39,7 @@ from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
 from revisionist.engine.aide import AideBrief
 from revisionist.engine.directive import Proposal, channels
+from revisionist.engine.web import map_api
 from revisionist.engine.web.destinations import (
     FORCE,
     Known,
@@ -447,12 +448,19 @@ class _Sent:
         self.state, self.view, self.forces = state, view, forces
         self.pipelines, self.place_keys, self.withdrawable = pipelines, place_keys, withdrawable
         self.polity = territory.nation(state, view.me.embodies) or view.me.embodies
+        self.seen = map_api.seat_board(state, view) if territory.on(state) else None
+        """The board the moves are lit on: only what the view holds (TMD)."""
+        self.reaches: map_api.Reaches = {}
 
     def key(self, doc_id: DocumentId, label: str, kind: str) -> str:
         f = _sighted(self.state, doc_id, label, kind)
         if f is None:
             return _label_key(self.state.campaign_id, self.polity, label, kind)
         return territory.mark_key(self.state, self.polity, f)
+
+    def _area_namer(self, domain: kinds.Domain) -> Callable[[EntityId], PieceArea]:
+        """Names an area as the map names a piece's area."""
+        return lambda at: _area(self.state, self.view, self.place_keys, at, domain)
 
     def pieces(self) -> list[tuple[Feature, MapPiece]]:
         """Each own force in play the seat's movement forms name, as a piece."""
@@ -476,6 +484,8 @@ class _Sent:
                 waiting=_waiting(self.view, key, self.pipelines, self.withdrawable),
                 under_way=_course(self.state, self.view, self.place_keys, f, domain),
             )
+            if self.seen is not None:
+                piece["moves"] = map_api.lit(self.seen, f, self._area_namer(domain), self.reaches)
             out.append((f, piece))
         return out
 
@@ -568,7 +578,8 @@ def seat_map(
             marks.append(_own_mark(view, f, piece))
     marks.sort(key=lambda m: (m["name"], m["kind"]))
     capitals = _capitals(view, people) if people is not None else []
-    return SeatMap(places=places, marks=marks, orders=orders, capitals=capitals)
+    out = SeatMap(places=places, marks=marks, orders=orders, capitals=capitals)
+    return map_api.add_board(out, state) if state is not None else out
 
 
 def _step_lines(order: Order, pipeline: Pipeline, view: View) -> list[StepLine]:

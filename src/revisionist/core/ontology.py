@@ -70,8 +70,10 @@ class Entity(Model):
     """A place's (latitude, longitude), for the map. Realism only."""
     theatre: Label | None = None
     """The theatre a place sits in, for the map. Public; no rule reads it."""
+    within: EntityId | None = None
+    """The territory or sea zone a place lies in: the location entity standing for it."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"at", "theatre"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"at", "theatre", "within"})
 
 
 class AssetKind(StrEnum):

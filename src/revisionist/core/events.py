@@ -13,8 +13,8 @@ SessionZeroOpened, CharacterListed, CharacterClaimed,
 CharacterReleased, SessionZeroClosed, SeasonEnded, GoalSet, GoalProgressed, GoalMet, GoalUndone,
 TickOpened, TickClosed``, and for realism campaigns ``CardsDeclared,
 DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, QuantitySet,
-FeatureSet, WarDeclared, NewsReported, StanceChanged, OpponentsRanked, CardAmended,
-AnswerPlanned, AnswerMade``, and under engine v2
+FeatureSet, WarDeclared, MapDeclared, KindsDeclared, NewsReported, StanceChanged, OpponentsRanked,
+CardAmended, AnswerPlanned, AnswerMade``, and under engine v2
 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -83,6 +83,7 @@ from revisionist.core.realism.card import (
 from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
+from revisionist.core.realism.kinds import PieceKind, Resource
 from revisionist.core.realism.pipeline import (
     Order,
     OrderStatus,
@@ -92,10 +93,11 @@ from revisionist.core.realism.pipeline import (
 )
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
+from revisionist.core.realism.territory import WorldMap
 from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.resolution import FeasibilityBand, OutcomeTier, RejectionReason, TickStage
 from revisionist.core.settings import Settings
-from revisionist.core.state import Ruleset
+from revisionist.core.state import Rule, Ruleset
 from revisionist.core.visibility import Scope
 
 
@@ -116,8 +118,10 @@ class CampaignCreated(Model):
     """Name of the world bible this campaign was compiled from."""
     ruleset: Ruleset = "legacy"
     """Which rules resolve this campaign. Left out of a legacy log, so it hashes as before."""
+    rules: frozenset[Rule] = frozenset()
+    """The territory rules the world switches on. Left out when none, as in every stored log."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"ruleset"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"ruleset", "rules"})
 
 
 class SettingsSet(Model):
@@ -637,6 +641,23 @@ class WarDeclared(Model):
     war: War
 
 
+class MapDeclared(Model):
+    """The board the world file defines: areas, regions, terrain and adjacency, with
+    the map file's name and hash, never its shapes. Public; once, at creation."""
+
+    kind: Literal["map_declared"] = "map_declared"
+    map: WorldMap
+
+
+class KindsDeclared(Model):
+    """The world's own piece kinds and resources, in the world file's order. Public; once,
+    at creation, before any feature is set."""
+
+    kind: Literal["kinds_declared"] = "kinds_declared"
+    pieces: tuple[PieceKind, ...] = ()
+    resources: tuple[Resource, ...] = ()
+
+
 class NewsReported(Model):
     """A public event, as structured facts. Each seat's press words it later."""
 
@@ -1042,6 +1063,8 @@ Payload = Annotated[
     | QuantitySet
     | FeatureSet
     | WarDeclared
+    | MapDeclared
+    | KindsDeclared
     | NewsReported
     | StanceChanged
     | OpponentsRanked
@@ -1115,6 +1138,8 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "quantity_set",
         "feature_set",
         "war_declared",
+        "map_declared",
+        "kinds_declared",
         "stance_changed",
         "opponents_ranked",
         "card_amended",

@@ -10,6 +10,7 @@ defines the shapes.
 """
 
 from datetime import date, datetime
+from enum import StrEnum
 from typing import ClassVar, Literal
 
 from pydantic import Field
@@ -61,13 +62,44 @@ from revisionist.core.realism.card import CardFace, Desk, SeatCard, Topic
 from revisionist.core.realism.document import Document, DocumentView, Feed
 from revisionist.core.realism.effect import EffectKind, RoutedOrder, RoutedOrderView
 from revisionist.core.realism.geography import Feature
+from revisionist.core.realism.kinds import Kinds
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
+from revisionist.core.realism.territory import WorldMap
 from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.settings import Settings
 
 Ruleset = Literal["legacy", "realism"]
+
+
+class Rule(StrEnum):
+    """A rule of the territory game a world switches on by name. A stored game, and a
+    world that names none, has none on; every such rule checks its name before it acts."""
+
+    TERRITORIES = "territories"
+    HOLDERS = "holders"
+    ECONOMY = "economy"
+    SUPPLY = "supply"
+    FUEL = "fuel"
+    BATTLES = "battles"
+    REPORTS = "reports"
+    GROUPS = "groups"
+    AGREEMENTS = "agreements"
+    CONFERENCE = "conference"
+    CONTESTS = "contests"
+    AIMS = "aims"
+    AID = "aid"
+    WRITING = "writing"
+    """Free writing moves groups: leans on a live model's reading."""
+    CLAUSE_READER = "clause_reader"
+    """Treaty and bill wording read into clauses by a live model."""
+    WRITTEN_ORDERS = "written_orders"
+    """Written orders checked against their form by a live model."""
+
+
+MODEL_READ_RULES = frozenset({Rule.WRITING, Rule.CLAUSE_READER, Rule.WRITTEN_ORDERS})
+"""The rules that lean on a live model's reading: off in every shipped world."""
 
 
 class Wake(Model):
@@ -113,6 +145,12 @@ class _World(Model):
     """Engine v2: issued goals. A view holds only its own seat's."""
     wars: dict[Label, War] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """Who is at war with whom, by ``war_id_for``. Public."""
+    map: WorldMap | None = None
+    """The board, set once by ``map_declared``: the same in every view. None for a world
+    with no map, where every territory rule is off."""
+    kinds: Kinds | None = None
+    """The world's piece kinds and resources, set once by ``kinds_declared``: public rules
+    of the world, the same in every view. None for a world that names neither."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
@@ -126,6 +164,8 @@ class _World(Model):
             "wake",
             "mandates",
             "wars",
+            "map",
+            "kinds",
         }
     )
 
@@ -193,8 +233,12 @@ class State(_World):
     """Leaders changing hands when the open wake closes: ``HUMAN`` for a joiner, ``AI``
     for a leaver. Engine only, never in a view or the wake: how a seat is run is never
     shown."""
+    rules: frozenset[Rule] = frozenset()
+    """The territory rules switched on, set once by ``campaign_created``. Engine only
+    here; a seat's view gains them when a rule it shows needs them."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
+        "rules",
         "routed",
         "styles",
         "standing",

@@ -1287,6 +1287,15 @@
             "title": "Name",
             "type": "string"
           },
+          "rules": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Rule"
+            },
+            "title": "Rules",
+            "type": "array",
+            "uniqueItems": true
+          },
           "ruleset": {
             "default": "legacy",
             "enum": [
@@ -3339,58 +3348,6 @@
         "title": "DocumentWritten",
         "type": "object"
       },
-      "Domain": {
-        "additionalProperties": false,
-        "description": "One field the office commands outright (spec \u00a78.1).",
-        "properties": {
-          "effects": {
-            "items": {
-              "$ref": "#/$defs/EffectKind"
-            },
-            "minItems": 1,
-            "title": "Effects",
-            "type": "array",
-            "uniqueItems": true
-          },
-          "executor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Executor"
-          },
-          "forces": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Forces",
-            "type": "array"
-          },
-          "name": {
-            "maxLength": 60,
-            "title": "Name",
-            "type": "string"
-          },
-          "summary": {
-            "default": "",
-            "maxLength": 300,
-            "title": "Summary",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "effects"
-        ],
-        "title": "Domain",
-        "type": "object"
-      },
       "EffectKind": {
         "enum": [
           "move_force",
@@ -3649,6 +3606,18 @@
             ],
             "default": null,
             "title": "Theatre"
+          },
+          "within": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Within"
           }
         },
         "required": [
@@ -4126,6 +4095,19 @@
             "title": "Name",
             "type": "string"
           },
+          "piece": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Piece"
+          },
           "places": {
             "items": {
               "type": "string"
@@ -4194,7 +4176,8 @@
           "army",
           "air",
           "front",
-          "route"
+          "route",
+          "piece"
         ],
         "title": "FeatureKind",
         "type": "string"
@@ -4987,6 +4970,36 @@
         "title": "Investigate",
         "type": "object"
       },
+      "KindsDeclared": {
+        "additionalProperties": false,
+        "description": "The world's own piece kinds and resources, in the world file's order. Public; once,\nat creation, before any feature is set.",
+        "properties": {
+          "kind": {
+            "const": "kinds_declared",
+            "default": "kinds_declared",
+            "title": "Kind",
+            "type": "string"
+          },
+          "pieces": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/PieceKind"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "resources": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Resource"
+            },
+            "title": "Resources",
+            "type": "array"
+          }
+        },
+        "title": "KindsDeclared",
+        "type": "object"
+      },
       "KnowledgeGrant": {
         "additionalProperties": false,
         "description": "Widen who knows an existing fact, asset or clock.\n\nDiscovery, leaks, exposure rolls and ``reveal()`` all emit this. Nothing\nelse in the engine knows about reveals.",
@@ -5119,6 +5132,39 @@
           "resolver"
         ],
         "title": "Lever",
+        "type": "object"
+      },
+      "Link": {
+        "additionalProperties": false,
+        "description": "Two areas that border, ``a`` before ``b``; ``crossing`` names a link across\nwater or a strait where they share no border.",
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          },
+          "crossing": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Crossing"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "title": "Link",
         "type": "object"
       },
       "MakeStatement": {
@@ -5471,6 +5517,26 @@
           "days"
         ],
         "title": "MandateTemplate",
+        "type": "object"
+      },
+      "MapDeclared": {
+        "additionalProperties": false,
+        "description": "The board the world file defines: areas, regions, terrain and adjacency, with\nthe map file's name and hash, never its shapes. Public; once, at creation.",
+        "properties": {
+          "kind": {
+            "const": "map_declared",
+            "default": "map_declared",
+            "title": "Kind",
+            "type": "string"
+          },
+          "map": {
+            "$ref": "#/$defs/WorldMap"
+          }
+        },
+        "required": [
+          "map"
+        ],
+        "title": "MapDeclared",
         "type": "object"
       },
       "Meter": {
@@ -6537,6 +6603,92 @@
         "title": "Persona",
         "type": "object"
       },
+      "PieceKind": {
+        "additionalProperties": false,
+        "description": "One kind of piece the world names.",
+        "properties": {
+          "carries": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Carries",
+            "type": "array"
+          },
+          "conceal": {
+            "default": 0,
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Conceal",
+            "type": "integer"
+          },
+          "days_per_step": {
+            "additionalProperties": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Days Per Step",
+            "type": "object"
+          },
+          "detect": {
+            "default": 0,
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Detect",
+            "type": "integer"
+          },
+          "domain": {
+            "$ref": "#/$defs/revisionist__core__realism__kinds__Domain"
+          },
+          "fuel_per_step": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Fuel Per Step",
+            "type": "number"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "max_strength": {
+            "default": 5,
+            "minimum": 1,
+            "title": "Max Strength",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "range_steps": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Range Steps"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "domain",
+          "days_per_step"
+        ],
+        "title": "PieceKind",
+        "type": "object"
+      },
       "Pipeline": {
         "additionalProperties": false,
         "properties": {
@@ -6816,6 +6968,40 @@
         "title": "Reach",
         "type": "object"
       },
+      "Region": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Parent"
+          }
+        },
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "Region",
+        "type": "object"
+      },
       "RejectionReason": {
         "enum": [
           "means_not_held",
@@ -7000,6 +7186,37 @@
         "title": "RequestAnswered",
         "type": "object"
       },
+      "Resource": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/Role"
+          },
+          "unit": {
+            "maxLength": 60,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "unit",
+          "role"
+        ],
+        "title": "Resource",
+        "type": "object"
+      },
       "Risks": {
         "additionalProperties": false,
         "description": "How much the staff think an option risks, each from 0 (none) to 3. No rule reads it.",
@@ -7030,6 +7247,18 @@
         ],
         "title": "Risks",
         "type": "object"
+      },
+      "Role": {
+        "description": "What a resource is for. Several resources may share a role; a role may have none.",
+        "enum": [
+          "output",
+          "manpower",
+          "fuel",
+          "supply",
+          "prestige"
+        ],
+        "title": "Role",
+        "type": "string"
       },
       "Rolled": {
         "additionalProperties": false,
@@ -7393,6 +7622,29 @@
         ],
         "title": "RoutedPart",
         "type": "object"
+      },
+      "Rule": {
+        "description": "A rule of the territory game a world switches on by name. A stored game, and a\nworld that names none, has none on; every such rule checks its name before it acts.",
+        "enum": [
+          "territories",
+          "holders",
+          "economy",
+          "supply",
+          "fuel",
+          "battles",
+          "reports",
+          "groups",
+          "agreements",
+          "conference",
+          "contests",
+          "aims",
+          "aid",
+          "writing",
+          "clause_reader",
+          "written_orders"
+        ],
+        "title": "Rule",
+        "type": "string"
       },
       "ScheduleSource": {
         "enum": [
@@ -7804,6 +8056,44 @@
         "title": "Scope",
         "type": "object"
       },
+      "SeaZone": {
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "region": {
+            "maxLength": 60,
+            "title": "Region",
+            "type": "string"
+          },
+          "terrain": {
+            "maxLength": 60,
+            "title": "Terrain",
+            "type": "string"
+          }
+        },
+        "required": [
+          "area",
+          "key",
+          "name",
+          "region",
+          "terrain"
+        ],
+        "title": "SeaZone",
+        "type": "object"
+      },
       "Sealed": {
         "additionalProperties": false,
         "description": "What a sealed event looks like at rest (Layer 9b): the real event, whole,\nis encrypted into the envelope's ``payload_enc``.\n\nThe store unseals on read, so the tick, the fold and every reader see the\nplaintext event. A ``seat``-held event whose key was destroyed (erasure)\nstays sealed: it is prose the fold never needed. A ``campaign``-held one\nthat reaches the fold is an error: its key is missing.",
@@ -8003,7 +8293,7 @@
           "authority": {
             "default": [],
             "items": {
-              "$ref": "#/$defs/Domain"
+              "$ref": "#/$defs/revisionist__core__realism__card__Domain"
             },
             "title": "Authority",
             "type": "array"
@@ -8959,6 +9249,118 @@
         "title": "StepOutcome",
         "type": "object"
       },
+      "Terrain": {
+        "additionalProperties": false,
+        "properties": {
+          "defence": {
+            "default": 0,
+            "maximum": 2,
+            "minimum": 0,
+            "title": "Defence",
+            "type": "integer"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/TerrainKind"
+          }
+        },
+        "required": [
+          "key",
+          "kind"
+        ],
+        "title": "Terrain",
+        "type": "object"
+      },
+      "TerrainKind": {
+        "enum": [
+          "land",
+          "sea"
+        ],
+        "title": "TerrainKind",
+        "type": "string"
+      },
+      "Territory": {
+        "additionalProperties": false,
+        "description": "A land area. Its ``area`` is the location entity standing for it.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "districts": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Districts",
+            "type": "array"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Holder"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "region": {
+            "maxLength": 60,
+            "title": "Region",
+            "type": "string"
+          },
+          "sites": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Sites",
+            "type": "array"
+          },
+          "terrain": {
+            "maxLength": 60,
+            "title": "Terrain",
+            "type": "string"
+          },
+          "yields": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Yields",
+            "type": "object"
+          }
+        },
+        "required": [
+          "area",
+          "key",
+          "name",
+          "region",
+          "terrain"
+        ],
+        "title": "Territory",
+        "type": "object"
+      },
       "TickClosed": {
         "additionalProperties": false,
         "properties": {
@@ -9459,6 +9861,11 @@
             "title": "B",
             "type": "string"
           },
+          "declared": {
+            "default": true,
+            "title": "Declared",
+            "type": "boolean"
+          },
           "declared_by": {
             "title": "Declared By",
             "type": "string"
@@ -9502,6 +9909,105 @@
           "war"
         ],
         "title": "WarDeclared",
+        "type": "object"
+      },
+      "WorldMap": {
+        "additionalProperties": false,
+        "description": "The board: everything about the map but its shapes.",
+        "properties": {
+          "adjacency": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Link"
+            },
+            "title": "Adjacency",
+            "type": "array"
+          },
+          "box": {
+            "anyOf": [
+              {
+                "maxItems": 4,
+                "minItems": 4,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Box"
+          },
+          "coords": {
+            "enum": [
+              "lonlat",
+              "flat"
+            ],
+            "title": "Coords",
+            "type": "string"
+          },
+          "file": {
+            "maxLength": 60,
+            "title": "File",
+            "type": "string"
+          },
+          "regions": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Region"
+            },
+            "title": "Regions",
+            "type": "array"
+          },
+          "sea_zones": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/SeaZone"
+            },
+            "title": "Sea Zones",
+            "type": "array"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "terrain": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Terrain"
+            },
+            "title": "Terrain",
+            "type": "array"
+          },
+          "territories": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Territory"
+            },
+            "title": "Territories",
+            "type": "array"
+          }
+        },
+        "required": [
+          "file",
+          "sha256",
+          "coords"
+        ],
+        "title": "WorldMap",
         "type": "object"
       },
       "revisionist__core__ontology__Clause": {
@@ -9584,6 +10090,58 @@
         "title": "ClauseKind",
         "type": "string"
       },
+      "revisionist__core__realism__card__Domain": {
+        "additionalProperties": false,
+        "description": "One field the office commands outright (spec \u00a78.1).",
+        "properties": {
+          "effects": {
+            "items": {
+              "$ref": "#/$defs/EffectKind"
+            },
+            "minItems": 1,
+            "title": "Effects",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "executor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Executor"
+          },
+          "forces": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Forces",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "summary": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "effects"
+        ],
+        "title": "Domain",
+        "type": "object"
+      },
       "revisionist__core__realism__effect__Clause": {
         "additionalProperties": false,
         "description": "One clause of a measure. The votes resolver scores each bloc against each.",
@@ -9624,6 +10182,17 @@
           "limit"
         ],
         "title": "ClauseKind",
+        "type": "string"
+      },
+      "revisionist__core__realism__kinds__Domain": {
+        "description": "Where a piece moves: over land, over sea, through the air, or as an envoy, who\ngoes anywhere and fights nobody.",
+        "enum": [
+          "land",
+          "sea",
+          "air",
+          "envoy"
+        ],
+        "title": "Domain",
         "type": "string"
       }
     },
@@ -9697,8 +10266,10 @@
             "influence_decided": "#/$defs/InfluenceDecided",
             "intent_filed": "#/$defs/IntentFiled",
             "intent_rejected": "#/$defs/IntentRejected",
+            "kinds_declared": "#/$defs/KindsDeclared",
             "mandate_issued": "#/$defs/MandateIssued",
             "mandate_settled": "#/$defs/MandateSettled",
+            "map_declared": "#/$defs/MapDeclared",
             "meter_created": "#/$defs/MeterCreated",
             "narration_written": "#/$defs/NarrationWritten",
             "news_reported": "#/$defs/NewsReported",
@@ -9927,6 +10498,12 @@
           },
           {
             "$ref": "#/$defs/WarDeclared"
+          },
+          {
+            "$ref": "#/$defs/MapDeclared"
+          },
+          {
+            "$ref": "#/$defs/KindsDeclared"
           },
           {
             "$ref": "#/$defs/NewsReported"
@@ -11646,58 +12223,6 @@
         "title": "DocumentView",
         "type": "object"
       },
-      "Domain": {
-        "additionalProperties": false,
-        "description": "One field the office commands outright (spec \u00a78.1).",
-        "properties": {
-          "effects": {
-            "items": {
-              "$ref": "#/$defs/EffectKind"
-            },
-            "minItems": 1,
-            "title": "Effects",
-            "type": "array",
-            "uniqueItems": true
-          },
-          "executor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Executor"
-          },
-          "forces": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Forces",
-            "type": "array"
-          },
-          "name": {
-            "maxLength": 60,
-            "title": "Name",
-            "type": "string"
-          },
-          "summary": {
-            "default": "",
-            "maxLength": 300,
-            "title": "Summary",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "effects"
-        ],
-        "title": "Domain",
-        "type": "object"
-      },
       "EffectKind": {
         "enum": [
           "move_force",
@@ -11810,6 +12335,18 @@
             ],
             "default": null,
             "title": "Theatre"
+          },
+          "within": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Within"
           }
         },
         "required": [
@@ -12040,6 +12577,19 @@
             "title": "Name",
             "type": "string"
           },
+          "piece": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Piece"
+          },
           "places": {
             "items": {
               "type": "string"
@@ -12108,7 +12658,8 @@
           "army",
           "air",
           "front",
-          "route"
+          "route",
+          "piece"
         ],
         "title": "FeatureKind",
         "type": "string"
@@ -12551,6 +13102,34 @@
         "title": "Investigate",
         "type": "object"
       },
+      "Kinds": {
+        "additionalProperties": false,
+        "description": "The world's piece kinds and resources, by key, in the world file's order.",
+        "properties": {
+          "pieces": {
+            "additionalProperties": {
+              "$ref": "#/$defs/PieceKind"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Pieces",
+            "type": "object"
+          },
+          "resources": {
+            "additionalProperties": {
+              "$ref": "#/$defs/Resource"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Resources",
+            "type": "object"
+          }
+        },
+        "title": "Kinds",
+        "type": "object"
+      },
       "Leg": {
         "additionalProperties": false,
         "description": "One move the record says a feature made.",
@@ -12637,6 +13216,39 @@
           "resolver"
         ],
         "title": "Lever",
+        "type": "object"
+      },
+      "Link": {
+        "additionalProperties": false,
+        "description": "Two areas that border, ``a`` before ``b``; ``crossing`` names a link across\nwater or a strait where they share no border.",
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          },
+          "crossing": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Crossing"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "title": "Link",
         "type": "object"
       },
       "MakeStatement": {
@@ -13498,6 +14110,92 @@
         "title": "Phase",
         "type": "string"
       },
+      "PieceKind": {
+        "additionalProperties": false,
+        "description": "One kind of piece the world names.",
+        "properties": {
+          "carries": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Carries",
+            "type": "array"
+          },
+          "conceal": {
+            "default": 0,
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Conceal",
+            "type": "integer"
+          },
+          "days_per_step": {
+            "additionalProperties": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Days Per Step",
+            "type": "object"
+          },
+          "detect": {
+            "default": 0,
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Detect",
+            "type": "integer"
+          },
+          "domain": {
+            "$ref": "#/$defs/revisionist__core__realism__kinds__Domain"
+          },
+          "fuel_per_step": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Fuel Per Step",
+            "type": "number"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "max_strength": {
+            "default": 5,
+            "minimum": 1,
+            "title": "Max Strength",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "range_steps": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Range Steps"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "domain",
+          "days_per_step"
+        ],
+        "title": "PieceKind",
+        "type": "object"
+      },
       "Pipeline": {
         "additionalProperties": false,
         "properties": {
@@ -13723,6 +14421,40 @@
         "title": "Reach",
         "type": "object"
       },
+      "Region": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Parent"
+          }
+        },
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "Region",
+        "type": "object"
+      },
       "Relationship": {
         "additionalProperties": false,
         "properties": {
@@ -13775,6 +14507,49 @@
         ],
         "title": "Relationship",
         "type": "object"
+      },
+      "Resource": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/Role"
+          },
+          "unit": {
+            "maxLength": 60,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "unit",
+          "role"
+        ],
+        "title": "Resource",
+        "type": "object"
+      },
+      "Role": {
+        "description": "What a resource is for. Several resources may share a role; a role may have none.",
+        "enum": [
+          "output",
+          "manpower",
+          "fuel",
+          "supply",
+          "prestige"
+        ],
+        "title": "Role",
+        "type": "string"
       },
       "Route": {
         "enum": [
@@ -14098,6 +14873,29 @@
         "title": "RoutedPart",
         "type": "object"
       },
+      "Rule": {
+        "description": "A rule of the territory game a world switches on by name. A stored game, and a\nworld that names none, has none on; every such rule checks its name before it acts.",
+        "enum": [
+          "territories",
+          "holders",
+          "economy",
+          "supply",
+          "fuel",
+          "battles",
+          "reports",
+          "groups",
+          "agreements",
+          "conference",
+          "contests",
+          "aims",
+          "aid",
+          "writing",
+          "clause_reader",
+          "written_orders"
+        ],
+        "title": "Rule",
+        "type": "string"
+      },
       "ScheduleSource": {
         "enum": [
           "play",
@@ -14387,6 +15185,44 @@
         "title": "Scope",
         "type": "object"
       },
+      "SeaZone": {
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "region": {
+            "maxLength": 60,
+            "title": "Region",
+            "type": "string"
+          },
+          "terrain": {
+            "maxLength": 60,
+            "title": "Terrain",
+            "type": "string"
+          }
+        },
+        "required": [
+          "area",
+          "key",
+          "name",
+          "region",
+          "terrain"
+        ],
+        "title": "SeaZone",
+        "type": "object"
+      },
       "Seat": {
         "additionalProperties": false,
         "description": "Anything that holds a view of the world (spec \u00a76, \u00a77, \u00a710).\n\nHumans, AI factions, press outlets and NPCs are all Seats, because they\nall need ``project(state, seat_id)``. Only ``PLAYER`` seats hold slots\nand an agent persona.",
@@ -14525,7 +15361,7 @@
           "authority": {
             "default": [],
             "items": {
-              "$ref": "#/$defs/Domain"
+              "$ref": "#/$defs/revisionist__core__realism__card__Domain"
             },
             "title": "Authority",
             "type": "array"
@@ -15195,6 +16031,118 @@
         "title": "StepOutcome",
         "type": "object"
       },
+      "Terrain": {
+        "additionalProperties": false,
+        "properties": {
+          "defence": {
+            "default": 0,
+            "maximum": 2,
+            "minimum": 0,
+            "title": "Defence",
+            "type": "integer"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/TerrainKind"
+          }
+        },
+        "required": [
+          "key",
+          "kind"
+        ],
+        "title": "Terrain",
+        "type": "object"
+      },
+      "TerrainKind": {
+        "enum": [
+          "land",
+          "sea"
+        ],
+        "title": "TerrainKind",
+        "type": "string"
+      },
+      "Territory": {
+        "additionalProperties": false,
+        "description": "A land area. Its ``area`` is the location entity standing for it.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "districts": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Districts",
+            "type": "array"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Holder"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "region": {
+            "maxLength": 60,
+            "title": "Region",
+            "type": "string"
+          },
+          "sites": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Sites",
+            "type": "array"
+          },
+          "terrain": {
+            "maxLength": 60,
+            "title": "Terrain",
+            "type": "string"
+          },
+          "yields": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Yields",
+            "type": "object"
+          }
+        },
+        "required": [
+          "area",
+          "key",
+          "name",
+          "region",
+          "terrain"
+        ],
+        "title": "Territory",
+        "type": "object"
+      },
       "Topic": {
         "additionalProperties": false,
         "description": "A matter people want or hold to, named by the world file. An order touches it\nby its lever, the kind of a typed effect it carries, or one of its own words.\nEngine only.",
@@ -15455,6 +16403,11 @@
             "title": "B",
             "type": "string"
           },
+          "declared": {
+            "default": true,
+            "title": "Declared",
+            "type": "boolean"
+          },
           "declared_by": {
             "title": "Declared By",
             "type": "string"
@@ -15478,6 +16431,105 @@
           "declared_by"
         ],
         "title": "War",
+        "type": "object"
+      },
+      "WorldMap": {
+        "additionalProperties": false,
+        "description": "The board: everything about the map but its shapes.",
+        "properties": {
+          "adjacency": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Link"
+            },
+            "title": "Adjacency",
+            "type": "array"
+          },
+          "box": {
+            "anyOf": [
+              {
+                "maxItems": 4,
+                "minItems": 4,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Box"
+          },
+          "coords": {
+            "enum": [
+              "lonlat",
+              "flat"
+            ],
+            "title": "Coords",
+            "type": "string"
+          },
+          "file": {
+            "maxLength": 60,
+            "title": "File",
+            "type": "string"
+          },
+          "regions": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Region"
+            },
+            "title": "Regions",
+            "type": "array"
+          },
+          "sea_zones": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/SeaZone"
+            },
+            "title": "Sea Zones",
+            "type": "array"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "terrain": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Terrain"
+            },
+            "title": "Terrain",
+            "type": "array"
+          },
+          "territories": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Territory"
+            },
+            "title": "Territories",
+            "type": "array"
+          }
+        },
+        "required": [
+          "file",
+          "sha256",
+          "coords"
+        ],
+        "title": "WorldMap",
         "type": "object"
       },
       "revisionist__core__ontology__Clause": {
@@ -15560,6 +16612,58 @@
         "title": "ClauseKind",
         "type": "string"
       },
+      "revisionist__core__realism__card__Domain": {
+        "additionalProperties": false,
+        "description": "One field the office commands outright (spec \u00a78.1).",
+        "properties": {
+          "effects": {
+            "items": {
+              "$ref": "#/$defs/EffectKind"
+            },
+            "minItems": 1,
+            "title": "Effects",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "executor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Executor"
+          },
+          "forces": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Forces",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "summary": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "effects"
+        ],
+        "title": "Domain",
+        "type": "object"
+      },
       "revisionist__core__realism__effect__Clause": {
         "additionalProperties": false,
         "description": "One clause of a measure. The votes resolver scores each bloc against each.",
@@ -15600,6 +16704,17 @@
           "limit"
         ],
         "title": "ClauseKind",
+        "type": "string"
+      },
+      "revisionist__core__realism__kinds__Domain": {
+        "description": "Where a piece moves: over land, over sea, through the air, or as an envoy, who\ngoes anywhere and fights nobody.",
+        "enum": [
+          "land",
+          "sea",
+          "air",
+          "envoy"
+        ],
+        "title": "Domain",
         "type": "string"
       }
     },
@@ -15731,6 +16846,17 @@
         "default": null,
         "title": "In World Date"
       },
+      "kinds": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Kinds"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
       "last_seq": {
         "default": -1,
         "title": "Last Seq",
@@ -15742,6 +16868,17 @@
         },
         "title": "Mandates",
         "type": "object"
+      },
+      "map": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/WorldMap"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
       },
       "meters": {
         "additionalProperties": {
@@ -15829,6 +16966,15 @@
         },
         "title": "Routed",
         "type": "object"
+      },
+      "rules": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/Rule"
+        },
+        "title": "Rules",
+        "type": "array",
+        "uniqueItems": true
       },
       "ruleset": {
         "default": "legacy",
@@ -16948,7 +18094,7 @@
           "authority": {
             "default": [],
             "items": {
-              "$ref": "#/$defs/Domain"
+              "$ref": "#/$defs/revisionist__core__realism__card__Domain"
             },
             "title": "Authority",
             "type": "array"
@@ -17232,58 +18378,6 @@
         "title": "DocumentView",
         "type": "object"
       },
-      "Domain": {
-        "additionalProperties": false,
-        "description": "One field the office commands outright (spec \u00a78.1).",
-        "properties": {
-          "effects": {
-            "items": {
-              "$ref": "#/$defs/EffectKind"
-            },
-            "minItems": 1,
-            "title": "Effects",
-            "type": "array",
-            "uniqueItems": true
-          },
-          "executor": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Executor"
-          },
-          "forces": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Forces",
-            "type": "array"
-          },
-          "name": {
-            "maxLength": 60,
-            "title": "Name",
-            "type": "string"
-          },
-          "summary": {
-            "default": "",
-            "maxLength": 300,
-            "title": "Summary",
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "effects"
-        ],
-        "title": "Domain",
-        "type": "object"
-      },
       "EffectKind": {
         "enum": [
           "move_force",
@@ -17396,6 +18490,18 @@
             ],
             "default": null,
             "title": "Theatre"
+          },
+          "within": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Within"
           }
         },
         "required": [
@@ -17530,7 +18636,8 @@
           "army",
           "air",
           "front",
-          "route"
+          "route",
+          "piece"
         ],
         "title": "FeatureKind",
         "type": "string"
@@ -17882,6 +18989,34 @@
         "title": "Investigate",
         "type": "object"
       },
+      "Kinds": {
+        "additionalProperties": false,
+        "description": "The world's piece kinds and resources, by key, in the world file's order.",
+        "properties": {
+          "pieces": {
+            "additionalProperties": {
+              "$ref": "#/$defs/PieceKind"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Pieces",
+            "type": "object"
+          },
+          "resources": {
+            "additionalProperties": {
+              "$ref": "#/$defs/Resource"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Resources",
+            "type": "object"
+          }
+        },
+        "title": "Kinds",
+        "type": "object"
+      },
       "Lethality": {
         "enum": [
           "soft",
@@ -17943,6 +19078,39 @@
           "resolver"
         ],
         "title": "Lever",
+        "type": "object"
+      },
+      "Link": {
+        "additionalProperties": false,
+        "description": "Two areas that border, ``a`` before ``b``; ``crossing`` names a link across\nwater or a strait where they share no border.",
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          },
+          "crossing": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Crossing"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "title": "Link",
         "type": "object"
       },
       "MakeStatement": {
@@ -18783,6 +19951,92 @@
         "title": "Phase",
         "type": "string"
       },
+      "PieceKind": {
+        "additionalProperties": false,
+        "description": "One kind of piece the world names.",
+        "properties": {
+          "carries": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Carries",
+            "type": "array"
+          },
+          "conceal": {
+            "default": 0,
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Conceal",
+            "type": "integer"
+          },
+          "days_per_step": {
+            "additionalProperties": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Days Per Step",
+            "type": "object"
+          },
+          "detect": {
+            "default": 0,
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Detect",
+            "type": "integer"
+          },
+          "domain": {
+            "$ref": "#/$defs/revisionist__core__realism__kinds__Domain"
+          },
+          "fuel_per_step": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Fuel Per Step",
+            "type": "number"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "max_strength": {
+            "default": 5,
+            "minimum": 1,
+            "title": "Max Strength",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "range_steps": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Range Steps"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "domain",
+          "days_per_step"
+        ],
+        "title": "PieceKind",
+        "type": "object"
+      },
       "Plausibility": {
         "enum": [
           "strict",
@@ -18978,6 +20232,40 @@
         "title": "Reach",
         "type": "object"
       },
+      "Region": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Parent"
+          }
+        },
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "Region",
+        "type": "object"
+      },
       "Relationship": {
         "additionalProperties": false,
         "properties": {
@@ -19030,6 +20318,49 @@
         ],
         "title": "Relationship",
         "type": "object"
+      },
+      "Resource": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/$defs/Role"
+          },
+          "unit": {
+            "maxLength": 60,
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "unit",
+          "role"
+        ],
+        "title": "Resource",
+        "type": "object"
+      },
+      "Role": {
+        "description": "What a resource is for. Several resources may share a role; a role may have none.",
+        "enum": [
+          "output",
+          "manpower",
+          "fuel",
+          "supply",
+          "prestige"
+        ],
+        "title": "Role",
+        "type": "string"
       },
       "Route": {
         "enum": [
@@ -19363,6 +20694,44 @@
           "visibility"
         ],
         "title": "Scope",
+        "type": "object"
+      },
+      "SeaZone": {
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "region": {
+            "maxLength": 60,
+            "title": "Region",
+            "type": "string"
+          },
+          "terrain": {
+            "maxLength": 60,
+            "title": "Terrain",
+            "type": "string"
+          }
+        },
+        "required": [
+          "area",
+          "key",
+          "name",
+          "region",
+          "terrain"
+        ],
+        "title": "SeaZone",
         "type": "object"
       },
       "Seat": {
@@ -19815,6 +21184,118 @@
         "title": "StepOutcome",
         "type": "object"
       },
+      "Terrain": {
+        "additionalProperties": false,
+        "properties": {
+          "defence": {
+            "default": 0,
+            "maximum": 2,
+            "minimum": 0,
+            "title": "Defence",
+            "type": "integer"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/TerrainKind"
+          }
+        },
+        "required": [
+          "key",
+          "kind"
+        ],
+        "title": "Terrain",
+        "type": "object"
+      },
+      "TerrainKind": {
+        "enum": [
+          "land",
+          "sea"
+        ],
+        "title": "TerrainKind",
+        "type": "string"
+      },
+      "Territory": {
+        "additionalProperties": false,
+        "description": "A land area. Its ``area`` is the location entity standing for it.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "districts": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Districts",
+            "type": "array"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Holder"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "region": {
+            "maxLength": 60,
+            "title": "Region",
+            "type": "string"
+          },
+          "sites": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Sites",
+            "type": "array"
+          },
+          "terrain": {
+            "maxLength": 60,
+            "title": "Terrain",
+            "type": "string"
+          },
+          "yields": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Yields",
+            "type": "object"
+          }
+        },
+        "required": [
+          "area",
+          "key",
+          "name",
+          "region",
+          "terrain"
+        ],
+        "title": "Territory",
+        "type": "object"
+      },
       "Verb": {
         "description": "Closed list. Adding one is a schema change with a migration note.",
         "enum": [
@@ -19901,6 +21382,11 @@
             "title": "B",
             "type": "string"
           },
+          "declared": {
+            "default": true,
+            "title": "Declared",
+            "type": "boolean"
+          },
           "declared_by": {
             "title": "Declared By",
             "type": "string"
@@ -19924,6 +21410,105 @@
           "declared_by"
         ],
         "title": "War",
+        "type": "object"
+      },
+      "WorldMap": {
+        "additionalProperties": false,
+        "description": "The board: everything about the map but its shapes.",
+        "properties": {
+          "adjacency": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Link"
+            },
+            "title": "Adjacency",
+            "type": "array"
+          },
+          "box": {
+            "anyOf": [
+              {
+                "maxItems": 4,
+                "minItems": 4,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Box"
+          },
+          "coords": {
+            "enum": [
+              "lonlat",
+              "flat"
+            ],
+            "title": "Coords",
+            "type": "string"
+          },
+          "file": {
+            "maxLength": 60,
+            "title": "File",
+            "type": "string"
+          },
+          "regions": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Region"
+            },
+            "title": "Regions",
+            "type": "array"
+          },
+          "sea_zones": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/SeaZone"
+            },
+            "title": "Sea Zones",
+            "type": "array"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          },
+          "terrain": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Terrain"
+            },
+            "title": "Terrain",
+            "type": "array"
+          },
+          "territories": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Territory"
+            },
+            "title": "Territories",
+            "type": "array"
+          }
+        },
+        "required": [
+          "file",
+          "sha256",
+          "coords"
+        ],
+        "title": "WorldMap",
         "type": "object"
       },
       "revisionist__core__ontology__Clause": {
@@ -20006,6 +21591,58 @@
         "title": "ClauseKind",
         "type": "string"
       },
+      "revisionist__core__realism__card__Domain": {
+        "additionalProperties": false,
+        "description": "One field the office commands outright (spec \u00a78.1).",
+        "properties": {
+          "effects": {
+            "items": {
+              "$ref": "#/$defs/EffectKind"
+            },
+            "minItems": 1,
+            "title": "Effects",
+            "type": "array",
+            "uniqueItems": true
+          },
+          "executor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Executor"
+          },
+          "forces": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Forces",
+            "type": "array"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "summary": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "effects"
+        ],
+        "title": "Domain",
+        "type": "object"
+      },
       "revisionist__core__realism__effect__Clause": {
         "additionalProperties": false,
         "description": "One clause of a measure. The votes resolver scores each bloc against each.",
@@ -20046,6 +21683,17 @@
           "limit"
         ],
         "title": "ClauseKind",
+        "type": "string"
+      },
+      "revisionist__core__realism__kinds__Domain": {
+        "description": "Where a piece moves: over land, over sea, through the air, or as an envoy, who\ngoes anywhere and fights nobody.",
+        "enum": [
+          "land",
+          "sea",
+          "air",
+          "envoy"
+        ],
+        "title": "Domain",
         "type": "string"
       }
     },
@@ -20149,12 +21797,34 @@
         "default": null,
         "title": "In World Date"
       },
+      "kinds": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Kinds"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
       "mandates": {
         "additionalProperties": {
           "$ref": "#/$defs/Mandate"
         },
         "title": "Mandates",
         "type": "object"
+      },
+      "map": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/WorldMap"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
       },
       "me": {
         "$ref": "#/$defs/Seat"

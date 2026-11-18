@@ -551,7 +551,8 @@ class MapMark(TypedDict):
     """One force, front or route as the seat's latest page about it places it."""
 
     name: str
-    kind: Literal["fleet", "army", "air", "front", "route"]
+    kind: Literal["fleet", "army", "air", "front", "route", "piece"]
+    """Piece: one of the world's own kinds, in a world with ``piece_kinds``."""
     side: Literal["own", "other", "none"]
     """Own: the seat's own polity or body. None: a front, which is both sides'."""
     side_name: str

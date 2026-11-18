@@ -547,9 +547,65 @@ class MapPlace(TypedDict):
     """The theatre the world file puts the place in; None when it names none."""
 
 
-class MapMark(TypedDict):
-    """One force, front or route as the seat's latest page about it places it."""
+class PieceArea(TypedDict):
+    """Where a piece stands or is going: an area of the map, or in a game without
+    territories the place itself."""
 
+    key: str | None
+    """The area's key in the map file; in a game without territories, the place's world
+    key (None when the caller gave no place keys)."""
+    name: str
+    place: MapPlace | None
+    """The place it stands at when that place has a position; None in an area without one."""
+
+
+class PieceWait(TypedDict):
+    """The seat's own order for the piece, still with a holder. The same words whoever
+    holds it, a player or not."""
+
+    order: str
+    with_person: str | None
+    until: str | None
+    """The day the step it waits at falls due; None when the step has no length."""
+    withdrawable: bool
+
+
+class PieceCourse(TypedDict):
+    """A piece under way."""
+
+    path: list[PieceArea]
+    """The areas still to enter, in order; the first is the step it is on. Without
+    territories, the one place it is bound for."""
+    step_due: str | None
+    """The day the step into ``path[0]`` completes."""
+    arrives: str | None
+
+
+class MapPiece(TypedDict):
+    """One of the seat's own pieces, from the truth: only on the marks of forces the
+    seat's own movement forms name."""
+
+    key: str
+    """The mark's own key."""
+    kind: str
+    """The world's name for its kind, or the force kind in words."""
+    domain: str
+    """``land``, ``sea``, ``air`` or ``envoy``."""
+    strength: int
+    posture: str | None
+    area: PieceArea
+    waiting: PieceWait | None
+    under_way: PieceCourse | None
+
+
+class MapMark(TypedDict):
+    """One force, front or route as the seat's latest page about it places it, or one of
+    the seat's own pieces no page has placed yet (``reported`` is then today, ``source``
+    and ``document`` empty, and ``places`` empty in an area without a position)."""
+
+    key: str
+    """Opaque and stable: the same for every seat of one nation, different for another
+    nation's, and never a feature's id (``territory.mark_key``)."""
     name: str
     kind: Literal["fleet", "army", "air", "front", "route", "piece"]
     """Piece: one of the world's own kinds, in a world with ``piece_kinds``."""
@@ -566,6 +622,11 @@ class MapMark(TypedDict):
     """The author's name."""
     document: str
     """The page's id, to open it from the map."""
+    strength: int | None
+    """The strength a line of the seat's latest page gives under the mark's name; None
+    while no page has stated one, whatever the truth."""
+    piece: MapPiece | None
+    """The seat's own piece behind the mark; None for every other mark."""
 
 
 class MapOrder(TypedDict):
@@ -972,6 +1033,7 @@ __all__ = [
     "MapCapital",
     "MapMark",
     "MapOrder",
+    "MapPiece",
     "MapPlace",
     "OrderProposal",
     "OrderResult",
@@ -983,6 +1045,9 @@ __all__ = [
     "PersonHold",
     "PersonLine",
     "PersonTally",
+    "PieceArea",
+    "PieceCourse",
+    "PieceWait",
     "PlaceChoice",
     "PlaceLift",
     "PlaceReach",

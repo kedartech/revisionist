@@ -243,6 +243,13 @@ class App:
             ):
                 wake_at = None if game["paused"] else game["next_tick_at"]
                 log_now = list(store.read(link.campaign_id))
+                game["withdrawable"] = withdraw.withdrawable(
+                    state,
+                    log_now,
+                    link.seat_id,
+                    sealed=held_orders.closing(store, link.campaign_id)
+                    or wk.joining(state, link.seat_id),
+                )
                 seat_view["realism"] = realism_snapshot.seat_realism(
                     state,
                     link.seat_id,
@@ -250,6 +257,7 @@ class App:
                     realism_snapshot.flagged_ids(log_now, link.seat_id),
                     wake_at,
                     destinations.place_keys(state, log_now),
+                    game["withdrawable"],
                 )
                 seat_view["realism"]["counsel"] = realism_snapshot.counsel_lines(
                     project(state, link.seat_id), log_now, link.seat_id
@@ -277,13 +285,6 @@ class App:
                 )
                 now_open = state.wake.number if state.wake and not state.wake.closed else None
                 game["held"] = held_orders.listing(store, link.campaign_id, link.seat_id, now_open)
-                game["withdrawable"] = withdraw.withdrawable(
-                    state,
-                    log_now,
-                    link.seat_id,
-                    sealed=held_orders.closing(store, link.campaign_id)
-                    or wk.joining(state, link.seat_id),
-                )
             out["game"] = game | {"view": seat_view}
             return snapshot.checked(state, link.seat_id, out)
         finally:

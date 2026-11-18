@@ -12,12 +12,13 @@ jobs:
     timeout-minutes: 5
     outputs:
       python: ${{ steps.decide.outputs.python }}
+      web: ${{ steps.decide.outputs.web }}
     steps:
       # A pull request checks out its merge commit; its first parent is the base.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
-      - name: Decide whether the Python tests run
+      - name: Decide whether the Python tests and the browser test run
         id: decide
         run: |
           if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
@@ -25,7 +26,7 @@ jobs:
             cat "$RUNNER_TEMP/changed.txt"
             python3 scripts/ci_changes.py decide < "$RUNNER_TEMP/changed.txt" | tee -a "$GITHUB_OUTPUT"
           else
-            echo python=true | tee -a "$GITHUB_OUTPUT"
+            printf 'python=true\nweb=true\n' | tee -a "$GITHUB_OUTPUT"
           fi
 
   lint:
@@ -97,6 +98,78 @@ jobs:
           # shellcheck disable=SC2086
           uv run --frozen pytest $files
 
+  # The real-browser test: the canned server (no model call) on a Postgres service, and the
+  # room's smoke walked headless at desktop width and again at 390 by 844. Playwright is
+  # installed here only, so the lockfile is untouched. Skipped only when nothing under web/
+  # changed (`scripts/ci_changes.py gate` checks that).
+  browser:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Throwaway service container; neither password is a secret.
+      REVISIONIST_ADMIN_DSN: postgresql://postgres:postgres@localhost:5432/revisionist
+      REVISIONIST_DB: postgresql://revisionist_app:revisionist_app@localhost:5432/revisionist
+      REVISIONIST_BRIEFINGS_DIR: ${{ runner.temp }}/briefings
+      SMOKE_OUT: ${{ runner.temp }}/smoke
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv python install 3.12
+      - run: uv sync --frozen
+      - name: Create and migrate the database
+        run: |
+          uv run --frozen python - <<'PY'
+          import os
+
+          import psycopg
+
+          from revisionist.engine.pg_store import migrate
+
+          admin = os.environ["REVISIONIST_ADMIN_DSN"]
+          server = admin.rsplit("/", 1)[0] + "/postgres"
+          with psycopg.connect(server, autocommit=True) as conn:
+              conn.execute("CREATE ROLE revisionist_app LOGIN PASSWORD 'revisionist_app'")
+              conn.execute("CREATE DATABASE revisionist")
+          print("applied", migrate(admin, "revisionist_app"))
+          PY
+      - name: Install Chromium for Playwright
+        run: uv run --frozen --with 'playwright==1.49.*' playwright install --with-deps chromium
+      - name: Start the canned server
+        run: |
+          mkdir -p "$REVISIONIST_BRIEFINGS_DIR" "$SMOKE_OUT"
+          nohup uv run --frozen python web/test/e2e/serve_canned.py 8794 > "$SMOKE_OUT/server.log" 2>&1 &
+          for _ in $(seq 1 60); do
+            curl -fsS -o /dev/null http://127.0.0.1:8794/ && exit 0
+            sleep 1
+          done
+          cat "$SMOKE_OUT/server.log"
+          exit 1
+      - name: Smoke at desktop width
+        run: uv run --frozen --with 'playwright==1.49.*' python web/test/e2e/realism_smoke.py http://127.0.0.1:8794 new "$SMOKE_OUT/desktop"
+      - name: Smoke at 390 by 844
+        run: uv run --frozen --with 'playwright==1.49.*' python web/test/e2e/realism_smoke.py http://127.0.0.1:8794 new "$SMOKE_OUT/phone" phone
+      - name: Keep the screenshots and the server log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-smoke
+          path: ${{ runner.temp }}/smoke
+          if-no-files-found: ignore
+
   # One coverage run on main, outside `gates`: pull requests get the shards only.
   coverage:
     if: github.event_name == 'push'
@@ -129,7 +202,7 @@ jobs:
 
   gates:
     if: always()
-    needs: [changes, lint, node, pytest]
+    needs: [changes, lint, node, pytest, browser]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -141,4 +214,6 @@ jobs:
           RESULT_NODE: ${{ needs.node.result }}
           RESULT_PYTEST: ${{ needs.pytest.result }}
           RESULT_PYTHON: ${{ needs.changes.outputs.python }}
+          RESULT_BROWSER: ${{ needs.browser.result }}
+          RESULT_WEB: ${{ needs.changes.outputs.web }}
         run: python3 scripts/ci_changes.py gate

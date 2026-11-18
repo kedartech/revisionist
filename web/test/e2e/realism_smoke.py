@@ -13,11 +13,14 @@ reads as an order, revised when it cannot be sent) and the orders column; the me
 with the aide's thread, a question to the aide, a consult and the contacts tab; a day run
 with the busy line and the overlay, then the "What happened" sheet; a narrow room; that no
 empty-state filler shows; and (as host) ending the game and the reveal. Screenshots at
-1440x900. Fails on any console error, page error, failed request or a request to
+1440x900. The Board comes first: one move by keyboard alone (pick the fleet, light a place,
+send it). With a fourth argument `phone` it runs at 390x844 instead, reaches the Board, and
+checks that the map shows, that one lit place can be tapped and that the page is as wide as
+the viewport. Fails on any console error, page error, failed request or a request to
 another origin, or any named check that does not hold; runs axe-core when it is
 mounted at /axe/axe.min.js.
 
-    python web/test/e2e/realism_smoke.py BASE_URL INVITE_CODE|new|v2 OUT_DIR
+    python web/test/e2e/realism_smoke.py BASE_URL INVITE_CODE|new|v2 OUT_DIR [phone]
 
 For a run with no model calls, serve with web/test/e2e/serve_canned.py.
 """
@@ -32,7 +35,8 @@ from urllib.parse import urlparse
 from playwright.sync_api import Locator, Page, sync_playwright
 
 BASE, CODE, OUT = sys.argv[1].rstrip("/"), sys.argv[2], Path(sys.argv[3])
-SIZE = (1440, 900)
+PHONE = sys.argv[4:5] == ["phone"]
+SIZE = (390, 844) if PHONE else (1440, 900)
 AXE = Path("/axe/axe.min.js")
 WAKE_MS = 240_000  # a wake makes one live prose call per author
 RUN_NOW = "Run the day now"
@@ -167,7 +171,12 @@ def main() -> int:
     report: dict[str, object] = {}
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": SIZE[0], "height": SIZE[1]}, bypass_csp=False)
+        page = browser.new_page(
+            viewport={"width": SIZE[0], "height": SIZE[1]},
+            bypass_csp=False,
+            has_touch=PHONE,
+            is_mobile=PHONE,
+        )
         watch(page)
         page.goto(BASE + "/")
         page.get_by_role("link", name="Create an account").click()
@@ -229,19 +238,25 @@ def main() -> int:
             page.get_by_label("Invite code").fill(CODE)
             page.get_by_role("button", name="Join").click()
 
-        page.locator("main.rl-room").wait_for(timeout=60_000)
+        page.locator("main.rl-board").wait_for(timeout=60_000)
         page.wait_for_timeout(300)
         through_intro(page, report)
         shoot(page, "00-opening")
         try:
-            header_and_menu(page, report, host)
-            wake_header(page, report, host)
-            desk(page, report, v2)
-            tray(page, report)
-            orders(page, report, v2)
-            messenger(page, report)
-            after_wake(page, report, host)
-            narrow(page)
+            if PHONE:
+                phone_board(page, report)
+            else:
+                keyboard_move(page, report)
+                page.get_by_role("group", name="View").get_by_role("button", name="Desk").click()
+                page.locator("main.rl-room").wait_for(timeout=10_000)
+                header_and_menu(page, report, host)
+                wake_header(page, report, host)
+                desk(page, report, v2)
+                tray(page, report)
+                orders(page, report, v2)
+                messenger(page, report)
+                after_wake(page, report, host)
+                narrow(page)
         except Exception:
             page.screenshot(path=str(OUT / "zz-failed.png"), full_page=True)
             (OUT / "zz-failed.aria.txt").write_text(page.locator("body").aria_snapshot())
@@ -250,7 +265,7 @@ def main() -> int:
         for word in ("controller", "human", "truth", " AI ", "%", "Commit my orders"):
             if word in body:
                 problems.append(f"rule: page text contains {word!r}")
-        if host:
+        if host and not PHONE:
             end_game(page, report, v2)
         browser.close()
     report["checks"] = checks
@@ -258,6 +273,120 @@ def main() -> int:
     (OUT / "report.json").write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))
     return 1 if problems else 0
+
+
+def tab_to(page: Page, wanted: str, limit: int = 250) -> bool:
+    """Press Tab until the focused element satisfies the JS predicate `wanted`."""
+    for _ in range(limit):
+        page.keyboard.press("Tab")
+        if page.evaluate(
+            f"() => {{ const a = document.activeElement; return !!a && ({wanted}); }}"
+        ):
+            return True
+    return False
+
+
+def keyboard_move(page: Page, report: dict[str, object]) -> None:
+    """On the Board, from the keyboard alone: pick the seat's fleet, light a place, send it."""
+    errors = len([p for p in problems if p.startswith("pageerror")])
+    page.get_by_role("group", name="Board").get_by_role("button", name="Theatre").focus()
+    found = tab_to(page, "a.matches('.rl-mk.rl-side-own')")
+    check("Tab reaches one of the seat's own forces on the map", found)
+    if not found:
+        return
+    page.keyboard.press("Enter")
+    forms = page.locator(".rl-theatre-forms")
+    forms.wait_for(timeout=10_000)
+    check(
+        "a picked force shows its panel and the forms that move it",
+        page.locator("aside.rl-board-side .rl-board-piece, aside.rl-board-side h2").count() > 0
+        and forms.locator("form").count() > 0,
+    )
+    found = tab_to(page, "a.matches('.rl-map-target')")
+    check("Tab reaches a lit place on the map", found)
+    if not found:
+        return
+    label = str(page.evaluate("() => document.activeElement.getAttribute('aria-label')"))
+    report["keyboard_move_to"] = label
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(300)
+    check(
+        "Enter on a lit place chooses it",
+        page.locator(".rl-map-target[aria-pressed=true]").count() == 1
+        and forms.locator("input[type=radio]:checked").count() >= 1,
+        label,
+    )
+    check(
+        "focus stays on the map's lit place after it is chosen",
+        bool(page.evaluate("() => !!document.activeElement?.closest?.('.rl-map-target')")),
+    )
+    shoot(page, "00a-keyboard-pick")
+    found = tab_to(
+        page,
+        "a.textContent.trim() === 'Sign and send'"
+        " && !!a.closest('.rl-theatre-forms form')?.querySelector('input[type=radio]:checked')",
+    )
+    check("Tab reaches Sign and send on the form the lit place filled", found)
+    if not found:
+        return
+    page.keyboard.press("Enter")
+    page.locator(".rl-status.said").filter(has_text="Sent to").wait_for(timeout=30_000)
+    report["keyboard_move_status"] = page.locator(".rl-status").inner_text()
+    check("the keyboard move is sent", True)
+    check(
+        "the keyboard move raises no page error",
+        len([p for p in problems if p.startswith("pageerror")]) == errors,
+    )
+    shoot(page, "00b-keyboard-sent")
+
+
+def phone_board(page: Page, report: dict[str, object]) -> None:
+    """At 390 wide: the map shows, one lit place is tapped, the page is as wide as the viewport."""
+    figure = page.locator("figure.rl-map-figure")
+    figure.scroll_into_view_if_needed()
+    box = figure.bounding_box() or {"width": 0, "height": 0}
+    check(
+        "the phone shows the map",
+        figure.is_visible() and 0 < box["width"] <= SIZE[0] and box["height"] > 0,
+        str(box),
+    )
+    page.locator(".rl-mk.rl-side-own").first.tap()
+    page.locator(".rl-theatre-forms").wait_for(timeout=10_000)
+    page.wait_for_timeout(300)
+    # A tap lands on whatever is on top at the place's centre; take the first lit place it reaches.
+    spot = page.evaluate(
+        """() => {
+      const out = { open: 0, hit: null };
+      for (const t of document.querySelectorAll('.rl-map-target:not([aria-disabled=true])')) {
+        t.scrollIntoView({ block: 'center' });
+        const r = t.querySelector('circle').getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        const y = r.top + r.height / 2;
+        const on = document.elementFromPoint(x, y);
+        if (on && t.contains(on)) {
+          out.hit = { x, y, label: t.getAttribute('aria-label') };
+          break;
+        }
+        out.open += 1;
+      }
+      return out;
+    }"""
+    )
+    report["phone_covered_places"] = spot["open"]
+    check("a lit place can be tapped on the phone", spot["hit"] is not None, str(spot))
+    if spot["hit"] is None:
+        return
+    report["phone_tap_to"] = spot["hit"]["label"]
+    page.touchscreen.tap(spot["hit"]["x"], spot["hit"]["y"])
+    page.wait_for_timeout(300)
+    check(
+        "a tap on a lit place chooses it",
+        page.locator(".rl-map-target[aria-pressed=true]").count() == 1,
+        spot["hit"]["label"],
+    )
+    width = page.evaluate("document.documentElement.scrollWidth")
+    check("the phone's page is as wide as the viewport", width == SIZE[0], str(width))
+    page.screenshot(path=str(OUT / f"00c-phone-board-{SIZE[0]}x{SIZE[1]}.png"), full_page=True)
 
 
 def play_from_dossier(page: Page, report: dict, name: str) -> None:
@@ -580,14 +709,13 @@ def orders(page: Page, report: dict[str, object], v2: bool) -> None:
     report["orders"] = page.locator(".rl-oc").inner_text()[:1200]
     check("your orders are in words", "_" not in str(report["orders"]))
     if not v2:  # the slice declares no allies or conflicts, so it has no opponents list
-        listed = page.locator(".rl-threats")
+        listed = page.locator(".rl-people")
         report["opponents"] = listed.inner_text()[:600] if listed.count() else ""
         said = str(report["opponents"]).lower()
         check(
-            "the opponents list says who is set against you and as of when",
-            all(
-                w in said for w in ("opponents", "hideki tojo", "obstructing", "as of 1 september")
-            ),
+            "the people roster opens on who is set against you",
+            all(w in said for w in ("opponents", "hideki tojo"))
+            and bool(page.locator(".rl-pp-meter").count()),
             said[:200],
         )
     shoot(page, "07-orders")
@@ -632,22 +760,18 @@ def messenger(page: Page, report: dict[str, object]) -> None:
     dock.get_by_label("Message", exact=True).fill("")
     dock.get_by_role("button", name="Back").click()
     report["chat_rows"] = rows.count()
-    if rows.count() > 1:
-        person = rows.nth(1)
-        who = person.locator(".rl-cl-name").inner_text()
-        person.click()
-    else:
-        # A thread holds conversation and letters only, so before any consult a contact
-        # may have no row yet; start one from Contacts.
-        dock.get_by_role("tab", name="Contacts").click()
-        cards = dock.locator(".rl-ct-row")
-        for i in range(cards.count()):
-            cards.nth(i).click()
-            if dock.get_by_role("button", name="Message", exact=True).count():
-                break
-            dock.locator(".rl-ct-back").click()
-        who = dock.locator(".rl-ct-name").first.inner_text()
-        dock.get_by_role("button", name="Message", exact=True).click()
+    # Ask the first of the inner circle: they always answer, where anyone outside it may
+    # decline on that tick's roll, and a smoke that fails on a roll is no gate.
+    dock.get_by_role("tab", name="Contacts").click()
+    cards = dock.locator(".rl-ct-row")
+    for i in range(cards.count()):
+        cards.nth(i).click()
+        if dock.get_by_role("button", name="Message", exact=True).count():
+            break
+        dock.locator(".rl-ct-back").click()
+    who = dock.locator(".rl-ct-name").first.inner_text()
+    dock.get_by_role("button", name="Message", exact=True).click()
+
     before = theirs.count()
     send(page, "Should we wait for the Senate before we move?")
     theirs.nth(before).wait_for(timeout=WAKE_MS)
@@ -664,6 +788,8 @@ def messenger(page: Page, report: dict[str, object]) -> None:
     shoot(page, "09-consult")
     dock.get_by_role("button", name="Back").click()
     dock.get_by_role("tab", name="Contacts").click()
+    if dock.locator(".rl-ct-back").count():  # the contact asked above is still open
+        dock.locator(".rl-ct-back").click()
     report["contacts"] = dock.inner_text()[:1200]
     check(
         "contacts are grouped",
@@ -778,6 +904,7 @@ def narrow(page: Page) -> None:
     page.screenshot(path=str(OUT / "14n-room-390x844.png"), full_page=True)
     axe(page, "narrow room")
     page.get_by_role("button", name=re.compile(r"^Messages")).click()
+    page.locator(".rl-msgr").get_by_role("tab", name="Chats").click()
     page.locator(".rl-msgr .rl-cl-row").first.click()
     page.locator(".rl-msgr .rl-th-send").wait_for()
     check("a narrow dock keeps the composer on screen", composer_in_dock(page))

@@ -4,11 +4,14 @@ import importlib.util
 import re
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "ci_changes.py"
+WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 
 
 def changes() -> ModuleType:
@@ -64,17 +67,50 @@ def test_needs_python(paths: list[str], python: bool) -> None:
     assert changes().needs_python(paths) is python
 
 
-def test_decide_prints_a_github_output_line(
+@pytest.mark.parametrize(
+    ("paths", "web"),
+    [
+        (["web/js/views/realism-board.js"], True),
+        (["web/test/e2e/realism_smoke.py", "docs/a.md"], True),
+        (["src/revisionist/engine/web/server.py", "web/css/c-shell.css"], True),
+        (["src/revisionist/core/state.py", "tests/test_state.py"], False),
+        (["docs/game-spec.md", "README.md"], False),
+        ([".github/workflows/ci.yml", "scripts/ci_changes.py"], False),
+        (["website/index.html"], False),
+        ([], True),
+        (["", "  "], True),
+    ],
+    ids=[
+        "client",
+        "smoke-script",
+        "client-and-server",
+        "python-only",
+        "docs-only",
+        "ci-only",
+        "prefix-lookalike",
+        "empty",
+        "blank-lines",
+    ],
+)
+def test_needs_browser(paths: list[str], web: bool) -> None:
+    assert changes().needs_browser(paths) is web
+
+
+def test_decide_prints_the_github_output_lines(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path
 ) -> None:
     m = changes()
-    for text, want in [("web/js/a.js\ndocs/b.md\n", "python=false"), ("src/x.py\n", "python=true")]:
+    for text, want in [
+        ("web/js/a.js\ndocs/b.md\n", "python=false\nweb=true\n"),
+        ("src/x.py\n", "python=true\nweb=false\n"),
+        ("docs/b.md\n", "python=false\nweb=false\n"),
+    ]:
         listing = tmp_path / "changed.txt"
         listing.write_text(text)
         with listing.open() as fh:
             monkeypatch.setattr("sys.stdin", fh)
             assert m.main(["decide"]) == 0
-        assert capsys.readouterr().out == want + "\n"
+        assert capsys.readouterr().out == want
 
 
 def web_paths_named_in(path: Path) -> list[str]:
@@ -96,22 +132,41 @@ def test_every_client_path_python_reads_is_kept_out_of_the_skip() -> None:
         assert not m.skippable(changed), p
 
 
-GREEN = {"changes": "success", "lint": "success", "node": "success", "pytest": "success"}
+GREEN = {
+    "changes": "success",
+    "lint": "success",
+    "node": "success",
+    "pytest": "success",
+    "browser": "success",
+}
 
 
 @pytest.mark.parametrize(
     ("results", "green"),
     [
-        (GREEN | {"python": "true"}, True),
-        (GREEN | {"pytest": "skipped", "python": "false"}, True),
-        (GREEN | {"pytest": "skipped", "python": "true"}, False),
-        (GREEN | {"pytest": "skipped", "python": ""}, False),
-        (GREEN | {"pytest": "failure", "python": "true"}, False),
-        (GREEN | {"pytest": "cancelled", "python": "true"}, False),
-        (GREEN | {"lint": "failure", "python": "true"}, False),
-        (GREEN | {"node": "failure", "pytest": "skipped", "python": "false"}, False),
-        (GREEN | {"changes": "failure", "pytest": "skipped", "python": ""}, False),
-        ({"python": "false", "pytest": "skipped"}, False),
+        (GREEN | {"python": "true", "web": "true"}, True),
+        (GREEN | {"pytest": "skipped", "python": "false", "web": "true"}, True),
+        (GREEN | {"pytest": "skipped", "python": "true", "web": "true"}, False),
+        (GREEN | {"pytest": "skipped", "python": "", "web": "true"}, False),
+        (GREEN | {"pytest": "failure", "python": "true", "web": "true"}, False),
+        (GREEN | {"pytest": "cancelled", "python": "true", "web": "true"}, False),
+        (GREEN | {"lint": "failure", "python": "true", "web": "true"}, False),
+        (GREEN | {"node": "failure", "pytest": "skipped", "python": "false", "web": "true"}, False),
+        (GREEN | {"changes": "failure", "pytest": "skipped", "python": "", "web": ""}, False),
+        ({"python": "false", "pytest": "skipped", "web": "false"}, False),
+        (GREEN | {"python": "true", "web": "false"}, True),
+        (GREEN | {"browser": "skipped", "python": "true", "web": "false"}, True),
+        (GREEN | {"browser": "skipped", "python": "true", "web": "true"}, False),
+        (GREEN | {"browser": "skipped", "python": "true", "web": ""}, False),
+        (GREEN | {"browser": "skipped", "python": "true"}, False),
+        (GREEN | {"browser": "failure", "python": "true", "web": "true"}, False),
+        (GREEN | {"browser": "failure", "python": "true", "web": "false"}, False),
+        (GREEN | {"browser": "cancelled", "python": "true", "web": "true"}, False),
+        (GREEN | {"browser": "", "python": "true", "web": "true"}, False),
+        (
+            {k: v for k, v in GREEN.items() if k != "browser"} | {"python": "true", "web": "true"},
+            False,
+        ),
     ],
     ids=[
         "all-passed",
@@ -124,6 +179,16 @@ GREEN = {"changes": "success", "lint": "success", "node": "success", "pytest": "
         "node-failed",
         "changes-failed",
         "jobs-missing",
+        "browser-ran-with-no-web-change",
+        "browser-skipped-no-web-change",
+        "browser-skipped-but-web-changed",
+        "browser-skipped-with-no-decision",
+        "browser-skipped-decision-missing",
+        "browser-failed",
+        "browser-failed-no-web-change",
+        "browser-cancelled",
+        "browser-blank",
+        "browser-missing",
     ],
 )
 def test_gate(results: dict[str, str], green: bool) -> None:
@@ -134,10 +199,60 @@ def test_gate_reads_the_environment_and_fails_with_reasons(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     m = changes()
-    for k, v in (GREEN | {"python": "true"}).items():
+    for k, v in (GREEN | {"python": "true", "web": "true"}).items():
         monkeypatch.setenv(f"RESULT_{k.upper()}", v)
     assert m.main(["gate"]) == 0
     monkeypatch.setenv("RESULT_PYTEST", "failure")
     assert m.main(["gate"]) == 1
     assert "not green: pytest: failure" in capsys.readouterr().err
+    monkeypatch.setenv("RESULT_PYTEST", "success")
+    monkeypatch.setenv("RESULT_BROWSER", "failure")
+    assert m.main(["gate"]) == 1
+    assert "not green: browser: failure" in capsys.readouterr().err
+    monkeypatch.delenv("RESULT_BROWSER")
+    assert m.main(["gate"]) == 1
+    assert "not green: browser: missing" in capsys.readouterr().err
+    monkeypatch.setenv("RESULT_BROWSER", "skipped")
+    monkeypatch.setenv("RESULT_WEB", "false")
+    assert m.main(["gate"]) == 0
     assert m.main(["nonsense"]) == 2
+
+
+def jobs() -> dict[str, Any]:
+    jobs: dict[str, Any] = yaml.safe_load(WORKFLOW.read_text())["jobs"]
+    return jobs
+
+
+def steps_text(job: str) -> str:
+    return "\n".join(str(step.get("run", "")) for step in jobs()[job]["steps"])
+
+
+def test_gates_waits_for_the_browser_job_and_reads_its_result() -> None:
+    gates = jobs()["gates"]
+    assert "browser" in gates["needs"]
+    env = {k: v for step in gates["steps"] for k, v in step.get("env", {}).items()}
+    assert env["RESULT_BROWSER"] == "${{ needs.browser.result }}"
+    assert env["RESULT_WEB"] == "${{ needs.changes.outputs.web }}"
+
+
+def test_the_changes_job_publishes_the_web_decision() -> None:
+    assert jobs()["changes"]["outputs"]["web"] == "${{ steps.decide.outputs.web }}"
+    assert "web=true" in steps_text("changes")
+
+
+def test_the_browser_job_runs_the_canned_server_and_both_smoke_passes() -> None:
+    job = jobs()["browser"]
+    assert job["needs"] == "changes"
+    assert job["if"] == "needs.changes.outputs.web == 'true'"
+    assert job["timeout-minutes"] == 15
+    assert "postgres" in job["services"]
+    text = steps_text("browser")
+    assert "web/test/e2e/serve_canned.py" in text
+    smokes = [ln for ln in text.splitlines() if "web/test/e2e/realism_smoke.py" in ln]
+    assert len(smokes) == 2
+    assert sum(ln.rstrip().endswith(" phone") for ln in smokes) == 1
+    assert all("playwright==1.49.*" in ln for ln in smokes)
+    assert "model" not in text.lower().replace("canned", "")
+    uploads = [s for s in job["steps"] if "upload-artifact" in str(s.get("uses", ""))]
+    assert uploads
+    assert uploads[0]["if"] == "always()"

@@ -5,7 +5,10 @@ which ports a convoy route joins. No seat sees one. Seats learn of features
 from documents whose feed sights them, so a seat's map is only what its paper
 says, as of when it said it.
 
-A force sits at one place and moves by order (the movement resolver). A front
+A force sits at one place and moves by order (the movement resolver). In a world
+that names its own piece kinds every force is a ``piece`` whose ``piece`` field holds
+the world's kind key; what that kind is (its domain, whether it fights) is asked of
+``revisionist.core.realism.kinds``, never read from the key. A front
 or a route joins two or more places and moves only with history: a feature's
 ``legs`` are the moves the record says it made, and an order to a force drops
 the ones still to come.
@@ -29,9 +32,15 @@ class FeatureKind(StrEnum):
     AIR = "air"
     FRONT = "front"
     ROUTE = "route"
+    PIECE = "piece"
+    """A piece of one of the world's own kinds, named in ``Feature.piece``."""
 
 
 FORCES = frozenset({FeatureKind.FLEET, FeatureKind.ARMY, FeatureKind.AIR})
+"""The force kinds of a world with no ``piece_kinds``."""
+
+AT_ONE_PLACE = FORCES | {FeatureKind.PIECE}
+"""The kinds of feature that stand at one place and move by order."""
 
 SPEED_KM_PER_DAY = {
     FeatureKind.FLEET: 450,  # [proposed] about 10 knots, a fleet's cruising pace
@@ -77,14 +86,29 @@ class Feature(Model):
     rejoined_on: date | None = None
     """A detachment that has merged back into its parent: the day it did. It is out of
     play from then on. None while it is in play."""
+    piece: Label | None = None
+    """A ``piece``: the world's kind key. None for every other feature kind. Rules ask
+    ``kinds.domain`` and ``kinds.is_force``, never this key."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
-        {"in_service", "posture", "engagement", "left_base_on", "detached_from", "rejoined_on"}
+        {
+            "in_service",
+            "posture",
+            "engagement",
+            "left_base_on",
+            "detached_from",
+            "rejoined_on",
+            "piece",
+        }
     )
 
     @model_validator(mode="after")
     def _shape(self) -> "Feature":
-        force = self.kind in FORCES
+        if (self.piece is None) == (self.kind is FeatureKind.PIECE):
+            raise ValueError(
+                f"feature {self.feature_id}: a piece, and only a piece, names its kind"
+            )
+        force = self.kind in AT_ONE_PLACE
         if force and len(self.places) != 1:
             raise ValueError(f"feature {self.feature_id}: a force is at one place")
         if not force and len(self.places) < 2:
@@ -132,6 +156,7 @@ def km_between(a: tuple[float, float], b: tuple[float, float]) -> int:
 
 
 __all__ = [
+    "AT_ONE_PLACE",
     "FORCES",
     "SPEED_KM_PER_DAY",
     "Feature",

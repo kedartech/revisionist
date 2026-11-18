@@ -77,6 +77,7 @@ from revisionist.core.ontology import (
     Seat,
     SeatKind,
 )
+from revisionist.core.realism import kinds
 from revisionist.core.realism import territory as tm
 from revisionist.core.realism.agenda import MandateKind, MandateTemplate, Trigger, TriggerKind
 from revisionist.core.realism.answer import ENTITY_FIELDS, Answer, ParamValue
@@ -100,7 +101,9 @@ from revisionist.core.realism.effect import (
     SetEngagement,
     ShiftDisposition,
 )
-from revisionist.core.realism.geography import FORCES, Feature, Leg
+from revisionist.core.realism.geography import AT_ONE_PLACE, FORCES, Feature, FeatureKind, Leg
+from revisionist.core.realism.kinds import Domain as PieceDomain
+from revisionist.core.realism.kinds import PieceKind, Resource
 from revisionist.core.realism.pipeline import Pipeline, Step
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.war import Outlet, War, war_id_for
@@ -112,11 +115,13 @@ from revisionist.core.world import (
     ClauseDecl,
     DevelopmentDecl,
     EntityDecl,
+    FeatureDecl,
     FigureDecl,
     GoalDecl,
     LeverDecl,
     LinkDecl,
     MandateDecl,
+    PieceKindDecl,
     ScopeDecl,
     ScopeSpec,
     SeaZoneDecl,
@@ -422,6 +427,8 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "territories",
             "sea_zones",
             "adjacency",
+            "resources",
+            "piece_kinds",
         ):
             if getattr(world, name):
                 problems.append(f"{name}: only a realism world has {name}")
@@ -429,6 +436,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     if world.start_date is None:
         problems.append("world: a realism world needs a start_date")
     _check_board(world, sections, problems)
+    _check_kinds(world, problems)
     for seat in world.seats:
         if seat.controller is Controller.HUMAN:
             problems.append(f"seat {seat.key}: a realism world names no human seat")
@@ -677,6 +685,7 @@ def _check_features(world: WorldFile, sections: Mapping[str, str], problems: lis
             problems.append(f"{where}: {f.side} is not a polity or body")
         if f.kind in FORCES and f.side is None:
             problems.append(f"{where}: a force belongs to a side")
+        domain = _check_piece(world, where, f, problems)
         legs = [(f.as_of or start, f.places), *((leg.since, leg.places) for leg in f.legs)]
         for n, (_, places) in enumerate(legs):
             at = where if n == 0 else f"{where} leg {n}"
@@ -684,14 +693,110 @@ def _check_features(world: WorldFile, sections: Mapping[str, str], problems: lis
             for p in places:
                 if p in sections and p not in placed:
                     problems.append(f"{at}: {p} is not a place with a position")
-            if f.kind in FORCES and len(places) != 1:
+            if f.kind in AT_ONE_PLACE and len(places) != 1:
                 problems.append(f"{at}: a force is at one place")
-            if f.kind not in FORCES and len(places) < 2:
+            if f.kind not in AT_ONE_PLACE and len(places) < 2:
                 problems.append(f"{at}: a {f.kind.value} joins two places or more")
+            if domain is not None:
+                _check_stands(world, at, domain, places, problems)
         days = [on for on, _ in legs]
         if any(a is not None and b is not None and b <= a for a, b in pairwise(days)):
             problems.append(f"{where}: legs run forward in time")
         _check_cited(problems, where, f, sections)
+
+
+def _check_piece(
+    world: WorldFile, where: str, f: FeatureDecl, problems: list[str]
+) -> PieceDomain | None:
+    """A piece names one of the world's kinds; a world with kinds has no army, fleet or air feature.
+    Returns the piece's domain, or None when it has none to check."""
+    declared = {k.key: k for k in world.piece_kinds}
+    if f.kind is not FeatureKind.PIECE:
+        if f.piece is not None:
+            problems.append(f"{where}: only a piece names a piece kind")
+        if world.piece_kinds and f.kind in FORCES:
+            problems.append(f"{where}: this world's forces are pieces of its own kinds")
+        return None
+    if f.side is None:
+        problems.append(f"{where}: a piece belongs to a side")
+    if not world.piece_kinds:
+        problems.append(f"{where}: a piece needs the world's piece_kinds")
+        return None
+    if f.piece is None:
+        problems.append(f"{where}: a piece names its kind")
+        return None
+    kind = declared.get(f.piece)
+    if kind is None:
+        problems.append(f"{where}: unknown piece kind {f.piece}")
+        return None
+    return kind.domain
+
+
+def _area_kinds(world: WorldFile) -> dict[str, tm.TerrainKind]:
+    """Each area's kind: land for a territory, sea for a sea zone."""
+    return {
+        **{t.key: tm.TerrainKind.LAND for t in world.territories},
+        **{z.key: tm.TerrainKind.SEA for z in world.sea_zones},
+    }
+
+
+def _check_stands(
+    world: WorldFile, where: str, domain: PieceDomain, places: Sequence[str], problems: list[str]
+) -> None:
+    """A piece stands only in an area its domain can stand in: the area a place lies
+    within, or the area itself."""
+    areas = _area_kinds(world)
+    within = {d.key: d.within for d in world.entities}
+    for p in places:
+        area = p if p in areas else within.get(p)
+        if area is not None and area in areas and not kinds.stands_on(domain, areas[area]):
+            problems.append(f"{where}: a {domain.value} piece cannot stand in {area}")
+
+
+def _check_kinds(world: WorldFile, problems: list[str]) -> None:
+    """Piece kinds that can step on every terrain of their domain, resources named once,
+    and yields of resources the world names (realism only)."""
+    resources: set[str] = set()
+    for r in world.resources:
+        if r.key in resources:
+            problems.append(f"resource {r.key}: duplicate key")
+        resources.add(r.key)
+    for t in world.territories:
+        for key in t.yields:
+            if key not in resources:
+                problems.append(f"territory {t.key}: yields unknown resource {key}")
+    if not world.piece_kinds:
+        return
+    if world.map is None:
+        problems.append("piece_kinds: a world with piece kinds needs a map")
+        return
+    terrain = {t.key: t.kind for t in world.terrain}
+    names: set[str] = set()
+    for k in world.piece_kinds:
+        if k.key in names:
+            problems.append(f"piece kind {k.key}: duplicate key")
+        names.add(k.key)
+    for k in world.piece_kinds:
+        where = f"piece kind {k.key}"
+        allowed = kinds.steps_on(k.domain)
+        for key in terrain:
+            if terrain[key] in allowed and key not in k.days_per_step:
+                problems.append(f"{where}: no days_per_step for {key}")
+        for key in k.days_per_step:
+            if key not in terrain:
+                problems.append(f"{where}: unknown terrain {key}")
+            elif terrain[key] not in allowed:
+                problems.append(
+                    f"{where}: {key} is {terrain[key].value} terrain, "
+                    f"where a {k.domain.value} piece cannot step"
+                )
+        if k.domain is PieceDomain.AIR and k.range_steps is None:
+            problems.append(f"{where}: an air kind needs range_steps")
+        if k.domain is not PieceDomain.AIR and k.range_steps is not None:
+            problems.append(f"{where}: only an air kind has range_steps")
+        for lifted in k.carries:
+            if lifted not in names:
+                problems.append(f"{where}: carries unknown kind {lifted}")
 
 
 def _check_movement(world: WorldFile, where: str, lever: LeverDecl, problems: list[str]) -> None:
@@ -1290,6 +1395,14 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
             scope=PUBLIC if q.public else None,
         )
         out.append((ev.QuantitySet(quantity=quantity), PUBLIC))
+    if world.piece_kinds or world.resources:
+        declared_kinds = ev.KindsDeclared(
+            pieces=tuple(_piece_kind(k) for k in world.piece_kinds),
+            resources=tuple(
+                Resource(key=r.key, name=r.name, unit=r.unit, role=r.role) for r in world.resources
+            ),
+        )
+        out.append((declared_kinds, PUBLIC))
     for d in world.features:
         feature = Feature(
             feature_id=FeatureId(ids[d.key]),
@@ -1304,6 +1417,7 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
                 for leg in d.legs
             ),
             in_service=d.in_service,
+            piece=d.piece,
         )
         out.append((ev.FeatureSet(feature=feature), PUBLIC))
     feeds = tuple(
@@ -1369,6 +1483,21 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
     return out
 
 
+def _piece_kind(k: PieceKindDecl) -> PieceKind:
+    return PieceKind(
+        key=k.key,
+        name=k.name,
+        domain=k.domain,
+        days_per_step=dict(k.days_per_step),
+        max_strength=k.max_strength,
+        fuel_per_step=k.fuel_per_step,
+        range_steps=k.range_steps,
+        detect=k.detect,
+        conceal=k.conceal,
+        carries=k.carries,
+    )
+
+
 def _areas(world: WorldFile, ids: Mapping[str, str]) -> list[Entity]:
     """One location entity per territory and sea zone, keyed by the area's key."""
     return [
@@ -1394,7 +1523,7 @@ def _board(world: WorldFile, ids: Mapping[str, str]) -> tm.WorldMap:
         sha256=ref.sha256,
         coords=ref.coords,
         box=ref.box,
-        terrain=tuple(tm.Terrain(key=t.key, kind=t.kind) for t in world.terrain),
+        terrain=tuple(tm.Terrain(key=t.key, kind=t.kind, defence=t.defence) for t in world.terrain),
         regions=tuple(tm.Region(key=r.key, name=r.name, parent=r.parent) for r in world.regions),
         territories=tuple(
             tm.Territory(

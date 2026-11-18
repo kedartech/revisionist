@@ -17,7 +17,7 @@ shapes by key, for drawing only; a territory names its own, and no rule reads th
 import hashlib
 import json
 from enum import StrEnum
-from typing import TYPE_CHECKING, Annotated, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal
 
 from pydantic import Field, StringConstraints
 
@@ -46,6 +46,10 @@ class TerrainKind(StrEnum):
 class Terrain(Model):
     key: Label
     kind: TerrainKind
+    defence: int = Field(default=0, ge=0, le=2)
+    """What the terrain adds to a defender's score in battle."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"defence"})
 
 
 class Region(Model):

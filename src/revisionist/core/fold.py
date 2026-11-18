@@ -64,6 +64,7 @@ from revisionist.core.realism.effect import (
     ShiftDisposition,
 )
 from revisionist.core.realism.geography import Feature
+from revisionist.core.realism.kinds import Kinds
 from revisionist.core.realism.pipeline import (
     ADVANCES,
     SETTLED,
@@ -410,6 +411,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.FeatureSet()
             | ev.WarDeclared()
             | ev.MapDeclared()
+            | ev.KindsDeclared()
             | ev.NewsReported()
             | ev.StanceChanged()
             | ev.OpponentsRanked()
@@ -624,8 +626,12 @@ def _realism(state: State, p: ev.Payload) -> State:
             for place in (*ft.places, *([ft.bound_for] if ft.bound_for else [])):
                 if _need(state.entities, place, "entity").kind is not EntityKind.LOCATION:
                     raise FoldError(f"feature {ft.feature_id}: {place} is not a place")
+            if ft.piece is not None and (state.kinds is None or ft.piece not in state.kinds.pieces):
+                raise FoldError(f"feature {ft.feature_id}: unknown piece kind {ft.piece}")
             was = state.features.get(ft.feature_id)
-            if was is not None and (ft.as_of < was.as_of or ft.kind is not was.kind):
+            if was is not None and (
+                ft.as_of < was.as_of or ft.kind is not was.kind or ft.piece != was.piece
+            ):
                 raise FoldError(f"feature {ft.feature_id} cannot go back or change kind")
             return state.model_copy(update={"features": _put(state.features, ft.feature_id, ft)})
         case ev.WarDeclared():
@@ -643,6 +649,19 @@ def _realism(state: State, p: ev.Payload) -> State:
                 if _need(state.entities, area, "entity").kind is not EntityKind.LOCATION:
                     raise FoldError(f"area {area} is not a place")
             return state.model_copy(update={"map": p.map})
+        case ev.KindsDeclared():
+            if state.kinds is not None:
+                raise FoldError("the kinds are declared once")
+            pieces = {k.key: k for k in p.pieces}
+            resources = {r.key: r for r in p.resources}
+            if len(pieces) < len(p.pieces) or len(resources) < len(p.resources):
+                raise FoldError("a piece kind or resource is declared twice")
+            for k in p.pieces:
+                for lifted in k.carries:
+                    if lifted not in pieces:
+                        raise FoldError(f"piece kind {k.key}: carries unknown kind {lifted}")
+            kinds = Kinds(pieces=pieces, resources=resources)
+            return state.model_copy(update={"kinds": kinds})
         case ev.NewsReported():
             _fresh(state.news, p.news.news_id, "news")
             return state.model_copy(update={"news": _put(state.news, p.news.news_id, p.news)})

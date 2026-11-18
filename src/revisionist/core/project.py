@@ -85,6 +85,7 @@ def project(state: State, seat: SeatId) -> View:
         mandates=_visible(state.mandates, seat),
         wars=dict(state.wars),
         map=state.map,
+        kinds=state.kinds,
         wake=state.wake,
         phase=state.phase,
         roster=dict(state.roster),

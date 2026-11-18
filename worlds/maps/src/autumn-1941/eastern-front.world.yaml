@@ -1,0 +1,95 @@
+# The scoped check's staging world for the 1941 pilot region (the Eastern Front):
+#   python scripts/map_check.py check --region worlds/maps/src/autumn-1941/eastern-front.world.yaml
+# Its map block, regions, territories, sea zones and adjacency are the build's world fragment
+# (worlds/maps/autumn-1941.world.yaml) as built; the sites in scope are the twelve places today's
+# world file has in the region, their coordinates copied from it (that file is not edited here).
+# Rebuild the map, then copy the fragment's blocks here; the test pins the hash.
+places_of: ../../../autumn-1941.yaml
+map: {coords: lonlat, file: autumn-1941.json, sha256: be8e51b21ded6ffc112305f5f334cb65015d0caad409ae545a518233e8b1173b, box: [14, 40, 52, 71]}
+regions:
+  - {key: eastern_front, name: The Eastern Front}
+  - {key: beyond_the_frontier, name: Beyond the frontier}
+territories:
+  - {key: the_north, name: The North, region: eastern_front, terrain: forest, sites: [archangel]}
+  - {key: leningrad, name: Leningrad, region: eastern_front, terrain: forest, sites: [leningrad]}
+  - {key: baltic_states, name: The Baltic States, region: eastern_front, terrain: plain}
+  - {key: belorussia, name: Belorussia, region: eastern_front, terrain: marsh}
+  - {key: kalinin, name: Kalinin, region: eastern_front, terrain: forest, sites: [kalinin]}
+  - {key: smolensk, name: Smolensk, region: eastern_front, terrain: forest, sites: [smolensk, vyazma]}
+  - {key: moscow, name: Moscow, region: eastern_front, terrain: forest, sites: [moscow, mozhaisk]}
+  - {key: upper_volga, name: Gorky and the Upper Volga, region: eastern_front, terrain: forest}
+  - {key: western_ukraine, name: Western Ukraine, region: eastern_front, terrain: plain}
+  - {key: kiev, name: Kiev, region: eastern_front, terrain: plain, sites: [kiev]}
+  - {key: odessa, name: Odessa and Bessarabia, region: eastern_front, terrain: plain, sites: [odessa]}
+  - {key: kharkov, name: Kharkov and Poltava, region: eastern_front, terrain: plain, sites: [poltava, kharkov]}
+  - {key: donbas, name: The Donbas and Rostov, region: eastern_front, terrain: plain, sites: [taganrog]}
+  - {key: crimea, name: The Crimea, region: eastern_front, terrain: plain}
+  - {key: voronezh, name: 'Orel, Kursk and Voronezh', region: eastern_front, terrain: plain}
+  - {key: stalingrad, name: Stalingrad and Saratov, region: eastern_front, terrain: plain}
+  - {key: east_prussia, name: East Prussia, region: beyond_the_frontier, terrain: plain}
+  - {key: occupied_poland, name: Occupied Poland, region: beyond_the_frontier, terrain: plain}
+  - {key: finland, name: Finland, region: beyond_the_frontier, terrain: forest}
+sea_zones:
+  - {key: baltic_sea, name: The Baltic Sea, region: eastern_front, terrain: sea}
+  - {key: black_sea, name: The Black Sea, region: eastern_front, terrain: sea}
+  - {key: white_sea, name: The White Sea and the Barents, region: eastern_front, terrain: sea}
+adjacency:
+  - [baltic_sea, baltic_states]
+  - [baltic_sea, east_prussia]
+  - [baltic_sea, leningrad]
+  - [baltic_states, belorussia]
+  - [baltic_states, east_prussia]
+  - [baltic_states, leningrad]
+  - [belorussia, east_prussia]
+  - [belorussia, kiev]
+  - [belorussia, leningrad]
+  - [belorussia, smolensk]
+  - [belorussia, western_ukraine]
+  - [black_sea, crimea]
+  - [black_sea, donbas]
+  - [black_sea, odessa]
+  - [crimea, odessa]
+  - [donbas, kharkov]
+  - [donbas, odessa]
+  - [donbas, stalingrad]
+  - [donbas, voronezh]
+  - [finland, the_north]
+  - [finland, white_sea]
+  - [kalinin, leningrad]
+  - [kalinin, moscow]
+  - [kalinin, smolensk]
+  - [kalinin, the_north]
+  - [kalinin, upper_volga]
+  - [kharkov, kiev]
+  - [kharkov, odessa]
+  - [kharkov, smolensk]
+  - [kharkov, voronezh]
+  - [kiev, odessa]
+  - [kiev, smolensk]
+  - [kiev, western_ukraine]
+  - [leningrad, smolensk]
+  - [leningrad, the_north]
+  - [moscow, smolensk]
+  - [moscow, upper_volga]
+  - [moscow, voronezh]
+  - [occupied_poland, western_ukraine]
+  - [odessa, western_ukraine]
+  - [smolensk, voronezh]
+  - [stalingrad, upper_volga]
+  - [stalingrad, voronezh]
+  - [the_north, upper_volga]
+  - [the_north, white_sea]
+  - [upper_volga, voronezh]
+entities:
+  - {key: leningrad, kind: location, name: Leningrad, at: [59.9, 30.3]}
+  - {key: kalinin, kind: location, name: Kalinin, at: [56.9, 35.9]}
+  - {key: smolensk, kind: location, name: Smolensk, at: [54.8, 32.0]}
+  - {key: vyazma, kind: location, name: Vyazma, at: [55.2, 34.3]}
+  - {key: mozhaisk, kind: location, name: Mozhaisk, at: [55.5, 36.0]}
+  - {key: moscow, kind: location, name: Moscow, at: [55.8, 37.6]}
+  - {key: kiev, kind: location, name: Kiev, at: [50.5, 30.5]}
+  - {key: poltava, kind: location, name: Poltava, at: [49.6, 34.6]}
+  - {key: kharkov, kind: location, name: Kharkov, at: [50.0, 36.2]}
+  - {key: odessa, kind: location, name: Odessa, at: [46.5, 30.7]}
+  - {key: taganrog, kind: location, name: Taganrog, at: [47.2, 38.9]}
+  - {key: archangel, kind: location, name: Archangel, at: [64.5, 40.5]}

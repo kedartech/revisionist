@@ -564,6 +564,9 @@ def test_a_new_player_in_the_same_wake_inherits_no_sealed_answer(
     (item,) = _request_items(bea)
     game_call(bea, "leave")
     cat = _join(game, ada, "churchill", "cat")
+    (pending,) = _request_items(cat)
+    assert pending["id"] == item["id"]
+    assert pending["cause"] is None, pending["cause"]
     assert not post(ada, "commit")[1]["refused"]  # the close hands Churchill to Cat
     order, i = _request(game)
     assert _decided(game, order) == [], "the request was decided before Cat held it"
@@ -609,6 +612,18 @@ def test_a_hand_over_keeps_the_sealed_answers_of_the_players_who_stay(
     assert _held_answer(state, game) is given
 
 
+def test_a_pending_hand_over_of_another_leader_leaves_the_players_answer_shown(
+    asked: tuple[Realism, Client, Client],
+) -> None:
+    game, ada, bea = asked
+    _answered(game, ada, bea)
+    (before,) = _request_items(bea)
+    assert before["cause"] is not None, before
+    _join(game, ada, "wheeler", "dan")
+    (after,) = _request_items(bea)
+    assert after["cause"] == before["cause"], after
+
+
 def test_a_join_keeps_the_answer_a_decided_request_was_given(
     asked: tuple[Realism, Client, Client],
 ) -> None:
@@ -649,6 +664,9 @@ def test_a_new_player_inherits_no_sealed_step_choice(
     item = _item(bram)
     game_call(bram, "leave")
     cat = _join(game, ada, "bram", "cat")
+    pending = _item(cat)
+    assert pending["id"] == item["id"]
+    assert pending["cause"] is None, pending["cause"]
     assert not post(ada, "commit")[1]["refused"]  # the close hands Bram to Cat
     for _ in range(6):
         if _bram_steps(game, order_id):
@@ -680,3 +698,15 @@ def test_a_hand_over_keeps_the_step_choices_of_the_players_who_stay(
     chosen = _held_choice(state_of(game), order_id)
     state = _closed_with(state_of(game), _to(game, "cora", Controller.HUMAN))
     assert _held_choice(state, order_id) == chosen
+
+
+def test_a_pending_hand_over_of_another_leader_leaves_the_players_choice_shown(
+    toy: tuple[Realism, Client, Client],  # noqa: F811
+) -> None:
+    game, ada, bram = toy
+    _chose(game, ada, bram)
+    before = _item(bram)
+    assert before["cause"] is not None, before
+    _join(game, ada, "cora", "dan")
+    after = _item(bram)
+    assert after["cause"] == before["cause"], after

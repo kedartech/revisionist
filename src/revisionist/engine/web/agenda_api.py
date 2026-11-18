@@ -17,6 +17,7 @@ from revisionist.core import history, record
 from revisionist.core.canary import scan_text
 from revisionist.core.events import Event
 from revisionist.core.ids import CampaignId, EntityId, MandateId, OrderId, SeatId, derived_id
+from revisionist.core.ontology import Controller
 from revisionist.core.project import project
 from revisionist.core.realism import advance, mandates, pipelines, process
 from revisionist.core.realism.agenda import Offer, Option, PlayStyle, TriggerKind
@@ -283,6 +284,14 @@ def _step_actions(state: State, order_id: OrderId) -> list[str]:
     return [a.value for a in StepAction if a in allowed and a is not StepAction.AMEND]
 
 
+def _taken_up(state: State, seat: SeatId) -> bool:
+    """A new player has taken up ``seat``'s person, from the next close. The answers and
+    step choices the last player kept are not theirs, so their agenda shows none; the
+    close clears them."""
+    held = state.seats.get(seat)
+    return held is not None and state.handovers.get(held.embodies) is Controller.HUMAN
+
+
 def _awaiting_item(
     state: State, seat: SeatId, asked: advance.Awaiting, kind: str, item_id: str
 ) -> AgendaItem:
@@ -294,13 +303,14 @@ def _awaiting_item(
         text = process.WITHHELD
     cause = None
     actions: list[str] = []
+    kept = not _taken_up(state, seat)
     if asked.part is not None:
         given = state.routed[asked.order_id].parts[asked.part].held_answer
-        cause = None if given is None else _GIVEN[given]
+        cause = None if given is None or not kept else _GIVEN[given]
     else:
         order = state.orders[asked.order_id]
         chosen = order.held_choice
-        if chosen is not None and chosen.step == order.step:
+        if chosen is not None and chosen.step == order.step and kept:
             cause = _CHOSEN.format(action=chosen.action.value)
         actions = _step_actions(state, asked.order_id)
     return AgendaItem(

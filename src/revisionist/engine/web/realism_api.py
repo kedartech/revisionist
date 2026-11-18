@@ -581,6 +581,32 @@ class PieceCourse(TypedDict):
     arrives: str | None
 
 
+class MapLift(TypedDict):
+    """The lift a move by sea draws for a land piece."""
+
+    tons: int
+    """What the move takes from its nation's shipping the day it sets out."""
+    carrier: str
+    """The world's name for the kind that carries it."""
+
+
+class MapMove(TypedDict):
+    """One area an own piece can be sent to, lit from the seat's own view (TMD): the
+    movement rule's own course, planned on a board holding only what the view holds."""
+
+    area: PieceArea
+    path: list[PieceArea]
+    """The areas entered, in order; the last is ``area``."""
+    step_days: list[int]
+    """The days each step of ``path`` takes."""
+    days: int
+    reach: Literal["sustained", "operate", "raid"] | None
+    """The reach tier of ``area`` from the bases of the piece's side; None where no reach
+    rule applies (a board with no bases, or an envoy)."""
+    lift: MapLift | None
+    """The lift the move draws; None when it draws none."""
+
+
 class MapPiece(TypedDict):
     """One of the seat's own pieces, from the truth: only on the marks of forces the
     seat's own movement forms name."""
@@ -596,6 +622,8 @@ class MapPiece(TypedDict):
     area: PieceArea
     waiting: PieceWait | None
     under_way: PieceCourse | None
+    moves: NotRequired[list[MapMove]]
+    """In a territory game only: every area the piece can be sent to, by area key."""
 
 
 class MapMark(TypedDict):
@@ -655,6 +683,34 @@ class MapCapital(TypedDict):
     """Their country and the seat's are at war."""
 
 
+class MapArea(TypedDict):
+    """One area of the board: its key in the map file, its name and who it borders."""
+
+    key: str
+    name: str
+    kind: Literal["land", "sea"]
+    region: str
+    """The region's key."""
+    terrain: str
+    """The terrain's key."""
+    neighbours: list[str]
+    """The keys of the areas it borders or is joined to by a crossing, sorted."""
+
+
+class MapRegion(TypedDict):
+    key: str
+    name: str
+    parent: str | None
+    """The key of the region it lies within; None for a top region."""
+
+
+class MapFile(TypedDict):
+    """The map file the game was started on: the shapes the ``map`` action serves."""
+
+    name: str
+    sha256: str
+
+
 class SeatMap(TypedDict):
     """The map: places are public; marks come from arrived pages only, never the record."""
 
@@ -665,6 +721,28 @@ class SeatMap(TypedDict):
     capitals: list[MapCapital]
     """For each leader on the roster's opponents with a stance and a place, most hostile
     first. A leader with no stance or no place has none."""
+    areas: NotRequired[list[MapArea]]
+    """In a territory game only (as the four keys after it): every territory and sea
+    zone of the board, territories first, in the world file's order. The same for every
+    seat; the shapes come from the ``map`` action."""
+    regions: NotRequired[list[MapRegion]]
+    coords: NotRequired[Literal["lonlat", "flat"]]
+    box: NotRequired[list[float] | None]
+    """``[west, south, east, north]``; None when the world names none."""
+    file: NotRequired[MapFile]
+
+
+class MapReply(TypedDict):
+    """The ``map`` action: the map object the game's stored hash names, the same for every
+    seat. Refused, with one line, when no object has that hash or the game has no
+    territory map."""
+
+    reply: str
+    refused: bool
+    file: MapFile | None
+    map: dict[str, object] | None
+    """The map file's JSON as stored (``format``, ``coords``, ``box``, ``vertices``,
+    ``areas``, ``backdrop``)."""
 
 
 class Reply(TypedDict):
@@ -1030,11 +1108,17 @@ __all__ = [
     "LeverChoice",
     "LeverLine",
     "LeverParam",
+    "MapArea",
     "MapCapital",
+    "MapFile",
+    "MapLift",
     "MapMark",
+    "MapMove",
     "MapOrder",
     "MapPiece",
     "MapPlace",
+    "MapRegion",
+    "MapReply",
     "OrderProposal",
     "OrderResult",
     "OrderTrack",

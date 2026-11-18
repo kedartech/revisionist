@@ -223,7 +223,7 @@ def test_a_map_built_without_the_roster_has_no_capitals() -> None:
 
 def test_the_fixture_map_carries_theatres_and_capitals_in_the_snapshot_shape() -> None:
     m = json.loads(FIXTURE.read_text())["map"]
-    assert set(m) == set(SeatMap.__annotations__)
+    assert set(m) == set(SeatMap.__required_keys__)  # a point game: no territory keys
     places = [
         *m["places"],
         *(p for mark in m["marks"] for p in mark["places"]),

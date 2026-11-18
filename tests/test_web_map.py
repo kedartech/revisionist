@@ -139,7 +139,8 @@ def test_map_words_carry_no_engine_words(fdr: tuple[Realism, Client]) -> None:
 def test_the_fixture_map_has_the_snapshot_shape() -> None:
     fixture = Path(__file__).parents[1] / "web" / "test" / "fixtures" / "realism-seat.json"
     m = json.loads(fixture.read_text())["map"]
-    assert set(m) == set(SeatMap.__annotations__)
+    # A point game's map: the territory keys are the fixture's ``territory_map`` (TMD).
+    assert set(m) == set(SeatMap.__required_keys__)
     for p in m["places"]:
         assert set(p) == set(MapPlace.__annotations__)
     for mark in m["marks"]:
@@ -149,7 +150,7 @@ def test_the_fixture_map_has_the_snapshot_shape() -> None:
     pieces = [mark["piece"] for mark in m["marks"] if mark["piece"] is not None]
     assert pieces, "the fixture shows one own piece"
     for piece in pieces:
-        assert set(piece) == set(api.MapPiece.__annotations__)
+        assert set(piece) == set(api.MapPiece.__required_keys__)
         assert set(piece["area"]) == set(api.PieceArea.__annotations__)
         if piece["waiting"] is not None:
             assert set(piece["waiting"]) == set(api.PieceWait.__annotations__)
@@ -281,7 +282,8 @@ def test_each_own_force_the_forms_name_is_sent_as_a_piece(tmp_path: Path) -> Non
     }
     levy = seen["The Norra Levy"]
     assert (levy["side"], levy["certainty"], levy["places"]) == ("own", "known", [])
-    assert levy["piece"] == {
+    # With territories on, the piece also carries its lit moves (TMD).
+    assert {k: v for k, v in levy["piece"].items() if k != "moves"} == {
         "key": levy["key"],
         "kind": "Levy",
         "domain": "land",

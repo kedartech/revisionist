@@ -14,7 +14,7 @@ import re
 from pathlib import Path
 
 OBJECTS_ENV = "REVISIONIST_MAP_OBJECTS"
-"""The map-objects directory; default ``worlds/maps/objects/``."""
+"""The map-objects directory; default ``worlds/maps/objects/``. [proposed]"""
 MAPS_DIR = Path(__file__).resolve().parents[3] / "worlds" / "maps"
 """Where the world-named map files are."""
 

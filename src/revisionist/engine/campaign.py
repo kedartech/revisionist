@@ -95,7 +95,7 @@ def world_path(name: str) -> Path:
 
 def load_world(path: Path) -> WorldFile:
     """The world file, with the deck from ``developments/<name>.yaml`` beside it if any,
-    and the bytes of the map file it names, from ``maps/`` beside it or beside it."""
+    and the bytes of the map file it names, from ``maps/`` beside it or beside it. [proposed]"""
     world = WorldFile.model_validate(yaml.safe_load(path.read_text()))
     if world.map is not None:
         for found in (path.parent / "maps" / world.map.file, path.parent / world.map.file):

@@ -62,6 +62,7 @@ from revisionist.core.realism.card import CardFace, Desk, SeatCard, Topic
 from revisionist.core.realism.document import Document, DocumentView, Feed
 from revisionist.core.realism.effect import EffectKind, RoutedOrder, RoutedOrderView
 from revisionist.core.realism.geography import Feature
+from revisionist.core.realism.kinds import Kinds
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
@@ -147,6 +148,9 @@ class _World(Model):
     map: WorldMap | None = None
     """The board, set once by ``map_declared``: the same in every view. None for a world
     with no map, where every territory rule is off."""
+    kinds: Kinds | None = None
+    """The world's piece kinds and resources, set once by ``kinds_declared``: public rules
+    of the world, the same in every view. None for a world that names neither."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
@@ -161,6 +165,7 @@ class _World(Model):
             "mandates",
             "wars",
             "map",
+            "kinds",
         }
     )
 

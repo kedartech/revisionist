@@ -65,6 +65,7 @@ from revisionist.core.realism import card as rc
 from revisionist.core.realism import document as rd
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism import geography as rg
+from revisionist.core.realism import kinds as rk
 from revisionist.core.realism import pipeline as rp
 from revisionist.core.realism import stance as rs
 from revisionist.core.realism import territory as tm
@@ -699,7 +700,7 @@ quantities = st.builds(
 @st.composite
 def features(draw: st.DrawFn) -> rg.Feature:
     kind = draw(st.sampled_from(list(rg.FeatureKind)))
-    force = kind in rg.FORCES
+    force = kind in rg.AT_ONE_PLACE
     places = draw(st.lists(entity_ids, min_size=1 if force else 2, max_size=1 if force else 3))
     moving = force and draw(st.booleans())
     as_of = draw(in_world_dates)
@@ -718,6 +719,7 @@ def features(draw: st.DrawFn) -> rg.Feature:
         engagement=draw(st.none() | st.sampled_from(list(rx.Engagement))) if force else None,
         detached_from=draw(st.none() | feature_ids) if force else None,
         rejoined_on=draw(st.none() | in_world_dates) if force else None,
+        piece=draw(labels) if kind is rg.FeatureKind.PIECE else None,
     )
 
 
@@ -772,7 +774,13 @@ world_maps = st.builds(
     coords=st.sampled_from(["lonlat", "flat"]),
     box=st.none() | boxes,
     terrain=st.lists(
-        st.builds(tm.Terrain, key=labels, kind=st.sampled_from(tm.TerrainKind)), max_size=2
+        st.builds(
+            tm.Terrain,
+            key=labels,
+            kind=st.sampled_from(tm.TerrainKind),
+            defence=st.integers(0, 2),
+        ),
+        max_size=2,
     ).map(tuple),
     regions=st.lists(
         st.builds(tm.Region, key=labels, name=labels, parent=st.none() | labels), max_size=2
@@ -804,6 +812,27 @@ world_maps = st.builds(
 )
 
 
+@st.composite
+def piece_kinds(draw: st.DrawFn) -> rk.PieceKind:
+    domain = draw(st.sampled_from(rk.Domain))
+    return rk.PieceKind(
+        key=draw(labels),
+        name=draw(labels),
+        domain=domain,
+        days_per_step=draw(st.dictionaries(labels, st.integers(1, 30), max_size=3)),
+        max_strength=draw(st.integers(1, 9)),
+        fuel_per_step=draw(st.floats(0, 10, allow_nan=False)),
+        range_steps=draw(st.integers(1, 6)) if domain is rk.Domain.AIR else None,
+        detect=draw(st.integers(0, 100)),
+        conceal=draw(st.integers(0, 100)),
+        carries=tuple(draw(st.lists(labels, max_size=2))),
+    )
+
+
+resources = st.builds(
+    rk.Resource, key=labels, name=labels, unit=labels, role=st.sampled_from(rk.Role)
+)
+
 realism_payloads = st.one_of(
     st.builds(
         ev.CampaignCreated,
@@ -814,6 +843,11 @@ realism_payloads = st.one_of(
     ),
     st.builds(ev.WarDeclared, war=wars()),
     st.builds(ev.MapDeclared, map=world_maps),
+    st.builds(
+        ev.KindsDeclared,
+        pieces=st.lists(piece_kinds(), max_size=2).map(tuple),
+        resources=st.lists(resources, max_size=2).map(tuple),
+    ),
     st.builds(
         ev.CardsDeclared,
         cards=st.lists(seat_cards, max_size=2).map(tuple),
@@ -1373,5 +1407,7 @@ ALL_MODEL_STRATEGIES: dict[str, st.SearchStrategy[object]] = {
     "Domain": cast(st.SearchStrategy[object], domains),
     "Feature": cast(st.SearchStrategy[object], features()),
     "WorldMap": cast(st.SearchStrategy[object], world_maps),
+    "PieceKind": cast(st.SearchStrategy[object], piece_kinds()),
+    "Resource": cast(st.SearchStrategy[object], resources),
     "MandateTemplate": cast(st.SearchStrategy[object], mandate_templates()),
 }

@@ -23,8 +23,16 @@ or ``gap: true``, so an unsourced figure can never pass as a sourced one.
 from datetime import date
 from typing import Annotated, Literal
 
-from pydantic import Field, StringConstraints, TypeAdapter, WithJsonSchema, model_validator
-from pydantic.json_schema import SkipJsonSchema
+from pydantic import (
+    Field,
+    GetJsonSchemaHandler,
+    StringConstraints,
+    TypeAdapter,
+    WithJsonSchema,
+    model_validator,
+)
+from pydantic.json_schema import JsonSchemaValue, SkipJsonSchema
+from pydantic_core import CoreSchema
 
 from revisionist.core._base import Label, Model
 from revisionist.core.goals import WinCondition
@@ -46,6 +54,7 @@ from revisionist.core.realism.card import Address, Aim, ChannelKind, ParamSpec
 from revisionist.core.realism.document import Bias, Classification, DocumentKind
 from revisionist.core.realism.effect import DISPOSITION_CAP, FIGURE_CAP, EffectKind
 from revisionist.core.realism.geography import FeatureKind
+from revisionist.core.realism.kinds import MAX_STRENGTH, Domain, Role
 from revisionist.core.realism.pipeline import StepAction, StepKind
 from revisionist.core.realism.quantity import ResolverKey
 from revisionist.core.realism.territory import Coords, Sha256, TerrainKind
@@ -486,6 +495,20 @@ class FeatureDecl(Cited):
     legs: tuple[LegDecl, ...] = ()
     in_service: date | None = None
     """Engine v2: the day the capability enters service. None: from the start."""
+    piece: SkipJsonSchema[Key | None] = None
+    """A ``piece``: the key of one of the world's ``piece_kinds``. Written by hand: not
+    offered to a model."""
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: GetJsonSchemaHandler
+    ) -> JsonSchemaValue:
+        """A model drafting a world is offered the five fixed kinds, never ``piece``: a
+        piece needs ``piece_kinds``, which are written by hand."""
+        schema = handler(core_schema)
+        kind = handler.resolve_ref_schema(handler.resolve_ref_schema(schema)["properties"]["kind"])
+        kind["enum"] = [k for k in kind["enum"] if k != FeatureKind.PIECE.value]
+        return schema
 
 
 class WarDecl(Cited):
@@ -518,6 +541,38 @@ class MapDecl(Model):
 class TerrainDecl(Model):
     key: Key
     kind: TerrainKind
+    defence: int = Field(default=0, ge=0, le=2)
+    """What the terrain adds to a defender's score in battle: 0 to 2."""
+
+
+class PieceKindDecl(Model):
+    """A kind of piece the world names: a levy, a galley, a panzer corps. Its domain is
+    one of the engine's four; every other figure is the world's."""
+
+    key: Key
+    name: Label
+    domain: Domain
+    days_per_step: dict[Key, Annotated[int, Field(ge=1)]]
+    """Days a step takes, by the terrain key of the area entered: one for every terrain
+    its domain can enter (land kinds land terrain, sea kinds sea terrain, air and envoys
+    both)."""
+    max_strength: int = Field(default=MAX_STRENGTH, ge=1)
+    fuel_per_step: float = Field(default=0, ge=0)
+    range_steps: int | None = Field(default=None, ge=1)
+    """An air kind's reach from its base, in steps; only an air kind has one."""
+    detect: Annotated[int, Field(ge=0, le=100)] = 0
+    conceal: Annotated[int, Field(ge=0, le=100)] = 0
+    carries: tuple[Key, ...] = ()
+    """The kinds it can lift, by key."""
+
+
+class ResourceDecl(Model):
+    """A resource the world names, and the one role it plays."""
+
+    key: Key
+    name: Label
+    unit: Label
+    role: Role
 
 
 class RegionDecl(Model):
@@ -748,6 +803,12 @@ class WorldFile(Model):
     sea_zones: SkipJsonSchema[tuple[SeaZoneDecl, ...]] = ()
     adjacency: SkipJsonSchema[tuple[AdjacencyDecl, ...]] = ()
     """Each bordering pair once, in either order."""
+    resources: SkipJsonSchema[tuple[ResourceDecl, ...]] = ()
+    """The resources territories yield, each with its role. Realism only. Written by hand:
+    not offered to a model."""
+    piece_kinds: SkipJsonSchema[tuple[PieceKindDecl, ...]] = ()
+    """The world's own kinds of piece. With any, every force is a ``piece`` of one of
+    them. Realism only, and only with a map. Written by hand: not offered to a model."""
     map_data: SkipJsonSchema[bytes | None] = Field(default=None, exclude=True)
     """The bytes of the map file ``map`` names, read by the world loader from beside
     the world file, not from the world file itself. None when no file was found."""

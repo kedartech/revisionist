@@ -2,8 +2,10 @@
 #
 # Two powers already at war on the start date, one leader each, both playable, on a
 # flat map (`toy.map.json` beside this file). No rule of the territory game is
-# switched on yet: `rules: []`. Later items add the piece kinds and the rules they
-# test. Every name is invented.
+# switched on yet: `rules: []`. The world names its own piece kinds and resources
+# (levies and galleys, not armies and fleets), so a rule that reads a kind's name
+# instead of its domain or role shows up here. Later items add the rules they test.
+# Every name is invented.
 
 world: territory-toy
 name: Territory Toy
@@ -20,13 +22,14 @@ entities:
   - {key: tomas, kind: person, name: Tomas Brand, parent: sudland}
   - {key: norrhavn, kind: location, name: Norrhavn, at: [150, 150], within: norra_plain}
   - {key: sudby, kind: location, name: Sudby, at: [40, 60], within: sudland_coast}
+  - {key: gulf_roads, kind: location, name: The Gulf Roads, at: [150, 50], within: the_gulf}
 
 # The board: a flat plane 300 by 200, four land territories and two sea zones. The
 # isle shares no border with the mainland; a ferry joins it to the Norra plain.
 map: {coords: flat, file: toy.map.json, sha256: c85e9773c786d427609b240ea1c45e21ae5c3c57ae2ab98d6b0d96713a20f28e, box: [0, 0, 300, 200]}
 
 terrain:
-  - {key: hills, kind: land}
+  - {key: hills, kind: land, defence: 1}
   - {key: plain, kind: land}
   - {key: shallows, kind: sea}
   - {key: deep, kind: sea}
@@ -39,8 +42,8 @@ regions:
 
 territories:
   - {key: norra_hills, name: The Norra Hills, region: north, terrain: hills, holder: norra, source: toy}
-  - {key: norra_plain, name: The Norra Plain, region: north, terrain: plain, holder: norra, sites: [norrhavn], source: toy}
-  - {key: sudland_coast, name: The Sudland Coast, region: south, terrain: plain, holder: sudland, sites: [sudby], source: toy}
+  - {key: norra_plain, name: The Norra Plain, region: north, terrain: plain, holder: norra, sites: [norrhavn], yields: {grain: 10, levies: 2000}, source: toy}
+  - {key: sudland_coast, name: The Sudland Coast, region: south, terrain: plain, holder: sudland, sites: [sudby], yields: {grain: 6, iron: 2}, source: toy}
   - {key: isle, name: The Isle, region: waters, terrain: hills, holder: sudland, source: toy}
 
 sea_zones:
@@ -56,6 +59,36 @@ adjacency:
   - [the_gulf, open_sea]
   - [isle, open_sea]
   - {a: isle, b: norra_plain, crossing: the ferry}
+
+# What the land yields. Two resources share the output role; none has supply or
+# prestige.
+resources:
+  - {key: grain, name: Grain, unit: tons, role: output}
+  - {key: iron, name: Iron, unit: tons, role: output}
+  - {key: levies, name: Levies, unit: men, role: manpower}
+  - {key: pitch, name: Pitch, unit: barrels, role: fuel}
+
+# The world's own piece kinds, one of each domain.
+piece_kinds:
+  - {key: levy, name: Levy, domain: land, days_per_step: {hills: 7, plain: 5}}
+  - key: galley
+    name: Galley
+    domain: sea
+    days_per_step: {shallows: 2, deep: 3}
+    max_strength: 3
+    fuel_per_step: 1
+    detect: 20
+    conceal: 10
+    carries: [levy]
+  - {key: kite, name: Kite Wing, domain: air, days_per_step: {hills: 1, plain: 1, shallows: 1, deep: 1}, range_steps: 2, detect: 60}
+  - {key: herald, name: Herald, domain: envoy, days_per_step: {hills: 3, plain: 2, shallows: 2, deep: 4}}
+
+features:
+  - {key: norra_levy, kind: piece, piece: levy, name: The Norra Levy, side: norra, places: [norrhavn], source: toy}
+  - {key: sudland_levy, kind: piece, piece: levy, name: The Sudland Levy, side: sudland, places: [sudby], source: toy}
+  - {key: sudland_galleys, kind: piece, piece: galley, name: The Sudland Galleys, side: sudland, places: [gulf_roads], source: toy}
+  - {key: norra_kites, kind: piece, piece: kite, name: The Norra Kites, side: norra, places: [norrhavn], source: toy}
+  - {key: norra_herald, kind: piece, piece: herald, name: The Norra Herald, side: norra, places: [norrhavn], source: toy}
 
 sources:
   - key: toy

@@ -13,7 +13,7 @@ SessionZeroOpened, CharacterListed, CharacterClaimed,
 CharacterReleased, SessionZeroClosed, SeasonEnded, GoalSet, GoalProgressed, GoalMet, GoalUndone,
 TickOpened, TickClosed``, and for realism campaigns ``CardsDeclared,
 DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, QuantitySet,
-FeatureSet, WarDeclared, MapDeclared, NewsReported, StanceChanged, OpponentsRanked,
+FeatureSet, WarDeclared, MapDeclared, KindsDeclared, NewsReported, StanceChanged, OpponentsRanked,
 CardAmended, AnswerPlanned, AnswerMade``, and under engine v2
 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
@@ -83,6 +83,7 @@ from revisionist.core.realism.card import (
 from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
+from revisionist.core.realism.kinds import PieceKind, Resource
 from revisionist.core.realism.pipeline import (
     Order,
     OrderStatus,
@@ -648,6 +649,15 @@ class MapDeclared(Model):
     map: WorldMap
 
 
+class KindsDeclared(Model):
+    """The world's own piece kinds and resources, in the world file's order. Public; once,
+    at creation, before any feature is set."""
+
+    kind: Literal["kinds_declared"] = "kinds_declared"
+    pieces: tuple[PieceKind, ...] = ()
+    resources: tuple[Resource, ...] = ()
+
+
 class NewsReported(Model):
     """A public event, as structured facts. Each seat's press words it later."""
 
@@ -1054,6 +1064,7 @@ Payload = Annotated[
     | FeatureSet
     | WarDeclared
     | MapDeclared
+    | KindsDeclared
     | NewsReported
     | StanceChanged
     | OpponentsRanked
@@ -1128,6 +1139,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "feature_set",
         "war_declared",
         "map_declared",
+        "kinds_declared",
         "stance_changed",
         "opponents_ranked",
         "card_amended",

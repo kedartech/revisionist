@@ -99,6 +99,11 @@ def test_the_board_is_fed_to_every_seat() -> None:
     assert "map_declared" in catchup.FEED_KINDS
 
 
+def test_the_worlds_kinds_are_fed_to_every_seat() -> None:
+    # The piece kinds and resources are public rules of the world, like the board.
+    assert "kinds_declared" in catchup.FEED_KINDS
+
+
 # --- The fog path ------------------------------------------------------------------
 
 

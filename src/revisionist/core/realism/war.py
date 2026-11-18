@@ -7,7 +7,7 @@ outlet's voice, so the event itself never carries prose.
 
 from datetime import date
 from enum import StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import Field
 
@@ -29,7 +29,11 @@ class War(Model):
     """The target polity."""
     since: date
     declared_by: EntityId
-    """The person who issued the declaration."""
+    """The person who issued the declaration; for a war the world starts with, the polity ``a``."""
+    declared: bool = True
+    """False for a war fought without a formal declaration. Either way it is a war."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"declared"})
 
 
 class NewsTopic(StrEnum):

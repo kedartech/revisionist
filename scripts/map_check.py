@@ -26,6 +26,7 @@ import sys
 from collections import defaultdict
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass, field
+from fractions import Fraction
 from itertools import pairwise
 from pathlib import Path
 from typing import Any
@@ -328,8 +329,12 @@ def check(raw: Any) -> list[Problem]:
     if any(p.code == "ring" for p in out):
         return _dedupe(out)
     out += _holes(m) + _t_junctions(m)
-    out += _overlaps(m, {(p.face, p.text) for p in out if p.code == "overlap"})
-    out += _coverage(m) + _small(m) + _labels(m)
+    covered = _coverage(m)
+    if covered:
+        # Faces that tile the box (every edge matched, the box edges covered) cannot overlap,
+        # so the search for which faces overlap runs only when the cover is broken.
+        out += _overlaps(m, {(p.face, p.text) for p in out if p.code == "overlap"})
+    out += covered + _small(m) + _labels(m)
     return _dedupe(out)
 
 
@@ -514,7 +519,7 @@ def _overlaps(m: Map, known: set[tuple[str, str]]) -> list[Problem]:
             if fb[2] < gb[0] or gb[2] < fb[0] or fb[3] < gb[1] or gb[3] < fb[1]:
                 continue
             key = (f.name, g.name) if f.name < g.name else (g.name, f.name)
-            if key not in pairs and (_ring_inside(f, g) or _ring_inside(g, f)):
+            if key not in pairs and (_ring_inside(f, g, gb) or _ring_inside(g, f, fb)):
                 pairs.add(key)
     for a, b in sorted(pairs):
         for x, y in ((a, b), (b, a)):
@@ -524,20 +529,19 @@ def _overlaps(m: Map, known: set[tuple[str, str]]) -> list[Problem]:
     return out
 
 
-def _ring_inside(f: Face, g: Face) -> bool:
+def _ring_inside(f: Face, g: Face, gb: tuple[int, int, int, int]) -> bool:
     """Some ring of ``f`` runs through the interior of ``g``."""
+    corners = _points(g)
+    sides = {e for r in g.rings for a, b in _edges(r.pts) for e in ((a, b), (b, a))}
     for r in f.rings:
         for p in r.pts[:-1]:
-            where = _in_face(p, g)
-            if where:
-                if where > 0:
+            if p not in corners and gb[0] <= p[0] <= gb[2] and gb[1] <= p[1] <= gb[3]:
+                if _in_face(p, g) > 0:
                     return True
-                break
-        else:
-            for a, b in _edges(r.pts):
-                if (a[0] + b[0]) % 2 or (a[1] + b[1]) % 2:
-                    continue  # a midpoint off the integer grid; the vertices already decided
-                if _in_face(((a[0] + b[0]) // 2, (a[1] + b[1]) // 2), g) > 0:
+        for a, b in _edges(r.pts):
+            if a in corners and b in corners and (a, b) not in sides:
+                mid: Any = (Fraction(a[0] + b[0], 2), Fraction(a[1] + b[1], 2))
+                if _in_face(mid, g) > 0:
                     return True
     return False
 

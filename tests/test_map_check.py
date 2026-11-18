@@ -128,6 +128,31 @@ def test_an_overlap_names_both_faces() -> None:
     assert any("fen" in t and "ridge" in t for t in text), text
 
 
+def test_two_faces_whose_borders_cross_with_no_corner_inside_overlap() -> None:
+    m = {
+        "format": 1,
+        "coords": "flat",
+        "box": [0, 0, 100, 100],
+        "vertices": [
+            [40, 0],
+            [60, 0],
+            [60, 100],
+            [40, 100],
+            [0, 40],
+            [100, 40],
+            [100, 60],
+            [0, 60],
+        ],
+        "areas": {
+            "lane": {"rings": [[0, 1, 2, 3, 0]], "label": [50, 20]},
+            "road": {"rings": [[4, 5, 6, 7, 4]], "label": [20, 50]},
+        },
+        "backdrop": [],
+    }
+    text = [str(p) for p in mc.check(m) if p.code == "overlap"]
+    assert any(t.startswith("lane: overlaps road: their borders cross") for t in text), text
+
+
 def test_a_gap_names_the_faces_beside_it() -> None:
     problems = mc.check(case("gap"))
     assert {("edge", "marsh"), ("edge", "bay"), ("coverage", "box")} <= codes(problems)

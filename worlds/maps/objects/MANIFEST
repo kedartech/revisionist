@@ -1,0 +1,2 @@
+# Map objects: one SHA-256 per line, each naming worlds/maps/objects/<sha256>.json.
+# Append only: a line is never edited or removed, and no object a stored game names is deleted.

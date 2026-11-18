@@ -1,0 +1,18 @@
+# The whole world for the three-area map. The Tower stands in the backdrop, outside every
+# area, so the strict check of this world fails.
+map: {coords: flat, file: ../three-areas.json, sha256: 6df7397e41de0a8c84d1e2e78d89d82e8aeb90e6815b6aa7d3a4bddf49044e41, box: [0, 0, 100, 100]}
+regions:
+  - {key: lowlands, name: The Lowlands}
+territories:
+  - {key: marsh, name: The Marsh, region: lowlands, terrain: marsh}
+  - {key: ridge, name: The Ridge, region: lowlands, terrain: hills}
+sea_zones:
+  - {key: bay, name: The Bay, region: lowlands, terrain: sea}
+adjacency:
+  - [marsh, ridge]
+  - [ridge, bay]
+entities:
+  - {key: mill, kind: location, name: The Mill, at: [20, 25]}
+  - {key: fort, kind: location, name: The Fort, at: [30, 70], within: ridge}
+  - {key: buoy, kind: location, name: The Buoy, at: [80, 80], within: bay}
+  - {key: tower, kind: location, name: The Tower, at: [75, 25]}

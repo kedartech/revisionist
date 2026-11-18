@@ -409,6 +409,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.QuantitySet()
             | ev.FeatureSet()
             | ev.WarDeclared()
+            | ev.MapDeclared()
             | ev.NewsReported()
             | ev.StanceChanged()
             | ev.OpponentsRanked()
@@ -635,6 +636,13 @@ def _realism(state: State, p: ev.Payload) -> State:
             if at_war(state, w.a, w.b):
                 raise FoldError(f"{w.a} and {w.b} are already at war")
             return state.model_copy(update={"wars": _put(state.wars, w.war_id, w)})
+        case ev.MapDeclared():
+            if state.map is not None:
+                raise FoldError("the map is declared once")
+            for area in p.map.areas():
+                if _need(state.entities, area, "entity").kind is not EntityKind.LOCATION:
+                    raise FoldError(f"area {area} is not a place")
+            return state.model_copy(update={"map": p.map})
         case ev.NewsReported():
             _fresh(state.news, p.news.news_id, "news")
             return state.model_copy(update={"news": _put(state.news, p.news.news_id, p.news)})

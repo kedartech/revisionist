@@ -56,6 +56,7 @@ FEED_KINDS: frozenset[str] = frozenset(
         "divergence_changed",
         "date_advanced",
         "war_declared",
+        "map_declared",
         "season_ended",
         "quantity_set",
         "wake_opened",

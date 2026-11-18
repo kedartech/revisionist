@@ -94,6 +94,11 @@ def test_never_holds_the_close_the_commit_the_estimates_and_the_costs() -> None:
     assert "order_routed" in catchup.FEED_KINDS
 
 
+def test_the_board_is_fed_to_every_seat() -> None:
+    # The map is public and the same in every view: no seat's feed leaves it out.
+    assert "map_declared" in catchup.FEED_KINDS
+
+
 # --- The fog path ------------------------------------------------------------------
 
 

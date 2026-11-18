@@ -77,6 +77,7 @@ from revisionist.core.ontology import (
     Seat,
     SeatKind,
 )
+from revisionist.core.realism import territory as tm
 from revisionist.core.realism.agenda import MandateKind, MandateTemplate, Trigger, TriggerKind
 from revisionist.core.realism.answer import ENTITY_FIELDS, Answer, ParamValue
 from revisionist.core.realism.card import (
@@ -103,7 +104,7 @@ from revisionist.core.realism.geography import FORCES, Feature, Leg
 from revisionist.core.realism.pipeline import Pipeline, Step
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.war import Outlet, War, war_id_for
-from revisionist.core.state import State
+from revisionist.core.state import Rule, State
 from revisionist.core.visibility import PUBLIC, Scope, Visibility, private_to
 from revisionist.core.world import (
     CardDecl,
@@ -114,9 +115,12 @@ from revisionist.core.world import (
     FigureDecl,
     GoalDecl,
     LeverDecl,
+    LinkDecl,
     MandateDecl,
     ScopeDecl,
     ScopeSpec,
+    SeaZoneDecl,
+    TerritoryDecl,
     TopicDecl,
     WorldFile,
 )
@@ -200,6 +204,7 @@ def _started(event: Event, state: State) -> Event:
 def _keyed(world: WorldFile) -> list[tuple[str, str]]:
     """Every keyed object in file order, as (section, key)."""
     keyed = [("entity", d.key) for d in world.entities]
+    keyed += [("entity", d.key) for d in _area_decls(world)]
     keyed += [("asset", d.key) for d in world.assets]
     keyed += [("relationship", d.key) for d in world.relationships]
     keyed += [("meter", d.key) for d in world.meters]
@@ -326,9 +331,11 @@ def check_history(world: WorldFile) -> list[str]:
             problems.append(f"seat {s.key}: a draft has no human seats")
     if world.goals:
         problems.append("goals: a draft has none; players choose them")
-    places = [d for d in world.entities if d.kind is EntityKind.LOCATION]
-    if len(places) < PLACES_MIN:
-        problems.append(f"places: {len(places)} locations, at least {PLACES_MIN}")
+    # Every territory and sea zone is a location entity too.
+    places = len([d for d in world.entities if d.kind is EntityKind.LOCATION])
+    places += len(world.territories) + len(world.sea_zones)
+    if places < PLACES_MIN:
+        problems.append(f"places: {places} locations, at least {PLACES_MIN}")
     for a in world.assets:
         if a.kind is AssetKind.FORCE and a.location is None:
             problems.append(f"asset {a.key}: a force needs a location")
@@ -409,12 +416,19 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "topics",
             "wars",
             "rules",
+            "map",
+            "terrain",
+            "regions",
+            "territories",
+            "sea_zones",
+            "adjacency",
         ):
             if getattr(world, name):
                 problems.append(f"{name}: only a realism world has {name}")
         return
     if world.start_date is None:
         problems.append("world: a realism world needs a start_date")
+    _check_board(world, sections, problems)
     for seat in world.seats:
         if seat.controller is Controller.HUMAN:
             problems.append(f"seat {seat.key}: a realism world names no human seat")
@@ -698,6 +712,161 @@ def _check_cited(problems: list[str], where: str, decl: Cited, sections: Mapping
     _ref(problems, where, decl.source, "source", sections)
 
 
+# --- the board (MDL) ------------------------------------------------------------------
+
+
+def _area_decls(world: WorldFile) -> list[TerritoryDecl | SeaZoneDecl]:
+    """Every territory, then every sea zone."""
+    return [*world.territories, *world.sea_zones]
+
+
+def _check_board(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """The map, its regions, terrain, areas and adjacency (realism only)."""
+    areas = {d.key for d in _area_decls(world)}
+    if Rule.TERRITORIES in world.rules and world.map is None:
+        problems.append("rules: territories needs a map")
+    if world.map is None:
+        if areas or world.adjacency or world.regions or world.terrain:
+            problems.append("map: the world has areas but no map")
+        for d in world.entities:
+            if d.within is not None:
+                problems.append(f"entity {d.key}: within {d.within}, but the world has no map")
+        return
+    _check_map_file(world, problems)
+    regions = _check_regions(world, problems)
+    terrain: dict[str, tm.TerrainKind] = {}
+    for td in world.terrain:
+        if td.key in terrain:
+            problems.append(f"terrain {td.key}: duplicate key")
+        else:
+            terrain[td.key] = td.kind
+    for decl in _area_decls(world):
+        land = isinstance(decl, TerritoryDecl)
+        where = f"territory {decl.key}" if land else f"sea zone {decl.key}"
+        want = tm.TerrainKind.LAND if land else tm.TerrainKind.SEA
+        if decl.region not in regions:
+            problems.append(f"{where}: unknown region {decl.region}")
+        kind = terrain.get(decl.terrain)
+        if kind is None:
+            problems.append(f"{where}: unknown terrain {decl.terrain}")
+        elif kind is not want:
+            problems.append(f"{where}: {decl.terrain} is {kind} terrain, not {want}")
+    kinds = {d.key: d.kind for d in world.entities}
+    within = {d.key: d.within for d in world.entities}
+    for t in world.territories:
+        where = f"territory {t.key}"
+        if t.holder is not None:
+            if t.holder not in kinds:
+                problems.append(f"{where}: unknown entity {t.holder}")
+            elif kinds[t.holder] is not EntityKind.POLITY:
+                problems.append(f"{where}: holder {t.holder} is not a polity")
+        _check_cited(problems, where, t, sections)
+        for site in t.sites:
+            if site not in kinds:
+                problems.append(f"{where}: unknown entity {site}")
+            elif kinds[site] is not EntityKind.LOCATION:
+                problems.append(f"{where}: site {site} is not a place")
+            elif within[site] is not None and within[site] != t.key:
+                problems.append(f"{where}: site {site} is within {within[site]}")
+    for e in world.entities:
+        if e.within is None:
+            continue
+        where = f"entity {e.key}"
+        if e.kind is not EntityKind.LOCATION:
+            problems.append(f"{where}: only a place lies within an area")
+        elif e.within in areas:
+            continue
+        elif e.within in sections:
+            problems.append(f"{where}: within {e.within}, which is not an area")
+        else:
+            problems.append(f"{where}: within unknown area {e.within}")
+    _check_adjacency(world, areas, sections, problems)
+    box = world.map.box
+    if world.map.coords == "flat" and box is not None:
+        west, south, east, north = box
+        for d in world.entities:
+            if d.at is not None and not (west <= d.at[1] <= east and south <= d.at[0] <= north):
+                problems.append(
+                    f"entity {d.key}: at [{d.at[0]:g}, {d.at[1]:g}] is outside the map's box"
+                )
+
+
+def _check_map_file(world: WorldFile, problems: list[str]) -> None:
+    """The map file the world names: found, the same bytes, the same areas."""
+    ref = world.map
+    assert ref is not None
+    if ref.coords == "flat" and ref.box is None:
+        problems.append("map: a flat map needs a box")
+    if ref.box is not None and not (ref.box[0] < ref.box[2] and ref.box[1] < ref.box[3]):
+        problems.append("map: box has west >= east or south >= north")
+    data = world.map_data
+    if data is None:
+        problems.append(f"map: the map file {ref.file} is not found")
+        return
+    sha = tm.file_hash(data)
+    if sha != ref.sha256:
+        problems.append(f"map: the world names {ref.sha256}, but {ref.file} hashes to {sha}")
+    found = tm.file_keys(data)
+    if found is None:
+        problems.append(f"map: {ref.file} is not a map file")
+        return
+    in_file, districts = found
+    in_world = {d.key for d in _area_decls(world)}
+    for key in sorted(in_file - in_world):
+        problems.append(f"map: area {key} is in the map file but not in the world")
+    for key in sorted(in_world - in_file):
+        problems.append(f"map: area {key} is in the world but not in the map file")
+    for d in world.territories:
+        for district in d.districts:
+            if district not in districts:
+                problems.append(f"territory {d.key}: district {district} is not in the map file")
+
+
+def _check_regions(world: WorldFile, problems: list[str]) -> set[str]:
+    """The region tree: known parents and no cycle. Returns the region keys."""
+    parent: dict[str, str | None] = {}
+    for r in world.regions:
+        if r.key in parent:
+            problems.append(f"region {r.key}: duplicate key")
+        else:
+            parent[r.key] = r.parent
+    for key, up in parent.items():
+        if up is not None and up not in parent:
+            problems.append(f"region {key}: unknown region {up}")
+    for key in parent:
+        seen, at = set(), parent[key]
+        while at is not None and at in parent and at not in seen:
+            if at == key:
+                problems.append(f"region {key}: its parents lead back to it")
+                break
+            seen.add(at)
+            at = parent[at]
+    return set(parent)
+
+
+def _check_adjacency(
+    world: WorldFile, areas: set[str], sections: Mapping[str, str], problems: list[str]
+) -> None:
+    seen: set[frozenset[str]] = set()
+    for entry in world.adjacency:
+        a, b = (entry.a, entry.b) if isinstance(entry, LinkDecl) else entry
+        where = f"adjacency {a}-{b}"
+        bad = False
+        for key in (a, b):
+            if key in areas:
+                continue
+            bad = True
+            if key in sections:
+                problems.append(f"{where}: {key} is not an area")
+            else:
+                problems.append(f"{where}: unknown area {key}")
+        if a == b:
+            problems.append(f"{where}: links an area to itself")
+        elif not bad and frozenset((a, b)) in seen:
+            problems.append(f"{where}: listed twice")
+        seen.add(frozenset((a, b)))
+
+
 def _check_roster(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
     people = {d.key for d in world.entities if d.kind is EntityKind.PERSON}
     held_by = {d.key: d.controller for d in world.assets}
@@ -919,6 +1088,7 @@ def _emit(
         ),
         (ev.SettingsSet(settings=world.settings), PUBLIC),
     ]
+    out += [(ev.EntityCreated(entity=e), PUBLIC) for e in _areas(world, ids)]
     out += [(ev.EntityCreated(entity=_entity(e, ids)), PUBLIC) for e in world.entities]
     for a in world.assets:
         scope = _scope(a.scope, ids)
@@ -1195,7 +1365,64 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
             war_id=war_id_for(a, b), a=a, b=b, since=w.since, declared_by=a, declared=w.declared
         )
         out.append((ev.WarDeclared(war=war), PUBLIC))
+    if world.map is not None:
+        out.append((ev.MapDeclared(map=_board(world, ids)), PUBLIC))
     return out
+
+
+def _areas(world: WorldFile, ids: Mapping[str, str]) -> list[Entity]:
+    """One location entity per territory and sea zone, keyed by the area's key."""
+    return [
+        Entity(entity_id=EntityId(ids[d.key]), kind=EntityKind.LOCATION, name=d.name)
+        for d in _area_decls(world)
+    ]
+
+
+def _board(world: WorldFile, ids: Mapping[str, str]) -> tm.WorldMap:
+    """The board as ``map_declared`` holds it: no shapes, only what the rules read."""
+    ref = world.map
+    assert ref is not None
+    links = []
+    for entry in world.adjacency:
+        a, b, crossing = (
+            (entry.a, entry.b, entry.crossing)
+            if isinstance(entry, LinkDecl)
+            else (entry[0], entry[1], None)
+        )
+        links.append(tm.Link(a=EntityId(ids[a]), b=EntityId(ids[b]), crossing=crossing))
+    return tm.WorldMap(
+        file=ref.file,
+        sha256=ref.sha256,
+        coords=ref.coords,
+        box=ref.box,
+        terrain=tuple(tm.Terrain(key=t.key, kind=t.kind) for t in world.terrain),
+        regions=tuple(tm.Region(key=r.key, name=r.name, parent=r.parent) for r in world.regions),
+        territories=tuple(
+            tm.Territory(
+                area=EntityId(ids[d.key]),
+                key=d.key,
+                name=d.name,
+                region=d.region,
+                terrain=d.terrain,
+                holder=_maybe(ids, d.holder, EntityId),
+                yields=dict(d.yields),
+                sites=tuple(EntityId(ids[k]) for k in d.sites),
+                districts=d.districts,
+            )
+            for d in world.territories
+        ),
+        sea_zones=tuple(
+            tm.SeaZone(
+                area=EntityId(ids[d.key]),
+                key=d.key,
+                name=d.name,
+                region=d.region,
+                terrain=d.terrain,
+            )
+            for d in world.sea_zones
+        ),
+        adjacency=tuple(links),
+    )
 
 
 def _entity(e: EntityDecl, ids: Mapping[str, str]) -> Entity:
@@ -1208,6 +1435,7 @@ def _entity(e: EntityDecl, ids: Mapping[str, str]) -> Entity:
         tags=frozenset(e.tags),
         at=e.at,
         theatre=e.theatre,
+        within=_maybe(ids, e.within, EntityId),
     )
 
 

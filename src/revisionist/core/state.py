@@ -65,6 +65,7 @@ from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
+from revisionist.core.realism.territory import WorldMap
 from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.settings import Settings
 
@@ -143,6 +144,9 @@ class _World(Model):
     """Engine v2: issued goals. A view holds only its own seat's."""
     wars: dict[Label, War] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """Who is at war with whom, by ``war_id_for``. Public."""
+    map: WorldMap | None = None
+    """The board, set once by ``map_declared``: the same in every view. None for a world
+    with no map, where every territory rule is off."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
@@ -156,6 +160,7 @@ class _World(Model):
             "wake",
             "mandates",
             "wars",
+            "map",
         }
     )
 

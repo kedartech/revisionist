@@ -7,7 +7,8 @@ never carries it. On the step's held due day the runner takes the step with that
 choice where the card's policy would have acted, dated the same day, so the issuer
 cannot tell whether the other player chose or was away. A later choice replaces an
 earlier one, and any step taken on the order clears it. A step on a seat's own order
-at its own leader still lands at once.
+at its own leader still lands at once. An amend at a held step is refused: the card's
+only amend has a fixed shape and the issuer's paper prints each change.
 
 Pure cases use the toy of ``tests/test_realism_human_due.py`` (Ada files a levy; its
 decision step is Bram's); the web cases use the harness of
@@ -16,6 +17,7 @@ decision step is Bram's); the web cases use the harness of
 
 import json
 from datetime import timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -27,6 +29,7 @@ from revisionist.core.realism import effect as rx
 from revisionist.core.realism import pipelines
 from revisionist.core.realism.pipeline import OrderStatus, StepAction
 from revisionist.core.visibility import private_to
+from revisionist.engine import campaign as cmp
 from revisionist.engine import catchup
 from tests.test_realism_human_due import Toy, _steps
 from tests.test_web import Client, Web, web  # noqa: F401
@@ -40,8 +43,8 @@ from tests.test_web_held_step import (
     _item,
     toy,  # noqa: F401
 )
-from tests.test_web_realism import Realism, post, realism_of
-from tests.test_web_wake import log_of, seat_of, state_of
+from tests.test_web_realism import Realism, make_host, post, realism_of
+from tests.test_web_wake import begin, log_of, seat_of, state_of
 
 
 def _card_passes(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -230,3 +233,105 @@ def test_a_refusal_to_a_seat_that_holds_no_step_reads_the_same(
         _close(ada, bram)
     not_held = post(ada, "step", order_id=str(order_id), action="pass")[1]
     assert unknown == not_waiting == not_held == {"reply": NOT_YOURS, "refused": True}
+
+
+# --- a held step refuses an amend (HAM) --------------------------------------------
+
+NO_AMEND = "That step cannot be amended here."
+
+
+def _changed_lines(game: Realism, order_id: Any) -> list[str]:
+    """Every "Changed:" line on the issuer's replies to this order."""
+    replies = {
+        pipelines.reply_doc_id(game.campaign, order_id, n)
+        for n in range(1, len(state_of(game).orders[order_id].outcomes) + 1)
+    }
+    return [
+        f"{field.label}={field.value}"
+        for e in log_of(game)
+        if isinstance(e.payload, ev.DocumentIssued) and e.payload.document.doc_id in replies
+        for field in e.payload.document.body
+        if field.label.startswith("Changed:")
+    ]
+
+
+def test_a_holders_amend_at_a_held_step_is_refused_and_the_card_decides(
+    toy: tuple[Realism, Client, Client],  # noqa: F811
+) -> None:
+    """The card's only amend lowers the first bounded number; any other change on the
+    issuer's paper would tell it a person decided. So the holder may not amend at all:
+    nothing is kept, and on the due day the card takes the step."""
+    game, ada, bram = toy
+    order_id = _held_at_bram(game, ada, bram)
+    due = pipelines.held_due(state_of(game), state_of(game).orders[order_id])
+    assert due is not None
+    item = _item(bram)
+    status, out = post(
+        bram, "step", order_id=item["id"], action="amend", params={"purpose": "militia"}
+    )
+    assert status == 200 and out == {"reply": NO_AMEND, "refused": True}, out
+    assert not [e for e in log_of(game) if isinstance(e.payload, ev.StepChosen)]
+    assert state_of(game).orders[order_id].held_choice is None
+    assert _item(bram)["cause"] is None
+    for _ in range(6):
+        if state_of(game).in_world_date > due:  # type: ignore[operator]
+            break
+        _close(ada, bram)
+    taken = _bram_steps(game, order_id)
+    assert taken and taken[0].outcome.on == due, "the card took the step on the due day"
+    assert all(set(t.outcome.amended) <= {"rate"} for t in taken), "only the card's trim"
+    assert state_of(game).orders[order_id].params["purpose"] == "harbour"
+    assert not [line for line in _changed_lines(game, order_id) if "Purpose" in line]
+
+
+def test_after_a_refused_amend_the_holders_other_choices_are_still_kept(
+    toy: tuple[Realism, Client, Client],  # noqa: F811
+) -> None:
+    game, ada, bram = toy
+    order_id = _held_at_bram(game, ada, bram)
+    item = _item(bram)
+    refused = post(bram, "step", order_id=item["id"], action="amend", params={"rate": "3"})[1]
+    assert refused == {"reply": NO_AMEND, "refused": True}
+    assert post(bram, "step", order_id=item["id"], action="stall")[1]["refused"] is False
+    chosen = state_of(game).orders[order_id].held_choice
+    assert chosen is not None and chosen.action is StepAction.STALL
+    assert _bram_steps(game, order_id) == []
+
+
+def test_the_issuers_own_amend_at_its_own_leaders_step_still_lands_at_once(
+    web: Web,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    """In a copy of the toy where the levy's decision step is Ada's own, Ada's amend on
+    her own order is taken today, as before."""
+    source = cmp.world_path("realism-toy").read_text()
+    held_at_bram = "- {person: bram, kind: decision, days: 5"
+    assert source.count(held_at_bram) == 1
+    world = tmp_path / "realism-toy-own.yaml"
+    world.write_text(source.replace(held_at_bram, "- {person: ada, kind: decision, days: 5"))
+    game = Realism(web, str(world))
+    ada = game.seat("ada", "ada")
+    bram = game.seat("bram", "bram")
+    make_host(game, ada)
+    begin(game)
+    status, out = post(ada, "lever", **LEVY)
+    assert status == 200 and not out["refused"], out
+    (order_id,) = state_of(game).orders
+    for _ in range(6):
+        state = state_of(game)
+        if pipelines.waiting_on_human(state, state.orders[order_id]):
+            break
+        _close(ada, bram)
+    state = state_of(game)
+    assert state.orders[order_id].step == 1
+    assert pipelines.held_by_another(state, state.orders[order_id]) is None
+    status, out = post(ada, "step", order_id=str(order_id), action="amend", params={"rate": "5"})
+    assert status == 200 and out["refused"] is False, out
+    moved = state_of(game).orders[order_id]
+    assert moved.params["rate"] == 5 and moved.step == 2
+    (taken,) = [o for o in moved.outcomes if o.step == 1]
+    assert (taken.action, taken.amended, taken.on) == (
+        StepAction.AMEND,
+        {"rate": 5},
+        state.in_world_date,
+    )

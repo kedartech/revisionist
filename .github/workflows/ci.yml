@@ -123,8 +123,8 @@ jobs:
       # Throwaway service container; neither password is a secret.
       REVISIONIST_ADMIN_DSN: postgresql://postgres:postgres@localhost:5432/revisionist
       REVISIONIST_DB: postgresql://revisionist_app:revisionist_app@localhost:5432/revisionist
-      REVISIONIST_BRIEFINGS_DIR: ${{ runner.temp }}/briefings
-      SMOKE_OUT: ${{ runner.temp }}/smoke
+      REVISIONIST_BRIEFINGS_DIR: /tmp/briefings
+      SMOKE_OUT: /tmp/smoke
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -167,7 +167,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: browser-smoke
-          path: ${{ runner.temp }}/smoke
+          path: /tmp/smoke
           if-no-files-found: ignore
 
   # One coverage run on main, outside `gates`: pull requests get the shards only.

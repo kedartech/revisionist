@@ -256,3 +256,12 @@ def test_the_browser_job_runs_the_canned_server_and_both_smoke_passes() -> None:
     uploads = [s for s in job["steps"] if "upload-artifact" in str(s.get("uses", ""))]
     assert uploads
     assert uploads[0]["if"] == "always()"
+
+
+def test_no_job_env_reads_a_context_the_runner_has_not_made_yet() -> None:
+    # `runner` and `steps` exist only inside a step, so a job-level `env` that reads them
+    # makes GitHub refuse the whole workflow file.
+    for name, job in jobs().items():
+        for key, value in job.get("env", {}).items():
+            assert "runner." not in str(value), f"{name}.env.{key}"
+            assert "steps." not in str(value), f"{name}.env.{key}"

@@ -97,6 +97,81 @@ directory, every object's name against its hash, every hash a world or staging w
 names, and every hash in the manifest. It needs neither the geometry tool nor the border data, so it runs
 in CI.
 
+## The build: `scripts/map_build.py`
+
+The build turns recipe files and the border data into a map file and its world fragment. It is
+build-time only: it imports the geometry tool (`shapely`, from the `map` dependency group), and nothing
+the game runs imports it. It reads the data from the directory `REVISIONIST_MAP_DATA` names and never
+reaches the network.
+
+```
+uv run --frozen --group map python scripts/map_build.py build worlds/maps/src/<slug>
+```
+
+It writes `worlds/maps/<slug>.json`, `worlds/maps/<slug>.world.yaml` and the object
+`worlds/maps/objects/<sha256>.json`, appends the hash to the manifest, and prints the hash. `--slug`
+names the map when the recipe directory's name is not the slug; `--simplify coverage|arcs` and
+`--tolerance` override the defaults below.
+
+A recipe is one YAML file per region under `worlds/maps/src/<slug>/`; the build reads every `*.yaml`
+there in name order and joins their lists:
+
+```yaml
+map: {box: [west, south, east, north]}   # in at least one file; every file that gives it agrees
+regions:
+  - {key: baltic, name: The Baltic}
+territories:
+  - {key: estonia, name: Estonia, region: baltic, terrain: plain, sites: [tallinn],
+     provinces: [EST-..., EST-...]}       # the data's own adm1_code of each present-day unit
+cuts:
+  - name: the 1940 line                    # a named line of [x, y] points (longitude, latitude)
+    province: LTU-...                      # the unit it divides
+    line: [[22.1, 56.5], [22.4, 55.9]]
+    left: estonia                          # the territory left of the line, walking from its first point
+    right: latvia                          # and right of it
+    source: "the citation the points come from"   # or gap: true when no source is yet found
+sea_zones:
+  - {key: gulf, name: The Gulf, region: baltic, terrain: sea,
+     polygon: [[19, 54.5], [25, 54.5], [25, 59.2], [19, 59.2]]}
+crossings:
+  - {a: estonia, b: gulf, name: the ferry, source: "..."}
+```
+
+What the build does, in order, refusing with a message that names the file, province, cut or area:
+
+1. Reads the recipe files, and refuses a duplicate key, an unknown region, or boxes that disagree.
+2. Checks each data file it reads (`ne_10m_admin_1_states_provinces.geojson` and
+   `ne_10m_land.geojson`) against the SHA-256 that `SOURCES.md` records. It names any province code a
+   recipe lists that the data lacks, and any province two territories (or a territory and a cut) claim.
+3. Dissolves each territory's provinces into one area. Each cut splits its province along the line and
+   gives each side to the territory the recipe names; a cut that does not cross its province from edge
+   to edge fails. Several cuts may divide one province in turn: a side a cut leaves unnamed is what the
+   next cut of that province divides, and a part no cut gives a territory fails.
+4. Land is every province inside the box, claimed or not, and every island of the land file that no
+   province touches; the ocean is the box less the land. Each sea zone is its polygon cut from the
+   ocean, so a coast is one border that the land territory and the sea zone share. Two zones over the
+   same water fail. Land and water no recipe claims become the backdrop, so the areas and the backdrop
+   cover the box exactly.
+5. Nodes every border with every other, then simplifies all of them together, so neighbours keep one
+   shared border: with the tool's `coverage_simplify` when it has one (GEOS 3.12 or later), and
+   otherwise by splitting the borders into arcs at their junctions and simplifying each arc once
+   (an arc the simplification makes cross another is simplified again with half the tolerance). The box
+   edge is never simplified. The world fragment's first line records the path that built the map.
+6. Derives the adjacency with the checker's `adjacency` (its `adjacent` predicate and `MIN_SHARED`) and
+   adds each recipe crossing as `{a, b, crossing: <name>}`.
+7. Writes the two files; the same inputs give the same bytes. An object already on disk with other
+   bytes is never overwritten: the build fails instead.
+8. A box that runs past 180 degrees east (or -180 west) takes provinces from across the date line with
+   their longitudes shifted by 360, so a territory across the line stays one area.
+9. Runs the checker's `check` on the map and writes nothing when it fails.
+
+Defaults `[proposed]`: simplify tolerance 0.05 degrees; coordinates snapped to 4 decimals (the
+checker's) before any overlay; the coast is the admin-1 units' line, and a sliver of the land file
+that touches a unit (the two files trace coasts a little apart) is water.
+
+`tests/test_map_build.py` runs the build on a made-up fixture (`tests/maps/build-fixture.geojson` and
+`build-fixture.recipe.yaml`) and skips when the tool is absent, as it is in CI.
+
 ## Licences
 
 The base border data is Natural Earth 1:10m (public domain), recorded in `SOURCES.md`; the raw downloads

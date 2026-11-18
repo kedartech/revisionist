@@ -28,10 +28,11 @@ RECORDING = Path(__file__).parent / "recordings" / "legacy-salt-strait.jsonl"
 
 
 def toy(**changes: object) -> WorldFile:
-    """The territory toy world, with top-level keys replaced."""
+    """The territory toy world, with top-level keys replaced, and its map file."""
     raw = yaml.safe_load(TOY.read_text())
     raw.update(changes)
-    return WorldFile.model_validate(raw)
+    world = WorldFile.model_validate(raw)
+    return world.model_copy(update={"map_data": cmp.load_world(TOY).map_data})
 
 
 def created(world: WorldFile) -> tuple[list[ev.Event], State]:
@@ -89,7 +90,7 @@ def test_no_rules_named_means_none_switched_on() -> None:
     assert state.rules == frozenset()
     without_key = WorldFile.model_validate(
         {k: v for k, v in yaml.safe_load(TOY.read_text()).items() if k != "rules"}
-    )
+    ).model_copy(update={"map_data": cmp.load_world(TOY).map_data})
     events, state = created(without_key)
     assert state.rules == frozenset()
     assert "rules" not in events[0].payload.model_dump(mode="json")

@@ -1,0 +1,274 @@
+# The 1941 map, pilot region: the Eastern Front, from the Baltic to the Black Sea and from the frontier
+# of June 1941 to the Volga. Built by scripts/map_build.py (see worlds/maps/README.md); the provinces
+# are Natural Earth 1:10m admin-1 codes (worlds/maps/SOURCES.md). Every value here is [proposed]:
+# the territory list and names, which provinces make each territory, every cut line and every terrain.
+#
+# Build it by naming the recipe files, not the directory: the staging world beside them is a `.yaml` too.
+#   python scripts/map_build.py build worlds/maps/src/autumn-1941/eastern-front.yaml --slug autumn-1941
+#
+# Cut lines. The lane has no network and no evidence record for any 1941 border, so every cut is
+# `gap: true`: `named_source` says which border it stands for and which publication would source it,
+# and the points are the lane's interpretation, drawn dashed on the proof sheet for Josh to mark. A gap
+# becomes sourced only by an evidence record (edition and locator, the exact claim, how the points were
+# taken, who verified it); that a publication exists does not promote it. No border here was compared
+# by eye with CShapes or historical-basemaps.
+#
+# Where the plan names a 1941 border and this file carries no cut (each listed for Josh):
+# - Bessarabia and northern Bukovina against Romania: the June 1941 line ran on the Prut and on the
+#   line of 1940 north of it, which the present Moldova-Romania and Ukraine-Romania borders follow at
+#   this map's scale, so no present-day province is divided. Moldova and Chernivtsi are whole here.
+# - The Soviet-Lithuanian line: in June 1941 it was a line inside the USSR (Lithuania annexed in
+#   August 1940, the strip west of Marijampole bought from Germany in January 1941), so it divides no
+#   holder. The East Prussian line on the Baltic is the Memel Territory cut below.
+# - The 1939 line along the Bug: the present Poland-Belarus and Poland-Ukraine borders follow the river,
+#   so Lublin is not divided. Two places where the 1939 line may leave the present border are not cut
+#   (no source, and too small to place without one): the strip east of the Bug in Masovian around
+#   Malkinia and Zareby, and the Belz-Sokal strip that the 1951 exchange moved between Lviv and Lublin.
+# - Zakarpattia was Hungary's in June 1941 and is left out of the region.
+#
+# Neighbours. A cut gives each side to a territory, so the far side of each frontier cut needs one.
+# The three territories of the region `beyond_the_frontier` (East Prussia, occupied Poland and
+# Finland) hold only what this file needs for its cuts, plus Kaliningrad; the Europe map item (MAE)
+# takes them over, adds their provinces and moves them to its own region, and reuses these cut lines.
+map:
+  box: [14, 40, 52, 71]
+regions:
+  - {key: eastern_front, name: The Eastern Front}
+  - {key: beyond_the_frontier, name: Beyond the frontier}
+territories:
+  # The north: Kola, Karelia and Archangel, the convoy ports' hinterland.
+  - key: the_north
+    name: The North
+    region: eastern_front
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "taiga and tundra; no source cited"
+    sites: [archangel]
+    provinces: [RUS-2353, RUS-2354, RUS-2359]
+  - key: leningrad
+    name: Leningrad
+    region: eastern_front
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "forest and bog south of the city; no source cited"
+    sites: [leningrad]
+    provinces: [RUS-2337, RUS-2336, RUS-2334, RUS-2335]
+  - key: baltic_states
+    name: The Baltic States
+    region: eastern_front
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "low farmland and forest; no source cited"
+    provinces: [
+      EST-1654, EST-1655, EST-1656, EST-1657, EST-1658, EST-1659, EST-1660, EST-1661, EST-2346,
+      EST-2347, EST-2348, EST-2349, EST-2350, EST-2351, EST-2352, LVA-934, LVA-1063, LVA-1064,
+      LVA-1065, LVA-1066, LVA-1068, LVA-1076, LVA-1077, LVA-1079, LVA-1080, LVA-1081, LVA-1082,
+      LVA-1083, LVA-1084, LVA-1085, LVA-1086, LVA-1087, LVA-1088, LVA-1089, LVA-1091, LVA-1092,
+      LVA-1093, LVA-1094, LVA-4848, LVA-4849, LVA-4850, LVA-4851, LVA-4852, LVA-5709, LVA-5710,
+      LVA-5711, LVA-5712, LVA-5713, LVA-5714, LVA-5715, LVA-5716, LVA-5717, LVA-5718, LVA-5719,
+      LVA-5720, LVA-5721, LVA-5722, LVA-5723, LVA-5724, LVA-5725, LVA-5726, LVA-5727, LVA-5728,
+      LVA-5729, LVA-5730, LVA-5731, LVA-5732, LVA-5733, LVA-5734, LVA-5735, LVA-5736, LVA-5737,
+      LVA-5738, LVA-5739, LVA-5740, LVA-5741, LVA-5742, LVA-5743, LVA-5744, LVA-5745, LVA-5746,
+      LVA-5747, LVA-5748, LVA-5749, LVA-5750, LVA-5751, LVA-5752, LVA-5753, LVA-5754, LVA-5755,
+      LVA-5756, LVA-5757, LVA-5758, LVA-5759, LVA-5760, LVA-5761, LVA-5762, LVA-5763, LVA-5764,
+      LVA-5765, LVA-5766, LVA-5767, LVA-5768, LVA-5769, LVA-5770, LVA-5771, LVA-5772, LVA-5773,
+      LVA-5774, LVA-5775, LVA-5776, LVA-5777, LVA-5778, LVA-5780, LVA-5781, LVA-5782, LVA-5783,
+      LVA-5784, LVA-5785, LVA-5786, LVA-5787, LVA-5788, LVA-5789, LVA-5790, LVA-5791, LVA-5792,
+      LVA-5793, LVA-5794, LVA-5795, LVA-5796, LVA-5797, LVA-5798, LVA-5799, LVA-5800, LTU-936,
+      LTU-1067, LTU-1069, LTU-1070, LTU-1071, LTU-1072, LTU-1074, LTU-1075
+    ]
+  - key: belorussia
+    name: Belorussia
+    region: eastern_front
+    terrain: marsh
+    terrain_gap: true
+    terrain_note: "forest and the Pripet marshes in the south; no source cited"
+    provinces: [BLR-2338, BLR-2339, BLR-2340, BLR-2341, BLR-2344, BLR-2345, BLR-4825]
+  - key: kalinin
+    name: Kalinin
+    region: eastern_front
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "forest of the upper Volga; no source cited"
+    sites: [kalinin]
+    provinces: [RUS-2358, RUS-2360]
+  - key: smolensk
+    name: Smolensk
+    region: eastern_front
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "forest and the Smolensk gate; no source cited"
+    sites: [smolensk, vyazma]
+    provinces: [RUS-2343, RUS-2342]
+  - key: moscow
+    name: Moscow
+    region: eastern_front
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "mixed forest; no source cited"
+    sites: [moscow, mozhaisk]
+    provinces: [RUS-2365, RUS-2364, RUS-2361, RUS-2368]
+  - key: upper_volga
+    name: Gorky and the Upper Volga
+    region: eastern_front
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "mixed forest; no source cited"
+    provinces: [RUS-2376, RUS-2355, RUS-2356, RUS-2357, RUS-2374, RUS-2372, RUS-2389]
+  - key: western_ukraine
+    name: Western Ukraine
+    region: eastern_front
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "plain, with the Carpathian foothills in the south-west; no source cited"
+    provinces: [UKR-291, UKR-318, UKR-286, UKR-292, UKR-289, UKR-288, UKR-290]
+  - key: kiev
+    name: Kiev
+    region: eastern_front
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "forest-steppe on the Dnieper; no source cited"
+    sites: [kiev]
+    provinces: [UKR-4826, UKR-321, UKR-324, UKR-285, UKR-323, UKR-319]
+  - key: odessa
+    name: Odessa and Bessarabia
+    region: eastern_front
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "steppe; no source cited"
+    sites: [odessa]
+    provinces: [
+      UKR-322, UKR-284, UKR-320, UKR-4827,
+      MDA-1613, MDA-1614, MDA-1615, MDA-1616, MDA-1617, MDA-1618, MDA-1619, MDA-1620, MDA-1621,
+      MDA-1622, MDA-1623, MDA-1624, MDA-1625, MDA-1626, MDA-1627, MDA-1628, MDA-1629, MDA-1630,
+      MDA-1631, MDA-1632, MDA-1633, MDA-1634, MDA-1635, MDA-1637, MDA-1638, MDA-1639, MDA-1640,
+      MDA-1641, MDA-1642, MDA-1643, MDA-1644, MDA-1645, MDA-1646, MDA-1647, MDA-1648, MDA-1649,
+      MDA-1650, MDA-1651, MDA-1652, MDA-1653
+    ]
+  - key: kharkov
+    name: Kharkov and Poltava
+    region: eastern_front
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "steppe; no source cited"
+    sites: [poltava, kharkov]
+    provinces: [UKR-328, UKR-330, UKR-325, UKR-326]
+  - key: donbas
+    name: The Donbas and Rostov
+    region: eastern_front
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "steppe and the Donets coalfield; no source cited"
+    sites: [taganrog]
+    provinces: [UKR-327, UKR-329, UKR-331, RUS-2367]
+  - key: crimea
+    name: The Crimea
+    region: eastern_front
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "steppe, with mountains on the south coast; no source cited"
+    provinces: [RUS-283, RUS-5482]
+  - key: voronezh
+    name: Orel, Kursk and Voronezh
+    region: eastern_front
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "forest-steppe; no source cited"
+    provinces: [RUS-2366, RUS-2362, RUS-2370, RUS-2363, RUS-2377, RUS-2375]
+  - key: stalingrad
+    name: Stalingrad and Saratov
+    region: eastern_front
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "steppe on the lower Volga; no source cited"
+    provinces: [RUS-2369, RUS-2393, RUS-2373]
+  # Beyond the frontier: held for the cuts, taken over by the Europe map item.
+  - key: east_prussia
+    name: East Prussia
+    region: beyond_the_frontier
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "lakes and forest; no source cited; the Europe map item sets it"
+    provinces: [RUS-2324]
+  - key: occupied_poland
+    name: Occupied Poland
+    region: beyond_the_frontier
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "no source cited; the Europe map item sets it"
+  - key: finland
+    name: Finland
+    region: beyond_the_frontier
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "no source cited; the Europe map item sets it"
+cuts:
+  # Walking a line from its first point, `left` takes what lies left of it and `right` what lies right.
+  - name: the Memel Territory line (Klaipeda county)
+    province: LTU-935
+    line: [[20.85, 55.865], [21.30, 55.80], [21.36, 55.68], [21.47, 55.55], [21.70, 55.42],
+           [21.95, 55.30], [22.30, 55.18], [22.62, 55.07], [22.75, 54.98]]
+    left: baltic_states
+    right: east_prussia
+    gap: true
+    named_source: >-
+      the boundary of the Memel Territory as returned to Germany by the German-Lithuanian treaty of
+      22 Mar 1939; points interpreted, no evidence record
+  - name: the Memel Territory line (Taurage county)
+    province: LTU-1073
+    line: [[21.47, 55.55], [21.70, 55.42], [21.95, 55.30], [22.30, 55.18], [22.62, 55.07],
+           [22.75, 54.98]]
+    left: baltic_states
+    right: east_prussia
+    gap: true
+    named_source: >-
+      the boundary of the Memel Territory as returned to Germany by the German-Lithuanian treaty of
+      22 Mar 1939; points interpreted, no evidence record
+  - name: the German-Soviet line of 1939 (Podlaskie)
+    province: POL-3150
+    line: [[23.70, 54.12], [23.25, 54.02], [22.85, 53.96], [22.45, 53.97], [22.05, 53.90],
+           [21.80, 53.62], [21.83, 53.40], [21.88, 53.22], [21.40, 53.10]]
+    left: belorussia
+    right: east_prussia
+    gap: true
+    named_source: >-
+      the German-Soviet boundary of the treaty of 28 Sep 1939 (Suwalki and Sejny to Germany,
+      Augustow to the USSR, then the Pisa to the Narew); points interpreted, no evidence record
+  - name: the German-Soviet line of 1939 (Podkarpackie)
+    province: POL-3152
+    line: [[22.90, 48.95], [22.65, 49.20], [22.45, 49.35], [22.33, 49.47], [22.20, 49.56],
+           [22.23, 49.80], [22.50, 49.78], [22.77, 49.78], [22.81, 49.95], [23.05, 50.20],
+           [23.35, 50.40], [23.45, 50.60]]
+    left: occupied_poland
+    right: western_ukraine
+    gap: true
+    named_source: >-
+      the German-Soviet boundary of the treaty of 28 Sep 1939 along the San, then north-east past
+      Radymno with Lubaczow on the Soviet side; points interpreted, no evidence record
+  - name: the Finnish border of 1940 (Petsamo)
+    province: RUS-2333
+    line: [[28.20, 68.45], [29.40, 68.95], [30.20, 69.20], [31.00, 69.45], [31.95, 69.72],
+           [32.10, 70.05]]
+    left: finland
+    right: the_north
+    gap: true
+    named_source: >-
+      the Finnish-Soviet border of the Moscow peace treaty of 12 Mar 1940, which left Petsamo to
+      Finland as the treaty of Tartu (1920) drew it; points interpreted, no evidence record
+sea_zones:
+  - key: baltic_sea
+    name: The Baltic Sea
+    region: eastern_front
+    terrain: sea
+    polygon: [[16.0, 53.8], [31.0, 53.8], [31.0, 60.9], [16.0, 60.9]]
+  - key: black_sea
+    name: The Black Sea
+    region: eastern_front
+    terrain: sea
+    polygon: [[27.3, 41.2], [42.0, 40.5], [42.0, 47.5], [27.3, 47.5]]
+  - key: white_sea
+    name: The White Sea and the Barents
+    region: eastern_front
+    terrain: sea
+    polygon: [[28.0, 69.6], [32.0, 64.0], [45.0, 64.0], [52.0, 66.5], [52.0, 71.0], [28.0, 71.0]]
+crossings: []

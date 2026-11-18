@@ -1287,6 +1287,15 @@
             "title": "Name",
             "type": "string"
           },
+          "rules": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Rule"
+            },
+            "title": "Rules",
+            "type": "array",
+            "uniqueItems": true
+          },
           "ruleset": {
             "default": "legacy",
             "enum": [
@@ -7394,6 +7403,29 @@
         "title": "RoutedPart",
         "type": "object"
       },
+      "Rule": {
+        "description": "A rule of the territory game a world switches on by name. A stored game, and a\nworld that names none, has none on; every such rule checks its name before it acts.",
+        "enum": [
+          "territories",
+          "holders",
+          "economy",
+          "supply",
+          "fuel",
+          "battles",
+          "reports",
+          "groups",
+          "agreements",
+          "conference",
+          "contests",
+          "aims",
+          "aid",
+          "writing",
+          "clause_reader",
+          "written_orders"
+        ],
+        "title": "Rule",
+        "type": "string"
+      },
       "ScheduleSource": {
         "enum": [
           "play",
@@ -9458,6 +9490,11 @@
           "b": {
             "title": "B",
             "type": "string"
+          },
+          "declared": {
+            "default": true,
+            "title": "Declared",
+            "type": "boolean"
           },
           "declared_by": {
             "title": "Declared By",
@@ -14098,6 +14135,29 @@
         "title": "RoutedPart",
         "type": "object"
       },
+      "Rule": {
+        "description": "A rule of the territory game a world switches on by name. A stored game, and a\nworld that names none, has none on; every such rule checks its name before it acts.",
+        "enum": [
+          "territories",
+          "holders",
+          "economy",
+          "supply",
+          "fuel",
+          "battles",
+          "reports",
+          "groups",
+          "agreements",
+          "conference",
+          "contests",
+          "aims",
+          "aid",
+          "writing",
+          "clause_reader",
+          "written_orders"
+        ],
+        "title": "Rule",
+        "type": "string"
+      },
       "ScheduleSource": {
         "enum": [
           "play",
@@ -15455,6 +15515,11 @@
             "title": "B",
             "type": "string"
           },
+          "declared": {
+            "default": true,
+            "title": "Declared",
+            "type": "boolean"
+          },
           "declared_by": {
             "title": "Declared By",
             "type": "string"
@@ -15829,6 +15894,15 @@
         },
         "title": "Routed",
         "type": "object"
+      },
+      "rules": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/Rule"
+        },
+        "title": "Rules",
+        "type": "array",
+        "uniqueItems": true
       },
       "ruleset": {
         "default": "legacy",
@@ -19900,6 +19974,11 @@
           "b": {
             "title": "B",
             "type": "string"
+          },
+          "declared": {
+            "default": true,
+            "title": "Declared",
+            "type": "boolean"
           },
           "declared_by": {
             "title": "Declared By",

@@ -95,7 +95,7 @@ from revisionist.core.realism.stance import Standing
 from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.resolution import FeasibilityBand, OutcomeTier, RejectionReason, TickStage
 from revisionist.core.settings import Settings
-from revisionist.core.state import Ruleset
+from revisionist.core.state import Rule, Ruleset
 from revisionist.core.visibility import Scope
 
 
@@ -116,8 +116,10 @@ class CampaignCreated(Model):
     """Name of the world bible this campaign was compiled from."""
     ruleset: Ruleset = "legacy"
     """Which rules resolve this campaign. Left out of a legacy log, so it hashes as before."""
+    rules: frozenset[Rule] = frozenset()
+    """The territory rules the world switches on. Left out when none, as in every stored log."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"ruleset"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"ruleset", "rules"})
 
 
 class SettingsSet(Model):

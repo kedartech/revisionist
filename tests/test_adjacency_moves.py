@@ -881,6 +881,20 @@ def test_without_territories_no_piece_walks_and_no_order_moves_one() -> None:
     assert movement.order_changes(state, order("ilse", "norra_levy", "sudby")) == ()
 
 
+def test_without_territories_a_scripted_leg_moves_by_the_old_rule(tmp_path: Path) -> None:
+    def leg(w: World) -> None:
+        set_feature("norra_levy", legs=[{"since": "1900-04-05", "places": ["sudby"]}])(w)
+        w["rules"] = []
+
+    events, _ = created(variant(tmp_path, leg))
+    state = claim(events, "ilse", "tomas")
+    assert movement.walk(state, day(20)) == []
+    (moved,) = [
+        f for f in movement.on_day(state, day(3)) if f.feature_id == FeatureId(entity("norra_levy"))
+    ]
+    assert moved.places == (entity("sudby"),)  # at once, at the place, as before
+
+
 def test_a_stored_feature_dumps_as_before() -> None:
     f = Feature.model_validate(
         {

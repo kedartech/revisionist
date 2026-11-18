@@ -34,9 +34,12 @@ from xml.sax.saxutils import escape
 
 import yaml
 
-SCALE = 10_000  # 4 decimals
-MIN_AREA = {"lonlat": 0.05, "flat": 25.0}  # square degrees, square units
-MIN_SHARED = {"lonlat": 0.1, "flat": 2.0}  # degrees, units
+SCALE = 10_000
+"""Coordinates are compared at 4 decimals. [proposed]"""
+MIN_AREA = {"lonlat": 0.05, "flat": 25.0}
+"""The smallest area: square degrees, or square units on a flat map. [proposed]"""
+MIN_SHARED = {"lonlat": 0.1, "flat": 2.0}
+"""The shortest shared border that makes two areas adjacent: degrees, or units. [proposed]"""
 EPS = 1e-9
 
 Pt = tuple[int, int]

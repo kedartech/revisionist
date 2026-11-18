@@ -1,0 +1,28 @@
+# The map build's test recipe, for tests/maps/build-fixture.geojson: made-up provinces and a strip
+# of sea, written by hand for the test. Nothing here is taken from any dataset.
+map:
+  box: [0, 0, 4, 3]
+regions:
+  - {key: fixland, name: Fixture Land}
+territories:
+  - {key: west, name: The West, region: fixland, terrain: plain, sites: [mill], provinces: [FX-W1, FX-W2]}
+  - {key: north, name: The North, region: fixland, terrain: forest, provinces: [FX-N1]}
+  - {key: middle, name: The Middle, region: fixland, terrain: plain}
+  - {key: coast, name: The Coast, region: fixland, terrain: marsh}
+  - {key: isle, name: The Isle, region: fixland, terrain: hills, provinces: [FX-I]}
+  - {key: skerry, name: The Skerry, region: fixland, terrain: hills, provinces: [FX-J]}
+cuts:
+  - name: the fixture line
+    province: FX-C
+    line: [[2.5, -0.1], [2.5, 1.6]]
+    left: middle
+    right: coast
+    source: "made up for the test: the meridian 2.5 through the cut province"
+sea_zones:
+  - key: strait
+    name: The Strait
+    region: fixland
+    terrain: sea
+    polygon: [[2.9, -0.5], [4.5, -0.5], [4.5, 2.0], [2.9, 2.0]]
+crossings:
+  - {a: west, b: isle, name: the ferry, source: made up for the test}

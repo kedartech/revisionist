@@ -2,12 +2,15 @@
 
 Every builder reads only the view, with two exceptions the caller supplies: the
 pipelines an order runs through (``View`` does not carry them, and a step's holder
-is not otherwise known) and the next in-world date (it needs the calendar). Names
+is not otherwise known) and the next in-world date (it needs the calendar). The map
+reads the truth for two things only: the opaque key of each mark, and the seat's own
+pieces (the forces its movement forms name), which it knows as they are. Names
 replace ids wherever a person is shown. ``snapshot.checked`` is the caller's last step.
 """
 
+import hashlib
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Collection, Iterable, Mapping
 from datetime import date
 from typing import Any, Literal
 
@@ -17,12 +20,20 @@ from revisionist.core.events import Event
 from revisionist.core.ids import DocumentId, EntityId, FeatureId, PipelineId, SeatId, derived_id
 from revisionist.core.ontology import EntityKind
 from revisionist.core.project import project
+from revisionist.core.realism import kinds, territory
 from revisionist.core.realism.advance import next_wake
 from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, words
 from revisionist.core.realism.document import DocumentView
 from revisionist.core.realism.effect import PartView
-from revisionist.core.realism.geography import in_play
-from revisionist.core.realism.pipeline import Order, OrderStatus, Pipeline, StepAction, StepOutcome
+from revisionist.core.realism.geography import Feature, in_play
+from revisionist.core.realism.pipeline import (
+    Order,
+    OrderStatus,
+    Pipeline,
+    StepAction,
+    StepOutcome,
+    step_due,
+)
 from revisionist.core.realism.pipelines import destination, place_named
 from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
@@ -36,6 +47,7 @@ from revisionist.engine.web.destinations import (
     lift_facts,
     own_sides,
     place_choices,
+    reported,
 )
 from revisionist.engine.web.people import seat_people
 from revisionist.engine.web.realism_api import (
@@ -54,10 +66,14 @@ from revisionist.engine.web.realism_api import (
     MapCapital,
     MapMark,
     MapOrder,
+    MapPiece,
     MapPlace,
     OrderTrack,
     OrderTracker,
     People,
+    PieceArea,
+    PieceCourse,
+    PieceWait,
     SeatMap,
     Situation,
     SituationFigure,
@@ -315,16 +331,191 @@ def _map_orders(
     return out
 
 
+def _iso(day: date | None) -> str | None:
+    return day.isoformat() if day is not None else None
+
+
+def _label_key(campaign: object, polity: EntityId, label: str, kind: str) -> str:
+    """The key of a mark whose page names no feature in its truth: as opaque as
+    ``territory.mark_key``, from the line instead of the feature."""
+    raw = "\x1f".join((str(campaign), "mark-line", str(polity), label, kind))
+    return "m" + hashlib.blake2b(raw.encode(), digest_size=8).hexdigest()
+
+
+def _sighted(state: State, doc_id: DocumentId, label: str, kind: str) -> Feature | None:
+    """The feature behind a page's sighting line: the page's truth names each one, in the
+    order of its sighting lines; else the feature of that name and kind."""
+    doc = state.documents.get(doc_id)
+    if doc is not None:
+        lines = [b for b in doc.view.body if b.sight is not None]
+        if len(lines) == len(doc.truth.sightings):
+            for b, ref in zip(lines, doc.truth.sightings, strict=True):
+                if b.label == label and b.sight is not None and b.sight.kind.value == kind:
+                    return state.features.get(ref.feature_id)
+    return next(
+        (f for f in state.features.values() if f.name == label and f.kind.value == kind), None
+    )
+
+
+def _placed(view: View, e: EntityId) -> MapPlace | None:
+    place = view.entities.get(e)
+    return _place(view, e) if place is not None and place.at is not None else None
+
+
+def _area(
+    state: State, view: View, keys: Mapping[EntityId, str], at: EntityId, domain: kinds.Domain
+) -> PieceArea:
+    """The area a piece of ``domain`` at ``at`` stands in; without territories, the place."""
+    board = state.map
+    if territory.on(state) and board is not None:
+        area = territory.area_of(state, at, domain)
+        shapes: list[territory.Territory | territory.SeaZone] = [
+            *board.territories,
+            *board.sea_zones,
+        ]
+        for a in shapes:
+            if a.area == area:
+                return PieceArea(key=a.key, name=a.name, place=_placed(view, at))
+    place = view.entities.get(at)
+    return PieceArea(
+        key=keys.get(at), name=place.name if place is not None else "", place=_placed(view, at)
+    )
+
+
+def _waiting(
+    view: View,
+    key: str,
+    pipelines: Mapping[PipelineId, Pipeline],
+    withdrawable: Collection[str],
+) -> PieceWait | None:
+    """The seat's latest movement order for the force ``key`` still in its pipeline."""
+    movers = {x.name for x in view.desk.levers if x.resolver == "movement"} if view.desk else set()
+    waiting = [
+        o
+        for o in view.orders.values()
+        if o.status is OrderStatus.MOVING
+        and o.lever in movers
+        and str(o.params.get(FORCE, "")) == key
+    ]
+    if not waiting:
+        return None
+    order = max(waiting, key=lambda o: (o.filed, o.order_id))
+    pipeline = pipelines.get(order.pipeline)
+    holder = (
+        pipeline.steps[order.step].person
+        if pipeline is not None and order.step < len(pipeline.steps)
+        else None
+    )
+    return PieceWait(
+        order=order.order_id,
+        with_person=view.entities[holder].name if holder in view.entities else None,
+        until=_iso(step_due(order, pipeline)) if pipeline is not None else None,
+        withdrawable=order.order_id in withdrawable,
+    )
+
+
+def _course(
+    state: State, view: View, keys: Mapping[EntityId, str], f: Feature, domain: kinds.Domain
+) -> PieceCourse | None:
+    if f.path:
+        return PieceCourse(
+            path=[_area(state, view, keys, a, domain) for a in f.path],
+            step_due=_iso(f.step_due),
+            arrives=_iso(f.arrives),
+        )
+    if f.bound_for is None:
+        return None
+    return PieceCourse(
+        path=[_area(state, view, keys, f.bound_for, domain)],
+        step_due=_iso(f.arrives),
+        arrives=_iso(f.arrives),
+    )
+
+
+class _Sent:
+    """What the map reads from the truth for one seat: mark keys and its own pieces."""
+
+    def __init__(
+        self,
+        state: State,
+        view: View,
+        forces: Mapping[str, str],
+        pipelines: Mapping[PipelineId, Pipeline],
+        place_keys: Mapping[EntityId, str],
+        withdrawable: Collection[str],
+    ) -> None:
+        self.state, self.view, self.forces = state, view, forces
+        self.pipelines, self.place_keys, self.withdrawable = pipelines, place_keys, withdrawable
+        self.polity = territory.nation(state, view.me.embodies) or view.me.embodies
+
+    def key(self, doc_id: DocumentId, label: str, kind: str) -> str:
+        f = _sighted(self.state, doc_id, label, kind)
+        if f is None:
+            return _label_key(self.state.campaign_id, self.polity, label, kind)
+        return territory.mark_key(self.state, self.polity, f)
+
+    def pieces(self) -> list[tuple[Feature, MapPiece]]:
+        """Each own force in play the seat's movement forms name, as a piece."""
+        own = own_sides(self.view)
+        out: list[tuple[Feature, MapPiece]] = []
+        for key in self.forces:
+            fid = FeatureId(object_id(self.state.campaign_id, "feature", key))
+            f = self.state.features.get(fid)
+            domain = kinds.domain(self.state, f) if f is not None else None
+            if f is None or domain is None or f.side not in own or not in_play(f):
+                continue
+            kind = kinds.of(self.state, f)
+            mark = territory.mark_key(self.state, self.polity, f)
+            piece = MapPiece(
+                key=mark,
+                kind=kind.name if kind is not None else words(f.kind.value),
+                domain=domain.value,
+                strength=f.tier,
+                posture=f.posture.value if f.posture is not None else None,
+                area=_area(self.state, self.view, self.place_keys, f.places[0], domain),
+                waiting=_waiting(self.view, key, self.pipelines, self.withdrawable),
+                under_way=_course(self.state, self.view, self.place_keys, f, domain),
+            )
+            out.append((f, piece))
+        return out
+
+
+def _own_mark(view: View, f: Feature, piece: MapPiece) -> MapMark:
+    """An own piece no page has placed: known where the truth has it."""
+    today = view.in_world_date
+    place = _placed(view, f.places[0])
+    return MapMark(
+        key=piece["key"],
+        name=f.name,
+        kind=f.kind.value,
+        side="own",
+        side_name=view.entities[f.side].name if f.side in view.entities else "",
+        certainty="known",
+        places=[place] if place is not None else [],
+        reported=today.isoformat() if today is not None else "",
+        source="",
+        document="",
+        strength=None,
+        piece=piece,
+    )
+
+
 def seat_map(
     view: View,
     forces: Mapping[str, str] | None = None,
     pipelines: Mapping[PipelineId, Pipeline] | None = None,
     people: People | None = None,
+    state: State | None = None,
+    place_keys: Mapping[EntityId, str] | None = None,
+    withdrawable: Collection[str] = (),
 ) -> SeatMap | None:
     """Every placed feature as the latest arrived page has it, the seat's own movement
     orders and the capitals of the leaders ``people`` (the roster) weighs against it;
     None for a world with no positions (the client hides the map). ``forces`` names the
-    mark for each force key an order can name (the caller's, as ``pipelines`` is)."""
+    mark for each force key an order can name (the caller's, as ``pipelines`` is).
+    With ``state``, each own force ``forces`` names is sent as a piece on its mark, and
+    marks are keyed as ``territory.mark_key`` keys them; ``withdrawable`` (``withdraw``)
+    marks the orders the seat may still take back."""
     places = [
         _place(view, k)
         for k, e in sorted(view.entities.items(), key=lambda kv: (kv[1].name, kv[0]))
@@ -335,8 +526,13 @@ def seat_map(
     today = view.in_world_date
     own = own_sides(view)
     latest = latest_sightings(view)
+    sent = (
+        _Sent(state, view, forces or {}, pipelines or {}, place_keys or {}, withdrawable)
+        if state is not None
+        else None
+    )
     marks: list[MapMark] = []
-    for (label, _), (doc_id, doc, b) in sorted(latest.items(), key=lambda kv: kv[0]):
+    for (label, kind), (doc_id, doc, b) in sorted(latest.items(), key=lambda kv: kv[0]):
         sight = b.sight
         assert sight is not None
         side: Literal["own", "other", "none"] = (
@@ -345,6 +541,11 @@ def seat_map(
         stale = today is not None and (today - doc.issued).days > STALE_DAYS
         marks.append(
             MapMark(
+                key=(
+                    sent.key(doc_id, label, kind)
+                    if sent is not None
+                    else _label_key(view.campaign_id, view.me.embodies, label, kind)
+                ),
                 name=label,
                 kind=sight.kind.value,
                 side=side,
@@ -354,9 +555,18 @@ def seat_map(
                 reported=doc.issued.isoformat(),
                 source=view.entities[doc.author].name,
                 document=doc_id,
+                strength=reported(view, label),
+                piece=None,
             )
         )
     orders = _map_orders(view, marks, forces or {}, pipelines or {})
+    for f, piece in sent.pieces() if sent is not None else ():
+        mark = next((m for m in marks if m["key"] == piece["key"]), None)
+        if mark is not None:
+            mark["piece"] = piece
+        else:
+            marks.append(_own_mark(view, f, piece))
+    marks.sort(key=lambda m: (m["name"], m["kind"]))
     capitals = _capitals(view, people) if people is not None else []
     return SeatMap(places=places, marks=marks, orders=orders, capitals=capitals)
 
@@ -649,10 +859,12 @@ def seat_realism(
     flagged: set[DocumentId],
     next_wake_at: str | None,
     place_keys: Mapping[EntityId, str] | None = None,
+    withdrawable: Collection[str] = (),
 ) -> dict[str, Any]:
     """The ``view.realism`` block of ``/api/me``: tray, desk, situation, orders, clock, map,
     threats, people and the world's developments.
-    ``place_keys`` (``destinations.place_keys``) opens movement forms to every place."""
+    ``place_keys`` (``destinations.place_keys``) opens movement forms to every place;
+    ``withdrawable`` (``withdraw.withdrawable``) are the orders the seat may take back."""
     view = project(state, seat)
     forces, held = _force_names(state, view)
     card = state.cards.get(view.me.embodies)
@@ -678,7 +890,9 @@ def seat_realism(
         "situation": situation(view),
         "orders": orders(view, state.pipelines),
         "clock": clock(view, next_wake_at, waiting_on, 0, wake.to.isoformat()),
-        "map": seat_map(view, forces, state.pipelines, people),
+        "map": seat_map(
+            view, forces, state.pipelines, people, state, place_keys or {}, withdrawable
+        ),
         "threats": seat_threats(state, seat, view),
         "people": people,
         "world": world_news(view),

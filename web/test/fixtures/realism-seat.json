@@ -881,6 +881,7 @@
     ],
     "marks": [
       {
+        "key": "m0c41d9a27be35f86",
         "name": "HX convoys",
         "kind": "route",
         "side": "other",
@@ -908,9 +909,12 @@
             "lon": -3.0,
             "theatre": "North Atlantic"
           }
-        ]
+        ],
+        "strength": null,
+        "piece": null
       },
       {
+        "key": "m5e8b02c7d14a93f0",
         "name": "Home Fleet",
         "kind": "fleet",
         "side": "other",
@@ -926,9 +930,12 @@
             "lon": -3.1,
             "theatre": "North Atlantic"
           }
-        ]
+        ],
+        "strength": null,
+        "piece": null
       },
       {
+        "key": "m9a3f6e1b07c2d845",
         "name": "U-boat arm",
         "kind": "fleet",
         "side": "other",
@@ -944,9 +951,12 @@
             "lon": -3.4,
             "theatre": "North Atlantic"
           }
-        ]
+        ],
+        "strength": 3,
+        "piece": null
       },
       {
+        "key": "m2d7c84f1a60b9e3c",
         "name": "US Atlantic Fleet",
         "kind": "fleet",
         "side": "own",
@@ -962,7 +972,32 @@
             "lon": -21.9,
             "theatre": "North Atlantic"
           }
-        ]
+        ],
+        "strength": null,
+        "piece": {
+          "key": "m2d7c84f1a60b9e3c",
+          "kind": "Fleet",
+          "domain": "sea",
+          "strength": 4,
+          "posture": "escort",
+          "area": {
+            "key": "reykjavik",
+            "name": "Reykjavik",
+            "place": {
+              "name": "Reykjavik",
+              "lat": 64.1,
+              "lon": -21.9,
+              "theatre": "North Atlantic"
+            }
+          },
+          "waiting": {
+            "order": "o-move-1002",
+            "with_person": "Harold R. Stark",
+            "until": "1941-10-23",
+            "withdrawable": false
+          },
+          "under_way": null
+        }
       }
     ],
     "orders": [

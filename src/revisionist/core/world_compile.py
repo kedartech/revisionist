@@ -746,11 +746,25 @@ def _check_stands(
     """A piece stands only in an area its domain can stand in: the area a place lies
     within, or the area itself."""
     areas = _area_kinds(world)
-    within = {d.key: d.within for d in world.entities}
     for p in places:
-        area = p if p in areas else within.get(p)
+        area = _stand_area(world, p, domain)
         if area is not None and area in areas and not kinds.stands_on(domain, areas[area]):
             problems.append(f"{where}: a {domain.value} piece cannot stand in {area}")
+        elif area is None and Rule.TERRITORIES in world.rules:
+            problems.append(f"{where}: {p} lies in no area, and a piece stands in one")
+
+
+def _stand_area(world: WorldFile, place: str, domain: PieceDomain) -> str | None:
+    """The area a piece of ``domain`` stands in at ``place``: the area itself, a sea piece
+    at a port the zone the port opens on, else the area the place lies within."""
+    if place in _area_kinds(world):
+        return place
+    decl = next((d for d in world.entities if d.key == place), None)
+    if decl is None:
+        return None
+    if domain is PieceDomain.SEA and decl.port_on is not None:
+        return decl.port_on
+    return decl.within
 
 
 def _check_kinds(world: WorldFile, problems: list[str]) -> None:
@@ -802,8 +816,9 @@ def _check_kinds(world: WorldFile, problems: list[str]) -> None:
 def _check_movement(world: WorldFile, where: str, lever: LeverDecl, problems: list[str]) -> None:
     """A movement lever offers forces by key and places with a position by key."""
     params = {p.name: p for p in lever.params}
-    forces = {f.key for f in world.features if f.kind in FORCES}
-    for name, allowed, what in (("force", forces, "force"), ("to", _placed(world), "place")):
+    forces = {f.key for f in world.features if f.kind in AT_ONE_PLACE}
+    places = _placed(world) | ({d.key for d in _area_decls(world)} if world.map else set())
+    for name, allowed, what in (("force", forces, "force"), ("to", places, "place")):
         spec = params.get(name)
         if spec is None or spec.kind is not ParamKind.ENUM:
             problems.append(f"{where}: needs an enum parameter {name}")
@@ -833,8 +848,12 @@ def _check_board(world: WorldFile, sections: Mapping[str, str], problems: list[s
     if world.map is None:
         if areas or world.adjacency or world.regions or world.terrain:
             problems.append("map: the world has areas but no map")
+        for e in world.entities:
+            if e.port_on is not None or e.base is not None:
+                problems.append(f"entity {e.key}: a port or a base needs a map")
         return
     _check_map_file(world, problems)
+    _check_sites(world, problems)
     regions = _check_regions(world, problems)
     terrain: dict[str, tm.TerrainKind] = {}
     for td in world.terrain:
@@ -891,6 +910,41 @@ def _check_board(world: WorldFile, sections: Mapping[str, str], problems: list[s
                 problems.append(
                     f"entity {d.key}: at [{d.at[0]:g}, {d.at[1]:g}] is outside the map's box"
                 )
+
+
+def _check_sites(world: WorldFile, problems: list[str]) -> None:
+    """Ports open on a sea zone their territory borders, bases serve polities from a place
+    in an area, and a lift pool is a quantity of a polity (ADJ)."""
+    areas = _area_kinds(world)
+    kinds_of = {d.key: d.kind for d in world.entities}
+    quantities = {q.key for q in world.quantities}
+    links = {
+        frozenset((e.a, e.b) if isinstance(e, LinkDecl) else (e[0], e[1])) for e in world.adjacency
+    }
+    for e in world.entities:
+        where = f"entity {e.key}"
+        if e.port_on is not None:
+            if e.kind is not EntityKind.LOCATION:
+                problems.append(f"{where}: only a place is a port")
+            elif areas.get(e.port_on) is not tm.TerrainKind.SEA:
+                problems.append(f"{where}: port_on {e.port_on} is not a sea zone")
+            elif e.within is None or areas.get(e.within) is not tm.TerrainKind.LAND:
+                problems.append(f"{where}: a port lies within a territory")
+            elif frozenset((e.within, e.port_on)) not in links:
+                problems.append(f"{where}: {e.within} does not border {e.port_on}")
+        if e.base is not None:
+            if e.kind is not EntityKind.LOCATION or e.within is None:
+                problems.append(f"{where}: a base is a place within an area")
+            for side in e.base.sides:
+                if kinds_of.get(side) is not EntityKind.POLITY:
+                    problems.append(f"{where}: base side {side} is not a polity")
+            if len(set(e.base.domains)) != len(e.base.domains):
+                problems.append(f"{where}: a base names a domain twice")
+        if e.lift_pool is not None:
+            if e.kind is not EntityKind.POLITY:
+                problems.append(f"{where}: only a polity has a lift pool")
+            elif e.lift_pool not in quantities:
+                problems.append(f"{where}: lift_pool {e.lift_pool} is not a quantity")
 
 
 def _check_map_file(world: WorldFile, problems: list[str]) -> None:
@@ -1410,7 +1464,7 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
             name=d.name,
             side=_maybe(ids, d.side, EntityId),
             tier=d.tier,
-            places=tuple(EntityId(ids[k]) for k in d.places),
+            places=tuple(EntityId(ids[k]) for k in _standing(world, d)),
             as_of=d.as_of or world.start_date,
             legs=tuple(
                 Leg(since=leg.since, places=tuple(EntityId(ids[k]) for k in leg.places))
@@ -1483,6 +1537,15 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
     return out
 
 
+def _standing(world: WorldFile, d: FeatureDecl) -> tuple[str, ...]:
+    """Where a feature is set at creation: with ``territories`` on, a piece stands in the
+    area its place lies in (checked at compile); otherwise at its places as written."""
+    kind = next((k for k in world.piece_kinds if k.key == d.piece), None)
+    if Rule.TERRITORIES not in world.rules or kind is None:
+        return d.places
+    return tuple(_stand_area(world, p, kind.domain) or p for p in d.places)
+
+
 def _piece_kind(k: PieceKindDecl) -> PieceKind:
     return PieceKind(
         key=k.key,
@@ -1550,6 +1613,38 @@ def _board(world: WorldFile, ids: Mapping[str, str]) -> tm.WorldMap:
             for d in world.sea_zones
         ),
         adjacency=tuple(links),
+        ports=tuple(
+            tm.Port(
+                place=EntityId(ids[e.key]),
+                land=EntityId(ids[e.within]),
+                sea=EntityId(ids[e.port_on]),
+            )
+            for e in world.entities
+            if e.port_on is not None and e.within is not None
+        ),
+        bases=tuple(_site_base(world, e, ids) for e in world.entities if e.base is not None),
+        lift_pools={
+            EntityId(ids[e.key]): QuantityId(ids[e.lift_pool])
+            for e in world.entities
+            if e.lift_pool is not None
+        },
+    )
+
+
+def _site_base(world: WorldFile, e: EntityDecl, ids: Mapping[str, str]) -> tm.Base:
+    """A base as the board holds it: the area its land pieces stand in, and the sea zone its
+    ships stand in (its port's, or the zone it lies in)."""
+    assert e.base is not None
+    areas = _area_kinds(world)
+    here = e.key if e.key in areas else e.within
+    land = here if here is not None and areas.get(here) is tm.TerrainKind.LAND else None
+    sea = e.port_on if e.port_on is not None else (here if land is None else None)
+    return tm.Base(
+        place=EntityId(ids[e.key]),
+        land=None if land is None else EntityId(ids[land]),
+        sea=None if sea is None else EntityId(ids[sea]),
+        sides=tuple(EntityId(ids[k]) for k in e.base.sides),
+        domains=e.base.domains,
     )
 
 

@@ -93,7 +93,7 @@ from revisionist.core.realism.pipeline import (
 )
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
-from revisionist.core.realism.territory import WorldMap
+from revisionist.core.realism.territory import StepCause, WorldMap
 from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.resolution import FeasibilityBand, OutcomeTier, RejectionReason, TickStage
 from revisionist.core.settings import Settings
@@ -658,6 +658,21 @@ class KindsDeclared(Model):
     resources: tuple[Resource, ...] = ()
 
 
+class PieceStepped(Model):
+    """A piece entered an area: one step, by order, by the record, or forced. Sealed to the
+    seats of the piece's own nation, who know it by its mark (``territory.mark_key``), not
+    its id. A record: the ``feature_set`` beside it moves the piece."""
+
+    kind: Literal["piece_stepped"] = "piece_stepped"
+    mark: Label
+    nation: EntityId
+    """The piece's nation, whose seats alone hold the event."""
+    left: EntityId
+    entered: EntityId
+    on: date
+    cause: StepCause
+
+
 class NewsReported(Model):
     """A public event, as structured facts. Each seat's press words it later."""
 
@@ -1065,6 +1080,7 @@ Payload = Annotated[
     | WarDeclared
     | MapDeclared
     | KindsDeclared
+    | PieceStepped
     | NewsReported
     | StanceChanged
     | OpponentsRanked

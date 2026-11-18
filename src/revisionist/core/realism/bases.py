@@ -18,6 +18,11 @@ nearest the place it was sent to, among those it can get to from where it is.
 
 The tables are [proposed] values Josh accepted on the R2 values sheet, keyed by world and
 place key and read only here. A world with no table has no reach rule.
+
+With ``territories`` on (ADJ), bases are the world's own: sites with ``base: {sides,
+domains}`` (``WorldMap.bases``), and reach is counted in steps over the board, not days or
+kilometres, from the nearest base of the piece's side and domain (``area_reach``). An envoy
+has no reach rule, and neither has a world whose board names no base.
 """
 
 import math
@@ -441,17 +446,96 @@ def reach(
     )
 
 
+RADIUS_STEPS: dict[str, Radius] = {
+    "land": Radius(2, None),  # [proposed] ADJ: two steps from a base, no raiding
+    "sea": Radius(3, 6),  # [proposed] ADJ
+    "air": Radius(1, 2),  # [proposed] ADJ
+}
+"""With ``territories`` on: the operating and raid radii in steps, by the piece's domain."""
+
+
+class AreaReach(NamedTuple):
+    tier: Tier
+    base: EntityId | None
+    """The nearest base of the piece's side and domain (the place); None when it has none."""
+    steps: int | None
+    """Steps from that base's area; None when no course of the domain joins them."""
+    reason: str | None
+    """Why the area is refused. None unless refused."""
+
+
+def within_reach(state: State, piece: Feature) -> set[EntityId] | None:
+    """Every area ``area_reach`` does not refuse the piece, in one pass; None where no reach
+    rule applies."""
+    from revisionist.core.realism import kinds, territory
+
+    board = state.map
+    kind = kinds.of(state, piece)
+    if board is None or not board.bases or kind is None or kind.domain.value not in RADIUS_STEPS:
+        return None
+    domain = kind.domain.value
+    own = territory.nation(state, piece.side)
+    sources = [
+        at
+        for b in board.bases
+        if own in b.sides and domain in b.domains and (at := b.area(domain)) is not None
+    ]
+    radius = RADIUS_STEPS[domain]
+    far = radius.raid if radius.raid is not None else radius.operate
+    return {a for a, n in territory.steps_from(board, domain, sources).items() if n <= far}
+
+
+def area_reach(state: State, piece: Feature, area: EntityId) -> AreaReach | None:
+    """How far ``area`` lies from the bases of the piece's side and domain, in steps; None
+    where no reach rule applies (no board bases, an envoy, or not a piece)."""
+    from revisionist.core.realism import kinds, territory
+
+    board = state.map
+    kind = kinds.of(state, piece)
+    if board is None or not board.bases or kind is None or kind.domain.value not in RADIUS_STEPS:
+        return None
+    domain = kind.domain.value
+    own = territory.nation(state, piece.side)
+    sources: dict[EntityId, EntityId] = {}
+    for b in sorted(board.bases, key=lambda b: str(b.place)):
+        at = b.area(domain)
+        if own in b.sides and domain in b.domains and at is not None:
+            sources.setdefault(at, b.place)
+    radius = RADIUS_STEPS[domain]
+    best: tuple[int, EntityId] | None = None
+    for at, place in sources.items():
+        n = territory.steps_from(board, domain, [at]).get(area)
+        if n is not None and (best is None or (n, str(place)) < (best[0], str(best[1]))):
+            best = (n, place)
+    if best is not None and best[0] == 0:
+        return AreaReach(Tier.SUSTAINED, best[1], 0, None)
+    if best is not None and best[0] <= radius.operate:
+        return AreaReach(Tier.OPERATE, best[1], best[0], None)
+    if best is not None and radius.raid is not None and best[0] <= radius.raid:
+        return AreaReach(Tier.RAID, best[1], best[0], None)
+    there = _name(state, area)
+    words = f"{there} is beyond the reach of {_name(state, own)}'s bases for {kind.name}"
+    if best is None:
+        return AreaReach(Tier.REFUSED, None, None, words + ".")
+    far = radius.raid if radius.raid is not None else radius.operate
+    words += f": {best[0]} steps from {_name(state, best[1])}, past {far}."
+    return AreaReach(Tier.REFUSED, best[1], best[0], words)
+
+
 __all__ = [
     "BASES",
     "FRONT_PLACES",
     "LANDS",
     "RADIUS",
+    "RADIUS_STEPS",
     "RAID_DAYS",
+    "AreaReach",
     "Base",
     "Force",
     "Radius",
     "Reach",
     "Tier",
+    "area_reach",
     "crossing",
     "lift",
     "nearest_base",

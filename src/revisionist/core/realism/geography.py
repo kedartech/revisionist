@@ -89,6 +89,11 @@ class Feature(Model):
     piece: Label | None = None
     """A ``piece``: the world's kind key. None for every other feature kind. Rules ask
     ``kinds.domain`` and ``kinds.is_force``, never this key."""
+    path: tuple[EntityId, ...] = ()
+    """With ``territories`` on, a piece under way: the areas still to enter, in order
+    (``territory.plan``). Empty when it stands still."""
+    step_due: date | None = None
+    """The day the step into the head of ``path`` completes. None when it stands still."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
@@ -99,6 +104,8 @@ class Feature(Model):
             "detached_from",
             "rejoined_on",
             "piece",
+            "path",
+            "step_due",
         }
     )
 
@@ -119,6 +126,10 @@ class Feature(Model):
             raise ValueError(f"feature {self.feature_id}: only a force moves by order")
         if self.detached_from is not None and not force:
             raise ValueError(f"feature {self.feature_id}: only a force is detached")
+        if bool(self.path) != (self.step_due is not None):
+            raise ValueError(f"feature {self.feature_id}: path and step_due go together")
+        if self.path and not force:
+            raise ValueError(f"feature {self.feature_id}: only a force steps by order")
         return self
 
 

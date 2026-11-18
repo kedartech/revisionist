@@ -1102,6 +1102,66 @@
         "title": "AssetTierDelta",
         "type": "object"
       },
+      "Base": {
+        "additionalProperties": false,
+        "description": "A site a side's pieces work from, for the domains it names (``base`` in the world).",
+        "properties": {
+          "domains": {
+            "items": {
+              "enum": [
+                "land",
+                "sea",
+                "air"
+              ],
+              "type": "string"
+            },
+            "title": "Domains",
+            "type": "array"
+          },
+          "land": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Land"
+          },
+          "place": {
+            "title": "Place",
+            "type": "string"
+          },
+          "sea": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sea"
+          },
+          "sides": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sides",
+            "type": "array"
+          }
+        },
+        "required": [
+          "place",
+          "land",
+          "sea",
+          "sides",
+          "domains"
+        ],
+        "title": "Base",
+        "type": "object"
+      },
       "Betrayal": {
         "enum": [
           "cooperative",
@@ -4095,6 +4155,14 @@
             "title": "Name",
             "type": "string"
           },
+          "path": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Path",
+            "type": "array"
+          },
           "piece": {
             "anyOf": [
               {
@@ -4151,6 +4219,19 @@
             ],
             "default": null,
             "title": "Side"
+          },
+          "step_due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Step Due"
           },
           "tier": {
             "default": 0,
@@ -6689,6 +6770,53 @@
         "title": "PieceKind",
         "type": "object"
       },
+      "PieceStepped": {
+        "additionalProperties": false,
+        "description": "A piece entered an area: one step, by order, by the record, or forced. Sealed to the\nseats of the piece's own nation, who know it by its mark (``territory.mark_key``), not\nits id. A record: the ``feature_set`` beside it moves the piece.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/StepCause"
+          },
+          "entered": {
+            "title": "Entered",
+            "type": "string"
+          },
+          "kind": {
+            "const": "piece_stepped",
+            "default": "piece_stepped",
+            "title": "Kind",
+            "type": "string"
+          },
+          "left": {
+            "title": "Left",
+            "type": "string"
+          },
+          "mark": {
+            "maxLength": 60,
+            "title": "Mark",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mark",
+          "nation",
+          "left",
+          "entered",
+          "on",
+          "cause"
+        ],
+        "title": "PieceStepped",
+        "type": "object"
+      },
       "Pipeline": {
         "additionalProperties": false,
         "properties": {
@@ -6769,6 +6897,31 @@
           "style"
         ],
         "title": "PlayStyleSet",
+        "type": "object"
+      },
+      "Port": {
+        "additionalProperties": false,
+        "description": "A place where a territory meets a sea zone: a sea piece declared there stands in\nthe zone, and a land piece embarks or lands there on a lift.",
+        "properties": {
+          "land": {
+            "title": "Land",
+            "type": "string"
+          },
+          "place": {
+            "title": "Place",
+            "type": "string"
+          },
+          "sea": {
+            "title": "Sea",
+            "type": "string"
+          }
+        },
+        "required": [
+          "place",
+          "land",
+          "sea"
+        ],
+        "title": "Port",
         "type": "object"
       },
       "Posture": {
@@ -9143,6 +9296,16 @@
         "title": "StepAction",
         "type": "string"
       },
+      "StepCause": {
+        "description": "What moved a piece one step.",
+        "enum": [
+          "ordered",
+          "scripted",
+          "forced"
+        ],
+        "title": "StepCause",
+        "type": "string"
+      },
       "StepChosen": {
         "additionalProperties": false,
         "description": "The holder of a decision step on another seat's order chooses what to do there.\nThe fold keeps it on the order, engine side, and on the step's held due day the\nrunner takes the step with it in the card's place, so the issuer learns nothing\nbefore that day and the step reads the same as the card's. Chosen again, the later\nchoice stands. Scoped to the holder.",
@@ -9923,6 +10086,14 @@
             "title": "Adjacency",
             "type": "array"
           },
+          "bases": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Base"
+            },
+            "title": "Bases",
+            "type": "array"
+          },
           "box": {
             "anyOf": [
               {
@@ -9963,6 +10134,21 @@
             "maxLength": 60,
             "title": "File",
             "type": "string"
+          },
+          "lift_pools": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Lift Pools",
+            "type": "object"
+          },
+          "ports": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Port"
+            },
+            "title": "Ports",
+            "type": "array"
           },
           "regions": {
             "default": [],
@@ -10283,6 +10469,7 @@
             "order_routed": "#/$defs/OrderRouted",
             "order_settled": "#/$defs/OrderSettled",
             "order_step_taken": "#/$defs/OrderStepTaken",
+            "piece_stepped": "#/$defs/PieceStepped",
             "play_style_set": "#/$defs/PlayStyleSet",
             "quantity_set": "#/$defs/QuantitySet",
             "relationship_set": "#/$defs/RelationshipSet",
@@ -10504,6 +10691,9 @@
           },
           {
             "$ref": "#/$defs/KindsDeclared"
+          },
+          {
+            "$ref": "#/$defs/PieceStepped"
           },
           {
             "$ref": "#/$defs/NewsReported"
@@ -11352,6 +11542,66 @@
         ],
         "title": "AssetStatus",
         "type": "string"
+      },
+      "Base": {
+        "additionalProperties": false,
+        "description": "A site a side's pieces work from, for the domains it names (``base`` in the world).",
+        "properties": {
+          "domains": {
+            "items": {
+              "enum": [
+                "land",
+                "sea",
+                "air"
+              ],
+              "type": "string"
+            },
+            "title": "Domains",
+            "type": "array"
+          },
+          "land": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Land"
+          },
+          "place": {
+            "title": "Place",
+            "type": "string"
+          },
+          "sea": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sea"
+          },
+          "sides": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sides",
+            "type": "array"
+          }
+        },
+        "required": [
+          "place",
+          "land",
+          "sea",
+          "sides",
+          "domains"
+        ],
+        "title": "Base",
+        "type": "object"
       },
       "Betrayal": {
         "enum": [
@@ -12577,6 +12827,14 @@
             "title": "Name",
             "type": "string"
           },
+          "path": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Path",
+            "type": "array"
+          },
           "piece": {
             "anyOf": [
               {
@@ -12633,6 +12891,19 @@
             ],
             "default": null,
             "title": "Side"
+          },
+          "step_due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Step Due"
           },
           "tier": {
             "default": 0,
@@ -14243,6 +14514,31 @@
         ],
         "title": "PlayStyle",
         "type": "string"
+      },
+      "Port": {
+        "additionalProperties": false,
+        "description": "A place where a territory meets a sea zone: a sea piece declared there stands in\nthe zone, and a land piece embarks or lands there on a lift.",
+        "properties": {
+          "land": {
+            "title": "Land",
+            "type": "string"
+          },
+          "place": {
+            "title": "Place",
+            "type": "string"
+          },
+          "sea": {
+            "title": "Sea",
+            "type": "string"
+          }
+        },
+        "required": [
+          "place",
+          "land",
+          "sea"
+        ],
+        "title": "Port",
+        "type": "object"
       },
       "Posture": {
         "enum": [
@@ -16445,6 +16741,14 @@
             "title": "Adjacency",
             "type": "array"
           },
+          "bases": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Base"
+            },
+            "title": "Bases",
+            "type": "array"
+          },
           "box": {
             "anyOf": [
               {
@@ -16485,6 +16789,21 @@
             "maxLength": 60,
             "title": "File",
             "type": "string"
+          },
+          "lift_pools": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Lift Pools",
+            "type": "object"
+          },
+          "ports": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Port"
+            },
+            "title": "Ports",
+            "type": "array"
           },
           "regions": {
             "default": [],
@@ -17470,6 +17789,66 @@
         ],
         "title": "AssetStatus",
         "type": "string"
+      },
+      "Base": {
+        "additionalProperties": false,
+        "description": "A site a side's pieces work from, for the domains it names (``base`` in the world).",
+        "properties": {
+          "domains": {
+            "items": {
+              "enum": [
+                "land",
+                "sea",
+                "air"
+              ],
+              "type": "string"
+            },
+            "title": "Domains",
+            "type": "array"
+          },
+          "land": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Land"
+          },
+          "place": {
+            "title": "Place",
+            "type": "string"
+          },
+          "sea": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sea"
+          },
+          "sides": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Sides",
+            "type": "array"
+          }
+        },
+        "required": [
+          "place",
+          "land",
+          "sea",
+          "sides",
+          "domains"
+        ],
+        "title": "Base",
+        "type": "object"
       },
       "Betrayal": {
         "enum": [
@@ -20055,6 +20434,31 @@
         "title": "PlayStyle",
         "type": "string"
       },
+      "Port": {
+        "additionalProperties": false,
+        "description": "A place where a territory meets a sea zone: a sea piece declared there stands in\nthe zone, and a land piece embarks or lands there on a lift.",
+        "properties": {
+          "land": {
+            "title": "Land",
+            "type": "string"
+          },
+          "place": {
+            "title": "Place",
+            "type": "string"
+          },
+          "sea": {
+            "title": "Sea",
+            "type": "string"
+          }
+        },
+        "required": [
+          "place",
+          "land",
+          "sea"
+        ],
+        "title": "Port",
+        "type": "object"
+      },
       "Posture": {
         "enum": [
           "patrol",
@@ -21424,6 +21828,14 @@
             "title": "Adjacency",
             "type": "array"
           },
+          "bases": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Base"
+            },
+            "title": "Bases",
+            "type": "array"
+          },
           "box": {
             "anyOf": [
               {
@@ -21464,6 +21876,21 @@
             "maxLength": 60,
             "title": "File",
             "type": "string"
+          },
+          "lift_pools": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Lift Pools",
+            "type": "object"
+          },
+          "ports": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Port"
+            },
+            "title": "Ports",
+            "type": "array"
           },
           "regions": {
             "default": [],

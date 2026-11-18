@@ -703,6 +703,7 @@ def features(draw: st.DrawFn) -> rg.Feature:
     force = kind in rg.AT_ONE_PLACE
     places = draw(st.lists(entity_ids, min_size=1 if force else 2, max_size=1 if force else 3))
     moving = force and draw(st.booleans())
+    stepping = moving and draw(st.booleans())
     as_of = draw(in_world_dates)
     return rg.Feature(
         feature_id=draw(feature_ids),
@@ -720,6 +721,8 @@ def features(draw: st.DrawFn) -> rg.Feature:
         detached_from=draw(st.none() | feature_ids) if force else None,
         rejoined_on=draw(st.none() | in_world_dates) if force else None,
         piece=draw(labels) if kind is rg.FeatureKind.PIECE else None,
+        path=tuple(draw(st.lists(entity_ids, min_size=1, max_size=3))) if stepping else (),
+        step_due=as_of if stepping else None,
     )
 
 
@@ -809,6 +812,23 @@ world_maps = st.builds(
     adjacency=st.lists(
         st.builds(tm.Link, a=entity_ids, b=entity_ids, crossing=st.none() | labels), max_size=3
     ).map(tuple),
+    ports=st.lists(
+        st.builds(tm.Port, place=entity_ids, land=entity_ids, sea=entity_ids), max_size=2
+    ).map(tuple),
+    bases=st.lists(
+        st.builds(
+            tm.Base,
+            place=entity_ids,
+            land=st.none() | entity_ids,
+            sea=st.none() | entity_ids,
+            sides=st.lists(entity_ids, min_size=1, max_size=2).map(tuple),
+            domains=st.lists(st.sampled_from(["land", "sea", "air"]), min_size=1, max_size=3).map(
+                lambda d: tuple(dict.fromkeys(d))
+            ),
+        ),
+        max_size=2,
+    ).map(tuple),
+    lift_pools=st.dictionaries(entity_ids, quantity_ids, max_size=2),
 )
 
 
@@ -857,6 +877,15 @@ realism_payloads = st.one_of(
         topics=st.lists(topics, max_size=2).map(tuple),
     ),
     st.builds(ev.FeatureSet, feature=features()),
+    st.builds(
+        ev.PieceStepped,
+        mark=labels,
+        nation=entity_ids,
+        left=entity_ids,
+        entered=entity_ids,
+        on=in_world_dates,
+        cause=st.sampled_from(tm.StepCause),
+    ),
     documents_issued(),
     st.builds(ev.DocumentWritten, doc_id=document_ids, prose=st.text(min_size=1, max_size=400)),
     st.builds(ev.DocumentRead, seat_id=seat_ids, doc_id=document_ids),

@@ -14,6 +14,7 @@ from revisionist.core import record
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId, EntityId, EventId, OrderId, SeatId, derived_id
 from revisionist.core.ontology import Controller, Phase
+from revisionist.core.realism import battle
 from revisionist.core.realism.agenda import STANDING_DEFAULT, Ask
 from revisionist.core.realism.effect import IRREVERSIBLE, Deal
 from revisionist.core.state import State, controller_after, seat_of_person
@@ -201,17 +202,22 @@ def leave(store: EventStore, campaign_id: CampaignId, seat: SeatId, now: datetim
 
 def _allowed(state: State, seat: SeatId, order: tuple[Ask, ...]) -> tuple[Ask, ...]:
     """The aide never takes an irreversible step without a standing order naming it,
-    and never makes or accepts a deal: a deal is the seat's own to strike."""
+    never makes or accepts a deal (a deal is the seat's own to strike), and in a battle
+    game never presses, withdraws or changes a contingency (BDC rule 8)."""
     standing = state.standing.get(seat, STANDING_DEFAULT)
-    return tuple(
-        a
-        for a in order
-        if a.effect is None
-        or (
-            not isinstance(a.effect, Deal)
-            and (a.effect.kind not in IRREVERSIBLE or a.effect.kind in standing)
-        )
-    )
+    out: list[Ask] = []
+    for a in order:
+        if a.effect is None:
+            out.append(a)
+            continue
+        if isinstance(a.effect, Deal):
+            continue
+        if a.effect.kind in IRREVERSIBLE and a.effect.kind not in standing:
+            continue
+        kept = battle.aide_may(state, a.effect)
+        if kept is not None:
+            out.append(a if kept is a.effect else a.model_copy(update={"effect": kept}))
+    return tuple(out)
 
 
 def close_wake(

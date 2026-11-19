@@ -98,12 +98,57 @@ class MoveForce(Model):
         return self
 
 
+class ContingencyKind(StrEnum):
+    """What a force does in a battle with no decision from its seat (BDC)."""
+
+    HOLD = "hold"
+    """Hold, and go back only when its side breaks (the default)."""
+    HOLD_FAST = "hold_fast"
+    """Hold at all costs: never forced back."""
+    FALL_BACK = "fall_back"
+    """Fall back to ``to`` when the enemy in contact is ``OUTNUMBERED`` times its side."""
+    WITHDRAW_BELOW = "withdraw_below"
+    """Withdraw when its strength falls below ``below``: to ``to``, else as a broken side."""
+
+
+class Contingency(Model):
+    """A force's standing order for a battle, set through the engagement effect (BDC)."""
+
+    kind: ContingencyKind
+    to: EntityId | None = None
+    """The adjacent area it goes to: required to fall back, optional to withdraw."""
+    below: int | None = Field(default=None, ge=1, le=5)
+    """Withdraw below: the strength under which it leaves."""
+
+    @model_validator(mode="after")
+    def _shape(self) -> "Contingency":
+        named = {
+            ContingencyKind.HOLD: (False, False),
+            ContingencyKind.HOLD_FAST: (False, False),
+            ContingencyKind.FALL_BACK: (True, False),
+            ContingencyKind.WITHDRAW_BELOW: (None, True),
+        }[self.kind]
+        to, below = named
+        if to is not None and (self.to is not None) != to:
+            raise ValueError(f"a {self.kind.value} contingency {'names' if to else 'has no'} area")
+        if (self.below is not None) != below:
+            raise ValueError(
+                f"a {self.kind.value} contingency {'names' if below else 'has no'} figure"
+            )
+        return self
+
+
 class SetEngagement(Model):
     kind: Literal["engagement"] = "engagement"
     force: FeatureId | None = None
     """None: every force under the seat's command in the zone."""
     zone: Label
     rule: Engagement
+    contingency: Contingency | None = None
+    """With ``battles`` on: the force's contingency for a battle (BDC). None leaves it as
+    it was; an order that only sets a contingency passes the force's current rule."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"contingency"})
 
 
 class Allocate(Model):
@@ -409,6 +454,8 @@ __all__ = [
     "Appointment",
     "Clause",
     "ClauseKind",
+    "Contingency",
+    "ContingencyKind",
     "Deal",
     "Disclosure",
     "Effect",

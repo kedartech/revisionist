@@ -111,6 +111,12 @@ def test_a_pieces_steps_are_fed_and_feature_set_never_is() -> None:
     assert "feature_set" in catchup.NEVER
 
 
+def test_a_battle_decision_is_never_fed() -> None:
+    # BDC: the decision is the seat's own order, already fed; a join carries the true
+    # strength a side brought.
+    assert "battle_decided" in catchup.NEVER
+
+
 # --- The fog path ------------------------------------------------------------------
 
 

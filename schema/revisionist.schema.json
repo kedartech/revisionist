@@ -1217,6 +1217,18 @@
           "attacker": {
             "$ref": "#/$defs/BattleSide"
           },
+          "attacker_in": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attacker In"
+          },
           "came_from": {
             "additionalProperties": {
               "type": "string"
@@ -1226,6 +1238,11 @@
           },
           "defender": {
             "$ref": "#/$defs/BattleSide"
+          },
+          "meeting": {
+            "default": false,
+            "title": "Meeting",
+            "type": "boolean"
           },
           "opened": {
             "format": "date",
@@ -1250,6 +1267,18 @@
             "minimum": 0,
             "title": "Rounds",
             "type": "integer"
+          },
+          "second": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Second"
           }
         },
         "required": [
@@ -1259,6 +1288,76 @@
           "defender"
         ],
         "title": "Battle",
+        "type": "object"
+      },
+      "BattleDecided": {
+        "additionalProperties": false,
+        "description": "A side's decision for a battle, or pieces that joined it (BDC). With ``decision``,\nthe side's decision in force from ``on``, given in wake ``wake``; with ``joined``, the\npieces that stepped in and joined the side, bringing ``added`` strength. Engine only:\na seat's own order is fed to it already, and a join carries the true strength.",
+        "properties": {
+          "added": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Added",
+            "type": "integer"
+          },
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Decision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "joined": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Joined",
+            "type": "array"
+          },
+          "kind": {
+            "const": "battle_decided",
+            "default": "battle_decided",
+            "title": "Kind",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "wake": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Wake"
+          }
+        },
+        "required": [
+          "area",
+          "nation",
+          "on"
+        ],
+        "title": "BattleDecided",
         "type": "object"
       },
       "BattleEnded": {
@@ -1399,12 +1498,36 @@
       },
       "BattleSide": {
         "additionalProperties": false,
-        "description": "One side of a battle: its leading nation, the pieces it brought (in id order), the\nstrength they brought and the steps they have lost.",
+        "description": "One side of a battle: its leading nation, the pieces it brought (in id order), the\nstrength they brought and the steps they have lost; the decision in force and the wake\nit was given (BDC).",
         "properties": {
           "brought": {
             "minimum": 1,
             "title": "Brought",
             "type": "integer"
+          },
+          "decided_wake": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Decided Wake"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Decision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "lost": {
             "default": 0,
@@ -2869,6 +2992,57 @@
         "title": "ContestMoved",
         "type": "object"
       },
+      "Contingency": {
+        "additionalProperties": false,
+        "description": "A force's standing order for a battle, set through the engagement effect (BDC).",
+        "properties": {
+          "below": {
+            "anyOf": [
+              {
+                "maximum": 5,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Below"
+          },
+          "kind": {
+            "$ref": "#/$defs/ContingencyKind"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "Contingency",
+        "type": "object"
+      },
+      "ContingencyKind": {
+        "description": "What a force does in a battle with no decision from its seat (BDC).",
+        "enum": [
+          "hold",
+          "hold_fast",
+          "fall_back",
+          "withdraw_below"
+        ],
+        "title": "ContingencyKind",
+        "type": "string"
+      },
       "Controller": {
         "enum": [
           "human",
@@ -3047,6 +3221,16 @@
         ],
         "title": "Deal",
         "type": "object"
+      },
+      "Decision": {
+        "description": "A side's decision for its battle (BDC). Reinforce is a move order, not stored.",
+        "enum": [
+          "press",
+          "hold",
+          "withdraw"
+        ],
+        "title": "Decision",
+        "type": "string"
       },
       "DeltaApplied": {
         "additionalProperties": false,
@@ -4486,6 +4670,17 @@
             ],
             "default": null,
             "title": "Bound For"
+          },
+          "contingency": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Contingency"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "detached_from": {
             "anyOf": [
@@ -9252,6 +9447,17 @@
       "SetEngagement": {
         "additionalProperties": false,
         "properties": {
+          "contingency": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Contingency"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "force": {
             "anyOf": [
               {
@@ -11050,6 +11256,7 @@
             "answer_planned": "#/$defs/AnswerPlanned",
             "area_held": "#/$defs/AreaHeld",
             "asset_created": "#/$defs/AssetCreated",
+            "battle_decided": "#/$defs/BattleDecided",
             "battle_ended": "#/$defs/BattleEnded",
             "battle_opened": "#/$defs/BattleOpened",
             "battle_round": "#/$defs/BattleRound",
@@ -11367,6 +11574,9 @@
           },
           {
             "$ref": "#/$defs/BattleEnded"
+          },
+          {
+            "$ref": "#/$defs/BattleDecided"
           },
           {
             "$ref": "#/$defs/NewsReported"
@@ -12287,6 +12497,18 @@
           "attacker": {
             "$ref": "#/$defs/BattleSide"
           },
+          "attacker_in": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Attacker In"
+          },
           "came_from": {
             "additionalProperties": {
               "type": "string"
@@ -12296,6 +12518,11 @@
           },
           "defender": {
             "$ref": "#/$defs/BattleSide"
+          },
+          "meeting": {
+            "default": false,
+            "title": "Meeting",
+            "type": "boolean"
           },
           "opened": {
             "format": "date",
@@ -12320,6 +12547,18 @@
             "minimum": 0,
             "title": "Rounds",
             "type": "integer"
+          },
+          "second": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Second"
           }
         },
         "required": [
@@ -12333,12 +12572,36 @@
       },
       "BattleSide": {
         "additionalProperties": false,
-        "description": "One side of a battle: its leading nation, the pieces it brought (in id order), the\nstrength they brought and the steps they have lost.",
+        "description": "One side of a battle: its leading nation, the pieces it brought (in id order), the\nstrength they brought and the steps they have lost; the decision in force and the wake\nit was given (BDC).",
         "properties": {
           "brought": {
             "minimum": 1,
             "title": "Brought",
             "type": "integer"
+          },
+          "decided_wake": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Decided Wake"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Decision"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "lost": {
             "default": 0,
@@ -12970,6 +13233,57 @@
         "title": "ContestKind",
         "type": "string"
       },
+      "Contingency": {
+        "additionalProperties": false,
+        "description": "A force's standing order for a battle, set through the engagement effect (BDC).",
+        "properties": {
+          "below": {
+            "anyOf": [
+              {
+                "maximum": 5,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Below"
+          },
+          "kind": {
+            "$ref": "#/$defs/ContingencyKind"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "Contingency",
+        "type": "object"
+      },
+      "ContingencyKind": {
+        "description": "What a force does in a battle with no decision from its seat (BDC).",
+        "enum": [
+          "hold",
+          "hold_fast",
+          "fall_back",
+          "withdraw_below"
+        ],
+        "title": "ContingencyKind",
+        "type": "string"
+      },
       "Controller": {
         "enum": [
           "human",
@@ -13048,6 +13362,16 @@
         ],
         "title": "Deal",
         "type": "object"
+      },
+      "Decision": {
+        "description": "A side's decision for its battle (BDC). Reinforce is a move order, not stored.",
+        "enum": [
+          "press",
+          "hold",
+          "withdraw"
+        ],
+        "title": "Decision",
+        "type": "string"
       },
       "DevelopmentCategory": {
         "enum": [
@@ -13628,6 +13952,17 @@
             ],
             "default": null,
             "title": "Bound For"
+          },
+          "contingency": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Contingency"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "detached_from": {
             "anyOf": [
@@ -16838,6 +17173,17 @@
       "SetEngagement": {
         "additionalProperties": false,
         "properties": {
+          "contingency": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Contingency"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "force": {
             "anyOf": [
               {
@@ -19434,6 +19780,57 @@
           "trial"
         ],
         "title": "ContestKind",
+        "type": "string"
+      },
+      "Contingency": {
+        "additionalProperties": false,
+        "description": "A force's standing order for a battle, set through the engagement effect (BDC).",
+        "properties": {
+          "below": {
+            "anyOf": [
+              {
+                "maximum": 5,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Below"
+          },
+          "kind": {
+            "$ref": "#/$defs/ContingencyKind"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "Contingency",
+        "type": "object"
+      },
+      "ContingencyKind": {
+        "description": "What a force does in a battle with no decision from its seat (BDC).",
+        "enum": [
+          "hold",
+          "hold_fast",
+          "fall_back",
+          "withdraw_below"
+        ],
+        "title": "ContingencyKind",
         "type": "string"
       },
       "Controller": {
@@ -22476,6 +22873,17 @@
       "SetEngagement": {
         "additionalProperties": false,
         "properties": {
+          "contingency": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Contingency"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "force": {
             "anyOf": [
               {

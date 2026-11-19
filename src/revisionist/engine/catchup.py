@@ -138,6 +138,9 @@ NEVER: frozenset[str] = frozenset(
         "battle_opened",
         "battle_round",
         "battle_ended",
+        # A side's decision and the pieces that join it (BDC): the decision is the seat's
+        # own order, already fed; a join carries the true strength brought.
+        "battle_decided",
         "scheduled_event_created",
         "scheduled_event_skipped",
         # Costs, ticks and admin.

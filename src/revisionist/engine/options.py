@@ -8,7 +8,7 @@ have typed. The generator reads only the seat's projected ``View``.
 
 import json
 import logging
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from datetime import date
 from typing import Any
 
@@ -22,6 +22,7 @@ from revisionist.core.goals import Ordered, leaves
 from revisionist.core.ids import CampaignId, EntityId, FeatureId, SeatId
 from revisionist.core.ontology import Controller, EntityKind, ScheduleSource
 from revisionist.core.project import project
+from revisionist.core.realism import battle
 from revisionist.core.realism.agenda import (
     Ask,
     Mandate,
@@ -621,10 +622,25 @@ def _wants_a_deal(mandate: Mandate) -> bool:
     )
 
 
+def _battle_safe(state: State, asks: Sequence[Ask]) -> tuple[Ask, ...]:
+    """The asks with what the aide may not file in a battle game taken out (BDC rule 8):
+    no attack or withdraw posture, no move out of a battle, no change of contingency."""
+    out: list[Ask] = []
+    for a in asks:
+        if a.effect is None:
+            out.append(a)
+            continue
+        kept = battle.aide_may(state, a.effect)
+        if kept is not None:
+            out.append(a if kept is a.effect else a.model_copy(update={"effect": kept}))
+    return tuple(out)
+
+
 def aide_asks(state: State, seat: SeatId, transport: Transport | None) -> list[tuple[Ask, ...]]:
     """The orders an aide files for an absent seat, one per live mandate: its first
     beginner option, less any irreversible ask the seat has not put in a standing order,
-    and less any deal. A mandate a deal would meet is skipped, so the opening lapses."""
+    less any deal, and in a battle game less any press, withdrawal or contingency. A
+    mandate a deal would meet is skipped, so the opening lapses."""
     global last_cost
     last_cost = None
     if seat not in state.seats:
@@ -640,7 +656,7 @@ def aide_asks(state: State, seat: SeatId, transport: Transport | None) -> list[t
             continue
         asks = tuple(
             a
-            for a in options[0].asks
+            for a in _battle_safe(state, options[0].asks)
             if not isinstance(a.effect, Deal)
             and (
                 a.effect is None

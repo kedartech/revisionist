@@ -424,6 +424,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.BattleOpened()
             | ev.BattleRound()
             | ev.BattleEnded()
+            | ev.BattleDecided()
             | ev.NewsReported()
             | ev.StanceChanged()
             | ev.OpponentsRanked()
@@ -480,6 +481,37 @@ def _battle_opened(state: State, p: ev.BattleOpened) -> State:
     if not at_war(state, b.attacker.nation, b.defender.nation):
         raise FoldError("battle_opened: the two sides are not at war")
     return state.model_copy(update={"battles": _put(state.battles, b.area, b)})
+
+
+def _battle_decided(state: State, p: ev.BattleDecided) -> State:
+    """A side's decision, or pieces joining it (BDC): the battle is open, the nation leads
+    one of its sides, no second decision in one wake, and each piece that joins is a piece
+    of the game on neither side yet."""
+    fought = _open_battle(state, p.area, p.on, "battle_decided")
+    if p.nation == fought.attacker.nation:
+        which = "attacker"
+    elif p.nation == fought.defender.nation:
+        which = "defender"
+    else:
+        raise FoldError(f"battle_decided: {p.nation} leads no side at {p.area}")
+    side = getattr(fought, which)
+    update: dict[str, object] = {}
+    if p.decision is not None:
+        if side.decided_wake == p.wake:
+            raise FoldError(f"battle_decided: {p.nation} has decided in wake {p.wake}")
+        update |= {"decision": p.decision, "decided_wake": p.wake}
+    if p.joined:
+        ours = {*fought.attacker.pieces, *fought.defender.pieces}
+        for fid in p.joined:
+            _need(state.features, fid, "feature")
+            if fid in ours:
+                raise FoldError(f"battle_decided: {fid} is already in the battle")
+        update |= {
+            "pieces": tuple(sorted((*side.pieces, *p.joined))),
+            "brought": side.brought + p.added,
+        }
+    fought = fought.model_copy(update={which: side.model_copy(update=update)})
+    return state.model_copy(update={"battles": _put(state.battles, p.area, fought)})
 
 
 def _open_battle(state: State, area: EntityId, on: date, what: str) -> Battle:
@@ -726,6 +758,8 @@ def _realism(state: State, p: ev.Payload) -> State:
                 }
             )
             return state.model_copy(update={"battles": _put(state.battles, p.area, fought)})
+        case ev.BattleDecided():
+            return _battle_decided(state, p)
         case ev.BattleEnded():
             fought = _open_battle(state, p.area, p.on, "battle_ended")
             if p.winner not in (fought.attacker.nation, fought.defender.nation):

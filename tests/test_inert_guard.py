@@ -65,5 +65,7 @@ def test_the_guard_names_every_effect_kind() -> None:
 
 
 def test_every_resolver_key_has_an_order_and_a_day_rule() -> None:
-    """A resolver key with no function on either path would accept orders and do nothing."""
-    assert set(ON_ORDER) == set(RESOLVER_KEYS) == set(ON_DAY)
+    """A resolver key with no function on either path would accept orders and do nothing.
+    A name added for forms ahead of its function (YLD's ``economy``) has neither, and a
+    world naming it is refused (``tests/test_economy.py``)."""
+    assert set(ON_ORDER) == set(ON_DAY) <= set(RESOLVER_KEYS)

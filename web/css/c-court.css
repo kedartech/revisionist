@@ -27,6 +27,11 @@ button.rl-court-sq { cursor: pointer; }
 .rl-court-tok { font-size: 12px; font-weight: 600; color: var(--accent); }
 .rl-court-tok::before { content: "● "; }
 
+.rl-court-load { display: grid; gap: 2px; font-size: 12px; color: var(--fg-muted); }
+.rl-court-pips { display: flex; flex-wrap: wrap; gap: 3px; }
+.rl-court-pip { width: 6px; height: 6px; border: 1px solid currentColor; border-radius: 50%; }
+.rl-court-pip.on { background: currentColor; }
+
 .rl-court-ring { display: grid; gap: var(--space-2); }
 .rl-court-bloc { min-width: 0; }
 .rl-court-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }

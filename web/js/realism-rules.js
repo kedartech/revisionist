@@ -636,3 +636,74 @@ export function frontLine(area, areas) {
   const foes = (area.neighbours ?? []).map((k) => by.get(k)).filter((n) => n && isFront(area, n));
   return foes.length ? `On the front with ${foes.map((n) => n.name).join(', ')}` : '';
 }
+
+// --- pick up and put down -----------------------------------------------------------
+
+/** `iso` (a world date) `n` days on. */
+export function addDays(iso, n) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
+/**
+ * The form that moves the seat's own piece `mark` on a territory map: the first whose force
+ * list names it (as `formsMoving` matches a name) and that has a destination. `{ lever, force }`,
+ * or null for a foreign mark or one no form moves.
+ */
+export function pieceForm(levers, mark) {
+  if (mark?.side !== 'own' || !mark.piece) return null;
+  for (const lever of levers ?? []) {
+    const param = lever.params.find((p) => p.name === 'force' && p.kind === 'enum');
+    if (!param || !lever.params.some((p) => p.name === 'to')) continue;
+    const named = param.choices.find((c) => c.label === mark.name)
+      ?? param.choices.find((c) => {
+        const words = choiceName(c.label);
+        return mark.name === words || mark.name.endsWith(` ${words}`);
+      });
+    if (named) return { lever, force: named.value };
+  }
+  return null;
+}
+
+/** The area keys form `lever` can send a piece to: its destination's choices. */
+export const formAreas = (lever) => new Set((lever.params.find((p) => p.name === 'to')?.choices ?? []).map((c) => c.value));
+
+/** Whether point `xy` (map file units) lies in area `key` of `shapes`: inside an odd number of its rings. */
+export function inArea(shapes, key, [x, y]) {
+  const rings = shapes?.areas?.[key]?.rings ?? [];
+  let inside = false;
+  for (const ring of rings) {
+    const pts = ring.map((i) => shapes.vertices[i]);
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i, i += 1) {
+      const [xi, yi] = pts[i];
+      const [xj, yj] = pts[j];
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+  }
+  return inside;
+}
+
+/**
+ * The day a move arrives: `today`, then the days the order's court path states (`steps`), then
+ * the move's own `days`. `{ on, earliest }`: earliest when a step states no time or the path is
+ * not known, so the day is the soonest it can be.
+ */
+export function arrival(today, steps, days) {
+  const stated = (steps ?? []).reduce((n, s) => n + (Number.isFinite(s.days) ? s.days : 0), 0);
+  const earliest = !steps || steps.some((s) => !Number.isFinite(s.days));
+  return { on: addDays(today, stated + days), earliest };
+}
+
+/** Each nation the seat's data names with its standing to the seat (own, ally, enemy, neutral), by name. */
+export function standings(rv) {
+  const out = new Map();
+  for (const f of rv?.economy?.figures ?? []) if (f.nation?.name) out.set(f.nation.name, f.nation.relation);
+  for (const a of rv?.map?.areas ?? []) if (a.holder?.name) out.set(a.holder.name, a.holder.relation);
+  return out;
+}
+
+/** The marks the seat has a report of, of a nation its data names as an enemy, standing in area `key`. */
+export function reportedEnemies(map, shapes, key, standing) {
+  return (map.marks ?? []).filter((m) => m.side === 'other' && standing.get(m.side_name) === 'enemy'
+    && m.places?.length === 1 && inArea(shapes, key, [m.places[0].lon, m.places[0].lat]));
+}

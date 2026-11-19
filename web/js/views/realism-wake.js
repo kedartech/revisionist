@@ -58,7 +58,7 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
   'September', 'October', 'November', 'December'];
 
 /** A world day as "26 October 1941" or "1941-10-26" to a sortable number; null for anything else. */
-function dayKey(day) {
+export function dayKey(day) {
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day ?? '');
   if (iso) return Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
   const words = /^(\d{1,2}) ([A-Z][a-z]+) (\d{4})$/.exec(day ?? '');

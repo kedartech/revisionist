@@ -1,0 +1,45 @@
+/* "What needs you" (realism-needs.js) in the map-first room: a rail beside the map from 1024 px;
+   below it the Needs button in a bottom bar opens the list as a half sheet from the bottom, the
+   same frame as the room's other sheets (c-sheets.css). An urgent line carries an amber edge and
+   its due day in words, never the colour alone. Tokens only. */
+.rl-needs { display: none; flex-direction: column; background: var(--surface); color: var(--fg-strong); font: 14px/1.45 var(--font-chrome); }
+.rl-needs-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--surface-2); border-bottom: 1px solid var(--rule); }
+.rl-needs-head h2 { flex: 1; margin: 0; display: flex; align-items: center; gap: var(--space-2); font: 600 13px/1.3 var(--font-head); text-transform: uppercase; letter-spacing: .08em; color: var(--fg-strong); }
+.rl-needs-head h2:focus { outline: none; }
+.rl-needs-head h2:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-needs-order { font: 500 11px/1.3 var(--font-code); text-transform: uppercase; letter-spacing: .08em; color: var(--fg-muted); }
+.rl-needs-close { min-height: 44px; min-width: 44px; }
+.rl-needs-lines { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+.rl-need { display: grid; gap: var(--space-1); padding: var(--space-3); border-bottom: 1px solid var(--rule); border-left: 3px solid transparent; }
+.rl-need.urgent { border-left-color: var(--warn); }
+.rl-need-top { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); margin: 0; }
+.rl-need-kind { padding: 0 var(--space-1); border: 1px solid var(--rule-strong); border-radius: var(--radius); font: 600 11px/1.6 var(--font-code); text-transform: uppercase; letter-spacing: .08em; color: var(--fg-muted); }
+.rl-need.urgent .rl-need-kind, .rl-need.urgent .rl-need-due { color: var(--warn); }
+.rl-need-due { font: 500 12px/1.3 var(--font-code); color: var(--fg-muted); text-align: right; }
+.rl-need-what { margin: 0; font-weight: 600; color: var(--fg-strong); }
+.rl-need-from { margin: 0; font-size: 13px; color: var(--fg-muted); }
+.rl-need-act { justify-self: start; min-height: 36px; }
+.rl-need-act:focus-visible, .rl-needs-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-needs-none { margin: 0; padding: var(--space-4) var(--space-3); color: var(--fg-muted); }
+.rl-needs-done { display: grid; gap: var(--space-2); padding: var(--space-3); border-top: 1px solid var(--rule); background: var(--surface-2); }
+.rl-needs-done .hint { margin: 0; font-size: 13px; color: var(--fg-muted); }
+.rl-needs-done .btn-1 { justify-self: start; }
+.rl-needs-isdone { font-weight: 600; color: var(--fg-strong); }
+
+.rl-needsbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 47; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--surface-2); border-top: 1px solid var(--rule-strong); }
+.rl-needs-btn { min-height: 44px; display: inline-flex; align-items: center; gap: var(--space-1); }
+.rl-needsbar .btn-1, .rl-needsbar .rl-needs-isdone { margin-left: auto; min-height: 44px; }
+
+@media (max-width: 1023px) {
+  .rl-needs.open { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 48; max-height: 50vh; border: 1px solid var(--rule-strong); border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; box-shadow: 0 -8px 30px var(--backdrop); }
+  /* Done for today sits in the bottom bar on a phone; the strip keeps the day and the count */
+  .rl-layout-map .rl-strip .btn-1 { display: none; }
+  .rl-mapfirst .rl-mapfirst-map { padding-bottom: calc(44px + var(--space-5)); }
+  .rl-needs-done .hint { display: none; }
+}
+
+@media (min-width: 1024px) {
+  .rl-needs { display: flex; flex: none; width: 300px; min-height: 0; overflow: hidden; border-right: 1px solid var(--rule-strong); }
+  .rl-needs-close { display: none; }
+  .rl-needsbar { display: none; }
+}

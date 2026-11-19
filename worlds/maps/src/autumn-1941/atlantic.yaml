@@ -7,11 +7,11 @@
 #   python scripts/map_build.py build worlds/maps/src/autumn-1941/eastern-front.yaml \
 #     worlds/maps/src/autumn-1941/europe.yaml worlds/maps/src/autumn-1941/atlantic.yaml --slug autumn-1941
 #
-# The box. This region widens the map's box west to -126 and south to 10, to take in North America
-# and the Caribbean; the box is the same in this file and in the Europe file (the build refuses a
-# disagreement). Land and water in the box that no recipe claims (western Canada, Mexico, the Pacific
-# shore, the Faroes, Bermuda and the Lesser Antilles, the Mediterranean and North Africa, the open
-# Atlantic outside the zones) are the backdrop until a later region claims them.
+# The box. The map's box reaches west to -126 to take in North America and the Caribbean (the Pacific
+# file gives its other edges); the box is the same in every recipe file that gives one (the build
+# refuses a disagreement). Land and water in the box that no recipe claims (western Canada, Mexico, the
+# Pacific shore, the Faroes, Bermuda and the Lesser Antilles, the Mediterranean and North Africa, the
+# open Atlantic outside the zones) are the backdrop until a later region claims them.
 #
 # Cut lines. None. The land territories are whole countries or lists of states and provinces, and no
 # 1941 border here runs through a present-day province: Newfoundland was its own dominion under
@@ -40,7 +40,7 @@
 # at 53.41 N, 2.99 W, 47.31 N, 53.98 W and 58.97 N, 3.13 W would lie on land, listed for Josh and
 # for the item that edits the world's places.
 map:
-  box: [-126, 10, 52, 71.5]
+  box: [-126, -11.5, 234, 71.5]
 regions:
   - {key: atlantic, name: The Atlantic}
 territories:

@@ -64,7 +64,7 @@
 # the waters west of Britain and Ireland and the open Atlantic are left for the Atlantic's zones,
 # which join the North Sea and the Bay of Biscay; the Mediterranean is left for its own region.
 map:
-  box: [-126, 10, 52, 71.5]
+  box: [-126, -11.5, 234, 71.5]
 regions:
   - {key: europe, name: Europe}
 territories:

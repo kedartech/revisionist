@@ -1,0 +1,137 @@
+# The scoped check's staging world for the 1941 map's fifth region (China, Japan and the Pacific):
+#   python scripts/map_check.py check --region worlds/maps/src/autumn-1941/pacific.world.yaml
+# It extends the Mediterranean region's staging world, which extends the Atlantic's, Europe's and the
+# pilot's, so the check reads all five: the map block here is the newest, the territories, sea zones,
+# adjacency and sites in scope are the five files' lists joined. Its blocks are the build's world fragment
+# (worlds/maps/autumn-1941.world.yaml) as built, this region's areas and every adjacency pair that names
+# one of them; the earlier files keep the pairs inside their own regions. The sites in scope are the
+# world's five places in the region (Tokyo, Kure, Hitokappu Bay, Pearl Harbor and Chungking, coordinates
+# unchanged) and two new ones, Changsha and Wuhan, entered here and in pacific.places.yaml, which
+# `places_of` names in place of the world file (the world file is not edited by this item). Rebuild the
+# map, then copy the fragment's blocks into the five staging worlds; the test pins the hash.
+#
+# Pearl Harbor is at -158 as the world writes it; the map draws Hawaii a whole turn east, near 202, and the
+# checker reads the place there (worlds/maps/README.md).
+extends: mediterranean.world.yaml
+places_of: pacific.places.yaml
+map: {coords: lonlat, file: autumn-1941.json, sha256: f770cde38f1fd71b3dce6000c04bb238062d421f7161565fce9abd409f8c57bc, box: [-126, -11.5, 234, 71.5]}
+regions:
+  - {key: pacific, name: China, Japan and the Pacific}
+territories:
+  - {key: japan_east, name: Japan East, region: pacific, terrain: mountain, sites: [tokyo, hitokappu_bay]}
+  - {key: japan_west, name: Japan West, region: pacific, terrain: mountain, sites: [kure]}
+  - {key: formosa, name: Formosa, region: pacific, terrain: mountain}
+  - {key: korea, name: Korea, region: pacific, terrain: mountain}
+  - {key: manchuria, name: Manchuria, region: pacific, terrain: plain}
+  - {key: north_china, name: Occupied North China, region: pacific, terrain: plain}
+  - {key: wuhan, name: The Wuhan Area and the Lower Yangtze, region: pacific, terrain: plain, sites: [wuhan]}
+  - {key: hunan, name: Hunan and Kiangsi, region: pacific, terrain: mountain, sites: [changsha]}
+  - {key: szechwan, name: Szechwan and the Southwest, region: pacific, terrain: mountain, sites: [chungking]}
+  - {key: northwest_china, name: The Northwest and Loyang, region: pacific, terrain: mountain}
+  - {key: south_china, name: Free South China, region: pacific, terrain: mountain}
+  - {key: south_china_coast, name: The South China Coast, region: pacific, terrain: plain}
+  - {key: hong_kong, name: Hong Kong, region: pacific, terrain: mountain}
+  - {key: indochina, name: French Indochina, region: pacific, terrain: forest}
+  - {key: thailand, name: Thailand, region: pacific, terrain: plain}
+  - {key: malaya, name: Malaya and British Borneo, region: pacific, terrain: forest}
+  - {key: burma, name: Burma, region: pacific, terrain: forest}
+  - {key: dutch_east_indies, name: The Dutch East Indies, region: pacific, terrain: forest}
+  - {key: philippines, name: The Philippines, region: pacific, terrain: forest}
+  - {key: hawaii, name: Hawaii, region: pacific, terrain: mountain, sites: [pearl_harbor_base]}
+  - {key: soviet_far_east, name: The Soviet Far East, region: pacific, terrain: forest}
+sea_zones:
+  - {key: sea_of_japan, name: The Sea of Japan, region: pacific, terrain: sea}
+  - {key: east_china_sea, name: The East China Sea and the Yellow Sea, region: pacific, terrain: sea}
+  - {key: south_china_sea, name: The South China Sea, region: pacific, terrain: sea}
+  - {key: andaman_sea, name: The Andaman Sea and the Strait of Malacca, region: pacific, terrain: sea}
+  - {key: java_sea, name: The Java Sea and the Seas of the Indies, region: pacific, terrain: sea}
+  - {key: philippine_sea, name: The Philippine Sea, region: pacific, terrain: sea}
+  - {key: north_pacific, name: The North Pacific, region: pacific, terrain: sea}
+  - {key: central_pacific, name: The Central Pacific, region: pacific, terrain: sea}
+  - {key: eastern_pacific, name: The Eastern Pacific, region: pacific, terrain: sea}
+adjacency:
+  - [andaman_sea, burma]
+  - [andaman_sea, dutch_east_indies]
+  - [andaman_sea, malaya]
+  - [andaman_sea, south_china_sea]
+  - [andaman_sea, thailand]
+  - [burma, indochina]
+  - [burma, szechwan]
+  - [burma, thailand]
+  - [central_pacific, eastern_pacific]
+  - [central_pacific, hawaii]
+  - [central_pacific, japan_east]
+  - [central_pacific, north_pacific]
+  - [central_pacific, philippine_sea]
+  - [dutch_east_indies, java_sea]
+  - [dutch_east_indies, malaya]
+  - [dutch_east_indies, philippine_sea]
+  - [dutch_east_indies, south_china_sea]
+  - [east_china_sea, formosa]
+  - [east_china_sea, japan_west]
+  - [east_china_sea, korea]
+  - [east_china_sea, manchuria]
+  - [east_china_sea, north_china]
+  - [east_china_sea, philippine_sea]
+  - [east_china_sea, sea_of_japan]
+  - [east_china_sea, south_china]
+  - [east_china_sea, south_china_sea]
+  - [east_china_sea, wuhan]
+  - [eastern_pacific, north_pacific]
+  - [formosa, philippine_sea]
+  - [formosa, south_china_sea]
+  - [hong_kong, south_china_coast]
+  - [hong_kong, south_china_sea]
+  - [hunan, south_china]
+  - [hunan, szechwan]
+  - [hunan, wuhan]
+  - [indochina, south_china]
+  - [indochina, south_china_sea]
+  - [indochina, szechwan]
+  - [indochina, thailand]
+  - [japan_east, japan_west]
+  - [japan_east, north_pacific]
+  - [japan_east, philippine_sea]
+  - [japan_east, sea_of_japan]
+  - [japan_east, soviet_far_east]
+  - [japan_west, philippine_sea]
+  - [japan_west, sea_of_japan]
+  - [java_sea, malaya]
+  - [java_sea, philippine_sea]
+  - [java_sea, philippines]
+  - [java_sea, south_china_sea]
+  - [korea, manchuria]
+  - [korea, sea_of_japan]
+  - [korea, soviet_far_east]
+  - [malaya, philippine_sea]
+  - [malaya, south_china_sea]
+  - [malaya, thailand]
+  - [manchuria, north_china]
+  - [manchuria, soviet_far_east]
+  - [north_china, northwest_china]
+  - [north_china, wuhan]
+  - [north_pacific, philippine_sea]
+  - [north_pacific, sea_of_japan]
+  - [north_pacific, soviet_far_east]
+  - [northwest_china, szechwan]
+  - [northwest_china, wuhan]
+  - [philippine_sea, philippines]
+  - [philippine_sea, south_china_sea]
+  - [philippines, south_china_sea]
+  - [sea_of_japan, soviet_far_east]
+  - [south_china, south_china_coast]
+  - [south_china, south_china_sea]
+  - [south_china, szechwan]
+  - [south_china, wuhan]
+  - [south_china_coast, south_china_sea]
+  - [south_china_sea, thailand]
+  - [szechwan, wuhan]
+  - {a: eastern_pacific, b: us_west, crossing: the box's seam at 126 W}
+entities:
+  - {key: tokyo, kind: location, name: Tokyo, at: [35.7, 139.7]}
+  - {key: kure, kind: location, name: Kure, at: [34.2, 132.6]}
+  - {key: hitokappu_bay, kind: location, name: Hitokappu Bay, at: [44.9, 147.6]}
+  - {key: pearl_harbor_base, kind: location, name: Pearl Harbor, at: [21.4, -158.0]}
+  - {key: chungking, kind: location, name: Chungking, at: [29.6, 106.6]}
+  - {key: changsha, kind: location, name: Changsha, at: [28.2, 112.97]}
+  - {key: wuhan, kind: location, name: Wuhan, at: [30.58, 114.27]}

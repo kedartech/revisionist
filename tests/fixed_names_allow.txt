@@ -56,12 +56,12 @@ src/revisionist/core/realism/resolvers/production.py | lend_lease_second_appropr
 src/revisionist/core/realism/resolvers/production.py | production_priority | until PRD
 src/revisionist/core/realism/resolvers/production.py | soviet_lend_lease_eligible | until PRD
 src/revisionist/core/realism/resolvers/production.py | ussr | until PRD
-src/revisionist/core/realism/resolvers/shipping.py | naval_order | until SHP
-src/revisionist/core/realism/resolvers/shipping.py | uboat_directive | until SHP
-src/revisionist/core/realism/resolvers/shipping.py | uboat_posture | until SHP
-src/revisionist/core/realism/resolvers/shipping.py | uboats_operational | until SHP
-src/revisionist/core/realism/resolvers/shipping.py | uk_sealift_grt | until SHP
-src/revisionist/core/realism/resolvers/shipping.py | us_atlantic_escort | until SHP
+src/revisionist/core/realism/resolvers/shipping.py | naval_order | stored games only
+src/revisionist/core/realism/resolvers/shipping.py | uboat_directive | stored games only
+src/revisionist/core/realism/resolvers/shipping.py | uboat_posture | stored games only
+src/revisionist/core/realism/resolvers/shipping.py | uboats_operational | stored games only
+src/revisionist/core/realism/resolvers/shipping.py | uk_sealift_grt | stored games only
+src/revisionist/core/realism/resolvers/shipping.py | us_atlantic_escort | stored games only
 src/revisionist/core/realism/resolvers/votes.py | Senate | until GVR
 src/revisionist/core/realism/resolvers/votes.py | arm_merchant_ships | until GVR
 src/revisionist/core/realism/resolvers/votes.py | draft_extension | until GVR
@@ -79,8 +79,8 @@ src/revisionist/core/realism/routing.py | germany | stored games only
 src/revisionist/core/realism/routing.py | north_atlantic | stored games only
 src/revisionist/core/realism/routing.py | uk | stored games only
 src/revisionist/core/realism/routing.py | usa | stored games only
-src/revisionist/core/realism/sealift.py | uk | until SHP
-src/revisionist/core/realism/sealift.py | uk_sealift_grt | until SHP
+src/revisionist/core/realism/sealift.py | uk | stored games only
+src/revisionist/core/realism/sealift.py | uk_sealift_grt | stored games only
 src/revisionist/core/realism/war_rules.py | declare_war | until EFD
 src/revisionist/core/realism/war_rules.py | detach_fleet | until EFD
 src/revisionist/core/realism/war_rules.py | uboat_directive | until SHP

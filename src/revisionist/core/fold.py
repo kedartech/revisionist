@@ -694,11 +694,17 @@ def _realism(state: State, p: ev.Payload) -> State:
                 update={"economy": state.economy.model_copy(update={"pools": pools})}
             )
         case ev.YieldChanged():
-            why = economy.refusal(state, p.area, p.to, p.resource, p.amount)
+            why = economy.refusal(
+                state, p.area, p.to, p.resource, p.amount, moved_on=p.on, restart=p.restart
+            )
             if why is not None:
                 raise FoldError(f"yield_changed: {why}")
             return state.model_copy(
-                update={"economy": economy.moved(state, p.area, p.to, p.resource, p.amount)}
+                update={
+                    "economy": economy.moved(
+                        state, p.area, p.to, p.resource, p.amount, restart=p.restart
+                    )
+                }
             )
         case ev.KindsDeclared():
             if state.kinds is not None:

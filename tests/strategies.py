@@ -931,6 +931,7 @@ realism_payloads = st.one_of(
         resource=labels,
         amount=st.floats(0, 100, allow_nan=False),
         on=in_world_dates,
+        restart=st.none() | in_world_dates,
     ),
     documents_issued(),
     st.builds(ev.DocumentWritten, doc_id=document_ids, prose=st.text(min_size=1, max_size=400)),

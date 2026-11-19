@@ -61,6 +61,7 @@ from revisionist.core.ontology import (
 )
 from revisionist.core.realism import agenda as ra
 from revisionist.core.realism import answer as rans
+from revisionist.core.realism import battle as rb
 from revisionist.core.realism import card as rc
 from revisionist.core.realism import document as rd
 from revisionist.core.realism import economy as econ
@@ -726,6 +727,7 @@ def features(draw: st.DrawFn) -> rg.Feature:
         piece=draw(labels) if kind is rg.FeatureKind.PIECE else None,
         path=tuple(draw(st.lists(entity_ids, min_size=1, max_size=3))) if stepping else (),
         step_due=as_of if stepping else None,
+        lost_on=draw(st.none() | in_world_dates) if kind is rg.FeatureKind.PIECE else None,
     )
 
 
@@ -772,6 +774,17 @@ def wars(draw: st.DrawFn) -> War:
 labels = st.text(min_size=1, max_size=20)
 sha256s = st.binary(min_size=1, max_size=8).map(lambda b: tm.file_hash(b))
 boxes = st.tuples(*[st.floats(-180, 180, allow_nan=False)] * 4)
+
+
+@st.composite
+def battle_sides(draw: st.DrawFn) -> rb.BattleSide:
+    pieces = draw(st.lists(feature_ids, min_size=1, max_size=3, unique=True))
+    return rb.BattleSide(
+        nation=draw(entity_ids),
+        pieces=tuple(pieces),
+        brought=draw(st.integers(1, 15)),
+        lost=draw(st.integers(0, 15)),
+    )
 
 
 @st.composite
@@ -947,6 +960,35 @@ realism_payloads = st.one_of(
             source=st.none() | labels,
         ),
         on=in_world_dates,
+    ),
+    st.builds(
+        ev.BattleOpened,
+        battle=st.builds(
+            rb.Battle,
+            area=entity_ids,
+            opened=in_world_dates,
+            attacker=battle_sides(),
+            defender=battle_sides(),
+            came_from=st.dictionaries(feature_ids, entity_ids, max_size=2),
+            rounds=st.integers(0, 30),
+            pressed_on=st.none() | in_world_dates,
+        ),
+        on=in_world_dates,
+    ),
+    st.builds(
+        ev.BattleRound,
+        area=entity_ids,
+        on=in_world_dates,
+        scores=st.tuples(st.integers(-1, 30), st.integers(-1, 30)),
+        draws=st.tuples(st.integers(0, 2), st.integers(0, 2)),
+        lost=st.tuples(st.integers(0, 2), st.integers(0, 2)),
+    ),
+    st.builds(
+        ev.BattleEnded,
+        area=entity_ids,
+        on=in_world_dates,
+        ending=st.sampled_from(list(rb.Ending)),
+        winner=entity_ids,
     ),
     st.builds(
         ev.StepRefused,

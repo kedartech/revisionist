@@ -222,7 +222,7 @@ def _in_contact(war: War, a: Feature, b: Feature) -> bool:
     )
 
 
-def _commanders(state: State, fid: FeatureId) -> list[tuple[SeatId, EntityId]]:
+def commanders(state: State, fid: FeatureId) -> list[tuple[SeatId, EntityId]]:
     """Each seat that commands the force, with the person who answers for it. A
     detachment answers to whoever commands the force it was detached from."""
     held = state.features.get(fid)
@@ -303,7 +303,7 @@ def contacts(state: State, day: date) -> list[ev.Payload]:
                 )
                 out.append(ev.NewsReported(news=news))
                 for mine, other in ((a, b), (b, a)):
-                    for seat, author in _commanders(state, mine.feature_id):
+                    for seat, author in commanders(state, mine.feature_id):
                         doc = _report(state, news, mine, other, seat, author)
                         if doc is not None and doc.document.doc_id not in issued:
                             issued.add(doc.document.doc_id)

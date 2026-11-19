@@ -47,6 +47,7 @@ from revisionist.core.realism import (
     actors,
     answering,
     apply,
+    battle,
     economy,
     holders,
     mandates,
@@ -412,6 +413,11 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         # Engine only: a count says where pieces stand. Sealed to a seat nobody holds.
         held = SeatId(derived_id(state.campaign_id, "engine-only", "capture"))
         return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
+    if isinstance(payload, ev.BattleOpened | ev.BattleRound | ev.BattleEnded):
+        # Engine only: both sides' true strengths and the draws (BTL). Sealed to a seat
+        # nobody holds; a seat learns of a battle from the news and its reports.
+        held = SeatId(derived_id(state.campaign_id, "engine-only", "battle"))
+        return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
     return PUBLIC  # a player's ``order_drafted`` too, as ``file_order`` lands it
 
 
@@ -484,7 +490,8 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     press, then the feeds that fall due issue, dated that day, then mandates settle and
     issue, then the people nobody plays take up and make their answers, then stances
     and each seat's opponents are worked out. Pieces' steps are followed by the day's
-    capture counts (THL); after the last day, the close, a capital marked in an earlier
+    capture counts (THL); the day's battle rounds follow its contacts, with the count a won
+    battle starts (BTL); after the last day, the close, a capital marked in an earlier
     wake falls or loses its mark. Each step sees the state after the ones before it."""
     state = em.state
     out: list[Event] = []
@@ -536,6 +543,9 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(economy.walk(state, day))  # the 1st: pools paid from what is held today
         add(arrivals(before_on_day, state, day))
         add(contacts(state, day))
+        fought = battle.walk(before_on_day, state, day)  # BTL: rounds after contacts
+        add(fought)
+        add(holders.start_count(state, battle.won(fought), day))
         add(news_pages(state, day))
         seed = seed_for_day(state.campaign_id, day)
         docs: list[Event] = []

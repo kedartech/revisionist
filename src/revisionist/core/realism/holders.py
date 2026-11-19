@@ -23,6 +23,7 @@ A base serves a side only while that side or an ally holds the territory it lies
 (``serves``); a base within a sea zone has no holder and serves as declared.
 """
 
+from collections.abc import Sequence
 from datetime import date
 from typing import TYPE_CHECKING
 
@@ -266,6 +267,32 @@ def walk(state: "State", day: date) -> list["Payload"]:
     return out
 
 
+def start_count(
+    state: "State", won: Sequence[tuple[EntityId, EntityId]], day: date
+) -> list["Payload"]:
+    """With ``holders`` on, the count a won battle starts (BTL): for each territory and the
+    nation that won the battle in it, a count from ``day`` when that nation now takes it
+    (rule 2: at war with its holder, no enemy land piece left). A count it already keeps,
+    and a capital mark, stay. Read after the battle's events have landed."""
+    from revisionist.core import events as ev
+
+    if not on(state):
+        return []
+    board = state.map
+    assert board is not None
+    land = {t.area for t in board.territories}
+    out: list[Payload] = []
+    for area, by in sorted(won):
+        if area not in land or by not in takers(state, area):
+            continue
+        was = state.captures.get(area)
+        if was is not None and was.by == by:
+            continue
+        mark = {} if was is None else {"marked": was.marked, "marked_on": was.marked_on}
+        out.append(ev.CaptureCounted(area=area, capture=Capture(by=by, since=day, **mark)))
+    return out
+
+
 def close(state: "State", day: date) -> list["Payload"]:
     """With ``holders`` on, the close of a wake on ``day``: each capital's territory marked
     in an earlier wake falls if its count is still full, else loses its mark."""
@@ -329,6 +356,7 @@ __all__ = [
     "on",
     "paper_id",
     "serves",
+    "start_count",
     "takers",
     "walk",
 ]

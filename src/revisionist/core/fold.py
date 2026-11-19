@@ -43,6 +43,7 @@ from revisionist.core.ontology import (
 from revisionist.core.realism import economy, trade
 from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, PlayStyle, opening_id
 from revisionist.core.realism.answer import AnswerLog
+from revisionist.core.realism.battle import Battle
 from revisionist.core.realism.card import SeatCard
 from revisionist.core.realism.document import Document
 from revisionist.core.realism.effect import (
@@ -420,6 +421,9 @@ def _mutate(state: State, event: Event) -> State:
             | ev.EconomySet()
             | ev.YieldChanged()
             | ev.TradeSet()
+            | ev.BattleOpened()
+            | ev.BattleRound()
+            | ev.BattleEnded()
             | ev.NewsReported()
             | ev.StanceChanged()
             | ev.OpponentsRanked()
@@ -454,6 +458,37 @@ def _mutate(state: State, event: Event) -> State:
 
 
 # --- realism --------------------------------------------------------------------
+
+
+def _battle_opened(state: State, p: ev.BattleOpened) -> State:
+    """A battle opens: the rule is on, the area is on the board with no battle open, and
+    each side's pieces are pieces of the game; the two leading nations are at war."""
+    b = p.battle
+    if Rule.BATTLES not in state.rules or state.map is None:
+        raise FoldError("battle_opened: the battles rule is off")
+    if b.area not in state.map.areas():
+        raise FoldError(f"battle_opened: {b.area} is not an area")
+    if b.area in state.battles:
+        raise FoldError(f"battle_opened: a battle is already open at {b.area}")
+    if b.opened != p.on:
+        raise FoldError("battle_opened: a battle opens on its own day")
+    for side in (b.attacker, b.defender):
+        if _need(state.entities, side.nation, "entity").kind is not EntityKind.POLITY:
+            raise FoldError(f"battle_opened: {side.nation} is not a polity")
+        for fid in side.pieces:
+            _need(state.features, fid, "feature")
+    if not at_war(state, b.attacker.nation, b.defender.nation):
+        raise FoldError("battle_opened: the two sides are not at war")
+    return state.model_copy(update={"battles": _put(state.battles, b.area, b)})
+
+
+def _open_battle(state: State, area: EntityId, on: date, what: str) -> Battle:
+    fought = state.battles.get(area)
+    if fought is None:
+        raise FoldError(f"{what}: no battle is open at {area}")
+    if on < fought.opened:
+        raise FoldError(f"{what}: {area}'s battle opened after {on}")
+    return fought
 
 
 def _realism(state: State, p: ev.Payload) -> State:
@@ -672,6 +707,31 @@ def _realism(state: State, p: ev.Payload) -> State:
             return state.model_copy(
                 update={"holders": _put(state.holders, p.area, holding), "captures": captures}
             )
+        case ev.BattleOpened():
+            return _battle_opened(state, p)
+        case ev.BattleRound():
+            fought = _open_battle(state, p.area, p.on, "battle_round")
+            if fought.pressed_on is not None and p.on <= fought.pressed_on:
+                raise FoldError(f"battle_round: {p.area} has had its round on {p.on}")
+            fought = fought.model_copy(
+                update={
+                    "attacker": fought.attacker.model_copy(
+                        update={"lost": fought.attacker.lost + p.lost[0]}
+                    ),
+                    "defender": fought.defender.model_copy(
+                        update={"lost": fought.defender.lost + p.lost[1]}
+                    ),
+                    "rounds": fought.rounds + 1,
+                    "pressed_on": p.on,
+                }
+            )
+            return state.model_copy(update={"battles": _put(state.battles, p.area, fought)})
+        case ev.BattleEnded():
+            fought = _open_battle(state, p.area, p.on, "battle_ended")
+            if p.winner not in (fought.attacker.nation, fought.defender.nation):
+                raise FoldError(f"battle_ended: {p.winner} fought no side at {p.area}")
+            battles = {k: v for k, v in state.battles.items() if k != p.area}
+            return state.model_copy(update={"battles": battles})
         case ev.CaptureCounted():
             board = state.map
             if Rule.HOLDERS not in state.rules:

@@ -133,6 +133,11 @@ NEVER: frozenset[str] = frozenset(
         # A trade line opened or cut: true figures (FUL). A seat learns of a cut line from
         # the news paper, and from the paper to the nation it hits.
         "trade_set",
+        # A battle's opening, rounds and end: both sides' true strengths and the draws (BTL).
+        # A seat learns of a battle from the news and its commanders' reports, which are fed.
+        "battle_opened",
+        "battle_round",
+        "battle_ended",
         "scheduled_event_created",
         "scheduled_event_skipped",
         # Costs, ticks and admin.

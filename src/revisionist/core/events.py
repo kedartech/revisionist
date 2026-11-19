@@ -15,7 +15,7 @@ TickOpened, TickClosed``, and for realism campaigns ``CardsDeclared,
 DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, QuantitySet,
 FeatureSet, WarDeclared, MapDeclared, KindsDeclared, NewsReported, StanceChanged, OpponentsRanked,
 CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted, EconomySet, YieldChanged,
-TradeSet``, and
+TradeSet, BattleOpened, BattleRound, BattleEnded``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -73,6 +73,7 @@ from revisionist.core.realism.agenda import (
     PlayStyle,
 )
 from revisionist.core.realism.answer import Answer
+from revisionist.core.realism.battle import Battle, Ending
 from revisionist.core.realism.card import (
     Address,
     ChannelKind,
@@ -749,6 +750,38 @@ class StepRefused(Model):
     reason: str = Field(max_length=300)
 
 
+class BattleOpened(Model):
+    """A battle opened in an area (BTL): its two sides, the pieces and the strength each
+    brought. Engine only: it carries both sides' true strengths."""
+
+    kind: Literal["battle_opened"] = "battle_opened"
+    battle: Battle
+    on: date
+
+
+class BattleRound(Model):
+    """One day's round of a battle (BTL): each side's score and draw, attacker first, and
+    the steps each lost. Engine only. The ``feature_set`` beside it sets the pieces."""
+
+    kind: Literal["battle_round"] = "battle_round"
+    area: EntityId
+    on: date
+    scores: tuple[int, int]
+    draws: tuple[int, int]
+    lost: tuple[Annotated[int, Field(ge=0)], Annotated[int, Field(ge=0)]]
+
+
+class BattleEnded(Model):
+    """A battle ended (BTL): how, and the nation left with the field. Engine only; the
+    news item beside it is public."""
+
+    kind: Literal["battle_ended"] = "battle_ended"
+    area: EntityId
+    on: date
+    ending: Ending
+    winner: EntityId
+
+
 class NewsReported(Model):
     """A public event, as structured facts. Each seat's press words it later."""
 
@@ -1163,6 +1196,9 @@ Payload = Annotated[
     | YieldChanged
     | TradeSet
     | StepRefused
+    | BattleOpened
+    | BattleRound
+    | BattleEnded
     | NewsReported
     | StanceChanged
     | OpponentsRanked
@@ -1243,6 +1279,9 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "economy_set",
         "yield_changed",
         "trade_set",
+        "battle_opened",
+        "battle_round",
+        "battle_ended",
         "stance_changed",
         "opponents_ranked",
         "card_amended",

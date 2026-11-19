@@ -1,9 +1,10 @@
 # Built by scripts/map_build.py from the recipe autumn-1941; simplify coverage, tolerance 0.05.
 # Do not edit by hand: change the recipe and build again.
-map: {coords: lonlat, file: autumn-1941.json, sha256: f6fead1930fc00e33cf6aad2f71cf4548020b8e4db9addb63ff5b53a56f06868, box: [-11, 35.5, 52, 71.5]}
+map: {coords: lonlat, file: autumn-1941.json, sha256: 7c3900660863ce210dc188b555f8d1d0bbbee504f17f92739687f691fed05836, box: [-126, 10, 52, 71.5]}
 regions:
   - {key: eastern_front, name: The Eastern Front}
   - {key: europe, name: Europe}
+  - {key: atlantic, name: The Atlantic}
 territories:
   - {key: the_north, name: The North, region: eastern_front, terrain: forest, sites: [archangel]}
   - {key: leningrad, name: Leningrad, region: eastern_front, terrain: forest, sites: [leningrad]}
@@ -40,6 +41,17 @@ territories:
   - {key: italy_south, name: Rome and the South, region: europe, terrain: mountain, sites: [rome]}
   - {key: iberia, name: Spain and Portugal, region: europe, terrain: mountain}
   - {key: switzerland, name: Switzerland, region: europe, terrain: mountain}
+  - {key: britain_south, name: England and Wales, region: atlantic, terrain: plain, sites: [london]}
+  - {key: britain_north, name: Scotland and Ulster, region: atlantic, terrain: mountain}
+  - {key: ireland, name: Ireland, region: atlantic, terrain: plain}
+  - {key: iceland, name: Iceland, region: atlantic, terrain: mountain, sites: [reykjavik]}
+  - {key: greenland, name: Greenland, region: atlantic, terrain: mountain}
+  - {key: newfoundland, name: Newfoundland and Labrador, region: atlantic, terrain: forest}
+  - {key: eastern_canada, name: Eastern Canada, region: atlantic, terrain: forest, sites: [halifax_port, sydney_cb]}
+  - {key: us_east, name: The Eastern United States, region: atlantic, terrain: forest, sites: [washington, norfolk]}
+  - {key: us_central, name: The Central United States, region: atlantic, terrain: plain}
+  - {key: us_west, name: The Western United States, region: atlantic, terrain: mountain}
+  - {key: caribbean, name: The Caribbean, region: atlantic, terrain: forest}
 sea_zones:
   - {key: baltic_sea, name: The Baltic Sea, region: eastern_front, terrain: sea}
   - {key: black_sea, name: The Black Sea, region: eastern_front, terrain: sea}
@@ -48,7 +60,23 @@ sea_zones:
   - {key: danish_straits, name: The Kattegat and the Western Baltic, region: europe, terrain: sea}
   - {key: gulf_of_bothnia, name: The Gulf of Bothnia, region: europe, terrain: sea}
   - {key: bay_of_biscay, name: The Bay of Biscay, region: europe, terrain: sea}
+  - {key: english_channel, name: The English Channel, region: atlantic, terrain: sea}
+  - {key: western_approaches, name: The Western Approaches, region: atlantic, terrain: sea}
+  - {key: mid_ocean_gap, name: The Mid-Ocean Gap, region: atlantic, terrain: sea}
+  - {key: western_atlantic, name: The Western Atlantic, region: atlantic, terrain: sea}
+  - {key: labrador_sea, name: The Labrador Sea, region: atlantic, terrain: sea}
+  - {key: denmark_strait, name: The Denmark Strait, region: atlantic, terrain: sea}
+  - {key: arctic_route, name: The Arctic Route, region: atlantic, terrain: sea}
+  - {key: caribbean_sea, name: The Caribbean and the Gulf of Mexico, region: atlantic, terrain: sea}
 adjacency:
+  - [arctic_route, denmark_strait]
+  - [arctic_route, greenland]
+  - [arctic_route, iceland]
+  - [arctic_route, mid_ocean_gap]
+  - [arctic_route, north_sea]
+  - [arctic_route, norway]
+  - [arctic_route, western_approaches]
+  - [arctic_route, white_sea]
   - [balkans, black_sea]
   - [balkans, germany_south]
   - [balkans, hungary_slovakia]
@@ -65,7 +93,9 @@ adjacency:
   - [baltic_states, belorussia]
   - [baltic_states, east_prussia]
   - [baltic_states, leningrad]
+  - [bay_of_biscay, english_channel]
   - [bay_of_biscay, iberia]
+  - [bay_of_biscay, mid_ocean_gap]
   - [bay_of_biscay, occupied_france]
   - [belorussia, east_prussia]
   - [belorussia, kiev]
@@ -77,6 +107,17 @@ adjacency:
   - [black_sea, donbas]
   - [black_sea, odessa]
   - [black_sea, romania]
+  - [britain_north, britain_south]
+  - [britain_north, ireland]
+  - [britain_north, north_sea]
+  - [britain_north, western_approaches]
+  - [britain_south, english_channel]
+  - [britain_south, north_sea]
+  - [britain_south, western_approaches]
+  - [caribbean, caribbean_sea]
+  - [caribbean_sea, us_central]
+  - [caribbean_sea, us_east]
+  - [caribbean_sea, western_atlantic]
   - [crimea, odessa]
   - [danish_straits, denmark]
   - [danish_straits, germany_east]
@@ -85,12 +126,22 @@ adjacency:
   - [danish_straits, sweden]
   - [denmark, germany_west]
   - [denmark, north_sea]
+  - [denmark_strait, greenland]
+  - [denmark_strait, mid_ocean_gap]
   - [donbas, kharkov]
   - [donbas, odessa]
   - [donbas, stalingrad]
   - [donbas, voronezh]
   - [east_prussia, germany_east]
   - [east_prussia, occupied_poland]
+  - [eastern_canada, labrador_sea]
+  - [eastern_canada, newfoundland]
+  - [eastern_canada, us_central]
+  - [eastern_canada, us_east]
+  - [eastern_canada, western_atlantic]
+  - [english_channel, mid_ocean_gap]
+  - [english_channel, occupied_france]
+  - [english_channel, western_approaches]
   - [finland, gulf_of_bothnia]
   - [finland, leningrad]
   - [finland, norway]
@@ -109,12 +160,15 @@ adjacency:
   - [germany_west, north_sea]
   - [germany_west, occupied_france]
   - [germany_west, switzerland]
+  - [greenland, labrador_sea]
+  - [greenland, mid_ocean_gap]
   - [gulf_of_bothnia, sweden]
   - [hungary_slovakia, occupied_poland]
   - [hungary_slovakia, romania]
   - [hungary_slovakia, western_ukraine]
   - [iberia, occupied_france]
   - [iberia, vichy_france]
+  - [ireland, western_approaches]
   - [italy_north, italy_south]
   - [italy_north, switzerland]
   - [italy_north, vichy_france]
@@ -130,16 +184,23 @@ adjacency:
   - [kiev, odessa]
   - [kiev, smolensk]
   - [kiev, western_ukraine]
+  - [labrador_sea, mid_ocean_gap]
+  - [labrador_sea, newfoundland]
+  - [labrador_sea, western_atlantic]
   - [leningrad, smolensk]
   - [leningrad, the_north]
   - [low_countries, north_sea]
   - [low_countries, occupied_france]
+  - [mid_ocean_gap, western_approaches]
+  - [mid_ocean_gap, western_atlantic]
   - [moscow, smolensk]
   - [moscow, upper_volga]
   - [moscow, voronezh]
+  - [newfoundland, western_atlantic]
   - [north_sea, norway]
   - [north_sea, occupied_france]
   - [north_sea, sweden]
+  - [north_sea, western_approaches]
   - [norway, sweden]
   - [norway, white_sea]
   - [occupied_france, switzerland]
@@ -155,3 +216,7 @@ adjacency:
   - [the_north, upper_volga]
   - [the_north, white_sea]
   - [upper_volga, voronezh]
+  - [us_central, us_east]
+  - [us_central, us_west]
+  - [us_east, western_atlantic]
+  - {a: english_channel, b: north_sea, crossing: the Strait of Dover}

@@ -85,6 +85,7 @@ def _same_shapes(examples: list[Any], shape: Any) -> None:
         ("setting", api.Setting),
         ("dossier", api.Dossier),
         ("listing", api.DocumentListing),
+        ("economy", api.EconomyBlock),
     ],
 )
 def test_the_web_fixture_has_the_api_shape(key: str, shape: Any) -> None:
@@ -104,6 +105,12 @@ def test_the_web_fixture_lists_have_the_api_shape(key: str, shape: Any) -> None:
     assert examples
     for example in examples:
         _same_shape(example, shape)
+
+
+def test_the_web_fixture_areas_with_holders_have_the_api_shape() -> None:
+    """The areas of a game with holders on (WEV), checked together: a sea zone has no
+    holder, and only a taken territory names the one it was taken from."""
+    _same_shapes(json.loads(FIXTURE.read_text())["economy_areas"], api.MapArea)
 
 
 def test_the_seat_block_carries_the_stub_shapes(solo: tuple[Realism, Client]) -> None:

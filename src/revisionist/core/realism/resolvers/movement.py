@@ -41,6 +41,11 @@ pieces stood when the day began, so the order the pieces are walked in changes n
 land piece's lift is drawn from its nation's pool when the order sets it on a course across
 the sea, and given back the day it lands. The rule above stays as it was for every game
 without ``territories``.
+
+With ``fuel`` on as well (FUL, ``trade``), ``walk`` spends a piece's ``fuel_per_step`` from
+its nation's stock as each step falls due in the day walk, never when the order is filed;
+with too little stock the step is refused (``step_refused``, with the reason) and the
+piece holds where it stands. The day's spending lands as the nation's ``economy_set``.
 """
 
 from datetime import date, timedelta
@@ -48,7 +53,7 @@ from datetime import date, timedelta
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, FeatureId, QuantityId
 from revisionist.core.ontology import EntityKind
-from revisionist.core.realism import kinds, territory
+from revisionist.core.realism import economy, kinds, territory, trade
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.bases import (
     RAID_DAYS,
@@ -353,12 +358,44 @@ def _course_set(state: State, piece: Feature, today: date) -> tuple[Feature, boo
     return piece, piece.bound_for is None and bool(piece.path)
 
 
+def _fuelled(
+    state: State, piece: Feature, entered: EntityId, on: date, fuel: dict[EntityId, float]
+) -> ev.StepRefused | None:
+    """With ``fuel`` on (FUL): the step's fuel taken from the nation's stock in ``fuel``
+    (the stock as the day began, less what today's earlier steps spent), or, with too
+    little left, the refusal. Nothing for a kind that spends no fuel."""
+    cost = trade.cost(state, piece)
+    own = territory.nation(state, piece.side)
+    if not cost or own is None:
+        return None
+    have = fuel.setdefault(own, economy.stock(state, own))
+    if have >= cost:
+        fuel[own] = round(have - cost, 6)
+        return None
+    name, unit = trade.unit(state)
+    return ev.StepRefused(
+        mark=territory.mark_key(state, own, piece),
+        nation=own,
+        area=piece.places[0],
+        to=entered,
+        on=on,
+        reason=(
+            f"too little {name.lower()}: the step needs {cost:g} {unit}, the stock holds {have:g}"
+        ),
+    )
+
+
 def _walk_one(
-    state: State, course: tuple[Feature, bool], today: date, meeting: Meeting
+    state: State,
+    course: tuple[Feature, bool],
+    today: date,
+    meeting: Meeting,
+    fuel: dict[EntityId, float],
 ) -> tuple[Feature, list[ev.Payload]]:
     """The piece after every step that falls due by ``today``, with one ``piece_stepped``
     for each. Stances are read from ``state``, where everything stood when the day began,
-    and from ``meeting``, so the order the pieces are walked in changes nothing."""
+    and from ``meeting``, so the order the pieces are walked in changes nothing but the
+    fuel: a nation's stock is spent by its pieces in the order walked (FUL)."""
     moved, scripted = course
     cause = territory.StepCause.SCRIPTED if scripted else territory.StepCause.ORDERED
     out: list[ev.Payload] = []
@@ -366,6 +403,11 @@ def _walk_one(
         entered, on = moved.path[0], moved.step_due
         if territory.barred(state, moved.side, entered) is not None:
             moved = _halted(moved, on)
+            break
+        refused = _fuelled(state, moved, entered, on, fuel)
+        if refused is not None:
+            moved = _halted(moved, on)
+            out.append(refused)
             break
         moved, stepped = territory.step(state, moved, entered, on, cause)
         out.append(stepped)
@@ -383,7 +425,8 @@ def _walk_one(
 def walk(state: State, today: date) -> list[ev.Payload]:
     """With ``territories`` on: every piece's steps that fall due by ``today``, each piece's
     ``feature_set`` before its steps' ``piece_stepped`` events, then each pool as the lifts
-    that landed today give their shipping back."""
+    that landed today give their shipping back, then (FUL) each nation's pools with the
+    fuel today's steps spent."""
     if not territory.on(state):
         return []
     out: list[ev.Payload] = []
@@ -403,8 +446,9 @@ def walk(state: State, today: date) -> list[ev.Payload]:
         if c.path and c.step_due is not None and c.step_due <= today and kinds.is_force(state, c)
         if (n := territory.nation(state, c.side)) is not None
     )
+    fuel: dict[EntityId, float] = {}
     for f in pieces:
-        moved, stepped = _walk_one(state, courses[f.feature_id], today, meeting)
+        moved, stepped = _walk_one(state, courses[f.feature_id], today, meeting, fuel)
         if moved == f:
             continue
         out += [ev.FeatureSet(feature=moved), *stepped]
@@ -420,6 +464,11 @@ def walk(state: State, today: date) -> list[ev.Payload]:
                     quantity=q.model_copy(update={"value": change.value, "as_of": change.as_of})
                 )
             )
+    for own, left in sorted(fuel.items()):
+        pools = state.economy.pools.get(own, economy.Pools())
+        if left != pools.fuel:
+            spent = pools.model_copy(update={"fuel": left})
+            out.append(ev.EconomySet(polity=own, pools=spent, on=today))
     return out
 
 

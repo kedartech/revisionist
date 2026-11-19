@@ -60,6 +60,8 @@ FEED_KINDS: frozenset[str] = frozenset(
         "kinds_declared",
         # A seat's own nation's pieces, step by step (sealed to its seats): playback's source.
         "piece_stepped",
+        # A step of its own nation's piece refused for want of fuel, with the reason (FUL).
+        "step_refused",
         # Who holds each territory, as it changes (THL): public.
         "area_held",
         "season_ended",
@@ -128,6 +130,9 @@ NEVER: frozenset[str] = frozenset(
         # economy from its own data and learns of damage from its papers.
         "economy_set",
         "yield_changed",
+        # A trade line opened or cut: true figures (FUL). A seat learns of a cut line from
+        # the news paper, and from the paper to the nation it hits.
+        "trade_set",
         "scheduled_event_created",
         "scheduled_event_skipped",
         # Costs, ticks and admin.

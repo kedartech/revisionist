@@ -5361,7 +5361,8 @@
               "opinion",
               "movement",
               "war",
-              "economy"
+              "economy",
+              "trade"
             ],
             "title": "Resolver",
             "type": "string"
@@ -7069,6 +7070,12 @@
         "additionalProperties": false,
         "description": "A nation's pools, filled on the first of each month.",
         "properties": {
+          "fuel": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Fuel",
+            "type": "number"
+          },
           "manpower": {
             "default": 0,
             "minimum": 0,
@@ -9598,6 +9605,55 @@
         "title": "StepOutcome",
         "type": "object"
       },
+      "StepRefused": {
+        "additionalProperties": false,
+        "description": "A piece's step was refused as it was to start, and the piece holds where it stands\n(FUL: too little fuel). A record: the ``feature_set`` beside it halts the piece.\nSealed to the seats of the piece's own nation, who know it by its mark.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "kind": {
+            "const": "step_refused",
+            "default": "step_refused",
+            "title": "Kind",
+            "type": "string"
+          },
+          "mark": {
+            "maxLength": 60,
+            "title": "Mark",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 300,
+            "title": "Reason",
+            "type": "string"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mark",
+          "nation",
+          "area",
+          "to",
+          "on",
+          "reason"
+        ],
+        "title": "StepRefused",
+        "type": "object"
+      },
       "Terrain": {
         "additionalProperties": false,
         "properties": {
@@ -9863,6 +9919,88 @@
           "name"
         ],
         "title": "Topic",
+        "type": "object"
+      },
+      "TradeLine": {
+        "additionalProperties": false,
+        "description": "A trade line: ``amount`` of ``resource`` a month from ``exporter`` to ``importer``.",
+        "properties": {
+          "amount": {
+            "minimum": 0,
+            "title": "Amount",
+            "type": "number"
+          },
+          "cut": {
+            "default": false,
+            "title": "Cut",
+            "type": "boolean"
+          },
+          "exporter": {
+            "title": "Exporter",
+            "type": "string"
+          },
+          "importer": {
+            "title": "Importer",
+            "type": "string"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "resource": {
+            "maxLength": 60,
+            "title": "Resource",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source"
+          }
+        },
+        "required": [
+          "key",
+          "exporter",
+          "importer",
+          "resource",
+          "amount"
+        ],
+        "title": "TradeLine",
+        "type": "object"
+      },
+      "TradeSet": {
+        "additionalProperties": false,
+        "description": "A trade line as it stands from ``on`` (FUL): declared by the world, or opened or cut\nby ``trade.set``. Sealed to the seats of the two nations it joins: true figures.",
+        "properties": {
+          "kind": {
+            "const": "trade_set",
+            "default": "trade_set",
+            "title": "Kind",
+            "type": "string"
+          },
+          "line": {
+            "$ref": "#/$defs/TradeLine"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line",
+          "on"
+        ],
+        "title": "TradeSet",
         "type": "object"
       },
       "Trigger": {
@@ -10742,9 +10880,11 @@
             "stance_changed": "#/$defs/StanceChanged",
             "statement_issued": "#/$defs/StatementIssued",
             "step_chosen": "#/$defs/StepChosen",
+            "step_refused": "#/$defs/StepRefused",
             "tick_closed": "#/$defs/TickClosed",
             "tick_opened": "#/$defs/TickOpened",
             "tick_stage_completed": "#/$defs/TickStageCompleted",
+            "trade_set": "#/$defs/TradeSet",
             "wake_closed": "#/$defs/WakeClosed",
             "wake_committed": "#/$defs/WakeCommitted",
             "wake_opened": "#/$defs/WakeOpened",
@@ -10960,6 +11100,12 @@
           },
           {
             "$ref": "#/$defs/YieldChanged"
+          },
+          {
+            "$ref": "#/$defs/TradeSet"
+          },
+          {
+            "$ref": "#/$defs/StepRefused"
           },
           {
             "$ref": "#/$defs/NewsReported"
@@ -12801,6 +12947,16 @@
         "additionalProperties": false,
         "description": "The war economy's truth. A seat sees its own nation's part only.",
         "properties": {
+          "lines": {
+            "additionalProperties": {
+              "$ref": "#/$defs/TradeLine"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Lines",
+            "type": "object"
+          },
           "pending": {
             "additionalProperties": {
               "items": {
@@ -13866,7 +14022,8 @@
               "opinion",
               "movement",
               "war",
-              "economy"
+              "economy",
+              "trade"
             ],
             "title": "Resolver",
             "type": "string"
@@ -14916,6 +15073,12 @@
         "additionalProperties": false,
         "description": "A nation's pools, filled on the first of each month.",
         "properties": {
+          "fuel": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Fuel",
+            "type": "number"
+          },
           "manpower": {
             "default": 0,
             "minimum": 0,
@@ -16930,6 +17093,62 @@
           "name"
         ],
         "title": "Topic",
+        "type": "object"
+      },
+      "TradeLine": {
+        "additionalProperties": false,
+        "description": "A trade line: ``amount`` of ``resource`` a month from ``exporter`` to ``importer``.",
+        "properties": {
+          "amount": {
+            "minimum": 0,
+            "title": "Amount",
+            "type": "number"
+          },
+          "cut": {
+            "default": false,
+            "title": "Cut",
+            "type": "boolean"
+          },
+          "exporter": {
+            "title": "Exporter",
+            "type": "string"
+          },
+          "importer": {
+            "title": "Importer",
+            "type": "string"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "resource": {
+            "maxLength": 60,
+            "title": "Resource",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source"
+          }
+        },
+        "required": [
+          "key",
+          "exporter",
+          "importer",
+          "resource",
+          "amount"
+        ],
+        "title": "TradeLine",
         "type": "object"
       },
       "Trigger": {
@@ -19230,6 +19449,16 @@
         "additionalProperties": false,
         "description": "The war economy's truth. A seat sees its own nation's part only.",
         "properties": {
+          "lines": {
+            "additionalProperties": {
+              "$ref": "#/$defs/TradeLine"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Lines",
+            "type": "object"
+          },
           "pending": {
             "additionalProperties": {
               "items": {
@@ -19981,7 +20210,8 @@
               "opinion",
               "movement",
               "war",
-              "economy"
+              "economy",
+              "trade"
             ],
             "title": "Resolver",
             "type": "string"
@@ -20980,6 +21210,12 @@
         "additionalProperties": false,
         "description": "A nation's pools, filled on the first of each month.",
         "properties": {
+          "fuel": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Fuel",
+            "type": "number"
+          },
           "manpower": {
             "default": 0,
             "minimum": 0,
@@ -22288,6 +22524,62 @@
           "terrain"
         ],
         "title": "Territory",
+        "type": "object"
+      },
+      "TradeLine": {
+        "additionalProperties": false,
+        "description": "A trade line: ``amount`` of ``resource`` a month from ``exporter`` to ``importer``.",
+        "properties": {
+          "amount": {
+            "minimum": 0,
+            "title": "Amount",
+            "type": "number"
+          },
+          "cut": {
+            "default": false,
+            "title": "Cut",
+            "type": "boolean"
+          },
+          "exporter": {
+            "title": "Exporter",
+            "type": "string"
+          },
+          "importer": {
+            "title": "Importer",
+            "type": "string"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "resource": {
+            "maxLength": 60,
+            "title": "Resource",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Source"
+          }
+        },
+        "required": [
+          "key",
+          "exporter",
+          "importer",
+          "resource",
+          "amount"
+        ],
+        "title": "TradeLine",
         "type": "object"
       },
       "Verb": {

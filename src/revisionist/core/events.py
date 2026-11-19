@@ -14,7 +14,8 @@ CharacterReleased, SessionZeroClosed, SeasonEnded, GoalSet, GoalProgressed, Goal
 TickOpened, TickClosed``, and for realism campaigns ``CardsDeclared,
 DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, QuantitySet,
 FeatureSet, WarDeclared, MapDeclared, KindsDeclared, NewsReported, StanceChanged, OpponentsRanked,
-CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted, EconomySet, YieldChanged``, and
+CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted, EconomySet, YieldChanged,
+TradeSet``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -96,6 +97,7 @@ from revisionist.core.realism.pipeline import (
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
 from revisionist.core.realism.territory import StepCause, WorldMap
+from revisionist.core.realism.trade import TradeLine
 from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.resolution import FeasibilityBand, OutcomeTier, RejectionReason, TickStage
 from revisionist.core.settings import Settings
@@ -722,6 +724,31 @@ class YieldChanged(Model):
     move stored before it: at once."""
 
 
+class TradeSet(Model):
+    """A trade line as it stands from ``on`` (FUL): declared by the world, or opened or cut
+    by ``trade.set``. Sealed to the seats of the two nations it joins: true figures."""
+
+    kind: Literal["trade_set"] = "trade_set"
+    line: TradeLine
+    on: date
+
+
+class StepRefused(Model):
+    """A piece's step was refused as it was to start, and the piece holds where it stands
+    (FUL: too little fuel). A record: the ``feature_set`` beside it halts the piece.
+    Sealed to the seats of the piece's own nation, who know it by its mark."""
+
+    kind: Literal["step_refused"] = "step_refused"
+    mark: Label
+    nation: EntityId
+    area: EntityId
+    """Where the piece holds."""
+    to: EntityId
+    """The area the refused step would have entered."""
+    on: date
+    reason: str = Field(max_length=300)
+
+
 class NewsReported(Model):
     """A public event, as structured facts. Each seat's press words it later."""
 
@@ -1134,6 +1161,8 @@ Payload = Annotated[
     | CaptureCounted
     | EconomySet
     | YieldChanged
+    | TradeSet
+    | StepRefused
     | NewsReported
     | StanceChanged
     | OpponentsRanked
@@ -1213,6 +1242,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "capture_counted",
         "economy_set",
         "yield_changed",
+        "trade_set",
         "stance_changed",
         "opponents_ranked",
         "card_amended",

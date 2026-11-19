@@ -1,11 +1,12 @@
 # Built by scripts/map_build.py from the recipe autumn-1941; simplify coverage, tolerance 0.05.
 # Do not edit by hand: change the recipe and build again.
-map: {coords: lonlat, file: autumn-1941.json, sha256: cbc7d5075397531932094feae7e1ea6e461656210ee08f92894b9a13d98ad3ca, box: [-126, 10, 52, 71.5]}
+map: {coords: lonlat, file: autumn-1941.json, sha256: f770cde38f1fd71b3dce6000c04bb238062d421f7161565fce9abd409f8c57bc, box: [-126, -11.5, 234, 71.5]}
 regions:
   - {key: eastern_front, name: The Eastern Front}
   - {key: europe, name: Europe}
   - {key: atlantic, name: The Atlantic}
   - {key: mediterranean, name: The Mediterranean and the Middle East}
+  - {key: pacific, name: China}
 territories:
   - {key: the_north, name: The North, region: eastern_front, terrain: forest, sites: [archangel]}
   - {key: leningrad, name: Leningrad, region: eastern_front, terrain: forest, sites: [leningrad]}
@@ -68,6 +69,27 @@ territories:
   - {key: greece, name: Greece and Crete, region: mediterranean, terrain: mountain}
   - {key: dodecanese, name: The Dodecanese, region: mediterranean, terrain: mountain}
   - {key: british_islands, name: Malta and Cyprus, region: mediterranean, terrain: plain, sites: [malta]}
+  - {key: japan_east, name: Japan East, region: pacific, terrain: mountain, sites: [tokyo, hitokappu_bay]}
+  - {key: japan_west, name: Japan West, region: pacific, terrain: mountain, sites: [kure]}
+  - {key: formosa, name: Formosa, region: pacific, terrain: mountain}
+  - {key: korea, name: Korea, region: pacific, terrain: mountain}
+  - {key: manchuria, name: Manchuria, region: pacific, terrain: plain}
+  - {key: north_china, name: Occupied North China, region: pacific, terrain: plain}
+  - {key: wuhan, name: The Wuhan Area and the Lower Yangtze, region: pacific, terrain: plain, sites: [wuhan]}
+  - {key: hunan, name: Hunan and Kiangsi, region: pacific, terrain: mountain, sites: [changsha]}
+  - {key: szechwan, name: Szechwan and the Southwest, region: pacific, terrain: mountain, sites: [chungking]}
+  - {key: northwest_china, name: The Northwest and Loyang, region: pacific, terrain: mountain}
+  - {key: south_china, name: Free South China, region: pacific, terrain: mountain}
+  - {key: south_china_coast, name: The South China Coast, region: pacific, terrain: plain}
+  - {key: hong_kong, name: Hong Kong, region: pacific, terrain: mountain}
+  - {key: indochina, name: French Indochina, region: pacific, terrain: forest}
+  - {key: thailand, name: Thailand, region: pacific, terrain: plain}
+  - {key: malaya, name: Malaya and British Borneo, region: pacific, terrain: forest}
+  - {key: burma, name: Burma, region: pacific, terrain: forest}
+  - {key: dutch_east_indies, name: The Dutch East Indies, region: pacific, terrain: forest}
+  - {key: philippines, name: The Philippines, region: pacific, terrain: forest}
+  - {key: hawaii, name: Hawaii, region: pacific, terrain: mountain, sites: [pearl_harbor_base]}
+  - {key: soviet_far_east, name: The Soviet Far East, region: pacific, terrain: forest}
 sea_zones:
   - {key: baltic_sea, name: The Baltic Sea, region: eastern_front, terrain: sea}
   - {key: black_sea, name: The Black Sea, region: eastern_front, terrain: sea}
@@ -89,12 +111,26 @@ sea_zones:
   - {key: central_mediterranean, name: The Central Mediterranean, region: mediterranean, terrain: sea}
   - {key: eastern_mediterranean, name: The Eastern Mediterranean, region: mediterranean, terrain: sea}
   - {key: aegean_sea, name: The Aegean Sea, region: mediterranean, terrain: sea}
+  - {key: sea_of_japan, name: The Sea of Japan, region: pacific, terrain: sea}
+  - {key: east_china_sea, name: The East China Sea and the Yellow Sea, region: pacific, terrain: sea}
+  - {key: south_china_sea, name: The South China Sea, region: pacific, terrain: sea}
+  - {key: andaman_sea, name: The Andaman Sea and the Strait of Malacca, region: pacific, terrain: sea}
+  - {key: java_sea, name: The Java Sea and the Seas of the Indies, region: pacific, terrain: sea}
+  - {key: philippine_sea, name: The Philippine Sea, region: pacific, terrain: sea}
+  - {key: north_pacific, name: The North Pacific, region: pacific, terrain: sea}
+  - {key: central_pacific, name: The Central Pacific, region: pacific, terrain: sea}
+  - {key: eastern_pacific, name: The Eastern Pacific, region: pacific, terrain: sea}
 adjacency:
   - [aegean_sea, central_mediterranean]
   - [aegean_sea, dodecanese]
   - [aegean_sea, eastern_mediterranean]
   - [aegean_sea, greece]
   - [aegean_sea, turkey]
+  - [andaman_sea, burma]
+  - [andaman_sea, dutch_east_indies]
+  - [andaman_sea, malaya]
+  - [andaman_sea, south_china_sea]
+  - [andaman_sea, thailand]
   - [arctic_route, denmark_strait]
   - [arctic_route, greenland]
   - [arctic_route, iceland]
@@ -148,6 +184,9 @@ adjacency:
   - [britain_south, western_approaches]
   - [british_islands, central_mediterranean]
   - [british_islands, eastern_mediterranean]
+  - [burma, indochina]
+  - [burma, szechwan]
+  - [burma, thailand]
   - [caribbean, caribbean_sea]
   - [caribbean_sea, us_central]
   - [caribbean_sea, us_east]
@@ -163,6 +202,11 @@ adjacency:
   - [central_mediterranean, tripolitania]
   - [central_mediterranean, tunisia]
   - [central_mediterranean, western_mediterranean]
+  - [central_pacific, eastern_pacific]
+  - [central_pacific, hawaii]
+  - [central_pacific, japan_east]
+  - [central_pacific, north_pacific]
+  - [central_pacific, philippine_sea]
   - [crimea, odessa]
   - [cyrenaica, eastern_mediterranean]
   - [cyrenaica, egypt]
@@ -182,6 +226,20 @@ adjacency:
   - [donbas, odessa]
   - [donbas, stalingrad]
   - [donbas, voronezh]
+  - [dutch_east_indies, java_sea]
+  - [dutch_east_indies, malaya]
+  - [dutch_east_indies, philippine_sea]
+  - [dutch_east_indies, south_china_sea]
+  - [east_china_sea, formosa]
+  - [east_china_sea, japan_west]
+  - [east_china_sea, korea]
+  - [east_china_sea, manchuria]
+  - [east_china_sea, north_china]
+  - [east_china_sea, philippine_sea]
+  - [east_china_sea, sea_of_japan]
+  - [east_china_sea, south_china]
+  - [east_china_sea, south_china_sea]
+  - [east_china_sea, wuhan]
   - [east_prussia, germany_east]
   - [east_prussia, occupied_poland]
   - [eastern_canada, labrador_sea]
@@ -195,6 +253,7 @@ adjacency:
   - [eastern_mediterranean, syria]
   - [eastern_mediterranean, tobruk]
   - [eastern_mediterranean, turkey]
+  - [eastern_pacific, north_pacific]
   - [egypt, levant]
   - [english_channel, mid_ocean_gap]
   - [english_channel, occupied_france]
@@ -205,6 +264,8 @@ adjacency:
   - [finland, sweden]
   - [finland, the_north]
   - [finland, white_sea]
+  - [formosa, philippine_sea]
+  - [formosa, south_china_sea]
   - [french_north_africa, gibraltar_approaches]
   - [french_north_africa, tripolitania]
   - [french_north_africa, tunisia]
@@ -227,12 +288,21 @@ adjacency:
   - [greenland, labrador_sea]
   - [greenland, mid_ocean_gap]
   - [gulf_of_bothnia, sweden]
+  - [hong_kong, south_china_coast]
+  - [hong_kong, south_china_sea]
+  - [hunan, south_china]
+  - [hunan, szechwan]
+  - [hunan, wuhan]
   - [hungary_slovakia, occupied_poland]
   - [hungary_slovakia, romania]
   - [hungary_slovakia, western_ukraine]
   - [iberia, occupied_france]
   - [iberia, vichy_france]
   - [iberia, western_mediterranean]
+  - [indochina, south_china]
+  - [indochina, south_china_sea]
+  - [indochina, szechwan]
+  - [indochina, thailand]
   - [iran, iraq]
   - [iran, turkey]
   - [iraq, levant]
@@ -244,6 +314,17 @@ adjacency:
   - [italy_north, vichy_france]
   - [italy_north, western_mediterranean]
   - [italy_south, western_mediterranean]
+  - [japan_east, japan_west]
+  - [japan_east, north_pacific]
+  - [japan_east, philippine_sea]
+  - [japan_east, sea_of_japan]
+  - [japan_east, soviet_far_east]
+  - [japan_west, philippine_sea]
+  - [japan_west, sea_of_japan]
+  - [java_sea, malaya]
+  - [java_sea, philippine_sea]
+  - [java_sea, philippines]
+  - [java_sea, south_china_sea]
   - [kalinin, leningrad]
   - [kalinin, moscow]
   - [kalinin, smolensk]
@@ -256,6 +337,9 @@ adjacency:
   - [kiev, odessa]
   - [kiev, smolensk]
   - [kiev, western_ukraine]
+  - [korea, manchuria]
+  - [korea, sea_of_japan]
+  - [korea, soviet_far_east]
   - [labrador_sea, mid_ocean_gap]
   - [labrador_sea, newfoundland]
   - [labrador_sea, western_atlantic]
@@ -264,16 +348,28 @@ adjacency:
   - [levant, syria]
   - [low_countries, north_sea]
   - [low_countries, occupied_france]
+  - [malaya, philippine_sea]
+  - [malaya, south_china_sea]
+  - [malaya, thailand]
+  - [manchuria, north_china]
+  - [manchuria, soviet_far_east]
   - [mid_ocean_gap, western_approaches]
   - [mid_ocean_gap, western_atlantic]
   - [moscow, smolensk]
   - [moscow, upper_volga]
   - [moscow, voronezh]
   - [newfoundland, western_atlantic]
+  - [north_china, northwest_china]
+  - [north_china, wuhan]
+  - [north_pacific, philippine_sea]
+  - [north_pacific, sea_of_japan]
+  - [north_pacific, soviet_far_east]
   - [north_sea, norway]
   - [north_sea, occupied_france]
   - [north_sea, sweden]
   - [north_sea, western_approaches]
+  - [northwest_china, szechwan]
+  - [northwest_china, wuhan]
   - [norway, sweden]
   - [norway, white_sea]
   - [occupied_france, switzerland]
@@ -281,12 +377,23 @@ adjacency:
   - [occupied_poland, western_ukraine]
   - [odessa, romania]
   - [odessa, western_ukraine]
+  - [philippine_sea, philippines]
+  - [philippine_sea, south_china_sea]
+  - [philippines, south_china_sea]
   - [romania, western_ukraine]
+  - [sea_of_japan, soviet_far_east]
   - [smolensk, voronezh]
+  - [south_china, south_china_coast]
+  - [south_china, south_china_sea]
+  - [south_china, szechwan]
+  - [south_china, wuhan]
+  - [south_china_coast, south_china_sea]
+  - [south_china_sea, thailand]
   - [stalingrad, upper_volga]
   - [stalingrad, voronezh]
   - [switzerland, vichy_france]
   - [syria, turkey]
+  - [szechwan, wuhan]
   - [the_north, upper_volga]
   - [the_north, white_sea]
   - [tripolitania, tunisia]
@@ -297,5 +404,6 @@ adjacency:
   - [us_east, western_atlantic]
   - [vichy_france, western_mediterranean]
   - {a: aegean_sea, b: black_sea, crossing: the Turkish Straits}
+  - {a: eastern_pacific, b: us_west, crossing: the box's seam at 126 W}
   - {a: english_channel, b: north_sea, crossing: the Strait of Dover}
   - {a: gibraltar_approaches, b: western_mediterranean, crossing: the Strait of Gibraltar}

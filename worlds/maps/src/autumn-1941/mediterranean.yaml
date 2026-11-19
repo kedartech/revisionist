@@ -9,10 +9,9 @@
 #     worlds/maps/src/autumn-1941/europe.yaml worlds/maps/src/autumn-1941/atlantic.yaml \
 #     worlds/maps/src/autumn-1941/mediterranean.yaml --slug autumn-1941
 #
-# The box is the map's, unchanged: [-126, 10, 52, 71.5] (the Atlantic file widened it). Land and water in
-# the box that no recipe claims (Western Sahara and the Sahel, Arabia, the Gulf, the Red Sea and Italian
-# East Africa, Cape Verde and the Canaries) stay the backdrop. Iran and the Caucasus run past 52 E; the box
-# clips them.
+# The box is the map's (the Pacific file gives its reason). Land and water in the box that no recipe
+# claims (Western Sahara and the Sahel, Arabia, the Gulf, the Red Sea and Italian East Africa, Cape Verde
+# and the Canaries) stay the backdrop.
 #
 # The Caucasus. Georgia, Armenia and Azerbaijan, with the Soviet North Caucasus (Krasnodar, Adygea,
 # Stavropol and the republics from Karachay-Cherkessia to Dagestan: Maikop, Grozny and the road to Baku).
@@ -74,7 +73,7 @@
 # centres to 0.01 degrees, entered without a network and not yet confirmed against GeoNames: listed for
 # COD3 and Josh to confirm.
 map:
-  box: [-126, 10, 52, 71.5]
+  box: [-126, -11.5, 234, 71.5]
 regions:
   - {key: mediterranean, name: The Mediterranean and the Middle East}
 territories:

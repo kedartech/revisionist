@@ -4,6 +4,7 @@ Runs on the committed fixture (made-up provinces and a strip of sea), never on t
 skips when the geometry tool is absent, as it is in CI.
 """
 
+import copy
 import hashlib
 import importlib.util
 import json
@@ -232,6 +233,30 @@ def test_unclaimed_land_and_water_become_the_backdrop(env: dict[str, Path]) -> N
     assert mc.check(raw) == []
     playable = sum(mc.area(raw, k) for k in raw["areas"])
     assert playable == pytest.approx(12.0 - 1.5 - 1.0 - 0.01, abs=0.001)
+
+
+def _with_islet(env: dict[str, Path], islet: dict[str, Any]) -> None:
+    land = {"type": "FeatureCollection", "features": [*copy.deepcopy(LAND["features"]), islet]}
+    (env["data"] / mb.LAND).write_text(json.dumps(land))
+    _sources(env["sources"], env["data"])
+
+
+def test_an_islet_nearer_a_province_than_the_tolerance_is_water(env: dict[str, Path]) -> None:
+    # MAC: an islet no province holds, 0.02 off the cut province's coast, cannot be kept apart from
+    # that coast when the borders are simplified at 0.05 (the coast is simplified across it), so the
+    # build leaves it out as water; with no simplifying it stays land, in the backdrop.
+    _with_islet(env, _square(3.02, 0.55, 3.12, 0.65))
+    raw = _map(build(env))
+    assert _where(raw, 3.07, 0.6) == ["strait"]
+    assert mc.check(raw) == []
+    exact = _map(build(env, tolerance=0, out=env["tmp"] / "exact"))
+    assert _where(exact, 3.07, 0.6) == []
+
+
+def test_an_islet_farther_than_the_tolerance_stays_land(env: dict[str, Path]) -> None:
+    _with_islet(env, _square(3.2, 0.5, 3.3, 0.6))
+    raw = _map(build(env))
+    assert _where(raw, 3.25, 0.55) == []
 
 
 def test_two_sea_zones_over_the_same_water_are_named(env: dict[str, Path]) -> None:

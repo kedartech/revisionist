@@ -44,7 +44,10 @@ The backdrop's list is read the same way, and each of its parts is one face, nam
 `backdrop 2` and so on in the checker's messages.
 
 A place in a world file gives `at` as `[y, x]`, latitude first, as the world files already write places;
-on a `flat` map that is `[y, x]` in the map's units.
+on a `flat` map that is `[y, x]` in the map's units. On a `lonlat` map whose box runs past 180 (or -180),
+a place keeps its longitude as written; a place outside the box is read whole turns (360) east or west
+when that brings it inside, so Pearl Harbor at -158 lies where the map draws Hawaii, near 202
+(`place_lon` in the checker; `locate` reads longitudes the same way).
 
 Areas are measured in square degrees for `lonlat` and square units for `flat`. Coordinates are rounded
 to 4 decimals before any comparison.
@@ -147,9 +150,10 @@ What the build does, in order, refusing with a message that names the file, prov
    gives each side to the territory the recipe names; a cut that does not cross its province from edge
    to edge fails. Several cuts may divide one province in turn: a side a cut leaves unnamed is what the
    next cut of that province divides, and a part no cut gives a territory fails.
-4. Land is every province inside the box, claimed or not, and every island of the land file that no
-   province touches; the ocean is the box less the land. Each sea zone is its polygon cut from the
-   ocean, so a coast is one border that the land territory and the sea zone share. Two zones over the
+4. Land is every province inside the box, claimed or not, and every island of the land file farther
+   from every province than the simplify tolerance (an islet nearer a coast than that cannot be kept
+   apart from it when the coast is simplified, and is water); the ocean is the box less the land. Each
+   sea zone is its polygon cut from the ocean, so a coast is one border that the land territory and the sea zone share. Two zones over the
    same water fail. Land and water no recipe claims become the backdrop, so the areas and the backdrop
    cover the box exactly.
 5. Nodes every border with every other, then simplifies all of them together, so neighbours keep one
@@ -166,8 +170,9 @@ What the build does, in order, refusing with a message that names the file, prov
 9. Runs the checker's `check` on the map and writes nothing when it fails.
 
 Defaults `[proposed]`: simplify tolerance 0.05 degrees; coordinates snapped to 4 decimals (the
-checker's) before any overlay; the coast is the admin-1 units' line, and a sliver of the land file
-that touches a unit (the two files trace coasts a little apart) is water.
+the checker's) before any overlay; the coast is the admin-1 units' line, and a sliver of the land file
+that touches a unit (the two files trace coasts a little apart), or an islet of it nearer a unit than the
+tolerance, is water.
 
 `tests/test_map_build.py` runs the build on a made-up fixture (`tests/maps/build-fixture.geojson` and
 `build-fixture.recipe.yaml`) and skips when the tool is absent, as it is in CI.

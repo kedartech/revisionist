@@ -1,0 +1,504 @@
+# The 1941 map, fifth region: China, Japan and the Pacific. Built by scripts/map_build.py together with
+# the earlier regions (see worlds/maps/README.md); the provinces are Natural Earth 1:10m admin-1 codes
+# (worlds/maps/SOURCES.md). Every value here is [proposed]: the territory list and names, which provinces
+# make each territory, every cut line, every terrain and every sea zone line.
+#
+# Build it with the earlier regions, naming the recipe files:
+#   python scripts/map_build.py build worlds/maps/src/autumn-1941/eastern-front.yaml \
+#     worlds/maps/src/autumn-1941/europe.yaml worlds/maps/src/autumn-1941/atlantic.yaml \
+#     worlds/maps/src/autumn-1941/mediterranean.yaml worlds/maps/src/autumn-1941/pacific.yaml \
+#     --slug autumn-1941
+#
+# The box. This region widens the map's box to [-126, -11.5, 234, 71.5]: east past the date line to 234
+# (126 W written a whole turn on), so the box runs once round the globe with its seam at 126 W, off the
+# American west coast, and south to 11.5 S for Java, Timor and New Guinea. The build writes the land and
+# water east of 180 with longitudes beyond 180 (GEO rule 8), so the Pacific is one stretch of water with
+# Japan at its west and Hawaii (about 202) inside it, and the date line runs through the Central Pacific
+# zone, not along a border. The box is the same in every recipe file (the build refuses a disagreement).
+# A place of the world file keeps its longitude as written (Pearl Harbor at -158); the checker reads a
+# lonlat place outside the box a whole turn east or west when that brings it inside (map_check.place_lon).
+# Land and water in the box that no recipe claims stay the backdrop: Alaska, western Canada, Mexico and
+# Central America, Siberia west of Transbaikalia and north of the Amur, Sakha, Magadan, Chukotka and
+# Kamchatka, Mongolia, Xinjiang and Tibet, India and Ceylon, Australia's north, New Guinea east of the
+# Dutch line, Africa and South America south of 10 N, the Indian Ocean, and the small islands of the
+# Pacific (the Japanese mandate, Guam, Wake and Midway, which the data carries but which are each under the
+# checker's minimum area of 0.05 square degrees).
+#
+# The Pacific joins the American west coast (MAC rule 4). The box's seam at 126 W runs through open sea
+# off the coast: the Eastern Pacific zone (150 W to the seam) ends at the box's east edge, and the coast of
+# California, Oregon and Washington lies a few degrees inside its west edge, with the strip of water
+# between them left to the backdrop. The zone and the Western United States are joined by a declared
+# crossing over the seam, so the two are adjacent; the zone touches the Central and North Pacific, so a
+# fleet from Pearl Harbor reaches the coast through adjacent zones. (A zone drawn in two parts, one each
+# side of the seam, would stretch the region's proof sheet round the whole globe.)
+#
+# Japan. Japan in two: Japan East (Hokkaido, Tohoku, Kanto and Chubu, with southern Sakhalin, Karafuto,
+# and the Kuriles) and Japan West (Kinki, Chugoku, Shikoku, Kyushu and Okinawa). Formosa (Taiwan with the
+# Pescadores) is a territory of its own. Korea is whole (South and North Korea's provinces).
+#
+# Sakhalin. The Sakhalin oblast holds the whole island and the Kuriles. In 1941 the island was divided at
+# the 50th parallel (Treaty of Portsmouth, 1905, Article IX) and the Kuriles were Japanese (Treaty of
+# St Petersburg, 1875); the cut runs along 50 N across the island and bends north-east in the sea so that
+# Shumshu, the northernmost Kurile, stays on the Japanese side. Gap: the line is placed by the lane from
+# the treaties' wording, with no evidence record.
+#
+# Manchuria and the Soviet Far East. Manchuria is Heilongjiang, Jilin and Liaoning (the Kwantung lease
+# included) and the part of Inner Mongolia Manchukuo held (Hulunbuir, Hinggan, Tongliao and Chifeng), cut
+# from Inner Mongolia along Manchukuo's western border (gap). Not cut, and listed for Josh: Jehol's part now
+# in Hebei (Chengde) stays with Occupied North China, also Japanese-held. The Soviet Far East is
+# Transbaikalia (Chita), Amur, the Jewish oblast, Khabarovsk and Primorye, with northern Sakhalin. Its
+# border with Manchuria is the present-day Russia-China line: at this map's scale the data's line is the
+# 1941 Manchukuo-Soviet line on the Argun, the Amur and the Ussuri; the islands at Khabarovsk divided in
+# 2004 to 2008 (Bolshoy Ussuriysky) are under the checker's minimum, so no cut is drawn (MAC rule 3: none
+# where the line does not differ).
+#
+# China. The front between occupied and free China as it stood in autumn 1941, after the first battle of
+# Changsha (September to October 1941) and before the Pacific war, is the least sure line on the map
+# (MAC Defaults). Every cut through a Chinese province is `gap: true`: the points are the lane's reading of
+# where the Japanese held, with no evidence record, for Josh to mark. Occupied: Occupied North China
+# (Hebei, Beijing, Tianjin, Shandong, Shanxi, the Mengjiang part of Inner Mongolia and Henan north and east
+# of the Yellow River flood), the Wuhan area and the lower Yangtze (Jiangsu, Shanghai, Anhui, eastern Hubei
+# to Yichang, Yueyang at the tip of Hunan, northern Jiangxi with Nanchang and northern Zhejiang with
+# Hangzhou and Ningbo) and the South China coast (Guangdong south of a line north of Canton and round
+# Swatow, with Hainan, Macau and Kinmen). Free: Szechwan and the Southwest (Sichuan, Chongqing, Guizhou,
+# Yunnan and western Hubei), the Northwest (Shaanxi, Gansu, Ningxia, Qinghai, western Inner Mongolia and
+# Henan south and west of the flood), Hunan and Kiangsi (Hunan without Yueyang, and southern Jiangxi) and
+# Free South China (Guangxi, Fujian, southern Zhejiang and northern Guangdong). Hong Kong, British until
+# December 1941, is a territory of its own. Not cut, and listed for Josh: Shanxi (Japanese cities and
+# railways, Chinese hills), Anhui (the Dabie hills held by China), Xiamen island in Fujian (Japanese from
+# 1938) and Guangzhouwan (French, in Guangdong's south-west), each given whole to one side.
+#
+# Indochina and Thailand. French Indochina is Vietnam, Laos and Cambodia, less the provinces ceded to
+# Thailand by the Tokyo treaty of 9 May 1941: Battambang, Banteay Meanchey, Pailin and Oddar Meanchey in
+# Cambodia and Sainyabuli in Laos go to Thailand whole. Not cut, and listed for Josh: the ceded strip of
+# Siem Reap and Preah Vihear and Champasak's west bank of the Mekong, each left whole with Indochina.
+#
+# Malaya and British Borneo (with Singapore, Sarawak, Sabah and Brunei), Burma, the Dutch East Indies (all
+# of Indonesia's provinces, with Portuguese Timor joined to them: too small a holder to stand alone here),
+# the Philippines and Hawaii are whole countries or states.
+#
+# Sea zones, chosen for play and not sourced: the Sea of Japan (the Korea Strait, La Perouse and the Tatar
+# Strait to the Amur estuary at its edges), the East China Sea with the Yellow Sea and the Bohai, the South
+# China Sea with the Gulf of Thailand and the Gulf of Tonkin, the Andaman Sea with the Strait of Malacca,
+# the Java Sea with the seas of the Indies to Dutch New Guinea, the Philippine Sea (the western Pacific to
+# 150 E, with the Inland Sea, the Sulu Sea and the inner Philippine seas), the North Pacific (north of 36 N
+# from Japan to 150 W, with the Sea of Okhotsk and the Bering Sea), the Central Pacific (150 E to 150 W,
+# the equator to 36 N, across the date line) and the Eastern Pacific (as above). The Tsugaru Strait is
+# divided between the Sea of Japan and the North Pacific along the zones' line.
+#
+# Places. Tokyo, Kure, Hitokappu Bay, Pearl Harbor and Chungking are the world's (coordinates unchanged);
+# Changsha and Wuhan are new sites with coordinates from GeoNames (Changsha, id 1815577: 28.19874 N,
+# 112.97087 E; Wuhan, id 1791247: 30.58333 N, 114.26667 E; read 19 Nov 2026 at
+# https://www.geonames.org/1815577 and https://www.geonames.org/1791247), entered to two decimals.
+map:
+  box: [-126, -11.5, 234, 71.5]
+regions:
+  - {key: pacific, name: China, Japan and the Pacific}
+territories:
+  - key: japan_east
+    name: Japan East
+    region: pacific
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Japanese Alps, the Kanto plain and the hills of the north; no source cited"
+    sites: [tokyo, hitokappu_bay]
+    provinces: [
+      JPN-1840, JPN-1841, JPN-1842, JPN-1844, JPN-1845, JPN-1846, JPN-1847, JPN-1848, JPN-1855,
+      JPN-1856, JPN-1857, JPN-1858, JPN-1859, JPN-1860, JPN-1861, JPN-1862, JPN-1863, JPN-1864,
+      JPN-1865, JPN-1866, JPN-1867, JPN-1868, JPN-3503
+    ]
+  - key: japan_west
+    name: Japan West
+    region: pacific
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the hills of Kinki, Chugoku, Shikoku and Kyushu; no source cited"
+    sites: [kure]
+    provinces: [
+      JPN-1821, JPN-1822, JPN-1824, JPN-1825, JPN-1826, JPN-1827, JPN-1829, JPN-1830, JPN-1831,
+      JPN-1832, JPN-1833, JPN-1834, JPN-1835, JPN-1836, JPN-1843, JPN-1849, JPN-1850, JPN-1851,
+      JPN-1852, JPN-1853, JPN-1854, JPN-3500, JPN-3501, JPN-3502
+    ]
+  - key: formosa
+    name: Formosa
+    region: pacific
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the central range and the western plain; no source cited"
+    provinces: [
+      TWN-1156, TWN-1158, TWN-1160, TWN-1161, TWN-1162, TWN-1163, TWN-1164, TWN-1165, TWN-1166,
+      TWN-1167, TWN-1168, TWN-1169, TWN-1170, TWN-1171, TWN-1172, TWN-1173, TWN-1174, TWN-1176,
+      TWN-1177, TWN-3414
+    ]
+  - key: korea
+    name: Korea
+    region: pacific
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Taebaek range and the western lowlands; no source cited"
+    provinces: [
+      KOR-2494, KOR-2495, KOR-2496, KOR-2497, KOR-2498, KOR-2499, KOR-2500, KOR-2502, KOR-2503,
+      KOR-2504, KOR-2505, KOR-2506, KOR-2507, KOR-2508, KOR-2509, KOR-2510, KOR-5129, PRK-3303,
+      PRK-3304, PRK-3305, PRK-3307, PRK-3308, PRK-3310, PRK-3311, PRK-3312, PRK-3313, PRK-3314,
+      PRK-5495
+    ]
+  - key: manchuria
+    name: Manchuria
+    region: pacific
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Manchurian plain ringed by the Khingan and the eastern hills; no source cited"
+    provinces: [
+      CHN-1839, CHN-1828, CHN-1813
+    ]
+  - key: north_china
+    name: Occupied North China
+    region: pacific
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the North China plain, the Shanxi plateau and the Mongolian steppe; no source cited"
+    provinces: [
+      CHN-1811, CHN-1155, CHN-1816, CHN-1814, CHN-1805
+    ]
+  - key: wuhan
+    name: The Wuhan Area and the Lower Yangtze
+    region: pacific
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Yangtze valley, its lakes and paddy; no source cited"
+    sites: [wuhan]
+    provinces: [
+      CHN-1818, CHN-1819, CHN-1179
+    ]
+  - key: hunan
+    name: Hunan and Kiangsi
+    region: pacific
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "hills and rice valleys south of the Dongting and Poyang lakes; no source cited"
+    sites: [changsha]
+  - key: szechwan
+    name: Szechwan and the Southwest
+    region: pacific
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Szechwan basin ringed by mountains and the Yunnan-Guizhou plateau; no source cited"
+    sites: [chungking]
+    provinces: [
+      CHN-1809, CHN-1154, CHN-1153, CHN-1810
+    ]
+  - key: northwest_china
+    name: The Northwest and Loyang
+    region: pacific
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the loess plateau, the Qinling and the Gansu corridor; no source cited"
+    provinces: [
+      CHN-1804, CHN-1150, CHN-1803, CHN-1151
+    ]
+  - key: south_china
+    name: Free South China
+    region: pacific
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the hills of Guangxi, Fujian and northern Guangdong; no source cited"
+    provinces: [
+      CHN-1152, CHN-1178
+    ]
+  - key: south_china_coast
+    name: The South China Coast
+    region: pacific
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Pearl River delta, the coastal plain and Hainan; no source cited"
+    provinces: [
+      CHN-1775, "MAC+00?", TWN-3415
+    ]
+  - key: hong_kong
+    name: Hong Kong
+    region: pacific
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the hills of the New Territories and the island; no source cited"
+    provinces: [
+      HKG-5153, HKG-5154, HKG-5155, HKG-5156, HKG-5157, HKG-5158, HKG-5159, HKG-5160, HKG-5161,
+      HKG-5162, HKG-5163, HKG-5164, HKG-5165, HKG-5166, HKG-5167, HKG-5168, HKG-5169, HKG-5170
+    ]
+  - key: indochina
+    name: French Indochina
+    region: pacific
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the Annamite range, the Mekong and Red River deltas and jungle; no source cited"
+    provinces: [
+      VNM-429, VNM-444, VNM-450, VNM-451, VNM-452, VNM-453, VNM-454, VNM-455, VNM-456, VNM-457,
+      VNM-458, VNM-459, VNM-460, VNM-4600, VNM-461, VNM-462, VNM-463, VNM-464, VNM-466, VNM-467,
+      VNM-468, VNM-469, VNM-470, VNM-471, VNM-474, VNM-475, VNM-476, VNM-477, VNM-478, VNM-479,
+      VNM-480, VNM-481, VNM-482, VNM-483, VNM-4834, VNM-4835, VNM-484, VNM-485, VNM-486, VNM-487,
+      VNM-488, VNM-489, VNM-490, VNM-491, VNM-495, VNM-496, VNM-497, VNM-498, VNM-499, VNM-500,
+      VNM-501, VNM-502, VNM-503, VNM-504, VNM-505, VNM-506, VNM-507, VNM-508, VNM-509, VNM-510,
+      VNM-511, VNM-512, VNM-5483, LAO-3271, LAO-3272, LAO-3280, LAO-3281, LAO-3282, LAO-3283,
+      LAO-3284, LAO-3286, LAO-3288, LAO-3289, LAO-3290, LAO-3291, LAO-3292, LAO-3293, LAO-3294,
+      LAO-3295, KHM-1779, KHM-1780, KHM-1781, KHM-1784, KHM-1785, KHM-1786, KHM-1787, KHM-1788,
+      KHM-1789, KHM-1790, KHM-1791, KHM-1792, KHM-1793, KHM-1794, KHM-1795, KHM-1797, KHM-1798,
+      KHM-1800, KHM-1801, KHM-1802
+    ]
+  - key: thailand
+    name: Thailand
+    region: pacific
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Chao Phraya plain and the Khorat plateau; no source cited"
+    provinces: [
+      THA-374, THA-375, THA-376, THA-377, THA-378, THA-379, THA-380, THA-382, THA-383, THA-385,
+      THA-386, THA-387, THA-388, THA-389, THA-390, THA-391, THA-392, THA-393, THA-394, THA-395,
+      THA-396, THA-397, THA-398, THA-399, THA-400, THA-401, THA-402, THA-403, THA-404, THA-405,
+      THA-406, THA-407, THA-408, THA-409, THA-410, THA-411, THA-412, THA-413, THA-414, THA-415,
+      THA-416, THA-417, THA-418, THA-419, THA-420, THA-421, THA-422, THA-423, THA-424, THA-425,
+      THA-426, THA-427, THA-428, THA-430, THA-431, THA-432, THA-433, THA-434, THA-435, THA-436,
+      THA-437, THA-438, THA-439, THA-440, THA-441, THA-442, THA-443, THA-445, THA-446, THA-447,
+      THA-448, THA-449, THA-472, THA-473, THA-493, THA-494, THA-5499, KHM-1777, KHM-1778, KHM-1782,
+      KHM-1783, LAO-3278
+    ]
+  - key: malaya
+    name: Malaya and British Borneo
+    region: pacific
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "jungle over the peninsula's spine and northern Borneo; no source cited"
+    provinces: [
+      MYS-1137, MYS-1139, MYS-1140, MYS-1141, MYS-1143, MYS-1144, MYS-1145, MYS-1146, MYS-1147,
+      MYS-1148, MYS-1149, MYS-1186, MYS-1187, MYS-4831, MYS-4832, MYS-4833, SGP-4871, SGP-4872,
+      SGP-4873, SGP-4874, SGP-4875, BRN-1181, BRN-1182, BRN-1183, BRN-1184
+    ]
+  - key: burma
+    name: Burma
+    region: pacific
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "jungle hills round the Irrawaddy valley; no source cited"
+    provinces: [
+      MMR-2473, MMR-3266, MMR-3267, MMR-3268, MMR-3269, MMR-3270, MMR-3273, MMR-3274, MMR-3275,
+      MMR-3276, MMR-3277, MMR-3279, MMR-3296, MMR-3302
+    ]
+  - key: dutch_east_indies
+    name: The Dutch East Indies
+    region: pacific
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "jungle and volcanic islands; no source cited"
+    provinces: [
+      IDN-1136, IDN-1185, IDN-1223, IDN-1224, IDN-1225, IDN-1226, IDN-1227, IDN-1228, IDN-1229,
+      IDN-1230, IDN-1231, IDN-1232, IDN-1233, IDN-1234, IDN-1235, IDN-1236, IDN-1237, IDN-1796,
+      IDN-1837, IDN-1930, IDN-1931, IDN-1933, IDN-381, IDN-492, IDN-513, IDN-538, IDN-539, IDN-540,
+      IDN-554, IDN-555, IDN-556, IDN-557, IDN-558, TLS-541, TLS-542, TLS-543, TLS-544, TLS-545,
+      TLS-546, TLS-547, TLS-548, TLS-549, TLS-550, TLS-551, TLS-552, TLS-553
+    ]
+  - key: philippines
+    name: The Philippines
+    region: pacific
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "jungle and the Luzon cordillera; no source cited"
+    provinces: [
+      PHL-2511, PHL-2513, PHL-2514, PHL-2516, PHL-2517, PHL-2518, PHL-2519, PHL-2520, PHL-2521,
+      PHL-2522, PHL-2523, PHL-2524, PHL-2525, PHL-2526, PHL-2528, PHL-2529, PHL-2530, PHL-2534,
+      PHL-2535, PHL-2536, PHL-2537, PHL-2538, PHL-2539, PHL-2540, PHL-2541, PHL-2542, PHL-2543,
+      PHL-2545, PHL-2546, PHL-2547, PHL-2548, PHL-2549, PHL-2550, PHL-2551, PHL-2552, PHL-2553,
+      PHL-2554, PHL-2555, PHL-2556, PHL-2557, PHL-2558, PHL-2559, PHL-2560, PHL-2561, PHL-2562,
+      PHL-2563, PHL-2564, PHL-2565, PHL-2566, PHL-2567, PHL-2569, PHL-2570, PHL-2571, PHL-2572,
+      PHL-2573, PHL-2574, PHL-2576, PHL-2579, PHL-2580, PHL-2581, PHL-2582, PHL-2583, PHL-2584,
+      PHL-2585, PHL-2586, PHL-2587, PHL-2588, PHL-2589, PHL-2590, PHL-2591, PHL-2592, PHL-2593,
+      PHL-2594, PHL-2595, PHL-2596, PHL-2597, PHL-2598, PHL-2599, PHL-4931, PHL-4932, PHL-5522,
+      PHL-5523, PHL-5524, PHL-5525, PHL-5526, PHL-5527, PHL-5528, PHL-5529, PHL-5530, PHL-5531,
+      PHL-5532, PHL-5533, PHL-5534, PHL-5535, PHL-5536, PHL-5537, PHL-5538, PHL-5539, PHL-5540,
+      PHL-5541, PHL-5542, PHL-5543, PHL-5544, PHL-5545, PHL-5546, PHL-5547, PHL-5549, PHL-5550,
+      PHL-5551, PHL-5552, PHL-5553, PHL-5554, PHL-5555, PHL-5556, PHL-5557, PHL-5558, PHL-5559,
+      PHL-5560
+    ]
+  - key: hawaii
+    name: Hawaii
+    region: pacific
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "volcanic islands; no source cited"
+    sites: [pearl_harbor_base]
+    provinces: [
+      USA-3517
+    ]
+  - key: soviet_far_east
+    name: The Soviet Far East
+    region: pacific
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "taiga along the Amur and the Ussuri; no source cited"
+    provinces: [
+      RUS-2610, RUS-2609, RUS-2613, RUS-2614, RUS-2611
+    ]
+cuts:
+  # Walking a line from its first point, `left` takes what lies left of it and `right` what lies right.
+  # Inner Mongolia is cut twice: first Manchukuo's part, then Mengjiang's from the free west.
+  - name: Manchukuo's western border in Inner Mongolia
+    province: CHN-1838
+    line: [[115.6, 47.6], [116.9, 46.4], [117.6, 45.3], [117.4, 44.0], [116.9, 42.8], [116.6, 41.8],
+           [116.9, 41.0]]
+    left: manchuria
+    gap: true
+    named_source: >-
+      the western border of Manchukuo's Hsingan provinces and Jehol against Mengjiang's Chahar, 1941
+      (Hulunbuir, Hinggan, Tongliao and Chifeng to Manchukuo); points interpreted, no evidence record
+  - name: the Mengjiang front on the Yellow River bend
+    province: CHN-1838
+    line: [[109.0, 43.5], [109.3, 41.5], [109.6, 40.7], [110.5, 40.5], [111.2, 40.3], [112.0, 39.5]]
+    left: north_china
+    right: northwest_china
+    gap: true
+    named_source: >-
+      the line between Mengjiang (Hohhot, Baotou) and the Chinese-held Hetao and Ordos after the battle of
+      Wuyuan, March 1940; points interpreted, no evidence record
+  - name: the Yellow River flood front in Henan
+    province: CHN-1812
+    line: [[112.3, 35.6], [112.6, 34.95], [113.6, 34.9], [114.3, 34.5], [114.7, 33.9], [115.3, 33.2],
+           [115.9, 32.9]]
+    left: north_china
+    right: northwest_china
+    gap: true
+    named_source: >-
+      the front along the Yellow River and its 1938 flood belt from Huayuankou to the Anhui border,
+      autumn 1941; points interpreted, no evidence record
+  - name: the Yichang front in Hubei
+    province: CHN-1807
+    line: [[113.4, 32.7], [112.9, 31.9], [112.0, 31.3], [111.0, 31.0], [111.0, 30.4], [111.6, 30.0],
+           [112.1, 29.5], [112.3, 28.9]]
+    left: wuhan
+    right: szechwan
+    gap: true
+    named_source: >-
+      the front west of Wuhan after the Japanese took Yichang (June 1940) and the Han valley to
+      Zhongxiang, autumn 1941; points interpreted, no evidence record
+  - name: the Xinqiang River front at Yueyang
+    province: CHN-1808
+    line: [[112.3, 29.9], [112.6, 29.3], [113.0, 29.0], [113.6, 28.9], [114.3, 29.0]]
+    left: wuhan
+    right: hunan
+    gap: true
+    named_source: >-
+      the line the Japanese held south of Yueyang after the first battle of Changsha (Sep to Oct 1941);
+      points interpreted, no evidence record
+  - name: the Nanchang front in Jiangxi
+    province: CHN-1817
+    line: [[113.4, 28.9], [114.8, 28.5], [115.8, 28.4], [116.5, 28.6], [117.4, 29.5], [118.2, 29.9]]
+    left: wuhan
+    right: hunan
+    gap: true
+    named_source: >-
+      the front south of Nanchang (taken March 1939) and the western shore of Poyang Lake, autumn 1941;
+      points interpreted, no evidence record
+  - name: the Chekiang front south of Ningbo
+    province: CHN-1820
+    line: [[118.4, 30.4], [119.4, 29.9], [120.4, 29.8], [121.3, 29.6], [122.8, 29.6]]
+    left: wuhan
+    right: south_china
+    gap: true
+    named_source: >-
+      the front south of Hangzhou, Shaoxing and Ningbo (taken April 1941), autumn 1941; points
+      interpreted, no evidence record
+  - name: the Canton and Swatow perimeters in Guangdong
+    province: CHN-1180
+    line: [[111.0, 24.0], [112.5, 23.6], [113.2, 23.75], [113.9, 23.5], [114.6, 23.3], [115.6, 23.1],
+           [116.2, 23.3], [116.4, 23.9], [117.3, 24.0]]
+    left: south_china
+    right: south_china_coast
+    gap: true
+    named_source: >-
+      the perimeter the Japanese held round Canton (from October 1938) and Swatow (from June 1939),
+      autumn 1941; points interpreted, no evidence record
+  - name: Karafuto and the Kuriles
+    province: RUS-2616
+    line: [[141.0, 50.0], [145.0, 50.0], [157.5, 51.5]]
+    left: soviet_far_east
+    right: japan_east
+    gap: true
+    named_source: >-
+      the 50th parallel on Sakhalin (Treaty of Portsmouth, 5 Sep 1905, Article IX) and the Kuriles to
+      Shumshu (Treaty of St Petersburg, 1875); points placed from the treaties' wording, no evidence record
+sea_zones:
+  - key: sea_of_japan
+    name: The Sea of Japan
+    region: pacific
+    terrain: sea
+    polygon: [[128.6, 35.3], [129.0, 34.0], [130.0, 33.75], [130.35, 33.85], [130.45, 33.6], [130.85, 33.85], [131.0, 34.05], [131.5, 34.25],
+              [132.5, 34.75], [133.5, 35.1], [135.0, 35.2], [136.0, 35.5], [137.0, 36.0], [138.2, 36.6],
+              [139.3, 37.5], [140.3, 39.0], [140.6, 40.6], [140.5, 40.85], [140.3, 41.8], [141.3, 42.8],
+              [142.0, 43.8], [142.0, 45.0], [142.1, 46.3], [142.6, 47.5], [142.3, 48.5], [142.6, 49.5],
+              [142.7, 51.5], [142.3, 52.2], [140.8, 52.3], [139.0, 50.0], [137.5, 47.5], [135.0, 44.5],
+              [132.5, 43.8], [130.5, 42.8], [129.5, 41.5], [127.0, 40.0], [126.9, 39.0], [127.8, 38.0]]
+  - key: east_china_sea
+    name: The East China Sea and the Yellow Sea
+    region: pacific
+    terrain: sea
+    polygon: [[128.6, 35.3], [127.5, 35.5], [127.0, 37.5], [126.2, 39.0], [124.8, 40.5], [122.7, 40.4],
+              [121.8, 41.4], [119.3, 40.3], [117.0, 39.6], [116.8, 38.8], [118.0, 36.8], [118.8, 35.2],
+              [120.0, 32.2], [119.6, 31.2], [119.8, 30.2], [119.0, 27.5], [118.2, 24.9], [121.0, 24.5],
+              [125.5, 25.0], [128.0, 27.0], [130.0, 29.0], [130.25, 31.3], [130.4, 31.6], [130.7, 32.0],
+              [130.9, 32.8], [130.45, 33.6], [130.35, 33.85], [130.0, 33.75],
+              [129.0, 34.0]]
+  - key: south_china_sea
+    name: The South China Sea
+    region: pacific
+    terrain: sea
+    polygon: [[118.2, 24.9], [116.0, 24.0], [113.0, 23.5], [110.3, 22.0], [108.5, 22.5], [106.5, 21.5],
+              [105.5, 19.5], [106.0, 17.8], [107.0, 16.5], [108.3, 15.0], [107.8, 12.0], [106.0, 10.8],
+              [104.5, 11.5], [102.0, 13.6], [100.5, 14.3], [99.6, 13.0], [98.9, 10.5], [99.0, 9.8],
+              [99.4, 9.0], [100.0, 8.0], [100.6, 6.9], [101.0, 6.0], [102.5, 4.0], [103.5, 1.6],
+              [102.3, 0.8], [103.3, -0.5], [105.0, -3.0], [106.0, -2.3], [111.0, -2.0], [112.0, 1.5],
+              [114.5, 3.0], [117.0, 6.0], [117.9, 7.3], [118.6, 8.0], [120.0, 9.8], [121.5, 11.6], [121.0, 12.8], [121.0, 13.8],
+              [121.3, 14.5], [121.0, 18.0], [120.85, 22.3], [121.0, 24.5]]
+  - key: andaman_sea
+    name: The Andaman Sea and the Strait of Malacca
+    region: pacific
+    terrain: sea
+    polygon: [[103.5, 1.6], [102.5, 4.0], [101.0, 6.0], [100.6, 6.9], [100.0, 8.0], [99.4, 9.0],
+              [99.0, 9.8], [98.9, 10.5], [99.6, 13.0], [98.0, 17.0], [94.5, 17.5], [93.0, 16.0],
+              [92.0, 10.0], [94.0, 6.5], [95.5, 5.4], [96.5, 4.5], [98.5, 3.0], [100.5, 1.5], [102.3, 0.8]]
+  - key: java_sea
+    name: The Java Sea and the Seas of the Indies
+    region: pacific
+    terrain: sea
+    polygon: [[117.0, 6.0], [120.0, 6.0], [122.0, 7.0], [124.0, 8.0], [126.2, 7.6], [128.5, 1.5],
+              [132.0, -0.8], [138.0, -2.0], [141.0, -2.7], [141.0, -9.2], [127.0, -9.0], [124.0, -9.5],
+              [121.0, -8.6], [118.0, -8.6], [116.3, -8.6], [115.2, -8.4], [114.0, -8.0], [110.0, -7.3],
+              [106.0, -6.8], [105.0, -5.0], [105.0, -3.0], [106.0, -2.3], [111.0, -2.0], [112.0, 1.5],
+              [114.5, 3.0]]
+  - key: philippine_sea
+    name: The Philippine Sea
+    region: pacific
+    terrain: sea
+    polygon: [[121.0, 24.5], [120.85, 22.3], [121.0, 18.0], [121.3, 14.5], [121.0, 13.8], [121.0, 12.8],
+              [121.5, 11.6], [120.0, 9.8], [118.6, 8.0], [117.9, 7.3], [117.0, 6.0], [120.0, 6.0], [122.0, 7.0], [124.0, 8.0],
+              [126.2, 7.6], [128.5, 1.5], [132.0, -0.8], [138.0, -2.0], [141.0, -2.7], [150.0, -2.5],
+              [150.0, 36.0], [140.3, 36.0], [138.2, 36.6], [137.0, 36.0], [136.0, 35.5], [135.0, 35.2],
+              [133.5, 35.1], [132.5, 34.75], [131.5, 34.25], [131.0, 34.05], [130.85, 33.85],
+              [130.45, 33.6], [130.9, 32.8], [130.7, 32.0], [130.4, 31.6], [130.25, 31.3], [130.0, 29.0],
+              [128.0, 27.0], [125.5, 25.0]]
+  - key: north_pacific
+    name: The North Pacific
+    region: pacific
+    terrain: sea
+    polygon: [[138.2, 36.6], [140.3, 36.0], [150.0, 36.0], [210.0, 36.0], [210.0, 60.5], [200.0, 64.5],
+              [194.0, 65.3], [186.5, 65.5], [175.0, 65.0], [160.0, 64.0], [150.0, 63.0], [140.0, 62.0],
+              [133.5, 55.0], [136.0, 52.0], [140.8, 52.3], [142.3, 52.2], [142.7, 51.5], [142.6, 49.5],
+              [142.3, 48.5], [142.6, 47.5], [142.1, 46.3], [142.0, 45.0], [142.0, 43.8], [141.3, 42.8],
+              [140.3, 41.8], [140.5, 40.85], [140.6, 40.6], [140.3, 39.0], [139.3, 37.5]]
+  - key: central_pacific
+    name: The Central Pacific
+    region: pacific
+    terrain: sea
+    polygon: [[150.0, 0.0], [210.0, 0.0], [210.0, 36.0], [150.0, 36.0]]
+  - key: eastern_pacific
+    name: The Eastern Pacific
+    region: pacific
+    terrain: sea
+    polygon: [[210.0, 10.0], [234.0, 10.0], [234.0, 61.0], [210.0, 61.0]]
+crossings:
+  - {a: eastern_pacific, b: us_west, name: the box's seam at 126 W, source: "sea-zone line chosen for play, not sourced"}

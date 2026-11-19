@@ -33,11 +33,15 @@ ATLANTIC_STAGING = SRC / "atlantic.world.yaml"
 MEDITERRANEAN = SRC / "mediterranean.yaml"
 MEDITERRANEAN_STAGING = SRC / "mediterranean.world.yaml"
 MEDITERRANEAN_PLACES = SRC / "mediterranean.places.yaml"
-RECIPES = (RECIPE, EUROPE, ATLANTIC, MEDITERRANEAN)
+PACIFIC = SRC / "pacific.yaml"
+PACIFIC_STAGING = SRC / "pacific.world.yaml"
+PACIFIC_PLACES = SRC / "pacific.places.yaml"
+RECIPES = (RECIPE, EUROPE, ATLANTIC, MEDITERRANEAN, PACIFIC)
 # The regions whose recipes carry cut lines (the Atlantic's carries none, MAA rule 1).
-CUT_RECIPES = (RECIPE, EUROPE, MEDITERRANEAN)
+CUT_RECIPES = (RECIPE, EUROPE, MEDITERRANEAN, PACIFIC)
+STAGINGS = (STAGING, EUROPE_STAGING, ATLANTIC_STAGING, MEDITERRANEAN_STAGING, PACIFIC_STAGING)
 # The newest region's staging world: the scoped check runs on it, and it extends the earlier ones.
-NEWEST = MEDITERRANEAN_STAGING
+NEWEST = PACIFIC_STAGING
 WORLD = ROOT / "worlds" / "autumn-1941.yaml"
 
 # Rule 2: every place the world has on the Eastern Front today.
@@ -90,11 +94,7 @@ def _world_places() -> dict[str, Any]:
 
 
 def _staged_territories() -> list[Any]:
-    return [
-        t
-        for path in (STAGING, EUROPE_STAGING, ATLANTIC_STAGING, MEDITERRANEAN_STAGING)
-        for t in _yaml(path)["territories"]
-    ]
+    return [t for path in STAGINGS for t in _yaml(path)["territories"]]
 
 
 def _territory_keys() -> set[str]:
@@ -122,11 +122,7 @@ def test_the_map_passes_the_check() -> None:
     assert mc.check(_raw()) == []
 
 
-@pytest.mark.parametrize(
-    "staging",
-    [STAGING, EUROPE_STAGING, ATLANTIC_STAGING, MEDITERRANEAN_STAGING],
-    ids=lambda p: p.stem,
-)
+@pytest.mark.parametrize("staging", STAGINGS, ids=lambda p: p.stem)
 def test_the_staging_world_names_the_committed_map(staging: Path) -> None:
     ref = _yaml(staging)["map"]
     assert ref["sha256"] == hashlib.sha256(MAP.read_bytes()).hexdigest()
@@ -205,10 +201,11 @@ def test_the_scoped_check_fails_when_a_places_territory_leaves_the_region(tmp_pa
         if gone not in ((e["a"], e["b"]) if isinstance(e, dict) else tuple(e))
     ]
     (tmp_path / STAGING.name).write_text(yaml.safe_dump(pilot, sort_keys=False))
-    for staging in (EUROPE_STAGING, ATLANTIC_STAGING, MEDITERRANEAN_STAGING):
+    places = {MEDITERRANEAN_STAGING: MEDITERRANEAN_PLACES, PACIFIC_STAGING: PACIFIC_PLACES}
+    for staging in STAGINGS[1:]:
         doc = _yaml(staging)
         doc["map"].update(ref)
-        doc["places_of"] = str(MEDITERRANEAN_PLACES if staging == MEDITERRANEAN_STAGING else WORLD)
+        doc["places_of"] = str(places.get(staging, WORLD))
         (tmp_path / staging.name).write_text(yaml.safe_dump(doc, sort_keys=False))
     path = tmp_path / NEWEST.name
     report = mc.check_region(path)
@@ -783,8 +780,11 @@ def test_the_staging_world_names_this_regions_places_file() -> None:
 
 
 def test_the_scoped_check_passes_on_the_mediterranean_staging_world() -> None:
-    report = mc.check_region(MEDITERRANEAN_STAGING)
+    # The map now holds a newer region, so the Mediterranean's staging world is checked through the
+    # newest one, which extends it.
+    report = mc.check_region(NEWEST)
     assert [str(p) for p in report.problems] == []
+    assert not set(MEDITERRANEAN_PLACE_HOMES) & set(report.out_of_scope)
 
 
 def test_the_mediterranean_staging_world_puts_six_new_places_in_scope() -> None:
@@ -985,3 +985,319 @@ def test_no_province_is_claimed_by_two_of_the_four_recipe_files() -> None:
     for i, a in enumerate(claims):
         for b in claims[i + 1 :]:
             assert a & b == set()
+
+
+# ---------------------------------------------------------------- MAC: China, Japan and the Pacific
+
+# Rule 1: the region's territories and sea zones, by key. [proposed] The plan's list of fourteen is
+# here, with Japan in two, and five more the front and the bases need: Formosa, Hong Kong, the free
+# Northwest and free South China (the land behind the front, which is in play), and Burma.
+PACIFIC_TERRITORIES = (
+    "japan_east",
+    "japan_west",
+    "formosa",
+    "korea",
+    "manchuria",
+    "north_china",
+    "wuhan",
+    "hunan",
+    "szechwan",
+    "northwest_china",
+    "south_china",
+    "south_china_coast",
+    "hong_kong",
+    "indochina",
+    "thailand",
+    "malaya",
+    "burma",
+    "dutch_east_indies",
+    "philippines",
+    "hawaii",
+    "soviet_far_east",
+)
+PACIFIC_SEA_ZONES = (
+    "sea_of_japan",
+    "east_china_sea",
+    "south_china_sea",
+    "andaman_sea",
+    "java_sea",
+    "philippine_sea",
+    "north_pacific",
+    "central_pacific",
+    "eastern_pacific",
+)
+# Rule 2: the world's five places in the region, and the territory each lies in.
+PACIFIC_WORLD_SITES = {
+    "tokyo": "japan_east",
+    "kure": "japan_west",
+    "hitokappu_bay": "japan_east",
+    "pearl_harbor_base": "hawaii",
+    "chungking": "szechwan",
+}
+# Rule 2: the two new sites, their territory and their coordinates (GeoNames 1815577 and 1791247, to
+# two decimals; the recipe cites them).
+PACIFIC_NEW_SITES = {
+    "changsha": ("hunan", (28.20, 112.97)),
+    "wuhan": ("wuhan", (30.58, 114.27)),
+}
+
+
+def _pacific_places() -> dict[str, Any]:
+    return {str(e["key"]): e for e in _yaml(PACIFIC_STAGING)["entities"]}
+
+
+def test_the_pacific_region_has_its_territories_and_sea_zones() -> None:
+    staged = _yaml(PACIFIC_STAGING)
+    assert [t["key"] for t in staged["territories"]] == list(PACIFIC_TERRITORIES)
+    assert [z["key"] for z in staged["sea_zones"]] == list(PACIFIC_SEA_ZONES)
+    assert {t["region"] for t in staged["territories"] + staged["sea_zones"]} == {"pacific"}
+    assert set(PACIFIC_TERRITORIES + PACIFIC_SEA_ZONES) <= set(_raw()["areas"])
+    cut_to = {str(c[key]) for c in _yaml(PACIFIC)["cuts"] for key in ("left", "right") if key in c}
+    for t in _yaml(PACIFIC)["territories"]:
+        assert t.get("provinces") or t["key"] in cut_to, t["key"]
+
+
+def test_the_pacific_staging_world_extends_the_mediterranean() -> None:
+    parent = (PACIFIC_STAGING.parent / _yaml(PACIFIC_STAGING)["extends"]).resolve()
+    assert parent == MEDITERRANEAN_STAGING.resolve()
+
+
+def test_the_pacific_staging_blocks_are_the_built_fragments() -> None:
+    fragment, staged = _yaml(FRAGMENT), _yaml(PACIFIC_STAGING)
+    keep = ("territories", "sea_zones")
+    for block in keep:
+        assert staged[block] == [a for a in fragment[block] if a["region"] == "pacific"]
+    own = {str(a["key"]) for block in keep for a in staged[block]}
+
+    def pair(e: Any) -> tuple[str, str]:
+        return (e["a"], e["b"]) if isinstance(e, dict) else (e[0], e[1])
+
+    assert staged["adjacency"] == [e for e in fragment["adjacency"] if own & set(pair(e))]
+
+
+def test_the_pacific_staging_world_names_its_places_file() -> None:
+    assert _yaml(PACIFIC_STAGING)["places_of"] == PACIFIC_PLACES.name
+    here = {str(e["key"]): e for e in _yaml(PACIFIC_PLACES)["entities"]}
+    world = _world_places()
+    for key, e in here.items():
+        if key in world:
+            assert e["at"] == world[key]["at"], key
+    new = sorted(set(here) - set(world))
+    assert new == sorted([*MEDITERRANEAN_PLACE_HOMES, *PACIFIC_NEW_SITES])
+    for key in MEDITERRANEAN_PLACE_HOMES:
+        assert here[key]["at"] == _med_places()[key]["at"], key
+
+
+def test_the_scoped_check_passes_on_the_pacific_staging_world() -> None:
+    report = mc.check_region(PACIFIC_STAGING)
+    assert [str(p) for p in report.problems] == []
+    assert not (set(PACIFIC_WORLD_SITES) | set(PACIFIC_NEW_SITES)) & set(report.out_of_scope)
+
+
+def test_the_pacific_staging_world_puts_its_seven_places_in_scope() -> None:
+    staged = _pacific_places()
+    assert sorted(staged) == sorted([*PACIFIC_WORLD_SITES, *PACIFIC_NEW_SITES])
+    world = _world_places()
+    for key in PACIFIC_WORLD_SITES:
+        assert staged[key]["at"] == world[key]["at"], key
+    for key, (_, at) in PACIFIC_NEW_SITES.items():
+        assert staged[key]["at"] == list(at), key
+        assert not world.get(key), key
+
+
+@pytest.mark.parametrize("site", PACIFIC_WORLD_SITES)
+def test_each_pacific_world_place_lies_in_its_territory_and_is_its_site(site: str) -> None:
+    assert _home(site) == PACIFIC_WORLD_SITES[site]
+    holders = [str(t["key"]) for t in _staged_territories() if site in (t.get("sites") or [])]
+    assert holders == [PACIFIC_WORLD_SITES[site]]
+
+
+@pytest.mark.parametrize("site", PACIFIC_NEW_SITES)
+def test_each_new_pacific_site_lies_in_its_territory_and_is_its_site(site: str) -> None:
+    key, (lat, lon) = PACIFIC_NEW_SITES[site]
+    assert _where(lat, lon) == key
+    holders = [str(t["key"]) for t in _staged_territories() if site in (t.get("sites") or [])]
+    assert holders == [key]
+
+
+def test_the_new_pacific_sites_cite_their_coordinates() -> None:
+    head = PACIFIC.read_text().split("\nmap:")[0]
+    for geonames_id in ("1815577", "1791247"):
+        assert f"https://www.geonames.org/{geonames_id}" in head
+
+
+# Rule 3: each cut gives each side to the territory it names (a town on each side of every line).
+PACIFIC_CUT_SIDES = (
+    # Manchukuo's western border in Inner Mongolia.
+    ("Hailar", 49.21, 119.74, "manchuria"),
+    ("Ulanhot", 46.08, 122.05, "manchuria"),
+    ("Chifeng", 42.26, 118.89, "manchuria"),
+    ("Xilinhot", 43.93, 116.07, "north_china"),
+    # Mengjiang against the free Hetao and Ordos.
+    ("Hohhot", 40.82, 111.65, "north_china"),
+    ("Baotou", 40.66, 109.84, "north_china"),
+    ("Bayannur", 40.74, 107.39, "northwest_china"),
+    ("Ordos", 39.61, 109.78, "northwest_china"),
+    # The Yellow River flood front in Henan.
+    ("Kaifeng", 34.80, 114.31, "north_china"),
+    ("Shangqiu", 34.41, 115.65, "north_china"),
+    ("Luoyang", 34.62, 112.45, "northwest_china"),
+    ("Nanyang", 33.00, 112.53, "northwest_china"),
+    # The Yichang front in Hubei.
+    ("Yichang", 30.69, 111.29, "wuhan"),
+    ("Shashi", 30.30, 112.25, "wuhan"),
+    ("Enshi", 30.30, 109.48, "szechwan"),
+    ("Xiangyang", 32.04, 112.14, "szechwan"),
+    # The Xinqiang front at Yueyang.
+    ("Yueyang", 29.36, 113.13, "wuhan"),
+    ("Zhuzhou", 27.83, 113.13, "hunan"),
+    # The Nanchang front in Jiangxi.
+    ("Nanchang", 28.68, 115.86, "wuhan"),
+    ("Jiujiang", 29.71, 116.00, "wuhan"),
+    ("Ji'an", 27.11, 114.99, "hunan"),
+    # The Chekiang front south of Ningbo.
+    ("Hangzhou", 30.27, 120.15, "wuhan"),
+    ("Shaoxing", 30.00, 120.58, "wuhan"),
+    ("Jinhua", 29.08, 119.65, "south_china"),
+    ("Wenzhou", 28.00, 120.67, "south_china"),
+    # The Canton and Swatow perimeters in Guangdong.
+    ("Canton", 23.13, 113.26, "south_china_coast"),
+    ("Chaozhou", 23.66, 116.62, "south_china_coast"),
+    ("Shaoguan", 24.80, 113.60, "south_china"),
+    ("Meizhou", 24.29, 116.12, "south_china"),
+    # Karafuto and the Kuriles.
+    ("Toyohara", 46.96, 142.73, "japan_east"),
+    ("Shumshu", 50.75, 156.30, "japan_east"),
+    ("Okha", 53.57, 142.95, "soviet_far_east"),
+)
+
+
+@pytest.mark.parametrize(("town", "lat", "lon", "key"), PACIFIC_CUT_SIDES)
+def test_each_pacific_cut_gives_each_side_to_the_territory_it_names(
+    town: str, lat: float, lon: float, key: str
+) -> None:
+    assert _where(lat, lon) == key, town
+
+
+def test_every_pacific_cut_is_a_gap_with_a_named_source() -> None:
+    cuts = _yaml(PACIFIC)["cuts"]
+    assert len(cuts) == 9
+    for c in cuts:
+        assert c["gap"] is True, c["name"]
+        assert c.get("named_source"), c["name"]
+
+
+@pytest.mark.parametrize(
+    ("town", "lat", "lon", "key"),
+    [
+        ("Peking", 39.90, 116.40, "north_china"),
+        ("Shanghai", 31.23, 121.47, "wuhan"),
+        ("Nanking", 32.06, 118.80, "wuhan"),
+        ("Kunming", 25.04, 102.71, "szechwan"),
+        ("Xi'an", 34.26, 108.94, "northwest_china"),
+        ("Yan'an", 36.60, 109.49, "northwest_china"),
+        ("Guilin", 25.27, 110.29, "south_china"),
+        ("Haikou", 20.04, 110.34, "south_china_coast"),
+        ("Mukden", 41.80, 123.43, "manchuria"),
+        ("Harbin", 45.75, 126.65, "manchuria"),
+        ("Seoul", 37.57, 126.98, "korea"),
+        ("Taipei", 25.03, 121.56, "formosa"),
+        ("the New Territories", 22.45, 114.10, "hong_kong"),
+        ("Vladivostok", 43.12, 131.89, "soviet_far_east"),
+        ("Khabarovsk", 48.48, 135.08, "soviet_far_east"),
+        ("Hanoi", 21.03, 105.85, "indochina"),
+        ("Saigon", 10.82, 106.63, "indochina"),
+        ("Battambang", 13.10, 103.20, "thailand"),
+        ("Bangkok", 13.75, 100.50, "thailand"),
+        ("Singapore", 1.35, 103.82, "malaya"),
+        ("Kuching", 1.55, 110.35, "malaya"),
+        ("Rangoon", 16.80, 96.15, "burma"),
+        ("Batavia", -6.20, 106.85, "dutch_east_indies"),
+        ("Manila", 14.60, 120.98, "philippines"),
+        ("Honolulu", 21.30, -157.86, "hawaii"),
+    ],
+)
+def test_each_pacific_town_lies_in_its_territory(
+    town: str, lat: float, lon: float, key: str
+) -> None:
+    assert _where(lat, lon) == key, town
+
+
+# Rule 4: the map joins across the date line. The box runs once round the globe, so Hawaii and the
+# Central Pacific are drawn east of 180 and the Eastern Pacific reaches the American west coast.
+def _pacific_sea_links() -> dict[str, set[str]]:
+    fragment = _yaml(FRAGMENT)
+    seas = {str(z["key"]) for z in fragment["sea_zones"]}
+    links: dict[str, set[str]] = {z: set() for z in seas}
+    for e in fragment["adjacency"]:
+        a, b = (e["a"], e["b"]) if isinstance(e, dict) else (e[0], e[1])
+        if a in seas and b in seas:
+            links[a].add(b)
+            links[b].add(a)
+    return links
+
+
+def _sea_route(a: str, b: str) -> bool:
+    links, seen, todo = _pacific_sea_links(), {a}, [a]
+    while todo:
+        for z in links[todo.pop()] - seen:
+            seen.add(z)
+            todo.append(z)
+    return b in seen
+
+
+def _xs(key: str) -> list[float]:
+    raw = _raw()
+    return [raw["vertices"][i][0] for ring in raw["areas"][key]["rings"] for i in ring]
+
+
+def test_the_box_runs_past_the_date_line_and_the_recipes_agree_on_it() -> None:
+    box = _raw()["box"]
+    assert box[0] < -120 and box[2] > 180
+    assert box[2] - box[0] <= 360
+    assert _yaml(PACIFIC)["map"]["box"] == box
+
+
+def test_the_central_pacific_is_one_zone_across_the_date_line() -> None:
+    xs = _xs("central_pacific")
+    assert min(xs) < 180 < max(xs)
+    assert _where(19.28, 166.65) == "central_pacific"  # Wake
+    assert _where(28.20, -177.37) == "central_pacific"  # Midway, written west of the line
+    assert min(_xs("hawaii")) > 180
+
+
+def test_the_pacific_sea_zones_reach_the_american_west_coast() -> None:
+    raw = _raw()
+    # The coast lies inside the box's west edge and the zone ends at its east edge, the seam between
+    # them: the two are joined by the declared crossing over the seam.
+    assert max(_xs("eastern_pacific")) == raw["box"][2]
+    assert 0 < min(_xs("us_west")) - raw["box"][0] < 3
+    crossings = {
+        (e["a"], e["b"]): e["crossing"] for e in _yaml(FRAGMENT)["adjacency"] if isinstance(e, dict)
+    }
+    assert crossings[("eastern_pacific", "us_west")] == "the box's seam at 126 W"
+    staged = [e for e in _yaml(PACIFIC_STAGING)["adjacency"] if isinstance(e, dict)]
+    assert {"a": "eastern_pacific", "b": "us_west", "crossing": "the box's seam at 126 W"} in staged
+    assert mc.check_region(PACIFIC_STAGING).problems == []
+    for a, b in (
+        ("central_pacific", "eastern_pacific"),
+        ("north_pacific", "eastern_pacific"),
+        ("central_pacific", "hawaii"),
+    ):
+        assert mc.adjacent(raw, a, b), (a, b)
+    assert _sea_route("sea_of_japan", "eastern_pacific")
+
+
+def test_a_fleet_can_pass_from_the_pacific_to_the_atlantic_only_round_the_world() -> None:
+    # No sea zone of the Pacific touches the Atlantic's: the map has no Panama or Cape Horn route.
+    atlantic = {"western_atlantic", "caribbean_sea", "mid_ocean_gap"}
+    for z in PACIFIC_SEA_ZONES:
+        assert not _pacific_sea_links()[z] & atlantic, z
+
+
+def test_the_pacific_proof_sheet_draws_the_region_and_its_cuts() -> None:
+    sheet = (ROOT / "worlds" / "maps" / "proof" / "autumn-1941-pacific.svg").read_text()
+    for name in ("Japan East", "Hunan and Kiangsi", "Hawaii", "The Eastern Pacific", "Changsha"):
+        assert name in sheet, name
+    for c in _yaml(PACIFIC)["cuts"]:
+        assert str(c["name"]) in sheet, c["name"]

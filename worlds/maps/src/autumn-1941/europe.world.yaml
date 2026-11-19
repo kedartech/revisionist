@@ -10,7 +10,7 @@
 # the fragment's blocks into both staging worlds; the test pins the hash.
 extends: eastern-front.world.yaml
 places_of: ../../../autumn-1941.yaml
-map: {coords: lonlat, file: autumn-1941.json, sha256: cbc7d5075397531932094feae7e1ea6e461656210ee08f92894b9a13d98ad3ca, box: [-126, 10, 52, 71.5]}
+map: {coords: lonlat, file: autumn-1941.json, sha256: f770cde38f1fd71b3dce6000c04bb238062d421f7161565fce9abd409f8c57bc, box: [-126, -11.5, 234, 71.5]}
 regions:
   - {key: europe, name: Europe}
 territories:

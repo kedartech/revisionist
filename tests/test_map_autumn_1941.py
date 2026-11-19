@@ -11,6 +11,7 @@ border data, so it runs in CI.
 import copy
 import hashlib
 import importlib.util
+import itertools
 import json
 from pathlib import Path
 from types import ModuleType
@@ -27,9 +28,13 @@ RECIPE = SRC / "eastern-front.yaml"
 STAGING = SRC / "eastern-front.world.yaml"
 EUROPE = SRC / "europe.yaml"
 EUROPE_STAGING = SRC / "europe.world.yaml"
-RECIPES = (RECIPE, EUROPE)
+ATLANTIC = SRC / "atlantic.yaml"
+ATLANTIC_STAGING = SRC / "atlantic.world.yaml"
+RECIPES = (RECIPE, EUROPE, ATLANTIC)
+# The regions whose recipes carry cut lines (the Atlantic's carries none, MAA rule 1).
+CUT_RECIPES = (RECIPE, EUROPE)
 # The newest region's staging world: the scoped check runs on it, and it extends the earlier ones.
-NEWEST = EUROPE_STAGING
+NEWEST = ATLANTIC_STAGING
 WORLD = ROOT / "worlds" / "autumn-1941.yaml"
 
 # Rule 2: every place the world has on the Eastern Front today.
@@ -82,7 +87,11 @@ def _world_places() -> dict[str, Any]:
 
 
 def _staged_territories() -> list[Any]:
-    return [t for path in (STAGING, EUROPE_STAGING) for t in _yaml(path)["territories"]]
+    return [
+        t
+        for path in (STAGING, EUROPE_STAGING, ATLANTIC_STAGING)
+        for t in _yaml(path)["territories"]
+    ]
 
 
 def _territory_keys() -> set[str]:
@@ -110,7 +119,9 @@ def test_the_map_passes_the_check() -> None:
     assert mc.check(_raw()) == []
 
 
-@pytest.mark.parametrize("staging", [STAGING, EUROPE_STAGING], ids=lambda p: p.stem)
+@pytest.mark.parametrize(
+    "staging", [STAGING, EUROPE_STAGING, ATLANTIC_STAGING], ids=lambda p: p.stem
+)
 def test_the_staging_world_names_the_committed_map(staging: Path) -> None:
     ref = _yaml(staging)["map"]
     assert ref["sha256"] == hashlib.sha256(MAP.read_bytes()).hexdigest()
@@ -189,11 +200,12 @@ def test_the_scoped_check_fails_when_a_places_territory_leaves_the_region(tmp_pa
         if gone not in ((e["a"], e["b"]) if isinstance(e, dict) else tuple(e))
     ]
     (tmp_path / STAGING.name).write_text(yaml.safe_dump(pilot, sort_keys=False))
-    newest = _yaml(NEWEST)
-    newest["map"].update(ref)
-    newest["places_of"] = str(WORLD)
+    for staging in (EUROPE_STAGING, ATLANTIC_STAGING):
+        doc = _yaml(staging)
+        doc["map"].update(ref)
+        doc["places_of"] = str(WORLD)
+        (tmp_path / staging.name).write_text(yaml.safe_dump(doc, sort_keys=False))
     path = tmp_path / NEWEST.name
-    path.write_text(yaml.safe_dump(newest, sort_keys=False))
     report = mc.check_region(path)
     assert ("place", "kalinin") in [(p.code, p.face) for p in report.problems]
 
@@ -283,7 +295,7 @@ def test_each_cut_gives_each_side_to_the_territory_it_names(
 # ---------------------------------------------------------------- rules 3 to 5: sources and gaps
 
 
-@pytest.mark.parametrize("recipe", RECIPES, ids=lambda p: p.stem)
+@pytest.mark.parametrize("recipe", CUT_RECIPES, ids=lambda p: p.stem)
 def test_every_cut_has_a_source_or_is_a_gap(recipe: Path) -> None:
     cuts = _yaml(recipe).get("cuts") or []
     assert cuts
@@ -397,7 +409,7 @@ def test_berlin_and_rome_are_sites_of_one_territory_each() -> None:
 
 
 # Rule 2: the sea zones join the pilot's; the North Sea and the Bay of Biscay reach the open water
-# left for the Atlantic's zones (a point just west of each lies in no area yet).
+# that the Atlantic region's zones (MAA) now fill: a point just west of each lies in one of them.
 def test_the_europe_sea_zones_join_the_pilots() -> None:
     raw = _raw()
     assert mc.adjacent(raw, "danish_straits", "baltic_sea")
@@ -406,15 +418,19 @@ def test_the_europe_sea_zones_join_the_pilots() -> None:
 
 
 @pytest.mark.parametrize(
-    ("zone", "lat", "inside_lon", "west_lon"),
-    [("bay_of_biscay", 46.0, -9.9, -10.5), ("north_sea", 60.0, -1.5, -4.5)],
+    ("zone", "lat", "inside_lon", "west_lon", "next_zone"),
+    [
+        ("bay_of_biscay", 46.0, -9.9, -10.5, "mid_ocean_gap"),
+        ("north_sea", 60.0, -1.5, -4.5, "western_approaches"),
+    ],
 )
 def test_the_western_sea_zones_reach_the_open_atlantic(
-    zone: str, lat: float, inside_lon: float, west_lon: float
+    zone: str, lat: float, inside_lon: float, west_lon: float, next_zone: str
 ) -> None:
     raw = _raw()
     assert mc.locate(raw, inside_lon, lat) == ([zone], [])
-    assert mc.locate(raw, west_lon, lat) == ([], [])
+    assert mc.locate(raw, west_lon, lat) == ([next_zone], [])
+    assert mc.adjacent(raw, zone, next_zone)
 
 
 # Rule 5: the neutrals are territories held by a polity with no seat.
@@ -430,3 +446,242 @@ def test_the_neutrals_are_territories_held_by_a_polity_with_no_seat() -> None:
     sides = {str(side["side"]) for r in world["roster"] for side in r.get("sides") or []}
     for polities in held.values():
         assert not set(polities) & (seated | sides)
+
+
+# ---------------------------------------------------------------- MAA: the Atlantic
+
+# Rule 1: the Atlantic region's territories and sea zones, by key. [proposed]
+ATLANTIC_TERRITORIES = (
+    "britain_south",
+    "britain_north",
+    "ireland",
+    "iceland",
+    "greenland",
+    "newfoundland",
+    "eastern_canada",
+    "us_east",
+    "us_central",
+    "us_west",
+    "caribbean",
+)
+ATLANTIC_SEA_ZONES = (
+    "english_channel",
+    "western_approaches",
+    "mid_ocean_gap",
+    "western_atlantic",
+    "labrador_sea",
+    "denmark_strait",
+    "arctic_route",
+    "caribbean_sea",
+)
+# Rule 2: the places today's world has in the region, and where each lies. Six are on land and
+# sites of their territory; Liverpool, Argentia and Scapa Flow lie in the water of the border data
+# (the recipe says so), so each is a place in a sea zone and no territory's site. North Atlantic is
+# the world's convoy waypoint.
+ATLANTIC_LAND_SITES = {
+    "washington": "us_east",
+    "norfolk": "us_east",
+    "halifax_port": "eastern_canada",
+    "sydney_cb": "eastern_canada",
+    "reykjavik": "iceland",
+    "london": "britain_south",
+}
+ATLANTIC_WATER_SITES = {
+    "liverpool": "western_approaches",
+    "argentia": "western_atlantic",
+    "scapa_flow": "north_sea",
+    "north_atlantic": "mid_ocean_gap",
+}
+ATLANTIC_PLACES = tuple(ATLANTIC_LAND_SITES) + tuple(ATLANTIC_WATER_SITES)
+
+
+def _ports() -> dict[str, dict[str, str]]:
+    return {str(p["port"]): p for p in _yaml(ATLANTIC_STAGING)["ports"]}
+
+
+def test_the_atlantic_region_has_its_territories_and_sea_zones() -> None:
+    staged = _yaml(ATLANTIC_STAGING)
+    assert [t["key"] for t in staged["territories"]] == list(ATLANTIC_TERRITORIES)
+    assert [z["key"] for z in staged["sea_zones"]] == list(ATLANTIC_SEA_ZONES)
+    assert {t["region"] for t in staged["territories"] + staged["sea_zones"]} == {"atlantic"}
+    for t in _yaml(ATLANTIC)["territories"]:
+        assert t.get("provinces"), t["key"]
+    assert set(ATLANTIC_TERRITORIES + ATLANTIC_SEA_ZONES) <= set(_raw()["areas"])
+
+
+def test_the_atlantic_staging_world_extends_europe_and_puts_its_places_in_scope() -> None:
+    assert (ATLANTIC_STAGING.parent / _yaml(ATLANTIC_STAGING)["extends"]).resolve() == (
+        EUROPE_STAGING.resolve()
+    )
+    staged = {str(e["key"]): e for e in _yaml(ATLANTIC_STAGING)["entities"]}
+    assert sorted(staged) == sorted(ATLANTIC_PLACES)
+    world = _world_places()
+    for key in staged:
+        assert staged[key]["at"] == world[key]["at"], key
+
+
+@pytest.mark.parametrize("site", ATLANTIC_LAND_SITES)
+def test_each_land_place_lies_in_exactly_one_territory_and_is_its_site(site: str) -> None:
+    key = ATLANTIC_LAND_SITES[site]
+    assert _home(site) == key
+    holders = [str(t["key"]) for t in _staged_territories() if site in (t.get("sites") or [])]
+    assert holders == [key]
+
+
+@pytest.mark.parametrize("place", ATLANTIC_WATER_SITES)
+def test_each_water_place_lies_in_its_sea_zone_and_is_no_territorys_site(place: str) -> None:
+    assert _home(place) == ATLANTIC_WATER_SITES[place]
+    assert not [t["key"] for t in _staged_territories() if place in (t.get("sites") or [])]
+
+
+# Rule 2, ports: each port names its sea zone, and the zone borders the territory that holds it.
+PORT_ZONES = {
+    "norfolk": ("us_east", "western_atlantic"),
+    "argentia": ("newfoundland", "western_atlantic"),
+    "halifax_port": ("eastern_canada", "western_atlantic"),
+    "sydney_cb": ("eastern_canada", "western_atlantic"),
+    "reykjavik": ("iceland", "arctic_route"),
+    "liverpool": ("britain_south", "western_approaches"),
+    "scapa_flow": ("britain_north", "north_sea"),
+}
+
+
+def test_each_port_names_its_sea_zone() -> None:
+    ports = _ports()
+    assert sorted(ports) == sorted(PORT_ZONES)
+    seas = {
+        str(z["key"])
+        for path in (STAGING, EUROPE_STAGING, ATLANTIC_STAGING)
+        for z in _yaml(path)["sea_zones"]
+    }
+    for port, (territory, zone) in PORT_ZONES.items():
+        assert ports[port].get("sea_zone") == zone, port
+        assert ports[port].get("territory") == territory, port
+        assert zone in seas, port
+        assert mc.adjacent(_raw(), territory, zone), port
+
+
+@pytest.mark.parametrize(
+    ("town", "lat", "lon", "key"),
+    [
+        ("London", 51.51, -0.13, "britain_south"),
+        ("Cardiff", 51.48, -3.18, "britain_south"),
+        ("Edinburgh", 55.95, -3.19, "britain_north"),
+        ("Belfast", 54.60, -5.93, "britain_north"),
+        ("Dublin", 53.35, -6.26, "ireland"),
+        ("Reykjavik", 64.14, -21.90, "iceland"),
+        ("Greenland ice sheet", 70.0, -42.0, "greenland"),
+        ("St John's", 47.56, -52.71, "newfoundland"),
+        ("Montreal", 45.50, -73.57, "eastern_canada"),
+        ("Truro", 45.37, -63.27, "eastern_canada"),
+        ("Washington", 38.90, -77.04, "us_east"),
+        ("Boston", 42.36, -71.06, "us_east"),
+        ("Chicago", 41.88, -87.63, "us_central"),
+        ("New Orleans", 29.95, -90.07, "us_central"),
+        ("San Francisco", 37.77, -122.42, "us_west"),
+        ("Havana", 23.11, -82.37, "caribbean"),
+        ("Kingston", 17.99, -76.79, "caribbean"),
+    ],
+)
+def test_each_atlantic_town_lies_in_its_territory(
+    town: str, lat: float, lon: float, key: str
+) -> None:
+    inside, border = mc.locate(_raw(), lon, lat)
+    assert not border, town
+    assert inside == [key], town
+
+
+def test_newfoundland_is_a_territory_of_its_own_not_part_of_canada() -> None:
+    doc = {str(t["key"]): set(t["provinces"]) for t in _yaml(ATLANTIC)["territories"]}
+    assert doc["newfoundland"] == {"CAN-686"}
+    assert "CAN-686" not in doc["eastern_canada"]
+
+
+def test_the_atlantic_region_carries_no_cut_line() -> None:
+    assert not (_yaml(ATLANTIC).get("cuts") or [])
+
+
+def test_the_atlantic_ireland_is_neutral_with_no_seat() -> None:
+    held = {str(t["key"]): t["neutral"] for t in _yaml(ATLANTIC)["territories"] if "neutral" in t}
+    assert held == {"ireland": ["ireland"]}
+    world = _yaml(WORLD)
+    seated = {str(s.get("polity") or s.get("entity")) for s in world.get("seats") or []}
+    sides = {str(side["side"]) for r in world["roster"] for side in r.get("sides") or []}
+    assert not {"ireland"} & (seated | sides)
+
+
+# Rule 3: the three convoy routes of today's world, traced through adjacent sea zones.
+def _sea_keys() -> set[str]:
+    return {
+        str(z["key"])
+        for path in (STAGING, EUROPE_STAGING, ATLANTIC_STAGING)
+        for z in _yaml(path)["sea_zones"]
+    }
+
+
+def _waters(place: str) -> set[str]:
+    """The sea zones a convoy leg starts or ends in at this place."""
+    raw, seas = _raw(), _sea_keys()
+    port = _ports().get(place)
+    if port:
+        return {str(port["sea_zone"])}
+    home = _home(place)
+    if home in seas:
+        return {home}
+    return {z for z in seas if mc.adjacent(raw, home, z)}
+
+
+def _sea_path(a: set[str], b: set[str]) -> bool:
+    """Whether the water of `a` reaches the water of `b` through adjacent sea zones only."""
+    raw, seas = _raw(), _sea_keys()
+    seen, todo = set(a), list(a)
+    while todo:
+        here = todo.pop()
+        if here in b:
+            return True
+        for z in seas:
+            if z not in seen and mc.adjacent(raw, here, z):
+                seen.add(z)
+                todo.append(z)
+    return False
+
+
+@pytest.mark.parametrize("route", ["hx_route", "sc_route", "arctic_route"])
+def test_each_convoy_route_can_be_traced_through_adjacent_sea_zones(route: str) -> None:
+    feature = next(f for f in _yaml(WORLD)["features"] if f.get("key") == route)
+    places = feature["places"]
+    for here, there in itertools.pairwise(places):
+        assert _sea_path(_waters(here), _waters(there)), f"{route}: {here} to {there}"
+
+
+def test_the_atlantic_zones_join_europe_the_arctic_and_the_channel() -> None:
+    raw = _raw()
+    for a, b in (
+        ("arctic_route", "white_sea"),
+        ("arctic_route", "north_sea"),
+        ("english_channel", "bay_of_biscay"),
+        ("mid_ocean_gap", "bay_of_biscay"),
+        ("western_approaches", "north_sea"),
+        ("western_atlantic", "mid_ocean_gap"),
+    ):
+        assert mc.adjacent(raw, a, b), (a, b)
+    # The Strait of Dover is a declared crossing, not a shared border.
+    assert not mc.adjacent(raw, "english_channel", "north_sea")
+    crossings = [e for e in _yaml(FRAGMENT)["adjacency"] if isinstance(e, dict)]
+    assert {
+        "a": "english_channel",
+        "b": "north_sea",
+        "crossing": "the Strait of Dover",
+    } in crossings
+
+
+def test_the_recipes_agree_on_the_box_and_it_is_the_maps() -> None:
+    boxes = {str(_yaml(p).get("map", {}).get("box")) for p in RECIPES if _yaml(p).get("map")}
+    assert boxes == {str(_raw()["box"])}
+
+
+def test_no_province_is_claimed_by_two_of_the_three_recipe_files() -> None:
+    a, b, c = _claims(RECIPE), _claims(EUROPE), _claims(ATLANTIC)
+    assert c
+    assert a & c == set()
+    assert b & c == set()

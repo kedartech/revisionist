@@ -60,6 +60,7 @@ from revisionist.core.realism.agenda import Mandate, MandateTemplate, PlayStyle
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.card import CardFace, Desk, SeatCard, Topic
 from revisionist.core.realism.document import Document, DocumentView, Feed
+from revisionist.core.realism.economy import Economy
 from revisionist.core.realism.effect import EffectKind, RoutedOrder, RoutedOrderView
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.holders import Capture, Holding
@@ -155,6 +156,10 @@ class _World(Model):
     holders: dict[EntityId, Holding] = Field(default_factory=dict)
     """With ``holders`` on, each territory that has changed hands: its holder now, by
     ``area_held``. A territory not here has the holder the board gives. Public (THL)."""
+    economy: Economy = Field(default_factory=Economy)
+    """With ``economy`` on, each nation's pools (``economy_set``) and each territory whose
+    yields were moved (``yield_changed``) (YLD). True figures: a view holds its own
+    nation's part only."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
@@ -171,6 +176,7 @@ class _World(Model):
             "map",
             "kinds",
             "holders",
+            "economy",
         }
     )
 

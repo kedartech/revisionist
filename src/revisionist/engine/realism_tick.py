@@ -47,6 +47,7 @@ from revisionist.core.realism import (
     actors,
     answering,
     apply,
+    economy,
     holders,
     mandates,
     opponents,
@@ -391,6 +392,15 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return private_to(payload.order.issuer)
     if isinstance(payload, ev.PieceStepped):
         return _nation_scope(state, payload.nation)
+    if isinstance(payload, ev.EconomySet):
+        return _nation_scope(state, payload.polity)
+    if isinstance(payload, ev.YieldChanged):
+        # True figures: sealed to the holder's seats, or to no seat if it has none.
+        owner = economy.holder(state, payload.area)
+        if owner is not None:
+            return _nation_scope(state, owner)
+        held = SeatId(derived_id(state.campaign_id, "engine-only", "yield"))
+        return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
     if isinstance(payload, ev.CaptureCounted):
         # Engine only: a count says where pieces stand. Sealed to a seat nobody holds.
         held = SeatId(derived_id(state.campaign_id, "engine-only", "capture"))
@@ -516,6 +526,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
             add(apply_changes(state, on_day(state, day)))
         add(movement.walk(state, day))
         add(holders.walk(state, day))
+        add(economy.walk(state, day))  # the 1st: pools paid from what is held today
         add(arrivals(before_on_day, state, day))
         add(contacts(state, day))
         add(news_pages(state, day))

@@ -500,6 +500,10 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
         for lv in c.levers:
             if lv.pipeline not in c.pipelines:
                 problems.append(f"{where}: lever {lv.name} names a pipeline not on the card")
+            if lv.resolver not in _registered():
+                problems.append(
+                    f"{where}: lever {lv.name}: the rule name has no rule yet: {lv.resolver}"
+                )
             if lv.resolver == "movement":
                 _check_movement(world, f"{where}: lever {lv.name}", lv, problems)
     _check_answers(world, sections, problems)
@@ -840,6 +844,15 @@ def _area_decls(world: WorldFile) -> list[TerritoryDecl | SeaZoneDecl]:
     return [*world.territories, *world.sea_zones]
 
 
+def _registered() -> frozenset[str]:
+    """The rule names for forms that have a function on the order path. A name is added
+    for forms (``RESOLVER_KEYS``) before the item that registers its function merges; a
+    world naming it before then is refused, so no order reaches a name with no rule."""
+    from revisionist.core.realism.resolvers import ON_ORDER
+
+    return frozenset(ON_ORDER)
+
+
 def _check_board(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
     """The map, its regions, terrain, areas and adjacency (realism only)."""
     areas = {d.key for d in _area_decls(world)}
@@ -847,6 +860,8 @@ def _check_board(world: WorldFile, sections: Mapping[str, str], problems: list[s
         problems.append("rules: territories needs a map")
     if Rule.HOLDERS in world.rules and Rule.TERRITORIES not in world.rules:
         problems.append("rules: holders needs territories")
+    if Rule.ECONOMY in world.rules and Rule.HOLDERS not in world.rules:
+        problems.append("rules: economy needs holders")
     if world.map is None:
         if areas or world.adjacency or world.regions or world.terrain:
             problems.append("map: the world has areas but no map")

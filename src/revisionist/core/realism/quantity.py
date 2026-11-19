@@ -15,9 +15,11 @@ if TYPE_CHECKING:
     from revisionist.core.realism.pipeline import Order
     from revisionist.core.state import State
 
-ResolverKey = Literal["votes", "shipping", "production", "opinion", "movement", "war"]
+ResolverKey = Literal["votes", "shipping", "production", "opinion", "movement", "war", "economy"]
 """The four resolvers the first scenario needs (plan, B3), and movement (Batch 6,
-Josh's word), and war (consequences). Another needs his word."""
+Josh's word), and war (consequences), and economy (the war economy, YLD; its function is
+registered by a later item, and a world naming it before then is refused). Another needs
+his word."""
 
 RESOLVER_KEYS: tuple[ResolverKey, ...] = get_args(ResolverKey)
 

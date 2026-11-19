@@ -1,7 +1,8 @@
 """Notices: one message to each human seat when a wake opens (invariant 7).
 
 A notice names the wake, the world date, when the wake closes in real time in the
-reader's zone, and what another seat has put before this one. It says nothing about
+reader's zone, and every matter that waits on this seat (``agenda_api.due_matters``:
+what another seat has put before it, and what the world has put on its desk). It says nothing about
 whether anyone else has committed, is present or was played by the aide, so the text
 is the same whether the others are at the table or away. A commit sends nothing.
 
@@ -67,13 +68,15 @@ def _day(day: date) -> str:
     return f"{day:%A} {day.day} {day:%B %Y}"
 
 
+def _line(matter: agenda_api.DueMatter) -> str:
+    said = f"{matter.issuer}: {matter.what}" if matter.issuer else matter.what
+    return f"- {said}. Due {matter.due}."
+
+
 def _waiting(state: State, seat: SeatId) -> list[str]:
-    """Each request another seat has put before ``seat``, one line each, as its agenda
-    lists them: the same words, withheld where the agenda withholds them."""
-    return [
-        f"- {item['issuer']}: {item['text']}. Due {item['deadline']}."
-        for item in agenda_api.requests(state, seat)
-    ]
+    """Each matter that waits on ``seat`` (``agenda_api.due_matters``), one line each:
+    the same words its agenda or paper gives, withheld where those withhold them."""
+    return [_line(m) for m in agenda_api.due_matters(state, seat)]
 
 
 def compose(state: State, seat: SeatId, zone: str | None, game: str) -> tuple[str, str]:

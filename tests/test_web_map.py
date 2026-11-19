@@ -25,6 +25,7 @@ from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC
 from revisionist.engine import campaign as cmp
 from revisionist.engine.store import load_state
+from revisionist.engine.web import map_api
 from revisionist.engine.web import realism_api as api
 from revisionist.engine.web import realism_snapshot as rs
 from revisionist.engine.web.realism_api import MapMark, MapPlace, SeatMap
@@ -257,9 +258,10 @@ def test_every_mark_carries_an_opaque_key_its_nation_shares(fdr: tuple[Realism, 
     usa = EntityId(game.ids["usa"])
     ids = set(game.ids.values()) | {str(f) for f in state.features}
     for mark in shown:
-        assert re.fullmatch(r"m[0-9a-f]{16}", mark["key"]), mark
+        assert re.fullmatch(r"m[0-9a-f]{32}", mark["key"]), mark
         assert mark["key"] not in ids
-        assert mark["key"] == territory.mark_key(state, usa, feature_named(state, mark["name"]))
+        raw = territory.mark_key(state, usa, feature_named(state, mark["name"]))
+        assert mark["key"] == map_api.mark_key(state.campaign_id, usa, raw)
     assert len({m["key"] for m in shown}) == len(shown)
     assert [m["key"] for m in realism_of(ada)["map"]["marks"]] == [m["key"] for m in shown]
 
@@ -269,7 +271,7 @@ def test_a_steps_mark_is_the_key_the_map_shows(tmp_path: Path) -> None:
     state = adj.send(state, "ilse", "norra_levy", "sudby")
     state, stepped = adj.walk(state, adj.day(1), adj.day(12))
     key = toy_marks(state)["The Norra Levy"]["key"]
-    assert stepped and {s.mark for s in stepped} == {key}
+    assert stepped and {map_api.step_key(state.campaign_id, s) for s in stepped} == {key}
 
 
 def test_each_own_force_the_forms_name_is_sent_as_a_piece(tmp_path: Path) -> None:

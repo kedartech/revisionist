@@ -165,8 +165,11 @@ function gestures(root, win, opts, px) {
   root.addEventListener('pointercancel', end);
 }
 
-/** What a mark is: an own piece's kind as the world names it, else the mark's kind. */
-const markWhat = (m) => m.piece?.kind ?? whatWord(m);
+/** What a mark is: an own piece's kind as the world names it, "Piece" for another side's piece (a page does not name its kind), else the mark's kind. */
+const markWhat = (m) => m.piece?.kind ?? (m.kind === 'piece' ? 'Piece' : whatWord(m));
+
+/** Where a mark stands, in words: an own piece's area, the area a page places it in, else its places. */
+const markWhere = (m) => m.piece?.area?.name ?? m.area?.name ?? whereLine(m);
 
 function markLabel(m, where) {
   const p = m.piece;
@@ -179,9 +182,13 @@ function markLabel(m, where) {
   return said.filter(Boolean).join('; ');
 }
 
-/** Where a mark stands: an own piece at its area's label point, a reported one at its place. */
+/**
+ * Where a mark stands: an own piece at its area's label point, a reported one at the label
+ * point of the area its page names, else at its one place.
+ */
 function markAt(m, labelAt, at) {
   if (m.piece?.area?.key && labelAt.has(m.piece.area.key)) return labelAt.get(m.piece.area.key);
+  if (m.area?.key && labelAt.has(m.area.key)) return labelAt.get(m.area.key);
   return m.places?.length === 1 ? at([m.places[0].lon, m.places[0].lat]) : null;
 }
 
@@ -225,7 +232,7 @@ const markLook = (m, chosen) => `rl-mk rl-mk-${m.kind} rl-side-${m.side} rl-c-${
 
 /** One mark at `xy`, `dx` pixels from it (a fanned stack's place for it). */
 function oneMark(m, xy, dx, from, opts, extra = {}) {
-  const words = markLabel(m, m.piece?.area?.name ?? whereLine(m));
+  const words = markLabel(m, markWhere(m));
   const chosen = opts.selected === m.name;
   const keys = chosen && opts.nav ? arrows((dir) => opts.nav.step(null, dir)) : {};
   const common = opts.still ? { class: markLook(m, chosen) } : {
@@ -242,7 +249,7 @@ function oneMark(m, xy, dx, from, opts, extra = {}) {
  */
 function closedStack(here, key, xy, froms, opts) {
   const top = here.find((m) => froms.get(m)) ?? here[0];
-  const where = top.piece?.area?.name ?? whereLine(top);
+  const where = markWhere(top);
   const words = `${here.length} pieces in ${where}: ${here.map((m) => m.name).join(', ')}`;
   const lift = here.some((m) => m.piece) ? -MARK_LIFT : 0;
   const r = MIN_MARK_PX / 2;
@@ -578,7 +585,7 @@ function markTable(map, onFind) {
       h('th', { scope: 'row' }, m.name),
       h('td', {}, markWhat(m)),
       h('td', {}, sideLine(m)),
-      h('td', {}, m.piece?.area?.name ?? whereLine(m)),
+      h('td', {}, markWhere(m)),
       h('td', {}, m.document ? sightedLine(m) : ''),
       h('td', {}, h('button', { type: 'button', class: 'rl-find', onclick: () => onFind(m.name) }, 'Find on map'))))));
 }

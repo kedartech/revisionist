@@ -391,3 +391,39 @@ test('own pieces stand at their area\'s label point', () => {
   assert.deepEqual([herald.getAttribute('data-x'), herald.getAttribute('data-y')], ['150', '50'], 'the Norra Plain\'s label point');
   assert.match(herald.getAttribute('aria-label'), /Herald, Yours · Norra, Known, The Norra Plain/);
 });
+
+// --- A reported piece a page places in an area (the room's map, MSA) ----------------------
+
+const SMAP = fixture.sighted_map;
+const coastAt = (pic) => {
+  const coast = pic.querySelectorAll('g.rl-tm-label').find((l) => l.getAttribute('data-area') === 'sudland_coast');
+  return [coast.getAttribute('data-x'), coast.getAttribute('data-y')];
+};
+const sudlandLevy = (pic) => pic.querySelectorAll('g.rl-tm-mark').find((g) => /Sudland Levy/.test(g.getAttribute('aria-label')));
+
+test('a reported piece a page places in an area stands at that area\'s label point', () => {
+  const pic = draw(SMAP);
+  const levy = sudlandLevy(pic);
+  assert.ok(levy, 'the page\'s area places the mark although it has no place with a position');
+  assert.deepEqual([levy.getAttribute('data-x'), levy.getAttribute('data-y')], coastAt(pic));
+  assert.match(levy.getAttribute('aria-label'), /^The Sudland Levy: Piece, Foreign · Sudland, Reported, The Sudland Coast$/);
+});
+
+test('a reported mark at one place with a position is drawn at that place, as before', () => {
+  const map = structuredClone(SMAP);
+  const levy = map.marks.find((m) => m.name === 'The Sudland Levy');
+  Object.assign(levy, { area: null, places: [map.places.find((p) => p.name === 'Sudby')] });
+  const pic = draw(map);
+  const there = sudlandLevy(pic);
+  assert.ok(there, 'drawn at its place');
+  assert.notDeepEqual([there.getAttribute('data-x'), there.getAttribute('data-y')], coastAt(pic));
+  assert.match(there.getAttribute('aria-label'), /Reported, Sudby$/);
+});
+
+test('the list names the area a page places a reported piece in', async () => {
+  const { view } = await drawn(seat(SMAP), ui({ mode: 'list' }));
+  const row = view.querySelectorAll('table.rl-map-list tr').find((tr) => /Sudland Levy/.test(words(tr)));
+  assert.ok(row, 'the mark has a row');
+  assert.match(words(row), /Piece/);
+  assert.match(words(row), /The Sudland Coast/);
+});

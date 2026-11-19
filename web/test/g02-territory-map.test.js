@@ -368,11 +368,13 @@ test('every area has a twin in List mode: its name, kind, region and neighbours'
 test('one layer shows at a time; a layer with nothing to draw yet is not offered', async () => {
   assert.deepEqual(offeredLayers(TMAP), ['military']);
   const { view } = await drawn();
-  assert.equal(group(view, 'Layer'), undefined, 'one layer: no switch');
+  // ECO: the economy layer is offered after them wherever the board prints a yield
+  assert.deepEqual(group(view, 'Layer').querySelectorAll('button').map(words), ['Military', 'Economy']);
+  assert.deepEqual(pressed(group(view, 'Layer')), ['Military'], 'the board opens on the first layer, not the economy');
   assert.equal(group(view, 'Scope'), undefined, 'no reports/world scope in a territory game');
   const capitals = [{ name: 'Old Brann', place: TMAP.places[1], stance: { word: 'Hostile', step: 1 }, at_war: true }];
   const both = board(seat({ capitals }), ui({ layer: 'diplomatic' }));
-  assert.deepEqual(group(both, 'Layer').querySelectorAll('button').map(words), ['Military', 'Diplomatic']);
+  assert.deepEqual(group(both, 'Layer').querySelectorAll('button').map(words), ['Military', 'Diplomatic', 'Economy']);
   assert.deepEqual(pressed(group(both, 'Layer')), ['Diplomatic']);
   assert.equal(both.querySelectorAll('g.rl-tm-mark, g.rl-tm-stack').length, 0, 'the diplomatic layer draws no pieces');
   assert.equal(both.querySelectorAll('g.rl-cap').length, 1);

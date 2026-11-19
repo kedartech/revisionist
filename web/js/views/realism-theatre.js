@@ -4,11 +4,13 @@
 // of the seat's shows the forms that can move it; a picked capital opens its leader's card.
 // Nothing here touches the page on import.
 
+import { api } from '../api.js';
 import { h } from '../dom.js';
 import { formsMoving } from '../realism-rules.js';
 import { figureCard } from './realism-figure.js';
 import { daysLabel, liftLabel, liftNote, standardForm, tierLabel } from './realism-forms.js';
 import { mapDrawing, mapView } from './realism-map.js';
+import { territoryDrawing, territoryView } from './realism-territory.js';
 
 const LAND_URL = '/assets/land-110m.json';
 let coast = null;
@@ -25,6 +27,34 @@ function loadLand() {
     .finally(() => { landing = null; });
   return landing;
 }
+
+// A territory game's shapes, by the map file's hash: fetched once per hash, kept for the page.
+const shapesBy = new Map();
+const asking = new Map();
+
+/** The shapes for map file `file` ({ name, sha256 }), when they are here; null until then. */
+export const shapesFor = (file) => shapesBy.get(file?.sha256) ?? null;
+
+/**
+ * Fetch the shapes for `file` once: a promise while one is out, null once they are here or
+ * when there is no file. A refusal or a reply for another hash keeps none (the next draw asks
+ * again); a reply that fails to arrive is asked for again on the next draw too.
+ */
+export function loadShapes(file, ask = api.map) {
+  const hash = file?.sha256;
+  if (!hash || shapesBy.has(hash)) return null;
+  if (asking.has(hash)) return asking.get(hash);
+  const out = Promise.resolve()
+    .then(() => ask())
+    .then((r) => { if (!r?.refused && r?.file?.sha256 === hash && r.map) shapesBy.set(hash, r.map); })
+    .catch(() => {})
+    .finally(() => asking.delete(hash));
+  asking.set(hash, out);
+  return out;
+}
+
+/** Forget every fetched shape (tests). */
+export function forgetShapes() { shapesBy.clear(); asking.clear(); }
 
 /**
  * What a pick on capital `c` opens: its leader's figure card from the People roster's line,
@@ -130,8 +160,19 @@ export function theatreBoard(rv, ui, { pick, act } = {}) {
     onLayer: (layer) => pick?.({ theatre: { ...theatre, layer } }),
     onSelect: (name, mode) => pick?.({ piece: { kind: 'force', name }, ...(mode ? { theatre: { ...theatre, mode } } : {}) }),
   };
-  const drawing = () => mapDrawing(map, coast, { ...opts, scope: theatre.scope ?? 'reports', targets: lit() });
-  const view = mapView(map, coast, { ...opts, targets: lit() });
+  const territorial = Array.isArray(map.areas) && map.areas.length > 0;
+  if (territorial) {
+    Object.assign(opts, {
+      onFrame: (frame) => pick?.({ theatre: { ...theatre, frame, zoom: 1, centre: null } }),
+      onView: ({ zoom, centre }) => pick?.({ theatre: { ...theatre, zoom, centre } }),
+    });
+  }
+  const drawing = territorial
+    ? () => (shapesFor(map.file) ? territoryDrawing(map, shapesFor(map.file), { ...opts, targets: lit() }) : h('p', { class: 'muted rl-tm-wait' }, 'Drawing the map…'))
+    : () => mapDrawing(map, coast, { ...opts, scope: theatre.scope ?? 'reports', targets: lit() });
+  const view = territorial
+    ? territoryView(map, shapesFor(map.file), { ...opts, targets: lit() })
+    : mapView(map, coast, { ...opts, targets: lit() });
   view.classList.add('rl-theatre');
   view.querySelector('.rl-map-detail')?.remove();
   if (forms) {
@@ -147,6 +188,17 @@ export function theatreBoard(rv, ui, { pick, act } = {}) {
     fig.replaceChildren(drawing());
     if (focused) Array.from(fig.querySelectorAll('.rl-map-target')).find((t) => t.getAttribute('data-place') === focused)?.focus();
   };
+  if (territorial) {
+    if (!shapesFor(map.file) && theatre.mode !== 'list') {
+      loadShapes(map.file)?.then(() => {
+        if (!shapesFor(map.file) || !view.isConnected) return;
+        const fresh = territoryView(map, shapesFor(map.file), { ...opts, targets: lit() });
+        view.replaceChildren(...fresh.childNodes);
+        if (forms) view.querySelector('figure.rl-map-figure')?.after(forms);
+      });
+    }
+    return view;
+  }
   if (!coast && theatre.mode === 'map') {
     loadLand()?.then(() => {
       const fig = view.querySelector('figure.rl-map-figure');

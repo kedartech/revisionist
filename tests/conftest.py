@@ -26,6 +26,7 @@ def clean_revisionist_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in list(os.environ):
         if name.startswith("REVISIONIST_") and name not in KEEP_ENV:
             monkeypatch.delenv(name)
+    monkeypatch.setenv("REVISIONIST_MARK_SECRET", "12" * 32)
 
 
 @pytest.fixture(autouse=True)

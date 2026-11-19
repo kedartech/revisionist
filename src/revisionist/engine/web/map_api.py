@@ -16,11 +16,16 @@ computed on every request (invariant 3).
 names (``maps.map_object``), whatever map the world file names now.
 """
 
+import hashlib
 import json
+import os
+import re
 from collections.abc import Callable
 from typing import Literal
 
-from revisionist.core.ids import EntityId
+from revisionist.core.events import PieceStepped
+from revisionist.core.ids import CampaignId, EntityId
+from revisionist.core.ontology import EntityKind
 from revisionist.core.realism import bases, kinds, territory
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.kinds import Domain
@@ -49,6 +54,60 @@ _TIERS: dict[bases.Tier, Literal["sustained", "operate", "raid"]] = {
     bases.Tier.RAID: "raid",
 }
 """The reach tiers a lit move can have: ``plans`` never lights a refused area."""
+
+
+MARK_SECRET_ENV = "REVISIONIST_MARK_SECRET"
+"""A deployment's persistent 32-byte secret, encoded as 64 hex digits."""
+
+
+def mark_secret() -> bytes:
+    """Fail closed, including outside the HTTP server; never log the supplied value."""
+    value = os.environ.get(MARK_SECRET_ENV, "")
+    if re.fullmatch(r"[0-9a-fA-F]{64}", value) is None:
+        raise ValueError(f"{MARK_SECRET_ENV} must be set to 64 hex digits")
+    return bytes.fromhex(value)
+
+
+def mark_key(campaign: CampaignId, nation: EntityId, raw: str) -> str:
+    """Seat-safe MAC of a core/label mark, shared by this nation's map and playback.
+
+    The core digest is public-input data, not a secret. Namespace the MAC by campaign
+    and viewing nation even when the inner digest already includes them. JSON framing
+    keeps arbitrary labels/ids unambiguous. Never persist this deployment-specific key.
+    """
+    message = json.dumps(["seat-mark-v1", campaign, nation, raw], separators=(",", ":"))
+    return "m" + hashlib.blake2b(message.encode(), key=mark_secret(), digest_size=16).hexdigest()
+
+
+def step_key(campaign: CampaignId, step: PieceStepped) -> str:
+    """Protect a stored movement mark for its owning nation's playback, old logs too.
+
+    The caller must enforce the event's visibility before sending it. This converts a
+    key, not access rights; no current web endpoint serializes movement events.
+    """
+    return mark_key(campaign, step.nation, step.mark)
+
+
+def viewing_nation(view: View) -> EntityId:
+    """Nearest polity of the viewing seat, including the view-only label fallback."""
+    seen: set[EntityId] = set()
+    here = view.entities.get(view.me.embodies)
+    while here is not None and here.entity_id not in seen:
+        if here.kind is EntityKind.POLITY:
+            return here.entity_id
+        seen.add(here.entity_id)
+        here = view.entities.get(here.parent) if here.parent is not None else None
+    return view.me.embodies
+
+
+def protect_marks(out: SeatMap, view: View) -> None:
+    """MAC each outgoing mark once, after raw keys have joined marks and own pieces."""
+    nation = viewing_nation(view)
+    for mark in out["marks"]:
+        key = mark_key(view.campaign_id, nation, mark["key"])
+        mark["key"] = key
+        if mark["piece"] is not None:
+            mark["piece"]["key"] = key
 
 
 def _areas(board: territory.WorldMap) -> list[MapArea]:
@@ -172,4 +231,18 @@ def map_reply(state: State) -> MapReply:
     )
 
 
-__all__ = ["MISSING", "NO_MAP", "Reaches", "add_board", "lit", "map_reply", "seat_board"]
+__all__ = [
+    "MARK_SECRET_ENV",
+    "MISSING",
+    "NO_MAP",
+    "Reaches",
+    "add_board",
+    "lit",
+    "map_reply",
+    "mark_key",
+    "mark_secret",
+    "protect_marks",
+    "seat_board",
+    "step_key",
+    "viewing_nation",
+]

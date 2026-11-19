@@ -881,7 +881,7 @@
     ],
     "marks": [
       {
-        "key": "m0c41d9a27be35f86",
+        "key": "m72f347c240ba58a3fc501df3ee617269",
         "name": "HX convoys",
         "kind": "route",
         "side": "other",
@@ -914,7 +914,7 @@
         "piece": null
       },
       {
-        "key": "m5e8b02c7d14a93f0",
+        "key": "m9d871c81f7b6ffa84650788c779ffcaa",
         "name": "Home Fleet",
         "kind": "fleet",
         "side": "other",
@@ -935,7 +935,7 @@
         "piece": null
       },
       {
-        "key": "m9a3f6e1b07c2d845",
+        "key": "m873408190ba3af21301f79941aa20c57",
         "name": "U-boat arm",
         "kind": "fleet",
         "side": "other",
@@ -956,7 +956,7 @@
         "piece": null
       },
       {
-        "key": "m2d7c84f1a60b9e3c",
+        "key": "m8183ed7306c835535c33d640d5ec813b",
         "name": "US Atlantic Fleet",
         "kind": "fleet",
         "side": "own",
@@ -975,7 +975,7 @@
         ],
         "strength": null,
         "piece": {
-          "key": "m2d7c84f1a60b9e3c",
+          "key": "m8183ed7306c835535c33d640d5ec813b",
           "kind": "Fleet",
           "domain": "sea",
           "strength": 4,
@@ -2337,7 +2337,7 @@
     ],
     "marks": [
       {
-        "key": "mcc620b5ea10b6c18",
+        "key": "m0183e40786e422ed7a327f4f006f14f0",
         "name": "The Norra Herald",
         "kind": "piece",
         "side": "own",
@@ -2349,7 +2349,7 @@
         "document": "",
         "strength": null,
         "piece": {
-          "key": "mcc620b5ea10b6c18",
+          "key": "m0183e40786e422ed7a327f4f006f14f0",
           "kind": "Herald",
           "domain": "envoy",
           "strength": 0,
@@ -2452,7 +2452,7 @@
         }
       },
       {
-        "key": "mf0ec5848cc6243ea",
+        "key": "m427889d7fe646b7ab1da63396c0ffbc4",
         "name": "The Norra Kites",
         "kind": "piece",
         "side": "own",
@@ -2464,7 +2464,7 @@
         "document": "",
         "strength": null,
         "piece": {
-          "key": "mf0ec5848cc6243ea",
+          "key": "m427889d7fe646b7ab1da63396c0ffbc4",
           "kind": "Kite Wing",
           "domain": "air",
           "strength": 0,
@@ -2567,7 +2567,7 @@
         }
       },
       {
-        "key": "m04fca1b11974e90a",
+        "key": "m35dfd73080046750681e78fb6ca37f7f",
         "name": "The Norra Levy",
         "kind": "piece",
         "side": "own",
@@ -2579,7 +2579,7 @@
         "document": "",
         "strength": null,
         "piece": {
-          "key": "m04fca1b11974e90a",
+          "key": "m35dfd73080046750681e78fb6ca37f7f",
           "kind": "Levy",
           "domain": "land",
           "strength": 1,

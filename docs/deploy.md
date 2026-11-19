@@ -35,6 +35,8 @@ Two files, so the scheduler never holds the admin password. Both `chmod 600`. Pe
 ```
 REVISIONIST_DB=postgresql://revisionist_app:<password>@localhost:5432/revisionist
 REVISIONIST_BRIEFINGS_DIR=/home/<you>/.local/share/revisionist/briefings
+# Required by web serve: generate once with python -c 'import secrets; print(secrets.token_hex(32))'
+REVISIONIST_MARK_SECRET=<64 hex digits from that command; keep private and persistent>
 ```
 
 `~/.config/revisionist/revisionist-admin.env` (read by the backup unit and the restore drill):
@@ -50,6 +52,7 @@ REVISIONIST_BACKUP_DEST=<rsync target, e.g. user@nas:/backups/revisionist, or rc
 | `REVISIONIST_DB` | `postgresql://` URL as `revisionist_app`, or a SQLite file path (solo play, no scheduler) |
 | `REVISIONIST_ADMIN_DSN` | `postgresql://` URL as `revisionist_admin`, for `revisionist db migrate`, backups and the drill |
 | `REVISIONIST_BRIEFINGS_DIR` | where briefings are written; default `./revisionist-briefings` on Postgres |
+| `REVISIONIST_MARK_SECRET` | persistent 32-byte web mark secret as 64 hex digits; missing or malformed values stop web startup, with no development fallback. All web workers for a deployment must share it |
 | `REVISIONIST_BACKUP_DEST` | off-box copy target. The backup fails if it is unset |
 | `REVISIONIST_APP_ROLE` | role `revisionist db migrate` grants to; default `revisionist_app` |
 | `REVISIONIST_MASTER_KEY_FILE` | path to the 0600 master-key file that seals new campaigns (§9.8); a path, never the key |
@@ -127,6 +130,8 @@ When the unit shows **failed**:
 ## 7. Backups and the restore drill
 
 The nightly backup writes `revisionist-<UTC timestamp>.dump` (`pg_dump -Fc`) to `REVISIONIST_BACKUP_DIR`, checks the archive reads back, deletes local dumps older than `REVISIONIST_BACKUP_KEEP_DAYS`, then copies the new dump to `REVISIONIST_BACKUP_DEST` with `rsync` (or `rclone copy` for an `rclone:` target). Retention at the destination is the destination's business.
+
+Keep `REVISIONIST_MARK_SECRET` in your protected configuration backup and restore it unchanged: seat map and playback keys stay stable across backups and restores only if this secret is kept. It is not in the database dump. Rotating it changes every seat key but does not change replay hashes.
 
 Run the drill after setup, after any Postgres upgrade, and monthly:
 

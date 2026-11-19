@@ -524,7 +524,7 @@ def seat_map(
     None for a world with no positions (the client hides the map). ``forces`` names the
     mark for each force key an order can name (the caller's, as ``pipelines`` is).
     With ``state``, each own force ``forces`` names is sent as a piece on its mark, and
-    marks are keyed as ``territory.mark_key`` keys them; ``withdrawable`` (``withdraw``)
+    marks and pieces share the web MAC of ``territory.mark_key``; ``withdrawable`` (``withdraw``)
     marks the orders the seat may still take back."""
     places = [
         _place(view, k)
@@ -554,7 +554,7 @@ def seat_map(
                 key=(
                     sent.key(doc_id, label, kind)
                     if sent is not None
-                    else _label_key(view.campaign_id, view.me.embodies, label, kind)
+                    else _label_key(view.campaign_id, map_api.viewing_nation(view), label, kind)
                 ),
                 name=label,
                 kind=sight.kind.value,
@@ -579,6 +579,7 @@ def seat_map(
     marks.sort(key=lambda m: (m["name"], m["kind"]))
     capitals = _capitals(view, people) if people is not None else []
     out = SeatMap(places=places, marks=marks, orders=orders, capitals=capitals)
+    map_api.protect_marks(out, view)
     return map_api.add_board(out, state) if state is not None else out
 
 

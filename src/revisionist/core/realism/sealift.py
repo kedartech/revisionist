@@ -18,7 +18,7 @@ import math
 from collections.abc import Iterable
 from typing import NamedTuple
 
-from revisionist.core.ids import EntityId
+from revisionist.core.ids import EntityId, QuantityId
 from revisionist.core.realism.geography import Feature, FeatureKind
 from revisionist.core.realism.routing import days_between, sea_route
 from revisionist.core.state import State, View
@@ -33,8 +33,23 @@ CONVOY_KM_PER_DAY = 350
 POOLS: dict[str, dict[str, str]] = {
     "autumn-1941": {"uk": "uk_sealift_grt"},
 }
-"""Each world's lifting sides: the polity key and its pool's quantity key. A side not listed
-cannot lift. The US and Japan get a pool with the item that gives them an army that sails."""
+"""Each world's lifting sides: the polity key and its pool's quantity key, for a game
+without the territory rules (a stored game). A side not listed cannot lift. In a territory
+game the world names each nation's pool (``lift_pool``) and the table is not read."""
+
+
+def pools(state: State) -> tuple[QuantityId, ...]:
+    """The lift pools this game holds a figure for, in id order: in a territory game the
+    ones the world names (``lift_pool``); otherwise those of the table."""
+    from revisionist.core.realism import territory
+    from revisionist.core.world_compile import object_id
+
+    if territory.on(state) and state.map is not None:
+        named = set(state.map.lift_pools.values())
+    else:
+        keys = {k for table in POOLS.values() for k in table.values()}
+        named = {QuantityId(object_id(state.campaign_id, "quantity", k)) for k in keys}
+    return tuple(sorted(q for q in named if q in state.quantities))
 
 
 class Lift(NamedTuple):
@@ -86,4 +101,5 @@ __all__ = [
     "embark",
     "lift_days",
     "lift_needed",
+    "pools",
 ]

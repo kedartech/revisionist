@@ -48,12 +48,16 @@ DayFn = Callable[[State, date], tuple[Change, ...]]
 
 
 def _votes(state: State, order: Order) -> tuple[Change, ...]:
-    """``votes.resolve``, or for an order carrying a measure (engine v2, a process
+    """``votes.resolve`` and what the bill does if it passes (``votes.law_effects``), or
+    for an order carrying a measure (engine v2, a process
     part) its tally through each chamber under the bill keys it lands on: the
     historical bill of the same title, else the novel reference."""
     measure = order.measure
     if measure is None:
-        return votes.resolve(state, order)
+        changes = votes.resolve(state, order)
+        known = votes.HISTORICAL.get(str(order.params.get("bill")))
+        flag = next((c for c in changes if known and c.quantity_id == _flag(state, order)), None)
+        return (*changes, *(votes.law_effects(state, known, flag) if known else ()))
     if order.status is not OrderStatus.ENACTED:
         return ()
     bill = next(
@@ -75,8 +79,13 @@ def _votes(state: State, order: Order) -> tuple[Change, ...]:
             votes.put(state, f"{bill}_{chamber}_nays", nays, days[chamber]),
         ]
         passed &= int(yeas > nays)
-    out.append(votes.put(state, f"{bill}_passed", passed, settled_on(order)))
-    return tuple(c for c in out if c is not None)
+    flag = votes.put(state, f"{bill}_passed", passed, settled_on(order))
+    out.append(flag)
+    return (*(c for c in out if c is not None), *votes.law_effects(state, measure, flag))
+
+
+def _flag(state: State, order: Order) -> QuantityId:
+    return qid(state, f"{order.params.get('bill')}_passed")
 
 
 ON_ORDER: dict[ResolverKey, OrderFn] = {

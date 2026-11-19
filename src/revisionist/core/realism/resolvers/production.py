@@ -25,7 +25,7 @@ from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.ids import DocumentId, EntityId, FeatureId, derived_id
-from revisionist.core.realism import actors, economy, kinds, supply, territory
+from revisionist.core.realism import actors, economy, kinds, sealift, territory
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.document import (
@@ -39,10 +39,9 @@ from revisionist.core.realism.economy import Pools
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.quantity import QuantityChange
-from revisionist.core.realism.resolvers import evacuation
-from revisionist.core.realism.resolvers.shipping import moved
+from revisionist.core.realism.resolvers import evacuation, shipping
+from revisionist.core.realism.resolvers.shipping import shifted
 from revisionist.core.realism.resolvers.votes import put
-from revisionist.core.realism.sealift import POOLS
 from revisionist.core.realism.war import polity_of
 from revisionist.core.state import State
 from revisionist.core.visibility import private_to
@@ -90,11 +89,11 @@ def on_day(state: State, today: date) -> tuple[QuantityChange, ...]:
     if today.day != 1:
         return ()
     out = []
-    for key in sorted({k for pools in POOLS.values() for k in pools.values()}):
-        q = state.quantities.get(rs.qid(state, key))
-        side = None if q is None or q.owner is None else polity_of(state, q.owner)
+    for pool in sealift.pools(state):
+        q = state.quantities[pool]
+        side = None if q.owner is None else polity_of(state, q.owner)
         if side is not None and _priority(state, side, today) == "merchant_ships":
-            out.append(moved(state, key, MERCHANT_GRT_PM, today))
+            out.append(shifted(state, pool, MERCHANT_GRT_PM, today))
     return tuple(c for c in out if c is not None)
 
 
@@ -154,8 +153,7 @@ def _force(state: State, nation: EntityId, key: str) -> tuple[Feature | None, st
     top = min(kind.max_strength if kind is not None else kinds.MAX_STRENGTH, TIER_CAP)
     if force.tier >= top:
         return force, f"{force.name} is at full strength"
-    found = supply.status(state, force)
-    if found is not None and not found.supplied:
+    if shipping.supplied(state, force, state.in_world_date) is False:
         return force, f"{force.name} is out of supply"
     return force, None
 

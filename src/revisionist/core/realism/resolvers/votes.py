@@ -18,13 +18,16 @@ world publishes it, and the result. Whip counts are papers, never news.
 
 from datetime import date, timedelta
 
-from revisionist.core.ids import OrderId, derived_id
+from revisionist.core import events as ev
+from revisionist.core.ids import EntityId, OrderId, derived_id
+from revisionist.core.realism import economy
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.document import BodyField
+from revisionist.core.realism.economy import Pools
 from revisionist.core.realism.effect import Clause, ClauseKind, ProposeMeasure
 from revisionist.core.realism.pipeline import ADVANCES, Order, OrderStatus
 from revisionist.core.realism.quantity import Quantity, QuantityChange
-from revisionist.core.realism.war import NewsEvent, NewsTopic
+from revisionist.core.realism.war import NewsEvent, NewsTopic, polity_of
 from revisionist.core.state import State
 from revisionist.core.visibility import Visibility
 
@@ -203,6 +206,51 @@ def resolve(state: State, order: Order) -> tuple[QuantityChange, ...]:
         passed &= int(yeas > nays)
     out.append(put(state, f"{bill}_passed", passed, rs.settled_on(order)))
     return tuple(c for c in out if c is not None)
+
+
+ARMING = "arm merchant ships"
+"""The clause of a law that arms a nation's merchant ships (``shipping.losses`` reads it)."""
+DRAFT = "hold draftees beyond twelve months"
+"""The clause of a draft law."""
+DRAFT_MANPOWER = 3  # [proposed] plan, SHP Defaults
+"""Manpower points a draft law adds to its nation's pool, with ``economy`` on."""
+
+
+def _nation(state: State, entity: EntityId) -> EntityId:
+    return polity_of(state, entity) or entity
+
+
+def in_force(state: State, subject: str) -> dict[EntityId, date]:
+    """Each nation with a passed law carrying the clause ``subject``, and the day its flag
+    (``<bill>_passed``) says it passed; a flag with no owner names no nation."""
+    out: dict[EntityId, date] = {}
+    for bill, measure in sorted(HISTORICAL.items()):
+        if subject not in {c.subject for c in measure.clauses}:
+            continue
+        q = state.quantities.get(rs.qid(state, f"{bill}_passed"))
+        if q is None or q.value != 1 or q.owner is None:
+            continue
+        nation = _nation(state, q.owner)
+        out[nation] = min(out.get(nation, q.as_of), q.as_of)
+    return out
+
+
+def law_effects(
+    state: State, measure: ProposeMeasure, passed: QuantityChange | None
+) -> tuple[ev.EconomySet, ...]:
+    """What a law does to the economy the day its flag says it passed: a draft law adds
+    ``DRAFT_MANPOWER`` to the flag's nation's pool, with ``economy`` on."""
+    if passed is None or passed.value != 1 or not economy.on(state):
+        return ()
+    if DRAFT not in {c.subject for c in measure.clauses}:
+        return ()
+    owner = state.quantities[passed.quantity_id].owner
+    if owner is None:
+        return ()
+    nation = _nation(state, owner)
+    pools = state.economy.pools.get(nation, Pools())
+    more = pools.model_copy(update={"manpower": pools.manpower + DRAFT_MANPOWER})
+    return (ev.EconomySet(polity=nation, pools=more, on=passed.as_of),)
 
 
 def put(state: State, key: str, value: int, as_of: date) -> QuantityChange | None:

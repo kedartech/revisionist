@@ -530,7 +530,7 @@ cards:
         aim: 1
         when: {lever: move_army, params: {to: [mozhaisk, moscow]}, by: germany}
         gate: [obstructing, hostile]
-        act: {lever: lend_lease_finding, params: {recipient: ussr, share_pct: 20}}
+        act: {lever: lend_lease_finding, params: {recipient: ussr, share_pct: 20, route: arctic_route}}
         delay_days: 7
         cooldown_days: 60
       - key: warn_japan
@@ -545,7 +545,7 @@ cards:
         helps: true
         when: {lever: aid_request, by: ussr}
         gate: [neutral, cooperative, aligned]
-        act: {lever: lend_lease_finding, params: {recipient: ussr, share_pct: 20}}
+        act: {lever: lend_lease_finding, params: {recipient: ussr, share_pct: 20, route: arctic_route}}
         delay_days: 7
         cooldown_days: 45
       - key: escort_for_britain
@@ -582,6 +582,7 @@ cards:
         params:
           - {name: recipient, kind: enum, choices: [uk, ussr, china], label: "Which country", choice_labels: ["Britain", "The Soviet Union", "China"]}
           - {name: share_pct, kind: int, lo: 0, hi: 100, label: "Share of the aid (per cent)"}
+          - {name: route, kind: enum, choices: [hx_route, sc_route, arctic_route], label: "By which route", choice_labels: ["HX convoys", "SC convoys", "Arctic convoys"]}
       - name: naval_order
         pipeline: naval_order
         resolver: shipping

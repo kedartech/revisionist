@@ -39,10 +39,11 @@ Change = (
     | ev.EconomySet
     | ev.DocumentIssued
     | ev.YieldChanged
+    | ev.MandateIssued
 )
 """A quantity's new value, a feature as it now stands, a war declared, a public news
 event, a fact asserted, a relationship as it now stands, a nation's pools as they now
-stand, a paper issued, or part of a yield moved."""
+stand, a paper issued, part of a yield moved, or a matter put on a seat's agenda."""
 OrderFn = Callable[[State, Order], tuple[Change, ...]]
 DayFn = Callable[[State, date], tuple[Change, ...]]
 
@@ -160,7 +161,7 @@ def apply_changes(state: State, changes: tuple[Change, ...]) -> list[ev.Payload]
             out.append(ev.FactAsserted(fact=c))
         elif isinstance(c, Relationship):
             out.append(ev.RelationshipSet(relationship=c))
-        elif isinstance(c, ev.EconomySet | ev.DocumentIssued | ev.YieldChanged):
+        elif isinstance(c, ev.EconomySet | ev.DocumentIssued | ev.YieldChanged | ev.MandateIssued):
             out.append(c)
         else:
             out.append(

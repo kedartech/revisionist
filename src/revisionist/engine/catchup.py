@@ -124,6 +124,10 @@ NEVER: frozenset[str] = frozenset(
         # A territory's capture count and capital mark: where pieces stand (THL). The
         # holder's seats learn of a mark from its paper.
         "capture_counted",
+        # A nation's pools and a moved yield: true figures (YLD). A seat reads its own
+        # economy from its own data and learns of damage from its papers.
+        "economy_set",
+        "yield_changed",
         "scheduled_event_created",
         "scheduled_event_skipped",
         # Costs, ticks and admin.

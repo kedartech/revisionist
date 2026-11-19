@@ -40,6 +40,7 @@ from revisionist.core.ontology import (
     SeatKind,
     SeatStatus,
 )
+from revisionist.core.realism import economy
 from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, PlayStyle, opening_id
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.card import SeatCard
@@ -416,6 +417,8 @@ def _mutate(state: State, event: Event) -> State:
             | ev.KindsDeclared()
             | ev.AreaHeld()
             | ev.CaptureCounted()
+            | ev.EconomySet()
+            | ev.YieldChanged()
             | ev.NewsReported()
             | ev.StanceChanged()
             | ev.OpponentsRanked()
@@ -681,6 +684,22 @@ def _realism(state: State, p: ev.Payload) -> State:
             if p.capture is not None:
                 captures[p.area] = p.capture
             return state.model_copy(update={"captures": captures})
+        case ev.EconomySet():
+            if not economy.on(state):
+                raise FoldError("economy_set: the economy rule is off")
+            if _need(state.entities, p.polity, "entity").kind is not EntityKind.POLITY:
+                raise FoldError(f"economy_set: {p.polity} is not a polity")
+            pools = _put(state.economy.pools, p.polity, p.pools)
+            return state.model_copy(
+                update={"economy": state.economy.model_copy(update={"pools": pools})}
+            )
+        case ev.YieldChanged():
+            why = economy.refusal(state, p.area, p.to, p.resource, p.amount)
+            if why is not None:
+                raise FoldError(f"yield_changed: {why}")
+            return state.model_copy(
+                update={"economy": economy.moved(state, p.area, p.to, p.resource, p.amount)}
+            )
         case ev.KindsDeclared():
             if state.kinds is not None:
                 raise FoldError("the kinds are declared once")

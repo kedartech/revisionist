@@ -3542,6 +3542,37 @@
         "title": "DocumentWritten",
         "type": "object"
       },
+      "EconomySet": {
+        "additionalProperties": false,
+        "description": "A nation's pools after the first-of-the-month payment (YLD). Sealed to the nation's\nseats: true figures.",
+        "properties": {
+          "kind": {
+            "const": "economy_set",
+            "default": "economy_set",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "pools": {
+            "$ref": "#/$defs/Pools"
+          }
+        },
+        "required": [
+          "polity",
+          "pools",
+          "on"
+        ],
+        "title": "EconomySet",
+        "type": "object"
+      },
       "EffectKind": {
         "enum": [
           "move_force",
@@ -5329,7 +5360,8 @@
               "production",
               "opinion",
               "movement",
-              "war"
+              "war",
+              "economy"
             ],
             "title": "Resolver",
             "type": "string"
@@ -7031,6 +7063,26 @@
           "style"
         ],
         "title": "PlayStyleSet",
+        "type": "object"
+      },
+      "Pools": {
+        "additionalProperties": false,
+        "description": "A nation's pools, filled on the first of each month.",
+        "properties": {
+          "manpower": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Manpower",
+            "type": "number"
+          },
+          "output": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Output",
+            "type": "number"
+          }
+        },
+        "title": "Pools",
         "type": "object"
       },
       "Port": {
@@ -10337,6 +10389,50 @@
         "title": "WorldMap",
         "type": "object"
       },
+      "YieldChanged": {
+        "additionalProperties": false,
+        "description": "Part of a territory's yield moved to another territory of the same holder (YLD).\nSealed to the holder's seats: true figures.",
+        "properties": {
+          "amount": {
+            "minimum": 0,
+            "title": "Amount",
+            "type": "number"
+          },
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "kind": {
+            "const": "yield_changed",
+            "default": "yield_changed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "resource": {
+            "maxLength": 60,
+            "title": "Resource",
+            "type": "string"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "area",
+          "to",
+          "resource",
+          "amount",
+          "on"
+        ],
+        "title": "YieldChanged",
+        "type": "object"
+      },
       "revisionist__core__ontology__Clause": {
         "additionalProperties": false,
         "properties": {
@@ -10580,6 +10676,7 @@
             "document_issued": "#/$defs/DocumentIssued",
             "document_read": "#/$defs/DocumentRead",
             "document_written": "#/$defs/DocumentWritten",
+            "economy_set": "#/$defs/EconomySet",
             "effects_applied": "#/$defs/EffectsApplied",
             "effects_estimated": "#/$defs/EffectsEstimated",
             "entity_created": "#/$defs/EntityCreated",
@@ -10638,7 +10735,8 @@
             "wake_closed": "#/$defs/WakeClosed",
             "wake_committed": "#/$defs/WakeCommitted",
             "wake_opened": "#/$defs/WakeOpened",
-            "war_declared": "#/$defs/WarDeclared"
+            "war_declared": "#/$defs/WarDeclared",
+            "yield_changed": "#/$defs/YieldChanged"
           },
           "propertyName": "kind"
         },
@@ -10843,6 +10941,12 @@
           },
           {
             "$ref": "#/$defs/CaptureCounted"
+          },
+          {
+            "$ref": "#/$defs/EconomySet"
+          },
+          {
+            "$ref": "#/$defs/YieldChanged"
           },
           {
             "$ref": "#/$defs/NewsReported"
@@ -12680,6 +12784,35 @@
         "title": "DocumentView",
         "type": "object"
       },
+      "Economy": {
+        "additionalProperties": false,
+        "description": "The war economy's truth. A seat sees its own nation's part only.",
+        "properties": {
+          "pools": {
+            "additionalProperties": {
+              "$ref": "#/$defs/Pools"
+            },
+            "title": "Pools",
+            "type": "object"
+          },
+          "yields": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "title": "Yields",
+            "type": "object"
+          }
+        },
+        "title": "Economy",
+        "type": "object"
+      },
       "EffectKind": {
         "enum": [
           "move_force",
@@ -13709,7 +13842,8 @@
               "production",
               "opinion",
               "movement",
-              "war"
+              "war",
+              "economy"
             ],
             "title": "Resolver",
             "type": "string"
@@ -14754,6 +14888,26 @@
         ],
         "title": "PlayStyle",
         "type": "string"
+      },
+      "Pools": {
+        "additionalProperties": false,
+        "description": "A nation's pools, filled on the first of each month.",
+        "properties": {
+          "manpower": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Manpower",
+            "type": "number"
+          },
+          "output": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Output",
+            "type": "number"
+          }
+        },
+        "title": "Pools",
+        "type": "object"
       },
       "Port": {
         "additionalProperties": false,
@@ -17356,6 +17510,9 @@
         "title": "Documents",
         "type": "object"
       },
+      "economy": {
+        "$ref": "#/$defs/Economy"
+      },
       "entities": {
         "additionalProperties": {
           "$ref": "#/$defs/Entity"
@@ -19018,6 +19175,35 @@
         "title": "DocumentView",
         "type": "object"
       },
+      "Economy": {
+        "additionalProperties": false,
+        "description": "The war economy's truth. A seat sees its own nation's part only.",
+        "properties": {
+          "pools": {
+            "additionalProperties": {
+              "$ref": "#/$defs/Pools"
+            },
+            "title": "Pools",
+            "type": "object"
+          },
+          "yields": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "title": "Yields",
+            "type": "object"
+          }
+        },
+        "title": "Economy",
+        "type": "object"
+      },
       "EffectKind": {
         "enum": [
           "move_force",
@@ -19733,7 +19919,8 @@
               "production",
               "opinion",
               "movement",
-              "war"
+              "war",
+              "economy"
             ],
             "title": "Resolver",
             "type": "string"
@@ -20727,6 +20914,26 @@
         ],
         "title": "PlayStyle",
         "type": "string"
+      },
+      "Pools": {
+        "additionalProperties": false,
+        "description": "A nation's pools, filled on the first of each month.",
+        "properties": {
+          "manpower": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Manpower",
+            "type": "number"
+          },
+          "output": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Output",
+            "type": "number"
+          }
+        },
+        "title": "Pools",
+        "type": "object"
       },
       "Port": {
         "additionalProperties": false,
@@ -22490,6 +22697,9 @@
         },
         "title": "Documents",
         "type": "object"
+      },
+      "economy": {
+        "$ref": "#/$defs/Economy"
       },
       "entities": {
         "additionalProperties": {

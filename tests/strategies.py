@@ -72,6 +72,7 @@ from revisionist.core.realism import pipeline as rp
 from revisionist.core.realism import stance as rs
 from revisionist.core.realism import territory as tm
 from revisionist.core.realism.quantity import RESOLVER_KEYS, Quantity
+from revisionist.core.realism.trade import TradeLine
 from revisionist.core.realism.war import War, war_id_for
 from revisionist.core.settings import Settings
 from revisionist.core.state import Rule
@@ -932,6 +933,29 @@ realism_payloads = st.one_of(
         amount=st.floats(0, 100, allow_nan=False),
         on=in_world_dates,
         restart=st.none() | in_world_dates,
+    ),
+    st.builds(
+        ev.TradeSet,
+        line=st.builds(
+            TradeLine,
+            key=labels,
+            exporter=entity_ids,
+            importer=entity_ids,
+            resource=labels,
+            amount=st.floats(0, 100, allow_nan=False),
+            cut=st.booleans(),
+            source=st.none() | labels,
+        ),
+        on=in_world_dates,
+    ),
+    st.builds(
+        ev.StepRefused,
+        mark=labels,
+        nation=entity_ids,
+        area=entity_ids,
+        to=entity_ids,
+        on=in_world_dates,
+        reason=st.text(max_size=300),
     ),
     documents_issued(),
     st.builds(ev.DocumentWritten, doc_id=document_ids, prose=st.text(min_size=1, max_size=400)),

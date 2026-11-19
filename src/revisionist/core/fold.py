@@ -40,7 +40,7 @@ from revisionist.core.ontology import (
     SeatKind,
     SeatStatus,
 )
-from revisionist.core.realism import economy
+from revisionist.core.realism import economy, trade
 from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, PlayStyle, opening_id
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.card import SeatCard
@@ -419,6 +419,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.CaptureCounted()
             | ev.EconomySet()
             | ev.YieldChanged()
+            | ev.TradeSet()
             | ev.NewsReported()
             | ev.StanceChanged()
             | ev.OpponentsRanked()
@@ -705,6 +706,14 @@ def _realism(state: State, p: ev.Payload) -> State:
                         state, p.area, p.to, p.resource, p.amount, restart=p.restart
                     )
                 }
+            )
+        case ev.TradeSet():
+            why = trade.refusal(state, p.line)
+            if why is not None:
+                raise FoldError(f"trade_set: {why}")
+            lines = {**state.economy.lines, p.line.key: p.line}
+            return state.model_copy(
+                update={"economy": state.economy.model_copy(update={"lines": lines})}
             )
         case ev.KindsDeclared():
             if state.kinds is not None:

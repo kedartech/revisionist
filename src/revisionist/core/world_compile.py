@@ -103,9 +103,10 @@ from revisionist.core.realism.effect import (
 )
 from revisionist.core.realism.geography import AT_ONE_PLACE, FORCES, Feature, FeatureKind, Leg
 from revisionist.core.realism.kinds import Domain as PieceDomain
-from revisionist.core.realism.kinds import PieceKind, Resource
+from revisionist.core.realism.kinds import PieceKind, Resource, Role
 from revisionist.core.realism.pipeline import Pipeline, Step
 from revisionist.core.realism.quantity import Quantity
+from revisionist.core.realism.trade import TradeLine
 from revisionist.core.realism.war import Outlet, War, war_id_for
 from revisionist.core.state import Rule, State
 from revisionist.core.visibility import PUBLIC, Scope, Visibility, private_to
@@ -164,19 +165,9 @@ def compile_world(world: WorldFile, campaign_id: CampaignId, versions: Versions)
 
     ids = {key: object_id(campaign_id, section, key) for key, section in sections.items()}
     emitted = _emit(world, ids, sections)
-    events = [
-        Event(
-            event_id=EventId(derived_id(campaign_id, "event", str(seq))),
-            campaign_id=campaign_id,
-            seq=seq,
-            tick=0,
-            actor=None,
-            scope=scope,
-            payload=payload,
-            versions=versions,
-        )
-        for seq, (payload, scope) in enumerate(emitted)
-    ]
+    if Rule.FUEL in world.rules:
+        emitted += _stocks(world, ids, _events(emitted, campaign_id, versions))
+    events = _events(emitted, campaign_id, versions)
     try:
         state = replay(events)
     except FoldError as exc:
@@ -189,6 +180,53 @@ def compile_world(world: WorldFile, campaign_id: CampaignId, versions: Versions)
         if unfit:
             raise WorldError(unfit)
     return [_started(e, state) for e in events]
+
+
+def _events(
+    emitted: Sequence[tuple[ev.Payload, Scope]], campaign_id: CampaignId, versions: Versions
+) -> list[Event]:
+    return [
+        Event(
+            event_id=EventId(derived_id(campaign_id, "event", str(seq))),
+            campaign_id=campaign_id,
+            seq=seq,
+            tick=0,
+            actor=None,
+            scope=scope,
+            payload=payload,
+            versions=versions,
+        )
+        for seq, (payload, scope) in enumerate(emitted)
+    ]
+
+
+def _stocks(
+    world: WorldFile, ids: Mapping[str, str], events: Sequence[Event]
+) -> list[tuple[ev.Payload, Scope]]:
+    """Each nation's fuel stock on the start date (FUL): the world's figure, or
+    ``trade.STOCK_MONTHS`` of its fuel income; none for a nation that starts with none.
+    Engine only, as ``economy_set`` always is."""
+    from revisionist.core.realism import economy
+    from revisionist.core.realism.trade import STOCK_MONTHS
+
+    assert world.start_date is not None  # checked before emitting
+    try:
+        state = replay(events)
+    except FoldError as exc:
+        raise WorldError([f"fold: {exc}"]) from exc
+    given = {f.polity: f.amount for f in world.fuel_stocks}
+    out: list[tuple[ev.Payload, Scope]] = []
+    for d in world.entities:
+        if d.kind is not EntityKind.POLITY:
+            continue
+        polity = EntityId(ids[d.key])
+        amount = given.get(d.key)
+        if amount is None:
+            amount = STOCK_MONTHS * economy.income(state, polity, Role.FUEL, world.start_date)
+        if amount:
+            pools = economy.Pools(fuel=round(amount, 6))
+            out.append((ev.EconomySet(polity=polity, pools=pools, on=world.start_date), PUBLIC))
+    return out
 
 
 def _started(event: Event, state: State) -> Event:
@@ -429,6 +467,8 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "adjacency",
             "resources",
             "piece_kinds",
+            "fuel_stocks",
+            "trade_lines",
         ):
             if getattr(world, name):
                 problems.append(f"{name}: only a realism world has {name}")
@@ -509,6 +549,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_answers(world, sections, problems)
     _check_topics(world, problems)
     _check_wars(world, sections, problems)
+    _check_trade(world, sections, problems)
     playable = {c.person for c in world.cards if c.playable}
     listed = {ch.entity for ch in world.roster}
     # A listed person with no card yet is built when picked (compile_figure).
@@ -583,6 +624,44 @@ def _fits(spec: ParamSpec, value: ParamValue, sections: Mapping[str, str]) -> bo
         case ParamKind.TEXT:
             return isinstance(value, str) and bool(value.strip())
     return False
+
+
+def _check_trade(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """Fuel stocks and trade lines (FUL): only with ``fuel`` on, between polities, each
+    line carrying a resource whose role a nation keeps a pool of."""
+    from revisionist.core.realism.trade import PAID_ROLES
+
+    if Rule.FUEL not in world.rules:
+        if world.fuel_stocks or world.trade_lines:
+            problems.append("rules: fuel stocks and trade lines need fuel")
+        return
+    polities = {d.key for d in world.entities if d.kind is EntityKind.POLITY}
+    roles = {r.key: r.role for r in world.resources}
+    if not any(r is Role.FUEL for r in roles.values()):
+        problems.append("rules: fuel needs a resource with the fuel role")
+    stocked: set[str] = set()
+    for f in world.fuel_stocks:
+        where = f"fuel stock {f.polity}"
+        _check_cited(problems, where, f, sections)
+        if f.polity not in polities:
+            problems.append(f"{where}: {f.polity} is not a polity")
+        if f.polity in stocked:
+            problems.append(f"{where}: named twice")
+        stocked.add(f.polity)
+    keys: set[str] = set()
+    for line in world.trade_lines:
+        where = f"trade line {line.key}"
+        _check_cited(problems, where, line, sections)
+        if line.key in keys:
+            problems.append(f"{where}: duplicate key")
+        keys.add(line.key)
+        for side in (line.exporter, line.importer):
+            if side not in polities:
+                problems.append(f"{where}: {side} is not a polity")
+        if line.exporter == line.importer:
+            problems.append(f"{where}: a line runs between two nations")
+        if roles.get(line.resource) not in PAID_ROLES:
+            problems.append(f"{where}: {line.resource} is not output, manpower or fuel")
 
 
 def _check_answers(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
@@ -862,6 +941,8 @@ def _check_board(world: WorldFile, sections: Mapping[str, str], problems: list[s
         problems.append("rules: holders needs territories")
     if Rule.ECONOMY in world.rules and Rule.HOLDERS not in world.rules:
         problems.append("rules: economy needs holders")
+    if Rule.FUEL in world.rules and Rule.ECONOMY not in world.rules:
+        problems.append("rules: fuel needs economy")
     if world.map is None:
         if areas or world.adjacency or world.regions or world.terrain:
             problems.append("map: the world has areas but no map")
@@ -1564,6 +1645,19 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
         out.append((ev.WarDeclared(war=war), PUBLIC))
     if world.map is not None:
         out.append((ev.MapDeclared(map=_board(world, ids)), PUBLIC))
+    for line in world.trade_lines:
+        declared_line = TradeLine(
+            key=line.key,
+            exporter=EntityId(ids[line.exporter]),
+            importer=EntityId(ids[line.importer]),
+            resource=line.resource,
+            amount=line.amount,
+            cut=line.cut,
+            source=line.source,
+        )
+        # Engine only, as every compiled declaration: ``catchup`` never feeds a trade_set,
+        # and a seat reads the lines its nation is a party to from its view.
+        out.append((ev.TradeSet(line=declared_line, on=world.start_date), PUBLIC))
     return out
 
 

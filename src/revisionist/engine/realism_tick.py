@@ -394,6 +394,13 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return _nation_scope(state, payload.nation)
     if isinstance(payload, ev.EconomySet):
         return _nation_scope(state, payload.polity)
+    if isinstance(payload, ev.StepRefused):
+        return _nation_scope(state, payload.nation)
+    if isinstance(payload, ev.TradeSet):
+        # True figures: sealed to the seats of the two nations the line joins.
+        a = _nation_scope(state, payload.line.exporter).known_by
+        b = _nation_scope(state, payload.line.importer).known_by
+        return Scope(visibility=Visibility.RESTRICTED, known_by=a | b)
     if isinstance(payload, ev.YieldChanged):
         # True figures: sealed to the holder's seats, or to no seat if it has none.
         owner = economy.holder(state, payload.area)

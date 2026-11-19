@@ -593,6 +593,25 @@ class ResourceDecl(Model):
     role: Role
 
 
+class FuelStockDecl(Cited):
+    """A nation's fuel stock on the start date (FUL), in the unit of its fuel resource."""
+
+    polity: Key
+    amount: float = Field(ge=0)
+
+
+class TradeLineDecl(Cited):
+    """A trade line in force on the start date (FUL): ``amount`` of ``resource`` a month,
+    from ``exporter`` to ``importer``; ``cut`` when it starts cut."""
+
+    key: Key
+    exporter: Key
+    importer: Key
+    resource: Key
+    amount: float = Field(ge=0)
+    cut: bool = False
+
+
 class RegionDecl(Model):
     key: Key
     name: Label
@@ -824,6 +843,13 @@ class WorldFile(Model):
     resources: SkipJsonSchema[tuple[ResourceDecl, ...]] = ()
     """The resources territories yield, each with its role. Realism only. Written by hand:
     not offered to a model."""
+    fuel_stocks: SkipJsonSchema[tuple[FuelStockDecl, ...]] = ()
+    """Each nation's fuel stock on the start date, with ``fuel`` on. A nation not named
+    starts at ``trade.STOCK_MONTHS`` of its fuel income. Written by hand: not offered to a
+    model."""
+    trade_lines: SkipJsonSchema[tuple[TradeLineDecl, ...]] = ()
+    """The trade lines in force on the start date, with ``fuel`` on. Written by hand: not
+    offered to a model."""
     piece_kinds: SkipJsonSchema[tuple[PieceKindDecl, ...]] = ()
     """The world's own kinds of piece. With any, every force is a ``piece`` of one of
     them. Realism only, and only with a map. Written by hand: not offered to a model."""

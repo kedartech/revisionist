@@ -420,14 +420,19 @@ def test_a_form_naming_a_rule_with_no_function_is_refused(
 ) -> None:
     from revisionist.core.realism import resolvers
 
-    def economy_lever(w: World) -> None:
-        levers(w)
-        for card in w["cards"]:
-            card["levers"][0]["resolver"] = "economy"
+    def lever_for(key: str) -> Callable[[World], None]:
+        def change(w: World) -> None:
+            levers(w)
+            for card in w["cards"]:
+                card["levers"][0]["resolver"] = key
 
+        return change
+
+    economy_lever = lever_for("economy")
     awaiting = [k for k in RESOLVER_KEYS if k not in resolvers.ON_ORDER]
     for key in awaiting:
-        assert any(f"has no rule yet: {key}" in p for p in refused(toy(tmp_path, economy_lever)))
+        problems = refused(toy(tmp_path, lever_for(key)))
+        assert any(f"has no rule yet: {key}" in p for p in problems)
     monkeypatch.delitem(resolvers.ON_ORDER, "economy", raising=False)
     problems = refused(toy(tmp_path, economy_lever))
     assert any("has no rule yet: economy" in p for p in problems)

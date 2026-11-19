@@ -158,8 +158,9 @@ class _World(Model):
     ``area_held``. A territory not here has the holder the board gives. Public (THL)."""
     economy: Economy = Field(default_factory=Economy)
     """With ``economy`` on, each nation's pools (``economy_set``) and each territory whose
-    yields were moved (``yield_changed``) (YLD). True figures: a view holds its own
-    nation's part only."""
+    yields were moved (``yield_changed``) (YLD); with ``fuel`` on, each nation's fuel
+    stock in its pools and each trade line (``trade_set``) (FUL). True figures: a view
+    holds its own nation's part only, and the lines it is a party to."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {

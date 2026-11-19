@@ -29,6 +29,10 @@ the source loses the part on the day of the move, and the part pays nothing unti
 pending part is kept on the territory it lies in (``Economy.pending``), so it changes
 hands with the territory. A move out of a territory with an idle part takes its working
 part first.
+
+With ``fuel`` on as well (FUL, ``trade``), a nation's pools hold its fuel stock too
+(``Pools.fuel``): the first of a month adds its ``fuel`` income and what its open trade
+lines pay, each into the pool of its resource's role. ``stock`` is the stock now.
 """
 
 from datetime import date, timedelta
@@ -39,6 +43,7 @@ from pydantic import Field
 from revisionist.core._base import Label, Model
 from revisionist.core.ids import EntityId, SeatId
 from revisionist.core.realism.kinds import Role
+from revisionist.core.realism.trade import TradeLine
 
 if TYPE_CHECKING:
     from revisionist.core.events import Payload, YieldChanged
@@ -66,8 +71,12 @@ class EconomyError(ValueError):
 class Pools(Model):
     """A nation's pools, filled on the first of each month."""
 
+    late_fields: ClassVar[frozenset[str]] = frozenset({"fuel"})
+
     output: Amount = 0
     manpower: Amount = 0
+    fuel: Amount = 0
+    """The fuel stock (FUL): spent as steps start, filled on the first of the month."""
 
 
 class Restart(Model):
@@ -81,7 +90,7 @@ class Restart(Model):
 class Economy(Model):
     """The war economy's truth. A seat sees its own nation's part only."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"pending"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"pending", "lines"})
 
     pools: dict[EntityId, Pools] = Field(default_factory=dict)
     """Each nation's pools, by ``economy_set``. Absent: nothing paid yet."""
@@ -91,6 +100,8 @@ class Economy(Model):
     pending: dict[EntityId, tuple[Restart, ...]] = Field(default_factory=dict)
     """Each territory a part was moved to with a restart date, by ``yield_changed``:
     the parts and the days they restart, in the order moved. Kept past the date."""
+    lines: dict[Label, TradeLine] = Field(default_factory=dict)
+    """Each trade line (FUL), by its key, as it stands after its last ``trade_set``."""
 
 
 def on(state: "_World") -> bool:
@@ -228,19 +239,36 @@ def figure(state: "State | View", polity: EntityId, day: date | None = None) -> 
     return round(FIGURE_TOP * _weighted(state, polity, today, start=False) / top, 1)
 
 
+def _earned(state: "State", polity: EntityId, role: Role, day: date) -> float:
+    """A month's payment for ``role``: the income, and with ``fuel`` on (FUL) what the
+    open trade lines pay; fuel only with ``fuel`` on."""
+    from revisionist.core.realism import trade
+
+    if not trade.on(state):
+        return 0.0 if role is Role.FUEL else income(state, polity, role, day)
+    return round(income(state, polity, role, day) + trade.paid_to(state, polity, role), 6)
+
+
 def _pay(state: "State", polity: EntityId, day: date) -> Pools | None:
     """The polity's pools after the month's payment; None when it earns nothing."""
     earned = Pools(
-        output=income(state, polity, Role.OUTPUT, day),
-        manpower=income(state, polity, Role.MANPOWER, day),
+        output=_earned(state, polity, Role.OUTPUT, day),
+        manpower=_earned(state, polity, Role.MANPOWER, day),
+        fuel=_earned(state, polity, Role.FUEL, day),
     )
-    if not earned.output and not earned.manpower:
+    if not earned.output and not earned.manpower and not earned.fuel:
         return None
     was = state.economy.pools.get(polity, Pools())
     return Pools(
         output=round(was.output + earned.output, 6),
         manpower=round(was.manpower + earned.manpower, 6),
+        fuel=round(was.fuel + earned.fuel, 6),
     )
+
+
+def stock(state: "State | View", polity: EntityId) -> float:
+    """A nation's fuel stock now (FUL): 0 when nothing has set it."""
+    return state.economy.pools.get(polity, Pools()).fuel
 
 
 def walk(state: "State", day: date) -> list["Payload"]:
@@ -342,9 +370,9 @@ def moved(
 
 
 def seen_by(state: "State", seat: SeatId) -> Economy:
-    """What ``seat`` sees of the economy: its own nation's pools, and the moved yields
-    and pending parts of the territories its nation holds. Nothing for a seat of no
-    nation."""
+    """What ``seat`` sees of the economy: its own nation's pools, the moved yields and
+    pending parts of the territories its nation holds, and the trade lines it is a party
+    to. Nothing for a seat of no nation."""
     from revisionist.core.realism.war import polity_of
 
     me = state.seats.get(seat)
@@ -355,6 +383,7 @@ def seen_by(state: "State", seat: SeatId) -> Economy:
         pools={k: v for k, v in state.economy.pools.items() if k == own},
         yields={k: v for k, v in state.economy.yields.items() if holder(state, k) == own},
         pending={k: v for k, v in state.economy.pending.items() if holder(state, k) == own},
+        lines={k: v for k, v in state.economy.lines.items() if own in (v.exporter, v.importer)},
     )
 
 
@@ -377,6 +406,7 @@ __all__ = [
     "on",
     "refusal",
     "seen_by",
+    "stock",
     "walk",
     "working",
     "yields_of",

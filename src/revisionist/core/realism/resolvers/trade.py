@@ -41,8 +41,7 @@ from revisionist.core.realism.war import NewsEvent, NewsTopic, polity_of
 from revisionist.core.state import State
 from revisionist.core.visibility import Scope, Visibility, private_to
 
-LINE, ACTION = "line", "action"
-EMBARGO, RESTORE = "embargo", "restore"
+LINE, ACTION, RESTORE = "line", "action", "restore"
 TEXT = 60
 """The longest a headline or a title may be."""
 NOT_YOURS = "Only the nation a line runs from can cut or reopen it"  # [proposed]
@@ -60,8 +59,8 @@ def resolve(state: State, order: Order) -> tuple["rs.Change", ...]:
 
 
 def cuts(order: Order) -> bool:
-    """Whether the order cuts its line (an embargo) rather than reopening it."""
-    return str(order.params.get(ACTION, EMBARGO)) != RESTORE
+    """Whether the order cuts its line (an embargo): any action but ``restore`` does."""
+    return str(order.params.get(ACTION, "")) != RESTORE
 
 
 def _key(order: Order) -> tuple[date, list[tuple[str, str]], str]:

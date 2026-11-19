@@ -531,6 +531,51 @@ def test_after_the_lull_the_attacker_goes_back_where_it_came_from(tmp_path: Path
     assert piece(g.state, "norra_levy").places == (entity("norra_hills"),)
 
 
+def lulled(g: Logged, came_from: str) -> None:
+    """The coast's battle open, its attacker recorded as come from ``came_from``, and Norra's
+    levy put on hold."""
+    g.walk(day(1), OPENS)
+    b = g.state.battles[entity(COAST)]
+    fid = FeatureId(entity("norra_levy"))
+    b = b.model_copy(update={"came_from": {fid: entity(came_from)}})
+    g.state = g.state.model_copy(update={"battles": {entity(COAST): b}})
+    hold(g, "norra_levy")
+
+
+def test_after_the_lull_an_attacker_from_a_non_bordering_area_falls_back(tmp_path: Path) -> None:
+    """The area it came from does not border the battle (a landing, or a move the record
+    made): it falls back by rule 5 instead, to the hills."""
+    for came in ("norra_plain", "the_gulf"):
+        (tmp_path / came).mkdir()
+        g = to_coast(tmp_path / came)
+        lulled(g, came)
+        out = g.walk(OPENS + timedelta(days=1), OPENS + timedelta(days=LULL_DAYS))
+        (ended,) = payloads(out, ev.BattleEnded)
+        assert ended.ending is Ending.LULL
+        assert piece(g.state, "norra_levy").places == (entity("norra_hills"),)
+
+
+def test_after_the_lull_an_attacker_with_nowhere_to_go_stays_in_the_battle(
+    tmp_path: Path,
+) -> None:
+    """With nowhere to go back to, the attacker stays and the battle stays open: no end,
+    and no battle reopened every few days."""
+    g = to_coast(tmp_path)
+    lulled(g, "norra_plain")
+    hills = entity("norra_hills")
+    g.add([ev.AreaHeld(area=hills, holder=entity("sudland"), was=entity("norra"), on=OPENS)])
+    out = g.walk(OPENS + timedelta(days=1), OPENS + timedelta(days=4 * LULL_DAYS))
+    assert not [e for e in out if e.kind.startswith("battle_")]
+    assert not payloads(out, ev.NewsReported)
+    assert piece(g.state, "norra_levy").places == (entity(COAST),)
+    assert list(g.state.battles) == [entity(COAST)]
+    hold(g, "norra_levy", None)
+    out = g.walk(
+        OPENS + timedelta(days=4 * LULL_DAYS + 1), OPENS + timedelta(days=4 * LULL_DAYS + 1)
+    )
+    assert payloads(out, ev.BattleRound)  # pressing again, it fights on
+
+
 def test_the_lull_in_simulate() -> None:
     sides = Sides(one(5), one(4), presses=False)
     played = battle.simulate(sides, "s", LULL_DAYS - 1)

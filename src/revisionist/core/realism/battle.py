@@ -19,7 +19,8 @@ sea piece: to the adjacent sea zone with no enemy in it nearest its capital); wi
 to go a piece is destroyed. A piece brought to strength 0 is out of play from that day
 (``Feature.lost_on``). When no defender is left the attacker has won and the capture count
 starts there (``holders.start_count``). An attacker that does not press for ``LULL_DAYS``
-days in a row goes back to the area it came from.
+days in a row goes back to the area it came from when that borders the battle, else falls
+back as a broken side does; with nowhere to go it stays, and the battle stays open.
 
 The opening and the end each land one public news item; after every round each side's
 commanders get a report with the steps each side lost, as contact showed them. The three
@@ -449,6 +450,20 @@ def fall_back(state: "State", piece: "Feature", area: EntityId) -> EntityId | No
     return ranked[0][2] if ranked else None
 
 
+def _went_back(state: "State", battle: Battle, piece: "Feature") -> EntityId | None:
+    """Where an attacker goes back to after the lull: the area it came from, when that
+    borders the battle's area for its domain and holds no enemy piece; else None."""
+    from revisionist.core.realism import kinds, territory
+
+    back = battle.came_from.get(piece.feature_id)
+    domain = kinds.domain(state, piece)
+    if back is None or domain is None or state.map is None:
+        return None
+    if back not in territory.neighbours(state.map, battle.area, domain):
+        return None
+    return back if _open_to(state, piece, back) else None
+
+
 def _open_to(state: "State", piece: "Feature", to: EntityId) -> bool:
     """Whether an area holds no piece at war with ``piece``'s side that can fight there."""
     from revisionist.core.realism.war import at_war
@@ -629,17 +644,15 @@ def _day(state: "State", battle: Battle, day: date) -> list["Payload"]:
         leaving = [now[str(f.feature_id)] for f in dfn]
     moves: list[Payload] = []
     sent: set[FeatureId] = set()
+    stays = False
     for f in leaving:
         if f.lost_on is not None:
             continue
-        if played.ending is Ending.LULL:
-            back = battle.came_from.get(f.feature_id)
-            to = back if back is not None and _open_to(state, f, back) else None
-            to = to or fall_back(state, f, battle.area)
-            if to is None:  # [proposed] an attacker with nowhere to go back to stays
-                continue
-        else:
-            to = fall_back(state, f, battle.area)
+        to = _went_back(state, battle, f) if played.ending is Ending.LULL else None
+        to = to or fall_back(state, f, battle.area)
+        if to is None and played.ending is Ending.LULL:
+            stays = True  # [proposed] an attacker with nowhere to go back to stays
+            continue
         moves += _sent_back(state, f, battle.area, to, day)
         sent.add(f.feature_id)
     for pid in sorted(now):
@@ -650,6 +663,8 @@ def _day(state: "State", battle: Battle, day: date) -> list["Payload"]:
     if played.ending is None:
         return out
     out += moves
+    if stays:  # the battle stays open while an attacker stands there
+        return out
     return out + _end(state, battle, day, played.ending)
 
 

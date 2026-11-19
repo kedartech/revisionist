@@ -33,8 +33,10 @@ export function statusStrip(rv, ui, { act }) {
   const multi = wake.humans > 1;
   const open = Boolean(wake.deadline);
   const comeBack = comeBackLine(rv);
+  const filed = (rv.record?.orders ?? []).filter((o) => o.wake === wake.wake).length;
   return h('div', { class: 'rl-strip', role: 'region', 'aria-label': 'Where the day stands' },
     h('span', { class: 'rl-date' }, worldDate(rv.clock?.world_date)),
+    h('span', { class: 'rl-filed-count' }, `${filed} ${filed === 1 ? 'order' : 'orders'} filed this wake.`),
     multi && open ? countdown(wake.deadline) : null,
     multi ? doneBar(wake) : null,
     open && !wake.you_committed

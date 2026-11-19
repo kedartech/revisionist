@@ -10,7 +10,8 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { installDom, words } from './dom-fake.js';
-import { movedMarks, movesBlock, moveLine, runMoves } from '../js/views/realism-moves.js';
+import * as moves from '../js/views/realism-moves.js';
+import { movedMarks, movesBlock, moveLine } from '../js/views/realism-moves.js';
 import { happenedSheet } from '../js/views/realism-happened.js';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
@@ -84,15 +85,6 @@ test('a line that changed its course is a move; missing maps give none', () => {
   }
 });
 
-test('the moves of a run are kept only for the wake right after it', () => {
-  const from = { wake: 3, map: before };
-  assert.equal(runMoves(from, { number: 4 }, after).length, 1);
-  assert.deepEqual(runMoves(from, { number: 5 }, after), [], 'a later wake someone else ran');
-  assert.deepEqual(runMoves(from, { number: 3 }, after), [], 'the run did not open a wake');
-  assert.deepEqual(runMoves(null, { number: 4 }, after), [], 'no run started in this room');
-  assert.deepEqual(runMoves(from, null, after), []);
-});
-
 test('movesBlock: one route on the map and one line beside it per move', () => {
   installDom();
   const block = movesBlock({ moves: movedMarks(before, after), places: after.places });
@@ -137,11 +129,10 @@ test('What happened carries the block when the room passes moves, and none witho
   assert.equal(happenedSheet(base).querySelector('.rl-moves'), null);
 });
 
-test('the room keeps the map from before the run and passes the moves to the sheet', () => {
+test('the room keeps no map from before the run: where forces moved comes from the catch-up steps', () => {
   const room = read('js/views/realism-room.js');
-  assert.match(room, /if \(message === RUNNING\) \{\s*ui\.runFrom = \{ wake: rv\.record\?\.wake\?\.number \?\? 0, map: rv\.map \?\? null \};/);
-  assert.match(room, /happenedSheet\(\{[^)]*moves: runMoves\(ui\.runFrom, page, rv\.map\), places: rv\.map\?\.places/);
-  assert.match(room, /runFrom: null/, 'a new game starts with no run kept');
+  assert.doesNotMatch(room, /runFrom|runMoves/);
+  assert.equal(moves.runMoves, undefined);
   assert.match(read('index.html'), /<link rel="stylesheet" href="\/css\/p5-moves\.css">/);
 });
 

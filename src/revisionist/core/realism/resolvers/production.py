@@ -22,12 +22,22 @@ runs after the day rules).
 """
 
 from datetime import date, timedelta
+from typing import NamedTuple
 
 from revisionist.core import events as ev
-from revisionist.core.ids import DocumentId, EntityId, FeatureId, derived_id
+from revisionist.core.goals import ActOf
+from revisionist.core.ids import DocumentId, EntityId, FeatureId, MandateId, SeatId, derived_id
+from revisionist.core.ontology import EntityKind
 from revisionist.core.realism import actors, economy, kinds, sealift, territory
 from revisionist.core.realism import resolvers as rs
-from revisionist.core.realism.card import ChannelKind
+from revisionist.core.realism.agenda import (
+    MANDATE_CAP,
+    Mandate,
+    MandateKind,
+    MandateStatus,
+    opening_id,
+)
+from revisionist.core.realism.card import ChannelKind, Lever, ParamKind, ParamSpec
 from revisionist.core.realism.document import (
     BodyField,
     Classification,
@@ -36,7 +46,8 @@ from revisionist.core.realism.document import (
     DocumentView,
 )
 from revisionist.core.realism.economy import Pools
-from revisionist.core.realism.geography import Feature
+from revisionist.core.realism.geography import Feature, FeatureKind
+from revisionist.core.realism.kinds import Domain
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.quantity import QuantityChange
 from revisionist.core.realism.resolvers import evacuation, shipping
@@ -52,13 +63,20 @@ STEP_COST = 10  # [proposed] plan, PRD Defaults
 STEP_MANPOWER = 1  # [proposed] plan, PRD Defaults
 LEAD_DAYS = 30  # [proposed] plan, PRD Defaults
 ADDS_PER_STEP = 1  # [proposed]
+AID_USD_PER_POINT = 100_000_000  # [proposed] plan, AID Defaults
+AID_LEAD_DAYS = 45  # [proposed] plan, AID Defaults
+AID_ANSWER_DAYS = 14  # [proposed]
+AID_UNIT = "USD"  # [proposed] the unit of a figure aid is drawn from
 
 
-def resolve(state: State, order: Order) -> tuple[QuantityChange, ...]:
-    """Changes from one order enacted through its pipeline."""
+def resolve(state: State, order: Order) -> tuple["rs.Change", ...]:
+    """Changes from one order enacted through its pipeline: a Lend-Lease finding's
+    figures, and with ``economy`` on, a request for aid put on the giver's agenda."""
     recipient = order.params.get("recipient")
-    if order.status is not OrderStatus.ENACTED or order.lever != "lend_lease_finding":
+    if order.status is not OrderStatus.ENACTED:
         return ()
+    if order.lever != "lend_lease_finding":
+        return tuple(_asked(state, order))
     as_of = rs.settled_on(order)
     out = []
     if recipient == "ussr":
@@ -244,12 +262,17 @@ def _build(state: State, order: Order, today: date) -> list["rs.Change"]:
 
 def economy_day(state: State, today: date) -> tuple["rs.Change", ...]:
     """With ``economy`` on, every step due today built or reported, each order folded
-    before the next reads the pools; then each evacuation's part for the day (EVC)."""
+    before the next reads the pools; then each aid share due today (AID); then each
+    evacuation's part for the day (EVC)."""
     if not economy.on(state):
         return ()
     out: list[rs.Change] = []
     for order in _due(state, today):
         changes = _build(state, order, today)
+        out += changes
+        state = _after(state, changes)
+    for order in _aid_due(state, today):
+        changes = _deliver(state, order, today)
         out += changes
         state = _after(state, changes)
     return (*out, *evacuation.on_day(state, today))
@@ -279,3 +302,198 @@ def _after(state: State, changes: list["rs.Change"]) -> State:
             "quantities": quantities,
         }
     )
+
+
+# --- Aid that arrives (AID) ---------------------------------------------------------------
+
+
+class _Aid(NamedTuple):
+    """What an aid form names, read from its parameters' values against the world."""
+
+    giver: EntityId
+    recipient: EntityId
+    route: Feature | None
+    share_pct: int
+
+
+def _polity(state: State, key: object) -> EntityId | None:
+    if not isinstance(key, str):
+        return None
+    found = state.entities.get(EntityId(object_id(state.campaign_id, "entity", key)))
+    return found.entity_id if found is not None and found.kind is EntityKind.POLITY else None
+
+
+def _aid(state: State, order: Order) -> _Aid | None:
+    """The aid ``order`` sends, by what each parameter's value names: another nation (the
+    recipient), a world route, and a whole number (the share in per cent). None for an
+    order that names no other nation or no share."""
+    giver = polity_of(state, state.seats[order.issuer].embodies)
+    recipients = [p for v in order.params.values() if (p := _polity(state, v)) not in (None, giver)]
+    shares = [v for v in order.params.values() if isinstance(v, int)]
+    routes = [
+        f
+        for v in order.params.values()
+        if isinstance(v, str)
+        and (f := state.features.get(FeatureId(object_id(state.campaign_id, "feature", v))))
+        and f.kind is FeatureKind.ROUTE
+    ]
+    if giver is None or len(recipients) != 1 or len(shares) != 1:
+        return None
+    recipient = recipients[0]
+    assert recipient is not None
+    return _Aid(giver, recipient, routes[0] if routes else None, shares[0])
+
+
+def _aid_due(state: State, today: date) -> list[Order]:
+    """The enacted ``production`` orders that send aid and arrive ``today``, in id order."""
+    due = []
+    for o in state.orders.values():
+        if o.status is not OrderStatus.ENACTED:
+            continue
+        if rs.settled_on(o) + timedelta(AID_LEAD_DAYS) != today:
+            continue
+        try:
+            if rs.resolver_for(state, o) != "production":
+                continue
+        except KeyError:
+            continue
+        if _aid(state, o) is not None:
+            due.append(o)
+    return sorted(due, key=lambda o: o.order_id)
+
+
+def _fund(state: State, giver: EntityId) -> int:
+    """The giver's aid figure: its largest figure in ``AID_UNIT``; 0 when it has none.
+    A share allocated from it is never larger, so the fund is the largest."""
+    return max(
+        (
+            q.value
+            for q in state.quantities.values()
+            if q.unit == AID_UNIT
+            and q.value is not None
+            and q.owner is not None
+            and polity_of(state, q.owner) == giver
+        ),
+        default=0,
+    )
+
+
+def _reaches(state: State, route: Feature, nation: EntityId) -> bool:
+    """Whether one of the route's places lies in a territory ``nation`` holds."""
+    for place in route.places:
+        area = territory.area_of(state, place, Domain.LAND)
+        if area is not None and territory.holder(state, area) == nation:
+            return True
+    return False
+
+
+def _lost(state: State, aid: _Aid, today: date) -> float:
+    """The share of the month's shipping lost on the aid's route: what the route lost over
+    the shipping its nation holds (its lift pool), at most 1. Nothing is lost when no world
+    route reaches the recipient, when the form names no route, or when the route's nation
+    holds no shipping figure."""
+    routes = (f for f in state.features.values() if f.kind is FeatureKind.ROUTE)
+    if aid.route is None or not any(_reaches(state, r, aid.recipient) for r in routes):
+        return 0.0
+    board = state.map
+    side = territory.nation(state, aid.route.side)
+    pool = None if board is None or side is None else board.lift_pools.get(side)
+    held = state.quantities[pool].value if pool is not None and pool in state.quantities else None
+    if not held or held <= 0:
+        return 0.0
+    lost = shipping.losses(state, today).get(aid.route.feature_id, 0)
+    return min(1.0, lost / held)
+
+
+def _deliver(state: State, order: Order, today: date) -> list["rs.Change"]:
+    """The aid ``order`` sends arriving ``today``: the recipient's output pool grows by the
+    share's dollars at ``AID_USD_PER_POINT`` a point, less the route's loss share; the
+    issuing seat gets one report."""
+    aid = _aid(state, order)
+    assert aid is not None
+    lost = _lost(state, aid, today)
+    points = _fund(state, aid.giver) * aid.share_pct / 100 / AID_USD_PER_POINT * (1 - lost)
+    pools = state.economy.pools.get(aid.recipient, Pools())
+    name = state.entities[aid.recipient].name
+    out: list[rs.Change] = []
+    if points > 0:
+        out.append(
+            ev.EconomySet(
+                polity=aid.recipient,
+                pools=pools.model_copy(update={"output": pools.output + points}),
+                on=today,
+            )
+        )
+    paper = _report(
+        state,
+        order,
+        aid.giver,
+        today,
+        f"Aid arrives in {name}",
+        [
+            BodyField(label="Output", value=f"{points:.1f} points"),
+            BodyField(label="Lost at sea", value=f"{round(100 * lost)} per cent"),
+        ],
+    )
+    return out + ([paper] if paper is not None else [])
+
+
+def _aid_lever(state: State, person: EntityId, asker: EntityId) -> tuple[Lever, ParamSpec] | None:
+    """The aid form on ``person``'s card that can name ``asker``, and that parameter."""
+    card = state.cards.get(person)
+    for lever in card.levers if card is not None else ():
+        if lever.resolver != "production" or not any(p.kind is ParamKind.INT for p in lever.params):
+            continue
+        for p in lever.params:
+            if any(_polity(state, c) == asker for c in p.choices):
+                return lever, p
+    return None
+
+
+def _asked(state: State, order: Order) -> list[ev.MandateIssued]:
+    """With ``economy`` on, a request from a nation that another nation's aid form names
+    raises its share on the agenda of each seat holding that form: an opportunity met by
+    filing the form for the asker, due ``AID_ANSWER_DAYS`` later. A full desk gets none;
+    nothing waits on the answer."""
+    if not economy.on(state) or _aid(state, order) is not None:
+        return []
+    asker = polity_of(state, state.seats[order.issuer].embodies)
+    if asker is None:
+        return []
+    day = rs.settled_on(order)
+    out = []
+    for seat in sorted(actors.readers(state)):
+        person = state.seats[seat].embodies
+        found = _aid_lever(state, person, asker)
+        if found is None or _desk_full(state, seat):
+            continue
+        lever, param = found
+        key = next(c for c in param.choices if _polity(state, c) == asker)
+        form = lever.label or lever.name
+        out.append(
+            ev.MandateIssued(
+                mandate=Mandate(
+                    mandate_id=MandateId(
+                        derived_id(state.campaign_id, "aid", order.order_id, seat)
+                    ),
+                    seat_id=seat,
+                    kind=MandateKind.OPPORTUNITY,
+                    text=f"{state.entities[asker].name} asks for aid: raise its share ({form}).",
+                    condition=ActOf(person=person, lever=lever.name, params={param.name: key}),
+                    issued=day,
+                    expires=day + timedelta(days=AID_ANSWER_DAYS),
+                    scope=private_to(seat),
+                )
+            )
+        )
+    return out
+
+
+def _desk_full(state: State, seat: SeatId) -> bool:
+    live = sum(
+        m.seat_id == seat
+        and m.status is MandateStatus.LIVE
+        and m.mandate_id != opening_id(state.campaign_id, seat)
+        for m in state.mandates.values()
+    )
+    return live >= MANDATE_CAP

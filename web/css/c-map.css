@@ -115,3 +115,19 @@
 @media (max-width: 767px) {
   .rl-tm-svg { height: 55vh; min-height: 50vh; }
 }
+
+/* pieces that slide and stack (SLD): strength as pips, posture as a word, stacks closed or fanned */
+.rl-tm-pips .rl-pip { fill: var(--side, var(--fg)); stroke: var(--side, var(--fg)); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.rl-tm-pips .rl-pip-empty { fill: var(--surface); }
+.rl-pip-num, .rl-mk-posture, .rl-tm-ghost-note { fill: var(--fg-strong); font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.rl-mk-posture { font-weight: 500; font-variant: small-caps; }
+.rl-tm-stack-edge { fill: var(--surface); stroke: var(--side, var(--fg-muted)); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.rl-tm-count circle { fill: var(--fg-strong); }
+.rl-tm-count text { fill: var(--surface); font-weight: 700; }
+.rl-tm-x { stroke: var(--surface); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.rl-tm-stack:focus-visible .rl-tm-stack-edge, .rl-tm-fanclose:focus-visible circle { stroke: var(--focus); stroke-width: 3px; }
+.rl-tm-stack, .rl-tm-fanclose { cursor: pointer; }
+.rl-tm-ghost { opacity: 0.75; }
+.rl-tm-ghost .rl-mk-shape { fill: var(--surface); stroke-dasharray: 3 2; }
+.rl-tm-path { fill: none; }
+@media (prefers-reduced-motion: reduce) { .rl-tm-slide { animation: none; transition: none; } }

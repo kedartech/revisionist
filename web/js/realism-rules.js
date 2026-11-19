@@ -113,7 +113,8 @@ export function stepLine(step) {
   return `${step.person}: ${pick(STEP_DONE, step.action)}${when}`;
 }
 
-function shortDate(iso) {
+/** "16 Oct". */
+export function shortDate(iso) {
   const [, m, d] = iso.split('-').map(Number);
   return `${d} ${MONTHS_SHORT[m - 1]}`;
 }
@@ -528,4 +529,55 @@ export function borders(shapes) {
     by.get(id).edges.push(edge.split(' ').map(Number));
   }
   return [...by.values()].sort((x, y) => `${x.between}`.localeCompare(`${y.between}`));
+}
+
+// --- pieces on the territory map ---------------------------------------------------
+
+/** The pips a piece's strength is drawn against when it has no more: the engine's default most. [proposed] */
+export const PIP_SLOTS = 5;
+/** How long a mark takes to slide to its new area, in milliseconds. [proposed] */
+export const SLIDE_MS = 600;
+
+const POSTURE = Object.freeze({ patrol: 'Patrol', escort: 'Escort', hold: 'Hold', attack: 'Attack', withdraw: 'Withdraw' });
+
+/** A piece's posture as a word; '' when it has none. */
+export const postureWord = (posture) => (posture ? pick(POSTURE, posture) : '');
+
+/** An own piece's strength as pips: `filled` solid ones of `slots`; null for an envoy, which has none. */
+export function pipsOf(piece) {
+  if (!piece || piece.domain === 'envoy') return null;
+  const filled = Math.max(0, Math.floor(Number(piece.strength) || 0));
+  return { filled, slots: Math.max(PIP_SLOTS, filled) };
+}
+
+/** What a mark is keyed by from one render to the next: its piece's key, else its own. */
+export const markKey = (m) => m.piece?.key ?? m.key;
+
+/** Where a mark stands, for sliding: its piece's area, else its place. */
+export const markArea = (m) => m.piece?.area?.key ?? m.piece?.area?.name ?? m.places?.[0]?.name ?? null;
+
+/**
+ * Note in `memory` (a Map) that the mark keyed `key` stands in `area` at point `xy`, and give
+ * the point it should slide from: where it last stood when its area has changed since, else null.
+ */
+export function slideFrom(memory, key, area, xy) {
+  const was = memory.get(key);
+  memory.set(key, { area, xy });
+  return was && was.area !== area ? was.xy : null;
+}
+
+/** An order still with its holder, as the ghost says it: "with Stavka to 16 Oct". */
+export function waitWords(wait) {
+  const who = wait.with_person ? `with ${wait.with_person}` : 'the order is moving';
+  return wait.until ? `${who} to ${shortDate(wait.until)}` : who;
+}
+
+/** A piece under way, in words: the step it is on, then the rest of its path. */
+export function courseLine(course) {
+  const [step, ...rest] = course.path;
+  if (!step) return '';
+  const due = course.step_due ? `, in ${shortDate(course.step_due)}` : '';
+  const then = rest.length ? `; then ${rest.map((a) => a.name).join(', ')}` : '';
+  const arrives = course.arrives && rest.length ? `; arrives ${shortDate(course.arrives)}` : '';
+  return `Under way: on the step into ${step.name}${due}${then}${arrives}`;
 }

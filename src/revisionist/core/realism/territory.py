@@ -607,8 +607,11 @@ def path(state: "State", piece: "Feature", to: EntityId) -> tuple[EntityId, ...]
 
 
 def mark_key(state: "State", polity: EntityId, feature: "Feature") -> str:
-    """The opaque key a polity's map knows a piece by: the same for every seat of that
-    polity, different for another's, and saying nothing of the piece's id."""
+    """Stable core/event correlation key, NOT seat-safe: public inputs recover it.
+
+    The web boundary MACs this value under a deployment secret before sending it to a
+    seat. Keep this function unchanged for deterministic replay of stored events.
+    """
     raw = "\x1f".join((str(state.campaign_id), "mark", str(polity), str(feature.feature_id)))
     return "m" + hashlib.blake2b(raw.encode(), digest_size=8).hexdigest()
 

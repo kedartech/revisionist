@@ -633,7 +633,7 @@ class MapMark(TypedDict):
 
     key: str
     """Opaque and stable: the same for every seat of one nation, different for another
-    nation's, and never a feature's id (``territory.mark_key``)."""
+    nation's: a deployment-secret MAC (``map_api.mark_key``), never a raw core mark or id."""
     name: str
     kind: Literal["fleet", "army", "air", "front", "route", "piece"]
     """Piece: one of the world's own kinds, in a world with ``piece_kinds``."""

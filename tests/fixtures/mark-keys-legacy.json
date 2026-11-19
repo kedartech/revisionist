@@ -1,0 +1,1502 @@
+{
+  "source_commit": "04c8310",
+  "state_hash": "17671c40b2fa6b5f14c8ceeda6fcc1a6",
+  "events": [
+    {
+      "event_id": "VTGYEGRAM4ZDG3AS590RN5H9WC",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 0,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "campaign_created",
+        "name": "Territory Toy",
+        "world": "territory-toy",
+        "ruleset": "realism",
+        "rules": [
+          "territories"
+        ]
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "JR7KJ7SFFJTA50ZY7HGKA8BX8F",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 1,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "settings_set",
+        "settings": {
+          "plausibility": "plausible",
+          "inertia": "tendencies",
+          "lethality": "hard",
+          "betrayal": "cutthroat",
+          "elimination": true,
+          "agent_harm": true,
+          "compromised_aide": false,
+          "mode": "goals",
+          "tone": "grounded",
+          "tick_hours": 24,
+          "world_days_per_tick": 7,
+          "starting_slots": 3,
+          "slot_cap": 5,
+          "lines": [],
+          "veils": [
+            "atrocity",
+            "execution",
+            "torture"
+          ],
+          "content_rating": null,
+          "max_human_seats": 10
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "KKQ4FHERXY0DEDCYNN252XNMMB",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 2,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "entity_created",
+        "entity": {
+          "entity_id": "EBZ4TPVGHF6N8VKW8QW7VD2MZ5",
+          "kind": "location",
+          "name": "The Norra Hills",
+          "status": "active",
+          "parent": null,
+          "location": null,
+          "tags": []
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "MZHV59X72DHB9AXTT0YK8T340P",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 3,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "entity_created",
+        "entity": {
+          "entity_id": "J08N57SVV48HECZ6BWA9M1RWB9",
+          "kind": "location",
+          "name": "The Norra Plain",
+          "status": "active",
+          "parent": null,
+          "location": null,
+          "tags": []
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "HGNRXYZK135Y7TBBPTDKS3S18K",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 4,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "entity_created",
+        "entity": {
+          "entity_id": "CDXQ7JQD821DB2N9ZT74ZX7Q73",
+          "kind": "location",
+          "name": "The Sudland Coast",
+          "status": "active",
+          "parent": null,
+          "location": null,
+          "tags": []
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "VADC40GT610B0RVYY2H0PYQTC2",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 5,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "entity_created",
+        "entity": {
+          "entity_id": "8G8AZ9CP6FGAQ40JKEY4K0V9BS",
+          "kind": "location",
+          "name": "The Isle",
+          "status": "active",
+          "parent": null,
+          "location": null,
+          "tags": []
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "YPN01PPKZCG2917RVP6PY88HGZ",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 6,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "entity_created",
+        "entity": {
+          "entity_id": "Y6S2WCE7W6EFQM1BVCVW4BS0XK",
+          "kind": "location",
+          "name": "The Gulf",
+          "status": "active",
+          "parent": null,
+          "location": null,
+          "tags": []
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "3NY1AJM8Z4GPXPED19WPT55ATD",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 7,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "entity_created",
+        "entity": {
+          "entity_id": "3ZHKMBMHQ8YSE1FNBCNAP5T45F",
+          "kind": "location",
+          "name": "The Open Sea",
+          "status": "active",
+          "parent": null,
+          "location": null,
+          "tags": []
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "03YT7F38J1SHXKEHD6H5FHB6SW",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 8,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "entity_created",
+        "entity": {
+          "entity_id": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+          "kind": "polity",
+          "name": "Norra",
+          "status": "active",
+          "parent": null,
+          "location": null,
+          "tags": []
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "Z0WX3PS0TAS1T3WA44MKGZVNMM",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 9,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "entity_created",
+        "entity": {
+          "entity_id": "TZHP5CPZR27M6255484EX48TQ6",
+          "kind": "polity",
+          "name": "Sudland",
+          "status": "active",
+          "parent": null,
+          "location": null,
+          "tags": []
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "J9J77ZE9S2VDMPJHFCQ8E33S4J",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 10,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "entity_created",
+        "entity": {
+          "entity_id": "8FKRNYADH66AMNMPDQ2X4SXNKS",
+          "kind": "person",
+          "name": "Ilse Varg",
+          "status": "active",
+          "parent": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+          "location": null,
+          "tags": []
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "ES372FNYF3S0ZF5GXG8ZT5VVGA",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 11,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "entity_created",
+        "entity": {
+          "entity_id": "B6FFJQQ5BVW0SQ60SNFFRP2YZH",
+          "kind": "person",
+          "name": "Tomas Brand",
+          "status": "active",
+          "parent": "TZHP5CPZR27M6255484EX48TQ6",
+          "location": null,
+          "tags": []
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "47G0QETXXPS12CJDPJR8XEW9T4",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 12,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "entity_created",
+        "entity": {
+          "entity_id": "KBC6HN7JV4HYY7WVYCBZ66K67Y",
+          "kind": "location",
+          "name": "Norrhavn",
+          "status": "active",
+          "parent": null,
+          "location": null,
+          "tags": [],
+          "at": [
+            150.0,
+            150.0
+          ],
+          "within": "J08N57SVV48HECZ6BWA9M1RWB9"
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "C54H0PFBSMTZV1P49FH4WWAN4D",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 13,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "entity_created",
+        "entity": {
+          "entity_id": "6HA5R8STSS1FWE4GPJKRQJ6G6K",
+          "kind": "location",
+          "name": "Sudby",
+          "status": "active",
+          "parent": null,
+          "location": null,
+          "tags": [],
+          "at": [
+            40.0,
+            60.0
+          ],
+          "within": "CDXQ7JQD821DB2N9ZT74ZX7Q73"
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "58B4ADHTMSSBDH9SFF4END7Q2J",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 14,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "entity_created",
+        "entity": {
+          "entity_id": "SSFXZMWKW0F67NSQBAKJXF9AMN",
+          "kind": "location",
+          "name": "The Gulf Roads",
+          "status": "active",
+          "parent": null,
+          "location": null,
+          "tags": [],
+          "at": [
+            150.0,
+            50.0
+          ],
+          "within": "Y6S2WCE7W6EFQM1BVCVW4BS0XK"
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "32MSW8ZP08D7JPGQNZWJ13384R",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 15,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "date_advanced",
+        "to": "1900-04-02"
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "ZQRADDXSQ8A6998D2RDP4MSS7Q",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 16,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "quantity_set",
+        "quantity": {
+          "quantity_id": "B8ZMHB0PE5HA4ENHQQNPHAVNBP",
+          "owner": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+          "name": "Norra's shipping",
+          "value": 100000,
+          "unit": "tons",
+          "as_of": "1900-04-02",
+          "scope": null
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "WEZAXQ14MEQX7R93YX87AAGGRX",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 17,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "kinds_declared",
+        "pieces": [
+          {
+            "key": "levy",
+            "name": "Levy",
+            "domain": "land",
+            "days_per_step": {
+              "hills": 7,
+              "plain": 5
+            },
+            "max_strength": 5,
+            "fuel_per_step": 0.0,
+            "range_steps": null,
+            "detect": 0,
+            "conceal": 0,
+            "carries": []
+          },
+          {
+            "key": "galley",
+            "name": "Galley",
+            "domain": "sea",
+            "days_per_step": {
+              "shallows": 2,
+              "deep": 3
+            },
+            "max_strength": 3,
+            "fuel_per_step": 1.0,
+            "range_steps": null,
+            "detect": 20,
+            "conceal": 10,
+            "carries": [
+              "levy"
+            ]
+          },
+          {
+            "key": "kite",
+            "name": "Kite Wing",
+            "domain": "air",
+            "days_per_step": {
+              "hills": 1,
+              "plain": 1,
+              "shallows": 1,
+              "deep": 1
+            },
+            "max_strength": 5,
+            "fuel_per_step": 0.0,
+            "range_steps": 2,
+            "detect": 60,
+            "conceal": 0,
+            "carries": []
+          },
+          {
+            "key": "herald",
+            "name": "Herald",
+            "domain": "envoy",
+            "days_per_step": {
+              "hills": 3,
+              "plain": 2,
+              "shallows": 2,
+              "deep": 4
+            },
+            "max_strength": 5,
+            "fuel_per_step": 0.0,
+            "range_steps": null,
+            "detect": 0,
+            "conceal": 0,
+            "carries": []
+          }
+        ],
+        "resources": [
+          {
+            "key": "grain",
+            "name": "Grain",
+            "unit": "tons",
+            "role": "output"
+          },
+          {
+            "key": "iron",
+            "name": "Iron",
+            "unit": "tons",
+            "role": "output"
+          },
+          {
+            "key": "levies",
+            "name": "Levies",
+            "unit": "men",
+            "role": "manpower"
+          },
+          {
+            "key": "pitch",
+            "name": "Pitch",
+            "unit": "barrels",
+            "role": "fuel"
+          }
+        ]
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "EYDKEV76Y7498H211QQTQWQ6QV",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 18,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "feature_set",
+        "feature": {
+          "feature_id": "9JZ5WGDNAT6QWQX97DQH9G4QWQ",
+          "kind": "piece",
+          "name": "The Norra Levy",
+          "side": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+          "tier": 0,
+          "places": [
+            "J08N57SVV48HECZ6BWA9M1RWB9"
+          ],
+          "as_of": "1900-04-02",
+          "bound_for": null,
+          "arrives": null,
+          "legs": [],
+          "piece": "levy"
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "YYB25GZEWT8H4DYNH6S55CSPX0",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 19,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "feature_set",
+        "feature": {
+          "feature_id": "8D7G6F9XT796CGQG8JS43B14DE",
+          "kind": "piece",
+          "name": "The Sudland Levy",
+          "side": "TZHP5CPZR27M6255484EX48TQ6",
+          "tier": 0,
+          "places": [
+            "CDXQ7JQD821DB2N9ZT74ZX7Q73"
+          ],
+          "as_of": "1900-04-02",
+          "bound_for": null,
+          "arrives": null,
+          "legs": [],
+          "piece": "levy"
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "NKZSCKWQ38BTX8HQ100AQH6WAD",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 20,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "feature_set",
+        "feature": {
+          "feature_id": "JV7XQZYBW87YAGAAH2645BH8JY",
+          "kind": "piece",
+          "name": "The Sudland Galleys",
+          "side": "TZHP5CPZR27M6255484EX48TQ6",
+          "tier": 0,
+          "places": [
+            "Y6S2WCE7W6EFQM1BVCVW4BS0XK"
+          ],
+          "as_of": "1900-04-02",
+          "bound_for": null,
+          "arrives": null,
+          "legs": [],
+          "piece": "galley"
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "B2MJ53M2ZWERSZ7TMFZRBTA00K",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 21,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "feature_set",
+        "feature": {
+          "feature_id": "C6XZDPTAAE1MTK3GTBTNNQ61CB",
+          "kind": "piece",
+          "name": "The Norra Kites",
+          "side": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+          "tier": 0,
+          "places": [
+            "J08N57SVV48HECZ6BWA9M1RWB9"
+          ],
+          "as_of": "1900-04-02",
+          "bound_for": null,
+          "arrives": null,
+          "legs": [],
+          "piece": "kite"
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "2RNVY9X05ZXRBX7ZKQJZ54J570",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 22,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "feature_set",
+        "feature": {
+          "feature_id": "Y5QJ4T94X4EB0E82XWS95462AE",
+          "kind": "piece",
+          "name": "The Norra Herald",
+          "side": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+          "tier": 0,
+          "places": [
+            "J08N57SVV48HECZ6BWA9M1RWB9"
+          ],
+          "as_of": "1900-04-02",
+          "bound_for": null,
+          "arrives": null,
+          "legs": [],
+          "piece": "herald"
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "HPG3F3RBMJ26GP601K1VN640PV",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 23,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "cards_declared",
+        "cards": [
+          {
+            "person": "8FKRNYADH66AMNMPDQ2X4SXNKS",
+            "office": "Chancellor of Norra",
+            "playable": true,
+            "powers": [],
+            "inner_circle": [],
+            "principals": [
+              "6G3FWX2XAZN1W0GBGGRVZ8P0HJ"
+            ],
+            "levers": [
+              {
+                "name": "move_piece",
+                "pipeline": "R5QRXM8J91KMBNKWX1SXNKG9N0",
+                "resolver": "movement",
+                "params": [
+                  {
+                    "name": "force",
+                    "kind": "enum",
+                    "lo": null,
+                    "hi": null,
+                    "choices": [
+                      "norra_levy",
+                      "norra_kites",
+                      "norra_herald",
+                      "sudland_levy"
+                    ]
+                  },
+                  {
+                    "name": "to",
+                    "kind": "enum",
+                    "lo": null,
+                    "hi": null,
+                    "choices": [
+                      "isle",
+                      "sudby",
+                      "norrhavn",
+                      "open_sea"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "feeds": [],
+            "pipelines": [
+              "R5QRXM8J91KMBNKWX1SXNKG9N0"
+            ],
+            "constraints": [],
+            "personal": [],
+            "successor": null,
+            "horizon_days": 14,
+            "voice": "",
+            "loyalty": 0,
+            "doctrine": [],
+            "interests": []
+          },
+          {
+            "person": "B6FFJQQ5BVW0SQ60SNFFRP2YZH",
+            "office": "Premier of Sudland",
+            "playable": true,
+            "powers": [],
+            "inner_circle": [],
+            "principals": [
+              "TZHP5CPZR27M6255484EX48TQ6"
+            ],
+            "levers": [
+              {
+                "name": "move_piece",
+                "pipeline": "R5QRXM8J91KMBNKWX1SXNKG9N0",
+                "resolver": "movement",
+                "params": [
+                  {
+                    "name": "force",
+                    "kind": "enum",
+                    "lo": null,
+                    "hi": null,
+                    "choices": [
+                      "norra_levy",
+                      "norra_kites",
+                      "norra_herald",
+                      "sudland_levy"
+                    ]
+                  },
+                  {
+                    "name": "to",
+                    "kind": "enum",
+                    "lo": null,
+                    "hi": null,
+                    "choices": [
+                      "isle",
+                      "sudby",
+                      "norrhavn",
+                      "open_sea"
+                    ]
+                  }
+                ]
+              }
+            ],
+            "feeds": [],
+            "pipelines": [
+              "R5QRXM8J91KMBNKWX1SXNKG9N0"
+            ],
+            "constraints": [],
+            "personal": [],
+            "successor": null,
+            "horizon_days": 14,
+            "voice": "",
+            "loyalty": 0,
+            "doctrine": [],
+            "interests": []
+          }
+        ],
+        "feeds": [],
+        "pipelines": [
+          {
+            "pipeline_id": "R5QRXM8J91KMBNKWX1SXNKG9N0",
+            "name": "A field order",
+            "steps": [
+              {
+                "person": "8FKRNYADH66AMNMPDQ2X4SXNKS",
+                "kind": "decision",
+                "days": 1,
+                "allowed": [
+                  "pass"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "H197A9FQR1CJYBM8ZPT8CMY3AZ",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 24,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "war_declared",
+        "war": {
+          "war_id": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ|TZHP5CPZR27M6255484EX48TQ6",
+          "a": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+          "b": "TZHP5CPZR27M6255484EX48TQ6",
+          "since": "1900-03-01",
+          "declared_by": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ"
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "KDXZANVYMMJBAR7VT73NDNY6R0",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 25,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "map_declared",
+        "map": {
+          "file": "toy.map.json",
+          "sha256": "d715b3f0b0adaca47272e775572a851220a09d0a22b47c8fe1c5e707f712421a",
+          "coords": "flat",
+          "box": [
+            0.0,
+            0.0,
+            300.0,
+            200.0
+          ],
+          "terrain": [
+            {
+              "key": "hills",
+              "kind": "land",
+              "defence": 1
+            },
+            {
+              "key": "plain",
+              "kind": "land"
+            },
+            {
+              "key": "shallows",
+              "kind": "sea"
+            },
+            {
+              "key": "deep",
+              "kind": "sea"
+            }
+          ],
+          "regions": [
+            {
+              "key": "mainland",
+              "name": "The Mainland",
+              "parent": null
+            },
+            {
+              "key": "north",
+              "name": "The North",
+              "parent": "mainland"
+            },
+            {
+              "key": "south",
+              "name": "The South",
+              "parent": "mainland"
+            },
+            {
+              "key": "waters",
+              "name": "The Waters",
+              "parent": null
+            }
+          ],
+          "territories": [
+            {
+              "area": "EBZ4TPVGHF6N8VKW8QW7VD2MZ5",
+              "key": "norra_hills",
+              "name": "The Norra Hills",
+              "region": "north",
+              "terrain": "hills",
+              "holder": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+              "yields": {},
+              "sites": [],
+              "districts": []
+            },
+            {
+              "area": "J08N57SVV48HECZ6BWA9M1RWB9",
+              "key": "norra_plain",
+              "name": "The Norra Plain",
+              "region": "north",
+              "terrain": "plain",
+              "holder": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+              "yields": {
+                "grain": 10.0,
+                "levies": 2000.0
+              },
+              "sites": [
+                "KBC6HN7JV4HYY7WVYCBZ66K67Y"
+              ],
+              "districts": []
+            },
+            {
+              "area": "CDXQ7JQD821DB2N9ZT74ZX7Q73",
+              "key": "sudland_coast",
+              "name": "The Sudland Coast",
+              "region": "south",
+              "terrain": "plain",
+              "holder": "TZHP5CPZR27M6255484EX48TQ6",
+              "yields": {
+                "grain": 6.0,
+                "iron": 2.0
+              },
+              "sites": [
+                "6HA5R8STSS1FWE4GPJKRQJ6G6K"
+              ],
+              "districts": []
+            },
+            {
+              "area": "8G8AZ9CP6FGAQ40JKEY4K0V9BS",
+              "key": "isle",
+              "name": "The Isle",
+              "region": "waters",
+              "terrain": "hills",
+              "holder": "TZHP5CPZR27M6255484EX48TQ6",
+              "yields": {},
+              "sites": [],
+              "districts": []
+            }
+          ],
+          "sea_zones": [
+            {
+              "area": "Y6S2WCE7W6EFQM1BVCVW4BS0XK",
+              "key": "the_gulf",
+              "name": "The Gulf",
+              "region": "waters",
+              "terrain": "shallows"
+            },
+            {
+              "area": "3ZHKMBMHQ8YSE1FNBCNAP5T45F",
+              "key": "open_sea",
+              "name": "The Open Sea",
+              "region": "waters",
+              "terrain": "deep"
+            }
+          ],
+          "adjacency": [
+            {
+              "a": "EBZ4TPVGHF6N8VKW8QW7VD2MZ5",
+              "b": "J08N57SVV48HECZ6BWA9M1RWB9",
+              "crossing": null
+            },
+            {
+              "a": "EBZ4TPVGHF6N8VKW8QW7VD2MZ5",
+              "b": "CDXQ7JQD821DB2N9ZT74ZX7Q73",
+              "crossing": null
+            },
+            {
+              "a": "J08N57SVV48HECZ6BWA9M1RWB9",
+              "b": "Y6S2WCE7W6EFQM1BVCVW4BS0XK",
+              "crossing": null
+            },
+            {
+              "a": "J08N57SVV48HECZ6BWA9M1RWB9",
+              "b": "3ZHKMBMHQ8YSE1FNBCNAP5T45F",
+              "crossing": null
+            },
+            {
+              "a": "CDXQ7JQD821DB2N9ZT74ZX7Q73",
+              "b": "Y6S2WCE7W6EFQM1BVCVW4BS0XK",
+              "crossing": null
+            },
+            {
+              "a": "Y6S2WCE7W6EFQM1BVCVW4BS0XK",
+              "b": "3ZHKMBMHQ8YSE1FNBCNAP5T45F",
+              "crossing": null
+            },
+            {
+              "a": "8G8AZ9CP6FGAQ40JKEY4K0V9BS",
+              "b": "3ZHKMBMHQ8YSE1FNBCNAP5T45F",
+              "crossing": null
+            },
+            {
+              "a": "8G8AZ9CP6FGAQ40JKEY4K0V9BS",
+              "b": "J08N57SVV48HECZ6BWA9M1RWB9",
+              "crossing": "the ferry"
+            }
+          ],
+          "ports": [
+            {
+              "place": "KBC6HN7JV4HYY7WVYCBZ66K67Y",
+              "land": "J08N57SVV48HECZ6BWA9M1RWB9",
+              "sea": "Y6S2WCE7W6EFQM1BVCVW4BS0XK"
+            }
+          ],
+          "lift_pools": {
+            "6G3FWX2XAZN1W0GBGGRVZ8P0HJ": "B8ZMHB0PE5HA4ENHQQNPHAVNBP"
+          }
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "FQX2SBYW5MNRW86A46J5YD5NYG",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 26,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "character_listed",
+        "character": {
+          "entity_id": "8FKRNYADH66AMNMPDQ2X4SXNKS",
+          "pitch": "The chancellor who started the war.",
+          "reach": "The army of Norra.",
+          "composite": true,
+          "means": [],
+          "claimed_by": null
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "CFTYVN084JFVC6S8F0H2X0QKZ3",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 27,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "character_listed",
+        "character": {
+          "entity_id": "B6FFJQQ5BVW0SQ60SNFFRP2YZH",
+          "pitch": "The premier who must hold the border.",
+          "reach": "The army of Sudland.",
+          "composite": true,
+          "means": [],
+          "claimed_by": null
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "AG8ZKQ64QWXTJMG47P3QTYDAWD",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 28,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "session_zero_opened",
+        "start": "The Norra-Sudland border, spring 1900",
+        "notes": []
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "PNT7E6WJP4FN7SNQF9T37CVRTV",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 29,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "character_claimed",
+        "seat_id": "R761K9E5FBT9KWNYVMDX4G592C",
+        "entity_id": "8FKRNYADH66AMNMPDQ2X4SXNKS"
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "MN8GTE4ZDEX7NZ3XNFHBF0H20J",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 30,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "character_claimed",
+        "seat_id": "249G0YHWYSA412C1KC18QCBM6Y",
+        "entity_id": "B6FFJQQ5BVW0SQ60SNFFRP2YZH"
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "4EW5B0S0GPNKADZQ58JJFFYEQZ",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 31,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "feature_set",
+        "feature": {
+          "feature_id": "9JZ5WGDNAT6QWQX97DQH9G4QWQ",
+          "kind": "piece",
+          "name": "The Norra Levy",
+          "side": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+          "tier": 0,
+          "places": [
+            "J08N57SVV48HECZ6BWA9M1RWB9"
+          ],
+          "as_of": "1900-04-02",
+          "bound_for": "CDXQ7JQD821DB2N9ZT74ZX7Q73",
+          "arrives": "1900-04-14",
+          "legs": [],
+          "piece": "levy",
+          "path": [
+            "EBZ4TPVGHF6N8VKW8QW7VD2MZ5",
+            "CDXQ7JQD821DB2N9ZT74ZX7Q73"
+          ],
+          "step_due": "1900-04-09"
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "6FC87MVV99TWWNSPAH76AEDHTA",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 32,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "feature_set",
+        "feature": {
+          "feature_id": "9JZ5WGDNAT6QWQX97DQH9G4QWQ",
+          "kind": "piece",
+          "name": "The Norra Levy",
+          "side": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+          "tier": 0,
+          "places": [
+            "EBZ4TPVGHF6N8VKW8QW7VD2MZ5"
+          ],
+          "as_of": "1900-04-09",
+          "bound_for": "CDXQ7JQD821DB2N9ZT74ZX7Q73",
+          "arrives": "1900-04-14",
+          "legs": [],
+          "piece": "levy",
+          "path": [
+            "CDXQ7JQD821DB2N9ZT74ZX7Q73"
+          ],
+          "step_due": "1900-04-14"
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "49B75B5JSXCHS6NWHKYM089RZS",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 33,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "piece_stepped",
+        "mark": "m04fca1b11974e90a",
+        "nation": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+        "left": "J08N57SVV48HECZ6BWA9M1RWB9",
+        "entered": "EBZ4TPVGHF6N8VKW8QW7VD2MZ5",
+        "on": "1900-04-09",
+        "cause": "ordered"
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "D3BDDFHVNQM37CBF2ABKR6WJGA",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 34,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "feature_set",
+        "feature": {
+          "feature_id": "9JZ5WGDNAT6QWQX97DQH9G4QWQ",
+          "kind": "piece",
+          "name": "The Norra Levy",
+          "side": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+          "tier": 0,
+          "places": [
+            "CDXQ7JQD821DB2N9ZT74ZX7Q73"
+          ],
+          "as_of": "1900-04-14",
+          "bound_for": null,
+          "arrives": null,
+          "legs": [],
+          "piece": "levy"
+        }
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    },
+    {
+      "event_id": "SHS1VHT0XF63EDRVVCA2EFKM96",
+      "campaign_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+      "seq": 35,
+      "tick": 0,
+      "actor": null,
+      "scope": {
+        "visibility": "public",
+        "known_by": []
+      },
+      "payload": {
+        "kind": "piece_stepped",
+        "mark": "m04fca1b11974e90a",
+        "nation": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+        "left": "EBZ4TPVGHF6N8VKW8QW7VD2MZ5",
+        "entered": "CDXQ7JQD821DB2N9ZT74ZX7Q73",
+        "on": "1900-04-14",
+        "cause": "ordered"
+      },
+      "versions": {
+        "engine": "0.0.2",
+        "schema_version": "43",
+        "prompt": "resolver=2f35e28c,narrator=274b07dd",
+        "model": ""
+      },
+      "payload_enc": null
+    }
+  ]
+}

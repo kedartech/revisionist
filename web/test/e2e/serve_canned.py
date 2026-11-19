@@ -11,12 +11,14 @@ every date. The cost on each reply is zero.
 """
 
 import json
+import os
 import re
 import sys
 from typing import Any
 
 from revisionist import cli
 from revisionist.engine.llm import Reply, Request
+from revisionist.engine.web import map_api
 
 
 def _directive(prompt: str) -> dict[str, Any]:
@@ -88,7 +90,12 @@ class Canned:
         return Reply(out, request.model, 0, 0, 0, 0.0)
 
 
+CANNED_MARK_SECRET = "c4" * 32
+"""A fixed, public secret for throwaway smoke databases only; never a deployment's."""
+
+
 if __name__ == "__main__":
+    os.environ.setdefault(map_api.MARK_SECRET_ENV, CANNED_MARK_SECRET)
     cli.transport_factory = Canned
     sys.argv = ["revisionist", "web", "serve", "--offline-prose", "--port", *sys.argv[1:2]]
     cli.app()

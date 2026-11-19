@@ -153,6 +153,7 @@ class App:
         offline_prose: bool = False,
         template_aide: bool = False,
     ) -> None:
+        map_api.mark_secret()  # Refuse to start before serving any unprotected seat keys.
         self.dsn = dsn
         self.static = static.resolve()
         self.clock = clock

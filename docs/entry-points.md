@@ -372,7 +372,8 @@ Environment variables (all read in code unless noted):
 - `REVISIONIST_RECORD`: `src/revisionist/engine/llm.py:245`. `1` records live calls into a recording file.
 - `REVISIONIST_MAP_OBJECTS`: `src/revisionist/engine/maps.py:16` (`OBJECTS_ENV`). The map-objects directory; default `worlds/maps/objects/`. `map_object()` (`src/revisionist/engine/maps.py:29`) reads `<sha256>.json` from it, or else the world-named file in `worlds/maps/` when its bytes hash the same; it never returns a map whose hash differs.
 - `REVISIONIST_MAP_DATA`: `scripts/map_build.py:691` (`build --data` falls back to it). The directory of the cached Natural Earth files the map build reads, outside the repo; build-time only, the game never reads it (`worlds/maps/README.md`, `worlds/maps/SOURCES.md`).
-- Web: the web package (`src/revisionist/engine/web/`) reads no `REVISIONIST_*` variable of its own. `revisionist web serve` takes its database from `REVISIONIST_DB` (above) and its briefings directory from `REVISIONIST_BRIEFINGS_DIR` (above).
+- `REVISIONIST_MARK_SECRET`: `src/revisionist/engine/web/map_api.py` (`mark_secret`). Required persistent deployment secret, exactly 64 hex digits (32 random bytes). `server.App` validates it at startup; missing or malformed configuration fails closed. `mark_key` MACs map/label/piece keys; `step_key` uses the same conversion for stored movement marks. Never sent to a seat or stored in events; preserve it across restore to retain key stability.
+- Web: `revisionist web serve` takes its database from `REVISIONIST_DB` (above) and its briefings directory from `REVISIONIST_BRIEFINGS_DIR` (above).
 - Backups:
   - `REVISIONIST_BACKUP_DEST` (`deploy/backup/revisionist-backup.sh:13`, `deploy/backup/revisionist-backup.sh:28`): rsync target or `rclone:<remote>:<path>`.
   - `REVISIONIST_BACKUP_DIR` (`deploy/backup/revisionist-backup.sh:14`; also `deploy/backup/revisionist-restore-drill.sh:12`): default `~/.local/share/revisionist/backups`.

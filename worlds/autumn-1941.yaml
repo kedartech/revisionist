@@ -730,7 +730,7 @@ cards:
         summary: "Direct which branch of industry is to be pressed ahead."
         params:
           - {name: sector, kind: enum, choices: [aircraft, escorts, merchant_ships], label: "Which sector", choice_labels: ["Aircraft", "Escort vessels", "Merchant ships"]}
-          - {name: force, kind: enum, choices: [home_fleet, western_approaches, home_forces, bomber_command], label: "For which force", choice_labels: ["The Home Fleet", "The Western Approaches escort groups", "Home Forces", "RAF Bomber Command"]}
+          - {name: force, kind: enum, choices: [home_fleet, home_forces], label: "For which force", choice_labels: ["The Home Fleet", "Home Forces"]}
       - name: move_fleet
         pipeline: cos_directive
         resolver: movement
@@ -853,7 +853,7 @@ cards:
         summary: "Direct industry through the State Defence Committee."
         params:
           - {name: sector, kind: enum, choices: [tanks, aircraft, evacuated_industry], label: "Which sector", choice_labels: ["Tanks", "Aircraft", "Evacuated industry"]}
-          - {name: force, kind: enum, choices: [soviet_western_front, leningrad_front, baltic_fleet, northern_fleet], label: "For which force", choice_labels: ["The Western Front", "The Leningrad Front", "The Red Banner Baltic Fleet", "The Northern Fleet"]}
+          - {name: force, kind: enum, choices: [soviet_western_front], label: "For which force", choice_labels: ["The Western Front"]}
       - name: aid_request
         pipeline: soviet_aid_request
         resolver: production
@@ -973,7 +973,7 @@ cards:
         summary: "Direct which branch of industry is to be pressed ahead."
         params:
           - {name: sector, kind: enum, choices: [uboats, aircraft, tanks], label: "Which sector", choice_labels: ["U-boats", "Aircraft", "Tanks"]}
-          - {name: force, kind: enum, choices: [uboat_arm, army_group_centre, replacement_army, luftwaffe_centre], label: "For which force", choice_labels: ["The U-boat arm", "Army Group Centre", "The Replacement Army", "The Luftwaffe Command Centre"]}
+          - {name: force, kind: enum, choices: [uboat_arm, army_group_centre], label: "For which force", choice_labels: ["The U-boat arm", "Army Group Centre"]}
           - {name: adds_to, kind: enum, choices: [uboats_operational], label: "Which figure it adds to", choice_labels: ["U-boats operational in the Atlantic"]}
       - name: move_army
         pipeline: okw_army_directive

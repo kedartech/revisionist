@@ -1,5 +1,6 @@
 """Autumn 1941's forms carry the parameters the production and shipping rules read: each
-production form names a force of its leader's own nation, Hitler's names the U-boat figure it
+production form names a force its leader commands (the forces in the card's authority, or,
+on a card whose authority holds none, its nation's), Hitler's names the U-boat figure it
 adds to, Churchill's convoy orders name one of Britain's convoy routes, Hitler's U-boat
 directive can order attacks on American shipping, and Japan has a pool of shipping for
 lifting its armies."""
@@ -41,12 +42,17 @@ def nation(w: WorldFile, person: str) -> str | None:
     return next(e.parent for e in w.entities if e.key == person)
 
 
-def test_each_production_form_offers_every_force_of_its_own_nation_and_no_other() -> None:
+def test_each_production_form_offers_the_forces_its_leader_commands_and_no_other() -> None:
+    """Only forces the seat already holds on its card, so the form names no force the
+    seat's paper has not shown it (the fog rule of test_realism_map)."""
     w = world()
     for person, lever in PRODUCTION.items():
+        card = next(c for c in w.cards if c.person == person)
         own = {f.key for f in w.features if f.kind in FORCES and f.side == nation(w, person)}
+        held = {k for d in card.authority for k in d.forces}
         assert own, f"{person}'s nation fields no force"
-        assert set(param(w, person, lever, "force").choices) == own, person
+        assert held <= own, person
+        assert set(param(w, person, lever, "force").choices) == (held or own), person
 
 
 def test_hitlers_production_form_adds_to_the_german_u_boat_figure() -> None:

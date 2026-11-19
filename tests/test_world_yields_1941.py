@@ -235,7 +235,7 @@ def test_supply_counts_the_hubs_the_row_names(doc: dict[str, Any]) -> None:
 # ------------------------------------------------ rule 3: the named anchors
 
 
-@pytest.mark.parametrize("territory", ["kharkov", "leningrad", "donbas"])
+@pytest.mark.parametrize("territory", ["kharkov_area", "leningrad_area", "donbas"])
 def test_the_soviet_works_carry_industry(doc: dict[str, Any], territory: str) -> None:
     assert _amount(doc, territory, "industry") > 0
 
@@ -245,7 +245,7 @@ def test_kharkov_leningrad_and_the_donbas_are_among_the_soviet_unions_largest_wo
 ) -> None:
     soviet = [t for t, h in _holders(start).items() if h == "ussr"]
     ranked = sorted(soviet, key=lambda t: -_amount(doc, t, "industry"))
-    assert {"kharkov", "leningrad", "donbas"} <= set(ranked[:5])
+    assert {"kharkov_area", "leningrad_area", "donbas"} <= set(ranked[:5])
 
 
 @pytest.mark.parametrize(

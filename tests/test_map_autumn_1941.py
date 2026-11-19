@@ -30,11 +30,14 @@ EUROPE = SRC / "europe.yaml"
 EUROPE_STAGING = SRC / "europe.world.yaml"
 ATLANTIC = SRC / "atlantic.yaml"
 ATLANTIC_STAGING = SRC / "atlantic.world.yaml"
-RECIPES = (RECIPE, EUROPE, ATLANTIC)
+MEDITERRANEAN = SRC / "mediterranean.yaml"
+MEDITERRANEAN_STAGING = SRC / "mediterranean.world.yaml"
+MEDITERRANEAN_PLACES = SRC / "mediterranean.places.yaml"
+RECIPES = (RECIPE, EUROPE, ATLANTIC, MEDITERRANEAN)
 # The regions whose recipes carry cut lines (the Atlantic's carries none, MAA rule 1).
-CUT_RECIPES = (RECIPE, EUROPE)
+CUT_RECIPES = (RECIPE, EUROPE, MEDITERRANEAN)
 # The newest region's staging world: the scoped check runs on it, and it extends the earlier ones.
-NEWEST = ATLANTIC_STAGING
+NEWEST = MEDITERRANEAN_STAGING
 WORLD = ROOT / "worlds" / "autumn-1941.yaml"
 
 # Rule 2: every place the world has on the Eastern Front today.
@@ -89,7 +92,7 @@ def _world_places() -> dict[str, Any]:
 def _staged_territories() -> list[Any]:
     return [
         t
-        for path in (STAGING, EUROPE_STAGING, ATLANTIC_STAGING)
+        for path in (STAGING, EUROPE_STAGING, ATLANTIC_STAGING, MEDITERRANEAN_STAGING)
         for t in _yaml(path)["territories"]
     ]
 
@@ -120,7 +123,9 @@ def test_the_map_passes_the_check() -> None:
 
 
 @pytest.mark.parametrize(
-    "staging", [STAGING, EUROPE_STAGING, ATLANTIC_STAGING], ids=lambda p: p.stem
+    "staging",
+    [STAGING, EUROPE_STAGING, ATLANTIC_STAGING, MEDITERRANEAN_STAGING],
+    ids=lambda p: p.stem,
 )
 def test_the_staging_world_names_the_committed_map(staging: Path) -> None:
     ref = _yaml(staging)["map"]
@@ -200,10 +205,10 @@ def test_the_scoped_check_fails_when_a_places_territory_leaves_the_region(tmp_pa
         if gone not in ((e["a"], e["b"]) if isinstance(e, dict) else tuple(e))
     ]
     (tmp_path / STAGING.name).write_text(yaml.safe_dump(pilot, sort_keys=False))
-    for staging in (EUROPE_STAGING, ATLANTIC_STAGING):
+    for staging in (EUROPE_STAGING, ATLANTIC_STAGING, MEDITERRANEAN_STAGING):
         doc = _yaml(staging)
         doc["map"].update(ref)
-        doc["places_of"] = str(WORLD)
+        doc["places_of"] = str(MEDITERRANEAN_PLACES if staging == MEDITERRANEAN_STAGING else WORLD)
         (tmp_path / staging.name).write_text(yaml.safe_dump(doc, sort_keys=False))
     path = tmp_path / NEWEST.name
     report = mc.check_region(path)
@@ -685,3 +690,298 @@ def test_no_province_is_claimed_by_two_of_the_three_recipe_files() -> None:
     assert c
     assert a & c == set()
     assert b & c == set()
+
+
+# ---------------------------------------------------------------- MAM: the Mediterranean
+
+# Rule 1: the region's territories and sea zones, by key. [proposed] Malta is not a territory of its
+# own: the data's 68 units add up to 0.0325 square degrees, under the checker's minimum of 0.05, so
+# it is joined to Cyprus (the recipe says so).
+MEDITERRANEAN_TERRITORIES = (
+    "french_north_africa",
+    "tunisia",
+    "tripolitania",
+    "cyrenaica",
+    "tobruk",
+    "egypt",
+    "levant",
+    "syria",
+    "iraq",
+    "iran",
+    "turkey",
+    "caucasus",
+    "greece",
+    "dodecanese",
+    "british_islands",
+)
+MEDITERRANEAN_SEA_ZONES = (
+    "gibraltar_approaches",
+    "western_mediterranean",
+    "central_mediterranean",
+    "eastern_mediterranean",
+    "aegean_sea",
+)
+# Rule 2: the six new places, the territory each lies in and the sea zone it opens on.
+MEDITERRANEAN_PLACE_HOMES = {
+    "alexandria": ("egypt", "eastern_mediterranean", (31.20, 29.92)),
+    "malta": ("british_islands", "central_mediterranean", (35.90, 14.51)),
+    "tobruk": ("tobruk", "eastern_mediterranean", (32.08, 23.98)),
+    "bardia": ("cyrenaica", "eastern_mediterranean", (31.74, 25.07)),
+    "tripoli": ("tripolitania", "central_mediterranean", (32.89, 13.19)),
+    "taranto": ("italy_south", "central_mediterranean", (40.47, 17.24)),
+}
+
+
+def _med_places() -> dict[str, Any]:
+    return {str(e["key"]): e for e in _yaml(MEDITERRANEAN_STAGING)["entities"]}
+
+
+def _where(lat: float, lon: float) -> str:
+    inside, border = mc.locate(_raw(), lon, lat)
+    assert not border, f"({lat}, {lon}) lies on the border of {border}"
+    assert len(inside) == 1, f"({lat}, {lon}) lies in {inside}"
+    return str(inside[0])
+
+
+def test_the_mediterranean_region_has_its_territories_and_sea_zones() -> None:
+    staged = _yaml(MEDITERRANEAN_STAGING)
+    assert [t["key"] for t in staged["territories"]] == list(MEDITERRANEAN_TERRITORIES)
+    assert [z["key"] for z in staged["sea_zones"]] == list(MEDITERRANEAN_SEA_ZONES)
+    assert {t["region"] for t in staged["territories"] + staged["sea_zones"]} == {"mediterranean"}
+    assert set(MEDITERRANEAN_TERRITORIES + MEDITERRANEAN_SEA_ZONES) <= set(_raw()["areas"])
+    cut_to = {str(c[key]) for c in _yaml(MEDITERRANEAN)["cuts"] for key in ("left", "right")}
+    for t in _yaml(MEDITERRANEAN)["territories"]:
+        assert t.get("provinces") or t["key"] in cut_to, t["key"]
+
+
+def test_the_mediterranean_staging_world_extends_the_atlantic() -> None:
+    parent = (MEDITERRANEAN_STAGING.parent / _yaml(MEDITERRANEAN_STAGING)["extends"]).resolve()
+    assert parent == ATLANTIC_STAGING.resolve()
+
+
+def test_the_staging_blocks_are_the_built_fragments() -> None:
+    fragment, staged = _yaml(FRAGMENT), _yaml(MEDITERRANEAN_STAGING)
+    keep = ("territories", "sea_zones")
+    for block in keep:
+        assert staged[block] == [a for a in fragment[block] if a["region"] == "mediterranean"]
+    own = {str(a["key"]) for block in keep for a in staged[block]}
+
+    def pair(e: Any) -> tuple[str, str]:
+        return (e["a"], e["b"]) if isinstance(e, dict) else (e[0], e[1])
+
+    assert staged["adjacency"] == [e for e in fragment["adjacency"] if own & set(pair(e))]
+
+
+def test_the_staging_world_names_this_regions_places_file() -> None:
+    assert _yaml(MEDITERRANEAN_STAGING)["places_of"] == MEDITERRANEAN_PLACES.name
+    here = {str(e["key"]): e for e in _yaml(MEDITERRANEAN_PLACES)["entities"]}
+    world = _world_places()
+    for key, e in here.items():
+        if key in world:
+            assert e["at"] == world[key]["at"], key
+    assert sorted(set(here) - set(world)) == sorted(MEDITERRANEAN_PLACE_HOMES)
+
+
+def test_the_scoped_check_passes_on_the_mediterranean_staging_world() -> None:
+    report = mc.check_region(MEDITERRANEAN_STAGING)
+    assert [str(p) for p in report.problems] == []
+
+
+def test_the_mediterranean_staging_world_puts_six_new_places_in_scope() -> None:
+    staged = _med_places()
+    assert sorted(staged) == sorted(MEDITERRANEAN_PLACE_HOMES)
+    for key, (_, _, at) in MEDITERRANEAN_PLACE_HOMES.items():
+        assert staged[key]["at"] == list(at), key
+        assert not _world_places().get(key), key
+
+
+@pytest.mark.parametrize("place", MEDITERRANEAN_PLACE_HOMES)
+def test_each_mediterranean_place_lies_in_its_territory_and_is_its_site(place: str) -> None:
+    key, _, (lat, lon) = MEDITERRANEAN_PLACE_HOMES[place]
+    assert _where(lat, lon) == key
+    holders = [str(t["key"]) for t in _staged_territories() if place in (t.get("sites") or [])]
+    assert holders == [key]
+
+
+@pytest.mark.parametrize("port", MEDITERRANEAN_PLACE_HOMES)
+def test_each_mediterranean_port_names_its_sea_zone(port: str) -> None:
+    key, zone, _ = MEDITERRANEAN_PLACE_HOMES[port]
+    entry = next(p for p in _yaml(MEDITERRANEAN_STAGING)["ports"] if p["port"] == port)
+    assert (entry["territory"], entry["sea_zone"]) == (key, zone)
+    assert mc.adjacent(_raw(), key, zone)
+
+
+# Rule 1: Tobruk and Bardia are in different territories, and the enclave is the perimeter.
+def test_tobruk_and_bardia_lie_in_different_territories() -> None:
+    places = _med_places()
+    tobruk, bardia = (_where(*places[k]["at"]) for k in ("tobruk", "bardia"))
+    assert (tobruk, bardia) == ("tobruk", "cyrenaica")
+    assert mc.adjacent(_raw(), "tobruk", "cyrenaica")
+
+
+@pytest.mark.parametrize(
+    ("name", "lat", "lon", "key"),
+    [
+        ("inside the perimeter, south of the town", 31.95, 23.98, "tobruk"),
+        ("inside the perimeter, east of the town", 32.00, 24.15, "tobruk"),
+        ("outside the perimeter, south", 31.55, 23.98, "cyrenaica"),
+        ("outside the perimeter, east", 31.95, 24.55, "cyrenaica"),
+        ("outside the perimeter, west", 31.95, 23.40, "cyrenaica"),
+        ("Benghazi", 32.12, 20.07, "cyrenaica"),
+        ("Kufra", 24.20, 23.30, "cyrenaica"),
+        ("Sollum, on the Egyptian side of the wire", 31.57, 25.15, "egypt"),
+        ("Tripoli", 32.89, 13.19, "tripolitania"),
+        ("Sirte", 31.21, 16.59, "tripolitania"),
+        ("Sabha", 27.04, 14.43, "tripolitania"),
+    ],
+)
+def test_the_libyan_territories_and_the_tobruk_perimeter(
+    name: str, lat: float, lon: float, key: str
+) -> None:
+    assert _where(lat, lon) == key, name
+
+
+def test_the_tobruk_enclave_is_at_least_the_checkers_minimum() -> None:
+    assert mc.area(_raw(), "tobruk") >= mc.MIN_AREA["lonlat"]
+
+
+def test_the_tobruk_cut_is_the_enclaves_and_the_split_is_drawn_on_the_proof_sheet() -> None:
+    cuts = {str(c["name"]): c for c in _yaml(MEDITERRANEAN)["cuts"]}
+    tobruk = cuts["the Tobruk perimeter of September 1941"]
+    assert (tobruk["province"], tobruk["left"], tobruk["right"]) == (
+        "LBY-2987",
+        "tobruk",
+        "cyrenaica",
+    )
+    assert tobruk["gap"] is True
+    sheet = (ROOT / "worlds" / "maps" / "proof" / "autumn-1941-mediterranean.svg").read_text()
+    assert "the Tobruk perimeter of September 1941" in sheet
+    assert "The Tobruk enclave" in sheet
+    assert "Bardia" in sheet
+
+
+# Rule 3: Cyrenaica and Egypt meet at the present-day border, which is the 1941 wire.
+def test_cyrenaica_and_egypt_meet_at_the_present_day_border() -> None:
+    doc = {str(t["key"]): t for t in _yaml(MEDITERRANEAN)["territories"]}
+    assert {str(c)[:3] for c in doc["egypt"]["provinces"]} == {"EGY"}
+    assert {str(c)[:3] for c in doc["cyrenaica"]["provinces"]} == {"LBY"}
+    assert mc.adjacent(_raw(), "cyrenaica", "egypt")
+    assert not mc.adjacent(_raw(), "tobruk", "egypt")
+
+
+# Rule 4: the Italian Dodecanese is cut from the Greek province that holds it.
+@pytest.mark.parametrize(
+    ("name", "lat", "lon", "key"),
+    [
+        ("Rhodes, inland", 36.20, 28.00, "dodecanese"),
+        ("Kos", 36.85, 27.20, "dodecanese"),
+        ("Astypalaia", 36.55, 26.35, "dodecanese"),
+        ("Amorgos", 36.83, 25.90, "greece"),
+        ("Athens", 37.98, 23.73, "greece"),
+        ("Heraklion, Crete", 35.34, 25.14, "greece"),
+    ],
+)
+def test_the_dodecanese_cut_gives_each_side_to_the_territory_it_names(
+    name: str, lat: float, lon: float, key: str
+) -> None:
+    assert _where(lat, lon) == key, name
+
+
+def test_the_dodecanese_cut_has_a_named_source_and_is_a_gap() -> None:
+    cut = next(c for c in _yaml(MEDITERRANEAN)["cuts"] if c["name"] == "the Italian Dodecanese")
+    assert (cut["province"], cut["left"], cut["right"]) == ("GRC-3013", "dodecanese", "greece")
+    assert cut["gap"] is True
+    assert cut["named_source"]
+
+
+# The default taken for Malta.
+def test_malta_is_joined_to_cyprus_because_it_is_under_the_minimum_area() -> None:
+    territories = {str(t["key"]): t for t in _yaml(MEDITERRANEAN)["territories"]}
+    assert "malta" not in territories
+    islands = {str(c)[:3] for c in territories["british_islands"]["provinces"]}
+    assert islands == {"MLT", "CYP"}
+    assert _where(35.90, 14.51) == _where(35.17, 33.36) == "british_islands"
+
+
+@pytest.mark.parametrize(
+    ("town", "lat", "lon", "key"),
+    [
+        ("Algiers", 36.75, 3.06, "french_north_africa"),
+        ("Casablanca", 33.57, -7.59, "french_north_africa"),
+        ("Tunis", 36.80, 10.18, "tunisia"),
+        ("Cairo", 30.04, 31.24, "egypt"),
+        ("Suez", 29.97, 32.55, "egypt"),
+        ("Jerusalem", 31.77, 35.22, "levant"),
+        ("Amman", 31.95, 35.93, "levant"),
+        ("Damascus", 33.51, 36.29, "syria"),
+        ("Beirut", 33.89, 35.50, "syria"),
+        ("Baghdad", 33.31, 44.37, "iraq"),
+        ("Tehran", 35.69, 51.39, "iran"),
+        ("Ankara", 39.93, 32.86, "turkey"),
+        ("Istanbul", 41.01, 28.98, "turkey"),
+        ("Baku", 40.41, 49.87, "caucasus"),
+        ("Tbilisi", 41.72, 44.79, "caucasus"),
+        ("Grozny", 43.32, 45.69, "caucasus"),
+        ("Maikop", 44.60, 40.10, "caucasus"),
+        ("Salonika", 40.64, 22.94, "greece"),
+    ],
+)
+def test_each_mediterranean_town_lies_in_its_territory(
+    town: str, lat: float, lon: float, key: str
+) -> None:
+    assert _where(lat, lon) == key, town
+
+
+# Rule 1 (sea zones): the new zones join the Atlantic, Europe's and the pilot's, by shared border or
+# by a declared crossing, so a convoy can pass from the Atlantic to Alexandria and to the Black Sea.
+def _sea_links() -> dict[str, set[str]]:
+    seas = _sea_keys() | set(MEDITERRANEAN_SEA_ZONES)
+    links: dict[str, set[str]] = {z: set() for z in seas}
+    for e in _yaml(FRAGMENT)["adjacency"]:
+        a, b = (e["a"], e["b"]) if isinstance(e, dict) else (e[0], e[1])
+        if a in seas and b in seas:
+            links[a].add(b)
+            links[b].add(a)
+    return links
+
+
+def _joined(a: str, b: str) -> bool:
+    links, seen, todo = _sea_links(), {a}, [a]
+    while todo:
+        here = todo.pop()
+        for z in links[here] - seen:
+            seen.add(z)
+            todo.append(z)
+    return b in seen
+
+
+def test_the_mediterranean_zones_join_the_atlantic_europe_and_the_black_sea() -> None:
+    raw = _raw()
+    for a, b in (
+        ("gibraltar_approaches", "mid_ocean_gap"),
+        ("gibraltar_approaches", "bay_of_biscay"),
+        ("western_mediterranean", "central_mediterranean"),
+        ("central_mediterranean", "eastern_mediterranean"),
+        ("central_mediterranean", "aegean_sea"),
+        ("aegean_sea", "eastern_mediterranean"),
+    ):
+        assert mc.adjacent(raw, a, b), (a, b)
+    crossings = {
+        (e["a"], e["b"]): e["crossing"] for e in _yaml(FRAGMENT)["adjacency"] if isinstance(e, dict)
+    }
+    assert crossings[("gibraltar_approaches", "western_mediterranean")] == "the Strait of Gibraltar"
+    assert crossings[("aegean_sea", "black_sea")] == "the Turkish Straits"
+    assert _joined("mid_ocean_gap", "eastern_mediterranean")
+    assert _joined("mid_ocean_gap", "black_sea")
+
+
+def test_the_mediterranean_recipe_agrees_with_the_others_on_the_box() -> None:
+    assert _yaml(MEDITERRANEAN)["map"]["box"] == _raw()["box"]
+
+
+def test_no_province_is_claimed_by_two_of_the_four_recipe_files() -> None:
+    claims = [_claims(p) for p in RECIPES]
+    assert claims[3]
+    for i, a in enumerate(claims):
+        for b in claims[i + 1 :]:
+            assert a & b == set()

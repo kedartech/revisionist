@@ -1,0 +1,29 @@
+/* The war economy on screen (realism-economy.js): a chip per nation in the top strip, the sheet
+   a tap opens beneath it, and the economy layer's pips on the territory map. Tokens only; a
+   chip is 44px high to tap and the sheet wraps, so nothing is wider than the viewport at 390px. */
+.rl-eco { flex-basis: 100%; min-width: 0; }
+.rl-eco-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.rl-eco-chip { min-height: 44px; min-width: 44px; padding: 0 var(--space-3); display: inline-flex; align-items: center; gap: var(--space-1); background: var(--surface-2); color: var(--fg-strong); border: 1px solid var(--rule-strong); border-radius: var(--radius); font: 600 13px/1.3 var(--font-chrome); cursor: pointer; }
+.rl-eco-chip[aria-expanded="true"] { border-color: var(--accent); }
+.rl-eco-own { border-left: 4px solid var(--ok); }
+.rl-eco-enemy { border-left: 4px solid var(--danger); }
+.rl-eco-ally { border-left: 4px solid var(--info); }
+.rl-eco-neutral { border-left: 4px solid var(--rule-strong); }
+.rl-eco-num { font-variant-numeric: tabular-nums; }
+.rl-eco-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-eco-sheet { margin-top: var(--space-2); padding: var(--space-3) var(--space-4); max-width: 100%; overflow-wrap: anywhere; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); font: 14px/1.45 var(--font-chrome); }
+.rl-eco-sheet h3 { margin: 0 0 var(--space-2); font: 700 15px/1.35 var(--font-head); }
+.rl-eco-sheet h4 { margin: var(--space-3) 0 var(--space-1); font: 600 12px/1.3 var(--font-head); text-transform: uppercase; letter-spacing: .08em; color: var(--fg-muted); }
+.rl-eco-sheet ul { margin: 0; padding-left: var(--space-4); }
+.rl-eco-sheet p { margin: var(--space-1) 0; }
+.rl-eco-why { color: var(--fg); }
+
+.rl-eco-pips { cursor: pointer; }
+.rl-eco-pips:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-eco-pip { stroke: var(--surface); stroke-width: 1; }
+.rl-eco-r0 { fill: var(--ok); }
+.rl-eco-r1 { fill: var(--info); }
+.rl-eco-r2 { fill: var(--warn); }
+.rl-eco-r3 { fill: var(--accent); }
+.rl-eco-r4 { fill: var(--danger); }
+.rl-eco-note { fill: var(--fg-strong); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }

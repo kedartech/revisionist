@@ -1,0 +1,237 @@
+# The 1941 map, third region: the Atlantic, Britain and North America. Built by scripts/map_build.py
+# together with the Eastern Front and Europe regions (see worlds/maps/README.md); the provinces are
+# Natural Earth 1:10m admin-1 codes (worlds/maps/SOURCES.md). Every value here is [proposed]: the
+# territory list and names, which provinces make each territory, every terrain and every sea zone line.
+#
+# Build it with the earlier regions, naming the recipe files:
+#   python scripts/map_build.py build worlds/maps/src/autumn-1941/eastern-front.yaml \
+#     worlds/maps/src/autumn-1941/europe.yaml worlds/maps/src/autumn-1941/atlantic.yaml --slug autumn-1941
+#
+# The box. This region widens the map's box west to -126 and south to 10, to take in North America
+# and the Caribbean; the box is the same in this file and in the Europe file (the build refuses a
+# disagreement). Land and water in the box that no recipe claims (western Canada, Mexico, the Pacific
+# shore, the Faroes, Bermuda and the Lesser Antilles, the Mediterranean and North Africa, the open
+# Atlantic outside the zones) are the backdrop until a later region claims them.
+#
+# Cut lines. None. The land territories are whole countries or lists of states and provinces, and no
+# 1941 border here runs through a present-day province: Newfoundland was its own dominion under
+# commission of government (not yet part of Canada) and is its own province in the data. Northern
+# Ireland (UK) is part of the Scotland and Ulster territory and touches Ireland on land; it is not
+# joined to Scotland by land, so the territory has two parts. Where a 1941 holding differs from a
+# present-day country (Greenland under Denmark, with American bases from April 1941; Iceland
+# occupied by Britain and the United States), the starting holder is a later item's to set.
+#
+# Neutrals. Ireland is a neutral territory held by a polity with no seat; the build ignores the key.
+#
+# Sea zones. Eight, drawn for play and not sourced: the English Channel (south of Britain, joining
+# the North Sea by the Strait of Dover, a declared crossing, and the Bay of Biscay), the Western
+# Approaches (the Irish Sea and the waters west of Britain and Ireland), the Mid-Ocean Gap (the
+# air-cover gap of the convoy routes), the Western Atlantic (the American and Canadian coast, with
+# the Gulf of St Lawrence), the Labrador Sea, the Denmark Strait, the Arctic Route (from Iceland to
+# the North Cape, joining the White Sea at 28 E) and the Caribbean with the Gulf of Mexico. Each port
+# names its sea zone in the staging world (`ports`).
+#
+# Ports in the water. Liverpool (53.4 N, 3.0 W), Argentia (47.3 N, 54.0 W) and Scapa Flow (58.9 N,
+# 3.1 W) lie in the water of the data, not on its land: Liverpool and Argentia within 0.002 degrees
+# of the coast (a roadstead, as Lorient is), Scapa Flow an inlet of Orkney 0.02 degrees off the
+# shore. Each is therefore a place in a sea zone (Western Approaches, Western Atlantic, North
+# Sea) beside the territory that holds the port, and no territory's site; the staging world's
+# `ports` names the zone and the territory. The world file is not edited by this item; the places
+# at 53.41 N, 2.99 W, 47.31 N, 53.98 W and 58.97 N, 3.13 W would lie on land, listed for Josh and
+# for the item that edits the world's places.
+map:
+  box: [-126, 10, 52, 71.5]
+regions:
+  - {key: atlantic, name: The Atlantic}
+territories:
+  - key: britain_south
+    name: England and Wales
+    region: atlantic
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the English lowlands, the Welsh hills and the south coast; no source cited"
+    sites: [london]
+    provinces: [
+      GBR-2126, GBR-5707, GBR-2127, GBR-2779, GBR-2111, GBR-2775, GBR-2132, GBR-2039, GBR-2034,
+      GBR-2139, GBR-5662, GBR-5663, GBR-5664, GBR-2029, GBR-2030, GBR-2032, GBR-2140, GBR-2124,
+      GBR-2055, GBR-2057, GBR-2056, GBR-2081, GBR-2319, GBR-2318, GBR-2317, GBR-2679, GBR-2676,
+      GBR-3409, GBR-2678, GBR-2677, GBR-2674, GBR-2748, GBR-2035, GBR-2759, GBR-2036, GBR-2051,
+      GBR-2050, GBR-2052, GBR-2048, GBR-2142, GBR-2141, GBR-2110, GBR-2047, GBR-2045, GBR-2044,
+      GBR-2046, GBR-2133, GBR-2116, GBR-2117, GBR-2112, GBR-2118, GBR-2119, GBR-2104, GBR-2106,
+      GBR-2105, GBR-2130, GBR-2129, GBR-2125, GBR-2108, GBR-5708, GBR-5666, GBR-5668, GBR-5667,
+      GBR-2123, GBR-5670, GBR-2758, GBR-2128, GBR-5988, GBR-2113, GBR-2115, GBR-2131, GBR-2134,
+      GBR-2114, GBR-2079, GBR-2073, GBR-2080, GBR-2072, GBR-2070, GBR-2066, GBR-2069, GBR-2033,
+      GBR-2028, GBR-2031, GBR-2075, GBR-4809, GBR-2077, GBR-5665, GBR-5661, GBR-2120, GBR-5669,
+      GBR-2067, GBR-2042, GBR-5705, GBR-2078, GBR-2074, GBR-2675, GBR-2053, GBR-2061, GBR-2076,
+      GBR-2038, GBR-2040, GBR-2753, GBR-2062, GBR-2752, GBR-2767, GBR-5697, GBR-5698, GBR-2762,
+      GBR-2764, GBR-2749, GBR-2064, GBR-2071, GBR-2760, GBR-2768, GBR-2771, GBR-5689, GBR-2065,
+      GBR-2769, GBR-2766, GBR-2754, GBR-2770, GBR-2068, GBR-2765, GBR-2060, GBR-2054, GBR-5706,
+      GBR-2059, GBR-5686, GBR-5687, GBR-2778, GBR-2121, GBR-2777, GBR-2063, GBR-2776, GBR-2750,
+      GBR-2751, GBR-5677, GBR-5683, GBR-2774, GBR-5700, GBR-5701, GBR-5702, GBR-5703, GBR-5704,
+      GBR-5699, GBR-2755, GBR-2122, GBR-2756, GBR-2043, GBR-2757, GBR-5672, GBR-5671, GBR-2763,
+      GBR-2761, GBR-2058, GBR-5674, GBR-5673, GBR-5675, GBR-5688, GBR-5676, GBR-5678, GBR-5685,
+      GBR-5684, GBR-5681, GBR-5680, GBR-5682, GBR-5679, GBR-5695, GBR-5696, GBR-5690, GBR-5691,
+      GBR-5692, GBR-5694, GBR-5693
+    ]
+  - key: britain_north
+    name: Scotland and Ulster
+    region: atlantic
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Highlands, the Southern Uplands and the Ulster glens; no source cited"
+    provinces: [
+      GBR-2083, GBR-2135, GBR-2136, GBR-2089, GBR-2085, GBR-2086, GBR-2026, GBR-2138, GBR-2102,
+      GBR-2100, GBR-2773, GBR-2095, GBR-2096, GBR-2097, GBR-2082, GBR-2098, GBR-2137, GBR-2099,
+      GBR-2017, GBR-2016, GBR-2015, GBR-2025, GBR-2023, GBR-2024, GBR-2022, GBR-2009, GBR-2006,
+      GBR-2005, GBR-2008, GBR-2011, GBR-2746, GBR-2745, GBR-2014, GBR-2013, GBR-2012, GBR-2019,
+      GBR-2020, GBR-2018, GBR-2021, GBR-2772, GBR-2744, GBR-2747, GBR-2007, GBR-2002, GBR-2004,
+      GBR-2003, GBR-2001, GBR-2010, GBR-2093, GBR-2084, GBR-2091, GBR-2088, GBR-2087, GBR-2092,
+      GBR-2090, GBR-2101, GBR-2094, GBR-2103
+    ]
+  - key: ireland
+    name: Ireland
+    region: atlantic
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "bog and pasture; no source cited"
+    neutral: [ireland]
+    provinces: [
+      IRL-729, IRL-730, IRL-79, IRL-3412, IRL-712, IRL-5575, IRL-5576, IRL-719, IRL-718, IRL-722,
+      IRL-1444, IRL-78, IRL-5569, IRL-725, IRL-726, IRL-76, IRL-713, IRL-5568, IRL-714, IRL-728,
+      IRL-715, IRL-5574, IRL-721, IRL-77, IRL-723, IRL-5573, IRL-716, IRL-717, IRL-731, IRL-727,
+      IRL-724, IRL-5572, IRL-5571, IRL-5570
+    ]
+  - key: iceland
+    name: Iceland
+    region: atlantic
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "lava fields and glaciers; no source cited"
+    sites: [reykjavik]
+    provinces: [
+      ISL-695, ISL-705, ISL-704, ISL-5131, ISL-709, ISL-710, ISL-690, ISL-697, ISL-702
+    ]
+  - key: greenland
+    name: Greenland
+    region: atlantic
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the ice cap and the fjord coasts; no source cited"
+    provinces: [
+      GRL-2739, GRL-2742, GRL-2743, GRL-2738, GRL-2741, GRL-2740
+    ]
+  - key: newfoundland
+    name: Newfoundland and Labrador
+    region: atlantic
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "boreal forest and barrens; no source cited"
+    provinces: [
+      CAN-686
+    ]
+  - key: eastern_canada
+    name: Eastern Canada
+    region: atlantic
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the Laurentian forest and the Maritime coast; no source cited"
+    sites: [halifax_port, sydney_cb]
+    provinces: [
+      CAN-683, CAN-682, CAN-684, CAN-685, CAN-687
+    ]
+  - key: us_east
+    name: The Eastern United States
+    region: atlantic
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the Appalachians, the piedmont and the coastal plain; no source cited"
+    sites: [washington, norfolk]
+    provinces: [
+      USA-3561, USA-3538, USA-3540, USA-3513, USA-3539, USA-3537, USA-3559, USA-3558, USA-3560,
+      USA-3555, USA-3557, USA-3556, USA-3552, USA-3554, USA-3549, USA-3545, USA-3543, USA-3542
+    ]
+  - key: us_central
+    name: The Central United States
+    region: atlantic
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Midwest, the Mississippi valley and the Gulf plain; no source cited"
+    provinces: [
+      USA-3550, USA-3547, USA-3546, USA-3562, USA-3553, USA-3514, USA-3529, USA-3531, USA-3548,
+      USA-3551, USA-3541, USA-3544, USA-3535, USA-3528, USA-3533, USA-3530, USA-3532, USA-3534,
+      USA-3516, USA-3536
+    ]
+  - key: us_west
+    name: The Western United States
+    region: atlantic
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Rockies, the deserts and the Pacific slope; no source cited"
+    provinces: [
+      USA-3515, USA-3527, USA-3522, USA-3524, USA-3520, USA-3526, USA-3523, USA-3518, USA-3519,
+      USA-3525, USA-3521
+    ]
+  - key: caribbean
+    name: The Caribbean
+    region: atlantic
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the Greater Antilles and the Bahamas; no source cited"
+    provinces: [
+      CUB-1365, CUB-1364, CUB-1363, CUB-1367, CUB-1320, CUB-1322, CUB-1431, CUB-1430, CUB-1368,
+      CUB-5489, CUB-1428, CUB-1429, CUB-1321, CUB-1319, CUB-1366, CUB-1369, HTI-1386, HTI-1385,
+      HTI-1388, HTI-1389, HTI-1362, HTI-1359, HTI-1361, HTI-1387, HTI-1384, HTI-1360, DOM-1964,
+      DOM-1966, DOM-1972, DOM-1971, DOM-1973, DOM-1987, DOM-1986, DOM-1980, DOM-1983, DOM-1982,
+      DOM-1967, DOM-1965, DOM-1970, DOM-1974, DOM-1977, DOM-1984, DOM-1394, DOM-1985, DOM-1396,
+      DOM-1988, DOM-1392, DOM-1391, DOM-1975, DOM-1968, DOM-1979, DOM-1390, DOM-1969, DOM-1393,
+      DOM-1976, DOM-1395, DOM-1978, DOM-1981, JAM-1379, JAM-1375, JAM-1374, JAM-1371, JAM-1376,
+      JAM-1373, JAM-1372, JAM-1370, JAM-1380, JAM-1382, JAM-1377, JAM-1383, JAM-1378, JAM-1381,
+      PRI-5260, BHS-5038, BHS-5037, BHS-5036, BHS-5035, BHS-5024, BHS-5033, BHS-5032, BHS-5023,
+      BHS-5031, BHS-5020, BHS-5021, BHS-5022, BHS-5030, BHS-5009, BHS-5019, BHS-5028, BHS-5027,
+      BHS-5029, BHS-5018, BHS-5017, BHS-5010, BHS-5011, BHS-5012, BHS-5015, BHS-5016, BHS-5014,
+      BHS-5039, BHS-5034, BHS-5026, BHS-5025
+    ]
+cuts: []
+sea_zones:
+  - key: english_channel
+    name: The English Channel
+    region: atlantic
+    terrain: sea
+    polygon: [[-10, 48.3], [0, 48.3], [1.5, 51.0], [-5.2, 51.0], [-10, 51.0]]
+  - key: western_approaches
+    name: The Western Approaches
+    region: atlantic
+    terrain: sea
+    polygon: [[-20, 51.0], [-5.2, 51.0], [-3.0, 52.4], [-2.9, 54.0], [-3.4, 56.0], [-3.4, 58.7], [-1.0, 61.0], [-20, 61.0]]
+  - key: mid_ocean_gap
+    name: The Mid-Ocean Gap
+    region: atlantic
+    terrain: sea
+    polygon: [[-45, 43.0], [-10, 43.0], [-10, 51.0], [-20, 51.0], [-20, 61.0], [-45, 61.0]]
+  - key: western_atlantic
+    name: The Western Atlantic
+    region: atlantic
+    terrain: sea
+    polygon: [[-82, 28.0], [-45, 28.0], [-45, 52.0], [-82, 52.0]]
+  - key: labrador_sea
+    name: The Labrador Sea
+    region: atlantic
+    terrain: sea
+    polygon: [[-65, 52.0], [-45, 52.0], [-45, 61.0], [-65, 61.0]]
+  - key: denmark_strait
+    name: The Denmark Strait
+    region: atlantic
+    terrain: sea
+    polygon: [[-45, 61.0], [-25, 61.0], [-25, 71.5], [-45, 71.5]]
+  - key: arctic_route
+    name: The Arctic Route
+    region: atlantic
+    terrain: sea
+    polygon: [[-25, 61.0], [12.2, 61.0], [12.2, 66.6], [28.0, 66.6], [28.0, 71.5], [-25, 71.5]]
+  - key: caribbean_sea
+    name: The Caribbean and the Gulf of Mexico
+    region: atlantic
+    terrain: sea
+    polygon: [[-98, 10.0], [-60, 10.0], [-60, 28.0], [-82, 28.0], [-82, 31.0], [-98, 31.0]]
+crossings:
+  - {a: english_channel, b: north_sea, name: the Strait of Dover, source: "sea-zone line chosen for play, not sourced"}

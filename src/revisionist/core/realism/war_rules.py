@@ -5,7 +5,7 @@ from datetime import date, timedelta
 from revisionist.core import events as ev
 from revisionist.core.ids import DocumentId, EntityId, FeatureId, SeatId, derived_id
 from revisionist.core.ontology import EntityKind
-from revisionist.core.realism import actors, reach, territory
+from revisionist.core.realism import actors, reach, supply, territory
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.bases import Tier
 from revisionist.core.realism.bases import reach as reach_of
@@ -111,7 +111,31 @@ def _step_refusal(state: State, piece: Feature, to: EntityId) -> str:
     if not territory.on(state):
         return ""
     found = territory.plan(state, piece, to)
-    return "" if isinstance(found, territory.Plan) else _clip(found.reason, REFUSAL)
+    if not isinstance(found, territory.Plan):
+        return _clip(found.reason, REFUSAL)
+    return _supply_refusal(state, piece, found)
+
+
+def _supply_refusal(state: State, piece: Feature, course: territory.Plan) -> str:
+    """Why a piece out of supply may not be sent into territory an enemy holds: the first
+    such area on its course, and the nearest area it would be supplied in. Empty if it may."""
+    found = supply.status(state, piece)
+    own = territory.nation(state, piece.side)
+    if found is None or found.supplied or own is None:
+        return ""
+    for area in course.path:
+        held = territory.holder(state, area)
+        if held is None or not at_war(state, own, held):
+            continue
+        words = (
+            f"{piece.name} is out of supply, so it cannot be sent into "
+            f"{state.entities[area].name}, held by {state.entities[held].name}."
+        )
+        if found.nearest is not None:
+            near = state.entities[found.nearest].name
+            words += f" The nearest area it would be supplied in is {near}."
+        return _clip(words, REFUSAL)
+    return ""
 
 
 def order_refusal(state: State, seat: SeatId, lever: str, params: dict[str, str]) -> str:

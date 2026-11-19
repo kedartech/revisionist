@@ -131,6 +131,15 @@ When the unit shows **failed**:
 
 The nightly backup writes `revisionist-<UTC timestamp>.dump` (`pg_dump -Fc`) to `REVISIONIST_BACKUP_DIR`, checks the archive reads back, deletes local dumps older than `REVISIONIST_BACKUP_KEEP_DAYS`, then copies the new dump to `REVISIONIST_BACKUP_DEST` with `rsync` (or `rclone copy` for an `rclone:` target). Retention at the destination is the destination's business.
 
+A stored game names its map by hash and is served the map object with that hash from `REVISIONIST_MAP_OBJECTS` (default `worlds/maps/objects/` of the checkout), whatever map the world file names now. The served objects come from `main`: MBT's manifest test keeps every object ever committed, so a checkout of `main` holds the objects of every map a game can have been made on. Two commands check and move them, with `REVISIONIST_DB` set to the room's database:
+
+```
+revisionist db map-objects verify [--campaign ID]        # every map hash a stored campaign names has its object here; FAIL names the campaign when not
+revisionist db map-objects copy --to DIR [--campaign ID|--all] # copy each named object (--all: every object in the directory, no database read) into DIR, hash-checked after the copy
+```
+
+The backup runs `copy --all` into `map-objects/` beside the dumps (never pruned: an object is immutable; it reads no database, so a sealed database needs no key there) and sends that folder off the box with the dump; it fails when an object's bytes do not hash to its name. The restore drill restores the dump into the scratch database, copies `map-objects/` into a clean scratch directory, and runs `db verify` and `db map-objects verify` against both; it fails if the backup holds no objects for a campaign that names a map. After a restore on a new host, copy the backup's `map-objects/` into the checkout's `worlds/maps/objects/` (or the directory `REVISIONIST_MAP_OBJECTS` names) and run `verify` before restarting the room.
+
 Keep `REVISIONIST_MARK_SECRET` in your protected configuration backup and restore it unchanged: seat map and playback keys stay stable across backups and restores only if this secret is kept. It is not in the database dump. Rotating it changes every seat key but does not change replay hashes.
 
 Run the drill after setup, after any Postgres upgrade, and monthly:

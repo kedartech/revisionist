@@ -20,8 +20,9 @@ import hashlib
 import json
 import os
 import re
-from collections.abc import Callable
-from typing import Literal
+from collections.abc import Callable, Sequence
+from pathlib import Path
+from typing import Literal, NamedTuple
 
 from revisionist.core.events import PieceStepped
 from revisionist.core.ids import CampaignId, EntityId
@@ -31,6 +32,7 @@ from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.kinds import Domain
 from revisionist.core.state import State, View
 from revisionist.engine import maps
+from revisionist.engine.store import EventStore, load_state
 from revisionist.engine.web.destinations import own_sides
 from revisionist.engine.web.realism_api import (
     MapArea,
@@ -231,18 +233,125 @@ def map_reply(state: State) -> MapReply:
     )
 
 
+class MapRef(NamedTuple):
+    """The map a stored campaign names: the file name and hash its ``map_declared`` holds."""
+
+    campaign: CampaignId
+    file: str
+    sha256: str
+
+
+def references(store: EventStore, campaign_ids: Sequence[CampaignId]) -> list[MapRef]:
+    """Every map the campaigns name; a campaign without a map names none."""
+    out: list[MapRef] = []
+    for campaign in campaign_ids:
+        board = load_state(store, campaign).map
+        if board is not None:
+            out.append(MapRef(campaign, board.file, board.sha256))
+    return out
+
+
+def _kept(directory: Path, sha256: str) -> bytes | None:
+    """The bytes of ``<sha256>.json`` in ``directory`` when they hash to ``sha256``."""
+    path = directory / f"{sha256}.json"
+    data = path.read_bytes() if path.is_file() else None
+    return data if data is not None and hashlib.sha256(data).hexdigest() == sha256 else None
+
+
+def verify_objects(store: EventStore, campaign_ids: Sequence[CampaignId]) -> tuple[list[str], bool]:
+    """One line per campaign that names a map: ``ok``, or ``FAIL`` when its object is not
+    in the map-objects directory. Only that directory counts, never a world-named file."""
+    here = maps.objects_dir()
+    lines: list[str] = []
+    ok = True
+    for ref in references(store, campaign_ids):
+        if _kept(here, ref.sha256) is None:
+            lines.append(
+                f"FAIL {ref.campaign}: map object {ref.sha256} ({ref.file}) is not in {here}"
+            )
+            ok = False
+        else:
+            lines.append(f"ok {ref.campaign}: map object {ref.sha256} ({ref.file})")
+    return lines, ok
+
+
+def _put(to: Path, sha256: str, data: bytes) -> str | None:
+    """Write ``<sha256>.json`` into ``to`` and read it back against its hash; the problem,
+    or None when it reads back."""
+    to.mkdir(parents=True, exist_ok=True)
+    part = to / f"{sha256}.json.partial"
+    part.write_bytes(data)
+    part.replace(to / f"{sha256}.json")
+    return (
+        None
+        if _kept(to, sha256) is not None
+        else f"map object {sha256} does not read back from {to}"
+    )
+
+
+def copy_objects(
+    store: EventStore, campaign_ids: Sequence[CampaignId], to: Path
+) -> tuple[list[str], bool]:
+    """Copy each referenced object into ``to`` and read it back against its hash. Nothing
+    is written for a missing object, and no source file is changed."""
+    here = maps.objects_dir()
+    lines: list[str] = []
+    ok = True
+    done: set[str] = set()
+    for ref in references(store, campaign_ids):
+        data = _kept(here, ref.sha256)
+        if data is None:
+            lines.append(
+                f"FAIL {ref.campaign}: map object {ref.sha256} ({ref.file}) is not in {here}"
+            )
+            ok = False
+        elif ref.sha256 not in done:
+            problem = _put(to, ref.sha256, data)
+            ok = ok and problem is None
+            lines.append(
+                f"FAIL {ref.campaign}: {problem}"
+                if problem
+                else f"copied {ref.sha256} ({ref.file}) to {to}"
+            )
+            done.add(ref.sha256)
+    return lines, ok
+
+
+def copy_all_objects(to: Path) -> tuple[list[str], bool]:
+    """Copy every object in the map-objects directory into ``to``, each read back against
+    its hash; needs no database. A file whose bytes do not hash to its name fails."""
+    here = maps.objects_dir()
+    lines: list[str] = []
+    ok = True
+    for path in sorted(here.glob("*.json")):
+        sha256 = path.stem
+        if _kept(here, sha256) is None:
+            lines.append(f"FAIL map object {path.name} in {here} does not hash to its name")
+            ok = False
+        else:
+            problem = _put(to, sha256, path.read_bytes())
+            ok = ok and problem is None
+            lines.append(f"FAIL {problem}" if problem else f"copied {sha256} to {to}")
+    return lines, ok
+
+
 __all__ = [
     "MARK_SECRET_ENV",
     "MISSING",
     "NO_MAP",
+    "MapRef",
     "Reaches",
     "add_board",
+    "copy_all_objects",
+    "copy_objects",
     "lit",
     "map_reply",
     "mark_key",
     "mark_secret",
     "protect_marks",
+    "references",
     "seat_board",
     "step_key",
+    "verify_objects",
     "viewing_nation",
 ]

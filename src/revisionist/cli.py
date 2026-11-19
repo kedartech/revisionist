@@ -956,6 +956,63 @@ def db_verify(campaign: CampaignOpt = None) -> None:
         raise typer.Exit(EXIT_ERROR)
 
 
+map_objects_app = typer.Typer(
+    no_args_is_help=True, help="The map objects the stored campaigns name."
+)
+db_app.add_typer(map_objects_app, name="map-objects")
+
+
+def _map_objects(
+    campaign: str | None, act: Callable[[EventStore, list[CampaignId]], tuple[list[str], bool]]
+) -> None:
+    store = cmp.open_store()
+    ids = [CampaignId(campaign)] if campaign else store.campaign_ids()
+    if not ids:
+        raise _fail("no campaigns to check")
+    try:
+        lines, ok = act(store, ids)
+    except StoreError as exc:
+        raise _fail(str(exc)) from exc
+    for line in lines:
+        typer.echo(line, err=line.startswith("FAIL "))
+    if not lines:
+        typer.echo("no campaign names a map object")
+    if not ok:
+        raise typer.Exit(EXIT_ERROR)
+
+
+@map_objects_app.command("verify")
+def db_map_objects_verify(campaign: CampaignOpt = None) -> None:
+    """Check that every map hash a stored campaign names has its object in
+    ``$REVISIONIST_MAP_OBJECTS``."""
+    from revisionist.engine.web import map_api
+
+    _map_objects(campaign, map_api.verify_objects)
+
+
+@map_objects_app.command("copy")
+def db_map_objects_copy(
+    to: Annotated[Path, typer.Option("--to", help="Directory to copy the objects into")],
+    campaign: CampaignOpt = None,
+    every: Annotated[
+        bool, typer.Option("--all", help="Every object in the directory; reads no database")
+    ] = False,
+) -> None:
+    """Copy every map object a stored campaign names into a directory, hash-checked after."""
+    from revisionist.engine.web import map_api
+
+    if every:
+        if campaign:
+            raise _fail("--all and --campaign cannot be combined")
+        lines, ok = map_api.copy_all_objects(to)
+        for line in lines:
+            typer.echo(line, err=line.startswith("FAIL "))
+        if not ok:
+            raise typer.Exit(EXIT_ERROR)
+        return
+    _map_objects(campaign, lambda store, ids: map_api.copy_objects(store, ids, to))
+
+
 @db_app.command("wake-report")
 def db_wake_report(campaign: CampaignOpt = None) -> None:
     """How each wake closed, each seat's aide wakes and hours to commit, and catch-up

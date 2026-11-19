@@ -91,7 +91,8 @@ class Ending(StrEnum):
 
 
 class Fighter(NamedTuple):
-    piece: str
+    fid: str
+    """The piece's feature id."""
     strength: int
 
 
@@ -181,9 +182,9 @@ def _hit(side: SideIn, steps: int) -> tuple[SideIn, tuple[tuple[str, int], ...]]
     for _ in range(steps):
         if not fighters:
             break
-        top = min(fighters, key=lambda f: (-f.strength, f.piece))
+        top = min(fighters, key=lambda f: (-f.strength, f.fid))
         i = fighters.index(top)
-        taken[top.piece] = taken.get(top.piece, 0) + 1
+        taken[top.fid] = taken.get(top.fid, 0) + 1
         if top.strength > 1:
             fighters[i] = top._replace(strength=top.strength - 1)
         else:

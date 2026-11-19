@@ -845,12 +845,16 @@ def _check_board(world: WorldFile, sections: Mapping[str, str], problems: list[s
     areas = {d.key for d in _area_decls(world)}
     if Rule.TERRITORIES in world.rules and world.map is None:
         problems.append("rules: territories needs a map")
+    if Rule.HOLDERS in world.rules and Rule.TERRITORIES not in world.rules:
+        problems.append("rules: holders needs territories")
     if world.map is None:
         if areas or world.adjacency or world.regions or world.terrain:
             problems.append("map: the world has areas but no map")
         for e in world.entities:
             if e.port_on is not None or e.base is not None:
                 problems.append(f"entity {e.key}: a port or a base needs a map")
+            if e.capital is not None:
+                problems.append(f"entity {e.key}: a capital needs a map")
         return
     _check_map_file(world, problems)
     _check_sites(world, problems)
@@ -914,7 +918,8 @@ def _check_board(world: WorldFile, sections: Mapping[str, str], problems: list[s
 
 def _check_sites(world: WorldFile, problems: list[str]) -> None:
     """Ports open on a sea zone their territory borders, bases serve polities from a place
-    in an area, and a lift pool is a quantity of a polity (ADJ)."""
+    in an area, and a lift pool is a quantity of a polity (ADJ); a capital is a place in a
+    territory, or the territory, of a polity (THL)."""
     areas = _area_kinds(world)
     kinds_of = {d.key: d.kind for d in world.entities}
     quantities = {q.key for q in world.quantities}
@@ -945,6 +950,16 @@ def _check_sites(world: WorldFile, problems: list[str]) -> None:
                 problems.append(f"{where}: only a polity has a lift pool")
             elif e.lift_pool not in quantities:
                 problems.append(f"{where}: lift_pool {e.lift_pool} is not a quantity")
+        if e.capital is not None:
+            site = next((d for d in world.entities if d.key == e.capital), None)
+            if e.kind is not EntityKind.POLITY:
+                problems.append(f"{where}: only a polity has a capital")
+            elif areas.get(e.capital) is tm.TerrainKind.LAND:
+                pass
+            elif site is None or site.kind is not EntityKind.LOCATION:
+                problems.append(f"{where}: capital {e.capital} is not a place")
+            elif site.within is None or areas.get(site.within) is not tm.TerrainKind.LAND:
+                problems.append(f"{where}: capital {e.capital} lies within no territory")
 
 
 def _check_map_file(world: WorldFile, problems: list[str]) -> None:
@@ -1627,6 +1642,11 @@ def _board(world: WorldFile, ids: Mapping[str, str]) -> tm.WorldMap:
             EntityId(ids[e.key]): QuantityId(ids[e.lift_pool])
             for e in world.entities
             if e.lift_pool is not None
+        },
+        capitals={
+            EntityId(ids[e.key]): EntityId(ids[e.capital])
+            for e in world.entities
+            if e.capital is not None
         },
     )
 

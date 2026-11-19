@@ -64,6 +64,7 @@ from revisionist.core.realism.effect import (
     ShiftDisposition,
 )
 from revisionist.core.realism.geography import Feature
+from revisionist.core.realism.holders import Holding
 from revisionist.core.realism.kinds import Kinds
 from revisionist.core.realism.pipeline import (
     ADVANCES,
@@ -412,6 +413,8 @@ def _mutate(state: State, event: Event) -> State:
             | ev.WarDeclared()
             | ev.MapDeclared()
             | ev.KindsDeclared()
+            | ev.AreaHeld()
+            | ev.CaptureCounted()
             | ev.NewsReported()
             | ev.StanceChanged()
             | ev.OpponentsRanked()
@@ -649,6 +652,25 @@ def _realism(state: State, p: ev.Payload) -> State:
                 if _need(state.entities, area, "entity").kind is not EntityKind.LOCATION:
                     raise FoldError(f"area {area} is not a place")
             return state.model_copy(update={"map": p.map})
+        case ev.AreaHeld():
+            board = state.map
+            if board is None or p.area not in {t.area for t in board.territories}:
+                raise FoldError(f"area_held: {p.area} is not a territory")
+            if _need(state.entities, p.holder, "entity").kind is not EntityKind.POLITY:
+                raise FoldError(f"area_held: {p.holder} is not a polity")
+            holding = Holding(holder=p.holder, taken_from=p.was, on=p.on)
+            captures = {k: v for k, v in state.captures.items() if k != p.area}
+            return state.model_copy(
+                update={"holders": _put(state.holders, p.area, holding), "captures": captures}
+            )
+        case ev.CaptureCounted():
+            board = state.map
+            if board is None or p.area not in {t.area for t in board.territories}:
+                raise FoldError(f"capture_counted: {p.area} is not a territory")
+            captures = {k: v for k, v in state.captures.items() if k != p.area}
+            if p.capture is not None:
+                captures[p.area] = p.capture
+            return state.model_copy(update={"captures": captures})
         case ev.KindsDeclared():
             if state.kinds is not None:
                 raise FoldError("the kinds are declared once")

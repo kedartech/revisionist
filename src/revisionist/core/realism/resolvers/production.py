@@ -105,7 +105,8 @@ LINE = 60
 
 
 def economy_order(state: State, order: Order) -> tuple["rs.Change", ...]:
-    """The order changes nothing when it is enacted: its step is built on its due day."""
+    """The order changes nothing when it is enacted: its step is built on its due day,
+    and an evacuation (EVC) moves its parts day by day."""
     return ()
 
 
@@ -245,7 +246,7 @@ def _build(state: State, order: Order, today: date) -> list["rs.Change"]:
 
 def economy_day(state: State, today: date) -> tuple["rs.Change", ...]:
     """With ``economy`` on, every step due today built or reported, each order folded
-    before the next reads the pools."""
+    before the next reads the pools; then each evacuation's part for the day (EVC)."""
     if not economy.on(state):
         return ()
     out: list[rs.Change] = []
@@ -253,7 +254,7 @@ def economy_day(state: State, today: date) -> tuple["rs.Change", ...]:
         changes = _build(state, order, today)
         out += changes
         state = _after(state, changes)
-    return tuple(out)
+    return (*out, *evacuation.on_day(state, today))
 
 
 def _after(state: State, changes: list["rs.Change"]) -> State:

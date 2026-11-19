@@ -18,7 +18,6 @@ from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.quantity import QuantityChange, ResolverKey
 from revisionist.core.realism.resolvers import (
-    evacuation,
     movement,
     opinion,
     production,
@@ -80,18 +79,6 @@ def _votes(state: State, order: Order) -> tuple[Change, ...]:
     return tuple(c for c in out if c is not None)
 
 
-def _economy_order(state: State, order: Order) -> tuple[Change, ...]:
-    """An ``economy`` order: an evacuation (EVC) or a production form (PRD)."""
-    if evacuation.is_evacuation(order):
-        return evacuation.resolve(state, order)
-    return production.economy_order(state, order)
-
-
-def _economy_day(state: State, today: date) -> tuple[Change, ...]:
-    """The ``economy`` day: production's due steps, then each evacuation's part."""
-    return production.economy_day(state, today) + evacuation.on_day(state, today)
-
-
 ON_ORDER: dict[ResolverKey, OrderFn] = {
     "votes": _votes,
     "shipping": shipping.resolve,
@@ -99,7 +86,7 @@ ON_ORDER: dict[ResolverKey, OrderFn] = {
     "opinion": opinion.resolve,
     "movement": movement.order_changes,
     "war": war.resolve,
-    "economy": _economy_order,
+    "economy": production.economy_order,
 }
 ON_DAY: dict[ResolverKey, DayFn] = {
     "votes": votes.on_day,
@@ -108,7 +95,7 @@ ON_DAY: dict[ResolverKey, DayFn] = {
     "opinion": opinion.on_day,
     "movement": movement.day_changes,
     "war": war.on_day,
-    "economy": _economy_day,
+    "economy": production.economy_day,
 }
 
 

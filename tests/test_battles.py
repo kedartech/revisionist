@@ -176,7 +176,9 @@ def test_the_side_that_steps_in_attacks_on_its_own_ground(tmp_path: Path) -> Non
         (levy,) = [f for f in w["features"] if f["key"] == "sudland_levy"]
         levy["places"] = ["hill_fort"]
 
-    g = Logged(toy(tmp_path, fort), "ilse", "tomas")
+    # Without holders, so Sudland's levy does not take the hills while it waits there.
+    g = Logged(toy(tmp_path, fort, rules("territories", "battles")), "ilse", "tomas")
+    assert territory.holder(g.state, entity("norra_hills")) == entity("norra")
     g.send("ilse", "norra_levy", "hill_fort")
     out = g.walk(day(1), day(8))
     (opened,) = payloads(out, ev.BattleOpened)

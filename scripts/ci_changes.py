@@ -20,8 +20,9 @@ from collections.abc import Iterable, Mapping, Sequence
 # Client and docs paths the Python suite never opens.
 SKIPPABLE_PREFIXES = ("docs/", "web/")
 # Under those, the files Python tests or the code they run do open: the seat fixture
-# (several tests) and the portraits with their SOURCES.md (dossiers.PORTRAITS_DIR).
-READ_BY_TESTS = ("web/test/fixtures/", "web/assets/portraits/")
+# (several tests), the portraits with their SOURCES.md (dossiers.PORTRAITS_DIR) and the
+# canned smoke server (its start-up is tested).
+READ_BY_TESTS = ("web/test/fixtures/", "web/assets/portraits/", "web/test/e2e/serve_canned.py")
 
 
 def skippable(path: str) -> bool:

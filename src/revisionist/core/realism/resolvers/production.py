@@ -39,6 +39,7 @@ from revisionist.core.realism.economy import Pools
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.quantity import QuantityChange
+from revisionist.core.realism.resolvers import evacuation
 from revisionist.core.realism.resolvers.shipping import moved
 from revisionist.core.realism.resolvers.votes import put
 from revisionist.core.realism.sealift import POOLS
@@ -113,6 +114,8 @@ def _due(state: State, today: date) -> list[Order]:
     due = []
     for o in state.orders.values():
         if o.status is not OrderStatus.ENACTED or rs.settled_on(o) + timedelta(LEAD_DAYS) != today:
+            continue
+        if evacuation.is_evacuation(o):
             continue
         try:
             if rs.resolver_for(state, o) != "economy":

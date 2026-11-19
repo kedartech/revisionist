@@ -536,8 +536,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         while made := answering.make(state, day):
             add(made)
         add(opponents.settle(state, day, [*landed, *planned], wake_start))
-    if until > before:
-        add(holders.close(state, until))  # the wake's close: a capital marked before falls
+    add(holders.close(state, until))  # the wake's close: a capital marked before falls
     return out
 
 

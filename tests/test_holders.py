@@ -11,6 +11,8 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from revisionist.core import events as ev
 from revisionist.core.fold import replay, state_hash
 from revisionist.core.ids import EntityId, FeatureId
@@ -612,3 +614,52 @@ def test_a_stored_game_gains_no_holders() -> None:
     assert state.map is not None and "capitals" not in state.map.model_dump(mode="json")
     assert holders.walk(state, day(5)) == []
     assert state_hash(replay(events)) == state_hash(state)
+
+
+# --- The fold refuses what the walk would never land -------------------------------------
+
+
+def test_the_fold_refuses_a_change_that_does_not_follow_the_holder(tmp_path: Path) -> None:
+    from revisionist.core.fold import FoldError
+
+    g = Logged(toy(tmp_path), "ilse", "tomas")
+    isle, norra, sudland = entity(ISLE), entity("norra"), entity("sudland")
+    for bad in (
+        ev.AreaHeld(area=isle, holder=norra, was=norra, on=START),  # not its holder
+        ev.AreaHeld(area=isle, holder=sudland, was=sudland, on=START),  # no change
+        ev.AreaHeld(area=entity("the_gulf"), holder=norra, was=None, on=START),  # a sea zone
+        ev.AreaHeld(area=isle, holder=entity("ilse"), was=sudland, on=START),  # a person
+        ev.CaptureCounted(area=isle, capture=Capture(by=entity("ilse"), since=START)),
+    ):
+        with pytest.raises(FoldError):
+            g.add([bad])
+    g.add([ev.AreaHeld(area=isle, holder=norra, was=sudland, on=START)])
+    assert holder(g.state, ISLE) == norra
+
+
+def test_the_fold_refuses_holders_events_with_the_rule_off(tmp_path: Path) -> None:
+    from revisionist.core.fold import FoldError
+
+    g = Logged(territories_toy(tmp_path), "ilse", "tomas")
+    with pytest.raises(FoldError):
+        g.add(
+            [
+                ev.AreaHeld(
+                    area=entity(ISLE), holder=entity("norra"), was=entity("sudland"), on=START
+                )
+            ]
+        )
+    with pytest.raises(FoldError):
+        g.add(
+            [ev.CaptureCounted(area=entity(ISLE), capture=Capture(by=entity("norra"), since=START))]
+        )
+
+
+def test_a_mark_is_judged_at_a_close_with_no_day_walked(tmp_path: Path) -> None:
+    g = Logged(toy(tmp_path, without("sudland_levy"), capital("sudland", "sudby")), "ilse", "tomas")
+    g.send("ilse", "norra_levy", "sudby")
+    g.walk(day(1), day(20))
+    assert g.state.captures[entity(COAST)].marked == g.state.tick
+    g.state = g.state.model_copy(update={"tick": g.state.tick + 1})
+    out = g.walk(day(21), day(20))  # a close on the day already walked
+    assert [h.on for h in held(out)] == [day(20)]

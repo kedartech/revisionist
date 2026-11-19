@@ -8,8 +8,10 @@ one and the day.
 A territory is taken in the day walk, never on a filing: a land piece that has stood for
 ``CAPTURE_DAYS`` full days in a territory held by a polity at war with its side, with no
 land piece there of a polity at war with its own, takes it for its side. The count is kept
-per territory, engine only (``capture_counted``), from the end of the first day the
-condition held; it stops the day the condition fails.
+per territory, engine only (``capture_counted``), from the end of the first day the walk
+sees the condition: the day a piece steps in is not a full day, and a condition that
+began between wakes (a war filed, a piece placed) counts from the end of the next walked
+day, so a territory is never taken early. The count stops the day the condition fails.
 
 A territory holding a polity's capital site does not change at once. When the count is
 full it is marked as falling: each seat of the holder gets a paper that day, and a matter

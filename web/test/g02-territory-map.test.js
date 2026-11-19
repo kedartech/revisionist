@@ -262,7 +262,7 @@ test('the poll keeps the picker: the room\'s theatre state survives a redraw of 
 
 test('marks are at least 24 px and tap targets 44 px at 390 px width, at every zoom', () => {
   for (const zoom of rules.ZOOMS) {
-    const pic = draw(TMAP, { px: PHONE, zoom });
+    const pic = draw(TMAP, { px: PHONE, zoom, fanned: 'norra_plain' });
     const k = Number(pic.getAttribute('data-k'));
     const [, , w, hgt] = viewBox(pic);
     assert.ok(Math.abs(k - Math.max(w / PHONE.width, hgt / PHONE.height)) < 1e-9, 'k: units a pixel');
@@ -374,17 +374,17 @@ test('one layer shows at a time; a layer with nothing to draw yet is not offered
   const both = board(seat({ capitals }), ui({ layer: 'diplomatic' }));
   assert.deepEqual(group(both, 'Layer').querySelectorAll('button').map(words), ['Military', 'Diplomatic']);
   assert.deepEqual(pressed(group(both, 'Layer')), ['Diplomatic']);
-  assert.equal(both.querySelectorAll('g.rl-tm-mark').length, 0, 'the diplomatic layer draws no pieces');
+  assert.equal(both.querySelectorAll('g.rl-tm-mark, g.rl-tm-stack').length, 0, 'the diplomatic layer draws no pieces');
   assert.equal(both.querySelectorAll('g.rl-cap').length, 1);
   const mil = board(seat({ capitals }), ui({ layer: 'military' }));
   assert.equal(mil.querySelectorAll('g.rl-cap').length, 0, 'the military layer draws no capitals');
-  assert.ok(mil.querySelectorAll('g.rl-tm-mark').length > 0);
+  assert.ok(mil.querySelectorAll('g.rl-tm-mark, g.rl-tm-stack').length > 0);
   const asked = board(seat(), ui({ layer: 'diplomatic' }));
-  assert.ok(asked.querySelectorAll('g.rl-tm-mark').length > 0, 'a layer not offered falls back to one that is');
+  assert.ok(asked.querySelectorAll('g.rl-tm-mark, g.rl-tm-stack').length > 0, 'a layer not offered falls back to one that is');
 });
 
 test('own pieces stand at their area\'s label point', () => {
-  const pic = draw();
+  const pic = draw(TMAP, { fanned: 'norra_plain' });
   const herald = pic.querySelectorAll('g.rl-tm-mark').find((g) => /Norra Herald/.test(g.getAttribute('aria-label')));
   assert.deepEqual([herald.getAttribute('data-x'), herald.getAttribute('data-y')], ['150', '50'], 'the Norra Plain\'s label point');
   assert.match(herald.getAttribute('aria-label'), /Herald, Yours · Norra, Known, The Norra Plain/);

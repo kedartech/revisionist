@@ -23,11 +23,16 @@ yields, holders and the days territories changed hands): the weighted sum of its
 manpower and fuel incomes, scaled so that the largest nation at the start is 100.
 
 ``move_yield`` moves part of a yield between two territories of one holder and lands
-``yield_changed``; the moved yield pays where it now lies.
+``yield_changed``; the moved yield pays where it now lies (RSD) from its restart date:
+the source loses the part on the day of the move, and the part pays nothing until
+``restart_days`` later (default 0, at once), then in full times the holder's factor. The
+pending part is kept on the territory it lies in (``Economy.pending``), so it changes
+hands with the territory. A move out of a territory with an idle part takes its working
+part first.
 """
 
-from datetime import date
-from typing import TYPE_CHECKING, Annotated
+from datetime import date, timedelta
+from typing import TYPE_CHECKING, Annotated, ClassVar
 
 from pydantic import Field
 
@@ -65,14 +70,27 @@ class Pools(Model):
     manpower: Amount = 0
 
 
+class Restart(Model):
+    """A moved part of a yield that pays nothing before ``on`` (RSD)."""
+
+    resource: Label
+    amount: Amount
+    on: date
+
+
 class Economy(Model):
     """The war economy's truth. A seat sees its own nation's part only."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"pending"})
 
     pools: dict[EntityId, Pools] = Field(default_factory=dict)
     """Each nation's pools, by ``economy_set``. Absent: nothing paid yet."""
     yields: dict[EntityId, dict[Label, Amount]] = Field(default_factory=dict)
     """Each territory whose yields have been moved: what it yields now, by resource key,
     by ``yield_changed``. Absent: what the board prints."""
+    pending: dict[EntityId, tuple[Restart, ...]] = Field(default_factory=dict)
+    """Each territory a part was moved to with a restart date, by ``yield_changed``:
+    the parts and the days they restart, in the order moved. Kept past the date."""
 
 
 def on(state: "_World") -> bool:
@@ -109,6 +127,25 @@ def yields_of(state: "State | View", area: EntityId) -> dict[str, float]:
     return {} if t is None else dict(t.yields)
 
 
+def idle(state: "State | View", area: EntityId, resource: str, day: date) -> float:
+    """How much of a territory's yield of ``resource`` pays nothing on ``day``: its moved
+    parts not yet restarted, at most what it yields."""
+    waiting = sum(
+        r.amount
+        for r in state.economy.pending.get(area, ())
+        if r.resource == resource and r.on > day
+    )
+    return min(waiting, yields_of(state, area).get(resource, 0))
+
+
+def working(state: "State | View", area: EntityId, day: date) -> dict[str, float]:
+    """What a territory yields on ``day``, by resource key, less its idle parts."""
+    return {
+        k: round(v - idle(state, area, k, day), 6)
+        for k, v in sorted(yields_of(state, area).items())
+    }
+
+
 def _role_of(state: "_World", resource: str) -> Role | None:
     if state.kinds is None:
         return None
@@ -142,7 +179,7 @@ def _income(
     for t in _territories(state):
         if holder(state, t.area) != polity:
             continue
-        found = dict(t.yields) if printed else yields_of(state, t.area)
+        found = dict(t.yields) if printed else working(state, t.area, day)
         amount = sum(v for k, v in sorted(found.items()) if _role_of(state, k) is role)
         if amount:
             total += amount * factor(state, t.area, role, day)
@@ -221,9 +258,18 @@ def walk(state: "State", day: date) -> list["Payload"]:
 
 
 def refusal(
-    state: "State", frm: EntityId, to: EntityId, resource: str, amount: float
+    state: "State",
+    frm: EntityId,
+    to: EntityId,
+    resource: str,
+    amount: float,
+    *,
+    moved_on: date | None = None,
+    restart: date | None = None,
 ) -> str | None:
     """Why a yield cannot be moved; None when it can."""
+    if restart is not None and moved_on is not None and restart < moved_on:
+        return "a moved part restarts on or after the day it moves"
     if not on(state):
         return "the economy rule is off"
     if _territory(state, frm) is None or _territory(state, to) is None:
@@ -241,20 +287,50 @@ def refusal(
 
 
 def move_yield(
-    state: "State", frm: EntityId, to: EntityId, resource: str, amount: float, on: date
+    state: "State",
+    frm: EntityId,
+    to: EntityId,
+    resource: str,
+    amount: float,
+    on: date,
+    *,
+    restart_days: int = 0,
 ) -> "YieldChanged":
     """Move ``amount`` of ``resource``'s yield from ``frm`` to ``to``, two territories of
-    one holder; the ``yield_changed`` to land. Raises ``EconomyError`` when it cannot."""
+    one holder; the ``yield_changed`` to land, with the date the moved part restarts
+    (``restart_days`` after ``on``; none for 0, which pays at once). Raises
+    ``EconomyError`` when it cannot."""
     from revisionist.core import events as ev
 
+    if restart_days < 0:
+        raise EconomyError("a moved part cannot restart before the day it moves")
     why = refusal(state, frm, to, resource, amount)
     if why is not None:
         raise EconomyError(why)
-    return ev.YieldChanged(area=frm, to=to, resource=resource, amount=amount, on=on)
+    restart = on + timedelta(days=restart_days) if restart_days else None
+    return ev.YieldChanged(
+        area=frm, to=to, resource=resource, amount=amount, on=on, restart=restart
+    )
 
 
-def moved(state: "State", frm: EntityId, to: EntityId, resource: str, amount: float) -> Economy:
-    """The economy after a move ``refusal`` allows."""
+def moved(
+    state: "State",
+    frm: EntityId,
+    to: EntityId,
+    resource: str,
+    amount: float,
+    restart: date | None = None,
+) -> Economy:
+    """The economy after a move ``refusal`` allows; a part with a restart date is kept
+    pending on ``to``."""
+    update: dict[str, object] = {}
+    if restart is not None:
+        pending = dict(state.economy.pending)
+        pending[to] = (
+            *pending.get(to, ()),
+            Restart(resource=resource, amount=amount, on=restart),
+        )
+        update["pending"] = pending
     out = dict(state.economy.yields)
     there = yields_of(state, frm)
     there[resource] = round(there[resource] - amount, 6)
@@ -262,12 +338,13 @@ def moved(state: "State", frm: EntityId, to: EntityId, resource: str, amount: fl
     here = yields_of(state, to)
     here[resource] = round(here.get(resource, 0) + amount, 6)
     out[to] = here
-    return state.economy.model_copy(update={"yields": out})
+    return state.economy.model_copy(update={"yields": out, **update})
 
 
 def seen_by(state: "State", seat: SeatId) -> Economy:
-    """What ``seat`` sees of the economy: its own nation's pools, and the moved yields of
-    the territories its nation holds. Nothing for a seat of no nation."""
+    """What ``seat`` sees of the economy: its own nation's pools, and the moved yields
+    and pending parts of the territories its nation holds. Nothing for a seat of no
+    nation."""
     from revisionist.core.realism.war import polity_of
 
     me = state.seats.get(seat)
@@ -277,6 +354,7 @@ def seen_by(state: "State", seat: SeatId) -> Economy:
     return Economy(
         pools={k: v for k, v in state.economy.pools.items() if k == own},
         yields={k: v for k, v in state.economy.yields.items() if holder(state, k) == own},
+        pending={k: v for k, v in state.economy.pending.items() if holder(state, k) == own},
     )
 
 
@@ -288,9 +366,11 @@ __all__ = [
     "Economy",
     "EconomyError",
     "Pools",
+    "Restart",
     "factor",
     "figure",
     "holder",
+    "idle",
     "income",
     "move_yield",
     "moved",
@@ -298,5 +378,6 @@ __all__ = [
     "refusal",
     "seen_by",
     "walk",
+    "working",
     "yields_of",
 ]

@@ -709,12 +709,17 @@ class YieldChanged(Model):
     """Part of a territory's yield moved to another territory of the same holder (YLD).
     Sealed to the holder's seats: true figures."""
 
+    late_fields: ClassVar[frozenset[str]] = frozenset({"restart"})
+
     kind: Literal["yield_changed"] = "yield_changed"
     area: EntityId
     to: EntityId
     resource: Label
     amount: Amount
     on: date
+    restart: date | None = None
+    """The day the moved part starts to pay where it now lies (RSD); None, as in every
+    move stored before it: at once."""
 
 
 class NewsReported(Model):

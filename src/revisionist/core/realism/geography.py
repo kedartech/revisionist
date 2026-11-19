@@ -23,7 +23,7 @@ from pydantic import Field, model_validator
 
 from revisionist.core._base import Label, Model
 from revisionist.core.ids import EntityId, FeatureId
-from revisionist.core.realism.effect import Engagement, Posture
+from revisionist.core.realism.effect import Contingency, Engagement, Posture
 
 
 class FeatureKind(StrEnum):
@@ -97,6 +97,9 @@ class Feature(Model):
     lost_on: date | None = None
     """With ``battles`` on, a piece brought to strength 0 or destroyed in battle: the day it
     was. It is out of play from then on. None while it is in play (BTL)."""
+    contingency: Contingency | None = None
+    """With ``battles`` on, what the force does in a battle with no decision from its seat,
+    set by an applied engagement order. None: hold (BDC)."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
@@ -110,6 +113,7 @@ class Feature(Model):
             "path",
             "step_due",
             "lost_on",
+            "contingency",
         }
     )
 

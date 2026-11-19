@@ -23,6 +23,7 @@ from revisionist.core.canary import scan_text
 from revisionist.core.events import CallCost, Event
 from revisionist.core.fold import FoldError, _check_effect
 from revisionist.core.ids import EntityId, OrderId, QuantityId
+from revisionist.core.realism import battle
 from revisionist.core.realism.apply import account_by
 from revisionist.core.realism.effect import (
     DISPOSITION_CAP,
@@ -181,7 +182,8 @@ def clamp(
 ) -> tuple[tuple[EstimatedEffect, ...], tuple[str, ...]]:
     """Code bounds on whatever the model proposed. Returns the survivors and a line per cut.
 
-    An order the aide filed keeps no deal: a deal is the seat's own to strike.
+    An order the aide filed keeps no deal: a deal is the seat's own to strike; in a battle
+    game it keeps no press, withdrawal or change of contingency (BDC rule 8).
 
     The disposition cap is per order (spec §8.3): what the order's other parts
     already move, given or estimated, counts against it. A figure's percent is held
@@ -202,6 +204,14 @@ def clamp(
         if aide and isinstance(effect, Deal):
             dropped.append("deal: the aide makes no deal")
             continue
+        if aide:  # BDC rule 8: in a battle game the aide neither presses nor withdraws
+            kept_ = battle.aide_may(state, effect)
+            if kept_ is None:
+                dropped.append(f"{effect.kind}: the aide neither presses nor withdraws")
+                continue
+            if kept_ is not effect:
+                dropped.append(f"{effect.kind}: the aide's press, withdrawal or contingency")
+                effect = kept_
         try:
             # The fold's own guard, so nothing lands that the fold would refuse.
             _check_effect(state, effect, f"order {order.order_id}", on)

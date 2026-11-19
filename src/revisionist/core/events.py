@@ -15,7 +15,7 @@ TickOpened, TickClosed``, and for realism campaigns ``CardsDeclared,
 DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, QuantitySet,
 FeatureSet, WarDeclared, MapDeclared, KindsDeclared, NewsReported, StanceChanged, OpponentsRanked,
 CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted, EconomySet, YieldChanged,
-TradeSet, BattleOpened, BattleRound, BattleEnded``, and
+TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -41,6 +41,7 @@ from revisionist.core.ids import (
     EntityId,
     EventId,
     FactId,
+    FeatureId,
     GoalId,
     IntentId,
     MandateId,
@@ -73,7 +74,7 @@ from revisionist.core.realism.agenda import (
     PlayStyle,
 )
 from revisionist.core.realism.answer import Answer
-from revisionist.core.realism.battle import Battle, Ending
+from revisionist.core.realism.battle import Battle, Decision, Ending
 from revisionist.core.realism.card import (
     Address,
     ChannelKind,
@@ -782,6 +783,35 @@ class BattleEnded(Model):
     winner: EntityId
 
 
+class BattleDecided(Model):
+    """A side's decision for a battle, or pieces that joined it (BDC). With ``decision``,
+    the side's decision in force from ``on``, given in wake ``wake``; with ``joined``, the
+    pieces that stepped in and joined the side, bringing ``added`` strength. Engine only:
+    a seat's own order is fed to it already, and a join carries the true strength."""
+
+    kind: Literal["battle_decided"] = "battle_decided"
+    area: EntityId
+    nation: EntityId
+    """The side, by its leading nation."""
+    on: date
+    decision: Decision | None = None
+    wake: int | None = Field(default=None, ge=0)
+    joined: tuple[FeatureId, ...] = ()
+    added: int = Field(default=0, ge=0)
+
+    @model_validator(mode="after")
+    def _shape(self) -> "BattleDecided":
+        if (self.decision is None) != (self.wake is None):
+            raise ValueError("battle_decided: a decision and its wake go together")
+        if self.decision is None and not self.joined:
+            raise ValueError("battle_decided: a decision, or pieces that join")
+        if bool(self.joined) != (self.added > 0):
+            raise ValueError("battle_decided: pieces that join bring strength")
+        if len(set(self.joined)) != len(self.joined):
+            raise ValueError("battle_decided: a piece joins once")
+        return self
+
+
 class NewsReported(Model):
     """A public event, as structured facts. Each seat's press words it later."""
 
@@ -1199,6 +1229,7 @@ Payload = Annotated[
     | BattleOpened
     | BattleRound
     | BattleEnded
+    | BattleDecided
     | NewsReported
     | StanceChanged
     | OpponentsRanked
@@ -1282,6 +1313,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "battle_opened",
         "battle_round",
         "battle_ended",
+        "battle_decided",
         "stance_changed",
         "opponents_ranked",
         "card_amended",

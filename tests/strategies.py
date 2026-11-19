@@ -728,7 +728,21 @@ def features(draw: st.DrawFn) -> rg.Feature:
         path=tuple(draw(st.lists(entity_ids, min_size=1, max_size=3))) if stepping else (),
         step_due=as_of if stepping else None,
         lost_on=draw(st.none() | in_world_dates) if kind is rg.FeatureKind.PIECE else None,
+        contingency=draw(st.none() | contingencies()) if kind is rg.FeatureKind.PIECE else None,
     )
+
+
+@st.composite
+def contingencies(draw: st.DrawFn) -> rx.Contingency:
+    """A battle contingency of any kind, with the fields its kind takes (BDC)."""
+    kind = draw(st.sampled_from(list(rx.ContingencyKind)))
+    to = None
+    if kind is rx.ContingencyKind.FALL_BACK:
+        to = draw(entity_ids)
+    elif kind is rx.ContingencyKind.WITHDRAW_BELOW:
+        to = draw(st.none() | entity_ids)
+    below = draw(st.integers(1, 5)) if kind is rx.ContingencyKind.WITHDRAW_BELOW else None
+    return rx.Contingency(kind=kind, to=to, below=below)
 
 
 @st.composite
@@ -779,11 +793,52 @@ boxes = st.tuples(*[st.floats(-180, 180, allow_nan=False)] * 4)
 @st.composite
 def battle_sides(draw: st.DrawFn) -> rb.BattleSide:
     pieces = draw(st.lists(feature_ids, min_size=1, max_size=3, unique=True))
+    decided = draw(st.booleans())
     return rb.BattleSide(
         nation=draw(entity_ids),
         pieces=tuple(pieces),
         brought=draw(st.integers(1, 15)),
         lost=draw(st.integers(0, 15)),
+        decision=draw(st.sampled_from(list(rb.Decision))) if decided else None,
+        decided_wake=draw(st.integers(0, 50)) if decided else None,
+    )
+
+
+@st.composite
+def battles(draw: st.DrawFn) -> rb.Battle:
+    """An open battle; one in three a meeting battle on a border (BDC's fields for HON)."""
+    area = draw(entity_ids)
+    meeting = draw(st.integers(0, 2)) == 0
+    second = draw(entity_ids.filter(lambda a: a != area)) if meeting else None
+    return rb.Battle(
+        area=area,
+        opened=draw(in_world_dates),
+        attacker=draw(battle_sides()),
+        defender=draw(battle_sides()),
+        came_from=draw(st.dictionaries(feature_ids, entity_ids, max_size=2)),
+        rounds=draw(st.integers(0, 30)),
+        pressed_on=draw(st.none() | in_world_dates),
+        meeting=meeting,
+        second=second,
+        attacker_in=draw(st.sampled_from([area, second])) if second is not None else None,
+    )
+
+
+@st.composite
+def battle_decisions(draw: st.DrawFn) -> ev.BattleDecided:
+    """A decision, pieces joining, or both (BDC)."""
+    decided, joins = draw(st.sampled_from([(True, False), (False, True), (True, True)]))
+    joined = (
+        tuple(draw(st.lists(feature_ids, min_size=1, max_size=3, unique=True))) if joins else ()
+    )
+    return ev.BattleDecided(
+        area=draw(entity_ids),
+        nation=draw(entity_ids),
+        on=draw(in_world_dates),
+        decision=draw(st.sampled_from(list(rb.Decision))) if decided else None,
+        wake=draw(st.integers(0, 50)) if decided else None,
+        joined=joined,
+        added=draw(st.integers(len(joined), 15)) if joins else 0,
     )
 
 
@@ -963,18 +1018,10 @@ realism_payloads = st.one_of(
     ),
     st.builds(
         ev.BattleOpened,
-        battle=st.builds(
-            rb.Battle,
-            area=entity_ids,
-            opened=in_world_dates,
-            attacker=battle_sides(),
-            defender=battle_sides(),
-            came_from=st.dictionaries(feature_ids, entity_ids, max_size=2),
-            rounds=st.integers(0, 30),
-            pressed_on=st.none() | in_world_dates,
-        ),
+        battle=battles(),
         on=in_world_dates,
     ),
+    battle_decisions(),
     st.builds(
         ev.BattleRound,
         area=entity_ids,
@@ -1159,6 +1206,7 @@ effects: st.SearchStrategy[rx.Effect] = st.one_of(
         force=st.none() | feature_ids,
         zone=labels,
         rule=st.sampled_from(list(rx.Engagement)),
+        contingency=st.none() | contingencies(),
     ),
     st.builds(
         rx.Allocate, recipient=entity_ids, what=labels, amount=st.integers(0, 10**9), unit=labels

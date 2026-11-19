@@ -43,7 +43,15 @@ from revisionist.core.ids import (
     derived_id,
 )
 from revisionist.core.ontology import Phase
-from revisionist.core.realism import actors, answering, apply, mandates, opponents, process
+from revisionist.core.realism import (
+    actors,
+    answering,
+    apply,
+    holders,
+    mandates,
+    opponents,
+    process,
+)
 from revisionist.core.realism.advance import Wake, next_wake
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.arrivals import arrivals
@@ -383,6 +391,10 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return private_to(payload.order.issuer)
     if isinstance(payload, ev.PieceStepped):
         return _nation_scope(state, payload.nation)
+    if isinstance(payload, ev.CaptureCounted):
+        # Engine only: a count says where pieces stand. Sealed to a seat nobody holds.
+        held = SeatId(derived_id(state.campaign_id, "engine-only", "capture"))
+        return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
     return PUBLIC  # a player's ``order_drafted`` too, as ``file_order`` lands it
 
 
@@ -454,8 +466,9 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     orders enacted that day are resolved, then what moves with time, then arrivals, contacts and the
     press, then the feeds that fall due issue, dated that day, then mandates settle and
     issue, then the people nobody plays take up and make their answers, then stances
-    and each seat's opponents are worked out. Each step sees the state after the ones
-    before it."""
+    and each seat's opponents are worked out. Pieces' steps are followed by the day's
+    capture counts (THL); after the last day, the close, a capital marked in an earlier
+    wake falls or loses its mark. Each step sees the state after the ones before it."""
     state = em.state
     out: list[Event] = []
 
@@ -502,6 +515,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         for on_day in ON_DAY.values():
             add(apply_changes(state, on_day(state, day)))
         add(movement.walk(state, day))
+        add(holders.walk(state, day))
         add(arrivals(before_on_day, state, day))
         add(contacts(state, day))
         add(news_pages(state, day))
@@ -522,6 +536,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         while made := answering.make(state, day):
             add(made)
         add(opponents.settle(state, day, [*landed, *planned], wake_start))
+    add(holders.close(state, until))  # the wake's close: a capital marked before falls
     return out
 
 

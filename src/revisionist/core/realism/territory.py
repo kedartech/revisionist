@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from revisionist.core.events import PieceStepped
     from revisionist.core.realism.geography import Feature
     from revisionist.core.realism.kinds import Domain, PieceKind
-    from revisionist.core.state import State
+    from revisionist.core.state import State, View
 
 Coords = Literal["lonlat", "flat"]
 """``lonlat``: x is longitude and y latitude, in degrees. ``flat``: units of the
@@ -158,8 +158,10 @@ class WorldMap(Model):
     bases: tuple[Base, ...] = ()
     lift_pools: dict[EntityId, QuantityId] = Field(default_factory=dict)
     """Each lifting polity's pool of shipping, by the quantity that holds it."""
+    capitals: dict[EntityId, EntityId] = Field(default_factory=dict)
+    """Each polity's capital site, a place, by the polity (``capital`` in the world)."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"ports", "bases", "lift_pools"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"ports", "bases", "lift_pools", "capitals"})
 
     def areas(self) -> tuple[EntityId, ...]:
         return tuple(t.area for t in self.territories) + tuple(z.area for z in self.sea_zones)
@@ -317,11 +319,15 @@ def steps_within(
     }
 
 
-def holder(state: "State", area: EntityId) -> EntityId | None:
-    """The polity holding a territory; None for a sea zone or a territory nobody holds."""
+def holder(state: "State | View", area: EntityId) -> EntityId | None:
+    """The polity holding a territory now: the last ``area_held`` for it (THL), else the
+    board's; None for a sea zone or a territory nobody holds."""
     board = state.map
     if board is None:
         return None
+    held = state.holders.get(area)
+    if held is not None:
+        return held.holder
     return next((t.holder for t in board.territories if t.area == area), None)
 
 
@@ -467,11 +473,13 @@ def _air_range(state: "State", piece: "Feature", kind: "PieceKind") -> set[Entit
     board = state.map
     if board is None or kind.range_steps is None or not board.bases:
         return None
+    from revisionist.core.realism.holders import serves
+
     own = nation(state, piece.side)
     sources = [
         a
         for b in board.bases
-        if own in b.sides and "air" in b.domains and (a := b.area("air")) is not None
+        if serves(state, b, own) and "air" in b.domains and (a := b.area("air")) is not None
     ]
     reach = steps_from(board, "air", sources)
     return {a for a, n in reach.items() if n <= kind.range_steps}

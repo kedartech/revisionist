@@ -65,6 +65,7 @@ from revisionist.core.realism import card as rc
 from revisionist.core.realism import document as rd
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism import geography as rg
+from revisionist.core.realism import holders as rh
 from revisionist.core.realism import kinds as rk
 from revisionist.core.realism import pipeline as rp
 from revisionist.core.realism import stance as rs
@@ -770,6 +771,19 @@ labels = st.text(min_size=1, max_size=20)
 sha256s = st.binary(min_size=1, max_size=8).map(lambda b: tm.file_hash(b))
 boxes = st.tuples(*[st.floats(-180, 180, allow_nan=False)] * 4)
 
+
+@st.composite
+def captures(draw: st.DrawFn) -> rh.Capture:
+    """A capture count, a capital mark, or both."""
+    counted, marked = draw(st.sampled_from([(True, False), (False, True), (True, True)]))
+    return rh.Capture(
+        by=draw(entity_ids) if counted else None,
+        since=draw(in_world_dates) if counted else None,
+        marked=draw(st.integers(min_value=0, max_value=50)) if marked else None,
+        marked_on=draw(in_world_dates) if marked else None,
+    )
+
+
 world_maps = st.builds(
     tm.WorldMap,
     file=labels,
@@ -829,6 +843,7 @@ world_maps = st.builds(
         max_size=2,
     ).map(tuple),
     lift_pools=st.dictionaries(entity_ids, quantity_ids, max_size=2),
+    capitals=st.dictionaries(entity_ids, entity_ids, max_size=2),
 )
 
 
@@ -885,6 +900,18 @@ realism_payloads = st.one_of(
         entered=entity_ids,
         on=in_world_dates,
         cause=st.sampled_from(tm.StepCause),
+    ),
+    st.builds(
+        ev.AreaHeld,
+        area=entity_ids,
+        holder=entity_ids,
+        was=st.none() | entity_ids,
+        on=in_world_dates,
+    ),
+    st.builds(
+        ev.CaptureCounted,
+        area=entity_ids,
+        capture=st.none() | captures(),
     ),
     documents_issued(),
     st.builds(ev.DocumentWritten, doc_id=document_ids, prose=st.text(min_size=1, max_size=400)),

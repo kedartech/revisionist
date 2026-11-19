@@ -747,6 +747,50 @@
         "title": "Appointment",
         "type": "object"
       },
+      "AreaHeld": {
+        "additionalProperties": false,
+        "description": "A territory changed hands (THL): its new holder, the one it was taken from, and the\nday. Public: holders are public.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "holder": {
+            "title": "Holder",
+            "type": "string"
+          },
+          "kind": {
+            "const": "area_held",
+            "default": "area_held",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "was": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Was"
+          }
+        },
+        "required": [
+          "area",
+          "holder",
+          "on"
+        ],
+        "title": "AreaHeld",
+        "type": "object"
+      },
       "Ask": {
         "additionalProperties": false,
         "description": "One part of an order before it is routed: what the seat wants, in short words,\nand the typed effect where the reader found one.",
@@ -1375,6 +1419,96 @@
           "world"
         ],
         "title": "CampaignCreated",
+        "type": "object"
+      },
+      "Capture": {
+        "additionalProperties": false,
+        "description": "A territory's capture count and capital mark. Engine only.\n\n``by`` and ``since``: the polity whose land pieces have stood there unopposed, and the\nfirst day they did; None while nobody counts. ``marked``: the tick of the wake in which\na capital's territory was marked as falling, and ``marked_on`` its day; None unmarked.",
+        "properties": {
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "By"
+          },
+          "marked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Marked"
+          },
+          "marked_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Marked On"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since"
+          }
+        },
+        "title": "Capture",
+        "type": "object"
+      },
+      "CaptureCounted": {
+        "additionalProperties": false,
+        "description": "A territory's capture count or capital mark as it stands at the end of a day in the\nwalk (THL); None when it has neither. Engine only: it says where pieces stand.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "capture": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Capture"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "kind": {
+            "const": "capture_counted",
+            "default": "capture_counted",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "area"
+        ],
+        "title": "CaptureCounted",
         "type": "object"
       },
       "CardAmended": {
@@ -10122,6 +10256,13 @@
             "default": null,
             "title": "Box"
           },
+          "capitals": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Capitals",
+            "type": "object"
+          },
           "coords": {
             "enum": [
               "lonlat",
@@ -10411,9 +10552,11 @@
             "agent_assigned": "#/$defs/AgentAssigned",
             "answer_made": "#/$defs/AnswerMade",
             "answer_planned": "#/$defs/AnswerPlanned",
+            "area_held": "#/$defs/AreaHeld",
             "asset_created": "#/$defs/AssetCreated",
             "briefing_delivered": "#/$defs/BriefingDelivered",
             "campaign_created": "#/$defs/CampaignCreated",
+            "capture_counted": "#/$defs/CaptureCounted",
             "card_amended": "#/$defs/CardAmended",
             "cards_declared": "#/$defs/CardsDeclared",
             "character_claimed": "#/$defs/CharacterClaimed",
@@ -10694,6 +10837,12 @@
           },
           {
             "$ref": "#/$defs/PieceStepped"
+          },
+          {
+            "$ref": "#/$defs/AreaHeld"
+          },
+          {
+            "$ref": "#/$defs/CaptureCounted"
           },
           {
             "$ref": "#/$defs/NewsReported"
@@ -11695,6 +11844,64 @@
           "label"
         ],
         "title": "BodyField",
+        "type": "object"
+      },
+      "Capture": {
+        "additionalProperties": false,
+        "description": "A territory's capture count and capital mark. Engine only.\n\n``by`` and ``since``: the polity whose land pieces have stood there unopposed, and the\nfirst day they did; None while nobody counts. ``marked``: the tick of the wake in which\na capital's territory was marked as falling, and ``marked_on`` its day; None unmarked.",
+        "properties": {
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "By"
+          },
+          "marked": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Marked"
+          },
+          "marked_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Marked On"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since"
+          }
+        },
+        "title": "Capture",
         "type": "object"
       },
       "ChannelKind": {
@@ -13204,6 +13411,39 @@
           "action"
         ],
         "title": "HeldChoice",
+        "type": "object"
+      },
+      "Holding": {
+        "additionalProperties": false,
+        "description": "A territory that has changed hands: its holder now, the one it was taken from, and\nthe day it was taken. Public.",
+        "properties": {
+          "holder": {
+            "title": "Holder",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "taken_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Taken From"
+          }
+        },
+        "required": [
+          "holder",
+          "on"
+        ],
+        "title": "Holding",
         "type": "object"
       },
       "HoldsOffice": {
@@ -16777,6 +17017,13 @@
             "default": null,
             "title": "Box"
           },
+          "capitals": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Capitals",
+            "type": "object"
+          },
           "coords": {
             "enum": [
               "lonlat",
@@ -17061,6 +17308,13 @@
         "title": "Campaign Id",
         "type": "string"
       },
+      "captures": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Capture"
+        },
+        "title": "Captures",
+        "type": "object"
+      },
       "cards": {
         "additionalProperties": {
           "$ref": "#/$defs/SeatCard"
@@ -17150,6 +17404,13 @@
           "$ref": "#/$defs/Controller"
         },
         "title": "Handovers",
+        "type": "object"
+      },
+      "holders": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Holding"
+        },
+        "title": "Holders",
         "type": "object"
       },
       "in_world_date": {
@@ -19199,6 +19460,39 @@
           "action"
         ],
         "title": "HeldChoice",
+        "type": "object"
+      },
+      "Holding": {
+        "additionalProperties": false,
+        "description": "A territory that has changed hands: its holder now, the one it was taken from, and\nthe day it was taken. Public.",
+        "properties": {
+          "holder": {
+            "title": "Holder",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "taken_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Taken From"
+          }
+        },
+        "required": [
+          "holder",
+          "on"
+        ],
+        "title": "Holding",
         "type": "object"
       },
       "HoldsOffice": {
@@ -21864,6 +22158,13 @@
             "default": null,
             "title": "Box"
           },
+          "capitals": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Capitals",
+            "type": "object"
+          },
           "coords": {
             "enum": [
               "lonlat",
@@ -22209,6 +22510,13 @@
           "$ref": "#/$defs/Goal"
         },
         "title": "Goals",
+        "type": "object"
+      },
+      "holders": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Holding"
+        },
+        "title": "Holders",
         "type": "object"
       },
       "in_world_date": {

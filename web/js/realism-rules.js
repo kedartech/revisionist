@@ -581,3 +581,58 @@ export function courseLine(course) {
   const arrives = course.arrives && rest.length ? `; arrives ${shortDate(course.arrives)}` : '';
   return `Under way: on the step into ${step.name}${due}${then}${arrives}`;
 }
+
+// --- holders and the front line ----------------------------------------------------
+
+/** How a holder stands to the seat, in a word; the same words the tint's pattern stands for. */
+const HOLDER_RELATION = Object.freeze({ own: 'yours', ally: 'ally', enemy: 'enemy', neutral: 'neutral' });
+
+/** A holder's relation key (own, ally, enemy, neutral) for an area; null when nobody holds it. */
+export const holderRelation = (area) => (area?.holder ? area.holder.relation : null);
+
+/** "Norra (yours)", or "Sudland (enemy)"; "No holder" for an area nobody holds (a sea zone too). */
+export function holderWords(area) {
+  if (!area?.holder) return 'No holder';
+  return `${area.holder.name} (${pick(HOLDER_RELATION, area.holder.relation)})`;
+}
+
+/**
+ * Whether two holders are at war, as the seat's payload says it: a nation at war with the
+ * seat's own is an enemy, and an ally is at war with a common enemy. Two of the same
+ * standing, or a neutral, are not known to be at war.
+ */
+export function holdersAtWar(a, b) {
+  const [x, y] = [holderRelation(a), holderRelation(b)];
+  if (x === null || y === null) return false;
+  return (x === 'enemy' && (y === 'own' || y === 'ally')) || (y === 'enemy' && (x === 'own' || x === 'ally'));
+}
+
+/** Whether the border between land areas `a` and `b` (objects of the map block) is a front. */
+export const isFront = (a, b) => a?.kind === 'land' && b?.kind === 'land' && holdersAtWar(a, b);
+
+/** "Changed hands 12 Oct, taken from Sudland"; '' for an area that never changed hands. */
+export function changedLine(area) {
+  if (!area?.held_since) return '';
+  const from = area.taken_from ? `, taken from ${area.taken_from.name}` : '';
+  return `Changed hands ${shortDate(area.held_since)}${from}`;
+}
+
+/** The line for a capital marked to fall; '' for an area that carries none. */
+export function fallingLine(area) {
+  if (!area?.falling) return '';
+  return `Capital marked to fall: it falls at the close of the wake after ${shortDate(area.falling)}`;
+}
+
+/** Printed yields as words, "grain 10, levies 2000"; "None printed" for none. */
+export function yieldsLine(yields) {
+  const rows = Object.entries(yields ?? {});
+  if (!rows.length) return 'None printed';
+  return rows.map(([key, amount]) => `${key.replace(/_/g, ' ')} ${Number.isInteger(amount) ? amount : Number(amount.toFixed(2))}`).join(', ');
+}
+
+/** "On the front with The Sudland Coast": the land neighbours of `area` held by a nation at war with its holder; '' for none. */
+export function frontLine(area, areas) {
+  const by = new Map((areas ?? []).map((a) => [a.key, a]));
+  const foes = (area.neighbours ?? []).map((k) => by.get(k)).filter((n) => n && isFront(area, n));
+  return foes.length ? `On the front with ${foes.map((n) => n.name).join(', ')}` : '';
+}

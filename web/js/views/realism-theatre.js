@@ -175,6 +175,7 @@ export function theatreBoard(rv, ui, { pick, act } = {}) {
         if (ui.theatre) ui.theatre.fanned = key;
         redraw();
       },
+      onArea: (area) => pick?.({ theatre: { ...theatre, area } }),
       onFrame: (frame) => pick?.({ theatre: { ...theatre, frame, zoom: 1, centre: null } }),
       onView: ({ zoom, centre }) => pick?.({ theatre: { ...theatre, zoom, centre } }),
     });

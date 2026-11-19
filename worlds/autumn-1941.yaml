@@ -282,6 +282,8 @@ quantities:
   # Sealift (R6): [proposed] 300,000 GRT, one lift of Home Forces at a time; unsourced (candidate:
   # Behrens, Merchant Shipping and the Demands of War, 1955). Drawn and given back by core/realism/sealift.py.
   - {key: uk_sealift_grt, owner: uk, name: British shipping free for troop lift, value: 300000, unit: GRT, gap: true}
+  # [proposed] 200,000 GRT of Japanese shipping free for troop lift; unsourced.
+  - {key: japan_sealift_grt, owner: japan, name: Japanese shipping free for troop lift, value: 200000, unit: GRT, gap: true}
 
 # The map. Positions and dates are approximate and unsourced (gap: true): a
 # force's legs are where the record has it if nobody orders it elsewhere.
@@ -340,6 +342,9 @@ features:
   - {key: baltic_fleet, kind: fleet, name: Red Banner Baltic Fleet, side: ussr, tier: 3, places: [leningrad], gap: true}
   - {key: northern_fleet, kind: fleet, name: Northern Fleet, side: ussr, tier: 2, places: [archangel], gap: true}
   - {key: leningrad_front, kind: army, name: Leningrad Front, side: ussr, tier: 4, places: [leningrad], gap: true}
+  # [proposed] strengths; each stands at its side's army base until the territory world places it.
+  - {key: italian_army, kind: army, name: Royal Italian Army, side: italy, tier: 3, places: [rome], gap: true}
+  - {key: chinese_army, kind: army, name: National Revolutionary Army, side: china, tier: 3, places: [chungking], gap: true}
 
 feeds:
   - {key: state_dept_reports, name: State Department memoranda, author: hull, kind: memo, channel: letter, classification: confidential, reports: [japan_oil_stocks], every_days: 7, latency_days: 1, assumed: true, gap: true}
@@ -717,6 +722,7 @@ cards:
         summary: "Tell the Admiralty which convoy routes to protect first."
         params:
           - {name: priority, kind: enum, choices: [atlantic, mediterranean, home_waters], label: "First priority", choice_labels: ["The Atlantic", "The Mediterranean", "Home waters"]}
+          - {name: route, kind: enum, choices: [hx_route, sc_route, arctic_route], label: "Which convoys", choice_labels: ["The HX convoys", "The SC convoys", "The Arctic convoys"]}
       - name: production_priority
         pipeline: cos_directive
         resolver: production
@@ -724,6 +730,7 @@ cards:
         summary: "Direct which branch of industry is to be pressed ahead."
         params:
           - {name: sector, kind: enum, choices: [aircraft, escorts, merchant_ships], label: "Which sector", choice_labels: ["Aircraft", "Escort vessels", "Merchant ships"]}
+          - {name: force, kind: enum, choices: [home_fleet, western_approaches, home_forces, bomber_command], label: "For which force", choice_labels: ["The Home Fleet", "The Western Approaches escort groups", "Home Forces", "RAF Bomber Command"]}
       - name: move_fleet
         pipeline: cos_directive
         resolver: movement
@@ -846,6 +853,7 @@ cards:
         summary: "Direct industry through the State Defence Committee."
         params:
           - {name: sector, kind: enum, choices: [tanks, aircraft, evacuated_industry], label: "Which sector", choice_labels: ["Tanks", "Aircraft", "Evacuated industry"]}
+          - {name: force, kind: enum, choices: [soviet_western_front, leningrad_front, baltic_fleet, northern_fleet], label: "For which force", choice_labels: ["The Western Front", "The Leningrad Front", "The Red Banner Baltic Fleet", "The Northern Fleet"]}
       - name: aid_request
         pipeline: soviet_aid_request
         resolver: production
@@ -965,6 +973,8 @@ cards:
         summary: "Direct which branch of industry is to be pressed ahead."
         params:
           - {name: sector, kind: enum, choices: [uboats, aircraft, tanks], label: "Which sector", choice_labels: ["U-boats", "Aircraft", "Tanks"]}
+          - {name: force, kind: enum, choices: [uboat_arm, army_group_centre, replacement_army, luftwaffe_centre], label: "For which force", choice_labels: ["The U-boat arm", "Army Group Centre", "The Replacement Army", "The Luftwaffe Command Centre"]}
+          - {name: adds_to, kind: enum, choices: [uboats_operational], label: "Which figure it adds to", choice_labels: ["U-boats operational in the Atlantic"]}
       - name: move_army
         pipeline: okw_army_directive
         resolver: movement
@@ -1244,6 +1254,7 @@ cards:
         summary: "Direct which branch of industry is to be pressed ahead."
         params:
           - {name: sector, kind: enum, choices: [aircraft, warships, tanks], label: "Which sector", choice_labels: ["Aircraft", "Warships", "Tanks"]}
+          - {name: force, kind: enum, choices: [italian_army], label: "For which force", choice_labels: ["The Royal Italian Army"]}
     inner_circle:
       - {person: hitler, channel: courier}
       - {person: cavallero, channel: in_person}
@@ -1314,6 +1325,7 @@ cards:
         summary: "Direct the arsenals to concentrate on a chosen class of arms."
         params:
           - {name: sector, kind: enum, choices: [small_arms, artillery, ammunition], label: "Which sector", choice_labels: ["Small arms", "Artillery", "Ammunition"]}
+          - {name: force, kind: enum, choices: [chinese_army], label: "For which force", choice_labels: ["The National Revolutionary Army"]}
       - name: appeal_abroad
         pipeline: appeal_through_soong
         resolver: opinion

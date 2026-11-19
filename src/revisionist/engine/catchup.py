@@ -60,6 +60,8 @@ FEED_KINDS: frozenset[str] = frozenset(
         "kinds_declared",
         # A seat's own nation's pieces, step by step (sealed to its seats): playback's source.
         "piece_stepped",
+        # Who holds each territory, as it changes (THL): public.
+        "area_held",
         "season_ended",
         "quantity_set",
         "wake_opened",
@@ -119,6 +121,9 @@ NEVER: frozenset[str] = frozenset(
         "answer_planned",
         "answer_made",
         "feature_set",
+        # A territory's capture count and capital mark: where pieces stand (THL). The
+        # holder's seats learn of a mark from its paper.
+        "capture_counted",
         "scheduled_event_created",
         "scheduled_event_skipped",
         # Costs, ticks and admin.

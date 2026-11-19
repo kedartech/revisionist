@@ -468,6 +468,7 @@ def within_reach(state: State, piece: Feature) -> set[EntityId] | None:
     """Every area ``area_reach`` does not refuse the piece, in one pass; None where no reach
     rule applies."""
     from revisionist.core.realism import kinds, territory
+    from revisionist.core.realism.holders import serves
 
     board = state.map
     kind = kinds.of(state, piece)
@@ -478,7 +479,7 @@ def within_reach(state: State, piece: Feature) -> set[EntityId] | None:
     sources = [
         at
         for b in board.bases
-        if own in b.sides and domain in b.domains and (at := b.area(domain)) is not None
+        if serves(state, b, own) and domain in b.domains and (at := b.area(domain)) is not None
     ]
     radius = RADIUS_STEPS[domain]
     far = radius.raid if radius.raid is not None else radius.operate
@@ -489,6 +490,7 @@ def area_reach(state: State, piece: Feature, area: EntityId) -> AreaReach | None
     """How far ``area`` lies from the bases of the piece's side and domain, in steps; None
     where no reach rule applies (no board bases, an envoy, or not a piece)."""
     from revisionist.core.realism import kinds, territory
+    from revisionist.core.realism.holders import serves
 
     board = state.map
     kind = kinds.of(state, piece)
@@ -499,7 +501,7 @@ def area_reach(state: State, piece: Feature, area: EntityId) -> AreaReach | None
     sources: dict[EntityId, EntityId] = {}
     for b in sorted(board.bases, key=lambda b: str(b.place)):
         at = b.area(domain)
-        if own in b.sides and domain in b.domains and at is not None:
+        if serves(state, b, own) and domain in b.domains and at is not None:
             sources.setdefault(at, b.place)
     radius = RADIUS_STEPS[domain]
     best: tuple[int, EntityId] | None = None

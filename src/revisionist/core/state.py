@@ -62,6 +62,7 @@ from revisionist.core.realism.card import CardFace, Desk, SeatCard, Topic
 from revisionist.core.realism.document import Document, DocumentView, Feed
 from revisionist.core.realism.effect import EffectKind, RoutedOrder, RoutedOrderView
 from revisionist.core.realism.geography import Feature
+from revisionist.core.realism.holders import Capture, Holding
 from revisionist.core.realism.kinds import Kinds
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
@@ -151,6 +152,9 @@ class _World(Model):
     kinds: Kinds | None = None
     """The world's piece kinds and resources, set once by ``kinds_declared``: public rules
     of the world, the same in every view. None for a world that names neither."""
+    holders: dict[EntityId, Holding] = Field(default_factory=dict)
+    """With ``holders`` on, each territory that has changed hands: its holder now, by
+    ``area_held``. A territory not here has the holder the board gives. Public (THL)."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
@@ -166,6 +170,7 @@ class _World(Model):
             "wars",
             "map",
             "kinds",
+            "holders",
         }
     )
 
@@ -236,9 +241,13 @@ class State(_World):
     rules: frozenset[Rule] = frozenset()
     """The territory rules switched on, set once by ``campaign_created``. Engine only
     here; a seat's view gains them when a rule it shows needs them."""
+    captures: dict[EntityId, Capture] = Field(default_factory=dict)
+    """With ``holders`` on, each territory's capture count and capital mark, by
+    ``capture_counted``. Engine only: it says where pieces stand (THL)."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "rules",
+        "captures",
         "routed",
         "styles",
         "standing",

@@ -14,7 +14,7 @@ CharacterReleased, SessionZeroClosed, SeasonEnded, GoalSet, GoalProgressed, Goal
 TickOpened, TickClosed``, and for realism campaigns ``CardsDeclared,
 DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, QuantitySet,
 FeatureSet, WarDeclared, MapDeclared, KindsDeclared, NewsReported, StanceChanged, OpponentsRanked,
-CardAmended, AnswerPlanned, AnswerMade``, and under engine v2
+CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted``, and under engine v2
 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -83,6 +83,7 @@ from revisionist.core.realism.card import (
 from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
+from revisionist.core.realism.holders import Capture
 from revisionist.core.realism.kinds import PieceKind, Resource
 from revisionist.core.realism.pipeline import (
     Order,
@@ -673,6 +674,26 @@ class PieceStepped(Model):
     cause: StepCause
 
 
+class AreaHeld(Model):
+    """A territory changed hands (THL): its new holder, the one it was taken from, and the
+    day. Public: holders are public."""
+
+    kind: Literal["area_held"] = "area_held"
+    area: EntityId
+    holder: EntityId
+    was: EntityId | None = None
+    on: date
+
+
+class CaptureCounted(Model):
+    """A territory's capture count or capital mark as it stands at the end of a day in the
+    walk (THL); None when it has neither. Engine only: it says where pieces stand."""
+
+    kind: Literal["capture_counted"] = "capture_counted"
+    area: EntityId
+    capture: Capture | None = None
+
+
 class NewsReported(Model):
     """A public event, as structured facts. Each seat's press words it later."""
 
@@ -1081,6 +1102,8 @@ Payload = Annotated[
     | MapDeclared
     | KindsDeclared
     | PieceStepped
+    | AreaHeld
+    | CaptureCounted
     | NewsReported
     | StanceChanged
     | OpponentsRanked
@@ -1156,6 +1179,8 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "war_declared",
         "map_declared",
         "kinds_declared",
+        "area_held",
+        "capture_counted",
         "stance_changed",
         "opponents_ranked",
         "card_amended",

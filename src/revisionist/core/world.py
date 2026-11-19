@@ -115,6 +115,9 @@ class EntityDecl(Model):
     lift_pool: SkipJsonSchema[Key | None] = None
     """A polity's pool of shipping for lifting its land pieces: a quantity key. Written by
     hand."""
+    capital: SkipJsonSchema[Key | None] = None
+    """A polity's capital site: a place within a territory, or the territory itself. With
+    ``holders`` on, that territory falls only after a whole wake's notice. Written by hand."""
 
 
 class AssetDecl(Model):

@@ -45,13 +45,28 @@ function tokens(step) {
   return step.orders.length ? h('ul', { class: 'rl-court-toks' }, step.orders.map((o) => token(o, step))) : null;
 }
 
+/** Only the waiting tokens on this seat's square contribute to its load. */
+function load(step, limit) {
+  if (!Number.isInteger(limit) || limit < 1) return null;
+  const count = step.orders.length;
+  const slow = count >= limit;
+  return h('span', {
+    class: 'rl-court-load', role: 'img',
+    'aria-label': `${count} orders waiting; load limit ${limit}${slow ? '; slow' : ''}`,
+  },
+  h('span', { class: 'rl-court-pips', 'aria-hidden': 'true' },
+    Array.from({ length: Math.max(count, limit) }, (_, i) => h('span', { class: `rl-court-pip${i < count ? ' on' : ''}` }))),
+  h('span', { 'aria-hidden': 'true' }, `${count} of ${limit}${slow ? ' · slow' : ''}`));
+}
+
 /** A decision step's square: a button that picks the person, or for the seat's own step a plain box. */
-function square(step, selected, onPick) {
+function square(step, selected, onPick, limit) {
   const holds = step.orders.length > 0;
   const body = [
     h('span', { class: 'rl-court-name' }, step.you ? 'You' : step.name),
     step.office ? h('span', { class: 'rl-court-office' }, step.office) : null,
     h('span', { class: 'rl-court-days' }, stated(step.days)),
+    load(step, limit),
     tokens(step),
   ];
   const cls = `rl-court-sq${holds ? ' holds' : ''}${step.you ? ' you' : ''}`;
@@ -69,9 +84,9 @@ function clerk(step) {
   return [h('span', { class: 'rl-court-clerk' }, `${step.name}, ${stated(step.days)}`), tokens(step)];
 }
 
-function pathRow(path, selected, onPick) {
+function pathRow(path, selected, onPick, limit) {
   const steps = path.steps.map((s) => h('li', { class: `rl-court-step${s.kind === 'clerical' ? ' clerk' : ''}` },
-    s.kind === 'clerical' ? clerk(s) : square(s, selected, onPick)));
+    s.kind === 'clerical' ? clerk(s) : square(s, selected, onPick, limit)));
   return h('li', { class: 'rl-court-path' },
     h('h3', { class: 'rl-court-path-name' }, path.name),
     path.forms.length ? h('p', { class: 'rl-court-forms' }, `Forms: ${path.forms.join(', ')}`) : null,
@@ -216,7 +231,7 @@ export function courtBoard(rv, ui, { pick } = {}) {
   };
   const who = selected ? courtPeople(court).get(selected) : null;
   const paths = court.paths.length
-    ? h('ol', { class: 'rl-court-paths', 'aria-label': 'Paths' }, court.paths.map((p) => pathRow(p, selected, onPick)))
+    ? h('ol', { class: 'rl-court-paths', 'aria-label': 'Paths' }, court.paths.map((p) => pathRow(p, selected, onPick, court.load_limit)))
     : h('p', { class: 'muted' }, 'None of your forms travels a path yet.');
   const chambers = court.chambers.length
     ? h('div', { class: 'rl-court-chambers' }, court.chambers.map(chamberBlock))

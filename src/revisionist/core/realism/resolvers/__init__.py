@@ -29,9 +29,19 @@ from revisionist.core.realism.war import NewsEvent, War
 from revisionist.core.state import State
 from revisionist.core.world_compile import object_id
 
-Change = QuantityChange | Feature | War | NewsEvent | Fact | Relationship
+Change = (
+    QuantityChange
+    | Feature
+    | War
+    | NewsEvent
+    | Fact
+    | Relationship
+    | ev.EconomySet
+    | ev.DocumentIssued
+)
 """A quantity's new value, a feature as it now stands, a war declared, a public news
-event, a fact asserted or a relationship as it now stands."""
+event, a fact asserted, a relationship as it now stands, a nation's pools as they now
+stand, or a paper issued."""
 OrderFn = Callable[[State, Order], tuple[Change, ...]]
 DayFn = Callable[[State, date], tuple[Change, ...]]
 
@@ -75,6 +85,7 @@ ON_ORDER: dict[ResolverKey, OrderFn] = {
     "opinion": opinion.resolve,
     "movement": movement.order_changes,
     "war": war.resolve,
+    "economy": production.economy_order,
 }
 ON_DAY: dict[ResolverKey, DayFn] = {
     "votes": votes.on_day,
@@ -83,6 +94,7 @@ ON_DAY: dict[ResolverKey, DayFn] = {
     "opinion": opinion.on_day,
     "movement": movement.day_changes,
     "war": war.on_day,
+    "economy": production.economy_day,
 }
 
 
@@ -138,6 +150,8 @@ def apply_changes(state: State, changes: tuple[Change, ...]) -> list[ev.Payload]
             out.append(ev.FactAsserted(fact=c))
         elif isinstance(c, Relationship):
             out.append(ev.RelationshipSet(relationship=c))
+        elif isinstance(c, ev.EconomySet | ev.DocumentIssued):
+            out.append(c)
         else:
             out.append(
                 ev.QuantitySet(

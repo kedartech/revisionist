@@ -357,6 +357,11 @@ def test_an_unrestricted_posture_raises_losses() -> None:
 # --- production -----------------------------------------------------------------
 
 
+def test_production_is_registered_under_economy_for_orders_and_the_day_walk() -> None:
+    assert ON_ORDER["economy"] is production.economy_order
+    assert ON_DAY["economy"] is production.economy_day
+
+
 def finding(r: Rig, recipient: str, share: int) -> Order:
     d = date(1941, 10, 30)
     return r.enact(

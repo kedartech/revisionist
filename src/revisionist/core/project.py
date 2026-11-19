@@ -24,6 +24,7 @@ from typing import Protocol
 
 from revisionist.core.ids import DocumentId, ScheduledEventId, SeatId
 from revisionist.core.ontology import ScheduledEvent, ScheduleSource, Seat
+from revisionist.core.realism import economy
 from revisionist.core.realism.document import DocumentView
 from revisionist.core.state import SeatFace, State, View
 from revisionist.core.visibility import Scope
@@ -87,6 +88,7 @@ def project(state: State, seat: SeatId) -> View:
         map=state.map,
         kinds=state.kinds,
         holders=dict(state.holders),
+        economy=economy.seen_by(state, seat),
         wake=state.wake,
         phase=state.phase,
         roster=dict(state.roster),

@@ -14,8 +14,8 @@ CharacterReleased, SessionZeroClosed, SeasonEnded, GoalSet, GoalProgressed, Goal
 TickOpened, TickClosed``, and for realism campaigns ``CardsDeclared,
 DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, QuantitySet,
 FeatureSet, WarDeclared, MapDeclared, KindsDeclared, NewsReported, StanceChanged, OpponentsRanked,
-CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted``, and under engine v2
-``OrderRouted, OrderExecuted,
+CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted, EconomySet, YieldChanged``, and
+under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
 
@@ -81,6 +81,7 @@ from revisionist.core.realism.card import (
     Topic,
 )
 from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
+from revisionist.core.realism.economy import Amount, Pools
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.holders import Capture
@@ -694,6 +695,28 @@ class CaptureCounted(Model):
     capture: Capture | None = None
 
 
+class EconomySet(Model):
+    """A nation's pools after the first-of-the-month payment (YLD). Sealed to the nation's
+    seats: true figures."""
+
+    kind: Literal["economy_set"] = "economy_set"
+    polity: EntityId
+    pools: Pools
+    on: date
+
+
+class YieldChanged(Model):
+    """Part of a territory's yield moved to another territory of the same holder (YLD).
+    Sealed to the holder's seats: true figures."""
+
+    kind: Literal["yield_changed"] = "yield_changed"
+    area: EntityId
+    to: EntityId
+    resource: Label
+    amount: Amount
+    on: date
+
+
 class NewsReported(Model):
     """A public event, as structured facts. Each seat's press words it later."""
 
@@ -1104,6 +1127,8 @@ Payload = Annotated[
     | PieceStepped
     | AreaHeld
     | CaptureCounted
+    | EconomySet
+    | YieldChanged
     | NewsReported
     | StanceChanged
     | OpponentsRanked
@@ -1181,6 +1206,8 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "kinds_declared",
         "area_held",
         "capture_counted",
+        "economy_set",
+        "yield_changed",
         "stance_changed",
         "opponents_ranked",
         "card_amended",

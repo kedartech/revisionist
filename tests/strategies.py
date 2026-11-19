@@ -63,6 +63,7 @@ from revisionist.core.realism import agenda as ra
 from revisionist.core.realism import answer as rans
 from revisionist.core.realism import card as rc
 from revisionist.core.realism import document as rd
+from revisionist.core.realism import economy as econ
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism import geography as rg
 from revisionist.core.realism import holders as rh
@@ -912,6 +913,24 @@ realism_payloads = st.one_of(
         ev.CaptureCounted,
         area=entity_ids,
         capture=st.none() | captures(),
+    ),
+    st.builds(
+        ev.EconomySet,
+        polity=entity_ids,
+        pools=st.builds(
+            econ.Pools,
+            output=st.floats(0, 1e6, allow_nan=False),
+            manpower=st.floats(0, 1e6, allow_nan=False),
+        ),
+        on=in_world_dates,
+    ),
+    st.builds(
+        ev.YieldChanged,
+        area=entity_ids,
+        to=entity_ids,
+        resource=labels,
+        amount=st.floats(0, 100, allow_nan=False),
+        on=in_world_dates,
     ),
     documents_issued(),
     st.builds(ev.DocumentWritten, doc_id=document_ids, prose=st.text(min_size=1, max_size=400)),

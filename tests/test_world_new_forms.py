@@ -26,7 +26,8 @@ SRC = ROOT / "worlds" / "maps" / "src" / "autumn-1941"
 PART = SRC / "cards-part.yaml"
 START = SRC / "start.yaml"
 FRAGMENT = ROOT / "worlds" / "maps" / "autumn-1941.world.yaml"
-WORLD = ROOT / "worlds" / "autumn-1941.yaml"
+WORLD = ROOT / "tests" / "worlds" / "autumn-1941-points.yaml"
+"""The world before territories, which the staging files were written against."""
 
 MEDITERRANEAN = (
     "mediterranean_fleet",

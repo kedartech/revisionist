@@ -36,7 +36,8 @@ ROOT = Path(__file__).resolve().parents[1]
 START = ROOT / "worlds" / "maps" / "src" / "autumn-1941" / "start.yaml"
 FRAGMENT = ROOT / "worlds" / "maps" / "autumn-1941.world.yaml"
 MAP = ROOT / "worlds" / "maps" / "autumn-1941.json"
-WORLD = ROOT / "worlds" / "autumn-1941.yaml"
+WORLD = ROOT / "tests" / "worlds" / "autumn-1941-points.yaml"
+"""The world before territories, which the staging files were written against."""
 
 SEATED = ("usa", "uk", "japan", "germany", "italy", "ussr", "china")
 """The seven nations with seats in the 1941 world."""

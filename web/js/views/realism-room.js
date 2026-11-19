@@ -25,32 +25,32 @@ import { firstWakeCard } from './realism-firstwake.js';
 import { MISSED_TITLE, happenedSheet, happenedStore, missedPages, missedSheet, shouldShow } from './realism-happened.js';
 import { ideasPanel } from './realism-ideas.js';
 import { crawlParagraphs, introCrawl } from './realism-crawl.js';
-import { runMoves } from './realism-moves.js';
 import { introStage, markIntro, seatSplash, splashModel, startOverview } from './realism-intro.js';
 import { newsBlock, whatChanged } from './realism-news.js';
 import { orderCards } from './realism-orders.js';
 import { pressCounts, pressDock, pressFocus, pressMarks, pressPapers, pressSeen, pressTab, pressUnread } from './realism-press.js';
-import { overlayLines, wakeOverlay, withPlayback } from './realism-overlay.js';
+import { overlayLines, wakeOverlay } from './realism-overlay.js';
+import { playbackDialog, wakePlayer } from './realism-playback.js';
 import { peopleRoster, personDossier } from './realism-people.js';
 import {
   closeSheet, forgetForm, layoutChoice, markFiled, openSheet, openSheetOf, overSheet, readForms, restoreForms,
   returnTarget, roomLayout, setRoomLayout, sheetTabs,
 } from './realism-sheets.js';
 import { stakesStrip } from './realism-stakes.js';
-import { shapesFor, theatreBoard } from './realism-theatre.js';
+import { loadShapes, shapesFor, theatreBoard } from './realism-theatre.js';
 import { statusStrip, summaryTiles } from './realism-status.js';
 import { sideSwitch, tabBar } from './realism-tabs.js';
 import { noticesSection } from './realism-notices.js';
 import { followThread, threadItems } from './realism-thread.js';
 import { threatsPanel } from './realism-threats.js';
 import { trayView } from './realism-tray.js';
-import { RUNNING, commitBusy, commitPanel, orderCard, stylePicker, wakeHeader } from './realism-wake.js';
+import { RUNNING, comeBackLine, commitBusy, commitPanel, orderCard, stylePicker, wakeHeader } from './realism-wake.js';
 
 const freshUi = (game) => ({
   game, wide: false, page: null, said: null, error: null, busy: null,
   filter: 'all', sort: 'newest', draft: null, proposal: null, autoFor: null,
   chat: { open: false, tab: 'chats', thread: null }, contact: null, orderTo: null,
-  happenedSeen: null, missed: null, missedAsked: false, refocusChat: false, brief: null, pending: null, drafts: {}, letters: [], runFrom: null, offer: null, menuCall: false,
+  happenedSeen: null, missed: null, missedAsked: false, refocusChat: false, brief: null, pending: null, drafts: {}, letters: [], playedTo: null, playing: null, missedPlay: null, offer: null, menuCall: false,
   tab: 'desk', side: 'papers', press: { open: false, tab: null }, pressPage: null, peopleTab: 'opponents',
   view: 'board', board: 'theatre', piece: null, theatre: { mode: 'map', scope: 'reports' },
   firstWakeOff: null, sheet: null, sheetFrom: null, sheetForms: {}, matter: null,
@@ -413,8 +413,9 @@ export function realismRoom(ctx) {
   };
   // a sheet left open stays open over a redraw or a re-read of the room
   const showMissed = () => {
-    const sheet = root.querySelector('dialog.rl-missed');
-    if (sheet?.isConnected && !sheet.open) sheet.showModal();
+    for (const sheet of root.querySelectorAll('dialog.rl-missed, dialog.rl-plb-dialog')) {
+      if (sheet.isConnected && !sheet.open) sheet.showModal();
+    }
   };
   const seen = seenStore(storage(), game.id);
   const shown = happenedStore(storage(), game.id);
@@ -442,9 +443,7 @@ export function realismRoom(ctx) {
     for (const el of root.querySelectorAll('button, select, textarea, input')) el.disabled = true;
     showStatus();
     if (message === RUNNING) {
-      ui.runFrom = { wake: rv.record?.wake?.number ?? 0, map: rv.map ?? null }; // What happened replays the moves
-      const layer = withPlayback(wakeOverlay({ message, lines: overlayLines(rv.setting, rv.wake.wake), map: rv.map, orders: rv.record?.orders }), { court: rv.court, stakes: rv.stakes });
-      if (layer) root.append(layer);
+      root.append(wakeOverlay({ message, lines: overlayLines(rv.setting, rv.wake.wake), map: rv.map, orders: rv.record?.orders }));
     }
     try {
       await fn();
@@ -838,33 +837,81 @@ export function realismRoom(ctx) {
     root.querySelector('.rl-write textarea')?.focus();
   }
 
+  /** The wake player's own arguments: the seat's map, its shapes once here, the record and the line at Done. */
+  function playArgs(pages) {
+    const file = rv.map?.file;
+    if (file && !shapesFor(file)) loadShapes(file);
+    return {
+      pages, map: rv.map, shapes: shapesFor(file), record: rv.record, comeBack: comeBackLine(rv),
+      reduced: Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches),
+    };
+  }
+
   /** The sheet of wakes this seat missed, while it has not been closed in this room; null otherwise. */
   function missedDialog() {
     if (!ui.missed) return null;
-    const sheet = missedSheet({ pages: ui.missed, record: rv.record, onClose: () => sheet.close() });
-    sheet.addEventListener('close', () => { ui.missed = null; });
+    // the player is made once: a redraw moves it into the new sheet where it stands
+    ui.missedPlay ??= wakePlayer(playArgs(ui.missed));
+    const sheet = missedSheet({ pages: ui.missed, record: rv.record, play: ui.missedPlay, onClose: () => sheet.close() });
+    sheet.addEventListener('close', () => { ui.missed = null; ui.missedPlay = null; });
     return sheet;
   }
 
-  /**
-   * Ask the server once for the wakes this seat missed (it names the range from the log) and open
-   * the sheet over whatever is open, so closing it returns to the wake's own sheet. A refusal
-   * leaves the room as it was; a server that did not answer is said in the status line.
-   */
-  async function loadMissed() {
-    if (ui.missedAsked) return;
-    ui.missedAsked = true;
-    let reply;
+  /** The wake just opened, playing in its own dialog until it is closed; null otherwise. */
+  function playingDialog() {
+    if (!ui.playing) return null;
+    const d = playbackDialog({ pages: ui.playing.pages, play: ui.playing.play, onClose: () => { ui.playing = null; d.remove(); } });
+    ui.playing.close = () => { if (d.open) d.close(); };
+    return d;
+  }
+
+  /** The catch-up pages for `body`, or none; a server that did not answer is said in the status line. */
+  async function catchupPages(body) {
     try {
-      reply = await api.catchup();
+      return missedPages(await api.catchup(body));
     } catch (ex) {
       if (ex.status === 0 || ex.status >= 500) {
         ui.error = `${MISSED_TITLE} could not be loaded. ${ex.message}`;
         showStatus();
       }
-      return;
+      return [];
     }
-    const pages = missedPages(reply);
+  }
+
+  /**
+   * Ask the server once for the wakes this seat missed (it names the range from the log), and,
+   * once a page, for the wake just opened when this page has not played it. Missed wakes open
+   * their sheet over whatever is open, the playback of each wake in turn inside it, so closing it
+   * returns to the wake's own sheet; the wake just opened alone plays in its own dialog. What has
+   * played is held in the page only (`ui.playedTo`), never in storage. A refusal plays nothing.
+   */
+  async function loadMissed() {
+    const latest = rv.record?.wake?.number;
+    const playLatest = Number.isInteger(latest) && latest > (ui.playedTo ?? -1);
+    if (ui.missedAsked && !playLatest) return;
+    if (playLatest) ui.playedTo = latest;
+    let pages = [];
+    if (!ui.missedAsked) {
+      ui.missedAsked = true;
+      pages = await catchupPages();
+    }
+    if (playLatest && !pages.some((p) => p.number === latest)) {
+      const now = (await catchupPages({ first: latest, last: latest })).filter((p) => p.number === latest);
+      if (pages.length) pages = missedPages({ pages: [...pages, ...now] });
+      else if (now.length) {
+        const playing = { pages: now };
+        playing.play = wakePlayer({ ...playArgs(now), onEnd: () => playing.close?.() });
+        if (!playing.play) return;
+        ui.playing = playing;
+        // the room may have been drawn again while the reply was out: the newest draw shows it
+        const live = root.isConnected ? root : lastRoot;
+        if (!live?.isConnected) return;
+        const d = playingDialog();
+        live.append(d);
+        d.showModal();
+        return;
+      }
+    }
     if (!pages.length) return;
     ui.missed = pages;
     const sheet = missedDialog();
@@ -882,7 +929,7 @@ export function realismRoom(ctx) {
     const happened = happenedDue(page, shown, ui.happenedSeen)
       ? happenedSheet({
         record: rv.record, situation: rv.situation, agenda: rv.agenda, date,
-        moves: runMoves(ui.runFrom, page, rv.map), places: rv.map?.places,
+        places: rv.map?.places,
         onClose: () => happened?.close(),
       })
       : null;
@@ -1154,7 +1201,7 @@ export function realismRoom(ctx) {
       }),
       statusStrip(rv, ui, { act }),
     ];
-    const dialogs = [menu, character, setting, happened, opening, missedDialog()];
+    const dialogs = [menu, character, setting, happened, opening, missedDialog(), playingDialog()];
     if (mapFirst()) return [...mapFirstRoom([...top, status, firstWakeCard(rv.wake, { dismissed: ui.firstWakeOff, onDismiss: dismissFirstWake })]), ...dialogs].filter(Boolean);
     return [
       ...top,

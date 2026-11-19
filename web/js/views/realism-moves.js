@@ -27,15 +27,6 @@ export function movedMarks(before, after) {
   return out;
 }
 
-/**
- * The moves of the run this room started (`runFrom`: `{ wake, map }`, kept when the run began),
- * for the wake page right after it only; none for any other page or with no run kept.
- */
-export function runMoves(runFrom, page, map) {
-  if (!runFrom || !page || page.number !== runFrom.wake + 1) return [];
-  return movedMarks(runFrom.map, map);
-}
-
 /** "US Atlantic Fleet: Norfolk to Argentia". */
 export function moveLine(move) {
   return `${move.name}: ${whereLine({ places: move.from })} to ${whereLine({ places: move.to })}`;

@@ -163,11 +163,13 @@ function missedPage(page, record) {
 /**
  * A `<dialog class="rl-hap rl-missed">` headed "What you missed": one section for each page of the
  * `catchup` reply (`missedPages`), oldest first, and "To the desk", which calls `onClose()`. `record`
- * is the room's record, whose orders the settled ids name. No animation, no storage.
+ * is the room's record, whose orders the settled ids name. `play`, the wake player of those
+ * pages (`realism-playback.js`), comes first when given. No storage.
  */
-export function missedSheet({ pages, record, onClose }) {
+export function missedSheet({ pages, record, play = null, onClose }) {
   return h('dialog', { class: 'rl-hap rl-missed', 'aria-labelledby': 'rl-missed-title' },
     h('h2', { id: 'rl-missed-title' }, MISSED_TITLE),
+    play,
     pages.map((p) => missedPage(p, record)),
     h('div', { class: 'rl-hap-actions' },
       h('button', { type: 'button', onclick: () => onClose() }, 'To the desk')));

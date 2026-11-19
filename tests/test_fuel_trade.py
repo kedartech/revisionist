@@ -420,9 +420,14 @@ def test_the_fold_lets_only_cut_change(tmp_path: Path) -> None:
         fold(state, [ev.TradeSet(line=bad, on=START)])
 
 
-def test_trade_is_a_rule_name_for_forms_with_no_function_yet(tmp_path: Path) -> None:
+def test_trade_is_a_rule_name_for_forms_whose_function_emb_registers(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The name came first (FUL); its function is EMB's (``resolvers/trade.py``). Without
+    it, a world whose form names ``trade`` is refused."""
     assert "trade" in RESOLVER_KEYS
 
+    from revisionist.core.realism import resolvers
     from tests.test_adjacency_moves import levers
 
     def trade_lever(w: World) -> None:
@@ -431,6 +436,7 @@ def test_trade_is_a_rule_name_for_forms_with_no_function_yet(tmp_path: Path) -> 
             for lv in c.get("levers", []):
                 lv["resolver"] = "trade"
 
+    monkeypatch.delitem(resolvers.ON_ORDER, "trade")
     assert any(
         "the rule name has no rule yet: trade" in p for p in refused(toy(tmp_path, trade_lever))
     )

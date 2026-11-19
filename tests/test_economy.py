@@ -534,3 +534,140 @@ def test_orders_filed_in_either_order_or_not_at_all_give_the_same_pools(tmp_path
     assert a == b == none
     assert none[2] == [(entity(ISLE), entity(NORRA))]
     assert none[0] is not None and none[1] is not None
+
+
+# --- RSD: moved industry restarts after a delay ------------------------------------------
+#
+# Worked example: the plain yields 4 grain of output; on day 0 Norra moves 0.1 of it to
+# the hills (which yield nothing) with ``restart_days`` 45. The plain loses the part at
+# once and the hills pay nothing of it until day 45: Norra's output income is 3.9 on day 0
+# and on day 44, and 4.0 on day 45.
+
+FOUR = yields(PLAIN, grain=4)
+
+
+def evacuate(g: Logged, on: date, amount: float = 0.1, days: int = 45) -> ev.YieldChanged:
+    moved = economy.move_yield(
+        g.state, entity(PLAIN), entity(HILLS), "grain", amount, on, restart_days=days
+    )
+    g.add([moved])
+    return moved
+
+
+def test_move_yield_lands_the_date_the_moved_part_restarts(tmp_path: Path) -> None:
+    g = game(tmp_path, FOUR)
+    later = economy.move_yield(
+        g.state, entity(PLAIN), entity(HILLS), "grain", 0.1, day(3), restart_days=45
+    )
+    assert later.restart == day(48)
+    now = economy.move_yield(g.state, entity(PLAIN), entity(HILLS), "grain", 0.1, day(3))
+    assert now.restart is None  # the default, 0 days: today's behaviour
+    assert "restart" not in now.model_dump(mode="json")
+    with pytest.raises(EconomyError, match="restart"):
+        economy.move_yield(
+            g.state, entity(PLAIN), entity(HILLS), "grain", 0.1, day(3), restart_days=-1
+        )
+
+
+def test_the_worked_example_a_moved_part_restarts_on_its_date(tmp_path: Path) -> None:
+    g = game(tmp_path, FOUR)
+    evacuate(g, START)
+    assert income(g, NORRA, Role.OUTPUT, START) == 3.9
+    assert income(g, NORRA, Role.OUTPUT, day(44)) == 3.9
+    assert income(g, NORRA, Role.OUTPUT, day(45)) == 4.0
+    assert income(g, NORRA, Role.OUTPUT, day(400)) == 4.0
+
+
+def test_the_source_loses_the_part_on_the_day_of_the_move(tmp_path: Path) -> None:
+    g = game(tmp_path, FOUR)
+    evacuate(g, day(10), amount=1)
+    assert economy.yields_of(g.state, entity(PLAIN)) == {"grain": 3}
+    assert economy.yields_of(g.state, entity(HILLS)) == {"grain": 1}
+    assert income(g, NORRA, Role.OUTPUT, day(10)) == 3
+    assert income(g, NORRA, Role.OUTPUT, day(54)) == 3
+    assert income(g, NORRA, Role.OUTPUT, day(55)) == 4
+
+
+def test_the_month_pays_nothing_of_a_part_before_it_restarts(tmp_path: Path) -> None:
+    g = game(tmp_path, FOUR)
+    evacuate(g, START, amount=1)
+    g.walk(day(1), JUNE_1)  # May 1 is day 29 and June 1 day 60; the part restarts on day 45
+    assert pools(g.state, NORRA) == Pools(output=3 + 4, manpower=0)
+
+
+def test_the_pending_restart_is_folded_so_replay_and_the_view_agree(tmp_path: Path) -> None:
+    g = game(tmp_path, FOUR)
+    evacuate(g, START)
+    again = replay(g.log)
+    assert state_hash(again) == state_hash(g.state)
+    mine = project(g.state, seat("ilse"))
+    for n in (0, 44, 45):
+        live = economy.income(g.state, entity(NORRA), Role.OUTPUT, day(n))
+        assert economy.income(again, entity(NORRA), Role.OUTPUT, day(n)) == live
+        assert economy.income(mine, entity(NORRA), Role.OUTPUT, day(n)) == live
+    assert set(mine.economy.pending) == {entity(HILLS)}
+    assert project(g.state, seat("tomas")).economy.pending == {}
+
+
+def test_a_taken_territory_carries_its_pending_part(tmp_path: Path) -> None:
+    """Sudland takes the hills on day 0 with Norra's 1 grain pending until day 45. The
+    capture lag ends on day 30, but the part is still idle until day 45; from then it
+    pays Sudland the capture share, half."""
+    g = game(tmp_path, FOUR)
+    evacuate(g, START, amount=1)
+    taken(g, HILLS, SUDLAND, START)
+    assert income(g, SUDLAND, Role.OUTPUT, day(44)) == 8
+    assert income(g, SUDLAND, Role.OUTPUT, day(45)) == 8 + 0.5
+    assert income(g, NORRA, Role.OUTPUT, day(45)) == 3
+
+
+def test_moving_from_a_territory_takes_its_working_part_first(tmp_path: Path) -> None:
+    """The hills hold 1 grain idle until day 45 and 1 working. Moving 1 away on day 10
+    leaves the idle one idle; moving more takes part of the idle one too, which then pays
+    where it lands from that move's own restart date (here at once), and what stays is
+    idle, never below nothing."""
+
+    def hills_back(amount: float) -> Logged:
+        g = game(tmp_path, yields(PLAIN, grain=4), yields(HILLS, grain=1))
+        evacuate(g, START, amount=1)
+        move = economy.move_yield(g.state, entity(HILLS), entity(PLAIN), "grain", amount, day(10))
+        g.add([move])
+        return g
+
+    g = hills_back(1)
+    assert income(g, NORRA, Role.OUTPUT, day(10)) == 4  # plain 4; the hills' 1 idle
+    assert income(g, NORRA, Role.OUTPUT, day(45)) == 5
+    g = hills_back(1.5)  # all the working part and half the idle one
+    assert economy.working(g.state, entity(HILLS), day(10)) == {"grain": 0}
+    assert income(g, NORRA, Role.OUTPUT, day(10)) == 4.5
+    assert income(g, NORRA, Role.OUTPUT, day(45)) == 5
+
+
+def test_the_fold_refuses_a_restart_before_the_move(tmp_path: Path) -> None:
+    g = game(tmp_path, FOUR)
+    bad = ev.YieldChanged(
+        area=entity(PLAIN),
+        to=entity(HILLS),
+        resource="grain",
+        amount=1,
+        on=day(3),
+        restart=day(2),
+    )
+    with pytest.raises(FoldError, match="restart"):
+        g.add([bad])
+
+
+def test_a_move_with_no_restart_date_folds_as_restarting_at_once(tmp_path: Path) -> None:
+    """A stored ``yield_changed`` from before RSD has no restart date: the part pays where
+    it lies from the day of the move, and the economy dumps no pending key."""
+    g = game(tmp_path, FOUR)
+    g.add(
+        [
+            ev.YieldChanged(
+                area=entity(PLAIN), to=entity(HILLS), resource="grain", amount=1, on=START
+            )
+        ]
+    )
+    assert income(g, NORRA, Role.OUTPUT, START) == 4
+    assert g.state.economy.pending == {}
+    assert "pending" not in g.state.economy.model_dump(mode="json")

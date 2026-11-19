@@ -10418,6 +10418,19 @@
             "title": "Resource",
             "type": "string"
           },
+          "restart": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Restart"
+          },
           "to": {
             "title": "To",
             "type": "string"
@@ -12788,6 +12801,16 @@
         "additionalProperties": false,
         "description": "The war economy's truth. A seat sees its own nation's part only.",
         "properties": {
+          "pending": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/$defs/Restart"
+              },
+              "type": "array"
+            },
+            "title": "Pending",
+            "type": "object"
+          },
           "pools": {
             "additionalProperties": {
               "$ref": "#/$defs/Pools"
@@ -15227,6 +15250,34 @@
           "role"
         ],
         "title": "Resource",
+        "type": "object"
+      },
+      "Restart": {
+        "additionalProperties": false,
+        "description": "A moved part of a yield that pays nothing before ``on`` (RSD).",
+        "properties": {
+          "amount": {
+            "minimum": 0,
+            "title": "Amount",
+            "type": "number"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "resource": {
+            "maxLength": 60,
+            "title": "Resource",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource",
+          "amount",
+          "on"
+        ],
+        "title": "Restart",
         "type": "object"
       },
       "Role": {
@@ -19179,6 +19230,16 @@
         "additionalProperties": false,
         "description": "The war economy's truth. A seat sees its own nation's part only.",
         "properties": {
+          "pending": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/$defs/Restart"
+              },
+              "type": "array"
+            },
+            "title": "Pending",
+            "type": "object"
+          },
           "pools": {
             "additionalProperties": {
               "$ref": "#/$defs/Pools"
@@ -21253,6 +21314,34 @@
           "role"
         ],
         "title": "Resource",
+        "type": "object"
+      },
+      "Restart": {
+        "additionalProperties": false,
+        "description": "A moved part of a yield that pays nothing before ``on`` (RSD).",
+        "properties": {
+          "amount": {
+            "minimum": 0,
+            "title": "Amount",
+            "type": "number"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "resource": {
+            "maxLength": 60,
+            "title": "Resource",
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource",
+          "amount",
+          "on"
+        ],
+        "title": "Restart",
         "type": "object"
       },
       "Role": {

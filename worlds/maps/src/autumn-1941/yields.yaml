@@ -1,0 +1,658 @@
+# The 1941 yields for the territory world of autumn 1941: each land territory's industry, manpower,
+# oil, supply (rail hubs and ports) and prestige, the trade lines and the fuel stocks in force on
+# 1 September 1941. A staging file: the item that converts the world (FLP) folds each row into the
+# territory's `yields` (by the resource keys of start.yaml), and the trade lines and fuel stocks into
+# the world's `trade_lines` and `fuel_stocks`, so the game plays as today until then. Read by
+# tests/test_world_yields_1941.py against the map's world fragment and start.yaml (holders, places).
+#
+# How a figure counts as sourced (plan, YLS rule 6). A yield, scale, trade line or stock is sourced
+# only when it names an `evidence` record giving the source, the edition, the locator, the exact claim
+# the figure supports, the calculation from that figure to the territory, and who checked it. Any other
+# figure is `gap: true` and names the source it is to be taken from (`named_source`) and the basis of
+# the number given (`basis`), so the values sheet shows it as a gap. In this first pass every figure is
+# a gap: the plan's default (YLS, Unclear) keeps every derived number a gap until Josh marks the sheet,
+# and the lane read no edition page by page. The one locator the lane checked, through search results
+# that quote it and not the book itself, is Kennedy's table 32 (below); it is named in the source note,
+# not used as evidence.
+#
+# The allocation within a nation is the lane's: each nation's total is spread over its territories by
+# the industrial regions the cited histories describe, and every row's `basis` says what it counts.
+# Territories that are neither a seated nation's nor occupied by one (the neutrals, Vichy) carry their
+# own share at the same scale; they count toward no seated nation's total.
+#
+# Every value here is [proposed]: the scales, the totals, each row, the hubs, the prestige ranks, the
+# trade lines and the stocks (the plan's Values section; each is a row on the values sheet).
+
+scales:
+  industry:
+    unit: points of war production a month
+    measure: >-
+      relative war potential of the powers, in percent of the seven powers' total (Kennedy, table 32,
+      a 1937 figure; proposed as the 1941 measure until a 1941 series is chosen). The plan's ratio:
+      United States 42, Germany 14 plus occupied Europe 6, USSR 14, Britain 10, Japan 4, Italy 3,
+      China 1 (France's 4.2 goes to occupied Europe under Germany and the French State).
+    totals: {usa: 42, germany: 20, ussr: 14, uk: 10, japan: 4, italy: 3, china: 1}
+    germany_own: [germany_east, germany_west, germany_south, east_prussia]
+    gap: true
+    named_source: kennedy_1987
+    basis: >-
+      Kennedy's 1937 percentages rounded to whole points; Germany's own 14 is its 14.4, occupied
+      Europe's 6 is the plan's figure for the conquered economies; China's 1 is the plan's.
+  manpower:
+    unit: millions of people
+    measure: 1941 population of each territory, in millions, the nearest census or official estimate
+    gap: true
+    named_source: lon_yearbook_1941
+    basis: >-
+      Each row is the population of the provinces the territory is made of, rounded; the Soviet rows
+      from the 1939 census by oblast, the American from the 1940 census by state.
+  oil:
+    unit: points a month
+    measure: 1941 crude output, one point for about 3 million tonnes of crude a year
+    million_tonnes_a_year_per_point: 3
+    gap: true
+    named_source: minerals_yearbook
+    basis: >-
+      Each producing territory's 1941 crude output in million tonnes, divided by 3 and rounded to a
+      tenth; a field under 0.15 million tonnes counts 0.
+  supply:
+    unit: hubs
+    measure: the rail junctions and ports in the territory that a 1941 rail map shows as junctions
+    gap: true
+    named_source: lane_choice
+    basis: one point for each named hub; the hubs are listed on each row
+  prestige:
+    unit: points
+    measure: a rank of each territory's standing, 1 to 10; the capital is 10 and highest in its nation
+    gap: true
+    named_source: lane_choice
+    basis: the lane's ranking; no measure exists to cite
+
+sources:
+  - key: kennedy_1987
+    title: "Paul Kennedy, The Rise and Fall of the Great Powers (Random House, 1987), table 32: Relative War Potential of the Powers in 1937, p. 332"
+    note: "Locator and figures (US 41.7, Germany 14.4, USSR 14.0, UK 10.2, France 4.2, Japan 3.5, Italy 2.5) seen only in search results quoting the table, not in the book. A 1937 measure, after Hillmann."
+  - key: harrison_1998
+    title: "Mark Harrison (ed.), The Economics of World War II: Six Great Powers in International Comparison (Cambridge, 1998), the GDP and munitions tables"
+    note: "The alternative 1941 measure (GDP or munitions output in 1941). Named citation; not read. Confirm the table before use."
+  - key: lon_yearbook_1941
+    title: "League of Nations, Statistical Year-Book of the League of Nations 1940/41 (Geneva, 1941): area and population tables"
+    note: "Named citation; not read. Confirm the table and the year of each estimate before release."
+  - key: census_ussr_1939
+    title: "All-Union Census of 17 January 1939: population by oblast and republic"
+    note: "Named citation; not read. Confirm the published tables before release."
+  - key: census_us_1940
+    title: "Sixteenth Census of the United States, 1940: Population, vol. I, number of inhabitants by state"
+    note: "Named citation; not read. Confirm the table before release."
+  - key: minerals_yearbook
+    title: "U.S. Bureau of Mines, Minerals Yearbook 1942 (review of 1941): petroleum, world production by country"
+    note: "Named citation; not read. Confirm the table and the 1941 figures before release."
+  - key: frus_1941_iv
+    title: "Foreign Relations of the United States, 1941, vol. IV, The Far East: the freezing of Japanese assets, 26 July 1941"
+    note: "Named citation; not read. Confirm the document before release."
+  - key: lane_choice
+    title: "The lane's own choice: no published measure"
+    note: "Hubs and prestige ranks chosen by the lane for play; kept as gaps for Josh to mark."
+
+# Rule 6: the evidence records. None yet: no figure here has been checked against an edition.
+evidence: []
+
+# Rule 4: the trade lines in force on 1 September 1941, in points a month of the resource (oil at the
+# scale above, industry in war-production points). `cut` when the line starts cut.
+trade_lines:
+  - key: usa_japan_oil
+    exporter: usa
+    importer: japan
+    resource: oil
+    amount: 1.3
+    cut: true
+    gap: true
+    named_source: frus_1941_iv
+    basis: >-
+      about 4 million tonnes a year of American crude and products to Japan before the freeze, divided
+      by 3; cut since the freeze of Japanese assets on 26 July 1941 and the oil embargo that followed
+  - key: dei_japan_oil
+    exporter: netherlands
+    importer: japan
+    resource: oil
+    amount: 0.4
+    cut: true
+    gap: true
+    named_source: frus_1941_iv
+    basis: about 1.2 million tonnes a year from the Indies, cut when the Netherlands Indies froze Japanese assets on 28 July 1941
+  - key: romania_germany_oil
+    exporter: romania_state
+    importer: germany
+    resource: oil
+    amount: 1.0
+    gap: true
+    named_source: minerals_yearbook
+    basis: about 3 million tonnes a year of Romanian oil to Germany in 1941, divided by 3
+  - key: usa_uk_oil
+    exporter: usa
+    importer: uk
+    resource: oil
+    amount: 3.0
+    gap: true
+    named_source: minerals_yearbook
+    basis: about 9 million tonnes a year of American and Caribbean oil shipped to Britain, divided by 3
+  - key: usa_uk_lend_lease
+    exporter: usa
+    importer: uk
+    resource: industry
+    amount: 1.0
+    gap: true
+    named_source: harrison_1998
+    basis: lend-lease from March 1941, about a tenth of Britain's war production in the year's second half
+  - key: sweden_germany_ore
+    exporter: sweden
+    importer: germany
+    resource: industry
+    amount: 0.5
+    gap: true
+    named_source: harrison_1998
+    basis: Swedish iron ore, about 10 million tonnes a year, as a share of Germany's war production
+
+# Rule 4: each nation's fuel stock on 1 September 1941, in oil points (3 million tonnes a year is one
+# point a month, so a stock of one point is 0.25 million tonnes). A nation not named starts at
+# trade.STOCK_MONTHS of its fuel income.
+fuel_stocks:
+  - {polity: japan, amount: 23, gap: true, named_source: frus_1941_iv, basis: "about 5.8 million tonnes held in Japan in late 1941, divided by 0.25"}
+  - {polity: germany, amount: 8, gap: true, named_source: minerals_yearbook, basis: "about 2 million tonnes of reserves in mid-1941, divided by 0.25"}
+  - {polity: uk, amount: 28, gap: true, named_source: minerals_yearbook, basis: "about 7 million tonnes held in Britain in 1941, divided by 0.25"}
+  - {polity: italy, amount: 4, gap: true, named_source: minerals_yearbook, basis: "about 1 million tonnes held in Italy in 1941, divided by 0.25"}
+
+# Rule 1: every land territory of the map, five yields each. `supply.hubs` names the hubs counted.
+territories:
+  - key: the_north
+    industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: Archangel's timber and the Vologda shops}
+    manpower: {amount: 3.3, gap: true, named_source: census_ussr_1939, basis: 'about 3.3 million people: Karelia, Archangel and Vologda'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Archangel, Vologda]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a rear province}
+  - key: leningrad
+    industry: {amount: 2.0, gap: true, named_source: kennedy_1987, basis: 'the Kirov, Izhora and Leningrad engineering works'}
+    manpower: {amount: 6.4, gap: true, named_source: census_ussr_1939, basis: 'about 6.4 million people: the city and the Leningrad, Novgorod and Pskov lands'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Leningrad, Pskov]}
+    prestige: {amount: 8, gap: true, named_source: lane_choice, basis: the second city of the Union}
+  - key: baltic_states
+    industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: Riga's works}
+    manpower: {amount: 6.0, gap: true, named_source: census_ussr_1939, basis: 'about 6.0 million people: Estonia, Latvia and Lithuania'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Riga, Tallinn, Daugavpils]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: three annexed capitals}
+  - key: belorussia
+    industry: {amount: 0.3, gap: true, named_source: kennedy_1987, basis: Minsk and Gomel works}
+    manpower: {amount: 10.0, gap: true, named_source: census_ussr_1939, basis: 'about 10.0 million people: the Belorussian republic'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 4, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Minsk, Orsha, Gomel, Brest]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: a republic's capital}
+  - key: kalinin
+    industry: {amount: 0.4, gap: true, named_source: kennedy_1987, basis: 'Kalinin and Yaroslavl works (rubber, textiles)'}
+    manpower: {amount: 5.9, gap: true, named_source: census_ussr_1939, basis: 'about 5.9 million people: the Kalinin and Yaroslavl lands'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Kalinin, Yaroslavl]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a provincial centre}
+  - key: smolensk
+    industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: Smolensk and Bryansk works}
+    manpower: {amount: 4.5, gap: true, named_source: census_ussr_1939, basis: 'about 4.5 million people: the Smolensk lands and Bryansk'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Smolensk, Vyazma, Bryansk]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: an old fortress city on the Moscow road}
+  - key: moscow
+    industry: {amount: 2.5, gap: true, named_source: kennedy_1987, basis: 'Moscow''s aircraft, motor and engineering works, and Tula''s arms works'}
+    manpower: {amount: 12.0, gap: true, named_source: census_ussr_1939, basis: 'about 12.0 million people: the city and the Moscow, Kaluga and Tula lands'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Moscow, Tula]}
+    prestige: {amount: 10, gap: true, named_source: lane_choice, basis: the capital}
+  - key: upper_volga
+    industry: {amount: 1.4, gap: true, named_source: kennedy_1987, basis: 'the Gorky motor works and the Ivanovo mills, and the rear works beyond the map''s edge'}
+    manpower: {amount: 11.0, gap: true, named_source: census_ussr_1939, basis: 'about 11.0 million people: the Gorky, Ivanovo, Vladimir, Kostroma and Ryazan lands, Mordovia and Chuvashia'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Gorky, Ryazan]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: a rear province}
+  - key: western_ukraine
+    industry: {amount: 0.5, gap: true, named_source: kennedy_1987, basis: Lvov's works and the Drohobych refineries}
+    manpower: {amount: 8.0, gap: true, named_source: census_ussr_1939, basis: 'about 8.0 million people: Galicia, Volhynia, Bukovina and Podolia'}
+    oil: {amount: 0.1, gap: true, named_source: lon_yearbook_1941, basis: 'the Boryslav field, about 0.35 million tonnes'}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Lvov, Rovno]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: an old crown city}
+  - key: kiev
+    industry: {amount: 0.7, gap: true, named_source: kennedy_1987, basis: Kiev's works}
+    manpower: {amount: 9.0, gap: true, named_source: census_ussr_1939, basis: 'about 9.0 million people: the Kiev, Zhitomir, Chernigov, Vinnitsa and Cherkassy lands'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Kiev, Vinnitsa, Zhitomir]}
+    prestige: {amount: 7, gap: true, named_source: lane_choice, basis: the Ukrainian capital and the mother of Russian cities}
+  - key: odessa
+    industry: {amount: 0.3, gap: true, named_source: kennedy_1987, basis: Odessa's and Nikolaev's yards}
+    manpower: {amount: 7.0, gap: true, named_source: census_ussr_1939, basis: 'about 7.0 million people: the Odessa, Nikolaev, Kirovograd and Kherson lands and Bessarabia'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Odessa, Nikolaev]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: a great port}
+  - key: kharkov
+    industry: {amount: 1.5, gap: true, named_source: kennedy_1987, basis: the Kharkov tractor and tank works and Dnepropetrovsk's steel}
+    manpower: {amount: 8.4, gap: true, named_source: census_ussr_1939, basis: 'about 8.4 million people: the Kharkov, Poltava, Sumy and Dnepropetrovsk lands'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Kharkov, Poltava, Dnepropetrovsk]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: a former Ukrainian capital; Poltava a battlefield}
+  - key: donbas
+    industry: {amount: 2.0, gap: true, named_source: kennedy_1987, basis: 'the Donbas coal, iron and steel and the Zaporozhye works'}
+    manpower: {amount: 9.4, gap: true, named_source: census_ussr_1939, basis: 'about 9.4 million people: the Stalino, Voroshilovgrad, Zaporozhye and Rostov lands'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Rostov, Debaltsevo, Zaporozhye]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: the coal basin}
+  - key: crimea
+    industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: Sevastopol's yards}
+    manpower: {amount: 1.1, gap: true, named_source: census_ussr_1939, basis: 'about 1.1 million people: the Crimea'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Sevastopol]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: the Black Sea Fleet's base}
+  - key: voronezh
+    industry: {amount: 0.4, gap: true, named_source: kennedy_1987, basis: the Voronezh and Kursk works}
+    manpower: {amount: 10.0, gap: true, named_source: census_ussr_1939, basis: 'about 10.0 million people: the Orel, Kursk, Belgorod, Lipetsk, Voronezh and Tambov lands'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Orel, Kursk, Voronezh]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a provincial centre}
+  - key: stalingrad
+    industry: {amount: 1.1, gap: true, named_source: kennedy_1987, basis: 'the Stalingrad tractor works and the Saratov works, and the rear works beyond the map''s edge'}
+    manpower: {amount: 5.9, gap: true, named_source: census_ussr_1939, basis: 'about 5.9 million people: the Stalingrad, Saratov and Penza lands'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Stalingrad, Saratov]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: a Volga city}
+  - key: caucasus
+    industry: {amount: 0.8, gap: true, named_source: kennedy_1987, basis: Baku's oil engineering and the Krasnodar works}
+    manpower: {amount: 15.0, gap: true, named_source: census_ussr_1939, basis: 'about 15.0 million people: Georgia, Armenia, Azerbaijan, the Krasnodar and Stavropol lands and the mountain republics'}
+    oil: {amount: 9.5, gap: true, named_source: lon_yearbook_1941, basis: 'Baku about 23.5, Grozny and Maikop about 5 million tonnes'}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Baku, Tiflis, Novorossiysk]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: the oil capital}
+  - key: soviet_far_east
+    industry: {amount: 0.5, gap: true, named_source: kennedy_1987, basis: the Komsomolsk and Vladivostok works}
+    manpower: {amount: 3.0, gap: true, named_source: census_ussr_1939, basis: 'about 3.0 million people: the Chita, Amur, Khabarovsk and Maritime lands'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Vladivostok, Khabarovsk]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a far frontier}
+  - key: germany_east
+    industry: {amount: 4.0, gap: true, named_source: kennedy_1987, basis: 'Berlin''s engineering, Saxony''s and Silesia''s industry'}
+    manpower: {amount: 32.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 32.0 million people: Berlin, Brandenburg, Saxony, Thuringia, Mecklenburg, Pomerania, Silesia and the annexed Warthegau'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 4, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Berlin, Breslau, Leipzig, Stettin]}
+    prestige: {amount: 10, gap: true, named_source: lane_choice, basis: the capital}
+  - key: germany_west
+    industry: {amount: 6.0, gap: true, named_source: kennedy_1987, basis: the Ruhr's coal and steel and the Rhineland's industry}
+    manpower: {amount: 28.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 28.0 million people: the Rhineland, Westphalia, Hanover, Hesse, the Hansa cities, the Saar and Alsace-Lorraine'}
+    oil: {amount: 0.2, gap: true, named_source: lon_yearbook_1941, basis: 'the Hanover fields, about 0.7 million tonnes'}
+    supply: {amount: 4, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Hamburg, Cologne, Hamm, Bremen]}
+    prestige: {amount: 6, gap: true, named_source: lane_choice, basis: the industrial heart}
+  - key: germany_south
+    industry: {amount: 3.5, gap: true, named_source: kennedy_1987, basis: Bavaria's and Austria's works and Bohemia-Moravia's (Skoda)}
+    manpower: {amount: 30.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 30.0 million people: Bavaria, Wurttemberg, Baden, Austria, Bohemia-Moravia and the Sudetenland'}
+    oil: {amount: 0.2, gap: true, named_source: lon_yearbook_1941, basis: 'the Zistersdorf field, about 0.6 million tonnes'}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Munich, Vienna, Prague]}
+    prestige: {amount: 6, gap: true, named_source: lane_choice, basis: 'Vienna, Munich and Prague'}
+  - key: east_prussia
+    industry: {amount: 0.5, gap: true, named_source: kennedy_1987, basis: Konigsberg's works}
+    manpower: {amount: 3.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 3.0 million people: East Prussia with the Zichenau lands'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Konigsberg]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: the old Prussian heartland}
+  - key: occupied_poland
+    industry: {amount: 0.3, gap: true, named_source: kennedy_1987, basis: the General Government's works}
+    manpower: {amount: 12.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 12.0 million people: the General Government before Galicia joined it'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Lublin]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: occupied Poland}
+  - key: denmark
+    industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: Danish yards and food industry}
+    manpower: {amount: 3.8, gap: true, named_source: lon_yearbook_1941, basis: 'about 3.8 million people: Denmark'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Copenhagen]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: an occupied kingdom}
+  - key: low_countries
+    industry: {amount: 1.2, gap: true, named_source: kennedy_1987, basis: Belgian and Dutch industry}
+    manpower: {amount: 17.5, gap: true, named_source: lon_yearbook_1941, basis: 'about 17.5 million people: the Netherlands, Belgium and Luxembourg'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Rotterdam, Antwerp, Brussels]}
+    prestige: {amount: 5, gap: true, named_source: lane_choice, basis: three occupied capitals}
+  - key: occupied_france
+    industry: {amount: 2.5, gap: true, named_source: kennedy_1987, basis: northern and Paris industry under occupation}
+    manpower: {amount: 25.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 25.0 million people: the occupied zone'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Paris, Le Havre, Brest]}
+    prestige: {amount: 8, gap: true, named_source: lane_choice, basis: Paris}
+  - key: vichy_france
+    industry: {amount: 1.0, gap: true, named_source: kennedy_1987, basis: the unoccupied zone's industry}
+    manpower: {amount: 14.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 14.0 million people: the unoccupied zone'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Marseille, Lyon, Toulon]}
+    prestige: {amount: 6, gap: true, named_source: lane_choice, basis: the seat of the French State}
+  - key: norway
+    industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: Norwegian aluminium and yards}
+    manpower: {amount: 3.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 3.0 million people: Norway'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 4, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Oslo, Bergen, Trondheim, Narvik]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: an occupied kingdom}
+  - key: sweden
+    industry: {amount: 0.8, gap: true, named_source: kennedy_1987, basis: 'Swedish iron ore, steel and arms works'}
+    manpower: {amount: 6.4, gap: true, named_source: lon_yearbook_1941, basis: 'about 6.4 million people: Sweden'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Stockholm, Gothenburg, Lulea]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: a neutral kingdom}
+  - key: finland
+    industry: {amount: 0.3, gap: true, named_source: kennedy_1987, basis: Finnish timber and metal works}
+    manpower: {amount: 3.7, gap: true, named_source: lon_yearbook_1941, basis: 'about 3.7 million people: Finland'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Helsinki, Turku]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: a small republic}
+  - key: hungary_slovakia
+    industry: {amount: 0.5, gap: true, named_source: kennedy_1987, basis: Budapest's and Slovakia's works}
+    manpower: {amount: 17.4, gap: true, named_source: lon_yearbook_1941, basis: 'about 17.4 million people: Hungary as enlarged by 1941 and Slovakia'}
+    oil: {amount: 0.1, gap: true, named_source: lon_yearbook_1941, basis: 'the Lispe field, about 0.4 million tonnes'}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Budapest, Bratislava]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: two capitals}
+  - key: romania
+    industry: {amount: 0.4, gap: true, named_source: kennedy_1987, basis: Romanian refining and works}
+    manpower: {amount: 13.5, gap: true, named_source: lon_yearbook_1941, basis: 'about 13.5 million people: Romania after the 1940 cessions'}
+    oil: {amount: 1.8, gap: true, named_source: lon_yearbook_1941, basis: 'the Ploesti fields, about 5.5 million tonnes'}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Bucharest, Constanta]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: a kingdom's capital}
+  - key: balkans
+    industry: {amount: 0.3, gap: true, named_source: kennedy_1987, basis: 'Yugoslav, Bulgarian and Albanian mines and works'}
+    manpower: {amount: 20.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 20.0 million people: the partitioned Yugoslavia, Bulgaria and Albania'}
+    oil: {amount: 0.1, gap: true, named_source: lon_yearbook_1941, basis: 'the Albanian fields, about 0.2 million tonnes'}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Belgrade, Sofia, Zagreb]}
+    prestige: {amount: 5, gap: true, named_source: lane_choice, basis: Belgrade and Sofia}
+  - key: italy_north
+    industry: {amount: 2.4, gap: true, named_source: kennedy_1987, basis: 'the northern industrial triangle (Milan, Turin, Genoa)'}
+    manpower: {amount: 25.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 25.0 million people: northern and central Italy'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Milan, Genoa, Trieste]}
+    prestige: {amount: 7, gap: true, named_source: lane_choice, basis: Milan and Turin}
+  - key: italy_south
+    industry: {amount: 0.55, gap: true, named_source: kennedy_1987, basis: Naples' and Taranto's works}
+    manpower: {amount: 19.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 19.0 million people: Rome, the south, Sicily and Sardinia'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 4, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Rome, Naples, Taranto, Palermo]}
+    prestige: {amount: 10, gap: true, named_source: lane_choice, basis: the capital}
+  - key: iberia
+    industry: {amount: 0.6, gap: true, named_source: kennedy_1987, basis: Spanish and Portuguese industry}
+    manpower: {amount: 33.6, gap: true, named_source: lon_yearbook_1941, basis: 'about 33.6 million people: Spain and Portugal'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Madrid, Barcelona, Lisbon]}
+    prestige: {amount: 5, gap: true, named_source: lane_choice, basis: two neutral capitals}
+  - key: switzerland
+    industry: {amount: 0.5, gap: true, named_source: kennedy_1987, basis: Swiss machine tools and arms}
+    manpower: {amount: 4.3, gap: true, named_source: lon_yearbook_1941, basis: 'about 4.3 million people: Switzerland'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Basel, Zurich]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: a neutral republic}
+  - key: britain_south
+    industry: {amount: 7.0, gap: true, named_source: kennedy_1987, basis: England's and Wales' industry}
+    manpower: {amount: 41.5, gap: true, named_source: lon_yearbook_1941, basis: 'about 41.5 million people: England and Wales'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 4, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [London, Liverpool, Southampton, Bristol]}
+    prestige: {amount: 10, gap: true, named_source: lane_choice, basis: the capital}
+  - key: britain_north
+    industry: {amount: 1.6, gap: true, named_source: kennedy_1987, basis: Clydeside and Belfast yards and Scottish industry}
+    manpower: {amount: 6.3, gap: true, named_source: lon_yearbook_1941, basis: 'about 6.3 million people: Scotland and Northern Ireland'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Glasgow, Belfast, Edinburgh]}
+    prestige: {amount: 5, gap: true, named_source: lane_choice, basis: Edinburgh and the Clyde}
+  - key: ireland
+    industry: {amount: 0.1, gap: true, named_source: kennedy_1987, basis: Irish industry}
+    manpower: {amount: 3.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 3.0 million people: Ireland'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Dublin, Cork]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a neutral state}
+  - key: iceland
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no industry of note}
+    manpower: {amount: 0.1, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.1 million people: Iceland'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Reykjavik]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: an occupied island}
+  - key: greenland
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no industry of note}
+    manpower: {amount: 0, gap: true, named_source: census_us_1940, basis: 'about 0 million people: about 18 thousand people'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 0, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: []}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: a protected colony}
+  - key: newfoundland
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no industry of note}
+    manpower: {amount: 0.3, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.3 million people: Newfoundland and Labrador'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [St. John's]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: a dominion under commission}
+  - key: eastern_canada
+    industry: {amount: 1.0, gap: true, named_source: kennedy_1987, basis: 'Canada''s war industry, counted in Britain''s share'}
+    manpower: {amount: 8.2, gap: true, named_source: lon_yearbook_1941, basis: 'about 8.2 million people: Ontario, Quebec and the Maritimes'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Montreal, Halifax, Sydney]}
+    prestige: {amount: 6, gap: true, named_source: lane_choice, basis: 'Ottawa, a dominion''s capital'}
+  - key: us_east
+    industry: {amount: 18.0, gap: true, named_source: kennedy_1987, basis: the north-eastern manufacturing belt and the eastern yards}
+    manpower: {amount: 54.0, gap: true, named_source: census_us_1940, basis: 'about 54.0 million people: New England, the Middle Atlantic and South Atlantic states'}
+    oil: {amount: 1.7, gap: true, named_source: minerals_yearbook, basis: 'the Appalachian fields, about 5 million tonnes'}
+    supply: {amount: 4, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [New York, Philadelphia, Baltimore, Norfolk]}
+    prestige: {amount: 10, gap: true, named_source: lane_choice, basis: the capital}
+  - key: us_central
+    industry: {amount: 19.0, gap: true, named_source: kennedy_1987, basis: 'the Midwest''s steel, motor and engineering works'}
+    manpower: {amount: 64.0, gap: true, named_source: census_us_1940, basis: 'about 64.0 million people: the North Central, East South Central and West South Central states'}
+    oil: {amount: 47.0, gap: true, named_source: minerals_yearbook, basis: 'Texas, Oklahoma, Louisiana, Kansas and Illinois, about 141 million tonnes'}
+    supply: {amount: 4, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Chicago, St. Louis, New Orleans, Houston]}
+    prestige: {amount: 6, gap: true, named_source: lane_choice, basis: Chicago}
+  - key: us_west
+    industry: {amount: 4.5, gap: true, named_source: kennedy_1987, basis: the Pacific coast's aircraft and yards}
+    manpower: {amount: 14.0, gap: true, named_source: census_us_1940, basis: 'about 14.0 million people: the Mountain and Pacific states'}
+    oil: {amount: 14.0, gap: true, named_source: minerals_yearbook, basis: 'California and the Rocky Mountain fields, about 42 million tonnes'}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [San Francisco, Los Angeles, Seattle]}
+    prestige: {amount: 5, gap: true, named_source: lane_choice, basis: the Pacific coast}
+  - key: caribbean
+    industry: {amount: 0.05, gap: true, named_source: kennedy_1987, basis: Cuban sugar mills}
+    manpower: {amount: 9.3, gap: true, named_source: lon_yearbook_1941, basis: 'about 9.3 million people: Cuba, Haiti and the Dominican Republic'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Havana]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a small republic}
+  - key: french_north_africa
+    industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: Algerian and Moroccan works}
+    manpower: {amount: 14.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 14.0 million people: French Morocco and Algeria'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Casablanca, Oran, Algiers]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: a colonial seat}
+  - key: tunisia
+    industry: {amount: 0.05, gap: true, named_source: kennedy_1987, basis: Tunisian phosphates}
+    manpower: {amount: 2.6, gap: true, named_source: lon_yearbook_1941, basis: 'about 2.6 million people: Tunisia'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Tunis, Bizerte]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a protectorate}
+  - key: tripolitania
+    industry: {amount: 0.03, gap: true, named_source: kennedy_1987, basis: Tripoli's workshops}
+    manpower: {amount: 0.6, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.6 million people: Tripolitania and the Fezzan'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Tripoli]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: the colony's capital}
+  - key: cyrenaica
+    industry: {amount: 0.02, gap: true, named_source: kennedy_1987, basis: Benghazi's workshops}
+    manpower: {amount: 0.3, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.3 million people: Cyrenaica'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Benghazi, Bardia]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a colonial province}
+  - key: tobruk
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no industry of note}
+    manpower: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: 'about 0 million people: a besieged garrison town'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Tobruk]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: a besieged fortress}
+  - key: egypt
+    industry: {amount: 0.1, gap: true, named_source: kennedy_1987, basis: Cairo's and Alexandria's workshops}
+    manpower: {amount: 16.5, gap: true, named_source: lon_yearbook_1941, basis: 'about 16.5 million people: Egypt'}
+    oil: {amount: 0.4, gap: true, named_source: lon_yearbook_1941, basis: 'the Hurghada and Ras Gharib fields, about 1.2 million tonnes'}
+    supply: {amount: 4, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Alexandria, Cairo, Port Said, Suez]}
+    prestige: {amount: 6, gap: true, named_source: lane_choice, basis: the Suez Canal}
+  - key: levant
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no industry of note}
+    manpower: {amount: 1.8, gap: true, named_source: lon_yearbook_1941, basis: 'about 1.8 million people: Palestine and Transjordan'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Haifa]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: Jerusalem}
+  - key: syria
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no industry of note}
+    manpower: {amount: 3.6, gap: true, named_source: lon_yearbook_1941, basis: 'about 3.6 million people: Syria and the Lebanon'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Beirut, Aleppo]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a mandate}
+  - key: iraq
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no industry of note}
+    manpower: {amount: 4.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 4.0 million people: Iraq'}
+    oil: {amount: 0.5, gap: true, named_source: lon_yearbook_1941, basis: 'the Kirkuk field, about 1.6 million tonnes with the pipeline curtailed'}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Basra, Baghdad]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a kingdom under treaty}
+  - key: iran
+    industry: {amount: 0.05, gap: true, named_source: kennedy_1987, basis: the Abadan refinery}
+    manpower: {amount: 15.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 15.0 million people: Iran'}
+    oil: {amount: 2.2, gap: true, named_source: lon_yearbook_1941, basis: 'the Anglo-Iranian fields, about 6.6 million tonnes'}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Bandar Shahpur, Tehran]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: an occupied kingdom}
+  - key: turkey
+    industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: Turkish state works}
+    manpower: {amount: 17.8, gap: true, named_source: lon_yearbook_1941, basis: 'about 17.8 million people: Turkey'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Istanbul, Ankara]}
+    prestige: {amount: 5, gap: true, named_source: lane_choice, basis: a neutral republic}
+  - key: greece
+    industry: {amount: 0.1, gap: true, named_source: kennedy_1987, basis: Greek works}
+    manpower: {amount: 7.3, gap: true, named_source: lon_yearbook_1941, basis: 'about 7.3 million people: Greece'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Piraeus, Salonika]}
+    prestige: {amount: 5, gap: true, named_source: lane_choice, basis: Athens}
+  - key: dodecanese
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no industry of note}
+    manpower: {amount: 0.1, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.1 million people: the Dodecanese'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Rhodes]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: an island colony}
+  - key: british_islands
+    industry: {amount: 0.05, gap: true, named_source: kennedy_1987, basis: the Malta dockyard}
+    manpower: {amount: 0.7, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.7 million people: Malta and Cyprus'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Valletta, Famagusta]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: the Malta fortress}
+  - key: japan_east
+    industry: {amount: 1.6, gap: true, named_source: kennedy_1987, basis: the Keihin and Nagoya works and the Kanto arsenals}
+    manpower: {amount: 38.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 38.0 million people: eastern Japan, Hokkaido and Karafuto'}
+    oil: {amount: 0.1, gap: true, named_source: lon_yearbook_1941, basis: 'the Akita and Niigata fields, about 0.3 million tonnes'}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Tokyo, Yokohama, Nagoya]}
+    prestige: {amount: 10, gap: true, named_source: lane_choice, basis: the capital}
+  - key: japan_west
+    industry: {amount: 1.5, gap: true, named_source: kennedy_1987, basis: 'the Hanshin works, the Yawata steel works and the Kure and Nagasaki yards'}
+    manpower: {amount: 35.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 35.0 million people: western Japan, Shikoku, Kyushu and Okinawa'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 4, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Osaka, Kobe, Kure, Moji]}
+    prestige: {amount: 7, gap: true, named_source: lane_choice, basis: Kyoto and Osaka}
+  - key: korea
+    industry: {amount: 0.15, gap: true, named_source: kennedy_1987, basis: the northern Korean chemical and metal works}
+    manpower: {amount: 24.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 24.0 million people: Korea'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Pusan, Seoul]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: a colony}
+  - key: formosa
+    industry: {amount: 0.1, gap: true, named_source: kennedy_1987, basis: Formosan sugar and aluminium}
+    manpower: {amount: 6.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 6.0 million people: Formosa'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Keelung, Kaohsiung]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a colony}
+  - key: manchuria
+    industry: {amount: 0.5, gap: true, named_source: kennedy_1987, basis: the Anshan steel works and the Fushun mines}
+    manpower: {amount: 38.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 38.0 million people: Manchukuo''s three eastern provinces'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Mukden, Harbin, Dairen]}
+    prestige: {amount: 5, gap: true, named_source: lane_choice, basis: the puppet empire's seat}
+  - key: north_china
+    industry: {amount: 0.05, gap: true, named_source: kennedy_1987, basis: Tientsin's and Tsingtao's works}
+    manpower: {amount: 85.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 85.0 million people: Hebei, Shandong, Shanxi and northern Henan'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Peking, Tientsin, Tsingtao]}
+    prestige: {amount: 5, gap: true, named_source: lane_choice, basis: Peking}
+  - key: wuhan
+    industry: {amount: 0.1, gap: true, named_source: kennedy_1987, basis: Shanghai's mills and works}
+    manpower: {amount: 80.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 80.0 million people: Jiangsu, Shanghai, Anhui and the occupied Yangtze valley'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Shanghai, Nanking, Hankow]}
+    prestige: {amount: 6, gap: true, named_source: lane_choice, basis: Nanking and Shanghai}
+  - key: hunan
+    industry: {amount: 0.15, gap: true, named_source: kennedy_1987, basis: Hunan's arsenals and mines}
+    manpower: {amount: 45.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 45.0 million people: Hunan, Jiangxi and southern Hubei'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Changsha, Hengyang]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: a provincial capital}
+  - key: szechwan
+    industry: {amount: 0.55, gap: true, named_source: kennedy_1987, basis: the arsenals and works moved to Chungking}
+    manpower: {amount: 73.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 73.0 million people: Szechwan, Guizhou, Yunnan and western Hubei'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Chungking, Kunming]}
+    prestige: {amount: 10, gap: true, named_source: lane_choice, basis: the wartime capital}
+  - key: northwest_china
+    industry: {amount: 0.15, gap: true, named_source: kennedy_1987, basis: the Shaanxi and Gansu works}
+    manpower: {amount: 33.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 33.0 million people: Shaanxi, Gansu, Ningxia, Qinghai and western Henan'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Sian, Lanchow]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: Sian}
+  - key: south_china
+    industry: {amount: 0.15, gap: true, named_source: kennedy_1987, basis: Guangxi's and Fujian's works}
+    manpower: {amount: 44.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 44.0 million people: Guangxi, Fujian and unoccupied Guangdong'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Liuchow, Foochow]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: a provincial capital}
+  - key: south_china_coast
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no industry of note}
+    manpower: {amount: 10.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 10.0 million people: the Canton and Swatow perimeters, Hainan and Macau'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Canton]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: Canton}
+  - key: hong_kong
+    industry: {amount: 0.1, gap: true, named_source: kennedy_1987, basis: the Hong Kong dockyards}
+    manpower: {amount: 1.6, gap: true, named_source: lon_yearbook_1941, basis: 'about 1.6 million people: Hong Kong'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Hong Kong]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: a crown colony}
+  - key: indochina
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no industry of note}
+    manpower: {amount: 23.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 23.0 million people: French Indochina'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Haiphong, Hanoi, Saigon]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: an occupied colony}
+  - key: thailand
+    industry: {amount: 0.05, gap: true, named_source: kennedy_1987, basis: Bangkok's mills}
+    manpower: {amount: 15.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 15.0 million people: Thailand'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Bangkok]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: a kingdom}
+  - key: malaya
+    industry: {amount: 0.1, gap: true, named_source: kennedy_1987, basis: Malayan tin and rubber works and the Singapore dockyard}
+    manpower: {amount: 7.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 7.0 million people: Malaya, Singapore and British Borneo'}
+    oil: {amount: 0.4, gap: true, named_source: lon_yearbook_1941, basis: 'the Miri and Seria fields, about 1.2 million tonnes'}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Singapore, Penang, Kuala Lumpur]}
+    prestige: {amount: 5, gap: true, named_source: lane_choice, basis: Singapore}
+  - key: burma
+    industry: {amount: 0.05, gap: true, named_source: kennedy_1987, basis: the Burmese refineries}
+    manpower: {amount: 16.8, gap: true, named_source: lon_yearbook_1941, basis: 'about 16.8 million people: Burma'}
+    oil: {amount: 0.4, gap: true, named_source: lon_yearbook_1941, basis: 'the Yenangyaung fields, about 1.1 million tonnes'}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Rangoon, Mandalay, Lashio]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a colony}
+  - key: dutch_east_indies
+    industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: the Indies' refineries and tin}
+    manpower: {amount: 70.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 70.0 million people: the Netherlands Indies and Portuguese Timor'}
+    oil: {amount: 3.1, gap: true, named_source: lon_yearbook_1941, basis: 'Sumatra and Borneo fields, about 9.2 million tonnes'}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Batavia, Surabaya, Palembang]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: the colony's seat}
+  - key: philippines
+    industry: {amount: 0.3, gap: true, named_source: kennedy_1987, basis: Manila's works}
+    manpower: {amount: 16.0, gap: true, named_source: census_us_1940, basis: 'about 16.0 million people: the Philippine Commonwealth'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Manila, Cebu]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: a commonwealth's capital}
+  - key: hawaii
+    industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: the Pearl Harbor yard}
+    manpower: {amount: 0.4, gap: true, named_source: census_us_1940, basis: 'about 0.4 million people: the Territory of Hawaii'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Pearl Harbor]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: the Pacific Fleet's base}

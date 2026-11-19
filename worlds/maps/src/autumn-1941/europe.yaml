@@ -296,7 +296,7 @@ territories:
     terrain: mountain
     terrain_gap: true
     terrain_note: "the Apennines; no source cited"
-    sites: [rome]
+    sites: [rome, taranto]
     provinces: [
       ITA-5428, ITA-5427, ITA-5429, ITA-5430, ITA-5431, ITA-5419, ITA-5418, ITA-5421, ITA-5401,
       ITA-5404, ITA-5405, ITA-5403, ITA-5406, ITA-5407, ITA-5408, ITA-5389, ITA-5391, ITA-5392,

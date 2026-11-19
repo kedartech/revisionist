@@ -10,7 +10,7 @@
 # the fragment's blocks into both staging worlds; the test pins the hash.
 extends: eastern-front.world.yaml
 places_of: ../../../autumn-1941.yaml
-map: {coords: lonlat, file: autumn-1941.json, sha256: 7c3900660863ce210dc188b555f8d1d0bbbee504f17f92739687f691fed05836, box: [-126, 10, 52, 71.5]}
+map: {coords: lonlat, file: autumn-1941.json, sha256: cbc7d5075397531932094feae7e1ea6e461656210ee08f92894b9a13d98ad3ca, box: [-126, 10, 52, 71.5]}
 regions:
   - {key: europe, name: Europe}
 territories:
@@ -30,7 +30,7 @@ territories:
   - {key: romania, name: Romania and Ploesti, region: europe, terrain: plain}
   - {key: balkans, name: The Balkans, region: europe, terrain: mountain}
   - {key: italy_north, name: Northern Italy, region: europe, terrain: plain}
-  - {key: italy_south, name: Rome and the South, region: europe, terrain: mountain, sites: [rome]}
+  - {key: italy_south, name: Rome and the South, region: europe, terrain: mountain, sites: [rome, taranto]}
   - {key: iberia, name: Spain and Portugal, region: europe, terrain: mountain}
   - {key: switzerland, name: Switzerland, region: europe, terrain: mountain}
 sea_zones:

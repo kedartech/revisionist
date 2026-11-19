@@ -6,6 +6,8 @@ destination open as the place picker makes it. An authority domain gives him Hom
 carried out by Ismay. No other card offers Home Forces on a form or holds it in a domain.
 """
 
+from pathlib import Path
+
 import pytest
 
 from revisionist.core import events as ev
@@ -23,6 +25,9 @@ from revisionist.engine.store import MemoryStore, load_state
 from tests.test_detach_split import two_seats
 from tests.test_realism_resolvers import Rig
 from tests.test_realism_tick import CAMPAIGN
+
+POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
+"""The autumn-1941 world before territories: these tests pin movement between points."""
 
 POOL = "uk_sealift_grt"
 
@@ -96,7 +101,7 @@ def test_churchill_files_home_forces_to_reykjavik_and_the_order_runs_its_pipelin
     # The order id seeds each step's friction: a random id stalled Pound's step in ~1 run in 10.
     monkeypatch.setattr(realism_tick, "new_id", lambda: "01ARZ3NDEKTSV4RRFFQ69G5FAV")
     store = MemoryStore()
-    decl = cmp.load_world(cmp.world_path("autumn-1941"))
+    decl = cmp.load_world(cmp.world_path(POINTS))
     store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))
     ids = resolve_keys(decl, CAMPAIGN)
     pm = SeatId(derived_id(CAMPAIGN, "seat", ids["churchill"]))

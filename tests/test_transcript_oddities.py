@@ -6,6 +6,7 @@ be filed a second time after the first had been enacted.
 """
 
 from datetime import date
+from pathlib import Path
 
 import pytest
 
@@ -20,6 +21,9 @@ from revisionist.engine.realism_tick import file_order, run_realism_tick
 from revisionist.engine.store import MemoryStore, load_state
 from tests.test_realism_tick import CAMPAIGN
 
+POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
+"""The autumn-1941 world before territories: these tests pin movement between points."""
+
 DECLARE = {"target": "usa"}
 ARMY = "army_group_centre"
 
@@ -29,7 +33,7 @@ class Game:
 
     def __init__(self) -> None:
         self.store = MemoryStore()
-        decl = cmp.load_world(cmp.world_path("autumn-1941"))
+        decl = cmp.load_world(cmp.world_path(POINTS))
         self.store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))
         self.ids = resolve_keys(decl, CAMPAIGN)
         fdr = SeatId(derived_id(CAMPAIGN, "seat", self.ids["roosevelt"]))

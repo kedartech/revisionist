@@ -24,6 +24,9 @@ from revisionist.engine.web import realism_snapshot as rs
 from revisionist.engine.web.realism_api import PlaceChoice, PlaceLift
 from tests.test_realism_resolvers import START, Rig, rig
 
+POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
+"""The autumn-1941 world before territories: these tests pin movement between points."""
+
 FIXTURE = Path(__file__).parents[1] / "web" / "test" / "fixtures" / "realism-seat.json"
 POOL = "uk_sealift_grt"
 POOL_NAME = "British shipping free for troop lift"
@@ -31,7 +34,7 @@ ARMY = "home_forces"
 
 
 def keys(r: Rig) -> dict[EntityId, str]:
-    world = cmp.load_world(cmp.world_path("autumn-1941"))
+    world = cmp.load_world(cmp.world_path(POINTS))
     return {
         EntityId(object_id(r.campaign, "entity", e.key)): e.key
         for e in world.entities
@@ -74,7 +77,7 @@ def places(r: Rig, seat: str = "churchill", lever: str = "move_army") -> dict[st
 
 def churchill_placed() -> tuple[Rig, ev.DocumentIssued]:
     """Churchill seated, with an Admiralty page that places Home Forces in London."""
-    r = rig(seat="churchill")
+    r = rig(POINTS, seat="churchill")
     return r, page(r, "Admiralty reports", 2, sights=(ARMY,))
 
 
@@ -90,7 +93,7 @@ def test_churchills_army_form_lists_reykjavik_by_sea_with_the_need_and_his_repor
 
 
 def test_before_any_page_reports_the_pool_reported_is_null() -> None:
-    r = rig(seat="churchill")
+    r = rig(POINTS, seat="churchill")
     page(r, "Admiralty reports", 2, sights=(ARMY,), report=False)
     assert places(r)["reykjavik"]["lift"] == {ARMY: {"need": 200_000, "reported": None}}
 
@@ -119,7 +122,7 @@ def test_a_refused_landing_carries_no_lift() -> None:
 
 
 def test_a_seat_with_no_pool_sees_the_refusal_and_no_lift() -> None:
-    r = rig(seat="hitler")
+    r = rig(POINTS, seat="hitler")
     page(r, "OKW situation reports", 2)
     london = places(r, "hitler")["london"]
     agc = "army_group_centre"
@@ -130,7 +133,7 @@ def test_a_seat_with_no_pool_sees_the_refusal_and_no_lift() -> None:
 
 
 def test_a_force_no_page_places_has_no_lift() -> None:
-    r = rig(seat="churchill")
+    r = rig(POINTS, seat="churchill")
     assert places(r)["reykjavik"]["lift"] == {ARMY: None}
 
 

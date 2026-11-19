@@ -1,14 +1,15 @@
-# The scoped check's staging world for the 1941 pilot region (the Eastern Front):
-#   python scripts/map_check.py check --region worlds/maps/src/autumn-1941/eastern-front.world.yaml
+# The scoped check's staging world for the 1941 pilot region (the Eastern Front). The map now holds
+# the regions built after it too, so the check runs on the newest staging world, which extends this:
+#   python scripts/map_check.py check --region worlds/maps/src/autumn-1941/europe.world.yaml
 # Its map block, regions, territories, sea zones and adjacency are the build's world fragment
-# (worlds/maps/autumn-1941.world.yaml) as built; the sites in scope are the twelve places today's
-# world file has in the region, their coordinates copied from it (that file is not edited here).
-# Rebuild the map, then copy the fragment's blocks here; the test pins the hash.
+# (worlds/maps/autumn-1941.world.yaml) as built, the pilot region's areas and the adjacency pairs
+# between them; the sites in scope are the twelve places today's world file has in the region, their
+# coordinates copied from it (that file is not edited here). Rebuild the map, then copy the
+# fragment's blocks here; the test pins the hash.
 places_of: ../../../autumn-1941.yaml
-map: {coords: lonlat, file: autumn-1941.json, sha256: be8e51b21ded6ffc112305f5f334cb65015d0caad409ae545a518233e8b1173b, box: [14, 40, 52, 71]}
+map: {coords: lonlat, file: autumn-1941.json, sha256: f6fead1930fc00e33cf6aad2f71cf4548020b8e4db9addb63ff5b53a56f06868, box: [-11, 35.5, 52, 71.5]}
 regions:
   - {key: eastern_front, name: The Eastern Front}
-  - {key: beyond_the_frontier, name: Beyond the frontier}
 territories:
   - {key: the_north, name: The North, region: eastern_front, terrain: forest, sites: [archangel]}
   - {key: leningrad, name: Leningrad, region: eastern_front, terrain: forest, sites: [leningrad]}
@@ -26,21 +27,15 @@ territories:
   - {key: crimea, name: The Crimea, region: eastern_front, terrain: plain}
   - {key: voronezh, name: 'Orel, Kursk and Voronezh', region: eastern_front, terrain: plain}
   - {key: stalingrad, name: Stalingrad and Saratov, region: eastern_front, terrain: plain}
-  - {key: east_prussia, name: East Prussia, region: beyond_the_frontier, terrain: plain}
-  - {key: occupied_poland, name: Occupied Poland, region: beyond_the_frontier, terrain: plain}
-  - {key: finland, name: Finland, region: beyond_the_frontier, terrain: forest}
 sea_zones:
   - {key: baltic_sea, name: The Baltic Sea, region: eastern_front, terrain: sea}
   - {key: black_sea, name: The Black Sea, region: eastern_front, terrain: sea}
   - {key: white_sea, name: The White Sea and the Barents, region: eastern_front, terrain: sea}
 adjacency:
   - [baltic_sea, baltic_states]
-  - [baltic_sea, east_prussia]
   - [baltic_sea, leningrad]
   - [baltic_states, belorussia]
-  - [baltic_states, east_prussia]
   - [baltic_states, leningrad]
-  - [belorussia, east_prussia]
   - [belorussia, kiev]
   - [belorussia, leningrad]
   - [belorussia, smolensk]
@@ -53,8 +48,6 @@ adjacency:
   - [donbas, odessa]
   - [donbas, stalingrad]
   - [donbas, voronezh]
-  - [finland, the_north]
-  - [finland, white_sea]
   - [kalinin, leningrad]
   - [kalinin, moscow]
   - [kalinin, smolensk]
@@ -72,7 +65,6 @@ adjacency:
   - [moscow, smolensk]
   - [moscow, upper_volga]
   - [moscow, voronezh]
-  - [occupied_poland, western_ukraine]
   - [odessa, western_ukraine]
   - [smolensk, voronezh]
   - [stalingrad, upper_volga]

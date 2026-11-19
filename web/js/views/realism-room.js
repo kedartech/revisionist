@@ -859,7 +859,7 @@ export function realismRoom(ctx) {
 
   /** The wake just opened, playing in its own dialog until it is closed; null otherwise. */
   function playingDialog() {
-    if (!ui.playing) return null;
+    if (!ui.playing || ui.playing.inSheet) return null;
     const d = playbackDialog({ pages: ui.playing.pages, play: ui.playing.play, onClose: () => { ui.playing = null; d.remove(); } });
     ui.playing.close = () => { if (d.open) d.close(); };
     return d;
@@ -887,7 +887,8 @@ export function realismRoom(ctx) {
    */
   async function loadMissed() {
     const latest = rv.record?.wake?.number;
-    const playLatest = Number.isInteger(latest) && latest > (ui.playedTo ?? -1);
+    // a wake page with no days passed is the game's start: nothing has happened to play
+    const playLatest = Number.isInteger(latest) && rv.record.wake.days_passed > 0 && latest > (ui.playedTo ?? -1);
     if (ui.missedAsked && !playLatest) return;
     if (playLatest) ui.playedTo = latest;
     let pages = [];
@@ -899,12 +900,18 @@ export function realismRoom(ctx) {
       const now = (await catchupPages({ first: latest, last: latest })).filter((p) => p.number === latest);
       if (pages.length) pages = missedPages({ pages: [...pages, ...now] });
       else if (now.length) {
-        const playing = { pages: now };
-        playing.play = wakePlayer({ ...playArgs(now), onEnd: () => playing.close?.() });
-        if (!playing.play) return;
-        ui.playing = playing;
         // the room may have been drawn again while the reply was out: the newest draw shows it
         const live = root.isConnected ? root : lastRoot;
+        // the What happened sheet of this wake, while it is up, holds the playback where forces moved
+        const sheet = happenedDue(rv.record.wake, shown, ui.happenedSeen) ? live?.querySelector('dialog.rl-hap') : null;
+        const playing = { pages: now, inSheet: Boolean(sheet) };
+        playing.play = wakePlayer({ ...playArgs(now), onEnd: sheet ? undefined : () => playing.close?.() });
+        if (!playing.play) return;
+        ui.playing = playing;
+        if (sheet) {
+          sheet.querySelector('.rl-hap-actions')?.before(playing.play);
+          return;
+        }
         if (!live?.isConnected) return;
         const d = playingDialog();
         live.append(d);
@@ -929,12 +936,16 @@ export function realismRoom(ctx) {
     const happened = happenedDue(page, shown, ui.happenedSeen)
       ? happenedSheet({
         record: rv.record, situation: rv.situation, agenda: rv.agenda, date,
-        places: rv.map?.places,
+        places: rv.map?.places, play: ui.playing?.inSheet ? ui.playing.play : null,
         onClose: () => happened?.close(),
       })
       : null;
     // Esc closes a dialog without its button: the close event counts either way
-    happened?.addEventListener('close', () => { ui.happenedSeen = page.number; shown.write(page.number); });
+    happened?.addEventListener('close', () => {
+      ui.happenedSeen = page.number;
+      shown.write(page.number);
+      if (ui.playing?.inSheet) ui.playing = null;
+    });
     return { character, setting, happened, intro: intro(happened) };
   }
 

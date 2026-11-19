@@ -108,61 +108,97 @@ test('a move lights where the piece left and where it entered on the seat\'s own
   assert.deepEqual(lit().map((a) => [...new Set(a)]), [['norra_plain'], ['the_gulf']]);
 });
 
-test('a room that opens on a wake it has not watched plays it; a re-read in the same page does not replay it', async () => {
+/**
+ * The room for the toy seat, in the page, with `catchup` behind it. `seen`: the What happened
+ * sheet of wake 3 already shown in this browser. `days`: the latest page's days passed.
+ */
+function toyRoom(catchup, { seen = false, days = 6 } = {}) {
   const doc = installDom();
+  const id = `g-${Math.random()}`;
   const asked = [];
+  const writes = [];
+  const store = new Map(seen ? [[`rv.happened.${id}`, '3']] : []);
+  globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => { writes.push(k); store.set(k, v); }, removeItem: () => {} };
   api.realism = async () => ({});
   api.game = async () => ({ reply: '', leaders: [] });
-  api.catchup = async (body = {}) => {
-    asked.push(body);
-    return body.first === 3 ? { first: 3, last: 3, pages: [page(3, TWO_MOVES.steps)] } : { first: 3, last: 2, pages: [] };
-  };
-  const game = { id: `g-${Math.random()}`, name: 'Toy', ruleset: 'realism', phase: 'play', host: true,
-    view: { realism: { ...structuredClone(fixture), documents: fixture.listing, map: TMAP, wake_tick: 1 }, seat: { name: 'Ilse' } } };
+  api.catchup = async (body = {}) => { asked.push(body); return catchup(body); };
+  const rv = { ...structuredClone(fixture), documents: fixture.listing, map: TMAP, wake_tick: 1 };
+  rv.record.wake.days_passed = days;
+  const game = { id, name: 'Toy', ruleset: 'realism', phase: 'play', host: true, view: { realism: rv, seat: { name: 'Ilse' } } };
   const ctx = { me: { account: { handle: 'josh' }, game }, refresh: async () => doc.body.replaceChildren(realismRoom(ctx)), go: () => {} };
   doc.body.append(realismRoom(ctx));
-  await flush();
-  await flush();
+  return { doc, ctx, asked, writes };
+}
+const latestOnly = (body) => (body.first === 3 ? { first: 3, last: 3, pages: [page(3, TWO_MOVES.steps)] } : { first: 3, last: 2, pages: [] });
+const settle = async () => { await flush(); await flush(); };
+
+test('a room that opens on a wake it has not watched plays it inside that wake\'s What happened sheet', async () => {
+  const { doc, ctx, asked } = toyRoom(latestOnly);
+  await settle();
   // rule 3: the server names the missed range; the wake just opened is the record's own page
   assert.deepEqual(asked, [{}, { first: 3, last: 3 }]);
+  const sheet = doc.body.querySelector('dialog.rl-hap');
+  assert.ok(sheet.open);
+  const played = sheet.querySelector('section.rl-plb');
+  assert.ok(played, 'where forces moved is the playback');
+  assert.deepEqual(kinds(sheet), ['paper', 'paper', 'move', 'move']);
+  assert.ok(sheet.children.indexOf(played) < sheet.children.indexOf(sheet.querySelector('.rl-hap-actions')), 'above To the desk');
+  assert.equal(doc.body.querySelectorAll('dialog.rl-plb-dialog').length, 0, 'no second dialog over the sheet');
+  // the minute poll's re-read keeps the playback where it stands, and asks nothing more
+  await ctx.refresh();
+  await settle();
+  assert.equal(doc.body.querySelector('dialog.rl-hap section.rl-plb'), played);
+  assert.equal(asked.length, 2);
+  buttons(doc.body.querySelector('dialog.rl-hap'), 'To the desk')[0].click();
+  await ctx.refresh();
+  await settle();
+  assert.equal(doc.body.querySelectorAll('section.rl-plb').length, 0, 'not played again in this page');
+  assert.equal(asked.length, 2);
+  delete globalThis.localStorage;
+});
+
+test('the played mark is never stored: a wake whose sheet this browser has seen plays again in a fresh page, in its own dialog', async () => {
+  const { doc, ctx, asked, writes } = toyRoom(latestOnly, { seen: true });
+  await settle();
+  assert.equal(doc.body.querySelector('dialog.rl-hap'), null);
   const shown = doc.body.querySelectorAll('dialog.rl-plb-dialog');
   assert.equal(shown.length, 1);
   assert.ok(shown[0].open);
   assert.deepEqual(kinds(shown[0]), ['paper', 'paper', 'move', 'move']);
-  // the minute poll's re-read keeps the playback where it stands, and asks nothing more
+  for (const k of writes) assert.ok(!/play|plb|watch/i.test(k), k);
   const played = shown[0].querySelector('section.rl-plb');
   await ctx.refresh();
-  await flush();
-  await flush();
+  await settle();
   const kept = doc.body.querySelectorAll('dialog.rl-plb-dialog');
   assert.equal(kept.length, 1);
   assert.equal(kept[0].querySelector('section.rl-plb'), played);
-  assert.equal(asked.length, 2);
   kept[0].close();
   await ctx.refresh();
-  await flush();
+  await settle();
   assert.equal(doc.body.querySelectorAll('dialog.rl-plb-dialog').length, 0);
   assert.equal(asked.length, 2);
+  delete globalThis.localStorage;
 });
 
 test('a room drawn again while the catch-up reply is out still plays the wake, in the newest draw', async () => {
-  const doc = installDom();
   let answer;
-  api.realism = async () => ({});
-  api.game = async () => ({ reply: '', leaders: [] });
-  api.catchup = async (body = {}) => (body.first === 3 ? new Promise((r) => { answer = r; }) : { pages: [] });
-  const game = { id: `g-${Math.random()}`, name: 'Toy', ruleset: 'realism', phase: 'play', host: true,
-    view: { realism: { ...structuredClone(fixture), documents: fixture.listing, map: TMAP, wake_tick: 1 }, seat: { name: 'Ilse' } } };
-  const ctx = { me: { account: { handle: 'josh' }, game }, refresh: async () => doc.body.replaceChildren(realismRoom(ctx)), go: () => {} };
-  doc.body.append(realismRoom(ctx));
+  const { doc, ctx } = toyRoom((body) => (body.first === 3 ? new Promise((r) => { answer = r; }) : { pages: [] }), { seen: true });
   await flush();
   await ctx.refresh();
   answer({ pages: [page(3, TWO_MOVES.steps)] });
-  await flush();
-  await flush();
+  await settle();
   const shown = doc.body.querySelectorAll('dialog.rl-plb-dialog');
   assert.equal(shown.length, 1);
   assert.ok(shown[0].open);
+  delete globalThis.localStorage;
+});
+
+test('the game\'s start plays nothing: no days have passed on the first page', async () => {
+  const { doc, asked } = toyRoom(latestOnly, { days: 0 });
+  await settle();
+  assert.deepEqual(asked, [{}]);
+  assert.equal(doc.body.querySelectorAll('section.rl-plb').length, 0);
+  delete globalThis.localStorage;
 });
 
 // rule 2: several wakes, each in turn, inside the missed-wakes pages
@@ -206,26 +242,6 @@ test('several missed wakes and the one just opened play in turn in the missed sh
 });
 
 // rule 3: the played mark is the page's alone
-
-test('the played mark is never stored: a wake already shown in this browser plays again in a fresh page', async () => {
-  const doc = installDom();
-  const writes = [];
-  const id = `g-${Math.random()}`;
-  const store = new Map([[`rv.happened.${id}`, '3']]);
-  globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => { writes.push(k); store.set(k, v); }, removeItem: () => {} };
-  api.realism = async () => ({});
-  api.game = async () => ({ reply: '', leaders: [] });
-  api.catchup = async (body = {}) => (body.first === 3 ? { pages: [page(3, TWO_MOVES.steps)] } : { pages: [] });
-  const game = { id, name: 'Toy', ruleset: 'realism', phase: 'play', host: true,
-    view: { realism: { ...structuredClone(fixture), documents: fixture.listing, map: TMAP, wake_tick: 1 }, seat: { name: 'Ilse' } } };
-  const ctx = { me: { account: { handle: 'josh' }, game }, refresh: async () => {}, go: () => {} };
-  doc.body.append(realismRoom(ctx));
-  await flush();
-  await flush();
-  assert.equal(doc.body.querySelectorAll('dialog.rl-plb-dialog').length, 1);
-  for (const k of writes) assert.ok(!/play|plb|watch/i.test(k), k);
-  delete globalThis.localStorage;
-});
 
 // rule 4: the pre-run reel and ui.runFrom are gone
 

@@ -153,7 +153,7 @@ export function wakePlayer({ pages, map, shapes, record, comeBack, reduced = fal
 }
 
 /**
- * The wake player in its own `<dialog class="rl-hap rl-plb-dialog">`, headed with the wakes it
+ * The wake player in its own `<dialog class="rl-plb-dialog">`, headed with the wakes it
  * plays: `play`, a player already under way (a redraw keeps its place), or a new one from the
  * rest of the arguments, whose Skip, or "To the map" once it has played, closes the dialog.
  * Closing calls `onClose()`. Null when nothing plays.
@@ -164,7 +164,7 @@ export function playbackDialog({ play, onClose, ...args } = {}) {
   if (!shown) return null;
   const nums = playFrames(args.pages).map((f) => f.page.number);
   const title = nums.length && nums[0] !== nums.at(-1) ? `Wakes ${nums[0]} to ${nums.at(-1)}, as they happened` : `Wake ${nums[0]}, as it happened`;
-  d = h('dialog', { class: 'rl-hap rl-plb-dialog', 'aria-labelledby': 'rl-plb-title' },
+  d = h('dialog', { class: 'rl-plb-dialog', 'aria-labelledby': 'rl-plb-title' },
     h('h2', { id: 'rl-plb-title' }, title), shown);
   d.addEventListener('close', () => onClose?.());
   return d;

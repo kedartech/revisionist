@@ -119,6 +119,31 @@
   overflow-wrap: anywhere;
 }
 
+/* the wake just opened, when its What happened sheet is already seen in this browser: its own
+   dialog, drawn as that sheet is (p5-happened.css) */
+dialog.rl-plb-dialog {
+  box-sizing: border-box;
+  width: min(560px, 92vw);
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: var(--space-5);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--fg-strong);
+}
+
+dialog.rl-plb-dialog::backdrop { background: var(--backdrop); }
+
+.rl-plb-dialog h2 {
+  margin: 0 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--rule);
+  font: 600 12px/1 var(--font-chrome);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
 /* the wake player (realism-playback.js): the seat's own map, still, with what a step lights,
    and the frames under it; with motion the player shows one more frame each step */
 .rl-plb {

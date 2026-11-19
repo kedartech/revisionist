@@ -39,6 +39,7 @@ from revisionist.core.realism.economy import Pools
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.quantity import QuantityChange
+from revisionist.core.realism.resolvers import evacuation
 from revisionist.core.realism.resolvers.shipping import moved
 from revisionist.core.realism.resolvers.votes import put
 from revisionist.core.realism.sealift import POOLS
@@ -104,7 +105,8 @@ LINE = 60
 
 
 def economy_order(state: State, order: Order) -> tuple["rs.Change", ...]:
-    """The order changes nothing when it is enacted: its step is built on its due day."""
+    """The order changes nothing when it is enacted: its step is built on its due day,
+    and an evacuation (EVC) moves its parts day by day."""
     return ()
 
 
@@ -113,6 +115,8 @@ def _due(state: State, today: date) -> list[Order]:
     due = []
     for o in state.orders.values():
         if o.status is not OrderStatus.ENACTED or rs.settled_on(o) + timedelta(LEAD_DAYS) != today:
+            continue
+        if evacuation.is_evacuation(o):
             continue
         try:
             if rs.resolver_for(state, o) != "economy":
@@ -242,7 +246,7 @@ def _build(state: State, order: Order, today: date) -> list["rs.Change"]:
 
 def economy_day(state: State, today: date) -> tuple["rs.Change", ...]:
     """With ``economy`` on, every step due today built or reported, each order folded
-    before the next reads the pools."""
+    before the next reads the pools; then each evacuation's part for the day (EVC)."""
     if not economy.on(state):
         return ()
     out: list[rs.Change] = []
@@ -250,7 +254,7 @@ def economy_day(state: State, today: date) -> tuple["rs.Change", ...]:
         changes = _build(state, order, today)
         out += changes
         state = _after(state, changes)
-    return tuple(out)
+    return (*out, *evacuation.on_day(state, today))
 
 
 def _after(state: State, changes: list["rs.Change"]) -> State:

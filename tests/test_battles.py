@@ -503,8 +503,19 @@ def test_a_lost_piece_never_moves_again(tmp_path: Path) -> None:
 
 
 def hold(g: Logged, key: str, posture: Posture | None = Posture.HOLD) -> None:
+    """The attacker's decision (BDC): hold, or press again with ``None``, a wake apart."""
     f = piece(g.state, key)
-    g.add([ev.FeatureSet(feature=f.model_copy(update={"posture": posture}))])
+    b = next(b for b in g.state.battles.values() if f.feature_id in b.attacker.pieces)
+    wake = 0 if b.attacker.decided_wake is None else b.attacker.decided_wake + 1
+    decision = battle.Decision.PRESS if posture is None else battle.Decision.HOLD
+    on = b.pressed_on or b.opened
+    g.add(
+        [
+            ev.BattleDecided(
+                area=b.area, nation=b.attacker.nation, on=on, decision=decision, wake=wake
+            )
+        ]
+    )
 
 
 def test_no_round_on_a_day_the_attacker_does_not_press(tmp_path: Path) -> None:

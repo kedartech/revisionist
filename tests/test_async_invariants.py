@@ -489,17 +489,16 @@ def test_6_catch_up_is_complete_from_the_server(web: Web) -> None:  # noqa: F811
     assert all("papers" in p for p in pages)
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=AssertionError,
-    reason="PLB, true playback (second run): the catch-up carries no replay yet",
-)
 def test_6_catch_up_is_complete_with_a_replay(web: Web) -> None:  # noqa: F811
-    """A seat away for three wakes gets a replay for each, from a fresh browser."""
+    """A seat away for three wakes gets a replay for each, from a fresh browser: every
+    page carries its steps, and every wake in which anything reached the seat plays it."""
     _, fresh = away_for_three_wakes(web)
     pages = catchup_pages(fresh)
     assert [p["number"] for p in pages] == [0, 1, 2]
-    assert all(p.get("steps") for p in pages)
+    assert all(isinstance(p.get("steps"), list) for p in pages)
+    busy = [p for p in pages if p["papers"] or p["filed"] or p["settled"]]
+    assert [p["number"] for p in busy] == [1, 2]
+    assert all(p["steps"] for p in busy)
 
 
 # --- 7. One notice ----------------------------------------------------------------

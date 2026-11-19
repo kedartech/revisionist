@@ -1124,6 +1124,82 @@ class RecordWake(TypedDict):
     """``RecordOrder.id`` of each entry settled since the wake before."""
 
 
+class PlaybackOrder(TypedDict):
+    """A step on one of the seat's own orders (PBF)."""
+
+    kind: Literal["order"]
+    on: str
+    order: str
+    """``RecordOrder.id`` of the record line it moves."""
+    what: str
+    """``filed``; a ``StepAction`` value for a step taken; an ``OrderStatus`` value once
+    it settles; ``carried_out`` or ``refused`` for a routed part."""
+
+
+class PlaybackMove(TypedDict):
+    """One of the seat's own nation's pieces entered an area. The same shape however the
+    piece was sent: a seat's order, the aide's, the record or a battle."""
+
+    kind: Literal["move"]
+    on: str
+    piece: str
+    """The piece's key, as ``MapMark.key`` names it."""
+    left: str
+    """The area's key in the map file."""
+    entered: str
+
+
+class PlaybackHalt(TypedDict):
+    """A step of the seat's own nation's piece was refused, and it holds where it stands."""
+
+    kind: Literal["halt"]
+    on: str
+    piece: str
+    area: str
+    to: str
+    reason: str
+
+
+class PlaybackPaper(TypedDict):
+    """A paper reached the seat: a report, the press, a battle report."""
+
+    kind: Literal["paper"]
+    on: str
+    """The day it arrived."""
+    paper: str
+    """``DocumentListItem.id``."""
+    title: str
+
+
+class PlaybackHolder(TypedDict):
+    """A territory changed hands. Public."""
+
+    kind: Literal["holder"]
+    on: str
+    area: str
+    holder: MapNation
+    was: MapNation | None
+
+
+class PlaybackStake(TypedDict):
+    """A contest, mandate or goal of the seat's view moved or settled."""
+
+    kind: Literal["stake"]
+    on: str
+    name: str
+    """The contest's name, the mandate's text or the goal's text."""
+    what: str
+    """``moved`` or ``decided`` for a contest; ``issued`` or a ``MandateStatus`` value
+    for a mandate;
+    ``progressed``, ``met`` or ``undone`` for a goal."""
+
+
+PlaybackStep = (
+    PlaybackOrder | PlaybackMove | PlaybackHalt | PlaybackPaper | PlaybackHolder | PlaybackStake
+)
+"""One step of a missed wake's playback, in the order it happened (``on`` is ISO)."""
+
+
 class RecordBlock(TypedDict):
     orders: list[RecordOrder]
     """Newest filed first."""
@@ -1230,6 +1306,13 @@ __all__ = [
     "PlaceChoice",
     "PlaceLift",
     "PlaceReach",
+    "PlaybackHalt",
+    "PlaybackHolder",
+    "PlaybackMove",
+    "PlaybackOrder",
+    "PlaybackPaper",
+    "PlaybackStake",
+    "PlaybackStep",
     "ReachContact",
     "ReachGroups",
     "Receipt",

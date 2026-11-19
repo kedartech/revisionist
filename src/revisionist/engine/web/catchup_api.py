@@ -9,8 +9,9 @@ range comes from the log, never from the browser. Reply
 the catch-up seam, and, only in the owner's own payload and only for a wake the aide
 played for it, ``aide_filed``: what the aide filed, in the order's own words; and, only
 in the owner's own payload, ``held_dropped``: a line for each order the seat gave after
-committing that did not go through when this wake opened. A page takes further
-optional keys without a breaking change.
+committing that did not go through when this wake opened; and ``steps``, the wake's
+playback (PBF, ``playback.steps``), built from the same seam as ``papers``. A page takes
+further optional keys without a breaking change.
 """
 
 from collections.abc import Mapping, Sequence
@@ -23,7 +24,8 @@ from revisionist.core.ids import OrderId, SeatId
 from revisionist.core.ontology import Controller
 from revisionist.core.state import State
 from revisionist.engine import catchup
-from revisionist.engine.web.realism_api import RecordWake
+from revisionist.engine.web import playback
+from revisionist.engine.web.realism_api import PlaybackStep, RecordWake
 from revisionist.engine.web.record_api import _day, _token
 
 
@@ -32,6 +34,8 @@ class CatchupPage(RecordWake):
     """The labels of the orders the aide filed for this seat in this wake."""
     held_dropped: NotRequired[list[str]]
     """The seat's held orders that were due in this wake and did not go through."""
+    steps: NotRequired[list[PlaybackStep]]
+    """What the seat's view held in this wake, in the order it happened (PBF)."""
 
 
 def _whole(body: dict[str, Any], key: str) -> int | None:
@@ -106,6 +110,7 @@ def reply(
     first, last = _range(state, commits, body, dropped or {})
     ledger = record.build(state, events, seat)
     fed = catchup.feed(state, events, seat, first, last)
+    played = playback.steps(fed, state, seat)
     pages: list[CatchupPage] = []
     for page in ledger.wakes:
         if not first <= page.number <= last:
@@ -121,10 +126,11 @@ def reply(
             ),
             filed=[_token(k) for k in page.filed],
             settled=[_token(k) for k in page.settled],
+            steps=played.get(page.number, []),
         )
-        played = commits.get(page.number)
-        if played is not None and played.by_aide:
-            out["aide_filed"] = _labels(ledger, played.aide_orders)
+        commit = commits.get(page.number)
+        if commit is not None and commit.by_aide:
+            out["aide_filed"] = _labels(ledger, commit.aide_orders)
         if dropped and dropped.get(page.number):
             out["held_dropped"] = list(dropped[page.number])
         pages.append(out)

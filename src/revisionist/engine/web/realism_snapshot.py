@@ -39,7 +39,7 @@ from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
 from revisionist.engine.aide import AideBrief
 from revisionist.engine.directive import Proposal, channels
-from revisionist.engine.web import map_api
+from revisionist.engine.web import economy_api, map_api
 from revisionist.engine.web.destinations import (
     FORCE,
     Known,
@@ -580,7 +580,7 @@ def seat_map(
     capitals = _capitals(view, people) if people is not None else []
     out = SeatMap(places=places, marks=marks, orders=orders, capitals=capitals)
     map_api.protect_marks(out, view)
-    return map_api.add_board(out, state) if state is not None else out
+    return map_api.add_board(out, state, view) if state is not None else out
 
 
 def _step_lines(order: Order, pipeline: Pipeline, view: View) -> list[StepLine]:
@@ -874,7 +874,7 @@ def seat_realism(
     withdrawable: Collection[str] = (),
 ) -> dict[str, Any]:
     """The ``view.realism`` block of ``/api/me``: tray, desk, situation, orders, clock, map,
-    threats, people and the world's developments.
+    threats, people, the world's developments and the war economy.
     ``place_keys`` (``destinations.place_keys``) opens movement forms to every place;
     ``withdrawable`` (``withdraw.withdrawable``) are the orders the seat may take back."""
     view = project(state, seat)
@@ -908,6 +908,7 @@ def seat_realism(
         "threats": seat_threats(state, seat, view),
         "people": people,
         "world": world_news(view),
+        "economy": economy_api.block(state, view),
     }
 
 

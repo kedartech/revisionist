@@ -1,6 +1,7 @@
 """The agenda on the web (Phase 4 unit S2): live mandates, offered options, the style,
 and the requests another seat has put to this seat's person (ANS), each answered with
-``answer``.
+``answer``. ``due_matters`` is the one list of what waits on a seat, which the wake
+notice reads (DMN).
 
 Options come from ``OptionsOffered``, produced at wake open by ``options.offer``.
 Picking one files it through the ordinary order path, so it is what a free player
@@ -9,7 +10,8 @@ fired; those are written as orders, never filed from the offer.
 """
 
 import re
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from datetime import date
 
 from revisionist.core import events as ev
@@ -19,7 +21,7 @@ from revisionist.core.events import Event
 from revisionist.core.ids import CampaignId, EntityId, MandateId, OrderId, SeatId, derived_id
 from revisionist.core.ontology import Controller
 from revisionist.core.project import project
-from revisionist.core.realism import advance, mandates, pipelines, process
+from revisionist.core.realism import advance, holders, mandates, pipelines, process
 from revisionist.core.realism.agenda import Offer, Option, PlayStyle, TriggerKind
 from revisionist.core.realism.effect import RoutedPart
 from revisionist.core.realism.pipeline import StepAction
@@ -417,4 +419,98 @@ def pick_option(store: EventStore, campaign_id: CampaignId, seat: SeatId, pick: 
     return Reply(reply=f"Filed: {chosen.label}.", refused=False)
 
 
-__all__ = ["agenda", "answer", "offered", "pick_option", "requests", "seat_style", "set_style"]
+# --- what waits on a seat (DMN) --------------------------------------------------
+
+AT_CLOSE = "at this wake's close"  # [proposed]
+"""The due day of a matter that is decided when the open wake closes."""
+
+
+@dataclass(frozen=True)
+class DueMatter:
+    """One thing that waits on a seat, as its notice lists it: what it is, who it is
+    from, and when it falls due. ``kind`` and ``subject`` name it, so a matter reached
+    by two paths is listed once; ``subject`` is an id the seat already holds."""
+
+    kind: str
+    subject: str
+    what: str
+    issuer: str | None
+    due: str
+
+
+DueKind = Callable[[State, SeatId], list[DueMatter]]
+"""A kind of due matter: the lines of that kind waiting on a seat, built only from what
+that seat may see, and never a sealed choice (an answer or decision kept before its due
+day, a filed vote) or any mark of the aide."""
+
+
+def _due_items(kind: str, items: list[AgendaItem]) -> list[DueMatter]:
+    """Agenda items as due matters: the words, who asks and the due day. The item's
+    ``cause`` (the seat's own answer or choice, sealed until its due day) is left out."""
+    return [DueMatter(kind, i["id"], i["text"], i["issuer"], i["deadline"]) for i in items]
+
+
+def _due_requests(state: State, seat: SeatId) -> list[DueMatter]:
+    return _due_items("request", requests(state, seat))
+
+
+def _due_decisions(state: State, seat: SeatId) -> list[DueMatter]:
+    return _due_items("decision", held_steps(state, seat))
+
+
+def _due_capitals(state: State, seat: SeatId) -> list[DueMatter]:
+    """Each territory of the seat's polity marked to fall at this wake's close (THL),
+    named by the paper that warned the seat. A seat that does not hold that paper is
+    told nothing: the mark itself is engine only."""
+    falling = holders.falling(state, seat)
+    if not falling:
+        return []
+    view = project(state, seat)
+    out: list[DueMatter] = []
+    for area, marked_on in falling:
+        doc_id = holders.paper_id(state, area, marked_on, seat)
+        page = view.documents.get(doc_id)
+        if page is None:
+            continue
+        out.append(DueMatter("capital", doc_id, page.title, _name(view, page.author), AT_CLOSE))
+    return out
+
+
+DUE_KINDS: dict[str, DueKind] = {
+    "request": _due_requests,
+    "decision": _due_decisions,
+    "capital": _due_capitals,
+}
+"""The registry of due kinds, in the order a notice lists them. Battles (BTD), offers
+(AGA) and votes (CNA) add theirs here."""
+
+
+def due_matters(state: State, seat: SeatId) -> list[DueMatter]:
+    """Everything that waits on ``seat`` now: each registered kind's lines in registry
+    order, a matter reached by two paths listed once (by kind and subject). Built from
+    the state alone, so it reads the same whether any other seat is present or away."""
+    seen: set[tuple[str, str]] = set()
+    out: list[DueMatter] = []
+    for kind in DUE_KINDS.values():
+        for matter in kind(state, seat):
+            key = (matter.kind, matter.subject)
+            if key not in seen:
+                seen.add(key)
+                out.append(matter)
+    return out
+
+
+__all__ = [
+    "AT_CLOSE",
+    "DUE_KINDS",
+    "DueKind",
+    "DueMatter",
+    "agenda",
+    "answer",
+    "due_matters",
+    "offered",
+    "pick_option",
+    "requests",
+    "seat_style",
+    "set_style",
+]

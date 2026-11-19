@@ -3,8 +3,11 @@
 # are Natural Earth 1:10m admin-1 codes (worlds/maps/SOURCES.md). Every value here is [proposed]:
 # the territory list and names, which provinces make each territory, every cut line and every terrain.
 #
-# Build it by naming the recipe files, not the directory: the staging world beside them is a `.yaml` too.
-#   python scripts/map_build.py build worlds/maps/src/autumn-1941/eastern-front.yaml --slug autumn-1941
+# Build it with the regions built after it, naming the recipe files, not the directory (the staging
+# worlds beside them are `.yaml` too); the map's box is in the Europe file, so this file alone does not
+# build:
+#   python scripts/map_build.py build worlds/maps/src/autumn-1941/eastern-front.yaml \
+#     worlds/maps/src/autumn-1941/europe.yaml --slug autumn-1941
 #
 # Cut lines. The lane has no network and no evidence record for any 1941 border, so every cut is
 # `gap: true`: `named_source` says which border it stands for and which publication would source it,
@@ -26,15 +29,11 @@
 #   Malkinia and Zareby, and the Belz-Sokal strip that the 1951 exchange moved between Lviv and Lublin.
 # - Zakarpattia was Hungary's in June 1941 and is left out of the region.
 #
-# Neighbours. A cut gives each side to a territory, so the far side of each frontier cut needs one.
-# The three territories of the region `beyond_the_frontier` (East Prussia, occupied Poland and
-# Finland) hold only what this file needs for its cuts, plus Kaliningrad; the Europe map item (MAE)
-# takes them over, adds their provinces and moves them to its own region, and reuses these cut lines.
-map:
-  box: [14, 40, 52, 71]
+# Neighbours. A cut gives each side to a territory, so the far side of each frontier cut needs one:
+# East Prussia, occupied Poland and Finland. The Europe file (europe.yaml) defines the three, with
+# their provinces, in its own region; the cut lines below name them and stay here.
 regions:
   - {key: eastern_front, name: The Eastern Front}
-  - {key: beyond_the_frontier, name: Beyond the frontier}
 territories:
   # The north: Kola, Karelia and Archangel, the convoy ports' hinterland.
   - key: the_north
@@ -182,26 +181,6 @@ territories:
     terrain_gap: true
     terrain_note: "steppe on the lower Volga; no source cited"
     provinces: [RUS-2369, RUS-2393, RUS-2373]
-  # Beyond the frontier: held for the cuts, taken over by the Europe map item.
-  - key: east_prussia
-    name: East Prussia
-    region: beyond_the_frontier
-    terrain: plain
-    terrain_gap: true
-    terrain_note: "lakes and forest; no source cited; the Europe map item sets it"
-    provinces: [RUS-2324]
-  - key: occupied_poland
-    name: Occupied Poland
-    region: beyond_the_frontier
-    terrain: plain
-    terrain_gap: true
-    terrain_note: "no source cited; the Europe map item sets it"
-  - key: finland
-    name: Finland
-    region: beyond_the_frontier
-    terrain: forest
-    terrain_gap: true
-    terrain_note: "no source cited; the Europe map item sets it"
 cuts:
   # Walking a line from its first point, `left` takes what lies left of it and `right` what lies right.
   - name: the Memel Territory line (Klaipeda county)

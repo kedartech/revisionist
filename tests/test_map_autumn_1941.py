@@ -1,10 +1,11 @@
-"""The 1941 map: the Eastern Front pilot region, read from the committed files only.
+"""The 1941 map: the Eastern Front pilot region and Europe, read from the committed files only.
 
-Pins that every place the world has on the Eastern Front lies in exactly one territory of the
-built map, that Smolensk, Vyazma and Mozhaisk lie in the same or adjacent territories, and that the
-map passes the scoped check against the region's staging world. It reads the committed map, its
-staging world and today's world file; it needs neither the geometry tool nor the border data, so it
-runs in CI.
+Pins that every place the world has in a built region lies in exactly one territory of the built
+map, that Smolensk, Vyazma and Mozhaisk lie in the same or adjacent territories, that each cut line
+gives each side to the territory it names, and that the map passes the scoped check against the
+newest region's staging world, which extends the earlier ones. It reads the committed map, its
+recipes and staging worlds and today's world file; it needs neither the geometry tool nor the
+border data, so it runs in CI.
 """
 
 import copy
@@ -24,6 +25,11 @@ FRAGMENT = ROOT / "worlds" / "maps" / "autumn-1941.world.yaml"
 SRC = ROOT / "worlds" / "maps" / "src" / "autumn-1941"
 RECIPE = SRC / "eastern-front.yaml"
 STAGING = SRC / "eastern-front.world.yaml"
+EUROPE = SRC / "europe.yaml"
+EUROPE_STAGING = SRC / "europe.world.yaml"
+RECIPES = (RECIPE, EUROPE)
+# The newest region's staging world: the scoped check runs on it, and it extends the earlier ones.
+NEWEST = EUROPE_STAGING
 WORLD = ROOT / "worlds" / "autumn-1941.yaml"
 
 # Rule 2: every place the world has on the Eastern Front today.
@@ -41,6 +47,11 @@ SITES = (
     "taganrog",
     "archangel",
 )
+
+# MAE rule 2: the places today's world has in Europe that lie on land. Lorient is not among them:
+# the world puts it at 47.7 N, 3.4 W, in the roadstead off the Morbihan shore, so it lies in the Bay
+# of Biscay sea zone (pinned below) and is no territory's site.
+EUROPE_SITES = ("berlin", "rome")
 
 
 def _load() -> ModuleType:
@@ -70,8 +81,12 @@ def _world_places() -> dict[str, Any]:
     }
 
 
+def _staged_territories() -> list[Any]:
+    return [t for path in (STAGING, EUROPE_STAGING) for t in _yaml(path)["territories"]]
+
+
 def _territory_keys() -> set[str]:
-    return {str(t["key"]) for t in _yaml(STAGING)["territories"]}
+    return {str(t["key"]) for t in _staged_territories()}
 
 
 def _home(site: str) -> str:
@@ -95,10 +110,11 @@ def test_the_map_passes_the_check() -> None:
     assert mc.check(_raw()) == []
 
 
-def test_the_staging_world_names_the_committed_map() -> None:
-    ref = _yaml(STAGING)["map"]
+@pytest.mark.parametrize("staging", [STAGING, EUROPE_STAGING], ids=lambda p: p.stem)
+def test_the_staging_world_names_the_committed_map(staging: Path) -> None:
+    ref = _yaml(staging)["map"]
     assert ref["sha256"] == hashlib.sha256(MAP.read_bytes()).hexdigest()
-    assert mc.map_path(STAGING, ref["file"]) == MAP.resolve()
+    assert mc.map_path(staging, ref["file"]) == MAP.resolve()
 
 
 def test_the_built_fragment_names_the_committed_map() -> None:
@@ -118,26 +134,41 @@ def test_the_staging_world_puts_the_twelve_places_in_scope() -> None:
         assert staged[key]["at"] == world[key]["at"], key
 
 
-@pytest.mark.parametrize("site", SITES)
+def test_the_europe_staging_world_puts_its_three_places_in_scope() -> None:
+    staged = {str(e["key"]): e for e in _yaml(EUROPE_STAGING)["entities"]}
+    assert sorted(staged) == sorted([*EUROPE_SITES, "lorient"])
+    world = _world_places()
+    for key in staged:
+        assert staged[key]["at"] == world[key]["at"], key
+
+
+@pytest.mark.parametrize("site", SITES + EUROPE_SITES)
 def test_each_place_lies_in_exactly_one_territory(site: str) -> None:
     assert _home(site) in _territory_keys()
 
 
-@pytest.mark.parametrize("site", SITES)
+def test_lorient_lies_in_the_bay_of_biscay_off_occupied_france() -> None:
+    assert _home("lorient") == "bay_of_biscay"
+    assert mc.adjacent(_raw(), "bay_of_biscay", "occupied_france")
+
+
+@pytest.mark.parametrize("site", SITES + EUROPE_SITES)
 def test_each_place_is_a_site_of_the_territory_it_lies_in(site: str) -> None:
-    holders = [
-        str(t["key"]) for t in _yaml(STAGING)["territories"] if site in (t.get("sites") or [])
-    ]
+    holders = [str(t["key"]) for t in _staged_territories() if site in (t.get("sites") or [])]
     assert holders == [_home(site)]
 
 
 # ---------------------------------------------------------------- rule 6: the scoped check
 
 
-def test_the_scoped_check_passes_on_the_staging_world() -> None:
-    report = mc.check_region(STAGING)
+def test_the_scoped_check_passes_on_the_newest_staging_world() -> None:
+    report = mc.check_region(NEWEST)
     assert [str(p) for p in report.problems] == []
-    assert not set(SITES) & set(report.out_of_scope)
+    assert not (set(SITES) | set(EUROPE_SITES)) & set(report.out_of_scope)
+
+
+def test_the_europe_staging_world_extends_the_pilots() -> None:
+    assert (EUROPE_STAGING.parent / _yaml(EUROPE_STAGING)["extends"]).resolve() == STAGING.resolve()
 
 
 def test_the_scoped_check_fails_when_a_places_territory_leaves_the_region(tmp_path: Path) -> None:
@@ -147,18 +178,22 @@ def test_the_scoped_check_fails_when_a_places_territory_leaves_the_region(tmp_pa
     cut["backdrop"] = cut["backdrop"] + cut["areas"].pop(gone)["rings"]
     data = json.dumps(cut).encode()
     (tmp_path / "pilot.json").write_bytes(data)
-    staging = _yaml(STAGING)
-    staging["map"]["file"] = "pilot.json"
-    staging["map"]["sha256"] = hashlib.sha256(data).hexdigest()
-    staging["places_of"] = str(WORLD)
-    staging["territories"] = [t for t in staging["territories"] if t["key"] != gone]
-    staging["adjacency"] = [
+    ref = {"file": "pilot.json", "sha256": hashlib.sha256(data).hexdigest()}
+    pilot = _yaml(STAGING)
+    pilot["map"].update(ref)
+    pilot["places_of"] = str(WORLD)
+    pilot["territories"] = [t for t in pilot["territories"] if t["key"] != gone]
+    pilot["adjacency"] = [
         e
-        for e in staging["adjacency"]
+        for e in pilot["adjacency"]
         if gone not in ((e["a"], e["b"]) if isinstance(e, dict) else tuple(e))
     ]
-    path = tmp_path / "pilot.world.yaml"
-    path.write_text(yaml.safe_dump(staging, sort_keys=False))
+    (tmp_path / STAGING.name).write_text(yaml.safe_dump(pilot, sort_keys=False))
+    newest = _yaml(NEWEST)
+    newest["map"].update(ref)
+    newest["places_of"] = str(WORLD)
+    path = tmp_path / NEWEST.name
+    path.write_text(yaml.safe_dump(newest, sort_keys=False))
     report = mc.check_region(path)
     assert ("place", "kalinin") in [(p.code, p.face) for p in report.problems]
 
@@ -191,6 +226,48 @@ CUT_SIDES = (
     ("Ustrzyki Dolne", 49.43, 22.59, "western_ukraine"),
     ("Nikel", 69.41, 30.22, "finland"),
     ("Murmansk", 68.97, 33.08, "the_north"),
+    # MAE: the demarcation line of 1940, in the departments it divides.
+    ("Bordeaux", 44.84, -0.58, "occupied_france"),
+    ("Sainte-Foy-la-Grande", 44.84, 0.22, "vichy_france"),
+    ("Mont-de-Marsan", 43.89, -0.50, "occupied_france"),
+    ("Pau", 43.30, -0.37, "vichy_france"),
+    ("Angouleme", 45.65, 0.16, "occupied_france"),
+    ("Poitiers", 46.58, 0.34, "occupied_france"),
+    ("Montmorillon", 46.43, 0.87, "vichy_france"),
+    ("Tours", 47.39, 0.69, "occupied_france"),
+    ("Loches", 47.13, 1.00, "vichy_france"),
+    ("Romorantin", 47.36, 1.74, "occupied_france"),
+    ("Bourges", 47.08, 2.40, "vichy_france"),
+    ("Autun", 46.95, 4.30, "occupied_france"),
+    ("Macon", 46.31, 4.83, "vichy_france"),
+    ("Dole", 47.09, 5.49, "occupied_france"),
+    ("Lons-le-Saunier", 46.67, 5.55, "vichy_france"),
+    ("Gex", 46.33, 6.06, "occupied_france"),
+    ("Nantua", 46.15, 5.61, "vichy_france"),
+    # MAE: the Reich's eastern border of 1939, in the voivodeships it divides.
+    ("Katowice", 50.26, 19.02, "germany_east"),
+    ("Czestochowa", 50.81, 19.12, "occupied_poland"),
+    ("Oswiecim", 50.04, 19.22, "germany_east"),
+    ("Krakow", 50.06, 19.94, "occupied_poland"),
+    ("Lodz", 51.76, 19.46, "germany_east"),
+    ("Piotrkow", 51.41, 19.70, "occupied_poland"),
+    ("Plock", 52.55, 19.70, "east_prussia"),
+    ("Ciechanow", 52.88, 20.62, "east_prussia"),
+    ("Warsaw", 52.23, 21.01, "occupied_poland"),
+    # MAE: the Vienna Award line of 1940, in the counties it divides.
+    ("Oradea", 47.07, 21.93, "hungary_slovakia"),
+    ("Beius", 46.67, 22.35, "romania"),
+    ("Cluj", 46.77, 23.60, "hungary_slovakia"),
+    ("Turda", 46.57, 23.78, "romania"),
+    ("Targu Mures", 46.54, 24.56, "hungary_slovakia"),
+    ("Ludus", 46.48, 24.10, "romania"),
+    # MAE: Alsace-Lorraine follows department lines, so no cut: the annexed departments and their
+    # French neighbours.
+    ("Strasbourg", 48.58, 7.75, "germany_west"),
+    ("Metz", 49.12, 6.18, "germany_west"),
+    ("Mulhouse", 47.75, 7.34, "germany_west"),
+    ("Nancy", 48.69, 6.18, "occupied_france"),
+    ("Belfort", 47.64, 6.86, "occupied_france"),
 )
 
 
@@ -206,14 +283,150 @@ def test_each_cut_gives_each_side_to_the_territory_it_names(
 # ---------------------------------------------------------------- rules 3 to 5: sources and gaps
 
 
-def test_every_cut_has_a_source_or_is_a_gap() -> None:
-    cuts = _yaml(RECIPE).get("cuts") or []
+@pytest.mark.parametrize("recipe", RECIPES, ids=lambda p: p.stem)
+def test_every_cut_has_a_source_or_is_a_gap(recipe: Path) -> None:
+    cuts = _yaml(recipe).get("cuts") or []
     assert cuts
     for c in cuts:
         assert bool(c.get("source")) != bool(c.get("gap")), c["name"]
+        assert c.get("source") or c.get("named_source"), c["name"]
 
 
-def test_every_territory_has_a_terrain_with_a_source_or_a_gap() -> None:
-    for t in _yaml(RECIPE)["territories"]:
+@pytest.mark.parametrize("recipe", RECIPES, ids=lambda p: p.stem)
+def test_every_territory_has_a_terrain_with_a_source_or_a_gap(recipe: Path) -> None:
+    for t in _yaml(recipe)["territories"]:
         assert t.get("terrain"), t["key"]
         assert bool(t.get("terrain_source")) != bool(t.get("terrain_gap")), t["key"]
+
+
+# ---------------------------------------------------------------- MAE: Europe
+
+
+def _claims(recipe: Path) -> set[str]:
+    """Every province code a recipe file names, in a territory or a cut."""
+    doc = _yaml(recipe)
+    return {str(c) for t in doc["territories"] for c in t.get("provinces") or []} | {
+        str(c["province"]) for c in doc.get("cuts") or []
+    }
+
+
+def test_no_province_is_claimed_by_two_recipe_files() -> None:
+    assert _claims(RECIPE)
+    assert _claims(EUROPE)
+    assert _claims(RECIPE) & _claims(EUROPE) == set()
+
+
+# Rule 1: the Europe region's territories and sea zones, by key. [proposed]
+EUROPE_TERRITORIES = (
+    "germany_east",
+    "germany_west",
+    "germany_south",
+    "east_prussia",
+    "occupied_poland",
+    "denmark",
+    "low_countries",
+    "occupied_france",
+    "vichy_france",
+    "norway",
+    "sweden",
+    "finland",
+    "hungary_slovakia",
+    "romania",
+    "balkans",
+    "italy_north",
+    "italy_south",
+    "iberia",
+    "switzerland",
+)
+EUROPE_SEA_ZONES = ("north_sea", "danish_straits", "gulf_of_bothnia", "bay_of_biscay")
+
+
+def test_the_europe_region_has_its_territories_and_sea_zones() -> None:
+    staged = _yaml(EUROPE_STAGING)
+    assert [t["key"] for t in staged["territories"]] == list(EUROPE_TERRITORIES)
+    assert [z["key"] for z in staged["sea_zones"]] == list(EUROPE_SEA_ZONES)
+    assert {t["region"] for t in staged["territories"] + staged["sea_zones"]} == {"europe"}
+    for t in _yaml(EUROPE)["territories"]:
+        assert t.get("provinces"), t["key"]
+    assert set(EUROPE_TERRITORIES + EUROPE_SEA_ZONES) <= set(_raw()["areas"])
+
+
+# Rule 1: a town of each place the item names, in the territory that holds it.
+EUROPE_TOWNS = (
+    ("Berlin", 52.52, 13.40, "germany_east"),
+    ("Hamburg", 53.55, 9.99, "germany_west"),
+    ("Munich", 48.14, 11.58, "germany_south"),
+    ("Vienna", 48.21, 16.37, "germany_south"),
+    ("Prague", 50.08, 14.44, "germany_south"),
+    ("Konigsberg", 54.71, 20.51, "east_prussia"),
+    ("Roskilde", 55.64, 12.08, "denmark"),
+    ("Aarhus", 56.16, 10.20, "denmark"),
+    ("Amsterdam", 52.37, 4.90, "low_countries"),
+    ("Brussels", 50.85, 4.35, "low_countries"),
+    ("Paris", 48.86, 2.35, "occupied_france"),
+    ("Vichy", 46.13, 3.43, "vichy_france"),
+    ("Oslo", 59.91, 10.75, "norway"),
+    ("Stockholm", 59.33, 18.07, "sweden"),
+    ("Helsinki", 60.17, 24.94, "finland"),
+    ("Budapest", 47.50, 19.04, "hungary_slovakia"),
+    ("Bratislava", 48.15, 17.11, "hungary_slovakia"),
+    ("Bucharest", 44.43, 26.10, "romania"),
+    ("Ploiesti", 44.94, 26.02, "romania"),
+    ("Belgrade", 44.82, 20.46, "balkans"),
+    ("Sofia", 42.70, 23.32, "balkans"),
+    ("Milan", 45.46, 9.19, "italy_north"),
+    ("Naples", 40.85, 14.27, "italy_south"),
+    ("Madrid", 40.42, -3.70, "iberia"),
+    ("Lisbon", 38.72, -9.14, "iberia"),
+    ("Bern", 46.95, 7.45, "switzerland"),
+)
+
+
+@pytest.mark.parametrize(("town", "lat", "lon", "key"), EUROPE_TOWNS)
+def test_each_town_lies_in_its_territory(town: str, lat: float, lon: float, key: str) -> None:
+    inside, border = mc.locate(_raw(), lon, lat)
+    assert not border, town
+    assert inside == [key], town
+
+
+def test_berlin_and_rome_are_sites_of_one_territory_each() -> None:
+    staged = {str(t["key"]): t.get("sites") or [] for t in _yaml(EUROPE_STAGING)["territories"]}
+    for site, key in (("berlin", "germany_east"), ("rome", "italy_south")):
+        assert [k for k, sites in staged.items() if site in sites] == [key]
+    assert not [k for k, sites in staged.items() if "lorient" in sites]
+
+
+# Rule 2: the sea zones join the pilot's; the North Sea and the Bay of Biscay reach the open water
+# left for the Atlantic's zones (a point just west of each lies in no area yet).
+def test_the_europe_sea_zones_join_the_pilots() -> None:
+    raw = _raw()
+    assert mc.adjacent(raw, "danish_straits", "baltic_sea")
+    assert mc.adjacent(raw, "gulf_of_bothnia", "baltic_sea")
+    assert mc.adjacent(raw, "danish_straits", "north_sea")
+
+
+@pytest.mark.parametrize(
+    ("zone", "lat", "inside_lon", "west_lon"),
+    [("bay_of_biscay", 46.0, -9.9, -10.5), ("north_sea", 60.0, -1.5, -4.5)],
+)
+def test_the_western_sea_zones_reach_the_open_atlantic(
+    zone: str, lat: float, inside_lon: float, west_lon: float
+) -> None:
+    raw = _raw()
+    assert mc.locate(raw, inside_lon, lat) == ([zone], [])
+    assert mc.locate(raw, west_lon, lat) == ([], [])
+
+
+# Rule 5: the neutrals are territories held by a polity with no seat.
+NEUTRALS = {"sweden": ["sweden"], "switzerland": ["switzerland"], "iberia": ["spain", "portugal"]}
+
+
+def test_the_neutrals_are_territories_held_by_a_polity_with_no_seat() -> None:
+    doc = _yaml(EUROPE)
+    held = {str(t["key"]): t["neutral"] for t in doc["territories"] if "neutral" in t}
+    assert held == NEUTRALS
+    world = _yaml(WORLD)
+    seated = {str(s.get("polity") or s.get("entity")) for s in world.get("seats") or []}
+    sides = {str(side["side"]) for r in world["roster"] for side in r.get("sides") or []}
+    for polities in held.values():
+        assert not set(polities) & (seated | sides)

@@ -4,6 +4,7 @@
 import { h } from '../dom.js';
 import { worldDate, untilText } from '../rules.js';
 import { comeBackLine, commitBusy, commitLabel } from './realism-wake.js';
+import { economyStrip } from './realism-economy.js';
 import { tile } from './ui-kit.js';
 
 const SETTLED = new Set(['enacted', 'refused', 'lapsed', 'withdrawn']);
@@ -42,7 +43,8 @@ export function statusStrip(rv, ui, { act }) {
     open && wake.you_committed
       ? h('span', { class: 'rl-committed', role: 'status', 'aria-live': 'polite' }, commitLabel(wake))
       : null,
-    comeBack ? h('p', { class: 'rl-comeback' }, comeBack) : null);
+    comeBack ? h('p', { class: 'rl-comeback' }, comeBack) : null,
+    economyStrip(rv));
 }
 
 /**

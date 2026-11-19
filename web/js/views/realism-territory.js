@@ -11,6 +11,7 @@ import {
   sightedLine, slideFrom, sortMarks, stanceWords, capitalLine, territoryProjection, unitsPerPx, viewWindow, waitWords,
   whereLine, changedLine, fallingLine, frontLine, holderRelation, holderWords, isFront, yieldsLine,
 } from '../realism-rules.js';
+import { economyPips, hasYields } from './realism-economy.js';
 import { capitalGlyph, forceGlyph, pipGlyph, stanceClass, warGlyph, whatWord } from './realism-map.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -459,8 +460,9 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   const labelAt = new Map(areas.map((a) => [a.key, at(shapes.areas[a.key].label)]));
   let root = null;
   const show = (key) => root?.querySelector(`.rl-tm-label[data-area="${key}"]`)?.classList.toggle('shown');
+  const economy = opts.layer === 'economy';
   const diplomatic = opts.layer === 'diplomatic';
-  const targets = diplomatic || opts.still ? [] : opts.targets ?? [];
+  const targets = diplomatic || economy || opts.still ? [] : opts.targets ?? [];
   const front = ([a, b]) => b !== null && isFront(byKey.get(a), byKey.get(b));
   const borderKind = ([a, b]) => {
     if (b === null || !kinds.has(b)) return 'edge';
@@ -498,10 +500,11 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   areas.map((a) => atPx({ class: 'rl-tm-label', 'data-area': a.key, 'data-text': a.name, 'aria-hidden': 'true' },
     ...labelAt.get(a.key), svg('text', { 'font-size': LABEL_PX, 'text-anchor': 'middle', dy: '0.35em' }, a.name))),
   holdMarks(areas, labelAt),
-  diplomatic ? null : coursesLayer(map, labelAt, at),
-  diplomatic ? null : ordersLayer(map, labelAt, new Map(areas.map((a) => [a.name, labelAt.get(a.key)])), at),
-  diplomatic ? null : routeLayer(opts.route, labelAt),
-  diplomatic ? capitalsLayer(map, at, opts) : marksLayer(map, labelAt, at, opts),
+  diplomatic || economy ? null : coursesLayer(map, labelAt, at),
+  diplomatic || economy ? null : ordersLayer(map, labelAt, new Map(areas.map((a) => [a.name, labelAt.get(a.key)])), at),
+  diplomatic || economy ? null : routeLayer(opts.route, labelAt),
+  economy ? economyPips(areas, labelAt, (attrs, x, y) => atPx(attrs, x, y))
+    : diplomatic ? capitalsLayer(map, at, opts) : marksLayer(map, labelAt, at, opts),
   // drawn last, over every mark: a lit area under a stack stays clickable
   targetsLayer(targets, at, opts.onTarget, opts.nav)));
   const px = opts.px ?? guessPx();
@@ -587,11 +590,14 @@ function markTable(map, onFind) {
 export function territoryView(map, shapes, opts = {}) {
   const mode = opts.mode === 'list' ? 'list' : 'map';
   const offered = offeredLayers(map);
-  const layer = offered.includes(opts.layer) ? opts.layer : offered[0] ?? 'military';
+  // the economy layer comes last, and never becomes the board's first view
+  const first = offered[0] ?? 'military';
+  if (hasYields(map)) offered.push(...(offered.length ? [] : ['military']), 'economy');
+  const layer = offered.includes(opts.layer) ? opts.layer : first;
   const frames = shapes ? regionFrames(map, shapes) : null;
   const frame = frames?.has(opts.frame ?? '') ? opts.frame ?? '' : '';
   const zoom = ZOOMS.includes(opts.zoom) ? opts.zoom : 1;
-  const words = { military: 'Military', diplomatic: 'Diplomatic' };
+  const words = { military: 'Military', diplomatic: 'Diplomatic', economy: 'Economy' };
   const bar = h('div', { class: 'rl-bar' },
     offered.length > 1
       ? h('div', { class: 'rl-filters', role: 'group', 'aria-label': 'Layer' }, offered.map((l) => toggle(l, words[l], layer, opts.onLayer)))

@@ -8,8 +8,13 @@ wake's own opening (``wake_opened``, ``date_advanced``) is public and in every f
 it does not make a page. A log written before the wake record shows ``unknown`` where
 the opening time, a commit's time or the close reason is missing.
 
-An operator command (``revisionist db wake-report``) that prints counts and no record's
-content. Nothing a seat reaches imports it.
+In a game with ``holders`` on, each wake also lists the territories that changed holder
+while it was the latest wake opened (a capture lands at a close, so in the wake that
+closed), and, with ``economy`` on, every nation's public figure as the wake ended. Both
+are public facts: the board's holders and ``economy.figure``.
+
+An operator command (``revisionist db wake-report``) that prints counts and public
+board facts, and no record's content. Nothing a seat reaches imports it.
 """
 
 from collections.abc import Sequence
@@ -18,9 +23,11 @@ from statistics import median
 
 from revisionist.core import events as ev
 from revisionist.core.events import Event
-from revisionist.core.fold import replay
-from revisionist.core.ids import CampaignId, SeatId
-from revisionist.core.ontology import Controller
+from revisionist.core.fold import apply, replay
+from revisionist.core.ids import CampaignId, EntityId, SeatId
+from revisionist.core.ontology import Controller, EntityKind
+from revisionist.core.realism import economy, holders
+from revisionist.core.state import State
 from revisionist.engine.store import EventStore
 from revisionist.engine.web import catchup_api
 
@@ -75,11 +82,23 @@ class Return:
 
 
 @dataclass(frozen=True)
+class Holding:
+    number: int
+    changes: tuple[tuple[str, str, str], ...]
+    """Each territory that changed holder in the wake, in log order: its name, the new
+    holder's name and the old one's ("" for none)."""
+    figures: tuple[tuple[str, float], ...]
+    """Every nation's figure as the wake ended, by name; empty with ``economy`` off."""
+
+
+@dataclass(frozen=True)
 class Report:
     campaign_id: CampaignId | None
     wakes: tuple[WakeRow, ...]
     seats: tuple[SeatRow, ...]
     returns: tuple[Return, ...]
+    holdings: tuple[Holding, ...] = ()
+    """One per wake opened, in a game with ``holders`` on; else empty."""
 
 
 @dataclass
@@ -142,7 +161,42 @@ def build(events: Sequence[Event]) -> Report:
         )
         for seat, wake, missed, index in due
     )
-    return Report(events[0].campaign_id, wakes, seat_rows, returns)
+    return Report(events[0].campaign_id, wakes, seat_rows, returns, _holdings(events))
+
+
+def _name(state: State, entity: EntityId | None) -> str:
+    e = state.entities.get(entity) if entity is not None else None
+    return e.name if e is not None else ""
+
+
+def _ended(state: State, number: int, changes: list[tuple[str, str, str]]) -> Holding:
+    figures: tuple[tuple[str, float], ...] = ()
+    if economy.on(state):
+        polities = [k for k, e in state.entities.items() if e.kind is EntityKind.POLITY]
+        figures = tuple(sorted((_name(state, p), economy.figure(state, p)) for p in polities))
+    return Holding(number, tuple(changes), figures)
+
+
+def _holdings(events: Sequence[Event]) -> tuple[Holding, ...]:
+    """Each wake's holder changes and figures, folding the log once in order."""
+    state: State | None = None
+    out: list[Holding] = []
+    number: int | None = None
+    changes: list[tuple[str, str, str]] = []
+    for e in events:
+        p = e.payload
+        if isinstance(p, ev.WakeOpened) and state is not None and number is not None:
+            out.append(_ended(state, number, changes))
+            changes = []
+        state = replay([e]) if state is None else apply(state, e)
+        if isinstance(p, ev.WakeOpened):
+            number = p.wake
+        elif isinstance(p, ev.AreaHeld) and number is not None:
+            changes.append((_name(state, p.area), _name(state, p.holder), _name(state, p.was)))
+    if state is None or number is None or not holders.on(state):
+        return ()
+    out.append(_ended(state, number, changes))
+    return tuple(out)
 
 
 def _how(closed: ev.WakeClosed | None) -> str:
@@ -190,8 +244,12 @@ def render(report: Report) -> list[str]:
     lines = [
         f"campaign {report.campaign_id}",
         f"wakes: {len(report.wakes)}; " + ", ".join(f"{how} {n}" for how, n in counts.items()),
-        *(f"  wake {w.number}: {w.how}" for w in report.wakes),
     ]
+    held = {h.number: h for h in report.holdings}
+    for w in report.wakes:
+        lines.append(f"  wake {w.number}: {w.how}")
+        if w.number in held:
+            lines += _holding(held[w.number])
     lines += [
         f"seat {s.name}: aide played {_plural(s.aide_wakes, 'wake')}; {_hours(s)}"
         for s in report.seats
@@ -216,6 +274,16 @@ def render(report: Report) -> list[str]:
     return lines
 
 
+def _holding(h: Holding) -> list[str]:
+    moved = "; ".join(
+        f"{area} to {new} from {old}" if old else f"{area} to {new}" for area, new, old in h.changes
+    )
+    out = [f"    holders: {moved or 'no change'}"]
+    if h.figures:
+        out.append("    figures: " + ", ".join(f"{name} {n:.1f}" for name, n in h.figures))
+    return out
+
+
 def lines(store: EventStore, campaign_ids: Sequence[CampaignId]) -> list[str]:
     """The report for each campaign, a blank line between."""
     out: list[str] = []
@@ -226,4 +294,4 @@ def lines(store: EventStore, campaign_ids: Sequence[CampaignId]) -> list[str]:
     return out
 
 
-__all__ = ["Report", "Return", "SeatRow", "WakeRow", "build", "lines", "render"]
+__all__ = ["Holding", "Report", "Return", "SeatRow", "WakeRow", "build", "lines", "render"]

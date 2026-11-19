@@ -161,8 +161,20 @@ export function theatreBoard(rv, ui, { pick, act } = {}) {
     onSelect: (name, mode) => pick?.({ piece: { kind: 'force', name }, ...(mode ? { theatre: { ...theatre, mode } } : {}) }),
   };
   const territorial = Array.isArray(map.areas) && map.areas.length > 0;
+  // the stack fanned out, by its area: the view's own, redrawn in place, focus kept on the stack
+  let fanned = theatre.fanned ?? null;
+  let fanFocus = null;
   if (territorial) {
     Object.assign(opts, {
+      fanned,
+      onFan: (key) => {
+        fanFocus = key ?? fanned;
+        fanned = key;
+        opts.fanned = key;
+        // kept on the room's own theatre state, so the next poll's drawing keeps the fan
+        if (ui.theatre) ui.theatre.fanned = key;
+        redraw();
+      },
       onFrame: (frame) => pick?.({ theatre: { ...theatre, frame, zoom: 1, centre: null } }),
       onView: ({ zoom, centre }) => pick?.({ theatre: { ...theatre, zoom, centre } }),
     });
@@ -187,6 +199,11 @@ export function theatreBoard(rv, ui, { pick, act } = {}) {
     const focused = was?.closest?.('figure.rl-map-figure') === fig ? was.getAttribute('data-place') : null;
     fig.replaceChildren(drawing());
     if (focused) Array.from(fig.querySelectorAll('.rl-map-target')).find((t) => t.getAttribute('data-place') === focused)?.focus();
+    if (fanFocus !== null) {
+      const here = Array.from(fig.querySelectorAll('[data-stack]')).filter((g) => g.getAttribute('data-stack') === fanFocus);
+      (fanned === fanFocus ? here.find((g) => g.classList.contains('rl-tm-mark')) : here.find((g) => g.classList.contains('rl-tm-stack')))?.focus();
+      fanFocus = null;
+    }
   };
   if (territorial) {
     if (!shapesFor(map.file) && theatre.mode !== 'list') {

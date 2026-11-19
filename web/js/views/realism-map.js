@@ -31,6 +31,21 @@ export function forceGlyph(mark, size) {
   return [shape, inner, tick];
 }
 
+/**
+ * A piece's strength as a row of pips centred under its marker at `y`: `pips.filled` solid,
+ * the rest of `pips.slots` hollow (`pipsOf`). The number is not drawn here.
+ */
+export function pipGlyph(pips, size, y) {
+  const side = Math.max(size / 5, 4);
+  const gap = side * 0.4;
+  const width = pips.slots * side + (pips.slots - 1) * gap;
+  return svg('g', { class: 'rl-tm-pips', 'data-filled': pips.filled, 'data-slots': pips.slots },
+    Array.from({ length: pips.slots }, (_, i) => svg('rect', {
+      x: r2(-width / 2 + i * (side + gap)), y: r2(y), width: r2(side), height: r2(side),
+      class: i < pips.filled ? 'rl-pip' : 'rl-pip rl-pip-empty',
+    })));
+}
+
 /** A capital's marker: a five-pointed star, its colour the stance (a third cue: the words say it). */
 export function capitalGlyph(size) {
   const r = size * 0.8;

@@ -735,9 +735,39 @@ def area(raw: Any, key: str) -> float:
     return _area2(_parse_checked(raw).area_face(key)) / 2 / SCALE**2
 
 
+def _turned(coords: str, west: float, east: float, lon: float) -> float:
+    if coords != "lonlat" or not math.isfinite(lon):
+        return lon
+    turned = lon
+    while turned < west:
+        turned += 360.0
+    while turned > east:
+        turned -= 360.0
+    return turned if west <= turned <= east else lon
+
+
+def place_lon(raw: Any, lon: float) -> float:
+    """A place's longitude as the map draws it.
+
+    A ``lonlat`` box may run past 180 E (or 180 W) so that the land across the date line stays one
+    area; it is written with longitudes beyond 180. A world file keeps a place's longitude as
+    written, so a place outside the box is read whole turns east or west when that brings it inside.
+    A ``flat`` map's coordinates are never turned.
+    """
+    return _turned(str(raw["coords"]), float(raw["box"][0]), float(raw["box"][2]), float(lon))
+
+
+def _place_lon(m: Map, lon: float) -> float:
+    return _turned(m.coords, unq(m.box[0]), unq(m.box[2]), lon)
+
+
 def locate(raw: Any, x: float, y: float) -> tuple[list[str], list[str]]:
-    """The areas that hold the point inside, and the areas on whose border it lies."""
-    return _locate(_parse_checked(raw), (q(x), q(y)))
+    """The areas that hold the point inside, and the areas on whose border it lies.
+
+    On a ``lonlat`` map the longitude is read as ``place_lon`` reads it.
+    """
+    m = _parse_checked(raw)
+    return _locate(m, (q(_place_lon(m, float(x))), q(y)))
 
 
 def _locate(m: Map, p: Pt) -> tuple[list[str], list[str]]:
@@ -908,7 +938,7 @@ def _check_places(
     found: dict[str, list[str]] = {}
     for key, e in sorted(places.items()):
         lat, lon = e["at"]
-        inside, border = _locate(m, (q(lon), q(lat)))
+        inside, border = _locate(m, (q(_place_lon(m, float(lon))), q(lat)))
         found[key] = inside
         if border:
             out.append(Problem("place", key, f"lies on the border of {' and '.join(border)}"))
@@ -1106,7 +1136,7 @@ def _sheet(
             text = escape(str(areas.get(key, {}).get("name", key)))
             parts.append(f'<text x="{lx}" y="{ly}" class="name" text-anchor="middle">{text}</text>')
     for key, e in sorted(sites.items()):
-        sx, sy = xy(float(e["at"][1]), float(e["at"][0])).split(",")
+        sx, sy = xy(_place_lon(m, float(e["at"][1])), float(e["at"][0])).split(",")
         parts.append(
             f'<circle class="site" cx="{sx}" cy="{sy}" r="2.5">'
             f"<title>{escape(key)}</title></circle>"

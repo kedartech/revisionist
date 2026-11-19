@@ -240,11 +240,14 @@ def load_units(path: Path, box: Sequence[float]) -> tuple[set[str], dict[str, Ge
     return codes, inside
 
 
-def load_land(path: Path, box: Sequence[float], units: Geom) -> Geom:
-    """The land inside the box: the units, and every island of the land file that no unit touches.
+def load_land(path: Path, box: Sequence[float], units: Geom, near: float = GRID) -> Geom:
+    """The land inside the box: the units, and every island of the land file farther than ``near``
+    from every unit.
 
     The two files trace coasts a little apart; a sliver of the land file that touches a unit is that
-    difference, not an island, and is left out so each coast stays the unit's own line.
+    difference, not an island, and is left out so each coast stays the unit's own line. An islet
+    nearer a unit than the simplify tolerance (``near``) is left out too, as water: simplifying the
+    coast beside it would draw the coast across it.
     """
     doc = json.loads(Path(path).read_text())
     frame = make_box(*box)
@@ -254,7 +257,7 @@ def load_land(path: Path, box: Sequence[float], units: Geom) -> Geom:
     if not extra:
         return units
     rest = _polygonal(shapely.union_all(extra, grid_size=GRID).difference(units, grid_size=GRID))
-    islands = [p for p in shapely.get_parts(rest) if p.area > 0 and p.distance(units) > GRID]
+    islands = [p for p in shapely.get_parts(rest) if p.area > 0 and p.distance(units) > near]
     return shapely.union_all([units, *islands], grid_size=GRID)
 
 
@@ -645,7 +648,7 @@ def build(
     codes, units = load_units(Path(data) / PROVINCES, box)
     terr = territories(recipe, units, codes)
     held = shapely.union_all(list(units.values()), grid_size=GRID) if units else Polygon()
-    land = load_land(Path(data) / LAND, box, held)
+    land = load_land(Path(data) / LAND, box, held, near=max(GRID, tolerance))
     seas = sea_zones(recipe, land, frame)
     rough: list[tuple[str | None, Geom]] = [*terr.items(), *seas.items()]
     taken = shapely.union_all([g for _, g in rough], grid_size=GRID)

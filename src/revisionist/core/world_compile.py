@@ -943,6 +943,15 @@ def _check_board(world: WorldFile, sections: Mapping[str, str], problems: list[s
         problems.append("rules: economy needs holders")
     if Rule.FUEL in world.rules and Rule.ECONOMY not in world.rules:
         problems.append("rules: fuel needs economy")
+    if Rule.BATTLES in world.rules and Rule.TERRITORIES in world.rules:
+        fights = {
+            k.key for k in world.piece_kinds if k.domain in (PieceDomain.LAND, PieceDomain.SEA)
+        }
+        problems.extend(
+            f"feature {d.key}: a piece that fights starts at strength 1 or more"
+            for d in world.features
+            if d.kind is FeatureKind.PIECE and d.piece in fights and d.tier < 1
+        )
     if world.map is None:
         if areas or world.adjacency or world.regions or world.terrain:
             problems.append("map: the world has areas but no map")

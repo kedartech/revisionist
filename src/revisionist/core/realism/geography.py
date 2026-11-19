@@ -94,6 +94,9 @@ class Feature(Model):
     (``territory.plan``). Empty when it stands still."""
     step_due: date | None = None
     """The day the step into the head of ``path`` completes. None when it stands still."""
+    lost_on: date | None = None
+    """With ``battles`` on, a piece brought to strength 0 or destroyed in battle: the day it
+    was. It is out of play from then on. None while it is in play (BTL)."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
@@ -106,6 +109,7 @@ class Feature(Model):
             "piece",
             "path",
             "step_due",
+            "lost_on",
         }
     )
 
@@ -134,8 +138,9 @@ class Feature(Model):
 
 
 def in_play(feature: Feature) -> bool:
-    """False for a detachment that has rejoined its parent; True for every other feature."""
-    return feature.rejoined_on is None
+    """False for a detachment that has rejoined its parent and for a piece lost in battle;
+    True for every other feature."""
+    return feature.rejoined_on is None and feature.lost_on is None
 
 
 class Sight(Model):

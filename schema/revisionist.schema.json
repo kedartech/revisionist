@@ -1206,6 +1206,233 @@
         "title": "Base",
         "type": "object"
       },
+      "Battle": {
+        "additionalProperties": false,
+        "description": "A battle open in an area. Engine only.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "attacker": {
+            "$ref": "#/$defs/BattleSide"
+          },
+          "came_from": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Came From",
+            "type": "object"
+          },
+          "defender": {
+            "$ref": "#/$defs/BattleSide"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "pressed_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pressed On"
+          },
+          "rounds": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Rounds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "area",
+          "opened",
+          "attacker",
+          "defender"
+        ],
+        "title": "Battle",
+        "type": "object"
+      },
+      "BattleEnded": {
+        "additionalProperties": false,
+        "description": "A battle ended (BTL): how, and the nation left with the field. Engine only; the\nnews item beside it is public.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "ending": {
+            "$ref": "#/$defs/Ending"
+          },
+          "kind": {
+            "const": "battle_ended",
+            "default": "battle_ended",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "winner": {
+            "title": "Winner",
+            "type": "string"
+          }
+        },
+        "required": [
+          "area",
+          "on",
+          "ending",
+          "winner"
+        ],
+        "title": "BattleEnded",
+        "type": "object"
+      },
+      "BattleOpened": {
+        "additionalProperties": false,
+        "description": "A battle opened in an area (BTL): its two sides, the pieces and the strength each\nbrought. Engine only: it carries both sides' true strengths.",
+        "properties": {
+          "battle": {
+            "$ref": "#/$defs/Battle"
+          },
+          "kind": {
+            "const": "battle_opened",
+            "default": "battle_opened",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "battle",
+          "on"
+        ],
+        "title": "BattleOpened",
+        "type": "object"
+      },
+      "BattleRound": {
+        "additionalProperties": false,
+        "description": "One day's round of a battle (BTL): each side's score and draw, attacker first, and\nthe steps each lost. Engine only. The ``feature_set`` beside it sets the pieces.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "draws": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Draws",
+            "type": "array"
+          },
+          "kind": {
+            "const": "battle_round",
+            "default": "battle_round",
+            "title": "Kind",
+            "type": "string"
+          },
+          "lost": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "minimum": 0,
+                "type": "integer"
+              }
+            ],
+            "title": "Lost",
+            "type": "array"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "scores": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "integer"
+              }
+            ],
+            "title": "Scores",
+            "type": "array"
+          }
+        },
+        "required": [
+          "area",
+          "on",
+          "scores",
+          "draws",
+          "lost"
+        ],
+        "title": "BattleRound",
+        "type": "object"
+      },
+      "BattleSide": {
+        "additionalProperties": false,
+        "description": "One side of a battle: its leading nation, the pieces it brought (in id order), the\nstrength they brought and the steps they have lost.",
+        "properties": {
+          "brought": {
+            "minimum": 1,
+            "title": "Brought",
+            "type": "integer"
+          },
+          "lost": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Lost",
+            "type": "integer"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "pieces": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Pieces",
+            "type": "array"
+          }
+        },
+        "required": [
+          "nation",
+          "pieces",
+          "brought"
+        ],
+        "title": "BattleSide",
+        "type": "object"
+      },
       "Betrayal": {
         "enum": [
           "cooperative",
@@ -3736,6 +3963,15 @@
         "title": "EffectsEstimated",
         "type": "object"
       },
+      "Ending": {
+        "enum": [
+          "won",
+          "held",
+          "lull"
+        ],
+        "title": "Ending",
+        "type": "string"
+      },
       "Engagement": {
         "enum": [
           "hold_fire",
@@ -4314,6 +4550,19 @@
             },
             "title": "Legs",
             "type": "array"
+          },
+          "lost_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lost On"
           },
           "name": {
             "maxLength": 60,
@@ -10801,6 +11050,9 @@
             "answer_planned": "#/$defs/AnswerPlanned",
             "area_held": "#/$defs/AreaHeld",
             "asset_created": "#/$defs/AssetCreated",
+            "battle_ended": "#/$defs/BattleEnded",
+            "battle_opened": "#/$defs/BattleOpened",
+            "battle_round": "#/$defs/BattleRound",
             "briefing_delivered": "#/$defs/BriefingDelivered",
             "campaign_created": "#/$defs/CampaignCreated",
             "capture_counted": "#/$defs/CaptureCounted",
@@ -11106,6 +11358,15 @@
           },
           {
             "$ref": "#/$defs/StepRefused"
+          },
+          {
+            "$ref": "#/$defs/BattleOpened"
+          },
+          {
+            "$ref": "#/$defs/BattleRound"
+          },
+          {
+            "$ref": "#/$defs/BattleEnded"
           },
           {
             "$ref": "#/$defs/NewsReported"
@@ -12013,6 +12274,97 @@
           "domains"
         ],
         "title": "Base",
+        "type": "object"
+      },
+      "Battle": {
+        "additionalProperties": false,
+        "description": "A battle open in an area. Engine only.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "attacker": {
+            "$ref": "#/$defs/BattleSide"
+          },
+          "came_from": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Came From",
+            "type": "object"
+          },
+          "defender": {
+            "$ref": "#/$defs/BattleSide"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "pressed_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pressed On"
+          },
+          "rounds": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Rounds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "area",
+          "opened",
+          "attacker",
+          "defender"
+        ],
+        "title": "Battle",
+        "type": "object"
+      },
+      "BattleSide": {
+        "additionalProperties": false,
+        "description": "One side of a battle: its leading nation, the pieces it brought (in id order), the\nstrength they brought and the steps they have lost.",
+        "properties": {
+          "brought": {
+            "minimum": 1,
+            "title": "Brought",
+            "type": "integer"
+          },
+          "lost": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Lost",
+            "type": "integer"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "pieces": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Pieces",
+            "type": "array"
+          }
+        },
+        "required": [
+          "nation",
+          "pieces",
+          "brought"
+        ],
+        "title": "BattleSide",
         "type": "object"
       },
       "Betrayal": {
@@ -13340,6 +13692,19 @@
             },
             "title": "Legs",
             "type": "array"
+          },
+          "lost_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lost On"
           },
           "name": {
             "maxLength": 60,
@@ -17726,6 +18091,13 @@
           "$ref": "#/$defs/Asset"
         },
         "title": "Assets",
+        "type": "object"
+      },
+      "battles": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Battle"
+        },
+        "title": "Battles",
         "type": "object"
       },
       "campaign_id": {

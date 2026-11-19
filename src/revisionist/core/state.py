@@ -58,6 +58,7 @@ from revisionist.core.ontology import (
 )
 from revisionist.core.realism.agenda import Mandate, MandateTemplate, PlayStyle
 from revisionist.core.realism.answer import AnswerLog
+from revisionist.core.realism.battle import Battle
 from revisionist.core.realism.card import CardFace, Desk, SeatCard, Topic
 from revisionist.core.realism.document import Document, DocumentView, Feed
 from revisionist.core.realism.economy import Economy
@@ -251,10 +252,14 @@ class State(_World):
     captures: dict[EntityId, Capture] = Field(default_factory=dict)
     """With ``holders`` on, each territory's capture count and capital mark, by
     ``capture_counted``. Engine only: it says where pieces stand (THL)."""
+    battles: dict[EntityId, Battle] = Field(default_factory=dict)
+    """With ``battles`` on, each battle open, by its area (``battle_opened``, until
+    ``battle_ended``). Engine only: it holds both sides' true strengths (BTL)."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "rules",
         "captures",
+        "battles",
         "routed",
         "styles",
         "standing",

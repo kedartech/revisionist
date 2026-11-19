@@ -131,3 +131,25 @@
 .rl-tm-ghost .rl-mk-shape { fill: var(--surface); stroke-dasharray: 3 2; }
 .rl-tm-path { fill: none; }
 @media (prefers-reduced-motion: reduce) { .rl-tm-slide { animation: none; transition: none; } }
+
+/* holders and the front line (FRL): each standing is a tint and a pattern, a front is a wide stroke; the words say it too */
+.rl-hold-own { --hold: var(--info); }
+.rl-hold-ally { --hold: var(--ok); }
+.rl-hold-enemy { --hold: var(--danger); }
+.rl-hold-neutral { --hold: var(--fg-muted); }
+.rl-hold { pointer-events: none; }
+.rl-hp-ground { fill: var(--hold); fill-opacity: 0.18; }
+.rl-hp-line { fill: none; stroke: var(--hold); stroke-width: 1.5px; }
+.rl-hp-dot { stroke-width: 3px; stroke-linecap: round; }
+.rl-border-front { stroke: var(--danger); stroke-width: 5px; stroke-linecap: round; }
+.rl-tm-held, .rl-tm-fall { pointer-events: none; }
+.rl-hold-note { fill: var(--fg-strong); font-weight: 600; paint-order: stroke; stroke: var(--chart-sea); stroke-width: 3px; }
+.rl-fall-note { fill: var(--danger); }
+.rl-held-glyph { fill: var(--fg-strong); stroke: var(--chart-sea); stroke-width: 1px; }
+.rl-area-sheet .rl-hold-line { margin: var(--space-2) 0 0; font-weight: 600; }
+.rl-area-sheet .rl-find { margin-top: var(--space-3); min-height: 44px; min-width: 44px; }
+.rl-area-sheet { margin-top: var(--space-4); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-area-sheet h3 { margin: 0 0 var(--space-2); font: 700 15px/1.35 var(--font-head); }
+.rl-area-sheet dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
+.rl-area-sheet dt { font-weight: 600; }
+.rl-area-sheet dd { margin: 0; }

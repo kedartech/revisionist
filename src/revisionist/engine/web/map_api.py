@@ -34,6 +34,7 @@ from revisionist.core.state import State, View
 from revisionist.engine import maps
 from revisionist.engine.store import EventStore, load_state
 from revisionist.engine.web.destinations import own_sides
+from revisionist.engine.web.economy_api import Holdings
 from revisionist.engine.web.realism_api import (
     MapArea,
     MapFile,
@@ -112,8 +113,9 @@ def protect_marks(out: SeatMap, view: View) -> None:
             mark["piece"]["key"] = key
 
 
-def _areas(board: territory.WorldMap) -> list[MapArea]:
-    """Every area of the board, territories first, each with its neighbours' keys."""
+def _areas(board: territory.WorldMap, held: Holdings) -> list[MapArea]:
+    """Every area of the board, territories first, each with its neighbours' keys; a
+    territory with its holder keys and printed yields."""
     keys = {t.area: t.key for t in board.territories} | {z.area: z.key for z in board.sea_zones}
 
     def near(area: EntityId) -> list[str]:
@@ -127,6 +129,11 @@ def _areas(board: territory.WorldMap) -> list[MapArea]:
             region=t.region,
             terrain=t.terrain,
             neighbours=near(t.area),
+            holder=held.holder(t.area),
+            held_since=held.held_since(t.area),
+            taken_from=held.taken_from(t.area),
+            falling=held.falling(t.area),
+            yields=dict(t.yields),
         )
         for t in board.territories
     ]
@@ -138,18 +145,24 @@ def _areas(board: territory.WorldMap) -> list[MapArea]:
             region=z.region,
             terrain=z.terrain,
             neighbours=near(z.area),
+            holder=None,
+            held_since=None,
+            taken_from=None,
+            falling=None,
+            yields={},
         )
         for z in board.sea_zones
     ]
     return land + sea
 
 
-def add_board(out: SeatMap, state: State) -> SeatMap:
-    """``out`` with the board's keys, in a territory game; else ``out`` as it is."""
+def add_board(out: SeatMap, state: State, view: View) -> SeatMap:
+    """``out`` with the board's keys, in a territory game; else ``out`` as it is. The
+    holder keys are as ``view``'s seat sees them."""
     board = state.map
     if board is None or not territory.on(state):
         return out
-    out["areas"] = _areas(board)
+    out["areas"] = _areas(board, Holdings(state, view, view.me.seat_id))
     out["regions"] = [MapRegion(key=r.key, name=r.name, parent=r.parent) for r in board.regions]
     out["coords"] = board.coords
     out["box"] = list(board.box) if board.box is not None else None

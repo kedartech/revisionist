@@ -683,8 +683,18 @@ class MapCapital(TypedDict):
     """Their country and the seat's are at war."""
 
 
+class MapNation(TypedDict):
+    """A nation as the seat names it: its entity id, its name, and how it stands to the
+    seat's own nation (an ally is at war with a common enemy and not with the seat's)."""
+
+    key: str
+    name: str
+    relation: Literal["own", "ally", "enemy", "neutral"]
+
+
 class MapArea(TypedDict):
-    """One area of the board: its key in the map file, its name and who it borders."""
+    """One area of the board: its key in the map file, its name and who it borders; for
+    a land area with ``holders`` on, who holds it. A sea zone has no holder."""
 
     key: str
     name: str
@@ -695,6 +705,20 @@ class MapArea(TypedDict):
     """The terrain's key."""
     neighbours: list[str]
     """The keys of the areas it borders or is joined to by a crossing, sorted."""
+    holder: MapNation | None
+    """The nation holding it now; None for a sea zone, with ``holders`` off, or held by
+    nobody. Public."""
+    held_since: str | None
+    """The day it last changed hands; None while it has the holder the world gives it."""
+    taken_from: MapNation | None
+    """The holder it was last taken from; None while it never changed hands."""
+    falling: str | None
+    """For the holding nation's seats only: the day a capital in it was marked to fall
+    (it falls at the close of the wake after that day's, unless relieved). None
+    otherwise."""
+    yields: dict[str, float]
+    """What the board prints it yields, by resource key; a moved yield is not shown here.
+    Empty for a sea zone."""
 
 
 class MapRegion(TypedDict):
@@ -730,6 +754,70 @@ class SeatMap(TypedDict):
     box: NotRequired[list[float] | None]
     """``[west, south, east, north]``; None when the world names none."""
     file: NotRequired[MapFile]
+
+
+class EconomyFigure(TypedDict):
+    """One nation's public war-economy figure: the same for every seat."""
+
+    nation: MapNation
+    figure: float
+    """The weighted sum of its output, manpower and fuel incomes from what it holds, the
+    largest nation at the start being 100."""
+
+
+class EconomyIncome(TypedDict):
+    """The seat's own nation's income of one resource, by the world's name and unit."""
+
+    key: str
+    name: str
+    unit: str
+    role: Literal["output", "manpower", "fuel", "supply", "prestige"]
+    amount: float
+    """The sum of the resource's yield over the territories it holds, each times its
+    factor for the resource's role, on the block's day."""
+
+
+class EconomyTerritory(TypedDict):
+    """A territory the seat's own nation holds: what it yields now and what share of it
+    the nation gets, by role (0 to 1)."""
+
+    area: str
+    """The area's key in the map file."""
+    name: str
+    yields: dict[str, float]
+    """What it yields now, by resource key: as moved, else as printed."""
+    factors: dict[str, float]
+    """By role: ``output``, ``manpower``, ``fuel``, ``supply``, ``prestige``."""
+
+
+class EconomyPools(TypedDict):
+    output: float
+    manpower: float
+
+
+class EconomyOwn(TypedDict):
+    """The seat's own nation's economy. No other nation's is ever sent."""
+
+    nation: MapNation
+    income: list[EconomyIncome]
+    """Every resource the world names, in the world file's order."""
+    pools: EconomyPools
+    """What the first of each month has paid in so far."""
+    fuel_months: float | None
+    """Months its fuel stock lasts at its income; None while the game keeps no stock."""
+    territories: list[EconomyTerritory]
+    """Every territory it holds, by area key."""
+
+
+class EconomyBlock(TypedDict):
+    """The war economy as the seat sees it, with ``economy`` on."""
+
+    day: str
+    """The in-world day the figures and incomes are counted for."""
+    figures: list[EconomyFigure]
+    """Every nation's figure, highest first, then by name."""
+    own: EconomyOwn | None
+    """None for a seat of no nation."""
 
 
 class MapReply(TypedDict):
@@ -1103,6 +1191,12 @@ __all__ = [
     "DocumentListing",
     "DocumentPage",
     "Dossier",
+    "EconomyBlock",
+    "EconomyFigure",
+    "EconomyIncome",
+    "EconomyOwn",
+    "EconomyPools",
+    "EconomyTerritory",
     "Figure",
     "FigureGroup",
     "LeverChoice",
@@ -1114,6 +1208,7 @@ __all__ = [
     "MapLift",
     "MapMark",
     "MapMove",
+    "MapNation",
     "MapOrder",
     "MapPiece",
     "MapPlace",

@@ -90,10 +90,10 @@ export function shouldShow(wake, store) {
  * A `<dialog class="rl-hap">` headed "What happened": the aide's briefing (`briefingLines`, which
  * holds the figures that moved), "It is <date>. <n> days have passed.", the lines the briefing
  * did not tell, "<n> new papers in your tray", where forces moved during the run (`moves` over
- * `places`, realism-moves.js), and "To the desk", which calls `onClose()`; the room then stores
- * the wake number.
+ * `places`, realism-moves.js) or the wake's playback (`play`, realism-playback.js), and "To the
+ * desk", which calls `onClose()`; the room then stores the wake number.
  */
-export function happenedSheet({ record, situation, agenda, date, moves, places, onClose }) {
+export function happenedSheet({ record, situation, agenda, date, moves, places, play = null, onClose }) {
   const days = record?.wake?.days_passed;
   const daysLine = days === 1 ? '1 day has passed.' : days > 0 ? `${days} days have passed.` : null;
   const when = [date && `It is ${date}.`, daysLine].filter(Boolean).join(' ');
@@ -110,6 +110,7 @@ export function happenedSheet({ record, situation, agenda, date, moves, places, 
     lines.length ? h('ul', { class: 'rl-hap-lines' }, lines.map((l) => h('li', {}, l))) : null,
     paperLine ? h('p', { class: 'rl-hap-papers' }, paperLine) : null,
     movesBlock({ moves, places }),
+    play,
     h('div', { class: 'rl-hap-actions' },
       h('button', { type: 'button', onclick: () => onClose() }, 'To the desk')));
 }
@@ -163,11 +164,13 @@ function missedPage(page, record) {
 /**
  * A `<dialog class="rl-hap rl-missed">` headed "What you missed": one section for each page of the
  * `catchup` reply (`missedPages`), oldest first, and "To the desk", which calls `onClose()`. `record`
- * is the room's record, whose orders the settled ids name. No animation, no storage.
+ * is the room's record, whose orders the settled ids name. `play`, the wake player of those
+ * pages (`realism-playback.js`), comes first when given. No storage.
  */
-export function missedSheet({ pages, record, onClose }) {
+export function missedSheet({ pages, record, play = null, onClose }) {
   return h('dialog', { class: 'rl-hap rl-missed', 'aria-labelledby': 'rl-missed-title' },
     h('h2', { id: 'rl-missed-title' }, MISSED_TITLE),
+    play,
     pages.map((p) => missedPage(p, record)),
     h('div', { class: 'rl-hap-actions' },
       h('button', { type: 'button', onclick: () => onClose() }, 'To the desk')));

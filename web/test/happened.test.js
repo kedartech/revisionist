@@ -170,7 +170,8 @@ test('on load the room asks for catchup with no range and opens one page per wak
 test('with no wake missed there is no sheet', async () => {
   const { root, asked } = room(async () => ({ first: 4, last: 3, pages: [] }));
   await flush();
-  assert.equal(asked.length, 1);
+  // the missed range, then the wake just opened, which this page has not played
+  assert.deepEqual(asked, [{}, { first: 3, last: 3 }]);
   assert.equal(root.querySelector('dialog.rl-missed'), null);
 });
 

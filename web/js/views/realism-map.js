@@ -14,7 +14,7 @@ const r2 = (n) => Math.round(n * 100) / 100;
 const DETACHED_SIZE = 0.7;
 
 /** The marker for a force: shape says side, fill and line say certainty, a glyph says kind. */
-function forceGlyph(mark, size) {
+export function forceGlyph(mark, size) {
   const r = size / 2;
   const shape = mark.side === 'own'
     ? svg('rect', { x: -r * 1.4, y: -r, width: r * 2.8, height: r * 2, class: 'rl-mk-shape' })
@@ -32,7 +32,7 @@ function forceGlyph(mark, size) {
 }
 
 /** A capital's marker: a five-pointed star, its colour the stance (a third cue: the words say it). */
-function capitalGlyph(size) {
+export function capitalGlyph(size) {
   const r = size * 0.8;
   const pts = Array.from({ length: 10 }, (_, i) => {
     const a = (Math.PI / 5) * i - Math.PI / 2;
@@ -43,14 +43,14 @@ function capitalGlyph(size) {
 }
 
 /** The war mark beside a capital: two crossed strokes in a ring. */
-function warGlyph(x, y, size) {
+export function warGlyph(x, y, size) {
   const q = size * 0.35;
   return svg('g', { class: 'rl-cap-war', transform: `translate(${x} ${y})` },
     svg('circle', { r: size * 0.55 }),
     svg('path', { d: `M${-q} ${-q}L${q} ${q}M${-q} ${q}L${q} ${-q}` }));
 }
 
-const stanceClass = (stance) => (Number.isInteger(stance?.step) ? ` rl-stance-${stance.step}` : '');
+export const stanceClass = (stance) => (Number.isInteger(stance?.step) ? ` rl-stance-${stance.step}` : '');
 
 /** The engine names a detachment "<fleet's name> detachment <n>"; a page sights it by that name. */
 const DETACHMENT = / detachment \d+$/;
@@ -59,7 +59,7 @@ const DETACHMENT = / detachment \d+$/;
 const detached = (mark) => DETACHMENT.test(mark.name);
 
 /** What a mark is, in words: "Fleet", or "Fleet detachment" for a detachment. */
-const whatWord = (mark) => (detached(mark) ? `${markKindWord(mark.kind)} detachment` : markKindWord(mark.kind));
+export const whatWord = (mark) => (detached(mark) ? `${markKindWord(mark.kind)} detachment` : markKindWord(mark.kind));
 
 function label(mark) {
   return `${mark.name}: ${whatWord(mark)}, ${sideLine(mark)}, ${certaintyWord(mark.certainty)}, ${whereLine(mark)}`;
@@ -169,7 +169,7 @@ export function mapDrawing(map, land, opts = {}) {
       named.has(p.name) ? svg('text', { x: x + size / 3, y: y - size / 3, 'font-size': size * 0.7 }, p.name) : null);
   });
 
-  const marks = diplomatic ? capitalPins(map, at, size, opts) : sortMarks(map.marks).map((m) => {
+  const marks = diplomatic ? capitalPins(map, at, size, opts) : sortMarks(map.marks.filter((m) => m.places.length)).map((m) => {
     const select = () => opts.onSelect?.(m.name);
     const look = `rl-mk rl-mk-${m.kind}${detached(m) ? ' rl-mk-detached' : ''} rl-side-${m.side} rl-c-${m.certainty}${opts.selected === m.name ? ' selected' : ''}`;
     const common = opts.still ? { class: look } : {

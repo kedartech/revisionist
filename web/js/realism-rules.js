@@ -384,3 +384,148 @@ export function landPath(rings, box, proj) {
   }
   return out.join('');
 }
+
+// --- the territory map ------------------------------------------------------------
+
+/** The zoom steps within a frame. [proposed] */
+export const ZOOMS = Object.freeze([1, 2, 4]);
+/** The smallest a mark is drawn, and the smallest tap target, in CSS pixels. [proposed] */
+export const MIN_MARK_PX = 24;
+export const MIN_TAP_PX = 44;
+/** An area's name, in CSS pixels. */
+export const LABEL_PX = 12;
+
+/** A `[west, south, east, north]` list as a box object. */
+export const boxOf = ([west, south, east, north]) => ({ west, south, east, north });
+
+/**
+ * The projection a territory map is drawn in, from its `coords` and its own box: today's for
+ * `lonlat`, a plain scale for `flat` (x right, y up, as the map file has them).
+ */
+export function territoryProjection(coords, box) {
+  if (coords === 'lonlat') return projection(box);
+  return { x: (x) => x - box.west, y: (y) => box.north - y, width: box.east - box.west, height: box.north - box.south };
+}
+
+/** The box around every vertex of the rings given (vertex indices into `vertices`). */
+function ringsBox(vertices, rings) {
+  let west = Infinity; let east = -Infinity; let south = Infinity; let north = -Infinity;
+  for (const ring of rings) {
+    for (const i of ring) {
+      const [x, y] = vertices[i];
+      west = Math.min(west, x); east = Math.max(east, x); south = Math.min(south, y); north = Math.max(north, y);
+    }
+  }
+  return { west, south, east, north };
+}
+
+/** The keys of `key` and every region under it in the world's tree. */
+function regionSubtree(regions, key) {
+  const out = new Set([key]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const r of regions) if (r.parent !== null && out.has(r.parent) && !out.has(r.key)) { out.add(r.key); grew = true; }
+  }
+  return out;
+}
+
+/**
+ * Each region's fixed frame, by key, worked out from its areas' shapes alone: the box around
+ * every area in the region or a region under it. A region with no area has none. The whole
+ * map's frame, under `''`, is the map's own box.
+ */
+export function regionFrames(map, shapes) {
+  const frames = new Map([['', boxOf(map.box ?? shapes.box)]]);
+  for (const r of map.regions ?? []) {
+    const within = regionSubtree(map.regions, r.key);
+    const rings = (map.areas ?? []).filter((a) => within.has(a.region) && shapes.areas[a.key])
+      .flatMap((a) => shapes.areas[a.key].rings);
+    if (rings.length) frames.set(r.key, ringsBox(shapes.vertices, rings));
+  }
+  return frames;
+}
+
+/** The regions from the top down to `key` (empty for the whole map). */
+export function regionTrail(regions, key) {
+  const by = new Map((regions ?? []).map((r) => [r.key, r]));
+  const out = [];
+  for (let r = by.get(key); r && !out.includes(r); r = by.get(r.parent)) out.unshift(r);
+  return out;
+}
+
+/** The regions directly under `key` (`''` or null: the top regions), in the world's order. */
+export const regionChildren = (regions, key) => (regions ?? []).filter((r) => (r.parent ?? '') === (key ?? ''));
+
+/** A frame (a box in map coordinates) as a rectangle in the projection's units. */
+export function frameRect(frame, proj) {
+  const x0 = proj.x(frame.west); const x1 = proj.x(frame.east);
+  const y0 = proj.y(frame.north); const y1 = proj.y(frame.south);
+  return { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
+}
+
+/**
+ * What is shown of `rect` at `zoom` (one of ZOOMS), around `centre` ([x, y] in the
+ * projection's units; the frame's middle when null), never outside the frame.
+ */
+export function viewWindow(rect, zoom = 1, centre = null) {
+  const z = ZOOMS.includes(zoom) ? zoom : 1;
+  const w = rect.w / z; const h = rect.h / z;
+  const [cx, cy] = centre ?? [rect.x + rect.w / 2, rect.y + rect.h / 2];
+  const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+  return { x: clamp(cx - w / 2, rect.x, rect.x + rect.w - w), y: clamp(cy - h / 2, rect.y, rect.y + rect.h - h), w, h };
+}
+
+/** Units of the drawing per CSS pixel, for a window drawn into `px` ({ width, height }) to fit. */
+export const unitsPerPx = (win, px) => Math.max(win.w / Math.max(px.width, 1), win.h / Math.max(px.height, 1));
+
+/** The zoom step nearest `zoom * ratio` (a pinch's spread over its start), by halvings. */
+export function pinchZoom(zoom, ratio) {
+  const want = Math.log2(Math.max(zoom * ratio, 1e-6));
+  return ZOOMS.reduce((best, z) => (Math.abs(Math.log2(z) - want) < Math.abs(Math.log2(best) - want) ? z : best), ZOOMS[0]);
+}
+
+/**
+ * The labels to hide: `labels` ([{ key, x, y, text }], at their label points in the drawing's
+ * units) are taken in order, and one whose box, at LABEL_PX for `k` units a pixel, would
+ * overlap a label already kept is hidden. A Set of keys.
+ */
+export function hiddenLabels(labels, k) {
+  const kept = [];
+  const hidden = new Set();
+  for (const l of labels) {
+    const w = (String(l.text).length * LABEL_PX * 0.6 + 4) * k;
+    const h = LABEL_PX * 1.3 * k;
+    const b = { x0: l.x - w / 2, x1: l.x + w / 2, y0: l.y - h / 2, y1: l.y + h / 2 };
+    if (kept.some((o) => b.x0 < o.x1 && o.x0 < b.x1 && b.y0 < o.y1 && o.y0 < b.y1)) hidden.add(l.key);
+    else kept.push(b);
+  }
+  return hidden;
+}
+
+/**
+ * Every border of the map file, by the areas on each side: `[{ between: [a, b], edges }]`
+ * with `b` null on the map's edge or where the backdrop lies; `a` sorts before `b`; each
+ * edge is a pair of vertex indices. A shared edge is found once, from both of its areas.
+ */
+export function borders(shapes) {
+  const users = new Map();
+  for (const [key, area] of Object.entries(shapes.areas ?? {})) {
+    for (const ring of area.rings) {
+      for (let i = 1; i < ring.length; i += 1) {
+        const [p, q] = [ring[i - 1], ring[i]];
+        if (p === q) continue;
+        const edge = p < q ? `${p} ${q}` : `${q} ${p}`;
+        users.set(edge, [...(users.get(edge) ?? []).filter((u) => u !== key), key]);
+      }
+    }
+  }
+  const by = new Map();
+  for (const [edge, keys] of users) {
+    const [a, b = null] = [...keys].sort();
+    const id = `${a} ${b ?? ''}`;
+    if (!by.has(id)) by.set(id, { between: [a, b], edges: [] });
+    by.get(id).edges.push(edge.split(' ').map(Number));
+  }
+  return [...by.values()].sort((x, y) => `${x.between}`.localeCompare(`${y.between}`));
+}

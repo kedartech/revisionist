@@ -9,7 +9,7 @@ import {
   LABEL_PX, MIN_MARK_PX, MIN_TAP_PX, SLIDE_MS, ZOOMS, borders, boxOf, certaintyWord, courseLine, frameRect, hiddenLabels,
   markArea, markKey, pinchZoom, pipsOf, postureWord, regionChildren, regionFrames, regionTrail, shortDate, sideLine,
   sightedLine, slideFrom, sortMarks, stanceWords, capitalLine, territoryProjection, unitsPerPx, viewWindow, waitWords,
-  whereLine,
+  whereLine, changedLine, fallingLine, frontLine, holderRelation, holderWords, isFront, yieldsLine,
 } from '../realism-rules.js';
 import { capitalGlyph, forceGlyph, pipGlyph, stanceClass, warGlyph, whatWord } from './realism-map.js';
 
@@ -34,6 +34,27 @@ const reducedMotion = () => Boolean(globalThis.matchMedia?.('(prefers-reduced-mo
 const GLYPH = Object.freeze({ land: 'army', sea: 'fleet', air: 'air' });
 
 export const areaKindWord = (area) => (area.kind === 'sea' ? 'Sea zone' : 'Land territory');
+
+/** How each holder standing is patterned, so that a tint is never colour alone. */
+const HOLD_PATTERNS = Object.freeze({
+  own: { name: 'stripes', d: 'M0 3H8M0 7H8' },
+  ally: { name: 'diagonal', d: 'M-1 9L9 -1M-1 5L5 -1M3 9L9 3' },
+  enemy: { name: 'cross', d: 'M-1 9L9 -1M-1 5L5 -1M3 9L9 3M-1 -1L9 9M-1 3L5 9M3 -1L9 5' },
+  neutral: { name: 'dots', d: 'M2 2h0.01M6 6h0.01', round: true },
+});
+
+/** The text twin of an area's holder: "held by Norra (yours)" for a held area, else ''. */
+const heldBy = (a) => (a.holder ? `, held by ${holderWords(a)}` : '');
+
+/** The pattern fills for the standings drawn, ids made from `tag`. */
+function holdPatterns(standings, tag) {
+  return [...standings].map((rel) => {
+    const p = HOLD_PATTERNS[rel];
+    return svg('pattern', { id: `${tag}-${rel}`, width: 8, height: 8, patternUnits: 'userSpaceOnUse', 'data-pattern': p.name },
+      svg('rect', { width: 8, height: 8, class: `rl-hp-ground rl-hold-${rel}` }),
+      svg('path', { d: p.d, class: `rl-hp-line rl-hold-${rel}${p.round ? ' rl-hp-dot' : ''}` }));
+  });
+}
 
 /** The layers with something to draw, Military first: a layer with nothing yet is not offered. */
 export function offeredLayers(map) {
@@ -337,6 +358,23 @@ function coursesLayer(map, labelAt, at) {
   });
 }
 
+/** The dated mark of an area that changed hands, and the line of a capital marked to fall, each under the area's label. */
+function holdMarks(areas, labelAt) {
+  return areas.filter((a) => a.held_since || a.falling).map((a) => {
+    const [x, y] = labelAt.get(a.key);
+    const taken = a.held_since ? changedLine(a) : '';
+    const falls = a.falling ? fallingLine(a) : '';
+    return [
+      taken ? atPx({ class: 'rl-tm-held', 'data-area': a.key, role: 'img', 'aria-label': `${a.name}: ${taken}` }, x, y,
+        svg('path', { d: 'M-4 0L0 -4L4 0L0 4Z', class: 'rl-held-glyph', transform: `translate(-30 ${LABEL_PX + 8})` }),
+        svg('text', { x: -22, y: LABEL_PX + 12, 'font-size': LABEL_PX * 0.9, class: 'rl-hold-note' }, `Taken ${shortDate(a.held_since)}`)) : null,
+      falls ? atPx({ class: 'rl-tm-fall', 'data-area': a.key, role: 'img', 'aria-label': `${a.name}: ${falls}` }, x, y,
+        warGlyph(-30, LABEL_PX * 2 + 10, MIN_MARK_PX * 0.7),
+        svg('text', { x: -18, y: LABEL_PX * 2 + 14, 'font-size': LABEL_PX * 0.9, class: 'rl-hold-note rl-fall-note' }, `Falls after ${shortDate(a.falling)}`)) : null,
+    ];
+  });
+}
+
 function targetsLayer(targets, at, onTarget) {
   return targets.map((t) => {
     const [x, y] = at([t.place.lon, t.place.lat]);
@@ -373,6 +411,7 @@ export function territoryDrawing(map, shapes, opts = {}) {
   const show = (key) => root?.querySelector(`.rl-tm-label[data-area="${key}"]`)?.classList.toggle('shown');
   const diplomatic = opts.layer === 'diplomatic';
   const targets = diplomatic || opts.still ? [] : opts.targets ?? [];
+  const front = ([a, b]) => b !== null && isFront(byKey.get(a), byKey.get(b));
   const borderKind = ([a, b]) => {
     if (b === null || !kinds.has(b)) return 'edge';
     const both = [kinds.get(a), kinds.get(b)];
@@ -380,26 +419,35 @@ export function territoryDrawing(map, shapes, opts = {}) {
   };
   clips += 1;
   const clip = `rl-tm-clip-${clips}`;
+  const tag = `rl-hp-${clips}`;
+  const byKey = new Map((map.areas ?? []).map((a) => [a.key, a]));
+  const held = areas.filter((a) => a.kind === 'land' && a.holder && HOLD_PATTERNS[holderRelation(a)]);
   const frameBox = { x: r2(win.x), y: r2(win.y), width: r2(win.w), height: r2(win.h) };
   root = svg('svg', {
     class: 'rl-map-svg rl-tm-svg', viewBox: `${r2(win.x)} ${r2(win.y)} ${r2(win.w)} ${r2(win.h)}`, preserveAspectRatio: 'xMidYMid meet',
     role: opts.still ? 'img' : 'group', 'aria-label': opts.label ?? 'Map of the board', 'data-frame': opts.frame ?? '',
   },
-  svg('defs', {}, svg('clipPath', { id: clip }, svg('rect', frameBox))),
+  svg('defs', {}, svg('clipPath', { id: clip }, svg('rect', frameBox)), holdPatterns(new Set(held.map(holderRelation)), tag)),
   svg('g', { class: 'rl-tm-frame', 'clip-path': `url(#${clip})` },
   svg('rect', { x: 0, y: 0, width: proj.width, height: proj.height, class: 'rl-map-sea' }),
   (shapes.backdrop ?? []).map((ring) => svg('path', { d: ringsPath(shapes.vertices, [ring], at), class: 'rl-tm-backdrop' })),
   areas.map((a) => svg('path', {
     d: ringsPath(shapes.vertices, shapes.areas[a.key].rings, at), class: `rl-area rl-area-${a.kind === 'sea' ? 'sea' : 'land'}`,
-    'data-area': a.key, 'aria-label': `${a.name}: ${areaKindWord(a)}, ${regions.get(a.region) ?? a.region}`,
-    ...(opts.still ? {} : activate(() => show(a.key))),
+    'data-area': a.key, 'aria-label': `${a.name}: ${areaKindWord(a)}, ${regions.get(a.region) ?? a.region}${heldBy(a)}`,
+    ...(opts.still ? {} : activate(() => { show(a.key); opts.onArea?.(a.key); })),
+  })),
+  held.map((a) => svg('path', {
+    d: ringsPath(shapes.vertices, shapes.areas[a.key].rings, at), class: `rl-hold rl-hold-${holderRelation(a)}`,
+    'data-area': a.key, fill: `url(#${tag}-${holderRelation(a)})`, 'aria-hidden': 'true',
   })),
   borders(shapes).filter(({ between }) => kinds.has(between[0])).map(({ between, edges }) => svg('path', {
     d: edges.map(([p, q]) => `M${at(shapes.vertices[p]).join(' ')}L${at(shapes.vertices[q]).join(' ')}`).join(''),
-    class: `rl-border rl-border-${borderKind(between)}`, 'data-between': between.filter(Boolean).join(' '),
+    class: `rl-border rl-border-${borderKind(between)}${front(between) ? ' rl-border-front' : ''}`,
+    'data-between': between.filter(Boolean).join(' '), 'data-front': front(between) ? 'true' : null,
   })),
   areas.map((a) => atPx({ class: 'rl-tm-label', 'data-area': a.key, 'data-text': a.name, 'aria-hidden': 'true' },
     ...labelAt.get(a.key), svg('text', { 'font-size': LABEL_PX, 'text-anchor': 'middle', dy: '0.35em' }, a.name))),
+  holdMarks(areas, labelAt),
   diplomatic ? null : coursesLayer(map, labelAt, at),
   diplomatic ? null : ordersLayer(map, labelAt, new Map(areas.map((a) => [a.name, labelAt.get(a.key)])), at),
   diplomatic ? capitalsLayer(map, at, opts) : marksLayer(map, labelAt, at, opts),
@@ -430,17 +478,42 @@ function regionPicker(map, frames, frame, onFrame) {
     under.map((r) => toggle(r.key, r.name, here, onFrame)));
 }
 
+/** An area's holder, and what is said of it, as one cell. */
+function holderCell(a, areas) {
+  const said = [holderWords(a), changedLine(a), fallingLine(a), frontLine(a, areas)].filter(Boolean);
+  return a.kind === 'sea' ? '' : said.map((t, i) => (i ? `. ${t}` : t)).join('');
+}
+
+/** The sheet of one area: its holder, since when and its printed yields. `null` for a key the map does not have. */
+function areaSheet(map, key, onArea) {
+  const a = (map.areas ?? []).find((x) => x.key === key);
+  if (!a) return null;
+  const land = a.kind === 'land';
+  const since = a.held_since
+    ? `${shortDate(a.held_since)}${a.taken_from ? `, taken from ${a.taken_from.name}` : ''}`
+    : 'The same holder since the game began';
+  const rows = land ? [['Holder', holderWords(a)], ['Held since', a.holder ? since : 'Not held'], ['Printed yields', yieldsLine(a.yields)]] : [];
+  const notes = [fallingLine(a), land ? frontLine(a, map.areas) : ''].filter(Boolean);
+  return h('section', { class: 'rl-area-sheet', 'aria-labelledby': 'rl-area-sheet-h', 'data-area': a.key },
+    h('h3', { id: 'rl-area-sheet-h' }, a.name),
+    h('p', { class: 'muted' }, `${areaKindWord(a)}`),
+    rows.length ? h('dl', {}, rows.map(([k, v]) => [h('dt', {}, k), h('dd', {}, v)])) : null,
+    notes.map((t) => h('p', { class: 'rl-hold-line' }, t)),
+    h('button', { type: 'button', class: 'rl-find', onclick: () => onArea?.(null) }, 'Close'));
+}
+
 function areaTable(map) {
   const names = new Map((map.areas ?? []).map((a) => [a.key, a.name]));
   const regions = new Map((map.regions ?? []).map((r) => [r.key, r.name]));
   return h('table', { class: 'rl-map-list rl-area-list' },
     h('caption', {}, 'Every area of the board'),
-    h('thead', {}, h('tr', {}, ['Area', 'Kind', 'Region', 'Borders'].map((c) => h('th', { scope: 'col' }, c)))),
+    h('thead', {}, h('tr', {}, ['Area', 'Kind', 'Region', 'Borders', 'Holder'].map((c) => h('th', { scope: 'col' }, c)))),
     h('tbody', {}, (map.areas ?? []).map((a) => h('tr', { 'data-area': a.key },
       h('th', { scope: 'row' }, a.name),
       h('td', {}, areaKindWord(a)),
       h('td', {}, regions.get(a.region) ?? a.region),
-      h('td', {}, a.neighbours.map((n) => names.get(n) ?? n).join(', '))))));
+      h('td', {}, a.neighbours.map((n) => names.get(n) ?? n).join(', ')),
+      h('td', {}, holderCell(a, map.areas))))));
 }
 
 function markTable(map, onFind) {
@@ -483,7 +556,8 @@ export function territoryView(map, shapes, opts = {}) {
   const body = mode === 'list'
     ? [areaTable(map), (map.marks ?? []).length ? markTable(map, find) : null]
     : [h('figure', { class: 'rl-map-figure' },
-      shapes ? territoryDrawing(map, shapes, { ...opts, layer, frame, zoom }) : h('p', { class: 'muted rl-tm-wait' }, opts.waiting ?? 'Drawing the map…'))];
+      shapes ? territoryDrawing(map, shapes, { ...opts, layer, frame, zoom }) : h('p', { class: 'muted rl-tm-wait' }, opts.waiting ?? 'Drawing the map…')),
+      opts.area ? areaSheet(map, opts.area, opts.onArea) : null];
   return h('section', { class: 'rl-map rl-tmap', 'aria-labelledby': 'rl-map-h' },
     h('h2', { id: 'rl-map-h' }, 'Map'),
     h('p', { class: 'muted' }, 'The board as the game\'s map draws it; your pieces and reports from your own papers.'),

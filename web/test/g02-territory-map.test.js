@@ -358,9 +358,9 @@ test('every area has a twin in List mode: its name, kind, region and neighbours'
   const rows = view.querySelectorAll('table.rl-area-list tbody tr');
   assert.equal(rows.length, TMAP.areas.length);
   const gulf = rows.find((r) => r.getAttribute('data-area') === 'the_gulf');
-  assert.deepEqual(gulf.childNodes.map(words), ['The Gulf', 'Sea zone', 'The Waters', 'The Norra Plain, The Open Sea, The Sudland Coast']);
+  assert.deepEqual(gulf.childNodes.map(words), ['The Gulf', 'Sea zone', 'The Waters', 'The Norra Plain, The Open Sea, The Sudland Coast', '']);
   const hills = rows.find((r) => r.getAttribute('data-area') === 'norra_hills');
-  assert.deepEqual(hills.childNodes.map(words), ['The Norra Hills', 'Land territory', 'The North', 'The Norra Plain, The Sudland Coast']);
+  assert.deepEqual(hills.childNodes.map(words), ['The Norra Hills', 'Land territory', 'The North', 'The Norra Plain, The Sudland Coast', 'No holder']);
 });
 
 // --- Rule 7: one layer at a time, one switch, a layer with nothing to draw not offered -------

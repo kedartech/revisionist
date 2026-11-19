@@ -14,10 +14,13 @@ from revisionist.core import events as ev
 from revisionist.core.events import Event
 from revisionist.core.fold import replay
 from revisionist.core.ids import FeatureId
+from revisionist.core.realism import economy
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism.agenda import Ask
 from revisionist.engine import catchup, options, wake, wake_report
 from revisionist.engine.store import MemoryStore, SqliteStore, StoreError
+from tests import test_economy as te
+from tests.test_adjacency_moves import day, entity
 from tests.test_engine_v2_wake import CAMPAIGN, T0, Table
 
 runner = CliRunner()
@@ -316,3 +319,65 @@ def test_no_seat_is_served_the_report() -> None:
 def test_the_report_has_a_row_for_each_seat_that_committed(table: Table) -> None:
     report = wake_report.build(played(table))
     assert {s.seat_id for s in report.seats} == {table.fdr, table.winston}
+
+
+# --- WEV rule 4: per wake, the territories that changed holder and each nation's figure
+
+
+def territory_log(tmp: Path) -> list[Event]:
+    """The toy territory world with the economy on and the Isle yielding 4 iron. Wake 0:
+    Norra takes the Isle. Wake 1: nothing changes hands. Wake 2 is open."""
+    g = te.game(tmp, te.yields(te.ISLE, iron=4))
+    at = T0
+    g.add([ev.WakeOpened(wake=0, deadline=at + 12 * HOUR, opened_at=at)])
+    te.taken(g, te.ISLE, te.NORRA, day(1))
+    for n in (0, 1):
+        at += 12 * HOUR
+        g.add(
+            [
+                ev.WakeClosed(wake=n, how="deadline"),
+                ev.WakeOpened(wake=n + 1, deadline=at + 12 * HOUR, opened_at=at),
+            ]
+        )
+    return g.log
+
+
+def test_each_wake_names_the_territories_that_changed_holder(tmp_path: Path) -> None:
+    report = wake_report.build(territory_log(tmp_path))
+    assert [(h.number, h.changes) for h in report.holdings] == [
+        (0, (("The Isle", "Norra", "Sudland"),)),
+        (1, ()),
+        (2, ()),
+    ]
+
+
+def test_each_wake_gives_every_nations_figure_at_its_end(tmp_path: Path) -> None:
+    log = territory_log(tmp_path)
+    state = replay(log)
+    figures = (
+        ("Norra", economy.figure(state, entity(te.NORRA))),
+        ("Sudland", economy.figure(state, entity(te.SUDLAND))),
+    )
+    report = wake_report.build(log)
+    assert [h.figures for h in report.holdings] == [figures] * 3
+    assert figures[1][1] < 100 == figures[0][1]
+
+
+def test_the_holder_and_figure_lines_follow_each_wake(tmp_path: Path) -> None:
+    out = wake_report.render(wake_report.build(territory_log(tmp_path)))
+    at = out.index("  wake 0: deadline")
+    assert out[at : at + 7] == [
+        "  wake 0: deadline",
+        "    holders: The Isle to Norra from Sudland",
+        "    figures: Norra 100.0, Sudland 1.2",
+        "  wake 1: deadline",
+        "    holders: no change",
+        "    figures: Norra 100.0, Sudland 1.2",
+        "  wake 2: open",
+    ]
+
+
+def test_a_game_without_holders_prints_no_holder_lines(table: Table) -> None:
+    report = wake_report.build(played(table))
+    assert report.holdings == ()
+    assert not any("holders:" in line for line in wake_report.render(report))

@@ -2657,7 +2657,12 @@
         "neighbours": [
           "norra_plain",
           "sudland_coast"
-        ]
+        ],
+        "holder": null,
+        "held_since": null,
+        "taken_from": null,
+        "falling": null,
+        "yields": {}
       },
       {
         "key": "norra_plain",
@@ -2670,7 +2675,15 @@
           "norra_hills",
           "open_sea",
           "the_gulf"
-        ]
+        ],
+        "holder": null,
+        "held_since": null,
+        "taken_from": null,
+        "falling": null,
+        "yields": {
+          "grain": 10.0,
+          "levies": 2000.0
+        }
       },
       {
         "key": "sudland_coast",
@@ -2681,7 +2694,15 @@
         "neighbours": [
           "norra_hills",
           "the_gulf"
-        ]
+        ],
+        "holder": null,
+        "held_since": null,
+        "taken_from": null,
+        "falling": null,
+        "yields": {
+          "grain": 6.0,
+          "iron": 2.0
+        }
       },
       {
         "key": "isle",
@@ -2692,7 +2713,12 @@
         "neighbours": [
           "norra_plain",
           "open_sea"
-        ]
+        ],
+        "holder": null,
+        "held_since": null,
+        "taken_from": null,
+        "falling": null,
+        "yields": {}
       },
       {
         "key": "the_gulf",
@@ -2704,7 +2730,12 @@
           "norra_plain",
           "open_sea",
           "sudland_coast"
-        ]
+        ],
+        "holder": null,
+        "held_since": null,
+        "taken_from": null,
+        "falling": null,
+        "yields": {}
       },
       {
         "key": "open_sea",
@@ -2716,7 +2747,12 @@
           "isle",
           "norra_plain",
           "the_gulf"
-        ]
+        ],
+        "holder": null,
+        "held_since": null,
+        "taken_from": null,
+        "falling": null,
+        "yields": {}
       }
     ],
     "regions": [
@@ -2752,5 +2788,265 @@
       "name": "toy.map.json",
       "sha256": "c85e9773c786d427609b240ea1c45e21ae5c3c57ae2ab98d6b0d96713a20f28e"
     }
-  }
+  },
+  "economy": {
+    "day": "1900-04-02",
+    "figures": [
+      {
+        "nation": {
+          "key": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+          "name": "Norra",
+          "relation": "own"
+        },
+        "figure": 100.0
+      },
+      {
+        "nation": {
+          "key": "TZHP5CPZR27M6255484EX48TQ6",
+          "name": "Sudland",
+          "relation": "enemy"
+        },
+        "figure": 1.2
+      }
+    ],
+    "own": {
+      "nation": {
+        "key": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+        "name": "Norra",
+        "relation": "own"
+      },
+      "income": [
+        {
+          "key": "grain",
+          "name": "Grain",
+          "unit": "tons",
+          "role": "output",
+          "amount": 10.0
+        },
+        {
+          "key": "iron",
+          "name": "Iron",
+          "unit": "tons",
+          "role": "output",
+          "amount": 0.0
+        },
+        {
+          "key": "levies",
+          "name": "Levies",
+          "unit": "men",
+          "role": "manpower",
+          "amount": 2000.0
+        },
+        {
+          "key": "pitch",
+          "name": "Pitch",
+          "unit": "barrels",
+          "role": "fuel",
+          "amount": 0.0
+        },
+        {
+          "key": "rails",
+          "name": "Rails",
+          "unit": "miles",
+          "role": "supply",
+          "amount": 0.0
+        },
+        {
+          "key": "glory",
+          "name": "Glory",
+          "unit": "laurels",
+          "role": "prestige",
+          "amount": 1.0
+        }
+      ],
+      "pools": {
+        "output": 10.0,
+        "manpower": 2000.0
+      },
+      "fuel_months": null,
+      "territories": [
+        {
+          "area": "isle",
+          "name": "The Isle",
+          "yields": {
+            "iron": 4.0,
+            "levies": 100.0,
+            "pitch": 2.0,
+            "rails": 3.0,
+            "glory": 1.0
+          },
+          "factors": {
+            "output": 0.0,
+            "manpower": 0.0,
+            "fuel": 0.0,
+            "supply": 0.0,
+            "prestige": 1.0
+          }
+        },
+        {
+          "area": "norra_hills",
+          "name": "The Norra Hills",
+          "yields": {
+            "grain": 4.0
+          },
+          "factors": {
+            "output": 1.0,
+            "manpower": 1.0,
+            "fuel": 1.0,
+            "supply": 1.0,
+            "prestige": 1.0
+          }
+        },
+        {
+          "area": "norra_plain",
+          "name": "The Norra Plain",
+          "yields": {
+            "grain": 6.0,
+            "levies": 2000.0
+          },
+          "factors": {
+            "output": 1.0,
+            "manpower": 1.0,
+            "fuel": 1.0,
+            "supply": 1.0,
+            "prestige": 1.0
+          }
+        }
+      ]
+    }
+  },
+  "economy_areas": [
+    {
+      "key": "norra_hills",
+      "name": "The Norra Hills",
+      "kind": "land",
+      "region": "north",
+      "terrain": "hills",
+      "neighbours": [
+        "norra_plain",
+        "sudland_coast"
+      ],
+      "holder": {
+        "key": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+        "name": "Norra",
+        "relation": "own"
+      },
+      "held_since": null,
+      "taken_from": null,
+      "falling": null,
+      "yields": {}
+    },
+    {
+      "key": "norra_plain",
+      "name": "The Norra Plain",
+      "kind": "land",
+      "region": "north",
+      "terrain": "plain",
+      "neighbours": [
+        "isle",
+        "norra_hills",
+        "open_sea",
+        "the_gulf"
+      ],
+      "holder": {
+        "key": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+        "name": "Norra",
+        "relation": "own"
+      },
+      "held_since": null,
+      "taken_from": null,
+      "falling": null,
+      "yields": {
+        "grain": 10.0,
+        "levies": 2000.0
+      }
+    },
+    {
+      "key": "sudland_coast",
+      "name": "The Sudland Coast",
+      "kind": "land",
+      "region": "south",
+      "terrain": "plain",
+      "neighbours": [
+        "norra_hills",
+        "the_gulf"
+      ],
+      "holder": {
+        "key": "TZHP5CPZR27M6255484EX48TQ6",
+        "name": "Sudland",
+        "relation": "enemy"
+      },
+      "held_since": null,
+      "taken_from": null,
+      "falling": null,
+      "yields": {
+        "grain": 6.0,
+        "iron": 2.0
+      }
+    },
+    {
+      "key": "isle",
+      "name": "The Isle",
+      "kind": "land",
+      "region": "waters",
+      "terrain": "hills",
+      "neighbours": [
+        "norra_plain",
+        "open_sea"
+      ],
+      "holder": {
+        "key": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+        "name": "Norra",
+        "relation": "own"
+      },
+      "held_since": "1900-04-02",
+      "taken_from": {
+        "key": "TZHP5CPZR27M6255484EX48TQ6",
+        "name": "Sudland",
+        "relation": "enemy"
+      },
+      "falling": null,
+      "yields": {
+        "iron": 4.0,
+        "levies": 100.0,
+        "pitch": 2.0,
+        "rails": 3.0,
+        "glory": 1.0
+      }
+    },
+    {
+      "key": "the_gulf",
+      "name": "The Gulf",
+      "kind": "sea",
+      "region": "waters",
+      "terrain": "shallows",
+      "neighbours": [
+        "norra_plain",
+        "open_sea",
+        "sudland_coast"
+      ],
+      "holder": null,
+      "held_since": null,
+      "taken_from": null,
+      "falling": null,
+      "yields": {}
+    },
+    {
+      "key": "open_sea",
+      "name": "The Open Sea",
+      "kind": "sea",
+      "region": "waters",
+      "terrain": "deep",
+      "neighbours": [
+        "isle",
+        "norra_plain",
+        "the_gulf"
+      ],
+      "holder": null,
+      "held_since": null,
+      "taken_from": null,
+      "falling": null,
+      "yields": {}
+    }
+  ]
 }

@@ -81,12 +81,21 @@ function atPx(attrs, x, y, ...children) {
   return svg('g', { ...attrs, class: `${attrs.class} rl-tm-px`, 'data-x': r2(x), 'data-y': r2(y) }, ...children);
 }
 
-const activate = (fn) => ({
+/** Focusable and pressable; `keys` maps any other key to what it does. */
+const activate = (fn, keys = {}) => ({
   tabindex: 0,
   role: 'button',
   onclick: fn,
-  onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); } },
+  onkeydown: (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fn(); return; }
+    if (keys[e.key]) { e.preventDefault(); keys[e.key](e); }
+  },
 });
+
+const NEXT = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+
+/** Arrow keys from a lit area or the picked piece: `step(dir)` for each. */
+const arrows = (step) => Object.fromEntries(Object.entries(NEXT).map(([k, dir]) => [k, () => step(dir)]));
 
 /**
  * Size every pixel-sized part of drawing `root` for `px` ({ width, height }, CSS pixels): marks
@@ -217,8 +226,9 @@ const markLook = (m, chosen) => `rl-mk rl-mk-${m.kind} rl-side-${m.side} rl-c-${
 function oneMark(m, xy, dx, from, opts, extra = {}) {
   const words = markLabel(m, m.piece?.area?.name ?? whereLine(m));
   const chosen = opts.selected === m.name;
+  const keys = chosen && opts.nav ? arrows((dir) => opts.nav.step(null, dir)) : {};
   const common = opts.still ? { class: markLook(m, chosen) } : {
-    class: markLook(m, chosen), 'aria-label': words, 'aria-pressed': String(chosen), ...activate(() => opts.onSelect?.(m.name)), ...extra,
+    class: markLook(m, chosen), 'aria-label': words, 'aria-pressed': String(chosen), ...activate(() => opts.onSelect?.(m.name), keys), ...extra,
   };
   return sliding(atPx({ ...common, 'data-key': markKey(m) }, xy[0], xy[1],
     svg('g', { transform: `translate(${dx} ${m.piece ? -MARK_LIFT : 0})` }, markBody(m, chosen)),
@@ -375,15 +385,18 @@ function holdMarks(areas, labelAt) {
   });
 }
 
-function targetsLayer(targets, at, onTarget) {
-  return targets.map((t) => {
+function targetsLayer(targets, at, onTarget, nav) {
+  return targets.map((t, i) => {
     const [x, y] = at([t.place.lon, t.place.lat]);
     const pick = () => onTarget?.(t.value);
     const said = [t.days, t.liftWords ?? t.lift].filter(Boolean);
     const words = `Send to ${t.place.name}${said.length ? `: ${said.join('. ')}` : ''}`;
+    const keys = nav ? arrows((dir) => nav.step(i, dir)) : {};
+    // Escape on keyup, as the fan's: the keyup of the same press then lands here, not on the piece
+    const back = nav ? { onkeyup: (e) => { if (e.key === 'Escape') { e.preventDefault(); nav.back(); } } } : {};
     return atPx({
-      class: `rl-map-target${t.refused ? ' refused' : ''}${t.chosen ? ' chosen' : ''}`, 'data-place': t.place.name,
-      'aria-label': words, 'aria-pressed': String(t.chosen), 'aria-disabled': t.refused ? 'true' : null, ...activate(pick),
+      class: `rl-map-target${t.refused ? ' refused' : ''}${t.chosen ? ' chosen' : ''}`, 'data-place': t.place.name, 'data-area': t.area ?? null,
+      'aria-label': words, 'aria-pressed': String(t.chosen), 'aria-disabled': t.refused ? 'true' : null, ...activate(pick, keys), ...back,
     }, x, y,
     svg('circle', { r: MIN_TAP_PX / 2, class: 'rl-target-ring' }),
     [t.days, t.lift].filter(Boolean).map((line, i) => svg('text', { x: MIN_TAP_PX / 2 + 2, y: 4 + i * LABEL_PX * 1.2, 'font-size': LABEL_PX, class: 'rl-target-note' }, line)),
@@ -392,12 +405,49 @@ function targetsLayer(targets, at, onTarget) {
 }
 
 /**
+ * The path of a move about to be sent (`route`: { from, steps: [{ key, name, days }] }), from the
+ * piece's area through each step's label point, each step with its days.
+ */
+function routeLayer(route, labelAt) {
+  const from = labelAt.get(route?.from);
+  const steps = (route?.steps ?? []).filter((s) => labelAt.has(s.key));
+  if (!from || !steps.length) return null;
+  const said = steps.map((s) => `${s.name}, ${daysWord(s.days)}`).join('; ');
+  const points = [from, ...steps.map((s) => labelAt.get(s.key))];
+  // each step's days at the middle of its leg, clear of the lit ring and its note at the goal
+  return svg('g', { class: 'rl-pup-path', role: 'img', 'aria-label': `Path: ${said}` },
+    svg('polyline', { points: points.map((xy) => xy.join(',')).join(' '), class: 'rl-mk-arrow rl-pup-line' }),
+    steps.map((s, i) => {
+      const [x0, y0] = points[i];
+      const [x1, y1] = points[i + 1];
+      return [
+        atPx({ class: 'rl-pup-stop' }, x1, y1, svg('circle', { r: 5, class: 'rl-pup-dot' })),
+        atPx({ class: 'rl-pup-stop' }, (x0 + x1) / 2, (y0 + y1) / 2,
+          svg('text', { y: -8, 'text-anchor': 'middle', 'font-size': LABEL_PX, class: 'rl-pup-step' }, daysWord(s.days))),
+      ];
+    }));
+}
+
+const daysWord = (n) => (n === 1 ? '1 day' : `${n} days`);
+
+/**
  * The drawing of a territory map `map` (the seat's `map` block) from `shapes` (its map file).
  * `opts`: { frame (a region's key, '' or null for the whole map), zoom, centre, px, layer,
  * selected, onSelect, fanned (the stack shown fanned out, by its area), onFan, targets, onTarget, openCapital,
- * onView, still, label }.
+ * onView, still, label, route (a move's path: `routeLayer`) }. Arrow keys on the picked piece or a
+ * lit area move focus along the lit areas; Escape on a lit area goes back to the piece.
  */
-export function territoryDrawing(map, shapes, opts = {}) {
+export function territoryDrawing(map, shapes, givenOpts = {}) {
+  const nav = {
+    step(i, dir) {
+      const lit = root?.querySelectorAll('.rl-map-target') ?? [];
+      if (!lit.length) return;
+      const at = i === null ? (dir > 0 ? 0 : lit.length - 1) : (i + dir + lit.length) % lit.length;
+      lit[at].focus();
+    },
+    back() { root?.querySelector('.rl-tm-mark[aria-pressed="true"]')?.focus(); },
+  };
+  const opts = { ...givenOpts, nav: givenOpts.still ? null : nav };
   const box = boxOf(map.box ?? shapes.box);
   const proj = territoryProjection(map.coords ?? shapes.coords, box);
   const frames = regionFrames(map, shapes);
@@ -450,9 +500,10 @@ export function territoryDrawing(map, shapes, opts = {}) {
   holdMarks(areas, labelAt),
   diplomatic ? null : coursesLayer(map, labelAt, at),
   diplomatic ? null : ordersLayer(map, labelAt, new Map(areas.map((a) => [a.name, labelAt.get(a.key)])), at),
+  diplomatic ? null : routeLayer(opts.route, labelAt),
   diplomatic ? capitalsLayer(map, at, opts) : marksLayer(map, labelAt, at, opts),
   // drawn last, over every mark: a lit area under a stack stays clickable
-  targetsLayer(targets, at, opts.onTarget)));
+  targetsLayer(targets, at, opts.onTarget, opts.nav)));
   const px = opts.px ?? guessPx();
   fit(root, px);
   if (!opts.still) gestures(root, win, opts, px);

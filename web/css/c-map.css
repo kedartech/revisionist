@@ -153,3 +153,19 @@
 .rl-area-sheet dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
 .rl-area-sheet dt { font-weight: 600; }
 .rl-area-sheet dd { margin: 0; }
+/* pick up and put down: a picked piece's path to the chosen area, the days of each step; the confirm chip; ghosts that can be withdrawn */
+.rl-pup-line { fill: none; stroke: var(--accent); stroke-width: 3px; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+.rl-pup-dot { fill: var(--accent); }
+.rl-pup-step { fill: var(--fg-strong); font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; vector-effect: non-scaling-stroke; pointer-events: none; }
+.rl-pup-stop { pointer-events: none; }
+.rl-pup:empty { display: none; }
+.rl-pup-chip { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--surface); border: 2px solid var(--accent); border-radius: var(--radius); }
+.rl-pup-h { margin: 0 0 var(--space-2); font: 600 15px/1.35 var(--font-chrome); }
+.rl-pup-chip p { margin: 0 0 var(--space-1); }
+.rl-pup-there { margin: var(--space-2) 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--rule); }
+.rl-pup-reports { margin: 0; padding: 0; list-style: none; }
+.rl-pup-acts { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.rl-pup-acts button, .rl-pup-withdraw { min-height: 44px; }
+.rl-pup-ghosts { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px dashed var(--rule); border-radius: var(--radius); }
+.rl-pup-ghosts ul { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
+.rl-pup-ghosts li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }

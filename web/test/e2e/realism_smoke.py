@@ -33,6 +33,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from playwright.sync_api import Locator, Page, sync_playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 BASE, CODE, OUT = sys.argv[1].rstrip("/"), sys.argv[2], Path(sys.argv[3])
 PHONE = sys.argv[4:5] == ["phone"]
@@ -247,6 +248,7 @@ def main() -> int:
                 phone_board(page, report)
             else:
                 keyboard_move(page, report)
+                withdraw_move(page, report)
                 page.get_by_role("group", name="View").get_by_role("button", name="Desk").click()
                 page.locator("main.rl-room").wait_for(timeout=10_000)
                 header_and_menu(page, report, host)
@@ -338,6 +340,35 @@ def keyboard_move(page: Page, report: dict[str, object]) -> None:
         len([p for p in problems if p.startswith("pageerror")]) == errors,
     )
     shoot(page, "00b-keyboard-sent")
+
+
+def withdraw_move(page: Page, report: dict[str, object]) -> None:
+    """The move just sent shows a Withdraw button while it may be withdrawn; Withdraw asks the
+    server, and the button goes only once the room is drawn from the reply."""
+    errors = len([p for p in problems if p.startswith("pageerror")])
+    button = page.locator(".rl-pup-ghosts button.rl-pup-withdraw")
+    try:
+        button.first.wait_for(timeout=10_000)
+    except PlaywrightTimeout:
+        check("the move just sent offers Withdraw while it may be withdrawn", False)
+        return
+    report["withdraw_line"] = page.locator(".rl-pup-ghosts li").first.inner_text()
+    check("the move just sent offers Withdraw while it may be withdrawn", button.count() >= 1)
+    shoot(page, "00b1-withdraw-offered")
+    before = button.count()
+    button.first.click()
+    page.locator(".rl-status.said").filter(has_text="withdrawn").wait_for(timeout=30_000)
+    report["withdraw_status"] = page.locator(".rl-status").inner_text()
+    check(
+        "Withdraw takes the order back and its button goes with the reply",
+        page.locator(".rl-pup-ghosts button.rl-pup-withdraw").count() == before - 1,
+        f"{before} -> {page.locator('.rl-pup-ghosts button.rl-pup-withdraw').count()}",
+    )
+    check(
+        "the withdrawal raises no page error",
+        len([p for p in problems if p.startswith("pageerror")]) == errors,
+    )
+    shoot(page, "00b2-withdrawn")
 
 
 def phone_board(page: Page, report: dict[str, object]) -> None:

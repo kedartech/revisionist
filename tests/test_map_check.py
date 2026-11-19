@@ -430,6 +430,48 @@ def test_lonlat_places_read_latitude_first(tmp_path: Path) -> None:
     assert ("place", "fort") in codes(mc.check_world(path).problems)
 
 
+def test_a_lonlat_place_west_of_a_box_that_runs_past_180_is_read_a_turn_east(
+    tmp_path: Path,
+) -> None:
+    # MAC: a box past 180 E writes the land beyond the date line with longitudes beyond 180, while a
+    # world file keeps a place's longitude as written (-158 for Pearl Harbor). The place is read a
+    # whole turn east, so it lies where the map draws it.
+    m = three()
+    m["coords"] = "lonlat"
+    m["vertices"] = [[170 + x / 5, y / 5] for x, y in m["vertices"]]
+    m["box"] = [170, 0, 190, 20]
+    for a in m["areas"].values():
+        a["label"] = [170 + a["label"][0] / 5, a["label"][1] / 5]
+    assert mc.check(m) == []
+    assert mc.locate(m, 185.0, 5.0) == (["ridge"], [])
+    assert mc.locate(m, -175.0, 5.0) == (["ridge"], [])
+    assert mc.locate(m, 175.0 - 720.0, 5.0) == (["marsh"], [])
+    assert mc.place_lon(m, -175.0) == 185.0
+    assert mc.place_lon(m, 175.0) == 175.0
+    assert mc.place_lon(m, float("inf")) == float("inf")
+    (tmp_path / "maps").mkdir()
+    (tmp_path / "maps" / "m.json").write_text(json.dumps(m))
+    w = world()
+    w["map"] = {
+        "coords": "lonlat",
+        "file": "m.json",
+        "sha256": mc.load(tmp_path / "maps" / "m.json")[1],
+        "box": [170, 0, 190, 20],
+    }
+    w["entities"] = [
+        {"key": "fort", "kind": "location", "name": "F", "at": [5.0, -175.0], "within": "ridge"}
+    ]
+    path = tmp_path / "w.yaml"
+    path.write_text(yaml.safe_dump(w))
+    assert mc.check_world(path).problems == []
+
+
+def test_a_flat_place_is_never_moved_a_turn() -> None:
+    m = three()
+    assert m["coords"] == "flat"
+    assert mc.place_lon(m, -300.0) == -300.0
+
+
 # Rule 5: the proof sheet.
 
 

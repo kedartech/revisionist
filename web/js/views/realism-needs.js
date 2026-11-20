@@ -9,6 +9,7 @@ import { h } from '../dom.js';
 import { worldDate } from '../rules.js';
 import { boxOf, holderRelation, territoryProjection } from '../realism-rules.js';
 import { DONE_HINT, dayKey, dayWords, itemHeading } from './realism-wake.js';
+import { floorMeasures } from './realism-home.js';
 
 /** The list's heading and its empty line [proposed]. */
 export const NEEDS_TITLE = 'What needs you';
@@ -78,6 +79,12 @@ addNeedKind('battle', (rv) => (rv.battles ?? []).filter((b) => (b.decisions ?? [
   key: b.area, label: 'Battle', what: `The battle at ${b.name}: your decision for this wake`,
   from: `Your forces against ${b.enemy}`, due: rv.clock?.world_date ?? null, at: 'close',
   arrived: b.rounds?.at(-1)?.on ?? b.opened ?? null, action: { word: 'Decide', to: 'battle', area: b.area },
+})));
+
+// a measure of the seat's on its own floor: its count against what it needs; the home sheet shows the floor
+addNeedKind('floor', (rv) => floorMeasures(rv.home).map((m) => ({
+  key: m.key, label: 'Your measure', what: m.what, from: 'the floor at home', due: null, arrived: null,
+  action: { word: 'Show the floor', to: 'sheet', sheet: 'home' },
 })));
 
 /** The papers that only acknowledge an order, and the papers an order's receipt names. */

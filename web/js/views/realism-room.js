@@ -15,7 +15,7 @@ import { battleAt, battleSheet, battleTitle } from './realism-battle.js';
 import { boardView, piecePanel, viewSwitch, withBoard } from './realism-board.js';
 import { courtBoard } from './realism-court.js';
 import { header } from './frame.js';
-import { HOME_TITLE, homeSheet, speakNote, withHome } from './realism-home.js';
+import { HOME_TITLE, homeSheet, speakNote, themeRead, withHome } from './realism-home.js';
 import { needsAnswer } from './realism-answer.js';
 import { areaCentre, matterOf, needLines, needsBar, needsList } from './realism-needs.js';
 import { chatDock, seenStore, settleMarks, threadCounts, unread } from './realism-chat.js';
@@ -621,8 +621,10 @@ export function realismRoom(ctx) {
     const directive = ui.proposal
       ? orderCard(ui.proposal, { onSign: signed, onRevise: () => { ui.proposal = null; ui.said = null; rerender(); } })
       : orderForm();
+    // the staff's read of the groups a named theme speaks to: after the reading, before signing
+    const read = ui.proposal && rv.home ? themeRead(rv.home, ui.proposal) : null;
     return h('section', { class: 'rl-write', 'aria-label': ui.proposal ? 'Your order, to sign' : 'Write an order' },
-      ui.speak && rv.home && !ui.proposal ? speakNote(rv.home) : null, directive,
+      ui.speak && rv.home && !ui.proposal ? speakNote(rv.home) : null, directive, read,
       ui.offer != null ? offerLine({ onReplace: () => answerOffer(true), onKeep: () => answerOffer(false) }) : null);
   }
 
@@ -1037,6 +1039,9 @@ export function realismRoom(ctx) {
     root.querySelector('.rl-strip .rl-home-own')?.focus();
   }
 
+  /** The home sheet's options: Speak to the nation, and the days the last close walked (what it moved). */
+  const homeOpts = () => ({ onSpeak: speak, days: rv.record?.wake?.days_passed ?? null });
+
   /** "Speak to the nation": the free-writing form, under the nation's themes and the cap, with focus in its words. */
   function speak() {
     ui.speak = true;
@@ -1179,7 +1184,7 @@ export function realismRoom(ctx) {
       panel?.removeAttribute('aria-labelledby');
       return panel;
     }
-    if (name === 'home') return rv.home ? homeSheet(rv.home, { onSpeak: speak }) : null;
+    if (name === 'home') return rv.home ? homeSheet(rv.home, homeOpts()) : null;
     if (name === 'court') return courtBoard(rv, ui, { pick, act });
     if (name === 'people') return peoplePanel();
     if (name === 'battle') {
@@ -1273,7 +1278,7 @@ export function realismRoom(ctx) {
       }),
       withHome(statusStrip(rv, ui, { act }), rv, mapFirst()
         ? { open: openSheetOf(ui) === 'home', onOpen: toggleHome }
-        : { open: Boolean(ui.homeOpen && rv.home), onOpen: toggleHome, sheet: rv.home ? homeSheet(rv.home, { onSpeak: speak }) : null }),
+        : { open: Boolean(ui.homeOpen && rv.home), onOpen: toggleHome, sheet: rv.home ? homeSheet(rv.home, homeOpts()) : null }),
     ];
     const dialogs = [menu, character, setting, happened, opening, missedDialog(), playingDialog()];
     if (mapFirst()) return [...mapFirstRoom([...top, status, firstWakeCard(rv.wake, { dismissed: ui.firstWakeOff, onDismiss: dismissFirstWake })]), ...dialogs].filter(Boolean);

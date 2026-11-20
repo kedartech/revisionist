@@ -94,7 +94,7 @@ from revisionist.core.world_compile import card_policy, object_id
 from revisionist.engine import campaign as cmp
 from revisionist.engine import session_zero
 from revisionist.engine.emit import Emitter, tail
-from revisionist.engine.estimate import CALL_CLASS, aide_orders, estimate
+from revisionist.engine.estimate import aide_orders, estimate, reads_groups
 from revisionist.engine.ids import new_id
 from revisionist.engine.llm import Transport, TransportError
 from revisionist.engine.prose import ProseWriter, accepted, author_of, prose_prompt_version
@@ -279,7 +279,7 @@ def _estimate(em: Emitter, transport: Transport) -> None:
         (o.filed, o.order_id, i)
         for o in em.state.routed.values()
         for i, part in enumerate(o.parts)
-        if part.effect is None and not part.was_estimated
+        if not part.was_estimated and (part.effect is None or reads_groups(em.state, o, i))
     )
     aided = aide_orders(em.store.read(em.state.campaign_id)) if todo else frozenset()
     for _, order_id, part in todo:
@@ -289,7 +289,8 @@ def _estimate(em: Emitter, transport: Transport) -> None:
         if ruled.cost is not None:
             # As ``campaign.log_cost`` records it, but inside the batch: the store
             # cannot take a second writer while the emitter holds the sequence.
-            batch.append(em.event(ev.CostLogged(purpose=CALL_CLASS, costs=(ruled.cost,))))
+            purpose = ruled.cost.call_class
+            batch.append(em.event(ev.CostLogged(purpose=purpose, costs=(ruled.cost,))))
         em.commit(batch)
 
 

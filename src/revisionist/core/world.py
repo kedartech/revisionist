@@ -55,7 +55,7 @@ from revisionist.core.realism.detect import Source as IntelSource
 from revisionist.core.realism.document import Bias, Classification, DocumentKind
 from revisionist.core.realism.effect import DISPOSITION_CAP, FIGURE_CAP, EffectKind
 from revisionist.core.realism.geography import FeatureKind
-from revisionist.core.realism.groups import Group
+from revisionist.core.realism.groups import Group, Theme
 from revisionist.core.realism.kinds import MAX_STRENGTH, Domain, Role
 from revisionist.core.realism.pipeline import StepAction, StepKind
 from revisionist.core.realism.quantity import ResolverKey
@@ -630,6 +630,9 @@ class GroupsDecl(Model):
     nation: Key
     """A polity key."""
     groups: tuple[Group, ...] = Field(min_length=1)
+    themes: tuple[Theme, ...] = ()
+    """The themes the nation's writing may name, each with the points it moves the
+    nation's groups by (FWG). Writing that names one moves the groups by this table."""
 
 
 class ResourceDecl(Model):

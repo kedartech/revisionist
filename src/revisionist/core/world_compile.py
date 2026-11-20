@@ -968,7 +968,8 @@ def _check_intelligence(world: WorldFile, sections: Mapping[str, str], problems:
 
 def _check_groups(world: WorldFile, problems: list[str]) -> None:
     """Each nation's groups (GRP): a polity once, and a chamber's seats within each vote's
-    members voting. With the rule off they are checked and left out of the game."""
+    members voting; each theme once, moving only the nation's own groups (FWG). With the
+    rule off they are checked and left out of the game."""
     kinds = {d.key: d.kind for d in world.entities}
     seen: set[str] = set()
     for decl in world.groups:
@@ -985,6 +986,15 @@ def _check_groups(world: WorldFile, problems: list[str]) -> None:
             votes = [*g.vote_default.values(), *(v for m in g.votes.values() for v in m.values())]
             if g.seats is not None and any(v.voting > g.seats for v in votes):
                 problems.append(f"{where} {g.key}: more members voting than seats")
+        themes = [t.key for t in decl.themes]
+        if len(set(themes)) != len(themes):
+            problems.append(f"{where}: a theme key is given twice")
+        for t in decl.themes:
+            problems += [
+                f"{where} theme {t.key}: {k} is not a group of {decl.nation}"
+                for k in t.moves
+                if k not in keys
+            ]
 
 
 def _groups(world: WorldFile, ids: Mapping[str, str]) -> ev.GroupsDeclared:
@@ -992,7 +1002,7 @@ def _groups(world: WorldFile, ids: Mapping[str, str]) -> ev.GroupsDeclared:
 
     return ev.GroupsDeclared(
         nations=tuple(
-            groups.NationGroups(nation=EntityId(ids[d.nation]), groups=d.groups)
+            groups.NationGroups(nation=EntityId(ids[d.nation]), groups=d.groups, themes=d.themes)
             for d in world.groups
         )
     )

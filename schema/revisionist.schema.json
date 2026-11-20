@@ -4174,7 +4174,8 @@
           "deal",
           "disposition",
           "disclosure",
-          "figure"
+          "figure",
+          "group"
         ],
         "title": "EffectKind",
         "type": "string"
@@ -4237,6 +4238,7 @@
                   "disposition": "#/$defs/ShiftDisposition",
                   "engagement": "#/$defs/SetEngagement",
                   "figure": "#/$defs/MoveFigure",
+                  "group": "#/$defs/GroupNudge",
                   "investigate": "#/$defs/Investigate",
                   "measure": "#/$defs/ProposeMeasure",
                   "move_force": "#/$defs/MoveForce",
@@ -4277,6 +4279,9 @@
                 },
                 {
                   "$ref": "#/$defs/MoveFigure"
+                },
+                {
+                  "$ref": "#/$defs/GroupNudge"
                 }
               ]
             },
@@ -5578,6 +5583,11 @@
         "additionalProperties": false,
         "description": "A group at home as the world declares it. True: a view holds its own nation's.",
         "properties": {
+          "abroad": {
+            "default": false,
+            "title": "Abroad",
+            "type": "boolean"
+          },
           "baseline": {
             "maximum": 100,
             "minimum": 0,
@@ -5752,6 +5762,40 @@
           "on"
         ],
         "title": "GroupMoved",
+        "type": "object"
+      },
+      "GroupNudge": {
+        "additionalProperties": false,
+        "description": "Writing that moves a nation's group at home by ``change`` points (FWG). Only the\nestimator returns it, or a theme the world lists: a seat never orders one. The issuer's\nown nation's group, or another nation's that the world marks as hearing abroad.",
+        "properties": {
+          "change": {
+            "maximum": 3,
+            "minimum": -3,
+            "title": "Change",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "kind": {
+            "const": "group",
+            "default": "group",
+            "title": "Kind",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nation",
+          "group",
+          "change"
+        ],
+        "title": "GroupNudge",
         "type": "object"
       },
       "GroupProposed": {
@@ -7100,7 +7144,7 @@
       },
       "NationGroups": {
         "additionalProperties": false,
-        "description": "One nation's groups at home, in the world file's order.",
+        "description": "One nation's groups at home, in the world file's order, and its themes.",
         "properties": {
           "groups": {
             "items": {
@@ -7113,6 +7157,14 @@
           "nation": {
             "title": "Nation",
             "type": "string"
+          },
+          "themes": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Theme"
+            },
+            "title": "Themes",
+            "type": "array"
           }
         },
         "required": [
@@ -9094,6 +9146,7 @@
                   "disposition": "#/$defs/ShiftDisposition",
                   "engagement": "#/$defs/SetEngagement",
                   "figure": "#/$defs/MoveFigure",
+                  "group": "#/$defs/GroupNudge",
                   "investigate": "#/$defs/Investigate",
                   "measure": "#/$defs/ProposeMeasure",
                   "move_force": "#/$defs/MoveForce",
@@ -9134,6 +9187,9 @@
                 },
                 {
                   "$ref": "#/$defs/MoveFigure"
+                },
+                {
+                  "$ref": "#/$defs/GroupNudge"
                 }
               ]
             },
@@ -11078,6 +11134,42 @@
           "terrain"
         ],
         "title": "Territory",
+        "type": "object"
+      },
+      "Theme": {
+        "additionalProperties": false,
+        "description": "A theme a nation's writing may name, and the points it moves each of that nation's\ngroups by, signed (FWG rule 3).",
+        "properties": {
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "moves": {
+            "additionalProperties": {
+              "maximum": 3,
+              "minimum": -3,
+              "type": "integer"
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Moves",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "moves"
+        ],
+        "title": "Theme",
         "type": "object"
       },
       "TickClosed": {
@@ -14662,7 +14754,8 @@
           "deal",
           "disposition",
           "disclosure",
-          "figure"
+          "figure",
+          "group"
         ],
         "title": "EffectKind",
         "type": "string"
@@ -15420,6 +15513,11 @@
         "additionalProperties": false,
         "description": "A group at home as the world declares it. True: a view holds its own nation's.",
         "properties": {
+          "abroad": {
+            "default": false,
+            "title": "Abroad",
+            "type": "boolean"
+          },
           "baseline": {
             "maximum": 100,
             "minimum": 0,
@@ -15541,6 +15639,40 @@
         "title": "Group",
         "type": "object"
       },
+      "GroupNudge": {
+        "additionalProperties": false,
+        "description": "Writing that moves a nation's group at home by ``change`` points (FWG). Only the\nestimator returns it, or a theme the world lists: a seat never orders one. The issuer's\nown nation's group, or another nation's that the world marks as hearing abroad.",
+        "properties": {
+          "change": {
+            "maximum": 3,
+            "minimum": -3,
+            "title": "Change",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "kind": {
+            "const": "group",
+            "default": "group",
+            "title": "Kind",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nation",
+          "group",
+          "change"
+        ],
+        "title": "GroupNudge",
+        "type": "object"
+      },
       "Groups": {
         "additionalProperties": false,
         "description": "Groups' truth. A seat sees its own nation's part only.",
@@ -15592,6 +15724,16 @@
               "type": "object"
             },
             "title": "Support",
+            "type": "object"
+          },
+          "themes": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/$defs/Theme"
+              },
+              "type": "array"
+            },
+            "title": "Themes",
             "type": "object"
           }
         },
@@ -17861,6 +18003,7 @@
                   "disposition": "#/$defs/ShiftDisposition",
                   "engagement": "#/$defs/SetEngagement",
                   "figure": "#/$defs/MoveFigure",
+                  "group": "#/$defs/GroupNudge",
                   "investigate": "#/$defs/Investigate",
                   "measure": "#/$defs/ProposeMeasure",
                   "move_force": "#/$defs/MoveForce",
@@ -17901,6 +18044,9 @@
                 },
                 {
                   "$ref": "#/$defs/MoveFigure"
+                },
+                {
+                  "$ref": "#/$defs/GroupNudge"
                 }
               ]
             },
@@ -19331,6 +19477,42 @@
           "terrain"
         ],
         "title": "Territory",
+        "type": "object"
+      },
+      "Theme": {
+        "additionalProperties": false,
+        "description": "A theme a nation's writing may name, and the points it moves each of that nation's\ngroups by, signed (FWG rule 3).",
+        "properties": {
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "moves": {
+            "additionalProperties": {
+              "maximum": 3,
+              "minimum": -3,
+              "type": "integer"
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Moves",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "moves"
+        ],
+        "title": "Theme",
         "type": "object"
       },
       "Topic": {
@@ -21927,7 +22109,8 @@
           "deal",
           "disposition",
           "disclosure",
-          "figure"
+          "figure",
+          "group"
         ],
         "title": "EffectKind",
         "type": "string"
@@ -22337,6 +22520,11 @@
         "additionalProperties": false,
         "description": "A group at home as the world declares it. True: a view holds its own nation's.",
         "properties": {
+          "abroad": {
+            "default": false,
+            "title": "Abroad",
+            "type": "boolean"
+          },
           "baseline": {
             "maximum": 100,
             "minimum": 0,
@@ -22509,6 +22697,16 @@
               "type": "object"
             },
             "title": "Support",
+            "type": "object"
+          },
+          "themes": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/$defs/Theme"
+              },
+              "type": "array"
+            },
+            "title": "Themes",
             "type": "object"
           }
         },
@@ -25392,6 +25590,42 @@
           "terrain"
         ],
         "title": "Territory",
+        "type": "object"
+      },
+      "Theme": {
+        "additionalProperties": false,
+        "description": "A theme a nation's writing may name, and the points it moves each of that nation's\ngroups by, signed (FWG rule 3).",
+        "properties": {
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "moves": {
+            "additionalProperties": {
+              "maximum": 3,
+              "minimum": -3,
+              "type": "integer"
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Moves",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "moves"
+        ],
+        "title": "Theme",
         "type": "object"
       },
       "TradeLine": {

@@ -221,7 +221,8 @@ function forceOf(rv, mark) {
  * The contingency picker on own piece `mark`'s sheet: "If you are not here", the four standing
  * orders with a line each, the one in force pressed where the seat's battles say it. Hold and hold
  * at all costs file the `contingency` action; fall back and withdraw when weak ask for their area
- * on the map first. Null for a piece no form names or an envoy. `opts`: { act, pick, theatre }.
+ * on the map first. Folded until opened, and open while its area is being picked. Null for a
+ * piece no form names or an envoy. `opts`: { act, pick, theatre }.
  */
 export function contingencyPicker(rv, mark, { act, pick, theatre = {} } = {}) {
   if (mark?.side !== 'own' || !mark.piece || mark.piece.domain === 'envoy') return null;
@@ -238,9 +239,10 @@ export function contingencyPicker(rv, mark, { act, pick, theatre = {} } = {}) {
     fall_back: () => ask('fall_back'),
     withdraw_below: () => ask('withdraw_below', { below: Number(below.value) || Math.max(1, strength - 1) }),
   };
-  const picking = theatre.battlePick && theatre.battlePick.force === found.force;
-  return h('section', { class: 'rl-bt-contingency', 'aria-labelledby': 'rl-bt-cont-h' },
-    h('h3', { id: 'rl-bt-cont-h' }, 'If you are not here'),
+  const picking = Boolean(theatre.battlePick && theatre.battlePick.force === found.force);
+  // folded until opened, so a phone's piece sheet stays short and the lit places above it stay free
+  return h('details', { class: 'rl-bt-contingency', open: picking },
+    h('summary', {}, h('h3', { id: 'rl-bt-cont-h' }, 'If you are not here')),
     h('p', { class: 'muted' }, found.known
       ? `${mark.name} stands on: ${contingencyWord(found.contingency)}.`
       : 'What this piece does in a battle while no decision of yours is in force.'),

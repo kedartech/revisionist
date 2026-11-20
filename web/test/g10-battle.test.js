@@ -305,6 +305,10 @@ test('a piece\'s sheet has the contingency picker: the four standing orders with
   const btns = picker.querySelectorAll('.rl-bt-kinds button');
   assert.deepEqual(btns.map((b) => b.querySelector('b').textContent), ['Hold', 'Hold at all costs', 'Fall back', 'Withdraw when weak']);
   assert.deepEqual(btns.filter((b) => b.getAttribute('aria-pressed') === 'true').map((b) => b.querySelector('b').textContent), ['Hold at all costs']);
+  assert.equal(picker.tagName, 'DETAILS');
+  assert.equal(picker.hasAttribute('open'), false, 'folded, so a phone\'s piece sheet stays short and the lit places stay free');
+  const picking = panel(seat(), { battlePick: { kind: 'fall_back', force: 'norra_levy', from: 'sudland_coast', name: LEVY } });
+  assert.equal(picking.el.querySelector('.rl-bt-contingency').hasAttribute('open'), true, 'open while its area is picked');
 });
 
 test('Hold and Hold at all costs file the contingency for the piece\'s force', () => {

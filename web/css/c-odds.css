@@ -1,0 +1,51 @@
+/* The odds panel (realism-odds.js): opened by Odds on the move chip and on the battle sheet. In
+   the flow under its button on a wide screen; a half sheet from the bottom on a phone, over the
+   room's bars, with its body scrolling. Each share carries its word beside it, and a loss also a
+   hatch, so no colour stands alone. Tokens only. */
+.rl-odds-ask { min-height: 44px; }
+.rl-bt-odds { margin-top: var(--space-3); }
+.rl-odds { margin-top: var(--space-3); display: flex; flex-direction: column; background: var(--surface); color: var(--fg-strong); border: 1px solid var(--rule-strong); border-radius: var(--radius); font: 13.5px/1.45 var(--font-chrome); }
+.rl-odds button { min-height: 44px; }
+.rl-odds-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--surface-2); border-bottom: 1px solid var(--rule); border-radius: var(--radius) var(--radius) 0 0; }
+.rl-odds-head h3 { flex: 1; margin: 0; font: 600 13px/1.3 var(--font-head); letter-spacing: .04em; }
+.rl-odds-head h3:focus { outline: none; }
+.rl-odds-head h3:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-odds-if { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--rule); }
+.rl-odds-if button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+.rl-odds-body { display: grid; gap: var(--space-3); padding: var(--space-3); }
+.rl-odds-body:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.rl-odds-body section, .rl-odds-body p { margin: 0; }
+.rl-odds-body h4 { margin: 0 0 var(--space-1); font: 600 11.5px/1.3 var(--font-chrome); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-muted); }
+.rl-odds-whose { padding: var(--space-2) var(--space-3); background: var(--intel-soft); border-left: 3px solid var(--intel); border-radius: var(--radius); }
+.rl-odds-whose ul { margin: var(--space-1) 0 0; padding-left: var(--space-4); }
+.rl-odds-unknown { font-weight: 600; }
+.rl-odds-bars { display: block; width: 100%; height: 18px; border: 1px solid var(--rule-strong); border-radius: var(--radius); background: var(--surface-2); }
+.rl-odds-seg[data-outcome="win"] { fill: var(--accent); }
+.rl-odds-seg[data-outcome="stalemate"] { fill: var(--rule-strong); }
+.rl-odds-hatch-bg { fill: var(--danger-soft); }
+.rl-odds-hatch { stroke: var(--danger); stroke-width: 2px; }
+.rl-odds-body .rl-odds-keys { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); margin-top: var(--space-1); font-weight: 600; }
+.rl-odds-key::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: var(--space-1); border: 1px solid var(--rule-strong); vertical-align: -1px; }
+.rl-odds-key[data-outcome="win"]::before { background: var(--accent); }
+.rl-odds-key[data-outcome="stalemate"]::before { background: var(--rule-strong); }
+.rl-odds-key[data-outcome="loss"]::before { background: repeating-linear-gradient(45deg, var(--danger) 0 2px, var(--danger-soft) 2px 4px); }
+.rl-odds-body .rl-odds-twin { margin-top: var(--space-1); color: var(--fg); }
+.rl-odds-loss { display: grid; grid-template-columns: minmax(9rem, max-content) 1fr; align-items: center; gap: var(--space-3); }
+.rl-odds-band { display: block; width: 100%; height: 10px; }
+.rl-odds-band-track { fill: var(--rule); }
+.rl-odds-own { fill: var(--accent); }
+.rl-odds-enemy { fill: var(--danger); }
+.rl-odds-take dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
+.rl-odds-take dt { font-weight: 600; }
+.rl-odds-take dd { margin: 0; }
+.rl-odds-table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.rl-odds-table th, .rl-odds-table td { padding: 2px var(--space-3) 2px 0; text-align: left; border-bottom: 1px solid var(--rule); }
+.rl-odds-table thead th { font-weight: 600; color: var(--fg-muted); }
+.rl-odds-foot { font-size: 12px; }
+.rl-odds-nofile { margin: 0; padding: var(--space-2) var(--space-3); border-top: 1px solid var(--rule); font-size: 12px; color: var(--fg-muted); }
+
+@media (max-width: 600px) {
+  .rl-odds { position: fixed; left: 0; right: 0; bottom: 0; z-index: 53; max-height: 60vh; margin: 0; border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; box-shadow: 0 -8px 30px var(--backdrop); }
+  .rl-odds-body { flex: 1; min-height: 0; overflow-y: auto; }
+  .rl-odds-loss { grid-template-columns: 1fr; gap: var(--space-1); }
+}

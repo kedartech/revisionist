@@ -54,6 +54,13 @@ class Leg(Model):
 
     since: date
     places: tuple[EntityId, ...] = Field(min_length=1)
+    takes: tuple[EntityId, ...] = ()
+    """With ``holders`` on, the territories that pass to the feature's side on ``since``,
+    but where a battle has been fought or an enemy land piece stands (HSA)."""
+    concealed: bool = False
+    """The piece is concealed from ``since`` until it arrives (HSA; read by intelligence)."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"takes", "concealed"})
 
 
 class Feature(Model):

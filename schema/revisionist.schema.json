@@ -5740,6 +5740,11 @@
         "additionalProperties": false,
         "description": "One move the record says a feature made.",
         "properties": {
+          "concealed": {
+            "default": false,
+            "title": "Concealed",
+            "type": "boolean"
+          },
           "places": {
             "items": {
               "type": "string"
@@ -5752,6 +5757,14 @@
             "format": "date",
             "title": "Since",
             "type": "string"
+          },
+          "takes": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Takes",
+            "type": "array"
           }
         },
         "required": [
@@ -14657,6 +14670,11 @@
         "additionalProperties": false,
         "description": "One move the record says a feature made.",
         "properties": {
+          "concealed": {
+            "default": false,
+            "title": "Concealed",
+            "type": "boolean"
+          },
           "places": {
             "items": {
               "type": "string"
@@ -14669,6 +14687,14 @@
             "format": "date",
             "title": "Since",
             "type": "string"
+          },
+          "takes": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Takes",
+            "type": "array"
           }
         },
         "required": [
@@ -18528,6 +18554,15 @@
         },
         "title": "Feeds",
         "type": "object"
+      },
+      "fought": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "title": "Fought",
+        "type": "array",
+        "uniqueItems": true
       },
       "frozen": {
         "default": [],

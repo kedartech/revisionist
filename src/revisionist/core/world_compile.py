@@ -761,6 +761,7 @@ def _check_features(world: WorldFile, sections: Mapping[str, str], problems: lis
         if d.kind in (EntityKind.POLITY, EntityKind.ORG, EntityKind.FACTION)
     }
     start = world.start_date
+    areas = set(_area_kinds(world)) if Rule.TERRITORIES in world.rules else set()
     for f in world.features:
         where = f"feature {f.key}"
         _ref(problems, where, f.side, "entity", sections)
@@ -774,7 +775,7 @@ def _check_features(world: WorldFile, sections: Mapping[str, str], problems: lis
             at = where if n == 0 else f"{where} leg {n}"
             _refs(problems, at, places, "entity", sections)
             for p in places:
-                if p in sections and p not in placed:
+                if p in sections and p not in placed and not (n and p in areas):
                     problems.append(f"{at}: {p} is not a place with a position")
             if f.kind in AT_ONE_PLACE and len(places) != 1:
                 problems.append(f"{at}: a force is at one place")
@@ -785,7 +786,22 @@ def _check_features(world: WorldFile, sections: Mapping[str, str], problems: lis
         days = [on for on, _ in legs]
         if any(a is not None and b is not None and b <= a for a, b in pairwise(days)):
             problems.append(f"{where}: legs run forward in time")
+        _check_takes(world, where, f, problems)
         _check_cited(problems, where, f, sections)
+
+
+def _check_takes(world: WorldFile, where: str, f: FeatureDecl, problems: list[str]) -> None:
+    """A leg's ``takes`` need ``holders`` on, belong to a piece and name territories (HSA
+    rule 3)."""
+    land = {t.key for t in world.territories}
+    for n, leg in enumerate(f.legs, start=1):
+        if leg.takes and Rule.HOLDERS not in world.rules:
+            problems.append(f"{where} leg {n}: takes needs the holders rule")
+        if leg.takes and f.kind is not FeatureKind.PIECE:
+            problems.append(f"{where} leg {n}: only a piece's leg takes territories")
+        for k in leg.takes:
+            if k not in land:
+                problems.append(f"{where} leg {n}: takes {k}, which is not a territory")
 
 
 def _check_piece(
@@ -1587,7 +1603,12 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
             places=tuple(EntityId(ids[k]) for k in _standing(world, d)),
             as_of=d.as_of or world.start_date,
             legs=tuple(
-                Leg(since=leg.since, places=tuple(EntityId(ids[k]) for k in leg.places))
+                Leg(
+                    since=leg.since,
+                    places=tuple(EntityId(ids[k]) for k in leg.places),
+                    takes=tuple(EntityId(ids[k]) for k in leg.takes),
+                    concealed=leg.concealed,
+                )
                 for leg in d.legs
             ),
             in_service=d.in_service,

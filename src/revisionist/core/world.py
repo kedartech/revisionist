@@ -491,10 +491,17 @@ class PipelineDecl(Cited):
 
 
 class LegDecl(Model):
-    """A move the record says a feature made: where it was from ``since``."""
+    """A move the record says a feature made: where it was from ``since``. In a world with
+    ``territories`` on, a place may be an area."""
 
     since: date
     places: tuple[Key, ...] = Field(min_length=1)
+    takes: SkipJsonSchema[tuple[Key, ...]] = ()
+    """With ``holders`` on, territory keys that pass to the feature's side on ``since``,
+    but where a battle has been fought or an enemy land piece stands. Written by hand: not
+    offered to a model."""
+    concealed: SkipJsonSchema[bool] = False
+    """The piece is concealed from ``since`` until it arrives. Written by hand."""
 
 
 class FeatureDecl(Cited):

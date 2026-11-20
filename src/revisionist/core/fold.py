@@ -480,7 +480,8 @@ def _battle_opened(state: State, p: ev.BattleOpened) -> State:
             _need(state.features, fid, "feature")
     if not at_war(state, b.attacker.nation, b.defender.nation):
         raise FoldError("battle_opened: the two sides are not at war")
-    return state.model_copy(update={"battles": _put(state.battles, b.area, b)})
+    fought = state.fought | {b.area, *([b.second] if b.second is not None else [])}
+    return state.model_copy(update={"battles": _put(state.battles, b.area, b), "fought": fought})
 
 
 def _battle_decided(state: State, p: ev.BattleDecided) -> State:

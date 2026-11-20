@@ -695,6 +695,12 @@ class MapReport(TypedDict):
     confidence: Literal["A", "B", "C"]
     document: str | None
     """The id of the paper that carried the report; None for a contact no one is named for."""
+    ring: list[str] | None
+    """Once the report is more than ``RING_AFTER_DAYS`` days old: the keys of every area a
+    piece of its kind could have reached from its area since the day seen, its own area
+    included, in the board's order (an unknown kind moves as the fastest of its area's
+    domain). Worked out from the report and the board alone. None while the report is
+    fresh, and for a decrypt, which gives no area (RNG)."""
 
 
 class MapOrder(TypedDict):
@@ -759,6 +765,10 @@ class MapArea(TypedDict):
     yields: dict[str, float]
     """What the board prints it yields, by resource key; a moved yield is not shown here.
     Empty for a sea zone."""
+    threatened_from: list[str] | None
+    """In a game with ``reports`` on, for a territory the seat's nation holds: the keys of
+    the reports whose area or ring takes in this area or one next to it, sorted. None for
+    every other area, and in a game without ``reports`` (RNG)."""
 
 
 class MapRegion(TypedDict):

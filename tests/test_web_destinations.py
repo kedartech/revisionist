@@ -19,6 +19,7 @@ from revisionist.core.realism.pipelines import order_words
 from revisionist.core.realism.war import War, war_id_for
 from revisionist.core.record import _form_words
 from revisionist.core.state import State
+from revisionist.engine import campaign as cmp
 from revisionist.engine.store import load_state
 from revisionist.engine.web import destinations
 from revisionist.engine.web import realism_snapshot as rs
@@ -305,8 +306,12 @@ def test_place_keys_come_from_the_campaigns_world(fdr: tuple[Realism, Client]) -
     finally:
         store.close()
     keys = destinations.place_keys(state, events)
+    # The keys come from the world file the campaign names, as it is now: a game begun on
+    # the 1941 world before territories still finds each of its places under its own key.
+    shipped = cmp.load_world(cmp.world_path(game.decl.world))
     located = {e.key for e in game.decl.entities if e.at is not None}
-    assert set(keys.values()) == located
+    assert set(keys.values()) == {e.key for e in shipped.entities if e.at is not None}
+    assert located <= set(keys.values())
     assert all(keys[EntityId(game.ids[k])] == k for k in located)
     assert destinations.place_keys(state, []) == {}
 

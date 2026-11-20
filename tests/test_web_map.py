@@ -261,6 +261,16 @@ def pair(web: Web) -> tuple[Realism, Client, Client]:  # noqa: F811
     return game, ada, bea
 
 
+@pytest.fixture
+def pair_points(web: Web) -> tuple[Realism, Client, Client]:  # noqa: F811
+    game = Realism(web, POINTS)
+    ada = game.seat("ada", "roosevelt")
+    bea = game.seat("bea", "churchill")
+    game.open_play()
+    game.first_tick()
+    return game, ada, bea
+
+
 def toy_marks(state: State, who: str = "ilse") -> dict[str, dict[str, Any]]:
     block = rs.seat_realism(state, adj.seat(who), set(), set(), None)
     return {m["name"]: dict(m) for m in block["map"]["marks"]}
@@ -383,8 +393,12 @@ def test_without_territories_a_piece_stands_at_its_place_as_the_truth_has_it(
     assert moved["piece"]["area"]["key"] == "reykjavik"
 
 
-def test_an_enemy_mark_has_no_strength_until_a_page_states_one(fdr: tuple[Realism, Client]) -> None:
-    game, ada = fdr
+def test_an_enemy_mark_has_no_strength_until_a_page_states_one(
+    fdr_points: tuple[Realism, Client],
+) -> None:
+    """A sighting mark, in a game without reports: with reports on, autumn 1941 sends other
+    sides' pieces only as reports."""
+    game, ada = fdr_points
     assert feature_named(state_of(game), "U-boat arm").tier > 0
     boats = marks(ada)["U-boat arm"]
     assert (boats["strength"], boats["piece"]) == (None, None)
@@ -393,9 +407,10 @@ def test_an_enemy_mark_has_no_strength_until_a_page_states_one(fdr: tuple[Realis
 
 
 def test_another_seats_force_has_no_piece_and_another_nations_key(
-    pair: tuple[Realism, Client, Client],
+    pair_points: tuple[Realism, Client, Client],
 ) -> None:
-    _, ada, bea = pair
+    """Sighting marks, in a game without reports (as above)."""
+    _, ada, bea = pair_points
     mine, theirs = marks(ada), marks(bea)
     assert mine["Home Fleet"]["piece"] is None
     assert theirs["Home Fleet"]["piece"] is not None

@@ -827,3 +827,107 @@ export function choiceFor(lever, name, mark) {
     ?? param.choices.find((c) => { const w = choiceName(c.label); return mark.name === w || mark.name.endsWith(` ${w}`); })
     ?? null;
 }
+
+// --- battles (BTC) -------------------------------------------------------------------------
+
+/** The four decisions a side may give its battle, each with one line on what it does. [proposed] */
+export const BATTLE_DECISIONS = Object.freeze([
+  ['press', 'Press', 'Attack at the next round. More losses on both sides, and a chance to throw them out.'],
+  ['hold', 'Hold', 'Fight from where you stand. Fewer losses, and the line stays where it is.'],
+  ['reinforce', 'Reinforce', 'Bring in a force from next door: pick it on the map and put it down here.'],
+  ['withdraw', 'Withdraw', 'Fall back one step to an area you pick. You keep the force and give up the ground.'],
+]);
+
+/** The four standing orders a force may carry for a battle, each with one line. [proposed] */
+export const BATTLE_CONTINGENCIES = Object.freeze([
+  ['hold', 'Hold', 'Hold, and go back only when your side breaks. The default.'],
+  ['hold_fast', 'Hold at all costs', 'Never go back, whatever it costs.'],
+  ['fall_back', 'Fall back', 'Fall back to an area you pick when the enemy there is half as strong again as your side.'],
+  ['withdraw_below', 'Withdraw when weak', 'Withdraw to an area you pick when its strength falls below the figure you set.'],
+]);
+
+const DECISION_WORD = new Map(BATTLE_DECISIONS.map(([k, w]) => [k, w]));
+const CONTINGENCY_WORD = new Map(BATTLE_CONTINGENCIES.map(([k, w]) => [k, w]));
+
+/** A decision as a word: "Press". */
+export const decisionWord = (d) => DECISION_WORD.get(d) ?? (d ? String(d) : '');
+/** A standing order as a word: "Hold at all costs"; null (none set) is Hold. */
+export const contingencyWord = (c) => CONTINGENCY_WORD.get(c ?? 'hold') ?? String(c);
+
+/** Which day of the battle `today` is: 1 on the day it opened. */
+export function battleDay(b, today) {
+  const day = (iso) => { const [y, m, d] = String(iso).split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  if (!b?.opened || !today) return 1;
+  return Math.max(1, Math.round((day(today) - day(b.opened)) / 86400000) + 1);
+}
+
+/** The decision in force: the side's own (`given`), else the attacker presses and the defender holds. */
+export function decisionInForce(b) {
+  if (b?.decision) return { decision: b.decision, given: true };
+  return { decision: b?.side === 'defender' ? 'hold' : 'press', given: false };
+}
+
+/** The enemy's strength as pips: solid to the low end of the range, hollow to the high end; null before any paper. */
+export function battleRangePips(b) {
+  const r = b?.enemy_strength;
+  if (!r || !Number.isInteger(r.low) || !Number.isInteger(r.high)) return null;
+  const filled = Math.max(0, r.low);
+  return { filled, slots: Math.max(filled, r.high) };
+}
+
+/** The enemy's strength in words: always a range, "1 to 4"; "not yet reported" before any paper. */
+export function battleRangeWords(b) {
+  const p = battleRangePips(b);
+  return p ? `${p.filled} to ${p.slots}` : 'not yet reported';
+}
+
+/** Steps lost, in words: "none", "1 step", "2 steps". */
+export const stepsWord = (n) => (!n ? 'none' : n === 1 ? '1 step' : `${n} steps`);
+
+/**
+ * The areas a side in a battle at `key` may fall back to: its neighbours of the same kind, a
+ * land one held by the seat's side or an ally (a sea zone has no holder).
+ */
+export function fallBackAreas(map, key) {
+  const areas = new Map((map?.areas ?? []).map((a) => [a.key, a]));
+  const here = areas.get(key);
+  if (!here) return [];
+  return (here.neighbours ?? []).filter((n) => {
+    const a = areas.get(n);
+    if (!a || a.kind !== here.kind) return false;
+    return a.kind === 'sea' || ['own', 'ally'].includes(holderRelation(a));
+  });
+}
+
+const BATTLE_AT = 'Battle at ';
+
+/** The area a press title names after "Battle at ", longest name first; `ended` when it reports the end. */
+function newsArea(title, areas) {
+  const at = title.indexOf(BATTLE_AT);
+  if (at < 0) return null;
+  const rest = title.slice(at + BATTLE_AT.length);
+  const a = [...areas].sort((x, y) => y.name.length - x.name.length).find((x) => rest.startsWith(x.name));
+  return a ? { area: a, ended: rest.slice(a.name.length).startsWith(' ends') } : null;
+}
+
+/**
+ * The battles the seat knows only from the press, as the press gave them: for each area a press
+ * paper names a battle at, the latest such paper, unless it reports the end; the seat's own
+ * battles are left out. Each `{ area, name, paper, title, on }`. [proposed: read from the titles]
+ */
+export function newsBattles(rv) {
+  const areas = rv.map?.areas ?? [];
+  const own = new Set((rv.battles ?? []).map((b) => b.area));
+  const latest = new Map();
+  const papers = (rv.documents?.documents ?? []).filter((d) => d.kind === 'press' && d.title);
+  for (const d of [...papers].sort((a, b) => String(a.issued).localeCompare(String(b.issued)))) {
+    const found = newsArea(d.title, areas);
+    if (found) latest.set(found.area.key, { ...found, d });
+  }
+  const out = [];
+  for (const [key, { area, ended, d }] of latest) {
+    if (ended || own.has(key)) continue;
+    out.push({ area: key, name: area.name, paper: d.id, title: d.title, on: d.issued });
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}

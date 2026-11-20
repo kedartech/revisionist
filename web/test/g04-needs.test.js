@@ -59,10 +59,12 @@ function board() {
  * The seat's view with five kinds of matter: the fixture's agenda item (due 26 October), a
  * request and a held decision (both due 22 October), its own order waiting on its decision (no
  * set day) and a falling territory's paper (due at this wake's close). `committed` is how many
- * of the two players have pressed Done; the other seat's presence changes nothing else.
+ * of the two players have pressed Done; the other seat's presence changes nothing else. The
+ * fixture's battle is left out: its line is the battle sheet's (g10-battle.test.js).
  */
 function seat({ committed = 1, you = false } = {}) {
   const rv = structuredClone(fixture);
+  rv.battles = [];
   rv.agenda = { ...rv.agenda, items: [...rv.agenda.items, structuredClone(REQUEST), structuredClone(DECISION)] };
   rv.map = board();
   rv.clock = { ...rv.clock, world_date: TODAY };

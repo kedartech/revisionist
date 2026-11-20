@@ -203,6 +203,7 @@ def test_the_map_block_carries_each_arrived_report(tmp_path: Path) -> None:
         "person": "Ilse Varg",
         "confidence": "B",
         "document": doc_id,
+        "ring": ["the_gulf"],
     }
     assert set(r) == set(api.MapReport.__annotations__)
     assert r["key"] != m.report.key  # the core key never leaves the server

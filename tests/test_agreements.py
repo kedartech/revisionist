@@ -192,7 +192,7 @@ def regard(g: Logged, a: str, b: str) -> int | None:
 @pytest.mark.parametrize(
     ("kind", "fields", "missing"),
     [
-        (ClauseType.PLACE, {"on": START}, "piece"),
+        (ClauseType.PLACE, {"on": START}, "force"),
         (ClauseType.KEEP_OUT, {}, "area"),
         (ClauseType.NO_WAR, {}, "nation"),
         (ClauseType.NO_ATTACK, {}, "nation"),
@@ -212,9 +212,9 @@ def test_each_clause_type_names_what_it_needs(
 
 def test_a_place_clause_names_an_area_or_a_region_not_both() -> None:
     with pytest.raises(ValueError, match="area or a region"):
-        clause(ClauseType.PLACE, piece=LEVY, on=START)
+        clause(ClauseType.PLACE, force=LEVY, on=START)
     with pytest.raises(ValueError, match="area or a region"):
-        clause(ClauseType.PLACE, piece=LEVY, on=START, area=PLAIN, region="north")
+        clause(ClauseType.PLACE, force=LEVY, on=START, area=PLAIN, region="north")
 
 
 def test_an_agreement_names_two_nations_and_binds_only_its_parties() -> None:
@@ -419,7 +419,7 @@ def test_an_offer_goes_alone_in_its_order(tmp_path: Path) -> None:
 def test_a_clause_naming_what_the_world_lacks_is_refused(tmp_path: Path) -> None:
     g = game(tmp_path)
     with pytest.raises(ValueError, match="region"):
-        offer(g, deal(clause(ClauseType.PLACE, piece=LEVY, on=day(5), region="atlantis")))
+        offer(g, deal(clause(ClauseType.PLACE, force=LEVY, on=day(5), region="atlantis")))
 
 
 # --- Rule 2 and 7: each clause type judged on its date from the state ----------------
@@ -427,7 +427,7 @@ def test_a_clause_naming_what_the_world_lacks_is_refused(tmp_path: Path) -> None
 
 def test_a_dated_place_clause_is_judged_on_its_date_and_not_a_day_early(tmp_path: Path) -> None:
     g = game(tmp_path)
-    in_force(g, clause(ClauseType.PLACE, piece=LEVY, area=PLAIN, on=day(5)))
+    in_force(g, clause(ClauseType.PLACE, force=LEVY, area=PLAIN, on=day(5)))
     assert verdicts(judged(g, START, day(4))) == []
     assert verdicts(judged(g, day(5), day(9))) == [(0, ClauseStatus.KEPT, day(5))]
 
@@ -445,7 +445,7 @@ def test_a_place_clause_reads_where_the_piece_stands(
     tmp_path: Path, fields: dict[str, Any], status: ClauseStatus
 ) -> None:
     g = game(tmp_path)
-    in_force(g, clause(ClauseType.PLACE, piece=LEVY, on=day(1), **fields))
+    in_force(g, clause(ClauseType.PLACE, force=LEVY, on=day(1), **fields))
     assert verdicts(judged(g, day(1), day(1))) == [(0, status, day(1))]
 
 
@@ -598,7 +598,7 @@ def test_a_form_clause_is_kept_when_the_form_is_enacted_by_its_date(
 
 def test_each_judgement_reaches_every_partys_seats_as_a_paper(tmp_path: Path) -> None:
     g = game(tmp_path)
-    in_force(g, clause(ClauseType.PLACE, piece=LEVY, area=PLAIN, on=day(1)))
+    in_force(g, clause(ClauseType.PLACE, force=LEVY, area=PLAIN, on=day(1)))
     out = judged(g, day(1), day(1))
     papers = [p.document for p in out if isinstance(p, ev.DocumentIssued)]
     assert {d.scope.known_by for d in papers} == {frozenset({ILSE}), frozenset({TOMAS})}
@@ -610,7 +610,7 @@ def test_each_judgement_reaches_every_partys_seats_as_a_paper(tmp_path: Path) ->
 
 def test_a_broken_clause_costs_regard_between_the_leaders(tmp_path: Path) -> None:
     g = game(tmp_path)
-    in_force(g, clause(ClauseType.PLACE, piece=LEVY, area=COAST, on=day(1)))
+    in_force(g, clause(ClauseType.PLACE, force=LEVY, area=COAST, on=day(1)))
     judged(g, day(1), day(1))
     assert regard(g, "ilse", "tomas") == BREAK_REGARD
 
@@ -619,7 +619,7 @@ def test_a_broken_clause_costs_regard_between_the_leaders(tmp_path: Path) -> Non
 def test_a_public_agreement_broken_moves_the_breakers_groups(tmp_path: Path, public: bool) -> None:
     g = game(tmp_path, broken_moves_public, rules=("holders", "economy", "groups", "agreements"))
     was = groups.support(g.state, NORRA, "public")
-    in_force(g, clause(ClauseType.PLACE, piece=LEVY, area=COAST, on=day(1)), public=public)
+    in_force(g, clause(ClauseType.PLACE, force=LEVY, area=COAST, on=day(1)), public=public)
     out = judged(g, day(1), day(1))
     moved = [p for p in out if isinstance(p, ev.GroupMoved)]
     if public:
@@ -631,7 +631,7 @@ def test_a_public_agreement_broken_moves_the_breakers_groups(tmp_path: Path, pub
 
 def test_a_kept_clause_costs_nothing(tmp_path: Path) -> None:
     g = game(tmp_path)
-    in_force(g, clause(ClauseType.PLACE, piece=LEVY, area=PLAIN, on=day(1)))
+    in_force(g, clause(ClauseType.PLACE, force=LEVY, area=PLAIN, on=day(1)))
     judged(g, day(1), day(3))
     assert regard(g, "ilse", "tomas") is None
 
@@ -681,7 +681,7 @@ def test_a_party_publishes_an_agreement_by_order(tmp_path: Path) -> None:
 
 def test_clause_judgements_are_sealed_to_the_parties_until_published(tmp_path: Path) -> None:
     g = game(tmp_path)
-    in_force(g, clause(ClauseType.PLACE, piece=LEVY, area=PLAIN, on=day(1)))
+    in_force(g, clause(ClauseType.PLACE, force=LEVY, area=PLAIN, on=day(1)))
     out = g.walk(day(1), day(1))
     (j,) = [e for e in out if e.kind == "clause_judged"]
     assert j.scope.known_by == frozenset({ILSE, TOMAS})

@@ -334,6 +334,18 @@
             "default": null,
             "title": "Days"
           },
+          "force": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Force"
+          },
           "form": {
             "anyOf": [
               {
@@ -371,18 +383,6 @@
             ],
             "default": null,
             "title": "On"
-          },
-          "piece": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Piece"
           },
           "present": {
             "default": true,
@@ -3838,7 +3838,7 @@
       },
       "Deal": {
         "additionalProperties": false,
-        "description": "Offer a deal, or accept one. With ``parties`` an offer of an agreement (AGR): one\npart per other named nation, each aimed at the person who speaks for it.",
+        "description": "Offer a deal, or accept one.",
         "properties": {
           "accept": {
             "default": false,
@@ -13413,6 +13413,18 @@
             "default": null,
             "title": "Days"
           },
+          "force": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Force"
+          },
           "form": {
             "anyOf": [
               {
@@ -13450,18 +13462,6 @@
             ],
             "default": null,
             "title": "On"
-          },
-          "piece": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Piece"
           },
           "present": {
             "default": true,
@@ -15256,7 +15256,7 @@
       },
       "Deal": {
         "additionalProperties": false,
-        "description": "Offer a deal, or accept one. With ``parties`` an offer of an agreement (AGR): one\npart per other named nation, each aimed at the person who speaks for it.",
+        "description": "Offer a deal, or accept one.",
         "properties": {
           "accept": {
             "default": false,
@@ -21677,6 +21677,18 @@
             "default": null,
             "title": "Days"
           },
+          "force": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Force"
+          },
           "form": {
             "anyOf": [
               {
@@ -21714,18 +21726,6 @@
             ],
             "default": null,
             "title": "On"
-          },
-          "piece": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Piece"
           },
           "present": {
             "default": true,
@@ -22933,7 +22933,7 @@
       },
       "Deal": {
         "additionalProperties": false,
-        "description": "Offer a deal, or accept one. With ``parties`` an offer of an agreement (AGR): one\npart per other named nation, each aimed at the person who speaks for it.",
+        "description": "Offer a deal, or accept one.",
         "properties": {
           "accept": {
             "default": false,

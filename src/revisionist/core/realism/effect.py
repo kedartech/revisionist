@@ -287,7 +287,7 @@ class ClauseType(StrEnum):
 
 
 _CLAUSE_NEEDS: dict[ClauseType, tuple[str, ...]] = {
-    ClauseType.PLACE: ("piece", "on"),
+    ClauseType.PLACE: ("force", "on"),
     ClauseType.KEEP_OUT: ("area",),
     ClauseType.NO_WAR: ("nation",),
     ClauseType.NO_ATTACK: ("nation",),
@@ -307,7 +307,7 @@ class AgreementClause(Model):
     binds: EntityId
     on: date | None = None
     """The day it is judged; None: standing, judged each day."""
-    piece: FeatureId | None = None
+    force: FeatureId | None = None
     area: EntityId | None = None
     region: Label | None = None
     present: bool = True
@@ -329,8 +329,11 @@ class AgreementClause(Model):
 
 
 class Deal(Model):
-    """Offer a deal, or accept one. With ``parties`` an offer of an agreement (AGR): one
-    part per other named nation, each aimed at the person who speaks for it."""
+    """Offer a deal, or accept one."""
+
+    # With ``parties``, an offer of an agreement (AGR): one part per other named nation,
+    # each aimed at the person who answers for it. Its fields are hidden from every model's
+    # schema, so a recorded call keeps its key.
 
     kind: Literal["deal"] = "deal"
     counterparty: EntityId

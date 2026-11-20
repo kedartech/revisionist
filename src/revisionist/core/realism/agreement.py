@@ -191,7 +191,7 @@ def render_clause(state: "State", clause: AgreementClause) -> str:
     until = f"until {_day(clause.on)}" if clause.on is not None else "at all times"
     match clause.type:
         case ClauseType.PLACE:
-            piece = state.features.get(clause.piece) if clause.piece is not None else None
+            piece = state.features.get(clause.force) if clause.force is not None else None
             where = _name(state, clause.area) if clause.area is not None else clause.region
             verb = "is in" if clause.present else "is not in"
             name = piece.name if piece is not None else "an unknown piece"
@@ -276,7 +276,7 @@ def _clause_refusal(state: "State", clause: AgreementClause) -> str:
         return "A clause names an area that is not on the map."
     if clause.region is not None and clause.region not in regions:
         return "A clause names a region that is not on the map."
-    if clause.piece is not None and clause.piece not in state.features:
+    if clause.force is not None and clause.force not in state.features:
         return "A clause names a piece the world does not have."
     return ""
 
@@ -568,8 +568,8 @@ def _in_region(state: "State", area: EntityId | None, region: str) -> bool:
 
 
 def _place_kept(state: "State", c: AgreementClause) -> bool:
-    assert c.piece is not None
-    area = _area_of_piece(state, c.piece)
+    assert c.force is not None
+    area = _area_of_piece(state, c.force)
     here = area == c.area if c.area is not None else _in_region(state, area, c.region or "")
     return here == c.present
 

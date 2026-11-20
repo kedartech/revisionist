@@ -903,7 +903,7 @@ def agreement_clauses(draw: st.DrawFn) -> rx.AgreementClause:
     if kind in (rx.ClauseType.PLACE, rx.ClauseType.FORM, rx.ClauseType.AID) or draw(st.booleans()):
         fields["on"] = draw(in_world_dates)
     if kind is rx.ClauseType.PLACE:
-        fields["piece"] = draw(feature_ids)
+        fields["force"] = draw(feature_ids)
         fields["present"] = draw(st.booleans())
         if draw(st.booleans()):
             fields["area"] = draw(entity_ids)

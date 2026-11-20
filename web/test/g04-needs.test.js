@@ -60,11 +60,13 @@ function board() {
  * request and a held decision (both due 22 October), its own order waiting on its decision (no
  * set day) and a falling territory's paper (due at this wake's close). `committed` is how many
  * of the two players have pressed Done; the other seat's presence changes nothing else. The
- * fixture's battle is left out: its line is the battle sheet's (g10-battle.test.js).
+ * fixture's battle is left out: its line is the battle sheet's (g10-battle.test.js); so is its
+ * measure on the floor at home: its line is the home sheet's (g14-home.test.js).
  */
 function seat({ committed = 1, you = false } = {}) {
   const rv = structuredClone(fixture);
   rv.battles = [];
+  delete rv.home;
   rv.agenda = { ...rv.agenda, items: [...rv.agenda.items, structuredClone(REQUEST), structuredClone(DECISION)] };
   rv.map = board();
   rv.clock = { ...rv.clock, world_date: TODAY };

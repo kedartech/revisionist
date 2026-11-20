@@ -15,6 +15,7 @@ import { battleAt, battleSheet, battleTitle } from './realism-battle.js';
 import { boardView, piecePanel, viewSwitch, withBoard } from './realism-board.js';
 import { courtBoard } from './realism-court.js';
 import { header } from './frame.js';
+import { HOME_TITLE, homeSheet, speakNote, themeRead, withHome } from './realism-home.js';
 import { needsAnswer } from './realism-answer.js';
 import { areaCentre, matterOf, needLines, needsBar, needsList } from './realism-needs.js';
 import { chatDock, seenStore, settleMarks, threadCounts, unread } from './realism-chat.js';
@@ -526,7 +527,7 @@ export function realismRoom(ctx) {
 
   /** File the signed order, which the server holds; a refusal leaves it on the desk to revise. */
   const signed = (p) => act(p.person ? `Sending it to ${p.person}…` : 'Sending it…', 'file', {},
-    (r) => { if (!r.refused) { ui.proposal = null; ui.draft = null; ui.orderTo = null; } });
+    (r) => { if (!r.refused) { ui.proposal = null; ui.draft = null; ui.orderTo = null; ui.speak = false; } });
 
   const open = (d) => work('Fetching the paper…', async () => {
     ui.page = await api.realism('read', { doc_id: d.id });
@@ -620,7 +621,10 @@ export function realismRoom(ctx) {
     const directive = ui.proposal
       ? orderCard(ui.proposal, { onSign: signed, onRevise: () => { ui.proposal = null; ui.said = null; rerender(); } })
       : orderForm();
-    return h('section', { class: 'rl-write', 'aria-label': ui.proposal ? 'Your order, to sign' : 'Write an order' }, directive,
+    // the staff's read of the groups a named theme speaks to: after the reading, before signing
+    const read = ui.proposal && rv.home ? themeRead(rv.home, ui.proposal) : null;
+    return h('section', { class: 'rl-write', 'aria-label': ui.proposal ? 'Your order, to sign' : 'Write an order' },
+      ui.speak && rv.home && !ui.proposal ? speakNote(rv.home) : null, directive, read,
       ui.offer != null ? offerLine({ onReplace: () => answerOffer(true), onKeep: () => answerOffer(false) }) : null);
   }
 
@@ -1013,8 +1017,41 @@ export function realismRoom(ctx) {
   function needsTarget(from) {
     if (from?.need) return [...root.querySelectorAll('.rl-needs .rl-need-act')].find((b) => b.getAttribute('data-need') === from.need) ?? null;
     if (from?.tab === 'needs') return root.querySelector('.rl-needsbar .rl-needs-btn');
+    if (from?.home) return root.querySelector('.rl-strip .rl-home-own');
     if (from?.battle) return root.querySelectorAll('.rl-mapfirst g.rl-bt-mark').find((g) => g.getAttribute('data-area') === from.battle) ?? null;
     return returnTarget(root, from);
+  }
+
+  /**
+   * The nation's band in the strip: the home sheet over the map (map-first), or under the strip
+   * (today's room); a second tap closes it, and focus stays on the band.
+   */
+  function toggleHome() {
+    if (mapFirst()) {
+      if (openSheetOf(ui) === 'home') return closeOver();
+      openSheet(ui, 'home', { home: true });
+      rerender();
+      root.querySelector('.rl-over-title')?.focus();
+      return;
+    }
+    ui.homeOpen = !ui.homeOpen;
+    rerender();
+    root.querySelector('.rl-strip .rl-home-own')?.focus();
+  }
+
+  /** The home sheet's options: Speak to the nation, and the days the last close walked (what it moved). */
+  const homeOpts = () => ({ onSpeak: speak, days: rv.record?.wake?.days_passed ?? null });
+
+  /** "Speak to the nation": the free-writing form, under the nation's themes and the cap, with focus in its words. */
+  function speak() {
+    ui.speak = true;
+    ui.proposal = null;
+    if (mapFirst()) openSheet(ui, 'forms');
+    else ui.tab = 'desk'; // the Board holds the order form too; on a phone the Desk tab shows it
+    rerender();
+    const write = root.querySelector('.rl-write');
+    write?.scrollIntoView?.({ block: 'start' });
+    write?.querySelector('.rl-directive textarea')?.focus();
   }
 
   /** The phone's Needs button: opens the list as the one sheet, or closes it. */
@@ -1147,6 +1184,7 @@ export function realismRoom(ctx) {
       panel?.removeAttribute('aria-labelledby');
       return panel;
     }
+    if (name === 'home') return rv.home ? homeSheet(rv.home, homeOpts()) : null;
     if (name === 'court') return courtBoard(rv, ui, { pick, act });
     if (name === 'people') return peoplePanel();
     if (name === 'battle') {
@@ -1198,7 +1236,7 @@ export function realismRoom(ctx) {
       name = null;
     }
     const piece = name === 'piece' ? ui.piece.name : null;
-    const title = piece ?? (name === 'matter' ? matterOf(rv, ui.matter).title
+    const title = piece ?? (name === 'home' ? HOME_TITLE : name === 'matter' ? matterOf(rv, ui.matter).title
       : name === 'battle' ? battleTitle(battleAt(rv, ui.battle), rv.clock?.world_date) : undefined);
     // the list is its own sheet on a phone, and a rail beside the map from 1024 px
     const sheet = name && name !== 'needs'
@@ -1238,7 +1276,9 @@ export function realismRoom(ctx) {
         onSetting: setting && work.idle() ? () => setting.showModal() : null,
         onIdentity: character && work.idle() ? () => character.showModal() : null,
       }),
-      statusStrip(rv, ui, { act }),
+      withHome(statusStrip(rv, ui, { act }), rv, mapFirst()
+        ? { open: openSheetOf(ui) === 'home', onOpen: toggleHome }
+        : { open: Boolean(ui.homeOpen && rv.home), onOpen: toggleHome, sheet: rv.home ? homeSheet(rv.home, homeOpts()) : null }),
     ];
     const dialogs = [menu, character, setting, happened, opening, missedDialog(), playingDialog()];
     if (mapFirst()) return [...mapFirstRoom([...top, status, firstWakeCard(rv.wake, { dismissed: ui.firstWakeOff, onDismiss: dismissFirstWake })]), ...dialogs].filter(Boolean);

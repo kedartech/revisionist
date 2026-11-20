@@ -15,6 +15,7 @@ import { economyPips, hasYields } from './realism-economy.js';
 import { capitalGlyph, forceGlyph, pipGlyph, stanceClass, warGlyph, whatWord } from './realism-map.js';
 import { reportMarks, reportSheet, reportTables, reportsOf, ringsAndThreats, threatsSwitch, tokenMark } from './realism-reports.js';
 import { battleLayer, battleTable } from './realism-battle.js';
+import { bandOf } from './realism-home.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
 
@@ -556,7 +557,7 @@ function holderCell(a, areas) {
 }
 
 /** The sheet of one area: its holder, since when and its printed yields. `null` for a key the map does not have. */
-function areaSheet(map, key, onArea) {
+function areaSheet(map, key, onArea, standings) {
   const a = (map.areas ?? []).find((x) => x.key === key);
   if (!a) return null;
   const land = a.kind === 'land';
@@ -564,6 +565,8 @@ function areaSheet(map, key, onArea) {
     ? `${shortDate(a.held_since)}${a.taken_from ? `, taken from ${a.taken_from.name}` : ''}`
     : 'The same holder since the game began';
   const rows = land ? [['Holder', holderWords(a)], ['Held since', a.holder ? since : 'Not held'], ['Printed yields', yieldsLine(a.yields)]] : [];
+  const band = land && a.holder ? bandOf(standings, a.holder.key) : undefined;
+  if (band !== undefined) rows.push([`${a.holder.name} at home`, band ? band.charAt(0).toUpperCase() + band.slice(1) : 'No reading']);
   const notes = [fallingLine(a), land ? frontLine(a, map.areas) : ''].filter(Boolean);
   return h('section', { class: 'rl-area-sheet', 'aria-labelledby': 'rl-area-sheet-h', 'data-area': a.key },
     h('h3', { id: 'rl-area-sheet-h' }, a.name),
@@ -632,7 +635,7 @@ export function territoryView(map, shapes, opts = {}) {
     ? [areaTable(map), (map.marks ?? []).length ? markTable(map, find) : null, reportTables(map, opts), battleTable(opts.battles, opts.onBattle)]
     : [h('figure', { class: 'rl-map-figure' },
       shapes ? territoryDrawing(map, shapes, { ...opts, layer, frame, zoom }) : h('p', { class: 'muted rl-tm-wait' }, opts.waiting ?? 'Drawing the map…')),
-      opts.area ? areaSheet(map, opts.area, opts.onArea) : null,
+      opts.area ? areaSheet(map, opts.area, opts.onArea, opts.standings) : null,
       layer === 'military' && opts.report ? reportSheet(map, opts.report, opts) : null];
   return h('section', { class: 'rl-map rl-tmap', 'aria-labelledby': 'rl-map-h' },
     h('h2', { id: 'rl-map-h' }, 'Map'),

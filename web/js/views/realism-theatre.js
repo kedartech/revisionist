@@ -288,6 +288,7 @@ export function theatreBoard(rv, ui, { pick, act, open } = {}) {
     theatres: true,
     selected: ui.piece?.kind === 'force' ? ui.piece.name : null,
     openCapital: capitalOpener(rv.people),
+    standings: rv.home?.standings ?? null, // a held territory's sheet shows its holder's band at home
     onTarget: (value) => (battlePick ? putBattle(value) : token ? putDown(value) : piece ? choose(value) : states.get(active)?.choose(value)),
     onMode: (mode) => pick?.({ theatre: { ...theatre, mode } }),
     onScope: (scope) => pick?.({ theatre: { ...theatre, scope } }),

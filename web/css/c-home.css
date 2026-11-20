@@ -1,0 +1,55 @@
+/* The home sheet and the floor (realism-home.js): the nation's band in the top strip, the home
+   sheet (under the strip in today's room, over the map in the map-first room), the themes and
+   the cap above the free-writing form, and the staff's read under an order card. Tokens only;
+   a band and a group's bar are 44px to tap, and every row of tokens wraps, so nothing is wider
+   than 390px. */
+.rl-home { flex-basis: 100%; min-width: 0; }
+.rl-home-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.rl-home-chip { min-height: 44px; padding: 0 var(--space-3); display: inline-flex; align-items: center; background: var(--surface-2); color: var(--fg); border: 1px solid var(--rule); border-radius: var(--radius); font: 600 13px/1.3 var(--font-chrome); }
+.rl-home-own { color: var(--fg-strong); border-color: var(--rule-strong); border-left: 4px solid var(--ok); cursor: pointer; }
+.rl-home-own[aria-expanded="true"] { border-color: var(--accent); }
+.rl-home-own:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-home-other { color: var(--fg-muted); }
+
+.rl-home-sheet { margin-top: var(--space-2); padding: var(--space-3) var(--space-4); max-width: 100%; min-width: 0; box-sizing: border-box; overflow-wrap: anywhere; background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); font: 14px/1.45 var(--font-chrome); }
+.rl-over .rl-home-sheet { margin-top: 0; padding: 0; border: 0; background: none; }
+.rl-home-sheet h3 { margin: 0 0 var(--space-1); font: 700 15px/1.35 var(--font-head); }
+.rl-home-sheet h4 { margin: var(--space-4) 0 var(--space-2); font: 600 12px/1.3 var(--font-head); text-transform: uppercase; letter-spacing: .08em; color: var(--fg-muted); }
+.rl-home-sheet p { margin: var(--space-1) 0; }
+.rl-home-standing { color: var(--fg-strong); font-weight: 600; }
+.rl-home-speak-btn { min-height: 44px; margin-top: var(--space-2); }
+
+.rl-home-groups { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.rl-home-group { padding: var(--space-2) var(--space-3); background: var(--surface-2); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-home-grouphead strong { color: var(--fg-strong); }
+.rl-home-kind { font-size: 12px; }
+.rl-home-support { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: var(--space-1) 0; }
+.rl-home-bar { min-height: 44px; min-width: 44px; padding: 0 var(--space-2); display: inline-flex; align-items: center; gap: 3px; background: none; border: 1px solid var(--rule); border-radius: var(--radius); cursor: pointer; }
+.rl-home-bar:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-home-step { width: 18px; height: 10px; background: var(--surface-3); border: 1px solid var(--rule-strong); border-radius: 2px; }
+.rl-home-step.on { background: var(--accent); border-color: var(--accent); }
+.rl-home-num { font-variant-numeric: tabular-nums; color: var(--fg-strong); }
+.rl-home-num[hidden] { display: none; }
+.rl-home-moved, .rl-home-themes, .rl-home-seats { font-size: 13px; color: var(--fg); }
+.rl-home-arrow { font-weight: 700; }
+.rl-home-moved.up .rl-home-arrow { color: var(--ok); }
+.rl-home-moved.down .rl-home-arrow { color: var(--danger); }
+.rl-home-close ul { list-style: none; margin: 0; padding: 0; }
+.rl-home-close li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: baseline; }
+.rl-home-close .rl-home-moved { margin: 0; }
+
+.rl-home-chamber h4 { margin-top: var(--space-2); text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--fg-strong); }
+.rl-home-chamber h5 { margin: var(--space-3) 0 var(--space-1); font: 600 14px/1.35 var(--font-head); color: var(--fg-strong); }
+.rl-home-tokens { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.rl-home-token { padding: var(--space-1) var(--space-2); background: var(--surface-2); border: 1px solid var(--rule-strong); border-radius: var(--radius); font-variant-numeric: tabular-nums; max-width: 100%; }
+.rl-home-votename { color: var(--fg-muted); }
+.rl-home-line { color: var(--fg); }
+.rl-home-line strong { color: var(--fg-strong); }
+
+.rl-home-read { margin-top: var(--space-3); padding: var(--space-3); background: var(--surface-2); border: 1px dashed var(--rule-strong); border-radius: var(--radius); font: 14px/1.45 var(--font-chrome); overflow-wrap: anywhere; }
+.rl-home-read p { margin: 0 0 var(--space-1); }
+
+.rl-home-speak { margin-bottom: var(--space-3); padding: var(--space-3); background: var(--info-soft); border: 1px solid var(--rule-strong); border-radius: var(--radius); font: 14px/1.45 var(--font-chrome); overflow-wrap: anywhere; }
+.rl-home-speak h3 { margin: 0 0 var(--space-1); font: 700 15px/1.35 var(--font-head); }
+.rl-home-speak ul { margin: var(--space-1) 0; padding-left: var(--space-4); }
+.rl-home-cap { color: var(--fg-strong); }

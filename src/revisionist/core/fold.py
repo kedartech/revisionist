@@ -40,7 +40,7 @@ from revisionist.core.ontology import (
     SeatKind,
     SeatStatus,
 )
-from revisionist.core.realism import agreement, detect, economy, groups, trade
+from revisionist.core.realism import agreement, conference, detect, economy, groups, trade
 from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, PlayStyle, opening_id
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
@@ -208,6 +208,50 @@ def _agreement_event(state: State, p: ev.Payload) -> State:
             x = x.model_copy(update={"published": p.on})
             a = a.model_copy(update={"made": _put(a.made, x.agreement_id, x)})
     return state.model_copy(update={"agreements": a})
+
+
+def _conference_event(state: State, p: ev.Payload) -> State:
+    """A conference called or opened, a vote sealed, or a tally (CNF), each only with the
+    ``conference`` rule on."""
+    if not conference.on(state):
+        raise FoldError(f"{p.kind} needs the conference rule")
+    c = state.conferences
+    match p:
+        case ev.ConferenceCalled():
+            x = p.conference
+            for nation in (x.caller, *x.invited):
+                if _need(state.entities, nation, "entity").kind is not EntityKind.POLITY:
+                    raise FoldError(f"conference_called: {nation} is not a polity")
+            if x.caller not in x.invited:
+                raise FoldError("conference_called: the caller is invited")
+            if x.tally is not None:
+                raise FoldError("conference_called: a conference is called before its tally")
+            found = c.held.get(x.key)
+            if found is not None:
+                waiting = found.tally_wake is None and x.tally_wake is not None
+                if not waiting or found.model_copy(update={"tally_wake": x.tally_wake}) != x:
+                    raise FoldError(f"conference_called: {x.key} is already called")
+            c = c.model_copy(update={"held": _put(c.held, x.key, x)})
+        case ev.VoteSealed():
+            x = _need(c.held, p.conference, "conference")
+            _need(state.seats, p.seat_id, "seat")
+            if x.tally is not None or x.tally_wake is None:
+                raise FoldError(f"vote_sealed: {x.key} is not open to votes")
+            held = c.votes.get(x.key, {})
+            if p.seat_id in held and held[p.seat_id].wake != p.wake:
+                raise FoldError(f"vote_sealed: {p.seat_id} already voted in an earlier wake")
+            ballot = conference.Ballot(vote=p.vote, wake=p.wake)
+            votes = _put(c.votes, x.key, _put(held, p.seat_id, ballot))
+            c = c.model_copy(update={"votes": votes})
+        case ev.ConferenceTallied():
+            x = _need(c.held, p.conference, "conference")
+            if x.tally is not None:
+                raise FoldError(f"conference_tallied: {x.key} is already tallied")
+            if p.tally.on < x.voting_day:
+                raise FoldError(f"conference_tallied: {x.key} tallied before its voting day")
+            x = x.model_copy(update={"tally": p.tally})
+            c = c.model_copy(update={"held": _put(c.held, x.key, x)})
+    return state.model_copy(update={"conferences": c})
 
 
 def _clamp(value: int, lo: int, hi: int) -> int:
@@ -541,6 +585,9 @@ def _mutate(state: State, event: Event) -> State:
             | ev.AgreementMade()
             | ev.ClauseJudged()
             | ev.AgreementPublished()
+            | ev.ConferenceCalled()
+            | ev.VoteSealed()
+            | ev.ConferenceTallied()
             | ev.NewsReported()
             | ev.StanceChanged()
             | ev.OpponentsRanked()
@@ -1000,6 +1047,8 @@ def _realism(state: State, p: ev.Payload) -> State:
             ev.AgreementOffered() | ev.AgreementMade() | ev.ClauseJudged() | ev.AgreementPublished()
         ):
             return _agreement_event(state, p)
+        case ev.ConferenceCalled() | ev.VoteSealed() | ev.ConferenceTallied():
+            return _conference_event(state, p)
         case ev.NewsReported():
             _fresh(state.news, p.news.news_id, "news")
             return state.model_copy(update={"news": _put(state.news, p.news.news_id, p.news)})

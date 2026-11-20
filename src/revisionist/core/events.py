@@ -17,7 +17,8 @@ FeatureSet, WarDeclared, MapDeclared, KindsDeclared, NewsReported, StanceChanged
 CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted, EconomySet, YieldChanged,
 TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDeclared,
 ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
-AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished``, and
+AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
+VoteSealed, ConferenceTallied``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -86,6 +87,7 @@ from revisionist.core.realism.card import (
     SeatCard,
     Topic,
 )
+from revisionist.core.realism.conference import Conference, Tally, Vote
 from revisionist.core.realism.detect import Agent, Intelligence, Report, Shift
 from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
 from revisionist.core.realism.economy import Amount, Pools
@@ -934,6 +936,36 @@ class AgreementPublished(Model):
     on: date
 
 
+class ConferenceCalled(Model):
+    """A conference called by a seat, or a world's conference scheduled (at compile,
+    sealed to no seat) and opened on its day (CNF). Sealed to the invited nations' seats,
+    or public when the conference is."""
+
+    kind: Literal["conference_called"] = "conference_called"
+    conference: Conference
+
+
+class VoteSealed(Model):
+    """A seat's sealed vote in a conference, in the wake it was sealed in; a later one in
+    the same wake replaces it (CNF). Sealed to the voter: nobody else learns of it, not
+    even that it was filed, until the tally counts its nation."""
+
+    kind: Literal["vote_sealed"] = "vote_sealed"
+    conference: Label
+    seat_id: SeatId
+    vote: Vote
+    wake: int = Field(ge=0)
+
+
+class ConferenceTallied(Model):
+    """A conference's tally on its voting day: each invited nation's counted vote and the
+    outcome (CNF). Scoped as its call. Never says how a seat was run."""
+
+    kind: Literal["conference_tallied"] = "conference_tallied"
+    conference: Label
+    tally: Tally
+
+
 class NewsReported(Model):
     """A public event, as structured facts. Each seat's press words it later."""
 
@@ -1363,6 +1395,9 @@ Payload = Annotated[
     | AgreementMade
     | ClauseJudged
     | AgreementPublished
+    | ConferenceCalled
+    | VoteSealed
+    | ConferenceTallied
     | NewsReported
     | StanceChanged
     | OpponentsRanked
@@ -1458,6 +1493,9 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "agreement_made",
         "clause_judged",
         "agreement_published",
+        "conference_called",
+        "vote_sealed",
+        "conference_tallied",
         "stance_changed",
         "opponents_ranked",
         "card_amended",

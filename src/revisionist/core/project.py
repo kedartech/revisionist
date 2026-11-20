@@ -27,7 +27,7 @@ from typing import Protocol
 
 from revisionist.core.ids import DocumentId, ScheduledEventId, SeatId
 from revisionist.core.ontology import ScheduledEvent, ScheduleSource, Seat
-from revisionist.core.realism import agreement, detect, economy, groups
+from revisionist.core.realism import agreement, conference, detect, economy, groups
 from revisionist.core.realism.document import DocumentView
 from revisionist.core.realism.war import polity_of
 from revisionist.core.state import SeatFace, State, View
@@ -95,6 +95,7 @@ def project(state: State, seat: SeatId) -> View:
         economy=economy.seen_by(state, seat),
         groups=groups.seen_by(state, seat),
         agreements=agreement.seen_by(state, seat),
+        conferences=conference.seen_by(state, seat),
         wake=state.wake,
         phase=state.phase,
         roster=dict(state.roster),

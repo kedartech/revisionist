@@ -96,6 +96,7 @@ from revisionist.core.realism.document import Feed
 from revisionist.core.realism.effect import (
     ESTIMATED_ONLY,
     AgreementClause,
+    ClauseType,
     EffectKind,
     MoveFigure,
     MoveForce,
@@ -169,6 +170,8 @@ def compile_world(world: WorldFile, campaign_id: CampaignId, versions: Versions)
     emitted = _emit(world, ids, sections)
     if Rule.FUEL in world.rules:
         emitted += _stocks(world, ids, _events(emitted, campaign_id, versions))
+    if Rule.CONFERENCE in world.rules:
+        emitted += _conferences(world, ids, campaign_id)
     if Rule.AGREEMENTS in world.rules:
         emitted += _pacts(world, ids, campaign_id)
     events = _events(emitted, campaign_id, versions)
@@ -476,6 +479,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "intelligence",
             "groups",
             "pacts",
+            "conferences",
         ):
             if getattr(world, name):
                 problems.append(f"{name}: only a realism world has {name}")
@@ -560,6 +564,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_wars(world, sections, problems)
     _check_trade(world, sections, problems)
     _check_pacts(world, sections, problems)
+    _check_conferences(world, sections, problems)
     playable = {c.person for c in world.cards if c.playable}
     listed = {ch.entity for ch in world.roster}
     # A listed person with no card yet is built when picked (compile_figure).
@@ -664,12 +669,101 @@ def _check_pacts(world: WorldFile, sections: Mapping[str, str], problems: list[s
                 problems.append(f"{at}: no card has the form {c.form}")
             if c.on is not None and world.start_date is not None and c.on < world.start_date:
                 problems.append(f"{at}: dated before the start")
+            if c.type is ClauseType.VOTE:
+                held = {x.key: x for x in world.conferences}.get(c.text)
+                if held is None:
+                    problems.append(f"{at}: names no conference the world schedules")
+                elif c.on is not None and c.on < held.voting_day:
+                    problems.append(f"{at}: falls due before its conference's voting day")
             try:
                 _pact_clause(c, {})
             except ValidationError as exc:
                 problems.append(
                     f"{at}: {str(exc.errors()[0]['msg']).removeprefix('Value error, ')}"
                 )
+
+
+# --- conferences (CNF) -----------------------------------------------------------------
+
+
+def _check_conferences(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """Conferences only with the conference rule on, which needs agreements; each once,
+    cited, inviting two or more distinct polities with the caller among them, its clauses
+    binding a nation invited and holding no vote clause, opening on or after the start and
+    voting at least ``CONF_DAYS`` days after it opens."""
+    from revisionist.core.realism.conference import CONF_DAYS
+
+    polities = {d.key for d in world.entities if d.kind is EntityKind.POLITY}
+    if Rule.CONFERENCE in world.rules and Rule.AGREEMENTS not in world.rules:
+        problems.append("rules: conference needs agreements")
+    if world.conferences and Rule.CONFERENCE not in world.rules:
+        problems.append("conferences: needs the conference rule")
+    seen: set[str] = set()
+    for x in world.conferences:
+        where = f"conference {x.key}"
+        if x.key in seen:
+            problems.append(f"{where}: duplicate key")
+        seen.add(x.key)
+        _check_cited(problems, where, x, sections)
+        if len(x.invited) < 2:
+            problems.append(f"{where}: invites at least two nations")
+        if len(set(x.invited)) != len(x.invited):
+            problems.append(f"{where}: invites a nation twice")
+        if x.caller not in x.invited:
+            problems.append(f"{where}: the caller {x.caller} is not invited")
+        for nation in x.invited:
+            _ref(problems, where, nation, "entity", sections)
+            if nation in sections and nation not in polities:
+                problems.append(f"{where}: {nation} is not a polity")
+        if world.start_date is not None and x.opens < world.start_date:
+            problems.append(f"{where}: opens before the start")
+        if (x.voting_day - x.opens).days < CONF_DAYS:
+            problems.append(f"{where}: votes less than {CONF_DAYS} days after it opens")
+        for n, c in enumerate(x.clauses, start=1):
+            at = f"{where}: clause {n}"
+            if c.binds not in x.invited:
+                problems.append(f"{at} binds {c.binds}, which is not invited")
+            if c.type is ClauseType.VOTE:
+                problems.append(f"{at}: a conference's text holds no vote clause")
+            _ref(problems, at, c.nation, "entity", sections)
+            _ref(problems, at, c.force, "feature", sections)
+            try:
+                _pact_clause(c, {})
+            except ValidationError as exc:
+                problems.append(
+                    f"{at}: {str(exc.errors()[0]['msg']).removeprefix('Value error, ')}"
+                )
+
+
+def _conferences(
+    world: WorldFile, ids: Mapping[str, str], campaign_id: CampaignId
+) -> list[tuple[ev.Payload, Scope]]:
+    """Each scheduled conference, in file order, sealed to a seat nobody holds until the
+    day walk opens it on its day."""
+    from revisionist.core.realism import conference
+
+    topics = {t.key: _topic(t) for t in world.topics}
+    held = SeatId(derived_id(campaign_id, "engine-only", "conference"))
+    scope = Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
+    out: list[tuple[ev.Payload, Scope]] = []
+    for x in world.conferences:
+        clauses = tuple(_pact_clause(c, ids) for c in x.clauses)
+        said = conference.text_words(" ".join([x.wording, *(c.text for c in clauses)]))
+        touched = tuple(sorted(k for k, t in topics.items() if t.touched(None, (), said)))
+        text = conference.ConferenceText(
+            wording=x.wording, clauses=clauses, topics=touched, unanimous=x.unanimous
+        )
+        made = conference.scheduled(
+            x.key,
+            EntityId(ids[x.caller]),
+            tuple(EntityId(ids[k]) for k in x.invited),
+            text,
+            x.opens,
+            x.voting_day,
+            x.public,
+        )
+        out.append((ev.ConferenceCalled(conference=made), scope))
+    return out
 
 
 def _pact_clause(c: PactClauseDecl, ids: Mapping[str, str]) -> AgreementClause:

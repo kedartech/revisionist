@@ -2812,7 +2812,8 @@
           "kept",
           "broken",
           "called",
-          "unchecked"
+          "unchecked",
+          "void"
         ],
         "title": "ClauseStatus",
         "type": "string"
@@ -3413,6 +3414,168 @@
           "status"
         ],
         "title": "CommitmentStatusSet",
+        "type": "object"
+      },
+      "Conference": {
+        "additionalProperties": false,
+        "description": "A conference called or scheduled. ``key`` names it, and is the text a vote clause\nnames. ``tally_wake``: the tally runs only in a day walk after that wake has opened;\nNone for a world's conference that has not yet opened.",
+        "properties": {
+          "caller": {
+            "title": "Caller",
+            "type": "string"
+          },
+          "invited": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 2,
+            "title": "Invited",
+            "type": "array"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "opens": {
+            "format": "date",
+            "title": "Opens",
+            "type": "string"
+          },
+          "public": {
+            "default": false,
+            "title": "Public",
+            "type": "boolean"
+          },
+          "tally": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Tally"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "tally_wake": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tally Wake"
+          },
+          "text": {
+            "$ref": "#/$defs/ConferenceText"
+          },
+          "voting_day": {
+            "format": "date",
+            "title": "Voting Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "caller",
+          "invited",
+          "text",
+          "opens",
+          "voting_day"
+        ],
+        "title": "Conference",
+        "type": "object"
+      },
+      "ConferenceCalled": {
+        "additionalProperties": false,
+        "description": "A conference called by a seat, or a world's conference scheduled (at compile,\nsealed to no seat) and opened on its day (CNF). Sealed to the invited nations' seats,\nor public when the conference is.",
+        "properties": {
+          "conference": {
+            "$ref": "#/$defs/Conference"
+          },
+          "kind": {
+            "const": "conference_called",
+            "default": "conference_called",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "conference"
+        ],
+        "title": "ConferenceCalled",
+        "type": "object"
+      },
+      "ConferenceTallied": {
+        "additionalProperties": false,
+        "description": "A conference's tally on its voting day: each invited nation's counted vote and the\noutcome (CNF). Scoped as its call. Never says how a seat was run.",
+        "properties": {
+          "conference": {
+            "maxLength": 60,
+            "title": "Conference",
+            "type": "string"
+          },
+          "kind": {
+            "const": "conference_tallied",
+            "default": "conference_tallied",
+            "title": "Kind",
+            "type": "string"
+          },
+          "tally": {
+            "$ref": "#/$defs/Tally"
+          }
+        },
+        "required": [
+          "conference",
+          "tally"
+        ],
+        "title": "ConferenceTallied",
+        "type": "object"
+      },
+      "ConferenceText": {
+        "additionalProperties": false,
+        "description": "What a conference votes on: its wording, its clauses, the topics its words touch\n(by key, worked out when it is called) and whether only a unanimous vote passes it.",
+        "properties": {
+          "clauses": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AgreementClause"
+            },
+            "maxItems": 8,
+            "title": "Clauses",
+            "type": "array"
+          },
+          "topics": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Topics",
+            "type": "array"
+          },
+          "unanimous": {
+            "default": false,
+            "title": "Unanimous",
+            "type": "boolean"
+          },
+          "wording": {
+            "maxLength": 600,
+            "minLength": 1,
+            "title": "Wording",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wording"
+        ],
+        "title": "ConferenceText",
         "type": "object"
       },
       "Confidence": {
@@ -7656,6 +7819,25 @@
         "title": "NationGroups",
         "type": "object"
       },
+      "NationVote": {
+        "additionalProperties": false,
+        "description": "One invited nation's counted vote at the tally.",
+        "properties": {
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "vote": {
+            "$ref": "#/$defs/Vote"
+          }
+        },
+        "required": [
+          "nation",
+          "vote"
+        ],
+        "title": "NationVote",
+        "type": "object"
+      },
       "NewsEvent": {
         "additionalProperties": false,
         "description": "A public event, as structured public facts only. Never prose. One per event;\neach seat's press later words it in its own outlet's voice.",
@@ -8291,6 +8473,16 @@
         ],
         "title": "Ordered",
         "type": "object"
+      },
+      "Outcome": {
+        "enum": [
+          "agreement",
+          "resolution",
+          "failed",
+          "cancelled"
+        ],
+        "title": "Outcome",
+        "type": "string"
       },
       "OutcomeTier": {
         "enum": [
@@ -11506,6 +11698,47 @@
         "title": "StepRefused",
         "type": "object"
       },
+      "Tally": {
+        "additionalProperties": false,
+        "description": "A conference's result, on the day it was tallied.",
+        "properties": {
+          "agreement_id": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Agreement Id"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/$defs/Outcome"
+          },
+          "votes": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/NationVote"
+            },
+            "title": "Votes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "on",
+          "outcome"
+        ],
+        "title": "Tally",
+        "type": "object"
+      },
       "Terrain": {
         "additionalProperties": false,
         "properties": {
@@ -12084,6 +12317,52 @@
         ],
         "title": "Visibility",
         "type": "string"
+      },
+      "Vote": {
+        "enum": [
+          "for",
+          "against",
+          "abstain"
+        ],
+        "title": "Vote",
+        "type": "string"
+      },
+      "VoteSealed": {
+        "additionalProperties": false,
+        "description": "A seat's sealed vote in a conference, in the wake it was sealed in; a later one in\nthe same wake replaces it (CNF). Sealed to the voter: nobody else learns of it, not\neven that it was filed, until the tally counts its nation.",
+        "properties": {
+          "conference": {
+            "maxLength": 60,
+            "title": "Conference",
+            "type": "string"
+          },
+          "kind": {
+            "const": "vote_sealed",
+            "default": "vote_sealed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "seat_id": {
+            "title": "Seat Id",
+            "type": "string"
+          },
+          "vote": {
+            "$ref": "#/$defs/Vote"
+          },
+          "wake": {
+            "minimum": 0,
+            "title": "Wake",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "conference",
+          "seat_id",
+          "vote",
+          "wake"
+        ],
+        "title": "VoteSealed",
+        "type": "object"
       },
       "WakeClosed": {
         "additionalProperties": false,
@@ -12710,6 +12989,8 @@
             "clock_created": "#/$defs/ClockCreated",
             "codebreaking_set": "#/$defs/CodebreakingSet",
             "commitment_created": "#/$defs/CommitmentCreated",
+            "conference_called": "#/$defs/ConferenceCalled",
+            "conference_tallied": "#/$defs/ConferenceTallied",
             "contest_created": "#/$defs/ContestCreated",
             "contest_decided": "#/$defs/ContestDecided",
             "contest_moved": "#/$defs/ContestMoved",
@@ -12788,6 +13069,7 @@
             "tick_opened": "#/$defs/TickOpened",
             "tick_stage_completed": "#/$defs/TickStageCompleted",
             "trade_set": "#/$defs/TradeSet",
+            "vote_sealed": "#/$defs/VoteSealed",
             "wake_closed": "#/$defs/WakeClosed",
             "wake_committed": "#/$defs/WakeCommitted",
             "wake_opened": "#/$defs/WakeOpened",
@@ -13054,6 +13336,15 @@
           },
           {
             "$ref": "#/$defs/AgreementPublished"
+          },
+          {
+            "$ref": "#/$defs/ConferenceCalled"
+          },
+          {
+            "$ref": "#/$defs/VoteSealed"
+          },
+          {
+            "$ref": "#/$defs/ConferenceTallied"
           },
           {
             "$ref": "#/$defs/NewsReported"
@@ -14278,6 +14569,26 @@
         "title": "AssetStatus",
         "type": "string"
       },
+      "Ballot": {
+        "additionalProperties": false,
+        "description": "A seat's sealed vote, and the wake it was sealed in.",
+        "properties": {
+          "vote": {
+            "$ref": "#/$defs/Vote"
+          },
+          "wake": {
+            "minimum": 0,
+            "title": "Wake",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "vote",
+          "wake"
+        ],
+        "title": "Ballot",
+        "type": "object"
+      },
       "Base": {
         "additionalProperties": false,
         "description": "A site a side's pieces work from, for the domains it names (``base`` in the world).",
@@ -14805,7 +15116,8 @@
           "kept",
           "broken",
           "called",
-          "unchecked"
+          "unchecked",
+          "void"
         ],
         "title": "ClauseStatus",
         "type": "string"
@@ -15027,6 +15339,153 @@
         ],
         "title": "CommitmentStatus",
         "type": "string"
+      },
+      "Conference": {
+        "additionalProperties": false,
+        "description": "A conference called or scheduled. ``key`` names it, and is the text a vote clause\nnames. ``tally_wake``: the tally runs only in a day walk after that wake has opened;\nNone for a world's conference that has not yet opened.",
+        "properties": {
+          "caller": {
+            "title": "Caller",
+            "type": "string"
+          },
+          "invited": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 2,
+            "title": "Invited",
+            "type": "array"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "opens": {
+            "format": "date",
+            "title": "Opens",
+            "type": "string"
+          },
+          "public": {
+            "default": false,
+            "title": "Public",
+            "type": "boolean"
+          },
+          "tally": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Tally"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "tally_wake": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tally Wake"
+          },
+          "text": {
+            "$ref": "#/$defs/ConferenceText"
+          },
+          "voting_day": {
+            "format": "date",
+            "title": "Voting Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "caller",
+          "invited",
+          "text",
+          "opens",
+          "voting_day"
+        ],
+        "title": "Conference",
+        "type": "object"
+      },
+      "ConferenceText": {
+        "additionalProperties": false,
+        "description": "What a conference votes on: its wording, its clauses, the topics its words touch\n(by key, worked out when it is called) and whether only a unanimous vote passes it.",
+        "properties": {
+          "clauses": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AgreementClause"
+            },
+            "maxItems": 8,
+            "title": "Clauses",
+            "type": "array"
+          },
+          "topics": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Topics",
+            "type": "array"
+          },
+          "unanimous": {
+            "default": false,
+            "title": "Unanimous",
+            "type": "boolean"
+          },
+          "wording": {
+            "maxLength": 600,
+            "minLength": 1,
+            "title": "Wording",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wording"
+        ],
+        "title": "ConferenceText",
+        "type": "object"
+      },
+      "Conferences": {
+        "additionalProperties": false,
+        "description": "Conferences and their sealed votes (CNF). A view holds the conferences its nation\nis invited to and every public one, from the day each opens, and its own votes only.",
+        "properties": {
+          "held": {
+            "additionalProperties": {
+              "$ref": "#/$defs/Conference"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Held",
+            "type": "object"
+          },
+          "votes": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/$defs/Ballot"
+              },
+              "type": "object"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Votes",
+            "type": "object"
+          }
+        },
+        "title": "Conferences",
+        "type": "object"
       },
       "Confidence": {
         "enum": [
@@ -17609,6 +18068,25 @@
         "title": "MoveForce",
         "type": "object"
       },
+      "NationVote": {
+        "additionalProperties": false,
+        "description": "One invited nation's counted vote at the tally.",
+        "properties": {
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "vote": {
+            "$ref": "#/$defs/Vote"
+          }
+        },
+        "required": [
+          "nation",
+          "vote"
+        ],
+        "title": "NationVote",
+        "type": "object"
+      },
       "NewsEvent": {
         "additionalProperties": false,
         "description": "A public event, as structured public facts only. Never prose. One per event;\neach seat's press later words it in its own outlet's voice.",
@@ -17820,6 +18298,16 @@
         ],
         "title": "Ordered",
         "type": "object"
+      },
+      "Outcome": {
+        "enum": [
+          "agreement",
+          "resolution",
+          "failed",
+          "cancelled"
+        ],
+        "title": "Outcome",
+        "type": "string"
       },
       "Outlet": {
         "additionalProperties": false,
@@ -20230,6 +20718,47 @@
         "title": "StepOutcome",
         "type": "object"
       },
+      "Tally": {
+        "additionalProperties": false,
+        "description": "A conference's result, on the day it was tallied.",
+        "properties": {
+          "agreement_id": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Agreement Id"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/$defs/Outcome"
+          },
+          "votes": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/NationVote"
+            },
+            "title": "Votes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "on",
+          "outcome"
+        ],
+        "title": "Tally",
+        "type": "object"
+      },
       "Terrain": {
         "additionalProperties": false,
         "properties": {
@@ -20645,6 +21174,15 @@
           "covert"
         ],
         "title": "Visibility",
+        "type": "string"
+      },
+      "Vote": {
+        "enum": [
+          "for",
+          "against",
+          "abstain"
+        ],
+        "title": "Vote",
         "type": "string"
       },
       "Wake": {
@@ -21109,6 +21647,9 @@
         },
         "title": "Commitments",
         "type": "object"
+      },
+      "conferences": {
+        "$ref": "#/$defs/Conferences"
       },
       "contests": {
         "additionalProperties": {
@@ -22176,6 +22717,26 @@
         "title": "AssetStatus",
         "type": "string"
       },
+      "Ballot": {
+        "additionalProperties": false,
+        "description": "A seat's sealed vote, and the wake it was sealed in.",
+        "properties": {
+          "vote": {
+            "$ref": "#/$defs/Vote"
+          },
+          "wake": {
+            "minimum": 0,
+            "title": "Wake",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "vote",
+          "wake"
+        ],
+        "title": "Ballot",
+        "type": "object"
+      },
       "Base": {
         "additionalProperties": false,
         "description": "A site a side's pieces work from, for the domains it names (``base`` in the world).",
@@ -22508,7 +23069,8 @@
           "kept",
           "broken",
           "called",
-          "unchecked"
+          "unchecked",
+          "void"
         ],
         "title": "ClauseStatus",
         "type": "string"
@@ -22730,6 +23292,153 @@
         ],
         "title": "CommitmentStatus",
         "type": "string"
+      },
+      "Conference": {
+        "additionalProperties": false,
+        "description": "A conference called or scheduled. ``key`` names it, and is the text a vote clause\nnames. ``tally_wake``: the tally runs only in a day walk after that wake has opened;\nNone for a world's conference that has not yet opened.",
+        "properties": {
+          "caller": {
+            "title": "Caller",
+            "type": "string"
+          },
+          "invited": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 2,
+            "title": "Invited",
+            "type": "array"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "opens": {
+            "format": "date",
+            "title": "Opens",
+            "type": "string"
+          },
+          "public": {
+            "default": false,
+            "title": "Public",
+            "type": "boolean"
+          },
+          "tally": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Tally"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "tally_wake": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Tally Wake"
+          },
+          "text": {
+            "$ref": "#/$defs/ConferenceText"
+          },
+          "voting_day": {
+            "format": "date",
+            "title": "Voting Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "caller",
+          "invited",
+          "text",
+          "opens",
+          "voting_day"
+        ],
+        "title": "Conference",
+        "type": "object"
+      },
+      "ConferenceText": {
+        "additionalProperties": false,
+        "description": "What a conference votes on: its wording, its clauses, the topics its words touch\n(by key, worked out when it is called) and whether only a unanimous vote passes it.",
+        "properties": {
+          "clauses": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AgreementClause"
+            },
+            "maxItems": 8,
+            "title": "Clauses",
+            "type": "array"
+          },
+          "topics": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Topics",
+            "type": "array"
+          },
+          "unanimous": {
+            "default": false,
+            "title": "Unanimous",
+            "type": "boolean"
+          },
+          "wording": {
+            "maxLength": 600,
+            "minLength": 1,
+            "title": "Wording",
+            "type": "string"
+          }
+        },
+        "required": [
+          "wording"
+        ],
+        "title": "ConferenceText",
+        "type": "object"
+      },
+      "Conferences": {
+        "additionalProperties": false,
+        "description": "Conferences and their sealed votes (CNF). A view holds the conferences its nation\nis invited to and every public one, from the day each opens, and its own votes only.",
+        "properties": {
+          "held": {
+            "additionalProperties": {
+              "$ref": "#/$defs/Conference"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Held",
+            "type": "object"
+          },
+          "votes": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/$defs/Ballot"
+              },
+              "type": "object"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Votes",
+            "type": "object"
+          }
+        },
+        "title": "Conferences",
+        "type": "object"
       },
       "Confidence": {
         "enum": [
@@ -24715,6 +25424,25 @@
         "title": "MoveForce",
         "type": "object"
       },
+      "NationVote": {
+        "additionalProperties": false,
+        "description": "One invited nation's counted vote at the tally.",
+        "properties": {
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "vote": {
+            "$ref": "#/$defs/Vote"
+          }
+        },
+        "required": [
+          "nation",
+          "vote"
+        ],
+        "title": "NationVote",
+        "type": "object"
+      },
       "Order": {
         "additionalProperties": false,
         "properties": {
@@ -24855,6 +25583,16 @@
         ],
         "title": "Ordered",
         "type": "object"
+      },
+      "Outcome": {
+        "enum": [
+          "agreement",
+          "resolution",
+          "failed",
+          "cancelled"
+        ],
+        "title": "Outcome",
+        "type": "string"
       },
       "ParamKind": {
         "enum": [
@@ -26711,6 +27449,47 @@
         "title": "StepOutcome",
         "type": "object"
       },
+      "Tally": {
+        "additionalProperties": false,
+        "description": "A conference's result, on the day it was tallied.",
+        "properties": {
+          "agreement_id": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Agreement Id"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "outcome": {
+            "$ref": "#/$defs/Outcome"
+          },
+          "votes": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/NationVote"
+            },
+            "title": "Votes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "on",
+          "outcome"
+        ],
+        "title": "Tally",
+        "type": "object"
+      },
       "Terrain": {
         "additionalProperties": false,
         "properties": {
@@ -26952,6 +27731,15 @@
           "covert"
         ],
         "title": "Visibility",
+        "type": "string"
+      },
+      "Vote": {
+        "enum": [
+          "for",
+          "against",
+          "abstain"
+        ],
+        "title": "Vote",
         "type": "string"
       },
       "Wake": {
@@ -27383,6 +28171,9 @@
         },
         "title": "Commitments",
         "type": "object"
+      },
+      "conferences": {
+        "$ref": "#/$defs/Conferences"
       },
       "contests": {
         "additionalProperties": {

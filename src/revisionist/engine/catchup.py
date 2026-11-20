@@ -92,6 +92,10 @@ FEED_KINDS: frozenset[str] = frozenset(
         "agreement_made",
         "clause_judged",
         "agreement_published",
+        # A conference's call and tally (CNF): sealed to the invited seats, or public, and
+        # kept only when the conference is in the seat's view.
+        "conference_called",
+        "conference_tallied",
     }
 )
 
@@ -105,6 +109,8 @@ NEVER: frozenset[str] = frozenset(
         # A holder's answer is theirs until the due day decides with it; the seat that
         # asked reads only that decision (ANS).
         "request_answered",
+        # A seat's sealed vote is its own until the tally counts its nation (CNF).
+        "vote_sealed",
         # A holder's choice at a step on another seat's order is theirs until the
         # step's held due day takes it (SHS).
         "step_chosen",
@@ -234,6 +240,10 @@ def _named(p: ev.Payload, view: View) -> bool:
             return p.agreement.agreement_id in view.agreements.made
         case ev.ClauseJudged() | ev.AgreementPublished():
             return p.agreement_id in view.agreements.made
+        case ev.ConferenceCalled():
+            return p.conference.key in view.conferences.held
+        case ev.ConferenceTallied():
+            return p.conference in view.conferences.held
     return True
 
 

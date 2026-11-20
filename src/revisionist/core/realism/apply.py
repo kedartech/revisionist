@@ -23,7 +23,7 @@ from revisionist.core.ids import (
     derived_id,
 )
 from revisionist.core.ontology import Relationship, ScheduleSource
-from revisionist.core.realism import actors, process, reach
+from revisionist.core.realism import actors, battle, process, reach
 from revisionist.core.realism.bases import crossing
 from revisionist.core.realism.card import ChannelKind, words
 from revisionist.core.realism.document import (
@@ -125,6 +125,12 @@ def _move(world: PassWorld, effect: MoveForce, on: date) -> list[ev.Payload]:
     force = world.features.get(effect.force)
     if force is None:
         return []
+    in_battle = battle.land_posture(world.state, force, effect.posture, effect.to, on)
+    if in_battle is not None:
+        for p in in_battle:
+            if isinstance(p, ev.FeatureSet):
+                world.features[p.feature.feature_id] = p.feature
+        return in_battle
     as_of = max(on, force.as_of)
     update: dict[str, object] = {"as_of": as_of}
     if effect.posture is not None:
@@ -174,7 +180,7 @@ def _engage(
         force = world.features.get(fid)
         if force is None:
             continue
-        set_ = force.model_copy(update={"engagement": effect.rule, "as_of": max(on, force.as_of)})
+        set_ = battle.land_contingency(force, effect, on)
         world.features[fid] = set_
         out.append(ev.FeatureSet(feature=set_))
     return out

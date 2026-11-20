@@ -23,8 +23,8 @@ export const NO_DAY = 'No set day';
  * `{ key, label, what, from, due, arrived, action, at?, paper? }`. `due` and `arrived` are world
  * days (ISO or in words) or null; `at: 'close'` words the due day as the wake's close; `paper` is
  * the id of the paper the matter came on; `action` is `{ word, to, ... }`, where `to` is
- * 'matter' (with the agenda item's `id`), 'sheet' (with its `sheet`), 'map' (with its `area`) or
- * 'commit'. Kinds are listed in registry order where due day and arrival tie.
+ * 'matter' (with the agenda item's `id`), 'sheet' (with its `sheet`), 'map' (with its `area`),
+ * 'battle' (with the battle's `area`) or 'commit'. Kinds are listed in registry order where due day and arrival tie.
  */
 const KINDS = new Map();
 
@@ -72,6 +72,13 @@ addNeedKind('paper', (rv) => {
     }] : [];
   });
 });
+
+// a battle the seat's nation is in that it may decide and has not this wake: due at the close
+addNeedKind('battle', (rv) => (rv.battles ?? []).filter((b) => (b.decisions ?? []).length && !b.decided).map((b) => ({
+  key: b.area, label: 'Battle', what: `The battle at ${b.name}: your decision for this wake`,
+  from: `Your forces against ${b.enemy}`, due: rv.clock?.world_date ?? null, at: 'close',
+  arrived: b.rounds?.at(-1)?.on ?? b.opened ?? null, action: { word: 'Decide', to: 'battle', area: b.area },
+})));
 
 /** The papers that only acknowledge an order, and the papers an order's receipt names. */
 function receipts(rv) {

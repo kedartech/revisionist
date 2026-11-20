@@ -14,6 +14,7 @@ import {
 import { economyPips, hasYields } from './realism-economy.js';
 import { capitalGlyph, forceGlyph, pipGlyph, stanceClass, warGlyph, whatWord } from './realism-map.js';
 import { reportMarks, reportSheet, reportTables, reportsOf, ringsAndThreats, threatsSwitch, tokenMark } from './realism-reports.js';
+import { battleLayer, battleTable } from './realism-battle.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
 
@@ -444,7 +445,8 @@ const daysWord = (n) => (n === 1 ? '1 day' : `${n} days`);
  * `opts`: { frame (a region's key, '' or null for the whole map), zoom, centre, px, layer,
  * selected, onSelect, fanned (the stack shown fanned out, by its area), onFan, targets, onTarget, openCapital,
  * onView, still, label, route (a move's path: `routeLayer`), today, report (the picked report's key), onReport,
- * threats (the threats switch), token ({ intel, at, label }: an intelligence token put down) }. Arrow keys on the picked piece or a
+ * threats (the threats switch), token ({ intel, at, label }: an intelligence token put down), battles (`battleMarksOf`),
+ * battle (the open battle's area), onBattle(mark) }. Arrow keys on the picked piece or a
  * lit area move focus along the lit areas; Escape on a lit area goes back to the piece.
  */
 export function territoryDrawing(map, shapes, givenOpts = {}) {
@@ -519,6 +521,7 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
     : diplomatic ? capitalsLayer(map, at, opts) : marksLayer(map, labelAt, at, opts),
   diplomatic || economy ? null : reportMarks({ map, labelAt, atPx, activate, opts }),
   diplomatic || economy || !opts.token ? null : tokenMark(opts.token, labelAt.get(opts.token.at), atPx),
+  diplomatic || economy ? null : battleLayer({ battles: opts.battles, labelAt, atPx, activate, opts }),
   // drawn last, over every mark: a lit area under a stack stays clickable
   targetsLayer(targets, at, opts.onTarget, opts.nav)));
   const px = opts.px ?? guessPx();
@@ -626,7 +629,7 @@ export function territoryView(map, shapes, opts = {}) {
       : null);
   const find = (name) => opts.onSelect?.(name, 'map');
   const body = mode === 'list'
-    ? [areaTable(map), (map.marks ?? []).length ? markTable(map, find) : null, reportTables(map, opts)]
+    ? [areaTable(map), (map.marks ?? []).length ? markTable(map, find) : null, reportTables(map, opts), battleTable(opts.battles, opts.onBattle)]
     : [h('figure', { class: 'rl-map-figure' },
       shapes ? territoryDrawing(map, shapes, { ...opts, layer, frame, zoom }) : h('p', { class: 'muted rl-tm-wait' }, opts.waiting ?? 'Drawing the map…')),
       opts.area ? areaSheet(map, opts.area, opts.onArea) : null,

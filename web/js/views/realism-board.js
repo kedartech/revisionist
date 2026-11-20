@@ -6,6 +6,7 @@
 import { h } from '../dom.js';
 import { aimsBlock, certaintyWord, markWhatWord, sideLine, sightedLine, whereLine } from '../realism-rules.js';
 import { courtBoard } from './realism-court.js';
+import { contingencyPicker } from './realism-battle.js';
 import { concealSwitch } from './realism-reports.js';
 import { theatreBoard } from './realism-theatre.js';
 
@@ -82,9 +83,11 @@ function sheet(attrs, pick, ...body) {
 
 /**
  * The selected piece's panel: what it is and where, or how to pick one on `board`; `open` opens
- * its page. `card` is a picked person's card from the Court, shown in place of a force.
+ * its page. `card` is a picked person's card from the Court, shown in place of a force. An own
+ * piece's sheet holds its contingency picker; `theatre` is the map's state, where a fall-back
+ * area being picked is kept.
  */
-export function piecePanel(rv, piece, open, { board = 'theatre', card = null, pick, act } = {}) {
+export function piecePanel(rv, piece, open, { board = 'theatre', card = null, pick, act, theatre = {} } = {}) {
   if (card) return sheet({ 'aria-label': 'Selected' }, pick, card);
   const mark = selectedMark(rv, piece);
   if (!mark) {
@@ -102,7 +105,8 @@ export function piecePanel(rv, piece, open, { board = 'theatre', card = null, pi
     mark.document
       ? h('button', { type: 'button', class: 'rl-btn', onclick: () => open?.({ id: mark.document }) }, 'Open the page')
       : null,
-    concealSwitch(rv.desk?.levers, mark, act));
+    concealSwitch(rv.desk?.levers, mark, act),
+    contingencyPicker(rv, mark, { act, pick, theatre }));
 }
 
 /**
@@ -186,6 +190,6 @@ export function boardView(rv, ui, { pick, act, write, open }) {
       pressGroup('rl-boardswitch', 'Board', BOARDS, which, (b) => pick({ board: b })),
       board),
     h('aside', { class: 'rl-board-side', 'aria-label': 'Selected piece and order' },
-      piecePanel(rv, ui.piece, open, { board: which, card, pick, act }),
+      piecePanel(rv, ui.piece, open, { board: which, card, pick, act, theatre: ui.theatre ?? {} }),
       write));
 }

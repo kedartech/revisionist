@@ -229,7 +229,7 @@ class Sighting(NamedTuple):
     """One source's sighting of one piece, before it becomes a report."""
 
     source: Source
-    piece: "Feature"
+    force: "Feature"
     confidence: Confidence
     area: EntityId | None
     region: str | None
@@ -401,7 +401,7 @@ def report(state: "State", day: date, nation: EntityId, s: Sighting) -> tuple[Re
     from revisionist.core.realism import kinds
     from revisionist.core.realism.reach import transit_days
 
-    piece = s.piece
+    piece = s.force
     kind = kinds.of(state, piece)
     top = kind.max_strength if kind is not None else kinds.MAX_STRENGTH
     subject = str(piece.feature_id)
@@ -466,7 +466,7 @@ def walk(state: "State", start: "State", day: date) -> list["ev.Payload"]:
             r, shift = report(state, day, nation, s)
             made_today.append(r)
             out.append(
-                ev.ReportMade(nation=nation, piece=s.piece.feature_id, report=r, shift=shift)
+                ev.ReportMade(nation=nation, piece=s.force.feature_id, report=r, shift=shift)
             )
         out.extend(pages(state, day, nation, made_today))
     return out

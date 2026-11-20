@@ -8,7 +8,7 @@ borders the plain. A test that needs sources gives the world an ``intelligence``
 
 import json
 from collections.abc import Callable
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -151,7 +151,7 @@ def sightings_over(
     out = []
     for n in days:
         for s in detect.sightings(state, start or state, day(n), entity(nation)):
-            out.append((n, s.source, s.piece.feature_id))
+            out.append((n, s.source, s.force.feature_id))
     return out
 
 
@@ -639,7 +639,7 @@ def test_the_day_walk_rolls_after_the_press_and_moves_the_piece_first(tmp_path: 
     g.send("tomas", "sudland_levy", "norrhavn")
     out = g.walk(day(1), day(20))
     entered = next(
-        e.payload.on  # type: ignore[union-attr]
+        e.payload.on
         for e in out
         if isinstance(e.payload, ev.PieceStepped) and e.payload.entered == entity("norra_hills")
     )
@@ -654,4 +654,3 @@ def test_the_day_walk_rolls_after_the_press_and_moves_the_piece_first(tmp_path: 
         entity("norra_plain"),
     }
     assert START < entered
-    _ = timedelta

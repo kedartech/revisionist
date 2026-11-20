@@ -5504,7 +5504,7 @@
       },
       "Informant": {
         "additionalProperties": false,
-        "description": "The person who reports one source for a nation, the channel, and the source's rank\n(its place in the world's list, from 1; contact no one is named for ranks 0).",
+        "description": "The person who reports one source for a nation, the channel, and the source's rank\n(its place in the world's list, from 1, the first highest). Contact no one is named\nfor reports with rank 0, above every listed source.",
         "properties": {
           "channel": {
             "$ref": "#/$defs/ChannelKind"
@@ -14848,7 +14848,7 @@
       },
       "Informant": {
         "additionalProperties": false,
-        "description": "The person who reports one source for a nation, the channel, and the source's rank\n(its place in the world's list, from 1; contact no one is named for ranks 0).",
+        "description": "The person who reports one source for a nation, the channel, and the source's rank\n(its place in the world's list, from 1, the first highest). Contact no one is named\nfor reports with rank 0, above every listed source.",
         "properties": {
           "channel": {
             "$ref": "#/$defs/ChannelKind"

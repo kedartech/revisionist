@@ -7,14 +7,14 @@ plays, counts from the next wake.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core import record
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId, EntityId, EventId, OrderId, SeatId, derived_id
 from revisionist.core.ontology import Controller, Phase
-from revisionist.core.realism import battle, detect
+from revisionist.core.realism import battle, conference, detect
 from revisionist.core.realism.agenda import STANDING_DEFAULT, Ask
 from revisionist.core.realism.effect import IRREVERSIBLE, Deal
 from revisionist.core.state import State, controller_after, seat_of_person
@@ -200,6 +200,33 @@ def leave(store: EventStore, campaign_id: CampaignId, seat: SeatId, now: datetim
         commit(store, campaign_id, seat, now)
 
 
+def call_conference(
+    store: EventStore,
+    campaign_id: CampaignId,
+    seat: SeatId,
+    key: str,
+    invited: tuple[EntityId, ...],
+    text: conference.ConferenceText,
+    voting_day: date,
+    public: bool,
+) -> None:
+    """A seat calls a conference (CNF): an action, as an answer is, landed at once.
+    Raises ``ValueError`` with the reason when it is refused."""
+    state = load_state(store, campaign_id)
+    called = conference.call(state, seat, key, invited, text, voting_day, public)
+    assert isinstance(called, ev.ConferenceCalled)
+    _land(store, state, called, seat, conference.scope(state, called.conference))
+
+
+def seal_vote(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, key: str, vote: conference.Vote
+) -> None:
+    """A seat seals its vote in a conference (CNF), sealed to itself; a later vote in the
+    same wake replaces it. Raises ``ValueError`` with the reason when it is refused."""
+    state = load_state(store, campaign_id)
+    _land(store, state, conference.vote(state, seat, key, vote), seat, private_to(seat))
+
+
 def _allowed(state: State, seat: SeatId, order: tuple[Ask, ...]) -> tuple[Ask, ...]:
     """The aide never takes an irreversible step without a standing order naming it,
     never makes or accepts a deal (a deal is the seat's own to strike), and in a battle
@@ -262,6 +289,7 @@ def _how(absent: tuple[SeatId, ...], deadline: datetime, now: datetime) -> ev.Wa
 
 
 __all__ = [
+    "call_conference",
     "close_wake",
     "commit",
     "from_wake",
@@ -271,6 +299,7 @@ __all__ = [
     "leave",
     "offer_all",
     "open_wake",
+    "seal_vote",
     "seat_for",
     "set_hours",
     "wake_due",

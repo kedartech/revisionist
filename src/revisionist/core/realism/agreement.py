@@ -8,8 +8,9 @@ parties, the wording and the clauses); a decline, or no answer by the due day, l
 with no obligation on anyone. The card never answers an offer, and neither does the aide.
 
 Each typed clause is judged from the state on its date, or each day while it stands;
-wording that fits no type is kept and never judged, and a vote clause is the
-conference's to judge. A broken clause costs the breaker's leader regard with each other
+wording that fits no type is kept and never judged, and a vote clause is judged only
+from the tally of its conference (CNF), void when that conference is cancelled or does
+not invite the nation it binds. A broken clause costs the breaker's leader regard with each other
 party's leader and, when the agreement is public, moves the breaker's groups at home.
 Nothing enforces a clause. Every rule here acts only with ``agreements`` on.
 """
@@ -56,7 +57,10 @@ class ClauseStatus(StrEnum):
     CALLED = "called"
     """A defence clause an attack has called on: war is due by the call's day."""
     UNCHECKED = "unchecked"
-    """Wording the rules cannot check, or a vote clause the conference judges."""
+    """Wording the rules cannot check."""
+    VOID = "void"
+    """A vote clause whose conference was cancelled or does not invite the nation it
+    binds: neither kept nor broken, and it costs nothing (CNF)."""
 
 
 class AgreementOffer(Model):
@@ -180,6 +184,11 @@ def _name(state: "State | View", who: EntityId | None) -> str:
     return found.name if found is not None else "an unknown party"
 
 
+def nation_name(state: "State | View", who: EntityId | None) -> str:
+    """The name of a nation or person, as the terms write it."""
+    return _name(state, who)
+
+
 def _day(day: date) -> str:
     return f"{day.day} {day:%B} {day.year}"
 
@@ -262,7 +271,8 @@ def parties_scope(state: "State", parties: Sequence[EntityId]) -> "Scope":
 # --- filing ---------------------------------------------------------------------------
 
 
-def _clause_refusal(state: "State", clause: AgreementClause) -> str:
+def clause_refusal(state: "State", clause: AgreementClause) -> str:
+    """Why a clause names what the world does not have; empty when it does not."""
     from revisionist.core.ontology import EntityKind
 
     board = state.map
@@ -304,9 +314,24 @@ def refusal(state: "State", seat: SeatId, deal: Deal) -> str:
         if party != own and speaker(state, party) is None:
             return f"No one answers for {found_party.name}."
     for clause in deal.clauses:
-        why = _clause_refusal(state, clause)
+        why = clause_refusal(state, clause) or _vote_refusal(state, seat, clause)
         if why:
             return why
+    return ""
+
+
+def _vote_refusal(state: "State", seat: SeatId, clause: AgreementClause) -> str:
+    """A vote clause names a conference the seat knows of, and falls due no earlier than
+    its voting day (rule 6, CNF)."""
+    from revisionist.core.realism import conference
+
+    if clause.type is not ClauseType.VOTE:
+        return ""
+    found = conference.seen_by(state, seat).held.get(clause.text)
+    if found is None:
+        return "A vote clause names a conference you know of."
+    if clause.on is not None and clause.on < found.voting_day:
+        return "A vote clause falls due no earlier than its conference's voting day."
     return ""
 
 
@@ -429,7 +454,7 @@ def _paper(
     )
 
 
-def _papers(
+def papers(
     state: "State",
     parties: Sequence[EntityId],
     key: Sequence[str],
@@ -449,12 +474,10 @@ def _papers(
 
 
 def statuses(clauses: Sequence[AgreementClause]) -> tuple[ClauseStatus, ...]:
-    """Each clause's status when an agreement is made: unchecked for wording and for a
-    vote clause (the conference's to judge), standing for every other."""
+    """Each clause's status when an agreement is made: unchecked for wording, standing
+    for every other (a vote clause stands until its conference's tally judges it)."""
     return tuple(
-        ClauseStatus.UNCHECKED
-        if c.type in (ClauseType.UNCHECKED, ClauseType.VOTE)
-        else ClauseStatus.STANDING
+        ClauseStatus.UNCHECKED if c.type is ClauseType.UNCHECKED else ClauseStatus.STANDING
         for c in clauses
     )
 
@@ -551,7 +574,7 @@ def _offer_day(state: "State", routed: "RoutedOrder", deal: Deal, day: date) -> 
     if all(p.accepted for _, p in parts):
         made = _made(state, offer, day)
         out.append(ev.AgreementMade(agreement=made))
-        out += _papers(
+        out += papers(
             state,
             offer.parties,
             ("made", made.agreement_id),
@@ -560,7 +583,7 @@ def _offer_day(state: "State", routed: "RoutedOrder", deal: Deal, day: date) -> 
             terms,
         )
     else:
-        out += _papers(
+        out += papers(
             state,
             offer.parties,
             ("lapsed", offer.offer_id),
@@ -745,7 +768,7 @@ def _regard(state: "State", breaker: EntityId, wronged: EntityId) -> "Payload | 
     return ev.RelationshipSet(relationship=rel)
 
 
-def _broken(state: "State", x: Agreement, n: int, day: date) -> list["Payload"]:
+def broken_costs(state: "State", x: Agreement, n: int, day: date) -> list["Payload"]:
     """What a broken clause costs: regard between the breaker's leader and each other
     party's leader, and, when the agreement is public, the breaker's groups."""
     from revisionist.core.realism import groups
@@ -768,15 +791,21 @@ _TITLES = {
     ClauseStatus.KEPT: "A clause of an agreement was kept",
     ClauseStatus.BROKEN: "A clause of an agreement was broken",
     ClauseStatus.CALLED: "A clause of an agreement is called on",
+    ClauseStatus.VOID: "A clause of an agreement is void",
 }
+
+
+def title_of(status: ClauseStatus) -> str:
+    """The title of the paper a clause judged ``status`` sends."""
+    return _TITLES[status]
 
 
 def judge(state: "State", day: date, today: Sequence["Payload"]) -> list["Payload"]:
     """With ``agreements`` on, each agreement's typed clauses judged on ``day`` from the
     state and the day's events (``today``): a dated clause on its date, a standing one
     each day. Each judgement is a ``clause_judged`` with a paper to every party's seats;
-    a broken clause also costs what ``_broken`` says. Unchecked and vote clauses are never
-    judged here."""
+    a broken clause also costs what ``broken_costs`` says. Unchecked and vote clauses are
+    never judged here: a vote clause is judged by its conference's tally."""
     if not on(state):
         return []
     from revisionist.core import events as ev
@@ -809,9 +838,9 @@ def judge(state: "State", day: date, today: Sequence["Payload"]) -> list["Payloa
                     str(against),
                     day.isoformat(),
                 )
-                out += _papers(state, x.parties, key, day, _TITLES[status], rows)
+                out += papers(state, x.parties, key, day, _TITLES[status], rows)
                 if status is ClauseStatus.BROKEN:
-                    out += _broken(state, x, n, day)
+                    out += broken_costs(state, x, n, day)
     return out
 
 
@@ -825,15 +854,19 @@ __all__ = [
     "Call",
     "ClauseStatus",
     "agreement_id",
+    "broken_costs",
+    "clause_refusal",
     "due",
     "is_offer",
     "is_publish",
     "judge",
     "make_offer",
+    "nation_name",
     "offer_parts",
     "offers_due",
     "on",
     "pact",
+    "papers",
     "parties_scope",
     "publish_part",
     "refusal",
@@ -843,5 +876,6 @@ __all__ = [
     "speaker",
     "statuses",
     "term_rows",
+    "title_of",
     "version",
 ]

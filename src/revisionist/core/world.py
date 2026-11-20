@@ -675,6 +675,23 @@ class PactDecl(Cited):
     public: bool = False
 
 
+class ConferenceDecl(Cited):
+    """A conference the world schedules (CNF): with ``conference`` on, it opens on
+    ``opens`` as if ``caller`` had called it then, and votes on ``voting_day``.
+    ``caller`` and ``invited`` are polity keys; the caller is among the invited. Its
+    clauses are a pact's, and each binds a nation invited."""
+
+    key: Key
+    caller: Key
+    invited: tuple[Key, ...] = Field(max_length=MAX_PARTIES)
+    wording: str = Field(min_length=1, max_length=600)
+    clauses: tuple[PactClauseDecl, ...] = Field(default=(), max_length=8)
+    opens: date
+    voting_day: date
+    public: bool = False
+    unanimous: bool = False
+
+
 class ResourceDecl(Model):
     """A resource the world names, and the one role it plays."""
 
@@ -955,6 +972,9 @@ class WorldFile(Model):
     pacts: SkipJsonSchema[tuple[PactDecl, ...]] = ()
     """The pacts in force on the start date, with ``agreements`` on (PCT). Written by
     hand: not offered to a model."""
+    conferences: SkipJsonSchema[tuple[ConferenceDecl, ...]] = ()
+    """The conferences the world schedules, with ``conference`` on (CNF). Written by
+    hand: not offered to a model."""
     map_data: SkipJsonSchema[bytes | None] = Field(default=None, exclude=True)
     """The bytes of the map file ``map`` names, read by the world loader from beside
     the world file, not from the world file itself. None when no file was found."""
@@ -979,6 +999,7 @@ __all__ = [
     "ClauseDecl",
     "ClockDecl",
     "CommitmentDecl",
+    "ConferenceDecl",
     "ConflictDecl",
     "ContactDecl",
     "ContestDecl",

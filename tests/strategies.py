@@ -64,6 +64,7 @@ from revisionist.core.realism import agreement as ragr
 from revisionist.core.realism import answer as rans
 from revisionist.core.realism import battle as rb
 from revisionist.core.realism import card as rc
+from revisionist.core.realism import conference as rconf
 from revisionist.core.realism import detect as rdet
 from revisionist.core.realism import document as rd
 from revisionist.core.realism import economy as econ
@@ -989,6 +990,57 @@ def agreements(draw: st.DrawFn) -> ragr.Agreement:
 
 
 @st.composite
+def conference_texts(draw: st.DrawFn) -> rconf.ConferenceText:
+    return rconf.ConferenceText(
+        wording=draw(st.text(min_size=1, max_size=600)),
+        clauses=tuple(draw(st.lists(agreement_clauses(), max_size=2))),
+        topics=tuple(draw(st.lists(labels, max_size=2))),
+        unanimous=draw(st.booleans()),
+    )
+
+
+@st.composite
+def conference_tallies(draw: st.DrawFn) -> rconf.Tally:
+    return rconf.Tally(
+        on=draw(in_world_dates),
+        outcome=draw(st.sampled_from(list(rconf.Outcome))),
+        votes=tuple(
+            draw(
+                st.lists(
+                    st.builds(
+                        rconf.NationVote,
+                        nation=entity_ids,
+                        vote=st.sampled_from(list(rconf.Vote)),
+                    ),
+                    max_size=3,
+                )
+            )
+        ),
+        agreement_id=draw(st.none() | labels),
+    )
+
+
+@st.composite
+def conferences(draw: st.DrawFn) -> rconf.Conference:
+    """A conference (CNF): two or more nations invited, the caller among them, and a voting
+    day at least ``CONF_DAYS`` after it opens."""
+    invited = tuple(draw(st.lists(entity_ids, min_size=2, max_size=3, unique=True)))
+    opens = draw(st.dates(min_value=date(1, 1, 1), max_value=date(2025, 12, 1)))
+    later = draw(st.integers(rconf.CONF_DAYS, 20))
+    return rconf.Conference(
+        key=draw(labels),
+        caller=draw(st.sampled_from(invited)),
+        invited=invited,
+        text=draw(conference_texts()),
+        opens=opens,
+        voting_day=opens + timedelta(days=later),
+        tally_wake=draw(st.none() | st.integers(0, 50)),
+        public=draw(st.booleans()),
+        tally=draw(st.none() | conference_tallies()),
+    )
+
+
+@st.composite
 def intelligences(draw: st.DrawFn) -> rdet.Intelligence:
     """A nation's sources (DET): each source once, ranked from 1."""
     kinds = draw(st.lists(st.sampled_from(list(rdet.Source)), max_size=3, unique=True))
@@ -1276,6 +1328,15 @@ realism_payloads = st.one_of(
         due=st.none() | in_world_dates,
     ),
     st.builds(ev.AgreementPublished, agreement_id=labels, by=entity_ids, on=in_world_dates),
+    st.builds(ev.ConferenceCalled, conference=conferences()),
+    st.builds(
+        ev.VoteSealed,
+        conference=labels,
+        seat_id=seat_ids,
+        vote=st.sampled_from(list(rconf.Vote)),
+        wake=st.integers(0, 50),
+    ),
+    st.builds(ev.ConferenceTallied, conference=labels, tally=conference_tallies()),
     st.builds(
         ev.ReportMade,
         nation=entity_ids,

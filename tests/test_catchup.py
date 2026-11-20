@@ -130,6 +130,14 @@ def test_offers_and_agreements_are_fed_to_their_parties() -> None:
     assert kinds <= catchup.FEED_KINDS
 
 
+def test_a_conferences_call_and_tally_are_fed_and_a_sealed_vote_never_is() -> None:
+    # CNF: the call and the tally go to the invited seats (or everyone, when public) and
+    # are kept only when the conference is in the seat's view; a vote is the voter's own.
+    assert {"conference_called", "conference_tallied"} <= catchup.FEED_KINDS
+    assert "vote_sealed" in catchup.NEVER
+    assert "vote_sealed" not in catchup.FEED_KINDS
+
+
 # --- The fog path ------------------------------------------------------------------
 
 

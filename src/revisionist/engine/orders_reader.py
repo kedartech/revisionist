@@ -18,9 +18,10 @@ from revisionist.core.canary import scan_text
 from revisionist.core.ids import CampaignId, EntityId, SeatId
 from revisionist.core.ontology import EntityKind
 from revisionist.core.project import project
-from revisionist.core.realism import agreement
+from revisionist.core.realism import agreement, conference
 from revisionist.core.realism.agenda import Ask, Option
 from revisionist.core.realism.card import ChannelKind, words
+from revisionist.core.realism.conference import Vote
 from revisionist.core.realism.effect import (
     MAX_PARTIES,
     AgreementClause,
@@ -80,6 +81,9 @@ class Reading:
     """An offer of an agreement: the version the seat reads and signs."""
     terms: str = ""
     """An offer of an agreement: its terms in fixed words, as signing shows them."""
+    vote: tuple[str, conference.Vote] | None = None
+    """A written vote (CNF): the conference's key and the vote. Signing seals it as the
+    conference's vote action does; ``asks`` stays empty, for it is not an order."""
 
 
 class _Treaty(Model):
@@ -103,8 +107,26 @@ class _TreatyReply(_Reply):
     treaty: _Treaty | None = None
 
 
+class _Ballot(Model):
+    conference: str
+    vote: Vote
+
+
+class _VoteReply(_TreatyReply):
+    """The reply with written orders and conferences on: it may also carry a vote. A
+    separate schema, so a world without conferences sends the request it always sent."""
+
+    vote: _Ballot | None = None
+
+
 ORDERS_SCHEMA: dict[str, Any] = _Reply.model_json_schema()
 TREATY_SCHEMA: dict[str, Any] = _TreatyReply.model_json_schema()
+VOTE_SCHEMA: dict[str, Any] = _VoteReply.model_json_schema()
+VOTE_PROMPT = (
+    "- `vote`: only when the order is the seat's vote in one of the conferences it is "
+    "given. Give `conference`, that conference's key, and `vote`: for, against or abstain; "
+    "leave `asks` empty and `treaty` out. Otherwise leave `vote` out.\n"
+)
 TREATY_PROMPT = (
     "\n- `treaty`: only when the order is a written deal, treaty or bill between nations. "
     "Give `parties`, the entity ids of the nations it names, taken from what you are given, "
@@ -161,7 +183,13 @@ def _clause_list(view: View) -> dict[str, Any]:
 
 
 def orders_prompt(
-    view: View, person: str, channel: str, text: str, *, clauses: bool = False
+    view: View,
+    person: str,
+    channel: str,
+    text: str,
+    *,
+    clauses: bool = False,
+    conferences: bool = False,
 ) -> str:
     """The seat's own view, compact: desk, date, the objects it may name, then the words."""
     desk = view.desk
@@ -194,12 +222,30 @@ def orders_prompt(
     }
     if clauses:
         world["clause_list"] = _clause_list(view)
+    if conferences:
+        world["conferences"] = [
+            {"key": c.key, "text": c.text.wording, "voting_day": str(c.voting_day)}
+            for c in view.conferences.held.values()
+            if c.tally is None and _nation_of(view) in c.invited
+        ]
     to = f"To {person}, by {channel}" if person else "No one named"
     return (
         "## What the seat can see\n"
         + json.dumps(world, separators=(",", ":"), default=str)
         + f"\n\n## {to}\n{text}"
     )
+
+
+def _nation_of(view: View) -> EntityId | None:
+    """The seat's own nation, as its view has it."""
+    seen: set[EntityId] = set()
+    here = view.entities.get(view.me.embodies)
+    while here is not None and here.entity_id not in seen:
+        if here.kind is EntityKind.POLITY:
+            return here.entity_id
+        seen.add(here.entity_id)
+        here = view.entities.get(here.parent) if here.parent is not None else None
+    return None
 
 
 def _asked(raw: object) -> list[Ask]:
@@ -336,6 +382,33 @@ def _treaty_reading(
     )
 
 
+def _vote_reading(
+    state: State,
+    seat: SeatId,
+    text: str,
+    raw: dict[str, Any],
+    person: str | None,
+    channel: str | None,
+) -> Reading:
+    """A written vote (CNF), read into the sealed vote the conference's action files.
+    Shown with the conference's text and the vote, in fixed words."""
+    try:
+        ballot = _Ballot.model_validate(raw)
+    except ValidationError:
+        return _unfileable(text, UNREADABLE, person, channel)
+    why = conference.vote_refusal(state, seat, ballot.conference)
+    if why:
+        return _unfileable(text, why, person, channel)
+    held = state.conferences.held[ballot.conference]
+    parts = [
+        f"Conference: {held.key}",
+        f"Text: {held.text.wording}",
+        f"Your vote, sealed until the tally: {ballot.vote.value}",
+    ]
+    shown = OrderProposal(person=person, channel=channel, text=text, parts=parts, reason=None)
+    return Reading(shown=shown, asks=(), vote=(ballot.conference, ballot.vote))
+
+
 def _fallback_parties(state: State, me: EntityId, who: EntityId | None) -> tuple[EntityId, ...]:
     """The nation of the person written to, when it is not the seat's own."""
     other = polity_of(state, who) if who is not None else None
@@ -362,6 +435,10 @@ def read_order(
     name = reach[who] if who is not None else None
     written = Rule.WRITTEN_ORDERS in state.rules
     reads_clauses = Rule.CLAUSE_READER in state.rules
+    votes = written and conference.on(state)
+    schema = VOTE_SCHEMA if votes else TREATY_SCHEMA if written else ORDERS_SCHEMA
+    system = prompt_text(PROMPT) + (TREATY_PROMPT if written else "")
+    system += VOTE_PROMPT if votes else ""
     if who is None and not (written and agreement.on(state)):
         return _unfileable(text, "Name who should act on it.")
     how: ChannelKind | None = None
@@ -380,11 +457,16 @@ def read_order(
             Request(
                 call_class=CALL_CLASS,
                 model=AIDE_MODEL,
-                system=prompt_text(PROMPT) + (TREATY_PROMPT if written else ""),
+                system=system,
                 prompt=orders_prompt(
-                    view, name or "", (said or "").lower(), text, clauses=reads_clauses
+                    view,
+                    name or "",
+                    (said or "").lower(),
+                    text,
+                    clauses=reads_clauses,
+                    conferences=votes,
                 ),
-                schema=cli_schema(TREATY_SCHEMA if written else ORDERS_SCHEMA),
+                schema=cli_schema(schema),
             )
         )
     except TransportError:
@@ -395,6 +477,8 @@ def read_order(
             state, view, seat, text, other, (), note=NO_CLAUSES, person=name, channel=said
         )
     out = reply.output if isinstance(reply.output, dict) else {}
+    if votes and isinstance(out.get("vote"), dict):
+        return _vote_reading(state, seat, text, out["vote"], name, said)
     found = out.get("treaty")
     if isinstance(found, dict) and found.get("parties"):
         if not written:
@@ -461,6 +545,14 @@ def file_order(
 ) -> Reply:
     """File a signed reading; a refusal when ``reading`` is None or empty, or when a
     part has no route."""
+    if reading is not None and reading.vote is not None:
+        from revisionist.engine import wake
+
+        try:
+            wake.seal_vote(store, campaign_id, seat, *reading.vote)
+        except ValueError as exc:
+            return Reply(reply=str(exc), refused=True)
+        return Reply(reply="Your vote is sealed.", refused=False)
     if reading is None or not reading.asks:
         return Reply(reply=NOTHING, refused=True)
     if reading.version:

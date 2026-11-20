@@ -10,7 +10,7 @@ from revisionist.core.ids import EntityId, FeatureId, QuantityId, SeatId, derive
 from revisionist.core.project import project
 from revisionist.core.realism.pipeline import OrderStatus
 from revisionist.core.realism.war import NewsTopic
-from revisionist.core.state import State
+from revisionist.core.state import Rule, State
 from revisionist.core.world_compile import compile_world, object_id, resolve_keys
 from revisionist.engine import campaign as cmp
 from revisionist.engine import realism_tick, session_zero
@@ -24,9 +24,15 @@ OPINION = ("gallup_declare_war_germany", "gallup_help_britain")
 class War:
     """autumn-1941 with Roosevelt and Hitler seated and Germany at war with the US."""
 
-    def __init__(self, seed_opinion: int | None = None, world: str = "autumn-1941") -> None:
+    def __init__(
+        self, seed_opinion: int | None = None, world: str = "autumn-1941", *, groups: bool = True
+    ) -> None:
         self.store = MemoryStore()
         decl = cmp.load_world(cmp.world_path(world))
+        if not groups:  # the Gallup questions are read only with groups off
+            decl = decl.model_copy(
+                update={"rules": tuple(r for r in decl.rules if r is not Rule.GROUPS)}
+            )
         self.store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))
         self.ids = resolve_keys(decl, CAMPAIGN)
         self.fdr = SeatId(derived_id(CAMPAIGN, "seat", self.ids["roosevelt"]))
@@ -93,7 +99,7 @@ def test_forces_that_meet_report_contact_to_their_own_side() -> None:
 
 
 def test_the_gallup_questions_on_war_rise_after_the_declaration() -> None:
-    w = War(seed_opinion=40)
+    w = War(seed_opinion=40, groups=False)
     assert w.before == {k: 40 for k in OPINION}
     after = {k: w.value(k) for k in OPINION}
     assert all(v is not None and v > 40 for v in after.values()), after

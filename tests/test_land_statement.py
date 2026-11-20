@@ -37,7 +37,7 @@ def news(payloads: list[ev.Payload]) -> list[NewsEvent]:
 
 
 def autumn(target: int | None = 50) -> Rig:
-    r = rig("autumn-1941")
+    r = rig("autumn-1941", groups=False)  # the opinion target moves only with groups off
     if target is not None:
         r.set_value("opinion_target", target)
     return r

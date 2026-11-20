@@ -36,6 +36,7 @@ from revisionist.core.realism.resolvers import (
     value,
     votes,
 )
+from revisionist.core.state import Rule
 from revisionist.core.visibility import PUBLIC
 from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
@@ -49,9 +50,19 @@ POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
 class Rig:
     """A world compiled, one person seated, and a state folded event by event."""
 
-    def __init__(self, world_name: str = "autumn-1941", campaign: CampaignId = CAMPAIGN) -> None:
+    def __init__(
+        self,
+        world_name: str = "autumn-1941",
+        campaign: CampaignId = CAMPAIGN,
+        *,
+        groups: bool = True,
+    ) -> None:
         self.campaign = campaign
         world = cmp.load_world(cmp.world_path(world_name))
+        if not groups:  # the path a stored game or a world without groups keeps
+            world = world.model_copy(
+                update={"rules": tuple(r for r in world.rules if r is not Rule.GROUPS)}
+            )
         self.ids = resolve_keys(world, campaign)
         events = compile_world(world, campaign, cmp.versions())
         self.state = replay(events)
@@ -126,8 +137,8 @@ class Rig:
         return self.settle(order)
 
 
-def rig(world: str = "autumn-1941", seat: str = "roosevelt") -> Rig:
-    r = Rig(world)
+def rig(world: str = "autumn-1941", seat: str = "roosevelt", *, groups: bool = True) -> Rig:
+    r = Rig(world, groups=groups)
     r.seat(seat)
     r.close_session_zero()
     return r
@@ -173,7 +184,7 @@ def test_the_blocs_sum_to_the_recorded_vote(
 
 
 def test_a_bill_settles_into_dated_tallies() -> None:
-    r = rig()
+    r = rig(groups=False)
     r.set_value("gallup_fdr_about_right", 61)  # where the historical run stands at settlement
     order = enact_bill(r, "neutrality_revision", "urgent")
     changes = votes.resolve(r.state, order)
@@ -220,7 +231,7 @@ def test_arm_merchant_ships_borrows_the_neutrality_rows() -> None:
 
 
 def test_a_bill_that_fails_a_chamber_is_not_passed() -> None:
-    r = rig()
+    r = rig(groups=False)
     r.set_value("gallup_fdr_about_right", 0)
     order = enact_bill(r, "draft_extension")  # 203-202 on the record: no cushion
     r.fold_changes(votes.resolve(r.state, order))
@@ -245,12 +256,12 @@ def test_urgency_and_opinion_move_the_tally_the_right_way() -> None:
 
 
 def test_votes_are_deterministic_and_seeded_by_the_campaign() -> None:
-    a, b = rig(), rig()
+    a, b = rig(groups=False), rig(groups=False)
     oa, ob = enact_bill(a, "neutrality_revision"), enact_bill(b, "neutrality_revision")
     assert votes.resolve(a.state, oa) == votes.resolve(b.state, ob)
     seen = set()
     for n in range(10):
-        other = Rig("autumn-1941", CampaignId(derived_id(CAMPAIGN, "seed", n)))
+        other = Rig("autumn-1941", CampaignId(derived_id(CAMPAIGN, "seed", n)), groups=False)
         other.seat("roosevelt")
         other.close_session_zero()
         o = enact_bill(other, "neutrality_revision")
@@ -409,21 +420,21 @@ def address(r: Rig, theme: str) -> Order:
     [("aid_to_allies", 57), ("freedom_of_the_seas", 58), ("national_unity", 56)],
 )
 def test_an_address_moves_the_target_from_the_current_figure(theme: str, target: int) -> None:
-    r = rig()
+    r = rig(groups=False)
     r.fold_changes(opinion.resolve(r.state, address(r, theme)))
     assert value(r.state, "opinion_target") == target
     assert value(r.state, "gallup_fdr_about_right") == 55
 
 
 def test_the_target_is_clamped() -> None:
-    r = rig()
+    r = rig(groups=False)
     r.set_value("opinion_target", 99)
     r.fold_changes(opinion.resolve(r.state, address(r, "freedom_of_the_seas")))
     assert value(r.state, "opinion_target") == 100
 
 
 def test_mondays_step_one_point_toward_the_target() -> None:
-    r = rig()
+    r = rig(groups=False)
     r.fold_changes(opinion.resolve(r.state, address(r, "freedom_of_the_seas")))
     assert opinion.on_day(r.state, date(1941, 9, 11)) == ()  # a Thursday
     for monday, expect in (
@@ -437,7 +448,7 @@ def test_mondays_step_one_point_toward_the_target() -> None:
 
 
 def test_an_incident_lifts_the_target_once_on_the_next_monday() -> None:
-    r = rig()
+    r = rig(groups=False)
     greer = r.state.scheduled[
         next(i for i, s in r.state.scheduled.items() if i == r.ids["greer_incident"])
     ]

@@ -72,7 +72,7 @@ def hide(r: Rig, key: str) -> None:
 
 
 def test_a_passed_vote_is_one_news_item_with_the_count() -> None:
-    r = rig()
+    r = rig(groups=False)
     r.set_value("gallup_fdr_about_right", 61)
     (item,) = decided(r, "neutrality_revision", "urgent")
     assert item.on == SETTLED
@@ -90,7 +90,7 @@ def test_a_passed_vote_is_one_news_item_with_the_count() -> None:
 
 
 def test_a_failed_vote_is_one_news_item_too() -> None:
-    r = rig()
+    r = rig(groups=False)
     r.set_value("gallup_fdr_about_right", 0)
     (item,) = decided(r, "draft_extension")
     assert value(r.state, "draft_extension_passed") == 0
@@ -104,10 +104,10 @@ def test_a_failed_vote_is_one_news_item_too() -> None:
 
 
 def test_the_headline_takes_no_side() -> None:
-    r = rig()
+    r = rig(groups=False)
     r.set_value("gallup_fdr_about_right", 0)
     (failed,) = decided(r, "draft_extension")
-    (passed,) = decided(rig(), "lend_lease_appropriation")
+    (passed,) = decided(rig(groups=False), "lend_lease_appropriation")
     assert passed.headline == "Lend-Lease appropriation passes Congress"
     for item in (failed, passed):
         words = item.headline.lower()
@@ -165,7 +165,7 @@ def test_a_result_overwritten_by_a_later_order_is_not_reported_as_the_earlier_on
 
 
 def test_one_news_item_per_decision_on_the_day_it_is_decided() -> None:
-    r = rig()
+    r = rig(groups=False)
     order = enact_bill(r, "neutrality_revision")
     r.fold_changes(ON_ORDER["votes"](r.state, order))
     tally_days = {
@@ -199,7 +199,7 @@ def test_a_decision_from_before_the_last_wake_is_not_reported_late() -> None:
 
 
 def test_a_whip_count_is_never_in_the_news() -> None:
-    r = rig()
+    r = rig(groups=False)
     r.set_value("senate_neutrality_yeas", WHIP)
     r.set_value("house_democrats", WHIP + 1)
     r.set_value("house_republicans", WHIP + 2)
@@ -249,7 +249,7 @@ def measure_order(r: Rig, title: str) -> Order:
 
 
 def test_a_bill_carried_as_a_measure_is_news_under_its_own_title() -> None:
-    r = rig()
+    r = rig(groups=False)
     order = measure_order(r, "Coastal Defence Act")
     r.fold_changes(ON_ORDER["votes"](r.state, order))
     (item,) = walk(r)

@@ -118,7 +118,7 @@ def test_nothing_is_addressed_to_an_ai_seat() -> None:
     made = set(seat_the_rest(store))
     state = played(store, Counting())
     for e in store.read(CAMPAIGN):
-        if e.payload.kind not in OWN_ORDERS:
+        if e.payload.kind not in OWN_ORDERS | NATION_STATE:
             assert not (made & e.scope.known_by), e.payload.kind
     assert {m.seat_id for m in state.mandates.values()} <= {human}
 
@@ -139,6 +139,10 @@ OWN_ORDERS = frozenset(
 )
 """What an AI seat may be scoped: its answers and the orders they file, as a player's
 orders are scoped to the player."""
+
+NATION_STATE = frozenset({"piece_stepped", "economy_set", "step_refused", "trade_set"})
+"""A nation's own state, scoped to its seats as to a player's (``realism_tick._nation_scope``):
+no page, report or mandate."""
 
 
 def test_a_page_only_an_ai_seat_holds_is_never_sent_to_the_writer() -> None:

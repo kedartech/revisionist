@@ -429,7 +429,34 @@ def phone_board(page: Page, report: dict[str, object]) -> None:
         figure.is_visible() and 0 < box["width"] <= SIZE[0] and box["height"] > 0,
         str(box),
     )
-    page.locator(".rl-mk.rl-side-own").first.tap()
+    # A tap lands on whatever is on top at the mark's centre; take the first own force it reaches
+    # (on the whole territory map at this width a mark at the frame's edge is cut by it).
+    own = page.evaluate(
+        """() => {
+      const out = { cut: 0, hit: null };
+      for (const m of document.querySelectorAll('.rl-mk.rl-side-own')) {
+        m.scrollIntoView({ block: 'center' });
+        const r = m.getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        const y = r.top + r.height / 2;
+        const on = document.elementFromPoint(x, y);
+        if (on && m.contains(on)) {
+          out.hit = { x, y, label: m.getAttribute('aria-label') };
+          break;
+        }
+        out.cut += 1;
+      }
+      return out;
+    }"""
+    )
+    report["phone_cut_forces"] = own["cut"]
+    check(
+        "one of the seat's own forces can be tapped on the phone", own["hit"] is not None, str(own)
+    )
+    if own["hit"] is None:
+        return
+    report["phone_picked"] = own["hit"]["label"]
+    page.touchscreen.tap(own["hit"]["x"], own["hit"]["y"])
     report["phone_territory"] = picked(page)
     page.wait_for_timeout(300)
     # A tap lands on whatever is on top at the place's centre; take the first lit place it reaches.

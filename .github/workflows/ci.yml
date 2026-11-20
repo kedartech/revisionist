@@ -174,7 +174,8 @@ jobs:
   coverage:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # The whole suite in one job: 30 to 40 minutes in November 2026 and growing with it.
+    timeout-minutes: 90
     services:
       postgres:
         image: postgres:16

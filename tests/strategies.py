@@ -862,13 +862,25 @@ def home_groups(draw: st.DrawFn) -> rgrp.Group:
         )
         if bloc
         else {},
+        abroad=draw(st.booleans()),
     )
 
 
 @st.composite
 def nation_groups(draw: st.DrawFn) -> rgrp.NationGroups:
     found = draw(st.lists(home_groups(), min_size=1, max_size=2, unique_by=lambda g: g.key))
-    return rgrp.NationGroups(nation=draw(entity_ids), groups=tuple(found))
+    keys = [g.key for g in found]
+    moves = st.dictionaries(
+        st.sampled_from(keys), st.sampled_from([-3, -1, 1, 3]), min_size=1, max_size=2
+    )
+    themes = draw(
+        st.lists(
+            st.builds(rgrp.Theme, key=labels, name=labels, moves=moves),
+            max_size=2,
+            unique_by=lambda t: t.key,
+        )
+    )
+    return rgrp.NationGroups(nation=draw(entity_ids), groups=tuple(found), themes=tuple(themes))
 
 
 proposals = st.builds(
@@ -1475,13 +1487,18 @@ offers = st.one_of(
 )
 
 
+group_nudges = st.builds(
+    rx.GroupNudge, nation=entity_ids, group=labels, change=st.sampled_from([-3, -1, 1, 3])
+)
+
+
 @st.composite
 def effects_estimated(draw: st.DrawFn) -> ev.EffectsEstimated:
     failed = draw(st.booleans())
     return ev.EffectsEstimated(
         order_id=draw(order_ids),
         part=draw(st.integers(0, 7)),
-        effects=() if failed else tuple(draw(st.lists(effects, max_size=3))),
+        effects=() if failed else tuple(draw(st.lists(effects | group_nudges, max_size=3))),
         reason=draw(st.text(max_size=100)) if failed else draw(st.text(min_size=1, max_size=100)),
         rationale="" if failed else draw(st.text(max_size=100)),
         failed=failed,

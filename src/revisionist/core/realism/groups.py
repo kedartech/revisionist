@@ -31,25 +31,36 @@ holds (rule 6); ``bloc_support`` gives each bloc of a chamber its support (rule 
 
 A nation's groups are seen by its own seats only (``seen_by``). A world with no groups,
 or with the rule off, is unchanged (rule 8).
+
+Free writing (FWG). A world may list ``themes`` for a nation: a theme and the points it
+moves each of that nation's groups by. Writing that names a theme takes the moves from
+that table, in code (``named_theme``, ``theme_nudges``). Writing that names none may be
+read by the estimator, from the issuer's own view, into at most ``MAX_GROUP_EFFECTS``
+group nudges: the issuer's own nation's groups by up to ``GROUP_DAY_CAP``, and another
+nation's group only where the world marks it as hearing ``abroad``, by up to
+``ABROAD_CAP`` (``nudge_problem``).
 """
 
+import re
 from collections.abc import Sequence
 from datetime import date, timedelta
 from enum import StrEnum
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, ClassVar
 
 from pydantic import Field, model_validator
 
 from revisionist.core._base import Label, Model
 from revisionist.core.ids import EntityId, SeatId
-from revisionist.core.realism.effect import ClauseKind
+from revisionist.core.realism.effect import GROUP_DAY_CAP, ClauseKind, GroupNudge
 
 if TYPE_CHECKING:
     from revisionist.core.events import GroupMoved, GroupProposed, Payload
     from revisionist.core.state import State, View, _World
 
-GROUP_DAY_CAP = 3  # [proposed] plan, GRP Defaults
-"""The most one seat's writing moves a group in a world day, in points."""
+MAX_GROUP_EFFECTS = 3  # [proposed] plan, FWG Defaults
+"""The most group nudges one ruling on a text may hold."""
+ABROAD_CAP = 1  # plan, FWG rule 2
+"""The most a nudge may move another nation's group that hears abroad, in points."""
 GROUP_WEEK_CAP = 6  # [proposed] plan, GRP Defaults
 """The most all writing moves a group over ``WEEK_DAYS`` world days, in absolute points."""
 WEEK_DAYS = 7
@@ -153,6 +164,11 @@ class Group(Model):
     """A bloc's part of each vote of a measure the world does not list, by vote."""
     stances: dict[ClauseKind, int] = Field(default_factory=dict)
     """A bloc's stance on each kind of clause, in points toward yes."""
+    abroad: bool = False
+    """The group hears another nation's writing: a nudge from abroad may move it by up to
+    ``ABROAD_CAP`` (FWG)."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"abroad"})
 
     @model_validator(mode="after")
     def _bloc(self) -> "Group":
@@ -163,17 +179,42 @@ class Group(Model):
         return self
 
 
+class Theme(Model):
+    """A theme a nation's writing may name, and the points it moves each of that nation's
+    groups by, signed (FWG rule 3)."""
+
+    key: Label
+    name: Label
+    moves: dict[Label, Annotated[int, Field(ge=-GROUP_DAY_CAP, le=GROUP_DAY_CAP)]] = Field(
+        min_length=1
+    )
+
+    @model_validator(mode="after")
+    def _moves(self) -> "Theme":
+        if 0 in self.moves.values():
+            raise ValueError("a theme moves each group it lists")
+        return self
+
+
 class NationGroups(Model):
-    """One nation's groups at home, in the world file's order."""
+    """One nation's groups at home, in the world file's order, and its themes."""
 
     nation: EntityId
     groups: tuple[Group, ...] = Field(min_length=1)
+    themes: tuple[Theme, ...] = ()
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"themes"})
 
     @model_validator(mode="after")
     def _keys(self) -> "NationGroups":
         keys = [g.key for g in self.groups]
         if len(set(keys)) != len(keys):
             raise ValueError("a nation's group keys are distinct")
+        themes = [t.key for t in self.themes]
+        if len(set(themes)) != len(themes):
+            raise ValueError("a nation's theme keys are distinct")
+        if any(k not in keys for t in self.themes for k in t.moves):
+            raise ValueError("a theme moves only the nation's own groups")
         return self
 
 
@@ -208,6 +249,10 @@ class Groups(Model):
     """The writing points each group's batches used over the last ``WEEK_DAYS`` days."""
     proposed: tuple[Proposal, ...] = ()
     """Writing not yet settled (``group_proposed``). Engine only."""
+    themes: dict[EntityId, tuple[Theme, ...]] = Field(default_factory=dict)
+    """Each nation's themes, in the world file's order (``groups_declared``)."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"themes"})
 
 
 # --- reading ------------------------------------------------------------------------
@@ -307,7 +352,49 @@ def seen_by(state: "State", seat: SeatId) -> Groups:
         declared={k: v for k, v in g.declared.items() if k == own},
         support={k: v for k, v in g.support.items() if k == own},
         spent={k: v for k, v in g.spent.items() if k == own},
+        themes={k: v for k, v in g.themes.items() if k == own},
     )
+
+
+# --- free writing (FWG) ---------------------------------------------------------------
+
+
+def _words(text: str) -> str:
+    return " ".join(re.sub(r"[^0-9a-z]+", " ", text.casefold()).split())
+
+
+def named_theme(state: "State | View", polity: EntityId, text: str) -> Theme | None:
+    """The first of a nation's themes, in the world's order, whose name or key the text
+    names as whole words (rule 4); None when it names none."""
+    said = f" {_words(text)} "
+    for theme in state.groups.themes.get(polity, ()):
+        for phrase in (_words(theme.name), _words(theme.key)):
+            if phrase and f" {phrase} " in said:
+                return theme
+    return None
+
+
+def theme_nudges(polity: EntityId, theme: Theme) -> tuple[GroupNudge, ...]:
+    """What a theme moves, as group nudges of its nation, in the table's order."""
+    return tuple(
+        GroupNudge(nation=polity, group=key, change=change) for key, change in theme.moves.items()
+    )
+
+
+def nudge_problem(state: "State", issuer: EntityId | None, nudge: GroupNudge) -> str:
+    """Why a nudge from ``issuer``'s nation may not land, or "" when it may (rule 2): a
+    group the nation does not have, or another nation's group not marked as hearing
+    abroad, or moved past ``ABROAD_CAP``."""
+    found = group(state, nudge.nation, nudge.group)
+    if not on(state) or found is None:
+        return f"no group {nudge.group} at home in {nudge.nation}"
+    if nudge.nation == issuer:
+        return ""
+    if not found.abroad:
+        return f"{nudge.group} does not hear writing from abroad"
+    if abs(nudge.change) > ABROAD_CAP:
+        return f"{nudge.group} hears writing from abroad by {ABROAD_CAP} at most"
+    return ""
 
 
 # --- moving ---------------------------------------------------------------------------
@@ -547,11 +634,13 @@ def drift(state: "State", day: date) -> list["GroupMoved"]:
 
 
 __all__ = [
+    "ABROAD_CAP",
     "DRIFT_POINTS",
     "GROUP_DAY_CAP",
     "GROUP_WEEK_CAP",
     "MANPOWER_HIGH",
     "MANPOWER_LOW",
+    "MAX_GROUP_EFFECTS",
     "STRIKE_LINE",
     "STRIKE_SHARE",
     "WEEK_DAYS",
@@ -565,6 +654,7 @@ __all__ = [
     "NationGroups",
     "Proposal",
     "Spent",
+    "Theme",
     "batch",
     "bloc_support",
     "drift",
@@ -572,6 +662,8 @@ __all__ = [
     "happened",
     "home_standing",
     "manpower_factor",
+    "named_theme",
+    "nudge_problem",
     "of",
     "on",
     "output_factor",
@@ -580,5 +672,6 @@ __all__ = [
     "seen_by",
     "shift",
     "support",
+    "theme_nudges",
     "used",
 ]

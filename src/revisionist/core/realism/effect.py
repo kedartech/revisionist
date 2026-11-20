@@ -10,7 +10,8 @@ order is read into parts, each one effect, and each part is routed:
 
 Where no code rule covers a part, the estimator returns effects from this same
 vocabulary, inside the bounds the types set here (a disposition moves at most
-``DISPOSITION_CAP`` per order, a figure by at most ``FIGURE_CAP`` percent). Pure data:
+``DISPOSITION_CAP`` per order, a figure by at most ``FIGURE_CAP`` percent, a group at
+home by at most ``GROUP_DAY_CAP`` points). Pure data:
 routing and resolving are the engine's.
 """
 
@@ -36,6 +37,10 @@ DISPOSITION_CAP = 2
 
 FIGURE_CAP = 10
 """Percent a figure may move per order, either way."""
+
+GROUP_DAY_CAP = 3  # [proposed] plan, GRP Defaults
+"""The most one seat's writing moves a group in one world day, either way; and the most
+one group nudge may propose."""
 
 
 class Route(StrEnum):
@@ -65,6 +70,7 @@ class EffectKind(StrEnum):
     DISPOSITION = "disposition"
     DISCLOSURE = "disclosure"
     FIGURE = "figure"
+    GROUP = "group"
 
 
 class Posture(StrEnum):
@@ -305,6 +311,23 @@ class MoveFigure(Model):
         return self
 
 
+class GroupNudge(Model):
+    """Writing that moves a nation's group at home by ``change`` points (FWG). Only the
+    estimator returns it, or a theme the world lists: a seat never orders one. The issuer's
+    own nation's group, or another nation's that the world marks as hearing abroad."""
+
+    kind: Literal["group"] = "group"
+    nation: EntityId
+    group: Label
+    change: int = Field(ge=-GROUP_DAY_CAP, le=GROUP_DAY_CAP)
+
+    @model_validator(mode="after")
+    def _moves(self) -> "GroupNudge":
+        if self.change == 0:
+            raise ValueError("a group nudge moves the group")
+        return self
+
+
 Effect = Annotated[
     MoveForce
     | SetEngagement
@@ -319,7 +342,7 @@ Effect = Annotated[
     Field(discriminator="kind"),
 ]
 
-EstimatedEffect = Annotated[
+RulingEffect = Annotated[
     MoveForce
     | SetEngagement
     | Allocate
@@ -333,9 +356,27 @@ EstimatedEffect = Annotated[
     | MoveFigure,
     Field(discriminator="kind"),
 ]
-"""What the estimator may return: every effect a seat can order, and a figure's move."""
+"""What the referee's ruling from the truth may return: every effect a seat can order,
+and a figure's move. Never a group nudge: that comes from the issuer's view alone."""
 
-ESTIMATED_ONLY: frozenset[EffectKind] = frozenset({EffectKind.FIGURE})
+EstimatedEffect = Annotated[
+    MoveForce
+    | SetEngagement
+    | Allocate
+    | Appointment
+    | ProposeMeasure
+    | MakeStatement
+    | Investigate
+    | Deal
+    | ShiftDisposition
+    | Disclosure
+    | MoveFigure
+    | GroupNudge,
+    Field(discriminator="kind"),
+]
+"""What a part's ruling holds: the referee's effects and the group nudges."""
+
+ESTIMATED_ONLY: frozenset[EffectKind] = frozenset({EffectKind.FIGURE, EffectKind.GROUP})
 """Kinds only the estimator returns; no office is given them."""
 
 IRREVERSIBLE: frozenset[EffectKind] = frozenset({EffectKind.APPOINTMENT, EffectKind.ALLOCATE})
@@ -488,6 +529,7 @@ __all__ = [
     "DISPOSITION_CAP",
     "ESTIMATED_ONLY",
     "FIGURE_CAP",
+    "GROUP_DAY_CAP",
     "IRREVERSIBLE",
     "REFUSAL_LOYALTY",
     "Allocate",
@@ -504,6 +546,7 @@ __all__ = [
     "EstimatedEffect",
     "Fidelity",
     "FidelityInputs",
+    "GroupNudge",
     "IntelOrder",
     "Investigate",
     "MakeStatement",
@@ -518,6 +561,7 @@ __all__ = [
     "RoutedOrderView",
     "RoutedPart",
     "Routing",
+    "RulingEffect",
     "SetEngagement",
     "ShiftDisposition",
 ]

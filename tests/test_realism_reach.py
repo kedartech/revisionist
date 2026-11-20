@@ -3,6 +3,7 @@ kind's radius of one, raids beyond that up to its raid radius, and is refused pa
 the reason and the nearest base it can work from. Values from Josh's R2 sheet."""
 
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -16,6 +17,9 @@ from revisionist.core.realism.resolvers import movement
 from revisionist.core.realism.war import War, war_id_for
 from revisionist.core.state import State
 from tests.test_realism_resolvers import Rig, rig
+
+POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
+"""The autumn-1941 world before territories: these tests pin movement between points."""
 
 F, A, R = FeatureKind.FLEET, FeatureKind.ARMY, FeatureKind.AIR
 NAVAL = [date(1941, 9, 3), date(1941, 9, 5)]
@@ -61,7 +65,7 @@ def at_war(state: State, a: EntityId, b: EntityId) -> State:
 
 
 def test_the_strike_from_hitokappu_bay_on_pearl_harbor_is_a_raid() -> None:
-    r = Rig()
+    r = Rig(POINTS)
     fleet = placed(r, "combined_fleet", "hitokappu_bay")
     found = reach(r.state, fleet, at(r, "pearl_harbor_base"))
     assert got(r, found) == (Tier.RAID, "kure", 16)  # 6,847 km from Kure, past 10 days
@@ -71,7 +75,7 @@ def test_the_strike_from_hitokappu_bay_on_pearl_harbor_is_a_raid() -> None:
 def test_norfolk_to_reykjavik_is_held_and_by_way_of_argentia_without_its_own_flag(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    r = Rig()
+    r = Rig(POINTS)
     fleet = feature(r, "us_atlantic_fleet")
     reykjavik = at(r, "reykjavik")
     assert got(r, reach(r.state, fleet, reykjavik)) == (Tier.SUSTAINED, "reykjavik", 0)
@@ -85,7 +89,7 @@ def test_norfolk_to_reykjavik_is_held_and_by_way_of_argentia_without_its_own_fla
 
 
 def test_army_group_centre_reaches_moscow_only_once_the_front_moves_on() -> None:
-    r = Rig()
+    r = Rig(POINTS)
     group = feature(r, "army_group_centre")
     moscow = at(r, "moscow")
     found = reach(r.state, group, moscow)
@@ -100,7 +104,7 @@ def test_army_group_centre_reaches_moscow_only_once_the_front_moves_on() -> None
 
 
 def test_a_front_place_is_no_base_for_a_fleet_or_with_no_army_or_front_there() -> None:
-    r = Rig()
+    r = Rig(POINTS)
     placed(r, "eastern_front", *OCT_FRONT)
     group = placed(r, "army_group_centre", "smolensk")
     assert tier(r, reach(r.state, group, at(r, "mozhaisk"))) is Tier.SUSTAINED
@@ -111,7 +115,7 @@ def test_a_front_place_is_no_base_for_a_fleet_or_with_no_army_or_front_there() -
 
 
 def test_an_army_sent_overseas_is_refused_and_told_it_needs_sealift() -> None:
-    r = Rig()
+    r = Rig(POINTS)
     found = reach(r.state, feature(r, "army_group_centre"), at(r, "london"))
     assert found is not None and found.tier is Tier.REFUSED
     assert found.reason is not None and "sealift" in found.reason
@@ -122,7 +126,7 @@ def test_an_army_sent_overseas_is_refused_and_told_it_needs_sealift() -> None:
 
 
 def test_a_fleet_beyond_twenty_days_is_refused_and_named_the_nearest_base() -> None:
-    r = Rig()
+    r = Rig(POINTS)
     found = reach(r.state, feature(r, "us_atlantic_fleet"), at(r, "chungking"))
     # Pearl Harbor is 21 days away, Norfolk 42: the nearest is named, not the first
     assert got(r, found) == (Tier.REFUSED, "pearl_harbor_base", 21)
@@ -131,7 +135,7 @@ def test_a_fleet_beyond_twenty_days_is_refused_and_named_the_nearest_base() -> N
 
 
 def test_a_fleet_with_no_open_passage_is_refused_with_that_reason() -> None:
-    r = Rig()
+    r = Rig(POINTS)
     state = at_war(r.state, at(r, "uk"), at(r, "germany"))
     found = reach(state, feature(r, "home_fleet"), at(r, "leningrad"))
     assert found is not None and found.tier is Tier.REFUSED
@@ -141,13 +145,13 @@ def test_a_fleet_with_no_open_passage_is_refused_with_that_reason() -> None:
 
 def test_a_fleet_reaches_by_its_sea_route_not_the_straight_line() -> None:
     """Liverpool to Odessa is 6 days in a straight line, 13 by Gibraltar and the Straits."""
-    r = Rig()
+    r = Rig(POINTS)
     found = reach(r.state, feature(r, "home_fleet"), at(r, "odessa"))
     assert got(r, found) == (Tier.RAID, "liverpool", 13)
 
 
 def test_an_air_group_raids_two_days_out_and_no_further() -> None:
-    r = Rig()
+    r = Rig(POINTS)
     group = force(r, R, "usa", "washington")
     assert got(r, reach(r.state, group, at(r, "london"))) == (Tier.RAID, "reykjavik", 2)
     assert tier(r, reach(r.state, group, at(r, "berlin"))) is Tier.REFUSED
@@ -160,7 +164,7 @@ def test_a_world_with_no_table_has_no_reach_rule() -> None:
 
 
 def test_a_view_reads_fronts_only_from_the_sightings_it_is_given() -> None:
-    r = rig(seat="hitler")
+    r = rig(POINTS, seat="hitler")
     placed(r, "eastern_front", *OCT_FRONT)
     group = force(r, A, "germany", "smolensk")
     moscow = at(r, "moscow")
@@ -175,7 +179,7 @@ def test_a_view_reads_fronts_only_from_the_sightings_it_is_given() -> None:
 
 
 def test_the_resolver_refuses_a_move_beyond_reach() -> None:
-    r = rig()
+    r = rig(POINTS)
     order = r.enact(
         "roosevelt",
         "move_fleet",
@@ -200,7 +204,7 @@ def test_the_resolver_refuses_a_move_beyond_reach() -> None:
 
 
 def test_the_resolver_holds_army_group_centre_at_smolensk() -> None:
-    r = rig(seat="hitler")
+    r = rig(POINTS, seat="hitler")
     days = [date(1941, 9, 3), date(1941, 9, 5)]
     order = r.enact(
         "hitler",

@@ -3,6 +3,7 @@ are truth, feeds that sight them, and the movement resolver. No seat sees a
 feature except as a document line."""
 
 from datetime import date, timedelta
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -24,6 +25,9 @@ from revisionist.engine import realism_tick
 from revisionist.engine.store import MemoryStore, load_state
 from revisionist.engine.web import realism_snapshot
 from tests.test_realism_resolvers import Rig, rig
+
+POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
+"""The autumn-1941 world before territories: these tests pin movement between points."""
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 NAVAL = [date(1941, 9, 3), date(1941, 9, 5)]
@@ -51,7 +55,7 @@ def move(r: Rig, person: str, lever: str, pipeline: str, days: list[date], **p: 
 
 
 def test_the_1941_map_compiles_with_its_forces_fronts_and_routes() -> None:
-    r = Rig()
+    r = Rig(POINTS)
     kinds = sorted(f.kind.value for f in r.state.features.values())
     assert kinds.count("fleet") == 8 and kinds.count("army") == 10 and kinds.count("air") == 4
     assert kinds.count("front") == 1 and kinds.count("route") == 3
@@ -188,7 +192,7 @@ def test_a_bad_feature_is_refused(change: dict[str, Any], said: str) -> None:
 
 
 def test_a_movement_lever_offers_only_forces_and_placed_places() -> None:
-    world = cmp.load_world(cmp.world_path("autumn-1941"))
+    world = cmp.load_world(cmp.world_path(POINTS))
     cards = list(world.cards)
     fdr = next(c for c in cards if c.person == "roosevelt")
     lever = next(lv for lv in fdr.levers if lv.resolver == "movement")
@@ -213,19 +217,19 @@ def test_a_movement_lever_offers_only_forces_and_placed_places() -> None:
 
 
 def test_a_feature_may_not_stand_on_something_that_is_not_a_place() -> None:
-    r = Rig()
+    r = Rig(POINTS)
     fleet = feature(r, "home_fleet")
     with pytest.raises(FoldError, match="is not a place"):
         r.fold_changes((fleet.model_copy(update={"places": (place(r, "uk"),)}),))
     with pytest.raises(FoldError, match="cannot go back"):
-        Rig().fold_changes((fleet.model_copy(update={"as_of": date(1941, 8, 1)}),))
+        Rig(POINTS).fold_changes((fleet.model_copy(update={"as_of": date(1941, 8, 1)}),))
 
 
 # --- movement --------------------------------------------------------------------------
 
 
 def test_an_order_sends_a_fleet_at_its_pace_and_it_arrives() -> None:
-    r = rig()
+    r = rig(POINTS)
     move(
         r,
         "roosevelt",
@@ -249,7 +253,7 @@ def test_an_order_sends_a_fleet_at_its_pace_and_it_arrives() -> None:
 
 
 def test_an_order_for_another_sides_force_changes_nothing() -> None:
-    r = rig()
+    r = rig(POINTS)
     order = r.enact(
         "roosevelt",
         "move_fleet",
@@ -263,7 +267,7 @@ def test_an_order_for_another_sides_force_changes_nothing() -> None:
 
 
 def test_a_refused_order_moves_nothing_and_a_force_sent_home_halts() -> None:
-    r = rig()
+    r = rig(POINTS)
     refused = r.draft(
         "roosevelt",
         "move_fleet",
@@ -286,7 +290,7 @@ def test_a_refused_order_moves_nothing_and_a_force_sent_home_halts() -> None:
 
 
 def test_history_moves_a_force_and_an_order_drops_what_history_had_left() -> None:
-    r = rig(seat="hitler")
+    r = rig(POINTS, seat="hitler")
     day(r, date(1941, 10, 7))
     assert feature(r, "army_group_centre").places == (place(r, "vyazma"),)
     assert feature(r, "eastern_front").places[1] == place(r, "smolensk")
@@ -308,7 +312,7 @@ def test_history_moves_a_force_and_an_order_drops_what_history_had_left() -> Non
 
 
 def test_a_collapsed_stretch_moves_as_a_slow_one() -> None:
-    fast, slow = rig(seat="hitler"), rig(seat="hitler")
+    fast, slow = rig(POINTS, seat="hitler"), rig(POINTS, seat="hitler")
     day(fast, date(1941, 10, 30))
     d = date(1941, 9, 2)
     while d <= date(1941, 10, 30):
@@ -324,7 +328,7 @@ def test_a_collapsed_stretch_moves_as_a_slow_one() -> None:
 
 def ticked(seat: str, ticks: int = 2) -> tuple[MemoryStore, State]:
     store = MemoryStore()
-    world = cmp.load_world(cmp.world_path("autumn-1941"))
+    world = cmp.load_world(cmp.world_path(POINTS))
     store.append_all(compile_world(world, CAMPAIGN, cmp.versions()))
     realism_tick.seat_player(store, CAMPAIGN, EntityId(resolve_keys(world, CAMPAIGN)[seat]))
     for _ in range(ticks):
@@ -389,7 +393,7 @@ def test_the_new_fields_are_left_out_when_empty() -> None:
     assert "at" not in e.model_dump()
     assert "sight" not in BodyField(label="x", value=1).model_dump()
     assert "sightings" not in DocumentTruth(doc_id=DocumentId("D")).model_dump()
-    bare = next(f for f in Rig().state.feeds.values() if not f.sights)
+    bare = next(f for f in Rig(POINTS).state.feeds.values() if not f.sights)
     assert "sights" not in bare.model_dump()
     assert "features" not in State(campaign_id=CAMPAIGN).model_dump()
 

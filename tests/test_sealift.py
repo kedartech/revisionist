@@ -5,6 +5,7 @@ back the day it lands. Autumn 1941 gives Britain the only pool."""
 
 import math
 from datetime import date, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -22,6 +23,9 @@ from revisionist.core.realism.resolvers import movement, qid, value
 from revisionist.core.realism.routing import sea_route
 from revisionist.core.realism.war import War, war_id_for
 from tests.test_realism_resolvers import Rig, rig
+
+POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
+"""The autumn-1941 world before territories: these tests pin movement between points."""
 
 F, A = FeatureKind.FLEET, FeatureKind.ARMY
 POOL = "uk_sealift_grt"
@@ -49,7 +53,7 @@ def order(r: Rig, to: str, force: str = "home_forces", days: list[date] = COS) -
 
 
 def churchill() -> Rig:
-    return rig(seat="churchill")
+    return rig(POINTS, seat="churchill")
 
 
 def pool(r: Rig) -> int | None:
@@ -115,7 +119,7 @@ def test_a_lift_the_pool_cannot_carry_moves_nothing_and_draws_nothing() -> None:
 
 
 def test_germany_has_no_shipping_to_lift_an_army() -> None:
-    r = rig(seat="hitler")
+    r = rig(POINTS, seat="hitler")
     found = reach(r.state, feature(r, "army_group_centre"), at(r, "london"))
     assert found is not None and found.tier is Tier.REFUSED and found.reason is not None
     assert "Germany has no shipping" in found.reason and "sealift" in found.reason

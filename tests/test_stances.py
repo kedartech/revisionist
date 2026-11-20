@@ -45,7 +45,7 @@ HEADS = ("roosevelt", "stalin", "hitler", "konoe", "tojo", "mussolini", "chiang"
 
 
 def begun(who: str = "churchill") -> tuple[EventStore, SeatId, dict[str, EntityId]]:
-    """A game whose cards carry the world's allies but none of its conflicts or
+    """A game whose cards carry the world's allies but none of its conflicts, wars in force or
     answers, and with none of its starting regard, so each test declares the conflicts
     and regard it weighs. Under another world name, so no tick brings the world file's
     conflicts back."""
@@ -53,7 +53,7 @@ def begun(who: str = "churchill") -> tuple[EventStore, SeatId, dict[str, EntityI
     decl = cmp.load_world(cmp.world_path(WORLD))
     cards = tuple(c.model_copy(update={"opposes": (), "answers": ()}) for c in decl.cards)
     decl = decl.model_copy(
-        update={"world": "autumn-1941-allies-only", "cards": cards, "relationships": ()}
+        update={"world": "autumn-1941-allies-only", "cards": cards, "relationships": (), "wars": ()}
     )
     store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))
     keys = {k: EntityId(v) for k, v in resolve_keys(decl, CAMPAIGN).items()}

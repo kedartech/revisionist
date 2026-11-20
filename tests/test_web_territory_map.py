@@ -98,6 +98,7 @@ def test_a_territory_map_block_carries_the_areas_the_regions_and_the_file(
         "taken_from": None,
         "falling": None,
         "yields": {"grain": 10, "levies": 2000},
+        "threatened_from": None,
     }
     assert (shown["the_gulf"]["kind"], shown["the_gulf"]["terrain"]) == ("sea", "shallows")
     assert shown["isle"]["neighbours"] == ["norra_plain", "open_sea"]

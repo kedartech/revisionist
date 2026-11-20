@@ -55,6 +55,7 @@ from revisionist.core.realism.detect import Source as IntelSource
 from revisionist.core.realism.document import Bias, Classification, DocumentKind
 from revisionist.core.realism.effect import DISPOSITION_CAP, FIGURE_CAP, EffectKind
 from revisionist.core.realism.geography import FeatureKind
+from revisionist.core.realism.groups import Group
 from revisionist.core.realism.kinds import MAX_STRENGTH, Domain, Role
 from revisionist.core.realism.pipeline import StepAction, StepKind
 from revisionist.core.realism.quantity import ResolverKey
@@ -622,6 +623,15 @@ class IntelligenceDecl(Model):
     agents: tuple[IntelAgentDecl, ...] = ()
 
 
+class GroupsDecl(Model):
+    """A nation's groups at home on the start date (GRP), with ``groups`` on, in the
+    order the world gives them."""
+
+    nation: Key
+    """A polity key."""
+    groups: tuple[Group, ...] = Field(min_length=1)
+
+
 class ResourceDecl(Model):
     """A resource the world names, and the one role it plays."""
 
@@ -895,6 +905,10 @@ class WorldFile(Model):
     """Each nation's sources, with ``reports`` on: who reports each and by what channel,
     the codebreaking level and the agents. A world with none has contact only. Written by
     hand: not offered to a model."""
+    groups: SkipJsonSchema[tuple[GroupsDecl, ...]] = ()
+    """Each nation's groups at home, with ``groups`` on: support, baseline, what each
+    feeds and what moves it. A world with none is unchanged. Written by hand: not offered
+    to a model."""
     map_data: SkipJsonSchema[bytes | None] = Field(default=None, exclude=True)
     """The bytes of the map file ``map`` names, read by the world loader from beside
     the world file, not from the world file itself. None when no file was found."""
@@ -932,6 +946,7 @@ __all__ = [
     "FeedDecl",
     "FigureDecl",
     "GoalDecl",
+    "GroupsDecl",
     "HistoryDecl",
     "IntelAgentDecl",
     "IntelSourceDecl",

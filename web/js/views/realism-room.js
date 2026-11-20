@@ -1051,10 +1051,10 @@ export function realismRoom(ctx) {
   }
 
   /** A standard form filed from a sheet: what was kept for it is dropped, so the redraw after does not fill it again. */
-  function fileLever(v) {
+  function fileLever(v, then) {
     ui.sheetForms = forgetForm(ui.sheetForms, v.lever);
     markFiled(root, v.lever);
-    return act('Sending it…', 'lever', v);
+    return act('Sending it…', 'lever', v, then);
   }
 
   /** A pick in the map-first room: a force opens its sheet, the map's switches redraw it, a person stays on the Court. */
@@ -1142,7 +1142,7 @@ export function realismRoom(ctx) {
 
   /** A picked force's sheet: what it is and where, then the forms that move it, each with its cost strip. */
   function pieceBody(forms) {
-    const panel = piecePanel(rv, ui.piece, open, { pick });
+    const panel = piecePanel(rv, ui.piece, open, { pick, act: (m, a, b, t) => (a === 'lever' ? fileLever(b, t) : act(m, a, b, t)) });
     panel.querySelector('.rl-sheet-close')?.remove();
     panel.querySelector('h2')?.remove();
     panel.removeAttribute('aria-labelledby');
@@ -1158,7 +1158,7 @@ export function realismRoom(ctx) {
 
   /** The map-first room: the header, the sheet tabs, the map filling the rest, and the open sheet over it. */
   function mapFirstRoom(top) {
-    const map = theatreBoard(rv, ui, { pick, act: (m, a, b, t) => (a === 'lever' ? fileLever(b) : act(m, a, b, t)) });
+    const map = theatreBoard(rv, ui, { pick, act: (m, a, b, t) => (a === 'lever' ? fileLever(b, t) : act(m, a, b, t)), open });
     const forms = map.querySelector('.rl-theatre-forms');
     forms?.remove();
     let name = openSheetOf(ui);

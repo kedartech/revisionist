@@ -46,7 +46,7 @@ export function statusStrip(rv, ui, { act }) {
       ? h('span', { class: 'rl-committed', role: 'status', 'aria-live': 'polite' }, commitLabel(wake))
       : null,
     comeBack ? h('p', { class: 'rl-comeback' }, comeBack) : null,
-    economyStrip(rv));
+    economyStrip(rv, { act }));
 }
 
 /**

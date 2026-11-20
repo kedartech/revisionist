@@ -13,6 +13,7 @@ import { heldBy } from './realism-estimate.js';
 import { figureCard } from './realism-figure.js';
 import { daysLabel, liftLabel, liftNote, standardForm, tierLabel } from './realism-forms.js';
 import { mapDrawing, mapView } from './realism-map.js';
+import { intelTokens, tokenBar, tokenChip, tokenOrder, tokenTargets } from './realism-reports.js';
 import { territoryDrawing, territoryView } from './realism-territory.js';
 
 const LAND_URL = '/assets/land-110m.json';
@@ -247,12 +248,14 @@ function ghostList(waits, act) {
 }
 
 /**
- * `theatreBoard(rv, ui, { pick, act })`: the map for the board's main area. A mark picked on
+ * `theatreBoard(rv, ui, { pick, act, open })`: the map for the board's main area. A mark picked on
  * the map or found from the list is `pick({ piece: { kind: 'force', name } })`; the Map or
- * List, the scope and the layer switches are `pick({ theatre })`. The piece's details are in
- * the board's side panel, so the map view's own detail block is left out.
+ * List, the scope and the layer switches are `pick({ theatre })`, and so are a picked report
+ * (`theatre.report`), the threats switch (`theatre.threats`) and an intelligence token picked up
+ * and put down (`theatre.token`, `theatre.tokenAt`). A report's paper opens with `open({ id })`.
+ * The piece's details are in the board's side panel, so the map view's own detail block is left out.
  */
-export function theatreBoard(rv, ui, { pick, act } = {}) {
+export function theatreBoard(rv, ui, { pick, act, open } = {}) {
   const map = rv.map;
   if (!map) {
     return h('section', { class: 'rl-map rl-theatre' },
@@ -277,17 +280,28 @@ export function theatreBoard(rv, ui, { pick, act } = {}) {
     theatres: true,
     selected: ui.piece?.kind === 'force' ? ui.piece.name : null,
     openCapital: capitalOpener(rv.people),
-    onTarget: (value) => (piece ? choose(value) : states.get(active)?.choose(value)),
+    onTarget: (value) => (token ? putDown(value) : piece ? choose(value) : states.get(active)?.choose(value)),
     onMode: (mode) => pick?.({ theatre: { ...theatre, mode } }),
     onScope: (scope) => pick?.({ theatre: { ...theatre, scope } }),
     onLayer: (layer) => pick?.({ theatre: { ...theatre, layer } }),
     onSelect: (name, mode) => pick?.({ piece: { kind: 'force', name }, ...(mode ? { theatre: { ...theatre, mode } } : {}) }),
+    today: rv.clock?.world_date ?? null,
+    onReport: (report, mode) => pick?.({ theatre: { ...theatre, report, ...(mode ? { mode } : {}) } }),
+    onThreats: (threats) => pick?.({ theatre: { ...theatre, threats } }),
+    onOpen: (p) => open?.(p),
   };
   const territorial = Array.isArray(map.areas) && map.areas.length > 0;
   const waits = waitingOrders(rv);
   const drawn = territorial ? withGhosts(map, waits) : map;
   // a picked piece on a territory map lights its moves; the chosen one opens the chip
   const piece = territorial && theatre.layer !== 'diplomatic' ? pickedPiece(rv, ui) : null;
+  // an intelligence token picked up lights where it may go down; put down, it opens its chip
+  const tokens = territorial && theatre.layer !== 'diplomatic' && theatre.layer !== 'economy' ? intelTokens(rv) : [];
+  const token = tokens.find((t) => t.id === theatre.token) ?? null;
+  const tokenLit = () => (token && shapesFor(map.file) ? tokenTargets(token, shapesFor(map.file), theatre.tokenAt ?? null) : []);
+  const tokenAt = token && tokenLit().some((t) => t.area === theatre.tokenAt) ? theatre.tokenAt : null;
+  if (token) opts.token = tokenAt ? { ...token, at: tokenAt } : null;
+  const putDown = (area) => pick?.({ theatre: { ...theatre, tokenAt: area } });
   let goal = piece?.moves.some((mv) => mv.area.key === theatre.goal) ? theatre.goal : null;
   const chipBox = h('div', { class: 'rl-pup' });
   const move = () => piece?.moves.find((mv) => mv.area.key === goal) ?? null;
@@ -302,6 +316,15 @@ export function theatreBoard(rv, ui, { pick, act } = {}) {
   };
   const showChip = () => {
     const shapes = shapesFor(map.file);
+    if (token) {
+      const at = tokenAt ? tokenLit().find((t) => t.area === tokenAt) : null;
+      chipBox.replaceChildren(at ? tokenChip(token, at.place.name, {
+        send: () => act?.('Sending it…', 'lever', tokenOrder(token, tokenAt),
+          (r) => { if (!r?.refused && ui.theatre) { ui.theatre.token = null; ui.theatre.tokenAt = null; } }),
+        back: () => putDown(null),
+      }) : '');
+      return;
+    }
     const mv = move();
     chipBox.replaceChildren(mv && shapes ? confirmChip(rv, piece, mv, shapes, {
       send: () => act?.('Sending it…', 'lever', { lever: piece.lever.name, params: { force: piece.force, to: mv.to.value } },
@@ -310,7 +333,7 @@ export function theatreBoard(rv, ui, { pick, act } = {}) {
     }) : '');
   };
   const choose = (key) => { if (piece?.moves.some((mv) => mv.area.key === key)) setGoal(key, 'chip'); };
-  const targets = () => (piece && shapesFor(map.file) ? pieceTargets(piece, shapesFor(map.file), goal) : lit());
+  const targets = () => (token ? tokenLit() : piece && shapesFor(map.file) ? pieceTargets(piece, shapesFor(map.file), goal) : lit());
   // the stack fanned out, by its area: the view's own, redrawn in place, focus kept on the stack
   let fanned = theatre.fanned ?? null;
   let fanFocus = null;
@@ -325,7 +348,8 @@ export function theatreBoard(rv, ui, { pick, act } = {}) {
         if (ui.theatre) ui.theatre.fanned = key;
         redraw();
       },
-      onArea: (area) => (piece?.moves.some((mv) => mv.area.key === area) ? choose(area) : pick?.({ theatre: { ...theatre, area } })),
+      onArea: (area) => (token && tokenLit().some((t) => t.area === area) ? putDown(area)
+        : !token && piece?.moves.some((mv) => mv.area.key === area) ? choose(area) : pick?.({ theatre: { ...theatre, area } })),
       onFrame: (frame) => pick?.({ theatre: { ...theatre, frame, zoom: 1, centre: null } }),
       onView: ({ zoom, centre }) => pick?.({ theatre: { ...theatre, zoom, centre } }),
     });
@@ -339,7 +363,8 @@ export function theatreBoard(rv, ui, { pick, act } = {}) {
   view.classList.add('rl-theatre');
   view.querySelector('.rl-map-detail')?.remove();
   const ghosts = ghostList(waits, act);
-  const below = [forms, chipBox, ghosts].filter(Boolean);
+  const bar = tokenBar(tokens, token?.id ?? null, (id) => pick?.({ theatre: { ...theatre, token: id, tokenAt: null } }));
+  const below = [forms, bar, chipBox, ghosts].filter(Boolean);
   const fig0 = view.querySelector('figure.rl-map-figure');
   if (fig0) fig0.after(...below);
   else view.append(...below);

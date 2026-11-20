@@ -6,6 +6,7 @@
 import { h } from '../dom.js';
 import { aimsBlock, certaintyWord, markWhatWord, sideLine, sightedLine, whereLine } from '../realism-rules.js';
 import { courtBoard } from './realism-court.js';
+import { concealSwitch } from './realism-reports.js';
 import { theatreBoard } from './realism-theatre.js';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
@@ -83,7 +84,7 @@ function sheet(attrs, pick, ...body) {
  * The selected piece's panel: what it is and where, or how to pick one on `board`; `open` opens
  * its page. `card` is a picked person's card from the Court, shown in place of a force.
  */
-export function piecePanel(rv, piece, open, { board = 'theatre', card = null, pick } = {}) {
+export function piecePanel(rv, piece, open, { board = 'theatre', card = null, pick, act } = {}) {
   if (card) return sheet({ 'aria-label': 'Selected' }, pick, card);
   const mark = selectedMark(rv, piece);
   if (!mark) {
@@ -100,7 +101,8 @@ export function piecePanel(rv, piece, open, { board = 'theatre', card = null, pi
     h('p', { class: 'muted' }, sightedLine(mark)),
     mark.document
       ? h('button', { type: 'button', class: 'rl-btn', onclick: () => open?.({ id: mark.document }) }, 'Open the page')
-      : null);
+      : null,
+    concealSwitch(rv.desk?.levers, mark, act));
 }
 
 /**
@@ -176,7 +178,7 @@ export function boardView(rv, ui, { pick, act, write, open }) {
   const which = ui.board === 'court' ? 'court' : 'theatre';
   const board = which === 'court'
     ? courtBoard(rv, ui, { pick, act })
-    : theatreBoard(rv, ui, { pick, act });
+    : theatreBoard(rv, ui, { pick, act, open });
   const card = which === 'court' ? liftCard(board) : null;
   return h('main', { class: 'rl-board', 'data-board': which },
     h('section', { class: 'rl-board-main', 'aria-label': 'Board' },
@@ -184,6 +186,6 @@ export function boardView(rv, ui, { pick, act, write, open }) {
       pressGroup('rl-boardswitch', 'Board', BOARDS, which, (b) => pick({ board: b })),
       board),
     h('aside', { class: 'rl-board-side', 'aria-label': 'Selected piece and order' },
-      piecePanel(rv, ui.piece, open, { board: which, card, pick }),
+      piecePanel(rv, ui.piece, open, { board: which, card, pick, act }),
       write));
 }

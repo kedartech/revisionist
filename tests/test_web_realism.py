@@ -231,6 +231,7 @@ def test_me_carries_the_realism_block_for_a_realism_seat(solo: tuple[Realism, Cl
         "stakes",
         "court",
         "economy",
+        "battles",
     }
     assert block["brief"] is None  # the aide has not read this wake yet
     assert block["help"] == []

@@ -13,6 +13,7 @@ from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.land import statement
 from revisionist.core.realism.pass_world import PassWorld
 from revisionist.core.realism.war import NewsEvent, NewsTopic
+from revisionist.core.state import Rule
 from revisionist.core.visibility import private_to
 from tests.test_engine_v2_contract import Slice
 from tests.test_realism_resolvers import Rig, rig
@@ -89,6 +90,14 @@ def test_a_known_theme_moves_the_target_by_its_points(theme: str, points: int) -
     for p in speak(r, rx.MakeStatement(theme=theme)):
         r.add(p)
     assert rs.value(r.state, "opinion_target") == 50 + points
+
+
+def test_with_groups_on_a_known_theme_leaves_the_target_to_the_groups() -> None:
+    r = autumn(50)
+    r.state = r.state.model_copy(update={"rules": r.state.rules | {Rule.GROUPS}})
+    payloads = speak(r, rx.MakeStatement(theme="aid_to_allies"))
+    assert [type(p) for p in payloads] == [ev.NewsReported]
+    assert rs.value(r.state, "opinion_target") == 50
 
 
 def test_the_target_is_clamped_at_one_hundred() -> None:

@@ -538,14 +538,16 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         before_on_day = state
         for on_day in ON_DAY.values():
             add(apply_changes(state, on_day(state, day)))
+        met = movement.head_on(state, day)  # HON: borders met head-on, read before the steps
         add(movement.walk(state, day))
         add(holders.walk(state, day))
         add(economy.walk(state, day))  # the 1st: pools paid from what is held today
         add(arrivals(before_on_day, state, day))
         add(contacts(state, day))
-        fought = battle.walk(before_on_day, state, day)  # BTL: rounds after contacts
+        open_before = state.battles
+        fought = battle.walk(before_on_day, state, day, met)  # BTL: rounds after contacts
         add(fought)
-        add(holders.start_count(state, battle.won(fought), day))
+        add(holders.start_count(state, battle.won(fought, open_before), day))
         add(news_pages(state, day))
         seed = seed_for_day(state.campaign_id, day)
         docs: list[Event] = []

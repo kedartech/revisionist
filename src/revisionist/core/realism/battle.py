@@ -35,10 +35,21 @@ holds. Each piece carries a contingency, set through the engagement effect
 (``land_contingency``): hold, hold at all costs, fall back when outnumbered, or withdraw
 below a strength. Contingencies are checked at the start of every round, in the day walk,
 with no player. ``battle_decided`` records a decision and the pieces that join a side.
+
+Head-on moves (HON). When pieces of two powers at war would each complete a step into the
+other's area on the same day, neither enters: a meeting battle opens on that border
+(``head_on`` finds them, the movement walk holds them), each side standing in its own
+area. It has no terrain or own-ground bonus; its rounds otherwise follow the battle rules.
+The side that breaks, withdraws or is gone keeps to its own area with its move dropped;
+the other completes its step, and where enemy pieces remain a normal battle opens there
+with it as the attacker. Borders met head-on on one day are settled in the order of the
+lowest piece id moving across each, which no player sets; a border with an area already in
+a battle is no meeting. A battle that opens drops the moves of the pieces on its sides, so
+a step due later from a battle's area is cancelled.
 """
 
 import hashlib
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import date, timedelta
 from enum import StrEnum
 from typing import TYPE_CHECKING, ClassVar, NamedTuple, cast
@@ -132,6 +143,18 @@ class Battle(Model):
         ):
             raise ValueError("a meeting battle's sides stand in its two areas")
         return self
+
+
+class Meet(NamedTuple):
+    """A border met head-on today (HON): its two areas in id order, the attacker (the
+    nation of the lowest-id mover with an enemy moving the other way), the defender, the
+    area the attacker stands in, and the movers held on both sides."""
+
+    border: tuple[EntityId, EntityId]
+    attacker: EntityId
+    defender: EntityId
+    attacker_in: EntityId
+    movers: tuple[FeatureId, ...]
 
 
 class Ending(StrEnum):
@@ -336,6 +359,11 @@ def _fights_in(state: "State", f: "Feature") -> EntityId | None:
     return None
 
 
+def fighting_area(state: "State", f: "Feature") -> EntityId | None:
+    """The area ``f`` can fight in (``fighting``'s rule), or None."""
+    return _fights_in(state, f)
+
+
 def fighting(state: "State") -> dict[EntityId, list["Feature"]]:
     """The pieces that can fight, by the area they stand in: land pieces in a territory and
     sea pieces in a sea zone, in play, with a side and a strength, in id order."""
@@ -345,6 +373,167 @@ def fighting(state: "State") -> dict[EntityId, list["Feature"]]:
         area = _fights_in(state, f)
         if area is not None:
             out.setdefault(area, []).append(f)
+    return out
+
+
+def at(state: "State", area: EntityId) -> Battle | None:
+    """The battle ``area`` is in: one open there, or a meeting battle it is the second area
+    of; None when there is none."""
+    found = state.battles.get(area)
+    if found is not None:
+        return found
+    return next((b for b in state.battles.values() if b.second == area), None)
+
+
+def _areas(battle: Battle) -> tuple[EntityId, ...]:
+    return (battle.area,) if battle.second is None else (battle.area, battle.second)
+
+
+def _side_area(battle: Battle, i: int) -> EntityId:
+    """Where side ``i`` (0 the attacker) stands: the battle's area, or in a meeting battle
+    the attacker's area and the other one of the border."""
+    if not battle.meeting or battle.second is None or battle.attacker_in is None:
+        return battle.area
+    if i == 0:
+        return battle.attacker_in
+    return battle.second if battle.attacker_in == battle.area else battle.area
+
+
+def _index(battle: Battle, side: BattleSide) -> int:
+    return 0 if side.nation == battle.attacker.nation else 1
+
+
+def busy(state: "State") -> set[EntityId]:
+    """Every area in an open battle, a meeting battle's two."""
+    return {a for b in state.battles.values() for a in _areas(b)}
+
+
+def pinned(state: "State") -> set[FeatureId]:
+    """The pieces on a side of an open meeting battle standing in their side's area: they
+    do not step while it lasts."""
+    out: set[FeatureId] = set()
+    for b in state.battles.values():
+        if b.meeting:
+            for side in (b.attacker, b.defender):
+                out |= {f.feature_id for f in _present(state, b, side)}
+    return out
+
+
+def closed(state: "State", met: Sequence[Meet]) -> dict[EntityId, EntityId]:
+    """Each area of a meeting battle, open or opening today, with the nation of the side
+    standing there: a piece at war with it does not step in while the meeting lasts."""
+    out: dict[EntityId, EntityId] = {}
+    for b in state.battles.values():
+        if b.meeting:
+            for i, side in enumerate((b.attacker, b.defender)):
+                out[_side_area(b, i)] = side.nation
+    for m in met:
+        out[m.attacker_in] = m.attacker
+        out[m.border[1] if m.attacker_in == m.border[0] else m.border[0]] = m.defender
+    return out
+
+
+def meetings(state: "State", movers: Sequence[tuple["Feature", EntityId, EntityId]]) -> list[Meet]:
+    """The borders met head-on (rule 1), from ``movers``: each piece whose next step falls
+    due today, with the area it fights in and the area it steps into. A border is met when a
+    piece steps across it each way and the two powers are at war. Borders are settled in the
+    order of the lowest piece id moving across each (rule 5); one with an area already in a
+    battle, or in a meeting settled before it, is no meeting and its pieces move as moves
+    do. Filing order is read nowhere."""
+    from revisionist.core.realism.war import at_war
+
+    if not on(state):
+        return []
+    used = busy(state)
+    across: dict[frozenset[EntityId], list[tuple[Feature, EntityId, EntityId]]] = {}
+    for f, frm, to in sorted(movers, key=lambda m: m[0].feature_id):
+        if frm != to and frm not in used and to not in used:
+            across.setdefault(frozenset((frm, to)), []).append((f, frm, to))
+    out: list[Meet] = []
+    for border, ms in sorted(across.items(), key=lambda kv: kv[1][0][0].feature_id):
+        if border & used:
+            continue
+        nation = {f.feature_id: _nation(state, f) for f, _, _ in ms}
+        lead = next(
+            (
+                (m, o)
+                for m in ms
+                for o in ms
+                if o[1] != m[1] and at_war(state, nation[m[0].feature_id], nation[o[0].feature_id])
+            ),
+            None,
+        )
+        if lead is None:
+            continue
+        a, d = nation[lead[0][0].feature_id], nation[lead[1][0].feature_id]
+        a_in = lead[0][1]
+        held = tuple(
+            f.feature_id
+            for f, frm, _ in ms
+            if (frm == a_in and _with(state, nation[f.feature_id], a, d))
+            or (frm != a_in and _with(state, nation[f.feature_id], d, a))
+        )
+        first, second = sorted(border)
+        out.append(Meet((first, second), a, d, a_in, held))
+        used |= border
+    return out
+
+
+def _meeting(state: "State", m: Meet, here: dict[EntityId, list["Feature"]], day: date) -> Battle:
+    """The meeting battle that opens on ``m``'s border today: each side every piece of its
+    coalition that can fight in its own area."""
+    d_in = m.border[1] if m.attacker_in == m.border[0] else m.border[0]
+    ours = [
+        f
+        for f in here.get(m.attacker_in, [])
+        if _with(state, _nation(state, f), m.attacker, m.defender)
+    ]
+    theirs = [
+        f for f in here.get(d_in, []) if _with(state, _nation(state, f), m.defender, m.attacker)
+    ]
+    return Battle(
+        area=m.border[0],
+        opened=day,
+        attacker=BattleSide(
+            nation=m.attacker,
+            pieces=tuple(f.feature_id for f in ours),
+            brought=sum(f.tier for f in ours),
+        ),
+        defender=BattleSide(
+            nation=m.defender,
+            pieces=tuple(f.feature_id for f in theirs),
+            brought=sum(f.tier for f in theirs),
+        ),
+        meeting=True,
+        second=m.border[1],
+        attacker_in=m.attacker_in,
+    )
+
+
+def _still(piece: "Feature", day: date) -> "Feature":
+    """The piece standing where it is from ``day``, its move dropped."""
+    return piece.model_copy(
+        update={
+            "path": (),
+            "step_due": None,
+            "bound_for": None,
+            "arrives": None,
+            "as_of": max(day, piece.as_of),
+        }
+    )
+
+
+def _pin(state: "State", battle: Battle, keep: Iterable[FeatureId], day: date) -> list["Payload"]:
+    """A battle opening drops the moves of the pieces on its sides (rule 4), but for
+    ``keep``: a meeting's movers keep theirs, to complete the step if they win."""
+    from revisionist.core import events as ev
+
+    kept = set(keep)
+    out: list[Payload] = []
+    for side in (battle.attacker, battle.defender):
+        for f in _present(state, battle, side):
+            if f.feature_id not in kept and (f.path or f.bound_for is not None):
+                out.append(ev.FeatureSet(feature=_still(f, day)))
     return out
 
 
@@ -423,10 +612,11 @@ def _present(state: "State", battle: Battle, side: BattleSide) -> list["Feature"
     """The side's pieces still in play with strength, standing in the battle's area."""
     from revisionist.core.realism.geography import in_play
 
+    where = _side_area(battle, _index(battle, side))
     out = []
     for fid in side.pieces:
         f = state.features.get(fid)
-        if f is not None and in_play(f) and f.tier >= 1 and _area(state, f) == battle.area:
+        if f is not None and in_play(f) and f.tier >= 1 and _area(state, f) == where:
             out.append(f)
     return out
 
@@ -475,12 +665,13 @@ def _side_in(
 ) -> SideIn:
     from revisionist.core.realism import territory
 
+    where = _side_area(battle, _index(battle, side))
     return SideIn(
         fighters=tuple(Fighter(str(f.feature_id), f.tier) for f in pieces),
         brought=side.brought,
         lost=side.lost,
-        own_ground=territory.holder(state, battle.area) == side.nation,
-        air=_air(state, side.nation, battle.area),
+        own_ground=not battle.meeting and territory.holder(state, battle.area) == side.nation,
+        air=_air(state, side.nation, where),
         supplied=_supplied(state, pieces),
     )
 
@@ -626,7 +817,11 @@ def _news(state: "State", battle: Battle, day: date, ending: Ending | None) -> "
     }[ending]
     return ev.NewsReported(
         news=NewsEvent(
-            news_id=news_id(state, battle, "opened" if ending is None else "ended"),
+            news_id=news_id(
+                state,
+                battle,
+                ("meeting " if battle.meeting else "") + ("opened" if ending is None else "ended"),
+            ),
             on=day,
             topic=NewsTopic.EVENT,  # [proposed] no topic is kept for battles
             subject=battle.attacker.nation,
@@ -767,13 +962,12 @@ def _joining(state: "State", battle: Battle, day: date) -> tuple[Battle, list["P
     ours = {*battle.attacker.pieces, *battle.defender.pieces}
     new: tuple[list[Feature], list[Feature]] = ([], [])
     a, d = battle.attacker.nation, battle.defender.nation
-    for f in fighting(state).get(battle.area, []):
-        if f.feature_id in ours:
-            continue
-        n = _nation(state, f)
-        if _with(state, n, a, d):
+    here = fighting(state)
+    for f in here.get(_side_area(battle, 0), []):
+        if f.feature_id not in ours and _with(state, _nation(state, f), a, d):
             new[0].append(f)
-        elif _with(state, n, d, a):
+    for f in here.get(_side_area(battle, 1), []):
+        if f.feature_id not in ours and _with(state, _nation(state, f), d, a):
             new[1].append(f)
     out: list[Payload] = []
     sides = [battle.attacker, battle.defender]
@@ -846,6 +1040,8 @@ def _day(state: "State", battle: Battle, day: date) -> list["Payload"]:
     when it ends, the side forced back and the end."""
     from revisionist.core import events as ev
 
+    if battle.meeting:
+        return _meeting_day(state, battle, day)
     battle, out = _joining(state, battle, day)
     att = _present(state, battle, battle.attacker)
     dfn = _present(state, battle, battle.defender)
@@ -916,6 +1112,129 @@ def _day(state: "State", battle: Battle, day: date) -> list["Payload"]:
     return out + _end(state, battle, day, played.ending)
 
 
+def _meeting_day(state: "State", battle: Battle, day: date) -> list["Payload"]:
+    """One day of a meeting battle (HON rules 2 and 3): the pieces that join each side in
+    its own area; the side that withdrew, whose contingency fires or that is gone yields at
+    once; else a round with no terrain or own-ground bonus, and the side that breaks (or the
+    attacker after a lull) yields."""
+    from revisionist.core import events as ev
+
+    battle, out = _joining(state, battle, day)
+    sides = (_present(state, battle, battle.attacker), _present(state, battle, battle.defender))
+    gives: int | None = None
+    for i, side in enumerate((battle.attacker, battle.defender)):
+        if side.decision is Decision.WITHDRAW and gives is None:
+            gives = i
+    if gives is None and not all(sides):
+        gives = 0 if not sides[0] else 1
+    if gives is None and presses(battle.attacker):
+        strength = tuple(sum(f.tier for f in pieces) for pieces in sides)
+        for i, pieces in enumerate(sides):
+            if gives is None and any(_fires(f, strength[i], strength[1 - i]) for f in pieces):
+                gives = i  # [proposed] a contingency fired in a meeting: its side keeps home
+    now = {f.feature_id: f for f in (*sides[0], *sides[1])}
+    if gives is not None:
+        ending = Ending.WON if gives == 1 else Ending.LULL
+        if gives == 0 and battle.attacker.decision is not Decision.WITHDRAW:
+            ending = Ending.HELD
+        return out + _meeting_end(state, battle, day, now, ending)
+    last = battle.pressed_on or battle.opened - timedelta(days=1)
+    played = simulate(
+        Sides(
+            attacker=_side_in(state, battle, battle.attacker, sides[0]),
+            defender=_side_in(state, battle, battle.defender, sides[1]),
+            defence=0,  # rule 2: no terrain bonus on a border
+            presses=presses(battle.attacker),
+            lull=max(0, (day - last).days - 1),
+        ),
+        seed(state, battle.area, day, now),
+        1,
+    )
+    lost = (0, 0)
+    if played.rounds:
+        r = played.rounds[0]
+        for hits in r.hits:
+            for pid, steps in hits:
+                f = now[FeatureId(pid)]
+                tier = max(0, f.tier - steps)
+                update: dict[str, object] = {"tier": tier, "as_of": max(day, f.as_of)}
+                if tier == 0:
+                    update["lost_on"] = day
+                now[f.feature_id] = f.model_copy(update=update)
+        lost = (r.lost(0), r.lost(1))
+        out.append(
+            ev.BattleRound(area=battle.area, on=day, scores=r.scores, draws=r.draws, lost=lost)
+        )
+        out += _reports(state, battle, day, battle.rounds + 1, lost)
+    if played.ending is None:
+        return out + [
+            ev.FeatureSet(feature=f) for fid, f in sorted(now.items()) if f != state.features[fid]
+        ]
+    return out + _meeting_end(state, battle, day, now, played.ending)
+
+
+def _meeting_end(
+    state: "State", battle: Battle, day: date, now: dict[FeatureId, "Feature"], ending: Ending
+) -> list["Payload"]:
+    """A meeting battle ends (rule 3): the side that yields keeps to its own area with its
+    moves dropped; each piece of the other still bound across the border completes its
+    step, cause ordered, unless its side withdrew. Where pieces of the side that yielded
+    remain, a normal battle opens there with the movers attacking, its first round the next
+    day [proposed]; else each mover goes on with its course."""
+    from revisionist.core import events as ev
+    from revisionist.core.realism import territory
+
+    loser = 1 if ending is Ending.WON else 0
+    sides = (battle.attacker, battle.defender)
+    win, lose = sides[1 - loser], sides[loser]
+    home, into = _side_area(battle, 1 - loser), _side_area(battle, loser)
+    left: list[Feature] = []
+    movers: list[Feature] = []
+    for fid in sorted(now):
+        f = now[fid]
+        if f.lost_on is not None:
+            continue
+        if fid in lose.pieces:
+            now[fid] = _still(f, day) if f.path or f.bound_for is not None else f
+            left.append(now[fid])
+        elif f.path[:1] == (into,) and win.decision is not Decision.WITHDRAW:
+            movers.append(f)
+    steps: list[Payload] = []
+    for f in movers:
+        moved, stepped = territory.step(state, f, into, day, territory.StepCause.ORDERED)
+        days = territory.step_days(state, moved, moved.path[0]) if moved.path else None
+        if left or days is None:
+            moved = _still(moved, day)
+        else:
+            moved = moved.model_copy(update={"step_due": day + timedelta(days=days)})
+        now[f.feature_id] = moved
+        steps.append(stepped)
+    out: list[Payload] = [
+        ev.FeatureSet(feature=f) for fid, f in sorted(now.items()) if f != state.features[fid]
+    ]
+    out += steps
+    out += _end(state, battle, day, ending)
+    entered = [now[f.feature_id] for f in movers]
+    if left and entered:
+        follow = Battle(
+            area=into,
+            opened=day,
+            attacker=BattleSide(
+                nation=win.nation,
+                pieces=tuple(f.feature_id for f in entered),
+                brought=sum(f.tier for f in entered),
+            ),
+            defender=BattleSide(
+                nation=lose.nation,
+                pieces=tuple(f.feature_id for f in left),
+                brought=sum(f.tier for f in left),
+            ),
+            came_from=dict.fromkeys((f.feature_id for f in entered), home),
+        )
+        out += [ev.BattleOpened(battle=follow, on=day), _news(state, follow, day, None)]
+    return out
+
+
 # --- decisions and contingencies (BDC) ---------------------------------------------
 
 
@@ -932,14 +1251,16 @@ def _reading(
     if not on(state):
         return None
     area = _fights_in(state, force)
-    battle = state.battles.get(area) if area is not None else None
+    battle = at(state, area) if area is not None else None
     domain = kinds.domain(state, force)
-    if battle is None or domain is None:
+    if battle is None or area is None or domain is None:
         return None
     dest = territory.area_of(state, to, domain) if to is not None else None
     if to is not None and dest is None:
         dest = to  # [proposed] a place on no area names nowhere a side may go
-    if dest is not None and dest != battle.area:
+    if battle.meeting and dest is not None and dest in _areas(battle) and dest != area:
+        return battle, Decision.PRESS, None  # HON: a move across the border presses
+    if dest is not None and dest != area:
         return battle, Decision.WITHDRAW, dest
     decision = (
         {
@@ -1008,6 +1329,12 @@ def land_posture(
     )
     if decision is not Decision.WITHDRAW:
         return [ev.FeatureSet(feature=posed), decided]
+    if battle.meeting:  # HON rule 3: a side withdrawing from a meeting keeps its own area
+        stay: list[Payload] = [ev.FeatureSet(feature=_still(posed, on)), decided]
+        for f in _present(state, battle, side):
+            if f.feature_id != force.feature_id and (f.path or f.bound_for is not None):
+                stay.append(ev.FeatureSet(feature=_still(f, on)))
+        return stay
     dest = _withdrawal(state, battle, force, named)
     if dest is None:
         return kept
@@ -1061,34 +1388,68 @@ def aide_may[E: Model](state: "State", effect: E) -> E | None:
     return effect
 
 
-def won(payloads: Iterable["Payload"]) -> list[tuple[EntityId, EntityId]]:
-    """Each area where a battle among ``payloads`` ended won, with the nation that won."""
+def won(
+    payloads: Iterable["Payload"], battles: "Mapping[EntityId, Battle] | None" = None
+) -> list[tuple[EntityId, EntityId]]:
+    """Each area where a battle among ``payloads`` ended won, with the nation that won. A
+    meeting battle (read from ``battles``, as they stood before) counts in the area its
+    winner stepped into, whichever side won; one that opened among ``payloads`` is read
+    there."""
     from revisionist.core import events as ev
 
-    return [
-        (p.area, p.winner)
-        for p in payloads
-        if isinstance(p, ev.BattleEnded) and p.ending is Ending.WON
-    ]
+    out: list[tuple[EntityId, EntityId]] = []
+    known = dict(battles or {})
+    for p in payloads:
+        if isinstance(p, ev.BattleOpened):
+            known[p.battle.area] = p.battle
+        if not isinstance(p, ev.BattleEnded):
+            continue
+        fought = known.pop(p.area, None)
+        if fought is not None and fought.meeting:
+            out.append(
+                (_side_area(fought, 0 if p.winner == fought.defender.nation else 1), p.winner)
+            )
+        elif p.ending is Ending.WON:
+            out.append((p.area, p.winner))
+    return out
 
 
-def walk(before: "State", state: "State", day: date) -> list["Payload"]:
+def walk(before: "State", state: "State", day: date, met: Sequence[Meet] = ()) -> list["Payload"]:
     """With ``battles`` on, the battles of ``day``, in area id order: each open battle's
-    day, then each battle that opens today with its news and its first round. ``before``
-    is the state as the day began, which tells the pieces that stepped in today."""
+    day, then each battle that opens today with its news and its first round: a meeting
+    battle on each border in ``met`` (HON), else where enemies stand together. A battle
+    that opens drops the moves of the pieces on its sides but a meeting's movers (rule 4).
+    ``before`` is the state as the day began, which tells the pieces that stepped in."""
     from revisionist.core import events as ev
 
     if not on(state):
         return []
     out: list[Payload] = []
     here = fighting(state)
-    for area in sorted({*state.battles, *here}):
+    new = {m.border[0]: m for m in met}
+    seconds = {b.second for b in state.battles.values() if b.second is not None}
+    seconds |= {m.border[1] for m in met}
+    for area in sorted({*state.battles, *here, *new} - seconds):
         battle = state.battles.get(area)
         if battle is None:
-            battle = _opening(before, state, area, here.get(area, []), day)
+            m = new.get(area)
+            battle = (
+                _meeting(state, m, here, day)
+                if m is not None
+                else _opening(before, state, area, here.get(area, []), day)
+            )
             if battle is None:
                 continue
             out += [ev.BattleOpened(battle=battle, on=day), _news(state, battle, day, None)]
+            pins = _pin(state, battle, m.movers if m is not None else (), day)
+            out += pins
+            if pins:
+                features = dict(state.features)
+                for p in pins:
+                    assert isinstance(p, ev.FeatureSet)
+                    features[p.feature.feature_id] = p.feature
+                out += _day(state.model_copy(update={"features": features}), battle, day)
+                continue
         out += _day(state, battle, day)
     return out
 
@@ -1104,21 +1465,28 @@ __all__ = [
     "Decision",
     "Ending",
     "Fighter",
+    "Meet",
     "Played",
     "Round",
     "SideIn",
     "Sides",
     "aide_may",
+    "at",
     "broken",
+    "busy",
+    "closed",
     "commanders",
     "draws",
     "fall_back",
     "fighting",
+    "fighting_area",
     "land_contingency",
     "land_posture",
     "losses",
+    "meetings",
     "news_id",
     "on",
+    "pinned",
     "presses",
     "pressing",
     "report_id",

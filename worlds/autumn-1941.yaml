@@ -13,6 +13,8 @@ ruleset: realism
 start: "Washington, September 1941"
 start_date: 1941-09-01
 
+rules: [territories, holders, economy, supply, fuel, aid]
+
 entities:
   - {key: usa, kind: polity, name: United States}
   - {key: uk, kind: polity, name: United Kingdom}
@@ -21,6 +23,20 @@ entities:
   - {key: italy, kind: polity, name: Italy}
   - {key: ussr, kind: polity, name: Soviet Union}
   - {key: china, kind: polity, name: China}
+  # Holders with no seat: neutrals and co-belligerents the five wars leave out.
+  - {key: french_state, kind: polity, name: The French State}
+  - {key: sweden, kind: polity, name: Sweden}
+  - {key: spain, kind: polity, name: Spain}
+  - {key: portugal, kind: polity, name: Portugal}
+  - {key: ireland_state, kind: polity, name: Ireland}
+  - {key: finland_state, kind: polity, name: Finland}
+  - {key: hungary, kind: polity, name: Hungary}
+  - {key: romania_state, kind: polity, name: Romania}
+  - {key: turkey_state, kind: polity, name: Turkey}
+  - {key: iran_state, kind: polity, name: Iran}
+  - {key: thailand_state, kind: polity, name: Thailand}
+  - {key: netherlands, kind: polity, name: The Netherlands}
+  - {key: cuba, kind: polity, name: Cuba}
   - {key: house, kind: org, name: House of Representatives, parent: usa}
   - {key: senate, kind: org, name: Senate, parent: usa}
   - {key: state_dept, kind: org, name: Department of State, parent: usa}
@@ -39,36 +55,45 @@ entities:
   - {key: military_affairs_commission, kind: org, name: Military Affairs Commission, parent: china}
   # Positions are approximate (latitude, longitude) for the map [proposed].
   # Theatres group places for the map; no rule reads them [proposed].
-  - {key: washington, kind: location, name: Washington, at: [38.9, -77.0], theatre: North America}
-  - {key: london, kind: location, name: London, at: [51.5, -0.1], theatre: Europe}
-  - {key: tokyo, kind: location, name: Tokyo, at: [35.7, 139.7], theatre: Asia-Pacific}
-  - {key: berlin, kind: location, name: Berlin, at: [52.5, 13.4], theatre: Europe}
-  - {key: moscow, kind: location, name: Moscow, at: [55.8, 37.6], theatre: Moscow front}
-  - {key: rome, kind: location, name: Rome, at: [41.9, 12.5], theatre: Europe}
-  - {key: chungking, kind: location, name: Chungking, at: [29.6, 106.6], theatre: Asia-Pacific}
-  - {key: north_atlantic, kind: location, name: North Atlantic, at: [55.0, -30.0], theatre: North Atlantic}
-  - {key: norfolk, kind: location, name: Norfolk, at: [36.9, -76.3], theatre: North America}
-  - {key: argentia, kind: location, name: Argentia, at: [47.3, -54.0], theatre: North America}
-  - {key: halifax_port, kind: location, name: Halifax, at: [44.6, -63.6], theatre: North America}
-  - {key: sydney_cb, kind: location, name: "Sydney, Cape Breton", at: [46.1, -60.2], theatre: North America}
-  - {key: reykjavik, kind: location, name: Reykjavik, at: [64.1, -21.9], theatre: North Atlantic}
-  - {key: liverpool, kind: location, name: Liverpool, at: [53.4, -3.0], theatre: North Atlantic}
-  - {key: scapa_flow, kind: location, name: Scapa Flow, at: [58.9, -3.1], theatre: North Atlantic}
-  - {key: lorient, kind: location, name: Lorient, at: [47.7, -3.4], theatre: North Atlantic}
-  - {key: archangel, kind: location, name: Archangel, at: [64.5, 40.5], theatre: Northern front}
-  - {key: leningrad, kind: location, name: Leningrad, at: [59.9, 30.3], theatre: Northern front}
-  - {key: smolensk, kind: location, name: Smolensk, at: [54.8, 32.0], theatre: Moscow front}
-  - {key: vyazma, kind: location, name: Vyazma, at: [55.2, 34.3], theatre: Moscow front}
-  - {key: kalinin, kind: location, name: Kalinin, at: [56.9, 35.9], theatre: Moscow front}
-  - {key: mozhaisk, kind: location, name: Mozhaisk, at: [55.5, 36.0], theatre: Moscow front}
-  - {key: kiev, kind: location, name: Kiev, at: [50.5, 30.5], theatre: Southern front}
-  - {key: poltava, kind: location, name: Poltava, at: [49.6, 34.6], theatre: Southern front}
-  - {key: kharkov, kind: location, name: Kharkov, at: [50.0, 36.2], theatre: Southern front}
-  - {key: odessa, kind: location, name: Odessa, at: [46.5, 30.7], theatre: Southern front}
-  - {key: taganrog, kind: location, name: Taganrog, at: [47.2, 38.9], theatre: Southern front}
-  - {key: pearl_harbor_base, kind: location, name: Pearl Harbor, at: [21.4, -158.0], theatre: Asia-Pacific}
-  - {key: kure, kind: location, name: Kure, at: [34.2, 132.6], theatre: Asia-Pacific}
-  - {key: hitokappu_bay, kind: location, name: Hitokappu Bay, at: [44.9, 147.6], theatre: Asia-Pacific}
+  - {key: washington, kind: location, name: Washington, at: [38.9, -77.0], theatre: North America, within: us_east, base: {sides: [usa], domains: [land, air]}}
+  - {key: london, kind: location, name: London, at: [51.5, -0.1], theatre: Europe, within: britain_south, base: {sides: [uk], domains: [land, air]}}
+  - {key: tokyo, kind: location, name: Tokyo, at: [35.7, 139.7], theatre: Asia-Pacific, within: japan_east, base: {sides: [japan], domains: [land, air]}}
+  - {key: berlin, kind: location, name: Berlin, at: [52.5, 13.4], theatre: Europe, within: germany_east, base: {sides: [germany], domains: [land, air]}}
+  - {key: moscow, kind: location, name: Moscow, at: [55.8, 37.6], theatre: Moscow front, within: moscow_area, base: {sides: [ussr], domains: [land, air]}}
+  - {key: rome, kind: location, name: Rome, at: [41.9, 12.5], theatre: Europe, within: italy_south, base: {sides: [italy], domains: [land, air]}}
+  - {key: chungking, kind: location, name: Chungking, at: [29.6, 106.6], theatre: Asia-Pacific, within: szechwan, base: {sides: [china], domains: [land, air]}}
+  - {key: north_atlantic, kind: location, name: North Atlantic, at: [55.0, -30.0], theatre: North Atlantic, within: mid_ocean_gap}
+  - {key: norfolk, kind: location, name: Norfolk, at: [36.9, -76.3], theatre: North America, within: us_east, port_on: western_atlantic, base: {sides: [usa], domains: [sea, land, air]}}
+  - {key: argentia, kind: location, name: Argentia, at: [47.3, -54.0], theatre: North America, within: western_atlantic, base: {sides: [usa], domains: [sea, air]}}
+  - {key: halifax_port, kind: location, name: Halifax, at: [44.6, -63.6], theatre: North America, within: eastern_canada, port_on: western_atlantic, base: {sides: [uk], domains: [sea]}}
+  - {key: sydney_cb, kind: location, name: "Sydney, Cape Breton", at: [46.1, -60.2], theatre: North America, within: eastern_canada, port_on: western_atlantic, base: {sides: [uk], domains: [sea]}}
+  - {key: reykjavik, kind: location, name: Reykjavik, at: [64.1, -21.9], theatre: North Atlantic, within: iceland, port_on: arctic_route_area, base: {sides: [uk, usa], domains: [sea, air]}}
+  - {key: liverpool, kind: location, name: Liverpool, at: [53.4, -3.0], theatre: North Atlantic, within: western_approaches_area, base: {sides: [uk], domains: [sea]}}
+  - {key: scapa_flow, kind: location, name: Scapa Flow, at: [58.9, -3.1], theatre: North Atlantic, within: north_sea, base: {sides: [uk], domains: [sea]}}
+  - {key: lorient, kind: location, name: Lorient, at: [47.7, -3.4], theatre: North Atlantic, within: bay_of_biscay, base: {sides: [germany], domains: [sea]}}
+  - {key: archangel, kind: location, name: Archangel, at: [64.5, 40.5], theatre: Northern front, within: the_north, port_on: white_sea, base: {sides: [ussr], domains: [sea]}}
+  - {key: leningrad, kind: location, name: Leningrad, at: [59.9, 30.3], theatre: Northern front, within: leningrad_area, port_on: baltic_sea, base: {sides: [ussr], domains: [sea, land, air]}}
+  - {key: smolensk, kind: location, name: Smolensk, at: [54.8, 32.0], theatre: Moscow front, within: smolensk_area, base: {sides: [germany], domains: [land]}}
+  - {key: vyazma, kind: location, name: Vyazma, at: [55.2, 34.3], theatre: Moscow front, within: smolensk_area, base: {sides: [ussr], domains: [land]}}
+  - {key: kalinin, kind: location, name: Kalinin, at: [56.9, 35.9], theatre: Moscow front, within: kalinin_area}
+  - {key: mozhaisk, kind: location, name: Mozhaisk, at: [55.5, 36.0], theatre: Moscow front, within: moscow_area}
+  - {key: kiev, kind: location, name: Kiev, at: [50.5, 30.5], theatre: Southern front, within: kiev_area}
+  - {key: poltava, kind: location, name: Poltava, at: [49.6, 34.6], theatre: Southern front, within: kharkov_area}
+  - {key: kharkov, kind: location, name: Kharkov, at: [50.0, 36.2], theatre: Southern front, within: kharkov_area}
+  - {key: odessa, kind: location, name: Odessa, at: [46.5, 30.7], theatre: Southern front, within: odessa_area}
+  - {key: taganrog, kind: location, name: Taganrog, at: [47.2, 38.9], theatre: Southern front, within: donbas}
+  - {key: pearl_harbor_base, kind: location, name: Pearl Harbor, at: [21.4, -158.0], theatre: Asia-Pacific, within: hawaii, port_on: central_pacific, base: {sides: [usa], domains: [sea, land, air]}}
+  - {key: kure, kind: location, name: Kure, at: [34.2, 132.6], theatre: Asia-Pacific, within: japan_west, port_on: philippine_sea, base: {sides: [japan], domains: [sea, land, air]}}
+  - {key: hitokappu_bay, kind: location, name: Hitokappu Bay, at: [44.9, 147.6], theatre: Asia-Pacific, within: japan_east, port_on: north_pacific}
+  # The Mediterranean and China places of the territory world.
+  - {key: alexandria, kind: location, name: Alexandria, at: [31.2, 29.92], theatre: Mediterranean, within: egypt, port_on: eastern_mediterranean, base: {sides: [uk], domains: [sea, land]}}
+  - {key: malta, kind: location, name: Malta, at: [35.9, 14.51], theatre: Mediterranean, within: british_islands, port_on: central_mediterranean}
+  - {key: tobruk, kind: location, name: Tobruk, at: [32.08, 23.98], theatre: Mediterranean, within: tobruk_area, port_on: eastern_mediterranean, base: {sides: [uk], domains: [sea, land]}}
+  - {key: bardia, kind: location, name: Bardia, at: [31.74, 25.07], theatre: Mediterranean, within: cyrenaica, port_on: eastern_mediterranean, base: {sides: [italy, germany], domains: [sea, land]}}
+  - {key: tripoli, kind: location, name: Tripoli, at: [32.89, 13.19], theatre: Mediterranean, within: tripolitania, port_on: central_mediterranean, base: {sides: [italy], domains: [sea, land]}}
+  - {key: taranto, kind: location, name: Taranto, at: [40.47, 17.24], theatre: Mediterranean, within: italy_south, port_on: central_mediterranean, base: {sides: [italy], domains: [sea]}}
+  - {key: changsha, kind: location, name: Changsha, at: [28.2, 112.97], theatre: Asia-Pacific, within: hunan, base: {sides: [china], domains: [land]}}
+  - {key: wuhan, kind: location, name: Wuhan, at: [30.58, 114.27], theatre: Asia-Pacific, within: wuhan_area, base: {sides: [japan], domains: [land]}}
   # United States
   - {key: roosevelt, kind: person, name: Franklin D. Roosevelt, parent: usa}
   - {key: wallace, kind: person, name: Henry A. Wallace, parent: usa}
@@ -137,6 +162,469 @@ entities:
   # A neutral country with no people in play: it exists for its paper.
   - {key: switzerland, kind: polity, name: Switzerland}
   - {key: alpine_gazette, kind: org, name: "The Alpine Gazette", parent: switzerland, tags: [press, neutral]}
+
+# The board: the 1941 map built from the recipes under maps/src/autumn-1941 (maps/README.md).
+map: {coords: lonlat, file: autumn-1941.json, sha256: 0a0e5b5b753978e7391c82d004bb5cc92802efe10b793931160bc1530ace6bac, box: [-126, -11.5, 234, 71.5]}
+
+# The map's terrain. No defence values yet.
+terrain:
+  - {key: plain, kind: land}
+  - {key: forest, kind: land}
+  - {key: marsh, kind: land}
+  - {key: mountain, kind: land}
+  - {key: sea, kind: sea}
+
+regions:
+  - {key: eastern_front, name: The Eastern Front}
+  - {key: europe, name: Europe}
+  - {key: atlantic, name: The Atlantic}
+  - {key: mediterranean, name: The Mediterranean and the Middle East}
+  - {key: pacific, name: China}
+
+# Every land territory: its holder on 1 September 1941 and its yields (maps/src/autumn-1941/
+# start.yaml and yields.yaml, where each figure's basis and named source are kept). All gaps.
+territories:
+  - {key: the_north, name: The North, region: eastern_front, terrain: forest, holder: ussr, yields: {industry: 0.2, manpower: 3.3, oil: 0, supply: 2, prestige: 2}, sites: [archangel], gap: true}
+  - {key: leningrad_area, name: Leningrad, region: eastern_front, terrain: forest, holder: ussr, yields: {industry: 2.0, manpower: 6.4, oil: 0, supply: 2, prestige: 8}, sites: [leningrad], gap: true}
+  - {key: baltic_states, name: The Baltic States, region: eastern_front, terrain: plain, holder: germany, yields: {industry: 0.2, manpower: 6.0, oil: 0, supply: 3, prestige: 3}, gap: true}
+  - {key: belorussia, name: Belorussia, region: eastern_front, terrain: marsh, holder: germany, yields: {industry: 0.3, manpower: 10.0, oil: 0, supply: 4, prestige: 3}, gap: true}
+  - {key: kalinin_area, name: Kalinin, region: eastern_front, terrain: forest, holder: ussr, yields: {industry: 0.4, manpower: 5.9, oil: 0, supply: 2, prestige: 2}, sites: [kalinin], gap: true}
+  - {key: smolensk_area, name: Smolensk, region: eastern_front, terrain: forest, holder: germany, yields: {industry: 0.2, manpower: 4.5, oil: 0, supply: 3, prestige: 3}, sites: [smolensk, vyazma], gap: true}
+  - {key: moscow_area, name: Moscow, region: eastern_front, terrain: forest, holder: ussr, yields: {industry: 2.5, manpower: 12.0, oil: 0, supply: 2, prestige: 10}, sites: [moscow, mozhaisk], gap: true}
+  - {key: upper_volga, name: Gorky and the Upper Volga, region: eastern_front, terrain: forest, holder: ussr, yields: {industry: 1.4, manpower: 11.0, oil: 0, supply: 2, prestige: 3}, gap: true}
+  - {key: western_ukraine, name: Western Ukraine, region: eastern_front, terrain: plain, holder: germany, yields: {industry: 0.5, manpower: 8.0, oil: 0.1, supply: 2, prestige: 3}, gap: true}
+  - {key: kiev_area, name: Kiev, region: eastern_front, terrain: plain, holder: ussr, yields: {industry: 0.7, manpower: 9.0, oil: 0, supply: 3, prestige: 7}, sites: [kiev], gap: true}
+  - {key: odessa_area, name: Odessa and Bessarabia, region: eastern_front, terrain: plain, holder: ussr, yields: {industry: 0.3, manpower: 7.0, oil: 0, supply: 2, prestige: 4}, sites: [odessa], gap: true}
+  - {key: kharkov_area, name: Kharkov and Poltava, region: eastern_front, terrain: plain, holder: ussr, yields: {industry: 1.5, manpower: 8.4, oil: 0, supply: 3, prestige: 4}, sites: [poltava, kharkov], gap: true}
+  - {key: donbas, name: The Donbas and Rostov, region: eastern_front, terrain: plain, holder: ussr, yields: {industry: 2.0, manpower: 9.4, oil: 0, supply: 3, prestige: 3}, sites: [taganrog], gap: true}
+  - {key: crimea, name: The Crimea, region: eastern_front, terrain: plain, holder: ussr, yields: {industry: 0.2, manpower: 1.1, oil: 0, supply: 1, prestige: 3}, gap: true}
+  - {key: voronezh, name: "Orel, Kursk and Voronezh", region: eastern_front, terrain: plain, holder: ussr, yields: {industry: 0.4, manpower: 10.0, oil: 0, supply: 3, prestige: 2}, gap: true}
+  - {key: stalingrad, name: Stalingrad and Saratov, region: eastern_front, terrain: plain, holder: ussr, yields: {industry: 1.1, manpower: 5.9, oil: 0, supply: 2, prestige: 3}, gap: true}
+  - {key: germany_east, name: Berlin and the East, region: europe, terrain: plain, holder: germany, yields: {industry: 4.0, manpower: 32.0, oil: 0, supply: 4, prestige: 10}, sites: [berlin], gap: true}
+  - {key: germany_west, name: The Ruhr and the West, region: europe, terrain: plain, holder: germany, yields: {industry: 6.0, manpower: 28.0, oil: 0.2, supply: 4, prestige: 6}, gap: true}
+  - {key: germany_south, name: "Bavaria, Austria and Bohemia", region: europe, terrain: forest, holder: germany, yields: {industry: 3.5, manpower: 30.0, oil: 0.2, supply: 3, prestige: 6}, gap: true}
+  - {key: east_prussia, name: East Prussia, region: europe, terrain: plain, holder: germany, yields: {industry: 0.5, manpower: 3.0, oil: 0, supply: 1, prestige: 4}, gap: true}
+  - {key: occupied_poland, name: The General Government, region: europe, terrain: plain, holder: germany, yields: {industry: 0.3, manpower: 12.0, oil: 0, supply: 1, prestige: 4}, gap: true}
+  - {key: denmark, name: Denmark, region: europe, terrain: plain, holder: germany, yields: {industry: 0.2, manpower: 3.8, oil: 0, supply: 1, prestige: 3}, gap: true}
+  - {key: low_countries, name: The Low Countries, region: europe, terrain: plain, holder: germany, yields: {industry: 1.2, manpower: 17.5, oil: 0, supply: 3, prestige: 5}, gap: true}
+  - {key: occupied_france, name: Occupied France, region: europe, terrain: plain, holder: germany, yields: {industry: 2.5, manpower: 25.0, oil: 0, supply: 3, prestige: 8}, gap: true}
+  - {key: vichy_france, name: Vichy France, region: europe, terrain: mountain, holder: french_state, yields: {industry: 1.0, manpower: 14.0, oil: 0, supply: 3, prestige: 6}, gap: true}
+  - {key: norway, name: Norway, region: europe, terrain: mountain, holder: germany, yields: {industry: 0.2, manpower: 3.0, oil: 0, supply: 4, prestige: 3}, gap: true}
+  - {key: sweden_area, name: Sweden, region: europe, terrain: forest, holder: sweden, yields: {industry: 0.8, manpower: 6.4, oil: 0, supply: 3, prestige: 4}, gap: true}
+  - {key: finland, name: Finland, region: europe, terrain: forest, holder: finland_state, yields: {industry: 0.3, manpower: 3.7, oil: 0, supply: 2, prestige: 3}, gap: true}
+  - {key: hungary_slovakia, name: Hungary and Slovakia, region: europe, terrain: plain, holder: hungary, yields: {industry: 0.5, manpower: 17.4, oil: 0.1, supply: 2, prestige: 4}, gap: true}
+  - {key: romania, name: Romania and Ploesti, region: europe, terrain: plain, holder: romania_state, yields: {industry: 0.4, manpower: 13.5, oil: 1.8, supply: 2, prestige: 4}, gap: true}
+  - {key: balkans, name: The Balkans, region: europe, terrain: mountain, holder: germany, yields: {industry: 0.3, manpower: 20.0, oil: 0.1, supply: 3, prestige: 5}, gap: true}
+  - {key: italy_north, name: Northern Italy, region: europe, terrain: plain, holder: italy, yields: {industry: 2.4, manpower: 25.0, oil: 0, supply: 3, prestige: 7}, gap: true}
+  - {key: italy_south, name: Rome and the South, region: europe, terrain: mountain, holder: italy, yields: {industry: 0.55, manpower: 19.0, oil: 0, supply: 4, prestige: 10}, sites: [rome, taranto], gap: true}
+  - {key: iberia, name: Spain and Portugal, region: europe, terrain: mountain, holder: spain, yields: {industry: 0.6, manpower: 33.6, oil: 0, supply: 3, prestige: 5}, gap: true}
+  - {key: switzerland_area, name: Switzerland, region: europe, terrain: mountain, holder: switzerland, yields: {industry: 0.5, manpower: 4.3, oil: 0, supply: 2, prestige: 3}, gap: true}
+  - {key: britain_south, name: England and Wales, region: atlantic, terrain: plain, holder: uk, yields: {industry: 7.0, manpower: 41.5, oil: 0, supply: 4, prestige: 10}, sites: [london], gap: true}
+  - {key: britain_north, name: Scotland and Ulster, region: atlantic, terrain: mountain, holder: uk, yields: {industry: 1.6, manpower: 6.3, oil: 0, supply: 3, prestige: 5}, gap: true}
+  - {key: ireland, name: Ireland, region: atlantic, terrain: plain, holder: ireland_state, yields: {industry: 0.1, manpower: 3.0, oil: 0, supply: 2, prestige: 2}, gap: true}
+  - {key: iceland, name: Iceland, region: atlantic, terrain: mountain, holder: uk, yields: {industry: 0, manpower: 0.1, oil: 0, supply: 1, prestige: 1}, sites: [reykjavik], gap: true}
+  - {key: greenland, name: Greenland, region: atlantic, terrain: mountain, holder: usa, yields: {industry: 0, manpower: 0, oil: 0, supply: 0, prestige: 1}, gap: true}
+  - {key: newfoundland, name: Newfoundland and Labrador, region: atlantic, terrain: forest, holder: uk, yields: {industry: 0, manpower: 0.3, oil: 0, supply: 1, prestige: 1}, gap: true}
+  - {key: eastern_canada, name: Eastern Canada, region: atlantic, terrain: forest, holder: uk, yields: {industry: 1.0, manpower: 8.2, oil: 0, supply: 3, prestige: 6}, sites: [halifax_port, sydney_cb], gap: true}
+  - {key: us_east, name: The Eastern United States, region: atlantic, terrain: forest, holder: usa, yields: {industry: 18.0, manpower: 54.0, oil: 1.7, supply: 4, prestige: 10}, sites: [washington, norfolk], gap: true}
+  - {key: us_central, name: The Central United States, region: atlantic, terrain: plain, holder: usa, yields: {industry: 19.0, manpower: 64.0, oil: 47.0, supply: 4, prestige: 6}, gap: true}
+  - {key: us_west, name: The Western United States, region: atlantic, terrain: mountain, holder: usa, yields: {industry: 4.5, manpower: 14.0, oil: 14.0, supply: 3, prestige: 5}, gap: true}
+  - {key: caribbean, name: The Caribbean, region: atlantic, terrain: forest, holder: cuba, yields: {industry: 0.05, manpower: 9.3, oil: 0, supply: 1, prestige: 2}, gap: true}
+  - {key: french_north_africa, name: French North Africa, region: mediterranean, terrain: mountain, holder: french_state, yields: {industry: 0.2, manpower: 14.0, oil: 0, supply: 3, prestige: 3}, gap: true}
+  - {key: tunisia, name: Tunisia, region: mediterranean, terrain: plain, holder: french_state, yields: {industry: 0.05, manpower: 2.6, oil: 0, supply: 2, prestige: 2}, gap: true}
+  - {key: tripolitania, name: Tripolitania and the Fezzan, region: mediterranean, terrain: plain, holder: italy, yields: {industry: 0.03, manpower: 0.6, oil: 0, supply: 1, prestige: 3}, sites: [tripoli], gap: true}
+  - {key: cyrenaica, name: Cyrenaica, region: mediterranean, terrain: mountain, holder: italy, yields: {industry: 0.02, manpower: 0.3, oil: 0, supply: 2, prestige: 2}, sites: [bardia], gap: true}
+  - {key: tobruk_area, name: The Tobruk enclave, region: mediterranean, terrain: plain, holder: uk, yields: {industry: 0, manpower: 0, oil: 0, supply: 1, prestige: 3}, sites: [tobruk], gap: true}
+  - {key: egypt, name: Egypt, region: mediterranean, terrain: plain, holder: uk, yields: {industry: 0.1, manpower: 16.5, oil: 0.4, supply: 4, prestige: 6}, sites: [alexandria], gap: true}
+  - {key: levant, name: Palestine and Transjordan, region: mediterranean, terrain: plain, holder: uk, yields: {industry: 0, manpower: 1.8, oil: 0, supply: 1, prestige: 3}, gap: true}
+  - {key: syria, name: Syria and Lebanon, region: mediterranean, terrain: plain, holder: uk, yields: {industry: 0, manpower: 3.6, oil: 0, supply: 2, prestige: 2}, gap: true}
+  - {key: iraq, name: Iraq, region: mediterranean, terrain: plain, holder: uk, yields: {industry: 0, manpower: 4.0, oil: 0.5, supply: 2, prestige: 2}, gap: true}
+  - {key: iran, name: Iran, region: mediterranean, terrain: mountain, holder: iran_state, yields: {industry: 0.05, manpower: 15.0, oil: 2.2, supply: 2, prestige: 3}, gap: true}
+  - {key: turkey, name: Turkey, region: mediterranean, terrain: mountain, holder: turkey_state, yields: {industry: 0.2, manpower: 17.8, oil: 0, supply: 2, prestige: 5}, gap: true}
+  - {key: caucasus, name: The Caucasus, region: mediterranean, terrain: mountain, holder: ussr, yields: {industry: 0.8, manpower: 15.0, oil: 9.5, supply: 3, prestige: 4}, gap: true}
+  - {key: greece, name: Greece and Crete, region: mediterranean, terrain: mountain, holder: germany, yields: {industry: 0.1, manpower: 7.3, oil: 0, supply: 2, prestige: 5}, gap: true}
+  - {key: dodecanese, name: The Dodecanese, region: mediterranean, terrain: mountain, holder: italy, yields: {industry: 0, manpower: 0.1, oil: 0, supply: 1, prestige: 1}, gap: true}
+  - {key: british_islands, name: Malta and Cyprus, region: mediterranean, terrain: plain, holder: uk, yields: {industry: 0.05, manpower: 0.7, oil: 0, supply: 2, prestige: 3}, sites: [malta], gap: true}
+  - {key: japan_east, name: Japan East, region: pacific, terrain: mountain, holder: japan, yields: {industry: 1.6, manpower: 38.0, oil: 0.1, supply: 3, prestige: 10}, sites: [tokyo, hitokappu_bay], gap: true}
+  - {key: japan_west, name: Japan West, region: pacific, terrain: mountain, holder: japan, yields: {industry: 1.5, manpower: 35.0, oil: 0, supply: 4, prestige: 7}, sites: [kure], gap: true}
+  - {key: formosa, name: Formosa, region: pacific, terrain: mountain, holder: japan, yields: {industry: 0.1, manpower: 6.0, oil: 0, supply: 2, prestige: 2}, gap: true}
+  - {key: korea, name: Korea, region: pacific, terrain: mountain, holder: japan, yields: {industry: 0.15, manpower: 24.0, oil: 0, supply: 2, prestige: 3}, gap: true}
+  - {key: manchuria, name: Manchuria, region: pacific, terrain: plain, holder: japan, yields: {industry: 0.5, manpower: 38.0, oil: 0, supply: 3, prestige: 5}, gap: true}
+  - {key: north_china, name: Occupied North China, region: pacific, terrain: plain, holder: japan, yields: {industry: 0.05, manpower: 85.0, oil: 0, supply: 3, prestige: 5}, gap: true}
+  - {key: wuhan_area, name: The Wuhan Area and the Lower Yangtze, region: pacific, terrain: plain, holder: japan, yields: {industry: 0.1, manpower: 80.0, oil: 0, supply: 3, prestige: 6}, sites: [wuhan], gap: true}
+  - {key: hunan, name: Hunan and Kiangsi, region: pacific, terrain: mountain, holder: china, yields: {industry: 0.15, manpower: 45.0, oil: 0, supply: 2, prestige: 4}, sites: [changsha], gap: true}
+  - {key: szechwan, name: Szechwan and the Southwest, region: pacific, terrain: mountain, holder: china, yields: {industry: 0.55, manpower: 73.0, oil: 0, supply: 2, prestige: 10}, sites: [chungking], gap: true}
+  - {key: northwest_china, name: The Northwest and Loyang, region: pacific, terrain: mountain, holder: china, yields: {industry: 0.15, manpower: 33.0, oil: 0, supply: 2, prestige: 3}, gap: true}
+  - {key: south_china, name: Free South China, region: pacific, terrain: mountain, holder: china, yields: {industry: 0.15, manpower: 44.0, oil: 0, supply: 2, prestige: 3}, gap: true}
+  - {key: south_china_coast, name: The South China Coast, region: pacific, terrain: plain, holder: japan, yields: {industry: 0, manpower: 10.0, oil: 0, supply: 1, prestige: 3}, gap: true}
+  - {key: hong_kong, name: Hong Kong, region: pacific, terrain: mountain, holder: uk, yields: {industry: 0.1, manpower: 1.6, oil: 0, supply: 1, prestige: 3}, gap: true}
+  - {key: indochina, name: French Indochina, region: pacific, terrain: forest, holder: japan, yields: {industry: 0, manpower: 23.0, oil: 0, supply: 3, prestige: 2}, gap: true}
+  - {key: thailand, name: Thailand, region: pacific, terrain: plain, holder: thailand_state, yields: {industry: 0.05, manpower: 15.0, oil: 0, supply: 1, prestige: 3}, gap: true}
+  - {key: malaya, name: Malaya and British Borneo, region: pacific, terrain: forest, holder: uk, yields: {industry: 0.1, manpower: 7.0, oil: 0.4, supply: 3, prestige: 5}, gap: true}
+  - {key: burma, name: Burma, region: pacific, terrain: forest, holder: uk, yields: {industry: 0.05, manpower: 16.8, oil: 0.4, supply: 3, prestige: 2}, gap: true}
+  - {key: dutch_east_indies, name: The Dutch East Indies, region: pacific, terrain: forest, holder: netherlands, yields: {industry: 0.2, manpower: 70.0, oil: 3.1, supply: 3, prestige: 4}, gap: true}
+  - {key: philippines, name: The Philippines, region: pacific, terrain: forest, holder: usa, yields: {industry: 0.3, manpower: 16.0, oil: 0, supply: 2, prestige: 4}, gap: true}
+  - {key: hawaii, name: Hawaii, region: pacific, terrain: mountain, holder: usa, yields: {industry: 0.2, manpower: 0.4, oil: 0, supply: 1, prestige: 3}, sites: [pearl_harbor_base], gap: true}
+  - {key: soviet_far_east, name: The Soviet Far East, region: pacific, terrain: forest, holder: ussr, yields: {industry: 0.5, manpower: 3.0, oil: 0, supply: 2, prestige: 2}, gap: true}
+
+sea_zones:
+  - {key: baltic_sea, name: The Baltic Sea, region: eastern_front, terrain: sea}
+  - {key: black_sea, name: The Black Sea, region: eastern_front, terrain: sea}
+  - {key: white_sea, name: The White Sea and the Barents, region: eastern_front, terrain: sea}
+  - {key: north_sea, name: The North Sea, region: europe, terrain: sea}
+  - {key: danish_straits, name: The Kattegat and the Western Baltic, region: europe, terrain: sea}
+  - {key: gulf_of_bothnia, name: The Gulf of Bothnia, region: europe, terrain: sea}
+  - {key: bay_of_biscay, name: The Bay of Biscay, region: europe, terrain: sea}
+  - {key: english_channel, name: The English Channel, region: atlantic, terrain: sea}
+  - {key: western_approaches_area, name: The Western Approaches, region: atlantic, terrain: sea}
+  - {key: mid_ocean_gap, name: The Mid-Ocean Gap, region: atlantic, terrain: sea}
+  - {key: western_atlantic, name: The Western Atlantic, region: atlantic, terrain: sea}
+  - {key: labrador_sea, name: The Labrador Sea, region: atlantic, terrain: sea}
+  - {key: denmark_strait, name: The Denmark Strait, region: atlantic, terrain: sea}
+  - {key: arctic_route_area, name: The Arctic Route, region: atlantic, terrain: sea}
+  - {key: caribbean_sea, name: The Caribbean and the Gulf of Mexico, region: atlantic, terrain: sea}
+  - {key: gibraltar_approaches, name: The Gibraltar Approaches, region: mediterranean, terrain: sea}
+  - {key: western_mediterranean, name: The Western Mediterranean, region: mediterranean, terrain: sea}
+  - {key: central_mediterranean, name: The Central Mediterranean, region: mediterranean, terrain: sea}
+  - {key: eastern_mediterranean, name: The Eastern Mediterranean, region: mediterranean, terrain: sea}
+  - {key: aegean_sea, name: The Aegean Sea, region: mediterranean, terrain: sea}
+  - {key: sea_of_japan, name: The Sea of Japan, region: pacific, terrain: sea}
+  - {key: east_china_sea, name: The East China Sea and the Yellow Sea, region: pacific, terrain: sea}
+  - {key: south_china_sea, name: The South China Sea, region: pacific, terrain: sea}
+  - {key: andaman_sea, name: The Andaman Sea and the Strait of Malacca, region: pacific, terrain: sea}
+  - {key: java_sea, name: The Java Sea and the Seas of the Indies, region: pacific, terrain: sea}
+  - {key: philippine_sea, name: The Philippine Sea, region: pacific, terrain: sea}
+  - {key: north_pacific, name: The North Pacific, region: pacific, terrain: sea}
+  - {key: central_pacific, name: The Central Pacific, region: pacific, terrain: sea}
+  - {key: eastern_pacific, name: The Eastern Pacific, region: pacific, terrain: sea}
+
+adjacency:
+  - [aegean_sea, central_mediterranean]
+  - [aegean_sea, dodecanese]
+  - [aegean_sea, eastern_mediterranean]
+  - [aegean_sea, greece]
+  - [aegean_sea, turkey]
+  - [andaman_sea, burma]
+  - [andaman_sea, dutch_east_indies]
+  - [andaman_sea, malaya]
+  - [andaman_sea, south_china_sea]
+  - [andaman_sea, thailand]
+  - [arctic_route_area, denmark_strait]
+  - [arctic_route_area, greenland]
+  - [arctic_route_area, iceland]
+  - [arctic_route_area, mid_ocean_gap]
+  - [arctic_route_area, north_sea]
+  - [arctic_route_area, norway]
+  - [arctic_route_area, western_approaches_area]
+  - [arctic_route_area, white_sea]
+  - [balkans, black_sea]
+  - [balkans, central_mediterranean]
+  - [balkans, germany_south]
+  - [balkans, greece]
+  - [balkans, hungary_slovakia]
+  - [balkans, italy_north]
+  - [balkans, romania]
+  - [balkans, turkey]
+  - [baltic_sea, baltic_states]
+  - [baltic_sea, danish_straits]
+  - [baltic_sea, east_prussia]
+  - [baltic_sea, finland]
+  - [baltic_sea, germany_east]
+  - [baltic_sea, gulf_of_bothnia]
+  - [baltic_sea, leningrad_area]
+  - [baltic_sea, sweden_area]
+  - [baltic_states, belorussia]
+  - [baltic_states, east_prussia]
+  - [baltic_states, leningrad_area]
+  - [bay_of_biscay, english_channel]
+  - [bay_of_biscay, gibraltar_approaches]
+  - [bay_of_biscay, iberia]
+  - [bay_of_biscay, mid_ocean_gap]
+  - [bay_of_biscay, occupied_france]
+  - [belorussia, east_prussia]
+  - [belorussia, kiev_area]
+  - [belorussia, leningrad_area]
+  - [belorussia, occupied_poland]
+  - [belorussia, smolensk_area]
+  - [belorussia, western_ukraine]
+  - [black_sea, caucasus]
+  - [black_sea, crimea]
+  - [black_sea, donbas]
+  - [black_sea, odessa_area]
+  - [black_sea, romania]
+  - [black_sea, turkey]
+  - [britain_north, britain_south]
+  - [britain_north, ireland]
+  - [britain_north, north_sea]
+  - [britain_north, western_approaches_area]
+  - [britain_south, english_channel]
+  - [britain_south, north_sea]
+  - [britain_south, western_approaches_area]
+  - [british_islands, central_mediterranean]
+  - [british_islands, eastern_mediterranean]
+  - [burma, indochina]
+  - [burma, szechwan]
+  - [burma, thailand]
+  - [caribbean, caribbean_sea]
+  - [caribbean_sea, us_central]
+  - [caribbean_sea, us_east]
+  - [caribbean_sea, western_atlantic]
+  - [caucasus, donbas]
+  - [caucasus, iran]
+  - [caucasus, turkey]
+  - [central_mediterranean, cyrenaica]
+  - [central_mediterranean, eastern_mediterranean]
+  - [central_mediterranean, greece]
+  - [central_mediterranean, italy_north]
+  - [central_mediterranean, italy_south]
+  - [central_mediterranean, tripolitania]
+  - [central_mediterranean, tunisia]
+  - [central_mediterranean, western_mediterranean]
+  - [central_pacific, eastern_pacific]
+  - [central_pacific, hawaii]
+  - [central_pacific, japan_east]
+  - [central_pacific, north_pacific]
+  - [central_pacific, philippine_sea]
+  - [crimea, odessa_area]
+  - [cyrenaica, eastern_mediterranean]
+  - [cyrenaica, egypt]
+  - [cyrenaica, tobruk_area]
+  - [cyrenaica, tripolitania]
+  - [danish_straits, denmark]
+  - [danish_straits, germany_east]
+  - [danish_straits, germany_west]
+  - [danish_straits, north_sea]
+  - [danish_straits, sweden_area]
+  - [denmark, germany_west]
+  - [denmark, north_sea]
+  - [denmark_strait, greenland]
+  - [denmark_strait, mid_ocean_gap]
+  - [dodecanese, eastern_mediterranean]
+  - [donbas, kharkov_area]
+  - [donbas, odessa_area]
+  - [donbas, stalingrad]
+  - [donbas, voronezh]
+  - [dutch_east_indies, java_sea]
+  - [dutch_east_indies, malaya]
+  - [dutch_east_indies, philippine_sea]
+  - [dutch_east_indies, south_china_sea]
+  - [east_china_sea, formosa]
+  - [east_china_sea, japan_west]
+  - [east_china_sea, korea]
+  - [east_china_sea, manchuria]
+  - [east_china_sea, north_china]
+  - [east_china_sea, philippine_sea]
+  - [east_china_sea, sea_of_japan]
+  - [east_china_sea, south_china]
+  - [east_china_sea, south_china_sea]
+  - [east_china_sea, wuhan_area]
+  - [east_prussia, germany_east]
+  - [east_prussia, occupied_poland]
+  - [eastern_canada, labrador_sea]
+  - [eastern_canada, newfoundland]
+  - [eastern_canada, us_central]
+  - [eastern_canada, us_east]
+  - [eastern_canada, western_atlantic]
+  - [eastern_mediterranean, egypt]
+  - [eastern_mediterranean, greece]
+  - [eastern_mediterranean, levant]
+  - [eastern_mediterranean, syria]
+  - [eastern_mediterranean, tobruk_area]
+  - [eastern_mediterranean, turkey]
+  - [eastern_pacific, north_pacific]
+  - [egypt, levant]
+  - [english_channel, mid_ocean_gap]
+  - [english_channel, occupied_france]
+  - [english_channel, western_approaches_area]
+  - [finland, gulf_of_bothnia]
+  - [finland, leningrad_area]
+  - [finland, norway]
+  - [finland, sweden_area]
+  - [finland, the_north]
+  - [finland, white_sea]
+  - [formosa, philippine_sea]
+  - [formosa, south_china_sea]
+  - [french_north_africa, gibraltar_approaches]
+  - [french_north_africa, tripolitania]
+  - [french_north_africa, tunisia]
+  - [french_north_africa, western_mediterranean]
+  - [germany_east, germany_south]
+  - [germany_east, germany_west]
+  - [germany_east, hungary_slovakia]
+  - [germany_east, occupied_poland]
+  - [germany_south, germany_west]
+  - [germany_south, hungary_slovakia]
+  - [germany_south, italy_north]
+  - [germany_south, switzerland_area]
+  - [germany_west, low_countries]
+  - [germany_west, north_sea]
+  - [germany_west, occupied_france]
+  - [germany_west, switzerland_area]
+  - [gibraltar_approaches, iberia]
+  - [gibraltar_approaches, mid_ocean_gap]
+  - [greece, turkey]
+  - [greenland, labrador_sea]
+  - [greenland, mid_ocean_gap]
+  - [gulf_of_bothnia, sweden_area]
+  - [hong_kong, south_china_coast]
+  - [hong_kong, south_china_sea]
+  - [hunan, south_china]
+  - [hunan, szechwan]
+  - [hunan, wuhan_area]
+  - [hungary_slovakia, occupied_poland]
+  - [hungary_slovakia, romania]
+  - [hungary_slovakia, western_ukraine]
+  - [iberia, occupied_france]
+  - [iberia, vichy_france]
+  - [iberia, western_mediterranean]
+  - [indochina, south_china]
+  - [indochina, south_china_sea]
+  - [indochina, szechwan]
+  - [indochina, thailand]
+  - [iran, iraq]
+  - [iran, turkey]
+  - [iraq, levant]
+  - [iraq, syria]
+  - [iraq, turkey]
+  - [ireland, western_approaches_area]
+  - [italy_north, italy_south]
+  - [italy_north, switzerland_area]
+  - [italy_north, vichy_france]
+  - [italy_north, western_mediterranean]
+  - [italy_south, western_mediterranean]
+  - [japan_east, japan_west]
+  - [japan_east, north_pacific]
+  - [japan_east, philippine_sea]
+  - [japan_east, sea_of_japan]
+  - [japan_east, soviet_far_east]
+  - [japan_west, philippine_sea]
+  - [japan_west, sea_of_japan]
+  - [java_sea, malaya]
+  - [java_sea, philippine_sea]
+  - [java_sea, philippines]
+  - [java_sea, south_china_sea]
+  - [kalinin_area, leningrad_area]
+  - [kalinin_area, moscow_area]
+  - [kalinin_area, smolensk_area]
+  - [kalinin_area, the_north]
+  - [kalinin_area, upper_volga]
+  - [kharkov_area, kiev_area]
+  - [kharkov_area, odessa_area]
+  - [kharkov_area, smolensk_area]
+  - [kharkov_area, voronezh]
+  - [kiev_area, odessa_area]
+  - [kiev_area, smolensk_area]
+  - [kiev_area, western_ukraine]
+  - [korea, manchuria]
+  - [korea, sea_of_japan]
+  - [korea, soviet_far_east]
+  - [labrador_sea, mid_ocean_gap]
+  - [labrador_sea, newfoundland]
+  - [labrador_sea, western_atlantic]
+  - [leningrad_area, smolensk_area]
+  - [leningrad_area, the_north]
+  - [levant, syria]
+  - [low_countries, north_sea]
+  - [low_countries, occupied_france]
+  - [malaya, philippine_sea]
+  - [malaya, south_china_sea]
+  - [malaya, thailand]
+  - [manchuria, north_china]
+  - [manchuria, soviet_far_east]
+  - [mid_ocean_gap, western_approaches_area]
+  - [mid_ocean_gap, western_atlantic]
+  - [moscow_area, smolensk_area]
+  - [moscow_area, upper_volga]
+  - [moscow_area, voronezh]
+  - [newfoundland, western_atlantic]
+  - [north_china, northwest_china]
+  - [north_china, wuhan_area]
+  - [north_pacific, philippine_sea]
+  - [north_pacific, sea_of_japan]
+  - [north_pacific, soviet_far_east]
+  - [north_sea, norway]
+  - [north_sea, occupied_france]
+  - [north_sea, sweden_area]
+  - [north_sea, western_approaches_area]
+  - [northwest_china, szechwan]
+  - [northwest_china, wuhan_area]
+  - [norway, sweden_area]
+  - [norway, white_sea]
+  - [occupied_france, switzerland_area]
+  - [occupied_france, vichy_france]
+  - [occupied_poland, western_ukraine]
+  - [odessa_area, romania]
+  - [odessa_area, western_ukraine]
+  - [philippine_sea, philippines]
+  - [philippine_sea, south_china_sea]
+  - [philippines, south_china_sea]
+  - [romania, western_ukraine]
+  - [sea_of_japan, soviet_far_east]
+  - [smolensk_area, voronezh]
+  - [south_china, south_china_coast]
+  - [south_china, south_china_sea]
+  - [south_china, szechwan]
+  - [south_china, wuhan_area]
+  - [south_china_coast, south_china_sea]
+  - [south_china_sea, thailand]
+  - [stalingrad, upper_volga]
+  - [stalingrad, voronezh]
+  - [switzerland_area, vichy_france]
+  - [syria, turkey]
+  - [szechwan, wuhan_area]
+  - [the_north, upper_volga]
+  - [the_north, white_sea]
+  - [tripolitania, tunisia]
+  - [tunisia, western_mediterranean]
+  - [upper_volga, voronezh]
+  - [us_central, us_east]
+  - [us_central, us_west]
+  - [us_east, western_atlantic]
+  - [vichy_france, western_mediterranean]
+  - {a: aegean_sea, b: black_sea, crossing: the Turkish Straits}
+  - {a: eastern_pacific, b: us_west, crossing: the box's seam at 126 W}
+  - {a: english_channel, b: north_sea, crossing: the Strait of Dover}
+  - {a: gibraltar_approaches, b: western_mediterranean, crossing: the Strait of Gibraltar}
+
+# The five yields a territory has.
+resources:
+  - {key: industry, name: Industry, unit: points, role: output}
+  - {key: manpower, name: Manpower, unit: points, role: manpower}
+  - {key: oil, name: Oil, unit: points, role: fuel}
+  - {key: supply, name: Rail and ports, unit: hubs, role: supply}
+  - {key: prestige, name: Prestige, unit: points, role: prestige}
+
+# The world's piece kinds. Days per step [proposed] (plan, Values): an army 5 over plain, 7 through
+# forest or marsh, 10 through mountain; a fleet 3 a sea zone; an air group 1; an envoy 2.
+piece_kinds:
+  - {key: army, name: Army, domain: land, days_per_step: {plain: 5, forest: 7, marsh: 7, mountain: 10}}
+  - {key: fleet, name: Fleet, domain: sea, days_per_step: {sea: 3}, carries: [army]}
+  - {key: air_group, name: Air group, domain: air, days_per_step: {plain: 1, forest: 1, marsh: 1, mountain: 1, sea: 1}, range_steps: 2}
+  - {key: envoy, name: Envoy, domain: envoy, days_per_step: {plain: 2, forest: 2, marsh: 2, mountain: 2, sea: 2}}
+
+# The wars in force on 1 September 1941. `a` began each.
+wars:
+  - {a: uk, b: germany, since: 1939-09-03, source: hansard_1939_09_03}
+  - {a: italy, b: uk, since: 1940-06-10, gap: true}
+  - {a: germany, b: ussr, since: 1941-06-22, source: dgfp_d_xii}
+  - {a: italy, b: ussr, since: 1941-06-22, gap: true}
+  - {a: japan, b: china, since: 1937-07-07, declared: false, source: frus_japan_1931_1941}
+
+# Trade lines in force on 1 September 1941, in points a month (yields.yaml). All gaps.
+trade_lines:
+  - {key: usa_japan_oil, exporter: usa, importer: japan, resource: oil, amount: 1.3, cut: true, gap: true}
+  - {key: dei_japan_oil, exporter: netherlands, importer: japan, resource: oil, amount: 0.4, cut: true, gap: true}
+  - {key: romania_germany_oil, exporter: romania_state, importer: germany, resource: oil, amount: 1.0, gap: true}
+  - {key: usa_uk_oil, exporter: usa, importer: uk, resource: oil, amount: 3.0, gap: true}
+  - {key: usa_uk_lend_lease, exporter: usa, importer: uk, resource: industry, amount: 1.0, gap: true}
+  - {key: sweden_germany_ore, exporter: sweden, importer: germany, resource: industry, amount: 0.5, gap: true}
+
+# Fuel stocks on 1 September 1941, in oil points (yields.yaml). All gaps.
+fuel_stocks:
+  - {polity: japan, amount: 23, gap: true}
+  - {polity: germany, amount: 8, gap: true}
+  - {polity: uk, amount: 28, gap: true}
+  - {polity: italy, amount: 4, gap: true}
 
 # Invented papers: any match to a real one is accidental.
 outlets:
@@ -225,6 +713,17 @@ sources:
   - key: gallup_1941
     title: Gallup polls of 1941 (ibiblio transcription)
     note: "SOURCES.md: 8 Oct 1941 FDR 'about right' 57%, 'too far' 27%, 'not far enough' 16%; 22 Nov 26% for war on Germany."
+  - {key: hansard_1939_09_03, title: "House of Commons debates, 3 September 1939: the Prime Minister's statement that Britain is at war with Germany", note: "Named citation; the lane had no network and read no edition or column. Confirm the locator before release."}
+  - {key: dgfp_d_xii, title: "Documents on German Foreign Policy, Series D, vol. XII: Germany's note to the Soviet Union of 22 June 1941", note: "Named citation; the lane had no network and read no document number. Confirm the locator before release."}
+  - {key: frus_japan_1931_1941, title: "Foreign Relations of the United States, Japan 1931-1941, vol. I: the Marco Polo Bridge incident, 7 July 1937", note: "Named citation for the start of the undeclared war; the lane had no network and read no page. Confirm before release."}
+  - {key: kennedy_1987, title: "Paul Kennedy, The Rise and Fall of the Great Powers (Random House, 1987), table 32: Relative War Potential of the Powers in 1937, p. 332", note: "Locator and figures (US 41.7, Germany 14.4, USSR 14.0, UK 10.2, France 4.2, Japan 3.5, Italy 2.5) seen only in search results quoting the table, not in the book. A 1937 measure, after Hillmann."}
+  - {key: harrison_1998, title: "Mark Harrison (ed.), The Economics of World War II: Six Great Powers in International Comparison (Cambridge, 1998), the GDP and munitions tables", note: "The alternative 1941 measure (GDP or munitions output in 1941). Named citation; not read. Confirm the table before use."}
+  - {key: lon_yearbook_1941, title: "League of Nations, Statistical Year-Book of the League of Nations 1940/41 (Geneva, 1941): area and population tables", note: "Named citation; not read. Confirm the table and the year of each estimate before release."}
+  - {key: census_ussr_1939, title: "All-Union Census of 17 January 1939: population by oblast and republic", note: "Named citation; not read. Confirm the published tables before release."}
+  - {key: census_us_1940, title: "Sixteenth Census of the United States, 1940: Population, vol. I, number of inhabitants by state", note: "Named citation; not read. Confirm the table before release."}
+  - {key: minerals_yearbook, title: "U.S. Bureau of Mines, Minerals Yearbook 1942 (review of 1941): petroleum, world production by country", note: "Named citation; not read. Confirm the table and the 1941 figures before release."}
+  - {key: frus_1941_iv, title: "Foreign Relations of the United States, 1941, vol. IV, The Far East: the freezing of Japanese assets, 26 July 1941", note: "Named citation; not read. Confirm the document before release."}
+  - {key: lane_choice, title: "The lane's own choice: no published measure", note: "Hubs and prestige ranks chosen by the lane for play; kept as gaps for Josh to mark."}
 
 quantities:
   - {key: senate_democrats, owner: senate, name: Senate Democrats, value: 66, unit: seats, source: congress_77th, public: true}
@@ -288,34 +787,13 @@ quantities:
 # The map. Positions and dates are approximate and unsourced (gap: true): a
 # force's legs are where the record has it if nobody orders it elsewhere.
 features:
-  - {key: us_atlantic_fleet, kind: fleet, name: US Atlantic Fleet, side: usa, tier: 4, places: [norfolk], gap: true}
-  - {key: us_pacific_fleet, kind: fleet, name: US Pacific Fleet, side: usa, tier: 5, places: [pearl_harbor_base], gap: true}
-  - {key: home_fleet, kind: fleet, name: Home Fleet, side: uk, tier: 4, places: [scapa_flow], gap: true}
-  - {key: uboat_arm, kind: fleet, name: U-boat arm, side: germany, tier: 3, places: [lorient], gap: true}
-  - key: combined_fleet
-    kind: fleet
-    name: Combined Fleet
-    side: japan
-    tier: 5
-    places: [kure]
-    legs: [{since: 1941-11-22, places: [hitokappu_bay]}]
-    gap: true
-  - key: army_group_centre
-    kind: army
-    name: Army Group Centre
-    side: germany
-    tier: 5
-    places: [smolensk]
-    legs: [{since: 1941-10-07, places: [vyazma]}, {since: 1941-10-24, places: [mozhaisk]}]
-    gap: true
-  - key: soviet_western_front
-    kind: army
-    name: Soviet Western Front
-    side: ussr
-    tier: 4
-    places: [vyazma]
-    legs: [{since: 1941-10-12, places: [mozhaisk]}, {since: 1941-10-24, places: [moscow]}]
-    gap: true
+  - {key: us_atlantic_fleet, kind: piece, piece: fleet, name: US Atlantic Fleet, side: usa, tier: 4, places: [norfolk], gap: true}
+  - {key: us_pacific_fleet, kind: piece, piece: fleet, name: US Pacific Fleet, side: usa, tier: 5, places: [pearl_harbor_base], gap: true}
+  - {key: home_fleet, kind: piece, piece: fleet, name: Home Fleet, side: uk, tier: 4, places: [scapa_flow], gap: true}
+  - {key: uboat_arm, kind: piece, piece: fleet, name: U-boat arm, side: germany, tier: 3, places: [north_atlantic], gap: true}
+  - {key: combined_fleet, kind: piece, piece: fleet, name: Combined Fleet, side: japan, tier: 5, places: [kure], legs: [{since: 1941-11-22, places: [hitokappu_bay]}], gap: true}
+  - {key: army_group_centre, kind: piece, piece: army, name: Army Group Centre, side: germany, tier: 5, places: [smolensk], legs: [{since: 1941-10-07, places: [vyazma]}, {since: 1941-10-24, places: [mozhaisk]}], gap: true}
+  - {key: soviet_western_front, kind: piece, piece: army, name: Soviet Western Front, side: ussr, tier: 4, places: [vyazma], legs: [{since: 1941-10-12, places: [mozhaisk]}, {since: 1941-10-24, places: [moscow]}], gap: true}
   - key: eastern_front
     kind: front
     name: The Eastern Front
@@ -329,22 +807,30 @@ features:
   - {key: arctic_route, kind: route, name: Arctic convoys, side: uk, places: [reykjavik, archangel], gap: true}
   # Each stands at the base of its side and kind nearest where the record has it (the base
   # table in core/realism/bases.py). Strengths are tiers, not counts.
-  - {key: hawaiian_department, kind: army, name: Hawaiian Department, side: usa, tier: 3, places: [pearl_harbor_base], gap: true}
-  - {key: hawaiian_air_force, kind: air, name: Hawaiian Air Force, side: usa, tier: 3, places: [pearl_harbor_base], gap: true}
-  - {key: western_approaches, kind: fleet, name: Western Approaches escort groups, side: uk, tier: 3, places: [liverpool], gap: true}
-  - {key: home_forces, kind: army, name: Home Forces, side: uk, tier: 4, places: [london], gap: true}
-  - {key: bomber_command, kind: air, name: RAF Bomber Command, side: uk, tier: 3, places: [london], gap: true}
-  - {key: replacement_army, kind: army, name: Replacement Army, side: germany, tier: 3, places: [berlin], gap: true}
-  - {key: luftwaffe_centre, kind: air, name: Luftwaffe Command Centre, side: germany, tier: 3, places: [berlin], gap: true}
-  - {key: general_defence_command, kind: army, name: General Defence Command, side: japan, tier: 3, places: [tokyo], gap: true}
-  - {key: southern_army, kind: army, name: Southern Army, side: japan, tier: 4, places: [tokyo], in_service: 1941-11-06, gap: true}
-  - {key: eleventh_air_fleet, kind: air, name: Eleventh Air Fleet, side: japan, tier: 3, places: [kure], gap: true}
-  - {key: baltic_fleet, kind: fleet, name: Red Banner Baltic Fleet, side: ussr, tier: 3, places: [leningrad], gap: true}
-  - {key: northern_fleet, kind: fleet, name: Northern Fleet, side: ussr, tier: 2, places: [archangel], gap: true}
-  - {key: leningrad_front, kind: army, name: Leningrad Front, side: ussr, tier: 4, places: [leningrad], gap: true}
+  - {key: hawaiian_department, kind: piece, piece: army, name: Hawaiian Department, side: usa, tier: 3, places: [pearl_harbor_base], gap: true}
+  - {key: hawaiian_air_force, kind: piece, piece: air_group, name: Hawaiian Air Force, side: usa, tier: 3, places: [pearl_harbor_base], gap: true}
+  - {key: western_approaches, kind: piece, piece: fleet, name: Western Approaches escort groups, side: uk, tier: 3, places: [liverpool], gap: true}
+  - {key: home_forces, kind: piece, piece: army, name: Home Forces, side: uk, tier: 4, places: [london], gap: true}
+  - {key: bomber_command, kind: piece, piece: air_group, name: RAF Bomber Command, side: uk, tier: 3, places: [london], gap: true}
+  - {key: replacement_army, kind: piece, piece: army, name: Replacement Army, side: germany, tier: 3, places: [berlin], gap: true}
+  - {key: luftwaffe_centre, kind: piece, piece: air_group, name: Luftwaffe Command Centre, side: germany, tier: 3, places: [berlin], gap: true}
+  - {key: general_defence_command, kind: piece, piece: army, name: General Defence Command, side: japan, tier: 3, places: [tokyo], gap: true}
+  - {key: southern_army, kind: piece, piece: army, name: Southern Army, side: japan, tier: 4, places: [tokyo], in_service: 1941-11-06, gap: true}
+  - {key: eleventh_air_fleet, kind: piece, piece: air_group, name: Eleventh Air Fleet, side: japan, tier: 3, places: [kure], gap: true}
+  - {key: baltic_fleet, kind: piece, piece: fleet, name: Red Banner Baltic Fleet, side: ussr, tier: 3, places: [leningrad], gap: true}
+  - {key: northern_fleet, kind: piece, piece: fleet, name: Northern Fleet, side: ussr, tier: 2, places: [archangel], gap: true}
+  - {key: leningrad_front, kind: piece, piece: army, name: Leningrad Front, side: ussr, tier: 4, places: [leningrad], gap: true}
   # [proposed] strengths; each stands at its side's army base until the territory world places it.
-  - {key: italian_army, kind: army, name: Royal Italian Army, side: italy, tier: 3, places: [rome], gap: true}
-  - {key: chinese_army, kind: army, name: National Revolutionary Army, side: china, tier: 3, places: [chungking], gap: true}
+  - {key: italian_army, kind: piece, piece: army, name: Royal Italian Army, side: italy, tier: 3, places: [rome], gap: true}
+  - {key: chinese_army, kind: piece, piece: army, name: National Revolutionary Army, side: china, tier: 3, places: [chungking], gap: true}
+  # The Mediterranean and China forces of the territory world.
+  - {key: mediterranean_fleet, kind: piece, piece: fleet, name: Mediterranean Fleet, side: uk, tier: 4, places: [alexandria], gap: true}
+  - {key: western_desert_force, kind: piece, piece: army, name: Western Desert Force, side: uk, tier: 3, places: [alexandria], gap: true}
+  - {key: italian_fleet, kind: piece, piece: fleet, name: Italian Battle Fleet, side: italy, tier: 4, places: [taranto], gap: true}
+  - {key: italian_army_libya, kind: piece, piece: army, name: Italian Army in Libya, side: italy, tier: 3, places: [tripoli], gap: true}
+  - {key: afrika_korps, kind: piece, piece: army, name: Afrika Korps, side: germany, tier: 3, places: [bardia], gap: true}
+  - {key: ninth_war_area, kind: piece, piece: army, name: Ninth War Area, side: china, tier: 3, places: [changsha], gap: true}
+  - {key: eleventh_army, kind: piece, piece: army, name: Eleventh Army, side: japan, tier: 4, places: [wuhan], legs: [{since: 1941-09-17, places: [changsha]}, {since: 1941-10-06, places: [wuhan]}], gap: true}
 
 feeds:
   - {key: state_dept_reports, name: State Department memoranda, author: hull, kind: memo, channel: letter, classification: confidential, reports: [japan_oil_stocks], every_days: 7, latency_days: 1, assumed: true, gap: true}
@@ -357,9 +843,11 @@ feeds:
   - {key: churchill_cables, name: Churchill's cables, author: churchill, kind: cable, channel: cable, classification: secret, sights: [home_fleet, arctic_route], every_days: 3, latency_days: 1, assumed: true, gap: true}
   - {key: soviet_requests, name: Soviet requests for aid, author: molotov, kind: letter, channel: courier, classification: confidential, every_days: 14, latency_days: 7, assumed: true, gap: true}
   - {key: german_naval_reports, name: Kriegsmarine reports, author: raeder, kind: report, channel: courier, classification: secret, reports: [uboats_operational, uboat_losses_sep, uboat_losses_oct, uboat_losses_nov], sights: [uboat_arm, home_fleet, hx_route], every_days: 7, latency_days: 1, assumed: true, gap: true}
-  - {key: admiralty_reports, name: Admiralty reports, author: pound, kind: report, channel: courier, classification: secret, reports: [uboat_losses_sep, uboat_losses_oct, uboat_losses_nov, uk_sealift_grt], sights: [home_fleet, uboat_arm, hx_route, sc_route, arctic_route], every_days: 7, latency_days: 1, assumed: true, gap: true}
-  - {key: okw_situation, name: OKW situation reports, author: jodl, kind: report, channel: courier, classification: secret, sights: [army_group_centre, soviet_western_front, eastern_front], every_days: 3, latency_days: 1, assumed: true, gap: true}
+  - {key: admiralty_reports, name: Admiralty reports, author: pound, kind: report, channel: courier, classification: secret, reports: [uboat_losses_sep, uboat_losses_oct, uboat_losses_nov, uk_sealift_grt], sights: [home_fleet, uboat_arm, hx_route, sc_route, arctic_route, mediterranean_fleet, western_desert_force, italian_fleet, italian_army_libya, afrika_korps], every_days: 7, latency_days: 1, assumed: true, gap: true}
+  - {key: okw_situation, name: OKW situation reports, author: jodl, kind: report, channel: courier, classification: secret, sights: [army_group_centre, soviet_western_front, eastern_front, afrika_korps, italian_army_libya, italian_fleet, western_desert_force, mediterranean_fleet], every_days: 3, latency_days: 1, assumed: true, gap: true}
   - {key: stavka_situation, name: General Staff situation reports, author: shaposhnikov, kind: report, channel: courier, classification: secret, reports: [soviet_lend_lease_eligible, lend_lease_share_ussr], sights: [soviet_western_front, army_group_centre, eastern_front], every_days: 3, latency_days: 0, assumed: true, gap: true}
+  - {key: comando_supremo_reports, name: Comando Supremo reports, author: cavallero, kind: report, channel: courier, classification: secret, sights: [italian_fleet, italian_army_libya, italian_army, afrika_korps, mediterranean_fleet, western_desert_force], every_days: 3, latency_days: 1, assumed: true, gap: true}
+  - {key: mac_reports, name: Military Affairs Commission reports, author: he_yingqin, kind: report, channel: courier, classification: secret, sights: [chinese_army, ninth_war_area, eleventh_army], every_days: 3, latency_days: 1, assumed: true, gap: true}
 
 pipelines:
   - key: executive_order
@@ -735,28 +1223,28 @@ cards:
       - name: move_fleet
         pipeline: cos_directive
         resolver: movement
-        label: "Move the Home Fleet"
-        summary: "Tell the Admiralty where the Home Fleet is to base."
+        label: "Move a fleet"
+        summary: "Tell the Admiralty where a fleet is to base."
         params:
-          - {name: force, kind: enum, choices: [home_fleet], label: "Which fleet", choice_labels: ["The Home Fleet"]}
-          - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool"]}
+          - {name: force, kind: enum, choices: [home_fleet, mediterranean_fleet], label: "Which fleet", choice_labels: ["The Home Fleet", "The Mediterranean Fleet"]}
+          - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool, alexandria, malta, tobruk], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool", "Alexandria", "Malta", "Tobruk"]}
       - name: detach_fleet
         pipeline: cos_directive
         resolver: movement
         label: "Detach part of a fleet"
-        summary: "Tell the Admiralty to send part of the Home Fleet to another place; the rest stays where it is."
+        summary: "Tell the Admiralty to send part of a fleet to another place; the rest stays where it is."
         params:
-          - {name: force, kind: enum, choices: [home_fleet], label: "Which fleet", choice_labels: ["The Home Fleet"]}
-          - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool"]}
+          - {name: force, kind: enum, choices: [home_fleet, mediterranean_fleet], label: "Which fleet", choice_labels: ["The Home Fleet", "The Mediterranean Fleet"]}
+          - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool, alexandria, malta, tobruk], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool", "Alexandria", "Malta", "Tobruk"]}
           - {name: strength, kind: int, lo: 1, hi: 4, label: "How much of its strength"}
       - name: move_army
         pipeline: cos_directive
         resolver: movement
         label: "Move an army"
-        summary: "Tell the Chiefs of Staff where Home Forces are to stand; across the sea they sail on Britain's shipping."
+        summary: "Tell the Chiefs of Staff where an army is to stand; across the sea it sails on Britain's shipping."
         params:
-          - {name: force, kind: enum, choices: [home_forces], label: "Which army", choice_labels: ["Home Forces"]}
-          - {name: to, kind: enum, choices: [london, liverpool, reykjavik], label: "To", choice_labels: ["London", "Liverpool", "Reykjavik"]}
+          - {name: force, kind: enum, choices: [home_forces, western_desert_force], label: "Which army", choice_labels: ["Home Forces", "The Western Desert Force"]}
+          - {name: to, kind: enum, choices: [london, liverpool, reykjavik, alexandria, tobruk, bardia], label: "To", choice_labels: ["London", "Liverpool", "Reykjavik", "Alexandria", "Tobruk", "Bardia"]}
       - name: broadcast
         pipeline: press_broadcast
         resolver: opinion
@@ -979,11 +1467,11 @@ cards:
       - name: move_army
         pipeline: okw_army_directive
         resolver: movement
-        label: "Move Army Group Centre"
-        summary: "Direct Army Group Centre on a new objective."
+        label: "Move an army"
+        summary: "Direct Army Group Centre or the Afrika Korps on a new objective."
         params:
-          - {name: force, kind: enum, choices: [army_group_centre], label: "Which army group", choice_labels: ["Army Group Centre"]}
-          - {name: to, kind: enum, choices: [smolensk, vyazma, kalinin, mozhaisk, moscow], label: "To", choice_labels: ["Smolensk", "Vyazma", "Kalinin", "Mozhaisk", "Moscow"]}
+          - {name: force, kind: enum, choices: [army_group_centre, afrika_korps], label: "Which army", choice_labels: ["Army Group Centre", "The Afrika Korps"]}
+          - {name: to, kind: enum, choices: [smolensk, vyazma, kalinin, mozhaisk, moscow, bardia, tobruk, tripoli, alexandria], label: "To", choice_labels: ["Smolensk", "Vyazma", "Kalinin", "Mozhaisk", "Moscow", "Bardia", "Tobruk", "Tripoli", "Alexandria"]}
       - name: declare_war
         pipeline: reich_declaration
         resolver: war
@@ -1255,12 +1743,28 @@ cards:
         summary: "Direct which branch of industry is to be pressed ahead."
         params:
           - {name: sector, kind: enum, choices: [aircraft, warships, tanks], label: "Which sector", choice_labels: ["Aircraft", "Warships", "Tanks"]}
-          - {name: force, kind: enum, choices: [italian_army], label: "For which force", choice_labels: ["The Royal Italian Army"]}
+          - {name: force, kind: enum, choices: [italian_army, italian_army_libya, italian_fleet], label: "For which force", choice_labels: ["The Royal Italian Army", "The Italian Army in Libya", "The Italian Battle Fleet"]}
+      - name: move_fleet
+        pipeline: comando_supremo_order
+        resolver: movement
+        label: "Move the fleet"
+        summary: "Tell the Comando Supremo where the battle fleet is to base."
+        params:
+          - {name: force, kind: enum, choices: [italian_fleet], label: "Which fleet", choice_labels: ["The Italian Battle Fleet"]}
+          - {name: to, kind: enum, choices: [taranto, tripoli, bardia], label: "To", choice_labels: ["Taranto", "Tripoli", "Bardia"]}
+      - name: move_army
+        pipeline: comando_supremo_order
+        resolver: movement
+        label: "Move an army"
+        summary: "Tell the Comando Supremo where an army is to stand; across the sea it sails on Italy's shipping."
+        params:
+          - {name: force, kind: enum, choices: [italian_army, italian_army_libya], label: "Which army", choice_labels: ["The Royal Italian Army", "The Italian Army in Libya"]}
+          - {name: to, kind: enum, choices: [rome, tripoli, bardia, tobruk, alexandria], label: "To", choice_labels: ["Rome", "Tripoli", "Bardia", "Tobruk", "Alexandria"]}
     inner_circle:
       - {person: hitler, channel: courier}
       - {person: cavallero, channel: in_person}
       - {person: victor_emmanuel, channel: in_person}
-    feeds: []
+    feeds: [comando_supremo_reports]
     pipelines: [comando_supremo_order]
     constraints:
       - the King can dismiss him, as he did in 1943
@@ -1326,7 +1830,7 @@ cards:
         summary: "Direct the arsenals to concentrate on a chosen class of arms."
         params:
           - {name: sector, kind: enum, choices: [small_arms, artillery, ammunition], label: "Which sector", choice_labels: ["Small arms", "Artillery", "Ammunition"]}
-          - {name: force, kind: enum, choices: [chinese_army], label: "For which force", choice_labels: ["The National Revolutionary Army"]}
+          - {name: force, kind: enum, choices: [chinese_army, ninth_war_area], label: "For which force", choice_labels: ["The National Revolutionary Army", "The Ninth War Area"]}
       - name: appeal_abroad
         pipeline: appeal_through_soong
         resolver: opinion
@@ -1334,12 +1838,20 @@ cards:
         summary: "Send an appeal for support to a foreign public."
         params:
           - {name: audience, kind: enum, choices: [america, britain], label: "To whom", choice_labels: ["America", "Britain"]}
+      - name: move_army
+        pipeline: mac_order
+        resolver: movement
+        label: "Move an army"
+        summary: "Tell the Military Affairs Commission where an army is to stand."
+        params:
+          - {name: force, kind: enum, choices: [chinese_army, ninth_war_area], label: "Which army", choice_labels: ["The National Revolutionary Army", "The Ninth War Area"]}
+          - {name: to, kind: enum, choices: [chungking, changsha, wuhan], label: "To", choice_labels: ["Chungking", "Changsha", "Wuhan"]}
     inner_circle:
       - {person: soong, channel: cable}
       - {person: he_yingqin, channel: in_person}
       - {person: roosevelt, channel: cable}
       - {person: churchill, channel: cable}
-    feeds: []
+    feeds: [mac_reports]
     pipelines: [mac_order, appeal_through_soong]
     constraints:
       - China is cut off except by the Burma Road

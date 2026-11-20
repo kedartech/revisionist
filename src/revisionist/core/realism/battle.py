@@ -46,6 +46,10 @@ with it as the attacker. Borders met head-on on one day are settled in the order
 lowest piece id moving across each, which no player sets; a border with an area already in
 a battle is no meeting. A battle that opens drops the moves of the pieces on its sides, so
 a step due later from a battle's area is cancelled.
+
+History steps aside (HSA). A piece on a side of a battle, whether it stood there, stepped
+in or joined later, drops the moves the record still had for it (``Feature.legs``) on the
+first day it is in the battle, before the round; from then on only orders move it.
 """
 
 import hashlib
@@ -990,6 +994,24 @@ def _joining(state: "State", battle: Battle, day: date) -> tuple[Battle, list["P
     return battle.model_copy(update={"attacker": sides[0], "defender": sides[1]}), out
 
 
+def _legs_dropped(state: "State", battle: Battle) -> tuple["State", list["Payload"]]:
+    """History steps aside (HSA rule 1): each piece on a side of the battle, the ones that
+    joined today included, drops the moves the record still had for it. The state with
+    them dropped, and one ``feature_set`` for each piece that had any."""
+    from revisionist.core import events as ev
+
+    features = dict(state.features)
+    out: list[Payload] = []
+    for fid in (*battle.attacker.pieces, *battle.defender.pieces):
+        f = features.get(fid)
+        if f is not None and f.legs:
+            features[fid] = f.model_copy(update={"legs": ()})
+            out.append(ev.FeatureSet(feature=features[fid]))
+    if not out:
+        return state, out
+    return state.model_copy(update={"features": features}), out
+
+
 def _fires(f: "Feature", own: int, enemy: int) -> bool:
     """Whether a piece's contingency acts at the start of a round, its side standing at
     ``own`` against ``enemy`` in contact (BDC rule 5)."""
@@ -1043,6 +1065,8 @@ def _day(state: "State", battle: Battle, day: date) -> list["Payload"]:
     if battle.meeting:
         return _meeting_day(state, battle, day)
     battle, out = _joining(state, battle, day)
+    state, dropped = _legs_dropped(state, battle)
+    out += dropped
     att = _present(state, battle, battle.attacker)
     dfn = _present(state, battle, battle.defender)
     if att and dfn and presses(battle.attacker):  # rule 6: at the start of every round
@@ -1120,6 +1144,8 @@ def _meeting_day(state: "State", battle: Battle, day: date) -> list["Payload"]:
     from revisionist.core import events as ev
 
     battle, out = _joining(state, battle, day)
+    state, dropped = _legs_dropped(state, battle)
+    out += dropped
     sides = (_present(state, battle, battle.attacker), _present(state, battle, battle.defender))
     gives: int | None = None
     for i, side in enumerate((battle.attacker, battle.defender)):

@@ -11,7 +11,7 @@ from revisionist.core.ids import QuantityId
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.quantity import QuantityChange
 from revisionist.core.realism.resolvers import production, qid, shipping, value
-from tests.test_realism_resolvers import Rig, naval
+from tests.test_realism_resolvers import POINTS, Rig, naval
 
 POOL = "uk_sealift_grt"
 START_POOL = 300_000
@@ -20,7 +20,7 @@ GAIN = 15_000
 
 
 def seated() -> Rig:
-    r = Rig()
+    r = Rig(POINTS)
     for person in ("roosevelt", "churchill", "hitler"):
         r.seat(person)
     r.close_session_zero()

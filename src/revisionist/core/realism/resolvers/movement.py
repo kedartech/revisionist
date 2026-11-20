@@ -42,6 +42,11 @@ land piece's lift is drawn from its nation's pool when the order sets it on a co
 the sea, and given back the day it lands. The rule above stays as it was for every game
 without ``territories``.
 
+A leg of the record names a place, or with ``territories`` on an area, and its piece goes
+there by adjacency as an order would send it, its steps marked scripted. With ``holders`` on,
+the territories a leg ``takes`` pass to the piece's nation on the leg's date, read from where
+everything stood as the day began (HSA).
+
 With ``fuel`` on as well (FUL, ``trade``), ``walk`` spends a piece's ``fuel_per_step`` from
 its nation's stock as each step falls due in the day walk, never when the order is filed;
 with too little stock the step is refused (``step_refused``, with the reason) and the
@@ -53,7 +58,7 @@ from datetime import date, timedelta
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, FeatureId, QuantityId
 from revisionist.core.ontology import EntityKind
-from revisionist.core.realism import battle, economy, kinds, territory, trade
+from revisionist.core.realism import battle, economy, holders, kinds, territory, trade
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.bases import (
     RAID_DAYS,
@@ -473,7 +478,8 @@ def walk(state: State, today: date) -> list[ev.Payload]:
     ``feature_set`` before its steps' ``piece_stepped`` events, then each pool as the lifts
     that landed today give their shipping back, then (FUL) each nation's pools with the
     fuel today's steps spent. With ``battles`` on, the movers of a border met head-on and
-    the pieces of an open meeting battle do not step (HON)."""
+    the pieces of an open meeting battle do not step (HON). Last, with ``holders`` on, the
+    territories the legs falling due today take (``holders.record_takes``, HSA)."""
     if not territory.on(state):
         return []
     out: list[ev.Payload] = []
@@ -493,6 +499,14 @@ def walk(state: State, today: date) -> list[ev.Payload]:
         if (n := territory.nation(state, c.side)) is not None
     )
     fuel: dict[EntityId, float] = {}
+    claims = [
+        (area, n)
+        for f in pieces
+        if f.bound_for is None and (n := territory.nation(state, f.side)) is not None
+        for leg in f.legs
+        if leg.since <= today
+        for area in leg.takes
+    ]
     for f in pieces:
         stepped: list[ev.Payload] = []
         if f.feature_id in held:
@@ -519,7 +533,7 @@ def walk(state: State, today: date) -> list[ev.Payload]:
         if left != pools.fuel:
             spent = pools.model_copy(update={"fuel": left})
             out.append(ev.EconomySet(polity=own, pools=spent, on=today))
-    return out
+    return out + holders.record_takes(state, claims, today)
 
 
 def day_changes(state: State, today: date) -> tuple[Feature | QuantityChange, ...]:

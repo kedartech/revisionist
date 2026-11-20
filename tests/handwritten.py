@@ -289,7 +289,7 @@ def greer_fired(store: "EventStore") -> tuple[SeatId, EntityId]:
     from revisionist.engine.store import load_state
     from tests.test_realism_tick import CAMPAIGN, seated
 
-    seated(store, "autumn-1941", "hitler")
+    seated(store, str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml"), "hitler")
     run_realism_tick(store, CAMPAIGN, prose=TemplateProseWriter())
     state = load_state(store, CAMPAIGN)
     (seat,) = readers(state)

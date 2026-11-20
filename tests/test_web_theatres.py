@@ -21,6 +21,9 @@ from revisionist.engine.web import realism_snapshot as rs
 from revisionist.engine.web.people import seat_people
 from revisionist.engine.web.realism_api import MapCapital, MapOrder, MapPlace, SeatMap
 
+POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
+"""The autumn-1941 world before territories: these tests pin movement between points."""
+
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 FIXTURE = Path(__file__).parents[1] / "web" / "test" / "fixtures" / "realism-seat.json"
 SEATS_AT = {
@@ -36,7 +39,7 @@ SEATS_AT = {
 
 
 def world(located: dict[str, str] | None = None, *, theatres: bool = True) -> WorldFile:
-    decl = cmp.load_world(cmp.world_path("autumn-1941"))
+    decl = cmp.load_world(cmp.world_path(POINTS))
     entities = []
     for e in decl.entities:
         update: dict[str, object] = {}

@@ -255,11 +255,16 @@ class State(_World):
     battles: dict[EntityId, Battle] = Field(default_factory=dict)
     """With ``battles`` on, each battle open, by its area (``battle_opened``, until
     ``battle_ended``). Engine only: it holds both sides' true strengths (BTL)."""
+    fought: frozenset[EntityId] = frozenset()
+    """With ``battles`` on, every area a battle has opened in, both areas of a meeting,
+    kept after it ends (``battle_opened``). Engine only: a scripted leg takes none of them
+    (HSA)."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "rules",
         "captures",
         "battles",
+        "fought",
         "routed",
         "styles",
         "standing",

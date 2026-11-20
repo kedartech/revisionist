@@ -267,6 +267,34 @@ def walk(state: "State", day: date) -> list["Payload"]:
     return out
 
 
+def record_takes(
+    state: "State", claims: Sequence[tuple[EntityId, EntityId]], day: date
+) -> list["Payload"]:
+    """With ``holders`` on, the territories scripted legs falling due on ``day`` pass to
+    their pieces' nations (HSA rule 3): ``claims`` are (territory, nation) pairs. A claim
+    lands ``area_held`` unless a battle has been fought there, a land piece of a polity at
+    war with the nation stands there as the day began, the nation already holds it, or
+    another nation claims it the same day; there the rules decide. In territory id order."""
+    from revisionist.core.realism.war import at_war
+
+    if not on(state):
+        return []
+    by: dict[EntityId, set[EntityId]] = {}
+    for area, nation in claims:
+        by.setdefault(area, set()).add(nation)
+    out: list[Payload] = []
+    for area, nations in sorted(by.items()):
+        if len(nations) != 1 or area in state.fought or area in state.battles:
+            continue
+        (nation,) = nations
+        if holder(state, area) == nation:
+            continue
+        if any(at_war(state, nation, n) for n in _land_nations(state, area)):
+            continue
+        out.append(_taken(state, area, nation, day))
+    return out
+
+
 def start_count(
     state: "State", won: Sequence[tuple[EntityId, EntityId]], day: date
 ) -> list["Payload"]:

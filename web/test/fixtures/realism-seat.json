@@ -656,7 +656,8 @@
                 "label": "Fly a reconnaissance flight"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           },
           {
             "name": "piece",
@@ -670,7 +671,8 @@
                 "label": "Patrol Wing 7"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           },
           {
             "name": "area",
@@ -688,7 +690,8 @@
                 "label": "The Western Approaches"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           }
         ],
         "rule": "intel",
@@ -712,7 +715,8 @@
                 "label": "Send a patrol"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           },
           {
             "name": "piece",
@@ -726,7 +730,8 @@
                 "label": "Atlantic Fleet"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           }
         ],
         "rule": "intel",
@@ -750,7 +755,8 @@
                 "label": "Place an agent"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           },
           {
             "name": "area",
@@ -768,7 +774,8 @@
                 "label": "The Western Approaches"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           }
         ],
         "rule": "intel",
@@ -792,7 +799,8 @@
                 "label": "Fund codebreaking"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           }
         ],
         "rule": "intel",
@@ -816,7 +824,8 @@
                 "label": "Conceal a force"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           },
           {
             "name": "piece",
@@ -830,7 +839,8 @@
                 "label": "Atlantic Fleet"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           },
           {
             "name": "concealed",
@@ -848,7 +858,8 @@
                 "label": "Lift its concealment"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           }
         ],
         "rule": "intel",

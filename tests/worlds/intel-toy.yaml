@@ -1,0 +1,170 @@
+# A toy world for the intelligence orders reaching the rules (tests only).
+#
+# The territory toy's board (`toy.map.json`, read only) with territories, holders, the
+# economy and reports on. Norra's chancellor has a form for each of the five intelligence
+# orders (rule name `intel`) and commands the same five in writing through her
+# intelligence chief. The values are set so that each order's outcome is certain: the kites
+# and the pickets find nothing of their own accord, a flight or a patrol finds what it
+# looks at, and no enemy piece stands where Norra's own pieces would meet it. Each
+# seat's wake is one day long, so two games played commit by commit reach the same days.
+# Every name is invented.
+
+world: intel-toy
+name: Intelligence Toy
+ruleset: realism
+start: "The Norra-Sudland border, spring 1900"
+start_date: 1900-04-02
+
+rules: [territories, holders, economy, reports]
+
+entities:
+  - {key: norra, kind: polity, name: Norra}
+  - {key: sudland, kind: polity, name: Sudland}
+  - {key: ilse, kind: person, name: Ilse Varg, parent: norra}
+  - {key: ansel, kind: person, name: Ansel Dorn, parent: norra}
+  - {key: tomas, kind: person, name: Tomas Brand, parent: sudland}
+  - {key: norrhavn, kind: location, name: Norrhavn, at: [150, 150], within: norra_plain, port_on: the_gulf}
+  - {key: sudby, kind: location, name: Sudby, at: [40, 60], within: sudland_coast}
+  - {key: gulf_roads, kind: location, name: The Gulf Roads, at: [150, 50], within: the_gulf}
+  - {key: open_roads, kind: location, name: The Open Roads, at: [180, 215], within: open_sea}
+
+map: {coords: flat, file: toy.map.json, sha256: c85e9773c786d427609b240ea1c45e21ae5c3c57ae2ab98d6b0d96713a20f28e, box: [0, 0, 300, 200]}
+
+terrain:
+  - {key: hills, kind: land, defence: 1}
+  - {key: plain, kind: land}
+  - {key: shallows, kind: sea}
+  - {key: deep, kind: sea}
+
+regions:
+  - {key: mainland, name: The Mainland}
+  - {key: north, name: The North, parent: mainland}
+  - {key: south, name: The South, parent: mainland}
+  - {key: waters, name: The Waters}
+
+territories:
+  - {key: norra_hills, name: The Norra Hills, region: north, terrain: hills, holder: norra, source: toy}
+  - {key: norra_plain, name: The Norra Plain, region: north, terrain: plain, holder: norra, sites: [norrhavn], yields: {grain: 10, levies: 2000}, source: toy}
+  - {key: sudland_coast, name: The Sudland Coast, region: south, terrain: plain, holder: sudland, sites: [sudby], yields: {grain: 6, iron: 2}, source: toy}
+  - {key: isle, name: The Isle, region: waters, terrain: hills, holder: sudland, source: toy}
+
+sea_zones:
+  - {key: the_gulf, name: The Gulf, region: waters, terrain: shallows}
+  - {key: open_sea, name: The Open Sea, region: waters, terrain: deep}
+
+adjacency:
+  - [norra_hills, norra_plain]
+  - [norra_hills, sudland_coast]
+  - [norra_plain, the_gulf]
+  - [norra_plain, open_sea]
+  - [sudland_coast, the_gulf]
+  - [the_gulf, open_sea]
+  - [isle, open_sea]
+  - {a: isle, b: norra_plain, crossing: the ferry}
+
+resources:
+  - {key: grain, name: Grain, unit: tons, role: output}
+  - {key: iron, name: Iron, unit: tons, role: output}
+  - {key: levies, name: Levies, unit: men, role: manpower}
+
+# Kites and pickets search nothing of their own accord (detect 0 and 100: the pickets
+# find everything, but only on patrol); a flight searches at 100 less the target's conceal.
+piece_kinds:
+  - {key: levy, name: Levy, domain: land, days_per_step: {hills: 7, plain: 5}}
+  - {key: galley, name: Galley, domain: sea, days_per_step: {shallows: 2, deep: 3}}
+  - {key: picket, name: Picket Boats, domain: sea, days_per_step: {shallows: 1, deep: 2}, detect: 100}
+  - {key: kite, name: Kite Wing, domain: air, days_per_step: {hills: 1, plain: 1, shallows: 1, deep: 1}, range_steps: 2}
+
+features:
+  - {key: norra_levy, kind: piece, piece: levy, name: The Norra Levy, side: norra, places: [norrhavn], tier: 2, source: toy}
+  - {key: norra_kites, kind: piece, piece: kite, name: The Norra Kites, side: norra, places: [norrhavn], tier: 1, source: toy}
+  - {key: norra_pickets, kind: piece, piece: picket, name: The Norra Pickets, side: norra, places: [gulf_roads], tier: 1, source: toy}
+  - {key: sudland_levy, kind: piece, piece: levy, name: The Sudland Levy, side: sudland, places: [sudby], tier: 3, source: toy}
+  - {key: sudland_galleys, kind: piece, piece: galley, name: The Sudland Galleys, side: sudland, places: [open_roads], tier: 2, source: toy}
+
+sources:
+  - key: toy
+    title: Invented for the toy world
+    note: Not history. Stands in for a real citation in tests.
+    verified: true
+
+wars:
+  - {a: norra, b: sudland, since: 1900-03-01, source: toy}
+
+# Ansel Dorn reports every source Norra has, in person.
+intelligence:
+  - nation: norra
+    sources:
+      - {source: air, person: ansel, channel: in_person}
+      - {source: patrol, person: ansel, channel: in_person}
+      - {source: agent, person: ansel, channel: in_person}
+      - {source: codebreaking, person: ansel, channel: in_person}
+
+pipelines:
+  - key: norra_intelligence
+    name: Norra's intelligence office
+    source: toy
+    steps:
+      - {person: ansel, kind: clerical, days: 1}
+
+cards:
+  - person: ilse
+    office: Chancellor of Norra
+    playable: true
+    principals: [norra]
+    horizon_days: 1
+    inner_circle:
+      - {person: ansel, channel: in_person}
+    pipelines: [norra_intelligence]
+    levers:
+      - name: fly_recon
+        pipeline: norra_intelligence
+        resolver: intel
+        params:
+          - {name: intel, kind: enum, choices: [recon]}
+          - {name: piece, kind: enum, choices: [norra_kites]}
+          - {name: area, kind: enum, choices: [sudland_coast, norra_hills]}
+      - name: patrol
+        pipeline: norra_intelligence
+        resolver: intel
+        params:
+          - {name: intel, kind: enum, choices: [patrol]}
+          - {name: piece, kind: enum, choices: [norra_pickets]}
+      - name: place_agent
+        pipeline: norra_intelligence
+        resolver: intel
+        params:
+          - {name: intel, kind: enum, choices: [agent]}
+          - {name: area, kind: enum, choices: [sudland_coast, isle]}
+      - name: fund_codebreaking
+        pipeline: norra_intelligence
+        resolver: intel
+        params:
+          - {name: intel, kind: enum, choices: [codebreaking]}
+      - name: conceal
+        pipeline: norra_intelligence
+        resolver: intel
+        params:
+          - {name: intel, kind: enum, choices: [conceal]}
+          - {name: piece, kind: enum, choices: [norra_levy]}
+          - {name: concealed, kind: enum, choices: ["yes", "no"]}
+    authority:
+      - {name: intelligence, effects: [investigate, allocate, move_force, engagement], forces: [norra_kites, norra_pickets, norra_levy], executor: ansel, summary: "Search, place agents, fund codebreaking and hide pieces, through the chief of intelligence."}
+  - person: ansel
+    office: Chief of Intelligence of Norra
+    playable: false
+    principals: [ilse]
+    loyalty: 3
+    competence: 5
+    horizon_days: 1
+  - person: tomas
+    office: Premier of Sudland
+    playable: true
+    principals: [sudland]
+    horizon_days: 1
+
+seats: []
+
+roster:
+  - {entity: ilse, pitch: The chancellor who started the war., reach: The army of Norra., composite: true}
+  - {entity: tomas, pitch: The premier who must hold the border., reach: The army of Sudland., composite: true}

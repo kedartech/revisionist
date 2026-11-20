@@ -205,6 +205,11 @@ class LeverLine(TypedDict):
     pipeline: str
     params: list[LeverParam]
     """The draft form is built from these."""
+    rule: str
+    """The rule name the lever's order is resolved by."""
+    intel: str | None
+    """For a form with the rule name ``intel``, which of the five intelligence orders it
+    gives (``recon``, ``patrol``, ``agent``, ``codebreaking``, ``conceal``); else None."""
 
 
 class DirectiveProposal(TypedDict):

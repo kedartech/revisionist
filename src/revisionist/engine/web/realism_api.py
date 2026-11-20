@@ -942,6 +942,76 @@ class BattleView(TypedDict):
     contingencies: list[str]
     """The contingency kinds the seat may give its pieces there."""
     pieces: list[BattlePiece]
+    ended: str | None
+    """The day the battle ended; None while it is open. An ended battle gives no
+    decisions, contingencies or pieces."""
+    closing: "ClosingOdds | None"
+    """An ended battle's closing odds (ODS); None while it is open, and while the odds
+    desk is busy."""
+
+
+class OddsShares(TypedDict):
+    """The share of runs, in percent, that end in each way for the seat's side (ODS)."""
+
+    win: float
+    stalemate: float
+    """Still fought, or the attacker went back after a lull, when the days run out."""
+    loss: float
+
+
+class OddsTerrain(TypedDict):
+    """The public facts of the area the odds are for."""
+
+    area: str
+    name: str
+    terrain: str
+    """The terrain's key in the world file."""
+    defence: int
+    """What the terrain adds to a defender's score."""
+    holder: str | None
+    """The name of the nation holding it; None for a sea zone or nobody's ground."""
+
+
+class OddsAtStrength(TypedDict):
+    strength: int
+    """One total enemy strength the reports allow."""
+    win: float | None
+    """The win share, in percent, of the runs that drew that strength; None: none did."""
+
+
+class OddsReply(TypedDict):
+    """The ``odds`` action's spread (ODS), simulated from the seat's own picture: its own
+    pieces exactly, the enemy only as its reports put it. Never one figure. With no report
+    of the enemy there, ``known`` is false and only the terrain facts are given."""
+
+    known: bool
+    area: str
+    terrain: OddsTerrain
+    runs: int
+    days: int
+    shares: OddsShares | None
+    own_lost: StrengthRange | None
+    """The likely range of steps the seat's side loses: the 10th to the 90th percentile."""
+    enemy_lost: StrengthRange | None
+    taken: float | None
+    """The chance, in percent, of taking the territory; None where no win takes it."""
+    taken_days: int | None
+    """The median days until it is taken, over the runs that take it."""
+    forced_back: float | None
+    """The chance, in percent, that the seat's side breaks and is forced back."""
+    back_to: str | None
+    """The area key the seat's piece would be forced back to; None: nowhere."""
+    by_strength: list[OddsAtStrength]
+    reports: list[str]
+    """The keys of the reports the enemy was read from."""
+
+
+class ClosingOdds(TypedDict):
+    """An ended battle's odds on its first day (ODS rule 7): as they truly stood, with
+    both sides exactly, beside what the seat's own picture said that day."""
+
+    truly: OddsReply
+    seen: OddsReply
 
 
 class MapReply(TypedDict):
@@ -1382,6 +1452,7 @@ __all__ = [
     "ChamberSeats",
     "ChamberVote",
     "Clock",
+    "ClosingOdds",
     "ContactLine",
     "Court",
     "CourtOrder",
@@ -1419,6 +1490,10 @@ __all__ = [
     "MapReply",
     "MapReport",
     "MarkArea",
+    "OddsAtStrength",
+    "OddsReply",
+    "OddsShares",
+    "OddsTerrain",
     "OrderProposal",
     "OrderResult",
     "OrderTrack",

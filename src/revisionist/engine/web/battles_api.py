@@ -19,8 +19,9 @@ or still on its way, is a due matter at the open wake's close (``due``, register
 ``agenda_api.DUE_KINDS``).
 """
 
-from collections.abc import Collection, Mapping
-from typing import Any
+from collections.abc import Collection, Mapping, Sequence
+from datetime import date
+from typing import TYPE_CHECKING, Any
 
 from revisionist.core.ids import EntityId, FeatureId, SeatId
 from revisionist.core.realism import battle, territory
@@ -49,6 +50,9 @@ from revisionist.engine.web.realism_api import (
 TIER_LOW, TIER_HIGH = 1, 5
 """[proposed] The strength an enemy piece the seat's papers place but give no figure for
 may have: any tier a fighting piece can have."""
+if TYPE_CHECKING:
+    from revisionist.engine.odds import Ended
+
 DECISIONS = tuple(d.value for d in Decision)
 CONTINGENCIES = tuple(k.value for k in ContingencyKind)
 NOT_IN = "Your nation is in no battle there."  # [proposed]
@@ -79,7 +83,7 @@ def _on(state: State, side: BattleSide, own: EntityId) -> bool:
     return False
 
 
-def _sides(state: State, b: Battle, own: EntityId) -> tuple[BattleSide, BattleSide] | None:
+def sides_of(state: State, b: Battle, own: EntityId) -> tuple[BattleSide, BattleSide] | None:
     """The seat's nation's side of ``b`` and the enemy's; None when it is on neither."""
     if _on(state, b.attacker, own):
         return b.attacker, b.defender
@@ -121,12 +125,17 @@ def _decided(state: State, seat: SeatId, side: BattleSide, wake: int) -> bool:
     return side.decided_wake == wake or _sent(state, seat, side)
 
 
-def _rounds(state: State, view: View, b: Battle, seat: SeatId) -> list[BattleRoundLine]:
-    """Each round as the seat's own report of it gives it, oldest first."""
+def _rounds(
+    state: State, view: View, b: Battle, seat: SeatId, until: date | None = None
+) -> list[BattleRoundLine]:
+    """Each round as the seat's own report of it gives it, oldest first, up to ``until``
+    (an ended battle's last day: a later battle in the area has its own rounds)."""
     out: list[BattleRoundLine] = []
     today = view.in_world_date
     if today is None:
         return out
+    if until is not None:
+        today = min(today, until)
     for n in range((today - b.opened).days + 1):
         day = b.opened.fromordinal(b.opened.toordinal() + n)
         page = view.documents.get(battle.report_id(state, b, day, seat))
@@ -215,10 +224,13 @@ def block(
     view: View,
     forces: Mapping[str, str],
     held: Collection[str] = (),
+    ended: Sequence["Ended"] = (),
 ) -> list[BattleView]:
     """Each battle the seat's nation is a side of, by area name. ``forces`` (the force
     keys the seat's movement forms name) picks the pieces it may give a contingency;
-    ``held`` are the area keys of battles it has a decision held for the next wake."""
+    ``held`` are the area keys of battles it has a decision held for the next wake;
+    ``ended`` (``odds.ended``) the battles it fought that have ended, each listed after
+    the open ones with its closing odds."""
     own = _nation(state, seat)
     if own is None or not battle.on(state):
         return []
@@ -226,7 +238,7 @@ def block(
     wake = _open_wake(state)
     out: list[BattleView] = []
     for area, b in state.battles.items():
-        sides = _sides(state, b, own)
+        sides = sides_of(state, b, own)
         if sides is None or area not in keys:
             continue
         mine, theirs = sides
@@ -251,10 +263,47 @@ def block(
                 decisions=list(DECISIONS) if commands and wake is not None and not decided else [],
                 contingencies=list(CONTINGENCIES) if commands else [],
                 pieces=_pieces(state, b, mine, forces),
+                ended=None,
+                closing=None,
             )
         )
     out.sort(key=lambda v: (v["name"], v["area"]))
-    return out
+    return out + sorted(
+        (v for v in (_ended(state, seat, view, e, own) for e in ended) if v is not None),
+        key=lambda v: (v["ended"] or "", v["name"], v["area"]),
+    )
+
+
+def _ended(state: State, seat: SeatId, view: View, e: "Ended", own: EntityId) -> BattleView | None:
+    """An ended battle as the seat sees it: its own reports of the rounds, no orders to
+    give, and the closing odds."""
+    keys = _keys(state)
+    b = e.battle
+    sides = sides_of(state, b, own)
+    if sides is None or b.area not in keys:
+        return None
+    mine, theirs = sides
+    key, name = keys[b.area]
+    rounds = _rounds(state, view, b, seat, e.ended)
+    enemy = state.entities.get(theirs.nation)
+    return BattleView(
+        area=key,
+        name=name,
+        opened=b.opened.isoformat(),
+        side="attacker" if mine is b.attacker else "defender",
+        enemy=enemy.name if enemy is not None else "",
+        rounds=rounds,
+        strength=max(0, mine.brought - mine.lost - sum(r["own_lost"] for r in rounds)),
+        enemy_strength=None,
+        decision=None,
+        decided=False,
+        held=False,
+        decisions=[],
+        contingencies=[],
+        pieces=[],
+        ended=e.ended.isoformat(),
+        closing=e.closing,
+    )
 
 
 def due(state: State, seat: SeatId) -> list[tuple[str, str]]:
@@ -267,7 +316,7 @@ def due(state: State, seat: SeatId) -> list[tuple[str, str]]:
     keys = _keys(state)
     out: list[tuple[str, str]] = []
     for area, b in sorted(state.battles.items(), key=lambda kv: keys.get(kv[0], ("", ""))[1]):
-        sides = _sides(state, b, own)
+        sides = sides_of(state, b, own)
         if sides is None or area not in keys:
             continue
         mine = sides[0]
@@ -307,7 +356,7 @@ def _area(state: State, key: str) -> EntityId:
 def _battle(state: State, seat: SeatId, key: str) -> tuple[Battle, BattleSide]:
     own = _nation(state, seat)
     b = battle.at(state, _area(state, key)) if battle.on(state) else None
-    sides = _sides(state, b, own) if b is not None and own is not None else None
+    sides = sides_of(state, b, own) if b is not None and own is not None else None
     if b is None or sides is None:
         raise ValueError(NOT_IN)
     return b, sides[0]
@@ -387,4 +436,5 @@ __all__ = [
     "block",
     "contingency_asks",
     "due",
+    "sides_of",
 ]

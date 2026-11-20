@@ -500,7 +500,13 @@ None of this protects players from the host, who holds the master key and the bo
 
 ### 16.7 Perceived odds
 
-spec §7: shown only once an order is filed and locked. `/status` and `revisionist status` show the perceived band of each locked pending order, from `feasibility_rated` at the cutoff, and a briefing ends with how the agent read last tick's orders. Never the true band, never before the cutoff (so odds cannot be shopped for by re-filing), nothing for a blinded seat.
+spec §7 and §10 (ODS, reversing "no odds before filing"): the `odds` action in the web room (`engine/odds.py`) takes one of the seat's own pieces and either a destination area or an open battle with a decision, and answers with a spread, never one figure: the shares of win, stalemate and loss; the 10th to 90th percentile of the steps each side loses; the chance of taking the territory and the median days until it is taken (the round it is won plus `CAPTURE_DAYS`); the chance of being forced back and the area that would be to (`battle.fall_back` called with the seat's view); the win share at each enemy strength the reports allow; and the keys of the reports used.
+
+- **Inputs.** The seat's own pieces go in exactly (strength, losses, air in range, supply). The enemy goes in only from `View.reports` for the area: each reported piece of the area's domain (or of unknown kind) is a fighter whose strength is drawn evenly across its report's range (a report with no strength: 1 to its kind's maximum); a reported enemy air piece with the area in range gives air support. The truth about the enemy is never read, so the reply is the same byte for byte whatever the enemy really is while the reports stand. With no report for the area the reply says the enemy is unknown and gives the terrain facts only.
+- **Runs.** `battle.simulate` runs `ODDS_RUNS` (2,000) times over `ODDS_DAYS` (14), seeded by campaign, wake, seat and the request's inputs, never the clock: the same request in a wake gets the same reply.
+- **Bounds.** One `odds.Service` per server: `WORKERS` simulation threads, at most `QUEUE` requests waiting beyond them (then a refused "busy, ask again" reply), `CACHE` replies kept keyed by the wake, one computation for identical requests in flight whose waiters share its reply, and 30 requests a minute a seat. Sizes are `[proposed]` until the rule 9 measurement sets them.
+- **Nothing filed.** The action appends no event and spends nothing; it is not sealed by a commit.
+- **Closing odds.** Once a battle has ended, the `battles` block lists it after the open ones with its closing odds (`odds.ended`): the spread as it truly stood on the first day, both sides exactly, beside what the seat's own picture said that day. Both are computed on request by replaying the log to the battle's `battle_opened` and kept in the server's odds cache; nothing is added to a paper or the log, and a battle still open shows none.
 
 ### 16.8 Not covered by the tests
 

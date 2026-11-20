@@ -337,7 +337,8 @@
                 "label": "Extend the draft"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           },
           {
             "name": "sponsor",
@@ -346,7 +347,8 @@
             "lo": null,
             "hi": null,
             "choices": [],
-            "places": []
+            "places": [],
+            "areas": {}
           }
         ]
       },
@@ -376,7 +378,8 @@
                 "label": "China"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           },
           {
             "name": "share_pct",
@@ -385,7 +388,8 @@
             "lo": 0,
             "hi": 100,
             "choices": [],
-            "places": []
+            "places": [],
+            "areas": {}
           }
         ]
       },
@@ -415,7 +419,8 @@
                 "label": "The Pacific Fleet"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           },
           {
             "name": "to",
@@ -622,7 +627,8 @@
                   "us_pacific_fleet": null
                 }
               }
-            ]
+            ],
+            "areas": {}
           }
         ]
       }
@@ -2669,7 +2675,8 @@
         "held_since": null,
         "taken_from": null,
         "falling": null,
-        "yields": {}
+        "yields": {},
+        "threatened_from": null
       },
       {
         "key": "norra_plain",
@@ -2690,7 +2697,8 @@
         "yields": {
           "grain": 10.0,
           "levies": 2000.0
-        }
+        },
+        "threatened_from": null
       },
       {
         "key": "sudland_coast",
@@ -2709,7 +2717,8 @@
         "yields": {
           "grain": 6.0,
           "iron": 2.0
-        }
+        },
+        "threatened_from": null
       },
       {
         "key": "isle",
@@ -2725,7 +2734,8 @@
         "held_since": null,
         "taken_from": null,
         "falling": null,
-        "yields": {}
+        "yields": {},
+        "threatened_from": null
       },
       {
         "key": "the_gulf",
@@ -2742,7 +2752,8 @@
         "held_since": null,
         "taken_from": null,
         "falling": null,
-        "yields": {}
+        "yields": {},
+        "threatened_from": null
       },
       {
         "key": "open_sea",
@@ -2759,7 +2770,8 @@
         "held_since": null,
         "taken_from": null,
         "falling": null,
-        "yields": {}
+        "yields": {},
+        "threatened_from": null
       }
     ],
     "regions": [
@@ -2941,7 +2953,8 @@
       "held_since": null,
       "taken_from": null,
       "falling": null,
-      "yields": {}
+      "yields": {},
+      "threatened_from": null
     },
     {
       "key": "norra_plain",
@@ -2966,7 +2979,8 @@
       "yields": {
         "grain": 10.0,
         "levies": 2000.0
-      }
+      },
+      "threatened_from": null
     },
     {
       "key": "sudland_coast",
@@ -2989,7 +3003,8 @@
       "yields": {
         "grain": 6.0,
         "iron": 2.0
-      }
+      },
+      "threatened_from": null
     },
     {
       "key": "isle",
@@ -3019,7 +3034,8 @@
         "pitch": 2.0,
         "rails": 3.0,
         "glory": 1.0
-      }
+      },
+      "threatened_from": null
     },
     {
       "key": "the_gulf",
@@ -3036,7 +3052,8 @@
       "held_since": null,
       "taken_from": null,
       "falling": null,
-      "yields": {}
+      "yields": {},
+      "threatened_from": null
     },
     {
       "key": "open_sea",
@@ -3053,7 +3070,8 @@
       "held_since": null,
       "taken_from": null,
       "falling": null,
-      "yields": {}
+      "yields": {},
+      "threatened_from": null
     }
   ],
   "catchup_page": {
@@ -3469,7 +3487,8 @@
         "held_since": null,
         "taken_from": null,
         "falling": null,
-        "yields": {}
+        "yields": {},
+        "threatened_from": null
       },
       {
         "key": "norra_plain",
@@ -3490,7 +3509,8 @@
         "yields": {
           "grain": 10.0,
           "levies": 2000.0
-        }
+        },
+        "threatened_from": null
       },
       {
         "key": "sudland_coast",
@@ -3509,7 +3529,8 @@
         "yields": {
           "grain": 6.0,
           "iron": 2.0
-        }
+        },
+        "threatened_from": null
       },
       {
         "key": "isle",
@@ -3525,7 +3546,8 @@
         "held_since": null,
         "taken_from": null,
         "falling": null,
-        "yields": {}
+        "yields": {},
+        "threatened_from": null
       },
       {
         "key": "the_gulf",
@@ -3542,7 +3564,8 @@
         "held_since": null,
         "taken_from": null,
         "falling": null,
-        "yields": {}
+        "yields": {},
+        "threatened_from": null
       },
       {
         "key": "open_sea",
@@ -3559,7 +3582,8 @@
         "held_since": null,
         "taken_from": null,
         "falling": null,
-        "yields": {}
+        "yields": {},
+        "threatened_from": null
       }
     ],
     "regions": [
@@ -3594,6 +3618,202 @@
     "file": {
       "name": "toy.map.json",
       "sha256": "c85e9773c786d427609b240ea1c45e21ae5c3c57ae2ab98d6b0d96713a20f28e"
+    }
+  },
+  "reports_map": {
+    "places": [
+      {
+        "name": "Norrhavn",
+        "lat": 150.0,
+        "lon": 150.0,
+        "theatre": null
+      },
+      {
+        "name": "Sudby",
+        "lat": 40.0,
+        "lon": 60.0,
+        "theatre": null
+      },
+      {
+        "name": "The Gulf Roads",
+        "lat": 150.0,
+        "lon": 50.0,
+        "theatre": null
+      }
+    ],
+    "marks": [],
+    "orders": [],
+    "capitals": [],
+    "reports": [
+      {
+        "key": "mdc72f6e3ed872eab5c76ace6a4cea7d1",
+        "kind": "galley",
+        "kind_name": "Galley",
+        "strength_low": 2,
+        "strength_high": 3,
+        "area": {
+          "key": "the_gulf",
+          "name": "The Gulf"
+        },
+        "bound_for": null,
+        "seen": "1900-04-03",
+        "source": "contact",
+        "person": "Ilse Varg",
+        "confidence": "B",
+        "document": "J3WG242SBM3J142KF2MWGGVYA1",
+        "ring": [
+          "the_gulf"
+        ]
+      }
+    ],
+    "areas": [
+      {
+        "key": "norra_hills",
+        "name": "The Norra Hills",
+        "kind": "land",
+        "region": "north",
+        "terrain": "hills",
+        "neighbours": [
+          "norra_plain",
+          "sudland_coast"
+        ],
+        "holder": null,
+        "held_since": null,
+        "taken_from": null,
+        "falling": null,
+        "yields": {},
+        "threatened_from": []
+      },
+      {
+        "key": "norra_plain",
+        "name": "The Norra Plain",
+        "kind": "land",
+        "region": "north",
+        "terrain": "plain",
+        "neighbours": [
+          "isle",
+          "norra_hills",
+          "open_sea",
+          "the_gulf"
+        ],
+        "holder": null,
+        "held_since": null,
+        "taken_from": null,
+        "falling": null,
+        "yields": {
+          "grain": 10.0,
+          "levies": 2000.0
+        },
+        "threatened_from": [
+          "mdc72f6e3ed872eab5c76ace6a4cea7d1"
+        ]
+      },
+      {
+        "key": "sudland_coast",
+        "name": "The Sudland Coast",
+        "kind": "land",
+        "region": "south",
+        "terrain": "plain",
+        "neighbours": [
+          "norra_hills",
+          "the_gulf"
+        ],
+        "holder": null,
+        "held_since": null,
+        "taken_from": null,
+        "falling": null,
+        "yields": {
+          "grain": 6.0,
+          "iron": 2.0
+        },
+        "threatened_from": null
+      },
+      {
+        "key": "isle",
+        "name": "The Isle",
+        "kind": "land",
+        "region": "waters",
+        "terrain": "hills",
+        "neighbours": [
+          "norra_plain",
+          "open_sea"
+        ],
+        "holder": null,
+        "held_since": null,
+        "taken_from": null,
+        "falling": null,
+        "yields": {},
+        "threatened_from": null
+      },
+      {
+        "key": "the_gulf",
+        "name": "The Gulf",
+        "kind": "sea",
+        "region": "waters",
+        "terrain": "shallows",
+        "neighbours": [
+          "norra_plain",
+          "open_sea",
+          "sudland_coast"
+        ],
+        "holder": null,
+        "held_since": null,
+        "taken_from": null,
+        "falling": null,
+        "yields": {},
+        "threatened_from": null
+      },
+      {
+        "key": "open_sea",
+        "name": "The Open Sea",
+        "kind": "sea",
+        "region": "waters",
+        "terrain": "deep",
+        "neighbours": [
+          "isle",
+          "norra_plain",
+          "the_gulf"
+        ],
+        "holder": null,
+        "held_since": null,
+        "taken_from": null,
+        "falling": null,
+        "yields": {},
+        "threatened_from": null
+      }
+    ],
+    "regions": [
+      {
+        "key": "mainland",
+        "name": "The Mainland",
+        "parent": null
+      },
+      {
+        "key": "north",
+        "name": "The North",
+        "parent": "mainland"
+      },
+      {
+        "key": "south",
+        "name": "The South",
+        "parent": "mainland"
+      },
+      {
+        "key": "waters",
+        "name": "The Waters",
+        "parent": null
+      }
+    ],
+    "coords": "flat",
+    "box": [
+      0.0,
+      0.0,
+      300.0,
+      200.0
+    ],
+    "file": {
+      "name": "toy.map.json",
+      "sha256": "d715b3f0b0adaca47272e775572a851220a09d0a22b47c8fe1c5e707f712421a"
     }
   }
 }

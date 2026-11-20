@@ -1,5 +1,5 @@
 {
- "1b39f96a959963f156f2de93": {
+ "0a0fd40e749dd3e86a280452": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -25,32 +25,7 @@
    "usd": 0.0
   }
  },
- "6eedad994aaf89cb862f96de": {
-  "call_class": "estimator",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply (figure)",
-  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"ZZPE3Q51YWBGEV3Q49DSSZN4CY\",\"issuer\":\"Frank",
-  "reply": {
-   "cached_tokens": 0,
-   "input_tokens": 0,
-   "model": "hand",
-   "output": {
-    "effects": [
-     {
-      "kind": "figure",
-      "percent": 10,
-      "quantity": "W449JZD1QF2WJM8J2HZGAQ8TC9"
-     }
-    ],
-    "rationale": "The order plainly bears on the Democrats' strength; ten percent.",
-    "reason": "The count rises as the Hill takes the lobbying to heart."
-   },
-   "output_tokens": 0,
-   "usd": 0.0
-  }
- },
- "6fc15a0447f6ea81130e9d98": {
+ "4c837f6380ea617c717c6294": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -76,7 +51,7 @@
    "usd": 0.0
   }
  },
- "b7651b63904b62154cc6bf2d": {
+ "7ba27afc4e52587801e92773": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -96,6 +71,31 @@
     ],
     "rationale": "A count, which no effect may carry.",
     "reason": "Forty votes fall away."
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ },
+ "d278fe7c73c6be0de701a4e0": {
+  "call_class": "estimator",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply (figure)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"ZZPE3Q51YWBGEV3Q49DSSZN4CY\",\"issuer\":\"Frank",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "effects": [
+     {
+      "kind": "figure",
+      "percent": 10,
+      "quantity": "W449JZD1QF2WJM8J2HZGAQ8TC9"
+     }
+    ],
+    "rationale": "The order plainly bears on the Democrats' strength; ten percent.",
+    "reason": "The count rises as the Hill takes the lobbying to heart."
    },
    "output_tokens": 0,
    "usd": 0.0

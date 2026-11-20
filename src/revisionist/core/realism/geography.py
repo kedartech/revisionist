@@ -107,6 +107,15 @@ class Feature(Model):
     contingency: Contingency | None = None
     """With ``battles`` on, what the force does in a battle with no decision from its seat,
     set by an applied engagement order. None: hold (BDC)."""
+    concealed: bool = False
+    """With ``reports`` on, a piece concealed by order until an order lifts it (IOR)."""
+    concealed_leg: bool = False
+    """With ``reports`` on, a piece on the course of a concealed leg of the record, until
+    it arrives (HSA, IOR)."""
+    recon: EntityId | None = None
+    """With ``reports`` on, an air piece's ordered reconnaissance: the area it searches on
+    ``recon_on`` (IOR). None: none ordered."""
+    recon_on: date | None = None
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
@@ -121,6 +130,10 @@ class Feature(Model):
             "step_due",
             "lost_on",
             "contingency",
+            "concealed",
+            "concealed_leg",
+            "recon",
+            "recon_on",
         }
     )
 
@@ -145,6 +158,8 @@ class Feature(Model):
             raise ValueError(f"feature {self.feature_id}: path and step_due go together")
         if self.path and not force:
             raise ValueError(f"feature {self.feature_id}: only a force steps by order")
+        if (self.recon is None) != (self.recon_on is None):
+            raise ValueError(f"feature {self.feature_id}: recon and recon_on go together")
         return self
 
 

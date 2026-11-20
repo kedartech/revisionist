@@ -22,7 +22,7 @@ from revisionist.core.goals import Ordered, leaves
 from revisionist.core.ids import CampaignId, EntityId, FeatureId, SeatId
 from revisionist.core.ontology import Controller, EntityKind, ScheduleSource
 from revisionist.core.project import project
-from revisionist.core.realism import battle
+from revisionist.core.realism import battle, detect
 from revisionist.core.realism.agenda import (
     Ask,
     Mandate,
@@ -631,6 +631,7 @@ def _battle_safe(state: State, asks: Sequence[Ask]) -> tuple[Ask, ...]:
             out.append(a)
             continue
         kept = battle.aide_may(state, a.effect)
+        kept = None if kept is None else detect.aide_may(kept)
         if kept is not None:
             out.append(a if kept is a.effect else a.model_copy(update={"effect": kept}))
     return tuple(out)

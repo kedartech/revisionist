@@ -9,8 +9,8 @@ import hashlib
 from datetime import date, timedelta
 
 from revisionist.core import events as ev
-from revisionist.core.ids import CampaignId, DocumentId, SeatId, derived_id
-from revisionist.core.realism import actors
+from revisionist.core.ids import CampaignId, DocumentId, EntityId, SeatId, derived_id
+from revisionist.core.realism import actors, detect, kinds, territory
 from revisionist.core.realism.document import (
     BodyField,
     DocumentTruth,
@@ -19,6 +19,7 @@ from revisionist.core.realism.document import (
     TruthRef,
 )
 from revisionist.core.realism.geography import Feature, Sight, SightRef, in_play
+from revisionist.core.realism.war import polity_of
 from revisionist.core.state import State
 from revisionist.core.visibility import Scope, Visibility
 
@@ -100,7 +101,8 @@ def _sight(state: State, seed: str, feed: Feed, f: Feature) -> BodyField | None:
 
 def _sighted(state: State, feed: Feed) -> list[Feature]:
     """The features the feed sights: each one it names, followed by that force's
-    detachments still in play, by name."""
+    detachments still in play, by name. In a game with ``reports`` on, an enemy piece of
+    any holder is left out: a seat knows one only as a report (RPD)."""
     out: list[Feature] = []
     for fid in feed.sights:
         out.append(state.features[fid])
@@ -110,7 +112,21 @@ def _sighted(state: State, feed: Feed) -> list[Feature]:
                 key=lambda f: (f.name, f.feature_id),
             )
         )
-    return out
+    if not detect.on(state):
+        return out
+    nations = [polity_of(state, state.seats[s].embodies) for s in sorted(_holders(state, feed))]
+    return [f for f in out if not any(_enemy(state, n, f) for n in nations)]
+
+
+def _enemy(state: State, nation: EntityId | None, f: Feature) -> bool:
+    """Whether ``f`` is a force ``nation`` would know only by report: one of a polity not
+    its own nor an ally. A holder with no nation is told of no force."""
+    if not kinds.is_force(state, f):
+        return False
+    theirs = territory.nation(state, f.side)
+    if nation is None or theirs is None:
+        return True
+    return theirs != nation and not territory.allied(state, nation, theirs)
 
 
 def _holders(state: State, feed: Feed) -> frozenset[SeatId]:

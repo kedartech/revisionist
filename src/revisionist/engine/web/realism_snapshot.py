@@ -20,10 +20,10 @@ from revisionist.core.events import Event
 from revisionist.core.ids import DocumentId, EntityId, FeatureId, PipelineId, SeatId, derived_id
 from revisionist.core.ontology import EntityKind
 from revisionist.core.project import project
-from revisionist.core.realism import kinds, territory
+from revisionist.core.realism import detect, kinds, territory
 from revisionist.core.realism.advance import next_wake
 from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, words
-from revisionist.core.realism.document import DocumentView
+from revisionist.core.realism.document import BodyField, DocumentView
 from revisionist.core.realism.effect import PartView
 from revisionist.core.realism.geography import Feature, in_play
 from revisionist.core.realism.pipeline import (
@@ -69,6 +69,7 @@ from revisionist.engine.web.realism_api import (
     MapOrder,
     MapPiece,
     MapPlace,
+    MapReport,
     MarkArea,
     OrderTrack,
     OrderTracker,
@@ -181,13 +182,92 @@ def documents(
 
 
 def document(view: View, doc_id: DocumentId, flagged: bool = False) -> DocumentPage:
-    """One page. KeyError if the seat has not received it; fetching it counts as reading it."""
+    """One page. KeyError if the seat has not received it; fetching it counts as reading it.
+    An intelligence paper's reports are one worded line each (``report_lines``)."""
     doc = view.documents[doc_id]
+    body = report_lines(view, doc.body)
     return DocumentPage(
         item=_item(view, doc_id, doc, unread=False, flagged=flagged, answers=_answers(view)),
-        body=[BodyLine(label=b.label, value=b.value, unit=b.unit) for b in doc.body],
+        body=(
+            body
+            if body is not None
+            else [BodyLine(label=b.label, value=b.value, unit=b.unit) for b in doc.body]
+        ),
         prose=doc.prose,
     )
+
+
+CONFIDENCE_WORDS = {"A": "confirmed", "B": "probable", "C": "possible"}
+"""[proposed] A report's confidence as its line words it."""
+
+_REPORT_FIELDS = ("Kind", "Strength", "Area", "Bound for", "Seen", "Confidence")
+"""The fields detection writes for one report, in order; ``Strength`` and one of ``Area``
+and ``Bound for`` may be absent (``detect._lines``)."""
+
+
+def _report_fields(body: Iterable[BodyField]) -> list[dict[str, str]] | None:
+    """The page's reports, each its fields by label; None unless the whole page is
+    reports as detection writes them."""
+    out: list[dict[str, str]] = []
+    for b in body:
+        if b.sight is not None or not isinstance(b.value, str):
+            return None
+        if b.label == "Kind":
+            out.append({})
+        elif not out or b.label not in _REPORT_FIELDS or b.label in out[-1]:
+            return None
+        if _REPORT_FIELDS.index(b.label) < max(
+            (_REPORT_FIELDS.index(k) for k in out[-1]), default=-1
+        ):
+            return None
+        out[-1][b.label] = b.value
+    whole = all(
+        {"Kind", "Seen", "Confidence"} <= set(r) and ("Area" in r) != ("Bound for" in r)
+        for r in out
+    )
+    return out if out and whole else None
+
+
+def _spoken_iso(value: str) -> str:
+    try:
+        seen = date.fromisoformat(value)
+    except ValueError:
+        return value
+    return f"{seen.day} {seen:%B %Y}"
+
+
+def _region_name(view: View, key: str) -> str:
+    regions = view.map.regions if view.map is not None else ()
+    return next((r.name for r in regions if r.key == key), words(key))
+
+
+def report_lines(view: View, body: Iterable[BodyField]) -> list[BodyLine] | None:
+    """An intelligence paper's reports, one line each: the kind, then the strength range,
+    the area (or the region a decrypt says it is bound for), the day seen and the
+    confidence in words. A wrong report is worded as a right one: nothing marks it. None
+    for any other page, whose lines are shown as they are."""
+    fields = _report_fields(body)
+    if fields is None:
+        return None
+    out: list[BodyLine] = []
+    for r in fields:
+        kind = r["Kind"]
+        strength = r.get("Strength")
+        if strength is None:
+            said = "strength not known"
+        else:
+            lo, _, hi = strength.partition(" to ")
+            said = f"strength {lo}" if lo == hi else f"strength {strength}"
+        where = r["Area"] if "Area" in r else f"bound for {_region_name(view, r['Bound for'])}"
+        confidence = CONFIDENCE_WORDS.get(r["Confidence"], r["Confidence"])
+        out.append(
+            BodyLine(
+                label="Unknown piece" if kind == "unknown" else kind,
+                value=f"{said}, {where}, seen {_spoken_iso(r['Seen'])}, {confidence}",
+                unit="",
+            )
+        )
+    return out
 
 
 _Reports = list[tuple[DocumentId, DocumentView, int | None]]
@@ -523,6 +603,94 @@ def _own_mark(view: View, f: Feature, piece: MapPiece) -> MapMark:
     )
 
 
+def _paper(view: View, nation: EntityId, r: detect.Report) -> DocumentId | None:
+    """The paper that carried ``r`` to the seat, if it has arrived: the named person's page
+    for the report's source and day (``detect.pages``)."""
+    doc_id = DocumentId(
+        derived_id(
+            view.campaign_id, "report-page", nation, r.source.value, r.seen.isoformat(), view.viewer
+        )
+    )
+    return doc_id if doc_id in view.documents else None
+
+
+def _author(view: View, paper: DocumentId | None) -> str:
+    doc = view.documents.get(paper) if paper is not None else None
+    person = view.entities.get(doc.author) if doc is not None else None
+    return person.name if person is not None else ""
+
+
+RING_AFTER_DAYS = 1
+"""[proposed] A report older than this many days carries a ring, so a fresh contact stays
+a point (RNG)."""
+
+
+def _ring(
+    view: View, r: detect.Report, shapes: list[territory.Territory | territory.SeaZone]
+) -> list[str] | None:
+    """Every area a piece of the report's kind could have reached from the reported area
+    since the day seen, the area included, in the board's order; an unknown kind moves as
+    every kind of the area's domain, so the fastest bounds it (sea kinds in a sea zone,
+    else land kinds).
+    Read from the report and the board alone. None while fresh, and for a decrypt."""
+    board, today = view.map, view.in_world_date
+    if board is None or today is None or r.area is None:
+        return None
+    days = (today - r.seen).days
+    if days <= RING_AFTER_DAYS:
+        return None
+    pieces = view.kinds.pieces if view.kinds is not None else {}
+    known = pieces.get(r.kind) if r.kind is not None else None
+    if known is not None:
+        movers = [known]
+    else:
+        sea = any(z.area == r.area for z in board.sea_zones)
+        domain = kinds.Domain.SEA if sea else kinds.Domain.LAND
+        movers = [k for k in pieces.values() if k.domain is domain]
+    reach = {r.area}
+    for k in movers:
+        reach |= set(territory.steps_within(board, k, r.area, days))
+    return [a.key for a in shapes if a.area in reach]
+
+
+def map_reports(view: View) -> list[MapReport]:
+    """Each report of an enemy piece that has reached the seat's nation, by its core key
+    (``protect_marks`` keys it again before it leaves). A report a named person made is
+    sent only with its paper; a contact no one is named for comes with none. Read from
+    the view alone: a wrong report is sent as a right one."""
+    nation = map_api.viewing_nation(view)
+    board = view.map
+    shapes: list[territory.Territory | territory.SeaZone] = (
+        [*board.territories, *board.sea_zones] if board is not None else []
+    )
+    areas = {a.area: MarkArea(key=a.key, name=a.name) for a in shapes}
+    pieces = view.kinds.pieces if view.kinds is not None else {}
+    out: list[MapReport] = []
+    for key, r in sorted(view.reports.items()):
+        paper = _paper(view, nation, r) if r.rank > 0 else None
+        if r.rank > 0 and paper is None:
+            continue
+        kind = pieces.get(r.kind) if r.kind is not None else None
+        out.append(
+            MapReport(
+                key=key,
+                kind=r.kind,
+                kind_name=kind.name if kind is not None else "unknown",
+                strength_low=r.strength[0] if r.strength is not None else None,
+                strength_high=r.strength[1] if r.strength is not None else None,
+                area=areas.get(r.area) if r.area is not None else None,
+                bound_for=r.region if r.area is None else None,
+                seen=r.seen.isoformat(),
+                source=r.source.value,
+                person=_author(view, paper),
+                confidence=r.confidence.value,
+                document=paper,
+                ring=_ring(view, r, shapes),
+            )
+        )
+    return out
+
+
 def seat_map(
     view: View,
     forces: Mapping[str, str] | None = None,
@@ -538,7 +706,9 @@ def seat_map(
     mark for each force key an order can name (the caller's, as ``pipelines`` is).
     With ``state``, each own force ``forces`` names is sent as a piece on its mark, and
     marks and pieces share the web MAC of ``territory.mark_key``; ``withdrawable`` (``withdraw``)
-    marks the orders the seat may still take back."""
+    marks the orders the seat may still take back. In a game with ``reports`` on, the
+    enemy pieces the seat's nation holds reports of are ``reports`` (``map_reports``), and
+    no mark of another side's piece is sent."""
     places = _positioned(
         view,
         (
@@ -590,6 +760,9 @@ def seat_map(
                 piece=None,
             )
         )
+    reporting = state is not None and detect.on(state)
+    if reporting:  # another side's pieces are known only as reports (RPD)
+        marks = [m for m in marks if m["side"] != "other"]
     orders = _map_orders(view, marks, forces or {}, pipelines or {})
     for f, piece in sent.pieces() if sent is not None else ():
         mark = next((m for m in marks if m["key"] == piece["key"]), None)
@@ -600,6 +773,8 @@ def seat_map(
     marks.sort(key=lambda m: (m["name"], m["kind"]))
     capitals = _capitals(view, people) if people is not None else []
     out = SeatMap(places=places, marks=marks, orders=orders, capitals=capitals)
+    if reporting:
+        out["reports"] = map_reports(view)
     map_api.protect_marks(out, view)
     return map_api.add_board(out, state, view) if state is not None else out
 
@@ -704,7 +879,41 @@ def _lever_param(view: View, lever: Lever, p: ParamSpec, known: Known) -> LeverP
         if places
         else own,
         places=places,
+        areas={},
     )
+
+
+def _place_areas(state: State, out: Desk) -> Desk:
+    """``out`` with each movement form's destination ``areas`` filled from the map: for each
+    force the form offers, the area each offered place puts it in. Unchanged without
+    territories, so a point game's forms read as before."""
+    board = state.map
+    if not territory.on(state) or board is None:
+        return out
+    keys = {t.area: t.key for t in board.territories} | {z.area: z.key for z in board.sea_zones}
+    for line in out["levers"]:
+        force = next((p for p in line["params"] if p["name"] == FORCE), None)
+        domains: dict[str, kinds.Domain] = {}
+        for c in force["choices"] if force is not None else []:
+            f = state.features.get(FeatureId(object_id(state.campaign_id, "feature", c["value"])))
+            domain = kinds.domain(state, f) if f is not None else None
+            if domain is not None:
+                domains[c["value"]] = domain
+        for p in line["params"]:
+            if p["name"] != "to" or p["kind"] != "enum" or not domains:
+                continue
+            found = {c["value"]: place_named(state, c["value"]) for c in p["choices"]}
+            p["areas"] = {
+                force_key: {
+                    value: keys[area]
+                    for value, place in found.items()
+                    if place is not None
+                    and (area := territory.area_of(state, place.entity_id, domain)) is not None
+                    and area in keys
+                }
+                for force_key, domain in domains.items()
+            }
+    return out
 
 
 def desk(view: View, known: Known | None = None) -> Desk:
@@ -919,7 +1128,7 @@ def seat_realism(
     people = seat_people(state, seat, view)
     return {
         "documents": documents(view, read, flagged),
-        "desk": desk(view, known),
+        "desk": _place_areas(state, desk(view, known)),
         "situation": situation(view),
         "orders": orders(view, state.pipelines),
         "clock": clock(view, next_wake_at, waiting_on, 0, wake.to.isoformat()),

@@ -191,6 +191,11 @@ class LeverParam(TypedDict):
     places: list[PlaceChoice]
     """A movement form's destination: every place in ``choices``, grouped and with days.
     Empty for every other parameter, and when the campaign's world file cannot be read."""
+    areas: dict[str, dict[str, str]]
+    """A movement form's destination on a territory map: for each force in the form's
+    ``force`` choices, each place in ``choices`` and the key of the area that force would
+    stand in there (a sea piece at a port: the zone the port opens on). Map geography only.
+    Empty for every other parameter and in a game without territories."""
 
 
 class LeverLine(TypedDict):
@@ -669,6 +674,40 @@ class MapMark(TypedDict):
     """The seat's own piece behind the mark; None for every other mark."""
 
 
+class MapReport(TypedDict):
+    """One report of an enemy piece that has reached the seat's nation (RPD), as its view
+    holds it: a wrong report is worded and shaped exactly like a right one."""
+
+    key: str
+    """Opaque and stable for one piece: the same for every seat of one nation, whichever
+    source made the report and whether it is right; the web MAC of the nation's report key."""
+    kind: str | None
+    """The world's piece kind key; None: the report does not know it."""
+    kind_name: str
+    """The kind as the world names it, or "unknown"."""
+    strength_low: int | None
+    strength_high: int | None
+    """The range the report gives; both None when it gives no strength (a decrypt)."""
+    area: MarkArea | None
+    """The area the report places the piece in; None for a decrypt, which gives a region."""
+    bound_for: str | None
+    """A decrypt: the region key the piece is bound for; else None."""
+    seen: str
+    source: Literal["contact", "air", "patrol", "codebreaking", "agent"]
+    person: str
+    """The name of the person the world names for the source; "" for a contact no one is
+    named for, which comes with no paper."""
+    confidence: Literal["A", "B", "C"]
+    document: str | None
+    """The id of the paper that carried the report; None for a contact no one is named for."""
+    ring: list[str] | None
+    """Once the report is more than ``RING_AFTER_DAYS`` days old: the keys of every area a
+    piece of its kind could have reached from its area since the day seen, its own area
+    included, in the board's order (an unknown kind moves as every kind of its area's
+    domain, so the fastest bounds it). Worked out from the report and the board alone.
+    None while the report is fresh, and for a decrypt, which gives no area (RNG)."""
+
+
 class MapOrder(TypedDict):
     """One of the seat's own orders to move a force, drawn until a page shows it arrived."""
 
@@ -731,6 +770,10 @@ class MapArea(TypedDict):
     yields: dict[str, float]
     """What the board prints it yields, by resource key; a moved yield is not shown here.
     Empty for a sea zone."""
+    threatened_from: list[str] | None
+    """In a game with ``reports`` on, for a territory the seat's nation holds: the keys of
+    the reports whose area or ring takes in this area or one next to it, sorted. None for
+    every other area, and in a game without ``reports`` (RNG)."""
 
 
 class MapRegion(TypedDict):
@@ -757,6 +800,9 @@ class SeatMap(TypedDict):
     capitals: list[MapCapital]
     """For each leader on the roster's opponents with a stance and a place, most hostile
     first. A leader with no stance or no place has none."""
+    reports: NotRequired[list[MapReport]]
+    """In a game with ``reports`` on only: each enemy piece the seat's nation holds a
+    report of, by key. They replace the marks of other sides' pieces, which are not sent."""
     areas: NotRequired[list[MapArea]]
     """In a territory game only (as the four keys after it): every territory and sea
     zone of the board, territories first, in the world file's order. The same for every
@@ -1302,6 +1348,7 @@ __all__ = [
     "MapPlace",
     "MapRegion",
     "MapReply",
+    "MapReport",
     "MarkArea",
     "OrderProposal",
     "OrderResult",

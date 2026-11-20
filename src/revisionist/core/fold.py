@@ -40,7 +40,7 @@ from revisionist.core.ontology import (
     SeatKind,
     SeatStatus,
 )
-from revisionist.core.realism import economy, trade
+from revisionist.core.realism import detect, economy, trade
 from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, PlayStyle, opening_id
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
@@ -425,6 +425,8 @@ def _mutate(state: State, event: Event) -> State:
             | ev.BattleRound()
             | ev.BattleEnded()
             | ev.BattleDecided()
+            | ev.IntelligenceDeclared()
+            | ev.ReportMade()
             | ev.NewsReported()
             | ev.StanceChanged()
             | ev.OpponentsRanked()
@@ -823,6 +825,27 @@ def _realism(state: State, p: ev.Payload) -> State:
                         raise FoldError(f"piece kind {k.key}: carries unknown kind {lifted}")
             kinds = Kinds(pieces=pieces, resources=resources)
             return state.model_copy(update={"kinds": kinds})
+        case ev.IntelligenceDeclared():
+            if Rule.REPORTS not in state.rules:
+                raise FoldError("intelligence_declared needs the reports rule")
+            if state.intelligence:
+                raise FoldError("intelligence is declared once")
+            found: dict[EntityId, detect.Intelligence] = {}
+            for intel in p.nations:
+                _fresh(found, intel.nation, "intelligence")
+                for entity in [intel.nation, *(s.person for s in intel.sources)]:
+                    _need(state.entities, entity, "entity")
+                for agent in intel.agents:
+                    _need(state.entities, agent.area, "entity")
+                found[intel.nation] = intel
+            return state.model_copy(update={"intelligence": found})
+        case ev.ReportMade():
+            if Rule.REPORTS not in state.rules:
+                raise FoldError("report_made needs the reports rule")
+            _need(state.entities, p.nation, "entity")
+            _need(state.features, p.piece, "feature")
+            picture = detect.made(state.reports.get(p.nation, detect.Picture()), p.report)
+            return state.model_copy(update={"reports": _put(state.reports, p.nation, picture)})
         case ev.NewsReported():
             _fresh(state.news, p.news.news_id, "news")
             return state.model_copy(update={"news": _put(state.news, p.news.news_id, p.news)})

@@ -95,6 +95,33 @@
         "title": "AdminRead",
         "type": "object"
       },
+      "Agent": {
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Until"
+          }
+        },
+        "required": [
+          "area"
+        ],
+        "title": "Agent",
+        "type": "object"
+      },
       "AgentAssigned": {
         "additionalProperties": false,
         "properties": {
@@ -2763,6 +2790,15 @@
         ],
         "title": "CommitmentStatusSet",
         "type": "object"
+      },
+      "Confidence": {
+        "enum": [
+          "A",
+          "B",
+          "C"
+        ],
+        "title": "Confidence",
+        "type": "string"
       },
       "Conflict": {
         "additionalProperties": false,
@@ -5466,6 +5502,102 @@
         "title": "InfluenceDecided",
         "type": "object"
       },
+      "Informant": {
+        "additionalProperties": false,
+        "description": "The person who reports one source for a nation, the channel, and the source's rank\n(its place in the world's list, from 1; contact no one is named for ranks 0).",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ChannelKind"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "rank": {
+            "minimum": 1,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "skew": {
+            "default": 0,
+            "maximum": 5,
+            "minimum": -5,
+            "title": "Skew",
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/$defs/Source"
+          }
+        },
+        "required": [
+          "source",
+          "person",
+          "channel",
+          "rank"
+        ],
+        "title": "Informant",
+        "type": "object"
+      },
+      "Intelligence": {
+        "additionalProperties": false,
+        "description": "A nation's sources as declared at the start.",
+        "properties": {
+          "agents": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Agent"
+            },
+            "title": "Agents",
+            "type": "array"
+          },
+          "codebreaking": {
+            "default": 0,
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Codebreaking",
+            "type": "integer"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "sources": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Informant"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "nation"
+        ],
+        "title": "Intelligence",
+        "type": "object"
+      },
+      "IntelligenceDeclared": {
+        "additionalProperties": false,
+        "description": "Each nation's sources as the world declares them (DET): who reports each source and\nby what channel, the codebreaking level, and the agents by area. Engine only; once, at\ncreation.",
+        "properties": {
+          "kind": {
+            "const": "intelligence_declared",
+            "default": "intelligence_declared",
+            "title": "Kind",
+            "type": "string"
+          },
+          "nations": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Intelligence"
+            },
+            "title": "Nations",
+            "type": "array"
+          }
+        },
+        "title": "IntelligenceDeclared",
+        "type": "object"
+      },
       "Intent": {
         "additionalProperties": false,
         "properties": {
@@ -7956,6 +8088,151 @@
         "title": "RelationshipTagSet",
         "type": "object"
       },
+      "Report": {
+        "additionalProperties": false,
+        "description": "What a nation believes about one enemy piece, from one source on one day.",
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Area"
+          },
+          "arrives": {
+            "format": "date",
+            "title": "Arrives",
+            "type": "string"
+          },
+          "confidence": {
+            "$ref": "#/$defs/Confidence"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Kind"
+          },
+          "rank": {
+            "minimum": 0,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Region"
+          },
+          "seen": {
+            "format": "date",
+            "title": "Seen",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/$defs/Source"
+          },
+          "strength": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Strength"
+          }
+        },
+        "required": [
+          "key",
+          "seen",
+          "source",
+          "rank",
+          "confidence",
+          "arrives"
+        ],
+        "title": "Report",
+        "type": "object"
+      },
+      "ReportMade": {
+        "additionalProperties": false,
+        "description": "A nation's source reported an enemy piece (DET). Engine only: it names the true\npiece and records whether the report is wrong (``shift``); a seat gets the report in\nits view once it arrives, and as a line of its source's page.",
+        "properties": {
+          "kind": {
+            "const": "report_made",
+            "default": "report_made",
+            "title": "Kind",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "piece": {
+            "title": "Piece",
+            "type": "string"
+          },
+          "report": {
+            "$ref": "#/$defs/Report"
+          },
+          "shift": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Shift"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "nation",
+          "piece",
+          "report"
+        ],
+        "title": "ReportMade",
+        "type": "object"
+      },
       "RequestAnswered": {
         "additionalProperties": false,
         "description": "The holder of a person another seat asked something of gives their answer (ANS).\nThe fold keeps it on the part, engine side, and the request's due-day pass decides\nwith it in the card's place, so the issuer learns nothing before that day and the\ndecision reads the same as the card's. Given again, the later answer stands. Scoped\nto the holder.",
@@ -9671,6 +9948,15 @@
         "title": "SettingsSet",
         "type": "object"
       },
+      "Shift": {
+        "description": "How a wrong report is wrong. Engine only: never in a report or a view.",
+        "enum": [
+          "strength",
+          "area"
+        ],
+        "title": "Shift",
+        "type": "string"
+      },
       "ShiftDisposition": {
         "additionalProperties": false,
         "description": "How ``of`` regards ``toward``. Feeds resolvers; never sets a quantity.",
@@ -9761,6 +10047,17 @@
         ],
         "title": "SightRef",
         "type": "object"
+      },
+      "Source": {
+        "enum": [
+          "contact",
+          "air",
+          "patrol",
+          "codebreaking",
+          "agent"
+        ],
+        "title": "Source",
+        "type": "string"
       },
       "Stance": {
         "description": "Worst first, so the order of the members is the order of the stances.",
@@ -11313,6 +11610,7 @@
             "goal_set": "#/$defs/GoalSet",
             "goal_undone": "#/$defs/GoalUndone",
             "influence_decided": "#/$defs/InfluenceDecided",
+            "intelligence_declared": "#/$defs/IntelligenceDeclared",
             "intent_filed": "#/$defs/IntentFiled",
             "intent_rejected": "#/$defs/IntentRejected",
             "kinds_declared": "#/$defs/KindsDeclared",
@@ -11336,6 +11634,7 @@
             "play_style_set": "#/$defs/PlayStyleSet",
             "quantity_set": "#/$defs/QuantitySet",
             "relationship_set": "#/$defs/RelationshipSet",
+            "report_made": "#/$defs/ReportMade",
             "request_answered": "#/$defs/RequestAnswered",
             "rolled": "#/$defs/Rolled",
             "scheduled_event_created": "#/$defs/ScheduledEventCreated",
@@ -11592,6 +11891,12 @@
             "$ref": "#/$defs/BattleDecided"
           },
           {
+            "$ref": "#/$defs/IntelligenceDeclared"
+          },
+          {
+            "$ref": "#/$defs/ReportMade"
+          },
+          {
             "$ref": "#/$defs/NewsReported"
           },
           {
@@ -11768,6 +12073,33 @@
           "person"
         ],
         "title": "ActOf",
+        "type": "object"
+      },
+      "Agent": {
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Until"
+          }
+        },
+        "required": [
+          "area"
+        ],
+        "title": "Agent",
         "type": "object"
       },
       "AllOf": {
@@ -13111,6 +13443,15 @@
           "withdrawn"
         ],
         "title": "CommitmentStatus",
+        "type": "string"
+      },
+      "Confidence": {
+        "enum": [
+          "A",
+          "B",
+          "C"
+        ],
+        "title": "Confidence",
         "type": "string"
       },
       "Conflict": {
@@ -14505,6 +14846,80 @@
         "title": "Inertia",
         "type": "string"
       },
+      "Informant": {
+        "additionalProperties": false,
+        "description": "The person who reports one source for a nation, the channel, and the source's rank\n(its place in the world's list, from 1; contact no one is named for ranks 0).",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ChannelKind"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "rank": {
+            "minimum": 1,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "skew": {
+            "default": 0,
+            "maximum": 5,
+            "minimum": -5,
+            "title": "Skew",
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/$defs/Source"
+          }
+        },
+        "required": [
+          "source",
+          "person",
+          "channel",
+          "rank"
+        ],
+        "title": "Informant",
+        "type": "object"
+      },
+      "Intelligence": {
+        "additionalProperties": false,
+        "description": "A nation's sources as declared at the start.",
+        "properties": {
+          "agents": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Agent"
+            },
+            "title": "Agents",
+            "type": "array"
+          },
+          "codebreaking": {
+            "default": 0,
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Codebreaking",
+            "type": "integer"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "sources": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Informant"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "nation"
+        ],
+        "title": "Intelligence",
+        "type": "object"
+      },
       "Intent": {
         "additionalProperties": false,
         "properties": {
@@ -15661,6 +16076,32 @@
         "title": "Phase",
         "type": "string"
       },
+      "Picture": {
+        "additionalProperties": false,
+        "description": "A nation's reports: the delivered one per enemy piece, by key, and those made but\nnot yet arrived.",
+        "properties": {
+          "delivered": {
+            "additionalProperties": {
+              "$ref": "#/$defs/Report"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Delivered",
+            "type": "object"
+          },
+          "pending": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Report"
+            },
+            "title": "Pending",
+            "type": "array"
+          }
+        },
+        "title": "Picture",
+        "type": "object"
+      },
       "PieceKind": {
         "additionalProperties": false,
         "description": "One kind of piece the world names.",
@@ -16108,6 +16549,110 @@
           "scope"
         ],
         "title": "Relationship",
+        "type": "object"
+      },
+      "Report": {
+        "additionalProperties": false,
+        "description": "What a nation believes about one enemy piece, from one source on one day.",
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Area"
+          },
+          "arrives": {
+            "format": "date",
+            "title": "Arrives",
+            "type": "string"
+          },
+          "confidence": {
+            "$ref": "#/$defs/Confidence"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Kind"
+          },
+          "rank": {
+            "minimum": 0,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Region"
+          },
+          "seen": {
+            "format": "date",
+            "title": "Seen",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/$defs/Source"
+          },
+          "strength": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Strength"
+          }
+        },
+        "required": [
+          "key",
+          "seen",
+          "source",
+          "rank",
+          "confidence",
+          "arrives"
+        ],
+        "title": "Report",
         "type": "object"
       },
       "Resource": {
@@ -17482,6 +18027,17 @@
         "title": "SightRef",
         "type": "object"
       },
+      "Source": {
+        "enum": [
+          "contact",
+          "air",
+          "patrol",
+          "codebreaking",
+          "agent"
+        ],
+        "title": "Source",
+        "type": "string"
+      },
       "Stance": {
         "description": "Worst first, so the order of the members is the order of the stances.",
         "enum": [
@@ -18606,6 +19162,13 @@
         "default": null,
         "title": "In World Date"
       },
+      "intelligence": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Intelligence"
+        },
+        "title": "Intelligence",
+        "type": "object"
+      },
       "kinds": {
         "anyOf": [
           {
@@ -18711,6 +19274,13 @@
           "$ref": "#/$defs/Relationship"
         },
         "title": "Relationships",
+        "type": "object"
+      },
+      "reports": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Picture"
+        },
+        "title": "Reports",
         "type": "object"
       },
       "roster": {
@@ -19708,6 +20278,15 @@
           "withdrawn"
         ],
         "title": "CommitmentStatus",
+        "type": "string"
+      },
+      "Confidence": {
+        "enum": [
+          "A",
+          "B",
+          "C"
+        ],
+        "title": "Confidence",
         "type": "string"
       },
       "Contact": {
@@ -22325,6 +22904,110 @@
         "title": "Relationship",
         "type": "object"
       },
+      "Report": {
+        "additionalProperties": false,
+        "description": "What a nation believes about one enemy piece, from one source on one day.",
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Area"
+          },
+          "arrives": {
+            "format": "date",
+            "title": "Arrives",
+            "type": "string"
+          },
+          "confidence": {
+            "$ref": "#/$defs/Confidence"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Kind"
+          },
+          "rank": {
+            "minimum": 0,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Region"
+          },
+          "seen": {
+            "format": "date",
+            "title": "Seen",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/$defs/Source"
+          },
+          "strength": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Strength"
+          }
+        },
+        "required": [
+          "key",
+          "seen",
+          "source",
+          "rank",
+          "confidence",
+          "arrives"
+        ],
+        "title": "Report",
+        "type": "object"
+      },
       "Resource": {
         "additionalProperties": false,
         "properties": {
@@ -23168,6 +23851,17 @@
         "title": "Sight",
         "type": "object"
       },
+      "Source": {
+        "enum": [
+          "contact",
+          "air",
+          "patrol",
+          "codebreaking",
+          "agent"
+        ],
+        "title": "Source",
+        "type": "string"
+      },
       "StepAction": {
         "enum": [
           "expedite",
@@ -24008,6 +24702,16 @@
           "$ref": "#/$defs/Relationship"
         },
         "title": "Relationships",
+        "type": "object"
+      },
+      "reports": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Report"
+        },
+        "propertyNames": {
+          "maxLength": 60
+        },
+        "title": "Reports",
         "type": "object"
       },
       "roster": {

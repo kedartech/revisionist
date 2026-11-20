@@ -48,6 +48,7 @@ from revisionist.core.realism import (
     answering,
     apply,
     battle,
+    detect,
     economy,
     holders,
     mandates,
@@ -413,6 +414,11 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         # Engine only: a count says where pieces stand. Sealed to a seat nobody holds.
         held = SeatId(derived_id(state.campaign_id, "engine-only", "capture"))
         return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
+    if isinstance(payload, ev.ReportMade):
+        # Engine only: it names the true piece and whether the report is wrong (DET). A
+        # seat gets the report in its view once it arrives, and on its source's page.
+        held = SeatId(derived_id(state.campaign_id, "engine-only", "report"))
+        return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
     if isinstance(payload, ev.BattleOpened | ev.BattleRound | ev.BattleEnded):
         # Engine only: both sides' true strengths and the draws (BTL). Sealed to a seat
         # nobody holds; a seat learns of a battle from the news and its reports.
@@ -491,8 +497,9 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     issue, then the people nobody plays take up and make their answers, then stances
     and each seat's opponents are worked out. Pieces' steps are followed by the day's
     capture counts (THL); the day's battle rounds follow its contacts, with the count a won
-    battle starts (BTL); after the last day, the close, a capital marked in an earlier
-    wake falls or loses its mark. Each step sees the state after the ones before it."""
+    battle starts (BTL), then the press, then every nation's reports and their pages
+    (DET); after the last day, the close, a capital marked in an earlier wake falls or
+    loses its mark. Each step sees the state after the ones before it."""
     state = em.state
     out: list[Event] = []
 
@@ -503,6 +510,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         out.extend(batch)
 
     add(actors.unseated(state, answering.answerers(state)))
+    begun: State | None = state  # moves the carried-in orders start begin on the first day
     wake_start = dict(state.opponents)
     pending = _unresolved(events)
     for oid in pending:
@@ -517,6 +525,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     day = before
     while day < until:
         day += timedelta(days=1)
+        start, begun = begun or state, None
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))
         add(steps)
         settled = history.settle(state, day)
@@ -549,6 +558,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(fought)
         add(holders.start_count(state, battle.won(fought, open_before), day))
         add(news_pages(state, day))
+        add(detect.walk(state, start, day))  # DET: every nation's reports, before the feeds
         seed = seed_for_day(state.campaign_id, day)
         docs: list[Event] = []
         for feed in sorted(due_feeds(state, day), key=lambda f: f.feed_id):

@@ -469,6 +469,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "piece_kinds",
             "fuel_stocks",
             "trade_lines",
+            "intelligence",
         ):
             if getattr(world, name):
                 problems.append(f"{name}: only a realism world has {name}")
@@ -477,6 +478,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
         problems.append("world: a realism world needs a start_date")
     _check_board(world, sections, problems)
     _check_kinds(world, problems)
+    _check_intelligence(world, sections, problems)
     for seat in world.seats:
         if seat.controller is Controller.HUMAN:
             problems.append(f"seat {seat.key}: a realism world names no human seat")
@@ -932,6 +934,61 @@ def _check_cited(problems: list[str], where: str, decl: Cited, sections: Mapping
 
 
 # --- the board (MDL) ------------------------------------------------------------------
+
+
+def _check_intelligence(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """Each nation's sources (DET): a polity once, a person per source, a source once, and
+    agents in areas of the board."""
+    if Rule.REPORTS in world.rules and Rule.TERRITORIES not in world.rules:
+        problems.append("rules: reports needs territories")
+    if world.intelligence and Rule.REPORTS not in world.rules:
+        problems.append("intelligence: needs the reports rule")
+    kinds = {d.key: d.kind for d in world.entities}
+    areas = {d.key for d in _area_decls(world)}
+    seen: set[str] = set()
+    for intel in world.intelligence:
+        where = f"intelligence {intel.nation}"
+        if kinds.get(intel.nation) is not EntityKind.POLITY:
+            problems.append(f"{where}: {intel.nation} is not a polity")
+        if intel.nation in seen:
+            problems.append(f"{where}: declared twice")
+        seen.add(intel.nation)
+        named = [s.source for s in intel.sources]
+        if len(set(named)) != len(named):
+            problems.append(f"{where}: one person per source")
+        for s in intel.sources:
+            if kinds.get(s.person) is not EntityKind.PERSON:
+                problems.append(f"{where}: {s.person} is not a person")
+        for agent in intel.agents:
+            if agent.area not in areas:
+                problems.append(f"{where}: agent in {agent.area}, not an area of the board")
+
+
+def _intelligence(world: WorldFile, ids: Mapping[str, str]) -> ev.IntelligenceDeclared:
+    from revisionist.core.realism import detect
+
+    return ev.IntelligenceDeclared(
+        nations=tuple(
+            detect.Intelligence(
+                nation=EntityId(ids[d.nation]),
+                sources=tuple(
+                    detect.Informant(
+                        source=s.source,
+                        person=EntityId(ids[s.person]),
+                        channel=s.channel,
+                        rank=n + 1,
+                        skew=s.skew,
+                    )
+                    for n, s in enumerate(d.sources)
+                ),
+                codebreaking=d.codebreaking,
+                agents=tuple(
+                    detect.Agent(area=EntityId(ids[a.area]), until=a.until) for a in d.agents
+                ),
+            )
+            for d in world.intelligence
+        )
+    )
 
 
 def _area_decls(world: WorldFile) -> list[TerritoryDecl | SeaZoneDecl]:
@@ -1688,7 +1745,16 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
         # Engine only, as every compiled declaration: ``catchup`` never feeds a trade_set,
         # and a seat reads the lines its nation is a party to from its view.
         out.append((ev.TradeSet(line=declared_line, on=world.start_date), PUBLIC))
+    if Rule.REPORTS in world.rules and world.intelligence:
+        # Engine only: who reports what to whom. Sealed to a seat nobody holds (DET).
+        out.append((_intelligence(world, ids), _engine_only(ids, "intelligence")))
     return out
+
+
+def _engine_only(ids: Mapping[str, str], what: str) -> Scope:
+    """A scope no seat holds: an engine-only declaration."""
+    held = SeatId(derived_id(min(ids.values()), "engine-only", what))
+    return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
 
 
 def _standing(world: WorldFile, d: FeatureDecl) -> tuple[str, ...]:

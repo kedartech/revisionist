@@ -51,6 +51,7 @@ from revisionist.core.ontology import (
 from revisionist.core.realism.agenda import MandateKind, TriggerKind
 from revisionist.core.realism.answer import Answer
 from revisionist.core.realism.card import Address, Aim, ChannelKind, ParamSpec
+from revisionist.core.realism.detect import Source as IntelSource
 from revisionist.core.realism.document import Bias, Classification, DocumentKind
 from revisionist.core.realism.effect import DISPOSITION_CAP, FIGURE_CAP, EffectKind
 from revisionist.core.realism.geography import FeatureKind
@@ -591,6 +592,36 @@ class PieceKindDecl(Model):
     """The kinds it can lift, by key."""
 
 
+class IntelSourceDecl(Model):
+    """One source a nation searches with, and the person who reports it (DET). A source's
+    rank is its place in the nation's list, the first highest."""
+
+    source: IntelSource
+    person: Key
+    """A person entity key."""
+    channel: ChannelKind
+    """How the person's reports travel; they arrive after the channel's days."""
+    skew: int = Field(default=0, ge=-5, le=5)
+    """A bias that shifts every strength range the person reports one way."""
+
+
+class IntelAgentDecl(Model):
+    area: Key
+    """A territory or sea zone key."""
+    until: date | None = None
+    """The last day the agent reports. None: no end."""
+
+
+class IntelligenceDecl(Model):
+    """A nation's intelligence on the start date (DET), with ``reports`` on."""
+
+    nation: Key
+    """A polity key."""
+    sources: tuple[IntelSourceDecl, ...] = ()
+    codebreaking: int = Field(default=0, ge=0, le=3)
+    agents: tuple[IntelAgentDecl, ...] = ()
+
+
 class ResourceDecl(Model):
     """A resource the world names, and the one role it plays."""
 
@@ -860,6 +891,10 @@ class WorldFile(Model):
     piece_kinds: SkipJsonSchema[tuple[PieceKindDecl, ...]] = ()
     """The world's own kinds of piece. With any, every force is a ``piece`` of one of
     them. Realism only, and only with a map. Written by hand: not offered to a model."""
+    intelligence: SkipJsonSchema[tuple[IntelligenceDecl, ...]] = ()
+    """Each nation's sources, with ``reports`` on: who reports each and by what channel,
+    the codebreaking level and the agents. A world with none has contact only. Written by
+    hand: not offered to a model."""
     map_data: SkipJsonSchema[bytes | None] = Field(default=None, exclude=True)
     """The bytes of the map file ``map`` names, read by the world loader from beside
     the world file, not from the world file itself. None when no file was found."""
@@ -898,6 +933,9 @@ __all__ = [
     "FigureDecl",
     "GoalDecl",
     "HistoryDecl",
+    "IntelAgentDecl",
+    "IntelSourceDecl",
+    "IntelligenceDecl",
     "Key",
     "LegDecl",
     "LeverDecl",

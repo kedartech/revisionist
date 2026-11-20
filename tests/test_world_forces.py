@@ -35,15 +35,19 @@ def test_each_major_power_fields_three_to_six_forces() -> None:
 
 
 def test_every_force_opens_the_game_in_reach_of_a_base_of_its_side_and_kind() -> None:
-    """At a base, but for the Soviet Western Front: Vyazma lies in the Smolensk territory,
-    which Germany holds, so its base serves no Soviet piece and the front works from Moscow."""
+    """At a base, but for two: the Soviet Western Front (Vyazma lies in the Smolensk territory,
+    which Germany holds, so its base serves no Soviet piece and the front works from Moscow)
+    and the U-boat arm, on station in the mid-ocean gap and working from Lorient."""
     r = rig()
     tiers = {}
     for f in forces(r):
         got = area_reach(r.state, f, f.places[0])
         tiers[key_of(r, f.feature_id)] = None if got is None else got.tier
     assert [k for k, t in tiers.items() if t not in (Tier.SUSTAINED, Tier.OPERATE)] == []
-    assert [k for k, t in tiers.items() if t is Tier.OPERATE] == ["soviet_western_front"]
+    assert [k for k, t in tiers.items() if t is Tier.OPERATE] == [
+        "uboat_arm",
+        "soviet_western_front",
+    ]
 
 
 def _north_atlantic_zones() -> set[str]:

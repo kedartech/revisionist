@@ -124,6 +124,11 @@ def _start_areas() -> dict[str, tuple[str, list[str]]]:
     }
 
 
+ON_STATION = {"uboat_arm": "mid_ocean_gap"}
+"""Forces the world puts somewhere other than the start's base area: the U-boat arm opens on
+station across the convoy routes, working from Lorient, so the scripted season sinks ships."""
+
+
 def test_every_force_stands_in_the_area_the_start_gives_it() -> None:
     r = Rig()
     want = _start_areas()
@@ -132,7 +137,7 @@ def test_every_force_stands_in_the_area_the_start_gives_it() -> None:
         key = key_of(r, f.feature_id)
         assert key is not None
         got[key] = key_of(r, f.places[0])
-    assert got == {k: area for k, (area, _) in want.items()}
+    assert got == {k: ON_STATION.get(k, area) for k, (area, _) in want.items()}
 
 
 def test_every_existing_force_is_still_a_force() -> None:

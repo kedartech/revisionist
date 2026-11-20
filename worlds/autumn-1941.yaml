@@ -790,7 +790,7 @@ features:
   - {key: us_atlantic_fleet, kind: piece, piece: fleet, name: US Atlantic Fleet, side: usa, tier: 4, places: [norfolk], gap: true}
   - {key: us_pacific_fleet, kind: piece, piece: fleet, name: US Pacific Fleet, side: usa, tier: 5, places: [pearl_harbor_base], gap: true}
   - {key: home_fleet, kind: piece, piece: fleet, name: Home Fleet, side: uk, tier: 4, places: [scapa_flow], gap: true}
-  - {key: uboat_arm, kind: piece, piece: fleet, name: U-boat arm, side: germany, tier: 3, places: [lorient], gap: true}
+  - {key: uboat_arm, kind: piece, piece: fleet, name: U-boat arm, side: germany, tier: 3, places: [north_atlantic], gap: true}
   - {key: combined_fleet, kind: piece, piece: fleet, name: Combined Fleet, side: japan, tier: 5, places: [kure], legs: [{since: 1941-11-22, places: [hitokappu_bay]}], gap: true}
   - {key: army_group_centre, kind: piece, piece: army, name: Army Group Centre, side: germany, tier: 5, places: [smolensk], legs: [{since: 1941-10-07, places: [vyazma]}, {since: 1941-10-24, places: [mozhaisk]}], gap: true}
   - {key: soviet_western_front, kind: piece, piece: army, name: Soviet Western Front, side: ussr, tier: 4, places: [vyazma], legs: [{since: 1941-10-12, places: [mozhaisk]}, {since: 1941-10-24, places: [moscow]}], gap: true}

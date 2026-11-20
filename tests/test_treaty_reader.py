@@ -17,7 +17,7 @@ from revisionist.core.ids import EntityId
 from revisionist.core.realism import agreement
 from revisionist.core.realism.effect import Deal
 from revisionist.engine import orders_reader as orr
-from revisionist.engine.llm import Reply, Request, TransportError
+from revisionist.engine.llm import Reply, Request, TransportError, prompt_text
 from revisionist.engine.store import MemoryStore, load_state
 from tests.test_adjacency_moves import Logged, entity
 from tests.test_agreements import ILSE, NORRA, SUDLAND, TOMAS, game
@@ -287,3 +287,18 @@ def test_terms_that_differ_from_the_signed_ones_cannot_be_filed(tmp_path: Path) 
     stale = dataclasses.replace(reading, terms="Parties: Norra, Sudland. Clauses: None.")
     done = orr.file_order(store_of(g), CAMPAIGN, ILSE, stale)
     assert done["refused"] is True and done["reply"] == orr.CHANGED
+
+
+def test_with_written_orders_off_the_request_is_the_one_it_always_was(tmp_path: Path) -> None:
+    """Recorded replies are keyed on the request: the old system text and schema stand."""
+    g = played(tmp_path, ("holders", "agreements"))
+    canned = Canned({"asks": [], "reason": ""})
+    read(g, canned, text="Hold the line.")
+    (request,) = canned.requests
+    assert request.system == prompt_text(orr.PROMPT)
+    assert "treaty" not in request.schema["properties"]
+    on = Canned(treaty())
+    (tmp_path / "on").mkdir()
+    read(played(tmp_path / "on"), on)
+    assert "treaty" in on.requests[0].schema["properties"]
+    assert orr.TREATY_PROMPT in on.requests[0].system

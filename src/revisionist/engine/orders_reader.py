@@ -93,10 +93,28 @@ class _Treaty(Model):
 class _Reply(Model):
     asks: tuple[Ask, ...]
     reason: str = ""
+
+
+class _TreatyReply(_Reply):
+    """The reply with written orders on: it may also carry a treaty. A separate schema,
+    so a world with the rule off sends the request it always sent (recordings keep their
+    keys)."""
+
     treaty: _Treaty | None = None
 
 
 ORDERS_SCHEMA: dict[str, Any] = _Reply.model_json_schema()
+TREATY_SCHEMA: dict[str, Any] = _TreatyReply.model_json_schema()
+TREATY_PROMPT = (
+    "\n- `treaty`: only when the order is a written deal, treaty or bill between nations. "
+    "Give `parties`, the entity ids of the nations it names, taken from what you are given, "
+    "and leave `asks` empty. Otherwise leave `treaty` out.\n"
+    "- `treaty.clauses`: only when a clause list is given. Each clause is one object with a "
+    "`type` from that list, `binds` (the nation it binds), the fields that type names, and "
+    "`on` (a date) when the order dates it. Propose a clause only where the words plainly "
+    "say it; wording that fits no listed type is left out, and the order's own words stay "
+    "as written. Never write a summary of the terms.\n"
+)
 
 
 def _unfileable(
@@ -362,11 +380,11 @@ def read_order(
             Request(
                 call_class=CALL_CLASS,
                 model=AIDE_MODEL,
-                system=prompt_text(PROMPT),
+                system=prompt_text(PROMPT) + (TREATY_PROMPT if written else ""),
                 prompt=orders_prompt(
                     view, name or "", (said or "").lower(), text, clauses=reads_clauses
                 ),
-                schema=cli_schema(ORDERS_SCHEMA),
+                schema=cli_schema(TREATY_SCHEMA if written else ORDERS_SCHEMA),
             )
         )
     except TransportError:

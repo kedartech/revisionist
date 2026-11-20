@@ -100,8 +100,8 @@ jobs:
 
   # The real-browser test: the canned server (no model call) on a Postgres service, and the
   # room's smoke walked headless at desktop width and again at 390 by 844. Playwright is
-  # installed here only, so the lockfile is untouched. Skipped only when nothing under web/
-  # changed (`scripts/ci_changes.py gate` checks that).
+  # installed here only, so the lockfile is untouched. Skipped only when every changed
+  # path is documentation (`scripts/ci_changes.py gate` checks that).
   browser:
     needs: changes
     if: needs.changes.outputs.web == 'true'

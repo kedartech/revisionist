@@ -73,10 +73,11 @@ def test_needs_python(paths: list[str], python: bool) -> None:
         (["web/js/views/realism-board.js"], True),
         (["web/test/e2e/realism_smoke.py", "docs/a.md"], True),
         (["src/revisionist/engine/web/server.py", "web/css/c-shell.css"], True),
-        (["src/revisionist/core/state.py", "tests/test_state.py"], False),
+        (["src/revisionist/core/state.py", "tests/test_state.py"], True),
+        (["worlds/autumn-1941.yaml", "tests/worlds/autumn-1941-points.yaml"], True),
         (["docs/game-spec.md", "README.md"], False),
-        ([".github/workflows/ci.yml", "scripts/ci_changes.py"], False),
-        (["website/index.html"], False),
+        ([".github/workflows/ci.yml", "scripts/ci_changes.py"], True),
+        (["website/index.html"], True),
         ([], True),
         (["", "  "], True),
     ],
@@ -85,6 +86,7 @@ def test_needs_python(paths: list[str], python: bool) -> None:
         "smoke-script",
         "client-and-server",
         "python-only",
+        "world-data-only",
         "docs-only",
         "ci-only",
         "prefix-lookalike",
@@ -102,7 +104,7 @@ def test_decide_prints_the_github_output_lines(
     m = changes()
     for text, want in [
         ("web/js/a.js\ndocs/b.md\n", "python=false\nweb=true\n"),
-        ("src/x.py\n", "python=true\nweb=false\n"),
+        ("src/x.py\n", "python=true\nweb=true\n"),
         ("docs/b.md\n", "python=false\nweb=false\n"),
     ]:
         listing = tmp_path / "changed.txt"

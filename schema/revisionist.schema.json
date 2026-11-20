@@ -208,6 +208,365 @@
         "title": "AgentSet",
         "type": "object"
       },
+      "Agreement": {
+        "additionalProperties": false,
+        "description": "An agreement in force: every named nation accepted the same version.",
+        "properties": {
+          "agreement_id": {
+            "maxLength": 60,
+            "title": "Agreement Id",
+            "type": "string"
+          },
+          "calls": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Call"
+            },
+            "title": "Calls",
+            "type": "array"
+          },
+          "clauses": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AgreementClause"
+            },
+            "title": "Clauses",
+            "type": "array"
+          },
+          "made": {
+            "format": "date",
+            "title": "Made",
+            "type": "string"
+          },
+          "offer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Offer Id"
+          },
+          "parties": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "title": "Parties",
+            "type": "array"
+          },
+          "published": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Published"
+          },
+          "statuses": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/ClauseStatus"
+            },
+            "title": "Statuses",
+            "type": "array"
+          },
+          "version": {
+            "maxLength": 60,
+            "title": "Version",
+            "type": "string"
+          },
+          "wording": {
+            "default": "",
+            "maxLength": 600,
+            "title": "Wording",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agreement_id",
+          "version",
+          "parties",
+          "made"
+        ],
+        "title": "Agreement",
+        "type": "object"
+      },
+      "AgreementClause": {
+        "additionalProperties": false,
+        "description": "One clause of an agreement (AGR rule 1): the party it binds, what it binds them to,\nand its date, or None for a standing clause.",
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Area"
+          },
+          "binds": {
+            "title": "Binds",
+            "type": "string"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "maximum": 60,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Days"
+          },
+          "form": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Form"
+          },
+          "nation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Nation"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "On"
+          },
+          "piece": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Piece"
+          },
+          "present": {
+            "default": true,
+            "title": "Present",
+            "type": "boolean"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Region"
+          },
+          "share": {
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Share"
+          },
+          "text": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/$defs/ClauseType"
+          }
+        },
+        "required": [
+          "type",
+          "binds"
+        ],
+        "title": "AgreementClause",
+        "type": "object"
+      },
+      "AgreementMade": {
+        "additionalProperties": false,
+        "description": "An agreement in force, in full (AGR): every named nation accepted the same version\nof an offer, or a world or a conference made it. Sealed to the seats of its parties'\nnations.",
+        "properties": {
+          "agreement": {
+            "$ref": "#/$defs/Agreement"
+          },
+          "kind": {
+            "const": "agreement_made",
+            "default": "agreement_made",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agreement"
+        ],
+        "title": "AgreementMade",
+        "type": "object"
+      },
+      "AgreementOffer": {
+        "additionalProperties": false,
+        "description": "An offer of an agreement, as its parties know it.",
+        "properties": {
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "clauses": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AgreementClause"
+            },
+            "title": "Clauses",
+            "type": "array"
+          },
+          "expires": {
+            "format": "date",
+            "title": "Expires",
+            "type": "string"
+          },
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "offer_id": {
+            "title": "Offer Id",
+            "type": "string"
+          },
+          "parties": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "title": "Parties",
+            "type": "array"
+          },
+          "version": {
+            "maxLength": 60,
+            "title": "Version",
+            "type": "string"
+          },
+          "wording": {
+            "default": "",
+            "maxLength": 600,
+            "title": "Wording",
+            "type": "string"
+          }
+        },
+        "required": [
+          "offer_id",
+          "version",
+          "parties",
+          "by",
+          "filed",
+          "expires"
+        ],
+        "title": "AgreementOffer",
+        "type": "object"
+      },
+      "AgreementOffered": {
+        "additionalProperties": false,
+        "description": "An offer of an agreement filed, as its parties know it (AGR). Sealed to the seats of\nits parties' nations.",
+        "properties": {
+          "kind": {
+            "const": "agreement_offered",
+            "default": "agreement_offered",
+            "title": "Kind",
+            "type": "string"
+          },
+          "offer": {
+            "$ref": "#/$defs/AgreementOffer"
+          }
+        },
+        "required": [
+          "offer"
+        ],
+        "title": "AgreementOffered",
+        "type": "object"
+      },
+      "AgreementPublished": {
+        "additionalProperties": false,
+        "description": "A party published an agreement by order (AGR). Public.",
+        "properties": {
+          "agreement_id": {
+            "maxLength": 60,
+            "title": "Agreement Id",
+            "type": "string"
+          },
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "kind": {
+            "const": "agreement_published",
+            "default": "agreement_published",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agreement_id",
+          "by",
+          "on"
+        ],
+        "title": "AgreementPublished",
+        "type": "object"
+      },
       "AllOf": {
         "additionalProperties": false,
         "properties": {
@@ -1802,6 +2161,33 @@
         "title": "BriefingDelivered",
         "type": "object"
       },
+      "Call": {
+        "additionalProperties": false,
+        "description": "An attack that calls on a defence clause: war on ``against`` is due by ``due``.",
+        "properties": {
+          "against": {
+            "title": "Against",
+            "type": "string"
+          },
+          "clause": {
+            "minimum": 0,
+            "title": "Clause",
+            "type": "integer"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clause",
+          "against",
+          "due"
+        ],
+        "title": "Call",
+        "type": "object"
+      },
       "CallCost": {
         "additionalProperties": false,
         "properties": {
@@ -2349,6 +2735,102 @@
           "most_secret"
         ],
         "title": "Classification",
+        "type": "string"
+      },
+      "ClauseJudged": {
+        "additionalProperties": false,
+        "description": "A clause of an agreement judged on ``on`` from the state (AGR): kept, broken, or\ncalled on by an attack on ``against`` with war due by ``due``. With ``against`` and\n``kept``, the call on that attacker is answered. Sealed to the parties' seats until the\nagreement is published.",
+        "properties": {
+          "against": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Against"
+          },
+          "agreement_id": {
+            "maxLength": 60,
+            "title": "Agreement Id",
+            "type": "string"
+          },
+          "clause": {
+            "minimum": 0,
+            "title": "Clause",
+            "type": "integer"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due"
+          },
+          "kind": {
+            "const": "clause_judged",
+            "default": "clause_judged",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Reason",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/$defs/ClauseStatus"
+          }
+        },
+        "required": [
+          "agreement_id",
+          "clause",
+          "status",
+          "on"
+        ],
+        "title": "ClauseJudged",
+        "type": "object"
+      },
+      "ClauseStatus": {
+        "enum": [
+          "standing",
+          "kept",
+          "broken",
+          "called",
+          "unchecked"
+        ],
+        "title": "ClauseStatus",
+        "type": "string"
+      },
+      "ClauseType": {
+        "description": "The clauses the rules can check (AGR rule 2), and the one they cannot.",
+        "enum": [
+          "place",
+          "keep_out",
+          "no_war",
+          "no_attack",
+          "defend",
+          "form",
+          "aid",
+          "vote",
+          "unchecked"
+        ],
+        "title": "ClauseType",
         "type": "string"
       },
       "Clock": {
@@ -3356,7 +3838,7 @@
       },
       "Deal": {
         "additionalProperties": false,
-        "description": "Offer a deal, or accept one.",
+        "description": "Offer a deal, or accept one. With ``parties`` an offer of an agreement (AGR): one\npart per other named nation, each aimed at the person who speaks for it.",
         "properties": {
           "accept": {
             "default": false,
@@ -12204,6 +12686,9 @@
             "admin_read": "#/$defs/AdminRead",
             "agent_assigned": "#/$defs/AgentAssigned",
             "agent_set": "#/$defs/AgentSet",
+            "agreement_made": "#/$defs/AgreementMade",
+            "agreement_offered": "#/$defs/AgreementOffered",
+            "agreement_published": "#/$defs/AgreementPublished",
             "answer_made": "#/$defs/AnswerMade",
             "answer_planned": "#/$defs/AnswerPlanned",
             "area_held": "#/$defs/AreaHeld",
@@ -12221,6 +12706,7 @@
             "character_listed": "#/$defs/CharacterListed",
             "character_released": "#/$defs/CharacterReleased",
             "clarification_asked": "#/$defs/ClarificationAsked",
+            "clause_judged": "#/$defs/ClauseJudged",
             "clock_created": "#/$defs/ClockCreated",
             "codebreaking_set": "#/$defs/CodebreakingSet",
             "commitment_created": "#/$defs/CommitmentCreated",
@@ -12558,6 +13044,18 @@
             "$ref": "#/$defs/GroupProposed"
           },
           {
+            "$ref": "#/$defs/AgreementOffered"
+          },
+          {
+            "$ref": "#/$defs/AgreementMade"
+          },
+          {
+            "$ref": "#/$defs/ClauseJudged"
+          },
+          {
+            "$ref": "#/$defs/AgreementPublished"
+          },
+          {
             "$ref": "#/$defs/NewsReported"
           },
           {
@@ -12787,6 +13285,317 @@
           "area"
         ],
         "title": "Agent",
+        "type": "object"
+      },
+      "Agreement": {
+        "additionalProperties": false,
+        "description": "An agreement in force: every named nation accepted the same version.",
+        "properties": {
+          "agreement_id": {
+            "maxLength": 60,
+            "title": "Agreement Id",
+            "type": "string"
+          },
+          "calls": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Call"
+            },
+            "title": "Calls",
+            "type": "array"
+          },
+          "clauses": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AgreementClause"
+            },
+            "title": "Clauses",
+            "type": "array"
+          },
+          "made": {
+            "format": "date",
+            "title": "Made",
+            "type": "string"
+          },
+          "offer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Offer Id"
+          },
+          "parties": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "title": "Parties",
+            "type": "array"
+          },
+          "published": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Published"
+          },
+          "statuses": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/ClauseStatus"
+            },
+            "title": "Statuses",
+            "type": "array"
+          },
+          "version": {
+            "maxLength": 60,
+            "title": "Version",
+            "type": "string"
+          },
+          "wording": {
+            "default": "",
+            "maxLength": 600,
+            "title": "Wording",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agreement_id",
+          "version",
+          "parties",
+          "made"
+        ],
+        "title": "Agreement",
+        "type": "object"
+      },
+      "AgreementClause": {
+        "additionalProperties": false,
+        "description": "One clause of an agreement (AGR rule 1): the party it binds, what it binds them to,\nand its date, or None for a standing clause.",
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Area"
+          },
+          "binds": {
+            "title": "Binds",
+            "type": "string"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "maximum": 60,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Days"
+          },
+          "form": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Form"
+          },
+          "nation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Nation"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "On"
+          },
+          "piece": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Piece"
+          },
+          "present": {
+            "default": true,
+            "title": "Present",
+            "type": "boolean"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Region"
+          },
+          "share": {
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Share"
+          },
+          "text": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/$defs/ClauseType"
+          }
+        },
+        "required": [
+          "type",
+          "binds"
+        ],
+        "title": "AgreementClause",
+        "type": "object"
+      },
+      "AgreementOffer": {
+        "additionalProperties": false,
+        "description": "An offer of an agreement, as its parties know it.",
+        "properties": {
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "clauses": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AgreementClause"
+            },
+            "title": "Clauses",
+            "type": "array"
+          },
+          "expires": {
+            "format": "date",
+            "title": "Expires",
+            "type": "string"
+          },
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "offer_id": {
+            "title": "Offer Id",
+            "type": "string"
+          },
+          "parties": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "title": "Parties",
+            "type": "array"
+          },
+          "version": {
+            "maxLength": 60,
+            "title": "Version",
+            "type": "string"
+          },
+          "wording": {
+            "default": "",
+            "maxLength": 600,
+            "title": "Wording",
+            "type": "string"
+          }
+        },
+        "required": [
+          "offer_id",
+          "version",
+          "parties",
+          "by",
+          "filed",
+          "expires"
+        ],
+        "title": "AgreementOffer",
+        "type": "object"
+      },
+      "Agreements": {
+        "additionalProperties": false,
+        "description": "Offers and agreements (AGR). A view holds those its nation is a party to, and\nevery published agreement.",
+        "properties": {
+          "made": {
+            "additionalProperties": {
+              "$ref": "#/$defs/Agreement"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Made",
+            "type": "object"
+          },
+          "offers": {
+            "additionalProperties": {
+              "$ref": "#/$defs/AgreementOffer"
+            },
+            "title": "Offers",
+            "type": "object"
+          }
+        },
+        "title": "Agreements",
         "type": "object"
       },
       "AllOf": {
@@ -13789,6 +14598,33 @@
         "title": "BodyField",
         "type": "object"
       },
+      "Call": {
+        "additionalProperties": false,
+        "description": "An attack that calls on a defence clause: war on ``against`` is due by ``due``.",
+        "properties": {
+          "against": {
+            "title": "Against",
+            "type": "string"
+          },
+          "clause": {
+            "minimum": 0,
+            "title": "Clause",
+            "type": "integer"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clause",
+          "against",
+          "due"
+        ],
+        "title": "Call",
+        "type": "object"
+      },
       "Capture": {
         "additionalProperties": false,
         "description": "A territory's capture count and capital mark. Engine only.\n\n``by`` and ``since``: the polity whose land pieces have stood there unopposed, and the\nfirst day they did; None while nobody counts. ``marked``: the tick of the wake in which\na capital's territory was marked as falling, and ``marked_on`` its day; None unmarked.",
@@ -13961,6 +14797,33 @@
           "most_secret"
         ],
         "title": "Classification",
+        "type": "string"
+      },
+      "ClauseStatus": {
+        "enum": [
+          "standing",
+          "kept",
+          "broken",
+          "called",
+          "unchecked"
+        ],
+        "title": "ClauseStatus",
+        "type": "string"
+      },
+      "ClauseType": {
+        "description": "The clauses the rules can check (AGR rule 2), and the one they cannot.",
+        "enum": [
+          "place",
+          "keep_out",
+          "no_war",
+          "no_attack",
+          "defend",
+          "form",
+          "aid",
+          "vote",
+          "unchecked"
+        ],
+        "title": "ClauseType",
         "type": "string"
       },
       "Clock": {
@@ -14393,7 +15256,7 @@
       },
       "Deal": {
         "additionalProperties": false,
-        "description": "Offer a deal, or accept one.",
+        "description": "Offer a deal, or accept one. With ``parties`` an offer of an agreement (AGR): one\npart per other named nation, each aimed at the person who speaks for it.",
         "properties": {
           "accept": {
             "default": false,
@@ -20179,6 +21042,9 @@
     "additionalProperties": false,
     "description": "The full truth. Only the referee and the resolver ever hold one.",
     "properties": {
+      "agreements": {
+        "$ref": "#/$defs/Agreements"
+      },
       "aide_orders": {
         "default": [],
         "items": {
@@ -20685,6 +21551,317 @@
         "title": "ActOf",
         "type": "object"
       },
+      "Agreement": {
+        "additionalProperties": false,
+        "description": "An agreement in force: every named nation accepted the same version.",
+        "properties": {
+          "agreement_id": {
+            "maxLength": 60,
+            "title": "Agreement Id",
+            "type": "string"
+          },
+          "calls": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Call"
+            },
+            "title": "Calls",
+            "type": "array"
+          },
+          "clauses": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AgreementClause"
+            },
+            "title": "Clauses",
+            "type": "array"
+          },
+          "made": {
+            "format": "date",
+            "title": "Made",
+            "type": "string"
+          },
+          "offer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Offer Id"
+          },
+          "parties": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "title": "Parties",
+            "type": "array"
+          },
+          "published": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Published"
+          },
+          "statuses": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/ClauseStatus"
+            },
+            "title": "Statuses",
+            "type": "array"
+          },
+          "version": {
+            "maxLength": 60,
+            "title": "Version",
+            "type": "string"
+          },
+          "wording": {
+            "default": "",
+            "maxLength": 600,
+            "title": "Wording",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agreement_id",
+          "version",
+          "parties",
+          "made"
+        ],
+        "title": "Agreement",
+        "type": "object"
+      },
+      "AgreementClause": {
+        "additionalProperties": false,
+        "description": "One clause of an agreement (AGR rule 1): the party it binds, what it binds them to,\nand its date, or None for a standing clause.",
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Area"
+          },
+          "binds": {
+            "title": "Binds",
+            "type": "string"
+          },
+          "days": {
+            "anyOf": [
+              {
+                "maximum": 60,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Days"
+          },
+          "form": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Form"
+          },
+          "nation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Nation"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "On"
+          },
+          "piece": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Piece"
+          },
+          "present": {
+            "default": true,
+            "title": "Present",
+            "type": "boolean"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Region"
+          },
+          "share": {
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Share"
+          },
+          "text": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Text",
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/$defs/ClauseType"
+          }
+        },
+        "required": [
+          "type",
+          "binds"
+        ],
+        "title": "AgreementClause",
+        "type": "object"
+      },
+      "AgreementOffer": {
+        "additionalProperties": false,
+        "description": "An offer of an agreement, as its parties know it.",
+        "properties": {
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "clauses": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AgreementClause"
+            },
+            "title": "Clauses",
+            "type": "array"
+          },
+          "expires": {
+            "format": "date",
+            "title": "Expires",
+            "type": "string"
+          },
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "offer_id": {
+            "title": "Offer Id",
+            "type": "string"
+          },
+          "parties": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "title": "Parties",
+            "type": "array"
+          },
+          "version": {
+            "maxLength": 60,
+            "title": "Version",
+            "type": "string"
+          },
+          "wording": {
+            "default": "",
+            "maxLength": 600,
+            "title": "Wording",
+            "type": "string"
+          }
+        },
+        "required": [
+          "offer_id",
+          "version",
+          "parties",
+          "by",
+          "filed",
+          "expires"
+        ],
+        "title": "AgreementOffer",
+        "type": "object"
+      },
+      "Agreements": {
+        "additionalProperties": false,
+        "description": "Offers and agreements (AGR). A view holds those its nation is a party to, and\nevery published agreement.",
+        "properties": {
+          "made": {
+            "additionalProperties": {
+              "$ref": "#/$defs/Agreement"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Made",
+            "type": "object"
+          },
+          "offers": {
+            "additionalProperties": {
+              "$ref": "#/$defs/AgreementOffer"
+            },
+            "title": "Offers",
+            "type": "object"
+          }
+        },
+        "title": "Agreements",
+        "type": "object"
+      },
       "AllOf": {
         "additionalProperties": false,
         "properties": {
@@ -21139,6 +22316,33 @@
         "title": "BodyField",
         "type": "object"
       },
+      "Call": {
+        "additionalProperties": false,
+        "description": "An attack that calls on a defence clause: war on ``against`` is due by ``due``.",
+        "properties": {
+          "against": {
+            "title": "Against",
+            "type": "string"
+          },
+          "clause": {
+            "minimum": 0,
+            "title": "Clause",
+            "type": "integer"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clause",
+          "against",
+          "due"
+        ],
+        "title": "Call",
+        "type": "object"
+      },
       "CardFace": {
         "additionalProperties": false,
         "description": "What anyone knows of the office: who holds it, its powers and its channels.",
@@ -21296,6 +22500,33 @@
           "most_secret"
         ],
         "title": "Classification",
+        "type": "string"
+      },
+      "ClauseStatus": {
+        "enum": [
+          "standing",
+          "kept",
+          "broken",
+          "called",
+          "unchecked"
+        ],
+        "title": "ClauseStatus",
+        "type": "string"
+      },
+      "ClauseType": {
+        "description": "The clauses the rules can check (AGR rule 2), and the one they cannot.",
+        "enum": [
+          "place",
+          "keep_out",
+          "no_war",
+          "no_attack",
+          "defend",
+          "form",
+          "aid",
+          "vote",
+          "unchecked"
+        ],
+        "title": "ClauseType",
         "type": "string"
       },
       "Clock": {
@@ -21702,7 +22933,7 @@
       },
       "Deal": {
         "additionalProperties": false,
-        "description": "Offer a deal, or accept one.",
+        "description": "Offer a deal, or accept one. With ``parties`` an offer of an agreement (AGR): one\npart per other named nation, each aimed at the person who speaks for it.",
         "properties": {
           "accept": {
             "default": false,
@@ -26118,6 +27349,9 @@
     "additionalProperties": false,
     "description": "One seat's knowledge. The only input to anything that writes prose.",
     "properties": {
+      "agreements": {
+        "$ref": "#/$defs/Agreements"
+      },
       "assets": {
         "additionalProperties": {
           "$ref": "#/$defs/Asset"

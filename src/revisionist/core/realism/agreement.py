@@ -1,0 +1,817 @@
+"""Agreements with clauses the rules can check (AGR).
+
+An offer is an order carrying a ``Deal`` that names its parties, its wording and its
+clauses: one influence part for each other named nation, aimed at the person who speaks
+for it, answered through the answer path by the offer's due day. It becomes an agreement
+only when a seat of every named nation has accepted that same version (the hash of the
+parties, the wording and the clauses); a decline, or no answer by the due day, lapses it
+with no obligation on anyone. The card never answers an offer, and neither does the aide.
+
+Each typed clause is judged from the state on its date, or each day while it stands;
+wording that fits no type is kept and never judged, and a vote clause is the
+conference's to judge. A broken clause costs the breaker's leader regard with each other
+party's leader and, when the agreement is public, moves the breaker's groups at home.
+Nothing enforces a clause. Every rule here acts only with ``agreements`` on.
+"""
+
+import hashlib
+import json
+from collections.abc import Sequence
+from datetime import date, timedelta
+from enum import StrEnum
+from typing import TYPE_CHECKING, ClassVar
+
+from pydantic import Field
+
+from revisionist.core._base import Label, Model
+from revisionist.core.ids import DocumentId, EntityId, FeatureId, OrderId, SeatId, derived_id
+from revisionist.core.realism.effect import AgreementClause, ClauseType, Deal, Route, RoutedPart
+
+if TYPE_CHECKING:
+    from revisionist.core.events import Payload
+    from revisionist.core.realism.effect import RoutedOrder
+    from revisionist.core.state import State, View, _World
+    from revisionist.core.visibility import Scope
+
+OFFER_DAYS = 4  # [proposed] plan, AGR Defaults
+"""World days an offer stands after it is filed; its answers are decided on the last."""
+BREAK_REGARD = -2  # [proposed] plan, AGR Defaults
+"""What a broken clause moves the regard between the breaker's leader and each other
+party's leader."""
+REGARD_FLOOR, REGARD_TOP = -5, 5
+LINE = 60
+PUBLISH_DOMAIN = "agreements"
+"""The domain label of the command part that publishes an agreement: the seat acts itself."""
+
+NOT_ON = "Agreements are not part of this game."
+ALONE = "An offer of an agreement goes in an order of its own."
+NOT_A_PARTY = "Your own nation must be a party to the agreement."
+
+
+class ClauseStatus(StrEnum):
+    STANDING = "standing"
+    """In force and not yet broken: a standing clause, or a dated one before its day."""
+    KEPT = "kept"
+    BROKEN = "broken"
+    CALLED = "called"
+    """A defence clause an attack has called on: war is due by the call's day."""
+    UNCHECKED = "unchecked"
+    """Wording the rules cannot check, or a vote clause the conference judges."""
+
+
+class AgreementOffer(Model):
+    """An offer of an agreement, as its parties know it."""
+
+    offer_id: OrderId
+    """The order that carries it."""
+    version: Label
+    parties: tuple[EntityId, ...] = Field(min_length=2)
+    by: EntityId
+    """The offering nation."""
+    wording: str = Field(default="", max_length=600)
+    clauses: tuple[AgreementClause, ...] = ()
+    filed: date
+    expires: date
+
+
+class Call(Model):
+    """An attack that calls on a defence clause: war on ``against`` is due by ``due``."""
+
+    clause: int = Field(ge=0)
+    against: EntityId
+    due: date
+
+
+class Agreement(Model):
+    """An agreement in force: every named nation accepted the same version."""
+
+    agreement_id: Label
+    version: Label
+    parties: tuple[EntityId, ...] = Field(min_length=2)
+    wording: str = Field(default="", max_length=600)
+    clauses: tuple[AgreementClause, ...] = ()
+    made: date
+    offer_id: OrderId | None = None
+    """The offer it was made from; None for one a world or a conference makes."""
+    published: date | None = None
+    """The day a party published it; None while only its parties know of it."""
+    statuses: tuple[ClauseStatus, ...] = ()
+    """Each clause's status, in the clauses' order (filled when made)."""
+    calls: tuple[Call, ...] = ()
+
+    late_fields: ClassVar[frozenset[str]] = frozenset()
+
+    @property
+    def public(self) -> bool:
+        return self.published is not None
+
+
+class Agreements(Model):
+    """Offers and agreements (AGR). A view holds those its nation is a party to, and
+    every published agreement."""
+
+    offers: dict[OrderId, AgreementOffer] = Field(default_factory=dict)
+    made: dict[Label, Agreement] = Field(default_factory=dict)
+
+
+# --- reading --------------------------------------------------------------------------
+
+
+def on(state: "_World") -> bool:
+    """Whether agreements act in this game: the ``agreements`` rule on."""
+    from revisionist.core.state import Rule
+
+    rules: frozenset[Rule] = getattr(state, "rules", frozenset())
+    return Rule.AGREEMENTS in rules
+
+
+def version(parties: Sequence[EntityId], wording: str, clauses: Sequence[AgreementClause]) -> str:
+    """The version of an offer: the hash of its parties, its wording and its clauses."""
+    body = {
+        "parties": list(parties),
+        "wording": wording,
+        "clauses": [c.model_dump(mode="json") for c in clauses],
+    }
+    return hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()[:16]
+
+
+def agreement_id(campaign_id: str, offer_id: str) -> str:
+    return derived_id(campaign_id, "agreement", offer_id)
+
+
+def is_offer(part: RoutedPart) -> bool:
+    """Whether a routed part is one nation's share of an offer of an agreement."""
+    effect = part.effect
+    return (
+        part.route is Route.INFLUENCE
+        and isinstance(effect, Deal)
+        and bool(effect.parties)
+        and effect.publish is None
+    )
+
+
+def is_publish(part: RoutedPart) -> bool:
+    effect = part.effect
+    return isinstance(effect, Deal) and effect.publish is not None
+
+
+def _nation(state: "State", seat: SeatId) -> EntityId | None:
+    from revisionist.core.realism.war import polity_of
+
+    found = state.seats.get(seat)
+    return None if found is None else polity_of(state, found.embodies)
+
+
+def speaker(state: "State", nation: EntityId) -> EntityId | None:
+    """The person who answers for ``nation``: the person of its first seat with a desk,
+    a human's first. None when no seat holds a person of the nation."""
+    from revisionist.core.ontology import Controller
+    from revisionist.core.realism.holders import holding_seats
+
+    seats = [state.seats[s] for s in holding_seats(state, nation)]
+    if not seats:
+        return None
+    seats.sort(key=lambda s: (s.controller is not Controller.HUMAN, s.seat_id))
+    return seats[0].embodies
+
+
+def _name(state: "State | View", who: EntityId | None) -> str:
+    found = state.entities.get(who) if who is not None else None
+    return found.name if found is not None else "an unknown party"
+
+
+def _day(day: date) -> str:
+    return f"{day.day} {day:%B} {day.year}"
+
+
+def render_clause(state: "State", clause: AgreementClause) -> str:
+    """One clause in fixed words, from its validated fields alone."""
+    who = _name(state, clause.binds)
+    when = f"by {_day(clause.on)}" if clause.on is not None else "at all times"
+    until = f"until {_day(clause.on)}" if clause.on is not None else "at all times"
+    match clause.type:
+        case ClauseType.PLACE:
+            piece = state.features.get(clause.piece) if clause.piece is not None else None
+            where = _name(state, clause.area) if clause.area is not None else clause.region
+            verb = "is in" if clause.present else "is not in"
+            name = piece.name if piece is not None else "an unknown piece"
+            return f"{who}: {name} {verb} {where}, {when}."
+        case ClauseType.KEEP_OUT:
+            return f"{who}: no piece enters {_name(state, clause.area)}, {until}."
+        case ClauseType.NO_WAR:
+            return f"{who}: no war declared on {_name(state, clause.nation)}, {until}."
+        case ClauseType.NO_ATTACK:
+            return f"{who}: no attack on {_name(state, clause.nation)}, {until}."
+        case ClauseType.DEFEND:
+            return (
+                f"{who}: war declared within {clause.days} days on any nation that newly "
+                f"attacks {_name(state, clause.nation)}, {until}."
+            )
+        case ClauseType.FORM:
+            return f"{who}: the form {clause.form} enacted, {when}."
+        case ClauseType.AID:
+            to = _name(state, clause.nation)
+            return f"{who}: an aid share of at least {clause.share}% to {to}, {when}."
+        case ClauseType.VOTE:
+            way = "for" if clause.present else "against"
+            return f"{who}: a vote {way} the conference text {clause.text}."
+        case ClauseType.UNCHECKED:
+            return f"{who}: {clause.text} (not checked by the rules)."
+
+
+def term_rows(state: "State", agreement: Agreement | AgreementOffer) -> list[tuple[str, str]]:
+    """The terms as labelled rows: the parties, then each clause in fixed words."""
+    rows = [("Parties", ", ".join(_name(state, p) for p in agreement.parties) + ".")]
+    rows += [(f"Clause {n + 1}", render_clause(state, c)) for n, c in enumerate(agreement.clauses)]
+    if not agreement.clauses:
+        rows.append(("Clauses", "None the rules can check."))
+    return rows
+
+
+def render_terms(state: "State", agreement: Agreement | AgreementOffer) -> str:
+    """Every material term in fixed words, from the validated clause objects: the parties,
+    each obligation with its amount, scope and date. The only text a signing view shows
+    as the terms."""
+    return " ".join(f"{label}: {text}" for label, text in term_rows(state, agreement))
+
+
+def seen_by(state: "State", seat: SeatId) -> Agreements:
+    """What ``seat`` sees: the offers and agreements its nation is a party to, and every
+    published agreement."""
+    own = _nation(state, seat)
+    a = state.agreements
+    return Agreements(
+        offers={k: o for k, o in a.offers.items() if own is not None and own in o.parties},
+        made={
+            k: x for k, x in a.made.items() if x.public or (own is not None and own in x.parties)
+        },
+    )
+
+
+def parties_scope(state: "State", parties: Sequence[EntityId]) -> "Scope":
+    """Sealed to the seats of the parties' nations."""
+    from revisionist.core.realism.holders import holding_seats
+    from revisionist.core.visibility import Scope, Visibility
+
+    seats = frozenset(s for p in parties for s in holding_seats(state, p))
+    if not seats:
+        seats = frozenset({SeatId(derived_id(state.campaign_id, "engine-only", "agreements"))})
+    return Scope(visibility=Visibility.RESTRICTED, known_by=seats)
+
+
+# --- filing ---------------------------------------------------------------------------
+
+
+def _clause_refusal(state: "State", clause: AgreementClause) -> str:
+    from revisionist.core.ontology import EntityKind
+
+    board = state.map
+    areas = set(board.areas()) if board is not None else set()
+    regions = {r.key for r in board.regions} if board is not None else set()
+    if clause.nation is not None:
+        found = state.entities.get(clause.nation)
+        if found is None or found.kind is not EntityKind.POLITY:
+            return "A clause names a nation the world does not have."
+    if clause.area is not None and clause.area not in areas:
+        return "A clause names an area that is not on the map."
+    if clause.region is not None and clause.region not in regions:
+        return "A clause names a region that is not on the map."
+    if clause.piece is not None and clause.piece not in state.features:
+        return "A clause names a piece the world does not have."
+    return ""
+
+
+def refusal(state: "State", seat: SeatId, deal: Deal) -> str:
+    """Why an offer or a publishing order may not be filed; empty when it may."""
+    if not on(state):
+        return NOT_ON
+    own = _nation(state, seat)
+    if deal.publish is not None:
+        found = state.agreements.made.get(deal.publish)
+        if found is None or own not in found.parties:
+            return "There is no such agreement of yours to publish."
+        if found.public:
+            return "That agreement is already published."
+        return ""
+    if own is None or own not in deal.parties:
+        return NOT_A_PARTY
+    from revisionist.core.ontology import EntityKind
+
+    for party in deal.parties:
+        found_party = state.entities.get(party)
+        if found_party is None or found_party.kind is not EntityKind.POLITY:
+            return "Every party to an agreement is a nation."
+        if party != own and speaker(state, party) is None:
+            return f"No one answers for {found_party.name}."
+    for clause in deal.clauses:
+        why = _clause_refusal(state, clause)
+        if why:
+            return why
+    return ""
+
+
+def offer_parts(state: "State", seat: SeatId, ask: str, deal: Deal) -> tuple[RoutedPart, ...]:
+    """One influence part for each named nation but the offering one, aimed at the person
+    who answers for it, in the parties' order."""
+    own = _nation(state, seat)
+    out: list[RoutedPart] = []
+    for party in deal.parties:
+        if party == own:
+            continue
+        target = speaker(state, party)
+        assert target is not None
+        out.append(
+            RoutedPart(
+                route=Route.INFLUENCE,
+                ask=ask,
+                effect=deal.model_copy(update={"counterparty": party}),
+                target=target,
+            )
+        )
+    return tuple(out)
+
+
+def publish_part(ask: str, deal: Deal) -> RoutedPart:
+    """The command the seat carries out itself that publishes an agreement."""
+    return RoutedPart(route=Route.COMMAND, ask=ask, effect=deal, domain=PUBLISH_DOMAIN)
+
+
+def due(routed: "RoutedOrder") -> date:
+    """An offer's due day: its expiry."""
+    return routed.filed + timedelta(days=OFFER_DAYS)
+
+
+def make_offer(state: "State", routed: "RoutedOrder", deal: Deal) -> AgreementOffer:
+    """The offer an order carries, as its parties know it."""
+    own = _nation(state, routed.issuer)
+    return AgreementOffer(
+        offer_id=routed.order_id,
+        version=version(deal.parties, deal.wording, deal.clauses),
+        parties=deal.parties,
+        by=own or deal.parties[0],
+        wording=deal.wording,
+        clauses=deal.clauses,
+        filed=routed.filed,
+        expires=due(routed),
+    )
+
+
+# --- the day walk ---------------------------------------------------------------------
+
+
+def _offer_of(routed: "RoutedOrder") -> Deal | None:
+    found = [p.effect for p in routed.parts if is_offer(p)]
+    deal = found[0] if found else None
+    return deal if isinstance(deal, Deal) else None
+
+
+def _split(text: str) -> list[str]:
+    """``text`` in lines of at most ``LINE`` characters, broken at words; never cut short."""
+    out: list[str] = []
+    line = ""
+    for word in text.split():
+        while len(word) > LINE:
+            out += [line] if line else []
+            out.append(word[:LINE])
+            word, line = word[LINE:], ""
+        if line and len(line) + 1 + len(word) > LINE:
+            out.append(line)
+            line = ""
+        line = f"{line} {word}".strip()
+    return [*out, line] if line else out
+
+
+def _paper(
+    state: "State",
+    seat: SeatId,
+    key: Sequence[str],
+    day: date,
+    title: str,
+    rows: list[tuple[str, str]],
+) -> "Payload | None":
+    from revisionist.core import events as ev
+    from revisionist.core.canary import scan_text
+    from revisionist.core.realism.card import ChannelKind
+    from revisionist.core.realism.document import (
+        BodyField,
+        Classification,
+        DocumentKind,
+        DocumentTruth,
+        DocumentView,
+    )
+    from revisionist.core.visibility import private_to
+
+    doc_id = DocumentId(derived_id(state.campaign_id, "agreement-paper", *key, seat))
+    if doc_id in state.documents:
+        return None
+    body = [BodyField(label=label, value=v) for label, text in rows for v in _split(text)]
+    body = [
+        b.model_copy(update={"value": "Withheld."})
+        if isinstance(b.value, str) and scan_text(state, seat, b.value)
+        else b
+        for b in body
+    ]
+    nation = _nation(state, seat)
+    return ev.DocumentIssued(
+        document=DocumentView(
+            doc_id=doc_id,
+            kind=DocumentKind.REPORT,
+            author=nation if nation is not None else state.seats[seat].embodies,
+            issued=day,
+            arrives=day,
+            channel=ChannelKind.CABLE,
+            classification=Classification.CONFIDENTIAL,  # [proposed]
+            title=title[:LINE],
+            body=tuple(body),
+            scope=private_to(seat),
+        ),
+        truth=DocumentTruth(doc_id=doc_id),
+    )
+
+
+def _papers(
+    state: "State",
+    parties: Sequence[EntityId],
+    key: Sequence[str],
+    day: date,
+    title: str,
+    rows: list[tuple[str, str]],
+) -> list["Payload"]:
+    from revisionist.core.realism.holders import holding_seats
+
+    out: list[Payload] = []
+    for party in parties:
+        for seat in holding_seats(state, party):
+            paper = _paper(state, seat, key, day, title, rows)
+            if paper is not None:
+                out.append(paper)
+    return out
+
+
+def _made(state: "State", offer: AgreementOffer, day: date) -> "Agreement":
+    statuses = tuple(
+        ClauseStatus.UNCHECKED
+        if c.type in (ClauseType.UNCHECKED, ClauseType.VOTE)
+        else ClauseStatus.STANDING
+        for c in offer.clauses
+    )
+    return Agreement(
+        agreement_id=agreement_id(state.campaign_id, offer.offer_id),
+        version=offer.version,
+        parties=offer.parties,
+        wording=offer.wording,
+        clauses=offer.clauses,
+        made=day,
+        offer_id=offer.offer_id,
+        statuses=statuses,
+    )
+
+
+def offers_due(state: "State", day: date) -> list["Payload"]:
+    """With ``agreements`` on: each offer filed by ``day`` recorded for its parties; each
+    offer whose every part is decided closed, before any part's effect could land: made
+    when every named nation accepted it, else lapsed, a paper to every party's seats
+    either way; and each publishing order carried out, published."""
+    if not on(state):
+        return []
+    from revisionist.core import events as ev
+
+    out: list[Payload] = []
+    for routed in sorted(state.routed.values(), key=lambda o: (o.filed, o.order_id)):
+        deal = _offer_of(routed)
+        if deal is not None:
+            out += _offer_day(state, routed, deal, day)
+            continue
+        for i, part in enumerate(routed.parts):
+            if not is_publish(part) or part.applied is not None or part.executed is None:
+                continue
+            if part.executed > day:
+                continue
+            assert isinstance(part.effect, Deal) and part.effect.publish is not None
+            found = state.agreements.made.get(part.effect.publish)
+            if found is not None and not found.public:
+                out.append(
+                    ev.AgreementPublished(
+                        agreement_id=found.agreement_id,
+                        by=_nation(state, routed.issuer) or found.parties[0],
+                        on=day,
+                    )
+                )
+            out.append(ev.EffectsApplied(order_id=routed.order_id, part=i, on=day))
+    return out
+
+
+def _offer_day(state: "State", routed: "RoutedOrder", deal: Deal, day: date) -> list["Payload"]:
+    from revisionist.core import events as ev
+
+    out: list[Payload] = []
+    offer = state.agreements.offers.get(routed.order_id)
+    if offer is None:
+        if routed.filed > day:
+            return []
+        offer = make_offer(state, routed, deal)
+        out.append(ev.AgreementOffered(offer=offer))
+    parts = [(i, p) for i, p in enumerate(routed.parts) if is_offer(p)]
+    if any(p.decided is None for _, p in parts) or all(p.applied is not None for _, p in parts):
+        return out
+    out += [
+        ev.EffectsApplied(order_id=routed.order_id, part=i, on=day)
+        for i, p in parts
+        if p.applied is None
+    ]
+    terms = term_rows(state, offer)
+    if all(p.accepted for _, p in parts):
+        made = _made(state, offer, day)
+        out.append(ev.AgreementMade(agreement=made))
+        out += _papers(
+            state,
+            offer.parties,
+            ("made", made.agreement_id),
+            day,
+            "An agreement is in force",
+            terms,
+        )
+    else:
+        out += _papers(
+            state,
+            offer.parties,
+            ("lapsed", offer.offer_id),
+            day,
+            "An offer of agreement lapsed",
+            [("Why", "Not every named nation accepted it."), *terms],
+        )
+    return out
+
+
+# --- judging --------------------------------------------------------------------------
+
+
+def _area_of_piece(state: "State", piece: FeatureId) -> EntityId | None:
+    from revisionist.core.realism import kinds, territory
+    from revisionist.core.realism.geography import in_play
+    from revisionist.core.realism.kinds import Domain
+
+    found = state.features.get(piece)
+    if found is None or not in_play(found):
+        return None
+    domain = kinds.domain(state, found) or Domain.LAND
+    return territory.area_of(state, found.places[0], domain)
+
+
+def _in_region(state: "State", area: EntityId | None, region: str) -> bool:
+    board = state.map
+    if area is None or board is None:
+        return False
+    found = {t.area: t.region for t in board.territories}
+    found.update({z.area: z.region for z in board.sea_zones})
+    return found.get(area) == region
+
+
+def _place_kept(state: "State", c: AgreementClause) -> bool:
+    assert c.piece is not None
+    area = _area_of_piece(state, c.piece)
+    here = area == c.area if c.area is not None else _in_region(state, area, c.region or "")
+    return here == c.present
+
+
+def _form_kept(state: "State", c: AgreementClause) -> bool:
+    from revisionist.core.realism.pipeline import OrderStatus
+    from revisionist.core.realism.resolvers import settled_on
+
+    assert c.on is not None
+    return any(
+        o.lever == c.form
+        and o.status is OrderStatus.ENACTED
+        and settled_on(o) <= c.on
+        and _nation(state, o.issuer) == c.binds
+        for o in state.orders.values()
+    )
+
+
+def _aid_kept(state: "State", c: AgreementClause) -> bool:
+    from revisionist.core.realism.resolvers.production import aid_shares
+
+    assert c.on is not None and c.nation is not None and c.share is not None
+    return aid_shares(state, c.binds, c.on).get(c.nation, 0) >= c.share
+
+
+def _attacks(today: Sequence["Payload"]) -> list[tuple[EntityId, EntityId]]:
+    """Each (attacker, attacked) pair a battle opened today, in the battles' order. A
+    meeting battle is an attack by each side on the other."""
+    from revisionist.core import events as ev
+
+    out: list[tuple[EntityId, EntityId]] = []
+    for p in today:
+        if isinstance(p, ev.BattleOpened):
+            a, d = p.battle.attacker.nation, p.battle.defender.nation
+            out.append((a, d))
+            if p.battle.meeting:
+                out.append((d, a))
+    return out
+
+
+def _entered(today: Sequence["Payload"], nation: EntityId, area: EntityId) -> bool:
+    from revisionist.core import events as ev
+
+    return any(
+        isinstance(p, ev.PieceStepped) and p.nation == nation and p.entered == area for p in today
+    )
+
+
+def _declared(state: "State", a: EntityId, b: EntityId, since: date) -> bool:
+    from revisionist.core.realism.war import war_id_for
+
+    war = state.wars.get(war_id_for(a, b))
+    return war is not None and war.a == a and war.b == b and war.since >= since
+
+
+def _verdict(
+    state: "State", x: Agreement, n: int, day: date, today: Sequence["Payload"]
+) -> "list[tuple[ClauseStatus, EntityId | None, date | None, str]]":
+    """What judging clause ``n`` of ``x`` on ``day`` finds: (status, against, due,
+    reason) for each change; none when it stands as it was."""
+    from revisionist.core.realism.war import at_war
+
+    c = x.clauses[n]
+    status = x.statuses[n]
+    if status not in (ClauseStatus.STANDING, ClauseStatus.CALLED):
+        return []
+    dated = c.on is not None
+    if dated and c.type in (ClauseType.PLACE, ClauseType.FORM, ClauseType.AID):
+        assert c.on is not None
+        if day < c.on:
+            return []
+        kept = {
+            ClauseType.PLACE: _place_kept,
+            ClauseType.FORM: _form_kept,
+            ClauseType.AID: _aid_kept,
+        }[c.type](state, c)
+        return [(ClauseStatus.KEPT if kept else ClauseStatus.BROKEN, None, None, "On its day.")]
+    broken = ""
+    out: list[tuple[ClauseStatus, EntityId | None, date | None, str]] = []
+    match c.type:
+        case ClauseType.KEEP_OUT:
+            assert c.area is not None
+            if _entered(today, c.binds, c.area):
+                broken = f"A piece of {_name(state, c.binds)} entered {_name(state, c.area)}."
+        case ClauseType.NO_WAR:
+            assert c.nation is not None
+            if _declared(state, c.binds, c.nation, x.made):
+                broken = f"{_name(state, c.binds)} declared war on {_name(state, c.nation)}."
+        case ClauseType.NO_ATTACK:
+            if (c.binds, c.nation) in _attacks(today):
+                broken = f"{_name(state, c.binds)} attacked {_name(state, c.nation)}."
+        case ClauseType.DEFEND:
+            assert c.nation is not None and c.days is not None
+            calls = [k for k in x.calls if k.clause == n]
+            for k in calls:
+                if at_war(state, c.binds, k.against):
+                    out.append((ClauseStatus.KEPT, k.against, None, "War was declared."))
+                elif day > k.due:
+                    broken = f"No war declared on {_name(state, k.against)} in time."
+            called = {k.against for k in calls}
+            for attacker, attacked in _attacks(today):
+                if attacked != c.nation or attacker in (c.binds, c.nation) or attacker in called:
+                    continue
+                if at_war(state, c.binds, attacker):
+                    continue
+                called.add(attacker)
+                when = day + timedelta(days=c.days)
+                why = f"{_name(state, attacker)} attacked {_name(state, c.nation)}."
+                out.append((ClauseStatus.CALLED, attacker, when, why))
+        case _:
+            return []
+    if broken:
+        return [(ClauseStatus.BROKEN, None, None, broken)]
+    still_called = any(
+        k.clause == n and not at_war(state, c.binds, k.against) for k in x.calls
+    ) or any(o[0] is ClauseStatus.CALLED for o in out)
+    if c.on is not None and day >= c.on and not still_called:
+        out.append((ClauseStatus.KEPT, None, None, "Kept to its last day."))
+    return out
+
+
+def _regard(state: "State", breaker: EntityId, wronged: EntityId) -> "Payload | None":
+    from revisionist.core import events as ev
+    from revisionist.core.ids import RelationshipId
+    from revisionist.core.ontology import Relationship
+
+    a, b = speaker(state, wronged), speaker(state, breaker)
+    if a is None or b is None or a == b:
+        return None
+    found = next(
+        (r for r in state.relationships.values() if {r.a, r.b} == {a, b}),
+        None,
+    )
+    if found is None:
+        rel = Relationship(
+            relationship_id=RelationshipId(derived_id(state.campaign_id, "rel", a, b)),
+            a=a,
+            b=b,
+            disposition=max(REGARD_FLOOR, BREAK_REGARD),
+            scope=parties_scope(state, (wronged, breaker)),
+        )
+    else:
+        moved = max(REGARD_FLOOR, min(REGARD_TOP, found.disposition + BREAK_REGARD))
+        rel = found.model_copy(update={"disposition": moved})
+    return ev.RelationshipSet(relationship=rel)
+
+
+def _broken(state: "State", x: Agreement, n: int, day: date) -> list["Payload"]:
+    """What a broken clause costs: regard between the breaker's leader and each other
+    party's leader, and, when the agreement is public, the breaker's groups."""
+    from revisionist.core.realism import groups
+    from revisionist.core.realism.groups import Happening
+
+    breaker = x.clauses[n].binds
+    out: list[Payload] = []
+    for party in x.parties:
+        if party == breaker:
+            continue
+        moved = _regard(state, breaker, party)
+        if moved is not None:
+            out.append(moved)
+    if x.public and groups.on(state):
+        out += groups.happened(state, breaker, Happening.AGREEMENT_BROKEN, day)
+    return out
+
+
+_TITLES = {
+    ClauseStatus.KEPT: "A clause of an agreement was kept",
+    ClauseStatus.BROKEN: "A clause of an agreement was broken",
+    ClauseStatus.CALLED: "A clause of an agreement is called on",
+}
+
+
+def judge(state: "State", day: date, today: Sequence["Payload"]) -> list["Payload"]:
+    """With ``agreements`` on, each agreement's typed clauses judged on ``day`` from the
+    state and the day's events (``today``): a dated clause on its date, a standing one
+    each day. Each judgement is a ``clause_judged`` with a paper to every party's seats;
+    a broken clause also costs what ``_broken`` says. Unchecked and vote clauses are never
+    judged here."""
+    if not on(state):
+        return []
+    from revisionist.core import events as ev
+
+    out: list[Payload] = []
+    for x in sorted(state.agreements.made.values(), key=lambda a: (a.made, a.agreement_id)):
+        if x.made > day:
+            continue
+        for n, clause in enumerate(x.clauses):
+            for status, against, when, why in _verdict(state, x, n, day, today):
+                out.append(
+                    ev.ClauseJudged(
+                        agreement_id=x.agreement_id,
+                        clause=n,
+                        status=status,
+                        on=day,
+                        reason=why[:300],
+                        against=against,
+                        due=when,
+                    )
+                )
+                rows = [("Clause", render_clause(state, clause)), ("Finding", why)]
+                if when is not None:
+                    rows.append(("War due by", _day(when)))
+                key = (
+                    "judged",
+                    x.agreement_id,
+                    str(n),
+                    status.value,
+                    str(against),
+                    day.isoformat(),
+                )
+                out += _papers(state, x.parties, key, day, _TITLES[status], rows)
+                if status is ClauseStatus.BROKEN:
+                    out += _broken(state, x, n, day)
+    return out
+
+
+__all__ = [
+    "BREAK_REGARD",
+    "OFFER_DAYS",
+    "PUBLISH_DOMAIN",
+    "Agreement",
+    "AgreementOffer",
+    "Agreements",
+    "Call",
+    "ClauseStatus",
+    "agreement_id",
+    "due",
+    "is_offer",
+    "is_publish",
+    "judge",
+    "make_offer",
+    "offer_parts",
+    "offers_due",
+    "on",
+    "parties_scope",
+    "publish_part",
+    "refusal",
+    "render_clause",
+    "render_terms",
+    "seen_by",
+    "speaker",
+    "term_rows",
+    "version",
+]

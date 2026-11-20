@@ -24,7 +24,7 @@ from revisionist.core.ids import (
     derived_id,
 )
 from revisionist.core.ontology import Controller
-from revisionist.core.realism import reach
+from revisionist.core.realism import agreement, reach
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.document import (
     BodyField,
@@ -36,6 +36,7 @@ from revisionist.core.realism.document import (
 from revisionist.core.realism.effect import (
     IRREVERSIBLE,
     ClauseKind,
+    Deal,
     Effect,
     EffectKind,
     PartRef,
@@ -269,7 +270,51 @@ def request_due(state: State, routed: RoutedOrder, i: int) -> date | None:
     if held_by_another(state, routed, part) is None:
         return None
     on = arrives(state, routed, part)
+    if on is not None and agreement.is_offer(part):
+        return offer_due(state, routed)
     return None if on is None else on + timedelta(days=ANSWER_DAYS)
+
+
+def offer_due(state: State, routed: RoutedOrder) -> date:
+    """The one day every nation's answer to an offer of agreement is decided: its expiry,
+    or the day the slowest part reaches its nation, if later."""
+    days = [agreement.due(routed)]
+    for part in routed.parts:
+        if agreement.is_offer(part) and part.target is not None:
+            on = arrives(state, routed, part)
+            days += [on] if on is not None else []
+    return max(days)
+
+
+def _offer_part_due(
+    state: State, routed: RoutedOrder, i: int, seat: SeatId | None, today: date
+) -> list[ev.Payload]:
+    """One nation's part of an offer of agreement: the paper to the human holder when it
+    arrives; on the offer's due day, that holder's acceptance, else a decline. The card
+    never answers an offer, and a nation it cannot reach declines it on that day too."""
+    part = routed.parts[i]
+    out: list[ev.Payload] = []
+    on = arrives(state, routed, part)
+    reached = seat is not None and on is not None and on <= today
+    if reached and request_paper_id(state.campaign_id, routed.order_id, i) not in state.documents:
+        assert seat is not None
+        out.append(_request_paper(state, routed, i, seat))
+    due = offer_due(state, routed)
+    if due > today:
+        return out
+    assert part.target is not None
+    if on is None:
+        accepted, reason = False, NO_REACH
+    elif seat is not None:
+        accepted, reason = _holders_answer(state, routed, part)
+    else:
+        accepted, reason = False, offer_declined(_name(state, part.target))
+    out.append(
+        ev.InfluenceDecided(
+            order_id=routed.order_id, part=i, on=due, accepted=accepted, reason=reason
+        )
+    )
+    return out
 
 
 def request_paper_id(campaign_id: CampaignId, order_id: OrderId, part: int) -> DocumentId:
@@ -333,7 +378,14 @@ def _request_paper(state: State, routed: RoutedOrder, i: int, seat: SeatId) -> e
     assert on is not None and due is not None
     issuer = _person(state, routed)
     said = [("Request", part.ask)]
-    if part.effect is not None:
+    title = f"A request from {_name(state, issuer)}"
+    if agreement.is_offer(part) and isinstance(part.effect, Deal):
+        deal = part.effect
+        said = [("Offer", deal.wording or part.ask)]
+        offer = agreement.make_offer(state, routed, deal)
+        said += agreement.term_rows(state, offer)
+        title = f"An offer of agreement from {_name(state, issuer)}"
+    elif part.effect is not None:
         from revisionist.core.realism.apply import describe  # apply imports us
 
         said.append(("Terms", describe(state, part)))
@@ -342,7 +394,7 @@ def _request_paper(state: State, routed: RoutedOrder, i: int, seat: SeatId) -> e
         request_paper_id(state.campaign_id, routed.order_id, i),
         seat,
         issuer=issuer,
-        title=f"A request from {_name(state, issuer)}",
+        title=title,
         said=said,
         issued=routed.filed,
         arrives_on=on,
@@ -371,9 +423,18 @@ def answered(state: State, routed: RoutedOrder, i: int, accepted: bool) -> ev.Re
     return ev.RequestAnswered(order_id=routed.order_id, part=i, accepted=accepted)
 
 
+def offer_declined(name: str) -> str:
+    """The same words whether the holder declined an offer or gave no answer."""
+    return f"{name} did not accept the offer."
+
+
 def _holders_answer(state: State, routed: RoutedOrder, part: RoutedPart) -> tuple[bool, str]:
     """The decision on the due day: the holder's own answer when they gave one, in the
-    words the card would use; else the card's."""
+    words the card would use; else the card's. An offer of an agreement the holder did
+    not accept is declined for that nation: the card never answers one."""
+    if agreement.is_offer(part) and not part.held_answer:
+        assert part.target is not None
+        return False, offer_declined(_name(state, part.target))
     if part.held_answer is None:
         return _card_answer(state, routed, part)
     if not part.held_answer:
@@ -393,6 +454,9 @@ def influence_due(state: State, today: date) -> list[ev.Payload]:
             continue
         seat = holder(state, part.target)
         if seat is not None and seat == routed.issuer:
+            continue
+        if agreement.is_offer(part):
+            out += _offer_part_due(state, routed, i, seat, today)
             continue
         channels = reach.channels_to(state, _person(state, routed), part.target)
         if not channels:
@@ -443,6 +507,8 @@ __all__ = [
     "holder",
     "influence_due",
     "irreversible",
+    "offer_declined",
+    "offer_due",
     "open_processes",
     "request_due",
     "request_paper_id",

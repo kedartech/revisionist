@@ -1,7 +1,7 @@
 """Hypothesis strategies for every core model. Reused by Layers 2 and 3."""
 
 from datetime import date, datetime, timedelta
-from typing import cast
+from typing import Any, cast
 
 from hypothesis import strategies as st
 
@@ -60,6 +60,7 @@ from revisionist.core.ontology import (
     SeatKind,
 )
 from revisionist.core.realism import agenda as ra
+from revisionist.core.realism import agreement as ragr
 from revisionist.core.realism import answer as rans
 from revisionist.core.realism import battle as rb
 from revisionist.core.realism import card as rc
@@ -895,6 +896,99 @@ proposals = st.builds(
 
 
 @st.composite
+def agreement_clauses(draw: st.DrawFn) -> rx.AgreementClause:
+    """A clause of an agreement (AGR), with the fields its type needs."""
+    kind = draw(st.sampled_from(list(rx.ClauseType)))
+    fields: dict[str, Any] = {"type": kind, "binds": draw(entity_ids)}
+    if kind in (rx.ClauseType.PLACE, rx.ClauseType.FORM, rx.ClauseType.AID) or draw(st.booleans()):
+        fields["on"] = draw(in_world_dates)
+    if kind is rx.ClauseType.PLACE:
+        fields["piece"] = draw(feature_ids)
+        fields["present"] = draw(st.booleans())
+        if draw(st.booleans()):
+            fields["area"] = draw(entity_ids)
+        else:
+            fields["region"] = draw(labels)
+    if kind is rx.ClauseType.KEEP_OUT:
+        fields["area"] = draw(entity_ids)
+    if kind in (
+        rx.ClauseType.NO_WAR,
+        rx.ClauseType.NO_ATTACK,
+        rx.ClauseType.DEFEND,
+        rx.ClauseType.AID,
+    ):
+        fields["nation"] = draw(entity_ids)
+    if kind is rx.ClauseType.DEFEND:
+        fields["days"] = draw(st.integers(0, 60))
+    if kind is rx.ClauseType.FORM:
+        fields["form"] = draw(labels)
+    if kind is rx.ClauseType.AID:
+        fields["share"] = draw(st.integers(1, 100))
+    if kind in (rx.ClauseType.VOTE, rx.ClauseType.UNCHECKED):
+        fields["text"] = draw(st.text(min_size=1, max_size=300))
+    return rx.AgreementClause(**fields)
+
+
+@st.composite
+def agreement_deals(draw: st.DrawFn) -> rx.Deal:
+    """An offer of an agreement (AGR): parties, wording and clauses binding the parties."""
+    parties = tuple(draw(st.lists(entity_ids, min_size=2, max_size=3, unique=True)))
+    clauses = tuple(
+        c.model_copy(update={"binds": draw(st.sampled_from(parties))})
+        for c in draw(st.lists(agreement_clauses(), max_size=2))
+    )
+    return rx.Deal(
+        counterparty=draw(st.sampled_from(parties)),
+        parties=parties,
+        wording=draw(st.text(min_size=1, max_size=600).filter(str.strip)),
+        clauses=clauses,
+        envoy=draw(st.none() | feature_ids),
+    )
+
+
+@st.composite
+def agreement_offers(draw: st.DrawFn) -> ragr.AgreementOffer:
+    parties = tuple(draw(st.lists(entity_ids, min_size=2, max_size=3, unique=True)))
+    filed = draw(in_world_dates)
+    return ragr.AgreementOffer(
+        offer_id=draw(order_ids),
+        version=draw(labels),
+        parties=parties,
+        by=parties[0],
+        wording=draw(st.text(max_size=600)),
+        clauses=tuple(draw(st.lists(agreement_clauses(), max_size=2))),
+        filed=filed,
+        expires=filed,
+    )
+
+
+@st.composite
+def agreements(draw: st.DrawFn) -> ragr.Agreement:
+    offer = draw(agreement_offers())
+    return ragr.Agreement(
+        agreement_id=draw(labels),
+        version=offer.version,
+        parties=offer.parties,
+        wording=offer.wording,
+        clauses=offer.clauses,
+        made=offer.filed,
+        offer_id=draw(st.none() | order_ids),
+        published=draw(st.none() | in_world_dates),
+        statuses=tuple(draw(st.sampled_from(list(ragr.ClauseStatus))) for _ in offer.clauses),
+        calls=tuple(
+            draw(
+                st.lists(
+                    st.builds(
+                        ragr.Call, clause=st.integers(0, 7), against=entity_ids, due=in_world_dates
+                    ),
+                    max_size=1,
+                )
+            )
+        ),
+    )
+
+
+@st.composite
 def intelligences(draw: st.DrawFn) -> rdet.Intelligence:
     """A nation's sources (DET): each source once, ranked from 1."""
     kinds = draw(st.lists(st.sampled_from(list(rdet.Source)), max_size=3, unique=True))
@@ -1169,6 +1263,19 @@ realism_payloads = st.one_of(
         on=in_world_dates,
     ),
     st.builds(ev.GroupProposed, proposal=proposals),
+    st.builds(ev.AgreementOffered, offer=agreement_offers()),
+    st.builds(ev.AgreementMade, agreement=agreements()),
+    st.builds(
+        ev.ClauseJudged,
+        agreement_id=labels,
+        clause=st.integers(0, 7),
+        status=st.sampled_from(list(ragr.ClauseStatus)),
+        on=in_world_dates,
+        reason=st.text(max_size=300),
+        against=st.none() | entity_ids,
+        due=st.none() | in_world_dates,
+    ),
+    st.builds(ev.AgreementPublished, agreement_id=labels, by=entity_ids, on=in_world_dates),
     st.builds(
         ev.ReportMade,
         nation=entity_ids,
@@ -1398,6 +1505,8 @@ effects: st.SearchStrategy[rx.Effect] = st.one_of(
         ask=st.lists(labels, max_size=3).map(tuple),
         accept=st.booleans(),
     ),
+    agreement_deals(),
+    st.builds(rx.Deal, counterparty=entity_ids, publish=labels),
     dispositions(),
     st.builds(rx.Disclosure, fact=fact_ids, reveal=st.booleans()),
 )

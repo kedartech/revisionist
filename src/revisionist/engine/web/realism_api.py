@@ -559,6 +559,14 @@ class PieceArea(TypedDict):
     """The place it stands at when that place has a position; None in an area without one."""
 
 
+class MarkArea(TypedDict):
+    """The area (a territory or a sea zone) a page places a sighted piece in."""
+
+    key: str
+    """The area's key in the map file."""
+    name: str
+
+
 class PieceWait(TypedDict):
     """The seat's own order for the piece, still with a holder. The same words whoever
     holds it, a player or not."""
@@ -644,6 +652,10 @@ class MapMark(TypedDict):
     """Known: the seat's own side, freshly reported. Stale: the page is older than
     ``STALE_DAYS``. A feature no page has placed is not on the map at all."""
     places: list[MapPlace]
+    """The places the page names that have a position."""
+    area: MarkArea | None
+    """The area without a position the page names, in a territory game; None when the
+    page names only places with a position."""
     reported: str
     """The page's issue date: where it was then, not now."""
     source: str
@@ -1290,6 +1302,7 @@ __all__ = [
     "MapPlace",
     "MapRegion",
     "MapReply",
+    "MarkArea",
     "OrderProposal",
     "OrderResult",
     "OrderTrack",

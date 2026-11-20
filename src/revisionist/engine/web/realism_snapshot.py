@@ -69,6 +69,7 @@ from revisionist.engine.web.realism_api import (
     MapOrder,
     MapPiece,
     MapPlace,
+    MarkArea,
     OrderTrack,
     OrderTracker,
     People,
@@ -252,11 +253,26 @@ STALE_DAYS = 14
 """[proposed] A position older than this is drawn as stale."""
 
 
-def _place(view: View, e: EntityId) -> MapPlace:
-    place = view.entities[e]
+def _place(view: View, e: EntityId) -> MapPlace | None:
+    """The place ``e`` as the map draws it; None for one with no position (an area)."""
+    place = view.entities.get(e)
+    if place is None or place.at is None:
+        return None
     at = place.at
-    assert at is not None  # a sighting names only places with a position (world_compile)
     return MapPlace(name=place.name, lat=at[0], lon=at[1], theatre=place.theatre)
+
+
+def _positioned(view: View, ids: Iterable[EntityId]) -> list[MapPlace]:
+    return [p for p in (_place(view, e) for e in ids) if p is not None]
+
+
+def _mark_areas(state: State | None) -> dict[EntityId, MarkArea]:
+    """Each area of a territory game's board by its entity: its map file key and name."""
+    board = state.map if state is not None and territory.on(state) else None
+    if board is None:
+        return {}
+    shapes: list[territory.Territory | territory.SeaZone] = [*board.territories, *board.sea_zones]
+    return {a.area: MarkArea(key=a.key, name=a.name) for a in shapes}
 
 
 def _capitals(view: View, people: People) -> list[MapCapital]:
@@ -265,12 +281,13 @@ def _capitals(view: View, people: People) -> list[MapCapital]:
     out: list[MapCapital] = []
     for line in people["opponents"]:
         leader = view.entities.get(EntityId(line["person"]))
-        home = view.entities.get(leader.location) if leader and leader.location else None
-        if line["stance"] is None or home is None or home.at is None:
+        # a capital that is an area has no point to pin until capitals are drawn on the board
+        home = _place(view, leader.location) if leader and leader.location else None
+        if line["stance"] is None or home is None:
             continue
         out.append(
             MapCapital(
-                place=_place(view, home.entity_id),
+                place=home,
                 name=line["name"],
                 stance=line["stance"],
                 at_war=line["at_war"],
@@ -358,11 +375,6 @@ def _sighted(state: State, doc_id: DocumentId, label: str, kind: str) -> Feature
     )
 
 
-def _placed(view: View, e: EntityId) -> MapPlace | None:
-    place = view.entities.get(e)
-    return _place(view, e) if place is not None and place.at is not None else None
-
-
 def _area(
     state: State, view: View, keys: Mapping[EntityId, str], at: EntityId, domain: kinds.Domain
 ) -> PieceArea:
@@ -376,10 +388,10 @@ def _area(
         ]
         for a in shapes:
             if a.area == area:
-                return PieceArea(key=a.key, name=a.name, place=_placed(view, at))
+                return PieceArea(key=a.key, name=a.name, place=_place(view, at))
     place = view.entities.get(at)
     return PieceArea(
-        key=keys.get(at), name=place.name if place is not None else "", place=_placed(view, at)
+        key=keys.get(at), name=place.name if place is not None else "", place=_place(view, at)
     )
 
 
@@ -493,7 +505,7 @@ class _Sent:
 def _own_mark(view: View, f: Feature, piece: MapPiece) -> MapMark:
     """An own piece no page has placed: known where the truth has it."""
     today = view.in_world_date
-    place = _placed(view, f.places[0])
+    place = _place(view, f.places[0])
     return MapMark(
         key=piece["key"],
         name=f.name,
@@ -502,6 +514,7 @@ def _own_mark(view: View, f: Feature, piece: MapPiece) -> MapMark:
         side_name=view.entities[f.side].name if f.side in view.entities else "",
         certainty="known",
         places=[place] if place is not None else [],
+        area=None,
         reported=today.isoformat() if today is not None else "",
         source="",
         document="",
@@ -526,11 +539,14 @@ def seat_map(
     With ``state``, each own force ``forces`` names is sent as a piece on its mark, and
     marks and pieces share the web MAC of ``territory.mark_key``; ``withdrawable`` (``withdraw``)
     marks the orders the seat may still take back."""
-    places = [
-        _place(view, k)
-        for k, e in sorted(view.entities.items(), key=lambda kv: (kv[1].name, kv[0]))
-        if e.kind is EntityKind.LOCATION and e.at is not None
-    ]
+    places = _positioned(
+        view,
+        (
+            k
+            for k, e in sorted(view.entities.items(), key=lambda kv: (kv[1].name, kv[0]))
+            if e.kind is EntityKind.LOCATION
+        ),
+    )
     if not places:
         return None
     today = view.in_world_date
@@ -541,6 +557,7 @@ def seat_map(
         if state is not None
         else None
     )
+    areas = _mark_areas(state)
     marks: list[MapMark] = []
     for (label, kind), (doc_id, doc, b) in sorted(latest.items(), key=lambda kv: kv[0]):
         sight = b.sight
@@ -561,7 +578,11 @@ def seat_map(
                 side=side,
                 side_name=view.entities[sight.side].name if sight.side in view.entities else "",
                 certainty="stale" if stale else "known" if side == "own" else "reported",
-                places=[_place(view, p) for p in sight.places],
+                places=_positioned(view, sight.places),
+                area=next(
+                    (areas[p] for p in sight.places if p in areas and _place(view, p) is None),
+                    None,
+                ),
                 reported=doc.issued.isoformat(),
                 source=view.entities[doc.author].name,
                 document=doc_id,

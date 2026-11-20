@@ -883,6 +883,137 @@ class EconomyBlock(TypedDict):
     """None for a seat of no nation."""
 
 
+class BattleRoundLine(TypedDict):
+    """One round of a battle as the seat's own report of it gives it (BTD)."""
+
+    on: str
+    own_lost: int
+    """The steps the seat's side lost that day."""
+    enemy_lost: int
+    """The steps the report saw the enemy lose: what contact reported, not the truth."""
+
+
+class StrengthRange(TypedDict):
+    low: int
+    high: int
+
+
+class BattlePiece(TypedDict):
+    """One of the seat's own pieces in a battle, as its movement forms name it."""
+
+    force: str
+    """The force key the movement forms and the ``contingency`` action take."""
+    name: str
+    strength: int
+    contingency: Literal["hold", "hold_fast", "fall_back", "withdraw_below"] | None
+    """Its standing order for a battle; None: hold (the default)."""
+
+
+class BattleView(TypedDict):
+    """One battle the seat's nation is a side of (BTD). Built from the seat's own side and
+    its own papers: never the enemy's true strength, a round's draws or the enemy's
+    decision. A battle the seat's nation is not in is not listed."""
+
+    area: str
+    """The area's map key; the ``battle`` action names the battle by it."""
+    name: str
+    opened: str
+    side: Literal["attacker", "defender"]
+    enemy: str
+    """The enemy nation's name, as the battle's news gives it."""
+    rounds: list[BattleRoundLine]
+    """Each round the seat has a report of, oldest first."""
+    strength: int
+    """The seat's side's strength now: what it brought less the steps it lost."""
+    enemy_strength: StrengthRange | None
+    """The range the seat's latest papers put the enemy there at; None before any paper
+    places an enemy piece there."""
+    decision: Literal["press", "hold", "withdraw"] | None
+    """The side's decision in force; None: none given (the attacker presses, the
+    defender holds)."""
+    decided: bool
+    """The side has its decision for the open wake, landed or on its way, or the seat has
+    one held for the next wake."""
+    held: bool
+    """The seat has a decision for it held for the next wake (given after its commit)."""
+    decisions: list[str]
+    """The decisions the seat may give now: empty once decided this wake, between wakes
+    and for a seat that commands none of the side's pieces."""
+    contingencies: list[str]
+    """The contingency kinds the seat may give its pieces there."""
+    pieces: list[BattlePiece]
+    ended: str | None
+    """The day the battle ended; None while it is open. An ended battle gives no
+    decisions, contingencies or pieces."""
+    closing: "ClosingOdds | None"
+    """An ended battle's closing odds (ODS); None while it is open, and while the odds
+    desk is busy."""
+
+
+class OddsShares(TypedDict):
+    """The share of runs, in percent, that end in each way for the seat's side (ODS)."""
+
+    win: float
+    stalemate: float
+    """Still fought, or the attacker went back after a lull, when the days run out."""
+    loss: float
+
+
+class OddsTerrain(TypedDict):
+    """The public facts of the area the odds are for."""
+
+    area: str
+    name: str
+    terrain: str
+    """The terrain's key in the world file."""
+    defence: int
+    """What the terrain adds to a defender's score."""
+    holder: str | None
+    """The name of the nation holding it; None for a sea zone or nobody's ground."""
+
+
+class OddsAtStrength(TypedDict):
+    strength: int
+    """One total enemy strength the reports allow."""
+    win: float | None
+    """The win share, in percent, of the runs that drew that strength; None: none did."""
+
+
+class OddsReply(TypedDict):
+    """The ``odds`` action's spread (ODS), simulated from the seat's own picture: its own
+    pieces exactly, the enemy only as its reports put it. Never one figure. With no report
+    of the enemy there, ``known`` is false and only the terrain facts are given."""
+
+    known: bool
+    area: str
+    terrain: OddsTerrain
+    runs: int
+    days: int
+    shares: OddsShares | None
+    own_lost: StrengthRange | None
+    """The likely range of steps the seat's side loses: the 10th to the 90th percentile."""
+    enemy_lost: StrengthRange | None
+    taken: float | None
+    """The chance, in percent, of taking the territory; None where no win takes it."""
+    taken_days: int | None
+    """The median days until it is taken, over the runs that take it."""
+    forced_back: float | None
+    """The chance, in percent, that the seat's side breaks and is forced back."""
+    back_to: str | None
+    """The area key the seat's piece would be forced back to; None: nowhere."""
+    by_strength: list[OddsAtStrength]
+    reports: list[str]
+    """The keys of the reports the enemy was read from."""
+
+
+class ClosingOdds(TypedDict):
+    """An ended battle's odds on its first day (ODS rule 7): as they truly stood, with
+    both sides exactly, beside what the seat's own picture said that day."""
+
+    truly: OddsReply
+    seen: OddsReply
+
+
 class MapReply(TypedDict):
     """The ``map`` action: the map object the game's stored hash names, the same for every
     seat. Refused, with one line, when no object has that hash or the game has no
@@ -1313,11 +1444,15 @@ __all__ = [
     "AgendaBlock",
     "AgendaItem",
     "AgendaOption",
+    "BattlePiece",
+    "BattleRoundLine",
+    "BattleView",
     "BodyLine",
     "Chamber",
     "ChamberSeats",
     "ChamberVote",
     "Clock",
+    "ClosingOdds",
     "ContactLine",
     "Court",
     "CourtOrder",
@@ -1355,6 +1490,10 @@ __all__ = [
     "MapReply",
     "MapReport",
     "MarkArea",
+    "OddsAtStrength",
+    "OddsReply",
+    "OddsShares",
+    "OddsTerrain",
     "OrderProposal",
     "OrderResult",
     "OrderTrack",
@@ -1401,6 +1540,7 @@ __all__ = [
     "StakeMandate",
     "Stakes",
     "StepLine",
+    "StrengthRange",
     "Threat",
     "TimelinePoint",
     "WakeHeader",

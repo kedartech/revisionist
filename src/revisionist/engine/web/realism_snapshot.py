@@ -10,9 +10,9 @@ replace ids wherever a person is shown. ``snapshot.checked`` is the caller's las
 
 import hashlib
 import re
-from collections.abc import Callable, Collection, Iterable, Mapping
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from datetime import date
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from revisionist.core import events as ev
 from revisionist.core import history
@@ -40,7 +40,7 @@ from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
 from revisionist.engine.aide import AideBrief
 from revisionist.engine.directive import Proposal, channels
-from revisionist.engine.web import economy_api, map_api
+from revisionist.engine.web import battles_api, economy_api, map_api
 from revisionist.engine.web.destinations import (
     FORCE,
     Known,
@@ -91,6 +91,9 @@ from revisionist.engine.web.tray import acknowledgement, feed_group
 
 _HIDDEN = frozenset({StepAction.STALL, StepAction.LEAK})
 """Outcomes the issuer never sees: an order that stalls is still with that person."""
+
+if TYPE_CHECKING:
+    from revisionist.engine.odds import Ended
 
 
 def lever_label(lever: Lever) -> str:
@@ -1110,11 +1113,15 @@ def seat_realism(
     next_wake_at: str | None,
     place_keys: Mapping[EntityId, str] | None = None,
     withdrawable: Collection[str] = (),
+    held_battles: Collection[str] = (),
+    ended_battles: Sequence["Ended"] = (),
 ) -> dict[str, Any]:
     """The ``view.realism`` block of ``/api/me``: tray, desk, situation, orders, clock, map,
-    threats, people, the world's developments and the war economy.
+    threats, people, the world's developments, the war economy and the seat's battles.
     ``place_keys`` (``destinations.place_keys``) opens movement forms to every place;
-    ``withdrawable`` (``withdraw.withdrawable``) are the orders the seat may take back."""
+    ``withdrawable`` (``withdraw.withdrawable``) are the orders the seat may take back;
+    ``held_battles`` the area keys of battles it has a decision held for the next wake;
+    ``ended_battles`` (``odds.ended``) the battles it fought that have ended."""
     view = project(state, seat)
     forces, held = _force_names(state, view)
     card = state.cards.get(view.me.embodies)
@@ -1147,6 +1154,7 @@ def seat_realism(
         "people": people,
         "world": world_news(view),
         "economy": economy_api.block(state, view),
+        "battles": battles_api.block(state, seat, view, forces, held_battles, ended_battles),
     }
 
 

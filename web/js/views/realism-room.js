@@ -11,6 +11,7 @@ import { STEP_ACTIONS, entityChoices } from '../realism-rules.js';
 import { worldDate } from '../rules.js';
 import { browserStorage } from '../theme.js';
 import { briefBlock, directiveForm, paceHeader } from './realism.js';
+import { battleAt, battleSheet, battleTitle } from './realism-battle.js';
 import { boardView, piecePanel, viewSwitch, withBoard } from './realism-board.js';
 import { courtBoard } from './realism-court.js';
 import { header } from './frame.js';
@@ -1012,6 +1013,7 @@ export function realismRoom(ctx) {
   function needsTarget(from) {
     if (from?.need) return [...root.querySelectorAll('.rl-needs .rl-need-act')].find((b) => b.getAttribute('data-need') === from.need) ?? null;
     if (from?.tab === 'needs') return root.querySelector('.rl-needsbar .rl-needs-btn');
+    if (from?.battle) return root.querySelectorAll('.rl-mapfirst g.rl-bt-mark').find((g) => g.getAttribute('data-area') === from.battle) ?? null;
     return returnTarget(root, from);
   }
 
@@ -1036,6 +1038,13 @@ export function realismRoom(ctx) {
       root.querySelector('.rl-mapfirst .rl-area-sheet button')?.focus();
       return;
     }
+    if (action.to === 'battle') {
+      ui.battle = action.area;
+      openSheet(ui, 'battle', { need: line.key });
+      rerender();
+      root.querySelector('.rl-over-title')?.focus();
+      return;
+    }
     if (action.to === 'matter') ui.matter = action.id;
     openSheet(ui, action.to === 'matter' ? 'matter' : action.sheet, { need: line.key });
     rerender();
@@ -1051,10 +1060,10 @@ export function realismRoom(ctx) {
   }
 
   /** A standard form filed from a sheet: what was kept for it is dropped, so the redraw after does not fill it again. */
-  function fileLever(v) {
+  function fileLever(v, then) {
     ui.sheetForms = forgetForm(ui.sheetForms, v.lever);
     markFiled(root, v.lever);
-    return act('Sending it…', 'lever', v);
+    return act('Sending it…', 'lever', v, then);
   }
 
   /** A pick in the map-first room: a force opens its sheet, the map's switches redraw it, a person stays on the Court. */
@@ -1070,6 +1079,14 @@ export function realismRoom(ctx) {
       openSheet(ui, 'messages');
       rerender();
       refocus(ui.chat);
+      return;
+    }
+    if (p.theatre?.battle) { // a battle's mark: its sheet opens over the map, as every sheet does
+      ui.theatre = { ...p.theatre, battle: null };
+      ui.battle = p.theatre.battle;
+      openSheet(ui, 'battle', { battle: ui.battle });
+      rerender();
+      root.querySelector('.rl-over-title')?.focus();
       return;
     }
     if (p.theatre) ui.theatre = p.theatre;
@@ -1132,6 +1149,12 @@ export function realismRoom(ctx) {
     }
     if (name === 'court') return courtBoard(rv, ui, { pick, act });
     if (name === 'people') return peoplePanel();
+    if (name === 'battle') {
+      const sheet = battleSheet(rv, ui.battle, { act, pick, theatre: ui.theatre ?? {} });
+      sheet?.querySelector('h3')?.remove();
+      sheet?.removeAttribute('aria-labelledby');
+      return sheet;
+    }
     if (name === 'press') {
       const desk = pressDesk().querySelector('dialog.rl-pd');
       desk?.querySelector('.rl-pd-head')?.remove();
@@ -1142,7 +1165,7 @@ export function realismRoom(ctx) {
 
   /** A picked force's sheet: what it is and where, then the forms that move it, each with its cost strip. */
   function pieceBody(forms) {
-    const panel = piecePanel(rv, ui.piece, open, { pick });
+    const panel = piecePanel(rv, ui.piece, open, { pick, act: (m, a, b, t) => (a === 'lever' ? fileLever(b, t) : act(m, a, b, t)), theatre: ui.theatre ?? {} });
     panel.querySelector('.rl-sheet-close')?.remove();
     panel.querySelector('h2')?.remove();
     panel.removeAttribute('aria-labelledby');
@@ -1158,7 +1181,7 @@ export function realismRoom(ctx) {
 
   /** The map-first room: the header, the sheet tabs, the map filling the rest, and the open sheet over it. */
   function mapFirstRoom(top) {
-    const map = theatreBoard(rv, ui, { pick, act: (m, a, b, t) => (a === 'lever' ? fileLever(b) : act(m, a, b, t)) });
+    const map = theatreBoard(rv, ui, { pick, act: (m, a, b, t) => (a === 'lever' ? fileLever(b, t) : act(m, a, b, t)), open });
     const forms = map.querySelector('.rl-theatre-forms');
     forms?.remove();
     let name = openSheetOf(ui);
@@ -1170,8 +1193,13 @@ export function realismRoom(ctx) {
       closeSheet(ui);
       name = null;
     }
+    if (name === 'battle' && !battleAt(rv, ui.battle)) { // the battle is over
+      closeSheet(ui);
+      name = null;
+    }
     const piece = name === 'piece' ? ui.piece.name : null;
-    const title = piece ?? (name === 'matter' ? matterOf(rv, ui.matter).title : undefined);
+    const title = piece ?? (name === 'matter' ? matterOf(rv, ui.matter).title
+      : name === 'battle' ? battleTitle(battleAt(rv, ui.battle), rv.clock?.world_date) : undefined);
     // the list is its own sheet on a phone, and a rail beside the map from 1024 px
     const sheet = name && name !== 'needs'
       ? overSheet({ name, title, piece, body: piece ? pieceBody(forms) : sheetBody(name), onClose: closeOver })

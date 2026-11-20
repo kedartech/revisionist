@@ -13,6 +13,8 @@ import {
 } from '../realism-rules.js';
 import { economyPips, hasYields } from './realism-economy.js';
 import { capitalGlyph, forceGlyph, pipGlyph, stanceClass, warGlyph, whatWord } from './realism-map.js';
+import { reportMarks, reportSheet, reportTables, reportsOf, ringsAndThreats, threatsSwitch, tokenMark } from './realism-reports.js';
+import { battleLayer, battleTable } from './realism-battle.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
 
@@ -60,7 +62,7 @@ function holdPatterns(standings, tag) {
 /** The layers with something to draw, Military first: a layer with nothing yet is not offered. */
 export function offeredLayers(map) {
   const out = [];
-  if ((map.marks ?? []).length || (map.orders ?? []).length) out.push('military');
+  if ((map.marks ?? []).length || (map.orders ?? []).length || reportsOf(map).length) out.push('military');
   if ((map.capitals ?? []).length) out.push('diplomatic');
   return out;
 }
@@ -398,7 +400,7 @@ function targetsLayer(targets, at, onTarget, nav) {
     const [x, y] = at([t.place.lon, t.place.lat]);
     const pick = () => onTarget?.(t.value);
     const said = [t.days, t.liftWords ?? t.lift].filter(Boolean);
-    const words = `Send to ${t.place.name}${said.length ? `: ${said.join('. ')}` : ''}`;
+    const words = t.words ?? `Send to ${t.place.name}${said.length ? `: ${said.join('. ')}` : ''}`;
     const keys = nav ? arrows((dir) => nav.step(i, dir)) : {};
     // Escape on keyup, as the fan's: the keyup of the same press then lands here, not on the piece
     const back = nav ? { onkeyup: (e) => { if (e.key === 'Escape') { e.preventDefault(); nav.back(); } } } : {};
@@ -442,7 +444,9 @@ const daysWord = (n) => (n === 1 ? '1 day' : `${n} days`);
  * The drawing of a territory map `map` (the seat's `map` block) from `shapes` (its map file).
  * `opts`: { frame (a region's key, '' or null for the whole map), zoom, centre, px, layer,
  * selected, onSelect, fanned (the stack shown fanned out, by its area), onFan, targets, onTarget, openCapital,
- * onView, still, label, route (a move's path: `routeLayer`) }. Arrow keys on the picked piece or a
+ * onView, still, label, route (a move's path: `routeLayer`), today, report (the picked report's key), onReport,
+ * threats (the threats switch), token ({ intel, at, label }: an intelligence token put down), battles (`battleMarksOf`),
+ * battle (the open battle's area), onBattle(mark) }. Arrow keys on the picked piece or a
  * lit area move focus along the lit areas; Escape on a lit area goes back to the piece.
  */
 export function territoryDrawing(map, shapes, givenOpts = {}) {
@@ -510,8 +514,14 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   diplomatic || economy ? null : coursesLayer(map, labelAt, at),
   diplomatic || economy ? null : ordersLayer(map, labelAt, new Map(areas.map((a) => [a.name, labelAt.get(a.key)])), at),
   diplomatic || economy ? null : routeLayer(opts.route, labelAt),
+  diplomatic || economy ? null : ringsAndThreats({
+    map, shapes, at, opts, areaPath: (key) => ringsPath(shapes.vertices, shapes.areas[key].rings, at),
+  }),
   economy ? economyPips(areas, labelAt, (attrs, x, y) => atPx(attrs, x, y))
     : diplomatic ? capitalsLayer(map, at, opts) : marksLayer(map, labelAt, at, opts),
+  diplomatic || economy ? null : reportMarks({ map, labelAt, atPx, activate, opts }),
+  diplomatic || economy || !opts.token ? null : tokenMark(opts.token, labelAt.get(opts.token.at), atPx),
+  diplomatic || economy ? null : battleLayer({ battles: opts.battles, labelAt, atPx, activate, opts }),
   // drawn last, over every mark: a lit area under a stack stays clickable
   targetsLayer(targets, at, opts.onTarget, opts.nav)));
   const px = opts.px ?? guessPx();
@@ -609,6 +619,7 @@ export function territoryView(map, shapes, opts = {}) {
     offered.length > 1
       ? h('div', { class: 'rl-filters', role: 'group', 'aria-label': 'Layer' }, offered.map((l) => toggle(l, words[l], layer, opts.onLayer)))
       : null,
+    mode === 'map' && layer === 'military' ? threatsSwitch(map, opts.threats, opts.onThreats) : null,
     h('div', { class: 'rl-filters', role: 'group', 'aria-label': 'Show as' },
       toggle('map', 'Map', mode, opts.onMode), toggle('list', 'List', mode, opts.onMode)),
     mode === 'map' && frames ? regionPicker(map, frames, frame, opts.onFrame) : null,
@@ -618,10 +629,11 @@ export function territoryView(map, shapes, opts = {}) {
       : null);
   const find = (name) => opts.onSelect?.(name, 'map');
   const body = mode === 'list'
-    ? [areaTable(map), (map.marks ?? []).length ? markTable(map, find) : null]
+    ? [areaTable(map), (map.marks ?? []).length ? markTable(map, find) : null, reportTables(map, opts), battleTable(opts.battles, opts.onBattle)]
     : [h('figure', { class: 'rl-map-figure' },
       shapes ? territoryDrawing(map, shapes, { ...opts, layer, frame, zoom }) : h('p', { class: 'muted rl-tm-wait' }, opts.waiting ?? 'Drawing the map…')),
-      opts.area ? areaSheet(map, opts.area, opts.onArea) : null];
+      opts.area ? areaSheet(map, opts.area, opts.onArea) : null,
+      layer === 'military' && opts.report ? reportSheet(map, opts.report, opts) : null];
   return h('section', { class: 'rl-map rl-tmap', 'aria-labelledby': 'rl-map-h' },
     h('h2', { id: 'rl-map-h' }, 'Map'),
     h('p', { class: 'muted' }, 'The board as the game\'s map draws it; your pieces and reports from your own papers.'),

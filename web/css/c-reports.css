@@ -1,0 +1,37 @@
+/* Reports on the map (RPC). A report is the other side's diamond in --danger, never a colour
+   alone: its glyph, pips, age badge and words carry it. It fades with age; a ring is a dashed
+   outline; an own area in reach is outlined in --warn under the threats switch. Tokens only. */
+.rl-rp-mark { cursor: pointer; }
+.rl-rp-mark:focus { outline: none; }
+.rl-rp-mark:focus-visible .rl-mk-shape { stroke: var(--info); stroke-width: 3px; }
+.rl-rp-mark .rl-mk-shape { fill: var(--surface); stroke: var(--side); }
+.rl-rp-unknown { fill: var(--side); font-weight: 700; }
+.rl-rp-fade-1 { opacity: 0.75; }
+.rl-rp-fade-2 { opacity: 0.55; }
+.rl-rp-mark.selected { opacity: 1; }
+.rl-rp-badge { fill: var(--danger-soft); stroke: var(--side); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.rl-rp-age text { fill: var(--side); font-weight: 600; }
+.rl-rp-ring-line { fill: none; stroke: var(--danger); stroke-width: 2.5px; stroke-dasharray: 6 4; stroke-linecap: round; vector-effect: non-scaling-stroke; pointer-events: none; }
+.rl-rp-ring.faint .rl-rp-ring-line { stroke-width: 1.5px; opacity: 0.45; }
+.rl-rp-threat { fill: var(--warn-soft); fill-opacity: 0.5; stroke: var(--warn); stroke-width: 2.5px; vector-effect: non-scaling-stroke; pointer-events: none; }
+.rl-rp-threats[aria-pressed="true"] { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+.rl-rp-token-disc { fill: var(--ok-soft); stroke: var(--ok); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.rl-rp-token-glyph { fill: none; stroke: var(--ok); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+.rl-rp-tokens { margin-top: var(--space-3); }
+.rl-rp-tokens h3 { margin: 0 0 var(--space-2); font: 600 13px/1.3 var(--font-chrome); letter-spacing: .06em; text-transform: uppercase; color: var(--fg); }
+.rl-rp-tokens .rl-filter, .rl-rp-conceal .rl-filter { min-height: 44px; }
+.rl-rp-sheet { margin-top: var(--space-4); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-rp-sheet h3 { margin: 0 0 var(--space-2); font: 700 15px/1.35 var(--font-head); }
+.rl-rp-sheet dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-3); margin: 0; }
+.rl-rp-sheet dt { font-weight: 600; }
+.rl-rp-sheet dd { margin: 0; }
+.rl-rp-pips { vertical-align: middle; --side: var(--danger); }
+.rl-rp-pips .rl-pip { fill: var(--side); stroke: var(--side); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.rl-rp-pips .rl-pip-empty { fill: var(--surface); }
+.rl-rp-caveat { margin: var(--space-2) 0; }
+.rl-rp-acts { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.rl-rp-acts button { min-height: 44px; min-width: 44px; }
+.rl-rp-conceal, .rl-rp-codebreaking { margin-top: var(--space-3); }
+.rl-rp-conceal h4, .rl-rp-codebreaking h4 { margin: 0 0 var(--space-1); }
+.rl-rp-codebreaking button { min-height: 44px; }
+.rl-rp-list tr.rl-rp-fade-2 { color: var(--fg-muted); }

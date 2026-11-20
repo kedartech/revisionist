@@ -182,6 +182,23 @@ def listing(
     return out
 
 
+def held_battles(store: EventStore, campaign_id: CampaignId, seat: SeatId) -> set[str]:
+    """The area keys of the battles the seat has a decision held for (BTD): only its own
+    payload reads them."""
+    rows = _rows(
+        store,
+        "SELECT args FROM web_held_orders WHERE campaign_id = %s AND seat_id = %s"
+        " AND action = 'battle' AND filed_in IS NULL",
+        (campaign_id, seat),
+    )
+    out: set[str] = set()
+    for (args,) in rows:
+        kept = args if isinstance(args, dict) else json.loads(args)
+        if isinstance(kept.get("area"), str):
+            out.add(kept["area"])
+    return out
+
+
 def _line(label: str, why: str) -> str:
     return f"{label} was not filed: {why}"
 
@@ -253,7 +270,7 @@ def file_one(
             realism_tick.take_step(
                 store, campaign_id, seat, args["order_id"], taken, args["params"]
             )
-        elif action in ("option", "file"):
+        elif action in ("option", "file", "battle", "contingency"):
             asks = tuple(Ask.model_validate(a) for a in args["asks"])
             realism_tick.commit_order(store, campaign_id, seat, asks)
         elif action == "answer":

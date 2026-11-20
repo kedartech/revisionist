@@ -29,6 +29,7 @@ from revisionist.core.state import State, View
 from revisionist.core.visibility import private_to
 from revisionist.engine import expects, options, realism_tick
 from revisionist.engine.store import EventStore, load_state
+from revisionist.engine.web import battles_api
 from revisionist.engine.web.realism_api import (
     AgendaBlock,
     AgendaExpect,
@@ -476,13 +477,24 @@ def _due_capitals(state: State, seat: SeatId) -> list[DueMatter]:
     return out
 
 
+def _due_battles(state: State, seat: SeatId) -> list[DueMatter]:
+    """Each battle that waits on the seat's decision in the open wake (BTD), named by its
+    opening news. One decided this wake, by an order landed or still on its way, is not
+    listed, and no line says what was decided."""
+    return [
+        DueMatter("battle", subject, what, None, AT_CLOSE)
+        for subject, what in battles_api.due(state, seat)
+    ]
+
+
 DUE_KINDS: dict[str, DueKind] = {
     "request": _due_requests,
     "decision": _due_decisions,
     "capital": _due_capitals,
+    "battle": _due_battles,
 }
-"""The registry of due kinds, in the order a notice lists them. Battles (BTD), offers
-(AGA) and votes (CNA) add theirs here."""
+"""The registry of due kinds, in the order a notice lists them. Offers (AGA) and votes
+(CNA) add theirs here."""
 
 
 def due_matters(state: State, seat: SeatId) -> list[DueMatter]:

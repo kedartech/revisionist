@@ -1,0 +1,62 @@
+/* Battles on the map, and the battle sheet (BTC). The battle mark is crossed swords in an amber
+   ring, never a colour alone: its words and the "press" note carry it. The sheet sets the two
+   sides side by side, the days as a table, and the decisions and standing orders as buttons with a
+   line each; the one in force carries a left rule and the words "in force". Tokens only. */
+.rl-bt-mark { cursor: pointer; }
+.rl-bt-mark:focus { outline: none; }
+.rl-bt-ring { fill: var(--surface); stroke: var(--warn); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.rl-bt-x { fill: none; stroke: var(--warn); stroke-width: 2.4px; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.rl-bt-mark.selected .rl-bt-ring { fill: var(--warn-soft); stroke-width: 3px; }
+.rl-bt-mark:focus-visible .rl-bt-ring { stroke: var(--focus); stroke-width: 3px; }
+.rl-bt-news .rl-bt-ring { stroke-dasharray: 3 2; }
+.rl-bt-news .rl-bt-x { stroke: var(--fg-muted); }
+.rl-bt-news .rl-bt-ring { stroke: var(--fg-muted); }
+.rl-bt-note { fill: var(--fg-muted); font-family: var(--font-chrome); }
+
+.rl-bt-sheet, .rl-bt-contingency { margin-top: var(--space-4); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-over-body .rl-bt-sheet { margin-top: 0; padding: 0; background: none; border: 0; }
+.rl-bt-contingency summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; }
+.rl-bt-contingency summary h3 { display: inline; margin: 0; }
+.rl-bt-sheet h3, .rl-bt-contingency h3 { margin: 0 0 var(--space-2); font: 700 15px/1.35 var(--font-head); }
+.rl-bt-sheet h4, .rl-bt-standing h4 { margin: var(--space-3) 0 var(--space-1); font: 600 12px/1.3 var(--font-chrome); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-muted); }
+.rl-bt-sides { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.rl-bt-side { padding: var(--space-2) var(--space-3); background: var(--surface-2); border: 1px solid var(--rule); border-radius: var(--radius); min-width: 0; }
+.rl-bt-side p { margin: 0; }
+.rl-bt-cap { font: 600 11px/1.3 var(--font-chrome); letter-spacing: .08em; text-transform: uppercase; color: var(--fg-muted); }
+.rl-bt-who { font-weight: 600; color: var(--fg-strong); overflow-wrap: anywhere; }
+.rl-bt-s { font-size: 12.5px; color: var(--fg-muted); }
+.rl-bt-pips { display: block; margin: var(--space-1) 0; height: 10px; width: auto; }
+.rl-bt-pips .rl-pip { fill: var(--side); stroke: var(--side); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.rl-bt-pips .rl-pip-empty { fill: var(--surface); }
+.rl-bt-pips-own { --side: var(--info); }
+.rl-bt-pips-enemy { --side: var(--danger); }
+.rl-bt-days { width: 100%; border-collapse: collapse; font-size: 13px; }
+.rl-bt-days th, .rl-bt-days td { padding: var(--space-1) var(--space-2); text-align: left; border-bottom: 1px solid var(--rule); }
+.rl-bt-days thead th { font: 600 11px/1.3 var(--font-chrome); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-muted); }
+.rl-bt-days tbody th { font-family: var(--font-chrome); font-weight: 500; }
+.rl-bt-now { background: var(--warn-soft); color: var(--fg-strong); }
+.rl-bt-decisions, .rl-bt-kinds { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.rl-bt-choice { display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; text-align: left; min-height: 44px; padding: var(--space-2) var(--space-3); background: var(--surface-2); border: 1px solid var(--field-border); border-radius: var(--radius); color: var(--fg); cursor: pointer; }
+.rl-bt-choice b { display: block; color: var(--fg-strong); font-size: 13.5px; }
+.rl-bt-choice span { display: block; margin-top: 2px; font-size: 12px; line-height: 1.35; color: var(--fg-muted); }
+.rl-bt-choice[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+.rl-bt-choice[aria-pressed="true"] b::after { content: "  · in force"; font: 500 10.5px var(--font-chrome); letter-spacing: .06em; color: var(--accent); }
+.rl-bt-choice:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-bt-hint:empty { display: none; }
+.rl-bt-hint, .rl-bt-picking { margin: var(--space-2) 0 0; padding: var(--space-2) var(--space-3); background: var(--warn-soft); border-radius: var(--radius); }
+.rl-bt-picking .rl-find { min-height: 44px; }
+.rl-bt-order { margin-top: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px dashed var(--rule-strong); border-radius: var(--radius); }
+.rl-bt-order p { margin: 0 0 var(--space-1); }
+.rl-bt-note-line { margin: var(--space-2) 0 0; font-size: 12.5px; }
+.rl-bt-standing ul { margin: 0; padding-left: var(--space-4); }
+.rl-bt-standing p { margin: var(--space-1) 0 0; font-size: 12.5px; }
+.rl-bt-below-l { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2); font-size: 13px; }
+.rl-bt-below { min-height: 44px; }
+.rl-bt-sheet > .rl-find { margin-top: var(--space-3); min-height: 44px; }
+
+@media (max-width: 600px) {
+  .rl-bt-decisions, .rl-bt-kinds { grid-template-columns: 1fr; }
+  /* today's room draws a picked piece as a fixed sheet over the map's foot (c-board.css): the picker
+     would cover the lit places, so on a phone it is set from the map-first room's piece sheet */
+  .rl-board-side .rl-bt-contingency { display: none; }
+}

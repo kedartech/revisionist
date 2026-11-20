@@ -53,7 +53,7 @@ from datetime import date, timedelta
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, FeatureId, QuantityId
 from revisionist.core.ontology import EntityKind
-from revisionist.core.realism import economy, kinds, territory, trade
+from revisionist.core.realism import battle, economy, kinds, territory, trade
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.bases import (
     RAID_DAYS,
@@ -391,17 +391,25 @@ def _walk_one(
     today: date,
     meeting: Meeting,
     fuel: dict[EntityId, float],
+    closed: dict[EntityId, EntityId] | None = None,
 ) -> tuple[Feature, list[ev.Payload]]:
     """The piece after every step that falls due by ``today``, with one ``piece_stepped``
     for each. Stances are read from ``state``, where everything stood when the day began,
     and from ``meeting``, so the order the pieces are walked in changes nothing but the
-    fuel: a nation's stock is spent by its pieces in the order walked (FUL)."""
+    fuel: a nation's stock is spent by its pieces in the order walked (FUL). A step into an
+    area of a meeting battle (``closed``) held by a power at war with the piece's is not
+    taken and its move is dropped (HON)."""
     moved, scripted = course
     cause = territory.StepCause.SCRIPTED if scripted else territory.StepCause.ORDERED
     out: list[ev.Payload] = []
+    own = territory.nation(state, moved.side)
     while moved.path and moved.step_due is not None and moved.step_due <= today:
         entered, on = moved.path[0], moved.step_due
         if territory.barred(state, moved.side, entered) is not None:
+            moved = _halted(moved, on)
+            break
+        there = (closed or {}).get(entered)
+        if there is not None and own is not None and at_war(state, own, there):
             moved = _halted(moved, on)
             break
         refused = _fuelled(state, moved, entered, on, fuel)
@@ -422,16 +430,8 @@ def _walk_one(
     return moved, out
 
 
-def walk(state: State, today: date) -> list[ev.Payload]:
-    """With ``territories`` on: every piece's steps that fall due by ``today``, each piece's
-    ``feature_set`` before its steps' ``piece_stepped`` events, then each pool as the lifts
-    that landed today give their shipping back, then (FUL) each nation's pools with the
-    fuel today's steps spent."""
-    if not territory.on(state):
-        return []
-    out: list[ev.Payload] = []
-    back: dict[QuantityId, int] = {}
-    pieces = sorted(
+def _pieces(state: State) -> list[Feature]:
+    return sorted(
         (
             f
             for f in state.features.values()
@@ -439,16 +439,66 @@ def walk(state: State, today: date) -> list[ev.Payload]:
         ),
         key=lambda x: x.feature_id,
     )
+
+
+def _head_on(
+    state: State, courses: dict[FeatureId, tuple[Feature, bool]], today: date
+) -> list[battle.Meet]:
+    if not battle.on(state):
+        return []
+    movers: list[tuple[Feature, EntityId, EntityId]] = []
+    for fid in sorted(courses):
+        c, _ = courses[fid]
+        if not c.path or c.step_due is None or c.step_due > today:
+            continue
+        frm = battle.fighting_area(state, c)
+        if frm is None or territory.barred(state, c.side, c.path[0]) is not None:
+            continue
+        movers.append((c, frm, c.path[0]))
+    return battle.meetings(state, movers)
+
+
+def head_on(state: State, today: date) -> list[battle.Meet]:
+    """With ``battles`` on, the borders met head-on on ``today`` (HON rule 1): pieces of two
+    powers at war each due to step into the other's area. ``walk`` holds their movers, and
+    the battle walk opens a meeting battle on each."""
+    if not territory.on(state):
+        return []
+    pieces = _pieces(state)
+    return _head_on(state, {f.feature_id: _course_set(state, f, today) for f in pieces}, today)
+
+
+def walk(state: State, today: date) -> list[ev.Payload]:
+    """With ``territories`` on: every piece's steps that fall due by ``today``, each piece's
+    ``feature_set`` before its steps' ``piece_stepped`` events, then each pool as the lifts
+    that landed today give their shipping back, then (FUL) each nation's pools with the
+    fuel today's steps spent. With ``battles`` on, the movers of a border met head-on and
+    the pieces of an open meeting battle do not step (HON)."""
+    if not territory.on(state):
+        return []
+    out: list[ev.Payload] = []
+    back: dict[QuantityId, int] = {}
+    pieces = _pieces(state)
     courses = {f.feature_id: _course_set(state, f, today) for f in pieces}
+    met = _head_on(state, courses, today)
+    held = {fid for m in met for fid in m.movers}
+    if battle.on(state):
+        held |= battle.pinned(state)
+    closed = battle.closed(state, met) if battle.on(state) else {}
     meeting = frozenset(
         (c.path[0], n)
         for c, _ in courses.values()
         if c.path and c.step_due is not None and c.step_due <= today and kinds.is_force(state, c)
+        if c.feature_id not in held
         if (n := territory.nation(state, c.side)) is not None
     )
     fuel: dict[EntityId, float] = {}
     for f in pieces:
-        moved, stepped = _walk_one(state, courses[f.feature_id], today, meeting, fuel)
+        stepped: list[ev.Payload] = []
+        if f.feature_id in held:
+            moved = courses[f.feature_id][0]
+        else:
+            moved, stepped = _walk_one(state, courses[f.feature_id], today, meeting, fuel, closed)
         if moved == f:
             continue
         out += [ev.FeatureSet(feature=moved), *stepped]

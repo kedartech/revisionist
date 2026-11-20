@@ -188,3 +188,18 @@ def answer_days(state: State, seat: SeatId) -> list[tuple[str, date | None]]:
             due = advance.answer_due(state, order, i)
             out.append((part.ask, None if due is None else due[0]))
     return out
+
+
+def orderings[T](filings: Sequence[T], sittings: int = 10) -> Iterator[list[list[T]]]:
+    """Every order the filings can be made in, each as sittings: all in one sitting, and
+    one filing a sitting spread over ``sittings`` sittings (the rest change nothing), with
+    the filings split between the first and the last sitting. Invariant 3 holds when every
+    one of them gives the same world."""
+    for perm in itertools.permutations(filings):
+        yield [list(perm)]
+        spread: list[list[T]] = [[] for _ in range(max(sittings, len(perm)))]
+        step = max(1, len(spread) // len(perm))
+        for i, filing in enumerate(perm):
+            spread[min(i * step, len(spread) - 1)].append(filing)
+        yield spread
+        yield [list(perm[:1]), *([[]] * (sittings - 2)), list(perm[1:])]

@@ -669,6 +669,34 @@ class MapMark(TypedDict):
     """The seat's own piece behind the mark; None for every other mark."""
 
 
+class MapReport(TypedDict):
+    """One report of an enemy piece that has reached the seat's nation (RPD), as its view
+    holds it: a wrong report is worded and shaped exactly like a right one."""
+
+    key: str
+    """Opaque and stable for one piece: the same for every seat of one nation, whichever
+    source made the report and whether it is right; the web MAC of the nation's report key."""
+    kind: str | None
+    """The world's piece kind key; None: the report does not know it."""
+    kind_name: str
+    """The kind as the world names it, or "unknown"."""
+    strength_low: int | None
+    strength_high: int | None
+    """The range the report gives; both None when it gives no strength (a decrypt)."""
+    area: MarkArea | None
+    """The area the report places the piece in; None for a decrypt, which gives a region."""
+    bound_for: str | None
+    """A decrypt: the region key the piece is bound for; else None."""
+    seen: str
+    source: Literal["contact", "air", "patrol", "codebreaking", "agent"]
+    person: str
+    """The name of the person the world names for the source; "" for a contact no one is
+    named for, which comes with no paper."""
+    confidence: Literal["A", "B", "C"]
+    document: str | None
+    """The id of the paper that carried the report; None for a contact no one is named for."""
+
+
 class MapOrder(TypedDict):
     """One of the seat's own orders to move a force, drawn until a page shows it arrived."""
 
@@ -757,6 +785,9 @@ class SeatMap(TypedDict):
     capitals: list[MapCapital]
     """For each leader on the roster's opponents with a stance and a place, most hostile
     first. A leader with no stance or no place has none."""
+    reports: NotRequired[list[MapReport]]
+    """In a game with ``reports`` on only: each enemy piece the seat's nation holds a
+    report of, by key. They replace the marks of other sides' pieces, which are not sent."""
     areas: NotRequired[list[MapArea]]
     """In a territory game only (as the four keys after it): every territory and sea
     zone of the board, territories first, in the world file's order. The same for every
@@ -1302,6 +1333,7 @@ __all__ = [
     "MapPlace",
     "MapRegion",
     "MapReply",
+    "MapReport",
     "MarkArea",
     "OrderProposal",
     "OrderResult",

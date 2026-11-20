@@ -230,7 +230,8 @@ def shape(examples: list[Any], kind: Any) -> None:
 def test_the_seat_fixture_carries_a_territory_map_in_the_snapshot_shape(tmp_path: Path) -> None:
     fixture = json.loads((FIXTURES / "realism-seat.json").read_text())["territory_map"]
     assert fixture == block(fixture_game(tmp_path))["map"]
-    shape([fixture], api.SeatMap)
+    # ``reports`` comes only with the reports rule: the reports fixture checks it (RPD)
+    assert set(fixture) == set(api.SeatMap.__annotations__) - {"reports"}
     shape(fixture["areas"], api.MapArea)
     shape(fixture["regions"], api.MapRegion)
     shape([fixture["file"]], api.MapFile)

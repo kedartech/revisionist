@@ -104,13 +104,16 @@ def viewing_nation(view: View) -> EntityId:
 
 
 def protect_marks(out: SeatMap, view: View) -> None:
-    """MAC each outgoing mark once, after raw keys have joined marks and own pieces."""
+    """MAC each outgoing mark once, after raw keys have joined marks and own pieces; and
+    each report's key the same way (RPD)."""
     nation = viewing_nation(view)
     for mark in out["marks"]:
         key = mark_key(view.campaign_id, nation, mark["key"])
         mark["key"] = key
         if mark["piece"] is not None:
             mark["piece"]["key"] = key
+    for report in out.get("reports", ()):
+        report["key"] = mark_key(view.campaign_id, nation, report["key"])
 
 
 def _areas(board: territory.WorldMap, held: Holdings) -> list[MapArea]:

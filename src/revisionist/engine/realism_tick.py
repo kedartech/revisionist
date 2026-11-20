@@ -50,6 +50,7 @@ from revisionist.core.realism import (
     apply,
     battle,
     conference,
+    contests,
     detect,
     economy,
     groups,
@@ -406,6 +407,8 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         # Engine only: the writing in waiting; the batch, not the filing, moves a group.
         held = SeatId(derived_id(state.campaign_id, "engine-only", "groups"))
         return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
+    if isinstance(payload, ev.ContestMoved | ev.ContestDecided):
+        return state.contests[payload.contest_id].scope  # CON: the contest's own audience
     if isinstance(payload, ev.StepRefused):
         return _nation_scope(state, payload.nation)
     if isinstance(payload, ev.AgreementOffered):
@@ -528,8 +531,10 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     and each seat's opponents are worked out. Pieces' steps are followed by the day's
     capture counts (THL); the day's battle rounds follow its contacts, with the count a won
     battle starts (BTL), then the press, then every nation's reports and their pages
-    (DET); after the last day, the close, a capital marked in an earlier wake falls or
-    loses its mark. Each step sees the state after the ones before it."""
+    (DET); after the groups, each contest's moves land on the day's happenings and a
+    contest is decided on its deciding day (CON); after the last day, the close, a capital
+    marked in an earlier wake falls or loses its mark, and the contests read what the
+    close did. Each step sees the state after the ones before it."""
     state = em.state
     out: list[Event] = []
 
@@ -542,6 +547,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     add(actors.unseated(state, answering.answerers(state)))
     begun: State | None = state  # moves the carried-in orders start begin on the first day
     wake_start = dict(state.opponents)
+    walk_from, walk_mark = state, len(out)  # CON: each move reads from the last read on
     pending = _unresolved(events)
     for oid in pending:
         order = state.orders[oid]
@@ -597,6 +603,10 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(groups.react(state, day_from, today, day, sea=before_on_day))
         add(groups.batch(state, day))  # GRP: the day's writing, settled in one batch
         add(groups.drift(state, day))  # GRP: on a Monday, toward the baseline
+        read = [e.payload for e in out[walk_mark:]]
+        add(contests.moves(state, walk_from, read, day - timedelta(days=1), day))  # CON
+        walk_from, walk_mark = state, len(out)
+        add(contests.decisions(state, day))  # CON: on the deciding day, after its moves
         add(news_pages(state, day))
         add(detect.walk(state, start, day))  # DET: every nation's reports, before the feeds
         seed = seed_for_day(state.campaign_id, day)
@@ -620,6 +630,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     add(holders.close(state, until))  # the wake's close: a capital marked before falls
     closing = [e.payload for e in out[close_mark:]]
     add(groups.react(state, close_from, closing, until))  # GRP: the close's happenings
+    add(contests.moves(state, walk_from, [e.payload for e in out[walk_mark:]], until, until))
     return out
 
 

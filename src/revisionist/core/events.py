@@ -458,14 +458,24 @@ class ContestCreated(Model):
 
 
 class ContestMoved(Model):
-    """A contest's track moved, by momentum or by a resolved order, and its
-    countdown ran down by the in-world days the tick covered."""
+    """A contest's track moved, by momentum, by a resolved order, or by one of its own
+    moves landing (CON: ``move``, the move's index, once), and its countdown ran down by
+    the in-world days the tick covered (none for a move)."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"move"})
 
     kind: Literal["contest_moved"] = "contest_moved"
     contest_id: ContestId
     change: int = Field(ge=-200, le=200)
     days: int = Field(default=0, ge=0)
-    cause: Literal["momentum", "order"] = "momentum"
+    cause: Literal["momentum", "order", "move"] = "momentum"
+    move: int | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def _shape(self) -> "ContestMoved":
+        if (self.cause == "move") != (self.move is not None):
+            raise ValueError("contest_moved: a move's index goes with the cause move")
+        return self
 
 
 class ContestDecided(Model):

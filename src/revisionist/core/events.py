@@ -16,7 +16,7 @@ DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, Qua
 FeatureSet, WarDeclared, MapDeclared, KindsDeclared, NewsReported, StanceChanged, OpponentsRanked,
 CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted, EconomySet, YieldChanged,
 TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDeclared,
-ReportMade, AgentSet, CodebreakingSet``, and
+ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -89,6 +89,8 @@ from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
 from revisionist.core.realism.economy import Amount, Pools
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
+from revisionist.core.realism.groups import Cause as GroupCause
+from revisionist.core.realism.groups import NationGroups, Proposal
 from revisionist.core.realism.holders import Capture
 from revisionist.core.realism.kinds import PieceKind, Resource
 from revisionist.core.realism.pipeline import (
@@ -855,6 +857,39 @@ class CodebreakingSet(Model):
     on: date
 
 
+class GroupsDeclared(Model):
+    """Each nation's groups at home as the world declares them (GRP), by nation, in the
+    world file's order. Engine only: a seat reads its own nation's groups from its own
+    data; once, at creation."""
+
+    kind: Literal["groups_declared"] = "groups_declared"
+    nations: tuple[NationGroups, ...] = ()
+
+
+class GroupMoved(Model):
+    """A nation's group's support moved (GRP): to ``support``, by ``change`` after the
+    clamp to 0 to 100, for ``cause``, on world day ``on``. ``used``: the writing points
+    the day's batch spent toward the week cap (absolute, never restored); 0 for any other
+    cause. Sealed to the nation's seats: true support."""
+
+    kind: Literal["group_moved"] = "group_moved"
+    polity: EntityId
+    group: Label
+    support: int = Field(ge=0, le=100)
+    change: int
+    cause: GroupCause
+    used: int = Field(default=0, ge=0)
+    on: date
+
+
+class GroupProposed(Model):
+    """Writing by a seat proposing to move a group, waiting for its day's batch (GRP).
+    Engine only: the batch, not the filing, decides what moves."""
+
+    kind: Literal["group_proposed"] = "group_proposed"
+    proposal: Proposal
+
+
 class NewsReported(Model):
     """A public event, as structured facts. Each seat's press words it later."""
 
@@ -1277,6 +1312,9 @@ Payload = Annotated[
     | ReportMade
     | AgentSet
     | CodebreakingSet
+    | GroupsDeclared
+    | GroupMoved
+    | GroupProposed
     | NewsReported
     | StanceChanged
     | OpponentsRanked
@@ -1365,6 +1403,9 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "report_made",
         "agent_set",
         "codebreaking_set",
+        "groups_declared",
+        "group_moved",
+        "group_proposed",
         "stance_changed",
         "opponents_ranked",
         "card_amended",

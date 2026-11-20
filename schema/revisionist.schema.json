@@ -1696,6 +1696,28 @@
         "title": "Bias",
         "type": "object"
       },
+      "BlocVote": {
+        "additionalProperties": false,
+        "description": "A bloc's part of one chamber vote: its members voting and the yeas among them.",
+        "properties": {
+          "voting": {
+            "minimum": 0,
+            "title": "Voting",
+            "type": "integer"
+          },
+          "yeas": {
+            "minimum": 0,
+            "title": "Yeas",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "voting",
+          "yeas"
+        ],
+        "title": "BlocVote",
+        "type": "object"
+      },
       "BodyField": {
         "additionalProperties": false,
         "description": "One structured line of a document: what the author claims, never the truth.",
@@ -2091,6 +2113,24 @@
         },
         "title": "CardsDeclared",
         "type": "object"
+      },
+      "Cause": {
+        "description": "Why support moved: a happening, writing, or the Monday drift.",
+        "enum": [
+          "battle_won",
+          "battle_lost",
+          "territory_taken",
+          "territory_lost",
+          "capital_threatened",
+          "losses_at_sea",
+          "agreement_broken",
+          "measure_passed",
+          "war_declared",
+          "writing",
+          "drift"
+        ],
+        "title": "Cause",
+        "type": "string"
       },
       "ChannelKind": {
         "description": "How words travel. Each trades speed against exposure (direction, channels table).",
@@ -5156,6 +5196,18 @@
         "title": "Feed",
         "type": "object"
       },
+      "Feeds": {
+        "description": "What a group's support feeds.",
+        "enum": [
+          "votes",
+          "standing",
+          "manpower",
+          "output",
+          "opinion"
+        ],
+        "title": "Feeds",
+        "type": "string"
+      },
       "Fidelity": {
         "description": "How an executor carried out a command (spec \u00a78.2).",
         "enum": [
@@ -5521,6 +5573,244 @@
         ],
         "title": "GoalUndone",
         "type": "object"
+      },
+      "Group": {
+        "additionalProperties": false,
+        "description": "A group at home as the world declares it. True: a view holds its own nation's.",
+        "properties": {
+          "baseline": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Baseline",
+            "type": "integer"
+          },
+          "chamber": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Chamber"
+          },
+          "feeds": {
+            "additionalProperties": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Feeds"
+            },
+            "title": "Feeds",
+            "type": "object"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "maxLength": 60,
+            "title": "Kind",
+            "type": "string"
+          },
+          "moved_by": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Happening"
+            },
+            "title": "Moved By",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "seats": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seats"
+          },
+          "stances": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/revisionist__core__realism__effect__ClauseKind"
+            },
+            "title": "Stances",
+            "type": "object"
+          },
+          "start": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Start",
+            "type": "integer"
+          },
+          "vote_default": {
+            "additionalProperties": {
+              "$ref": "#/$defs/BlocVote"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Vote Default",
+            "type": "object"
+          },
+          "votes": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/$defs/BlocVote"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Votes",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "kind",
+          "start",
+          "baseline"
+        ],
+        "title": "Group",
+        "type": "object"
+      },
+      "GroupMoved": {
+        "additionalProperties": false,
+        "description": "A nation's group's support moved (GRP): to ``support``, by ``change`` after the\nclamp to 0 to 100, for ``cause``, on world day ``on``. ``used``: the writing points\nthe day's batch spent toward the week cap (absolute, never restored); 0 for any other\ncause. Sealed to the nation's seats: true support.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/Cause"
+          },
+          "change": {
+            "title": "Change",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "kind": {
+            "const": "group_moved",
+            "default": "group_moved",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "support": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Support",
+            "type": "integer"
+          },
+          "used": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "polity",
+          "group",
+          "support",
+          "change",
+          "cause",
+          "on"
+        ],
+        "title": "GroupMoved",
+        "type": "object"
+      },
+      "GroupProposed": {
+        "additionalProperties": false,
+        "description": "Writing by a seat proposing to move a group, waiting for its day's batch (GRP).\nEngine only: the batch, not the filing, decides what moves.",
+        "properties": {
+          "kind": {
+            "const": "group_proposed",
+            "default": "group_proposed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "proposal": {
+            "$ref": "#/$defs/Proposal"
+          }
+        },
+        "required": [
+          "proposal"
+        ],
+        "title": "GroupProposed",
+        "type": "object"
+      },
+      "GroupsDeclared": {
+        "additionalProperties": false,
+        "description": "Each nation's groups at home as the world declares them (GRP), by nation, in the\nworld file's order. Engine only: a seat reads its own nation's groups from its own\ndata; once, at creation.",
+        "properties": {
+          "kind": {
+            "const": "groups_declared",
+            "default": "groups_declared",
+            "title": "Kind",
+            "type": "string"
+          },
+          "nations": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/NationGroups"
+            },
+            "title": "Nations",
+            "type": "array"
+          }
+        },
+        "title": "GroupsDeclared",
+        "type": "object"
+      },
+      "Happening": {
+        "description": "The fixed list of happenings a group may be moved by (rule 3).",
+        "enum": [
+          "battle_won",
+          "battle_lost",
+          "territory_taken",
+          "territory_lost",
+          "capital_threatened",
+          "losses_at_sea",
+          "agreement_broken",
+          "measure_passed",
+          "war_declared"
+        ],
+        "title": "Happening",
+        "type": "string"
       },
       "HeldChoice": {
         "additionalProperties": false,
@@ -6808,6 +7098,30 @@
         "title": "NarrationWritten",
         "type": "object"
       },
+      "NationGroups": {
+        "additionalProperties": false,
+        "description": "One nation's groups at home, in the world file's order.",
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/$defs/Group"
+            },
+            "minItems": 1,
+            "title": "Groups",
+            "type": "array"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nation",
+          "groups"
+        ],
+        "title": "NationGroups",
+        "type": "object"
+      },
       "NewsEvent": {
         "additionalProperties": false,
         "description": "A public event, as structured public facts only. Never prose. One per event;\neach seat's press later words it in its own outlet's voice.",
@@ -7896,6 +8210,49 @@
         ],
         "title": "Posture",
         "type": "string"
+      },
+      "Proposal": {
+        "additionalProperties": false,
+        "description": "One seat's writing proposing to move a group (rule 2). Engine only: it carries a\nhash of the text, never the text, and no filing time.",
+        "properties": {
+          "change": {
+            "title": "Change",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "string"
+          },
+          "text_hash": {
+            "maxLength": 60,
+            "title": "Text Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seat",
+          "polity",
+          "group",
+          "change",
+          "text_hash",
+          "on"
+        ],
+        "title": "Proposal",
+        "type": "object"
       },
       "ProposeMeasure": {
         "additionalProperties": false,
@@ -11803,6 +12160,9 @@
             "goal_proposed": "#/$defs/GoalProposed",
             "goal_set": "#/$defs/GoalSet",
             "goal_undone": "#/$defs/GoalUndone",
+            "group_moved": "#/$defs/GroupMoved",
+            "group_proposed": "#/$defs/GroupProposed",
+            "groups_declared": "#/$defs/GroupsDeclared",
             "influence_decided": "#/$defs/InfluenceDecided",
             "intelligence_declared": "#/$defs/IntelligenceDeclared",
             "intent_filed": "#/$defs/IntentFiled",
@@ -12095,6 +12455,15 @@
           },
           {
             "$ref": "#/$defs/CodebreakingSet"
+          },
+          {
+            "$ref": "#/$defs/GroupsDeclared"
+          },
+          {
+            "$ref": "#/$defs/GroupMoved"
+          },
+          {
+            "$ref": "#/$defs/GroupProposed"
           },
           {
             "$ref": "#/$defs/NewsReported"
@@ -13255,6 +13624,28 @@
           }
         },
         "title": "Bias",
+        "type": "object"
+      },
+      "BlocVote": {
+        "additionalProperties": false,
+        "description": "A bloc's part of one chamber vote: its members voting and the yeas among them.",
+        "properties": {
+          "voting": {
+            "minimum": 0,
+            "title": "Voting",
+            "type": "integer"
+          },
+          "yeas": {
+            "minimum": 0,
+            "title": "Yeas",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "voting",
+          "yeas"
+        ],
+        "title": "BlocVote",
         "type": "object"
       },
       "BodyField": {
@@ -14871,6 +15262,18 @@
         "title": "Feed",
         "type": "object"
       },
+      "Feeds": {
+        "description": "What a group's support feeds.",
+        "enum": [
+          "votes",
+          "standing",
+          "manpower",
+          "output",
+          "opinion"
+        ],
+        "title": "Feeds",
+        "type": "string"
+      },
       "Fidelity": {
         "description": "How an executor carried out a command (spec \u00a78.2).",
         "enum": [
@@ -15011,6 +15414,204 @@
           "undoable"
         ],
         "title": "GoalKind",
+        "type": "string"
+      },
+      "Group": {
+        "additionalProperties": false,
+        "description": "A group at home as the world declares it. True: a view holds its own nation's.",
+        "properties": {
+          "baseline": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Baseline",
+            "type": "integer"
+          },
+          "chamber": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Chamber"
+          },
+          "feeds": {
+            "additionalProperties": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Feeds"
+            },
+            "title": "Feeds",
+            "type": "object"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "maxLength": 60,
+            "title": "Kind",
+            "type": "string"
+          },
+          "moved_by": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Happening"
+            },
+            "title": "Moved By",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "seats": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seats"
+          },
+          "stances": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/revisionist__core__realism__effect__ClauseKind"
+            },
+            "title": "Stances",
+            "type": "object"
+          },
+          "start": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Start",
+            "type": "integer"
+          },
+          "vote_default": {
+            "additionalProperties": {
+              "$ref": "#/$defs/BlocVote"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Vote Default",
+            "type": "object"
+          },
+          "votes": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/$defs/BlocVote"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Votes",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "kind",
+          "start",
+          "baseline"
+        ],
+        "title": "Group",
+        "type": "object"
+      },
+      "Groups": {
+        "additionalProperties": false,
+        "description": "Groups' truth. A seat sees its own nation's part only.",
+        "properties": {
+          "declared": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/$defs/Group"
+              },
+              "type": "array"
+            },
+            "title": "Declared",
+            "type": "object"
+          },
+          "proposed": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Proposal"
+            },
+            "title": "Proposed",
+            "type": "array"
+          },
+          "spent": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "items": {
+                  "$ref": "#/$defs/Spent"
+                },
+                "type": "array"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "title": "Spent",
+            "type": "object"
+          },
+          "support": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "title": "Support",
+            "type": "object"
+          }
+        },
+        "title": "Groups",
+        "type": "object"
+      },
+      "Happening": {
+        "description": "The fixed list of happenings a group may be moved by (rule 3).",
+        "enum": [
+          "battle_won",
+          "battle_lost",
+          "territory_taken",
+          "territory_lost",
+          "capital_threatened",
+          "losses_at_sea",
+          "agreement_broken",
+          "measure_passed",
+          "war_declared"
+        ],
+        "title": "Happening",
         "type": "string"
       },
       "HeldChoice": {
@@ -16612,6 +17213,49 @@
         ],
         "title": "Posture",
         "type": "string"
+      },
+      "Proposal": {
+        "additionalProperties": false,
+        "description": "One seat's writing proposing to move a group (rule 2). Engine only: it carries a\nhash of the text, never the text, and no filing time.",
+        "properties": {
+          "change": {
+            "title": "Change",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "string"
+          },
+          "text_hash": {
+            "maxLength": 60,
+            "title": "Text Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seat",
+          "polity",
+          "group",
+          "change",
+          "text_hash",
+          "on"
+        ],
+        "title": "Proposal",
+        "type": "object"
       },
       "ProposeMeasure": {
         "additionalProperties": false,
@@ -18365,6 +19009,28 @@
         "title": "Source",
         "type": "string"
       },
+      "Spent": {
+        "additionalProperties": false,
+        "description": "Writing points a group's batch used on a day, toward the week cap.",
+        "properties": {
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "points": {
+            "minimum": 0,
+            "title": "Points",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "on",
+          "points"
+        ],
+        "title": "Spent",
+        "type": "object"
+      },
       "Stance": {
         "description": "Worst first, so the order of the members is the order of the stances.",
         "enum": [
@@ -19471,6 +20137,9 @@
         "title": "Goals",
         "type": "object"
       },
+      "groups": {
+        "$ref": "#/$defs/Groups"
+      },
       "handovers": {
         "additionalProperties": {
           "$ref": "#/$defs/Controller"
@@ -20216,6 +20885,28 @@
         ],
         "title": "Betrayal",
         "type": "string"
+      },
+      "BlocVote": {
+        "additionalProperties": false,
+        "description": "A bloc's part of one chamber vote: its members voting and the yeas among them.",
+        "properties": {
+          "voting": {
+            "minimum": 0,
+            "title": "Voting",
+            "type": "integer"
+          },
+          "yeas": {
+            "minimum": 0,
+            "title": "Yeas",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "voting",
+          "yeas"
+        ],
+        "title": "BlocVote",
+        "type": "object"
       },
       "BodyField": {
         "additionalProperties": false,
@@ -21488,6 +22179,18 @@
         "title": "FeatureKind",
         "type": "string"
       },
+      "Feeds": {
+        "description": "What a group's support feeds.",
+        "enum": [
+          "votes",
+          "standing",
+          "manpower",
+          "output",
+          "opinion"
+        ],
+        "title": "Feeds",
+        "type": "string"
+      },
       "Fidelity": {
         "description": "How an executor carried out a command (spec \u00a78.2).",
         "enum": [
@@ -21628,6 +22331,204 @@
           "undoable"
         ],
         "title": "GoalKind",
+        "type": "string"
+      },
+      "Group": {
+        "additionalProperties": false,
+        "description": "A group at home as the world declares it. True: a view holds its own nation's.",
+        "properties": {
+          "baseline": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Baseline",
+            "type": "integer"
+          },
+          "chamber": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Chamber"
+          },
+          "feeds": {
+            "additionalProperties": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Feeds"
+            },
+            "title": "Feeds",
+            "type": "object"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "maxLength": 60,
+            "title": "Kind",
+            "type": "string"
+          },
+          "moved_by": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Happening"
+            },
+            "title": "Moved By",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "seats": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seats"
+          },
+          "stances": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/revisionist__core__realism__effect__ClauseKind"
+            },
+            "title": "Stances",
+            "type": "object"
+          },
+          "start": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Start",
+            "type": "integer"
+          },
+          "vote_default": {
+            "additionalProperties": {
+              "$ref": "#/$defs/BlocVote"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Vote Default",
+            "type": "object"
+          },
+          "votes": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/$defs/BlocVote"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Votes",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "kind",
+          "start",
+          "baseline"
+        ],
+        "title": "Group",
+        "type": "object"
+      },
+      "Groups": {
+        "additionalProperties": false,
+        "description": "Groups' truth. A seat sees its own nation's part only.",
+        "properties": {
+          "declared": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/$defs/Group"
+              },
+              "type": "array"
+            },
+            "title": "Declared",
+            "type": "object"
+          },
+          "proposed": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Proposal"
+            },
+            "title": "Proposed",
+            "type": "array"
+          },
+          "spent": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "items": {
+                  "$ref": "#/$defs/Spent"
+                },
+                "type": "array"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "title": "Spent",
+            "type": "object"
+          },
+          "support": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "title": "Support",
+            "type": "object"
+          }
+        },
+        "title": "Groups",
+        "type": "object"
+      },
+      "Happening": {
+        "description": "The fixed list of happenings a group may be moved by (rule 3).",
+        "enum": [
+          "battle_won",
+          "battle_lost",
+          "territory_taken",
+          "territory_lost",
+          "capital_threatened",
+          "losses_at_sea",
+          "agreement_broken",
+          "measure_passed",
+          "war_declared"
+        ],
+        "title": "Happening",
         "type": "string"
       },
       "HeldChoice": {
@@ -23032,6 +23933,49 @@
         "title": "Posture",
         "type": "string"
       },
+      "Proposal": {
+        "additionalProperties": false,
+        "description": "One seat's writing proposing to move a group (rule 2). Engine only: it carries a\nhash of the text, never the text, and no filing time.",
+        "properties": {
+          "change": {
+            "title": "Change",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "string"
+          },
+          "text_hash": {
+            "maxLength": 60,
+            "title": "Text Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seat",
+          "polity",
+          "group",
+          "change",
+          "text_hash",
+          "on"
+        ],
+        "title": "Proposal",
+        "type": "object"
+      },
       "ProposeMeasure": {
         "additionalProperties": false,
         "description": "A bill, treaty or declaration, as a set of clauses.",
@@ -24255,6 +25199,28 @@
         "title": "Source",
         "type": "string"
       },
+      "Spent": {
+        "additionalProperties": false,
+        "description": "Writing points a group's batch used on a day, toward the week cap.",
+        "properties": {
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "points": {
+            "minimum": 0,
+            "title": "Points",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "on",
+          "points"
+        ],
+        "title": "Spent",
+        "type": "object"
+      },
       "StepAction": {
         "enum": [
           "expedite",
@@ -25004,6 +25970,9 @@
         },
         "title": "Goals",
         "type": "object"
+      },
+      "groups": {
+        "$ref": "#/$defs/Groups"
       },
       "holders": {
         "additionalProperties": {

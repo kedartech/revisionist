@@ -105,6 +105,55 @@ sources:
 wars:
   - {a: norra, b: sudland, since: 1900-03-01, source: toy}
 
+# Each nation's groups at home: read only with the `groups` rule on.
+groups:
+  - nation: norra
+    groups:
+      - key: smiths
+        name: The Smiths' Guild
+        kind: guild
+        start: 50
+        baseline: 50
+        feeds: {output: 1, manpower: 1}
+        moved_by: {territory_lost: -5, battle_won: 2}
+      - key: greens
+        name: The Greens
+        kind: party
+        start: 60
+        baseline: 55
+        chamber: assembly
+        seats: 60
+        feeds: {votes: 1, standing: 1}
+        moved_by: {battle_won: 3, battle_lost: -4, capital_threatened: -6, war_declared: 2}
+        votes: {levy_act: {assembly: {voting: 55, yeas: 40}}}
+        vote_default: {assembly: {voting: 50, yeas: 25}}
+        stances: {power: 1, money: -1}
+      - key: greys
+        name: The Greys
+        kind: party
+        start: 30
+        baseline: 30
+        chamber: assembly
+        seats: 40
+        feeds: {votes: 1}
+        stances: {limit: 2}
+      - key: public
+        name: The Norra Public
+        kind: public
+        start: 40
+        baseline: 45
+        feeds: {standing: 3, opinion: 1}
+        moved_by: {territory_taken: 3, territory_lost: -3, losses_at_sea: -2}
+  - nation: sudland
+    groups:
+      - key: farmers
+        name: The Farmers
+        kind: estate
+        start: 30
+        baseline: 35
+        feeds: {output: 1}
+        moved_by: {territory_taken: 2, battle_lost: -3}
+
 cards:
   - person: ilse
     office: Chancellor of Norra

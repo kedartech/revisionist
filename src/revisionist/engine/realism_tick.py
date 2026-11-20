@@ -49,6 +49,7 @@ from revisionist.core.realism import (
     answering,
     apply,
     battle,
+    conference,
     detect,
     economy,
     groups,
@@ -410,10 +411,18 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
     if isinstance(payload, ev.AgreementOffered):
         return agreement.parties_scope(state, payload.offer.parties)
     if isinstance(payload, ev.AgreementMade):
+        if payload.agreement.public:  # CNF: a public conference's agreement
+            return PUBLIC
         return agreement.parties_scope(state, payload.agreement.parties)
     if isinstance(payload, ev.ClauseJudged):
         found = state.agreements.made[payload.agreement_id]
         return PUBLIC if found.public else agreement.parties_scope(state, found.parties)
+    if isinstance(payload, ev.ConferenceCalled):
+        return conference.scope(state, payload.conference)  # CNF: the invited, or public
+    if isinstance(payload, ev.ConferenceTallied):
+        return conference.scope(state, state.conferences.held[payload.conference])
+    if isinstance(payload, ev.VoteSealed):
+        return private_to(payload.seat_id)  # CNF: the voter's alone
     if isinstance(payload, ev.TradeSet):
         # True figures: sealed to the seats of the two nations the line joins.
         a = _nation_scope(state, payload.line.exporter).known_by
@@ -561,6 +570,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(process.open_processes(state, day))
         add(process.influence_due(state, day))
         add(agreement.offers_due(state, day))  # AGR: before a part's effect could land
+        add(conference.walk(state, day))  # CNF: calls go out, voting days are tallied
         landed = apply.apply_due(state, day)
         add(landed)
         for step in steps:

@@ -61,6 +61,7 @@ from revisionist.core.realism.agreement import Agreements
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
 from revisionist.core.realism.card import CardFace, Desk, SeatCard, Topic
+from revisionist.core.realism.conference import Conferences
 from revisionist.core.realism.detect import Intelligence, Picture, Report
 from revisionist.core.realism.document import Document, DocumentView, Feed
 from revisionist.core.realism.economy import Economy
@@ -174,11 +175,17 @@ class _World(Model):
     """With ``agreements`` on, the offers (``agreement_offered``) and the agreements in
     force (``agreement_made``), with each clause's status (``clause_judged``) (AGR). A view
     holds those its nation is a party to, and every published agreement."""
+    conferences: Conferences = Field(default_factory=Conferences)
+    """With ``conference`` on, each conference called or scheduled
+    (``conference_called``), its sealed votes (``vote_sealed``) and its tally
+    (``conference_tallied``) (CNF). A view holds the opened conferences its nation is
+    invited to and every opened public one, and its own votes only."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
             "groups",
             "agreements",
+            "conferences",
             "goals",
             "phase",
             "roster",

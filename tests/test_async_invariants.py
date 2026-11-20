@@ -557,11 +557,6 @@ def test_8_offers_lapse(table: AsyncTable, monkeypatch: pytest.MonkeyPatch) -> N
     assert t.state.mandates[opening].status is ra.MandateStatus.EXPIRED
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=ModuleNotFoundError,
-    reason="stage 3: conference, group 1 point 4",
-)
 def test_8_votes_are_filed_ahead() -> None:
     """A conference tallies with one seat never present: votes are sealed ahead, and
     the aide votes by the card or abstains."""

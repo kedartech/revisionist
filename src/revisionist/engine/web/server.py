@@ -271,6 +271,7 @@ class App:
                     game["withdrawable"],
                     held_orders.held_battles(store, link.campaign_id, link.seat_id),
                     odds.ended(self.odds, state, link.seat_id, log_now),
+                    log_now,
                 )
                 seat_view["realism"]["counsel"] = realism_snapshot.counsel_lines(
                     project(state, link.seat_id), log_now, link.seat_id

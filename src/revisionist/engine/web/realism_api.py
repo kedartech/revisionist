@@ -883,6 +883,124 @@ class EconomyBlock(TypedDict):
     """None for a seat of no nation."""
 
 
+class GroupMove(TypedDict):
+    """What last moved a group: the cause, by how much after the clamp, and the day."""
+
+    cause: Literal[
+        "battle_won",
+        "battle_lost",
+        "territory_taken",
+        "territory_lost",
+        "capital_threatened",
+        "losses_at_sea",
+        "agreement_broken",
+        "measure_passed",
+        "war_declared",
+        "writing",
+        "drift",
+    ]
+    change: int
+    on: str
+
+
+class HomeGroup(TypedDict):
+    """One of the seat's own nation's groups at home (GPD)."""
+
+    key: str
+    name: str
+    kind: str
+    """The world's free label: a party, a union, a service, the public."""
+    support: int
+    """0 to 100, now."""
+    last_moved: GroupMove | None
+    """None while nothing has moved it."""
+    feeds: dict[str, float]
+    """What its support feeds (``votes``, ``standing``, ``manpower``, ``output``,
+    ``opinion``), each with its weight."""
+
+
+class FloorBloc(TypedDict):
+    """A bloc of a chamber: one of the seat's own nation's groups that sits in it."""
+
+    group: str
+    name: str
+    seats: int
+    support: int
+
+
+class BlocCount(TypedDict):
+    """A bloc's part of one vote."""
+
+    group: str
+    yeas: int
+    nays: int
+
+
+class FloorVote(TypedDict):
+    """One vote of an open measure in a chamber, counted by bloc."""
+
+    vote: str
+    """The vote's key in the world file (for example the chamber's own key)."""
+    yeas: int
+    nays: int
+    blocs: list[BlocCount]
+    """Each bloc with a row for the vote, in the world's order."""
+
+
+class OpenMeasure(TypedDict):
+    """A measure the seat has sent that is still on its way, counted as the votes rule
+    would tally it if it reached the floor today."""
+
+    order_id: str
+    key: str
+    """The measure's key: the bill named, or the carried measure's title as a key."""
+    title: str
+    votes: list[FloorVote]
+    """The votes of this chamber the measure faces."""
+
+
+class FloorChamber(TypedDict):
+    """A chamber of the seat's own nation: its blocs and the seat's open measures."""
+
+    key: str
+    blocs: list[FloorBloc]
+    measures: list[OpenMeasure]
+
+
+class HomeTheme(TypedDict):
+    """A theme the nation's writing may name, and the points it moves each group by."""
+
+    key: str
+    name: str
+    moves: dict[str, int]
+
+
+class NationStanding(TypedDict):
+    """A nation's standing at home as a public band, the same for every seat."""
+
+    nation: MapNation
+    band: Literal["collapsing", "shaken", "steady", "firm", "united"] | None
+    """None for a nation with no group that feeds standing."""
+
+
+class HomeBlock(TypedDict):
+    """Groups at home and the floor as the seat sees them, with ``groups`` on (GPD). Only
+    the seat's own nation's groups, chambers and themes are sent; another nation shows
+    only its band."""
+
+    day: str
+    nation: MapNation
+    groups: list[HomeGroup]
+    """In the world file's order."""
+    chambers: list[FloorChamber]
+    """Each chamber the nation's blocs sit in, in the world's order."""
+    themes: list[HomeTheme]
+    standing: float | None
+    """The seat's own nation's standing at home, 0 to 100; None when no group feeds it."""
+    standings: list[NationStanding]
+    """Every nation's band, by name."""
+
+
 class BattleRoundLine(TypedDict):
     """One round of a battle as the seat's own report of it gives it (BTD)."""
 
@@ -1447,6 +1565,7 @@ __all__ = [
     "BattlePiece",
     "BattleRoundLine",
     "BattleView",
+    "BlocCount",
     "BodyLine",
     "Chamber",
     "ChamberSeats",
@@ -1473,6 +1592,13 @@ __all__ = [
     "EconomyTerritory",
     "Figure",
     "FigureGroup",
+    "FloorBloc",
+    "FloorChamber",
+    "FloorVote",
+    "GroupMove",
+    "HomeBlock",
+    "HomeGroup",
+    "HomeTheme",
     "LeverChoice",
     "LeverLine",
     "LeverParam",
@@ -1490,10 +1616,12 @@ __all__ = [
     "MapReply",
     "MapReport",
     "MarkArea",
+    "NationStanding",
     "OddsAtStrength",
     "OddsReply",
     "OddsShares",
     "OddsTerrain",
+    "OpenMeasure",
     "OrderProposal",
     "OrderResult",
     "OrderTrack",

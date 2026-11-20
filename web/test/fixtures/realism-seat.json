@@ -4263,5 +4263,147 @@
     "reports": [
       "r1"
     ]
+  },
+  "home": {
+    "day": "1900-04-02",
+    "nation": {
+      "key": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+      "name": "Norra",
+      "relation": "own"
+    },
+    "groups": [
+      {
+        "key": "smiths",
+        "name": "The Smiths' Guild",
+        "kind": "guild",
+        "support": 50,
+        "last_moved": null,
+        "feeds": {
+          "output": 1.0,
+          "manpower": 1.0
+        }
+      },
+      {
+        "key": "greens",
+        "name": "The Greens",
+        "kind": "party",
+        "support": 60,
+        "last_moved": {
+          "cause": "battle_won",
+          "change": 5,
+          "on": "1900-04-02"
+        },
+        "feeds": {
+          "votes": 1.0,
+          "standing": 1.0
+        }
+      },
+      {
+        "key": "greys",
+        "name": "The Greys",
+        "kind": "party",
+        "support": 30,
+        "last_moved": null,
+        "feeds": {
+          "votes": 1.0
+        }
+      },
+      {
+        "key": "public",
+        "name": "The Norra Public",
+        "kind": "public",
+        "support": 38,
+        "last_moved": {
+          "cause": "territory_lost",
+          "change": -2,
+          "on": "1900-04-04"
+        },
+        "feeds": {
+          "standing": 3.0,
+          "opinion": 1.0
+        }
+      }
+    ],
+    "chambers": [
+      {
+        "key": "assembly",
+        "blocs": [
+          {
+            "group": "greens",
+            "name": "The Greens",
+            "seats": 100,
+            "support": 60
+          },
+          {
+            "group": "greys",
+            "name": "The Greys",
+            "seats": 100,
+            "support": 30
+          }
+        ],
+        "measures": [
+          {
+            "order_id": "FJ608FQ7RMYERTFBREDWSDM5C8",
+            "key": "levy_act",
+            "title": "Levy act",
+            "votes": [
+              {
+                "vote": "assembly",
+                "yeas": 91,
+                "nays": 109,
+                "blocs": [
+                  {
+                    "group": "greens",
+                    "yeas": 71,
+                    "nays": 29
+                  },
+                  {
+                    "group": "greys",
+                    "yeas": 20,
+                    "nays": 80
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "themes": [
+      {
+        "key": "bread",
+        "name": "Bread for All",
+        "moves": {
+          "public": 2,
+          "smiths": -1
+        }
+      },
+      {
+        "key": "levy",
+        "name": "The Levy Act",
+        "moves": {
+          "greens": 1
+        }
+      }
+    ],
+    "standing": 43.5,
+    "standings": [
+      {
+        "nation": {
+          "key": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+          "name": "Norra",
+          "relation": "own"
+        },
+        "band": "steady"
+      },
+      {
+        "nation": {
+          "key": "TZHP5CPZR27M6255484EX48TQ6",
+          "name": "Sudland",
+          "relation": "enemy"
+        },
+        "band": null
+      }
+    ]
   }
 }

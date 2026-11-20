@@ -201,7 +201,11 @@ def _row(bloc: groups.Group, measure: str, vote: str) -> groups.BlocVote | None:
     return listed.get(vote) if listed is not None else bloc.vote_default.get(vote)
 
 
-def bloc_tally(
+BlocCount = tuple[str, int, int]
+"""One bloc's part of a vote: its group key, yeas and nays."""
+
+
+def bloc_counts(
     state: State,
     nation: EntityId,
     chamber: str,
@@ -211,14 +215,14 @@ def bloc_tally(
     *,
     urgent: bool = False,
     clauses: tuple[Clause, ...] = (),
-) -> tuple[int, int]:
-    """(yeas, nays) of one vote on a measure in a nation's chamber, from its blocs: each
-    bloc with a row for the vote (the measure's own, else its default) starts from that
-    row, and its yes share moves a point for every ``VOTE_POINTS`` of support away from its
-    baseline, by its stance on each of ``clauses``, and with ``urgent`` by
+) -> tuple[BlocCount, ...]:
+    """Each bloc's part of one vote on a measure in a nation's chamber, in the world's
+    order: each bloc with a row for the vote (the measure's own, else its default) starts
+    from that row, and its yes share moves a point for every ``VOTE_POINTS`` of support away
+    from its baseline, by its stance on each of ``clauses``, and with ``urgent`` by
     ``URGENT_BLOC_POINTS`` if it backs power. The fraction of a vote left over is drawn from
     ``seed``. No order is read."""
-    yeas = nays = 0
+    out: list[BlocCount] = []
     for bloc in groups.of(state, nation):
         row = None if bloc.chamber != chamber else _row(bloc, measure, vote)
         if row is None:
@@ -230,8 +234,27 @@ def bloc_tally(
         whole, part = divmod(row.voting * (points + VOTE_POINTS * stance), SHARE_PARTS)
         drawn = rs.friction(state, seed, chamber, vote, bloc.key, n=SHARE_PARTS) < part
         by = min(row.voting, max(0, row.yeas + whole + int(drawn)))
-        yeas, nays = yeas + by, nays + row.voting - by
-    return yeas, nays
+        out.append((bloc.key, by, row.voting - by))
+    return tuple(out)
+
+
+def bloc_tally(
+    state: State,
+    nation: EntityId,
+    chamber: str,
+    measure: str,
+    vote: str,
+    seed: OrderId,
+    *,
+    urgent: bool = False,
+    clauses: tuple[Clause, ...] = (),
+) -> tuple[int, int]:
+    """(yeas, nays) of one vote on a measure in a nation's chamber: the sum of its blocs'
+    parts (``bloc_counts``)."""
+    counts = bloc_counts(
+        state, nation, chamber, measure, vote, seed, urgent=urgent, clauses=clauses
+    )
+    return sum(y for _, y, _ in counts), sum(n for _, _, n in counts)
 
 
 def bloc_votes(state: State, nation: EntityId, measure: str) -> tuple[tuple[str, str], ...]:
@@ -256,6 +279,27 @@ def _listed(state: State, nation: EntityId, key: str) -> bool:
     return any(key in b.votes for b in groups.of(state, nation))
 
 
+def floor_counts(
+    state: State, nation: EntityId, order: Order, key: str, measure: ProposeMeasure | None
+) -> tuple[tuple[str, str, tuple[BlocCount, ...]], ...]:
+    """Each (chamber, vote, bloc parts) a nation's blocs cast on measure ``key`` for
+    ``order`` as the support stands now, in the world's order: a measure the blocs do not
+    list is scored on its clauses as well, and the order's urgency and seed are read. The
+    order's status is not."""
+    clauses = () if measure is None or _listed(state, nation, key) else measure.clauses
+    urgent = order.params.get("urgency") == "urgent"
+    return tuple(
+        (
+            chamber,
+            vote,
+            bloc_counts(
+                state, nation, chamber, key, vote, order.order_id, urgent=urgent, clauses=clauses
+            ),
+        )
+        for chamber, vote in bloc_votes(state, nation, key)
+    )
+
+
 def _cast(
     state: State, order: Order, key: str, measure: ProposeMeasure | None
 ) -> tuple[EntityId, tuple[tuple[str, int, int], ...]] | None:
@@ -265,19 +309,11 @@ def _cast(
     nation = None if seat is None else polity_of(state, seat.embodies)
     if order.status is not OrderStatus.ENACTED or nation is None:
         return None
-    cast = bloc_votes(state, nation, key)
+    cast = floor_counts(state, nation, order, key, measure)
     if not cast:
         return None
-    clauses = () if measure is None or _listed(state, nation, key) else measure.clauses
-    urgent = order.params.get("urgency") == "urgent"
     return nation, tuple(
-        (
-            vote,
-            *bloc_tally(
-                state, nation, chamber, key, vote, order.order_id, urgent=urgent, clauses=clauses
-            ),
-        )
-        for chamber, vote in cast
+        (vote, sum(y for _, y, _ in parts), sum(n for _, _, n in parts)) for _, vote, parts in cast
     )
 
 

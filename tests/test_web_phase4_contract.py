@@ -86,6 +86,7 @@ def _same_shapes(examples: list[Any], shape: Any) -> None:
         ("dossier", api.Dossier),
         ("listing", api.DocumentListing),
         ("economy", api.EconomyBlock),
+        ("home", api.HomeBlock),
     ],
 )
 def test_the_web_fixture_has_the_api_shape(key: str, shape: Any) -> None:

@@ -16,7 +16,7 @@
 # the others are sites on land. London and Washington are inland and have no port entry.
 extends: europe.world.yaml
 places_of: ../../../autumn-1941.yaml
-map: {coords: lonlat, file: autumn-1941.json, sha256: f770cde38f1fd71b3dce6000c04bb238062d421f7161565fce9abd409f8c57bc, box: [-126, -11.5, 234, 71.5]}
+map: {coords: lonlat, file: autumn-1941.json, sha256: 0a0e5b5b753978e7391c82d004bb5cc92802efe10b793931160bc1530ace6bac, box: [-126, -11.5, 234, 71.5]}
 regions:
   - {key: atlantic, name: The Atlantic}
 territories:
@@ -33,31 +33,31 @@ territories:
   - {key: caribbean, name: The Caribbean, region: atlantic, terrain: forest}
 sea_zones:
   - {key: english_channel, name: The English Channel, region: atlantic, terrain: sea}
-  - {key: western_approaches, name: The Western Approaches, region: atlantic, terrain: sea}
+  - {key: western_approaches_area, name: The Western Approaches, region: atlantic, terrain: sea}
   - {key: mid_ocean_gap, name: The Mid-Ocean Gap, region: atlantic, terrain: sea}
   - {key: western_atlantic, name: The Western Atlantic, region: atlantic, terrain: sea}
   - {key: labrador_sea, name: The Labrador Sea, region: atlantic, terrain: sea}
   - {key: denmark_strait, name: The Denmark Strait, region: atlantic, terrain: sea}
-  - {key: arctic_route, name: The Arctic Route, region: atlantic, terrain: sea}
+  - {key: arctic_route_area, name: The Arctic Route, region: atlantic, terrain: sea}
   - {key: caribbean_sea, name: The Caribbean and the Gulf of Mexico, region: atlantic, terrain: sea}
 adjacency:
-  - [arctic_route, denmark_strait]
-  - [arctic_route, greenland]
-  - [arctic_route, iceland]
-  - [arctic_route, mid_ocean_gap]
-  - [arctic_route, north_sea]
-  - [arctic_route, norway]
-  - [arctic_route, western_approaches]
-  - [arctic_route, white_sea]
+  - [arctic_route_area, denmark_strait]
+  - [arctic_route_area, greenland]
+  - [arctic_route_area, iceland]
+  - [arctic_route_area, mid_ocean_gap]
+  - [arctic_route_area, north_sea]
+  - [arctic_route_area, norway]
+  - [arctic_route_area, western_approaches_area]
+  - [arctic_route_area, white_sea]
   - [bay_of_biscay, english_channel]
   - [bay_of_biscay, mid_ocean_gap]
   - [britain_north, britain_south]
   - [britain_north, ireland]
   - [britain_north, north_sea]
-  - [britain_north, western_approaches]
+  - [britain_north, western_approaches_area]
   - [britain_south, english_channel]
   - [britain_south, north_sea]
-  - [britain_south, western_approaches]
+  - [britain_south, western_approaches_area]
   - [caribbean, caribbean_sea]
   - [caribbean_sea, us_central]
   - [caribbean_sea, us_east]
@@ -71,17 +71,17 @@ adjacency:
   - [eastern_canada, western_atlantic]
   - [english_channel, mid_ocean_gap]
   - [english_channel, occupied_france]
-  - [english_channel, western_approaches]
+  - [english_channel, western_approaches_area]
   - [greenland, labrador_sea]
   - [greenland, mid_ocean_gap]
-  - [ireland, western_approaches]
+  - [ireland, western_approaches_area]
   - [labrador_sea, mid_ocean_gap]
   - [labrador_sea, newfoundland]
   - [labrador_sea, western_atlantic]
-  - [mid_ocean_gap, western_approaches]
+  - [mid_ocean_gap, western_approaches_area]
   - [mid_ocean_gap, western_atlantic]
   - [newfoundland, western_atlantic]
-  - [north_sea, western_approaches]
+  - [north_sea, western_approaches_area]
   - [us_central, us_east]
   - [us_central, us_west]
   - [us_east, western_atlantic]
@@ -91,8 +91,8 @@ ports:
   - {port: argentia, territory: newfoundland, sea_zone: western_atlantic}
   - {port: halifax_port, territory: eastern_canada, sea_zone: western_atlantic}
   - {port: sydney_cb, territory: eastern_canada, sea_zone: western_atlantic}
-  - {port: reykjavik, territory: iceland, sea_zone: arctic_route}
-  - {port: liverpool, territory: britain_south, sea_zone: western_approaches}
+  - {port: reykjavik, territory: iceland, sea_zone: arctic_route_area}
+  - {port: liverpool, territory: britain_south, sea_zone: western_approaches_area}
   - {port: scapa_flow, territory: britain_north, sea_zone: north_sea}
 entities:
   - {key: washington, kind: location, name: Washington, at: [38.9, -77.0]}

@@ -46,6 +46,19 @@ def fdr(web: Web) -> tuple[Realism, Client]:  # noqa: F811
     return game, client
 
 
+POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
+"""The 1941 world before territories, for the cases that move a force between places."""
+
+
+@pytest.fixture
+def fdr_points(web: Web) -> tuple[Realism, Client]:  # noqa: F811
+    game = Realism(web, POINTS)
+    client = game.seat("ada", "roosevelt")
+    game.open_play()
+    game.first_tick()
+    return game, client
+
+
 def set_feature(game: Realism, key: str, **update: Any) -> None:
     """Change one feature in the truth, as a resolver would, without a page."""
     store = game.web.app.open()
@@ -73,8 +86,8 @@ def marks(client: Client) -> dict[str, dict[str, Any]]:
     return {m["name"]: m for m in realism_of(client)["map"]["marks"]}
 
 
-def test_the_map_shows_what_the_seats_pages_place(fdr: tuple[Realism, Client]) -> None:
-    _, ada = fdr
+def test_the_map_shows_what_the_seats_pages_place(fdr_points: tuple[Realism, Client]) -> None:
+    _, ada = fdr_points
     seen = marks(ada)
     assert set(seen) == {
         "Arctic convoys",
@@ -99,8 +112,10 @@ def test_the_map_shows_what_the_seats_pages_place(fdr: tuple[Realism, Client]) -
     assert status == 200 and any(b["label"] == "US Atlantic Fleet" for b in page["body"])
 
 
-def test_a_feature_no_page_places_is_nowhere_in_a_response(fdr: tuple[Realism, Client]) -> None:
-    game, ada = fdr
+def test_a_feature_no_page_places_is_nowhere_in_a_response(
+    fdr_points: tuple[Realism, Client],
+) -> None:
+    game, ada = fdr_points
     set_feature(game, "combined_fleet", name=CANARY)
     text = json.dumps(ada.me())
     for absent in (CANARY, "Combined Fleet", "Army Group Centre", "The Eastern Front"):
@@ -109,8 +124,8 @@ def test_a_feature_no_page_places_is_nowhere_in_a_response(fdr: tuple[Realism, C
     assert CANARY not in text
 
 
-def test_a_move_in_the_truth_waits_for_a_page(fdr: tuple[Realism, Client]) -> None:
-    game, ada = fdr
+def test_a_move_in_the_truth_waits_for_a_page(fdr_points: tuple[Realism, Client]) -> None:
+    game, ada = fdr_points
     store = game.web.app.open()
     try:
         today = load_state(store, game.campaign).in_world_date
@@ -344,9 +359,9 @@ def test_an_own_order_with_a_holder_waits_with_whom_until_when_and_can_be_withdr
 
 
 def test_without_territories_a_piece_stands_at_its_place_as_the_truth_has_it(
-    fdr: tuple[Realism, Client],
+    fdr_points: tuple[Realism, Client],
 ) -> None:
-    game, ada = fdr
+    game, ada = fdr_points
     fleet = marks(ada)["US Atlantic Fleet"]
     norfolk = {"name": "Norfolk", "lat": 36.9, "lon": -76.3, "theatre": "North America"}
     assert fleet["piece"] == {

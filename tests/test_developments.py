@@ -206,9 +206,14 @@ def test_an_absent_or_empty_sidecar_changes_nothing(tmp_path: Path) -> None:
     src = cmp.world_path("autumn-1941")
     path = tmp_path / "autumn-1941.yaml"
     path.write_text(src.read_text())
+    plain = WorldFile.model_validate(yaml.safe_load(src.read_text()))
+    assert plain.map is not None
+    map_file = plain.map.file
+    plain = plain.model_copy(update={"map_data": cmp.load_world(src).map_data})
+    assert plain.map_data is not None
+    (tmp_path / map_file).write_bytes(plain.map_data)
     bare = cmp.load_world(path)
     assert bare.developments == ()
-    plain = WorldFile.model_validate(yaml.safe_load(src.read_text()))
     assert bare == plain
     (tmp_path / "developments").mkdir()
     (tmp_path / "developments" / "autumn-1941.yaml").write_text("world: autumn-1941\n")

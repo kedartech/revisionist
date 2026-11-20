@@ -13,7 +13,14 @@ from datetime import date, timedelta
 from revisionist.core import events as ev
 from revisionist.core.ids import CampaignId, ScheduledEventId, derived_id
 from revisionist.core.realism.pipeline import Order, StepAction, StepOutcome
-from revisionist.core.realism.resolvers import ON_DAY, ON_ORDER, resolver_for, settled_on, value
+from revisionist.core.realism.resolvers import (
+    ON_DAY,
+    ON_ORDER,
+    resolver_for,
+    settled_on,
+    shipping,
+    value,
+)
 from tests.test_realism_resolvers import Rig
 
 SEEDS = [
@@ -72,6 +79,7 @@ def play(seed: CampaignId) -> Run:
     r.close_session_zero()
     orders: dict[int, Order] = {}
     about: dict[date, int | None] = {}
+    sunk: list[int] = []
     day = START
     while day <= END:
         if day > START:
@@ -99,6 +107,8 @@ def play(seed: CampaignId) -> Run:
         for order in settled:
             key = resolver_for(r.state, order)
             r.fold_changes(ON_ORDER[key](r.state, order))
+        if day.day == 1 and day > START:
+            sunk.append(sum(shipping.losses(r.state, day - timedelta(days=1)).values()))
         for fn in ON_DAY.values():
             r.fold_changes(fn(r.state, day))
         about[day] = value(r.state, "gallup_fdr_about_right")
@@ -114,7 +124,7 @@ def play(seed: CampaignId) -> Run:
         senate=(v("neutrality_revision_senate_yeas"), v("neutrality_revision_senate_nays")),
         concur=(v("neutrality_revision_concur_yeas"), v("neutrality_revision_concur_nays")),
         passed=v("neutrality_revision_passed"),
-        losses=(v("uboat_losses_sep"), v("uboat_losses_oct"), v("uboat_losses_nov")),
+        losses=(sunk[0], sunk[1], sunk[2]),
         finding_days=(settled_on(r.state.orders[orders[3].order_id]) - SCRIPT[3].filed).days,
         eligible=v("soviet_lend_lease_eligible"),
         about_24sep=v_on(about, date(1941, 9, 24)),

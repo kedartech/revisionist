@@ -942,6 +942,12 @@ class BattleView(TypedDict):
     contingencies: list[str]
     """The contingency kinds the seat may give its pieces there."""
     pieces: list[BattlePiece]
+    ended: str | None
+    """The day the battle ended; None while it is open. An ended battle gives no
+    decisions, contingencies or pieces."""
+    closing: "ClosingOdds | None"
+    """An ended battle's closing odds (ODS); None while it is open, and while the odds
+    desk is busy."""
 
 
 class OddsShares(TypedDict):
@@ -998,6 +1004,14 @@ class OddsReply(TypedDict):
     by_strength: list[OddsAtStrength]
     reports: list[str]
     """The keys of the reports the enemy was read from."""
+
+
+class ClosingOdds(TypedDict):
+    """An ended battle's odds on its first day (ODS rule 7): as they truly stood, with
+    both sides exactly, beside what the seat's own picture said that day."""
+
+    truly: OddsReply
+    seen: OddsReply
 
 
 class MapReply(TypedDict):
@@ -1438,6 +1452,7 @@ __all__ = [
     "ChamberSeats",
     "ChamberVote",
     "Clock",
+    "ClosingOdds",
     "ContactLine",
     "Court",
     "CourtOrder",

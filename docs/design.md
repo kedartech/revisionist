@@ -506,6 +506,7 @@ spec §7 and §10 (ODS, reversing "no odds before filing"): the `odds` action in
 - **Runs.** `battle.simulate` runs `ODDS_RUNS` (2,000) times over `ODDS_DAYS` (14), seeded by campaign, wake, seat and the request's inputs, never the clock: the same request in a wake gets the same reply.
 - **Bounds.** One `odds.Service` per server: `WORKERS` simulation threads, at most `QUEUE` requests waiting beyond them (then a refused "busy, ask again" reply), `CACHE` replies kept keyed by the wake, one computation for identical requests in flight whose waiters share its reply, and 30 requests a minute a seat. Sizes are `[proposed]` until the rule 9 measurement sets them.
 - **Nothing filed.** The action appends no event and spends nothing; it is not sealed by a commit.
+- **Closing odds.** Once a battle has ended, the `battles` block lists it after the open ones with its closing odds (`odds.ended`): the spread as it truly stood on the first day, both sides exactly, beside what the seat's own picture said that day. Both are computed on request by replaying the log to the battle's `battle_opened` and kept in the server's odds cache; nothing is added to a paper or the log, and a battle still open shows none.
 
 ### 16.8 Not covered by the tests
 

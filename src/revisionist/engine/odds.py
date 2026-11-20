@@ -28,17 +28,29 @@ import time
 from collections import OrderedDict, deque
 from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Any, Literal, NamedTuple
+from datetime import date
+from typing import Any, Literal, NamedTuple, cast
 
+from revisionist.core import events as ev
+from revisionist.core.events import Event
+from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId, EntityId, FeatureId, SeatId
 from revisionist.core.project import project
 from revisionist.core.realism import battle, detect, holders, kinds, territory, war_rules
-from revisionist.core.realism.battle import Battle, BattleSide, Decision, Ending, Fighter, SideIn
+from revisionist.core.realism.battle import (
+    Battle,
+    BattleSide,
+    Decision,
+    Ending,
+    Fighter,
+    SideIn,
+)
 from revisionist.core.realism.geography import Feature, in_play
 from revisionist.core.realism.kinds import Domain
 from revisionist.core.state import Rule, State, View
 from revisionist.core.world_compile import object_id
 from revisionist.engine.web.realism_api import (
+    ClosingOdds,
     OddsAtStrength,
     OddsReply,
     OddsShares,
@@ -256,29 +268,40 @@ def _toward(state: State, view: View, seat: SeatId, f: Feature, area: EntityId) 
     )
 
 
-def _sides(state: State, b: Battle, own: EntityId) -> tuple[BattleSide, BattleSide] | None:
-    if b.attacker.nation == own:
-        return b.attacker, b.defender
-    if b.defender.nation == own:
-        return b.defender, b.attacker
-    return None
+def _decision(b: Battle, mine: BattleSide) -> Decision:
+    """The side's decision in force: the one given, else press for the attacker and hold
+    for the defender."""
+    if mine.decision is not None:
+        return mine.decision
+    return Decision.PRESS if mine is b.attacker else Decision.HOLD
 
 
 def _in_battle(
-    state: State, view: View, seat: SeatId, f: Feature, area: EntityId, decision: Decision
+    state: State,
+    view: View,
+    seat: SeatId,
+    f: Feature | None,
+    area: EntityId,
+    decision: Decision | None,
 ) -> Picture:
-    """The picture for an open battle with a decision: the seat's side as it stands, the
-    enemy as the reports put it in the area it stands in."""
+    """The picture for an open battle with a decision (None: the side's own in force):
+    the seat's side as it stands, the enemy as the reports put it in the area it stands
+    in. ``f`` is the seat's piece asked about; None: the first of its side there."""
+    from revisionist.engine.web.battles_api import sides_of
+
     own_nation = _nation(state, seat)
     b = battle.at(state, area)
-    sides = _sides(state, b, own_nation) if b is not None and own_nation is not None else None
+    sides = sides_of(state, b, own_nation) if b is not None and own_nation is not None else None
     if b is None or sides is None:
         raise ValueError(NOT_IN)
     mine, theirs = sides
     i: Literal[0, 1] = 0 if mine is b.attacker else 1
     present = battle._present(state, b, mine)
-    if f.feature_id not in {p.feature_id for p in present}:
+    if f is None and present:
+        f = present[0]
+    if f is None or f.feature_id not in {p.feature_id for p in present}:
         raise ValueError(NOT_THERE)
+    decision = decision or _decision(b, mine)
     where, enemy_at = battle._side_area(b, i), battle._side_area(b, 1 - i)
     seen, air, used = _enemy(view, enemy_at)
     terrain = _terrain(view, b.area)
@@ -503,8 +526,8 @@ class Service:
         self._lock = threading.RLock()
         """Re-entrant: a computation that finishes before its callback is added lands
         at once, in the asking thread, which holds the lock."""
-        self._cache: OrderedDict[str, OddsReply] = OrderedDict()
-        self._flying: dict[str, Future[OddsReply]] = {}
+        self._cache: OrderedDict[str, Any] = OrderedDict()
+        self._flying: dict[str, Future[Any]] = {}
         self._asked: dict[tuple[str, str], deque[float]] = {}
         self.computed = 0
         """Computations started: identical requests in flight count once."""
@@ -518,24 +541,26 @@ class Service:
             raise LimitedError
         asked.append(now)
 
-    def _landed(self, key: str, done: Future[OddsReply]) -> None:
+    def _landed(self, key: str, done: Future[Any]) -> None:
         with self._lock:
-            if done.exception() is None:
+            if not done.cancelled() and done.exception() is None:
                 self._cache[key] = done.result()
                 self._cache.move_to_end(key)
                 while len(self._cache) > self.cache_size:
                     self._cache.popitem(last=False)
             self._flying.pop(key, None)
 
-    def ask(self, key: str, who: tuple[str, str], compute: Callable[[], OddsReply]) -> OddsReply:
+    def ask[R](self, key: str, who: tuple[str, str] | None, compute: Callable[[], R]) -> R:
         """The reply for ``key``: from the cache, from the computation in flight, or from
-        a new one. Raises ``LimitedError`` past the seat's rate and ``BusyError`` when full."""
+        a new one. Raises ``LimitedError`` past the rate of the seat ``who`` (None: the
+        server's own asking, not limited) and ``BusyError`` when full."""
         with self._lock:
-            self._limit(who)
+            if who is not None:
+                self._limit(who)
             found = self._cache.get(key)
             if found is not None:
                 self._cache.move_to_end(key)
-                return found
+                return cast("R", found)
             flying = self._flying.get(key)
             if flying is None:
                 if len(self._flying) >= self.workers + self.queue:
@@ -544,10 +569,107 @@ class Service:
                 self.computed += 1
                 self._flying[key] = flying
                 flying.add_done_callback(lambda f: self._landed(key, f))
-        return flying.result()
+        return cast("R", flying.result())
 
     def close(self) -> None:
         self._pool.shutdown(wait=False, cancel_futures=True)
+
+
+# --- the closing odds: how the odds truly stood on a battle's first day ----------------
+
+
+def _true_enemy(state: State, b: Battle, theirs: BattleSide, at: EntityId) -> tuple[Seen, ...]:
+    """The enemy's pieces in the battle as they truly stood: each its exact strength."""
+    return tuple(
+        Seen(f"piece {n}", f.tier, f.tier)
+        for n, f in enumerate(battle._present(state, b, theirs), start=1)
+    )
+
+
+def closing_pictures(then: State, seat: SeatId, area: EntityId) -> tuple[Picture, Picture]:
+    """The two pictures of the battle in ``area`` on its first day, from ``then`` (the
+    game just after its ``battle_opened``): the seat's own (its side exactly, the enemy as
+    its reports stood that day) and the truth (both sides exactly). Engine only: the true
+    one is shown only once the battle has ended."""
+    from revisionist.engine.web.battles_api import sides_of
+
+    b = battle.at(then, area)
+    own_nation = _nation(then, seat)
+    sides = sides_of(then, b, own_nation) if b is not None and own_nation is not None else None
+    if b is None or sides is None:
+        raise ValueError(NOT_IN)
+    day_one = then.model_copy(update={"in_world_date": b.opened})
+    view = project(day_one, seat)
+    seen = _in_battle(day_one, view, seat, None, area, None)
+    i = seen.side
+    enemy_at = battle._side_area(b, 1 - i)
+    truth = seen._replace(
+        enemy=_true_enemy(then, b, sides[1], enemy_at),
+        enemy_air=battle._air(then, sides[1].nation, enemy_at),
+        reports=(),
+    )
+    return seen, truth
+
+
+def _closing(then: State, seat: SeatId, area: EntityId) -> ClosingOdds:
+    seen, truth = closing_pictures(then, seat, area)
+    wake = wake_of(then)
+    return ClosingOdds(
+        seen=spread(seen, seed(then.campaign_id, wake, seat, seen)),
+        truly=spread(truth, seed(then.campaign_id, wake, seat, truth)),
+    )
+
+
+class Ended(NamedTuple):
+    """A battle the seat's nation fought that has ended, as the log has it."""
+
+    battle: Battle
+    """The battle as it opened (``battle_opened``)."""
+    ended: date
+    closing: ClosingOdds | None
+    """None: the odds desk was busy; the next refresh asks again."""
+
+
+def ended(service: Service, state: State, seat: SeatId, log: Sequence[Event]) -> list[Ended]:
+    """Each battle the seat's nation was a side of that has ended, with its closing odds
+    (rule 7): the odds as they truly stood on its first day beside what the seat's own
+    picture said. Computed on request from the log's ``battle_opened`` and the reports as
+    they stood that day; kept in ``service``'s cache, never in the log. A battle still open
+    is not here."""
+    from revisionist.engine.web.battles_api import sides_of
+
+    own_nation = _nation(state, seat)
+    if own_nation is None or not battle.on(state):
+        return []
+    opened: dict[EntityId, int] = {}
+    out: list[Ended] = []
+    for n, e in enumerate(log):
+        p = e.payload
+        if isinstance(p, ev.BattleOpened):
+            opened[p.battle.area] = n
+        elif isinstance(p, ev.BattleEnded) and p.area in opened:
+            first = opened.pop(p.area)
+            o = log[first].payload
+            assert isinstance(o, ev.BattleOpened)
+            if sides_of(state, o.battle, own_nation) is None:
+                continue
+            key = f"closing\x1f{state.campaign_id}\x1f{seat}\x1f{log[first].seq}"
+            head = log[: first + 1]
+
+            def compute(
+                head: Sequence[Event] = head, area: EntityId = p.area
+            ) -> ClosingOdds | None:
+                try:
+                    return _closing(replay(head), seat, area)
+                except ValueError:  # [proposed] no piece of the side stood there: no odds
+                    return None
+
+            try:
+                found: ClosingOdds | None = service.ask(key, None, compute)
+            except BusyError:
+                found = None
+            out.append(Ended(o.battle, p.on, found))
+    return out
 
 
 def reply(service: Service, state: State, seat: SeatId, body: Mapping[str, Any]) -> dict[str, Any]:
@@ -576,10 +698,13 @@ __all__ = [
     "QUEUE",
     "WORKERS",
     "BusyError",
+    "Ended",
     "LimitedError",
     "Picture",
     "Seen",
     "Service",
+    "closing_pictures",
+    "ended",
     "picture",
     "reply",
     "seed",

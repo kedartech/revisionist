@@ -10,7 +10,7 @@ put straight into Norra's picture, as detection would deliver them.
 import json
 import threading
 import time
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -18,16 +18,21 @@ import pytest
 
 from revisionist.core.ids import SeatId
 from revisionist.core.realism import detect
+from revisionist.core.realism.battle import Fighter, SideIn
 from revisionist.core.realism.detect import Confidence, Report, Source
 from revisionist.core.state import Rule, State, Wake
 from revisionist.engine import odds
 from revisionist.engine.odds import BusyError, LimitedError, Service
+from revisionist.engine.store import load_state
 from revisionist.engine.web import realism_api as api
-from tests.test_adjacency_moves import START, Logged, entity, levers, piece
+from revisionist.engine.web import realism_snapshot as rs
+from revisionist.engine.web import server
+from tests.test_adjacency_moves import START, Logged, day, entity, levers, piece
 from tests.test_battle_decisions_land import army
-from tests.test_battles import COAST, no_ferry, toy
+from tests.test_battles import COAST, OPENS, no_ferry, strengths, toy
+from tests.test_territory_model import CAMPAIGN
 from tests.test_web import Client, Web, web  # noqa: F401
-from tests.test_web_battles import ILSE, TOMAS, at_wake, game, walked
+from tests.test_web_battles import ADA, ILSE, TOMAS, at_wake, game, ostmark, store_of, walked
 from tests.test_web_phase4_contract import solo  # noqa: F401
 from tests.test_web_realism import Realism, post
 
@@ -430,7 +435,219 @@ def test_the_room_answers_odds_and_appends_no_event(
     assert after == before
 
 
+# --- Rule 7: the closing odds of an ended battle --------------------------------------------
+
+
+def fought_out(tmp: Path, *changes: Any) -> Logged:
+    """The coast's battle walked to its end: Norra's levy breaks on day 14."""
+    g = game(tmp, *changes)
+    g.walk(OPENS + timedelta(days=1), day(30))
+    assert not g.state.battles
+    return g
+
+
+def test_an_ended_battle_gives_the_odds_as_they_truly_stood_beside_the_seats_own(
+    tmp_path: Path,
+) -> None:
+    g = fought_out(tmp_path)
+    (e,) = odds.ended(Service(), g.state, ILSE, g.log)
+    assert e.ended == day(14)
+    assert e.closing is not None
+    truly, own = e.closing["truly"], e.closing["seen"]
+    assert truly["known"] is True
+    assert [s["strength"] for s in truly["by_strength"]] == [4]  # the levy's true strength
+    assert truly["reports"] == []
+    assert own["known"] is False  # Norra had no report of the coast that day
+    assert set(e.closing) == set(api.ClosingOdds.__annotations__)
+
+
+def test_each_side_gets_its_own_closing_odds(tmp_path: Path) -> None:
+    g = fought_out(tmp_path)
+    (mine,) = odds.ended(Service(), g.state, ILSE, g.log)
+    (theirs,) = odds.ended(Service(), g.state, TOMAS, g.log)
+    assert mine.closing is not None and theirs.closing is not None
+    assert [s["strength"] for s in theirs.closing["truly"]["by_strength"]] == [5]
+    win, loss = mine.closing["truly"]["shares"], theirs.closing["truly"]["shares"]
+    assert win is not None and loss is not None
+    assert abs(win["win"] - loss["loss"]) < 10  # the same truth from either side, own seeds
+
+
+def test_the_seats_own_picture_ignores_the_truth_while_the_truth_moves(tmp_path: Path) -> None:
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    weak = fought_out(tmp_path / "a", strengths(sudland_levy=3))
+    strong = fought_out(tmp_path / "b")
+    (w,) = odds.ended(Service(), weak.state, ILSE, weak.log)
+    (s,) = odds.ended(Service(), strong.state, ILSE, strong.log)
+    assert w.closing is not None and s.closing is not None
+    assert text(w.closing["seen"]) == text(s.closing["seen"])
+    assert text(w.closing["truly"]) != text(s.closing["truly"])
+
+
+def test_no_closing_odds_before_the_battle_ends(tmp_path: Path) -> None:
+    g = game(tmp_path)
+    assert g.state.battles
+    assert odds.ended(Service(), g.state, ILSE, g.log) == []
+    (b,) = rs.seat_realism(at_wake(g, 1), ILSE, set(), set(), None)["battles"]
+    assert b["ended"] is None and b["closing"] is None
+
+
+def test_a_battle_the_seats_nation_did_not_fight_has_no_closing_odds(tmp_path: Path) -> None:
+    g = fought_out(tmp_path, ostmark)
+    assert odds.ended(Service(), g.state, ADA, g.log) == []
+
+
+def test_the_battles_block_lists_the_ended_battle_after_the_open_ones(tmp_path: Path) -> None:
+    g = fought_out(tmp_path)
+    state = at_wake(g, 2)
+    ended = odds.ended(Service(), state, ILSE, g.log)
+    (b,) = rs.seat_realism(state, ILSE, set(), set(), None, ended_battles=ended)["battles"]
+    assert b["ended"] == day(14).isoformat() and b["closing"] == ended[0].closing
+    assert [r["own_lost"] for r in b["rounds"]] == [1, 1, 1]  # its own reports of the rounds
+    assert b["strength"] == 2
+    assert b["decisions"] == [] and b["pieces"] == [] and b["contingencies"] == []
+    assert set(b) == set(api.BattleView.__annotations__)
+
+
+def test_the_closing_odds_are_computed_once_and_kept(tmp_path: Path) -> None:
+    g = fought_out(tmp_path)
+    service = Service()
+    first = odds.ended(service, g.state, ILSE, g.log)
+    again = odds.ended(service, g.state, ILSE, g.log)
+    assert first == again and service.computed == 1
+
+
+def test_a_busy_desk_leaves_the_closing_odds_for_the_next_refresh(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    g = fought_out(tmp_path)
+    service = Service()
+
+    def full(*_: Any) -> Any:
+        raise BusyError
+
+    monkeypatch.setattr(service, "ask", full)
+    (e,) = odds.ended(service, g.state, ILSE, g.log)
+    assert e.closing is None
+
+
+# --- Rule 9: the offline measurement for Josh at gate 3 -------------------------------------
+
+
+def _timed(n: int, act: Any) -> list[float]:
+    out: list[float] = []
+    for _ in range(n):
+        a = time.perf_counter()
+        act()
+        out.append(time.perf_counter() - a)
+    return out
+
+
+def _ms(times: list[float]) -> dict[str, float]:
+    ordered = sorted(times)
+    return {
+        "median_ms": round(1000 * ordered[len(ordered) // 2], 2),
+        "p90_ms": round(1000 * ordered[(9 * (len(ordered) - 1)) // 10], 2),
+        "max_ms": round(1000 * ordered[-1], 2),
+    }
+
+
+def _largest(p: odds.Picture) -> odds.Picture:
+    """Ten pieces a side at full strength and ten reports: more in one area than any
+    test world stands there."""
+    own = SideIn(fighters=tuple(Fighter(f"own{n}", 5) for n in range(10)), brought=50)
+    return p._replace(own=own, enemy=tuple(odds.Seen(f"r{n}", 1, 5) for n in range(10)))
+
+
+def test_rule_9_measures_odds_and_room_latency_under_concurrent_requests(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Cold cache, the plan's ``ODDS_RUNS`` and the server's pool: 16 distinct odds
+    requests at once on the toy coast and on the largest picture, while the room is
+    loaded and a battle decision filed. Reports the figures; asserts only that every
+    request was answered. Set ``ODDS_MEASURE_OUT`` to keep them as JSON."""
+    import os
+
+    monkeypatch.setattr(odds, "ODDS_RUNS", DEFAULTS[0])
+    monkeypatch.setattr(odds.spread, "__defaults__", (DEFAULTS[0], DEFAULTS[1]))
+    (tmp_path / "a").mkdir()
+    state = seen(start(tmp_path / "a"), report())
+    base = odds.picture(state, ILSE, {"force": "norra_levy", "to": COAST})
+    g = game(tmp_path)
+    room_state = at_wake(g, 1)
+    store = store_of(g)
+
+    def load_room() -> None:
+        rs.seat_realism(room_state, ILSE, set(), set(), None)
+
+    def file_order() -> None:
+        server._battle_asks(
+            load_state(store, CAMPAIGN), ILSE, "battle", {"area": COAST, "decision": "hold"}
+        )
+
+    alone = {"load_room": _ms(_timed(10, load_room)), "file_order": _ms(_timed(10, file_order))}
+    figures: dict[str, Any] = {
+        "runs": DEFAULTS[0],
+        "days": DEFAULTS[1],
+        "workers": odds.WORKERS,
+        "queue": odds.QUEUE,
+        "room_alone": alone,
+    }
+    for name, picture in (("representative", base), ("largest", _largest(base))):
+        service = Service(per_minute=1000)
+        latencies: list[float] = []
+        answered: list[bool] = []
+
+        def one(
+            n: int,
+            p: odds.Picture = picture,
+            service: Service = service,
+            answered: list[bool] = answered,
+            latencies: list[float] = latencies,
+        ) -> None:
+            q = p._replace(lull=n)  # sixteen distinct requests: nothing is shared
+            key = odds.seed(state.campaign_id, 1, ILSE, q)
+            a = time.perf_counter()
+            try:
+                service.ask(key, ("c", f"s{n}"), lambda: odds.spread(q, key))
+                answered.append(True)
+            except BusyError:
+                answered.append(False)
+            latencies.append(time.perf_counter() - a)
+
+        threads = [threading.Thread(target=one, args=(n,)) for n in range(16)]
+        for th in threads:
+            th.start()
+        room = {"load_room": _ms(_timed(5, load_room)), "file_order": _ms(_timed(5, file_order))}
+        for th in threads:
+            th.join(120)
+        service.close()
+        figures[name] = {
+            "requests": 16,
+            "answered": answered.count(True),
+            "busy": answered.count(False),
+            "odds": _ms(latencies),
+            "room_meanwhile": room,
+        }
+        assert len(answered) == 16
+    out = os.environ.get("ODDS_MEASURE_OUT")
+    if out:
+        Path(out).write_text(json.dumps(figures, indent=2) + "\n")
+    with capsys.disabled():
+        print("\nodds measurement:", json.dumps(figures))
+
+
 # --- the seat fixture ---------------------------------------------------------------------
+
+
+def test_the_seat_fixture_carries_an_ended_battle_with_its_closing_odds(tmp_path: Path) -> None:
+    fixture = json.loads((FIXTURES / "realism-seat.json").read_text())["battles_ended"]
+    g = fought_out(tmp_path)
+    state = at_wake(g, 2)
+    ended = odds.ended(Service(), state, ILSE, g.log)
+    block = rs.seat_realism(state, ILSE, set(), set(), None, ended_battles=ended)
+    assert fixture == block["battles"]
+    assert fixture[0]["closing"]["truly"]["known"] is True
 
 
 def test_the_seat_fixture_carries_an_odds_reply_in_the_api_shape(tmp_path: Path) -> None:

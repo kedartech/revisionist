@@ -856,6 +856,8 @@ class EconomyTerritory(TypedDict):
 class EconomyPools(TypedDict):
     output: float
     manpower: float
+    fuel: NotRequired[float]
+    """The fuel stock; sent only in a game with ``fuel`` on."""
 
 
 class EconomyOwn(TypedDict):
@@ -867,7 +869,8 @@ class EconomyOwn(TypedDict):
     pools: EconomyPools
     """What the first of each month has paid in so far."""
     fuel_months: float | None
-    """Months its fuel stock lasts at its income; None while the game keeps no stock."""
+    """Months its fuel stock lasts at its monthly fuel income, trade lines included; None while
+    the game keeps no stock or the nation has no fuel income."""
     territories: list[EconomyTerritory]
     """Every territory it holds, by area key."""
 

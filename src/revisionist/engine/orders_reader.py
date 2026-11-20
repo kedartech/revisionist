@@ -8,6 +8,7 @@ client is sent the proposal in words.
 import json
 import re
 from dataclasses import dataclass
+from datetime import date
 from typing import Any
 
 from pydantic import ValidationError
@@ -17,28 +18,54 @@ from revisionist.core.canary import scan_text
 from revisionist.core.ids import CampaignId, EntityId, SeatId
 from revisionist.core.ontology import EntityKind
 from revisionist.core.project import project
+from revisionist.core.realism import agreement
 from revisionist.core.realism.agenda import Ask, Option
 from revisionist.core.realism.card import ChannelKind, words
-from revisionist.core.realism.effect import Route
+from revisionist.core.realism.effect import (
+    MAX_PARTIES,
+    AgreementClause,
+    Allocate,
+    ClauseType,
+    Deal,
+    Investigate,
+    Route,
+    SetEngagement,
+)
 from revisionist.core.realism.reach import channels_to
 from revisionist.core.realism.route import route
-from revisionist.core.state import State, View
+from revisionist.core.realism.war import polity_of
+from revisionist.core.state import Rule, State, View
 from revisionist.engine.aide import AIDE_MODEL
 from revisionist.engine.directive import TEXT_MAX
-from revisionist.engine.llm import Request, Transport, cli_schema, prompt_text
+from revisionist.engine.llm import Request, Transport, TransportError, cli_schema, prompt_text
 from revisionist.engine.options import _forces, _named_ok
 from revisionist.engine.realism_tick import commit_order
-from revisionist.engine.store import EventStore
+from revisionist.engine.store import EventStore, load_state
 from revisionist.engine.web.realism_api import OrderProposal, Reply
 
 CALL_CLASS = "aide"
 PROMPT = "orders"
+
+_NOT_READ = (ClauseType.VOTE, ClauseType.UNCHECKED)
+"""Clause types the reader never proposes: a vote is the conference's, and wording the
+rules cannot check is kept as wording."""
 
 MAX_ASKS = 8  # [proposed] parts one order may carry; the Option cap
 MAX_TEXT = TEXT_MAX  # [proposed] characters of order text, as a directive
 UNREADABLE = "Your aide could not make that into an order you can sign."
 NOTHING = "There is nothing to sign. Write your order again."
 UNREACHED = "That person is not within your reach."
+TO_THE_FORM = "Your aide does not read that kind of order from writing. Use its form."
+NO_CLAUSES = (
+    "Your aide could not read clauses out of your wording, so it goes as you wrote it and "
+    "the rules check nothing in it."
+)
+CHANGED = "The terms have changed since you read them. Write your order again."
+NO_PARTIES = "Name the nation or nations the agreement is with."
+WORDING_MAX = 600  # the length a Deal's wording holds
+LONG_WORDING = f"The wording of an agreement is at most {WORDING_MAX} characters."
+READING = "the aide's reading"
+OFFER_ASK = "An offer of an agreement."
 
 
 @dataclass(frozen=True)
@@ -49,6 +76,18 @@ class Reading:
     shown: OrderProposal
     asks: tuple[Ask, ...]
     """Empty: it cannot be filed, and ``shown`` says why."""
+    version: str = ""
+    """An offer of an agreement: the version the seat reads and signs."""
+    terms: str = ""
+    """An offer of an agreement: its terms in fixed words, as signing shows them."""
+
+
+class _Treaty(Model):
+    """A written deal, treaty or bill as the reader finds it: the nations it names and
+    each clause it takes the wording to hold, as loose objects code checks one by one."""
+
+    parties: tuple[EntityId, ...] = ()
+    clauses: tuple[dict[str, Any], ...] = ()
 
 
 class _Reply(Model):
@@ -56,7 +95,26 @@ class _Reply(Model):
     reason: str = ""
 
 
+class _TreatyReply(_Reply):
+    """The reply with written orders on: it may also carry a treaty. A separate schema,
+    so a world with the rule off sends the request it always sent (recordings keep their
+    keys)."""
+
+    treaty: _Treaty | None = None
+
+
 ORDERS_SCHEMA: dict[str, Any] = _Reply.model_json_schema()
+TREATY_SCHEMA: dict[str, Any] = _TreatyReply.model_json_schema()
+TREATY_PROMPT = (
+    "\n- `treaty`: only when the order is a written deal, treaty or bill between nations. "
+    "Give `parties`, the entity ids of the nations it names, taken from what you are given, "
+    "and leave `asks` empty. Otherwise leave `treaty` out.\n"
+    "- `treaty.clauses`: only when a clause list is given. Each clause is one object with a "
+    "`type` from that list, `binds` (the nation it binds), the fields that type names, and "
+    "`on` (a date) when the order dates it. Propose a clause only where the words plainly "
+    "say it; wording that fits no listed type is left out, and the order's own words stay "
+    "as written. Never write a summary of the terms.\n"
+)
 
 
 def _unfileable(
@@ -88,7 +146,23 @@ def _addressee(reach: dict[EntityId, str], to: str, text: str) -> EntityId | Non
     return found[0] if len(found) == 1 else None
 
 
-def orders_prompt(view: View, person: str, channel: str, text: str) -> str:
+def _clause_list(view: View) -> dict[str, Any]:
+    """The clause types the reader may propose, with the fields each names, and the
+    places and forms the seat can see."""
+    from revisionist.core.realism.effect import _CLAUSE_NEEDS
+
+    board = view.map
+    return {
+        "types": {t.value: list(_CLAUSE_NEEDS[t]) for t in ClauseType if t not in _NOT_READ},
+        "areas": sorted(board.areas()) if board is not None else [],
+        "regions": [r.key for r in board.regions] if board is not None else [],
+        "forms": [x.name for x in view.desk.levers] if view.desk is not None else [],
+    }
+
+
+def orders_prompt(
+    view: View, person: str, channel: str, text: str, *, clauses: bool = False
+) -> str:
     """The seat's own view, compact: desk, date, the objects it may name, then the words."""
     desk = view.desk
     seat: dict[str, Any] = {"name": view.me.name, "entity": view.me.embodies}
@@ -118,6 +192,8 @@ def orders_prompt(view: View, person: str, channel: str, text: str) -> str:
             for x in view.facts.values()
         ],
     }
+    if clauses:
+        world["clause_list"] = _clause_list(view)
     to = f"To {person}, by {channel}" if person else "No one named"
     return (
         "## What the seat can see\n"
@@ -138,6 +214,134 @@ def _asked(raw: object) -> list[Ask]:
     return out[:MAX_ASKS]
 
 
+def _new_order(ask: Ask) -> bool:
+    """Whether the ask is one of the orders written orders add: a contingency, a
+    concealment, an intelligence order, an offer of an agreement."""
+    e = ask.effect
+    return (
+        (isinstance(e, SetEngagement) and (e.contingency is not None or e.concealed is not None))
+        or (isinstance(e, Investigate | Allocate) and e.intel is not None)
+        or (isinstance(e, Deal) and bool(e.parties or e.publish))
+    )
+
+
+def _seen(view: View, clause: AgreementClause) -> bool:
+    """Whether every id the clause names is something the seat's view holds."""
+    board = view.map
+    ids = [clause.binds, clause.nation, clause.area]
+    if any(i is not None and i not in view.entities for i in ids):
+        return False
+    if clause.area is not None and (board is None or clause.area not in set(board.areas())):
+        return False
+    if clause.region is not None and (
+        board is None or clause.region not in {r.key for r in board.regions}
+    ):
+        return False
+    return clause.force is None or clause.force in _forces(view)
+
+
+def _checked(
+    state: State,
+    view: View,
+    seat: SeatId,
+    parties: tuple[EntityId, ...],
+    raw: tuple[dict[str, Any], ...],
+) -> tuple[tuple[AgreementClause, ...], int]:
+    """The proposed clauses that are valid clauses the seat may offer, and how many were
+    dropped. A clause is kept only if it fits the clause list, binds a named party, names
+    only what the seat's view holds, and is one the filing rules accept."""
+    kept: list[AgreementClause] = []
+    dropped = 0
+    for item in raw[:8]:
+        try:
+            clause = AgreementClause.model_validate(item)
+        except ValidationError:
+            dropped += 1
+            continue
+        if clause.type in _NOT_READ or clause.binds not in parties or not _seen(view, clause):
+            dropped += 1
+            continue
+        alone = Deal(counterparty=parties[-1], parties=parties, clauses=(clause,))
+        if agreement.refusal(state, seat, alone):
+            dropped += 1
+            continue
+        kept.append(clause)
+    return tuple(kept), dropped + max(0, len(raw) - 8)
+
+
+def _offer_of(state: State, me: EntityId, deal: Deal) -> agreement.AgreementOffer:
+    """The offer as signing shows it: for its terms only; it is never filed."""
+    today = state.in_world_date or date.min
+    return agreement.AgreementOffer(
+        offer_id="proposed",
+        version=agreement.version(deal.parties, deal.wording, deal.clauses),
+        parties=deal.parties,
+        by=polity_of(state, me) or deal.parties[0],
+        wording=deal.wording,
+        clauses=deal.clauses,
+        filed=today,
+        expires=today,
+    )
+
+
+def _treaty_reading(
+    state: State,
+    view: View,
+    seat: SeatId,
+    text: str,
+    parties: tuple[EntityId, ...],
+    raw: tuple[dict[str, Any], ...],
+    *,
+    note: str = "",
+    person: str | None = None,
+    channel: str | None = None,
+) -> Reading:
+    """An offer of an agreement from the player's own wording, with the clauses the reader
+    proposed that survived the checks. The player signs the terms rendered from those
+    clauses, and the reader's own summary is never shown."""
+    me = view.me.embodies
+    own = polity_of(state, me)
+    if len(text) > WORDING_MAX:
+        return _unfileable(text, LONG_WORDING, person, channel)
+    parties = tuple(dict.fromkeys(p for p in ((own,) if own else ()) + parties))[:MAX_PARTIES]
+    others = tuple(p for p in parties if p != own)
+    if own is None or not others or any(p not in view.entities for p in parties):
+        return _unfileable(text, NO_PARTIES, person, channel)
+    why = agreement.refusal(
+        state, seat, Deal(counterparty=others[0], parties=parties, wording=text)
+    )
+    if why:
+        return _unfileable(text, why, person, channel)
+    clauses, dropped = _checked(state, view, seat, parties, raw)
+    deal = Deal(counterparty=others[0], parties=parties, wording=text, clauses=clauses)
+    offer = _offer_of(state, me, deal)
+    parts = [
+        f"{label} ({READING}): {words}" if label.startswith("Clause ") else f"{label}: {words}"
+        for label, words in agreement.term_rows(state, offer)
+    ]
+    parts.append(f"Your wording, which the rules do not check: {text}")
+    if dropped:
+        parts.append(
+            f"Left out, because it did not fit the clauses the rules can check: {dropped}."
+        )
+    if note:
+        parts.append(note)
+    ask = Ask(ask=OFFER_ASK, effect=deal)
+    shown = OrderProposal(person=person, channel=channel, text=text, parts=parts, reason=None)
+    return Reading(
+        shown=shown,
+        asks=(ask,),
+        version=offer.version,
+        terms=agreement.render_terms(state, offer),
+    )
+
+
+def _fallback_parties(state: State, me: EntityId, who: EntityId | None) -> tuple[EntityId, ...]:
+    """The nation of the person written to, when it is not the seat's own."""
+    other = polity_of(state, who) if who is not None else None
+    return (other,) if other is not None and other != polity_of(state, me) else ()
+
+
 def read_order(
     state: State, seat: SeatId, to: str, channel: str, text: str, transport: Transport
 ) -> Reading:
@@ -156,7 +360,9 @@ def read_order(
     if to.strip() and who is None:
         return _unfileable(text, UNREACHED)
     name = reach[who] if who is not None else None
-    if who is None:
+    written = Rule.WRITTEN_ORDERS in state.rules
+    reads_clauses = Rule.CLAUSE_READER in state.rules
+    if who is None and not (written and agreement.on(state)):
         return _unfileable(text, "Name who should act on it.")
     how: ChannelKind | None = None
     if who is not None:
@@ -169,22 +375,68 @@ def read_order(
             return _unfileable(text, f"You cannot reach {name} that way.", name)
     said = words(how.value) if how is not None else None
 
-    reply = transport.call(
-        Request(
-            call_class=CALL_CLASS,
-            model=AIDE_MODEL,
-            system=prompt_text(PROMPT),
-            prompt=orders_prompt(view, name or "", (said or "").lower(), text),
-            schema=cli_schema(ORDERS_SCHEMA),
+    try:
+        reply = transport.call(
+            Request(
+                call_class=CALL_CLASS,
+                model=AIDE_MODEL,
+                system=prompt_text(PROMPT) + (TREATY_PROMPT if written else ""),
+                prompt=orders_prompt(
+                    view, name or "", (said or "").lower(), text, clauses=reads_clauses
+                ),
+                schema=cli_schema(TREATY_SCHEMA if written else ORDERS_SCHEMA),
+            )
         )
-    )
+    except TransportError:
+        other = _fallback_parties(state, me, who) if written and agreement.on(state) else ()
+        if not other:
+            raise
+        return _treaty_reading(
+            state, view, seat, text, other, (), note=NO_CLAUSES, person=name, channel=said
+        )
     out = reply.output if isinstance(reply.output, dict) else {}
+    found = out.get("treaty")
+    if isinstance(found, dict) and found.get("parties"):
+        if not written:
+            return _unfileable(text, TO_THE_FORM, name, said)
+        try:
+            treaty = _Treaty.model_validate(
+                {k: v for k, v in found.items() if k in _Treaty.model_fields}
+            )
+        except ValidationError:
+            return _treaty_reading(
+                state,
+                view,
+                seat,
+                text,
+                _fallback_parties(state, me, who),
+                (),
+                note=NO_CLAUSES,
+                person=name,
+                channel=said,
+            )
+        if len(_asked(out.get("asks"))) > 0:
+            return _unfileable(text, agreement.ALONE, name, said)
+        return _treaty_reading(
+            state,
+            view,
+            seat,
+            text,
+            treaty.parties,
+            treaty.clauses if reads_clauses else (),
+            person=name,
+            channel=said,
+        )
+    if who is None:
+        return _unfileable(text, "Name who should act on it.")
     asks = [
         a if a.effect is not None or a.target is not None else a.model_copy(update={"target": who})
         for a in _asked(out.get("asks"))
     ]
     if not asks:
         return _unfileable(text, UNREADABLE, name, said)
+    if not written and any(_new_order(a) for a in asks):
+        return _unfileable(text, TO_THE_FORM, name, said)
     check = Option(label="order", asks=tuple(asks), to=who)
     if not _named_ok(view, check) or scan_text(state, seat, check.model_dump_json()):
         return _unfileable(text, UNREADABLE, name, said)
@@ -211,6 +463,22 @@ def file_order(
     part has no route."""
     if reading is None or not reading.asks:
         return Reply(reply=NOTHING, refused=True)
+    if reading.version:
+        state = load_state(store, campaign_id)
+        deal = reading.asks[0].effect
+        view = project(state, seat)
+        if not isinstance(deal, Deal):
+            return Reply(reply=CHANGED, refused=True)
+        again = _checked(
+            state, view, seat, deal.parties, tuple(c.model_dump(mode="json") for c in deal.clauses)
+        )
+        offer = _offer_of(state, view.me.embodies, deal)
+        if (
+            again != (deal.clauses, 0)
+            or offer.version != reading.version
+            or agreement.render_terms(state, offer) != reading.terms
+        ):
+            return Reply(reply=CHANGED, refused=True)
     try:
         commit_order(store, campaign_id, seat, reading.asks)
     except ValueError as exc:

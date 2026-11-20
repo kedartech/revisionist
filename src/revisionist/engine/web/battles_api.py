@@ -20,6 +20,7 @@ or still on its way, is a due matter at the open wake's close (``due``, register
 """
 
 from collections.abc import Collection, Mapping, Sequence
+from datetime import date
 from typing import TYPE_CHECKING, Any
 
 from revisionist.core.ids import EntityId, FeatureId, SeatId
@@ -124,12 +125,17 @@ def _decided(state: State, seat: SeatId, side: BattleSide, wake: int) -> bool:
     return side.decided_wake == wake or _sent(state, seat, side)
 
 
-def _rounds(state: State, view: View, b: Battle, seat: SeatId) -> list[BattleRoundLine]:
-    """Each round as the seat's own report of it gives it, oldest first."""
+def _rounds(
+    state: State, view: View, b: Battle, seat: SeatId, until: date | None = None
+) -> list[BattleRoundLine]:
+    """Each round as the seat's own report of it gives it, oldest first, up to ``until``
+    (an ended battle's last day: a later battle in the area has its own rounds)."""
     out: list[BattleRoundLine] = []
     today = view.in_world_date
     if today is None:
         return out
+    if until is not None:
+        today = min(today, until)
     for n in range((today - b.opened).days + 1):
         day = b.opened.fromordinal(b.opened.toordinal() + n)
         page = view.documents.get(battle.report_id(state, b, day, seat))
@@ -278,7 +284,7 @@ def _ended(state: State, seat: SeatId, view: View, e: "Ended", own: EntityId) ->
         return None
     mine, theirs = sides
     key, name = keys[b.area]
-    rounds = _rounds(state, view, b, seat)
+    rounds = _rounds(state, view, b, seat, e.ended)
     enemy = state.entities.get(theirs.nation)
     return BattleView(
         area=key,

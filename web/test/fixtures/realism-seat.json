@@ -4134,9 +4134,9 @@
     "runs": 300,
     "days": 14,
     "shares": {
-      "win": 77.3,
+      "win": 83.7,
       "stalemate": 0.0,
-      "loss": 22.7
+      "loss": 16.3
     },
     "own_lost": {
       "low": 0,
@@ -4146,9 +4146,9 @@
       "low": 1,
       "high": 3
     },
-    "taken": 77.3,
+    "taken": 83.7,
     "taken_days": 4,
-    "forced_back": 22.7,
+    "forced_back": 16.3,
     "back_to": "norra_hills",
     "by_strength": [
       {
@@ -4161,7 +4161,7 @@
       },
       {
         "strength": 5,
-        "win": 47.5
+        "win": 53.3
       }
     ],
     "reports": [
@@ -4237,9 +4237,9 @@
           "runs": 300,
           "days": 14,
           "shares": {
-            "win": 93.0,
+            "win": 91.7,
             "stalemate": 0.0,
-            "loss": 7.0
+            "loss": 8.3
           },
           "own_lost": {
             "low": 0,
@@ -4249,14 +4249,14 @@
             "low": 2,
             "high": 3
           },
-          "taken": 93.0,
+          "taken": 91.7,
           "taken_days": 4,
-          "forced_back": 7.0,
+          "forced_back": 8.3,
           "back_to": "norra_hills",
           "by_strength": [
             {
               "strength": 4,
-              "win": 93.0
+              "win": 91.7
             }
           ],
           "reports": []

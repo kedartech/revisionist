@@ -108,6 +108,9 @@ class Picture(NamedTuple):
     """A reported enemy air piece has the area within its kind's range."""
     enemy_ground: bool
     """The enemy defends ground its side holds (the defender's own-ground bonus)."""
+    enemy_supplied: bool
+    """True in every seat's picture: the reports say nothing of the enemy's supply. The
+    closing truth sets it from the enemy's pieces."""
     defence: int
     presses: bool
     lull: int
@@ -257,6 +260,7 @@ def _toward(state: State, view: View, seat: SeatId, f: Feature, area: EntityId) 
         enemy=seen,
         enemy_air=air,
         enemy_ground=enemy_ground,
+        enemy_supplied=True,  # [proposed] the reports say nothing of the enemy's supply
         defence=terrain["defence"],
         presses=True,
         lull=0,
@@ -314,8 +318,8 @@ def _in_battle(
         air=battle._air(state, mine.nation, where),
         supplied=battle._supplied(state, present),
     )
-    attacker_decision = decision if i == 0 else b.attacker.decision
-    presses = attacker_decision in (None, Decision.PRESS)
+    # The attacker's decision is engine only: a defender's odds take it as pressing.
+    presses = decision is Decision.PRESS if i == 0 else True
     today = view.in_world_date
     last = b.pressed_on or b.opened.fromordinal(b.opened.toordinal() - 1)
     lull = max(0, (today - last).days - 1) if today is not None and not presses else 0
@@ -327,6 +331,7 @@ def _in_battle(
         enemy=seen,
         enemy_air=air,
         enemy_ground=(not b.meeting and i == 0 and territory.holder(view, b.area) == theirs.nation),
+        enemy_supplied=True,  # [proposed] the reports say nothing of the enemy's supply
         defence=defence,
         presses=presses,
         lull=lull,
@@ -447,7 +452,7 @@ def spread(p: Picture, base: str, runs: int = ODDS_RUNS, days: int = ODDS_DAYS) 
             brought=total,
             own_ground=p.enemy_ground,
             air=p.enemy_air,
-            supplied=True,  # [proposed] the reports say nothing of the enemy's supply
+            supplied=p.enemy_supplied,
         )
         pair = (p.own, enemy) if i == 0 else (enemy, p.own)
         played = battle.simulate(
@@ -550,17 +555,21 @@ class Service:
                     self._cache.popitem(last=False)
             self._flying.pop(key, None)
 
+    def limit(self, who: tuple[str, str]) -> None:
+        """Count one request by the seat ``who``; ``LimitedError`` past its rate."""
+        with self._lock:
+            self._limit(who)
+
     def ask[R](self, key: str, who: tuple[str, str] | None, compute: Callable[[], R]) -> R:
         """The reply for ``key``: from the cache, from the computation in flight, or from
-        a new one. Raises ``LimitedError`` past the rate of the seat ``who`` (None: the
-        server's own asking, not limited) and ``BusyError`` when full."""
+        a new one. Raises ``LimitedError`` past the rate of the seat ``who`` (None: counted
+        already, or the server's own asking) and ``BusyError`` when full."""
         with self._lock:
             if who is not None:
                 self._limit(who)
-            found = self._cache.get(key)
-            if found is not None:
+            if key in self._cache:
                 self._cache.move_to_end(key)
-                return cast("R", found)
+                return cast("R", self._cache[key])
             flying = self._flying.get(key)
             if flying is None:
                 if len(self._flying) >= self.workers + self.queue:
@@ -605,6 +614,7 @@ def closing_pictures(then: State, seat: SeatId, area: EntityId) -> tuple[Picture
     enemy_at = battle._side_area(b, 1 - i)
     truth = seen._replace(
         enemy=_true_enemy(then, b, sides[1], enemy_at),
+        enemy_supplied=battle._supplied(then, battle._present(then, b, sides[1])),
         enemy_air=battle._air(then, sides[1].nation, enemy_at),
         reports=(),
     )
@@ -675,14 +685,16 @@ def ended(service: Service, state: State, seat: SeatId, log: Sequence[Event]) ->
 def reply(service: Service, state: State, seat: SeatId, body: Mapping[str, Any]) -> dict[str, Any]:
     """The ``odds`` action: the spread for the seat's request, or busy. Files nothing.
     Raises ``ValueError`` with the reason a request cannot be answered."""
+    try:
+        service.limit((str(state.campaign_id), str(seat)))
+    except LimitedError:
+        return {"reply": LIMITED, "refused": True, "busy": True}
     p = picture(state, seat, body)
     base = seed(state.campaign_id, wake_of(state), seat, p)
     try:
-        odds = service.ask(base, (str(state.campaign_id), str(seat)), lambda: spread(p, base))
+        odds = service.ask(base, None, lambda: spread(p, base))
     except BusyError:
         return {"reply": BUSY, "refused": True, "busy": True}
-    except LimitedError:
-        return {"reply": LIMITED, "refused": True, "busy": True}
     return {"reply": "The odds as your own picture has them.", "refused": False, "odds": odds}
 
 

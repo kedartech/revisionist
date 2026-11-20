@@ -16,11 +16,16 @@ from typing import Any
 
 import pytest
 
+from revisionist.core import events as ev
+from revisionist.core.fold import replay
 from revisionist.core.ids import SeatId
-from revisionist.core.realism import detect
-from revisionist.core.realism.battle import Fighter, SideIn
+from revisionist.core.realism import battle, detect
+from revisionist.core.realism.battle import Decision, Fighter, SideIn
+from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.detect import Confidence, Report, Source
+from revisionist.core.realism.document import BodyField, DocumentKind, DocumentTruth, DocumentView
 from revisionist.core.state import Rule, State, Wake
+from revisionist.core.visibility import private_to
 from revisionist.engine import odds
 from revisionist.engine.odds import BusyError, LimitedError, Service
 from revisionist.engine.store import load_state
@@ -635,6 +640,108 @@ def test_rule_9_measures_odds_and_room_latency_under_concurrent_requests(
         Path(out).write_text(json.dumps(figures, indent=2) + "\n")
     with capsys.disabled():
         print("\nodds measurement:", json.dumps(figures))
+
+
+# --- review findings ------------------------------------------------------------------------
+
+
+def test_fog_a_defenders_odds_do_not_read_the_attackers_decision(tmp_path: Path) -> None:
+    """The attacker's decision is engine only: Tomas, defending, gets the same reply
+    whether Norra has decided to press or to hold."""
+    g = game(tmp_path)
+    state = at_wake(g, 1)
+    sudland = detect.Picture(delivered={"r1": report(seen=walked(g))})
+    state = state.model_copy(
+        update={"rules": state.rules | {Rule.REPORTS}, "reports": {entity("sudland"): sudland}}
+    )
+    body = {"force": "sudland_levy", "battle": COAST, "decision": "hold"}
+    b = state.battles[entity(COAST)]
+    replies = []
+    for d in (Decision.PRESS, Decision.HOLD, Decision.WITHDRAW):
+        side = b.attacker.model_copy(update={"decision": d, "decided_wake": 1})
+        moved = state.model_copy(
+            update={"battles": {b.area: b.model_copy(update={"attacker": side})}}
+        )
+        replies.append(text(ask(moved, TOMAS, **body)))
+    assert replies[0] == replies[1] == replies[2]
+
+
+def test_an_ended_battles_rounds_stop_at_its_end(tmp_path: Path) -> None:
+    """A later round report for the same area (a battle fought there later) is not one
+    of the ended battle's rounds."""
+    g = fought_out(tmp_path)
+    (e,) = odds.ended(Service(), g.state, ILSE, g.log)
+    later = e.ended + timedelta(days=5)
+    doc_id = battle.report_id(g.state, e.battle, later, ILSE)
+    body = (BodyField(label="Our losses", value="2 steps"),)
+    g.add(
+        [
+            ev.DocumentIssued(
+                document=DocumentView(
+                    doc_id=doc_id,
+                    kind=DocumentKind.REPORT,
+                    author=entity("ilse"),
+                    issued=later,
+                    arrives=later,
+                    channel=ChannelKind.CABLE,
+                    title="Battle report",
+                    body=body,
+                    scope=private_to(ILSE),
+                ),
+                truth=DocumentTruth(doc_id=doc_id),
+            )
+        ]
+    )
+    state = g.state.model_copy(update={"in_world_date": later})
+    (b,) = rs.seat_realism(state, ILSE, set(), set(), None, ended_battles=[e])["battles"]
+    assert [r["on"] for r in b["rounds"]] == [
+        day(12).isoformat(),
+        day(13).isoformat(),
+        day(14).isoformat(),
+    ]
+
+
+def test_a_reply_of_none_is_kept_and_not_computed_again() -> None:
+    service = Service()
+    calls: list[int] = []
+
+    def nothing() -> None:
+        calls.append(1)
+
+    service.ask("k", None, nothing)
+    service.ask("k", None, nothing)
+    assert len(calls) == 1
+    service.close()
+
+
+def test_the_truth_takes_the_enemys_own_supply(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    g = fought_out(tmp_path)
+    sudland = {piece(g.state, "sudland_levy").feature_id}
+
+    def supplied(state: State, pieces: Any) -> bool:
+        return not {f.feature_id for f in pieces} & sudland
+
+    monkeypatch.setattr(battle, "_supplied", supplied)
+    seen_p, truth = odds.closing_pictures(replay(g.log[: _opened_at(g)]), ILSE, entity(COAST))
+    assert truth.enemy_supplied is False and seen_p.enemy_supplied is True
+
+
+def _opened_at(g: Logged) -> int:
+    return next(n for n, e in enumerate(g.log) if isinstance(e.payload, ev.BattleOpened)) + 1
+
+
+def test_the_rate_limit_is_checked_before_the_picture_is_built(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    service = Service(per_minute=1)
+    state = seen(start(tmp_path), report())
+    odds.reply(service, state, ILSE, {"force": "norra_levy", "to": COAST})
+    built: list[int] = []
+    monkeypatch.setattr(odds, "picture", lambda *a: built.append(1))
+    out = odds.reply(service, state, ILSE, {"force": "nobody", "to": COAST})
+    assert out["refused"] is True and out["reply"] == odds.LIMITED and built == []
 
 
 # --- the seat fixture ---------------------------------------------------------------------

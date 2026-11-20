@@ -18,6 +18,7 @@ from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.quantity import QuantityChange, ResolverKey
 from revisionist.core.realism.resolvers import (
+    intel,
     movement,
     opinion,
     production,
@@ -42,11 +43,15 @@ Change = (
     | ev.YieldChanged
     | ev.MandateIssued
     | ev.TradeSet
+    | ev.AgentSet
+    | ev.CodebreakingSet
+    | ev.BattleDecided
 )
 """A quantity's new value, a feature as it now stands, a war declared, a public news
 event, a fact asserted, a relationship as it now stands, a nation's pools as they now
-stand, a paper issued, part of a yield moved, a matter put on a seat's agenda, or a trade
-line cut or reopened."""
+stand, a paper issued, part of a yield moved, a matter put on a seat's agenda, a trade
+line cut or reopened, a nation's agent or codebreaking level set, or a battle decision
+taken by an order's posture."""
 OrderFn = Callable[[State, Order], tuple[Change, ...]]
 DayFn = Callable[[State, date], tuple[Change, ...]]
 
@@ -101,6 +106,7 @@ ON_ORDER: dict[ResolverKey, OrderFn] = {
     "war": war.resolve,
     "economy": production.economy_order,
     "trade": trade.resolve,
+    "intel": intel.resolve,
 }
 ON_DAY: dict[ResolverKey, DayFn] = {
     "votes": votes.on_day,
@@ -111,6 +117,7 @@ ON_DAY: dict[ResolverKey, DayFn] = {
     "war": war.on_day,
     "economy": production.economy_day,
     "trade": trade.on_day,
+    "intel": intel.on_day,
 }
 
 
@@ -168,7 +175,14 @@ def apply_changes(state: State, changes: tuple[Change, ...]) -> list[ev.Payload]
             out.append(ev.RelationshipSet(relationship=c))
         elif isinstance(
             c,
-            ev.EconomySet | ev.DocumentIssued | ev.YieldChanged | ev.MandateIssued | ev.TradeSet,
+            ev.EconomySet
+            | ev.DocumentIssued
+            | ev.YieldChanged
+            | ev.MandateIssued
+            | ev.TradeSet
+            | ev.AgentSet
+            | ev.CodebreakingSet
+            | ev.BattleDecided,
         ):
             out.append(c)
         else:

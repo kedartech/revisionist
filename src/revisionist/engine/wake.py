@@ -14,7 +14,7 @@ from revisionist.core import record
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId, EntityId, EventId, OrderId, SeatId, derived_id
 from revisionist.core.ontology import Controller, Phase
-from revisionist.core.realism import battle
+from revisionist.core.realism import battle, detect
 from revisionist.core.realism.agenda import STANDING_DEFAULT, Ask
 from revisionist.core.realism.effect import IRREVERSIBLE, Deal
 from revisionist.core.state import State, controller_after, seat_of_person
@@ -215,6 +215,7 @@ def _allowed(state: State, seat: SeatId, order: tuple[Ask, ...]) -> tuple[Ask, .
         if a.effect.kind in IRREVERSIBLE and a.effect.kind not in standing:
             continue
         kept = battle.aide_may(state, a.effect)
+        kept = None if kept is None else detect.aide_may(kept)
         if kept is not None:
             out.append(a if kept is a.effect else a.model_copy(update={"effect": kept}))
     return tuple(out)

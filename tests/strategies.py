@@ -63,10 +63,12 @@ from revisionist.core.realism import agenda as ra
 from revisionist.core.realism import answer as rans
 from revisionist.core.realism import battle as rb
 from revisionist.core.realism import card as rc
+from revisionist.core.realism import detect as rdet
 from revisionist.core.realism import document as rd
 from revisionist.core.realism import economy as econ
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism import geography as rg
+from revisionist.core.realism import groups as rgrp
 from revisionist.core.realism import holders as rh
 from revisionist.core.realism import kinds as rk
 from revisionist.core.realism import pipeline as rp
@@ -709,6 +711,7 @@ def features(draw: st.DrawFn) -> rg.Feature:
     moving = force and draw(st.booleans())
     stepping = moving and draw(st.booleans())
     as_of = draw(in_world_dates)
+    recon = draw(st.none() | entity_ids) if force else None
     return rg.Feature(
         feature_id=draw(feature_ids),
         kind=kind,
@@ -729,6 +732,10 @@ def features(draw: st.DrawFn) -> rg.Feature:
         step_due=as_of if stepping else None,
         lost_on=draw(st.none() | in_world_dates) if kind is rg.FeatureKind.PIECE else None,
         contingency=draw(st.none() | contingencies()) if kind is rg.FeatureKind.PIECE else None,
+        concealed=draw(st.booleans()) if force else False,
+        concealed_leg=stepping and draw(st.booleans()),
+        recon=recon,
+        recon_on=None if recon is None else draw(in_world_dates),
     )
 
 
@@ -821,6 +828,118 @@ def battles(draw: st.DrawFn) -> rb.Battle:
         meeting=meeting,
         second=second,
         attacker_in=draw(st.sampled_from([area, second])) if second is not None else None,
+    )
+
+
+@st.composite
+def home_groups(draw: st.DrawFn) -> rgrp.Group:
+    """A group at home (GRP): a bloc with its chamber and seats, or none."""
+    bloc = draw(st.booleans())
+    seats = draw(st.integers(1, 400))
+    votes = st.builds(rgrp.BlocVote, voting=st.just(seats), yeas=st.integers(0, seats))
+    return rgrp.Group(
+        key=draw(labels),
+        name=draw(labels),
+        kind=draw(labels),
+        start=draw(st.integers(0, 100)),
+        baseline=draw(st.integers(0, 100)),
+        chamber=draw(labels) if bloc else None,
+        seats=seats if bloc else None,
+        feeds=draw(
+            st.dictionaries(
+                st.sampled_from(list(rgrp.Feeds)), st.floats(0.1, 5, allow_nan=False), max_size=2
+            )
+        ),
+        moved_by=draw(
+            st.dictionaries(st.sampled_from(list(rgrp.Happening)), st.integers(-9, 9), max_size=2)
+        ),
+        votes=draw(st.dictionaries(labels, st.dictionaries(labels, votes, max_size=2), max_size=1))
+        if bloc
+        else {},
+        vote_default=draw(st.dictionaries(labels, votes, max_size=2)) if bloc else {},
+        stances=draw(
+            st.dictionaries(st.sampled_from(list(rx.ClauseKind)), st.integers(-3, 3), max_size=2)
+        )
+        if bloc
+        else {},
+    )
+
+
+@st.composite
+def nation_groups(draw: st.DrawFn) -> rgrp.NationGroups:
+    found = draw(st.lists(home_groups(), min_size=1, max_size=2, unique_by=lambda g: g.key))
+    return rgrp.NationGroups(nation=draw(entity_ids), groups=tuple(found))
+
+
+proposals = st.builds(
+    rgrp.Proposal,
+    seat=seat_ids,
+    polity=entity_ids,
+    group=labels,
+    change=st.integers(-9, 9),
+    text_hash=labels,
+    on=in_world_dates,
+)
+
+
+@st.composite
+def intelligences(draw: st.DrawFn) -> rdet.Intelligence:
+    """A nation's sources (DET): each source once, ranked from 1."""
+    kinds = draw(st.lists(st.sampled_from(list(rdet.Source)), max_size=3, unique=True))
+    level = draw(st.integers(0, 3))
+    return rdet.Intelligence(
+        nation=draw(entity_ids),
+        sources=tuple(
+            rdet.Informant(
+                source=k,
+                person=draw(entity_ids),
+                channel=draw(channels),
+                rank=n + 1,
+                skew=draw(st.integers(-5, 5)),
+            )
+            for n, k in enumerate(kinds)
+        ),
+        codebreaking=level,
+        agents=tuple(
+            draw(
+                st.lists(
+                    agents(),
+                    max_size=2,
+                )
+            )
+        ),
+        raised=tuple(draw(st.lists(in_world_dates, max_size=3 - level))),
+    )
+
+
+def agents() -> st.SearchStrategy[rdet.Agent]:
+    """An agent declared at the start, or placed and perhaps lost (IOR)."""
+    return st.builds(
+        rdet.Agent,
+        area=entity_ids,
+        until=st.none() | in_world_dates,
+        since=st.none() | in_world_dates,
+        lost=st.none() | in_world_dates,
+    )
+
+
+@st.composite
+def reports(draw: st.DrawFn) -> rdet.Report:
+    """A report (DET): an area with a strength range, or a region with none."""
+    seen = draw(st.dates(min_value=date(1, 1, 1), max_value=date(2025, 1, 1)))
+    lo = draw(st.integers(0, 5))
+    by_area = draw(st.booleans())
+    return rdet.Report(
+        key=draw(st.text(min_size=1, max_size=20)),
+        kind=draw(st.none() | st.text(min_size=1, max_size=20)),
+        strength=(lo, lo + draw(st.integers(0, 2))) if by_area else None,
+        area=draw(entity_ids) if by_area else None,
+        region=None if by_area else draw(st.text(min_size=1, max_size=20)),
+        seen=seen,
+        source=draw(st.sampled_from(list(rdet.Source))),
+        rank=draw(st.integers(0, 5)),
+        confidence=draw(st.sampled_from(list(rdet.Confidence))),
+        arrives=seen + timedelta(days=draw(st.integers(0, 5))),
     )
 
 
@@ -1022,6 +1141,31 @@ realism_payloads = st.one_of(
         on=in_world_dates,
     ),
     battle_decisions(),
+    st.builds(ev.IntelligenceDeclared, nations=st.lists(intelligences(), max_size=2).map(tuple)),
+    st.builds(
+        ev.GroupsDeclared,
+        nations=st.lists(nation_groups(), max_size=2, unique_by=lambda n: n.nation).map(tuple),
+    ),
+    st.builds(
+        ev.GroupMoved,
+        polity=entity_ids,
+        group=labels,
+        support=st.integers(0, 100),
+        change=st.integers(-100, 100),
+        cause=st.sampled_from(list(rgrp.Cause)),
+        used=st.integers(0, 6),
+        on=in_world_dates,
+    ),
+    st.builds(ev.GroupProposed, proposal=proposals),
+    st.builds(
+        ev.ReportMade,
+        nation=entity_ids,
+        piece=feature_ids,
+        report=reports(),
+        shift=st.none() | st.sampled_from(list(rdet.Shift)),
+    ),
+    st.builds(ev.AgentSet, nation=entity_ids, index=st.integers(0, 3), agent=agents()),
+    st.builds(ev.CodebreakingSet, nation=entity_ids, level=st.integers(1, 3), on=in_world_dates),
     st.builds(
         ev.BattleRound,
         area=entity_ids,
@@ -1207,9 +1351,15 @@ effects: st.SearchStrategy[rx.Effect] = st.one_of(
         zone=labels,
         rule=st.sampled_from(list(rx.Engagement)),
         contingency=st.none() | contingencies(),
+        concealed=st.none() | st.booleans(),
     ),
     st.builds(
-        rx.Allocate, recipient=entity_ids, what=labels, amount=st.integers(0, 10**9), unit=labels
+        rx.Allocate,
+        recipient=entity_ids,
+        what=labels,
+        amount=st.integers(0, 10**9),
+        unit=labels,
+        intel=st.none() | st.just(rx.IntelOrder.CODEBREAKING),
     ),
     st.builds(rx.Appointment, person=entity_ids, office=labels, appoint=st.booleans()),
     st.builds(
@@ -1219,6 +1369,16 @@ effects: st.SearchStrategy[rx.Effect] = st.one_of(
     ),
     st.builds(rx.MakeStatement, theme=labels, audience=st.none() | entity_ids),
     st.builds(rx.Investigate, target=entity_ids, question=labels),
+    st.builds(
+        rx.Investigate,
+        target=entity_ids,
+        question=labels,
+        intel=st.just(rx.IntelOrder.RECON),
+        flier=feature_ids,
+    ),
+    st.builds(
+        rx.Investigate, target=entity_ids, question=labels, intel=st.just(rx.IntelOrder.AGENT)
+    ),
     st.builds(
         rx.Deal,
         counterparty=entity_ids,

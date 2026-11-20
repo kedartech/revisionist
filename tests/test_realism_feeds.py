@@ -1,6 +1,7 @@
 """Feeds (unit A2): cadence, determinism, bias, arrival, and truth staying out of views."""
 
 from datetime import date, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -31,6 +32,9 @@ from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
 from revisionist.engine import realism_tick
 from revisionist.engine.store import MemoryStore, load_state
+from tests import test_adjacency_moves as adj
+from tests import test_detection as det
+from tests.test_web_sighted_in_area import scouts
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 CANARY = "CANARY-FEED-TRUTH-77aa"
@@ -265,3 +269,27 @@ def test_a_sighting_page_that_would_repeat_says_no_change_and_places_nothing() -
     assert page is not None
     assert [line.label for line in page.document.body] == [NO_CHANGE]
     assert page.truth.sightings == ()
+
+
+# --- RPD rule 6: with reports on, a feed page sights no enemy piece ----------------------
+
+
+def test_a_feed_page_sights_no_enemy_piece_in_a_game_with_reports(tmp_path: Path) -> None:
+    g = det.game(tmp_path, scouts("sudland_levy", "sudland_galleys", "norra_levy"))
+    (feed,) = g.state.feeds.values()
+    issued = issue(g.state, feed, adj.day(1), "seed")
+    assert issued is not None
+    sighted = [b.label for b in issued.document.body if b.sight is not None]
+    assert sighted == ["The Norra Levy"]
+    assert [s.feature_id for s in issued.truth.sightings] == [det.fid("norra_levy")]
+
+
+def test_a_feed_page_without_reports_still_sights_every_piece(tmp_path: Path) -> None:
+    def off(w: adj.World) -> None:
+        w["rules"] = ["territories"]
+
+    g = det.game(tmp_path, off, scouts("sudland_levy", "sudland_galleys", "norra_levy"))
+    (feed,) = g.state.feeds.values()
+    issued = issue(g.state, feed, adj.day(1), "seed")
+    assert issued is not None
+    assert len([b for b in issued.document.body if b.sight is not None]) == 3

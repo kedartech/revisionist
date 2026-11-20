@@ -15,6 +15,9 @@ Engine v2 adds three more. A seat sees its own routed orders, never the
 estimator's effects; its own play style; and only its own mandates. The shared
 wake is public: who has committed, never what.
 
+Detection adds one: a seat sees enemy pieces only as the reports that have reached its
+nation (``View.reports``); a pending report, and the piece a report is about, never.
+
 A development is the engine's until it fires: its window, chance, condition, effects
 and asks are not in a view before then, and a skipped one never is.
 """
@@ -24,8 +27,9 @@ from typing import Protocol
 
 from revisionist.core.ids import DocumentId, ScheduledEventId, SeatId
 from revisionist.core.ontology import ScheduledEvent, ScheduleSource, Seat
-from revisionist.core.realism import economy
+from revisionist.core.realism import detect, economy, groups
 from revisionist.core.realism.document import DocumentView
+from revisionist.core.realism.war import polity_of
 from revisionist.core.state import SeatFace, State, View
 from revisionist.core.visibility import Scope
 
@@ -89,6 +93,7 @@ def project(state: State, seat: SeatId) -> View:
         kinds=state.kinds,
         holders=dict(state.holders),
         economy=economy.seen_by(state, seat),
+        groups=groups.seen_by(state, seat),
         wake=state.wake,
         phase=state.phase,
         roster=dict(state.roster),
@@ -115,4 +120,5 @@ def project(state: State, seat: SeatId) -> View:
         },
         routed={k: o.view() for k, o in state.routed.items() if o.issuer == seat},
         style=state.styles.get(seat),
+        reports=detect.seen_by(state, polity_of(state, me.embodies)),
     )

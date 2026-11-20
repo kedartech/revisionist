@@ -147,8 +147,23 @@ class SetEngagement(Model):
     contingency: Contingency | None = None
     """With ``battles`` on: the force's contingency for a battle (BDC). None leaves it as
     it was; an order that only sets a contingency passes the force's current rule."""
+    concealed: bool | None = None
+    """With ``reports`` on: True conceals the force, False lifts it (IOR). None leaves it
+    as it was."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"contingency"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"contingency", "concealed"})
+
+
+class IntelOrder(StrEnum):
+    """The intelligence orders an existing effect kind carries (IOR). A patrol is the
+    patrol posture and a concealment the engagement's ``concealed``; neither is here."""
+
+    RECON = "recon"
+    """An investigate: a reconnaissance flight by ``piece`` over ``target``, an area."""
+    AGENT = "agent"
+    """An investigate: an agent placed in ``target``, an area."""
+    CODEBREAKING = "codebreaking"
+    """An allocate: codebreaking funded from the issuer's output pool."""
 
 
 class Allocate(Model):
@@ -159,6 +174,16 @@ class Allocate(Model):
     what: Label
     amount: int = Field(ge=0)
     unit: Label
+    intel: IntelOrder | None = None
+    """With ``reports`` on: ``codebreaking`` funds the issuer's codebreaking (IOR)."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"intel"})
+
+    @model_validator(mode="after")
+    def _intel(self) -> "Allocate":
+        if self.intel not in (None, IntelOrder.CODEBREAKING):
+            raise ValueError(f"an allocate funds codebreaking, not {self.intel}")
+        return self
 
 
 class Appointment(Model):
@@ -209,6 +234,21 @@ class Investigate(Model):
     kind: Literal["investigate"] = "investigate"
     target: EntityId
     question: Label
+    intel: IntelOrder | None = None
+    """With ``reports`` on: ``recon`` flies ``flier`` over the area ``target``; ``agent``
+    places an agent there (IOR). None: an inquiry, as before."""
+    flier: FeatureId | None = None
+    """A reconnaissance flight's own air piece. None for every other investigate."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"intel", "flier"})
+
+    @model_validator(mode="after")
+    def _intel(self) -> "Investigate":
+        if self.intel is IntelOrder.CODEBREAKING:
+            raise ValueError("codebreaking is funded by an allocate, not an investigate")
+        if (self.intel is IntelOrder.RECON) != (self.flier is not None):
+            raise ValueError("a recon flight, and only a recon flight, names its flier")
+        return self
 
 
 class Deal(Model):
@@ -464,6 +504,7 @@ __all__ = [
     "EstimatedEffect",
     "Fidelity",
     "FidelityInputs",
+    "IntelOrder",
     "Investigate",
     "MakeStatement",
     "MoveFigure",

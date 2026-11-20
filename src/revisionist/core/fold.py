@@ -14,7 +14,7 @@ replay can never produce an invalid object.
 import hashlib
 import json
 from collections.abc import Iterable, Mapping
-from datetime import date
+from datetime import date, timedelta
 
 from pydantic import ValidationError
 
@@ -40,7 +40,7 @@ from revisionist.core.ontology import (
     SeatKind,
     SeatStatus,
 )
-from revisionist.core.realism import economy, trade
+from revisionist.core.realism import detect, economy, groups, trade
 from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, PlayStyle, opening_id
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
@@ -103,6 +103,50 @@ def _need[K, V](items: Mapping[K, V], key: K, what: str) -> V:
 def _fresh[K, V](items: Mapping[K, V], key: K, what: str) -> None:
     if key in items:
         raise FoldError(f"duplicate {what} {key!r}")
+
+
+def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
+    if not groups.on(state):
+        raise FoldError("groups_declared needs the groups rule")
+    if state.groups.declared:
+        raise FoldError("groups are declared once")
+    found: dict[EntityId, tuple[groups.Group, ...]] = {}
+    for nation in p.nations:
+        _fresh(found, nation.nation, "groups of nation")
+        if _need(state.entities, nation.nation, "entity").kind is not EntityKind.POLITY:
+            raise FoldError(f"groups_declared: {nation.nation} is not a polity")
+        found[nation.nation] = nation.groups
+    return state.model_copy(update={"groups": state.groups.model_copy(update={"declared": found})})
+
+
+def _group_moved(state: State, p: ev.GroupMoved) -> State:
+    """A group's support set; for writing, the points spent kept for the week cap and the
+    writing settled taken out of waiting."""
+    if not groups.on(state):
+        raise FoldError("group_moved needs the groups rule")
+    was = groups.support(state, p.polity, p.group)
+    if was is None:
+        raise FoldError(f"group_moved: {p.polity} has no group {p.group}")
+    if p.support - was != p.change:
+        raise FoldError(f"group_moved: {p.group} at {was} does not move by {p.change}")
+    g = state.groups
+    held = _put(g.support.get(p.polity, {}), p.group, p.support)
+    update: dict[str, object] = {"support": _put(g.support, p.polity, held)}
+    if p.cause is groups.Cause.WRITING:
+        first = p.on - timedelta(days=groups.WEEK_DAYS - 1)
+        kept = [s for s in g.spent.get(p.polity, {}).get(p.group, ()) if s.on >= first]
+        if p.used:
+            kept.append(groups.Spent(on=p.on, points=p.used))
+        spent = _put(g.spent.get(p.polity, {}), p.group, tuple(kept))
+        update["spent"] = _put(g.spent, p.polity, spent)
+        update["proposed"] = tuple(
+            q
+            for q in g.proposed
+            if not (q.polity == p.polity and q.group == p.group and q.on <= p.on)
+        )
+    elif p.used:
+        raise FoldError("group_moved: only writing spends points")
+    return state.model_copy(update={"groups": g.model_copy(update=update)})
 
 
 def _clamp(value: int, lo: int, hi: int) -> int:
@@ -425,6 +469,13 @@ def _mutate(state: State, event: Event) -> State:
             | ev.BattleRound()
             | ev.BattleEnded()
             | ev.BattleDecided()
+            | ev.IntelligenceDeclared()
+            | ev.ReportMade()
+            | ev.AgentSet()
+            | ev.CodebreakingSet()
+            | ev.GroupsDeclared()
+            | ev.GroupMoved()
+            | ev.GroupProposed()
             | ev.NewsReported()
             | ev.StanceChanged()
             | ev.OpponentsRanked()
@@ -823,6 +874,63 @@ def _realism(state: State, p: ev.Payload) -> State:
                         raise FoldError(f"piece kind {k.key}: carries unknown kind {lifted}")
             kinds = Kinds(pieces=pieces, resources=resources)
             return state.model_copy(update={"kinds": kinds})
+        case ev.IntelligenceDeclared():
+            if Rule.REPORTS not in state.rules:
+                raise FoldError("intelligence_declared needs the reports rule")
+            if state.intelligence:
+                raise FoldError("intelligence is declared once")
+            found: dict[EntityId, detect.Intelligence] = {}
+            for intel in p.nations:
+                _fresh(found, intel.nation, "intelligence")
+                for entity in [intel.nation, *(s.person for s in intel.sources)]:
+                    _need(state.entities, entity, "entity")
+                for agent in intel.agents:
+                    _need(state.entities, agent.area, "entity")
+                found[intel.nation] = intel
+            return state.model_copy(update={"intelligence": found})
+        case ev.ReportMade():
+            if Rule.REPORTS not in state.rules:
+                raise FoldError("report_made needs the reports rule")
+            _need(state.entities, p.nation, "entity")
+            _need(state.features, p.piece, "feature")
+            picture = detect.made(state.reports.get(p.nation, detect.Picture()), p.report)
+            return state.model_copy(update={"reports": _put(state.reports, p.nation, picture)})
+        case ev.AgentSet():
+            if Rule.REPORTS not in state.rules:
+                raise FoldError("agent_set needs the reports rule")
+            _need(state.entities, p.agent.area, "entity")
+            intel = state.intelligence.get(p.nation) or detect.Intelligence(nation=p.nation)
+            agents = list(intel.agents)
+            if p.index > len(agents):
+                raise FoldError(f"agent_set: {p.nation} has no agent {p.index - 1}")
+            agents[p.index : p.index + 1] = [p.agent]
+            intel = intel.model_copy(update={"agents": tuple(agents)})
+            return state.model_copy(
+                update={"intelligence": _put(state.intelligence, p.nation, intel)}
+            )
+        case ev.CodebreakingSet():
+            if Rule.REPORTS not in state.rules:
+                raise FoldError("codebreaking_set needs the reports rule")
+            intel = state.intelligence.get(p.nation) or detect.Intelligence(nation=p.nation)
+            if p.level != intel.codebreaking + len(intel.raised) + 1:
+                raise FoldError(f"codebreaking_set: {p.nation} is not raised to {p.level}")
+            intel = intel.model_copy(update={"raised": (*intel.raised, p.on)})
+            return state.model_copy(
+                update={"intelligence": _put(state.intelligence, p.nation, intel)}
+            )
+        case ev.GroupsDeclared():
+            return _groups_declared(state, p)
+        case ev.GroupMoved():
+            return _group_moved(state, p)
+        case ev.GroupProposed():
+            wrote = p.proposal
+            if not groups.on(state):
+                raise FoldError("group_proposed needs the groups rule")
+            _need(state.seats, wrote.seat, "seat")
+            if groups.group(state, wrote.polity, wrote.group) is None:
+                raise FoldError(f"group_proposed: {wrote.polity} has no group {wrote.group}")
+            g = state.groups.model_copy(update={"proposed": (*state.groups.proposed, wrote)})
+            return state.model_copy(update={"groups": g})
         case ev.NewsReported():
             _fresh(state.news, p.news.news_id, "news")
             return state.model_copy(update={"news": _put(state.news, p.news.news_id, p.news)})
@@ -1084,6 +1192,9 @@ def _engine_v2(state: State, p: ev.Payload) -> State:
             if p.seat_id in w.committed:
                 raise FoldError(f"seat {p.seat_id} has already committed in wake {p.wake}")
             w = w.model_copy(update={"committed": w.committed | {p.seat_id}})
+            if Rule.REPORTS in state.rules and p.aide_orders:
+                aided = state.aide_orders | frozenset(p.aide_orders)
+                return state.model_copy(update={"wake": w, "aide_orders": aided})
             return state.model_copy(update={"wake": w})
         case ev.WakeClosed():
             w = _open_wake(state, p.wake)

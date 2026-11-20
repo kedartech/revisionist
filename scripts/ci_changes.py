@@ -4,11 +4,13 @@
 prints them, and prints ``python=`` and ``web=`` (each ``true`` or ``false``) for
 ``$GITHUB_OUTPUT``. The Python tests are skipped only when every path is one no Python
 test reads; any other path, including one this file does not know, runs them. The real
-browser test runs when any path is under ``web/``, and on an empty change set.
+browser test is skipped only when every path is documentation (under ``docs/``, or a
+Markdown file at the top of the repo): world data, engine code and CI files all change
+what the room serves, so they run it as a path under ``web/`` does.
 
 ``gate`` reads the needed jobs' results from the environment and fails unless each
 passed, or the pytest shards were skipped because ``decide`` said no Python changed,
-or the browser job was skipped because ``decide`` said nothing under ``web/`` changed.
+or the browser job was skipped because ``decide`` said only documentation changed.
 
 Standard library only: CI runs it before the project's environment exists.
 """
@@ -25,13 +27,15 @@ SKIPPABLE_PREFIXES = ("docs/", "web/")
 READ_BY_TESTS = ("web/test/fixtures/", "web/assets/portraits/", "web/test/e2e/serve_canned.py")
 
 
+def documentation(path: str) -> bool:
+    """Under ``docs/``, or a Markdown file at the top of the repo (README.md, CONTRIBUTING.md)."""
+    return path.startswith("docs/") or ("/" not in path and path.endswith(".md"))
+
+
 def skippable(path: str) -> bool:
     if path.startswith(READ_BY_TESTS):
         return False
-    if path.startswith(SKIPPABLE_PREFIXES):
-        return True
-    # A Markdown file at the top of the repo (README.md, CONTRIBUTING.md).
-    return "/" not in path and path.endswith(".md")
+    return path.startswith(SKIPPABLE_PREFIXES) or documentation(path)
 
 
 def needs_python(paths: Iterable[str]) -> bool:
@@ -41,9 +45,9 @@ def needs_python(paths: Iterable[str]) -> bool:
 
 
 def needs_browser(paths: Iterable[str]) -> bool:
-    """True when there is no path at all or any path is under ``web/``."""
+    """True unless there is at least one path and every path is documentation."""
     changed = [p.strip() for p in paths if p.strip()]
-    return not changed or any(p.startswith("web/") for p in changed)
+    return not changed or not all(documentation(p) for p in changed)
 
 
 def gate(results: Mapping[str, str]) -> list[str]:

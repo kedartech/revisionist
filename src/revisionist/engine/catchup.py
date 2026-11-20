@@ -141,6 +141,20 @@ NEVER: frozenset[str] = frozenset(
         # A side's decision and the pieces that join it (BDC): the decision is the seat's
         # own order, already fed; a join carries the true strength brought.
         "battle_decided",
+        # Detection (DET): engine only. A report names the true piece and whether it is
+        # wrong; the seat gets it as a line of its source's page and in its own reports.
+        "intelligence_declared",
+        "report_made",
+        # Intelligence orders (IOR): engine only. Where a nation has agents and its
+        # codebreaking level; the holder learns of a caught agent from its paper.
+        "agent_set",
+        "codebreaking_set",
+        # Groups at home (GRP): true support. A seat reads its own nation's groups from its
+        # own data and others' from the press; the declaration and the writing in waiting
+        # are engine only.
+        "groups_declared",
+        "group_moved",
+        "group_proposed",
         "scheduled_event_created",
         "scheduled_event_skipped",
         # Costs, ticks and admin.

@@ -117,6 +117,12 @@ def test_a_battle_decision_is_never_fed() -> None:
     assert "battle_decided" in catchup.NEVER
 
 
+def test_a_groups_true_support_is_never_fed() -> None:
+    # GRP: a seat reads its own nation's groups from its own data, others' from the press;
+    # the declaration and the writing in waiting are engine only.
+    assert {"groups_declared", "group_moved", "group_proposed"} <= catchup.NEVER
+
+
 # --- The fog path ------------------------------------------------------------------
 
 

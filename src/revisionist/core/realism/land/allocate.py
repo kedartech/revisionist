@@ -1,12 +1,14 @@
 """Landing an Allocate effect in the world: a quantity moves between polities, and the
-recipient's receipt is always recorded as a private fact."""
+recipient's receipt is always recorded as a private fact. An allocate that funds
+codebreaking spends from the issuer's own pools instead (IOR)."""
 
 from datetime import date
 
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, FactId, SeatId, derived_id
 from revisionist.core.ontology import Fact
-from revisionist.core.realism.effect import Allocate
+from revisionist.core.realism import detect
+from revisionist.core.realism.effect import Allocate, IntelOrder
 from revisionist.core.realism.pass_world import PassWorld
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.war import polity_of
@@ -17,8 +19,13 @@ def land(
     world: PassWorld, effect: Allocate, issuer_seat: SeatId, issuer: EntityId, on: date
 ) -> tuple[list[ev.Payload], list[FactId]]:
     """Move what the issuer's polity holds of ``what`` to the recipient's polity, up to the
-    amount, and record the receipt. A pair of distinct quantities is needed to move anything."""
+    amount, and record the receipt. A pair of distinct quantities is needed to move anything.
+    Funding codebreaking lands its rule instead; ``detect.IntelError`` when the rules
+    refuse it."""
     state = world.state
+    if effect.intel is IntelOrder.CODEBREAKING:
+        nation = polity_of(state, issuer) or issuer
+        return list(detect.fund_codebreaking(state, nation, on)), []
     payloads: list[ev.Payload] = []
     giver = _held(world, polity_of(state, issuer), effect.what)
     taker = _held(world, polity_of(state, effect.recipient), effect.what)

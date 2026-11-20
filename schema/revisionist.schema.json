@@ -95,6 +95,59 @@
         "title": "AdminRead",
         "type": "object"
       },
+      "Agent": {
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "lost": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lost"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Until"
+          }
+        },
+        "required": [
+          "area"
+        ],
+        "title": "Agent",
+        "type": "object"
+      },
       "AgentAssigned": {
         "additionalProperties": false,
         "properties": {
@@ -122,6 +175,37 @@
           "persona"
         ],
         "title": "AgentAssigned",
+        "type": "object"
+      },
+      "AgentSet": {
+        "additionalProperties": false,
+        "description": "A nation's agent placed (``index`` one past its last) or lost (IOR). Engine only:\nit says where the nation has an agent; the holder of an area where one is lost learns\nof it from its paper.",
+        "properties": {
+          "agent": {
+            "$ref": "#/$defs/Agent"
+          },
+          "index": {
+            "minimum": 0,
+            "title": "Index",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "agent_set",
+            "default": "agent_set",
+            "title": "Kind",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nation",
+          "index",
+          "agent"
+        ],
+        "title": "AgentSet",
         "type": "object"
       },
       "AllOf": {
@@ -207,6 +291,17 @@
             "minimum": 0,
             "title": "Amount",
             "type": "integer"
+          },
+          "intel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IntelOrder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "kind": {
             "const": "allocate",
@@ -1601,6 +1696,28 @@
         "title": "Bias",
         "type": "object"
       },
+      "BlocVote": {
+        "additionalProperties": false,
+        "description": "A bloc's part of one chamber vote: its members voting and the yeas among them.",
+        "properties": {
+          "voting": {
+            "minimum": 0,
+            "title": "Voting",
+            "type": "integer"
+          },
+          "yeas": {
+            "minimum": 0,
+            "title": "Yeas",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "voting",
+          "yeas"
+        ],
+        "title": "BlocVote",
+        "type": "object"
+      },
       "BodyField": {
         "additionalProperties": false,
         "description": "One structured line of a document: what the author claims, never the truth.",
@@ -1996,6 +2113,24 @@
         },
         "title": "CardsDeclared",
         "type": "object"
+      },
+      "Cause": {
+        "description": "Why support moved: a happening, writing, or the Monday drift.",
+        "enum": [
+          "battle_won",
+          "battle_lost",
+          "territory_taken",
+          "territory_lost",
+          "capital_threatened",
+          "losses_at_sea",
+          "agreement_broken",
+          "measure_passed",
+          "war_declared",
+          "writing",
+          "drift"
+        ],
+        "title": "Cause",
+        "type": "string"
       },
       "ChannelKind": {
         "description": "How words travel. Each trades speed against exposure (direction, channels table).",
@@ -2578,6 +2713,40 @@
         "title": "ClockStatusSet",
         "type": "object"
       },
+      "CodebreakingSet": {
+        "additionalProperties": false,
+        "description": "A nation's codebreaking level raised by one, from ``on`` (IOR). Engine only.",
+        "properties": {
+          "kind": {
+            "const": "codebreaking_set",
+            "default": "codebreaking_set",
+            "title": "Kind",
+            "type": "string"
+          },
+          "level": {
+            "maximum": 3,
+            "minimum": 1,
+            "title": "Level",
+            "type": "integer"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nation",
+          "level",
+          "on"
+        ],
+        "title": "CodebreakingSet",
+        "type": "object"
+      },
       "Commitment": {
         "additionalProperties": false,
         "description": "A treaty, contract or deal. Promises in chat are not Commitments.",
@@ -2763,6 +2932,15 @@
         ],
         "title": "CommitmentStatusSet",
         "type": "object"
+      },
+      "Confidence": {
+        "enum": [
+          "A",
+          "B",
+          "C"
+        ],
+        "title": "Confidence",
+        "type": "string"
       },
       "Conflict": {
         "additionalProperties": false,
@@ -4671,6 +4849,16 @@
             "default": null,
             "title": "Bound For"
           },
+          "concealed": {
+            "default": false,
+            "title": "Concealed",
+            "type": "boolean"
+          },
+          "concealed_leg": {
+            "default": false,
+            "title": "Concealed Leg",
+            "type": "boolean"
+          },
           "contingency": {
             "anyOf": [
               {
@@ -4803,6 +4991,31 @@
               }
             ],
             "default": null
+          },
+          "recon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Recon"
+          },
+          "recon_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Recon On"
           },
           "rejoined_on": {
             "anyOf": [
@@ -4982,6 +5195,18 @@
         ],
         "title": "Feed",
         "type": "object"
+      },
+      "Feeds": {
+        "description": "What a group's support feeds.",
+        "enum": [
+          "votes",
+          "standing",
+          "manpower",
+          "output",
+          "opinion"
+        ],
+        "title": "Feeds",
+        "type": "string"
       },
       "Fidelity": {
         "description": "How an executor carried out a command (spec \u00a78.2).",
@@ -5349,6 +5574,244 @@
         "title": "GoalUndone",
         "type": "object"
       },
+      "Group": {
+        "additionalProperties": false,
+        "description": "A group at home as the world declares it. True: a view holds its own nation's.",
+        "properties": {
+          "baseline": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Baseline",
+            "type": "integer"
+          },
+          "chamber": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Chamber"
+          },
+          "feeds": {
+            "additionalProperties": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Feeds"
+            },
+            "title": "Feeds",
+            "type": "object"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "maxLength": 60,
+            "title": "Kind",
+            "type": "string"
+          },
+          "moved_by": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Happening"
+            },
+            "title": "Moved By",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "seats": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seats"
+          },
+          "stances": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/revisionist__core__realism__effect__ClauseKind"
+            },
+            "title": "Stances",
+            "type": "object"
+          },
+          "start": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Start",
+            "type": "integer"
+          },
+          "vote_default": {
+            "additionalProperties": {
+              "$ref": "#/$defs/BlocVote"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Vote Default",
+            "type": "object"
+          },
+          "votes": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/$defs/BlocVote"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Votes",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "kind",
+          "start",
+          "baseline"
+        ],
+        "title": "Group",
+        "type": "object"
+      },
+      "GroupMoved": {
+        "additionalProperties": false,
+        "description": "A nation's group's support moved (GRP): to ``support``, by ``change`` after the\nclamp to 0 to 100, for ``cause``, on world day ``on``. ``used``: the writing points\nthe day's batch spent toward the week cap (absolute, never restored); 0 for any other\ncause. Sealed to the nation's seats: true support.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/Cause"
+          },
+          "change": {
+            "title": "Change",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "kind": {
+            "const": "group_moved",
+            "default": "group_moved",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "support": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Support",
+            "type": "integer"
+          },
+          "used": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Used",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "polity",
+          "group",
+          "support",
+          "change",
+          "cause",
+          "on"
+        ],
+        "title": "GroupMoved",
+        "type": "object"
+      },
+      "GroupProposed": {
+        "additionalProperties": false,
+        "description": "Writing by a seat proposing to move a group, waiting for its day's batch (GRP).\nEngine only: the batch, not the filing, decides what moves.",
+        "properties": {
+          "kind": {
+            "const": "group_proposed",
+            "default": "group_proposed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "proposal": {
+            "$ref": "#/$defs/Proposal"
+          }
+        },
+        "required": [
+          "proposal"
+        ],
+        "title": "GroupProposed",
+        "type": "object"
+      },
+      "GroupsDeclared": {
+        "additionalProperties": false,
+        "description": "Each nation's groups at home as the world declares them (GRP), by nation, in the\nworld file's order. Engine only: a seat reads its own nation's groups from its own\ndata; once, at creation.",
+        "properties": {
+          "kind": {
+            "const": "groups_declared",
+            "default": "groups_declared",
+            "title": "Kind",
+            "type": "string"
+          },
+          "nations": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/NationGroups"
+            },
+            "title": "Nations",
+            "type": "array"
+          }
+        },
+        "title": "GroupsDeclared",
+        "type": "object"
+      },
+      "Happening": {
+        "description": "The fixed list of happenings a group may be moved by (rule 3).",
+        "enum": [
+          "battle_won",
+          "battle_lost",
+          "territory_taken",
+          "territory_lost",
+          "capital_threatened",
+          "losses_at_sea",
+          "agreement_broken",
+          "measure_passed",
+          "war_declared"
+        ],
+        "title": "Happening",
+        "type": "string"
+      },
       "HeldChoice": {
         "additionalProperties": false,
         "description": "What the holder of a step on another seat's order chose there. Kept for the\nholder alone until the step's held due day, when the runner takes the step with it\nin the card's place.",
@@ -5464,6 +5927,121 @@
           "accepted"
         ],
         "title": "InfluenceDecided",
+        "type": "object"
+      },
+      "Informant": {
+        "additionalProperties": false,
+        "description": "The person who reports one source for a nation, the channel, and the source's rank\n(its place in the world's list, from 1, the first highest). Contact no one is named\nfor reports with rank 0, above every listed source.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ChannelKind"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "rank": {
+            "minimum": 1,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "skew": {
+            "default": 0,
+            "maximum": 5,
+            "minimum": -5,
+            "title": "Skew",
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/$defs/Source"
+          }
+        },
+        "required": [
+          "source",
+          "person",
+          "channel",
+          "rank"
+        ],
+        "title": "Informant",
+        "type": "object"
+      },
+      "IntelOrder": {
+        "description": "The intelligence orders an existing effect kind carries (IOR). A patrol is the\npatrol posture and a concealment the engagement's ``concealed``; neither is here.",
+        "enum": [
+          "recon",
+          "agent",
+          "codebreaking"
+        ],
+        "title": "IntelOrder",
+        "type": "string"
+      },
+      "Intelligence": {
+        "additionalProperties": false,
+        "description": "A nation's sources as declared at the start.",
+        "properties": {
+          "agents": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Agent"
+            },
+            "title": "Agents",
+            "type": "array"
+          },
+          "codebreaking": {
+            "default": 0,
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Codebreaking",
+            "type": "integer"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "raised": {
+            "default": [],
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Raised",
+            "type": "array"
+          },
+          "sources": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Informant"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "nation"
+        ],
+        "title": "Intelligence",
+        "type": "object"
+      },
+      "IntelligenceDeclared": {
+        "additionalProperties": false,
+        "description": "Each nation's sources as the world declares them (DET): who reports each source and\nby what channel, the codebreaking level, and the agents by area. Engine only; once, at\ncreation.",
+        "properties": {
+          "kind": {
+            "const": "intelligence_declared",
+            "default": "intelligence_declared",
+            "title": "Kind",
+            "type": "string"
+          },
+          "nations": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Intelligence"
+            },
+            "title": "Nations",
+            "type": "array"
+          }
+        },
+        "title": "IntelligenceDeclared",
         "type": "object"
       },
       "Intent": {
@@ -5637,6 +6215,29 @@
       "Investigate": {
         "additionalProperties": false,
         "properties": {
+          "flier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Flier"
+          },
+          "intel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IntelOrder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "kind": {
             "const": "investigate",
             "default": "investigate",
@@ -5819,7 +6420,8 @@
               "movement",
               "war",
               "economy",
-              "trade"
+              "trade",
+              "intel"
             ],
             "title": "Resolver",
             "type": "string"
@@ -6494,6 +7096,30 @@
           "text"
         ],
         "title": "NarrationWritten",
+        "type": "object"
+      },
+      "NationGroups": {
+        "additionalProperties": false,
+        "description": "One nation's groups at home, in the world file's order.",
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/$defs/Group"
+            },
+            "minItems": 1,
+            "title": "Groups",
+            "type": "array"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nation",
+          "groups"
+        ],
+        "title": "NationGroups",
         "type": "object"
       },
       "NewsEvent": {
@@ -7585,6 +8211,49 @@
         "title": "Posture",
         "type": "string"
       },
+      "Proposal": {
+        "additionalProperties": false,
+        "description": "One seat's writing proposing to move a group (rule 2). Engine only: it carries a\nhash of the text, never the text, and no filing time.",
+        "properties": {
+          "change": {
+            "title": "Change",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "string"
+          },
+          "text_hash": {
+            "maxLength": 60,
+            "title": "Text Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seat",
+          "polity",
+          "group",
+          "change",
+          "text_hash",
+          "on"
+        ],
+        "title": "Proposal",
+        "type": "object"
+      },
       "ProposeMeasure": {
         "additionalProperties": false,
         "description": "A bill, treaty or declaration, as a set of clauses.",
@@ -7954,6 +8623,151 @@
           "relationship_id"
         ],
         "title": "RelationshipTagSet",
+        "type": "object"
+      },
+      "Report": {
+        "additionalProperties": false,
+        "description": "What a nation believes about one enemy piece, from one source on one day.",
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Area"
+          },
+          "arrives": {
+            "format": "date",
+            "title": "Arrives",
+            "type": "string"
+          },
+          "confidence": {
+            "$ref": "#/$defs/Confidence"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Kind"
+          },
+          "rank": {
+            "minimum": 0,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Region"
+          },
+          "seen": {
+            "format": "date",
+            "title": "Seen",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/$defs/Source"
+          },
+          "strength": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Strength"
+          }
+        },
+        "required": [
+          "key",
+          "seen",
+          "source",
+          "rank",
+          "confidence",
+          "arrives"
+        ],
+        "title": "Report",
+        "type": "object"
+      },
+      "ReportMade": {
+        "additionalProperties": false,
+        "description": "A nation's source reported an enemy piece (DET). Engine only: it names the true\npiece and records whether the report is wrong (``shift``); a seat gets the report in\nits view once it arrives, and as a line of its source's page.",
+        "properties": {
+          "kind": {
+            "const": "report_made",
+            "default": "report_made",
+            "title": "Kind",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "piece": {
+            "title": "Piece",
+            "type": "string"
+          },
+          "report": {
+            "$ref": "#/$defs/Report"
+          },
+          "shift": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Shift"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "nation",
+          "piece",
+          "report"
+        ],
+        "title": "ReportMade",
         "type": "object"
       },
       "RequestAnswered": {
@@ -9460,6 +10274,18 @@
       "SetEngagement": {
         "additionalProperties": false,
         "properties": {
+          "concealed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Concealed"
+          },
           "contingency": {
             "anyOf": [
               {
@@ -9671,6 +10497,15 @@
         "title": "SettingsSet",
         "type": "object"
       },
+      "Shift": {
+        "description": "How a wrong report is wrong. Engine only: never in a report or a view.",
+        "enum": [
+          "strength",
+          "area"
+        ],
+        "title": "Shift",
+        "type": "string"
+      },
       "ShiftDisposition": {
         "additionalProperties": false,
         "description": "How ``of`` regards ``toward``. Feeds resolvers; never sets a quantity.",
@@ -9761,6 +10596,17 @@
         ],
         "title": "SightRef",
         "type": "object"
+      },
+      "Source": {
+        "enum": [
+          "contact",
+          "air",
+          "patrol",
+          "codebreaking",
+          "agent"
+        ],
+        "title": "Source",
+        "type": "string"
       },
       "Stance": {
         "description": "Worst first, so the order of the members is the order of the stances.",
@@ -11265,6 +12111,7 @@
           "mapping": {
             "admin_read": "#/$defs/AdminRead",
             "agent_assigned": "#/$defs/AgentAssigned",
+            "agent_set": "#/$defs/AgentSet",
             "answer_made": "#/$defs/AnswerMade",
             "answer_planned": "#/$defs/AnswerPlanned",
             "area_held": "#/$defs/AreaHeld",
@@ -11283,6 +12130,7 @@
             "character_released": "#/$defs/CharacterReleased",
             "clarification_asked": "#/$defs/ClarificationAsked",
             "clock_created": "#/$defs/ClockCreated",
+            "codebreaking_set": "#/$defs/CodebreakingSet",
             "commitment_created": "#/$defs/CommitmentCreated",
             "contest_created": "#/$defs/ContestCreated",
             "contest_decided": "#/$defs/ContestDecided",
@@ -11312,7 +12160,11 @@
             "goal_proposed": "#/$defs/GoalProposed",
             "goal_set": "#/$defs/GoalSet",
             "goal_undone": "#/$defs/GoalUndone",
+            "group_moved": "#/$defs/GroupMoved",
+            "group_proposed": "#/$defs/GroupProposed",
+            "groups_declared": "#/$defs/GroupsDeclared",
             "influence_decided": "#/$defs/InfluenceDecided",
+            "intelligence_declared": "#/$defs/IntelligenceDeclared",
             "intent_filed": "#/$defs/IntentFiled",
             "intent_rejected": "#/$defs/IntentRejected",
             "kinds_declared": "#/$defs/KindsDeclared",
@@ -11336,6 +12188,7 @@
             "play_style_set": "#/$defs/PlayStyleSet",
             "quantity_set": "#/$defs/QuantitySet",
             "relationship_set": "#/$defs/RelationshipSet",
+            "report_made": "#/$defs/ReportMade",
             "request_answered": "#/$defs/RequestAnswered",
             "rolled": "#/$defs/Rolled",
             "scheduled_event_created": "#/$defs/ScheduledEventCreated",
@@ -11592,6 +12445,27 @@
             "$ref": "#/$defs/BattleDecided"
           },
           {
+            "$ref": "#/$defs/IntelligenceDeclared"
+          },
+          {
+            "$ref": "#/$defs/ReportMade"
+          },
+          {
+            "$ref": "#/$defs/AgentSet"
+          },
+          {
+            "$ref": "#/$defs/CodebreakingSet"
+          },
+          {
+            "$ref": "#/$defs/GroupsDeclared"
+          },
+          {
+            "$ref": "#/$defs/GroupMoved"
+          },
+          {
+            "$ref": "#/$defs/GroupProposed"
+          },
+          {
             "$ref": "#/$defs/NewsReported"
           },
           {
@@ -11770,6 +12644,59 @@
         "title": "ActOf",
         "type": "object"
       },
+      "Agent": {
+        "additionalProperties": false,
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "lost": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lost"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Until"
+          }
+        },
+        "required": [
+          "area"
+        ],
+        "title": "Agent",
+        "type": "object"
+      },
       "AllOf": {
         "additionalProperties": false,
         "properties": {
@@ -11853,6 +12780,17 @@
             "minimum": 0,
             "title": "Amount",
             "type": "integer"
+          },
+          "intel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IntelOrder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "kind": {
             "const": "allocate",
@@ -12688,6 +13626,28 @@
         "title": "Bias",
         "type": "object"
       },
+      "BlocVote": {
+        "additionalProperties": false,
+        "description": "A bloc's part of one chamber vote: its members voting and the yeas among them.",
+        "properties": {
+          "voting": {
+            "minimum": 0,
+            "title": "Voting",
+            "type": "integer"
+          },
+          "yeas": {
+            "minimum": 0,
+            "title": "Yeas",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "voting",
+          "yeas"
+        ],
+        "title": "BlocVote",
+        "type": "object"
+      },
       "BodyField": {
         "additionalProperties": false,
         "description": "One structured line of a document: what the author claims, never the truth.",
@@ -13111,6 +14071,15 @@
           "withdrawn"
         ],
         "title": "CommitmentStatus",
+        "type": "string"
+      },
+      "Confidence": {
+        "enum": [
+          "A",
+          "B",
+          "C"
+        ],
+        "title": "Confidence",
         "type": "string"
       },
       "Conflict": {
@@ -13966,6 +14935,16 @@
             "default": null,
             "title": "Bound For"
           },
+          "concealed": {
+            "default": false,
+            "title": "Concealed",
+            "type": "boolean"
+          },
+          "concealed_leg": {
+            "default": false,
+            "title": "Concealed Leg",
+            "type": "boolean"
+          },
           "contingency": {
             "anyOf": [
               {
@@ -14098,6 +15077,31 @@
               }
             ],
             "default": null
+          },
+          "recon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Recon"
+          },
+          "recon_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Recon On"
           },
           "rejoined_on": {
             "anyOf": [
@@ -14258,6 +15262,18 @@
         "title": "Feed",
         "type": "object"
       },
+      "Feeds": {
+        "description": "What a group's support feeds.",
+        "enum": [
+          "votes",
+          "standing",
+          "manpower",
+          "output",
+          "opinion"
+        ],
+        "title": "Feeds",
+        "type": "string"
+      },
       "Fidelity": {
         "description": "How an executor carried out a command (spec \u00a78.2).",
         "enum": [
@@ -14400,6 +15416,204 @@
         "title": "GoalKind",
         "type": "string"
       },
+      "Group": {
+        "additionalProperties": false,
+        "description": "A group at home as the world declares it. True: a view holds its own nation's.",
+        "properties": {
+          "baseline": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Baseline",
+            "type": "integer"
+          },
+          "chamber": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Chamber"
+          },
+          "feeds": {
+            "additionalProperties": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Feeds"
+            },
+            "title": "Feeds",
+            "type": "object"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "maxLength": 60,
+            "title": "Kind",
+            "type": "string"
+          },
+          "moved_by": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Happening"
+            },
+            "title": "Moved By",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "seats": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seats"
+          },
+          "stances": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/revisionist__core__realism__effect__ClauseKind"
+            },
+            "title": "Stances",
+            "type": "object"
+          },
+          "start": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Start",
+            "type": "integer"
+          },
+          "vote_default": {
+            "additionalProperties": {
+              "$ref": "#/$defs/BlocVote"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Vote Default",
+            "type": "object"
+          },
+          "votes": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/$defs/BlocVote"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Votes",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "kind",
+          "start",
+          "baseline"
+        ],
+        "title": "Group",
+        "type": "object"
+      },
+      "Groups": {
+        "additionalProperties": false,
+        "description": "Groups' truth. A seat sees its own nation's part only.",
+        "properties": {
+          "declared": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/$defs/Group"
+              },
+              "type": "array"
+            },
+            "title": "Declared",
+            "type": "object"
+          },
+          "proposed": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Proposal"
+            },
+            "title": "Proposed",
+            "type": "array"
+          },
+          "spent": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "items": {
+                  "$ref": "#/$defs/Spent"
+                },
+                "type": "array"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "title": "Spent",
+            "type": "object"
+          },
+          "support": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "title": "Support",
+            "type": "object"
+          }
+        },
+        "title": "Groups",
+        "type": "object"
+      },
+      "Happening": {
+        "description": "The fixed list of happenings a group may be moved by (rule 3).",
+        "enum": [
+          "battle_won",
+          "battle_lost",
+          "territory_taken",
+          "territory_lost",
+          "capital_threatened",
+          "losses_at_sea",
+          "agreement_broken",
+          "measure_passed",
+          "war_declared"
+        ],
+        "title": "Happening",
+        "type": "string"
+      },
       "HeldChoice": {
         "additionalProperties": false,
         "description": "What the holder of a step on another seat's order chose there. Kept for the\nholder alone until the step's held due day, when the runner takes the step with it\nin the card's place.",
@@ -14504,6 +15718,99 @@
         ],
         "title": "Inertia",
         "type": "string"
+      },
+      "Informant": {
+        "additionalProperties": false,
+        "description": "The person who reports one source for a nation, the channel, and the source's rank\n(its place in the world's list, from 1, the first highest). Contact no one is named\nfor reports with rank 0, above every listed source.",
+        "properties": {
+          "channel": {
+            "$ref": "#/$defs/ChannelKind"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "rank": {
+            "minimum": 1,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "skew": {
+            "default": 0,
+            "maximum": 5,
+            "minimum": -5,
+            "title": "Skew",
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/$defs/Source"
+          }
+        },
+        "required": [
+          "source",
+          "person",
+          "channel",
+          "rank"
+        ],
+        "title": "Informant",
+        "type": "object"
+      },
+      "IntelOrder": {
+        "description": "The intelligence orders an existing effect kind carries (IOR). A patrol is the\npatrol posture and a concealment the engagement's ``concealed``; neither is here.",
+        "enum": [
+          "recon",
+          "agent",
+          "codebreaking"
+        ],
+        "title": "IntelOrder",
+        "type": "string"
+      },
+      "Intelligence": {
+        "additionalProperties": false,
+        "description": "A nation's sources as declared at the start.",
+        "properties": {
+          "agents": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Agent"
+            },
+            "title": "Agents",
+            "type": "array"
+          },
+          "codebreaking": {
+            "default": 0,
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Codebreaking",
+            "type": "integer"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "raised": {
+            "default": [],
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Raised",
+            "type": "array"
+          },
+          "sources": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Informant"
+            },
+            "title": "Sources",
+            "type": "array"
+          }
+        },
+        "required": [
+          "nation"
+        ],
+        "title": "Intelligence",
+        "type": "object"
       },
       "Intent": {
         "additionalProperties": false,
@@ -14615,6 +15922,29 @@
       "Investigate": {
         "additionalProperties": false,
         "properties": {
+          "flier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Flier"
+          },
+          "intel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IntelOrder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "kind": {
             "const": "investigate",
             "default": "investigate",
@@ -14749,7 +16079,8 @@
               "movement",
               "war",
               "economy",
-              "trade"
+              "trade",
+              "intel"
             ],
             "title": "Resolver",
             "type": "string"
@@ -15661,6 +16992,32 @@
         "title": "Phase",
         "type": "string"
       },
+      "Picture": {
+        "additionalProperties": false,
+        "description": "A nation's reports: the delivered one per enemy piece, by key, and those made but\nnot yet arrived.",
+        "properties": {
+          "delivered": {
+            "additionalProperties": {
+              "$ref": "#/$defs/Report"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Delivered",
+            "type": "object"
+          },
+          "pending": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Report"
+            },
+            "title": "Pending",
+            "type": "array"
+          }
+        },
+        "title": "Picture",
+        "type": "object"
+      },
       "PieceKind": {
         "additionalProperties": false,
         "description": "One kind of piece the world names.",
@@ -15856,6 +17213,49 @@
         ],
         "title": "Posture",
         "type": "string"
+      },
+      "Proposal": {
+        "additionalProperties": false,
+        "description": "One seat's writing proposing to move a group (rule 2). Engine only: it carries a\nhash of the text, never the text, and no filing time.",
+        "properties": {
+          "change": {
+            "title": "Change",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "string"
+          },
+          "text_hash": {
+            "maxLength": 60,
+            "title": "Text Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seat",
+          "polity",
+          "group",
+          "change",
+          "text_hash",
+          "on"
+        ],
+        "title": "Proposal",
+        "type": "object"
       },
       "ProposeMeasure": {
         "additionalProperties": false,
@@ -16108,6 +17508,110 @@
           "scope"
         ],
         "title": "Relationship",
+        "type": "object"
+      },
+      "Report": {
+        "additionalProperties": false,
+        "description": "What a nation believes about one enemy piece, from one source on one day.",
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Area"
+          },
+          "arrives": {
+            "format": "date",
+            "title": "Arrives",
+            "type": "string"
+          },
+          "confidence": {
+            "$ref": "#/$defs/Confidence"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Kind"
+          },
+          "rank": {
+            "minimum": 0,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Region"
+          },
+          "seen": {
+            "format": "date",
+            "title": "Seen",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/$defs/Source"
+          },
+          "strength": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Strength"
+          }
+        },
+        "required": [
+          "key",
+          "seen",
+          "source",
+          "rank",
+          "confidence",
+          "arrives"
+        ],
+        "title": "Report",
         "type": "object"
       },
       "Resource": {
@@ -17199,6 +18703,18 @@
       "SetEngagement": {
         "additionalProperties": false,
         "properties": {
+          "concealed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Concealed"
+          },
           "contingency": {
             "anyOf": [
               {
@@ -17480,6 +18996,39 @@
           "places"
         ],
         "title": "SightRef",
+        "type": "object"
+      },
+      "Source": {
+        "enum": [
+          "contact",
+          "air",
+          "patrol",
+          "codebreaking",
+          "agent"
+        ],
+        "title": "Source",
+        "type": "string"
+      },
+      "Spent": {
+        "additionalProperties": false,
+        "description": "Writing points a group's batch used on a day, toward the week cap.",
+        "properties": {
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "points": {
+            "minimum": 0,
+            "title": "Points",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "on",
+          "points"
+        ],
+        "title": "Spent",
         "type": "object"
       },
       "Stance": {
@@ -18448,6 +19997,15 @@
     "additionalProperties": false,
     "description": "The full truth. Only the referee and the resolver ever hold one.",
     "properties": {
+      "aide_orders": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "title": "Aide Orders",
+        "type": "array",
+        "uniqueItems": true
+      },
       "answers": {
         "additionalProperties": {
           "additionalProperties": {
@@ -18579,6 +20137,9 @@
         "title": "Goals",
         "type": "object"
       },
+      "groups": {
+        "$ref": "#/$defs/Groups"
+      },
       "handovers": {
         "additionalProperties": {
           "$ref": "#/$defs/Controller"
@@ -18605,6 +20166,13 @@
         ],
         "default": null,
         "title": "In World Date"
+      },
+      "intelligence": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Intelligence"
+        },
+        "title": "Intelligence",
+        "type": "object"
       },
       "kinds": {
         "anyOf": [
@@ -18711,6 +20279,13 @@
           "$ref": "#/$defs/Relationship"
         },
         "title": "Relationships",
+        "type": "object"
+      },
+      "reports": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Picture"
+        },
+        "title": "Reports",
         "type": "object"
       },
       "roster": {
@@ -19012,6 +20587,17 @@
             "title": "Amount",
             "type": "integer"
           },
+          "intel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IntelOrder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "kind": {
             "const": "allocate",
             "default": "allocate",
@@ -19299,6 +20885,28 @@
         ],
         "title": "Betrayal",
         "type": "string"
+      },
+      "BlocVote": {
+        "additionalProperties": false,
+        "description": "A bloc's part of one chamber vote: its members voting and the yeas among them.",
+        "properties": {
+          "voting": {
+            "minimum": 0,
+            "title": "Voting",
+            "type": "integer"
+          },
+          "yeas": {
+            "minimum": 0,
+            "title": "Yeas",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "voting",
+          "yeas"
+        ],
+        "title": "BlocVote",
+        "type": "object"
       },
       "BodyField": {
         "additionalProperties": false,
@@ -19708,6 +21316,15 @@
           "withdrawn"
         ],
         "title": "CommitmentStatus",
+        "type": "string"
+      },
+      "Confidence": {
+        "enum": [
+          "A",
+          "B",
+          "C"
+        ],
+        "title": "Confidence",
         "type": "string"
       },
       "Contact": {
@@ -20562,6 +22179,18 @@
         "title": "FeatureKind",
         "type": "string"
       },
+      "Feeds": {
+        "description": "What a group's support feeds.",
+        "enum": [
+          "votes",
+          "standing",
+          "manpower",
+          "output",
+          "opinion"
+        ],
+        "title": "Feeds",
+        "type": "string"
+      },
       "Fidelity": {
         "description": "How an executor carried out a command (spec \u00a78.2).",
         "enum": [
@@ -20704,6 +22333,204 @@
         "title": "GoalKind",
         "type": "string"
       },
+      "Group": {
+        "additionalProperties": false,
+        "description": "A group at home as the world declares it. True: a view holds its own nation's.",
+        "properties": {
+          "baseline": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Baseline",
+            "type": "integer"
+          },
+          "chamber": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Chamber"
+          },
+          "feeds": {
+            "additionalProperties": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Feeds"
+            },
+            "title": "Feeds",
+            "type": "object"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "maxLength": 60,
+            "title": "Kind",
+            "type": "string"
+          },
+          "moved_by": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Happening"
+            },
+            "title": "Moved By",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "seats": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seats"
+          },
+          "stances": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/revisionist__core__realism__effect__ClauseKind"
+            },
+            "title": "Stances",
+            "type": "object"
+          },
+          "start": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Start",
+            "type": "integer"
+          },
+          "vote_default": {
+            "additionalProperties": {
+              "$ref": "#/$defs/BlocVote"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Vote Default",
+            "type": "object"
+          },
+          "votes": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/$defs/BlocVote"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Votes",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "kind",
+          "start",
+          "baseline"
+        ],
+        "title": "Group",
+        "type": "object"
+      },
+      "Groups": {
+        "additionalProperties": false,
+        "description": "Groups' truth. A seat sees its own nation's part only.",
+        "properties": {
+          "declared": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/$defs/Group"
+              },
+              "type": "array"
+            },
+            "title": "Declared",
+            "type": "object"
+          },
+          "proposed": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Proposal"
+            },
+            "title": "Proposed",
+            "type": "array"
+          },
+          "spent": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "items": {
+                  "$ref": "#/$defs/Spent"
+                },
+                "type": "array"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "title": "Spent",
+            "type": "object"
+          },
+          "support": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "integer"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "title": "Support",
+            "type": "object"
+          }
+        },
+        "title": "Groups",
+        "type": "object"
+      },
+      "Happening": {
+        "description": "The fixed list of happenings a group may be moved by (rule 3).",
+        "enum": [
+          "battle_won",
+          "battle_lost",
+          "territory_taken",
+          "territory_lost",
+          "capital_threatened",
+          "losses_at_sea",
+          "agreement_broken",
+          "measure_passed",
+          "war_declared"
+        ],
+        "title": "Happening",
+        "type": "string"
+      },
       "HeldChoice": {
         "additionalProperties": false,
         "description": "What the holder of a step on another seat's order chose there. Kept for the\nholder alone until the step's held due day, when the runner takes the step with it\nin the card's place.",
@@ -20807,6 +22634,16 @@
           "strong"
         ],
         "title": "Inertia",
+        "type": "string"
+      },
+      "IntelOrder": {
+        "description": "The intelligence orders an existing effect kind carries (IOR). A patrol is the\npatrol posture and a concealment the engagement's ``concealed``; neither is here.",
+        "enum": [
+          "recon",
+          "agent",
+          "codebreaking"
+        ],
+        "title": "IntelOrder",
         "type": "string"
       },
       "Intent": {
@@ -20919,6 +22756,29 @@
       "Investigate": {
         "additionalProperties": false,
         "properties": {
+          "flier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Flier"
+          },
+          "intel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IntelOrder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "kind": {
             "const": "investigate",
             "default": "investigate",
@@ -21015,7 +22875,8 @@
               "movement",
               "war",
               "economy",
-              "trade"
+              "trade",
+              "intel"
             ],
             "title": "Resolver",
             "type": "string"
@@ -22072,6 +23933,49 @@
         "title": "Posture",
         "type": "string"
       },
+      "Proposal": {
+        "additionalProperties": false,
+        "description": "One seat's writing proposing to move a group (rule 2). Engine only: it carries a\nhash of the text, never the text, and no filing time.",
+        "properties": {
+          "change": {
+            "title": "Change",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "string"
+          },
+          "text_hash": {
+            "maxLength": 60,
+            "title": "Text Hash",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seat",
+          "polity",
+          "group",
+          "change",
+          "text_hash",
+          "on"
+        ],
+        "title": "Proposal",
+        "type": "object"
+      },
       "ProposeMeasure": {
         "additionalProperties": false,
         "description": "A bill, treaty or declaration, as a set of clauses.",
@@ -22323,6 +24227,110 @@
           "scope"
         ],
         "title": "Relationship",
+        "type": "object"
+      },
+      "Report": {
+        "additionalProperties": false,
+        "description": "What a nation believes about one enemy piece, from one source on one day.",
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Area"
+          },
+          "arrives": {
+            "format": "date",
+            "title": "Arrives",
+            "type": "string"
+          },
+          "confidence": {
+            "$ref": "#/$defs/Confidence"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Kind"
+          },
+          "rank": {
+            "minimum": 0,
+            "title": "Rank",
+            "type": "integer"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Region"
+          },
+          "seen": {
+            "format": "date",
+            "title": "Seen",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/$defs/Source"
+          },
+          "strength": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Strength"
+          }
+        },
+        "required": [
+          "key",
+          "seen",
+          "source",
+          "rank",
+          "confidence",
+          "arrives"
+        ],
+        "title": "Report",
         "type": "object"
       },
       "Resource": {
@@ -22908,6 +24916,18 @@
       "SetEngagement": {
         "additionalProperties": false,
         "properties": {
+          "concealed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Concealed"
+          },
           "contingency": {
             "anyOf": [
               {
@@ -23166,6 +25186,39 @@
           "places"
         ],
         "title": "Sight",
+        "type": "object"
+      },
+      "Source": {
+        "enum": [
+          "contact",
+          "air",
+          "patrol",
+          "codebreaking",
+          "agent"
+        ],
+        "title": "Source",
+        "type": "string"
+      },
+      "Spent": {
+        "additionalProperties": false,
+        "description": "Writing points a group's batch used on a day, toward the week cap.",
+        "properties": {
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "points": {
+            "minimum": 0,
+            "title": "Points",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "on",
+          "points"
+        ],
+        "title": "Spent",
         "type": "object"
       },
       "StepAction": {
@@ -23918,6 +25971,9 @@
         "title": "Goals",
         "type": "object"
       },
+      "groups": {
+        "$ref": "#/$defs/Groups"
+      },
       "holders": {
         "additionalProperties": {
           "$ref": "#/$defs/Holding"
@@ -24008,6 +26064,16 @@
           "$ref": "#/$defs/Relationship"
         },
         "title": "Relationships",
+        "type": "object"
+      },
+      "reports": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Report"
+        },
+        "propertyNames": {
+          "maxLength": 60
+        },
+        "title": "Reports",
         "type": "object"
       },
       "roster": {

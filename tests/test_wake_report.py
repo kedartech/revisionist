@@ -14,11 +14,13 @@ from revisionist.core import events as ev
 from revisionist.core.events import Event
 from revisionist.core.fold import replay
 from revisionist.core.ids import FeatureId
-from revisionist.core.realism import economy
+from revisionist.core.realism import detect, economy
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism.agenda import Ask
 from revisionist.engine import catchup, options, wake, wake_report
 from revisionist.engine.store import MemoryStore, SqliteStore, StoreError
+from tests import test_adjacency_moves as adj
+from tests import test_detection as det
 from tests import test_economy as te
 from tests.test_adjacency_moves import day, entity
 from tests.test_engine_v2_wake import CAMPAIGN, T0, Table
@@ -437,3 +439,66 @@ def test_a_game_without_battles_prints_no_battle_lines(tmp_path: Path) -> None:
     report = wake_report.build(territory_log(tmp_path))
     assert report.fighting == ()
     assert not any("battles:" in line for line in wake_report.render(report))
+
+
+# --- RPD rule 5: per wake, the reports made by source and the share that were wrong ----
+
+
+def _careless(w: adj.World) -> None:
+    for c in w["cards"]:
+        c["competence"] = 0
+
+
+def wake_log(tmp: Path) -> tuple[adj.Logged, list[list[ev.ReportMade]]]:
+    """Wake 0 walks days 1 to 30, wake 1 days 31 to 60; wake 2 opens. Careless Ilse
+    reports contact and air for Norra."""
+    g = det.game(tmp, det.intelligence(det.norra_sees("contact", "air")), _careless)
+    at = T0
+    per: list[list[ev.ReportMade]] = []
+    g.add([ev.WakeOpened(wake=0, deadline=at + 12 * HOUR, opened_at=at)])
+    for n, (first, last) in enumerate(((1, 30), (31, 60))):
+        per.append(det.made(g.walk(day(first), day(last))))
+        at += 12 * HOUR
+        g.add(
+            [
+                ev.WakeClosed(wake=n, how="deadline"),
+                ev.WakeOpened(wake=n + 1, deadline=at + 12 * HOUR, opened_at=at),
+            ]
+        )
+    return g, per
+
+
+def test_the_wake_report_counts_each_wakes_reports_by_source_and_the_wrong_share(
+    tmp_path: Path,
+) -> None:
+    g, per = wake_log(tmp_path)
+    report = wake_report.build(g.log)
+    want = []
+    for n, out in enumerate(per):
+        by = {s: sum(1 for m in out if m.report.source is s) for s in detect.Source}
+        wrong = sum(1 for m in out if m.shift is not None)
+        want.append((n, tuple((s.value, k) for s, k in by.items() if k), wrong))
+    want.append((2, (), 0))
+    assert [(w.number, w.by_source, w.wrong) for w in report.intelligence] == want
+    assert sum(w for _, _, w in want) > 0  # careless people do get some wrong
+
+
+def test_the_report_lines_follow_each_wake(tmp_path: Path) -> None:
+    g, per = wake_log(tmp_path)
+    out = wake_report.render(wake_report.build(g.log))
+    first = per[0]
+    by = {s: sum(1 for m in first if m.report.source is s) for s in detect.Source}
+    wrong = sum(1 for m in first if m.shift is not None)
+    total = len(first)
+    counts = ", ".join(f"{s.value} {k}" for s, k in by.items() if k)
+    at = out.index("  wake 0: deadline")
+    assert out[at + 1] == (
+        f"    reports: {counts}; {wrong} of {total} wrong ({100 * wrong / total:.0f}%)"
+    )
+    assert out[out.index("  wake 2: open") + 1] == "    reports: none"
+
+
+def test_a_game_without_reports_prints_no_report_lines(tmp_path: Path) -> None:
+    report = wake_report.build(territory_log(tmp_path))
+    assert report.intelligence == ()
+    assert not any("reports:" in line for line in wake_report.render(report))

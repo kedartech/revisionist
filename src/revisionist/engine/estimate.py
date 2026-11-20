@@ -23,7 +23,7 @@ from revisionist.core.canary import scan_text
 from revisionist.core.events import CallCost, Event
 from revisionist.core.fold import FoldError, _check_effect
 from revisionist.core.ids import EntityId, OrderId, QuantityId
-from revisionist.core.realism import battle
+from revisionist.core.realism import battle, detect
 from revisionist.core.realism.apply import account_by
 from revisionist.core.realism.effect import (
     DISPOSITION_CAP,
@@ -212,6 +212,14 @@ def clamp(
             if kept_ is not effect:
                 dropped.append(f"{effect.kind}: the aide's press, withdrawal or contingency")
                 effect = kept_
+        if aide:  # IOR rule 7: the aide places no agent, funds nothing, conceals nothing
+            spy = detect.aide_may(effect)
+            if spy is None:
+                dropped.append(f"{effect.kind}: the aide places no agent and funds nothing")
+                continue
+            if spy is not effect:
+                dropped.append(f"{effect.kind}: the aide conceals nothing")
+                effect = spy
         try:
             # The fold's own guard, so nothing lands that the fold would refuse.
             _check_effect(state, effect, f"order {order.order_id}", on)

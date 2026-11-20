@@ -104,13 +104,16 @@ def viewing_nation(view: View) -> EntityId:
 
 
 def protect_marks(out: SeatMap, view: View) -> None:
-    """MAC each outgoing mark once, after raw keys have joined marks and own pieces."""
+    """MAC each outgoing mark once, after raw keys have joined marks and own pieces; and
+    each report's key the same way (RPD)."""
     nation = viewing_nation(view)
     for mark in out["marks"]:
         key = mark_key(view.campaign_id, nation, mark["key"])
         mark["key"] = key
         if mark["piece"] is not None:
             mark["piece"]["key"] = key
+    for report in out.get("reports", ()):
+        report["key"] = mark_key(view.campaign_id, nation, report["key"])
 
 
 def _areas(board: territory.WorldMap, held: Holdings) -> list[MapArea]:
@@ -134,6 +137,7 @@ def _areas(board: territory.WorldMap, held: Holdings) -> list[MapArea]:
             taken_from=held.taken_from(t.area),
             falling=held.falling(t.area),
             yields=dict(t.yields),
+            threatened_from=None,
         )
         for t in board.territories
     ]
@@ -150,19 +154,41 @@ def _areas(board: territory.WorldMap, held: Holdings) -> list[MapArea]:
             taken_from=None,
             falling=None,
             yields={},
+            threatened_from=None,
         )
         for z in board.sea_zones
     ]
     return land + sea
 
 
+def _threats(out: SeatMap, board: territory.WorldMap, state: State, view: View) -> None:
+    """Each land area the seat's nation holds names the reports whose area or ring takes
+    in it or an area next to it (RNG). Read from the reports already in ``out`` and the
+    public board and holders."""
+    nation = viewing_nation(view)
+    own = {t.key for t in board.territories if territory.holder(state, t.area) == nation}
+    touched = []
+    for r in out.get("reports", ()):
+        where = set(r["ring"] or ())
+        if r["area"] is not None:
+            where.add(r["area"]["key"])
+        touched.append((r["key"], where))
+    for area in out.get("areas", ()):
+        if area["key"] in own:
+            near = {area["key"], *area["neighbours"]}
+            area["threatened_from"] = sorted(k for k, where in touched if where & near)
+
+
 def add_board(out: SeatMap, state: State, view: View) -> SeatMap:
     """``out`` with the board's keys, in a territory game; else ``out`` as it is. The
-    holder keys are as ``view``'s seat sees them."""
+    holder keys are as ``view``'s seat sees them. With ``reports`` on (``out`` carries
+    them), each of the seat's own areas names the reports that threaten it."""
     board = state.map
     if board is None or not territory.on(state):
         return out
     out["areas"] = _areas(board, Holdings(state, view, view.me.seat_id))
+    if "reports" in out:
+        _threats(out, board, state, view)
     out["regions"] = [MapRegion(key=r.key, name=r.name, parent=r.parent) for r in board.regions]
     out["coords"] = board.coords
     out["box"] = list(board.box) if board.box is not None else None

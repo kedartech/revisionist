@@ -60,10 +60,12 @@ from revisionist.core.realism.agenda import Mandate, MandateTemplate, PlayStyle
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
 from revisionist.core.realism.card import CardFace, Desk, SeatCard, Topic
+from revisionist.core.realism.detect import Intelligence, Picture, Report
 from revisionist.core.realism.document import Document, DocumentView, Feed
 from revisionist.core.realism.economy import Economy
 from revisionist.core.realism.effect import EffectKind, RoutedOrder, RoutedOrderView
 from revisionist.core.realism.geography import Feature
+from revisionist.core.realism.groups import Groups
 from revisionist.core.realism.holders import Capture, Holding
 from revisionist.core.realism.kinds import Kinds
 from revisionist.core.realism.pipeline import Order, Pipeline
@@ -162,9 +164,15 @@ class _World(Model):
     yields were moved (``yield_changed``) (YLD); with ``fuel`` on, each nation's fuel
     stock in its pools and each trade line (``trade_set``) (FUL). True figures: a view
     holds its own nation's part only, and the lines it is a party to."""
+    groups: Groups = Field(default_factory=Groups)
+    """With ``groups`` on, each nation's groups at home as the world declares them
+    (``groups_declared``), their support (``group_moved``) and the writing in waiting
+    (``group_proposed``) (GRP). True support: a view holds its own nation's groups only,
+    and never the writing in waiting."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
+            "groups",
             "goals",
             "phase",
             "roster",
@@ -259,9 +267,22 @@ class State(_World):
     """With ``battles`` on, every area a battle has opened in, both areas of a meeting,
     kept after it ends (``battle_opened``). Engine only: a scripted leg takes none of them
     (HSA)."""
+    intelligence: dict[EntityId, Intelligence] = Field(default_factory=dict)
+    """With ``reports`` on, each nation's sources as the world declares them, by nation
+    (``intelligence_declared``). Engine only (DET)."""
+    reports: dict[EntityId, Picture] = Field(default_factory=dict)
+    """With ``reports`` on, each nation's reports on enemy pieces, delivered and pending,
+    by nation (``report_made``). Engine only: a report links to the true piece (DET)."""
+    aide_orders: frozenset[OrderId] = frozenset()
+    """With ``reports`` on, every order an aide filed for an absent seat
+    (``wake_committed``), so the rules where an effect lands can hold the aide to its
+    limits (IOR). Engine only: how a seat is run is never shown."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "rules",
+        "intelligence",
+        "reports",
+        "aide_orders",
         "captures",
         "battles",
         "fought",
@@ -310,10 +331,14 @@ class View(_World):
     """The viewer's own engine-v2 orders, without the estimator's effects."""
     style: PlayStyle | None = None
     """The viewer's own play style. None: free."""
+    reports: dict[Label, Report] = Field(default_factory=dict)
+    """The reports on enemy pieces that have reached the viewer's nation, by the nation's
+    opaque key: the only enemy-piece data a view holds (DET)."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "routed",
         "style",
+        "reports",
         "cards",
         "desk",
         "documents",

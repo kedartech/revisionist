@@ -16,12 +16,13 @@ if TYPE_CHECKING:
     from revisionist.core.state import State
 
 ResolverKey = Literal[
-    "votes", "shipping", "production", "opinion", "movement", "war", "economy", "trade"
+    "votes", "shipping", "production", "opinion", "movement", "war", "economy", "trade", "intel"
 ]
 """The four resolvers the first scenario needs (plan, B3), and movement (Batch 6,
 Josh's word), and war (consequences), and economy (the war economy, YLD; its function is
 registered by a later item, and a world naming it before then is refused), and trade
-(opening and cutting a trade line, FUL; the same: its form's function comes later).
+(opening and cutting a trade line, FUL; the same: its form's function comes later), and
+intel (the intelligence orders, IOR; the same).
 Another needs his word."""
 
 RESOLVER_KEYS: tuple[ResolverKey, ...] = get_args(ResolverKey)

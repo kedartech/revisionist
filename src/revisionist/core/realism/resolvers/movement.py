@@ -58,7 +58,7 @@ from datetime import date, timedelta
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, FeatureId, QuantityId
 from revisionist.core.ontology import EntityKind
-from revisionist.core.realism import battle, economy, holders, kinds, territory, trade
+from revisionist.core.realism import battle, detect, economy, holders, kinds, territory, trade
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.bases import (
     RAID_DAYS,
@@ -273,6 +273,7 @@ def _set_on(piece: Feature, course: territory.Plan, to: EntityId, set_out: date)
             "arrives": set_out + timedelta(days=course.total),
             "legs": (),
             "as_of": max(set_out, piece.as_of),
+            "concealed_leg": False,
         }
     )
 
@@ -359,7 +360,9 @@ def _course_set(state: State, piece: Feature, today: date) -> tuple[Feature, boo
         if not isinstance(course, territory.Plan):
             return piece.model_copy(update={"legs": rest}), True
         moved = _set_on(piece, course, target, due[-1].since)
-        return moved.model_copy(update={"legs": rest, "bound_for": None, "arrives": None}), True
+        update = {"legs": rest, "bound_for": None, "arrives": None}
+        hidden = due[-1].concealed and detect.on(state)  # IOR: a game without reports as before
+        return moved.model_copy(update=update | {"concealed_leg": hidden}), True
     return piece, piece.bound_for is None and bool(piece.path)
 
 

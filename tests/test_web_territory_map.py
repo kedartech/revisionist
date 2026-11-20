@@ -98,6 +98,7 @@ def test_a_territory_map_block_carries_the_areas_the_regions_and_the_file(
         "taken_from": None,
         "falling": None,
         "yields": {"grain": 10, "levies": 2000},
+        "threatened_from": None,
     }
     assert (shown["the_gulf"]["kind"], shown["the_gulf"]["terrain"]) == ("sea", "shallows")
     assert shown["isle"]["neighbours"] == ["norra_plain", "open_sea"]
@@ -230,7 +231,8 @@ def shape(examples: list[Any], kind: Any) -> None:
 def test_the_seat_fixture_carries_a_territory_map_in_the_snapshot_shape(tmp_path: Path) -> None:
     fixture = json.loads((FIXTURES / "realism-seat.json").read_text())["territory_map"]
     assert fixture == block(fixture_game(tmp_path))["map"]
-    shape([fixture], api.SeatMap)
+    # ``reports`` comes only with the reports rule: the reports fixture checks it (RPD)
+    assert set(fixture) == set(api.SeatMap.__annotations__) - {"reports"}
     shape(fixture["areas"], api.MapArea)
     shape(fixture["regions"], api.MapRegion)
     shape([fixture["file"]], api.MapFile)

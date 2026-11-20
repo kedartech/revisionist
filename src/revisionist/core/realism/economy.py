@@ -240,13 +240,19 @@ def figure(state: "State | View", polity: EntityId, day: date | None = None) -> 
 
 
 def _earned(state: "State", polity: EntityId, role: Role, day: date) -> float:
-    """A month's payment for ``role``: the income, and with ``fuel`` on (FUL) what the
+    """A month's payment for ``role``: the income, times what the nation's groups at home
+    make of it (GRP: manpower and output; 1 with none), and with ``fuel`` on (FUL) what the
     open trade lines pay; fuel only with ``fuel`` on."""
-    from revisionist.core.realism import trade
+    from revisionist.core.realism import groups, trade
 
+    earned = income(state, polity, role, day)
+    if role is Role.MANPOWER:
+        earned = round(earned * groups.manpower_factor(state, polity), 6)
+    elif role is Role.OUTPUT:
+        earned = round(earned * groups.output_factor(state, polity), 6)
     if not trade.on(state):
-        return 0.0 if role is Role.FUEL else income(state, polity, role, day)
-    return round(income(state, polity, role, day) + trade.paid_to(state, polity, role), 6)
+        return 0.0 if role is Role.FUEL else earned
+    return round(earned + trade.paid_to(state, polity, role), 6)
 
 
 def _pay(state: "State", polity: EntityId, day: date) -> Pools | None:

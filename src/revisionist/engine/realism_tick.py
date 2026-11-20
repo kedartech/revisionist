@@ -48,7 +48,9 @@ from revisionist.core.realism import (
     answering,
     apply,
     battle,
+    detect,
     economy,
+    groups,
     holders,
     mandates,
     opponents,
@@ -395,6 +397,12 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return _nation_scope(state, payload.nation)
     if isinstance(payload, ev.EconomySet):
         return _nation_scope(state, payload.polity)
+    if isinstance(payload, ev.GroupMoved):
+        return _nation_scope(state, payload.polity)  # true support: the nation's seats (GRP)
+    if isinstance(payload, ev.GroupProposed):
+        # Engine only: the writing in waiting; the batch, not the filing, moves a group.
+        held = SeatId(derived_id(state.campaign_id, "engine-only", "groups"))
+        return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
     if isinstance(payload, ev.StepRefused):
         return _nation_scope(state, payload.nation)
     if isinstance(payload, ev.TradeSet):
@@ -412,6 +420,16 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
     if isinstance(payload, ev.CaptureCounted):
         # Engine only: a count says where pieces stand. Sealed to a seat nobody holds.
         held = SeatId(derived_id(state.campaign_id, "engine-only", "capture"))
+        return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
+    if isinstance(payload, ev.AgentSet | ev.CodebreakingSet):
+        # Engine only: where a nation has agents and how well it reads codes (IOR). The
+        # holder of an area where an agent is lost learns of it from its paper.
+        held = SeatId(derived_id(state.campaign_id, "engine-only", "intelligence"))
+        return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
+    if isinstance(payload, ev.ReportMade):
+        # Engine only: it names the true piece and whether the report is wrong (DET). A
+        # seat gets the report in its view once it arrives, and on its source's page.
+        held = SeatId(derived_id(state.campaign_id, "engine-only", "report"))
         return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
     if isinstance(payload, ev.BattleOpened | ev.BattleRound | ev.BattleEnded):
         # Engine only: both sides' true strengths and the draws (BTL). Sealed to a seat
@@ -491,8 +509,9 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     issue, then the people nobody plays take up and make their answers, then stances
     and each seat's opponents are worked out. Pieces' steps are followed by the day's
     capture counts (THL); the day's battle rounds follow its contacts, with the count a won
-    battle starts (BTL); after the last day, the close, a capital marked in an earlier
-    wake falls or loses its mark. Each step sees the state after the ones before it."""
+    battle starts (BTL), then the press, then every nation's reports and their pages
+    (DET); after the last day, the close, a capital marked in an earlier wake falls or
+    loses its mark. Each step sees the state after the ones before it."""
     state = em.state
     out: list[Event] = []
 
@@ -503,6 +522,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         out.extend(batch)
 
     add(actors.unseated(state, answering.answerers(state)))
+    begun: State | None = state  # moves the carried-in orders start begin on the first day
     wake_start = dict(state.opponents)
     pending = _unresolved(events)
     for oid in pending:
@@ -517,6 +537,8 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     day = before
     while day < until:
         day += timedelta(days=1)
+        start, begun = begun or state, None
+        day_from, day_mark = state, len(out)  # GRP: the day's happenings are read from here
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))
         add(steps)
         settled = history.settle(state, day)
@@ -548,7 +570,12 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         fought = battle.walk(before_on_day, state, day, met)  # BTL: rounds after contacts
         add(fought)
         add(holders.start_count(state, battle.won(fought, open_before), day))
+        today = [e.payload for e in out[day_mark:]]
+        add(groups.react(state, day_from, today, day, sea=before_on_day))
+        add(groups.batch(state, day))  # GRP: the day's writing, settled in one batch
+        add(groups.drift(state, day))  # GRP: on a Monday, toward the baseline
         add(news_pages(state, day))
+        add(detect.walk(state, start, day))  # DET: every nation's reports, before the feeds
         seed = seed_for_day(state.campaign_id, day)
         docs: list[Event] = []
         for feed in sorted(due_feeds(state, day), key=lambda f: f.feed_id):
@@ -566,7 +593,10 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         while made := answering.make(state, day):
             add(made)
         add(opponents.settle(state, day, [*landed, *planned], wake_start))
+    close_from, close_mark = state, len(out)
     add(holders.close(state, until))  # the wake's close: a capital marked before falls
+    closing = [e.payload for e in out[close_mark:]]
+    add(groups.react(state, close_from, closing, until))  # GRP: the close's happenings
     return out
 
 

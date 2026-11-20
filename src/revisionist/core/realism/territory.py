@@ -445,8 +445,17 @@ def step_days(state: "State", piece: "Feature", to: EntityId) -> int | None:
         return None
     if kind.domain == "land" and _is_sea(board, to):
         lift = carrier(state, piece)
-        return None if lift is None else lift.days_per_step.get(terrain)
-    return kind.days_per_step.get(terrain)
+        days = None if lift is None else lift.days_per_step.get(terrain)
+    else:
+        days = kind.days_per_step.get(terrain)
+    return None if days is None else days + _slower(piece)
+
+
+def _slower(piece: "Feature") -> int:
+    """A day more a step for a concealed piece (IOR)."""
+    from revisionist.core.realism.detect import concealed
+
+    return 1 if concealed(piece) else 0
 
 
 class Plan(NamedTuple):
@@ -514,6 +523,7 @@ def plans(state: "State", piece: "Feature") -> dict[EntityId, Plan]:
     reach = _reach(state, piece)
     ship = carrier(state, piece)
     shut = {a for a in g.kind if barred(state, piece.side, a) is not None}
+    slower = _slower(piece)
 
     def moves(here: EntityId, by_lift: bool) -> Iterable[tuple[EntityId, int]]:
         at_sea = g.kind.get(here) is TerrainKind.SEA
@@ -535,7 +545,7 @@ def plans(state: "State", piece: "Feature") -> dict[EntityId, Plan]:
             by = ship if domain == "land" and g.kind.get(n) is TerrainKind.SEA else kind
             cost = None if by is None else by.days_per_step.get(g.terrain[n])
             if cost is not None:
-                yield n, cost
+                yield n, cost + slower
 
     here = piece.places[0]
     found: dict[EntityId, Course] = {}

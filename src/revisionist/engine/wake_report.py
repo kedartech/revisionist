@@ -13,7 +13,10 @@ while it was the latest wake opened (a capture lands at a close, so in the wake 
 closed), and, with ``economy`` on, every nation's public figure as the wake ended. Both
 are public facts: the board's holders and ``economy.figure``. In a game with ``battles``
 on, each wake also counts the battles opened, the rounds fought and the battles ended
-while it was the latest wake opened (BTD): counts only, never a side or a figure.
+while it was the latest wake opened (BTD): counts only, never a side or a figure. In a
+game with ``reports`` on, each wake also counts the reports every nation's sources made,
+by source, and the share that were wrong (RPD): engine-only counts for the operator,
+naming no piece.
 
 An operator command (``revisionist db wake-report``) that prints counts and public
 board facts, and no record's content. Nothing a seat reaches imports it.
@@ -28,7 +31,7 @@ from revisionist.core.events import Event
 from revisionist.core.fold import apply, replay
 from revisionist.core.ids import CampaignId, EntityId, SeatId
 from revisionist.core.ontology import Controller, EntityKind
-from revisionist.core.realism import battle, economy, holders
+from revisionist.core.realism import battle, detect, economy, holders
 from revisionist.core.state import State
 from revisionist.engine.store import EventStore
 from revisionist.engine.web import catchup_api
@@ -102,6 +105,20 @@ class Fighting:
 
 
 @dataclass(frozen=True)
+class Intelligence:
+    number: int
+    by_source: tuple[tuple[str, int], ...]
+    """The reports every nation's sources made in the wake, by source in the rules'
+    order; a source that made none is left out."""
+    wrong: int
+    """How many of them were shifted (``report_made``'s engine-only ``shift``)."""
+
+    @property
+    def made(self) -> int:
+        return sum(n for _, n in self.by_source)
+
+
+@dataclass(frozen=True)
 class Report:
     campaign_id: CampaignId | None
     wakes: tuple[WakeRow, ...]
@@ -111,6 +128,8 @@ class Report:
     """One per wake opened, in a game with ``holders`` on; else empty."""
     fighting: tuple[Fighting, ...] = ()
     """One per wake opened, in a game with ``battles`` on; else empty."""
+    intelligence: tuple[Intelligence, ...] = ()
+    """One per wake opened, in a game with ``reports`` on; else empty."""
 
 
 @dataclass
@@ -180,6 +199,7 @@ def build(events: Sequence[Event]) -> Report:
         returns,
         _holdings(events),
         _fighting(events, state),
+        _intelligence(events, state),
     )
 
 
@@ -238,6 +258,35 @@ def _fighting(events: Sequence[Event], state: State) -> tuple[Fighting, ...]:
     return tuple(Fighting(n, *c) for n, c in sorted(counts.items()))
 
 
+def _intelligence(events: Sequence[Event], state: State) -> tuple[Intelligence, ...]:
+    """Each wake's reports by source and how many were wrong, in a game with ``reports``
+    on. A report counts in the wake last opened when it was made; none is made before
+    the first wake opens."""
+    if not detect.on(state):
+        return ()
+    made: dict[int, list[ev.ReportMade]] = {}
+    number: int | None = None
+    for e in events:
+        p = e.payload
+        if isinstance(p, ev.WakeOpened):
+            number = p.wake
+            made.setdefault(number, [])
+        elif isinstance(p, ev.ReportMade) and number is not None:
+            made[number].append(p)
+    return tuple(
+        Intelligence(
+            n,
+            tuple(
+                (s.value, k)
+                for s in detect.Source
+                if (k := sum(1 for m in made[n] if m.report.source is s))
+            ),
+            sum(1 for m in made[n] if m.shift is not None),
+        )
+        for n in sorted(made)
+    )
+
+
 def _how(closed: ev.WakeClosed | None) -> str:
     if closed is None:
         return OPEN
@@ -286,6 +335,7 @@ def render(report: Report) -> list[str]:
     ]
     held = {h.number: h for h in report.holdings}
     fought = {f.number: f for f in report.fighting}
+    heard = {i.number: i for i in report.intelligence}
     for w in report.wakes:
         lines.append(f"  wake {w.number}: {w.how}")
         if w.number in held:
@@ -296,6 +346,8 @@ def render(report: Report) -> list[str]:
                 f"    battles: {f.opened} opened, {_plural(f.rounds, 'round')} fought,"
                 f" {f.ended} ended"
             )
+        if w.number in heard:
+            lines.append(_heard(heard[w.number]))
     lines += [
         f"seat {s.name}: aide played {_plural(s.aide_wakes, 'wake')}; {_hours(s)}"
         for s in report.seats
@@ -328,6 +380,14 @@ def _holding(h: Holding) -> list[str]:
     if h.figures:
         out.append("    figures: " + ", ".join(f"{name} {n:.1f}" for name, n in h.figures))
     return out
+
+
+def _heard(i: Intelligence) -> str:
+    if not i.made:
+        return "    reports: none"
+    counts = ", ".join(f"{source} {n}" for source, n in i.by_source)
+    share = 100 * i.wrong / i.made
+    return f"    reports: {counts}; {i.wrong} of {i.made} wrong ({share:.0f}%)"
 
 
 def lines(store: EventStore, campaign_ids: Sequence[CampaignId]) -> list[str]:

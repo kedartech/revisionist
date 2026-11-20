@@ -248,6 +248,8 @@ const MARK_SIDE = Object.freeze({ own: 'Yours', other: 'Foreign', none: 'Both si
 const CERTAINTY = Object.freeze({ known: 'Known', reported: 'Reported', stale: 'Stale' });
 
 export const markKindWord = (k) => pick(MARK_KIND, k);
+/** What a picked mark is: a world piece's own kind (as the territory view says it), else the mark's kind. */
+export const markWhatWord = (m) => (m.kind === 'piece' ? (m.piece?.kind ?? 'Piece') : markKindWord(m.kind));
 export const certaintyWord = (c) => pick(CERTAINTY, c);
 
 /** "Foreign · Germany", or "Both sides" for a front. */
@@ -665,8 +667,24 @@ export function pieceForm(levers, mark) {
   return null;
 }
 
-/** The area keys form `lever` can send a piece to: its destination's choices. */
-export const formAreas = (lever) => new Set((lever.params.find((p) => p.name === 'to')?.choices ?? []).map((c) => c.value));
+/**
+ * Where `lever` can send `force`, by area key: each `to` choice under the area its `areas` entry
+ * names for that force (a place's area), else under its own value (an area key). The first choice
+ * in the form's order wins an area; `place` is its label when it is a place, `count` how many
+ * choices lie in that area.
+ */
+export function formDestinations(lever, force) {
+  const to = lever.params.find((p) => p.name === 'to');
+  const areas = to?.areas?.[force] ?? {};
+  const out = new Map();
+  for (const c of to?.choices ?? []) {
+    const area = areas[c.value] ?? c.value;
+    const seen = out.get(area);
+    if (seen) seen.count += 1;
+    else out.set(area, { value: c.value, place: area === c.value ? null : c.label, count: 1 });
+  }
+  return out;
+}
 
 /** Whether point `xy` (map file units) lies in area `key` of `shapes`: inside an odd number of its rings. */
 export function inArea(shapes, key, [x, y]) {

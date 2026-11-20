@@ -88,7 +88,8 @@ test('one row per path: its name, the forms that travel it, a square per decisio
   assert.equal(view.getAttribute('aria-labelledby'), 'rl-court-h');
   const all = rows(view);
   assert.deepEqual(all.map((r) => words(r.querySelector('.rl-court-path-name'))),
-    ['A bill through Congress', 'A naval order', 'A cable to the Prime Minister', 'A Lend-Lease allocation', 'A public address']);
+    ['A bill through Congress', 'A naval order', 'A cable to the Prime Minister', 'A Lend-Lease allocation', 'A public address',
+      'The intelligence office']);
   assert.equal(words(all[1].querySelector('.rl-court-forms')), 'Forms: Give a naval order, Move a fleet, Detach part of a fleet');
   assert.deepEqual(squares(all[0]).map(sqName), ['Sam Rayburn', 'Alben W. Barkley', 'You']);
   assert.deepEqual(squares(all[3]).map(sqName), ['Harry L. Hopkins', 'Edward R. Stettinius Jr.', 'You']);

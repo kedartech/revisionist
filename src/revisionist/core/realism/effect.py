@@ -235,19 +235,19 @@ class Investigate(Model):
     target: EntityId
     question: Label
     intel: IntelOrder | None = None
-    """With ``reports`` on: ``recon`` flies ``piece`` over the area ``target``; ``agent``
+    """With ``reports`` on: ``recon`` flies ``flier`` over the area ``target``; ``agent``
     places an agent there (IOR). None: an inquiry, as before."""
-    piece: FeatureId | None = None
+    flier: FeatureId | None = None
     """A reconnaissance flight's own air piece. None for every other investigate."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"intel", "piece"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"intel", "flier"})
 
     @model_validator(mode="after")
     def _intel(self) -> "Investigate":
         if self.intel is IntelOrder.CODEBREAKING:
             raise ValueError("codebreaking is funded by an allocate, not an investigate")
-        if (self.intel is IntelOrder.RECON) != (self.piece is not None):
-            raise ValueError("a recon flight, and only a recon flight, names its piece")
+        if (self.intel is IntelOrder.RECON) != (self.flier is not None):
+            raise ValueError("a recon flight, and only a recon flight, names its flier")
         return self
 
 

@@ -1,5 +1,5 @@
 {
- "3815e3201991611def4db25a": {
+ "0a0fd40e749dd3e86a280452": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -25,7 +25,33 @@
    "usd": 0.0
   }
  },
- "5b2d564e49a9b35fab6c9174": {
+ "4c837f6380ea617c717c6294": {
+  "call_class": "estimator",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply (canary)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"J8PGQ0WA0J43MQN5T5HKKKK68F\",\"issuer\":\"Frank",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "effects": [
+     {
+      "change": -1,
+      "kind": "disposition",
+      "of": "THFN18W8WRFX8EF1JVQBF8C2R0",
+      "toward": "Z1YMP565PJFGVNTHDHMPYR57K0"
+     }
+    ],
+    "rationale": "Referee only: CANARY-V2-REASON-7f3a.",
+    "reason": "Wheeler is compromised (CANARY-V2-REASON-7f3a)."
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ },
+ "7ba27afc4e52587801e92773": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -50,7 +76,7 @@
    "usd": 0.0
   }
  },
- "a5defaecaf1618840705bc7d": {
+ "d278fe7c73c6be0de701a4e0": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -70,32 +96,6 @@
     ],
     "rationale": "The order plainly bears on the Democrats' strength; ten percent.",
     "reason": "The count rises as the Hill takes the lobbying to heart."
-   },
-   "output_tokens": 0,
-   "usd": 0.0
-  }
- },
- "cf476acb09fa3dbaa387bd83": {
-  "call_class": "estimator",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply (canary)",
-  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"J8PGQ0WA0J43MQN5T5HKKKK68F\",\"issuer\":\"Frank",
-  "reply": {
-   "cached_tokens": 0,
-   "input_tokens": 0,
-   "model": "hand",
-   "output": {
-    "effects": [
-     {
-      "change": -1,
-      "kind": "disposition",
-      "of": "THFN18W8WRFX8EF1JVQBF8C2R0",
-      "toward": "Z1YMP565PJFGVNTHDHMPYR57K0"
-     }
-    ],
-    "rationale": "Referee only: CANARY-V2-REASON-7f3a.",
-    "reason": "Wheeler is compromised (CANARY-V2-REASON-7f3a)."
    },
    "output_tokens": 0,
    "usd": 0.0

@@ -5925,6 +5925,18 @@
       "Investigate": {
         "additionalProperties": false,
         "properties": {
+          "flier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Flier"
+          },
           "intel": {
             "anyOf": [
               {
@@ -5941,18 +5953,6 @@
             "default": "investigate",
             "title": "Kind",
             "type": "string"
-          },
-          "piece": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Piece"
           },
           "question": {
             "maxLength": 60,
@@ -15321,6 +15321,18 @@
       "Investigate": {
         "additionalProperties": false,
         "properties": {
+          "flier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Flier"
+          },
           "intel": {
             "anyOf": [
               {
@@ -15337,18 +15349,6 @@
             "default": "investigate",
             "title": "Kind",
             "type": "string"
-          },
-          "piece": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Piece"
           },
           "question": {
             "maxLength": 60,
@@ -21855,6 +21855,18 @@
       "Investigate": {
         "additionalProperties": false,
         "properties": {
+          "flier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Flier"
+          },
           "intel": {
             "anyOf": [
               {
@@ -21871,18 +21883,6 @@
             "default": "investigate",
             "title": "Kind",
             "type": "string"
-          },
-          "piece": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "default": null,
-            "title": "Piece"
           },
           "question": {
             "maxLength": 60,

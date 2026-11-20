@@ -551,7 +551,7 @@ def test_concealment_names_a_force_in_play(tmp_path: Path) -> None:
 
 def test_the_orders_ride_on_investigate_engagement_and_allocate() -> None:
     area, kites = entity("sudland_coast"), fid("norra_kites")
-    recon = Investigate(target=area, question="recon", intel=IntelOrder.RECON, piece=kites)
+    recon = Investigate(target=area, question="recon", intel=IntelOrder.RECON, flier=kites)
     agent = Investigate(target=area, question="agent", intel=IntelOrder.AGENT)
     fund = Allocate(
         recipient=entity(NORRA),
@@ -561,7 +561,7 @@ def test_the_orders_ride_on_investigate_engagement_and_allocate() -> None:
         intel=IntelOrder.CODEBREAKING,
     )
     hide = SetEngagement(force=kites, zone="here", rule=Engagement.DEFEND, concealed=True)
-    assert (recon.piece, agent.piece, fund.intel, hide.concealed) == (
+    assert (recon.flier, agent.flier, fund.intel, hide.concealed) == (
         kites,
         None,
         "codebreaking",
@@ -569,8 +569,8 @@ def test_the_orders_ride_on_investigate_engagement_and_allocate() -> None:
     )
     with pytest.raises(ValueError, match="recon"):
         Investigate(target=area, question="q", intel=IntelOrder.RECON)
-    with pytest.raises(ValueError, match="piece"):
-        Investigate(target=area, question="q", intel=IntelOrder.AGENT, piece=kites)
+    with pytest.raises(ValueError, match="flier"):
+        Investigate(target=area, question="q", intel=IntelOrder.AGENT, flier=kites)
     with pytest.raises(ValueError, match="investigate"):
         Investigate(target=area, question="q", intel=IntelOrder.CODEBREAKING)
     with pytest.raises(ValueError, match="allocate"):
@@ -601,7 +601,7 @@ def test_intel_is_a_rule_name_for_forms() -> None:
 def _intel_effects() -> list[Any]:
     area, kites = entity("sudland_coast"), fid("norra_kites")
     return [
-        Investigate(target=area, question="recon", intel=IntelOrder.RECON, piece=kites),
+        Investigate(target=area, question="recon", intel=IntelOrder.RECON, flier=kites),
         MoveForce(force=fid("sudland_galleys"), posture=Posture.PATROL),
         Investigate(target=area, question="agent", intel=IntelOrder.AGENT),
         Allocate(

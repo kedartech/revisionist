@@ -1307,7 +1307,7 @@ effects: st.SearchStrategy[rx.Effect] = st.one_of(
         target=entity_ids,
         question=labels,
         intel=st.just(rx.IntelOrder.RECON),
-        piece=feature_ids,
+        flier=feature_ids,
     ),
     st.builds(
         rx.Investigate, target=entity_ids, question=labels, intel=st.just(rx.IntelOrder.AGENT)

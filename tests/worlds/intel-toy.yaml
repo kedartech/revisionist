@@ -15,7 +15,7 @@ ruleset: realism
 start: "The Norra-Sudland border, spring 1900"
 start_date: 1900-04-02
 
-rules: [territories, holders, economy, reports]
+rules: [territories, holders, economy, reports, written_orders]
 
 entities:
   - {key: norra, kind: polity, name: Norra}

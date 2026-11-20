@@ -41,7 +41,7 @@ Several screens are the same component with one setting changed. In production, 
 1. Everything comes from the seat's own view. Unseen means absent.
 2. A false fact looks identical to a true one until the Reveal.
 3. Other seats are characters only. Nothing shows human, AI, deputy or connected agent.
-4. Odds are bands (Impossible, Long shot, Contested, Likely, Assured), shown after filing, never as percentages.
+4. Odds are a spread simulated on the server from the seat's own picture (its own pieces, its reports, the public terrain), asked from Odds on a move or a battle before filing: whose picture it is first, then the outcome bar with its text twin, each side's losses, the chance and days to take, the risk of being forced back, and the win share at each reported strength. Never one headline figure; with no report, no figure at all. Asking and closing the panel files nothing.
 5. Rival goals show only the pieces uncovered.
 6. Visibility and certainty always carry an icon and a label, never colour alone.
 

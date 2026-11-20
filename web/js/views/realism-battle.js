@@ -13,6 +13,7 @@ import {
   contingencyWord, decisionInForce, decisionWord, fallBackAreas, newsBattles, pieceForm, pipsOf, shortDate, stepsWord,
 } from '../realism-rules.js';
 import { pipGlyph } from './realism-map.js';
+import { oddsAsker } from './realism-odds.js';
 import { orderChip, orderLines } from './realism-orders.js';
 import { chip } from './ui-kit.js';
 
@@ -171,6 +172,11 @@ export function battleSheet(rv, key, { today, act, pick, theatre = {}, onClose }
   };
   const offered = BATTLE_DECISIONS.filter(([k]) => k === 'reinforce' || (b.decisions ?? []).includes(k));
   const picking = theatre.battlePick?.kind === 'withdraw' && theatre.battlePick.area === b.area;
+  // the odds of each decision from the seat's own picture (ODC), for its first piece in the battle
+  const first = (b.pieces ?? [])[0];
+  const odds = first ? oddsAsker(rv, { force: first.force, battle: b.area, decision: inForce }, {
+    what: (q) => `${b.name}, if you ${decisionWord(q.decision).toLowerCase()}`, decisions: b.decisions ?? [],
+  }) : null;
   return h('section', { class: 'rl-bt-sheet', 'aria-labelledby': 'rl-bt-sheet-h', 'data-area': b.area },
     h('h3', { id: 'rl-bt-sheet-h' }, battleTitle(b, today ?? rv.clock?.world_date)),
     sidesBlock(b),
@@ -183,6 +189,7 @@ export function battleSheet(rv, key, { today, act, pick, theatre = {}, onClose }
       : h('p', { class: 'rl-bt-cannot' }, b.held
         ? 'Your decision is held for the next wake and is filed when it opens.'
         : b.decided ? 'You have given this battle its decision for this wake.' : 'You cannot give this battle a decision now.'),
+    odds ? h('div', { class: 'rl-bt-odds' }, odds.button, odds.box) : null,
     picking ? pickingLine(pick, theatre, `Pick the area to fall back to on the map: ${fallBackWords(rv, b.area)}.`) : null,
     hint,
     waitingOrder(rv, b),

@@ -14,6 +14,7 @@ import { figureCard } from './realism-figure.js';
 import { daysLabel, liftLabel, liftNote, standardForm, tierLabel } from './realism-forms.js';
 import { mapDrawing, mapView } from './realism-map.js';
 import { battleMarksOf, battlePickOrder, battleSheet, battleTargets } from './realism-battle.js';
+import { oddsAsker } from './realism-odds.js';
 import { intelTokens, tokenBar, tokenChip, tokenOrder, tokenTargets } from './realism-reports.js';
 import { territoryDrawing, territoryView } from './realism-territory.js';
 
@@ -177,7 +178,7 @@ function carrierLines(path, court) {
   ];
 }
 
-/** The seat's own piece beside each enemy its papers report in the area: no odds. */
+/** The seat's own piece beside each enemy its papers report in the area; the odds are behind the chip's Odds. */
 function thereBlock(p, enemies) {
   if (!enemies.length) return null;
   const own = p.mark.piece;
@@ -192,12 +193,14 @@ function thereBlock(p, enemies) {
 /**
  * The confirm chip for picked piece `p` sent to `mv`: the days, the arrival day, the first
  * carrier and their load, the lift; a reported enemy there beside the seat's own piece. Send it
- * files the order; Back (or Escape) closes it.
+ * files the order; Odds opens the odds panel, which files nothing; Back (or Escape) closes it.
  */
 function confirmChip(rv, p, mv, shapes, { send, back }) {
   const path = rv.court?.paths?.find((c) => c.id === p.lever.pipeline) ?? null;
   const due = arrival(rv.clock.world_date, path?.steps ?? null, mv.days);
   const esc = { onkeyup: (e) => { if (e.key === 'Escape') { e.preventDefault(); back(); } } };
+  // the odds of this move from the seat's own picture (ODC): asking and closing file nothing
+  const odds = oddsAsker(rv, { force: p.force, to: mv.area.key }, { what: () => `${p.mark.name} into ${mv.area.name}` });
   return h('section', { class: 'rl-pup-chip', role: 'group', 'aria-label': `Send ${p.mark.name} to ${mv.area.name}` },
     h('h3', { class: 'rl-pup-h' }, `Send ${p.mark.name} to ${mv.area.name}`),
     h('p', { class: 'rl-pup-days' }, `${daysLabel(mv.days)} on the move: ${mv.path.map((a, i) => `${a.name}, ${daysLabel(mv.step_days[i])}`).join('; ')}`),
@@ -208,7 +211,9 @@ function confirmChip(rv, p, mv, shapes, { send, back }) {
     thereBlock(p, reportedEnemies(rv.map, shapes, mv.area.key, standings(rv))),
     h('div', { class: 'rl-pup-acts' },
       h('button', { type: 'button', class: 'primary', onclick: send, ...esc }, 'Send it'),
-      h('button', { type: 'button', onclick: back, ...esc }, 'Back')));
+      odds.button,
+      h('button', { type: 'button', onclick: back, ...esc }, 'Back')),
+    odds.box);
 }
 
 /** Each own order still with a holder, as the ghost's line: where it goes, and its holder. */

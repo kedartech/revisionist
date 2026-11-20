@@ -86,6 +86,12 @@ FEED_KINDS: frozenset[str] = frozenset(
         "order_executed",
         "influence_decided",
         "effects_applied",
+        # Offers and agreements (AGR): sealed to the parties' seats, public once published,
+        # and kept only when the agreement is in the seat's view.
+        "agreement_offered",
+        "agreement_made",
+        "clause_judged",
+        "agreement_published",
     }
 )
 
@@ -222,6 +228,12 @@ def _named(p: ev.Payload, view: View) -> bool:
             return p.quantity.quantity_id in view.quantities
         case ev.NarrationWritten() | ev.BriefingDelivered():
             return p.seat_id == view.viewer
+        case ev.AgreementOffered():
+            return p.offer.offer_id in view.agreements.offers
+        case ev.AgreementMade():
+            return p.agreement.agreement_id in view.agreements.made
+        case ev.ClauseJudged() | ev.AgreementPublished():
+            return p.agreement_id in view.agreements.made
     return True
 
 

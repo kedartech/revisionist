@@ -40,7 +40,7 @@ from revisionist.core.ontology import (
     SeatKind,
     SeatStatus,
 )
-from revisionist.core.realism import detect, economy, groups, trade
+from revisionist.core.realism import agreement, detect, economy, groups, trade
 from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, PlayStyle, opening_id
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
@@ -151,6 +151,63 @@ def _group_moved(state: State, p: ev.GroupMoved) -> State:
     elif p.used:
         raise FoldError("group_moved: only writing spends points")
     return state.model_copy(update={"groups": g.model_copy(update=update)})
+
+
+def _agreement_event(state: State, p: ev.Payload) -> State:
+    """An offer recorded, an agreement made, a clause judged or an agreement published
+    (AGR), each only with the ``agreements`` rule on."""
+    if not agreement.on(state):
+        raise FoldError(f"{p.kind} needs the agreements rule")
+    a = state.agreements
+    match p:
+        case ev.AgreementOffered():
+            o = p.offer
+            _fresh(a.offers, o.offer_id, "offer")
+            if o.version != agreement.version(o.parties, o.wording, o.clauses):
+                raise FoldError(f"agreement_offered: {o.offer_id} has the wrong version")
+            a = a.model_copy(update={"offers": _put(a.offers, o.offer_id, o)})
+        case ev.AgreementMade():
+            x = p.agreement
+            _fresh(a.made, x.agreement_id, "agreement")
+            for party in x.parties:
+                if _need(state.entities, party, "entity").kind is not EntityKind.POLITY:
+                    raise FoldError(f"agreement_made: {party} is not a polity")
+            if len(x.statuses) != len(x.clauses):
+                raise FoldError("agreement_made: one status for each clause")
+            if x.offer_id is not None:
+                offer = _need(a.offers, x.offer_id, "offer")
+                if offer.version != x.version:
+                    raise FoldError("agreement_made: not the version that was offered")
+            a = a.model_copy(update={"made": _put(a.made, x.agreement_id, x)})
+        case ev.ClauseJudged():
+            x = _need(a.made, p.agreement_id, "agreement")
+            if p.clause >= len(x.clauses):
+                raise FoldError(f"clause_judged: {x.agreement_id} has no clause {p.clause}")
+            statuses = list(x.statuses)
+            calls = list(x.calls)
+            if p.status is agreement.ClauseStatus.CALLED:
+                if p.against is None or p.due is None:
+                    raise FoldError("clause_judged: a call names its attacker and due day")
+                calls.append(agreement.Call(clause=p.clause, against=p.against, due=p.due))
+                statuses[p.clause] = p.status
+            elif p.against is not None:
+                calls = [c for c in calls if (c.clause, c.against) != (p.clause, p.against)]
+                if not any(c.clause == p.clause for c in calls):
+                    statuses[p.clause] = agreement.ClauseStatus.STANDING
+            else:
+                statuses[p.clause] = p.status
+                calls = [c for c in calls if c.clause != p.clause]
+            x = x.model_copy(update={"statuses": tuple(statuses), "calls": tuple(calls)})
+            a = a.model_copy(update={"made": _put(a.made, x.agreement_id, x)})
+        case ev.AgreementPublished():
+            x = _need(a.made, p.agreement_id, "agreement")
+            if x.published is not None:
+                raise FoldError(f"agreement_published: {x.agreement_id} is already published")
+            if p.by not in x.parties:
+                raise FoldError("agreement_published: only a party publishes")
+            x = x.model_copy(update={"published": p.on})
+            a = a.model_copy(update={"made": _put(a.made, x.agreement_id, x)})
+    return state.model_copy(update={"agreements": a})
 
 
 def _clamp(value: int, lo: int, hi: int) -> int:
@@ -480,6 +537,10 @@ def _mutate(state: State, event: Event) -> State:
             | ev.GroupsDeclared()
             | ev.GroupMoved()
             | ev.GroupProposed()
+            | ev.AgreementOffered()
+            | ev.AgreementMade()
+            | ev.ClauseJudged()
+            | ev.AgreementPublished()
             | ev.NewsReported()
             | ev.StanceChanged()
             | ev.OpponentsRanked()
@@ -935,6 +996,10 @@ def _realism(state: State, p: ev.Payload) -> State:
                 raise FoldError(f"group_proposed: {wrote.polity} has no group {wrote.group}")
             g = state.groups.model_copy(update={"proposed": (*state.groups.proposed, wrote)})
             return state.model_copy(update={"groups": g})
+        case (
+            ev.AgreementOffered() | ev.AgreementMade() | ev.ClauseJudged() | ev.AgreementPublished()
+        ):
+            return _agreement_event(state, p)
         case ev.NewsReported():
             _fresh(state.news, p.news.news_id, "news")
             return state.model_copy(update={"news": _put(state.news, p.news.news_id, p.news)})
@@ -1048,6 +1113,10 @@ def _check_part(state: State, issuer: SeatId, part: RoutedPart, where: str, on: 
     if part.effect is not None:
         _check_effect(state, part.effect, where, on)
     match part.route:
+        case Route.COMMAND if agreement.is_publish(part):
+            # The seat publishes an agreement itself: no office is needed (AGR rule 9).
+            if part.domain != agreement.PUBLISH_DOMAIN or part.executor is not None:
+                raise FoldError(f"{where}: a publishing order is the seat's own")
         case Route.COMMAND:
             card = state.cards.get(state.seats[issuer].embodies)
             domain = next(

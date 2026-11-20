@@ -362,6 +362,24 @@ def _aid_due(state: State, today: date) -> list[Order]:
     return sorted(due, key=lambda o: o.order_id)
 
 
+def aid_shares(state: State, giver: EntityId, on: date) -> dict[EntityId, int]:
+    """The aid share in per cent ``giver`` sends each nation under its enacted
+    ``production`` orders settled on or before ``on``: the largest share per recipient."""
+    out: dict[EntityId, int] = {}
+    for o in sorted(state.orders.values(), key=lambda o: o.order_id):
+        if o.status is not OrderStatus.ENACTED or rs.settled_on(o) > on:
+            continue
+        try:
+            if rs.resolver_for(state, o) != "production":
+                continue
+        except KeyError:
+            continue
+        aid = _aid(state, o)
+        if aid is not None and aid.giver == giver:
+            out[aid.recipient] = max(out.get(aid.recipient, 0), aid.share_pct)
+    return out
+
+
 def _fund(state: State, giver: EntityId) -> int:
     """The giver's aid figure: its largest figure in ``AID_UNIT``; 0 when it has none.
     A share allocated from it is never larger, so the fund is the largest."""

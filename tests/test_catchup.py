@@ -123,6 +123,13 @@ def test_a_groups_true_support_is_never_fed() -> None:
     assert {"groups_declared", "group_moved", "group_proposed"} <= catchup.NEVER
 
 
+def test_offers_and_agreements_are_fed_to_their_parties() -> None:
+    # AGR: scoped to the parties' seats (public once published), and kept only when the
+    # agreement is in the seat's view.
+    kinds = {"agreement_offered", "agreement_made", "clause_judged", "agreement_published"}
+    assert kinds <= catchup.FEED_KINDS
+
+
 # --- The fog path ------------------------------------------------------------------
 
 

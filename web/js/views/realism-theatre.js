@@ -7,7 +7,7 @@
 import { api } from '../api.js';
 import { h } from '../dom.js';
 import {
-  arrival, formAreas, formsMoving, pieceForm, pipsOf, postureWord, reportedEnemies, shortDate, sightedLine, standings, waitWords,
+  arrival, formDestinations, formsMoving, pieceForm, pipsOf, postureWord, reportedEnemies, shortDate, sightedLine, standings, waitWords,
 } from '../realism-rules.js';
 import { heldBy } from './realism-estimate.js';
 import { figureCard } from './realism-figure.js';
@@ -134,8 +134,10 @@ function pickedPiece(rv, ui) {
   const mark = (rv.map.marks ?? []).find((m) => m.name === ui.piece.name);
   const form = pieceForm(rv.desk?.levers, mark);
   if (!form || !mark.piece?.moves?.length) return null;
-  const areas = formAreas(form.lever);
-  return { mark, ...form, moves: mark.piece.moves.filter((mv) => areas.has(mv.area.key)) };
+  // a form may offer places: each lights the area it lies in for this force, and files the place
+  const dest = formDestinations(form.lever, form.force);
+  const moves = mark.piece.moves.filter((mv) => dest.has(mv.area.key)).map((mv) => ({ ...mv, to: dest.get(mv.area.key) }));
+  return { mark, ...form, moves };
 }
 
 /** The lit areas of picked piece `p`, at their label points in `shapes`. */
@@ -148,6 +150,14 @@ function pieceTargets(p, shapes, goal) {
       chosen: goal === mv.area.key,
     };
   });
+}
+
+/** The place the form files for a lit area, when the form offers places: the first of its places there. */
+function placeLine(mv) {
+  const to = mv.to;
+  if (!to?.place) return null;
+  const more = to.count > 1 ? `, the first of ${to.count} places the form offers in ${mv.area.name}` : '';
+  return h('p', { class: 'rl-pup-place' }, `Filed as ${to.place}${more}`);
 }
 
 const liftWords = (lift) => `Lift: ${lift.tons.toLocaleString('en-US')} tons of ${lift.carrier}`;
@@ -190,6 +200,7 @@ function confirmChip(rv, p, mv, shapes, { send, back }) {
     h('h3', { class: 'rl-pup-h' }, `Send ${p.mark.name} to ${mv.area.name}`),
     h('p', { class: 'rl-pup-days' }, `${daysLabel(mv.days)} on the move: ${mv.path.map((a, i) => `${a.name}, ${daysLabel(mv.step_days[i])}`).join('; ')}`),
     h('p', { class: 'rl-pup-arrives' }, `Arrives ${shortDate(due.on)}${due.earliest ? ' at the earliest' : ''}`),
+    placeLine(mv),
     carrierLines(path, rv.court).map((line) => h('p', { class: 'rl-pup-carrier' }, line)),
     h('p', { class: 'rl-pup-lift' }, mv.lift ? liftWords(mv.lift) : 'No lift needed'),
     thereBlock(p, reportedEnemies(rv.map, shapes, mv.area.key, standings(rv))),
@@ -293,7 +304,7 @@ export function theatreBoard(rv, ui, { pick, act } = {}) {
     const shapes = shapesFor(map.file);
     const mv = move();
     chipBox.replaceChildren(mv && shapes ? confirmChip(rv, piece, mv, shapes, {
-      send: () => act?.('Sending it…', 'lever', { lever: piece.lever.name, params: { force: piece.force, to: mv.area.key } },
+      send: () => act?.('Sending it…', 'lever', { lever: piece.lever.name, params: { force: piece.force, to: mv.to.value } },
         (r) => { if (!r?.refused) { goal = null; if (ui.theatre) ui.theatre.goal = null; } }),
       back: () => setGoal(null, mv.area.key),
     }) : '');

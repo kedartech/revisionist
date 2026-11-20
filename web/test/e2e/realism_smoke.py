@@ -288,8 +288,54 @@ def tab_to(page: Page, wanted: str, limit: int = 250) -> bool:
     return False
 
 
+def picked(page: Page) -> bool:
+    """After a pick of the seat's own force: wait for its forms (a point map) or its lit areas
+    (a territory map); True on a territory map."""
+    page.locator(".rl-theatre-forms, .rl-map-target[data-area]").first.wait_for(timeout=10_000)
+    return page.locator("svg.rl-tm-svg").count() > 0
+
+
+def keyboard_move_areas(page: Page, report: dict[str, object], errors: int) -> None:
+    """The keyboard move on a territory map: a lit area, its chip, Send it."""
+    check(
+        "a picked piece shows its panel and lights the areas it can reach",
+        page.locator("aside.rl-board-side h2").count() > 0
+        and page.locator(".rl-map-target[data-area]").count() > 0,
+    )
+    found = tab_to(page, "a.matches('.rl-map-target[data-area]')")
+    check("Tab reaches a lit area on the map", found)
+    if not found:
+        return
+    label = str(page.evaluate("() => document.activeElement.getAttribute('aria-label')"))
+    report["keyboard_move_to"] = label
+    page.keyboard.press("Enter")
+    chip = page.locator(".rl-pup-chip")
+    chip.wait_for(timeout=10_000)
+    report["keyboard_move_chip"] = chip.inner_text()
+    check(
+        "Enter on a lit area chooses it and opens its chip",
+        page.locator(".rl-map-target[aria-pressed=true]").count() == 1,
+        label,
+    )
+    check(
+        "focus moves to the chip's Send it",
+        bool(page.evaluate("() => document.activeElement?.textContent?.trim() === 'Send it'")),
+    )
+    shoot(page, "00a-keyboard-pick")
+    page.keyboard.press("Enter")
+    page.locator(".rl-status.said").filter(has_text="Sent to").wait_for(timeout=30_000)
+    report["keyboard_move_status"] = page.locator(".rl-status").inner_text()
+    check("the keyboard move is sent", True)
+    check(
+        "the keyboard move raises no page error",
+        len([p for p in problems if p.startswith("pageerror")]) == errors,
+    )
+    shoot(page, "00b-keyboard-sent")
+
+
 def keyboard_move(page: Page, report: dict[str, object]) -> None:
-    """On the Board, from the keyboard alone: pick the seat's fleet, light a place, send it."""
+    """On the Board, from the keyboard alone: pick the seat's fleet, light a place (a point
+    map) or an area (a territory map), send it."""
     errors = len([p for p in problems if p.startswith("pageerror")])
     page.get_by_role("group", name="Board").get_by_role("button", name="Theatre").focus()
     found = tab_to(page, "a.matches('.rl-mk.rl-side-own')")
@@ -297,8 +343,10 @@ def keyboard_move(page: Page, report: dict[str, object]) -> None:
     if not found:
         return
     page.keyboard.press("Enter")
+    if picked(page):
+        keyboard_move_areas(page, report, errors)
+        return
     forms = page.locator(".rl-theatre-forms")
-    forms.wait_for(timeout=10_000)
     check(
         "a picked force shows its panel and the forms that move it",
         page.locator("aside.rl-board-side .rl-board-piece, aside.rl-board-side h2").count() > 0
@@ -382,7 +430,7 @@ def phone_board(page: Page, report: dict[str, object]) -> None:
         str(box),
     )
     page.locator(".rl-mk.rl-side-own").first.tap()
-    page.locator(".rl-theatre-forms").wait_for(timeout=10_000)
+    report["phone_territory"] = picked(page)
     page.wait_for_timeout(300)
     # A tap lands on whatever is on top at the place's centre; take the first lit place it reaches.
     spot = page.evaluate(

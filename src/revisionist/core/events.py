@@ -16,7 +16,7 @@ DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, Qua
 FeatureSet, WarDeclared, MapDeclared, KindsDeclared, NewsReported, StanceChanged, OpponentsRanked,
 CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted, EconomySet, YieldChanged,
 TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDeclared,
-ReportMade``, and
+ReportMade, AgentSet, CodebreakingSet``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -84,7 +84,7 @@ from revisionist.core.realism.card import (
     SeatCard,
     Topic,
 )
-from revisionist.core.realism.detect import Intelligence, Report, Shift
+from revisionist.core.realism.detect import Agent, Intelligence, Report, Shift
 from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
 from revisionist.core.realism.economy import Amount, Pools
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
@@ -835,6 +835,26 @@ class ReportMade(Model):
     shift: Shift | None = None
 
 
+class AgentSet(Model):
+    """A nation's agent placed (``index`` one past its last) or lost (IOR). Engine only:
+    it says where the nation has an agent; the holder of an area where one is lost learns
+    of it from its paper."""
+
+    kind: Literal["agent_set"] = "agent_set"
+    nation: EntityId
+    index: int = Field(ge=0)
+    agent: Agent
+
+
+class CodebreakingSet(Model):
+    """A nation's codebreaking level raised by one, from ``on`` (IOR). Engine only."""
+
+    kind: Literal["codebreaking_set"] = "codebreaking_set"
+    nation: EntityId
+    level: int = Field(ge=1, le=3)
+    on: date
+
+
 class NewsReported(Model):
     """A public event, as structured facts. Each seat's press words it later."""
 
@@ -1255,6 +1275,8 @@ Payload = Annotated[
     | BattleDecided
     | IntelligenceDeclared
     | ReportMade
+    | AgentSet
+    | CodebreakingSet
     | NewsReported
     | StanceChanged
     | OpponentsRanked
@@ -1341,6 +1363,8 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "battle_decided",
         "intelligence_declared",
         "report_made",
+        "agent_set",
+        "codebreaking_set",
         "stance_changed",
         "opponents_ranked",
         "card_amended",

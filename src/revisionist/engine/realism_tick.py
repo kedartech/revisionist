@@ -414,6 +414,11 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         # Engine only: a count says where pieces stand. Sealed to a seat nobody holds.
         held = SeatId(derived_id(state.campaign_id, "engine-only", "capture"))
         return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
+    if isinstance(payload, ev.AgentSet | ev.CodebreakingSet):
+        # Engine only: where a nation has agents and how well it reads codes (IOR). The
+        # holder of an area where an agent is lost learns of it from its paper.
+        held = SeatId(derived_id(state.campaign_id, "engine-only", "intelligence"))
+        return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
     if isinstance(payload, ev.ReportMade):
         # Engine only: it names the true piece and whether the report is wrong (DET). A
         # seat gets the report in its view once it arrives, and on its source's page.

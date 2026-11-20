@@ -145,6 +145,10 @@ NEVER: frozenset[str] = frozenset(
         # wrong; the seat gets it as a line of its source's page and in its own reports.
         "intelligence_declared",
         "report_made",
+        # Intelligence orders (IOR): engine only. Where a nation has agents and its
+        # codebreaking level; the holder learns of a caught agent from its paper.
+        "agent_set",
+        "codebreaking_set",
         "scheduled_event_created",
         "scheduled_event_skipped",
         # Costs, ticks and admin.

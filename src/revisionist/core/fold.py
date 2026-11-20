@@ -427,6 +427,8 @@ def _mutate(state: State, event: Event) -> State:
             | ev.BattleDecided()
             | ev.IntelligenceDeclared()
             | ev.ReportMade()
+            | ev.AgentSet()
+            | ev.CodebreakingSet()
             | ev.NewsReported()
             | ev.StanceChanged()
             | ev.OpponentsRanked()
@@ -846,6 +848,29 @@ def _realism(state: State, p: ev.Payload) -> State:
             _need(state.features, p.piece, "feature")
             picture = detect.made(state.reports.get(p.nation, detect.Picture()), p.report)
             return state.model_copy(update={"reports": _put(state.reports, p.nation, picture)})
+        case ev.AgentSet():
+            if Rule.REPORTS not in state.rules:
+                raise FoldError("agent_set needs the reports rule")
+            _need(state.entities, p.agent.area, "entity")
+            intel = state.intelligence.get(p.nation) or detect.Intelligence(nation=p.nation)
+            agents = list(intel.agents)
+            if p.index > len(agents):
+                raise FoldError(f"agent_set: {p.nation} has no agent {p.index - 1}")
+            agents[p.index : p.index + 1] = [p.agent]
+            intel = intel.model_copy(update={"agents": tuple(agents)})
+            return state.model_copy(
+                update={"intelligence": _put(state.intelligence, p.nation, intel)}
+            )
+        case ev.CodebreakingSet():
+            if Rule.REPORTS not in state.rules:
+                raise FoldError("codebreaking_set needs the reports rule")
+            intel = state.intelligence.get(p.nation) or detect.Intelligence(nation=p.nation)
+            if p.level != intel.codebreaking + len(intel.raised) + 1:
+                raise FoldError(f"codebreaking_set: {p.nation} is not raised to {p.level}")
+            intel = intel.model_copy(update={"raised": (*intel.raised, p.on)})
+            return state.model_copy(
+                update={"intelligence": _put(state.intelligence, p.nation, intel)}
+            )
         case ev.NewsReported():
             _fresh(state.news, p.news.news_id, "news")
             return state.model_copy(update={"news": _put(state.news, p.news.news_id, p.news)})
@@ -1107,6 +1132,9 @@ def _engine_v2(state: State, p: ev.Payload) -> State:
             if p.seat_id in w.committed:
                 raise FoldError(f"seat {p.seat_id} has already committed in wake {p.wake}")
             w = w.model_copy(update={"committed": w.committed | {p.seat_id}})
+            if Rule.REPORTS in state.rules and p.aide_orders:
+                aided = state.aide_orders | frozenset(p.aide_orders)
+                return state.model_copy(update={"wake": w, "aide_orders": aided})
             return state.model_copy(update={"wake": w})
         case ev.WakeClosed():
             w = _open_wake(state, p.wake)

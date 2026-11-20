@@ -102,6 +102,32 @@
             "title": "Area",
             "type": "string"
           },
+          "lost": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lost"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since"
+          },
           "until": {
             "anyOf": [
               {
@@ -149,6 +175,37 @@
           "persona"
         ],
         "title": "AgentAssigned",
+        "type": "object"
+      },
+      "AgentSet": {
+        "additionalProperties": false,
+        "description": "A nation's agent placed (``index`` one past its last) or lost (IOR). Engine only:\nit says where the nation has an agent; the holder of an area where one is lost learns\nof it from its paper.",
+        "properties": {
+          "agent": {
+            "$ref": "#/$defs/Agent"
+          },
+          "index": {
+            "minimum": 0,
+            "title": "Index",
+            "type": "integer"
+          },
+          "kind": {
+            "const": "agent_set",
+            "default": "agent_set",
+            "title": "Kind",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nation",
+          "index",
+          "agent"
+        ],
+        "title": "AgentSet",
         "type": "object"
       },
       "AllOf": {
@@ -234,6 +291,17 @@
             "minimum": 0,
             "title": "Amount",
             "type": "integer"
+          },
+          "intel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IntelOrder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "kind": {
             "const": "allocate",
@@ -2605,6 +2673,40 @@
         "title": "ClockStatusSet",
         "type": "object"
       },
+      "CodebreakingSet": {
+        "additionalProperties": false,
+        "description": "A nation's codebreaking level raised by one, from ``on`` (IOR). Engine only.",
+        "properties": {
+          "kind": {
+            "const": "codebreaking_set",
+            "default": "codebreaking_set",
+            "title": "Kind",
+            "type": "string"
+          },
+          "level": {
+            "maximum": 3,
+            "minimum": 1,
+            "title": "Level",
+            "type": "integer"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nation",
+          "level",
+          "on"
+        ],
+        "title": "CodebreakingSet",
+        "type": "object"
+      },
       "Commitment": {
         "additionalProperties": false,
         "description": "A treaty, contract or deal. Promises in chat are not Commitments.",
@@ -4707,6 +4809,16 @@
             "default": null,
             "title": "Bound For"
           },
+          "concealed": {
+            "default": false,
+            "title": "Concealed",
+            "type": "boolean"
+          },
+          "concealed_leg": {
+            "default": false,
+            "title": "Concealed Leg",
+            "type": "boolean"
+          },
           "contingency": {
             "anyOf": [
               {
@@ -4839,6 +4951,31 @@
               }
             ],
             "default": null
+          },
+          "recon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Recon"
+          },
+          "recon_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Recon On"
           },
           "rejoined_on": {
             "anyOf": [
@@ -5538,6 +5675,16 @@
         "title": "Informant",
         "type": "object"
       },
+      "IntelOrder": {
+        "description": "The intelligence orders an existing effect kind carries (IOR). A patrol is the\npatrol posture and a concealment the engagement's ``concealed``; neither is here.",
+        "enum": [
+          "recon",
+          "agent",
+          "codebreaking"
+        ],
+        "title": "IntelOrder",
+        "type": "string"
+      },
       "Intelligence": {
         "additionalProperties": false,
         "description": "A nation's sources as declared at the start.",
@@ -5560,6 +5707,15 @@
           "nation": {
             "title": "Nation",
             "type": "string"
+          },
+          "raised": {
+            "default": [],
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Raised",
+            "type": "array"
           },
           "sources": {
             "default": [],
@@ -5769,6 +5925,29 @@
       "Investigate": {
         "additionalProperties": false,
         "properties": {
+          "flier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Flier"
+          },
+          "intel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IntelOrder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "kind": {
             "const": "investigate",
             "default": "investigate",
@@ -5951,7 +6130,8 @@
               "movement",
               "war",
               "economy",
-              "trade"
+              "trade",
+              "intel"
             ],
             "title": "Resolver",
             "type": "string"
@@ -9737,6 +9917,18 @@
       "SetEngagement": {
         "additionalProperties": false,
         "properties": {
+          "concealed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Concealed"
+          },
           "contingency": {
             "anyOf": [
               {
@@ -11562,6 +11754,7 @@
           "mapping": {
             "admin_read": "#/$defs/AdminRead",
             "agent_assigned": "#/$defs/AgentAssigned",
+            "agent_set": "#/$defs/AgentSet",
             "answer_made": "#/$defs/AnswerMade",
             "answer_planned": "#/$defs/AnswerPlanned",
             "area_held": "#/$defs/AreaHeld",
@@ -11580,6 +11773,7 @@
             "character_released": "#/$defs/CharacterReleased",
             "clarification_asked": "#/$defs/ClarificationAsked",
             "clock_created": "#/$defs/ClockCreated",
+            "codebreaking_set": "#/$defs/CodebreakingSet",
             "commitment_created": "#/$defs/CommitmentCreated",
             "contest_created": "#/$defs/ContestCreated",
             "contest_decided": "#/$defs/ContestDecided",
@@ -11897,6 +12091,12 @@
             "$ref": "#/$defs/ReportMade"
           },
           {
+            "$ref": "#/$defs/AgentSet"
+          },
+          {
+            "$ref": "#/$defs/CodebreakingSet"
+          },
+          {
             "$ref": "#/$defs/NewsReported"
           },
           {
@@ -12082,6 +12282,32 @@
             "title": "Area",
             "type": "string"
           },
+          "lost": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lost"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since"
+          },
           "until": {
             "anyOf": [
               {
@@ -12185,6 +12411,17 @@
             "minimum": 0,
             "title": "Amount",
             "type": "integer"
+          },
+          "intel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IntelOrder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "kind": {
             "const": "allocate",
@@ -14307,6 +14544,16 @@
             "default": null,
             "title": "Bound For"
           },
+          "concealed": {
+            "default": false,
+            "title": "Concealed",
+            "type": "boolean"
+          },
+          "concealed_leg": {
+            "default": false,
+            "title": "Concealed Leg",
+            "type": "boolean"
+          },
           "contingency": {
             "anyOf": [
               {
@@ -14439,6 +14686,31 @@
               }
             ],
             "default": null
+          },
+          "recon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Recon"
+          },
+          "recon_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Recon On"
           },
           "rejoined_on": {
             "anyOf": [
@@ -14882,6 +15154,16 @@
         "title": "Informant",
         "type": "object"
       },
+      "IntelOrder": {
+        "description": "The intelligence orders an existing effect kind carries (IOR). A patrol is the\npatrol posture and a concealment the engagement's ``concealed``; neither is here.",
+        "enum": [
+          "recon",
+          "agent",
+          "codebreaking"
+        ],
+        "title": "IntelOrder",
+        "type": "string"
+      },
       "Intelligence": {
         "additionalProperties": false,
         "description": "A nation's sources as declared at the start.",
@@ -14904,6 +15186,15 @@
           "nation": {
             "title": "Nation",
             "type": "string"
+          },
+          "raised": {
+            "default": [],
+            "items": {
+              "format": "date",
+              "type": "string"
+            },
+            "title": "Raised",
+            "type": "array"
           },
           "sources": {
             "default": [],
@@ -15030,6 +15321,29 @@
       "Investigate": {
         "additionalProperties": false,
         "properties": {
+          "flier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Flier"
+          },
+          "intel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IntelOrder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "kind": {
             "const": "investigate",
             "default": "investigate",
@@ -15164,7 +15478,8 @@
               "movement",
               "war",
               "economy",
-              "trade"
+              "trade",
+              "intel"
             ],
             "title": "Resolver",
             "type": "string"
@@ -17744,6 +18059,18 @@
       "SetEngagement": {
         "additionalProperties": false,
         "properties": {
+          "concealed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Concealed"
+          },
           "contingency": {
             "anyOf": [
               {
@@ -19004,6 +19331,15 @@
     "additionalProperties": false,
     "description": "The full truth. Only the referee and the resolver ever hold one.",
     "properties": {
+      "aide_orders": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "title": "Aide Orders",
+        "type": "array",
+        "uniqueItems": true
+      },
       "answers": {
         "additionalProperties": {
           "additionalProperties": {
@@ -19581,6 +19917,17 @@
             "minimum": 0,
             "title": "Amount",
             "type": "integer"
+          },
+          "intel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IntelOrder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "kind": {
             "const": "allocate",
@@ -21388,6 +21735,16 @@
         "title": "Inertia",
         "type": "string"
       },
+      "IntelOrder": {
+        "description": "The intelligence orders an existing effect kind carries (IOR). A patrol is the\npatrol posture and a concealment the engagement's ``concealed``; neither is here.",
+        "enum": [
+          "recon",
+          "agent",
+          "codebreaking"
+        ],
+        "title": "IntelOrder",
+        "type": "string"
+      },
       "Intent": {
         "additionalProperties": false,
         "properties": {
@@ -21498,6 +21855,29 @@
       "Investigate": {
         "additionalProperties": false,
         "properties": {
+          "flier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Flier"
+          },
+          "intel": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IntelOrder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "kind": {
             "const": "investigate",
             "default": "investigate",
@@ -21594,7 +21974,8 @@
               "movement",
               "war",
               "economy",
-              "trade"
+              "trade",
+              "intel"
             ],
             "title": "Resolver",
             "type": "string"
@@ -23591,6 +23972,18 @@
       "SetEngagement": {
         "additionalProperties": false,
         "properties": {
+          "concealed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Concealed"
+          },
           "contingency": {
             "anyOf": [
               {

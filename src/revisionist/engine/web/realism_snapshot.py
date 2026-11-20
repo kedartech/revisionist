@@ -40,7 +40,7 @@ from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
 from revisionist.engine.aide import AideBrief
 from revisionist.engine.directive import Proposal, channels
-from revisionist.engine.web import battles_api, economy_api, map_api
+from revisionist.engine.web import battles_api, economy_api, home_api, map_api
 from revisionist.engine.web.destinations import (
     FORCE,
     Known,
@@ -1115,13 +1115,15 @@ def seat_realism(
     withdrawable: Collection[str] = (),
     held_battles: Collection[str] = (),
     ended_battles: Sequence["Ended"] = (),
+    events: Iterable[Event] = (),
 ) -> dict[str, Any]:
     """The ``view.realism`` block of ``/api/me``: tray, desk, situation, orders, clock, map,
-    threats, people, the world's developments, the war economy and the seat's battles.
-    ``place_keys`` (``destinations.place_keys``) opens movement forms to every place;
-    ``withdrawable`` (``withdraw.withdrawable``) are the orders the seat may take back;
-    ``held_battles`` the area keys of battles it has a decision held for the next wake;
-    ``ended_battles`` (``odds.ended``) the battles it fought that have ended."""
+    threats, people, the world's developments, the war economy, the seat's battles and its
+    groups at home. ``place_keys`` (``destinations.place_keys``) opens movement forms to
+    every place; ``withdrawable`` (``withdraw.withdrawable``) are the orders the seat may
+    take back; ``held_battles`` the area keys of battles it has a decision held for the next
+    wake; ``ended_battles`` (``odds.ended``) the battles it fought that have ended;
+    ``events`` the game's log, for what last moved each of its groups."""
     view = project(state, seat)
     forces, held = _force_names(state, view)
     card = state.cards.get(view.me.embodies)
@@ -1155,6 +1157,7 @@ def seat_realism(
         "world": world_news(view),
         "economy": economy_api.block(state, view),
         "battles": battles_api.block(state, seat, view, forces, held_battles, ended_battles),
+        "home": home_api.block(state, view, events),
     }
 
 

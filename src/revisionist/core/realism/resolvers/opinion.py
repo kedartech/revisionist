@@ -7,11 +7,18 @@ Gallup "about right" figure steps one point toward it. Other opinion levers
 A move in the published figure is public news, once per move: a neutral headline short
 enough that the figure survives the outlet name in a press title, the new figure and the
 one before it. The target it is heading for stays private.
+
+With ``groups`` on (GVR), none of that is read. The figure a nation publishes is the
+support of the groups the world says feed opinion, weighted, rounded to a whole point
+(``figure``); each Monday it is published as news when it differs from the last one
+published, or, before the first, from where those groups started. An address moves groups
+through the writing rules, not a target here.
 """
 
 from datetime import date, timedelta
 
-from revisionist.core.ids import derived_id
+from revisionist.core.ids import EntityId, derived_id
+from revisionist.core.realism import groups
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.pipeline import Order, OrderStatus
@@ -26,6 +33,7 @@ THEME_POINTS = {"aid_to_allies": 2, "freedom_of_the_seas": 3, "national_unity": 
 INCIDENT_POINTS = 1  # [proposed]
 INCIDENTS = ("greer_incident", "kearny_hit", "reuben_james_sunk")
 ABOUT_RIGHT = "gallup_fdr_about_right"
+HEADLINE_MAX = 60
 
 
 def _clamp(n: int) -> int:
@@ -35,6 +43,8 @@ def _clamp(n: int) -> int:
 def resolve(state: State, order: Order) -> tuple[QuantityChange, ...]:
     """Changes from one order enacted through its pipeline."""
     points = THEME_POINTS.get(str(order.params.get("theme")))
+    if groups.on(state):
+        return ()
     if order.status is not OrderStatus.ENACTED or order.lever != "public_address" or points is None:
         return ()
     base = rs.value(state, "opinion_target")
@@ -81,9 +91,80 @@ def news(state: State, before: int, after: int, today: date) -> NewsEvent | None
     )
 
 
+def _feeders(state: State, nation: EntityId) -> tuple[groups.Group, ...]:
+    return tuple(g for g in groups.of(state, nation) if groups.Feeds.OPINION in g.feeds)
+
+
+def figure(state: State, nation: EntityId, *, start: bool = False) -> int | None:
+    """With ``groups`` on, the opinion figure a nation publishes: the support of the groups
+    that feed opinion, weighted by what each feeds, to a whole point (halves up); with
+    ``start``, where they started. None when no group feeds it."""
+    found = _feeders(state, nation)
+    if not found:
+        return None
+    total = sum(g.feeds[groups.Feeds.OPINION] for g in found)
+    now = sum(
+        (g.start if start else groups.support(state, nation, g.key) or 0)
+        * g.feeds[groups.Feeds.OPINION]
+        for g in found
+    )
+    return int(now / total + 0.5)
+
+
+def _last_poll(state: State, nation: EntityId) -> int | None:
+    """The figure of the last poll published about ``nation``, or None before the first."""
+    polls = [
+        n
+        for n in state.news.values()
+        if n.topic is NewsTopic.POLL and n.subject == nation and n.facts
+    ]
+    if not polls:
+        return None
+    last = max(polls, key=lambda n: (n.on, n.news_id)).facts[0].value
+    return last if isinstance(last, int) else None
+
+
+def _group_polls(state: State, today: date) -> tuple["rs.Change", ...]:
+    """On a Monday, each nation's opinion figure, as news, where it moved."""
+    out: list[rs.Change] = []
+    for nation in sorted(state.groups.declared):
+        after = figure(state, nation)
+        if after is None:
+            continue
+        before = _last_poll(state, nation)
+        before = figure(state, nation, start=True) if before is None else before
+        if before is None or after == before:
+            continue
+        name = max(_feeders(state, nation), key=lambda g: g.feeds[groups.Feeds.OPINION]).name
+        way = "up" if after > before else "down"
+        headline = f"Poll: {name} {way} to {after}%"
+        out.append(
+            NewsEvent(
+                news_id=derived_id(
+                    state.campaign_id, "news", "poll", "groups", nation, today.isoformat()
+                ),
+                on=today,
+                topic=NewsTopic.POLL,
+                subject=nation,
+                headline=headline
+                if len(headline) <= HEADLINE_MAX
+                else headline[: HEADLINE_MAX - 1] + "…",
+                facts=(
+                    BodyField(label=name, value=after, unit="percent"),
+                    BodyField(label="Previous poll", value=before, unit="percent"),
+                    BodyField(label="Date", value=f"{today.day} {today:%B %Y}"),
+                ),
+            )
+        )
+    return tuple(out)
+
+
 def on_day(state: State, today: date) -> tuple["rs.Change", ...]:
     """On a Monday, fold in last week's incidents, then step one point toward the target;
-    a step is news."""
+    a step is news. With ``groups`` on, the opinion figure each nation's groups give,
+    where it moved."""
+    if groups.on(state):
+        return _group_polls(state, today) if today.weekday() == 0 else ()
     about = rs.value(state, ABOUT_RIGHT)
     if today.weekday() != 0 or about is None:
         return ()

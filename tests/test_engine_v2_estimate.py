@@ -297,3 +297,18 @@ def test_the_account_is_asked_for_in_the_reporters_own_words() -> None:
 
 if __name__ == "__main__":
     _write()
+
+
+def test_the_referees_request_and_schema_hold_no_group_nudge() -> None:
+    sl, oid = _scenario()
+    hand = _Hand({"effects": [], "reason": "Noted.", "rationale": "none"})
+    es.estimate(sl.state, oid, 0, hand)
+    assert hand.request is not None
+    assert '"group"' not in json.dumps(hand.request.schema)
+    assert "group" not in json.loads(hand.request.prompt.split("\n")[1])["rules"]["effect_kinds"]
+    nudge = {"kind": "group", "nation": sl.entity("usa"), "group": "public", "change": 1}
+    shift = _shift(sl, -1)
+    got = es.estimate(
+        sl.state, oid, 0, _Hand({"effects": [shift, nudge], "reason": "x", "rationale": "y"})
+    )
+    assert got.event.failed and got.event.effects == ()

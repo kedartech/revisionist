@@ -111,12 +111,16 @@ def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
     if state.groups.declared:
         raise FoldError("groups are declared once")
     found: dict[EntityId, tuple[groups.Group, ...]] = {}
+    themes: dict[EntityId, tuple[groups.Theme, ...]] = {}
     for nation in p.nations:
         _fresh(found, nation.nation, "groups of nation")
         if _need(state.entities, nation.nation, "entity").kind is not EntityKind.POLITY:
             raise FoldError(f"groups_declared: {nation.nation} is not a polity")
         found[nation.nation] = nation.groups
-    return state.model_copy(update={"groups": state.groups.model_copy(update={"declared": found})})
+        if nation.themes:
+            themes[nation.nation] = nation.themes
+    g = state.groups.model_copy(update={"declared": found, "themes": themes})
+    return state.model_copy(update={"groups": g})
 
 
 def _group_moved(state: State, p: ev.GroupMoved) -> State:

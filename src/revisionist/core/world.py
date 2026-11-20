@@ -53,7 +53,13 @@ from revisionist.core.realism.answer import Answer
 from revisionist.core.realism.card import Address, Aim, ChannelKind, ParamSpec
 from revisionist.core.realism.detect import Source as IntelSource
 from revisionist.core.realism.document import Bias, Classification, DocumentKind
-from revisionist.core.realism.effect import DISPOSITION_CAP, FIGURE_CAP, EffectKind
+from revisionist.core.realism.effect import (
+    DISPOSITION_CAP,
+    FIGURE_CAP,
+    MAX_PARTIES,
+    ClauseType,
+    EffectKind,
+)
 from revisionist.core.realism.geography import FeatureKind
 from revisionist.core.realism.groups import Group, Theme
 from revisionist.core.realism.kinds import MAX_STRENGTH, Domain, Role
@@ -635,6 +641,40 @@ class GroupsDecl(Model):
     nation's groups by (FWG). Writing that names one moves the groups by this table."""
 
 
+class PactClauseDecl(Model):
+    """One clause of a pact (PCT), as AGR's typed list has it, in world-file keys:
+    ``binds``, ``nation`` polity keys; ``force`` a feature key; ``area`` a territory or sea
+    zone key; ``region`` a region key; ``form`` a lever name. A clause with no ``type``
+    is wording the list cannot express: kept as ``text`` and marked unchecked."""
+
+    type: ClauseType = ClauseType.UNCHECKED
+    binds: Key
+    on: date | None = None
+    """The day it is judged; none: standing, judged each day."""
+    force: Key | None = None
+    area: Key | None = None
+    region: Key | None = None
+    present: bool = True
+    nation: Key | None = None
+    days: int | None = Field(default=None, ge=0, le=60)
+    form: Label | None = None
+    share: int | None = Field(default=None, ge=1, le=100)
+    text: str = Field(default="", max_length=300)
+
+
+class PactDecl(Cited):
+    """A pact in force on the start date (PCT): with ``agreements`` on, compile makes it
+    an agreement from the first day, with no offer. ``parties`` are polity keys. A
+    public pact is seen by every seat; a secret one by its parties only."""
+
+    key: Key
+    name: Label
+    parties: tuple[Key, ...] = Field(max_length=MAX_PARTIES)
+    wording: str = Field(default="", max_length=500)
+    clauses: tuple[PactClauseDecl, ...] = ()
+    public: bool = False
+
+
 class ResourceDecl(Model):
     """A resource the world names, and the one role it plays."""
 
@@ -912,6 +952,9 @@ class WorldFile(Model):
     """Each nation's groups at home, with ``groups`` on: support, baseline, what each
     feeds and what moves it. A world with none is unchanged. Written by hand: not offered
     to a model."""
+    pacts: SkipJsonSchema[tuple[PactDecl, ...]] = ()
+    """The pacts in force on the start date, with ``agreements`` on (PCT). Written by
+    hand: not offered to a model."""
     map_data: SkipJsonSchema[bytes | None] = Field(default=None, exclude=True)
     """The bytes of the map file ``map`` names, read by the world loader from beside
     the world file, not from the world file itself. None when no file was found."""
@@ -962,6 +1005,8 @@ __all__ = [
     "MapDecl",
     "MeterDecl",
     "OutletDecl",
+    "PactClauseDecl",
+    "PactDecl",
     "PipelineDecl",
     "QuantityDecl",
     "RegionDecl",

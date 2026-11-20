@@ -14,7 +14,7 @@ replay can never produce an invalid object.
 import hashlib
 import json
 from collections.abc import Iterable, Mapping
-from datetime import date
+from datetime import date, timedelta
 
 from pydantic import ValidationError
 
@@ -40,7 +40,7 @@ from revisionist.core.ontology import (
     SeatKind,
     SeatStatus,
 )
-from revisionist.core.realism import detect, economy, trade
+from revisionist.core.realism import detect, economy, groups, trade
 from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, PlayStyle, opening_id
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
@@ -103,6 +103,50 @@ def _need[K, V](items: Mapping[K, V], key: K, what: str) -> V:
 def _fresh[K, V](items: Mapping[K, V], key: K, what: str) -> None:
     if key in items:
         raise FoldError(f"duplicate {what} {key!r}")
+
+
+def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
+    if not groups.on(state):
+        raise FoldError("groups_declared needs the groups rule")
+    if state.groups.declared:
+        raise FoldError("groups are declared once")
+    found: dict[EntityId, tuple[groups.Group, ...]] = {}
+    for nation in p.nations:
+        _fresh(found, nation.nation, "groups of nation")
+        if _need(state.entities, nation.nation, "entity").kind is not EntityKind.POLITY:
+            raise FoldError(f"groups_declared: {nation.nation} is not a polity")
+        found[nation.nation] = nation.groups
+    return state.model_copy(update={"groups": state.groups.model_copy(update={"declared": found})})
+
+
+def _group_moved(state: State, p: ev.GroupMoved) -> State:
+    """A group's support set; for writing, the points spent kept for the week cap and the
+    writing settled taken out of waiting."""
+    if not groups.on(state):
+        raise FoldError("group_moved needs the groups rule")
+    was = groups.support(state, p.polity, p.group)
+    if was is None:
+        raise FoldError(f"group_moved: {p.polity} has no group {p.group}")
+    if p.support - was != p.change:
+        raise FoldError(f"group_moved: {p.group} at {was} does not move by {p.change}")
+    g = state.groups
+    held = _put(g.support.get(p.polity, {}), p.group, p.support)
+    update: dict[str, object] = {"support": _put(g.support, p.polity, held)}
+    if p.cause is groups.Cause.WRITING:
+        first = p.on - timedelta(days=groups.WEEK_DAYS - 1)
+        kept = [s for s in g.spent.get(p.polity, {}).get(p.group, ()) if s.on >= first]
+        if p.used:
+            kept.append(groups.Spent(on=p.on, points=p.used))
+        spent = _put(g.spent.get(p.polity, {}), p.group, tuple(kept))
+        update["spent"] = _put(g.spent, p.polity, spent)
+        update["proposed"] = tuple(
+            q
+            for q in g.proposed
+            if not (q.polity == p.polity and q.group == p.group and q.on <= p.on)
+        )
+    elif p.used:
+        raise FoldError("group_moved: only writing spends points")
+    return state.model_copy(update={"groups": g.model_copy(update=update)})
 
 
 def _clamp(value: int, lo: int, hi: int) -> int:
@@ -429,6 +473,9 @@ def _mutate(state: State, event: Event) -> State:
             | ev.ReportMade()
             | ev.AgentSet()
             | ev.CodebreakingSet()
+            | ev.GroupsDeclared()
+            | ev.GroupMoved()
+            | ev.GroupProposed()
             | ev.NewsReported()
             | ev.StanceChanged()
             | ev.OpponentsRanked()
@@ -871,6 +918,19 @@ def _realism(state: State, p: ev.Payload) -> State:
             return state.model_copy(
                 update={"intelligence": _put(state.intelligence, p.nation, intel)}
             )
+        case ev.GroupsDeclared():
+            return _groups_declared(state, p)
+        case ev.GroupMoved():
+            return _group_moved(state, p)
+        case ev.GroupProposed():
+            wrote = p.proposal
+            if not groups.on(state):
+                raise FoldError("group_proposed needs the groups rule")
+            _need(state.seats, wrote.seat, "seat")
+            if groups.group(state, wrote.polity, wrote.group) is None:
+                raise FoldError(f"group_proposed: {wrote.polity} has no group {wrote.group}")
+            g = state.groups.model_copy(update={"proposed": (*state.groups.proposed, wrote)})
+            return state.model_copy(update={"groups": g})
         case ev.NewsReported():
             _fresh(state.news, p.news.news_id, "news")
             return state.model_copy(update={"news": _put(state.news, p.news.news_id, p.news)})

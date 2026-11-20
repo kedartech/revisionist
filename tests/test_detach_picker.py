@@ -3,7 +3,6 @@ and timed from the seat's own pages only, and a split form offers its own fleets
 
 import json
 from datetime import date
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -19,9 +18,6 @@ from revisionist.engine import campaign as cmp
 from tests.test_web import Client, Web, web  # noqa: F401
 from tests.test_web_destinations import FIXTURE, fdr, param, places, state_of  # noqa: F401
 from tests.test_web_realism import Realism, realism_of
-
-POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
-"""The autumn-1941 world before territories: these tests pin movement between points."""
 
 D1 = "us_atlantic_fleet__d1"
 HOME_D1 = "home_fleet__d1"
@@ -167,7 +163,7 @@ def test_the_split_form_carries_reach_for_its_parent_only(fdr: tuple[Realism, Cl
 
 @pytest.fixture
 def two(web: Web) -> tuple[Realism, Client, Client]:  # noqa: F811
-    game = Realism(web, POINTS)
+    game = Realism(web, "autumn-1941")
     ada = game.seat("ada", "roosevelt")
     bea = game.seat("bea", "churchill")
     game.open_play()

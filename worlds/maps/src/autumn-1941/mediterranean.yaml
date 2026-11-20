@@ -125,7 +125,7 @@ territories:
     provinces: [
       LBY-2965, LBY-2983, LBY-2986, LBY-2982, LBY-2981, LBY-2984
     ]
-  - key: tobruk_area
+  - key: tobruk
     name: The Tobruk enclave
     region: mediterranean
     terrain: plain
@@ -266,7 +266,7 @@ cuts:
     province: LBY-2987
     line: [[23.72, 32.30], [23.73, 32.05], [23.78, 31.90], [23.88, 31.82], [23.98, 31.80],
            [24.10, 31.82], [24.20, 31.90], [24.26, 32.00], [24.30, 32.15]]
-    left: tobruk_area
+    left: tobruk
     right: cyrenaica
     gap: true
     named_source: >-

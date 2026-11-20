@@ -43,8 +43,6 @@ STAGINGS = (STAGING, EUROPE_STAGING, ATLANTIC_STAGING, MEDITERRANEAN_STAGING, PA
 # The newest region's staging world: the scoped check runs on it, and it extends the earlier ones.
 NEWEST = PACIFIC_STAGING
 WORLD = ROOT / "worlds" / "autumn-1941.yaml"
-POINTS = ROOT / "tests" / "worlds" / "autumn-1941-points.yaml"
-"""The 1941 world before territories: the places the staging files were written against."""
 
 # Rule 2: every place the world has on the Eastern Front today.
 SITES = (
@@ -88,10 +86,9 @@ def _raw() -> Any:
 
 
 def _world_places() -> dict[str, Any]:
-    """The places of the world the staging files were written against (before territories)."""
     return {
         str(e["key"]): e
-        for e in _yaml(POINTS)["entities"]
+        for e in _yaml(WORLD)["entities"]
         if e.get("kind") == "location" and isinstance(e.get("at"), list)
     }
 
@@ -345,7 +342,7 @@ EUROPE_TERRITORIES = (
     "occupied_france",
     "vichy_france",
     "norway",
-    "sweden_area",
+    "sweden",
     "finland",
     "hungary_slovakia",
     "romania",
@@ -353,7 +350,7 @@ EUROPE_TERRITORIES = (
     "italy_north",
     "italy_south",
     "iberia",
-    "switzerland_area",
+    "switzerland",
 )
 EUROPE_SEA_ZONES = ("north_sea", "danish_straits", "gulf_of_bothnia", "bay_of_biscay")
 
@@ -383,7 +380,7 @@ EUROPE_TOWNS = (
     ("Paris", 48.86, 2.35, "occupied_france"),
     ("Vichy", 46.13, 3.43, "vichy_france"),
     ("Oslo", 59.91, 10.75, "norway"),
-    ("Stockholm", 59.33, 18.07, "sweden_area"),
+    ("Stockholm", 59.33, 18.07, "sweden"),
     ("Helsinki", 60.17, 24.94, "finland"),
     ("Budapest", 47.50, 19.04, "hungary_slovakia"),
     ("Bratislava", 48.15, 17.11, "hungary_slovakia"),
@@ -395,7 +392,7 @@ EUROPE_TOWNS = (
     ("Naples", 40.85, 14.27, "italy_south"),
     ("Madrid", 40.42, -3.70, "iberia"),
     ("Lisbon", 38.72, -9.14, "iberia"),
-    ("Bern", 46.95, 7.45, "switzerland_area"),
+    ("Bern", 46.95, 7.45, "switzerland"),
 )
 
 
@@ -426,7 +423,7 @@ def test_the_europe_sea_zones_join_the_pilots() -> None:
     ("zone", "lat", "inside_lon", "west_lon", "next_zone"),
     [
         ("bay_of_biscay", 46.0, -9.9, -10.5, "mid_ocean_gap"),
-        ("north_sea", 60.0, -1.5, -4.5, "western_approaches_area"),
+        ("north_sea", 60.0, -1.5, -4.5, "western_approaches"),
     ],
 )
 def test_the_western_sea_zones_reach_the_open_atlantic(
@@ -439,11 +436,7 @@ def test_the_western_sea_zones_reach_the_open_atlantic(
 
 
 # Rule 5: the neutrals are territories held by a polity with no seat.
-NEUTRALS = {
-    "sweden_area": ["sweden"],
-    "switzerland_area": ["switzerland"],
-    "iberia": ["spain", "portugal"],
-}
+NEUTRALS = {"sweden": ["sweden"], "switzerland": ["switzerland"], "iberia": ["spain", "portugal"]}
 
 
 def test_the_neutrals_are_territories_held_by_a_polity_with_no_seat() -> None:
@@ -475,12 +468,12 @@ ATLANTIC_TERRITORIES = (
 )
 ATLANTIC_SEA_ZONES = (
     "english_channel",
-    "western_approaches_area",
+    "western_approaches",
     "mid_ocean_gap",
     "western_atlantic",
     "labrador_sea",
     "denmark_strait",
-    "arctic_route_area",
+    "arctic_route",
     "caribbean_sea",
 )
 # Rule 2: the places today's world has in the region, and where each lies. Six are on land and
@@ -496,7 +489,7 @@ ATLANTIC_LAND_SITES = {
     "london": "britain_south",
 }
 ATLANTIC_WATER_SITES = {
-    "liverpool": "western_approaches_area",
+    "liverpool": "western_approaches",
     "argentia": "western_atlantic",
     "scapa_flow": "north_sea",
     "north_atlantic": "mid_ocean_gap",
@@ -549,8 +542,8 @@ PORT_ZONES = {
     "argentia": ("newfoundland", "western_atlantic"),
     "halifax_port": ("eastern_canada", "western_atlantic"),
     "sydney_cb": ("eastern_canada", "western_atlantic"),
-    "reykjavik": ("iceland", "arctic_route_area"),
-    "liverpool": ("britain_south", "western_approaches_area"),
+    "reykjavik": ("iceland", "arctic_route"),
+    "liverpool": ("britain_south", "western_approaches"),
     "scapa_flow": ("britain_north", "north_sea"),
 }
 
@@ -666,11 +659,11 @@ def test_each_convoy_route_can_be_traced_through_adjacent_sea_zones(route: str) 
 def test_the_atlantic_zones_join_europe_the_arctic_and_the_channel() -> None:
     raw = _raw()
     for a, b in (
-        ("arctic_route_area", "white_sea"),
-        ("arctic_route_area", "north_sea"),
+        ("arctic_route", "white_sea"),
+        ("arctic_route", "north_sea"),
         ("english_channel", "bay_of_biscay"),
         ("mid_ocean_gap", "bay_of_biscay"),
-        ("western_approaches_area", "north_sea"),
+        ("western_approaches", "north_sea"),
         ("western_atlantic", "mid_ocean_gap"),
     ):
         assert mc.adjacent(raw, a, b), (a, b)
@@ -706,7 +699,7 @@ MEDITERRANEAN_TERRITORIES = (
     "tunisia",
     "tripolitania",
     "cyrenaica",
-    "tobruk_area",
+    "tobruk",
     "egypt",
     "levant",
     "syria",
@@ -729,7 +722,7 @@ MEDITERRANEAN_SEA_ZONES = (
 MEDITERRANEAN_PLACE_HOMES = {
     "alexandria": ("egypt", "eastern_mediterranean", (31.20, 29.92)),
     "malta": ("british_islands", "central_mediterranean", (35.90, 14.51)),
-    "tobruk": ("tobruk_area", "eastern_mediterranean", (32.08, 23.98)),
+    "tobruk": ("tobruk", "eastern_mediterranean", (32.08, 23.98)),
     "bardia": ("cyrenaica", "eastern_mediterranean", (31.74, 25.07)),
     "tripoli": ("tripolitania", "central_mediterranean", (32.89, 13.19)),
     "taranto": ("italy_south", "central_mediterranean", (40.47, 17.24)),
@@ -822,15 +815,15 @@ def test_each_mediterranean_port_names_its_sea_zone(port: str) -> None:
 def test_tobruk_and_bardia_lie_in_different_territories() -> None:
     places = _med_places()
     tobruk, bardia = (_where(*places[k]["at"]) for k in ("tobruk", "bardia"))
-    assert (tobruk, bardia) == ("tobruk_area", "cyrenaica")
-    assert mc.adjacent(_raw(), "tobruk_area", "cyrenaica")
+    assert (tobruk, bardia) == ("tobruk", "cyrenaica")
+    assert mc.adjacent(_raw(), "tobruk", "cyrenaica")
 
 
 @pytest.mark.parametrize(
     ("name", "lat", "lon", "key"),
     [
-        ("inside the perimeter, south of the town", 31.95, 23.98, "tobruk_area"),
-        ("inside the perimeter, east of the town", 32.00, 24.15, "tobruk_area"),
+        ("inside the perimeter, south of the town", 31.95, 23.98, "tobruk"),
+        ("inside the perimeter, east of the town", 32.00, 24.15, "tobruk"),
         ("outside the perimeter, south", 31.55, 23.98, "cyrenaica"),
         ("outside the perimeter, east", 31.95, 24.55, "cyrenaica"),
         ("outside the perimeter, west", 31.95, 23.40, "cyrenaica"),
@@ -849,7 +842,7 @@ def test_the_libyan_territories_and_the_tobruk_perimeter(
 
 
 def test_the_tobruk_enclave_is_at_least_the_checkers_minimum() -> None:
-    assert mc.area(_raw(), "tobruk_area") >= mc.MIN_AREA["lonlat"]
+    assert mc.area(_raw(), "tobruk") >= mc.MIN_AREA["lonlat"]
 
 
 def test_the_tobruk_cut_is_the_enclaves_and_the_split_is_drawn_on_the_proof_sheet() -> None:
@@ -857,7 +850,7 @@ def test_the_tobruk_cut_is_the_enclaves_and_the_split_is_drawn_on_the_proof_shee
     tobruk = cuts["the Tobruk perimeter of September 1941"]
     assert (tobruk["province"], tobruk["left"], tobruk["right"]) == (
         "LBY-2987",
-        "tobruk_area",
+        "tobruk",
         "cyrenaica",
     )
     assert tobruk["gap"] is True
@@ -873,7 +866,7 @@ def test_cyrenaica_and_egypt_meet_at_the_present_day_border() -> None:
     assert {str(c)[:3] for c in doc["egypt"]["provinces"]} == {"EGY"}
     assert {str(c)[:3] for c in doc["cyrenaica"]["provinces"]} == {"LBY"}
     assert mc.adjacent(_raw(), "cyrenaica", "egypt")
-    assert not mc.adjacent(_raw(), "tobruk_area", "egypt")
+    assert not mc.adjacent(_raw(), "tobruk", "egypt")
 
 
 # Rule 4: the Italian Dodecanese is cut from the Greek province that holds it.
@@ -1006,7 +999,7 @@ PACIFIC_TERRITORIES = (
     "korea",
     "manchuria",
     "north_china",
-    "wuhan_area",
+    "wuhan",
     "hunan",
     "szechwan",
     "northwest_china",
@@ -1045,7 +1038,7 @@ PACIFIC_WORLD_SITES = {
 # two decimals; the recipe cites them).
 PACIFIC_NEW_SITES = {
     "changsha": ("hunan", (28.20, 112.97)),
-    "wuhan": ("wuhan_area", (30.58, 114.27)),
+    "wuhan": ("wuhan", (30.58, 114.27)),
 }
 
 
@@ -1151,20 +1144,20 @@ PACIFIC_CUT_SIDES = (
     ("Luoyang", 34.62, 112.45, "northwest_china"),
     ("Nanyang", 33.00, 112.53, "northwest_china"),
     # The Yichang front in Hubei.
-    ("Yichang", 30.69, 111.29, "wuhan_area"),
-    ("Shashi", 30.30, 112.25, "wuhan_area"),
+    ("Yichang", 30.69, 111.29, "wuhan"),
+    ("Shashi", 30.30, 112.25, "wuhan"),
     ("Enshi", 30.30, 109.48, "szechwan"),
     ("Xiangyang", 32.04, 112.14, "szechwan"),
     # The Xinqiang front at Yueyang.
-    ("Yueyang", 29.36, 113.13, "wuhan_area"),
+    ("Yueyang", 29.36, 113.13, "wuhan"),
     ("Zhuzhou", 27.83, 113.13, "hunan"),
     # The Nanchang front in Jiangxi.
-    ("Nanchang", 28.68, 115.86, "wuhan_area"),
-    ("Jiujiang", 29.71, 116.00, "wuhan_area"),
+    ("Nanchang", 28.68, 115.86, "wuhan"),
+    ("Jiujiang", 29.71, 116.00, "wuhan"),
     ("Ji'an", 27.11, 114.99, "hunan"),
     # The Chekiang front south of Ningbo.
-    ("Hangzhou", 30.27, 120.15, "wuhan_area"),
-    ("Shaoxing", 30.00, 120.58, "wuhan_area"),
+    ("Hangzhou", 30.27, 120.15, "wuhan"),
+    ("Shaoxing", 30.00, 120.58, "wuhan"),
     ("Jinhua", 29.08, 119.65, "south_china"),
     ("Wenzhou", 28.00, 120.67, "south_china"),
     # The Canton and Swatow perimeters in Guangdong.
@@ -1198,8 +1191,8 @@ def test_every_pacific_cut_is_a_gap_with_a_named_source() -> None:
     ("town", "lat", "lon", "key"),
     [
         ("Peking", 39.90, 116.40, "north_china"),
-        ("Shanghai", 31.23, 121.47, "wuhan_area"),
-        ("Nanking", 32.06, 118.80, "wuhan_area"),
+        ("Shanghai", 31.23, 121.47, "wuhan"),
+        ("Nanking", 32.06, 118.80, "wuhan"),
         ("Kunming", 25.04, 102.71, "szechwan"),
         ("Xi'an", 34.26, 108.94, "northwest_china"),
         ("Yan'an", 36.60, 109.49, "northwest_china"),

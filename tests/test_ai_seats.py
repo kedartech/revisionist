@@ -4,7 +4,6 @@ written for them, and the human's game runs exactly as it does without them."""
 from collections import Counter
 from collections.abc import Sequence
 from datetime import timedelta
-from pathlib import Path
 from typing import Any
 
 from revisionist.core import events as ev
@@ -35,8 +34,6 @@ from revisionist.engine.store import EventStore, MemoryStore, load_state
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 WORLD = "autumn-1941"
-POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
-"""The 1941 world before territories, for the case that sails a fleet between places."""
 TICKS = 8
 
 
@@ -49,8 +46,8 @@ class Counting:
         return Written(prose={p.doc_id: template_prose(author, p) for p in pages})
 
 
-def seated(store: EventStore, who: str, world: str = WORLD) -> SeatId:
-    decl = cmp.load_world(cmp.world_path(world))
+def seated(store: EventStore, who: str) -> SeatId:
+    decl = cmp.load_world(cmp.world_path(WORLD))
     store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))
     realism_tick.seat_player(store, CAMPAIGN, EntityId(resolve_keys(decl, CAMPAIGN)[who]))
     (seat,) = load_state(store, CAMPAIGN).seats
@@ -121,7 +118,7 @@ def test_nothing_is_addressed_to_an_ai_seat() -> None:
     made = set(seat_the_rest(store))
     state = played(store, Counting())
     for e in store.read(CAMPAIGN):
-        if e.payload.kind not in OWN_ORDERS | NATION_STATE:
+        if e.payload.kind not in OWN_ORDERS:
             assert not (made & e.scope.known_by), e.payload.kind
     assert {m.seat_id for m in state.mandates.values()} <= {human}
 
@@ -142,10 +139,6 @@ OWN_ORDERS = frozenset(
 )
 """What an AI seat may be scoped: its answers and the orders they file, as a player's
 orders are scoped to the player."""
-
-NATION_STATE = frozenset({"piece_stepped", "economy_set", "step_refused", "trade_set"})
-"""A nation's own state, scoped to its seats as to a player's (``realism_tick._nation_scope``):
-no page, report or mandate."""
 
 
 def test_a_page_only_an_ai_seat_holds_is_never_sent_to_the_writer() -> None:
@@ -194,11 +187,11 @@ def at_war_with_america(store: EventStore, hitler: SeatId) -> None:
 
 def test_an_ai_seat_gets_no_report_of_its_own_forces_and_no_newspaper() -> None:
     store = MemoryStore()
-    hitler = seated(store, "hitler", POINTS)
+    hitler = seated(store, "hitler")
     made = set(seat_the_rest(store))
     at_war_with_america(store, hitler)
     state = load_state(store, CAMPAIGN)
-    ids = resolve_keys(cmp.load_world(cmp.world_path(POINTS)), CAMPAIGN)
+    ids = resolve_keys(cmp.load_world(cmp.world_path(WORLD)), CAMPAIGN)
     today = state.in_world_date
     assert today is not None
 

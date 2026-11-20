@@ -14,7 +14,7 @@
 # checker reads the place there (worlds/maps/README.md).
 extends: mediterranean.world.yaml
 places_of: pacific.places.yaml
-map: {coords: lonlat, file: autumn-1941.json, sha256: 0a0e5b5b753978e7391c82d004bb5cc92802efe10b793931160bc1530ace6bac, box: [-126, -11.5, 234, 71.5]}
+map: {coords: lonlat, file: autumn-1941.json, sha256: f770cde38f1fd71b3dce6000c04bb238062d421f7161565fce9abd409f8c57bc, box: [-126, -11.5, 234, 71.5]}
 regions:
   - {key: pacific, name: China, Japan and the Pacific}
 territories:
@@ -24,7 +24,7 @@ territories:
   - {key: korea, name: Korea, region: pacific, terrain: mountain}
   - {key: manchuria, name: Manchuria, region: pacific, terrain: plain}
   - {key: north_china, name: Occupied North China, region: pacific, terrain: plain}
-  - {key: wuhan_area, name: The Wuhan Area and the Lower Yangtze, region: pacific, terrain: plain, sites: [wuhan]}
+  - {key: wuhan, name: The Wuhan Area and the Lower Yangtze, region: pacific, terrain: plain, sites: [wuhan]}
   - {key: hunan, name: Hunan and Kiangsi, region: pacific, terrain: mountain, sites: [changsha]}
   - {key: szechwan, name: Szechwan and the Southwest, region: pacific, terrain: mountain, sites: [chungking]}
   - {key: northwest_china, name: The Northwest and Loyang, region: pacific, terrain: mountain}
@@ -76,7 +76,7 @@ adjacency:
   - [east_china_sea, sea_of_japan]
   - [east_china_sea, south_china]
   - [east_china_sea, south_china_sea]
-  - [east_china_sea, wuhan_area]
+  - [east_china_sea, wuhan]
   - [eastern_pacific, north_pacific]
   - [formosa, philippine_sea]
   - [formosa, south_china_sea]
@@ -84,7 +84,7 @@ adjacency:
   - [hong_kong, south_china_sea]
   - [hunan, south_china]
   - [hunan, szechwan]
-  - [hunan, wuhan_area]
+  - [hunan, wuhan]
   - [indochina, south_china]
   - [indochina, south_china_sea]
   - [indochina, szechwan]
@@ -109,12 +109,12 @@ adjacency:
   - [manchuria, north_china]
   - [manchuria, soviet_far_east]
   - [north_china, northwest_china]
-  - [north_china, wuhan_area]
+  - [north_china, wuhan]
   - [north_pacific, philippine_sea]
   - [north_pacific, sea_of_japan]
   - [north_pacific, soviet_far_east]
   - [northwest_china, szechwan]
-  - [northwest_china, wuhan_area]
+  - [northwest_china, wuhan]
   - [philippine_sea, philippines]
   - [philippine_sea, south_china_sea]
   - [philippines, south_china_sea]
@@ -122,10 +122,10 @@ adjacency:
   - [south_china, south_china_coast]
   - [south_china, south_china_sea]
   - [south_china, szechwan]
-  - [south_china, wuhan_area]
+  - [south_china, wuhan]
   - [south_china_coast, south_china_sea]
   - [south_china_sea, thailand]
-  - [szechwan, wuhan_area]
+  - [szechwan, wuhan]
   - {a: eastern_pacific, b: us_west, crossing: the box's seam at 126 W}
 entities:
   - {key: tokyo, kind: location, name: Tokyo, at: [35.7, 139.7]}

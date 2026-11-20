@@ -18,7 +18,7 @@ from revisionist.core.state import State
 from revisionist.core.world_compile import object_id
 from tests.test_engine_v2_contract import CAMPAIGN as SLICE_CAMPAIGN
 from tests.test_engine_v2_contract import Slice
-from tests.test_realism_resolvers import CAMPAIGN, POINTS, START, Rig
+from tests.test_realism_resolvers import CAMPAIGN, START, Rig
 from tests.test_war_rules import DAY, declared, slice_with
 
 LATER = START + timedelta(days=3)
@@ -52,7 +52,7 @@ def detachment(
 
 
 def rig_with(*seats: str) -> Rig:
-    r = Rig(POINTS)
+    r = Rig()
     for key in seats:
         r.seat(key)
     r.close_session_zero()

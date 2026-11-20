@@ -3,7 +3,6 @@ report contact to their own side, and the Gallup questions on war move only wher
 reading exists. No model call."""
 
 from datetime import date
-from pathlib import Path
 
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, FeatureId, QuantityId, SeatId, derived_id
@@ -24,9 +23,9 @@ OPINION = ("gallup_declare_war_germany", "gallup_help_britain")
 class War:
     """autumn-1941 with Roosevelt and Hitler seated and Germany at war with the US."""
 
-    def __init__(self, seed_opinion: int | None = None, world: str = "autumn-1941") -> None:
+    def __init__(self, seed_opinion: int | None = None) -> None:
         self.store = MemoryStore()
-        decl = cmp.load_world(cmp.world_path(world))
+        decl = cmp.load_world(cmp.world_path("autumn-1941"))
         self.store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))
         self.ids = resolve_keys(decl, CAMPAIGN)
         self.fdr = SeatId(derived_id(CAMPAIGN, "seat", self.ids["roosevelt"]))
@@ -70,8 +69,7 @@ class War:
 
 
 def test_forces_that_meet_report_contact_to_their_own_side() -> None:
-    # forces that meet at a place: the 1941 world before territories
-    w = War(world=str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml"))
+    w = War()
     uboats = w.state.features[FeatureId(object_id(CAMPAIGN, "feature", "uboat_arm"))]
     norfolk = EntityId(w.ids["norfolk"])
     w.append(ev.FeatureSet(feature=uboats.model_copy(update={"places": (norfolk,)})))

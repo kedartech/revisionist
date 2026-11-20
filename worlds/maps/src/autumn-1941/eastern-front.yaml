@@ -44,7 +44,7 @@ territories:
     terrain_note: "taiga and tundra; no source cited"
     sites: [archangel]
     provinces: [RUS-2353, RUS-2354, RUS-2359]
-  - key: leningrad_area
+  - key: leningrad
     name: Leningrad
     region: eastern_front
     terrain: forest
@@ -83,7 +83,7 @@ territories:
     terrain_gap: true
     terrain_note: "forest and the Pripet marshes in the south; no source cited"
     provinces: [BLR-2338, BLR-2339, BLR-2340, BLR-2341, BLR-2344, BLR-2345, BLR-4825]
-  - key: kalinin_area
+  - key: kalinin
     name: Kalinin
     region: eastern_front
     terrain: forest
@@ -91,7 +91,7 @@ territories:
     terrain_note: "forest of the upper Volga; no source cited"
     sites: [kalinin]
     provinces: [RUS-2358, RUS-2360]
-  - key: smolensk_area
+  - key: smolensk
     name: Smolensk
     region: eastern_front
     terrain: forest
@@ -99,7 +99,7 @@ territories:
     terrain_note: "forest and the Smolensk gate; no source cited"
     sites: [smolensk, vyazma]
     provinces: [RUS-2343, RUS-2342]
-  - key: moscow_area
+  - key: moscow
     name: Moscow
     region: eastern_front
     terrain: forest
@@ -121,7 +121,7 @@ territories:
     terrain_gap: true
     terrain_note: "plain, with the Carpathian foothills in the south-west; no source cited"
     provinces: [UKR-291, UKR-318, UKR-286, UKR-292, UKR-289, UKR-288, UKR-290]
-  - key: kiev_area
+  - key: kiev
     name: Kiev
     region: eastern_front
     terrain: plain
@@ -129,7 +129,7 @@ territories:
     terrain_note: "forest-steppe on the Dnieper; no source cited"
     sites: [kiev]
     provinces: [UKR-4826, UKR-321, UKR-324, UKR-285, UKR-323, UKR-319]
-  - key: odessa_area
+  - key: odessa
     name: Odessa and Bessarabia
     region: eastern_front
     terrain: plain
@@ -144,7 +144,7 @@ territories:
       MDA-1641, MDA-1642, MDA-1643, MDA-1644, MDA-1645, MDA-1646, MDA-1647, MDA-1648, MDA-1649,
       MDA-1650, MDA-1651, MDA-1652, MDA-1653
     ]
-  - key: kharkov_area
+  - key: kharkov
     name: Kharkov and Poltava
     region: eastern_front
     terrain: plain

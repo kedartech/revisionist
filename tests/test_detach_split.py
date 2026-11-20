@@ -16,7 +16,7 @@ from revisionist.core.realism.geography import Feature, FeatureKind, in_play
 from revisionist.core.realism.resolvers import movement
 from revisionist.core.realism.routing import travel_days
 from revisionist.core.world_compile import object_id
-from tests.test_realism_resolvers import POINTS, Rig, rig
+from tests.test_realism_resolvers import Rig, rig
 
 DAY = date(1941, 9, 10)
 """The day the first order settles."""
@@ -76,7 +76,7 @@ def arrive(r: Rig, key: str) -> date:
 
 
 def two_seats() -> Rig:
-    r = Rig(POINTS)
+    r = Rig()
     r.seat("roosevelt")
     r.seat("churchill")
     r.close_session_zero()
@@ -87,7 +87,7 @@ def two_seats() -> Rig:
 
 
 def test_roosevelt_detaches_strength_2_of_the_atlantic_fleet_to_argentia() -> None:
-    r = rig(POINTS)
+    r = rig()
     before = feature(r, "us_atlantic_fleet")
     parent, part = detach(r, "us_atlantic_fleet", "argentia", 2)
     assert parent == before.model_copy(update={"tier": 2, "as_of": DAY})
@@ -110,13 +110,13 @@ def test_roosevelt_detaches_strength_2_of_the_atlantic_fleet_to_argentia() -> No
 
 
 def test_a_strength_given_as_text_is_read_as_a_number() -> None:
-    r = rig(POINTS)
+    r = rig()
     parent, part = detach(r, "us_atlantic_fleet", "argentia", "3")
     assert (parent.tier, part.tier) == (1, 3)
 
 
 def test_a_split_to_a_refused_place_makes_nothing_and_moves_nothing() -> None:
-    r = rig(POINTS)
+    r = rig()
     fleet = feature(r, "us_atlantic_fleet")
     found = reach(r.state, fleet, at(r, "chungking"))
     assert found is not None and found.tier is Tier.REFUSED
@@ -124,12 +124,12 @@ def test_a_split_to_a_refused_place_makes_nothing_and_moves_nothing() -> None:
 
 
 def test_a_split_to_where_the_force_already_is_makes_nothing() -> None:
-    r = rig(POINTS)
+    r = rig()
     assert order(r, DAY, force="us_atlantic_fleet", to="norfolk", strength=2) == ()
 
 
 def test_a_split_that_would_leave_the_parent_below_strength_1_is_refused() -> None:
-    r = rig(POINTS)
+    r = rig()
     assert order(r, DAY, force="us_atlantic_fleet", to="argentia", strength=4) == ()
     assert order(r, DAY, force="us_atlantic_fleet", to="argentia", strength=0) == ()
     assert order(r, DAY, force="us_atlantic_fleet", to="argentia", strength="two") == ()
@@ -156,7 +156,7 @@ def test_the_cap_table_allows_no_army_detachment_and_one_air_group() -> None:
 
 
 def test_slots_are_numbered_per_parent_from_1() -> None:
-    r = rig(POINTS)
+    r = rig()
     detach(r, "us_atlantic_fleet", "argentia", 1)
     _, second = detach(r, "us_atlantic_fleet", "reykjavik", 1)
     assert second.feature_id == fid(r, "us_atlantic_fleet__d2")
@@ -164,7 +164,7 @@ def test_slots_are_numbered_per_parent_from_1() -> None:
 
 
 def test_a_detachment_is_not_split_again() -> None:
-    r = rig(POINTS)
+    r = rig()
     detach(r, "us_atlantic_fleet", "argentia", 3)
     arrive(r, "us_atlantic_fleet__d1")
     assert (
@@ -176,12 +176,12 @@ def test_a_detachment_is_not_split_again() -> None:
 
 
 def test_only_the_issuers_side_splits() -> None:
-    r = rig(POINTS)
+    r = rig()
     assert order(r, DAY, force="home_fleet", to="reykjavik", strength=1) == ()
 
 
 def test_a_long_name_is_cut_to_fit_and_keeps_the_slot_number() -> None:
-    r = rig(POINTS)
+    r = rig()
     long = feature(r, "us_atlantic_fleet").model_copy(update={"name": "N" * 60, "as_of": DAY})
     r.fold_changes((long,))
     _, part = detach(r, "us_atlantic_fleet", "argentia", 1)
@@ -192,7 +192,7 @@ def test_a_long_name_is_cut_to_fit_and_keeps_the_slot_number() -> None:
 
 
 def test_a_detachment_sent_to_a_raid_place_starts_the_raid_clock_and_turns_for_base() -> None:
-    r = rig(POINTS)
+    r = rig()
     _, part = detach(r, "us_atlantic_fleet", "rome", 2)
     assert part.left_base_on == DAY
     arrive(r, "us_atlantic_fleet__d1")
@@ -207,7 +207,7 @@ def test_a_detachment_sent_to_a_raid_place_starts_the_raid_clock_and_turns_for_b
 
 
 def test_the_detachment_sent_back_to_norfolk_merges_on_arrival() -> None:
-    r = rig(POINTS)
+    r = rig()
     detach(r, "us_atlantic_fleet", "argentia", 2)
     there = arrive(r, "us_atlantic_fleet__d1")
     move(r, "us_atlantic_fleet__d1", "norfolk", there + timedelta(days=1))
@@ -225,7 +225,7 @@ def test_the_detachment_sent_back_to_norfolk_merges_on_arrival() -> None:
 
 
 def test_the_parent_arriving_where_its_detachment_stands_merges() -> None:
-    r = rig(POINTS)
+    r = rig()
     detach(r, "us_atlantic_fleet", "argentia", 2)
     there = arrive(r, "us_atlantic_fleet__d1")
     move(r, "us_atlantic_fleet", "argentia", there + timedelta(days=1))
@@ -236,7 +236,7 @@ def test_the_parent_arriving_where_its_detachment_stands_merges() -> None:
 
 
 def test_two_detachments_merging_on_one_day_both_return_their_strength() -> None:
-    r = rig(POINTS)
+    r = rig()
     detach(r, "us_atlantic_fleet", "argentia", 1)
     detach(r, "us_atlantic_fleet", "argentia", 2, DAY + timedelta(days=1))
     arrive(r, "us_atlantic_fleet__d1")
@@ -252,14 +252,14 @@ def test_two_detachments_merging_on_one_day_both_return_their_strength() -> None
 
 
 def test_a_detachment_under_way_from_its_parents_place_does_not_merge() -> None:
-    r = rig(POINTS)
+    r = rig()
     detach(r, "us_atlantic_fleet", "argentia", 2)
     assert movement.on_day(r.state, DAY + timedelta(days=1)) == ()
     assert in_play(feature(r, "us_atlantic_fleet__d1"))
 
 
 def test_a_detachment_does_not_merge_into_a_parent_under_way() -> None:
-    r = rig(POINTS)
+    r = rig()
     detach(r, "us_atlantic_fleet", "argentia", 2)
     there = arrive(r, "us_atlantic_fleet__d1")
     move(r, "us_atlantic_fleet__d1", "norfolk", there + timedelta(days=1))
@@ -272,7 +272,7 @@ def test_a_detachment_does_not_merge_into_a_parent_under_way() -> None:
 
 
 def test_a_merge_brings_the_parent_to_at_most_strength_5() -> None:
-    r = rig(POINTS)
+    r = rig()
     detach(r, "us_atlantic_fleet", "argentia", 2)
     there = arrive(r, "us_atlantic_fleet__d1")
     move(r, "us_atlantic_fleet__d1", "norfolk", there + timedelta(days=1))
@@ -284,7 +284,7 @@ def test_a_merge_brings_the_parent_to_at_most_strength_5() -> None:
 
 
 def test_a_rejoined_slot_is_reused_and_no_longer_counts_against_the_cap() -> None:
-    r = rig(POINTS)
+    r = rig()
     detach(r, "us_atlantic_fleet", "argentia", 1)
     detach(r, "us_atlantic_fleet", "reykjavik", 1)
     there = arrive(r, "us_atlantic_fleet__d1")
@@ -299,7 +299,7 @@ def test_a_rejoined_slot_is_reused_and_no_longer_counts_against_the_cap() -> Non
 
 
 def test_a_reused_slot_never_steps_back_in_time() -> None:
-    r = rig(POINTS)
+    r = rig()
     detach(r, "us_atlantic_fleet", "argentia", 1)
     there = arrive(r, "us_atlantic_fleet__d1")
     move(r, "us_atlantic_fleet__d1", "norfolk", there + timedelta(days=1))
@@ -314,7 +314,7 @@ def test_a_reused_slot_never_steps_back_in_time() -> None:
 
 
 def test_a_rejoined_detachment_is_not_turned_for_base_or_moved_by_an_order() -> None:
-    r = rig(POINTS)
+    r = rig()
     detach(r, "us_atlantic_fleet", "rome", 2)
     move(r, "us_atlantic_fleet", "rome", DAY + timedelta(days=1))
     arrive(r, "us_atlantic_fleet__d1")
@@ -328,7 +328,7 @@ def test_a_rejoined_detachment_is_not_turned_for_base_or_moved_by_an_order() -> 
 
 
 def test_a_world_with_no_detachment_moves_as_before() -> None:
-    r = rig(POINTS)
+    r = rig()
     (out,) = order(r, DAY, force="us_atlantic_fleet", to="argentia")
     assert out.feature_id == fid(r, "us_atlantic_fleet") and out.tier == 4
     assert out.bound_for == at(r, "argentia")

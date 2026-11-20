@@ -710,6 +710,7 @@ def features(draw: st.DrawFn) -> rg.Feature:
     moving = force and draw(st.booleans())
     stepping = moving and draw(st.booleans())
     as_of = draw(in_world_dates)
+    recon = draw(st.none() | entity_ids) if force else None
     return rg.Feature(
         feature_id=draw(feature_ids),
         kind=kind,
@@ -730,6 +731,10 @@ def features(draw: st.DrawFn) -> rg.Feature:
         step_due=as_of if stepping else None,
         lost_on=draw(st.none() | in_world_dates) if kind is rg.FeatureKind.PIECE else None,
         contingency=draw(st.none() | contingencies()) if kind is rg.FeatureKind.PIECE else None,
+        concealed=draw(st.booleans()) if force else False,
+        concealed_leg=stepping and draw(st.booleans()),
+        recon=recon,
+        recon_on=None if recon is None else draw(in_world_dates),
     )
 
 
@@ -829,6 +834,7 @@ def battles(draw: st.DrawFn) -> rb.Battle:
 def intelligences(draw: st.DrawFn) -> rdet.Intelligence:
     """A nation's sources (DET): each source once, ranked from 1."""
     kinds = draw(st.lists(st.sampled_from(list(rdet.Source)), max_size=3, unique=True))
+    level = draw(st.integers(0, 3))
     return rdet.Intelligence(
         nation=draw(entity_ids),
         sources=tuple(
@@ -841,15 +847,27 @@ def intelligences(draw: st.DrawFn) -> rdet.Intelligence:
             )
             for n, k in enumerate(kinds)
         ),
-        codebreaking=draw(st.integers(0, 3)),
+        codebreaking=level,
         agents=tuple(
             draw(
                 st.lists(
-                    st.builds(rdet.Agent, area=entity_ids, until=st.none() | in_world_dates),
+                    agents(),
                     max_size=2,
                 )
             )
         ),
+        raised=tuple(draw(st.lists(in_world_dates, max_size=3 - level))),
+    )
+
+
+def agents() -> st.SearchStrategy[rdet.Agent]:
+    """An agent declared at the start, or placed and perhaps lost (IOR)."""
+    return st.builds(
+        rdet.Agent,
+        area=entity_ids,
+        until=st.none() | in_world_dates,
+        since=st.none() | in_world_dates,
+        lost=st.none() | in_world_dates,
     )
 
 
@@ -1079,6 +1097,8 @@ realism_payloads = st.one_of(
         report=reports(),
         shift=st.none() | st.sampled_from(list(rdet.Shift)),
     ),
+    st.builds(ev.AgentSet, nation=entity_ids, index=st.integers(0, 3), agent=agents()),
+    st.builds(ev.CodebreakingSet, nation=entity_ids, level=st.integers(1, 3), on=in_world_dates),
     st.builds(
         ev.BattleRound,
         area=entity_ids,
@@ -1264,9 +1284,15 @@ effects: st.SearchStrategy[rx.Effect] = st.one_of(
         zone=labels,
         rule=st.sampled_from(list(rx.Engagement)),
         contingency=st.none() | contingencies(),
+        concealed=st.none() | st.booleans(),
     ),
     st.builds(
-        rx.Allocate, recipient=entity_ids, what=labels, amount=st.integers(0, 10**9), unit=labels
+        rx.Allocate,
+        recipient=entity_ids,
+        what=labels,
+        amount=st.integers(0, 10**9),
+        unit=labels,
+        intel=st.none() | st.just(rx.IntelOrder.CODEBREAKING),
     ),
     st.builds(rx.Appointment, person=entity_ids, office=labels, appoint=st.booleans()),
     st.builds(
@@ -1276,6 +1302,16 @@ effects: st.SearchStrategy[rx.Effect] = st.one_of(
     ),
     st.builds(rx.MakeStatement, theme=labels, audience=st.none() | entity_ids),
     st.builds(rx.Investigate, target=entity_ids, question=labels),
+    st.builds(
+        rx.Investigate,
+        target=entity_ids,
+        question=labels,
+        intel=st.just(rx.IntelOrder.RECON),
+        piece=feature_ids,
+    ),
+    st.builds(
+        rx.Investigate, target=entity_ids, question=labels, intel=st.just(rx.IntelOrder.AGENT)
+    ),
     st.builds(
         rx.Deal,
         counterparty=entity_ids,

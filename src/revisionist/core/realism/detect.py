@@ -33,13 +33,24 @@ its own, and the reports made but not yet arrived apart from it. On its arrival 
 pending report replaces the delivered one only when it is newer (day seen, then source
 rank, then key); an older one that arrives late replaces nothing. A delivered report older
 than ``STALE_DAYS`` is dropped. ``report_made`` events, engine only, are the history.
+
+Five orders work the sources (IOR), each taking effect in the day walk after the close: a
+reconnaissance flight (``order_recon``) searches one area in its air piece's range on the
+next day's roll at ``RECON_CHANCE`` less each target's ``conceal``; a patrol is the patrol
+posture on a sea piece; placing an agent (``place_agent``) puts one in an area after
+``AGENT_DAYS``, up to ``AGENTS_MAX``, and a placed agent is exposed and lost at
+``EXPOSE_CHANCE`` a day, its area's holder told by a paper; funding codebreaking
+(``fund_codebreaking``) spends ``CODE_COST`` output and raises the level by one after
+``CODE_DAYS``; concealment (``set_concealed``) adds ``CONCEAL_BONUS`` to a piece's
+``conceal`` and a day to each of its steps until lifted. The aide files a patrol or a
+flight at most (``aide_may``).
 """
 
 import hashlib
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import date, timedelta
 from enum import StrEnum
-from typing import TYPE_CHECKING, Annotated, NamedTuple
+from typing import TYPE_CHECKING, Annotated, ClassVar, NamedTuple
 
 from pydantic import Field, model_validator
 
@@ -60,6 +71,13 @@ WRONG_SHIFT = 2  # a wrong report's strength range is shifted by this
 STALE_DAYS = 14  # [proposed] a delivered report older than this is dropped
 ORDINARY_COMPETENCE = 3  # a person with no card reports as an ordinary one
 MAX_LEVEL = 3
+AGENT_DAYS = 7  # [proposed] days from the order until a placed agent is in its area
+AGENTS_MAX = 3  # [proposed] agents a nation has at once
+EXPOSE_CHANCE = 5  # [proposed] percent a day that a placed agent is exposed and lost
+CODE_COST = 10  # [proposed] output points funding codebreaking spends
+CODE_DAYS = 30  # [proposed] days from the funding until the level rises
+CONCEAL_BONUS = 30  # [proposed] what concealment adds to a piece's ``conceal``
+RECON_CHANCE = 100  # a reconnaissance flight's search, less the target's ``conceal``
 
 
 class Source(StrEnum):
@@ -100,6 +118,21 @@ class Agent(Model):
     area: EntityId
     until: date | None = None
     """The last day the agent reports. None: no end."""
+    since: date | None = None
+    """A placed agent: the first day it is in its area (IOR). None: declared at the start,
+    there from the start and never exposed."""
+    lost: date | None = None
+    """A placed agent exposed: the day it was lost (IOR). None while it works."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"since", "lost"})
+
+    def works(self, day: date) -> bool:
+        """In its area and reporting on ``day``."""
+        return (
+            (self.since is None or self.since <= day)
+            and (self.lost is None or day < self.lost)
+            and (self.until is None or day <= self.until)
+        )
 
 
 class Intelligence(Model):
@@ -109,6 +142,10 @@ class Intelligence(Model):
     sources: tuple[Informant, ...] = ()
     codebreaking: int = Field(default=0, ge=0, le=MAX_LEVEL)
     agents: tuple[Agent, ...] = ()
+    raised: tuple[date, ...] = ()
+    """Each day the codebreaking level rises by one, by funding (IOR)."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"raised"})
 
     @model_validator(mode="after")
     def _one_each(self) -> "Intelligence":
@@ -265,8 +302,30 @@ def nations(state: "State") -> list[EntityId]:
 def _chance(state: "State", searcher: "Feature", target: "Feature") -> int:
     from revisionist.core.realism import kinds
 
-    a, b = kinds.of(state, searcher), kinds.of(state, target)
-    return max(0, (a.detect if a else 0) - (b.conceal if b else 0))
+    a = kinds.of(state, searcher)
+    return max(0, (a.detect if a else 0) - conceal(state, target))
+
+
+def concealed(piece: "Feature") -> bool:
+    """Concealed by order, or on the course of a concealed leg of the record (IOR)."""
+    return piece.concealed or (piece.concealed_leg and bool(piece.path))
+
+
+def conceal(state: "State", piece: "Feature") -> int:
+    """The piece's ``conceal``: its kind's, and ``CONCEAL_BONUS`` while it is concealed."""
+    from revisionist.core.realism import kinds
+
+    kind = kinds.of(state, piece)
+    return (kind.conceal if kind else 0) + (CONCEAL_BONUS if concealed(piece) else 0)
+
+
+def level(state: "State", nation: EntityId, day: date) -> int:
+    """The nation's codebreaking level on ``day``: the declared one, and one for each
+    funded rise due by then, to at most ``MAX_LEVEL``."""
+    intel = state.intelligence.get(nation)
+    if intel is None:
+        return 0
+    return min(MAX_LEVEL, intel.codebreaking + sum(1 for d in intel.raised if d <= day))
 
 
 def _informant(state: "State", nation: EntityId, source: Source) -> Informant | None:
@@ -298,6 +357,20 @@ def _covered(
         for a in areas:
             out.setdefault(a, []).append(f)
     return out
+
+
+def _flown(own: list["Feature"], day: date) -> set[EntityId]:
+    """The areas the nation's ordered reconnaissance flights search on ``day``."""
+    return {f.recon for f in own if f.recon is not None and f.recon_on == day}
+
+
+def exposed(state: "State", day: date, nation: EntityId, n: int, agent: Agent) -> bool:
+    """Whether the nation's placed agent ``n`` is exposed on ``day``, at
+    ``EXPOSE_CHANCE``. An agent declared at the start never is."""
+    if agent.since is None or not agent.works(day):
+        return False
+    subject = f"{n}\x1f{agent.area}"
+    return roll(state, day, nation, "agent-exposed", subject) < EXPOSE_CHANCE
 
 
 def _region(state: "State", area: EntityId) -> str | None:
@@ -339,16 +412,19 @@ def sightings(state: "State", start: "State", day: date, nation: EntityId) -> li
         if _informant(state, nation, source) is None:
             continue
         cover = _covered(state, own, source)
+        flown = _flown(own, day) if source is Source.AIR else set()
         for e in enemies:
             searchers = cover.get(e.places[0], [])
-            if not searchers:
+            if not searchers and e.places[0] not in flown:
                 continue
-            chance = max(_chance(state, s, e) for s in searchers)
-            if roll(state, day, nation, source.value, str(e.feature_id)) < chance:
+            chances = [_chance(state, s, e) for s in searchers]
+            if e.places[0] in flown:
+                chances.append(max(0, RECON_CHANCE - conceal(state, e)))
+            if roll(state, day, nation, source.value, str(e.feature_id)) < max(chances):
                 out.append(Sighting(source, e, Confidence.B, e.places[0], None, False))
     intel = state.intelligence.get(nation)
     if intel is not None and _informant(state, nation, Source.CODEBREAKING) is not None:
-        chance = CODEBREAKING_CHANCE[intel.codebreaking]
+        chance = CODEBREAKING_CHANCE[level(state, nation, day)]
         for e in enemies:
             was = start.features.get(e.feature_id)
             bound = _target(e)
@@ -363,7 +439,7 @@ def sightings(state: "State", start: "State", day: date, nation: EntityId) -> li
     if intel is not None and _informant(state, nation, Source.AGENT) is not None:
         seen: set[FeatureId] = set()
         for n, agent in enumerate(intel.agents):
-            if agent.until is not None and day > agent.until:
+            if not agent.works(day) or exposed(state, day, nation, n, agent):
                 continue
             there = [e for e in enemies if e.places[0] == agent.area and e.feature_id not in seen]
             subject = f"{n}\x1f{agent.area}"
@@ -461,6 +537,7 @@ def walk(state: "State", start: "State", day: date) -> list["ev.Payload"]:
         return []
     out: list[ev.Payload] = []
     for nation in nations(state):
+        out.extend(_exposures(state, day, nation))
         made_today: list[Report] = []
         for s in sightings(state, start, day, nation):
             r, shift = report(state, day, nation, s)
@@ -470,6 +547,213 @@ def walk(state: "State", start: "State", day: date) -> list["ev.Payload"]:
             )
         out.extend(pages(state, day, nation, made_today))
     return out
+
+
+def _exposures(state: "State", day: date, nation: EntityId) -> list["ev.Payload"]:
+    """Each of the nation's placed agents exposed on ``day``: lost, and a paper to each
+    seat of the holder of its area (none for a sea zone, nor for the nation's own)."""
+    from revisionist.core import events as ev
+
+    intel = state.intelligence.get(nation)
+    out: list[ev.Payload] = []
+    for n, agent in enumerate(intel.agents if intel is not None else ()):
+        if exposed(state, day, nation, n, agent):
+            lost = agent.model_copy(update={"lost": day})
+            out.append(ev.AgentSet(nation=nation, index=n, agent=lost))
+            out.extend(_caught(state, day, nation, n, agent.area))
+    return out
+
+
+def _caught(
+    state: "State", day: date, nation: EntityId, n: int, area: EntityId
+) -> list["ev.Payload"]:
+    from revisionist.core import events as ev
+    from revisionist.core.realism import actors, territory
+    from revisionist.core.realism.card import ChannelKind
+    from revisionist.core.realism.document import (
+        BodyField,
+        Classification,
+        DocumentKind,
+        DocumentTruth,
+        DocumentView,
+    )
+    from revisionist.core.realism.war import polity_of
+    from revisionist.core.visibility import private_to
+
+    held = territory.holder(state, area)
+    if held is None or held == nation:
+        return []
+    where = state.entities[area].name[:60]
+    spy = state.entities[nation].name[:60]
+    out: list[ev.Payload] = []
+    for s in sorted(state.seats.values(), key=lambda s: s.seat_id):
+        if s.seat_id not in actors.readers(state) or polity_of(state, s.embodies) != held:
+            continue
+        doc_id = DocumentId(
+            derived_id(state.campaign_id, "agent-caught", nation, n, day.isoformat(), s.seat_id)
+        )
+        out.append(
+            ev.DocumentIssued(
+                document=DocumentView(
+                    doc_id=doc_id,
+                    kind=DocumentKind.REPORT,
+                    author=held,
+                    issued=day,
+                    arrives=day,
+                    channel=ChannelKind.CABLE,
+                    classification=Classification.SECRET,  # [proposed]
+                    title=f"Agent caught in {where}"[:60],
+                    body=(
+                        BodyField(label="Area", value=where),
+                        BodyField(label="Working for", value=spy),
+                        BodyField(label="Caught", value=day.isoformat()),
+                    ),
+                    scope=private_to(s.seat_id),
+                ),
+                truth=DocumentTruth(doc_id=doc_id),
+            )
+        )
+    return out
+
+
+# --- the intelligence orders (IOR) ----------------------------------------------------
+
+
+class IntelError(ValueError):
+    """An intelligence order the rules refuse, with the reason in plain words."""
+
+
+def _need_on(state: "State") -> None:
+    if not on(state):
+        raise IntelError("The reports rule is off in this game.")
+
+
+def _name(state: "State", entity: EntityId) -> str:
+    found = state.entities.get(entity)
+    return found.name if found is not None else str(entity)
+
+
+def _need_informant(state: "State", nation: EntityId, source: Source) -> None:
+    if _informant(state, nation, source) is None:
+        raise IntelError(f"No one reports {source.value} for {_name(state, nation)}.")
+
+
+def _need_area(state: "State", area: EntityId) -> None:
+    board = state.map
+    assert board is not None
+    if area not in set(board.areas()):
+        raise IntelError(f"{_name(state, area)} is not an area of the map.")
+
+
+def order_recon(
+    state: "State", polity: EntityId, piece: FeatureId, area: EntityId, on: date
+) -> tuple["Feature", ...]:
+    """A reconnaissance flight: ``piece``, an own air piece, searches ``area``, within its
+    range, on the next day's roll at ``RECON_CHANCE`` less each target's ``conceal``.
+    Raises ``IntelError`` when the rules refuse it."""
+    from revisionist.core.realism import kinds, territory
+    from revisionist.core.realism.geography import in_play
+
+    _need_on(state)
+    _need_informant(state, polity, Source.AIR)
+    flier = state.features.get(piece)
+    if flier is None or not in_play(flier):
+        raise IntelError("There is no piece to fly.")
+    if territory.nation(state, flier.side) != polity:
+        raise IntelError(f"{flier.name} is not {_name(state, polity)}'s.")
+    kind = kinds.of(state, flier)
+    if kind is None or kind.domain is not kinds.Domain.AIR:
+        raise IntelError(f"{flier.name} is not an air piece.")
+    _need_area(state, area)
+    board = state.map
+    assert board is not None
+    steps = territory.steps_from(board, "air", [flier.places[0]]).get(area)
+    if steps is None or steps > (kind.range_steps or 0):
+        raise IntelError(f"{_name(state, area)} is beyond {flier.name}'s range.")
+    return (flier.model_copy(update={"recon": area, "recon_on": on + timedelta(days=1)}),)
+
+
+def _working(intel: Intelligence | None, on: date) -> int:
+    """The nation's agents in place or on their way on ``on``: neither lost nor ended."""
+    if intel is None:
+        return 0
+    return sum(1 for a in intel.agents if a.lost is None and (a.until is None or a.until >= on))
+
+
+def place_agent(
+    state: "State", polity: EntityId, area: EntityId, on: date
+) -> tuple["ev.AgentSet", ...]:
+    """An agent placed in ``area``: there from ``AGENT_DAYS`` after ``on``, while the
+    nation has fewer than ``AGENTS_MAX``. Raises ``IntelError`` when the rules refuse it."""
+    from revisionist.core import events as ev
+
+    _need_on(state)
+    _need_informant(state, polity, Source.AGENT)
+    _need_area(state, area)
+    intel = state.intelligence.get(polity)
+    if _working(intel, on) >= AGENTS_MAX:
+        raise IntelError(f"{_name(state, polity)} has at most {AGENTS_MAX} agents at once.")
+    agent = Agent(area=area, since=on + timedelta(days=AGENT_DAYS))
+    index = len(intel.agents) if intel is not None else 0
+    return (ev.AgentSet(nation=polity, index=index, agent=agent),)
+
+
+def fund_codebreaking(
+    state: "State", polity: EntityId, on: date
+) -> tuple["ev.EconomySet", "ev.CodebreakingSet"]:
+    """``CODE_COST`` spent from the output pool, and the codebreaking level one higher from
+    ``CODE_DAYS`` after ``on``, to at most ``MAX_LEVEL`` counting rises still to come.
+    Raises ``IntelError`` when the rules refuse it."""
+    from revisionist.core import events as ev
+    from revisionist.core.state import Rule
+
+    _need_on(state)
+    if Rule.ECONOMY not in state.rules:
+        raise IntelError("The economy rule is off in this game.")
+    _need_informant(state, polity, Source.CODEBREAKING)
+    intel = state.intelligence.get(polity)
+    assert intel is not None  # an informant is named in it
+    reached = intel.codebreaking + len(intel.raised)
+    if reached >= MAX_LEVEL:
+        raise IntelError(f"Codebreaking is at level {MAX_LEVEL} already, or will be.")
+    pools = state.economy.pools.get(polity)
+    if pools is None or pools.output < CODE_COST:
+        raise IntelError(f"Funding codebreaking needs {CODE_COST} points of output.")
+    spent = pools.model_copy(update={"output": round(pools.output - CODE_COST, 6)})
+    return (
+        ev.EconomySet(polity=polity, pools=spent, on=on),
+        ev.CodebreakingSet(nation=polity, level=reached + 1, on=on + timedelta(days=CODE_DAYS)),
+    )
+
+
+def set_concealed(
+    state: "State", piece: FeatureId, concealed: bool, on: date
+) -> tuple["Feature", ...]:
+    """The piece concealed (its ``conceal`` up by ``CONCEAL_BONUS``, each step a day
+    longer) or the concealment lifted. Raises ``IntelError`` when the rules refuse it."""
+    from revisionist.core.realism import kinds
+    from revisionist.core.realism.geography import in_play
+
+    _need_on(state)
+    found = state.features.get(piece)
+    if found is None or not in_play(found) or not kinds.is_force(state, found):
+        raise IntelError("There is no piece to conceal.")
+    return (found.model_copy(update={"concealed": concealed, "as_of": max(on, found.as_of)}),)
+
+
+def aide_may[E: Model](effect: E) -> E | None:
+    """What of ``effect`` the aide may file for an absent seat (IOR rule 7): a patrol or a
+    reconnaissance flight at most, never an agent, funding or a concealment. None when
+    nothing is left."""
+    from revisionist.core.realism.effect import Allocate, IntelOrder, Investigate, SetEngagement
+
+    if isinstance(effect, Investigate) and effect.intel is IntelOrder.AGENT:
+        return None
+    if isinstance(effect, Allocate) and effect.intel is not None:
+        return None
+    if isinstance(effect, SetEngagement) and effect.concealed is not None:
+        return effect.model_copy(update={"concealed": None})
+    return effect
 
 
 _TITLES = {
@@ -554,29 +838,46 @@ def pages(
 
 
 __all__ = [
+    "AGENTS_MAX",
     "AGENT_CHANCE",
+    "AGENT_DAYS",
     "CODEBREAKING_CHANCE",
+    "CODE_COST",
+    "CODE_DAYS",
+    "CONCEAL_BONUS",
+    "EXPOSE_CHANCE",
+    "RECON_CHANCE",
     "STALE_DAYS",
     "WRONG_BASE",
     "WRONG_PER_COMPETENCE",
     "Agent",
     "Confidence",
     "Informant",
+    "IntelError",
     "Intelligence",
     "Picture",
     "Report",
     "Shift",
     "Sighting",
     "Source",
+    "aide_may",
+    "conceal",
+    "concealed",
+    "exposed",
+    "fund_codebreaking",
+    "level",
     "made",
     "nations",
     "on",
+    "order_recon",
     "pages",
+    "place_agent",
     "received",
     "report",
     "report_key",
     "roll",
     "seen_by",
+    "set_concealed",
     "sightings",
     "walk",
 ]

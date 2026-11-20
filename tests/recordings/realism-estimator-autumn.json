@@ -1,5 +1,5 @@
 {
- "1b39f96a959963f156f2de93": {
+ "3815e3201991611def4db25a": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -25,7 +25,32 @@
    "usd": 0.0
   }
  },
- "6eedad994aaf89cb862f96de": {
+ "5b2d564e49a9b35fab6c9174": {
+  "call_class": "estimator",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply (quantity)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"4W7GBHN946QWXFJTADTT7CJMGV\",\"issuer\":\"Frank",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "effects": [
+     {
+      "bloc": "isolationists",
+      "count": 40,
+      "kind": "set_votes"
+     }
+    ],
+    "rationale": "A count, which no effect may carry.",
+    "reason": "Forty votes fall away."
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ },
+ "a5defaecaf1618840705bc7d": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -50,7 +75,7 @@
    "usd": 0.0
   }
  },
- "6fc15a0447f6ea81130e9d98": {
+ "cf476acb09fa3dbaa387bd83": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -71,31 +96,6 @@
     ],
     "rationale": "Referee only: CANARY-V2-REASON-7f3a.",
     "reason": "Wheeler is compromised (CANARY-V2-REASON-7f3a)."
-   },
-   "output_tokens": 0,
-   "usd": 0.0
-  }
- },
- "b7651b63904b62154cc6bf2d": {
-  "call_class": "estimator",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply (quantity)",
-  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"4W7GBHN946QWXFJTADTT7CJMGV\",\"issuer\":\"Frank",
-  "reply": {
-   "cached_tokens": 0,
-   "input_tokens": 0,
-   "model": "hand",
-   "output": {
-    "effects": [
-     {
-      "bloc": "isolationists",
-      "count": 40,
-      "kind": "set_votes"
-     }
-    ],
-    "rationale": "A count, which no effect may carry.",
-    "reason": "Forty votes fall away."
    },
    "output_tokens": 0,
    "usd": 0.0

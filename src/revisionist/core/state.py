@@ -266,11 +266,16 @@ class State(_World):
     reports: dict[EntityId, Picture] = Field(default_factory=dict)
     """With ``reports`` on, each nation's reports on enemy pieces, delivered and pending,
     by nation (``report_made``). Engine only: a report links to the true piece (DET)."""
+    aide_orders: frozenset[OrderId] = frozenset()
+    """With ``reports`` on, every order an aide filed for an absent seat
+    (``wake_committed``), so the rules where an effect lands can hold the aide to its
+    limits (IOR). Engine only: how a seat is run is never shown."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "rules",
         "intelligence",
         "reports",
+        "aide_orders",
         "captures",
         "battles",
         "fought",

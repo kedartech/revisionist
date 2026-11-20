@@ -13,7 +13,9 @@ ruleset: realism
 start: "Washington, September 1941"
 start_date: 1941-09-01
 
-rules: [territories, holders, economy, supply, fuel, aid]
+# battles and reports (ITD): battles run one round a day; enemy pieces reach a nation only as
+# reports from the people named under `intelligence`.
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports]
 
 entities:
   - {key: usa, kind: polity, name: United States}
@@ -124,6 +126,8 @@ entities:
   - {key: halifax, kind: person, name: Lord Halifax, parent: uk}
   - {key: pound, kind: person, name: Sir Dudley Pound, parent: chiefs_of_staff}
   - {key: ismay, kind: person, name: Sir Hastings Ismay, parent: chiefs_of_staff}
+  - {key: menzies, kind: person, name: Sir Stewart Menzies, parent: uk}  # source: hinsley_1979
+  - {key: dai_li, kind: person, name: Dai Li, parent: china}  # source: wakeman_2003
   - {key: uk_cipher_clerk, kind: person, name: Downing Street cipher clerk, parent: uk}
   - {key: bbc_clerk, kind: person, name: BBC talks duty officer, parent: uk}
   # Japan
@@ -597,10 +601,65 @@ resources:
 # The world's piece kinds. Days per step [proposed] (plan, Values): an army 5 over plain, 7 through
 # forest or marsh, 10 through mountain; a fleet 3 a sea zone; an air group 1; an envoy 2.
 piece_kinds:
-  - {key: army, name: Army, domain: land, days_per_step: {plain: 5, forest: 7, marsh: 7, mountain: 10}}
-  - {key: fleet, name: Fleet, domain: sea, days_per_step: {sea: 3}, carries: [army]}
-  - {key: air_group, name: Air group, domain: air, days_per_step: {plain: 1, forest: 1, marsh: 1, mountain: 1, sea: 1}, range_steps: 2}
-  - {key: envoy, name: Envoy, domain: envoy, days_per_step: {plain: 2, forest: 2, marsh: 2, mountain: 2, sea: 2}}
+# Search and concealment (ITD) [proposed] (plan, DET's defaults): an air group searches the areas
+# in its range and a fleet on patrol its zone and the zones beside it, each at 60 in 100 a day,
+# less the target's `conceal`; no kind starts concealed (0), and concealment adds 30. An army
+# and an envoy search nothing of their own accord (0): they see by contact only.
+  - {key: army, name: Army, domain: land, days_per_step: {plain: 5, forest: 7, marsh: 7, mountain: 10}, detect: 0, conceal: 0}
+  - {key: fleet, name: Fleet, domain: sea, days_per_step: {sea: 3}, carries: [army], detect: 60, conceal: 0}
+  - {key: air_group, name: Air group, domain: air, days_per_step: {plain: 1, forest: 1, marsh: 1, mountain: 1, sea: 1}, range_steps: 2, detect: 60, conceal: 0}
+  - {key: envoy, name: Envoy, domain: envoy, days_per_step: {plain: 2, forest: 2, marsh: 2, mountain: 2, sea: 2}, detect: 0, conceal: 0}
+
+# Each nation's intelligence on 1 September 1941 (ITD), with `reports` on. For each source a
+# nation has, the person who reports it to the leader and the channel. Every person was
+# already in the world except Menzies and Dai Li, whose entity lines carry their sources. The first source
+# listed ranks highest. Codebreaking levels and agents carry a source or `gap: true` on their
+# line; the levels themselves are [proposed] (plan, ITD defaults). One level per nation reads
+# every other nation's piece moves (DET), so MAGIC reports Japanese moves, not cables.
+intelligence:
+  - nation: usa
+    codebreaking: 2  # source: pha_1946 (MAGIC: Purple and the naval attache codes read; the level is [proposed])
+    sources:
+      - {source: contact, person: marshall, channel: cable}
+      - {source: air, person: marshall, channel: cable}
+      - {source: patrol, person: stark, channel: cable}
+      - {source: codebreaking, person: kramer, channel: in_person}  # MAGIC, carried by hand by Kramer
+  - nation: uk
+    codebreaking: 1  # source: hinsley_1979 (naval Enigma read from mid-1941; the level is [proposed])
+    sources:
+      - {source: contact, person: ismay, channel: in_person}
+      - {source: air, person: ismay, channel: in_person}
+      - {source: patrol, person: pound, channel: in_person}
+      - {source: codebreaking, person: menzies, channel: in_person}  # Ultra, in C's daily boxes
+      - {source: agent, person: menzies, channel: in_person}  # SIS and SOE agents' reports, through C
+  - nation: japan
+    sources:
+      - {source: contact, person: sugiyama, channel: in_person}
+      - {source: air, person: nagano, channel: in_person}
+      - {source: patrol, person: nagano, channel: in_person}
+      - {source: agent, person: nagano, channel: cable}  # the Honolulu consulate's cables
+    agents:
+      - {area: hawaii}  # source: prange_1981 (Yoshikawa at the Honolulu consulate, to 7 December)
+  - nation: germany
+    sources:
+      - {source: contact, person: jodl, channel: cable}
+      - {source: air, person: goering, channel: telephone}
+      - {source: patrol, person: raeder, channel: cable}
+  - nation: italy
+    sources:
+      - {source: contact, person: cavallero, channel: in_person}
+      - {source: patrol, person: cavallero, channel: in_person}
+  - nation: ussr
+    sources:
+      - {source: contact, person: shaposhnikov, channel: in_person}
+      - {source: patrol, person: shaposhnikov, channel: in_person}
+      - {source: agent, person: shaposhnikov, channel: radio}  # Sorge's radio messages to Moscow
+    agents:
+      - {area: japan_east, until: 1941-10-17}  # source: deakin_storry_1966 (Sorge, arrested 18 October)
+  - nation: china
+    sources:
+      - {source: contact, person: he_yingqin, channel: cable}
+      - {source: agent, person: dai_li, channel: radio}  # Dai Li's service behind the Japanese lines
 
 # The wars in force on 1 September 1941. `a` began each.
 wars:
@@ -723,6 +782,14 @@ sources:
   - {key: census_us_1940, title: "Sixteenth Census of the United States, 1940: Population, vol. I, number of inhabitants by state", note: "Named citation; not read. Confirm the table before release."}
   - {key: minerals_yearbook, title: "U.S. Bureau of Mines, Minerals Yearbook 1942 (review of 1941): petroleum, world production by country", note: "Named citation; not read. Confirm the table and the 1941 figures before release."}
   - {key: frus_1941_iv, title: "Foreign Relations of the United States, 1941, vol. IV, The Far East: the freezing of Japanese assets, 26 July 1941", note: "Named citation; not read. Confirm the document before release."}
+  - {key: pha_1946, title: "Investigation of the Pearl Harbor Attack: Report of the Joint Committee, 79th Congress (1946): the distribution of MAGIC, carried by hand by Lt Cdr Alwin D. Kramer", note: "Named citation; the lane had no network and read no page. Confirm the locator before release."}
+  - {key: hinsley_1979, title: "F. H. Hinsley et al., British Intelligence in the Second World War, vol. I (HMSO, 1979)", note: "For naval Enigma read from mid-1941, and the Chief of SIS, Sir Stewart Menzies, sending Bletchley's decrypts to the Prime Minister. Named citation; not read. Confirm the chapters before release."}
+  - {key: action_this_day, title: "Churchill's minute to Ismay of 22 October 1941, 'Action this day', on the Bletchley Park codebreakers' letter of 21 October asking for staff", note: "Named citation; not read. Printed in Hinsley vol. II, appendix 3, as the lane recalls; confirm before release."}
+  - {key: prange_1981, title: "Gordon W. Prange, At Dawn We Slept (McGraw-Hill, 1981): Yoshikawa's reports from the Honolulu consulate, and the strike force's gathering at Hitokappu Bay under radio silence", note: "Named citation; not read. Confirm the chapters before release."}
+  - {key: deakin_storry_1966, title: "F. W. Deakin and G. R. Storry, The Case of Richard Sorge (Chatto and Windus, 1966): Sorge's radio reports to Red Army intelligence until his arrest on 18 October 1941", note: "Named citation; not read. Confirm the date and pages before release."}
+  - {key: wakeman_2003, title: "Frederic Wakeman Jr., Spymaster: Dai Li and the Chinese Secret Service (University of California Press, 2003)", note: "For Dai Li's Military Statistics Bureau running agents in occupied China and reporting to Chiang. Named citation; not read. Confirm before release."}
+  - {key: glantz_house_1995, title: "David M. Glantz and Jonathan M. House, When Titans Clashed (University Press of Kansas, 1995): the fall of Kiev on 19 September and of Kalinin on 14 October 1941", note: "Named citation; not read. Confirm the pages before release."}
+  - {key: fdr_1941_09_11, title: "Roosevelt's fireside chat of 11 September 1941 on the Greer: the Navy's patrols of the Atlantic and the order to shoot on sight", note: "Named citation; not read. Confirm the text before release."}
   - {key: lane_choice, title: "The lane's own choice: no published measure", note: "Hubs and prestige ranks chosen by the lane for play; kept as gaps for Josh to mark."}
 
 quantities:
@@ -791,9 +858,20 @@ features:
   - {key: us_pacific_fleet, kind: piece, piece: fleet, name: US Pacific Fleet, side: usa, tier: 5, places: [pearl_harbor_base], gap: true}
   - {key: home_fleet, kind: piece, piece: fleet, name: Home Fleet, side: uk, tier: 4, places: [scapa_flow], gap: true}
   - {key: uboat_arm, kind: piece, piece: fleet, name: U-boat arm, side: germany, tier: 3, places: [north_atlantic], gap: true}
-  - {key: combined_fleet, kind: piece, piece: fleet, name: Combined Fleet, side: japan, tier: 5, places: [kure], legs: [{since: 1941-11-22, places: [hitokappu_bay]}], gap: true}
-  - {key: army_group_centre, kind: piece, piece: army, name: Army Group Centre, side: germany, tier: 5, places: [smolensk], legs: [{since: 1941-10-07, places: [vyazma]}, {since: 1941-10-24, places: [mozhaisk]}], gap: true}
-  - {key: soviet_western_front, kind: piece, piece: army, name: Soviet Western Front, side: ussr, tier: 4, places: [vyazma], legs: [{since: 1941-10-12, places: [mozhaisk]}, {since: 1941-10-24, places: [moscow]}], gap: true}
+  # The 22 November leg is concealed (ITD): the strike force gathered at Hitokappu Bay under radio
+  # silence. source: prange_1981
+  - {key: combined_fleet, kind: piece, piece: fleet, name: Combined Fleet, side: japan, tier: 5, places: [kure], legs: [{since: 1941-11-22, places: [hitokappu_bay], concealed: true}], gap: true}
+  # With battles on (ITD): Kiev falls on 19 September to the encirclement that this army group's
+  # Second Panzer Group closed from the north (the leg stays at Smolensk and takes the Kiev area).
+  # Typhoon opens on 30 September: the leg to Mozhaisk takes seven days through the forest, so the
+  # army group enters the Moscow area on 7 October, the day the Vyazma pocket closed, and the
+  # battle there opens. From then on history steps aside: the rules move it, so no leg after
+  # that one is kept (Kalinin, taken on 14 October, is left to the battle). source: glantz_house_1995
+  - {key: army_group_centre, kind: piece, piece: army, name: Army Group Centre, side: germany, tier: 5, places: [smolensk], legs: [{since: 1941-09-19, places: [smolensk], takes: [kiev_area]}, {since: 1941-09-30, places: [mozhaisk]}], gap: true}
+  # The map is coarse: Vyazma lies in the Smolensk area with Army Group Centre, so a front standing
+  # there would open a battle on the first day and drop both pieces' record (ITD). The Western
+  # Front starts at Mozhaisk, in the Moscow area, the line it fell back to in October.
+  - {key: soviet_western_front, kind: piece, piece: army, name: Soviet Western Front, side: ussr, tier: 4, places: [mozhaisk], legs: [{since: 1941-10-24, places: [moscow]}], gap: true}
   - key: eastern_front
     kind: front
     name: The Eastern Front
@@ -1113,6 +1191,30 @@ cards:
         summary: "Send Mr. Churchill a message through the State Department cable office."
         params:
           - {name: message, kind: text, label: "The message"}
+      - name: fly_recon  # gap: true
+        pipeline: naval_order
+        resolver: intel
+        label: "Fly a reconnaissance"
+        summary: "Have the Hawaiian Air Force search the sea around Hawaii."
+        params:
+          - {name: intel, kind: enum, choices: [recon]}
+          - {name: piece, kind: enum, choices: [hawaiian_air_force], label: "Which air group", choice_labels: ["Hawaiian Air Force"]}
+          - {name: area, kind: enum, choices: [hawaii, central_pacific, north_pacific], label: "Over", choice_labels: ["Hawaii", "The Central Pacific", "The North Pacific"]}
+      - name: send_on_patrol  # source: fdr_1941_09_11
+        pipeline: naval_order
+        resolver: intel
+        label: "Send a fleet on patrol"
+        summary: "Send a fleet to patrol its waters, as the Atlantic patrols of 1941 did."
+        params:
+          - {name: intel, kind: enum, choices: [patrol]}
+          - {name: piece, kind: enum, choices: [us_atlantic_fleet, us_pacific_fleet], label: "Which fleet", choice_labels: ["US Atlantic Fleet", "US Pacific Fleet"]}
+      - name: fund_the_codebreakers  # source: pha_1946
+        pipeline: naval_order
+        resolver: intel
+        label: "Fund the codebreakers"
+        summary: "Spend output on the Navy's and the Army's codebreakers, who read Japan's traffic."
+        params:
+          - {name: intel, kind: enum, choices: [codebreaking]}
     inner_circle:
       - {person: hull, channel: in_person}
       - {person: hopkins, channel: in_person}
@@ -1252,6 +1354,38 @@ cards:
         summary: "Speak over the wireless to a chosen audience."
         params:
           - {name: audience, kind: enum, choices: [britain, america, occupied_europe], label: "To whom", choice_labels: ["Britain", "America", "Occupied Europe"]}
+      - name: fly_recon  # gap: true
+        pipeline: cos_directive
+        resolver: intel
+        label: "Fly a reconnaissance"
+        summary: "Have Bomber Command photograph an area."
+        params:
+          - {name: intel, kind: enum, choices: [recon]}
+          - {name: piece, kind: enum, choices: [bomber_command], label: "Which air group", choice_labels: ["RAF Bomber Command"]}
+          - {name: area, kind: enum, choices: [bay_of_biscay, north_sea, occupied_france, norway], label: "Over", choice_labels: ["The Bay of Biscay", "The North Sea", "Occupied France", "Norway"]}
+      - name: send_on_patrol  # gap: true
+        pipeline: cos_directive
+        resolver: intel
+        label: "Send a fleet on patrol"
+        summary: "Send a fleet to patrol its waters."
+        params:
+          - {name: intel, kind: enum, choices: [patrol]}
+          - {name: piece, kind: enum, choices: [home_fleet, western_approaches, mediterranean_fleet], label: "Which fleet", choice_labels: ["Home Fleet", "Western Approaches escort groups", "Mediterranean Fleet"]}
+      - name: send_an_agent  # gap: true
+        pipeline: cos_directive
+        resolver: intel
+        label: "Place an agent"
+        summary: "Have the Special Operations Executive put an agent into occupied Europe."
+        params:
+          - {name: intel, kind: enum, choices: [agent]}
+          - {name: area, kind: enum, choices: [occupied_france, norway, low_countries, balkans], label: "Where", choice_labels: ["Occupied France", "Norway", "The Low Countries", "The Balkans"]}
+      - name: fund_the_codebreakers  # source: action_this_day
+        pipeline: cos_directive
+        resolver: intel
+        label: "Fund the codebreakers"
+        summary: "Give Bletchley Park what it asks for: 'Action this day'."
+        params:
+          - {name: intel, kind: enum, choices: [codebreaking]}
     inner_circle:
       - {person: roosevelt, channel: cable}
       - {person: eden, channel: in_person}
@@ -1358,6 +1492,22 @@ cards:
         params:
           - {name: force, kind: enum, choices: [soviet_western_front], label: "Which army", choice_labels: ["The Western Front"]}
           - {name: to, kind: enum, choices: [vyazma, mozhaisk, moscow], label: "To", choice_labels: ["Vyazma", "Mozhaisk", "Moscow"]}
+      - name: send_on_patrol  # gap: true
+        pipeline: gko_decree
+        resolver: intel
+        label: "Send a fleet on patrol"
+        summary: "Send a fleet to patrol its waters."
+        params:
+          - {name: intel, kind: enum, choices: [patrol]}
+          - {name: piece, kind: enum, choices: [baltic_fleet, northern_fleet], label: "Which fleet", choice_labels: ["Red Banner Baltic Fleet", "Northern Fleet"]}
+      - name: send_an_agent  # source: deakin_storry_1966
+        pipeline: gko_decree
+        resolver: intel
+        label: "Place an agent"
+        summary: "Have Red Army intelligence put an agent in place abroad."
+        params:
+          - {name: intel, kind: enum, choices: [agent]}
+          - {name: area, kind: enum, choices: [japan_east, germany_east, occupied_france], label: "Where", choice_labels: ["Japan East", "Berlin and the East", "Occupied France"]}
     inner_circle:
       - {person: molotov, channel: in_person}
       - {person: shaposhnikov, channel: in_person}
@@ -1479,6 +1629,23 @@ cards:
         summary: "Have the Foreign Office hand a declaration of war to another power's envoy."
         params:
           - {name: target, kind: enum, choices: [usa], label: "On whom", choice_labels: ["The United States"]}
+      - name: fly_recon  # gap: true
+        pipeline: okw_directive
+        resolver: intel
+        label: "Fly a reconnaissance"
+        summary: "Have the Luftwaffe photograph an area in reach of Berlin."
+        params:
+          - {name: intel, kind: enum, choices: [recon]}
+          - {name: piece, kind: enum, choices: [luftwaffe_centre], label: "Which air group", choice_labels: ["Luftwaffe Command Centre"]}
+          - {name: area, kind: enum, choices: [leningrad_area, baltic_sea, north_sea], label: "Over", choice_labels: ["Leningrad", "The Baltic Sea", "The North Sea"]}
+      - name: send_on_patrol  # gap: true
+        pipeline: okw_directive
+        resolver: intel
+        label: "Send a fleet on patrol"
+        summary: "Send the U-boats to patrol their waters."
+        params:
+          - {name: intel, kind: enum, choices: [patrol]}
+          - {name: piece, kind: enum, choices: [uboat_arm], label: "Which fleet", choice_labels: ["U-boat arm"]}
     inner_circle:
       - {person: ribbentrop, channel: in_person}
       - {person: raeder, channel: in_person}
@@ -1577,6 +1744,14 @@ cards:
         summary: "Put out the Cabinet's public line on the crisis."
         params:
           - {name: line, kind: enum, choices: [conciliatory, firm, silent], label: "The line to take", choice_labels: ["Conciliatory", "Firm", "Say nothing"]}
+      - name: send_an_agent  # source: prange_1981
+        pipeline: japan_state_policy
+        resolver: intel
+        label: "Place an agent"
+        summary: "Have the Navy put a man in a consulate to watch the enemy's bases."
+        params:
+          - {name: intel, kind: enum, choices: [agent]}
+          - {name: area, kind: enum, choices: [hawaii, philippines, malaya], label: "Where", choice_labels: ["Hawaii", "The Philippines", "Malaya and British Borneo"]}
     inner_circle:
       - {person: hirohito, channel: in_person}
       - {person: tojo, channel: in_person}
@@ -1675,6 +1850,40 @@ cards:
         summary: "Put out the Cabinet's public line on the crisis."
         params:
           - {name: line, kind: enum, choices: [conciliatory, firm, silent], label: "The line to take", choice_labels: ["Conciliatory", "Firm", "Say nothing"]}
+      - name: fly_recon  # gap: true
+        pipeline: japan_state_policy
+        resolver: intel
+        label: "Fly a reconnaissance"
+        summary: "Have the Eleventh Air Fleet photograph the enemy's bases."
+        params:
+          - {name: intel, kind: enum, choices: [recon]}
+          - {name: piece, kind: enum, choices: [eleventh_air_fleet], label: "Which air group", choice_labels: ["Eleventh Air Fleet"]}
+          - {name: area, kind: enum, choices: [philippines, malaya, formosa], label: "Over", choice_labels: ["The Philippines", "Malaya and British Borneo", "Formosa"]}
+      - name: send_on_patrol  # gap: true
+        pipeline: japan_state_policy
+        resolver: intel
+        label: "Send a fleet on patrol"
+        summary: "Send the Combined Fleet to patrol its waters."
+        params:
+          - {name: intel, kind: enum, choices: [patrol]}
+          - {name: piece, kind: enum, choices: [combined_fleet], label: "Which fleet", choice_labels: ["Combined Fleet"]}
+      - name: send_an_agent  # source: prange_1981
+        pipeline: japan_state_policy
+        resolver: intel
+        label: "Place an agent"
+        summary: "Have the Navy put a man in a consulate to watch the enemy's bases."
+        params:
+          - {name: intel, kind: enum, choices: [agent]}
+          - {name: area, kind: enum, choices: [hawaii, philippines, malaya], label: "Where", choice_labels: ["Hawaii", "The Philippines", "Malaya and British Borneo"]}
+      - name: hide_a_force  # source: prange_1981
+        pipeline: japan_state_policy
+        resolver: intel
+        label: "Hide a force"
+        summary: "Hide a force's moves: radio silence and false traffic, as the strike force kept in November."
+        params:
+          - {name: intel, kind: enum, choices: [conceal]}
+          - {name: piece, kind: enum, choices: [combined_fleet], label: "Which force", choice_labels: ["Combined Fleet"]}
+          - {name: concealed, kind: enum, choices: ["yes", "no"], label: "Hidden", choice_labels: ["Hide it", "Stop hiding it"]}
     inner_circle:
       - {person: konoe, channel: in_person}
       - {person: hirohito, channel: in_person}
@@ -1760,6 +1969,14 @@ cards:
         params:
           - {name: force, kind: enum, choices: [italian_army, italian_army_libya], label: "Which army", choice_labels: ["The Royal Italian Army", "The Italian Army in Libya"]}
           - {name: to, kind: enum, choices: [rome, tripoli, bardia, tobruk, alexandria], label: "To", choice_labels: ["Rome", "Tripoli", "Bardia", "Tobruk", "Alexandria"]}
+      - name: send_on_patrol  # gap: true
+        pipeline: comando_supremo_order
+        resolver: intel
+        label: "Send a fleet on patrol"
+        summary: "Send the fleet to patrol its waters."
+        params:
+          - {name: intel, kind: enum, choices: [patrol]}
+          - {name: piece, kind: enum, choices: [italian_fleet], label: "Which fleet", choice_labels: ["Italian Battle Fleet"]}
     inner_circle:
       - {person: hitler, channel: courier}
       - {person: cavallero, channel: in_person}
@@ -1846,6 +2063,14 @@ cards:
         params:
           - {name: force, kind: enum, choices: [chinese_army, ninth_war_area], label: "Which army", choice_labels: ["The National Revolutionary Army", "The Ninth War Area"]}
           - {name: to, kind: enum, choices: [chungking, changsha, wuhan], label: "To", choice_labels: ["Chungking", "Changsha", "Wuhan"]}
+      - name: send_an_agent  # gap: true
+        pipeline: mac_order
+        resolver: intel
+        label: "Place an agent"
+        summary: "Have Dai Li's service put an agent behind the Japanese lines."
+        params:
+          - {name: intel, kind: enum, choices: [agent]}
+          - {name: area, kind: enum, choices: [north_china, wuhan_area, south_china_coast], label: "Where", choice_labels: ["Occupied North China", "The Wuhan Area and the Lower Yangtze", "The South China Coast"]}
     inner_circle:
       - {person: soong, channel: cable}
       - {person: he_yingqin, channel: in_person}

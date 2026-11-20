@@ -12,6 +12,7 @@ from revisionist.engine.llm import RecordedTransport, Reply, Request
 from tests.handwritten import AB
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "prose_ab.py"
+POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
 
 
 def ab() -> ModuleType:
@@ -39,8 +40,15 @@ def test_it_refuses_without_live(tmp_path: Path, capsys: pytest.CaptureFixture[s
     assert made == [] and not list(tmp_path.iterdir())
 
 
-def test_a_recorded_run_writes_a_blind_sheet_and_a_key(tmp_path: Path) -> None:
+def test_a_recorded_run_writes_a_blind_sheet_and_a_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     module = ab()
+    # the recordings were made on the 1941 world before territories
+    real = module.cmp.world_path
+    monkeypatch.setattr(
+        module.cmp, "world_path", lambda name: real(POINTS if name == "autumn-1941" else name)
+    )
     transport = RecordedTransport(AB)
     assert module.main(["--live", "--out", str(tmp_path)], transport=lambda: transport) == 0
     assert transport.hits == 10  # five pages, two models

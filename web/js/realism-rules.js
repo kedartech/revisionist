@@ -725,3 +725,105 @@ export function reportedEnemies(map, shapes, key, standing) {
   return (map.marks ?? []).filter((m) => m.side === 'other' && standing.get(m.side_name) === 'enemy'
     && m.places?.length === 1 && inArea(shapes, key, [m.places[0].lon, m.places[0].lat]));
 }
+
+// --- reports on the map (RPC) ------------------------------------------------------------
+// Every helper here reads only the fields a report is sent with: a wrong report is sent as a
+// right one, and so reads as one.
+
+/** Whole days from world date `seen` to world date `today`; 0 when either is missing. */
+export function reportAge(seen, today) {
+  if (!seen || !today) return 0;
+  const day = (iso) => { const [y, m, d] = iso.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  return Math.max(0, Math.round((day(today) - day(seen)) / 86400000));
+}
+
+/** The age badge: "now" on the day seen, else "9d". */
+export const reportAgeWord = (days) => (days === 0 ? 'now' : `${days}d`);
+
+/** The age in words: "today", "1 day ago", "9 days ago". */
+export const reportAgoWords = (days) => (days === 0 ? 'today' : days === 1 ? '1 day ago' : `${days} days ago`);
+
+/** A report fades as it ages: 0 fresh, 1 from FADE_DAYS[0] days, 2 from FADE_DAYS[1]. [proposed] */
+export const FADE_DAYS = Object.freeze([5, 9]);
+export const reportFade = (days) => (days >= FADE_DAYS[1] ? 2 : days >= FADE_DAYS[0] ? 1 : 0);
+
+/** A report's range as pips: solid to the low end, hollow to the high end; null when it gives no strength. */
+export function rangePips(r) {
+  if (!Number.isInteger(r?.strength_low) || !Number.isInteger(r?.strength_high)) return null;
+  const filled = Math.max(0, r.strength_low);
+  return { filled, slots: Math.max(filled, r.strength_high) };
+}
+
+/** A report's range in words: "strength 2 to 3", "strength 4", "strength not given". */
+export function rangeWords(r) {
+  const p = rangePips(r);
+  if (!p) return 'strength not given';
+  return p.filled === p.slots ? `strength ${p.filled}` : `strength ${p.filled} to ${p.slots}`;
+}
+
+const CONFIDENCE = Object.freeze({ A: 'confirmed', B: 'probable', C: 'possible' });
+const SOURCE = Object.freeze({ contact: 'Contact', air: 'Air search', patrol: 'Patrol', codebreaking: 'Codebreaking', agent: 'Agent' });
+
+/** The confidence letter as the papers word it. */
+export const confidenceWord = (c) => pick(CONFIDENCE, c);
+/** The source as a word. */
+export const sourceWord = (s) => pick(SOURCE, s);
+
+/** What a report says it is: its kind as the world names it, else "Unknown piece". */
+export const reportWhat = (r) => (r.kind && r.kind_name && r.kind_name !== 'unknown' ? r.kind_name : 'Unknown piece');
+
+/** Where a report puts the piece, in words: its area, or the region a decrypt says it is bound for. */
+export function reportWhere(r, regions) {
+  if (r.area) return `in ${r.area.name}`;
+  if (r.bound_for) return `bound for ${regions?.get?.(r.bound_for) ?? r.bound_for}`;
+  return 'place not given';
+}
+
+/** Who reported it: "by Brann Hollis (Air search)", or the source alone for a contact no one is named for. */
+export const reportWho = (r) => (r.person ? `by ${r.person} (${sourceWord(r.source)})` : `from ${sourceWord(r.source).toLowerCase()}`);
+
+/** The whole report in one line, for its mark's label. */
+export function reportMarkLine(r, today, regions) {
+  const age = reportAge(r.seen, today);
+  return `Report: ${reportWhat(r)}, ${rangeWords(r)}, ${reportWhere(r, regions)}, seen ${shortDate(r.seen)}, ${reportAgoWords(age)}, `
+    + `${reportWho(r)}, ${confidenceWord(r.confidence)}`;
+}
+
+/** A ring in words: "could be in 3 areas: A, B, C"; '' for a report with none. */
+export function ringWords(r, names) {
+  if (!r.ring?.length) return '';
+  const n = r.ring.length;
+  return `could be in ${n === 1 ? '1 area' : `${n} areas`}: ${r.ring.map((k) => names.get(k) ?? k).join(', ')}`;
+}
+
+/**
+ * The outline of the areas `keys` in `shapes`: every border edge with one of those areas on one
+ * side and none on the other (the map's edge counts as none). Pairs of vertex indices.
+ */
+export function ringEdges(keys, shapes) {
+  const inRing = new Set(keys);
+  const out = [];
+  for (const { between: [a, b], edges } of borders(shapes)) {
+    if (inRing.has(a) !== (b !== null && inRing.has(b))) out.push(...edges);
+  }
+  return out;
+}
+
+/** The glyph a report draws with: the domain of the seat's own pieces of its kind, by the kind's name; else unknown. */
+export function reportGlyph(r, marks) {
+  if (!r.kind) return 'unknown';
+  const own = (marks ?? []).find((m) => m.side === 'own' && m.piece?.kind === r.kind_name);
+  return { land: 'army', sea: 'fleet', air: 'air' }[own?.piece?.domain] ?? 'unknown';
+}
+
+/** The seat's form for intelligence order `kind`: the first lever whose rule is `intel` and whose order kind is `kind`. */
+export const intelForm = (levers, kind) => (levers ?? []).find((l) => l.rule === 'intel' && l.intel === kind) ?? null;
+
+/** The choice of a form's `name` parameter that names map mark `mark`, as `pieceForm` matches a name; null when none. */
+export function choiceFor(lever, name, mark) {
+  const param = lever?.params?.find((p) => p.name === name);
+  if (!param || !mark) return null;
+  return param.choices.find((c) => c.label === mark.name)
+    ?? param.choices.find((c) => { const w = choiceName(c.label); return mark.name === w || mark.name.endsWith(` ${w}`); })
+    ?? null;
+}

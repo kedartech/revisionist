@@ -288,8 +288,54 @@ def tab_to(page: Page, wanted: str, limit: int = 250) -> bool:
     return False
 
 
+def picked(page: Page) -> bool:
+    """After a pick of the seat's own force: wait for its forms (a point map) or its lit areas
+    (a territory map); True on a territory map."""
+    page.locator(".rl-theatre-forms, .rl-map-target[data-area]").first.wait_for(timeout=10_000)
+    return page.locator("svg.rl-tm-svg").count() > 0
+
+
+def keyboard_move_areas(page: Page, report: dict[str, object], errors: int) -> None:
+    """The keyboard move on a territory map: a lit area, its chip, Send it."""
+    check(
+        "a picked piece shows its panel and lights the areas it can reach",
+        page.locator("aside.rl-board-side h2").count() > 0
+        and page.locator(".rl-map-target[data-area]").count() > 0,
+    )
+    found = tab_to(page, "a.matches('.rl-map-target[data-area]')")
+    check("Tab reaches a lit area on the map", found)
+    if not found:
+        return
+    label = str(page.evaluate("() => document.activeElement.getAttribute('aria-label')"))
+    report["keyboard_move_to"] = label
+    page.keyboard.press("Enter")
+    chip = page.locator(".rl-pup-chip")
+    chip.wait_for(timeout=10_000)
+    report["keyboard_move_chip"] = chip.inner_text()
+    check(
+        "Enter on a lit area chooses it and opens its chip",
+        page.locator(".rl-map-target[aria-pressed=true]").count() == 1,
+        label,
+    )
+    check(
+        "focus moves to the chip's Send it",
+        bool(page.evaluate("() => document.activeElement?.textContent?.trim() === 'Send it'")),
+    )
+    shoot(page, "00a-keyboard-pick")
+    page.keyboard.press("Enter")
+    page.locator(".rl-status.said").filter(has_text="Sent to").wait_for(timeout=30_000)
+    report["keyboard_move_status"] = page.locator(".rl-status").inner_text()
+    check("the keyboard move is sent", True)
+    check(
+        "the keyboard move raises no page error",
+        len([p for p in problems if p.startswith("pageerror")]) == errors,
+    )
+    shoot(page, "00b-keyboard-sent")
+
+
 def keyboard_move(page: Page, report: dict[str, object]) -> None:
-    """On the Board, from the keyboard alone: pick the seat's fleet, light a place, send it."""
+    """On the Board, from the keyboard alone: pick the seat's fleet, light a place (a point
+    map) or an area (a territory map), send it."""
     errors = len([p for p in problems if p.startswith("pageerror")])
     page.get_by_role("group", name="Board").get_by_role("button", name="Theatre").focus()
     found = tab_to(page, "a.matches('.rl-mk.rl-side-own')")
@@ -297,8 +343,10 @@ def keyboard_move(page: Page, report: dict[str, object]) -> None:
     if not found:
         return
     page.keyboard.press("Enter")
+    if picked(page):
+        keyboard_move_areas(page, report, errors)
+        return
     forms = page.locator(".rl-theatre-forms")
-    forms.wait_for(timeout=10_000)
     check(
         "a picked force shows its panel and the forms that move it",
         page.locator("aside.rl-board-side .rl-board-piece, aside.rl-board-side h2").count() > 0
@@ -381,8 +429,35 @@ def phone_board(page: Page, report: dict[str, object]) -> None:
         figure.is_visible() and 0 < box["width"] <= SIZE[0] and box["height"] > 0,
         str(box),
     )
-    page.locator(".rl-mk.rl-side-own").first.tap()
-    page.locator(".rl-theatre-forms").wait_for(timeout=10_000)
+    # A tap lands on whatever is on top at the mark's centre; take the first own force it reaches
+    # (on the whole territory map at this width a mark at the frame's edge is cut by it).
+    own = page.evaluate(
+        """() => {
+      const out = { cut: 0, hit: null };
+      for (const m of document.querySelectorAll('.rl-mk.rl-side-own')) {
+        m.scrollIntoView({ block: 'center' });
+        const r = m.getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        const y = r.top + r.height / 2;
+        const on = document.elementFromPoint(x, y);
+        if (on && m.contains(on)) {
+          out.hit = { x, y, label: m.getAttribute('aria-label') };
+          break;
+        }
+        out.cut += 1;
+      }
+      return out;
+    }"""
+    )
+    report["phone_cut_forces"] = own["cut"]
+    check(
+        "one of the seat's own forces can be tapped on the phone", own["hit"] is not None, str(own)
+    )
+    if own["hit"] is None:
+        return
+    report["phone_picked"] = own["hit"]["label"]
+    page.touchscreen.tap(own["hit"]["x"], own["hit"]["y"])
+    report["phone_territory"] = picked(page)
     page.wait_for_timeout(300)
     # A tap lands on whatever is on top at the place's centre; take the first lit place it reaches.
     spot = page.evaluate(

@@ -337,7 +337,8 @@
                 "label": "Extend the draft"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           },
           {
             "name": "sponsor",
@@ -346,7 +347,8 @@
             "lo": null,
             "hi": null,
             "choices": [],
-            "places": []
+            "places": [],
+            "areas": {}
           }
         ]
       },
@@ -376,7 +378,8 @@
                 "label": "China"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           },
           {
             "name": "share_pct",
@@ -385,7 +388,8 @@
             "lo": 0,
             "hi": 100,
             "choices": [],
-            "places": []
+            "places": [],
+            "areas": {}
           }
         ]
       },
@@ -415,7 +419,8 @@
                 "label": "The Pacific Fleet"
               }
             ],
-            "places": []
+            "places": [],
+            "areas": {}
           },
           {
             "name": "to",
@@ -622,7 +627,8 @@
                   "us_pacific_fleet": null
                 }
               }
-            ]
+            ],
+            "areas": {}
           }
         ]
       }

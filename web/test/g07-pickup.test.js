@@ -4,7 +4,7 @@
 // confirming files the order. A piece whose order may still be withdrawn shows a ghost with a
 // Withdraw button; Withdraw calls the server and the ghost goes only when the room is redrawn
 // from the reply. Where the destination holds an enemy the seat has a report of, the chip sets
-// the seat's own strength and posture beside the report, and says nothing of odds. Keyboard:
+// the seat's own strength and posture beside the report, and says nothing of odds beyond its Odds button. Keyboard:
 // Enter on a piece, arrows cycle the lit areas, Enter opens the chip, Enter confirms, Escape
 // backs out one step.
 // Run: node --test web/test/
@@ -300,7 +300,11 @@ test('where the destination holds an enemy the seat has a report of, the chip se
   const said = words(there);
   assert.match(said, /Yours: The Norra Levy, strength 2, Hold/);
   assert.match(said, /Reported there: Sudland Levy \(Sudland\), strength 3; Reported 1 April 1900 by Ilse/);
-  assert.doesNotMatch(words(chip(r.view)), /odds|chance|likely|%|win|lose/i);
+  assert.doesNotMatch(said, /odds|chance|likely|%|win|lose/i);
+  // the odds are only behind the chip's Odds button (ODC): nothing of them shows until it is asked
+  assert.equal(chip(r.view).querySelector('.rl-odds'), null);
+  const shown = [...chip(r.view).children].filter((el) => !el.classList.contains('rl-pup-acts')).map(words).join(' ');
+  assert.doesNotMatch(shown, /odds|chance|likely|%|win|lose/i);
 });
 
 test('an area with no reported enemy, or a report of a nation not at war with the seat, shows no report', async () => {

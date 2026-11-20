@@ -630,7 +630,8 @@ def _ring(
 ) -> list[str] | None:
     """Every area a piece of the report's kind could have reached from the reported area
     since the day seen, the area included, in the board's order; an unknown kind moves as
-    the fastest kind of the area's domain (a sea kind in a sea zone, else a land kind).
+    every kind of the area's domain, so the fastest bounds it (sea kinds in a sea zone,
+    else land kinds).
     Read from the report and the board alone. None while fresh, and for a decrypt."""
     board, today = view.map, view.in_world_date
     if board is None or today is None or r.area is None:

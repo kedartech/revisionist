@@ -698,9 +698,9 @@ class MapReport(TypedDict):
     ring: list[str] | None
     """Once the report is more than ``RING_AFTER_DAYS`` days old: the keys of every area a
     piece of its kind could have reached from its area since the day seen, its own area
-    included, in the board's order (an unknown kind moves as the fastest of its area's
-    domain). Worked out from the report and the board alone. None while the report is
-    fresh, and for a decrypt, which gives no area (RNG)."""
+    included, in the board's order (an unknown kind moves as every kind of its area's
+    domain, so the fastest bounds it). Worked out from the report and the board alone.
+    None while the report is fresh, and for a decrypt, which gives no area (RNG)."""
 
 
 class MapOrder(TypedDict):

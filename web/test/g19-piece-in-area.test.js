@@ -107,6 +107,14 @@ test('picking a mark of kind piece shows its panel with the piece\'s own kind, a
   assert.equal(what(panel), levy.piece.kind);
 });
 
+test('a piece that stands in an area, with no place, says the area as Where', () => {
+  const rv = seat();
+  const levy = rv.map.marks.find((m) => m.name === LEVY);
+  assert.deepEqual(levy.places, []);
+  const panel = piecePanel(rv, { kind: 'force', name: LEVY }, () => {});
+  assert.equal(words(panel.querySelectorAll('dd')[3]), levy.piece.area.name);
+});
+
 test('a mark of kind piece with no piece block says Piece, as the territory view does', () => {
   const rv = seat();
   const levy = rv.map.marks.find((m) => m.name === LEVY);

@@ -96,7 +96,7 @@ export function piecePanel(rv, piece, open, { board = 'theatre', card = null, pi
       h('dt', {}, 'What'), h('dd', {}, markWhatWord(mark)),
       h('dt', {}, 'Side'), h('dd', {}, sideLine(mark)),
       h('dt', {}, 'Certainty'), h('dd', {}, certaintyWord(mark.certainty)),
-      h('dt', {}, 'Where'), h('dd', {}, whereLine(mark))),
+      h('dt', {}, 'Where'), h('dd', {}, whereLine(mark) || (mark.piece?.area?.name ?? ''))),
     h('p', { class: 'muted' }, sightedLine(mark)),
     mark.document
       ? h('button', { type: 'button', class: 'rl-btn', onclick: () => open?.({ id: mark.document }) }, 'Open the page')

@@ -233,7 +233,8 @@ def test_the_count_starts_again_when_the_piece_leaves_and_comes_back(tmp_path: P
 
 def test_sea_air_and_envoy_pieces_take_nothing(tmp_path: Path) -> None:
     g = Logged(toy(tmp_path, without("sudland_levy")), "ilse", "tomas")
-    g.send("ilse", "norra_herald", ISLE)
+    herald = piece(g.state, "norra_herald")  # an envoy may not step into enemy ground (ENV)
+    g.add([ev.FeatureSet(feature=herald.model_copy(update={"places": (entity(ISLE),)}))])
     g.send("tomas", "sudland_galleys", "open_sea")
     out = g.walk(day(1), day(30))
     assert piece(g.state, "norra_herald").places == (entity(ISLE),)

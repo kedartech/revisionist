@@ -2630,14 +2630,14 @@
           "moves": [
             {
               "area": {
-                "key": "isle",
-                "name": "The Isle",
+                "key": "norra_hills",
+                "name": "The Norra Hills",
                 "place": null
               },
               "path": [
                 {
-                  "key": "isle",
-                  "name": "The Isle",
+                  "key": "norra_hills",
+                  "name": "The Norra Hills",
                   "place": null
                 }
               ],
@@ -2663,32 +2663,6 @@
               ],
               "step_days": [
                 4
-              ],
-              "days": 4,
-              "reach": null,
-              "lift": null
-            },
-            {
-              "area": {
-                "key": "sudland_coast",
-                "name": "The Sudland Coast",
-                "place": null
-              },
-              "path": [
-                {
-                  "key": "the_gulf",
-                  "name": "The Gulf",
-                  "place": null
-                },
-                {
-                  "key": "sudland_coast",
-                  "name": "The Sudland Coast",
-                  "place": null
-                }
-              ],
-              "step_days": [
-                2,
-                2
               ],
               "days": 4,
               "reach": null,
@@ -3424,14 +3398,14 @@
           "moves": [
             {
               "area": {
-                "key": "isle",
-                "name": "The Isle",
+                "key": "norra_hills",
+                "name": "The Norra Hills",
                 "place": null
               },
               "path": [
                 {
-                  "key": "isle",
-                  "name": "The Isle",
+                  "key": "norra_hills",
+                  "name": "The Norra Hills",
                   "place": null
                 }
               ],
@@ -3457,32 +3431,6 @@
               ],
               "step_days": [
                 4
-              ],
-              "days": 4,
-              "reach": null,
-              "lift": null
-            },
-            {
-              "area": {
-                "key": "sudland_coast",
-                "name": "The Sudland Coast",
-                "place": null
-              },
-              "path": [
-                {
-                  "key": "the_gulf",
-                  "name": "The Gulf",
-                  "place": null
-                },
-                {
-                  "key": "sudland_coast",
-                  "name": "The Sudland Coast",
-                  "place": null
-                }
-              ],
-              "step_days": [
-                2,
-                2
               ],
               "days": 4,
               "reach": null,

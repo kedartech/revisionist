@@ -1200,7 +1200,7 @@ cards:
           - {name: intel, kind: enum, choices: [recon]}
           - {name: piece, kind: enum, choices: [hawaiian_air_force], label: "Which air group", choice_labels: ["Hawaiian Air Force"]}
           - {name: area, kind: enum, choices: [hawaii, central_pacific, north_pacific], label: "Over", choice_labels: ["Hawaii", "The Central Pacific", "The North Pacific"]}
-      - name: patrol  # source: fdr_1941_09_11
+      - name: send_on_patrol  # source: fdr_1941_09_11
         pipeline: naval_order
         resolver: intel
         label: "Send a fleet on patrol"
@@ -1208,7 +1208,7 @@ cards:
         params:
           - {name: intel, kind: enum, choices: [patrol]}
           - {name: piece, kind: enum, choices: [us_atlantic_fleet, us_pacific_fleet], label: "Which fleet", choice_labels: ["US Atlantic Fleet", "US Pacific Fleet"]}
-      - name: fund_codebreaking  # source: pha_1946
+      - name: fund_the_codebreakers  # source: pha_1946
         pipeline: naval_order
         resolver: intel
         label: "Fund the codebreakers"
@@ -1363,7 +1363,7 @@ cards:
           - {name: intel, kind: enum, choices: [recon]}
           - {name: piece, kind: enum, choices: [bomber_command], label: "Which air group", choice_labels: ["RAF Bomber Command"]}
           - {name: area, kind: enum, choices: [bay_of_biscay, north_sea, occupied_france, norway], label: "Over", choice_labels: ["The Bay of Biscay", "The North Sea", "Occupied France", "Norway"]}
-      - name: patrol  # gap: true
+      - name: send_on_patrol  # gap: true
         pipeline: cos_directive
         resolver: intel
         label: "Send a fleet on patrol"
@@ -1371,7 +1371,7 @@ cards:
         params:
           - {name: intel, kind: enum, choices: [patrol]}
           - {name: piece, kind: enum, choices: [home_fleet, western_approaches, mediterranean_fleet], label: "Which fleet", choice_labels: ["Home Fleet", "Western Approaches escort groups", "Mediterranean Fleet"]}
-      - name: place_agent  # gap: true
+      - name: send_an_agent  # gap: true
         pipeline: cos_directive
         resolver: intel
         label: "Place an agent"
@@ -1379,7 +1379,7 @@ cards:
         params:
           - {name: intel, kind: enum, choices: [agent]}
           - {name: area, kind: enum, choices: [occupied_france, norway, low_countries, balkans], label: "Where", choice_labels: ["Occupied France", "Norway", "The Low Countries", "The Balkans"]}
-      - name: fund_codebreaking  # source: action_this_day
+      - name: fund_the_codebreakers  # source: action_this_day
         pipeline: cos_directive
         resolver: intel
         label: "Fund the codebreakers"
@@ -1492,7 +1492,7 @@ cards:
         params:
           - {name: force, kind: enum, choices: [soviet_western_front], label: "Which army", choice_labels: ["The Western Front"]}
           - {name: to, kind: enum, choices: [vyazma, mozhaisk, moscow], label: "To", choice_labels: ["Vyazma", "Mozhaisk", "Moscow"]}
-      - name: patrol  # gap: true
+      - name: send_on_patrol  # gap: true
         pipeline: gko_decree
         resolver: intel
         label: "Send a fleet on patrol"
@@ -1500,7 +1500,7 @@ cards:
         params:
           - {name: intel, kind: enum, choices: [patrol]}
           - {name: piece, kind: enum, choices: [baltic_fleet, northern_fleet], label: "Which fleet", choice_labels: ["Red Banner Baltic Fleet", "Northern Fleet"]}
-      - name: place_agent  # source: deakin_storry_1966
+      - name: send_an_agent  # source: deakin_storry_1966
         pipeline: gko_decree
         resolver: intel
         label: "Place an agent"
@@ -1638,7 +1638,7 @@ cards:
           - {name: intel, kind: enum, choices: [recon]}
           - {name: piece, kind: enum, choices: [luftwaffe_centre], label: "Which air group", choice_labels: ["Luftwaffe Command Centre"]}
           - {name: area, kind: enum, choices: [leningrad_area, baltic_sea, north_sea], label: "Over", choice_labels: ["Leningrad", "The Baltic Sea", "The North Sea"]}
-      - name: patrol  # gap: true
+      - name: send_on_patrol  # gap: true
         pipeline: okw_directive
         resolver: intel
         label: "Send a fleet on patrol"
@@ -1744,7 +1744,7 @@ cards:
         summary: "Put out the Cabinet's public line on the crisis."
         params:
           - {name: line, kind: enum, choices: [conciliatory, firm, silent], label: "The line to take", choice_labels: ["Conciliatory", "Firm", "Say nothing"]}
-      - name: place_agent  # source: prange_1981
+      - name: send_an_agent  # source: prange_1981
         pipeline: japan_state_policy
         resolver: intel
         label: "Place an agent"
@@ -1859,7 +1859,7 @@ cards:
           - {name: intel, kind: enum, choices: [recon]}
           - {name: piece, kind: enum, choices: [eleventh_air_fleet], label: "Which air group", choice_labels: ["Eleventh Air Fleet"]}
           - {name: area, kind: enum, choices: [philippines, malaya, formosa], label: "Over", choice_labels: ["The Philippines", "Malaya and British Borneo", "Formosa"]}
-      - name: patrol  # gap: true
+      - name: send_on_patrol  # gap: true
         pipeline: japan_state_policy
         resolver: intel
         label: "Send a fleet on patrol"
@@ -1867,7 +1867,7 @@ cards:
         params:
           - {name: intel, kind: enum, choices: [patrol]}
           - {name: piece, kind: enum, choices: [combined_fleet], label: "Which fleet", choice_labels: ["Combined Fleet"]}
-      - name: place_agent  # source: prange_1981
+      - name: send_an_agent  # source: prange_1981
         pipeline: japan_state_policy
         resolver: intel
         label: "Place an agent"
@@ -1875,7 +1875,7 @@ cards:
         params:
           - {name: intel, kind: enum, choices: [agent]}
           - {name: area, kind: enum, choices: [hawaii, philippines, malaya], label: "Where", choice_labels: ["Hawaii", "The Philippines", "Malaya and British Borneo"]}
-      - name: conceal  # source: prange_1981
+      - name: hide_a_force  # source: prange_1981
         pipeline: japan_state_policy
         resolver: intel
         label: "Hide a force"
@@ -1969,7 +1969,7 @@ cards:
         params:
           - {name: force, kind: enum, choices: [italian_army, italian_army_libya], label: "Which army", choice_labels: ["The Royal Italian Army", "The Italian Army in Libya"]}
           - {name: to, kind: enum, choices: [rome, tripoli, bardia, tobruk, alexandria], label: "To", choice_labels: ["Rome", "Tripoli", "Bardia", "Tobruk", "Alexandria"]}
-      - name: patrol  # gap: true
+      - name: send_on_patrol  # gap: true
         pipeline: comando_supremo_order
         resolver: intel
         label: "Send a fleet on patrol"
@@ -2063,7 +2063,7 @@ cards:
         params:
           - {name: force, kind: enum, choices: [chinese_army, ninth_war_area], label: "Which army", choice_labels: ["The National Revolutionary Army", "The Ninth War Area"]}
           - {name: to, kind: enum, choices: [chungking, changsha, wuhan], label: "To", choice_labels: ["Chungking", "Changsha", "Wuhan"]}
-      - name: place_agent  # gap: true
+      - name: send_an_agent  # gap: true
         pipeline: mac_order
         resolver: intel
         label: "Place an agent"

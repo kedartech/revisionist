@@ -11,16 +11,19 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from revisionist.core import events as ev
-from revisionist.core.ids import CampaignId, ScheduledEventId, derived_id
+from revisionist.core.ids import CampaignId, EntityId, ScheduledEventId, derived_id
+from revisionist.core.realism import battle, holders
 from revisionist.core.realism.pipeline import Order, StepAction, StepOutcome
 from revisionist.core.realism.resolvers import (
     ON_DAY,
     ON_ORDER,
+    movement,
     resolver_for,
     settled_on,
     shipping,
     value,
 )
+from revisionist.core.state import State
 from tests.test_realism_resolvers import Rig
 
 SEEDS = [
@@ -70,6 +73,8 @@ class Run:
     finding_days: int
     eligible: int
     about_24sep: int
+    battles: list[tuple[date, str, str]]
+    """Each battle that opened: the day, the area's key and the attacker's key (ITD)."""
 
 
 def play(seed: CampaignId) -> Run:
@@ -80,6 +85,7 @@ def play(seed: CampaignId) -> Run:
     orders: dict[int, Order] = {}
     about: dict[date, int | None] = {}
     sunk: list[int] = []
+    battles: list[tuple[date, str, str]] = []
     day = START
     while day <= END:
         if day > START:
@@ -109,8 +115,10 @@ def play(seed: CampaignId) -> Run:
             r.fold_changes(ON_ORDER[key](r.state, order))
         if day.day == 1 and day > START:
             sunk.append(sum(shipping.losses(r.state, day - timedelta(days=1)).values()))
+        before = r.state
         for fn in ON_DAY.values():
             r.fold_changes(fn(r.state, day))
+        battles += _steps_and_battles(r, before, day)
         about[day] = value(r.state, "gallup_fdr_about_right")
         day += timedelta(days=1)
 
@@ -128,7 +136,31 @@ def play(seed: CampaignId) -> Run:
         finding_days=(settled_on(r.state.orders[orders[3].order_id]) - SCRIPT[3].filed).days,
         eligible=v("soviet_lend_lease_eligible"),
         about_24sep=v_on(about, date(1941, 9, 24)),
+        battles=battles,
     )
+
+
+def _steps_and_battles(r: Rig, before: State, day: date) -> list[tuple[date, str, str]]:
+    """The day walk's territory steps, holders and battles, in its order (ITD): pieces met
+    head-on, the steps, the holders, then the day's battle rounds and the count a won battle
+    starts. The battles that opened today, by area and attacker key."""
+    met = movement.head_on(r.state, day)
+    for payload in movement.walk(r.state, day):
+        r.add(payload)
+    for payload in holders.walk(r.state, day):
+        r.add(payload)
+    open_before = r.state.battles
+    fought = battle.walk(before, r.state, day, met)
+    for payload in fought:
+        r.add(payload)
+    for payload in holders.start_count(r.state, battle.won(fought, open_before), day):
+        r.add(payload)
+    key = {EntityId(v): k for k, v in r.ids.items()}
+    return [
+        (day, key[p.battle.area], key[p.battle.attacker.nation])
+        for p in fought
+        if isinstance(p, ev.BattleOpened)
+    ]
 
 
 def v_on(series: dict[date, int | None], day: date) -> int:
@@ -180,7 +212,15 @@ def table(results: list[Run], checks: list[Check]) -> str:
             f"{f.losses!s:<24} {f.finding_days:>4}  {f.about_24sep:>5}  {f.passed}"
         )
     bad = [f"  seed {c.seed} {c.band}: {c.got}" for c in checks if not c.inside]
-    return "\n".join([*rows, "out of band:", *(bad or ["  none"])])
+    fought = sorted({b for f in results for b in f.battles})
+    opened = [
+        f"  {b[0]} {b[1]}, {b[2]} attacking: in {sum(b in f.battles for f in results)} of"
+        f" {len(results)} seeds"
+        for b in fought
+    ]
+    return "\n".join(
+        [*rows, "out of band:", *(bad or ["  none"]), "battles opened:", *(opened or ["  none"])]
+    )
 
 
 def test_the_historical_run_stays_in_its_bands() -> None:
@@ -193,5 +233,7 @@ def test_the_historical_run_stays_in_its_bands() -> None:
         assert f.concur[0] > f.concur[1], report
         assert f.passed == 1 and f.eligible == 1, report
     assert all(c.twice for c in checks), report
+    for f in results:  # ITD: Typhoon's battle runs under the battle rules in every seed
+        assert (date(1941, 10, 7), "moscow_area", "germany") in f.battles, report
     share = sum(c.inside for c in checks) / len(checks)
     assert share >= 0.8, f"{share:.0%} in band\n{report}"

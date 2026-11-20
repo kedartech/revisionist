@@ -125,6 +125,9 @@ def test_each_path_names_the_forms_that_travel_it(game: Game) -> None:
         "Give a naval order",
         "Move a fleet",
         "Detach part of a fleet",
+        "Fly a reconnaissance",
+        "Send a fleet on patrol",
+        "Fund the codebreakers",
     ]
     assert path(court, "A public address")["forms"] == ["Address the nation"]
 

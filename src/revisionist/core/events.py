@@ -16,7 +16,8 @@ DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, Qua
 FeatureSet, WarDeclared, MapDeclared, KindsDeclared, NewsReported, StanceChanged, OpponentsRanked,
 CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted, EconomySet, YieldChanged,
 TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDeclared,
-ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed``, and
+ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
+AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -74,6 +75,7 @@ from revisionist.core.realism.agenda import (
     Offer,
     PlayStyle,
 )
+from revisionist.core.realism.agreement import Agreement, AgreementOffer, ClauseStatus
 from revisionist.core.realism.answer import Answer
 from revisionist.core.realism.battle import Battle, Decision, Ending
 from revisionist.core.realism.card import (
@@ -890,6 +892,48 @@ class GroupProposed(Model):
     proposal: Proposal
 
 
+class AgreementOffered(Model):
+    """An offer of an agreement filed, as its parties know it (AGR). Sealed to the seats of
+    its parties' nations."""
+
+    kind: Literal["agreement_offered"] = "agreement_offered"
+    offer: AgreementOffer
+
+
+class AgreementMade(Model):
+    """An agreement in force, in full (AGR): every named nation accepted the same version
+    of an offer, or a world or a conference made it. Sealed to the seats of its parties'
+    nations."""
+
+    kind: Literal["agreement_made"] = "agreement_made"
+    agreement: Agreement
+
+
+class ClauseJudged(Model):
+    """A clause of an agreement judged on ``on`` from the state (AGR): kept, broken, or
+    called on by an attack on ``against`` with war due by ``due``. With ``against`` and
+    ``kept``, the call on that attacker is answered. Sealed to the parties' seats until the
+    agreement is published."""
+
+    kind: Literal["clause_judged"] = "clause_judged"
+    agreement_id: Label
+    clause: int = Field(ge=0)
+    status: ClauseStatus
+    on: date
+    reason: str = Field(default="", max_length=300)
+    against: EntityId | None = None
+    due: date | None = None
+
+
+class AgreementPublished(Model):
+    """A party published an agreement by order (AGR). Public."""
+
+    kind: Literal["agreement_published"] = "agreement_published"
+    agreement_id: Label
+    by: EntityId
+    on: date
+
+
 class NewsReported(Model):
     """A public event, as structured facts. Each seat's press words it later."""
 
@@ -1315,6 +1359,10 @@ Payload = Annotated[
     | GroupsDeclared
     | GroupMoved
     | GroupProposed
+    | AgreementOffered
+    | AgreementMade
+    | ClauseJudged
+    | AgreementPublished
     | NewsReported
     | StanceChanged
     | OpponentsRanked
@@ -1406,6 +1454,10 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "groups_declared",
         "group_moved",
         "group_proposed",
+        "agreement_offered",
+        "agreement_made",
+        "clause_judged",
+        "agreement_published",
         "stance_changed",
         "opponents_ranked",
         "card_amended",

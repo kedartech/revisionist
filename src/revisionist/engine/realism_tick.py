@@ -45,6 +45,7 @@ from revisionist.core.ids import (
 from revisionist.core.ontology import Phase
 from revisionist.core.realism import (
     actors,
+    agreement,
     answering,
     apply,
     battle,
@@ -61,7 +62,7 @@ from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.arrivals import arrivals
 from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, ParamValue
 from revisionist.core.realism.document import DocumentView, Feed
-from revisionist.core.realism.effect import Effect, PartRef, Route, RoutedOrder, RoutedPart
+from revisionist.core.realism.effect import Deal, Effect, PartRef, Route, RoutedOrder, RoutedPart
 from revisionist.core.realism.feeds import due_feeds, issue, seed_for_day
 from revisionist.core.realism.geography import in_play
 from revisionist.core.realism.pipeline import SETTLED, Order, OrderStatus, StepAction
@@ -406,6 +407,13 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
     if isinstance(payload, ev.StepRefused):
         return _nation_scope(state, payload.nation)
+    if isinstance(payload, ev.AgreementOffered):
+        return agreement.parties_scope(state, payload.offer.parties)
+    if isinstance(payload, ev.AgreementMade):
+        return agreement.parties_scope(state, payload.agreement.parties)
+    if isinstance(payload, ev.ClauseJudged):
+        found = state.agreements.made[payload.agreement_id]
+        return PUBLIC if found.public else agreement.parties_scope(state, found.parties)
     if isinstance(payload, ev.TradeSet):
         # True figures: sealed to the seats of the two nations the line joins.
         a = _nation_scope(state, payload.line.exporter).known_by
@@ -552,6 +560,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(due_executions(state, day))
         add(process.open_processes(state, day))
         add(process.influence_due(state, day))
+        add(agreement.offers_due(state, day))  # AGR: before a part's effect could land
         landed = apply.apply_due(state, day)
         add(landed)
         for step in steps:
@@ -572,6 +581,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(fought)
         add(holders.start_count(state, battle.won(fought, open_before), day))
         today = [e.payload for e in out[day_mark:]]
+        add(agreement.judge(state, day, today))  # AGR: each clause on its day, from the state
         add(groups.react(state, day_from, today, day, sea=before_on_day))
         add(groups.batch(state, day))  # GRP: the day's writing, settled in one batch
         add(groups.drift(state, day))  # GRP: on a Monday, toward the baseline
@@ -840,7 +850,21 @@ def commit_order(
     pending = _pending_effects(state, seat)
     said = _pending_words(state, seat)
     parts: list[RoutedPart] = []
-    for ask in asks:
+    deals = [
+        a for a in asks if isinstance(a.effect, Deal) and (a.effect.parties or a.effect.publish)
+    ]
+    for ask in deals:
+        assert isinstance(ask.effect, Deal)
+        if len(asks) > 1:
+            raise ValueError(agreement.ALONE)
+        why = agreement.refusal(state, seat, ask.effect)
+        if why:
+            raise ValueError(why)
+        if ask.effect.publish is not None:
+            parts.append(agreement.publish_part(ask.ask, ask.effect))
+        else:
+            parts += agreement.offer_parts(state, seat, ask.ask, ask.effect)
+    for ask in asks if not deals else ():
         if ask.effect is not None:
             if ask.effect in pending:
                 raise ValueError(

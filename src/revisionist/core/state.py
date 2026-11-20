@@ -57,6 +57,7 @@ from revisionist.core.ontology import (
     SeatKind,
 )
 from revisionist.core.realism.agenda import Mandate, MandateTemplate, PlayStyle
+from revisionist.core.realism.agreement import Agreements
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
 from revisionist.core.realism.card import CardFace, Desk, SeatCard, Topic
@@ -169,10 +170,15 @@ class _World(Model):
     (``groups_declared``), their support (``group_moved``) and the writing in waiting
     (``group_proposed``) (GRP). True support: a view holds its own nation's groups only,
     and never the writing in waiting."""
+    agreements: Agreements = Field(default_factory=Agreements)
+    """With ``agreements`` on, the offers (``agreement_offered``) and the agreements in
+    force (``agreement_made``), with each clause's status (``clause_judged``) (AGR). A view
+    holds those its nation is a party to, and every published agreement."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
             "groups",
+            "agreements",
             "goals",
             "phase",
             "roster",

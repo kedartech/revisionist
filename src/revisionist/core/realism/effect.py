@@ -20,6 +20,7 @@ from enum import StrEnum
 from typing import Annotated, ClassVar, Literal
 
 from pydantic import Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from revisionist.core._base import Label, Model
 from revisionist.core.ids import (
@@ -257,17 +258,122 @@ class Investigate(Model):
         return self
 
 
+MAX_PARTIES = 8  # [proposed] AGR audit: an order holds at most 8 parts
+"""The most nations one agreement names, the offering nation's own included."""
+
+
+class ClauseType(StrEnum):
+    """The clauses the rules can check (AGR rule 2), and the one they cannot."""
+
+    PLACE = "place"
+    """A named piece is (``present``), or is not, in a named area or region by a date."""
+    KEEP_OUT = "keep_out"
+    """No piece of the bound party enters a named area."""
+    NO_WAR = "no_war"
+    """No war declared on a named nation."""
+    NO_ATTACK = "no_attack"
+    """No attack on a named nation."""
+    DEFEND = "defend"
+    """War declared, within ``days``, on whoever newly attacks a named nation."""
+    FORM = "form"
+    """A named form enacted by a date."""
+    AID = "aid"
+    """An aid share of at least ``share`` per cent to a named nation."""
+    VOTE = "vote"
+    """A vote for (``present``) or against a named conference text: judged by the
+    conference item, never here."""
+    UNCHECKED = "unchecked"
+    """Wording that fits no type: kept, and never judged."""
+
+
+_CLAUSE_NEEDS: dict[ClauseType, tuple[str, ...]] = {
+    ClauseType.PLACE: ("force", "on"),
+    ClauseType.KEEP_OUT: ("area",),
+    ClauseType.NO_WAR: ("nation",),
+    ClauseType.NO_ATTACK: ("nation",),
+    ClauseType.DEFEND: ("nation", "days"),
+    ClauseType.FORM: ("form", "on"),
+    ClauseType.AID: ("nation", "share"),
+    ClauseType.VOTE: ("text",),
+    ClauseType.UNCHECKED: ("text",),
+}
+
+
+class AgreementClause(Model):
+    """One clause of an agreement (AGR rule 1): the party it binds, what it binds them to,
+    and its date, or None for a standing clause."""
+
+    type: ClauseType
+    binds: EntityId
+    on: date | None = None
+    """The day it is judged; None: standing, judged each day."""
+    force: FeatureId | None = None
+    area: EntityId | None = None
+    region: Label | None = None
+    present: bool = True
+    nation: EntityId | None = None
+    days: int | None = Field(default=None, ge=0, le=60)
+    form: Label | None = None
+    share: int | None = Field(default=None, ge=1, le=100)
+    text: str = Field(default="", max_length=300)
+    """The wording of an unchecked clause; the text's key for a vote clause."""
+
+    @model_validator(mode="after")
+    def _fields(self) -> "AgreementClause":
+        missing = [f for f in _CLAUSE_NEEDS[self.type] if getattr(self, f) in (None, "")]
+        if missing:
+            raise ValueError(f"a {self.type.value} clause names its {', '.join(missing)}")
+        if self.type is ClauseType.PLACE and (self.area is None) == (self.region is None):
+            raise ValueError("a place clause names an area or a region")
+        return self
+
+
 class Deal(Model):
     """Offer a deal, or accept one."""
+
+    # With ``parties``, an offer of an agreement (AGR): one part per other named nation,
+    # each aimed at the person who answers for it. Its fields are hidden from every model's
+    # schema, so a recorded call keeps its key.
 
     kind: Literal["deal"] = "deal"
     counterparty: EntityId
     offer: tuple[Label, ...] = Field(default=(), max_length=4)
     ask: tuple[Label, ...] = Field(default=(), max_length=4)
     accept: bool = False
+    parties: SkipJsonSchema[tuple[EntityId, ...]] = Field(default=(), max_length=MAX_PARTIES)
+    """The nations an agreement would bind, the offering nation's own included. Empty for
+    a deal of the old kind."""
+    wording: SkipJsonSchema[str] = Field(default="", max_length=600)
+    clauses: SkipJsonSchema[tuple[AgreementClause, ...]] = Field(default=(), max_length=8)
+    envoy: SkipJsonSchema[FeatureId | None] = None
+    """The envoy piece that carries the offer, where one does (ENV)."""
+    publish: SkipJsonSchema[Label | None] = None
+    """An order to publish the agreement with this id: nothing else is asked."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset(
+        {"parties", "wording", "clauses", "envoy", "publish"}
+    )
 
     @model_validator(mode="after")
     def _has_terms(self) -> "Deal":
+        if self.publish is not None:
+            if self.parties or self.clauses or self.offer or self.ask or self.accept:
+                raise ValueError("an order to publish an agreement asks nothing else")
+            return self
+        if self.parties:
+            if len(set(self.parties)) != len(self.parties) or len(self.parties) < 2:
+                raise ValueError("an agreement names two or more nations, each once")
+            if self.counterparty not in self.parties:
+                raise ValueError("an offer's counterparty is one of its parties")
+            if not (self.clauses or self.wording.strip()):
+                raise ValueError("an agreement has wording or clauses")
+            if any(c.binds not in self.parties for c in self.clauses):
+                raise ValueError("a clause binds one of the parties")
+            if self.offer or self.ask or self.accept:
+                raise ValueError("an agreement is offered by its clauses alone")
+            return self
+        if self.clauses or self.wording:
+            raise ValueError("an agreement names its parties")
         if not self.accept and not (self.offer or self.ask):
             raise ValueError("an offer names what is offered or asked")
         return self
@@ -531,11 +637,14 @@ __all__ = [
     "FIGURE_CAP",
     "GROUP_DAY_CAP",
     "IRREVERSIBLE",
+    "MAX_PARTIES",
     "REFUSAL_LOYALTY",
+    "AgreementClause",
     "Allocate",
     "Appointment",
     "Clause",
     "ClauseKind",
+    "ClauseType",
     "Contingency",
     "ContingencyKind",
     "Deal",

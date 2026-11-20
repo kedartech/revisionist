@@ -620,6 +620,39 @@ def _author(view: View, paper: DocumentId | None) -> str:
     return person.name if person is not None else ""
 
 
+RING_AFTER_DAYS = 1
+"""[proposed] A report older than this many days carries a ring, so a fresh contact stays
+a point (RNG)."""
+
+
+def _ring(
+    view: View, r: detect.Report, shapes: list[territory.Territory | territory.SeaZone]
+) -> list[str] | None:
+    """Every area a piece of the report's kind could have reached from the reported area
+    since the day seen, the area included, in the board's order; an unknown kind moves as
+    every kind of the area's domain, so the fastest bounds it (sea kinds in a sea zone,
+    else land kinds).
+    Read from the report and the board alone. None while fresh, and for a decrypt."""
+    board, today = view.map, view.in_world_date
+    if board is None or today is None or r.area is None:
+        return None
+    days = (today - r.seen).days
+    if days <= RING_AFTER_DAYS:
+        return None
+    pieces = view.kinds.pieces if view.kinds is not None else {}
+    known = pieces.get(r.kind) if r.kind is not None else None
+    if known is not None:
+        movers = [known]
+    else:
+        sea = any(z.area == r.area for z in board.sea_zones)
+        domain = kinds.Domain.SEA if sea else kinds.Domain.LAND
+        movers = [k for k in pieces.values() if k.domain is domain]
+    reach = {r.area}
+    for k in movers:
+        reach |= set(territory.steps_within(board, k, r.area, days))
+    return [a.key for a in shapes if a.area in reach]
+
+
 def map_reports(view: View) -> list[MapReport]:
     """Each report of an enemy piece that has reached the seat's nation, by its core key
     (``protect_marks`` keys it again before it leaves). A report a named person made is
@@ -652,6 +685,7 @@ def map_reports(view: View) -> list[MapReport]:
                 person=_author(view, paper),
                 confidence=r.confidence.value,
                 document=paper,
+                ring=_ring(view, r, shapes),
             )
         )
     return out

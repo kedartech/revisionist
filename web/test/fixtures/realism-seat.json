@@ -348,7 +348,9 @@
             "choices": [],
             "places": []
           }
-        ]
+        ],
+        "rule": "votes",
+        "intel": null
       },
       {
         "name": "lend_lease_finding",
@@ -387,7 +389,9 @@
             "choices": [],
             "places": []
           }
-        ]
+        ],
+        "rule": "production",
+        "intel": null
       },
       {
         "name": "move_fleet",
@@ -624,7 +628,225 @@
               }
             ]
           }
-        ]
+        ],
+        "rule": "movement",
+        "intel": null
+      },
+      {
+        "name": "fly_recon",
+        "label": "Fly a reconnaissance flight",
+        "summary": "Send an air wing to search one area within its range.",
+        "pipeline": "Q4N7E9PATHWAY8KR2M5VD3XC1B",
+        "params": [
+          {
+            "name": "intel",
+            "label": "Order",
+            "kind": "enum",
+            "lo": null,
+            "hi": null,
+            "choices": [
+              {
+                "value": "recon",
+                "label": "Fly a reconnaissance flight"
+              }
+            ],
+            "places": []
+          },
+          {
+            "name": "piece",
+            "label": "Which air wing",
+            "kind": "enum",
+            "lo": null,
+            "hi": null,
+            "choices": [
+              {
+                "value": "patrol_wing_7",
+                "label": "Patrol Wing 7"
+              }
+            ],
+            "places": []
+          },
+          {
+            "name": "area",
+            "label": "Which area",
+            "kind": "enum",
+            "lo": null,
+            "hi": null,
+            "choices": [
+              {
+                "value": "north_atlantic",
+                "label": "The North Atlantic"
+              },
+              {
+                "value": "western_approaches",
+                "label": "The Western Approaches"
+              }
+            ],
+            "places": []
+          }
+        ],
+        "rule": "intel",
+        "intel": "recon"
+      },
+      {
+        "name": "patrol",
+        "label": "Send a patrol",
+        "summary": "Put a sea force on patrol.",
+        "pipeline": "Q4N7E9PATHWAY8KR2M5VD3XC1B",
+        "params": [
+          {
+            "name": "intel",
+            "label": "Order",
+            "kind": "enum",
+            "lo": null,
+            "hi": null,
+            "choices": [
+              {
+                "value": "patrol",
+                "label": "Send a patrol"
+              }
+            ],
+            "places": []
+          },
+          {
+            "name": "piece",
+            "label": "Which force",
+            "kind": "enum",
+            "lo": null,
+            "hi": null,
+            "choices": [
+              {
+                "value": "us_atlantic_fleet",
+                "label": "Atlantic Fleet"
+              }
+            ],
+            "places": []
+          }
+        ],
+        "rule": "intel",
+        "intel": "patrol"
+      },
+      {
+        "name": "place_agent",
+        "label": "Place an agent",
+        "summary": "Place an agent in an area, in place after a week.",
+        "pipeline": "Q4N7E9PATHWAY8KR2M5VD3XC1B",
+        "params": [
+          {
+            "name": "intel",
+            "label": "Order",
+            "kind": "enum",
+            "lo": null,
+            "hi": null,
+            "choices": [
+              {
+                "value": "agent",
+                "label": "Place an agent"
+              }
+            ],
+            "places": []
+          },
+          {
+            "name": "area",
+            "label": "Which area",
+            "kind": "enum",
+            "lo": null,
+            "hi": null,
+            "choices": [
+              {
+                "value": "north_atlantic",
+                "label": "The North Atlantic"
+              },
+              {
+                "value": "western_approaches",
+                "label": "The Western Approaches"
+              }
+            ],
+            "places": []
+          }
+        ],
+        "rule": "intel",
+        "intel": "agent"
+      },
+      {
+        "name": "fund_codebreaking",
+        "label": "Fund codebreaking",
+        "summary": "Spend output to raise the codebreaking level.",
+        "pipeline": "Q4N7E9PATHWAY8KR2M5VD3XC1B",
+        "params": [
+          {
+            "name": "intel",
+            "label": "Order",
+            "kind": "enum",
+            "lo": null,
+            "hi": null,
+            "choices": [
+              {
+                "value": "codebreaking",
+                "label": "Fund codebreaking"
+              }
+            ],
+            "places": []
+          }
+        ],
+        "rule": "intel",
+        "intel": "codebreaking"
+      },
+      {
+        "name": "conceal",
+        "label": "Conceal a force",
+        "summary": "Hide a force from enemy search, or lift its concealment.",
+        "pipeline": "Q4N7E9PATHWAY8KR2M5VD3XC1B",
+        "params": [
+          {
+            "name": "intel",
+            "label": "Order",
+            "kind": "enum",
+            "lo": null,
+            "hi": null,
+            "choices": [
+              {
+                "value": "conceal",
+                "label": "Conceal a force"
+              }
+            ],
+            "places": []
+          },
+          {
+            "name": "piece",
+            "label": "Which force",
+            "kind": "enum",
+            "lo": null,
+            "hi": null,
+            "choices": [
+              {
+                "value": "us_atlantic_fleet",
+                "label": "Atlantic Fleet"
+              }
+            ],
+            "places": []
+          },
+          {
+            "name": "concealed",
+            "label": "Concealed",
+            "kind": "enum",
+            "lo": null,
+            "hi": null,
+            "choices": [
+              {
+                "value": "yes",
+                "label": "Conceal it"
+              },
+              {
+                "value": "no",
+                "label": "Lift its concealment"
+              }
+            ],
+            "places": []
+          }
+        ],
+        "rule": "intel",
+        "intel": "conceal"
       }
     ],
     "inner_circle": [
@@ -2217,6 +2439,28 @@
             "person": "FH1G9QGK7SHNNYZ83CTMST2ZM3",
             "name": "Stephen T. Early",
             "office": "White House press secretary",
+            "kind": "clerical",
+            "days": 1,
+            "you": false,
+            "orders": []
+          }
+        ]
+      },
+      {
+        "id": "Q4N7E9PATHWAY8KR2M5VD3XC1B",
+        "name": "The intelligence office",
+        "forms": [
+          "Fly a reconnaissance flight",
+          "Send a patrol",
+          "Place an agent",
+          "Fund codebreaking",
+          "Conceal a force"
+        ],
+        "steps": [
+          {
+            "person": "K8N0C7ERKS4MX9T2VQ6HJ1PDW5",
+            "name": "Office of Naval Intelligence",
+            "office": "Office of Naval Intelligence",
             "kind": "clerical",
             "days": 1,
             "you": false,

@@ -35,6 +35,7 @@ from revisionist.core.realism.pipeline import (
     step_due,
 )
 from revisionist.core.realism.pipelines import destination, place_named
+from revisionist.core.realism.resolvers import intel
 from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
 from revisionist.engine.aide import AideBrief
@@ -94,6 +95,11 @@ _HIDDEN = frozenset({StepAction.STALL, StepAction.LEAK})
 
 def lever_label(lever: Lever) -> str:
     return lever.label or words(lever.name)
+
+
+def _intel_form(lever: Lever) -> str | None:
+    form = intel.form_of(lever)
+    return None if form is None else form.value
 
 
 def _param_label(spec: ParamSpec) -> str:
@@ -898,6 +904,8 @@ def desk(view: View, known: Known | None = None) -> Desk:
                 summary=lever.summary,
                 pipeline=lever.pipeline,
                 params=[_lever_param(view, lever, p, known or Known()) for p in lever.params],
+                rule=lever.resolver,
+                intel=_intel_form(lever),
             )
             for lever in card.levers
         ],

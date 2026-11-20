@@ -9,12 +9,14 @@ pipeline's resolver, not here.
 from collections.abc import Sequence
 from datetime import date, timedelta
 
+from revisionist.core import SCHEMA_VERSION
 from revisionist.core import events as ev
 from revisionist.core.canary import scan_text
 from revisionist.core.ids import (
     CampaignId,
     DocumentId,
     EntityId,
+    EventId,
     FactId,
     FeatureId,
     OrderId,
@@ -23,7 +25,7 @@ from revisionist.core.ids import (
     derived_id,
 )
 from revisionist.core.ontology import Relationship, ScheduleSource
-from revisionist.core.realism import actors, battle, process, reach
+from revisionist.core.realism import actors, battle, detect, process, reach
 from revisionist.core.realism.bases import crossing
 from revisionist.core.realism.card import ChannelKind, words
 from revisionist.core.realism.document import (
@@ -55,7 +57,7 @@ from revisionist.core.realism.effect import (
     SetEngagement,
     ShiftDisposition,
 )
-from revisionist.core.realism.geography import in_play
+from revisionist.core.realism.geography import Feature, in_play
 from revisionist.core.realism.land import allocate, appointment, deal, investigate, statement
 from revisionist.core.realism.pass_world import PassWorld
 from revisionist.core.realism.routing import travel_days
@@ -175,15 +177,25 @@ def _engage(
                 if f.detached_from in domain and in_play(f)
             }
         )
-    out: list[ev.Payload] = []
+    landed: list[Feature] = []
     for fid in named:
         force = world.features.get(fid)
         if force is None:
             continue
         set_ = battle.land_contingency(force, effect, on)
-        world.features[fid] = set_
-        out.append(ev.FeatureSet(feature=set_))
-    return out
+        if effect.concealed is not None:
+            seen = _seen(world, set_)
+            (set_,) = detect.set_concealed(seen, fid, effect.concealed, on)
+        landed.append(set_)
+    for set_ in landed:
+        world.features[set_.feature_id] = set_
+    return [ev.FeatureSet(feature=f) for f in landed]
+
+
+def _seen(world: PassWorld, *features: Feature) -> State:
+    """The state as the pass has left it, with ``features`` as they stand once landed."""
+    now = {**world.features, **{f.feature_id: f for f in features}}
+    return world.state.model_copy(update={"features": now})
 
 
 def shift(world: PassWorld, effect: ShiftDisposition, issuer_seat: SeatId) -> ev.Payload:
@@ -247,6 +259,89 @@ def _land(
         case _:
             # Disclosure(reveal=False) changes nothing in this wave. [proposed]
             return [], []
+
+
+REFUSED = "Intelligence order not carried out"
+
+
+def _landed(
+    world: PassWorld,
+    effect: EstimatedEffect,
+    issuer_seat: SeatId,
+    issuer: EntityId,
+    on: date,
+    author: EntityId,
+    ref: str,
+) -> tuple[list[ev.Payload], list[FactId]]:
+    """``_land``, with an intelligence order the rules refuse reported to the issuer in
+    the rules' words, and what lands taken into the pass so the next part sees it."""
+    try:
+        payloads, facts = _land(world, effect, issuer_seat, issuer, on, author)
+    except detect.IntelError as exc:
+        return _refused(world, issuer_seat, author, on, ref, str(exc)), []
+    _take(world, payloads)
+    return payloads, facts
+
+
+def _take(world: PassWorld, payloads: Sequence[ev.Payload]) -> None:
+    """Fold a nation's agents, codebreaking and pools as landed into the pass's state."""
+    kept = [p for p in payloads if isinstance(p, ev.AgentSet | ev.CodebreakingSet | ev.EconomySet)]
+    if not kept:
+        return
+    from revisionist.core.fold import replay
+
+    state = world.state
+    versions = ev.Versions(engine="pass", schema_version=SCHEMA_VERSION)
+    events = [
+        ev.Event(
+            event_id=EventId(derived_id(state.campaign_id, "pass", state.last_seq + 1 + n)),
+            campaign_id=state.campaign_id,
+            seq=state.last_seq + 1 + n,
+            tick=0,
+            scope=PUBLIC,
+            payload=p,
+            versions=versions,
+        )
+        for n, p in enumerate(kept)
+    ]
+    world.state = replay(events, initial=state)
+
+
+def _refused(
+    world: PassWorld, issuer_seat: SeatId, author: EntityId, on: date, ref: str, why: str
+) -> list[ev.Payload]:
+    """The paper telling the issuer why the rules refused an intelligence order; none for a
+    seat nobody plays."""
+    state = world.state
+    doc_id = DocumentId(derived_id(state.campaign_id, "intel-refused", ref))
+    if issuer_seat not in actors.readers(state) or not world.claim(doc_id, state.documents):
+        return []
+    text = why if len(why) <= LINE else why[: LINE - 1].rsplit(" ", 1)[0] + "…"
+    document = DocumentView(
+        doc_id=doc_id,
+        kind=DocumentKind.REPORT,
+        author=author,
+        issued=on,
+        arrives=on,
+        channel=ChannelKind.IN_PERSON,
+        classification=Classification.CONFIDENTIAL,  # [proposed]
+        title=REFUSED,
+        body=(BodyField(label="Why", value=text),),
+        scope=private_to(issuer_seat),
+    )
+    return [ev.DocumentIssued(document=document, truth=DocumentTruth(doc_id=doc_id))]
+
+
+def land_effect(
+    state: State, effect: EstimatedEffect, issuer_seat: SeatId, on: date, ref: str, *, aide: bool
+) -> list[ev.Payload]:
+    """One effect landed on ``on`` as a written order's part lands it: the path a form
+    takes to the same rules. ``aide``: the aide filed it, and its limits hold here too."""
+    issuer = state.seats[issuer_seat].embodies
+    kept = detect.aide_may(effect) if aide else effect
+    if kept is None:
+        return []
+    return _landed(PassWorld(state), kept, issuer_seat, issuer, on, issuer, ref)[0]
 
 
 def _figure(world: PassWorld, effect: MoveFigure, on: date) -> list[ev.Payload]:
@@ -315,8 +410,11 @@ def apply_due(state: State, today: date) -> list[ev.Payload]:
             events: list[ev.Payload] = []
             revealed: list[FactId] = []
             author = reporter(state, order, i)[0]
-            for effect in effects:
-                landed, facts = _land(world, effect, issuer_seat, issuer, on, author)
+            if order.order_id in state.aide_orders:
+                effects = [e for e in map(detect.aide_may, effects) if e is not None]
+            for n, effect in enumerate(effects):
+                ref = f"{order.order_id}:{i}:{n}"
+                landed, facts = _landed(world, effect, issuer_seat, issuer, on, author, ref)
                 events += landed
                 revealed += [f for f in facts if f not in revealed]
             out += events
@@ -535,6 +633,7 @@ __all__ = [
     "as_carried",
     "describe",
     "developed",
+    "land_effect",
     "outcome",
     "report",
     "report_doc_id",

@@ -3,10 +3,12 @@
 Reach is derived from the cards and the world, never whitelisted. The inner circle is
 always open; a person's own chain is summoned; a foreign head is reached by cable or
 envoy when the sender may address one; everyone else takes a meeting only when
-standing and disposition carry it.
+standing and disposition carry it. While an envoy of the sender's nation stands at a
+foreign capital, the sender's word to that nation's leader arrives the same day (ENV).
 """
 
 from collections.abc import Iterator
+from datetime import date
 
 from revisionist.core.ids import EntityId
 from revisionist.core.ontology import EntityKind
@@ -107,11 +109,36 @@ def transit_days(channel: ChannelKind) -> int:
     return TRANSIT_DAYS[channel]
 
 
+def quickened(state: State, frm: EntityId, to: EntityId, on: date) -> bool:
+    """Whether ``frm``'s word to ``to`` arrives the same day it is sent on ``on``: ``to``
+    leads a foreign nation (a head of government) and an envoy of ``frm``'s nation has
+    stood at that nation's capital since ``on`` or earlier (ENV rule 3)."""
+    from revisionist.core.realism import agreement
+
+    _known(state, frm, to)
+    theirs = state.cards.get(to)
+    if theirs is None or theirs.reach.rank != 5:
+        return False
+    mine, their_polity = _polity(state, frm), _polity(state, to)
+    if mine is None or their_polity is None or mine == their_polity:
+        return False
+    since = agreement.envoy_at_capital(state, mine, their_polity)
+    return since is not None and since <= on
+
+
+def transit(state: State, frm: EntityId, to: EntityId, channel: ChannelKind, on: date) -> int:
+    """The days ``frm``'s word sent to ``to`` on ``on`` by ``channel`` takes: none while
+    ``quickened``, else the channel's."""
+    return 0 if quickened(state, frm, to, on) else transit_days(channel)
+
+
 __all__ = [
     "EXPOSURE",
     "TRANSIT_DAYS",
     "channels_to",
+    "quickened",
     "takes_meeting",
     "tie",
+    "transit",
     "transit_days",
 ]

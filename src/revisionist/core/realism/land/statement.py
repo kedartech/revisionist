@@ -5,14 +5,16 @@ moves the public's target. A statement to one audience is a private fact its iss
 holds, and moves nothing.
 """
 
+import hashlib
 from datetime import date
 
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, FactId, SeatId, derived_id
 from revisionist.core.ontology import Fact
+from revisionist.core.realism import groups
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.document import BodyField
-from revisionist.core.realism.effect import MakeStatement
+from revisionist.core.realism.effect import GroupNudge, MakeStatement
 from revisionist.core.realism.pass_world import PassWorld
 from revisionist.core.realism.resolvers import opinion
 from revisionist.core.realism.war import NewsEvent, NewsTopic, polity_of
@@ -42,6 +44,27 @@ def _opinion(world: PassWorld, theme: str, on: date) -> list[ev.Payload]:
     moved = target.model_copy(update={"value": max(0, min(100, base + points)), "as_of": on})
     world.quantities[moved.quantity_id] = moved
     return [ev.QuantitySet(quantity=moved)]
+
+
+def text_hash(theme: str, words: str) -> str:
+    """A stable stand-in for a written statement's text: the groups rule keeps this hash,
+    never the words, and breaks a tie between two statements by it."""
+    return hashlib.sha256(f"{theme}\0{words}".encode()).hexdigest()[:16]
+
+
+def nudge(
+    world: PassWorld, effect: GroupNudge, issuer_seat: SeatId, written: str, on: date
+) -> list[ev.Payload]:
+    """A group nudge a ruling gave a statement, proposed to the day's batch for the
+    issuer's seat; the batch, not this call, moves the group. Nothing when the rule is
+    off or the group is gone."""
+    try:
+        wrote = groups.propose(
+            world.state, issuer_seat, effect.nation, effect.group, effect.change, written, on
+        )
+    except groups.GroupsError:
+        return []
+    return [wrote]
 
 
 def land(
@@ -84,4 +107,5 @@ def land(
         facts=(BodyField(label="Theme", value=effect.theme),),
         headline=_clip(f"{state.entities[issuer].name} speaks on {effect.theme}"),
     )
-    return [ev.NewsReported(news=item), *_opinion(world, effect.theme, on)], []
+    moved = [] if groups.on(state) else _opinion(world, effect.theme, on)
+    return [ev.NewsReported(news=item), *moved], []

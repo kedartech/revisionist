@@ -8,6 +8,7 @@ pipeline's resolver, not here.
 
 from collections.abc import Sequence
 from datetime import date, timedelta
+from typing import NamedTuple
 
 from revisionist.core import SCHEMA_VERSION
 from revisionist.core import events as ev
@@ -25,7 +26,7 @@ from revisionist.core.ids import (
     derived_id,
 )
 from revisionist.core.ontology import Relationship, ScheduleSource
-from revisionist.core.realism import actors, battle, detect, process, reach
+from revisionist.core.realism import actors, battle, detect, groups, process, reach
 from revisionist.core.realism.bases import crossing
 from revisionist.core.realism.card import ChannelKind, words
 from revisionist.core.realism.document import (
@@ -44,6 +45,7 @@ from revisionist.core.realism.effect import (
     Engagement,
     EstimatedEffect,
     Fidelity,
+    GroupNudge,
     Investigate,
     MakeStatement,
     MoveFigure,
@@ -61,6 +63,7 @@ from revisionist.core.realism.geography import Feature, in_play
 from revisionist.core.realism.land import allocate, appointment, deal, investigate, statement
 from revisionist.core.realism.pass_world import PassWorld
 from revisionist.core.realism.routing import travel_days
+from revisionist.core.realism.war import polity_of
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, Scope, private_to
 
@@ -381,49 +384,140 @@ def developed(state: State, settled: Sequence[ev.Payload], on: date) -> list[ev.
     return out
 
 
+def _carried(state: State, order: RoutedOrder, part: RoutedPart) -> list[EstimatedEffect]:
+    """The effects a ready part lands, in order."""
+    effects: list[EstimatedEffect] = []
+    if part.refusal:
+        pass  # a refusal applies nothing, but still closes the part
+    elif part.route is Route.COMMAND:
+        if part.effect is not None and part.fidelity is not None:
+            carried = as_carried(part.effect, part.fidelity)
+            effects += [carried] if carried is not None else []
+        effects += part.estimated
+    elif part.accepted:
+        effects += [part.effect] if part.effect is not None else []
+        effects += part.estimated
+    else:
+        # A rebuffed approach can still sour a relation.
+        effects += [e for e in part.estimated if isinstance(e, ShiftDisposition)]
+    if order.order_id in state.aide_orders:
+        effects = [e for e in map(detect.aide_may, effects) if e is not None]
+    return effects
+
+
+def _words(part: RoutedPart) -> str:
+    """The hash standing for what a part wrote, for the groups rule's tie-break."""
+    match part.effect:
+        case MakeStatement(theme=theme):
+            return statement.text_hash(theme, part.ask)
+        case ProposeMeasure(title=title):
+            return statement.text_hash(title, part.ask)
+    return statement.text_hash("", part.ask)
+
+
+ALREADY_HEARD = "has already heard from you today"
+"""[proposed] The report's line for a group a seat's other writing of the day moved."""
+NO_MOVE = "took no further word this week"
+"""[proposed] The report's line for a group whose weekly cap the writing found spent."""
+
+
+class _Due(NamedTuple):
+    order: RoutedOrder
+    at: int
+    part: RoutedPart
+    on: date
+    effects: list[EstimatedEffect]
+
+
+def _heard(
+    state: State, due: Sequence[_Due], today: date
+) -> dict[tuple[OrderId, int], list[BodyField]]:
+    """For each part that nudged its own nation's groups, the report lines naming each
+    group the seat's writing moved and by how much. Of a seat's writing for one group on
+    one world day only the one the batch picks counts, whatever the order of filing; the
+    others say the group has already heard from the seat today. Read from the seat's own
+    writing alone, so another seat's writing is never shown."""
+    mine: dict[tuple[SeatId, EntityId, str], list[tuple[OrderId, int, groups.Proposal]]] = {}
+    for d in due:
+        seat = d.order.issuer
+        for e in d.effects:
+            if not isinstance(e, GroupNudge) or e.nation != polity_of(
+                state, state.seats[seat].embodies
+            ):
+                continue
+            try:
+                wrote = groups.propose(
+                    state, seat, e.nation, e.group, e.change, _words(d.part), d.on
+                )
+            except groups.GroupsError:
+                continue
+            mine.setdefault((seat, e.nation, e.group), []).append(
+                (d.order.order_id, d.at, wrote.proposal)
+            )
+    lines: dict[tuple[OrderId, int], list[BodyField]] = {}
+    for (seat, nation, key), found in sorted(mine.items()):
+        waiting = [
+            p
+            for p in state.groups.proposed
+            if p.seat == seat and p.polity == nation and p.group == key and p.on <= today
+        ]
+        proposals = [*waiting, *(p for _, _, p in found if p.on <= today)]
+        if not proposals:
+            continue
+        pick = groups._chosen(proposals)
+        alone = state.model_copy(
+            update={"groups": state.groups.model_copy(update={"proposed": tuple(proposals)})}
+        )
+        settled = groups.batch(alone, today)
+        change = settled[0].change if settled else 0
+        name = groups.group(state, nation, key)
+        label = name.name if name is not None else key
+        counted = min(((o, i) for o, i, p in found if p == pick and p.on <= today), default=None)
+        for o, i, p in found:
+            if p.on > today:
+                continue
+            if (o, i) == counted:
+                value = f"{label} {change:+d}" if change else f"{label} {NO_MOVE}"
+            else:
+                value = f"{label} {ALREADY_HEARD}"
+            lines.setdefault((o, i), []).append(BodyField(label="Group", value=value[:LINE]))
+    return lines
+
+
 def apply_due(state: State, today: date) -> list[ev.Payload]:
     """Every part ready to apply on ``today``, earliest filed first, each once."""
     world = PassWorld(state)
     out: list[ev.Payload] = []
+    due: list[_Due] = []
     for order in sorted(state.routed.values(), key=lambda o: (o.filed, o.order_id)):
-        issuer_seat = order.issuer
-        issuer = state.seats[issuer_seat].embodies
         for i, part in enumerate(order.parts):
             ready = _ready(order, part)
             if ready is None or part.applied is not None:
                 continue
-            on = max(today, ready)
-            effects: list[EstimatedEffect] = []
-            if part.refusal:
-                pass  # a refusal applies nothing, but still closes the part
-            elif part.route is Route.COMMAND:
-                if part.effect is not None and part.fidelity is not None:
-                    carried = as_carried(part.effect, part.fidelity)
-                    effects += [carried] if carried is not None else []
-                effects += part.estimated
-            elif part.accepted:
-                effects += [part.effect] if part.effect is not None else []
-                effects += part.estimated
-            else:
-                # A rebuffed approach can still sour a relation.
-                effects += [e for e in part.estimated if isinstance(e, ShiftDisposition)]
-            events: list[ev.Payload] = []
-            revealed: list[FactId] = []
-            author = reporter(state, order, i)[0]
-            if order.order_id in state.aide_orders:
-                effects = [e for e in map(detect.aide_may, effects) if e is not None]
-            for n, effect in enumerate(effects):
-                ref = f"{order.order_id}:{i}:{n}"
-                landed, facts = _landed(world, effect, issuer_seat, issuer, on, author, ref)
-                events += landed
-                revealed += [f for f in facts if f not in revealed]
-            out += events
-            out.append(
-                ev.EffectsApplied(order_id=order.order_id, part=i, on=on, revealed=tuple(revealed))
-            )
-            doc = report(state, order, i, on)
-            if doc is not None:
-                out.append(doc)
+            due.append(_Due(order, i, part, max(today, ready), _carried(state, order, part)))
+    heard = _heard(state, due, today)
+    for d in due:
+        order, i, on = d.order, d.at, d.on
+        issuer_seat = order.issuer
+        issuer = state.seats[issuer_seat].embodies
+        events: list[ev.Payload] = []
+        revealed: list[FactId] = []
+        author = reporter(state, order, i)[0]
+        for n, effect in enumerate(d.effects):
+            if isinstance(effect, GroupNudge):
+                events += statement.nudge(world, effect, issuer_seat, _words(d.part), on)
+                continue
+            ref = f"{order.order_id}:{i}:{n}"
+            landed, facts = _landed(world, effect, issuer_seat, issuer, on, author, ref)
+            events += landed
+            revealed += [f for f in facts if f not in revealed]
+        out += events
+        out.append(
+            ev.EffectsApplied(order_id=order.order_id, part=i, on=on, revealed=tuple(revealed))
+        )
+        doc = report(state, order, i, on, tuple(heard.get((order.order_id, i), ())))
+        if doc is not None:
+            out.append(doc)
     return out
 
 
@@ -570,8 +664,15 @@ def report_doc_id(campaign_id: CampaignId, order_id: OrderId, part: int) -> Docu
     return DocumentId(derived_id(campaign_id, "report", order_id, part))
 
 
-def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.DocumentIssued | None:
-    """The paper the issuer gets for one applied part. None for a seat nobody plays."""
+def report(
+    state: State,
+    order: RoutedOrder,
+    part: int,
+    on: date,
+    groups_heard: Sequence[BodyField] = (),
+) -> ev.DocumentIssued | None:
+    """The paper the issuer gets for one applied part. None for a seat nobody plays.
+    ``groups_heard``: what the seat's writing did to its groups at home."""
     if part >= len(order.parts) or order.issuer not in actors.readers(state):
         return None
     routed = order.parts[part]
@@ -608,6 +709,7 @@ def report(state: State, order: RoutedOrder, part: int, on: date) -> ev.Document
         body += _lines(safe(answer(state, order, routed)), "Answer")
     elif routed.reason:
         body += _lines(safe(routed.reason), "Account")
+    body += groups_heard
     doc_id = report_doc_id(state.campaign_id, order.order_id, part)
     return ev.DocumentIssued(
         document=DocumentView(

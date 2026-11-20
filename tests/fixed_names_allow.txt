@@ -41,7 +41,7 @@ src/revisionist/core/realism/bases.py | usa | stored games only
 src/revisionist/core/realism/bases.py | ussr | stored games only
 src/revisionist/core/realism/bases.py | vyazma | stored games only
 src/revisionist/core/realism/bases.py | washington | stored games only
-src/revisionist/core/realism/land/statement.py | opinion_target | until GVR
+src/revisionist/core/realism/land/statement.py | opinion_target | stored games only
 src/revisionist/core/realism/resolvers/__init__.py | house | stored games only
 src/revisionist/core/realism/resolvers/__init__.py | senate | stored games only
 src/revisionist/core/realism/resolvers/opinion.py | gallup_fdr_about_right | stored games only

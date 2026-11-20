@@ -246,7 +246,9 @@ def _plant(payload: ev.Payload, scope: Scope, name: str) -> None:
 def test_prose_counsel_and_the_aide_through_the_cli_leak_nothing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    run("new", "autumn-1941", "--seat", "roosevelt")
+    # the recordings were made on the 1941 world before territories
+    points = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
+    run("new", points, "--seat", "roosevelt")
     for _ in range(TICKS):  # the recordings were made after this many offline ticks
         run("tick", "--offline")
     _, state = current()

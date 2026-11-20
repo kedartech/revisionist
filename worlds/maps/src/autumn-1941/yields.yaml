@@ -170,7 +170,7 @@ territories:
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
     supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Archangel, Vologda]}
     prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a rear province}
-  - key: leningrad
+  - key: leningrad_area
     industry: {amount: 2.0, gap: true, named_source: kennedy_1987, basis: 'the Kirov, Izhora and Leningrad engineering works'}
     manpower: {amount: 6.4, gap: true, named_source: census_ussr_1939, basis: 'about 6.4 million people: the city and the Leningrad, Novgorod and Pskov lands'}
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
@@ -188,19 +188,19 @@ territories:
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
     supply: {amount: 4, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Minsk, Orsha, Gomel, Brest]}
     prestige: {amount: 3, gap: true, named_source: lane_choice, basis: a republic's capital}
-  - key: kalinin
+  - key: kalinin_area
     industry: {amount: 0.4, gap: true, named_source: kennedy_1987, basis: 'Kalinin and Yaroslavl works (rubber, textiles)'}
     manpower: {amount: 5.9, gap: true, named_source: census_ussr_1939, basis: 'about 5.9 million people: the Kalinin and Yaroslavl lands'}
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
     supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Kalinin, Yaroslavl]}
     prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a provincial centre}
-  - key: smolensk
+  - key: smolensk_area
     industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: Smolensk and Bryansk works}
     manpower: {amount: 4.5, gap: true, named_source: census_ussr_1939, basis: 'about 4.5 million people: the Smolensk lands and Bryansk'}
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
     supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Smolensk, Vyazma, Bryansk]}
     prestige: {amount: 3, gap: true, named_source: lane_choice, basis: an old fortress city on the Moscow road}
-  - key: moscow
+  - key: moscow_area
     industry: {amount: 2.5, gap: true, named_source: kennedy_1987, basis: 'Moscow''s aircraft, motor and engineering works, and Tula''s arms works'}
     manpower: {amount: 12.0, gap: true, named_source: census_ussr_1939, basis: 'about 12.0 million people: the city and the Moscow, Kaluga and Tula lands'}
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
@@ -218,19 +218,19 @@ territories:
     oil: {amount: 0.1, gap: true, named_source: lon_yearbook_1941, basis: 'the Boryslav field, about 0.35 million tonnes'}
     supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Lvov, Rovno]}
     prestige: {amount: 3, gap: true, named_source: lane_choice, basis: an old crown city}
-  - key: kiev
+  - key: kiev_area
     industry: {amount: 0.7, gap: true, named_source: kennedy_1987, basis: Kiev's works}
     manpower: {amount: 9.0, gap: true, named_source: census_ussr_1939, basis: 'about 9.0 million people: the Kiev, Zhitomir, Chernigov, Vinnitsa and Cherkassy lands'}
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
     supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Kiev, Vinnitsa, Zhitomir]}
     prestige: {amount: 7, gap: true, named_source: lane_choice, basis: the Ukrainian capital and the mother of Russian cities}
-  - key: odessa
+  - key: odessa_area
     industry: {amount: 0.3, gap: true, named_source: kennedy_1987, basis: Odessa's and Nikolaev's yards}
     manpower: {amount: 7.0, gap: true, named_source: census_ussr_1939, basis: 'about 7.0 million people: the Odessa, Nikolaev, Kirovograd and Kherson lands and Bessarabia'}
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
     supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Odessa, Nikolaev]}
     prestige: {amount: 4, gap: true, named_source: lane_choice, basis: a great port}
-  - key: kharkov
+  - key: kharkov_area
     industry: {amount: 1.5, gap: true, named_source: kennedy_1987, basis: the Kharkov tractor and tank works and Dnepropetrovsk's steel}
     manpower: {amount: 8.4, gap: true, named_source: census_ussr_1939, basis: 'about 8.4 million people: the Kharkov, Poltava, Sumy and Dnepropetrovsk lands'}
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
@@ -332,7 +332,7 @@ territories:
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
     supply: {amount: 4, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Oslo, Bergen, Trondheim, Narvik]}
     prestige: {amount: 3, gap: true, named_source: lane_choice, basis: an occupied kingdom}
-  - key: sweden
+  - key: sweden_area
     industry: {amount: 0.8, gap: true, named_source: kennedy_1987, basis: 'Swedish iron ore, steel and arms works'}
     manpower: {amount: 6.4, gap: true, named_source: lon_yearbook_1941, basis: 'about 6.4 million people: Sweden'}
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
@@ -380,7 +380,7 @@ territories:
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
     supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Madrid, Barcelona, Lisbon]}
     prestige: {amount: 5, gap: true, named_source: lane_choice, basis: two neutral capitals}
-  - key: switzerland
+  - key: switzerland_area
     industry: {amount: 0.5, gap: true, named_source: kennedy_1987, basis: Swiss machine tools and arms}
     manpower: {amount: 4.3, gap: true, named_source: lon_yearbook_1941, basis: 'about 4.3 million people: Switzerland'}
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
@@ -476,7 +476,7 @@ territories:
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
     supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Benghazi, Bardia]}
     prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a colonial province}
-  - key: tobruk
+  - key: tobruk_area
     industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no industry of note}
     manpower: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: 'about 0 million people: a besieged garrison town'}
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
@@ -572,7 +572,7 @@ territories:
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
     supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Peking, Tientsin, Tsingtao]}
     prestige: {amount: 5, gap: true, named_source: lane_choice, basis: Peking}
-  - key: wuhan
+  - key: wuhan_area
     industry: {amount: 0.1, gap: true, named_source: kennedy_1987, basis: Shanghai's mills and works}
     manpower: {amount: 80.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 80.0 million people: Jiangsu, Shanghai, Anhui and the occupied Yangtze valley'}
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}

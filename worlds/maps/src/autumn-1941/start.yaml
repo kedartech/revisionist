@@ -19,11 +19,9 @@
 # plan until sourced: the two Italian declarations of war, the Eleventh Army's legs (to Changsha on
 # 17 September, back to Wuhan on 6 October), and Bardia as the Axis frontier place.
 #
-# For FLP. Today's world and the map share keys: the places leningrad, kalinin, smolensk, moscow, kiev,
-# odessa, kharkov, tobruk and wuhan and the polity switzerland have the keys of territories, and Sweden's
-# holder is the polity key the Europe recipe names (sweden), the key of a territory too. The world file
-# indexes places, polities and areas as one set of keys, so the assembled world needs one side of each
-# pair renamed. The new polities here use keys no area has.
+# The world file indexes places, polities, features and areas as one set of keys. An area whose name
+# is also a place's, a polity's or a force's carries the suffix `_area` (moscow_area, tobruk_area,
+# sweden_area, western_approaches_area), so every place and force keeps its key.
 #
 # For FLP and the values sheet. With `holders` on, a base serves a side only on ground held by that side
 # or an ally (`holders.serves`), and a polity is an ally only while at war with a common enemy
@@ -104,7 +102,7 @@ entities:
   - {key: london, kind: location, name: London, at: [51.5, -0.1], theatre: Europe, within: britain_south, base: {sides: [uk], domains: [land, air]}}
   - {key: tokyo, kind: location, name: Tokyo, at: [35.7, 139.7], theatre: Asia-Pacific, within: japan_east, base: {sides: [japan], domains: [land, air]}}
   - {key: berlin, kind: location, name: Berlin, at: [52.5, 13.4], theatre: Europe, within: germany_east, base: {sides: [germany], domains: [land, air]}}
-  - {key: moscow, kind: location, name: Moscow, at: [55.8, 37.6], theatre: Moscow front, within: moscow, base: {sides: [ussr], domains: [land, air]}}
+  - {key: moscow, kind: location, name: Moscow, at: [55.8, 37.6], theatre: Moscow front, within: moscow_area, base: {sides: [ussr], domains: [land, air]}}
   - {key: rome, kind: location, name: Rome, at: [41.9, 12.5], theatre: Europe, within: italy_south, base: {sides: [italy], domains: [land, air]}}
   - {key: chungking, kind: location, name: Chungking, at: [29.6, 106.6], theatre: Asia-Pacific, within: szechwan, base: {sides: [china], domains: [land, air]}}
   - {key: north_atlantic, kind: location, name: North Atlantic, at: [55.0, -30.0], theatre: North Atlantic, within: mid_ocean_gap}
@@ -113,21 +111,21 @@ entities:
   - {key: argentia, kind: location, name: Argentia, at: [47.3, -54.0], theatre: North America, within: western_atlantic, base: {sides: [usa], domains: [sea, air]}}
   - {key: halifax_port, kind: location, name: Halifax, at: [44.6, -63.6], theatre: North America, within: eastern_canada, port_on: western_atlantic, base: {sides: [uk], domains: [sea]}}
   - {key: sydney_cb, kind: location, name: "Sydney, Cape Breton", at: [46.1, -60.2], theatre: North America, within: eastern_canada, port_on: western_atlantic, base: {sides: [uk], domains: [sea]}}
-  - {key: reykjavik, kind: location, name: Reykjavik, at: [64.1, -21.9], theatre: North Atlantic, within: iceland, port_on: arctic_route, base: {sides: [uk, usa], domains: [sea, air]}}
-  - {key: liverpool, kind: location, name: Liverpool, at: [53.4, -3.0], theatre: North Atlantic, within: western_approaches, base: {sides: [uk], domains: [sea]}}
+  - {key: reykjavik, kind: location, name: Reykjavik, at: [64.1, -21.9], theatre: North Atlantic, within: iceland, port_on: arctic_route_area, base: {sides: [uk, usa], domains: [sea, air]}}
+  - {key: liverpool, kind: location, name: Liverpool, at: [53.4, -3.0], theatre: North Atlantic, within: western_approaches_area, base: {sides: [uk], domains: [sea]}}
   - {key: scapa_flow, kind: location, name: Scapa Flow, at: [58.9, -3.1], theatre: North Atlantic, within: north_sea, base: {sides: [uk], domains: [sea]}}
   - {key: lorient, kind: location, name: Lorient, at: [47.7, -3.4], theatre: North Atlantic, within: bay_of_biscay, base: {sides: [germany], domains: [sea]}}
   - {key: archangel, kind: location, name: Archangel, at: [64.5, 40.5], theatre: Northern front, within: the_north, port_on: white_sea, base: {sides: [ussr], domains: [sea]}}
-  - {key: leningrad, kind: location, name: Leningrad, at: [59.9, 30.3], theatre: Northern front, within: leningrad, port_on: baltic_sea, base: {sides: [ussr], domains: [sea, land, air]}}
+  - {key: leningrad, kind: location, name: Leningrad, at: [59.9, 30.3], theatre: Northern front, within: leningrad_area, port_on: baltic_sea, base: {sides: [ussr], domains: [sea, land, air]}}
   # Smolensk and Vyazma are bases so that the two armies of the Moscow front open at one of their side.
-  - {key: smolensk, kind: location, name: Smolensk, at: [54.8, 32.0], theatre: Moscow front, within: smolensk, base: {sides: [germany], domains: [land]}}
-  - {key: vyazma, kind: location, name: Vyazma, at: [55.2, 34.3], theatre: Moscow front, within: smolensk, base: {sides: [ussr], domains: [land]}}
-  - {key: kalinin, kind: location, name: Kalinin, at: [56.9, 35.9], theatre: Moscow front, within: kalinin}
-  - {key: mozhaisk, kind: location, name: Mozhaisk, at: [55.5, 36.0], theatre: Moscow front, within: moscow}
-  - {key: kiev, kind: location, name: Kiev, at: [50.5, 30.5], theatre: Southern front, within: kiev}
-  - {key: poltava, kind: location, name: Poltava, at: [49.6, 34.6], theatre: Southern front, within: kharkov}
-  - {key: kharkov, kind: location, name: Kharkov, at: [50.0, 36.2], theatre: Southern front, within: kharkov}
-  - {key: odessa, kind: location, name: Odessa, at: [46.5, 30.7], theatre: Southern front, within: odessa}
+  - {key: smolensk, kind: location, name: Smolensk, at: [54.8, 32.0], theatre: Moscow front, within: smolensk_area, base: {sides: [germany], domains: [land]}}
+  - {key: vyazma, kind: location, name: Vyazma, at: [55.2, 34.3], theatre: Moscow front, within: smolensk_area, base: {sides: [ussr], domains: [land]}}
+  - {key: kalinin, kind: location, name: Kalinin, at: [56.9, 35.9], theatre: Moscow front, within: kalinin_area}
+  - {key: mozhaisk, kind: location, name: Mozhaisk, at: [55.5, 36.0], theatre: Moscow front, within: moscow_area}
+  - {key: kiev, kind: location, name: Kiev, at: [50.5, 30.5], theatre: Southern front, within: kiev_area}
+  - {key: poltava, kind: location, name: Poltava, at: [49.6, 34.6], theatre: Southern front, within: kharkov_area}
+  - {key: kharkov, kind: location, name: Kharkov, at: [50.0, 36.2], theatre: Southern front, within: kharkov_area}
+  - {key: odessa, kind: location, name: Odessa, at: [46.5, 30.7], theatre: Southern front, within: odessa_area}
   - {key: taganrog, kind: location, name: Taganrog, at: [47.2, 38.9], theatre: Southern front, within: donbas}
   - {key: pearl_harbor_base, kind: location, name: Pearl Harbor, at: [21.4, -158.0], theatre: Asia-Pacific, within: hawaii, port_on: central_pacific, base: {sides: [usa], domains: [sea, land, air]}}
   - {key: kure, kind: location, name: Kure, at: [34.2, 132.6], theatre: Asia-Pacific, within: japan_west, port_on: philippine_sea, base: {sides: [japan], domains: [sea, land, air]}}
@@ -139,29 +137,29 @@ entities:
   # so the Afrika Korps opens at a base of its side.
   - {key: alexandria, kind: location, name: Alexandria, at: [31.2, 29.92], within: egypt, port_on: eastern_mediterranean, base: {sides: [uk], domains: [sea, land]}}
   - {key: malta, kind: location, name: Malta, at: [35.9, 14.51], within: british_islands, port_on: central_mediterranean}
-  - {key: tobruk, kind: location, name: Tobruk, at: [32.08, 23.98], within: tobruk, port_on: eastern_mediterranean, base: {sides: [uk], domains: [sea, land]}}
+  - {key: tobruk, kind: location, name: Tobruk, at: [32.08, 23.98], within: tobruk_area, port_on: eastern_mediterranean, base: {sides: [uk], domains: [sea, land]}}
   - {key: bardia, kind: location, name: Bardia, at: [31.74, 25.07], within: cyrenaica, port_on: eastern_mediterranean, base: {sides: [italy, germany], domains: [sea, land]}}
   - {key: tripoli, kind: location, name: Tripoli, at: [32.89, 13.19], within: tripolitania, port_on: central_mediterranean, base: {sides: [italy], domains: [sea, land]}}
   - {key: taranto, kind: location, name: Taranto, at: [40.47, 17.24], within: italy_south, port_on: central_mediterranean, base: {sides: [italy], domains: [sea]}}
   - {key: changsha, kind: location, name: Changsha, at: [28.2, 112.97], within: hunan, base: {sides: [china], domains: [land]}}
-  - {key: wuhan, kind: location, name: Wuhan, at: [30.58, 114.27], within: wuhan, base: {sides: [japan], domains: [land]}}
+  - {key: wuhan, kind: location, name: Wuhan, at: [30.58, 114.27], within: wuhan_area, base: {sides: [japan], domains: [land]}}
 
 # Rule 2: every land territory's holder on 1 September 1941. All gaps (no evidence record).
 holders:
   # The Eastern Front: Smolensk had fallen in July, Tallinn on 28 August; Kiev held until 19 September,
   # Odessa (under siege, with Bessarabia retaken by Romania) until 16 October.
   - {territory: the_north, holder: ussr, gap: true}
-  - {territory: leningrad, holder: ussr, gap: true}
+  - {territory: leningrad_area, holder: ussr, gap: true}
   - {territory: baltic_states, holder: germany, gap: true}
   - {territory: belorussia, holder: germany, gap: true}
-  - {territory: kalinin, holder: ussr, gap: true}
-  - {territory: smolensk, holder: germany, gap: true}
-  - {territory: moscow, holder: ussr, gap: true}
+  - {territory: kalinin_area, holder: ussr, gap: true}
+  - {territory: smolensk_area, holder: germany, gap: true}
+  - {territory: moscow_area, holder: ussr, gap: true}
   - {territory: upper_volga, holder: ussr, gap: true}
   - {territory: western_ukraine, holder: germany, gap: true}
-  - {territory: kiev, holder: ussr, gap: true}
-  - {territory: odessa, holder: ussr, gap: true}
-  - {territory: kharkov, holder: ussr, gap: true}
+  - {territory: kiev_area, holder: ussr, gap: true}
+  - {territory: odessa_area, holder: ussr, gap: true}
+  - {territory: kharkov_area, holder: ussr, gap: true}
   - {territory: donbas, holder: ussr, gap: true}
   - {territory: crimea, holder: ussr, gap: true}
   - {territory: voronezh, holder: ussr, gap: true}
@@ -178,7 +176,7 @@ holders:
   - {territory: occupied_france, holder: germany, gap: true}
   - {territory: vichy_france, holder: french_state, gap: true}
   - {territory: norway, holder: germany, gap: true}
-  - {territory: sweden, holder: sweden, gap: true}
+  - {territory: sweden_area, holder: sweden, gap: true}
   - {territory: finland, holder: finland_state, gap: true}
   - {territory: hungary_slovakia, holder: hungary, gap: true}
   - {territory: romania, holder: romania_state, gap: true}
@@ -186,7 +184,7 @@ holders:
   - {territory: italy_north, holder: italy, gap: true}
   - {territory: italy_south, holder: italy, gap: true}
   - {territory: iberia, holder: spain, gap: true}
-  - {territory: switzerland, holder: switzerland, gap: true}
+  - {territory: switzerland_area, holder: switzerland, gap: true}
   # The Atlantic: Iceland under British occupation (with American forces from July 1941), Greenland under
   # American protection from April 1941, Canada and Newfoundland on Britain's side, the Caribbean's
   # largest state Cuba.
@@ -208,7 +206,7 @@ holders:
   - {territory: tunisia, holder: french_state, gap: true}
   - {territory: tripolitania, holder: italy, gap: true}
   - {territory: cyrenaica, holder: italy, gap: true}
-  - {territory: tobruk, holder: uk, gap: true}
+  - {territory: tobruk_area, holder: uk, gap: true}
   - {territory: egypt, holder: uk, gap: true}
   - {territory: levant, holder: uk, gap: true}
   - {territory: syria, holder: uk, gap: true}
@@ -227,7 +225,7 @@ holders:
   - {territory: korea, holder: japan, gap: true}
   - {territory: manchuria, holder: japan, gap: true}
   - {territory: north_china, holder: japan, gap: true}
-  - {territory: wuhan, holder: japan, gap: true}
+  - {territory: wuhan_area, holder: japan, gap: true}
   - {territory: hunan, holder: china, gap: true}
   - {territory: szechwan, holder: china, gap: true}
   - {territory: northwest_china, holder: china, gap: true}
@@ -275,16 +273,16 @@ forces:
   - key: army_group_centre
     piece: army
     side: germany
-    area: smolensk
-    legs: [{since: 1941-10-07, area: smolensk}, {since: 1941-10-24, area: moscow}]
+    area: smolensk_area
+    legs: [{since: 1941-10-07, area: smolensk_area}, {since: 1941-10-24, area: moscow_area}]
   - key: soviet_western_front
     piece: army
     side: ussr
-    area: smolensk
-    legs: [{since: 1941-10-12, area: moscow}, {since: 1941-10-24, area: moscow}]
+    area: smolensk_area
+    legs: [{since: 1941-10-12, area: moscow_area}, {since: 1941-10-24, area: moscow_area}]
   - {key: hawaiian_department, piece: army, side: usa, area: hawaii}
   - {key: hawaiian_air_force, piece: air_group, side: usa, area: hawaii}
-  - {key: western_approaches, piece: fleet, side: uk, area: western_approaches}
+  - {key: western_approaches, piece: fleet, side: uk, area: western_approaches_area}
   - {key: home_forces, piece: army, side: uk, area: britain_south}
   - {key: bomber_command, piece: air_group, side: uk, area: britain_south}
   - {key: replacement_army, piece: army, side: germany, area: germany_east}
@@ -294,7 +292,7 @@ forces:
   - {key: eleventh_air_fleet, piece: air_group, side: japan, area: japan_west}
   - {key: baltic_fleet, piece: fleet, side: ussr, area: baltic_sea}
   - {key: northern_fleet, piece: fleet, side: ussr, area: white_sea}
-  - {key: leningrad_front, piece: army, side: ussr, area: leningrad}
+  - {key: leningrad_front, piece: army, side: ussr, area: leningrad_area}
   - {key: italian_army, piece: army, side: italy, area: italy_south}
   - {key: chinese_army, piece: army, side: china, area: szechwan}
   - {key: mediterranean_fleet, piece: fleet, side: uk, area: eastern_mediterranean}
@@ -306,5 +304,5 @@ forces:
   - key: eleventh_army
     piece: army
     side: japan
-    area: wuhan
-    legs: [{since: 1941-09-17, area: hunan}, {since: 1941-10-06, area: wuhan}]
+    area: wuhan_area
+    legs: [{since: 1941-09-17, area: hunan}, {since: 1941-10-06, area: wuhan_area}]

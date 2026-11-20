@@ -758,7 +758,8 @@ def test_the_seat_fixture_carries_an_ended_battle_with_its_closing_odds(tmp_path
 
 
 def test_the_seat_fixture_carries_an_odds_reply_in_the_api_shape(tmp_path: Path) -> None:
-    fixture = json.loads((FIXTURES / "realism-seat.json").read_text())["odds"]
+    """Under ``spread``: the client's fixture never carries the word for chances."""
+    fixture = json.loads((FIXTURES / "realism-seat.json").read_text())["spread"]
     assert fixture == toward(seen(start(tmp_path), report()))
     assert set(fixture) == set(api.OddsReply.__annotations__)
     assert set(fixture["terrain"]) == set(api.OddsTerrain.__annotations__)

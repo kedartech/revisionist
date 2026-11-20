@@ -191,6 +191,11 @@ class LeverParam(TypedDict):
     places: list[PlaceChoice]
     """A movement form's destination: every place in ``choices``, grouped and with days.
     Empty for every other parameter, and when the campaign's world file cannot be read."""
+    areas: dict[str, dict[str, str]]
+    """A movement form's destination on a territory map: for each force in the form's
+    ``force`` choices, each place in ``choices`` and the key of the area that force would
+    stand in there (a sea piece at a port: the zone the port opens on). Map geography only.
+    Empty for every other parameter and in a game without territories."""
 
 
 class LeverLine(TypedDict):

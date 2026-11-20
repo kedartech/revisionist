@@ -40,6 +40,7 @@ from revisionist.engine import (
     counsel,
     directive,
     notice,
+    odds,
     orders_reader,
     realism_tick,
     session_zero,
@@ -183,6 +184,10 @@ class App:
         self._readings: dict[tuple[CampaignId, SeatId], orders_reader.Reading] = {}
         """Each seat's latest order reading, until it is signed. Lost on a restart, which
         only means reading it again."""
+        self.odds = odds.Service()
+        """The odds work for the whole server (ODS): a fixed pool, a bounded queue, a cache
+        for the wake and a per-seat limit. Lost on a restart, which only means computing
+        again."""
         self.spawn: Callable[[Callable[[], None]], None] = lambda run: threading.Thread(
             target=run, daemon=True
         ).start()
@@ -338,6 +343,8 @@ class App:
                     return snapshot.checked(state, seat, pages)
                 if action == "map":
                     return snapshot.checked(state, seat, dict(map_api.map_reply(state)))
+                if action == "odds":  # files nothing, so never held by a commit (ODS)
+                    return snapshot.checked(state, seat, odds.reply(self.odds, state, seat, body))
                 if action == "read":
                     doc_id = DocumentId(_text(body, "doc_id", 64))
                     try:

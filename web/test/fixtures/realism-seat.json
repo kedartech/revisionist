@@ -4118,5 +4118,52 @@
         }
       ]
     }
-  ]
+  ],
+  "odds": {
+    "known": true,
+    "area": "sudland_coast",
+    "terrain": {
+      "area": "sudland_coast",
+      "name": "The Sudland Coast",
+      "terrain": "plain",
+      "defence": 0,
+      "holder": "Sudland"
+    },
+    "runs": 300,
+    "days": 14,
+    "shares": {
+      "win": 77.3,
+      "stalemate": 0.0,
+      "loss": 22.7
+    },
+    "own_lost": {
+      "low": 0,
+      "high": 3
+    },
+    "enemy_lost": {
+      "low": 1,
+      "high": 3
+    },
+    "taken": 77.3,
+    "taken_days": 4,
+    "forced_back": 22.7,
+    "back_to": "norra_hills",
+    "by_strength": [
+      {
+        "strength": 3,
+        "win": 100.0
+      },
+      {
+        "strength": 4,
+        "win": 93.1
+      },
+      {
+        "strength": 5,
+        "win": 47.5
+      }
+    ],
+    "reports": [
+      "r1"
+    ]
+  }
 }

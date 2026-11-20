@@ -50,6 +50,7 @@ from revisionist.core.realism import (
     battle,
     detect,
     economy,
+    groups,
     holders,
     mandates,
     opponents,
@@ -396,6 +397,12 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return _nation_scope(state, payload.nation)
     if isinstance(payload, ev.EconomySet):
         return _nation_scope(state, payload.polity)
+    if isinstance(payload, ev.GroupMoved):
+        return _nation_scope(state, payload.polity)  # true support: the nation's seats (GRP)
+    if isinstance(payload, ev.GroupProposed):
+        # Engine only: the writing in waiting; the batch, not the filing, moves a group.
+        held = SeatId(derived_id(state.campaign_id, "engine-only", "groups"))
+        return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
     if isinstance(payload, ev.StepRefused):
         return _nation_scope(state, payload.nation)
     if isinstance(payload, ev.TradeSet):
@@ -531,6 +538,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     while day < until:
         day += timedelta(days=1)
         start, begun = begun or state, None
+        day_from, day_mark = state, len(out)  # GRP: the day's happenings are read from here
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))
         add(steps)
         settled = history.settle(state, day)
@@ -562,6 +570,10 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         fought = battle.walk(before_on_day, state, day, met)  # BTL: rounds after contacts
         add(fought)
         add(holders.start_count(state, battle.won(fought, open_before), day))
+        today = [e.payload for e in out[day_mark:]]
+        add(groups.react(state, day_from, today, day, sea=before_on_day))
+        add(groups.batch(state, day))  # GRP: the day's writing, settled in one batch
+        add(groups.drift(state, day))  # GRP: on a Monday, toward the baseline
         add(news_pages(state, day))
         add(detect.walk(state, start, day))  # DET: every nation's reports, before the feeds
         seed = seed_for_day(state.campaign_id, day)
@@ -581,7 +593,10 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         while made := answering.make(state, day):
             add(made)
         add(opponents.settle(state, day, [*landed, *planned], wake_start))
+    close_from, close_mark = state, len(out)
     add(holders.close(state, until))  # the wake's close: a capital marked before falls
+    closing = [e.payload for e in out[close_mark:]]
+    add(groups.react(state, close_from, closing, until))  # GRP: the close's happenings
     return out
 
 

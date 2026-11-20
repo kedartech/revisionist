@@ -68,6 +68,7 @@ from revisionist.core.realism import document as rd
 from revisionist.core.realism import economy as econ
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism import geography as rg
+from revisionist.core.realism import groups as rgrp
 from revisionist.core.realism import holders as rh
 from revisionist.core.realism import kinds as rk
 from revisionist.core.realism import pipeline as rp
@@ -831,6 +832,57 @@ def battles(draw: st.DrawFn) -> rb.Battle:
 
 
 @st.composite
+def home_groups(draw: st.DrawFn) -> rgrp.Group:
+    """A group at home (GRP): a bloc with its chamber and seats, or none."""
+    bloc = draw(st.booleans())
+    seats = draw(st.integers(1, 400))
+    votes = st.builds(rgrp.BlocVote, voting=st.just(seats), yeas=st.integers(0, seats))
+    return rgrp.Group(
+        key=draw(labels),
+        name=draw(labels),
+        kind=draw(labels),
+        start=draw(st.integers(0, 100)),
+        baseline=draw(st.integers(0, 100)),
+        chamber=draw(labels) if bloc else None,
+        seats=seats if bloc else None,
+        feeds=draw(
+            st.dictionaries(
+                st.sampled_from(list(rgrp.Feeds)), st.floats(0.1, 5, allow_nan=False), max_size=2
+            )
+        ),
+        moved_by=draw(
+            st.dictionaries(st.sampled_from(list(rgrp.Happening)), st.integers(-9, 9), max_size=2)
+        ),
+        votes=draw(st.dictionaries(labels, st.dictionaries(labels, votes, max_size=2), max_size=1))
+        if bloc
+        else {},
+        vote_default=draw(st.dictionaries(labels, votes, max_size=2)) if bloc else {},
+        stances=draw(
+            st.dictionaries(st.sampled_from(list(rx.ClauseKind)), st.integers(-3, 3), max_size=2)
+        )
+        if bloc
+        else {},
+    )
+
+
+@st.composite
+def nation_groups(draw: st.DrawFn) -> rgrp.NationGroups:
+    found = draw(st.lists(home_groups(), min_size=1, max_size=2, unique_by=lambda g: g.key))
+    return rgrp.NationGroups(nation=draw(entity_ids), groups=tuple(found))
+
+
+proposals = st.builds(
+    rgrp.Proposal,
+    seat=seat_ids,
+    polity=entity_ids,
+    group=labels,
+    change=st.integers(-9, 9),
+    text_hash=labels,
+    on=in_world_dates,
+)
+
+
+@st.composite
 def intelligences(draw: st.DrawFn) -> rdet.Intelligence:
     """A nation's sources (DET): each source once, ranked from 1."""
     kinds = draw(st.lists(st.sampled_from(list(rdet.Source)), max_size=3, unique=True))
@@ -1090,6 +1142,21 @@ realism_payloads = st.one_of(
     ),
     battle_decisions(),
     st.builds(ev.IntelligenceDeclared, nations=st.lists(intelligences(), max_size=2).map(tuple)),
+    st.builds(
+        ev.GroupsDeclared,
+        nations=st.lists(nation_groups(), max_size=2, unique_by=lambda n: n.nation).map(tuple),
+    ),
+    st.builds(
+        ev.GroupMoved,
+        polity=entity_ids,
+        group=labels,
+        support=st.integers(0, 100),
+        change=st.integers(-100, 100),
+        cause=st.sampled_from(list(rgrp.Cause)),
+        used=st.integers(0, 6),
+        on=in_world_dates,
+    ),
+    st.builds(ev.GroupProposed, proposal=proposals),
     st.builds(
         ev.ReportMade,
         nation=entity_ids,

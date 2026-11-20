@@ -470,6 +470,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "fuel_stocks",
             "trade_lines",
             "intelligence",
+            "groups",
         ):
             if getattr(world, name):
                 problems.append(f"{name}: only a realism world has {name}")
@@ -479,6 +480,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_board(world, sections, problems)
     _check_kinds(world, problems)
     _check_intelligence(world, sections, problems)
+    _check_groups(world, problems)
     for seat in world.seats:
         if seat.controller is Controller.HUMAN:
             problems.append(f"seat {seat.key}: a realism world names no human seat")
@@ -962,6 +964,38 @@ def _check_intelligence(world: WorldFile, sections: Mapping[str, str], problems:
         for agent in intel.agents:
             if agent.area not in areas:
                 problems.append(f"{where}: agent in {agent.area}, not an area of the board")
+
+
+def _check_groups(world: WorldFile, problems: list[str]) -> None:
+    """Each nation's groups (GRP): a polity once, and a chamber's seats within each vote's
+    members voting. With the rule off they are checked and left out of the game."""
+    kinds = {d.key: d.kind for d in world.entities}
+    seen: set[str] = set()
+    for decl in world.groups:
+        where = f"groups {decl.nation}"
+        if kinds.get(decl.nation) is not EntityKind.POLITY:
+            problems.append(f"{where}: {decl.nation} is not a polity")
+        if decl.nation in seen:
+            problems.append(f"{where}: declared twice")
+        seen.add(decl.nation)
+        keys = [g.key for g in decl.groups]
+        if len(set(keys)) != len(keys):
+            problems.append(f"{where}: a group key is given twice")
+        for g in decl.groups:
+            votes = [*g.vote_default.values(), *(v for m in g.votes.values() for v in m.values())]
+            if g.seats is not None and any(v.voting > g.seats for v in votes):
+                problems.append(f"{where} {g.key}: more members voting than seats")
+
+
+def _groups(world: WorldFile, ids: Mapping[str, str]) -> ev.GroupsDeclared:
+    from revisionist.core.realism import groups
+
+    return ev.GroupsDeclared(
+        nations=tuple(
+            groups.NationGroups(nation=EntityId(ids[d.nation]), groups=d.groups)
+            for d in world.groups
+        )
+    )
 
 
 def _intelligence(world: WorldFile, ids: Mapping[str, str]) -> ev.IntelligenceDeclared:
@@ -1748,6 +1782,9 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
     if Rule.REPORTS in world.rules and world.intelligence:
         # Engine only: who reports what to whom. Sealed to a seat nobody holds (DET).
         out.append((_intelligence(world, ids), _engine_only(ids, "intelligence")))
+    if Rule.GROUPS in world.rules and world.groups:
+        # Engine only: true support. A seat reads its own nation's groups from its view.
+        out.append((_groups(world, ids), _engine_only(ids, "groups")))
     return out
 
 

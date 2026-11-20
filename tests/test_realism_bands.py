@@ -5,19 +5,25 @@ rates in the resolvers are [fitted] to this record, so a pass shows the machiner
 (urgency, opinion, friction) keeps outcomes in range, not that it predicts them.
 Prediction is Phase 6. Pass rule (BANDS.md): at least 80% of assertions in band,
 none outside twice its band, votes 1-3 pass in every seed.
+
+With ``groups`` on (GRD), the votes are the blocs' tallies, opinion is the figure the
+American groups publish, and the day walk moves the groups as a tick does: the day's
+happenings, the writing batch and the Monday drift.
 """
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.ids import CampaignId, EntityId, ScheduledEventId, derived_id
-from revisionist.core.realism import battle, holders
+from revisionist.core.realism import battle, groups, holders
 from revisionist.core.realism.pipeline import Order, StepAction, StepOutcome
 from revisionist.core.realism.resolvers import (
     ON_DAY,
     ON_ORDER,
     movement,
+    opinion,
     resolver_for,
     settled_on,
     shipping,
@@ -73,6 +79,8 @@ class Run:
     finding_days: int
     eligible: int
     about_24sep: int
+    about_end: int
+    """The American opinion figure on the last day."""
     battles: list[tuple[date, str, str]]
     """Each battle that opened: the day, the area's key and the attacker's key (ITD)."""
 
@@ -90,6 +98,7 @@ def play(seed: CampaignId) -> Run:
     while day <= END:
         if day > START:
             r.add(ev.DateAdvanced(to=day))
+        day_from = r.state
         settled: list[Order] = []
         for n, s in enumerate(SCRIPT):
             if s.filed == day:
@@ -118,8 +127,10 @@ def play(seed: CampaignId) -> Run:
         before = r.state
         for fn in ON_DAY.values():
             r.fold_changes(fn(r.state, day))
-        battles += _steps_and_battles(r, before, day)
-        about[day] = value(r.state, "gallup_fdr_about_right")
+        opened, happened = _steps_and_battles(r, before, day)
+        battles += opened
+        _groups_walk(r, day_from, before, happened, day)
+        about[day] = _opinion(r)
         day += timedelta(days=1)
 
     def v(k: str) -> int:
@@ -136,31 +147,61 @@ def play(seed: CampaignId) -> Run:
         finding_days=(settled_on(r.state.orders[orders[3].order_id]) - SCRIPT[3].filed).days,
         eligible=v("soviet_lend_lease_eligible"),
         about_24sep=v_on(about, date(1941, 9, 24)),
+        about_end=v_on(about, END),
         battles=battles,
     )
 
 
-def _steps_and_battles(r: Rig, before: State, day: date) -> list[tuple[date, str, str]]:
+def _steps_and_battles(
+    r: Rig, before: State, day: date
+) -> tuple[list[tuple[date, str, str]], list[ev.Payload]]:
     """The day walk's territory steps, holders and battles, in its order (ITD): pieces met
     head-on, the steps, the holders, then the day's battle rounds and the count a won battle
-    starts. The battles that opened today, by area and attacker key."""
+    starts. The battles that opened today, by area and attacker key, and every payload
+    folded, in order."""
     met = movement.head_on(r.state, day)
-    for payload in movement.walk(r.state, day):
-        r.add(payload)
-    for payload in holders.walk(r.state, day):
-        r.add(payload)
+    folded: list[ev.Payload] = []
+
+    def fold(payloads: Iterable[ev.Payload]) -> None:
+        for payload in payloads:
+            r.add(payload)
+            folded.append(payload)
+
+    fold(movement.walk(r.state, day))
+    fold(holders.walk(r.state, day))
     open_before = r.state.battles
     fought = battle.walk(before, r.state, day, met)
-    for payload in fought:
-        r.add(payload)
-    for payload in holders.start_count(r.state, battle.won(fought, open_before), day):
-        r.add(payload)
+    fold(fought)
+    fold(holders.start_count(r.state, battle.won(fought, open_before), day))
     key = {EntityId(v): k for k, v in r.ids.items()}
-    return [
+    opened = [
         (day, key[p.battle.area], key[p.battle.attacker.nation])
         for p in fought
         if isinstance(p, ev.BattleOpened)
     ]
+    return opened, folded
+
+
+def _groups_walk(
+    r: Rig, day_from: State, sea: State, happened: list[ev.Payload], day: date
+) -> None:
+    """The groups' part of the day walk, as a tick runs it (GRD): the day's happenings
+    (``day_from`` is the state the day began from, ``sea`` the one the shipping rule sank
+    from), then the writing batch and the Monday drift. Nothing with ``groups`` off."""
+    for payload in groups.react(r.state, day_from, happened, day, sea=sea):
+        r.add(payload)
+    for payload in groups.batch(r.state, day):
+        r.add(payload)
+    for payload in groups.drift(r.state, day):
+        r.add(payload)
+
+
+def _opinion(r: Rig) -> int | None:
+    """The American opinion figure: with ``groups`` on, what the groups publish, else the
+    Gallup "about right" quantity."""
+    if groups.on(r.state):
+        return opinion.figure(r.state, EntityId(r.ids["usa"]))
+    return value(r.state, "gallup_fdr_about_right")
 
 
 def v_on(series: dict[date, int | None], day: date) -> int:
@@ -205,11 +246,14 @@ def checks_for(seed: int, f: Run) -> list[Check]:
 
 
 def table(results: list[Run], checks: list[Check]) -> str:
-    rows = ["seed  house      senate    concur      losses(Sep,Oct,Nov)      find  24Sep  passed"]
+    rows = [
+        "seed  house      senate    concur      losses(Sep,Oct,Nov)      find  24Sep  1Dec  passed"
+    ]
     for i, f in enumerate(results):
         rows.append(
             f"{i:>4}  {f.house!s:<10} {f.senate!s:<9} {f.concur!s:<11} "
-            f"{f.losses!s:<24} {f.finding_days:>4}  {f.about_24sep:>5}  {f.passed}"
+            f"{f.losses!s:<24} {f.finding_days:>4}  {f.about_24sep:>5}  {f.about_end:>4}  "
+            f"{f.passed}"
         )
     bad = [f"  seed {c.seed} {c.band}: {c.got}" for c in checks if not c.inside]
     fought = sorted({b for f in results for b in f.battles})

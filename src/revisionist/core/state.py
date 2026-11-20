@@ -60,6 +60,7 @@ from revisionist.core.realism.agenda import Mandate, MandateTemplate, PlayStyle
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
 from revisionist.core.realism.card import CardFace, Desk, SeatCard, Topic
+from revisionist.core.realism.detect import Intelligence, Picture, Report
 from revisionist.core.realism.document import Document, DocumentView, Feed
 from revisionist.core.realism.economy import Economy
 from revisionist.core.realism.effect import EffectKind, RoutedOrder, RoutedOrderView
@@ -259,9 +260,17 @@ class State(_World):
     """With ``battles`` on, every area a battle has opened in, both areas of a meeting,
     kept after it ends (``battle_opened``). Engine only: a scripted leg takes none of them
     (HSA)."""
+    intelligence: dict[EntityId, Intelligence] = Field(default_factory=dict)
+    """With ``reports`` on, each nation's sources as the world declares them, by nation
+    (``intelligence_declared``). Engine only (DET)."""
+    reports: dict[EntityId, Picture] = Field(default_factory=dict)
+    """With ``reports`` on, each nation's reports on enemy pieces, delivered and pending,
+    by nation (``report_made``). Engine only: a report links to the true piece (DET)."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "rules",
+        "intelligence",
+        "reports",
         "captures",
         "battles",
         "fought",
@@ -310,10 +319,14 @@ class View(_World):
     """The viewer's own engine-v2 orders, without the estimator's effects."""
     style: PlayStyle | None = None
     """The viewer's own play style. None: free."""
+    reports: dict[Label, Report] = Field(default_factory=dict)
+    """The reports on enemy pieces that have reached the viewer's nation, by the nation's
+    opaque key: the only enemy-piece data a view holds (DET)."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "routed",
         "style",
+        "reports",
         "cards",
         "desk",
         "documents",

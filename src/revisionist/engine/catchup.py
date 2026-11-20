@@ -141,6 +141,10 @@ NEVER: frozenset[str] = frozenset(
         # A side's decision and the pieces that join it (BDC): the decision is the seat's
         # own order, already fed; a join carries the true strength brought.
         "battle_decided",
+        # Detection (DET): engine only. A report names the true piece and whether it is
+        # wrong; the seat gets it as a line of its source's page and in its own reports.
+        "intelligence_declared",
+        "report_made",
         "scheduled_event_created",
         "scheduled_event_skipped",
         # Costs, ticks and admin.

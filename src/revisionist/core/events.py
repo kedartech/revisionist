@@ -15,7 +15,8 @@ TickOpened, TickClosed``, and for realism campaigns ``CardsDeclared,
 DocumentIssued, DocumentWritten, OrderDrafted, OrderStepTaken, OrderSettled, QuantitySet,
 FeatureSet, WarDeclared, MapDeclared, KindsDeclared, NewsReported, StanceChanged, OpponentsRanked,
 CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted, EconomySet, YieldChanged,
-TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided``, and
+TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDeclared,
+ReportMade``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -83,6 +84,7 @@ from revisionist.core.realism.card import (
     SeatCard,
     Topic,
 )
+from revisionist.core.realism.detect import Intelligence, Report, Shift
 from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
 from revisionist.core.realism.economy import Amount, Pools
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
@@ -812,6 +814,27 @@ class BattleDecided(Model):
         return self
 
 
+class IntelligenceDeclared(Model):
+    """Each nation's sources as the world declares them (DET): who reports each source and
+    by what channel, the codebreaking level, and the agents by area. Engine only; once, at
+    creation."""
+
+    kind: Literal["intelligence_declared"] = "intelligence_declared"
+    nations: tuple[Intelligence, ...] = ()
+
+
+class ReportMade(Model):
+    """A nation's source reported an enemy piece (DET). Engine only: it names the true
+    piece and records whether the report is wrong (``shift``); a seat gets the report in
+    its view once it arrives, and as a line of its source's page."""
+
+    kind: Literal["report_made"] = "report_made"
+    nation: EntityId
+    piece: FeatureId
+    report: Report
+    shift: Shift | None = None
+
+
 class NewsReported(Model):
     """A public event, as structured facts. Each seat's press words it later."""
 
@@ -1230,6 +1253,8 @@ Payload = Annotated[
     | BattleRound
     | BattleEnded
     | BattleDecided
+    | IntelligenceDeclared
+    | ReportMade
     | NewsReported
     | StanceChanged
     | OpponentsRanked
@@ -1314,6 +1339,8 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "battle_round",
         "battle_ended",
         "battle_decided",
+        "intelligence_declared",
+        "report_made",
         "stance_changed",
         "opponents_ranked",
         "card_amended",

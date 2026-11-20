@@ -63,6 +63,7 @@ from revisionist.core.realism import agenda as ra
 from revisionist.core.realism import answer as rans
 from revisionist.core.realism import battle as rb
 from revisionist.core.realism import card as rc
+from revisionist.core.realism import detect as rdet
 from revisionist.core.realism import document as rd
 from revisionist.core.realism import economy as econ
 from revisionist.core.realism import effect as rx
@@ -825,6 +826,54 @@ def battles(draw: st.DrawFn) -> rb.Battle:
 
 
 @st.composite
+def intelligences(draw: st.DrawFn) -> rdet.Intelligence:
+    """A nation's sources (DET): each source once, ranked from 1."""
+    kinds = draw(st.lists(st.sampled_from(list(rdet.Source)), max_size=3, unique=True))
+    return rdet.Intelligence(
+        nation=draw(entity_ids),
+        sources=tuple(
+            rdet.Informant(
+                source=k,
+                person=draw(entity_ids),
+                channel=draw(channels),
+                rank=n + 1,
+                skew=draw(st.integers(-5, 5)),
+            )
+            for n, k in enumerate(kinds)
+        ),
+        codebreaking=draw(st.integers(0, 3)),
+        agents=tuple(
+            draw(
+                st.lists(
+                    st.builds(rdet.Agent, area=entity_ids, until=st.none() | in_world_dates),
+                    max_size=2,
+                )
+            )
+        ),
+    )
+
+
+@st.composite
+def reports(draw: st.DrawFn) -> rdet.Report:
+    """A report (DET): an area with a strength range, or a region with none."""
+    seen = draw(st.dates(min_value=date(1, 1, 1), max_value=date(2025, 1, 1)))
+    lo = draw(st.integers(0, 5))
+    by_area = draw(st.booleans())
+    return rdet.Report(
+        key=draw(st.text(min_size=1, max_size=20)),
+        kind=draw(st.none() | st.text(min_size=1, max_size=20)),
+        strength=(lo, lo + draw(st.integers(0, 2))) if by_area else None,
+        area=draw(entity_ids) if by_area else None,
+        region=None if by_area else draw(st.text(min_size=1, max_size=20)),
+        seen=seen,
+        source=draw(st.sampled_from(list(rdet.Source))),
+        rank=draw(st.integers(0, 5)),
+        confidence=draw(st.sampled_from(list(rdet.Confidence))),
+        arrives=seen + timedelta(days=draw(st.integers(0, 5))),
+    )
+
+
+@st.composite
 def battle_decisions(draw: st.DrawFn) -> ev.BattleDecided:
     """A decision, pieces joining, or both (BDC)."""
     decided, joins = draw(st.sampled_from([(True, False), (False, True), (True, True)]))
@@ -1022,6 +1071,14 @@ realism_payloads = st.one_of(
         on=in_world_dates,
     ),
     battle_decisions(),
+    st.builds(ev.IntelligenceDeclared, nations=st.lists(intelligences(), max_size=2).map(tuple)),
+    st.builds(
+        ev.ReportMade,
+        nation=entity_ids,
+        piece=feature_ids,
+        report=reports(),
+        shift=st.none() | st.sampled_from(list(rdet.Shift)),
+    ),
     st.builds(
         ev.BattleRound,
         area=entity_ids,

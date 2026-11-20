@@ -43,6 +43,8 @@ STAGINGS = (STAGING, EUROPE_STAGING, ATLANTIC_STAGING, MEDITERRANEAN_STAGING, PA
 # The newest region's staging world: the scoped check runs on it, and it extends the earlier ones.
 NEWEST = PACIFIC_STAGING
 WORLD = ROOT / "worlds" / "autumn-1941.yaml"
+POINTS = ROOT / "tests" / "worlds" / "autumn-1941-points.yaml"
+"""The 1941 world before territories: the places the staging files were written against."""
 
 # Rule 2: every place the world has on the Eastern Front today.
 SITES = (
@@ -86,9 +88,10 @@ def _raw() -> Any:
 
 
 def _world_places() -> dict[str, Any]:
+    """The places of the world the staging files were written against (before territories)."""
     return {
         str(e["key"]): e
-        for e in _yaml(WORLD)["entities"]
+        for e in _yaml(POINTS)["entities"]
         if e.get("kind") == "location" and isinstance(e.get("at"), list)
     }
 

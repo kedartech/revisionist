@@ -885,7 +885,41 @@ def _lever_param(view: View, lever: Lever, p: ParamSpec, known: Known) -> LeverP
         if places
         else own,
         places=places,
+        areas={},
     )
+
+
+def _place_areas(state: State, out: Desk) -> Desk:
+    """``out`` with each movement form's destination ``areas`` filled from the map: for each
+    force the form offers, the area each offered place puts it in. Unchanged without
+    territories, so a point game's forms read as before."""
+    board = state.map
+    if not territory.on(state) or board is None:
+        return out
+    keys = {t.area: t.key for t in board.territories} | {z.area: z.key for z in board.sea_zones}
+    for line in out["levers"]:
+        force = next((p for p in line["params"] if p["name"] == FORCE), None)
+        domains: dict[str, kinds.Domain] = {}
+        for c in force["choices"] if force is not None else []:
+            f = state.features.get(FeatureId(object_id(state.campaign_id, "feature", c["value"])))
+            domain = kinds.domain(state, f) if f is not None else None
+            if domain is not None:
+                domains[c["value"]] = domain
+        for p in line["params"]:
+            if p["name"] != "to" or p["kind"] != "enum" or not domains:
+                continue
+            found = {c["value"]: place_named(state, c["value"]) for c in p["choices"]}
+            p["areas"] = {
+                force_key: {
+                    value: keys[area]
+                    for value, place in found.items()
+                    if place is not None
+                    and (area := territory.area_of(state, place.entity_id, domain)) is not None
+                    and area in keys
+                }
+                for force_key, domain in domains.items()
+            }
+    return out
 
 
 def desk(view: View, known: Known | None = None) -> Desk:
@@ -1102,7 +1136,7 @@ def seat_realism(
     people = seat_people(state, seat, view)
     return {
         "documents": documents(view, read, flagged),
-        "desk": desk(view, known),
+        "desk": _place_areas(state, desk(view, known)),
         "situation": situation(view),
         "orders": orders(view, state.pipelines),
         "clock": clock(view, next_wake_at, waiting_on, 0, wake.to.isoformat()),

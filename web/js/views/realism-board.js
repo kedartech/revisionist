@@ -4,7 +4,7 @@
 // (realism-room.js); one switch picks between the two. Nothing here touches the page on import.
 
 import { h } from '../dom.js';
-import { aimsBlock, certaintyWord, markKindWord, sideLine, sightedLine, whereLine } from '../realism-rules.js';
+import { aimsBlock, certaintyWord, markWhatWord, sideLine, sightedLine, whereLine } from '../realism-rules.js';
 import { courtBoard } from './realism-court.js';
 import { theatreBoard } from './realism-theatre.js';
 
@@ -93,10 +93,10 @@ export function piecePanel(rv, piece, open, { board = 'theatre', card = null, pi
   return sheet({ 'aria-labelledby': 'rl-piece-h' }, pick,
     h('h2', { id: 'rl-piece-h' }, mark.name),
     h('dl', {},
-      h('dt', {}, 'What'), h('dd', {}, markKindWord(mark.kind)),
+      h('dt', {}, 'What'), h('dd', {}, markWhatWord(mark)),
       h('dt', {}, 'Side'), h('dd', {}, sideLine(mark)),
       h('dt', {}, 'Certainty'), h('dd', {}, certaintyWord(mark.certainty)),
-      h('dt', {}, 'Where'), h('dd', {}, whereLine(mark))),
+      h('dt', {}, 'Where'), h('dd', {}, whereLine(mark) || (mark.piece?.area?.name ?? ''))),
     h('p', { class: 'muted' }, sightedLine(mark)),
     mark.document
       ? h('button', { type: 'button', class: 'rl-btn', onclick: () => open?.({ id: mark.document }) }, 'Open the page')

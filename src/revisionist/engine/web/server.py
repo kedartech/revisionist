@@ -27,6 +27,7 @@ from urllib.parse import urlsplit
 from revisionist.core.ids import CampaignId, DocumentId, EntityId, SeatId
 from revisionist.core.ontology import EntityKind, Persona, Phase
 from revisionist.core.project import project
+from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.pipeline import OrderStatus, StepAction
 from revisionist.core.realism.pipelines import held_due
@@ -57,6 +58,7 @@ from revisionist.engine.store import load_state
 from revisionist.engine.tick import NotInPlayError
 from revisionist.engine.web import (
     agenda_api,
+    battles_api,
     catchup_api,
     court,
     destinations,
@@ -98,7 +100,9 @@ MODEL_DOWN = "The model cannot be reached just now. Try again in a minute."
 BUSY = "The game is busy with another change. Try again in a moment."
 HELP_KEPT = 40
 """Lines of each seat's talk with its aide kept in memory [proposed]."""
-SEALED_BY_COMMIT = frozenset({"lever", "sign", "option", "file", "step", "answer"})
+SEALED_BY_COMMIT = frozenset(
+    {"lever", "sign", "option", "file", "step", "answer", "battle", "contingency"}
+)
 """Actions that file or change an order, or answer another seat's request: held for the
 next wake once the seat has committed this one, or while it is closing."""
 SEALED = "Your orders for this wake are sealed. They go out when the wake closes."
@@ -260,6 +264,7 @@ class App:
                     wake_at,
                     destinations.place_keys(state, log_now),
                     game["withdrawable"],
+                    held_orders.held_battles(store, link.campaign_id, link.seat_id),
                 )
                 seat_view["realism"]["counsel"] = realism_snapshot.counsel_lines(
                     project(state, link.seat_id), log_now, link.seat_id
@@ -524,6 +529,10 @@ class App:
                     return snapshot.checked(state, seat, dict(done))
                 elif action == "withdraw":
                     return snapshot.checked(state, seat, self._withdraw(store, state, seat, body))
+                elif action in ("battle", "contingency"):
+                    asks, label = _battle_asks(state, seat, action, body)
+                    realism_tick.commit_order(store, cid, seat, asks)
+                    reply = f"Sent: {label}."  # [proposed]
                 else:
                     raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
             except (ValueError, KeyError, NotInPlayError, counsel.CounselRefusedError) as exc:
@@ -1017,6 +1026,12 @@ def _held_args(
     if action == "option":
         chosen = agenda_api.offered(store, state.campaign_id, seat, _text(body, "pick", 120))
         return {"asks": [a.model_dump(mode="json") for a in chosen.asks]}, chosen.label
+    if action == "battle":
+        asks, label, area = battles_api.battle_asks(state, seat, body)
+        return {"asks": [a.model_dump(mode="json") for a in asks], "area": area}, label
+    if action == "contingency":
+        asks, label = battles_api.contingency_asks(state, seat, body)
+        return {"asks": [a.model_dump(mode="json") for a in asks]}, label
     if action == "file":
         if reading is None or not reading.asks:
             raise ValueError(orders_reader.NOTHING)
@@ -1028,6 +1043,16 @@ def _held_args(
         raise ValueError("accept is true or false.")
     label = "Your answer to a request: " + ("accept" if accept else "decline")
     return {"item": _text(body, "item", 64), "accept": accept}, label
+
+
+def _battle_asks(
+    state: State, seat: SeatId, action: str, body: dict[str, Any]
+) -> tuple[list[Ask], str]:
+    """The asks of a ``battle`` or ``contingency`` action and its label (BTD)."""
+    if action == "battle":
+        asks, label, _ = battles_api.battle_asks(state, seat, body)
+        return asks, label
+    return battles_api.contingency_asks(state, seat, body)
 
 
 def _refused_note(reason: str) -> str:

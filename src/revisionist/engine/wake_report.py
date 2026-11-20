@@ -11,9 +11,12 @@ the opening time, a commit's time or the close reason is missing.
 In a game with ``holders`` on, each wake also lists the territories that changed holder
 while it was the latest wake opened (a capture lands at a close, so in the wake that
 closed), and, with ``economy`` on, every nation's public figure as the wake ended. Both
-are public facts: the board's holders and ``economy.figure``. In a game with ``reports``
-on, each wake also counts the reports every nation's sources made, by source, and the
-share that were wrong (RPD): engine-only counts for the operator, naming no piece.
+are public facts: the board's holders and ``economy.figure``. In a game with ``battles``
+on, each wake also counts the battles opened, the rounds fought and the battles ended
+while it was the latest wake opened (BTD): counts only, never a side or a figure. In a
+game with ``reports`` on, each wake also counts the reports every nation's sources made,
+by source, and the share that were wrong (RPD): engine-only counts for the operator,
+naming no piece.
 
 An operator command (``revisionist db wake-report``) that prints counts and public
 board facts, and no record's content. Nothing a seat reaches imports it.
@@ -28,7 +31,7 @@ from revisionist.core.events import Event
 from revisionist.core.fold import apply, replay
 from revisionist.core.ids import CampaignId, EntityId, SeatId
 from revisionist.core.ontology import Controller, EntityKind
-from revisionist.core.realism import detect, economy, holders
+from revisionist.core.realism import battle, detect, economy, holders
 from revisionist.core.state import State
 from revisionist.engine.store import EventStore
 from revisionist.engine.web import catchup_api
@@ -94,6 +97,14 @@ class Holding:
 
 
 @dataclass(frozen=True)
+class Fighting:
+    number: int
+    opened: int
+    rounds: int
+    ended: int
+
+
+@dataclass(frozen=True)
 class Intelligence:
     number: int
     by_source: tuple[tuple[str, int], ...]
@@ -115,6 +126,8 @@ class Report:
     returns: tuple[Return, ...]
     holdings: tuple[Holding, ...] = ()
     """One per wake opened, in a game with ``holders`` on; else empty."""
+    fighting: tuple[Fighting, ...] = ()
+    """One per wake opened, in a game with ``battles`` on; else empty."""
     intelligence: tuple[Intelligence, ...] = ()
     """One per wake opened, in a game with ``reports`` on; else empty."""
 
@@ -185,6 +198,7 @@ def build(events: Sequence[Event]) -> Report:
         seat_rows,
         returns,
         _holdings(events),
+        _fighting(events, state),
         _intelligence(events, state),
     )
 
@@ -222,6 +236,26 @@ def _holdings(events: Sequence[Event]) -> tuple[Holding, ...]:
         return ()
     out.append(_ended(state, number, changes))
     return tuple(out)
+
+
+def _fighting(events: Sequence[Event], state: State) -> tuple[Fighting, ...]:
+    """Each wake's battles opened, rounds fought and battles ended, by the latest wake
+    opened when each happened; empty with ``battles`` off."""
+    if not battle.on(state):
+        return ()
+    counts: dict[int, list[int]] = {}
+    number: int | None = None
+    kinds = (ev.BattleOpened, ev.BattleRound, ev.BattleEnded)
+    for e in events:
+        p = e.payload
+        if isinstance(p, ev.WakeOpened):
+            number = p.wake
+            counts.setdefault(number, [0, 0, 0])
+        elif number is not None:
+            for i, kind in enumerate(kinds):
+                if isinstance(p, kind):
+                    counts[number][i] += 1
+    return tuple(Fighting(n, *c) for n, c in sorted(counts.items()))
 
 
 def _intelligence(events: Sequence[Event], state: State) -> tuple[Intelligence, ...]:
@@ -300,11 +334,18 @@ def render(report: Report) -> list[str]:
         f"wakes: {len(report.wakes)}; " + ", ".join(f"{how} {n}" for how, n in counts.items()),
     ]
     held = {h.number: h for h in report.holdings}
+    fought = {f.number: f for f in report.fighting}
     heard = {i.number: i for i in report.intelligence}
     for w in report.wakes:
         lines.append(f"  wake {w.number}: {w.how}")
         if w.number in held:
             lines += _holding(held[w.number])
+        if w.number in fought:
+            f = fought[w.number]
+            lines.append(
+                f"    battles: {f.opened} opened, {_plural(f.rounds, 'round')} fought,"
+                f" {f.ended} ended"
+            )
         if w.number in heard:
             lines.append(_heard(heard[w.number]))
     lines += [
@@ -359,4 +400,14 @@ def lines(store: EventStore, campaign_ids: Sequence[CampaignId]) -> list[str]:
     return out
 
 
-__all__ = ["Holding", "Report", "Return", "SeatRow", "WakeRow", "build", "lines", "render"]
+__all__ = [
+    "Fighting",
+    "Holding",
+    "Report",
+    "Return",
+    "SeatRow",
+    "WakeRow",
+    "build",
+    "lines",
+    "render",
+]

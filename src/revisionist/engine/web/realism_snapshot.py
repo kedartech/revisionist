@@ -40,7 +40,7 @@ from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
 from revisionist.engine.aide import AideBrief
 from revisionist.engine.directive import Proposal, channels
-from revisionist.engine.web import economy_api, map_api
+from revisionist.engine.web import battles_api, economy_api, map_api
 from revisionist.engine.web.destinations import (
     FORCE,
     Known,
@@ -1110,11 +1110,13 @@ def seat_realism(
     next_wake_at: str | None,
     place_keys: Mapping[EntityId, str] | None = None,
     withdrawable: Collection[str] = (),
+    held_battles: Collection[str] = (),
 ) -> dict[str, Any]:
     """The ``view.realism`` block of ``/api/me``: tray, desk, situation, orders, clock, map,
-    threats, people, the world's developments and the war economy.
+    threats, people, the world's developments, the war economy and the seat's battles.
     ``place_keys`` (``destinations.place_keys``) opens movement forms to every place;
-    ``withdrawable`` (``withdraw.withdrawable``) are the orders the seat may take back."""
+    ``withdrawable`` (``withdraw.withdrawable``) are the orders the seat may take back;
+    ``held_battles`` the area keys of battles it has a decision held for the next wake."""
     view = project(state, seat)
     forces, held = _force_names(state, view)
     card = state.cards.get(view.me.embodies)
@@ -1147,6 +1149,7 @@ def seat_realism(
         "people": people,
         "world": world_news(view),
         "economy": economy_api.block(state, view),
+        "battles": battles_api.block(state, seat, view, forces, held_battles),
     }
 
 

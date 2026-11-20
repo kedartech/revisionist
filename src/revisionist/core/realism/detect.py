@@ -238,6 +238,37 @@ def seen_by(state: "State", nation: EntityId | None) -> dict[Label, Report]:
     return dict(sorted(received(picture, today).delivered.items()))
 
 
+def envoys(state: "State", nation: EntityId | None) -> dict[Label, Report]:
+    """With ``territories`` on, every other nation's envoy in play, as an exact report of
+    today: an envoy is an accredited mission, public to every seat, and no roll is made
+    on it (ENV). Made at projection only, never stored."""
+    from revisionist.core.realism import kinds, territory
+    from revisionist.core.realism.geography import in_play
+
+    today = state.in_world_date
+    if today is None or not territory.on(state) or state.map is None:
+        return {}
+    out: dict[Label, Report] = {}
+    for f in sorted(state.features.values(), key=lambda x: x.feature_id):
+        kind = kinds.of(state, f)
+        if kind is None or kind.domain is not kinds.Domain.ENVOY or not in_play(f):
+            continue
+        if territory.nation(state, f.side) in (None, nation):
+            continue
+        key = report_key(state, nation if nation is not None else EntityId(""), f.feature_id)
+        out[key] = Report(
+            key=key,
+            kind=kind.key,
+            area=f.places[0],
+            seen=today,
+            source=Source.CONTACT,
+            rank=0,
+            confidence=Confidence.A,
+            arrives=today,
+        )
+    return out
+
+
 # --- the day's rolls --------------------------------------------------------------
 
 

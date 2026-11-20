@@ -16,7 +16,8 @@ estimator's effects; its own play style; and only its own mandates. The shared
 wake is public: who has committed, never what.
 
 Detection adds one: a seat sees enemy pieces only as the reports that have reached its
-nation (``View.reports``); a pending report, and the piece a report is about, never.
+nation (``View.reports``); a pending report, and the piece a report is about, never. Every
+other nation's envoy is public, an exact report of today (ENV).
 
 A development is the engine's until it fires: its window, chance, condition, effects
 and asks are not in a view before then, and a skipped one never is.
@@ -122,5 +123,8 @@ def project(state: State, seat: SeatId) -> View:
         },
         routed={k: o.view() for k, o in state.routed.items() if o.issuer == seat},
         style=state.styles.get(seat),
-        reports=detect.seen_by(state, polity_of(state, me.embodies)),
+        reports={
+            **detect.seen_by(state, polity_of(state, me.embodies)),
+            **detect.envoys(state, polity_of(state, me.embodies)),
+        },
     )

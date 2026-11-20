@@ -268,7 +268,9 @@ def test_each_own_piece_carries_every_area_it_can_be_sent_to(tmp_path: Path) -> 
         "lift": None,
     }
     assert lit["isle"]["path"] == [area("isle", "The Isle")]
-    assert set(moves(state, "The Norra Herald")) == set(AREAS) - {"norra_plain"}
+    # An envoy goes anywhere but enemy ground (ENV): Sudland holds the coast and the Isle.
+    enemy = {"norra_plain", "sudland_coast", "isle"}
+    assert set(moves(state, "The Norra Herald")) == set(AREAS) - enemy
     assert set(moves(state, "The Sudland Levy", "tomas")) == {"norra_hills", "norra_plain", "isle"}
 
 
@@ -307,7 +309,7 @@ def test_a_move_names_its_reach_tier_from_the_bases(tmp_path: Path) -> None:
         found = bases.area_reach(state, kites, adj.entity(k))
         assert found is not None and tier == found.tier.value
     assert tiers["norra_hills"] == "operate" and "raid" in tiers.values()
-    assert moves(state, "The Norra Herald")["isle"]["reach"] is None
+    assert moves(state, "The Norra Herald")["the_gulf"]["reach"] is None
 
 
 def test_a_piece_under_way_is_lit_from_the_area_it_stands_in(tmp_path: Path) -> None:

@@ -582,6 +582,8 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
             add(apply_changes(state, on_day(state, day)))
         met = movement.head_on(state, day)  # HON: borders met head-on, read before the steps
         add(movement.walk(state, day))
+        add(agreement.deliveries(state, day))  # ENV: an envoy at a capital delivers its offer
+        add(process.influence_due(state, day))  # ENV: the delivered offer's paper, the same day
         add(holders.walk(state, day))
         add(economy.walk(state, day))  # the 1st: pools paid from what is held today
         add(arrivals(before_on_day, state, day))

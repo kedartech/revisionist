@@ -56,6 +56,7 @@ ACCEPT_AT = 1  # [proposed] the score at which the target goes along
 MIN_WORD = 4  # [proposed] shorter words ("the", "of") say nothing about an interest
 WARLIKE = frozenset({"engagement", "move_force"})
 NO_REACH = "You have no way to reach them."
+NOT_DELIVERED = "Your envoy did not reach their capital in time."
 ANSWER_DAYS = 2
 """[proposed] World days a person a human holds has to answer, after the request or
 the decision reaches them; then the card decides (DUE)."""
@@ -255,12 +256,17 @@ def held_by_another(state: State, routed: RoutedOrder, part: RoutedPart) -> Seat
 
 
 def arrives(state: State, routed: RoutedOrder, part: RoutedPart) -> date | None:
-    """The day a request reaches its target, or None when no channel reaches them."""
+    """The day a request reaches its target, or None when no channel reaches them. An
+    offer an envoy carries arrives on its delivery, None before it (ENV)."""
     assert part.target is not None
-    channels = reach.channels_to(state, _person(state, routed), part.target)
+    if agreement.is_offer(part) and agreement.carried(routed) is not None:
+        return agreement.delivered_on(state, routed)
+    person = _person(state, routed)
+    channels = reach.channels_to(state, person, part.target)
     if not channels:
         return None
-    return routed.filed + timedelta(days=reach.transit_days(channels[0]))
+    days = reach.transit(state, person, part.target, channels[0], routed.filed)
+    return routed.filed + timedelta(days=days)
 
 
 def request_due(state: State, routed: RoutedOrder, i: int) -> date | None:
@@ -277,8 +283,12 @@ def request_due(state: State, routed: RoutedOrder, i: int) -> date | None:
 
 def offer_due(state: State, routed: RoutedOrder) -> date:
     """The one day every nation's answer to an offer of agreement is decided: its expiry,
-    or the day the slowest part reaches its nation, if later."""
-    days = [agreement.due(routed)]
+    or the day the slowest part reaches its nation, if later. An offer its envoy has not
+    delivered is due on its lapse day (ENV)."""
+    delivered = agreement.delivered_on(state, routed)
+    if delivered is None:
+        return agreement.lapse_day(routed)
+    days = [agreement.due(routed, delivered)]
     for part in routed.parts:
         if agreement.is_offer(part) and part.target is not None:
             on = arrives(state, routed, part)
@@ -303,7 +313,9 @@ def _offer_part_due(
     if due > today:
         return out
     assert part.target is not None
-    if on is None:
+    if on is None and agreement.carried(routed) is not None:
+        accepted, reason = False, NOT_DELIVERED
+    elif on is None:
         accepted, reason = False, NO_REACH
     elif seat is not None:
         accepted, reason = _holders_answer(state, routed, part)
@@ -382,7 +394,9 @@ def _request_paper(state: State, routed: RoutedOrder, i: int, seat: SeatId) -> e
     if agreement.is_offer(part) and isinstance(part.effect, Deal):
         deal = part.effect
         said = [("Offer", deal.wording or part.ask)]
-        offer = agreement.make_offer(state, routed, deal)
+        offer = state.agreements.offers.get(routed.order_id) or agreement.make_offer(
+            state, routed, deal
+        )
         said += agreement.term_rows(state, offer)
         title = f"An offer of agreement from {_name(state, issuer)}"
     elif part.effect is not None:
@@ -471,7 +485,9 @@ def influence_due(state: State, today: date) -> list[ev.Payload]:
                     )
                 )
             continue
-        on = routed.filed + timedelta(days=reach.transit_days(channels[0]))
+        person = _person(state, routed)
+        days = reach.transit(state, person, part.target, channels[0], routed.filed)
+        on = routed.filed + timedelta(days=days)
         if on > today:
             continue
         if seat is not None:
@@ -493,6 +509,7 @@ def influence_due(state: State, today: date) -> list[ev.Payload]:
 
 __all__ = [
     "ANSWER_DAYS",
+    "NOT_DELIVERED",
     "NO_REACH",
     "REFUSED_HINT",
     "answer_reason",

@@ -2,13 +2,15 @@
 
 An enacted declaration makes the war, a public fact, a hostile relationship and a news
 event. A declaration on the United States also nudges American opinion toward
-intervention, where the world has a figure to nudge.
+intervention, where the world has a figure to nudge. With ``groups`` on, the declaration
+moves no figure here: the groups that name the happening move in the day walk (GRP).
 """
 
 from datetime import date
 
 from revisionist.core.ids import EntityId, FactId, RelationshipId, derived_id
 from revisionist.core.ontology import EntityKind, Fact, Relationship
+from revisionist.core.realism import groups
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.pipeline import Order, OrderStatus
@@ -93,7 +95,7 @@ def resolve(state: State, order: Order) -> tuple["rs.Change", ...]:
         _relationship(state, a, b),
         _news(state, a, b, day),
     ]
-    if b == EntityId(object_id(state.campaign_id, "entity", "usa")):
+    if not groups.on(state) and b == EntityId(object_id(state.campaign_id, "entity", "usa")):
         for key in OPINION_KEYS:
             now = rs.value(state, key)
             change = (

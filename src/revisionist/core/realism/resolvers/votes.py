@@ -14,13 +14,22 @@ later work).
 
 A decided bill is public news, once: a neutral headline, each chamber's count as the
 world publishes it, and the result. Whip counts are papers, never news.
+
+With ``groups`` on (GVR), the tables above are not read: a chamber's tally comes from the
+world's blocs (``bloc_tally``). Each bloc's part of a vote is the world's row for that
+measure and vote, or its default row; its yes share moves one point for every
+``VOTE_POINTS`` of support away from its baseline, by its stance on each clause, and, for an
+urgent measure, by ``URGENT_BLOC_POINTS`` where it backs executive power. The fraction of a
+vote this leaves is settled by the order's seed, so with every bloc at its baseline the tally
+is the world's row exactly. The tables stay for stored games and worlds without groups.
 """
 
+import re
 from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, OrderId, derived_id
-from revisionist.core.realism import economy
+from revisionist.core.realism import economy, groups
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.economy import Pools
@@ -178,6 +187,135 @@ def tally(state: State, order: Order, chamber: str, rows: Rows) -> tuple[int, in
     return _tally(state, order.order_id, chamber, rows, urgent, {})
 
 
+VOTE_POINTS = 5  # [proposed] plan, GVR Defaults
+"""Points of a bloc's support away from its baseline that move its yes share by one point."""
+URGENT_BLOC_POINTS = 2  # [proposed]
+"""Points an urgent measure adds to the yes share of each bloc with a positive stance on
+power clauses."""
+SHARE_PARTS = 100 * VOTE_POINTS
+"""A bloc's yes count moves by ``voting * points / SHARE_PARTS``, ``points`` in support points."""
+
+
+def _row(bloc: groups.Group, measure: str, vote: str) -> groups.BlocVote | None:
+    listed = bloc.votes.get(measure)
+    return listed.get(vote) if listed is not None else bloc.vote_default.get(vote)
+
+
+def bloc_tally(
+    state: State,
+    nation: EntityId,
+    chamber: str,
+    measure: str,
+    vote: str,
+    seed: OrderId,
+    *,
+    urgent: bool = False,
+    clauses: tuple[Clause, ...] = (),
+) -> tuple[int, int]:
+    """(yeas, nays) of one vote on a measure in a nation's chamber, from its blocs: each
+    bloc with a row for the vote (the measure's own, else its default) starts from that
+    row, and its yes share moves a point for every ``VOTE_POINTS`` of support away from its
+    baseline, by its stance on each of ``clauses``, and with ``urgent`` by
+    ``URGENT_BLOC_POINTS`` if it backs power. The fraction of a vote left over is drawn from
+    ``seed``. No order is read."""
+    yeas = nays = 0
+    for bloc in groups.of(state, nation):
+        row = None if bloc.chamber != chamber else _row(bloc, measure, vote)
+        if row is None:
+            continue
+        points = (groups.support(state, nation, bloc.key) or 0) - bloc.baseline
+        stance = sum(bloc.stances.get(c.kind, 0) for c in clauses)
+        if urgent and bloc.stances.get(ClauseKind.POWER, 0) > 0:
+            stance += URGENT_BLOC_POINTS
+        whole, part = divmod(row.voting * (points + VOTE_POINTS * stance), SHARE_PARTS)
+        drawn = rs.friction(state, seed, chamber, vote, bloc.key, n=SHARE_PARTS) < part
+        by = min(row.voting, max(0, row.yeas + whole + int(drawn)))
+        yeas, nays = yeas + by, nays + row.voting - by
+    return yeas, nays
+
+
+def bloc_votes(state: State, nation: EntityId, measure: str) -> tuple[tuple[str, str], ...]:
+    """Each (chamber, vote) a nation's blocs cast on a measure, in the world's order."""
+    out: dict[tuple[str, str], None] = {}
+    for bloc in groups.of(state, nation):
+        if bloc.chamber is None:
+            continue
+        listed = bloc.votes.get(measure)
+        for vote in listed if listed is not None else bloc.vote_default:
+            out[(bloc.chamber, vote)] = None
+    return tuple(out)
+
+
+def measure_key(measure: ProposeMeasure) -> str:
+    """The key a measure carried by an order is listed under: its title in lower-case
+    words joined by underscores."""
+    return "_".join(re.sub(r"[^0-9a-z]+", " ", measure.title.casefold()).split())
+
+
+def _listed(state: State, nation: EntityId, key: str) -> bool:
+    return any(key in b.votes for b in groups.of(state, nation))
+
+
+def _cast(
+    state: State, order: Order, key: str, measure: ProposeMeasure | None
+) -> tuple[EntityId, tuple[tuple[str, int, int], ...]] | None:
+    """The issuer's nation and each (vote, yeas, nays) its blocs cast on measure ``key``
+    for an enacted order; None when the order is not enacted or no bloc votes on it."""
+    seat = state.seats.get(order.issuer)
+    nation = None if seat is None else polity_of(state, seat.embodies)
+    if order.status is not OrderStatus.ENACTED or nation is None:
+        return None
+    cast = bloc_votes(state, nation, key)
+    if not cast:
+        return None
+    clauses = () if measure is None or _listed(state, nation, key) else measure.clauses
+    urgent = order.params.get("urgency") == "urgent"
+    return nation, tuple(
+        (
+            vote,
+            *bloc_tally(
+                state, nation, chamber, key, vote, order.order_id, urgent=urgent, clauses=clauses
+            ),
+        )
+        for chamber, vote in cast
+    )
+
+
+def by_groups(
+    state: State, order: Order, key: str, measure: ProposeMeasure | None
+) -> tuple[QuantityChange, ...]:
+    """With ``groups`` on, an enacted order's measure ``key`` tallied by the issuer's
+    nation's blocs: each vote's yeas and nays as ``<key>_<vote>_yeas`` and ``_nays``, and
+    ``<key>_passed`` when every vote passed, where the world declares them, all on the day
+    the order settled. A measure the blocs do not list is scored on its clauses as well.
+    Nothing when no bloc votes on it."""
+    cast = _cast(state, order, key, measure)
+    if cast is None:
+        return ()
+    day = rs.settled_on(order)
+    out: list[QuantityChange | None] = []
+    for vote, yeas, nays in cast[1]:
+        out += [
+            put(state, f"{key}_{vote}_yeas", yeas, day),
+            put(state, f"{key}_{vote}_nays", nays, day),
+        ]
+    out.append(put(state, f"{key}_passed", int(all(y > n for _, y, n in cast[1])), day))
+    return tuple(c for c in out if c is not None)
+
+
+def passed_by_groups(
+    state: State, order: Order, key: str, measure: ProposeMeasure | None
+) -> tuple[ev.GroupMoved, ...]:
+    """With ``groups`` on, when the blocs pass measure ``key`` in every vote, the groups of
+    the issuer's nation that name a measure passed, moved once on the day the order
+    settled, whether or not the world keeps the count."""
+    cast = _cast(state, order, key, measure)
+    if cast is None or not all(y > n for _, y, n in cast[1]):
+        return ()
+    day = rs.settled_on(order)
+    return tuple(groups.happened(state, cast[0], groups.Happening.MEASURE_PASSED, day))
+
+
 def _step_day(order: Order, step: int) -> date:
     days = [o.on for o in order.outcomes if o.step == step and o.action in ADVANCES]
     return days[-1] if days else rs.settled_on(order)
@@ -186,6 +324,8 @@ def _step_day(order: Order, step: int) -> date:
 def resolve(state: State, order: Order) -> tuple[QuantityChange, ...]:
     """Changes from one order enacted through its pipeline."""
     bill = order.params.get("bill")
+    if groups.on(state):
+        return by_groups(state, order, str(bill), None) if bill is not None else ()
     if order.status is not OrderStatus.ENACTED or order.lever != LEVER or bill not in TALLIES:
         return ()
     house_day, senate_day = _step_day(order, 0), _step_day(order, 2)
@@ -272,6 +412,20 @@ def _public(q: Quantity | None) -> bool:
     return q is not None and q.scope is not None and q.scope.visibility is Visibility.PUBLIC
 
 
+def _groups_key(order: Order) -> str | None:
+    """With ``groups`` on, the measure key an enacted order's votes were written under."""
+    if order.status is not OrderStatus.ENACTED:
+        return None
+    if order.measure is not None:
+        return measure_key(order.measure)
+    bill = order.params.get("bill")
+    return None if bill is None else str(bill)
+
+
+def _words(key: str) -> str:
+    return " ".join(key.split("_"))
+
+
 def _bill(order: Order) -> str | None:
     """The bill key an enacted order's votes were written under, as the votes resolver
     chose it; None for any other order."""
@@ -288,7 +442,7 @@ def _bill(order: Order) -> str | None:
 def news(state: State, order: Order, today: date) -> NewsEvent | None:
     """The public record of a bill decided on ``today`` or the day before, read from the
     counts the world publishes; None when there is none or it is already reported."""
-    bill = _bill(order)
+    bill = _groups_key(order) if groups.on(state) else _bill(order)
     day = rs.settled_on(order)
     if bill is None or not today - timedelta(days=LOOKBACK_DAYS) <= day <= today:
         return None
@@ -300,20 +454,28 @@ def news(state: State, order: Order, today: date) -> NewsEvent | None:
     news_id = derived_id(state.campaign_id, "news", "vote", order.order_id)
     if news_id in state.news:
         return None
+    if groups.on(state):
+        names = {v: _words(v).capitalize() for _, v in bloc_votes(state, flag.owner, bill)}
+        failed_in = {v: f"the {_words(v)}" for v in names}
+        title = order.measure.title if order.measure is not None else _words(bill).capitalize()
+        passes, nowhere = f"{title} passes", None
+    else:
+        names, failed_in = {c: CHAMBER_NAMES[c] for c in TALLIES[bill]}, FAILED_IN
+        title = order.measure.title if order.measure is not None else HISTORICAL[bill].title
+        passes, nowhere = f"{title} passes Congress", "Congress"
     counts: list[tuple[str, int, int]] = []
-    for chamber in TALLIES[bill]:
+    for chamber in names:
         yeas = state.quantities.get(rs.qid(state, f"{bill}_{chamber}_yeas"))
         nays = state.quantities.get(rs.qid(state, f"{bill}_{chamber}_nays"))
         if yeas is None or nays is None or not (_public(yeas) and _public(nays)):
             continue
         if yeas.value is not None and nays.value is not None:
             counts.append((chamber, yeas.value, nays.value))
-    title = order.measure.title if order.measure is not None else HISTORICAL[bill].title
     if flag.value:
-        headline = f"{title} passes Congress"
+        headline = passes
     else:
-        lost = next((FAILED_IN[c] for c, yeas, nays in counts if yeas <= nays), "Congress")
-        headline = f"{title} fails in {lost}"
+        lost = next((failed_in[c] for c, yeas, nays in counts if yeas <= nays), nowhere)
+        headline = f"{title} fails" if lost is None else f"{title} fails in {lost}"
     if len(headline) > HEADLINE_MAX:
         headline = headline[: HEADLINE_MAX - 1] + "…"
     return NewsEvent(
@@ -323,7 +485,7 @@ def news(state: State, order: Order, today: date) -> NewsEvent | None:
         subject=flag.owner,
         headline=headline,
         facts=(
-            *(BodyField(label=CHAMBER_NAMES[c], value=f"{y} to {n}") for c, y, n in counts),
+            *(BodyField(label=names[c], value=f"{y} to {n}") for c, y, n in counts),
             BodyField(label="Result", value="Passed" if flag.value else "Failed"),
             BodyField(label="Date", value=f"{day.day} {day:%B %Y}"),
         ),

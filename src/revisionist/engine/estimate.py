@@ -261,7 +261,6 @@ def clamp(
     kept: list[EstimatedEffect] = []
     dropped: list[str] = []
     nudges = 0
-    issuer = polity_of(state, state.seats[order.issuer].embodies)
     moved: dict[tuple[EntityId, EntityId], int] = {}
     scaled: dict[QuantityId, int] = {}
     for other in order.parts:
@@ -310,6 +309,7 @@ def clamp(
                 dropped.append(f"disposition: {effect.change:+d} cut to {after - before:+d}")
                 effect = effect.model_copy(update={"change": after - before})
         if isinstance(effect, GroupNudge):
+            issuer = polity_of(state, state.seats[order.issuer].embodies)
             problem = groups.nudge_problem(state, issuer, effect)
             if problem:
                 dropped.append(f"group: {problem}")

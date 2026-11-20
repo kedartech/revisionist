@@ -1177,8 +1177,8 @@ def _meeting_end(
     state: "State", battle: Battle, day: date, now: dict[FeatureId, "Feature"], ending: Ending
 ) -> list["Payload"]:
     """A meeting battle ends (rule 3): the side that yields keeps to its own area with its
-    moves dropped; each piece of the other still bound across the border completes its
-    step, cause ordered, unless its side withdrew. Where pieces of the side that yielded
+    moves dropped; each piece of the other whose step across the border has fallen due
+    completes it, cause ordered, unless its side withdrew. Where pieces of the side that yielded
     remain, a normal battle opens there with the movers attacking, its first round the next
     day [proposed]; else each mover goes on with its course."""
     from revisionist.core import events as ev
@@ -1197,7 +1197,12 @@ def _meeting_end(
         if fid in lose.pieces:
             now[fid] = _still(f, day) if f.path or f.bound_for is not None else f
             left.append(now[fid])
-        elif f.path[:1] == (into,) and win.decision is not Decision.WITHDRAW:
+        elif (
+            f.path[:1] == (into,)
+            and f.step_due is not None
+            and f.step_due <= day
+            and win.decision is not Decision.WITHDRAW
+        ):
             movers.append(f)
     steps: list[Payload] = []
     for f in movers:

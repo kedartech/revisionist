@@ -271,6 +271,44 @@ def test_the_winner_goes_on_with_its_course_when_no_enemy_is_left(tmp_path: Path
     assert moves(out) == [(entity("sudland"), entity(HILLS), entity(PLAIN), StepCause.ORDERED)]
 
 
+def test_a_piece_on_the_winning_side_when_it_opened_loses_its_move(tmp_path: Path) -> None:
+    """A Norra picket at the fort, sent to Sudby on day 3 (due in the coast on day 8), stands
+    in the hills when the meeting opens: its own area is a battle, so its move is dropped
+    (rule 4) though its side wins."""
+    g = head_on(
+        tmp_path,
+        strengths(norra_levy=5, sudland_levy=1),
+        levy("picket_levy", "norra", "hill_fort", 3),
+    )
+    file(g, order("ilse", "picket_levy", "sudby", on=day(3), n=2))
+    out = g.walk(day(1), MEETS)
+    assert [m[2] for m in moves(out)] == [entity(COAST)]
+    picket = piece(g.state, "picket_levy")
+    assert (picket.places, picket.path, picket.step_due) == ((entity(HILLS),), (), None)
+
+
+def test_a_joiner_not_yet_due_keeps_its_own_day(tmp_path: Path) -> None:
+    """A Norra levy from Norrhavn, sent to Sudby on day 1, steps into the hills on day 6 and
+    joins the meeting; its step into the coast is due on day 11. When the meeting ends
+    before then, it does not step with the levy that was held."""
+    g = head_on(
+        tmp_path,
+        strengths(norra_levy=5, sudland_levy=5),
+        levy("second_levy", "norra", "norrhavn", 1),
+    )
+    file(g, order("ilse", "second_levy", "sudby", on=day(1), n=2))
+    out = until_ended(g, day(1))
+    (ended,) = payloads(out, ev.BattleEnded)
+    joined = [p for p in payloads(out, ev.BattleDecided) if p.joined]
+    assert joined and ended.winner == entity("norra") and day(6) <= ended.on < day(11)
+    second = piece(g.state, "second_levy")
+    assert second.places == (entity(HILLS),)
+    assert second.step_due is None or second.step_due >= day(11)
+    assert [m for m in moves(out) if m[1] == entity(HILLS)] == [
+        (entity("norra"), entity(HILLS), entity(COAST), StepCause.ORDERED)
+    ]
+
+
 def test_a_withdrawal_in_a_meeting_keeps_home_and_concedes_the_border(tmp_path: Path) -> None:
     g = head_on(tmp_path, strengths(norra_levy=5, sudland_levy=5))
     g.walk(day(1), MEETS)

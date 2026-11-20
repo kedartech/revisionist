@@ -381,3 +381,59 @@ def test_a_game_without_holders_prints_no_holder_lines(table: Table) -> None:
     report = wake_report.build(played(table))
     assert report.holdings == ()
     assert not any("holders:" in line for line in wake_report.render(report))
+
+
+# --- Battles per wake (BTD) ---------------------------------------------------------------
+
+
+def battle_log(tmp: Path) -> list[Event]:
+    """The coast's battle toy (``tests/test_battle_decisions.py``): wake 0 opened on day 0,
+    the walk to the day after the battle opened, then wake 1 and two more days."""
+    from datetime import UTC, datetime
+
+    from tests.test_adjacency_moves import levers
+    from tests.test_battle_decisions import ISLE
+    from tests.test_battle_decisions_land import army
+    from tests.test_battles import COAST, OPENS, link, no_ferry, to_coast
+
+    now = datetime(2026, 11, 19, 12, 0, tzinfo=UTC)
+    g = to_coast(tmp, link(COAST, ISLE), no_ferry, levers, army)
+    g.add([ev.WakeOpened(wake=0, deadline=now, opened_at=now)])
+    g.walk(day(1), OPENS + timedelta(days=1))
+    g.add(
+        [
+            ev.WakeClosed(wake=0, how="deadline"),
+            ev.WakeOpened(wake=1, deadline=now + timedelta(hours=12), opened_at=now),
+        ]
+    )
+    g.walk(OPENS + timedelta(days=2), OPENS + timedelta(days=3))
+    return g.log
+
+
+def test_each_wake_counts_battles_opened_rounds_fought_and_battles_ended(
+    tmp_path: Path,
+) -> None:
+    log = battle_log(tmp_path)
+    by_wake: dict[int, list[int]] = {}
+    number = -1
+    for e in log:
+        if isinstance(e.payload, ev.WakeOpened):
+            number = e.payload.wake
+            by_wake[number] = [0, 0, 0]
+        for i, kind in enumerate((ev.BattleOpened, ev.BattleRound, ev.BattleEnded)):
+            if isinstance(e.payload, kind) and number >= 0:
+                by_wake[number][i] += 1
+    assert by_wake[0][:2] == [1, 2] and by_wake[1][1] >= 1
+    report = wake_report.build(log)
+    assert [(f.number, f.opened, f.rounds, f.ended) for f in report.fighting] == [
+        (n, *c) for n, c in sorted(by_wake.items())
+    ]
+    out = wake_report.render(report)
+    at = out.index("  wake 0: deadline")
+    assert f"    battles: 1 opened, 2 rounds fought, {by_wake[0][2]} ended" in out[at : at + 4]
+
+
+def test_a_game_without_battles_prints_no_battle_lines(tmp_path: Path) -> None:
+    report = wake_report.build(territory_log(tmp_path))
+    assert report.fighting == ()
+    assert not any("battles:" in line for line in wake_report.render(report))

@@ -832,6 +832,67 @@ class EconomyBlock(TypedDict):
     """None for a seat of no nation."""
 
 
+class BattleRoundLine(TypedDict):
+    """One round of a battle as the seat's own report of it gives it (BTD)."""
+
+    on: str
+    own_lost: int
+    """The steps the seat's side lost that day."""
+    enemy_lost: int
+    """The steps the report saw the enemy lose: what contact reported, not the truth."""
+
+
+class StrengthRange(TypedDict):
+    low: int
+    high: int
+
+
+class BattlePiece(TypedDict):
+    """One of the seat's own pieces in a battle, as its movement forms name it."""
+
+    force: str
+    """The force key the movement forms and the ``contingency`` action take."""
+    name: str
+    strength: int
+    contingency: Literal["hold", "hold_fast", "fall_back", "withdraw_below"] | None
+    """Its standing order for a battle; None: hold (the default)."""
+
+
+class BattleView(TypedDict):
+    """One battle the seat's nation is a side of (BTD). Built from the seat's own side and
+    its own papers: never the enemy's true strength, a round's draws or the enemy's
+    decision. A battle the seat's nation is not in is not listed."""
+
+    area: str
+    """The area's map key; the ``battle`` action names the battle by it."""
+    name: str
+    opened: str
+    side: Literal["attacker", "defender"]
+    enemy: str
+    """The enemy nation's name, as the battle's news gives it."""
+    rounds: list[BattleRoundLine]
+    """Each round the seat has a report of, oldest first."""
+    strength: int
+    """The seat's side's strength now: what it brought less the steps it lost."""
+    enemy_strength: StrengthRange | None
+    """The range the seat's latest papers put the enemy there at; None before any paper
+    places an enemy piece there."""
+    decision: Literal["press", "hold", "withdraw"] | None
+    """The side's decision in force; None: none given (the attacker presses, the
+    defender holds)."""
+    decided: bool
+    """The side has its decision for the open wake, landed or on its way, or the seat has
+    one held for the next wake."""
+    held: bool
+    """The seat has a decision for it held for the next wake (given after its commit)."""
+    decisions: list[str]
+    """The decisions the seat may give now: empty once decided this wake, between wakes
+    and for a seat that commands none of the side's pieces."""
+    contingencies: list[str]
+    """The contingency kinds the seat may give its pieces there."""
+    pieces: list[BattlePiece]
+
+
 class MapReply(TypedDict):
     """The ``map`` action: the map object the game's stored hash names, the same for every
     seat. Refused, with one line, when no object has that hash or the game has no
@@ -1262,6 +1323,9 @@ __all__ = [
     "AgendaBlock",
     "AgendaItem",
     "AgendaOption",
+    "BattlePiece",
+    "BattleRoundLine",
+    "BattleView",
     "BodyLine",
     "Chamber",
     "ChamberSeats",
@@ -1349,6 +1413,7 @@ __all__ = [
     "StakeMandate",
     "Stakes",
     "StepLine",
+    "StrengthRange",
     "Threat",
     "TimelinePoint",
     "WakeHeader",

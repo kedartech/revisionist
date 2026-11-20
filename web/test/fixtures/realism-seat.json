@@ -3595,5 +3595,53 @@
       "name": "toy.map.json",
       "sha256": "c85e9773c786d427609b240ea1c45e21ae5c3c57ae2ab98d6b0d96713a20f28e"
     }
-  }
+  },
+  "battles": [
+    {
+      "area": "sudland_coast",
+      "name": "The Sudland Coast",
+      "opened": "1900-04-14",
+      "side": "attacker",
+      "enemy": "Sudland",
+      "rounds": [
+        {
+          "on": "1900-04-14",
+          "own_lost": 1,
+          "enemy_lost": 1
+        },
+        {
+          "on": "1900-04-15",
+          "own_lost": 1,
+          "enemy_lost": 0
+        }
+      ],
+      "strength": 3,
+      "enemy_strength": {
+        "low": 2,
+        "high": 2
+      },
+      "decision": null,
+      "decided": false,
+      "held": false,
+      "decisions": [
+        "press",
+        "hold",
+        "withdraw"
+      ],
+      "contingencies": [
+        "hold",
+        "hold_fast",
+        "fall_back",
+        "withdraw_below"
+      ],
+      "pieces": [
+        {
+          "force": "norra_levy",
+          "name": "The Norra Levy",
+          "strength": 3,
+          "contingency": null
+        }
+      ]
+    }
+  ]
 }

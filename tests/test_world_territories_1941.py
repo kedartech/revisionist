@@ -58,9 +58,20 @@ def test_the_world_switches_on_the_territory_rules() -> None:
         "supply",
         "fuel",
         "aid",
+        "battles",
+        "reports",
     ]
     assert Rig().state.rules == frozenset(
-        {Rule.TERRITORIES, Rule.HOLDERS, Rule.ECONOMY, Rule.SUPPLY, Rule.FUEL, Rule.AID}
+        {
+            Rule.TERRITORIES,
+            Rule.HOLDERS,
+            Rule.ECONOMY,
+            Rule.SUPPLY,
+            Rule.FUEL,
+            Rule.AID,
+            Rule.BATTLES,
+            Rule.REPORTS,
+        }
     )
 
 
@@ -124,9 +135,15 @@ def _start_areas() -> dict[str, tuple[str, list[str]]]:
     }
 
 
-ON_STATION = {"uboat_arm": "mid_ocean_gap"}
+ON_STATION = {"uboat_arm": "mid_ocean_gap", "soviet_western_front": "moscow_area"}
 """Forces the world puts somewhere other than the start's base area: the U-boat arm opens on
-station across the convoy routes, working from Lorient, so the scripted season sinks ships."""
+station across the convoy routes, working from Lorient, so the scripted season sinks ships;
+the Soviet Western Front opens at Mozhaisk, since with battles on a front at Vyazma, in the
+Smolensk area with Army Group Centre, would open a battle on the first day (ITD)."""
+
+LEGS = {"soviet_western_front": ["moscow_area"]}
+"""Scripted legs the world changes from the start's: the Western Front's leg to Mozhaisk is its
+start now (ITD)."""
 
 
 def test_every_force_stands_in_the_area_the_start_gives_it() -> None:
@@ -160,7 +177,7 @@ def test_each_scripted_leg_lands_in_the_area_the_start_gives_it() -> None:
         domain = kinds.domain(r.state, f)
         assert domain is not None
         legs = [key_of(r, territory.area_of(r.state, leg.places[0], domain)) for leg in f.legs]
-        assert legs == want[key][1], key
+        assert legs == LEGS.get(key, want[key][1]), key
 
 
 def test_every_destination_a_form_offers_resolves_to_an_area() -> None:

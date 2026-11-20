@@ -7,22 +7,22 @@
 # coordinates copied from it (that file is not edited here). Rebuild the map, then copy the
 # fragment's blocks here; the test pins the hash.
 places_of: ../../../autumn-1941.yaml
-map: {coords: lonlat, file: autumn-1941.json, sha256: 0a0e5b5b753978e7391c82d004bb5cc92802efe10b793931160bc1530ace6bac, box: [-126, -11.5, 234, 71.5]}
+map: {coords: lonlat, file: autumn-1941.json, sha256: f770cde38f1fd71b3dce6000c04bb238062d421f7161565fce9abd409f8c57bc, box: [-126, -11.5, 234, 71.5]}
 regions:
   - {key: eastern_front, name: The Eastern Front}
 territories:
   - {key: the_north, name: The North, region: eastern_front, terrain: forest, sites: [archangel]}
-  - {key: leningrad_area, name: Leningrad, region: eastern_front, terrain: forest, sites: [leningrad]}
+  - {key: leningrad, name: Leningrad, region: eastern_front, terrain: forest, sites: [leningrad]}
   - {key: baltic_states, name: The Baltic States, region: eastern_front, terrain: plain}
   - {key: belorussia, name: Belorussia, region: eastern_front, terrain: marsh}
-  - {key: kalinin_area, name: Kalinin, region: eastern_front, terrain: forest, sites: [kalinin]}
-  - {key: smolensk_area, name: Smolensk, region: eastern_front, terrain: forest, sites: [smolensk, vyazma]}
-  - {key: moscow_area, name: Moscow, region: eastern_front, terrain: forest, sites: [moscow, mozhaisk]}
+  - {key: kalinin, name: Kalinin, region: eastern_front, terrain: forest, sites: [kalinin]}
+  - {key: smolensk, name: Smolensk, region: eastern_front, terrain: forest, sites: [smolensk, vyazma]}
+  - {key: moscow, name: Moscow, region: eastern_front, terrain: forest, sites: [moscow, mozhaisk]}
   - {key: upper_volga, name: Gorky and the Upper Volga, region: eastern_front, terrain: forest}
   - {key: western_ukraine, name: Western Ukraine, region: eastern_front, terrain: plain}
-  - {key: kiev_area, name: Kiev, region: eastern_front, terrain: plain, sites: [kiev]}
-  - {key: odessa_area, name: Odessa and Bessarabia, region: eastern_front, terrain: plain, sites: [odessa]}
-  - {key: kharkov_area, name: Kharkov and Poltava, region: eastern_front, terrain: plain, sites: [poltava, kharkov]}
+  - {key: kiev, name: Kiev, region: eastern_front, terrain: plain, sites: [kiev]}
+  - {key: odessa, name: Odessa and Bessarabia, region: eastern_front, terrain: plain, sites: [odessa]}
+  - {key: kharkov, name: Kharkov and Poltava, region: eastern_front, terrain: plain, sites: [poltava, kharkov]}
   - {key: donbas, name: The Donbas and Rostov, region: eastern_front, terrain: plain, sites: [taganrog]}
   - {key: crimea, name: The Crimea, region: eastern_front, terrain: plain}
   - {key: voronezh, name: 'Orel, Kursk and Voronezh', region: eastern_front, terrain: plain}
@@ -33,40 +33,40 @@ sea_zones:
   - {key: white_sea, name: The White Sea and the Barents, region: eastern_front, terrain: sea}
 adjacency:
   - [baltic_sea, baltic_states]
-  - [baltic_sea, leningrad_area]
+  - [baltic_sea, leningrad]
   - [baltic_states, belorussia]
-  - [baltic_states, leningrad_area]
-  - [belorussia, kiev_area]
-  - [belorussia, leningrad_area]
-  - [belorussia, smolensk_area]
+  - [baltic_states, leningrad]
+  - [belorussia, kiev]
+  - [belorussia, leningrad]
+  - [belorussia, smolensk]
   - [belorussia, western_ukraine]
   - [black_sea, crimea]
   - [black_sea, donbas]
-  - [black_sea, odessa_area]
-  - [crimea, odessa_area]
-  - [donbas, kharkov_area]
-  - [donbas, odessa_area]
+  - [black_sea, odessa]
+  - [crimea, odessa]
+  - [donbas, kharkov]
+  - [donbas, odessa]
   - [donbas, stalingrad]
   - [donbas, voronezh]
-  - [kalinin_area, leningrad_area]
-  - [kalinin_area, moscow_area]
-  - [kalinin_area, smolensk_area]
-  - [kalinin_area, the_north]
-  - [kalinin_area, upper_volga]
-  - [kharkov_area, kiev_area]
-  - [kharkov_area, odessa_area]
-  - [kharkov_area, smolensk_area]
-  - [kharkov_area, voronezh]
-  - [kiev_area, odessa_area]
-  - [kiev_area, smolensk_area]
-  - [kiev_area, western_ukraine]
-  - [leningrad_area, smolensk_area]
-  - [leningrad_area, the_north]
-  - [moscow_area, smolensk_area]
-  - [moscow_area, upper_volga]
-  - [moscow_area, voronezh]
-  - [odessa_area, western_ukraine]
-  - [smolensk_area, voronezh]
+  - [kalinin, leningrad]
+  - [kalinin, moscow]
+  - [kalinin, smolensk]
+  - [kalinin, the_north]
+  - [kalinin, upper_volga]
+  - [kharkov, kiev]
+  - [kharkov, odessa]
+  - [kharkov, smolensk]
+  - [kharkov, voronezh]
+  - [kiev, odessa]
+  - [kiev, smolensk]
+  - [kiev, western_ukraine]
+  - [leningrad, smolensk]
+  - [leningrad, the_north]
+  - [moscow, smolensk]
+  - [moscow, upper_volga]
+  - [moscow, voronezh]
+  - [odessa, western_ukraine]
+  - [smolensk, voronezh]
   - [stalingrad, upper_volga]
   - [stalingrad, voronezh]
   - [the_north, upper_volga]

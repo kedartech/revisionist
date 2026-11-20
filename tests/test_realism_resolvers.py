@@ -1,7 +1,6 @@
 """The four quantity resolvers (unit B3): table tests against the sourced record."""
 
 from datetime import date, timedelta
-from pathlib import Path
 
 import pytest
 
@@ -42,8 +41,6 @@ from revisionist.engine import campaign as cmp
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 START = date(1941, 9, 1)
-POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
-"""The 1941 world before territories: the stored-games shipping path reads it."""
 
 
 class Rig:
@@ -279,7 +276,7 @@ def naval(
     ("name", "level"), [("escort_convoys", 1), ("shoot_on_sight", 2), ("hold_in_port", 0)]
 )
 def test_a_naval_order_sets_the_escort_level_as_of_settlement(name: str, level: int) -> None:
-    r = rig(POINTS)
+    r = rig()
     order = naval(r, name, "western_atlantic")
     r.fold_changes(shipping.resolve(r.state, order))
     q = r.state.quantities[qid(r.state, "us_atlantic_escort")]
@@ -292,7 +289,7 @@ def test_the_pacific_changes_nothing() -> None:
 
 
 def test_a_german_directive_sets_the_posture_whoever_holds_the_card() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     r.seat("hitler")
     r.close_session_zero()
     day = date(1941, 10, 1)
@@ -318,7 +315,7 @@ def month_start(r: Rig, d: date) -> tuple[QuantityChange, ...]:
 
 
 def test_losses_are_computed_on_the_first_and_never_overwrite_september() -> None:
-    r = rig(POINTS)
+    r = rig()
     assert shipping.on_day(r.state, date(1941, 9, 15)) == ()
     assert shipping.on_day(r.state, date(1941, 10, 1)) == ()  # Sep is sourced
     r.fold_changes(shipping.on_day(r.state, date(1941, 11, 1)))
@@ -329,7 +326,7 @@ def test_losses_are_computed_on_the_first_and_never_overwrite_september() -> Non
 
 
 def test_escort_months_cut_losses() -> None:
-    plain, escorted = rig(POINTS), rig(POINTS)
+    plain, escorted = rig(), rig()
     naval(escorted, "escort_convoys", "iceland_route", day=date(1941, 9, 11))
     for r in (plain, escorted):
         r.fold_changes(shipping.on_day(r.state, date(1941, 11, 1)))
@@ -350,7 +347,7 @@ def test_escort_months_cut_losses() -> None:
 
 
 def test_an_unrestricted_posture_raises_losses() -> None:
-    r, base = rig(POINTS), rig(POINTS)
+    r, base = rig(), rig()
     r.set_value("uboat_posture", 1)
     for x in (r, base):
         x.fold_changes(shipping.on_day(x.state, date(1941, 11, 1)))

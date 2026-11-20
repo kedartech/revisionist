@@ -43,8 +43,6 @@ from tests.test_territory_model import (
 
 SRC = Path(__file__).resolve().parents[1] / "src" / "revisionist"
 SALT_STRAIT = Path(__file__).resolve().parents[1] / "worlds" / "salt-strait.yaml"
-# The 1941 world as it stood before territories: a world with no kinds, resources or pieces.
-POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
 
 
 def toy_state() -> State:
@@ -191,7 +189,7 @@ def test_several_resources_share_a_role_and_a_role_may_have_none() -> None:
 
 
 def test_a_world_with_no_resources_has_none_of_any_role() -> None:
-    _, state = created(cmp.load_world(cmp.world_path(POINTS)))
+    _, state = created(cmp.load_world(cmp.world_path("autumn-1941")))
     assert state.kinds is None
     for role in Role:
         assert kinds.with_role(state, role) == ()
@@ -374,7 +372,7 @@ def test_a_piece_in_a_world_with_no_kinds_is_refused(tmp_path: Path) -> None:
 
 
 def test_a_world_with_no_kinds_keeps_the_five_feature_kinds() -> None:
-    _, state = created(cmp.load_world(cmp.world_path(POINTS)))
+    _, state = created(cmp.load_world(cmp.world_path("autumn-1941")))
     found = {f.kind for f in state.features.values()}
     assert FeatureKind.PIECE not in found
     assert {FeatureKind.FLEET, FeatureKind.ARMY} <= found
@@ -458,7 +456,7 @@ def test_compile_declares_the_kinds_once_before_any_feature() -> None:
 
 
 def test_a_world_with_no_kinds_declares_none() -> None:
-    events, state = created(cmp.load_world(cmp.world_path(POINTS)))
+    events, state = created(cmp.load_world(cmp.world_path("autumn-1941")))
     assert not [e for e in events if isinstance(e.payload, ev.KindsDeclared)]
     assert state.kinds is None
     assert '"kinds"' not in state.model_dump_json()
@@ -514,7 +512,7 @@ def test_a_rule_asks_what_a_piece_is_through_its_domain() -> None:
 
 
 def test_the_five_feature_kinds_answer_by_their_kind() -> None:
-    _, state = created(cmp.load_world(cmp.world_path(POINTS)))
+    _, state = created(cmp.load_world(cmp.world_path("autumn-1941")))
     seen: dict[FeatureKind, tuple[Domain | None, bool]] = {}
     for f in state.features.values():
         seen[f.kind] = (kinds.domain(state, f), kinds.is_force(state, f))
@@ -604,7 +602,7 @@ def test_the_drafter_is_offered_no_kinds_resources_or_pieces() -> None:
 def test_stored_games_replay_with_no_kinds() -> None:
     # A game made before this item holds no kinds_declared and no piece: the dump of
     # its state names neither.
-    events = compile_world(cmp.load_world(cmp.world_path(POINTS)), CAMPAIGN, cmp.versions())
+    events = compile_world(cmp.load_world(cmp.world_path("autumn-1941")), CAMPAIGN, cmp.versions())
     text = json.dumps([e.model_dump(mode="json") for e in events])
     assert "kinds_declared" not in text
     assert '"piece"' not in text

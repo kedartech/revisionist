@@ -4,8 +4,6 @@ Roosevelt seated under the fixed campaign id, two offline ticks (template prose)
 and, for the unit tests, a memo from Hopkins whose truth carries a canary.
 """
 
-from pathlib import Path
-
 from revisionist.core import events as ev
 from revisionist.core.ids import DocumentId, EntityId, EventId, QuantityId, SeatId, derived_id
 from revisionist.core.realism.actors import readers
@@ -29,8 +27,6 @@ CANARY = "CANARY-COUNSEL-TRUTH-5b70"
 TICKS = 2
 WIRING_QUESTION = "What does Moscow need from us most?"
 QUESTION = "What does Moscow need from us most, Harry?"
-POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
-"""The 1941 world the recordings were made on, before territories."""
 
 
 def hopkins(store: EventStore) -> EntityId:
@@ -45,7 +41,7 @@ def roosevelt_seat(store: EventStore) -> SeatId:
 
 def ticked(store: EventStore) -> None:
     """Roosevelt seated and the world run ``TICKS`` offline ticks, as the wiring gate does."""
-    seated(store, POINTS, "roosevelt")
+    seated(store, "autumn-1941", "roosevelt")
     for _ in range(TICKS):
         run_realism_tick(store, CAMPAIGN, prose=TemplateProseWriter())
 

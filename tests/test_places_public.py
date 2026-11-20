@@ -17,9 +17,6 @@ from revisionist.engine import campaign as cmp
 from revisionist.engine import realism_tick
 from revisionist.engine.store import MemoryStore, load_state
 
-POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
-"""The autumn-1941 world before territories: these tests pin movement between points."""
-
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 WORLDS = sorted(Path(cmp.world_path("autumn-1941")).parent.glob("*.yaml"))
 
@@ -55,5 +52,5 @@ def test_every_seat_sees_every_located_place(path: Path) -> None:
 
 
 def test_the_shipped_world_has_located_places() -> None:
-    world = cmp.load_world(cmp.world_path(POINTS))
+    world = cmp.load_world(cmp.world_path("autumn-1941"))
     assert sum(e.at is not None for e in world.entities) >= 10

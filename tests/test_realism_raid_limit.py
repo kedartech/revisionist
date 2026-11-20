@@ -14,7 +14,7 @@ from revisionist.core.realism.geography import Feature, FeatureKind
 from revisionist.core.realism.resolvers import movement
 from revisionist.core.realism.routing import travel_days
 from revisionist.core.visibility import private_to
-from tests.test_realism_resolvers import POINTS, START, Rig, rig
+from tests.test_realism_resolvers import START, Rig, rig
 
 OUT = date(1941, 9, 6)
 """The day the force left its base."""
@@ -85,7 +85,7 @@ def air_group(r: Rig, where: str) -> str:
 
 
 def test_kido_butai_holds_pearl_harbor_through_day_30_and_turns_for_kure_on_day_31() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     fleet = away(r, "combined_fleet", "pearl_harbor_base", OUT)
     assert on_day(r, "combined_fleet", OUT + timedelta(days=30)) is None
     today = OUT + timedelta(days=31)
@@ -100,7 +100,7 @@ def test_kido_butai_holds_pearl_harbor_through_day_30_and_turns_for_kure_on_day_
 
 
 def test_an_air_group_at_a_raid_place_returns_to_its_nearest_base_on_day_4() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     key = air_group(r, "london")
     away(r, key, "london", OUT)
     assert on_day(r, key, OUT + timedelta(days=3)) is None
@@ -109,14 +109,14 @@ def test_an_air_group_at_a_raid_place_returns_to_its_nearest_base_on_day_4() -> 
 
 
 def test_the_force_turns_for_the_base_nearest_where_it_is_not_the_one_it_left() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     away(r, "us_atlantic_fleet", "rome", OUT)
     back = on_day(r, "us_atlantic_fleet", OUT + timedelta(days=31))
     assert back is not None and back.bound_for == at(r, "reykjavik")
 
 
 def test_a_raider_that_hops_between_raid_places_keeps_one_clock() -> None:
-    r = rig(POINTS)
+    r = rig()
     left = date(1941, 9, 5)
     out = sail(r, "us_pacific_fleet", "hitokappu_bay", left)
     assert out.left_base_on == left
@@ -135,7 +135,7 @@ def test_a_raider_that_hops_between_raid_places_keeps_one_clock() -> None:
 
 
 def test_a_force_halted_at_the_base_it_was_leaving_has_no_clock() -> None:
-    r = rig(POINTS)
+    r = rig()
     out = sail(r, "us_pacific_fleet", "kure", OUT)
     assert out.left_base_on == OUT
     halted = sail(r, "us_pacific_fleet", "pearl_harbor_base", OUT + timedelta(days=3))
@@ -145,7 +145,7 @@ def test_a_force_halted_at_the_base_it_was_leaving_has_no_clock() -> None:
 
 
 def test_reaching_a_base_stops_the_clock() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     away(r, "combined_fleet", "pearl_harbor_base", OUT)
     today = OUT + timedelta(days=31)
     day(r, today)
@@ -154,13 +154,11 @@ def test_reaching_a_base_stops_the_clock() -> None:
     day(r, back.arrives)
     home = feature(r, "combined_fleet")
     assert home.places == (at(r, "kure"),) and home.left_base_on is None
-    assert (
-        home.model_dump().keys() == Rig(POINTS).state.features[home.feature_id].model_dump().keys()
-    )
+    assert home.model_dump().keys() == Rig().state.features[home.feature_id].model_dump().keys()
 
 
 def test_a_game_saved_before_the_limit_starts_the_clock_on_the_forces_first_move() -> None:
-    r = rig(POINTS)
+    r = rig()
     away(r, "us_pacific_fleet", "kure", None)
     assert on_day(r, "us_pacific_fleet", date(1942, 3, 1)) is None
     left = date(1942, 3, 2)
@@ -173,7 +171,7 @@ def test_a_game_saved_before_the_limit_starts_the_clock_on_the_forces_first_move
 
 
 def test_a_force_with_no_clock_that_arrives_from_a_base_counts_from_the_day_it_set_out() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     arrives = OUT + timedelta(days=16)
     away(r, "combined_fleet", "kure", None, bound_for=at(r, "pearl_harbor_base"), arrives=arrives)
     r.fold_changes((feature(r, "combined_fleet").model_copy(update={"as_of": OUT}),))
@@ -182,7 +180,7 @@ def test_a_force_with_no_clock_that_arrives_from_a_base_counts_from_the_day_it_s
 
 
 def test_history_moving_kido_butai_out_of_kure_starts_its_clock_that_day() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     leg = date(1941, 11, 22)
     day(r, leg)
     fleet = feature(r, "combined_fleet")
@@ -190,7 +188,7 @@ def test_history_moving_kido_butai_out_of_kure_starts_its_clock_that_day() -> No
 
 
 def test_a_force_with_no_clock_that_arrives_from_elsewhere_counts_from_its_arrival() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     arrives = OUT + timedelta(days=5)
     away(
         r,
@@ -205,7 +203,7 @@ def test_a_force_with_no_clock_that_arrives_from_elsewhere_counts_from_its_arriv
 
 
 def test_an_order_on_to_another_raid_place_does_not_outrun_the_limit() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     tokyo = at(r, "tokyo")
     later = OUT + timedelta(days=40)
     away(r, "us_pacific_fleet", "kure", OUT, bound_for=tokyo, arrives=later)
@@ -214,7 +212,7 @@ def test_an_order_on_to_another_raid_place_does_not_outrun_the_limit() -> None:
 
 
 def test_a_force_already_bound_for_a_base_is_left_on_its_course() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     norfolk = at(r, "norfolk")
     later = OUT + timedelta(days=60)
     away(r, "us_pacific_fleet", "kure", OUT, bound_for=norfolk, arrives=later)
@@ -222,7 +220,7 @@ def test_a_force_already_bound_for_a_base_is_left_on_its_course() -> None:
 
 
 def test_a_force_at_a_base_or_within_its_operating_radius_never_turns() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     long_after = OUT + timedelta(days=200)
     away(r, "us_atlantic_fleet", "halifax_port", OUT)
     assert on_day(r, "us_atlantic_fleet", long_after) is None
@@ -231,7 +229,7 @@ def test_a_force_at_a_base_or_within_its_operating_radius_never_turns() -> None:
 
 
 def test_an_army_carries_no_clock() -> None:
-    r = rig(POINTS, seat="hitler")
+    r = rig(seat="hitler")
     left = date(1941, 9, 5)
     order = r.enact(
         "hitler",
@@ -252,7 +250,7 @@ def test_an_army_carries_no_clock() -> None:
 
 
 def test_a_world_with_no_bases_table_turns_nothing() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     away(r, "combined_fleet", "pearl_harbor_base", OUT)
     world = r.state.model_copy(
         update={"entities": {k: v for k, v in r.state.entities.items() if k != at(r, "scapa_flow")}}
@@ -264,7 +262,7 @@ def test_a_world_with_no_bases_table_turns_nothing() -> None:
 
 
 def test_the_commanding_seat_is_told_why_its_fleet_turns_for_base() -> None:
-    r = rig(POINTS)
+    r = rig()
     away(r, "us_pacific_fleet", "kure", OUT)
     today = OUT + timedelta(days=31)
     before = r.state
@@ -282,7 +280,7 @@ def test_the_commanding_seat_is_told_why_its_fleet_turns_for_base() -> None:
 
 
 def test_an_ordered_move_gets_no_turn_report() -> None:
-    r = rig(POINTS)
+    r = rig()
     sail(r, "us_pacific_fleet", "kure", OUT)
     before = r.state
     day(r, OUT + timedelta(days=1))

@@ -160,7 +160,7 @@ territories:
     provinces: [
       CHN-1811, CHN-1155, CHN-1816, CHN-1814, CHN-1805
     ]
-  - key: wuhan_area
+  - key: wuhan
     name: The Wuhan Area and the Lower Yangtze
     region: pacific
     terrain: plain
@@ -370,7 +370,7 @@ cuts:
     province: CHN-1807
     line: [[113.4, 32.7], [112.9, 31.9], [112.0, 31.3], [111.0, 31.0], [111.0, 30.4], [111.6, 30.0],
            [112.1, 29.5], [112.3, 28.9]]
-    left: wuhan_area
+    left: wuhan
     right: szechwan
     gap: true
     named_source: >-
@@ -379,7 +379,7 @@ cuts:
   - name: the Xinqiang River front at Yueyang
     province: CHN-1808
     line: [[112.3, 29.9], [112.6, 29.3], [113.0, 29.0], [113.6, 28.9], [114.3, 29.0]]
-    left: wuhan_area
+    left: wuhan
     right: hunan
     gap: true
     named_source: >-
@@ -388,7 +388,7 @@ cuts:
   - name: the Nanchang front in Jiangxi
     province: CHN-1817
     line: [[113.4, 28.9], [114.8, 28.5], [115.8, 28.4], [116.5, 28.6], [117.4, 29.5], [118.2, 29.9]]
-    left: wuhan_area
+    left: wuhan
     right: hunan
     gap: true
     named_source: >-
@@ -397,7 +397,7 @@ cuts:
   - name: the Chekiang front south of Ningbo
     province: CHN-1820
     line: [[118.4, 30.4], [119.4, 29.9], [120.4, 29.8], [121.3, 29.6], [122.8, 29.6]]
-    left: wuhan_area
+    left: wuhan
     right: south_china
     gap: true
     named_source: >-

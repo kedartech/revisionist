@@ -198,7 +198,7 @@ sea_zones:
     region: atlantic
     terrain: sea
     polygon: [[-10, 48.3], [0, 48.3], [1.5, 51.0], [-5.2, 51.0], [-10, 51.0]]
-  - key: western_approaches_area
+  - key: western_approaches
     name: The Western Approaches
     region: atlantic
     terrain: sea
@@ -223,7 +223,7 @@ sea_zones:
     region: atlantic
     terrain: sea
     polygon: [[-45, 61.0], [-25, 61.0], [-25, 71.5], [-45, 71.5]]
-  - key: arctic_route_area
+  - key: arctic_route
     name: The Arctic Route
     region: atlantic
     terrain: sea

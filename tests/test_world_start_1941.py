@@ -36,8 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 START = ROOT / "worlds" / "maps" / "src" / "autumn-1941" / "start.yaml"
 FRAGMENT = ROOT / "worlds" / "maps" / "autumn-1941.world.yaml"
 MAP = ROOT / "worlds" / "maps" / "autumn-1941.json"
-WORLD = ROOT / "tests" / "worlds" / "autumn-1941-points.yaml"
-"""The world before territories, which the staging files were written against."""
+WORLD = ROOT / "worlds" / "autumn-1941.yaml"
 
 SEATED = ("usa", "uk", "japan", "germany", "italy", "ussr", "china")
 """The seven nations with seats in the 1941 world."""
@@ -239,7 +238,7 @@ def test_a_holder_that_is_not_a_polity_is_refused(
 
 def test_tobruk_and_bardia_given_one_holder_are_refused(start: dict[str, Any]) -> None:
     doc = copy.deepcopy(start)
-    _holder(doc, "tobruk_area")["holder"] = "italy"
+    _holder(doc, "tobruk")["holder"] = "italy"
     with pytest.raises(AssertionError):
         _check_the_desert(doc)
 
@@ -321,7 +320,7 @@ CAPITALS = {
     "japan": "japan_east",
     "germany": "germany_east",
     "italy": "italy_south",
-    "ussr": "moscow_area",
+    "ussr": "moscow",
     "china": "szechwan",
 }
 
@@ -334,19 +333,19 @@ def test_each_nation_holds_its_capitals_territory(
 
 
 HELD = {
-    "smolensk_area": "germany",
+    "smolensk": "germany",
     "baltic_states": "germany",
     "belorussia": "germany",
     "western_ukraine": "germany",
-    "kiev_area": "ussr",
-    "odessa_area": "ussr",
-    "leningrad_area": "ussr",
+    "kiev": "ussr",
+    "odessa": "ussr",
+    "leningrad": "ussr",
     "occupied_france": "germany",
     "vichy_france": "french_state",
     "greece": "germany",
     "dodecanese": "italy",
     "north_china": "japan",
-    "wuhan_area": "japan",
+    "wuhan": "japan",
     "hunan": "china",
     "manchuria": "japan",
     "hong_kong": "uk",
@@ -565,7 +564,7 @@ NEW = {
     "italian_army_libya": ("italy", "army", "tripoli", "tripolitania"),
     "afrika_korps": ("germany", "army", "bardia", "cyrenaica"),
     "ninth_war_area": ("china", "army", "changsha", "hunan"),
-    "eleventh_army": ("japan", "army", "wuhan", "wuhan_area"),
+    "eleventh_army": ("japan", "army", "wuhan", "wuhan"),
 }
 
 
@@ -589,7 +588,7 @@ def test_the_eleventh_army_marches_on_changsha_and_back(start: dict[str, Any]) -
     assert legs == [(date(1941, 9, 17), ["changsha"]), (date(1941, 10, 6), ["wuhan"])]
     assert _force(start, "eleventh_army")["legs"] == [
         {"since": date(1941, 9, 17), "area": "hunan"},
-        {"since": date(1941, 10, 6), "area": "wuhan_area"},
+        {"since": date(1941, 10, 6), "area": "wuhan"},
     ]
 
 
@@ -603,15 +602,15 @@ def test_every_force_is_listed_once(start: dict[str, Any], world: dict[str, Any]
 
 
 def _check_the_desert(start: dict[str, Any]) -> None:
-    assert _holder(start, "tobruk_area")["holder"] == "uk"
+    assert _holder(start, "tobruk")["holder"] == "uk"
     assert _holder(start, "cyrenaica")["holder"] == "italy"
-    assert _holder(start, "tobruk_area")["holder"] != _holder(start, "cyrenaica")["holder"]
+    assert _holder(start, "tobruk")["holder"] != _holder(start, "cyrenaica")["holder"]
     places = _places(start)
-    assert places["tobruk"]["within"] == "tobruk_area" and places["bardia"]["within"] == "cyrenaica"
+    assert places["tobruk"]["within"] == "tobruk" and places["bardia"]["within"] == "cyrenaica"
     assert places["tobruk"]["base"]["sides"] == ["uk"]
     assert places["bardia"]["base"]["sides"][0] == "italy"
     assert "uk" not in places["bardia"]["base"]["sides"]
-    assert not any(f["area"] == "tobruk_area" for f in start["forces"])
+    assert not any(f["area"] == "tobruk" for f in start["forces"])
 
 
 def test_the_tobruk_enclave_is_british_and_cyrenaica_italian(start: dict[str, Any]) -> None:

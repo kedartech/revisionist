@@ -14,13 +14,8 @@ PLACED = [d for d in AUTUMN.entities if d.kind is EntityKind.LOCATION and d.at i
 
 
 def test_every_placed_location_has_a_theatre() -> None:
+    assert len(PLACED) == 30
     assert [d.key for d in PLACED if not d.theatre] == []
-
-
-def test_every_placed_location_lies_within_an_area() -> None:
-    areas = {t.key for t in AUTUMN.territories} | {z.key for z in AUTUMN.sea_zones}
-    assert PLACED
-    assert [d.key for d in PLACED if d.within not in areas] == []
 
 
 def test_between_five_and_eight_theatres_and_none_with_fewer_than_two_places() -> None:

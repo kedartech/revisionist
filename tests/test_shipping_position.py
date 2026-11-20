@@ -27,7 +27,7 @@ from revisionist.core.realism.resolvers import production as prd
 from revisionist.core.realism.resolvers import votes as vt
 from revisionist.core.world_compile import object_id
 from tests.test_adjacency_moves import START, Logged, entity, piece, seat, set_feature
-from tests.test_realism_resolvers import POINTS, Rig, naval, rig
+from tests.test_realism_resolvers import Rig, naval, rig
 from tests.test_supply import hub, no_port
 from tests.test_supply import toy as supply_toy
 from tests.test_territory_model import CAMPAIGN
@@ -57,13 +57,13 @@ def october(r: Rig) -> int | None:
 
 
 def escorted() -> Rig:
-    r = rig(POINTS)
+    r = rig()
     naval(r, "escort_convoys", "western_atlantic", day=date(1941, 9, 11))
     return r
 
 
 def test_an_escort_order_cuts_nothing_once_its_sides_fleets_have_left_the_atlantic() -> None:
-    plain, kept, gone = rig(POINTS), escorted(), escorted()
+    plain, kept, gone = rig(), escorted(), escorted()
     send(gone, "us_atlantic_fleet", "pearl_harbor_base")
     p, k, g = october(plain), october(kept), october(gone)
     assert p is not None and k is not None and k < p
@@ -84,14 +84,14 @@ def test_any_fleet_of_the_side_in_the_atlantic_escorts() -> None:
 
 
 def test_the_uboats_sink_nothing_while_their_sides_fleets_are_out_of_the_atlantic() -> None:
-    base, away = rig(POINTS), rig(POINTS)
+    base, away = rig(), rig()
     place(away, "uboat_arm", "kure")
     assert (october(base) or 0) > 0
     assert october(away) == 0
 
 
 def test_a_side_with_no_fleet_on_the_map_keeps_the_losses_it_had() -> None:
-    plain, kept, bare = rig(POINTS), escorted(), escorted()
+    plain, kept, bare = rig(), escorted(), escorted()
     bare.state = bare.state.model_copy(update={"features": {}})
     p, k = october(plain), october(kept)
     assert october(bare) == k and k != p

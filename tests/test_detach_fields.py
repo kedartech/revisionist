@@ -1,7 +1,6 @@
 """Detachment fields on a force (reach R4, unit D1): stored, folded, and left out while empty."""
 
 from datetime import timedelta
-from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -14,9 +13,6 @@ from revisionist.core.realism.geography import FORCES, Feature, FeatureKind
 from revisionist.core.world_compile import compile_world, object_id
 from revisionist.engine import campaign as cmp
 from tests.test_realism_resolvers import CAMPAIGN, START, Rig
-
-POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
-"""The autumn-1941 world before territories: these tests pin movement between points."""
 
 LATE = ("detached_from", "rejoined_on")
 
@@ -40,7 +36,7 @@ def detachment(r: Rig, parent_key: str, n: int = 1) -> Feature:
 
 
 def test_a_detachment_round_trips_through_feature_set_and_the_fold() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     det = detachment(r, "home_fleet")
     sent = ev.FeatureSet(feature=det)
     assert ev.FeatureSet.model_validate_json(sent.model_dump_json()) == sent
@@ -66,7 +62,7 @@ def test_a_detachment_round_trips_through_feature_set_and_the_fold() -> None:
 def test_an_old_game_folds_and_hashes_as_before() -> None:
     """No stored feature carries the fields, so every logged FeatureSet reads back to the
     same bytes and the folded state's dump holds no new key."""
-    world = cmp.load_world(cmp.world_path(POINTS))
+    world = cmp.load_world(cmp.world_path("autumn-1941"))
     events = compile_world(world, CAMPAIGN, cmp.versions())
     sets = [e for e in events if isinstance(e.payload, ev.FeatureSet)]
     assert sets
@@ -82,7 +78,7 @@ def test_an_old_game_folds_and_hashes_as_before() -> None:
 
 
 def test_an_empty_field_is_left_out_of_the_dump() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     plain = feature(r, "home_fleet").model_copy(update={"detached_from": None, "rejoined_on": None})
     assert not set(LATE) & set(plain.model_dump(mode="json"))
     assert plain.model_dump(mode="json") == feature(r, "home_fleet").model_dump(mode="json")
@@ -90,7 +86,7 @@ def test_an_empty_field_is_left_out_of_the_dump() -> None:
 
 @pytest.mark.parametrize("key", ["hx_route", "eastern_front"])
 def test_a_front_or_route_with_detached_from_is_refused(key: str) -> None:
-    r = Rig(POINTS)
+    r = Rig()
     line = feature(r, key)
     assert line.kind in (FeatureKind.FRONT, FeatureKind.ROUTE)
     data = {**line.model_dump(mode="json"), "detached_from": feature(r, "home_fleet").feature_id}
@@ -102,7 +98,7 @@ def test_a_front_or_route_with_detached_from_is_refused(key: str) -> None:
 
 
 def test_every_force_kind_may_be_detached() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     det = detachment(r, "home_fleet")
     for kind in FORCES:
         data = {**det.model_dump(mode="json"), "kind": kind.value}
@@ -110,7 +106,7 @@ def test_every_force_kind_may_be_detached() -> None:
 
 
 def test_a_rejoined_detachment_is_out_of_play() -> None:
-    r = Rig(POINTS)
+    r = Rig()
     det = detachment(r, "home_fleet")
     assert rg.in_play(feature(r, "home_fleet"))
     assert rg.in_play(det)

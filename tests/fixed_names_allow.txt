@@ -76,7 +76,6 @@ src/revisionist/core/realism/resolvers/war.py | gallup_declare_war_germany | unt
 src/revisionist/core/realism/resolvers/war.py | gallup_help_britain | until GVR
 src/revisionist/core/realism/resolvers/war.py | usa | until GVR
 src/revisionist/core/realism/routing.py | germany | stored games only
-src/revisionist/core/realism/routing.py | netherlands | stored games only
 src/revisionist/core/realism/routing.py | north_atlantic | stored games only
 src/revisionist/core/realism/routing.py | uk | stored games only
 src/revisionist/core/realism/routing.py | usa | stored games only

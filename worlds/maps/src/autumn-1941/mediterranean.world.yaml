@@ -15,7 +15,7 @@
 # holds it and the sea zone it opens on; all six lie on land in the data.
 extends: atlantic.world.yaml
 places_of: mediterranean.places.yaml
-map: {coords: lonlat, file: autumn-1941.json, sha256: 0a0e5b5b753978e7391c82d004bb5cc92802efe10b793931160bc1530ace6bac, box: [-126, -11.5, 234, 71.5]}
+map: {coords: lonlat, file: autumn-1941.json, sha256: f770cde38f1fd71b3dce6000c04bb238062d421f7161565fce9abd409f8c57bc, box: [-126, -11.5, 234, 71.5]}
 regions:
   - {key: mediterranean, name: The Mediterranean and the Middle East}
 territories:
@@ -23,7 +23,7 @@ territories:
   - {key: tunisia, name: Tunisia, region: mediterranean, terrain: plain}
   - {key: tripolitania, name: Tripolitania and the Fezzan, region: mediterranean, terrain: plain, sites: [tripoli]}
   - {key: cyrenaica, name: Cyrenaica, region: mediterranean, terrain: mountain, sites: [bardia]}
-  - {key: tobruk_area, name: The Tobruk enclave, region: mediterranean, terrain: plain, sites: [tobruk]}
+  - {key: tobruk, name: The Tobruk enclave, region: mediterranean, terrain: plain, sites: [tobruk]}
   - {key: egypt, name: Egypt, region: mediterranean, terrain: plain, sites: [alexandria]}
   - {key: levant, name: Palestine and Transjordan, region: mediterranean, terrain: plain}
   - {key: syria, name: Syria and Lebanon, region: mediterranean, terrain: plain}
@@ -67,14 +67,14 @@ adjacency:
   - [central_mediterranean, western_mediterranean]
   - [cyrenaica, eastern_mediterranean]
   - [cyrenaica, egypt]
-  - [cyrenaica, tobruk_area]
+  - [cyrenaica, tobruk]
   - [cyrenaica, tripolitania]
   - [dodecanese, eastern_mediterranean]
   - [eastern_mediterranean, egypt]
   - [eastern_mediterranean, greece]
   - [eastern_mediterranean, levant]
   - [eastern_mediterranean, syria]
-  - [eastern_mediterranean, tobruk_area]
+  - [eastern_mediterranean, tobruk]
   - [eastern_mediterranean, turkey]
   - [egypt, levant]
   - [french_north_africa, gibraltar_approaches]
@@ -101,7 +101,7 @@ adjacency:
   - {a: gibraltar_approaches, b: western_mediterranean, crossing: the Strait of Gibraltar}
 ports:
   - {port: alexandria, territory: egypt, sea_zone: eastern_mediterranean}
-  - {port: tobruk, territory: tobruk_area, sea_zone: eastern_mediterranean}
+  - {port: tobruk, territory: tobruk, sea_zone: eastern_mediterranean}
   - {port: bardia, territory: cyrenaica, sea_zone: eastern_mediterranean}
   - {port: tripoli, territory: tripolitania, sea_zone: central_mediterranean}
   - {port: taranto, territory: italy_south, sea_zone: central_mediterranean}

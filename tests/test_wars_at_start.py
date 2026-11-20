@@ -24,7 +24,6 @@ from revisionist.engine import campaign as cmp
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 TOY = Path(__file__).parent / "worlds" / "territory-toy.yaml"
-POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
 RECORDING = Path(__file__).parent / "recordings" / "legacy-salt-strait.jsonl"
 
 
@@ -95,7 +94,7 @@ def test_no_rules_named_means_none_switched_on() -> None:
     events, state = created(without_key)
     assert state.rules == frozenset()
     assert "rules" not in events[0].payload.model_dump(mode="json")
-    _, shipped = created(cmp.load_world(cmp.world_path(POINTS)))
+    _, shipped = created(cmp.load_world(cmp.world_path("autumn-1941")))
     assert shipped.rules == frozenset()
 
 

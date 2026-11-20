@@ -455,3 +455,13 @@ test('the battle styles are linked from the page and use the theme\'s tokens onl
   assert.match(css, /\.rl-bt-choice \{[^}]*min-height: 44px/);
   assert.match(css, /\.rl-bt-choice\[aria-pressed="true"\] b::after \{[^}]*in force/);
 });
+
+test('on a phone the standing-order picker is left off today\'s room\'s piece sheet, and only there', () => {
+  const css = readFileSync(new URL('../css/c-battle.css', import.meta.url), 'utf8');
+  const phone = css.split('@media (max-width: 600px)')[1] ?? '';
+  assert.match(phone, /\.rl-board-side \.rl-bt-contingency \{[^}]*display: none/,
+    'the fixed piece sheet from the bottom stays short, so the lit places above it can be tapped');
+  assert.doesNotMatch(css.split('@media')[0], /\.rl-board-side \.rl-bt-contingency/, 'a wide room keeps it');
+  assert.doesNotMatch(css, /\.rl-(over|sheet|piece)[^{,]*\.rl-bt-contingency \{[^}]*display: none/,
+    'the map-first room\'s piece sheet keeps it');
+});

@@ -56,4 +56,7 @@
 
 @media (max-width: 600px) {
   .rl-bt-decisions, .rl-bt-kinds { grid-template-columns: 1fr; }
+  /* today's room draws a picked piece as a fixed sheet over the map's foot (c-board.css): the picker
+     would cover the lit places, so on a phone it is set from the map-first room's piece sheet */
+  .rl-board-side .rl-bt-contingency { display: none; }
 }

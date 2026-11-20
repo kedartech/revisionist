@@ -4,6 +4,7 @@ written for them, and the human's game runs exactly as it does without them."""
 from collections import Counter
 from collections.abc import Sequence
 from datetime import timedelta
+from pathlib import Path
 from typing import Any
 
 from revisionist.core import events as ev
@@ -34,6 +35,8 @@ from revisionist.engine.store import EventStore, MemoryStore, load_state
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 WORLD = "autumn-1941"
+POINTS = str(Path(__file__).parent / "worlds" / "autumn-1941-points.yaml")
+"""The 1941 world before territories, for the case that sails a fleet between places."""
 TICKS = 8
 
 
@@ -46,8 +49,8 @@ class Counting:
         return Written(prose={p.doc_id: template_prose(author, p) for p in pages})
 
 
-def seated(store: EventStore, who: str) -> SeatId:
-    decl = cmp.load_world(cmp.world_path(WORLD))
+def seated(store: EventStore, who: str, world: str = WORLD) -> SeatId:
+    decl = cmp.load_world(cmp.world_path(world))
     store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))
     realism_tick.seat_player(store, CAMPAIGN, EntityId(resolve_keys(decl, CAMPAIGN)[who]))
     (seat,) = load_state(store, CAMPAIGN).seats
@@ -191,11 +194,11 @@ def at_war_with_america(store: EventStore, hitler: SeatId) -> None:
 
 def test_an_ai_seat_gets_no_report_of_its_own_forces_and_no_newspaper() -> None:
     store = MemoryStore()
-    hitler = seated(store, "hitler")
+    hitler = seated(store, "hitler", POINTS)
     made = set(seat_the_rest(store))
     at_war_with_america(store, hitler)
     state = load_state(store, CAMPAIGN)
-    ids = resolve_keys(cmp.load_world(cmp.world_path(WORLD)), CAMPAIGN)
+    ids = resolve_keys(cmp.load_world(cmp.world_path(POINTS)), CAMPAIGN)
     today = state.in_world_date
     assert today is not None
 

@@ -95,6 +95,7 @@ from revisionist.core.realism.card import (
 from revisionist.core.realism.document import Feed
 from revisionist.core.realism.effect import (
     ESTIMATED_ONLY,
+    AgreementClause,
     EffectKind,
     MoveFigure,
     MoveForce,
@@ -122,6 +123,7 @@ from revisionist.core.world import (
     LeverDecl,
     LinkDecl,
     MandateDecl,
+    PactClauseDecl,
     PieceKindDecl,
     ScopeDecl,
     ScopeSpec,
@@ -167,6 +169,8 @@ def compile_world(world: WorldFile, campaign_id: CampaignId, versions: Versions)
     emitted = _emit(world, ids, sections)
     if Rule.FUEL in world.rules:
         emitted += _stocks(world, ids, _events(emitted, campaign_id, versions))
+    if Rule.AGREEMENTS in world.rules:
+        emitted += _pacts(world, ids, campaign_id)
     events = _events(emitted, campaign_id, versions)
     try:
         state = replay(events)
@@ -471,6 +475,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "trade_lines",
             "intelligence",
             "groups",
+            "pacts",
         ):
             if getattr(world, name):
                 problems.append(f"{name}: only a realism world has {name}")
@@ -554,6 +559,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_topics(world, problems)
     _check_wars(world, sections, problems)
     _check_trade(world, sections, problems)
+    _check_pacts(world, sections, problems)
     playable = {c.person for c in world.cards if c.playable}
     listed = {ch.entity for ch in world.roster}
     # A listed person with no card yet is built when picked (compile_figure).
@@ -612,6 +618,135 @@ def _check_wars(world: WorldFile, sections: Mapping[str, str], problems: list[st
         at_war.add(frozenset((w.a, w.b)))
     if len(set(world.rules)) != len(world.rules):
         problems.append("rules: a rule is named twice")
+
+
+# --- pacts (PCT) ----------------------------------------------------------------------
+
+
+def _check_pacts(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """Pacts only with the agreements rule on; each pact once, between two or more
+    distinct polities, cited; each clause binding a party, naming what the world has,
+    whole for its type, and dated on or after the start."""
+    polities = {d.key for d in world.entities if d.kind is EntityKind.POLITY}
+    areas = {d.key for d in _area_decls(world)}
+    regions = {r.key for r in world.regions}
+    forms = {lv.name for c in world.cards for lv in c.levers}
+    if world.pacts and Rule.AGREEMENTS not in world.rules:
+        problems.append("pacts: needs the agreements rule")
+    seen: set[str] = set()
+    for p in world.pacts:
+        where = f"pact {p.key}"
+        if p.key in seen:
+            problems.append(f"{where}: duplicate key")
+        seen.add(p.key)
+        _check_cited(problems, where, p, sections)
+        if len(p.parties) < 2:
+            problems.append(f"{where}: names at least two nations")
+        if len(set(p.parties)) != len(p.parties):
+            problems.append(f"{where}: names a nation twice")
+        for party in p.parties:
+            _ref(problems, where, party, "entity", sections)
+            if party in sections and party not in polities:
+                problems.append(f"{where}: {party} is not a polity")
+        for n, c in enumerate(p.clauses, start=1):
+            at = f"{where}: clause {n}"
+            if c.binds not in p.parties:
+                problems.append(f"{at} binds {c.binds}, which is not a party")
+            _ref(problems, at, c.force, "feature", sections)
+            _ref(problems, at, c.nation, "entity", sections)
+            if c.nation is not None and c.nation in sections and c.nation not in polities:
+                problems.append(f"{at}: {c.nation} is not a polity")
+            if c.area is not None and c.area not in areas:
+                problems.append(f"{at}: {c.area} is not a territory or sea zone")
+            if c.region is not None and c.region not in regions:
+                problems.append(f"{at}: unknown region {c.region}")
+            if c.form is not None and c.form not in forms:
+                problems.append(f"{at}: no card has the form {c.form}")
+            if c.on is not None and world.start_date is not None and c.on < world.start_date:
+                problems.append(f"{at}: dated before the start")
+            try:
+                _pact_clause(c, {})
+            except ValidationError as exc:
+                problems.append(
+                    f"{at}: {str(exc.errors()[0]['msg']).removeprefix('Value error, ')}"
+                )
+
+
+def _pact_clause(c: PactClauseDecl, ids: Mapping[str, str]) -> AgreementClause:
+    """A pact's clause with its keys resolved; a key ``ids`` lacks is kept as written, for
+    the check before anything is emitted."""
+
+    def ref(key: str) -> str:
+        return ids.get(key, key)
+
+    return AgreementClause(
+        type=c.type,
+        binds=EntityId(ref(c.binds)),
+        on=c.on,
+        force=None if c.force is None else FeatureId(ref(c.force)),
+        area=None if c.area is None else EntityId(ref(c.area)),
+        region=c.region,
+        present=c.present,
+        nation=None if c.nation is None else EntityId(ref(c.nation)),
+        days=c.days,
+        form=c.form,
+        share=c.share,
+        text=c.text,
+    )
+
+
+def _pacts(
+    world: WorldFile, ids: Mapping[str, str], campaign_id: CampaignId
+) -> list[tuple[ev.Payload, Scope]]:
+    """Each pact an agreement in force from the start date, in file order, through
+    ``agreement_made`` with no offer. A public pact is public from the start; a secret one
+    is sealed to its parties' nations, as ``_nation_scope`` seals at run time. Seats are
+    mostly made after compile, so the scope names, for each party, the seats the world
+    declares for its people and the seat the engine gives each of its people when seated;
+    a party with no person keeps the nation's own derived name."""
+    from revisionist.core.realism import agreement
+
+    assert world.start_date is not None  # checked before emitting
+    parents = {d.key: d.parent for d in world.entities}
+    kinds = {d.key: d.kind for d in world.entities}
+
+    def polity(key: str | None) -> str | None:
+        seen: set[str] = set()
+        while key is not None and key not in seen:
+            if kinds.get(key) is EntityKind.POLITY:
+                return key
+            seen.add(key)
+            key = parents.get(key)
+        return None
+
+    out: list[tuple[ev.Payload, Scope]] = []
+    for p in world.pacts:
+        parties = tuple(EntityId(ids[k]) for k in p.parties)
+        name = p.name.rstrip(".")
+        wording = f"{name}. {p.wording}" if p.wording else f"{name}."
+        made = agreement.pact(
+            campaign_id,
+            p.key,
+            parties,
+            wording,
+            tuple(_pact_clause(c, ids) for c in p.clauses),
+            world.start_date,
+            p.public,
+        )
+        scope = PUBLIC
+        if not p.public:
+            held: set[SeatId] = set()
+            for k in p.parties:
+                seats = {SeatId(ids[s.key]) for s in world.seats if polity(s.embodies) == k}
+                seats |= {
+                    SeatId(derived_id(campaign_id, "seat", ids[d.key]))
+                    for d in world.entities
+                    if d.kind is EntityKind.PERSON and polity(d.key) == k
+                }
+                held |= seats or {SeatId(derived_id(campaign_id, "nation-seats", ids[k]))}
+            scope = Scope(visibility=Visibility.RESTRICTED, known_by=frozenset(held))
+        out.append((ev.AgreementMade(agreement=made), scope))
+    return out
 
 
 def _fits(spec: ParamSpec, value: ParamValue, sections: Mapping[str, str]) -> bool:

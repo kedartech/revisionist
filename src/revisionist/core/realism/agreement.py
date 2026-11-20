@@ -448,13 +448,18 @@ def _papers(
     return out
 
 
-def _made(state: "State", offer: AgreementOffer, day: date) -> "Agreement":
-    statuses = tuple(
+def statuses(clauses: Sequence[AgreementClause]) -> tuple[ClauseStatus, ...]:
+    """Each clause's status when an agreement is made: unchecked for wording and for a
+    vote clause (the conference's to judge), standing for every other."""
+    return tuple(
         ClauseStatus.UNCHECKED
         if c.type in (ClauseType.UNCHECKED, ClauseType.VOTE)
         else ClauseStatus.STANDING
-        for c in offer.clauses
+        for c in clauses
     )
+
+
+def _made(state: "State", offer: AgreementOffer, day: date) -> "Agreement":
     return Agreement(
         agreement_id=agreement_id(state.campaign_id, offer.offer_id),
         version=offer.version,
@@ -463,7 +468,30 @@ def _made(state: "State", offer: AgreementOffer, day: date) -> "Agreement":
         clauses=offer.clauses,
         made=day,
         offer_id=offer.offer_id,
-        statuses=statuses,
+        statuses=statuses(offer.clauses),
+    )
+
+
+def pact(
+    campaign_id: str,
+    key: str,
+    parties: Sequence[EntityId],
+    wording: str,
+    clauses: Sequence[AgreementClause],
+    start: date,
+    public: bool,
+) -> Agreement:
+    """A world's pact (PCT): an agreement in force from ``start``, made with no offer, its
+    clauses judged as any agreement's. A public pact is published on ``start``."""
+    return Agreement(
+        agreement_id=derived_id(campaign_id, "pact", key),
+        version=version(parties, wording, clauses),
+        parties=tuple(parties),
+        wording=wording,
+        clauses=tuple(clauses),
+        made=start,
+        published=start if public else None,
+        statuses=statuses(clauses),
     )
 
 
@@ -805,6 +833,7 @@ __all__ = [
     "offer_parts",
     "offers_due",
     "on",
+    "pact",
     "parties_scope",
     "publish_part",
     "refusal",
@@ -812,6 +841,7 @@ __all__ = [
     "render_terms",
     "seen_by",
     "speaker",
+    "statuses",
     "term_rows",
     "version",
 ]

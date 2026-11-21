@@ -322,10 +322,10 @@ def offers(state: State, seat: SeatId) -> list[AgendaItem]:
 
 
 def _step_actions(state: State, order_id: OrderId) -> list[str]:
-    """What a human may do at the step ``order_id`` waits at: the step's own allowed set,
-    without ``amend`` (the room has no terms editor), in ``StepAction`` order."""
-    order = state.orders[order_id]
-    allowed = state.pipelines[order.pipeline].steps[order.step].allowed
+    """What a human may do at the step ``order_id`` waits at: what the step allows the
+    seat (pass and stall only on an order from up its chain), without ``amend`` (the room
+    has no terms editor), in ``StepAction`` order."""
+    allowed = pipelines.step_allowed(state, state.orders[order_id])
     return [a.value for a in StepAction if a in allowed and a is not StepAction.AMEND]
 
 

@@ -29,8 +29,8 @@ from revisionist.core.ontology import EntityKind, Persona, Phase
 from revisionist.core.project import project
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import ChannelKind
-from revisionist.core.realism.pipeline import OrderStatus, StepAction
-from revisionist.core.realism.pipelines import held_due
+from revisionist.core.realism.pipeline import Order, OrderStatus, StepAction
+from revisionist.core.realism.pipelines import held_due, step_allowed, waiting_on_human
 from revisionist.core.state import State
 from revisionist.engine import (
     aide,
@@ -477,9 +477,9 @@ class App:
                     except ValueError:
                         names = ", ".join(a.value for a in StepAction)
                         raise ValueError(f"The action is one of {names}.") from None
-                    order = realism_tick.take_step(
-                        store, cid, seat, _text(body, "order_id", 64), taken, _params(body)
-                    )
+                    ref = _text(body, "order_id", 64)
+                    _offered_step(state, seat, ref, taken)
+                    order = realism_tick.take_step(store, cid, seat, ref, taken, _params(body))
                     if order.issuer != seat:
                         due = held_due(state, order)
                         assert due is not None
@@ -1029,6 +1029,20 @@ class App:
             store.close()
 
 
+NOT_OFFERED = "You cannot do that with this order."  # [proposed]
+"""The refusal of a step action the seat was not offered, the same for every action."""
+
+
+def _offered_step(state: State, seat: SeatId, ref: str, taken: StepAction) -> Order:
+    """The order ``seat`` would act at (``realism_tick.stepped_order``), when its step
+    offers the seat ``taken``: pass and stall only on an order from up its chain. Raises
+    ``ValueError(NOT_OFFERED)`` otherwise, so no step index or action name reaches it."""
+    order = realism_tick.stepped_order(state, seat, ref)
+    if not waiting_on_human(state, order) or taken not in step_allowed(state, order):
+        raise ValueError(NOT_OFFERED)
+    return order
+
+
 _KEPT = "Your decision is kept until {day}. You can change it until then."  # [proposed]
 """The reply to a choice at a step the seat holds on another seat's order (SHS)."""
 _DONE: dict[StepAction, str] = {
@@ -1083,7 +1097,7 @@ def _held_args(
             raise ValueError(
                 f"The action is one of {', '.join(a.value for a in StepAction)}."
             ) from None
-        order = realism_tick.stepped_order(state, seat, order_id)
+        order = _offered_step(state, seat, order_id, taken)
         label = f"{_lever_label(state, order.issuer, order.lever)}: {_DONE[taken]}"
         return {"order_id": order_id, "action": taken.value, "params": params}, label
     if action == "option":

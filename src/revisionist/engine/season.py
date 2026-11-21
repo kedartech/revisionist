@@ -2,9 +2,11 @@
 
 The host ends the season between ticks. The full reveal is ``reveal(Full)``
 applied as ordinary knowledge grants (decision 4), then ``season_ended`` names
-the winners and makes every goal public. Timed seasons come with Layer 10
-item 6; until then the host decides when.
+the winners and makes every goal public. A game with contests ends on its last
+deciding day, in the tick that reaches it; otherwise the host decides when.
 """
+
+from datetime import date
 
 from revisionist.core import events as ev
 from revisionist.core.dashboard import season_report
@@ -13,7 +15,9 @@ from revisionist.core.fold import replay
 from revisionist.core.goals import season_winners
 from revisionist.core.ids import CampaignId, EventId, derived_id
 from revisionist.core.ontology import Phase
+from revisionist.core.realism import contests
 from revisionist.core.referee import Full, reveal
+from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC
 from revisionist.engine import campaign as cmp
 from revisionist.engine.store import EventStore, load_state
@@ -21,6 +25,22 @@ from revisionist.engine.store import EventStore, load_state
 
 class SeasonError(ValueError):
     """The season cannot end now. The message is safe to show the host."""
+
+
+def last_deciding_day(state: State) -> date | None:
+    """The latest deciding day among the world's contests, with the ``contests`` rule on;
+    None when it is off or no contest has a deciding day."""
+    if not contests.on(state):
+        return None
+    days = [k.decides for k in state.contests.values() if k.decides is not None]
+    return max(days) if days else None
+
+
+def due(state: State) -> bool:
+    """Whether the season ends now: in play, the world's date at or past the last deciding day."""
+    last = last_deciding_day(state)
+    today = state.in_world_date
+    return state.phase is Phase.PLAY and last is not None and today is not None and today >= last
 
 
 def end_season(store: EventStore, campaign_id: CampaignId) -> list[str]:
@@ -63,4 +83,4 @@ def report(store: EventStore, campaign_id: CampaignId) -> list[str]:
     return season_report(before, ended.payload.revealed)
 
 
-__all__ = ["SeasonError", "end_season", "report"]
+__all__ = ["SeasonError", "due", "end_season", "last_deciding_day", "report"]

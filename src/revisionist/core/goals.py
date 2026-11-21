@@ -766,8 +766,27 @@ def aim_goals(state: State) -> list[GoalSet]:
 
 
 def season_winners(state: State) -> frozenset[SeatId]:
-    """Every seat whose goal counts as met at season end (decision 36)."""
-    return frozenset(g.seat_id for g in state.goals.values() if g.holding)
+    """Every seat that wins at season end (decision 36). With ``aims`` on, the human
+    seats holding a person with two of his aims holding, or all of them when his card
+    has fewer than two; any number win, or none. Otherwise any seat whose goal holds."""
+    if not aims_on(state):
+        return frozenset(g.seat_id for g in state.goals.values() if g.holding)
+    holding: dict[EntityId, int] = {}
+    for g in state.goals.values():
+        if g.person is not None:
+            holding[g.person] = holding.get(g.person, 0) + int(g.holding)
+    won: set[SeatId] = set()
+    for person, met in holding.items():
+        card = state.cards.get(person)
+        aims = (
+            len(card.aims)
+            if card is not None
+            else sum(1 for g in state.goals.values() if g.person == person)
+        )
+        seat = holder_seat(state, next(g for g in state.goals.values() if g.person == person))
+        if seat is not None and met >= max(1, min(2, aims)):
+            won.add(seat)
+    return frozenset(won)
 
 
 # --- Session Zero: vetting and balance ----------------------------------------------

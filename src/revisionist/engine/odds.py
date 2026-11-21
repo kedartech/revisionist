@@ -52,6 +52,7 @@ from revisionist.core.world_compile import object_id
 from revisionist.engine.web.realism_api import (
     ClosingOdds,
     OddsAtStrength,
+    OddsOutcome,
     OddsReply,
     OddsShares,
     OddsTerrain,
@@ -621,12 +622,31 @@ def closing_pictures(then: State, seat: SeatId, area: EntityId) -> tuple[Picture
     return seen, truth
 
 
+def _outcome(r: OddsReply) -> OddsOutcome:
+    """``r`` without its win share at each enemy strength."""
+    return OddsOutcome(
+        known=r["known"],
+        area=r["area"],
+        terrain=r["terrain"],
+        runs=r["runs"],
+        days=r["days"],
+        shares=r["shares"],
+        own_lost=r["own_lost"],
+        enemy_lost=r["enemy_lost"],
+        taken=r["taken"],
+        taken_days=r["taken_days"],
+        forced_back=r["forced_back"],
+        back_to=r["back_to"],
+        reports=r["reports"],
+    )
+
+
 def _closing(then: State, seat: SeatId, area: EntityId) -> ClosingOdds:
     seen, truth = closing_pictures(then, seat, area)
     wake = wake_of(then)
     return ClosingOdds(
         seen=spread(seen, seed(then.campaign_id, wake, seat, seen)),
-        truly=spread(truth, seed(then.campaign_id, wake, seat, truth)),
+        truly=_outcome(spread(truth, seed(then.campaign_id, wake, seat, truth))),
     )
 
 

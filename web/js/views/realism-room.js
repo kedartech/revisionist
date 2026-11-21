@@ -1291,7 +1291,7 @@ export function realismRoom(ctx) {
     if (mapFirst()) return [...mapFirstRoom([...top, status, firstWakeCard(rv.wake, { dismissed: ui.firstWakeOff, onDismiss: dismissFirstWake })]), ...dialogs].filter(Boolean);
     return [
       ...top,
-      stakesStrip(rv.stakes),
+      stakesStrip(rv.stakes, { aims: ui.view !== 'board' }),
       status,
       firstWakeCard(rv.wake, { dismissed: ui.firstWakeOff, onDismiss: dismissFirstWake }),
       viewSwitch(ui, pick),

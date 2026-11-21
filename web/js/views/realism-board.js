@@ -4,6 +4,7 @@
 // (realism-room.js); one switch picks between the two. Nothing here touches the page on import.
 
 import { h } from '../dom.js';
+import { aimList } from './realism-stakes.js';
 import { aimsBlock, certaintyWord, markWhatWord, sideLine, sightedLine, whereLine } from '../realism-rules.js';
 import { courtBoard } from './realism-court.js';
 import { contingencyPicker } from './realism-battle.js';
@@ -156,14 +157,15 @@ export function nextHistoryDate(setting, today) {
  * A focus stop of its own so a keyboard reaches it before the board. Null with neither to show.
  */
 export function pinBlock(rv) {
-  const aims = aimsBlock(rv.desk?.aims);
+  const scored = aimList(rv.stakes?.aims, 'rl-pin-aims');
+  const aims = scored ? { lines: [], note: 'Your own aims and where they stand. Tap one for its rule and evidence.' } : aimsBlock(rv.desk?.aims);
   const next = nextHistoryDate(rv.setting, rv.clock?.world_date);
   if (!aims && !next) return null;
   return h('section', { class: 'rl-pin', tabindex: '0', 'aria-label': 'Pinned: your aims and the next date in history' },
     aims
       ? h('div', { class: 'rl-pin-part' },
         h('h2', { class: 'rl-pin-h' }, 'Your aims'),
-        h('ul', { class: 'rl-pin-aims' }, aims.lines.map((line) => h('li', {}, line))),
+        scored ?? h('ul', { class: 'rl-pin-aims' }, aims.lines.map((line) => h('li', {}, line))),
         h('p', { class: 'rl-pin-note muted' }, aims.note))
       : null,
     next

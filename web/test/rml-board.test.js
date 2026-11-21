@@ -214,7 +214,7 @@ const pinFor = (patch = {}, more = {}) => {
   const view = { ...rv(), ...patch };
   return boardView(view, ui(more), { pick: () => {}, act: () => {}, write: write() }).querySelector('.rl-pin');
 };
-const withAims = (aims) => ({ desk: { ...fixture.desk, aims } });
+const withAims = (aims) => ({ desk: { ...fixture.desk, aims }, stakes: undefined });
 const withDates = (dates, world_date = '1941-10-20') => ({
   setting: { ...fixture.setting, dates },
   clock: { ...fixture.clock, world_date },
@@ -230,7 +230,7 @@ test('the Board pins the seat\'s aims: .rl-pin-aims, one child element for each 
 
 test('with no aims the pin has no aims container', () => {
   assert.equal(pinFor(withAims([])).querySelector('.rl-pin-aims'), null);
-  const older = { ...rv(), desk: { ...fixture.desk } };
+  const older = { ...rv(), desk: { ...fixture.desk }, stakes: undefined };
   delete older.desk.aims;
   assert.equal(boardView(older, ui(), { pick: () => {}, act: () => {}, write: write() }).querySelector('.rl-pin-aims'), null);
 });

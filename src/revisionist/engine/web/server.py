@@ -1547,6 +1547,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
 def serve(app: App, host: str, port: int) -> None:
     mimetypes.add_type("font/woff2", ".woff2")
     mimetypes.add_type("text/javascript", ".js")
+    mimetypes.add_type("application/manifest+json", ".webmanifest")
     server = ThreadingHTTPServer((host, port), make_handler(app))
     server.daemon_threads = True
     log.info("web client on http://%s:%d/", host, port)

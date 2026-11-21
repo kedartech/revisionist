@@ -482,7 +482,11 @@ def test_5_the_aide_is_bounded_no_press_withdrawal_or_contingency(
 
     monkeypatch.setattr(options, "_live", lambda view: [object()])
     monkeypatch.setattr(options, "_wants_a_deal", lambda mandate: False)
-    monkeypatch.setattr(options, "_options_for", lambda *a, **k: [SimpleNamespace(asks=asks)])
+    monkeypatch.setattr(
+        options,
+        "_options_for",
+        lambda *a, **k: [SimpleNamespace(asks=asks, expects=(), risks=None)],
+    )
     (filed,) = options.aide_asks(g.state, seat("ilse"), None)
     _bounded([a.effect for a in filed])
     assert len(filed) == 2

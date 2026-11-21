@@ -647,7 +647,11 @@ def test_every_aide_filter_keeps_the_intelligence_limits(
 
     monkeypatch.setattr(options, "_live", lambda view: [object()])
     monkeypatch.setattr(options, "_wants_a_deal", lambda mandate: False)
-    monkeypatch.setattr(options, "_options_for", lambda *a, **k: [SimpleNamespace(asks=asks)])
+    monkeypatch.setattr(
+        options,
+        "_options_for",
+        lambda *a, **k: [SimpleNamespace(asks=asks, expects=(), risks=None)],
+    )
     (filed,) = options.aide_asks(state, seat("ilse"), None)
     _bounded([a.effect for a in filed])
     assert len(filed) == 3

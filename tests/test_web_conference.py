@@ -11,27 +11,33 @@ the server: ``conference-call`` calls one and ``conference-vote`` seals the seat
 """
 
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from revisionist.core.ids import SeatId
+from revisionist.core.ids import EntityId, FeatureId, SeatId
+from revisionist.core.project import project
+from revisionist.core.realism import conference
 from revisionist.core.realism.conference import CONF_DAYS, ConferenceText, Vote
+from revisionist.core.realism.effect import AgreementClause, ClauseType
 from revisionist.engine import notice
-from revisionist.engine.web import agenda_api
+from revisionist.engine.options import _forces
+from revisionist.engine.web import agenda_api, conferences_api
 from revisionist.engine.web import realism_api as api
 from revisionist.engine.web import realism_snapshot as rs
-from tests.test_adjacency_moves import START
+from tests.test_adjacency_moves import START, entity
 from tests.test_conference import (
     CHARTER,
     ILSE,
     NORRA,
     OLAF,
+    OSTMARK,
     SUDLAND,
     TOMAS,
+    VESTA,
     Game,
     binding_text,
     day,
@@ -355,3 +361,125 @@ def test_a_vote_after_the_seats_commit_is_held_for_the_next_wake(
     status, out = post(bea, "conference-vote", conference=CHARTER, vote="for")
     assert status == 200 and not out["refused"] and "held" in out, out
     assert CHARTER not in state_of(game_).conferences.votes
+
+
+# --- A call's clauses are checked against the caller's view ---------------------------
+
+LEVY = FeatureId(entity("norra_levy"))
+GALLEYS = FeatureId(entity("sudland_galleys"))
+RESERVE = FeatureId(entity("sudland_reserve_levy"))
+ISLE = entity("isle")
+NOWHERE = "nowhere"
+
+
+def _levy(w: dict[str, Any]) -> None:
+    """Ilse's desk commands the Norra Levy, with an aide to sign its reports."""
+    w["entities"].append({"key": "ilse_aide", "kind": "person", "name": "Aide of Ilse"})
+    (card,) = (c for c in w["cards"] if c["person"] == "ilse")
+    card["authority"] = [{"name": "the_levy", "effects": ["move_force"], "forces": ["norra_levy"]}]
+    card["inner_circle"] = [{"person": "ilse_aide", "channel": "courier"}]
+
+
+def _game(tmp: Path, *changes: Callable[[dict[str, Any]], None]) -> Game:
+    g = game(tmp, _levy, *changes)
+    g.open()
+    return g
+
+
+def _reserve(w: dict[str, Any]) -> None:
+    """A Sudland piece the twin world adds, at home, where Norra cannot see it."""
+    w["features"].append(
+        {
+            "key": "sudland_reserve_levy",
+            "kind": "piece",
+            "piece": "levy",
+            "name": "The Sudland Reserve",
+            "side": "sudland",
+            "places": ["sudby"],
+            "source": "toy",
+        }
+    )
+
+
+def _placed(force: FeatureId, binds: EntityId = SUDLAND) -> AgreementClause:
+    return AgreementClause(type=ClauseType.PLACE, binds=binds, force=force, area=ISLE, on=day(2))
+
+
+def _attempt(g: Game, *clauses: AgreementClause) -> str:
+    """Ilse calls a conference of all three on a text with ``clauses`` through the call
+    action: the refusal, or "" when it is called (and landed as the web lands it)."""
+    body = {
+        "key": CHARTER,
+        "text": "The gulf stays as it stands.",
+        "invited": [str(SUDLAND), str(OSTMARK)],
+        "voting_day": day(CONF_DAYS).isoformat(),
+        "clauses": [c.model_dump(mode="json") for c in clauses],
+    }
+    try:
+        args, _ = conferences_api.call_args(g.state, ILSE, body)
+    except ValueError as refused:
+        return str(refused)
+    g.call(text=ConferenceText.model_validate(args["text"]))
+    return ""
+
+
+def test_a_call_naming_a_piece_the_caller_cannot_see_is_refused_as_one_that_does_not_exist(
+    tmp_path: Path,
+) -> None:
+    g = _game(tmp_path)
+    assert GALLEYS in g.state.features
+    assert GALLEYS not in _forces(project(g.state, ILSE))
+    hidden = _attempt(g, _placed(GALLEYS))
+    absent = _attempt(g, _placed(FeatureId(entity(f"{NOWHERE}_levy"))))
+    assert hidden == absent == conferences_api.NOT_SEEN
+    assert g.state.conferences.held == {}
+    assert "The Sudland Galleys" not in seen(g, TOMAS) + seen(g, ILSE)
+
+
+@pytest.mark.parametrize(
+    "clause",
+    [
+        AgreementClause(type=ClauseType.NO_WAR, binds=SUDLAND, nation=entity(NOWHERE)),
+        AgreementClause(type=ClauseType.KEEP_OUT, binds=SUDLAND, area=entity(NOWHERE)),
+        AgreementClause(type=ClauseType.PLACE, binds=NORRA, force=LEVY, region=NOWHERE, on=day(2)),
+        AgreementClause(type=ClauseType.NO_WAR, binds=entity(NOWHERE), nation=VESTA),
+        AgreementClause(type=ClauseType.NO_WAR, binds=SUDLAND, nation=entity("tomas")),
+    ],
+    ids=["nation", "area", "region", "binds", "a-person-as-nation"],
+)
+def test_a_call_naming_anything_the_caller_does_not_hold_has_the_one_refusal(
+    tmp_path: Path, clause: AgreementClause
+) -> None:
+    g = _game(tmp_path)
+    assert _attempt(g, clause) == conferences_api.NOT_SEEN
+    assert g.state.conferences.held == {}
+
+
+def test_a_call_naming_what_the_caller_holds_is_accepted_as_before(tmp_path: Path) -> None:
+    g = _game(tmp_path)
+    assert LEVY in _forces(project(g.state, ILSE))
+    own = _placed(LEVY, binds=NORRA)
+    peace = AgreementClause(type=ClauseType.NO_WAR, binds=SUDLAND, nation=VESTA)
+    assert _attempt(g, own, peace) == ""
+    assert g.state.conferences.held[CHARTER].text.clauses == (own, peace)
+    (line,) = lines(g, TOMAS)
+    assert line["clauses"][0]["text"].startswith("Norra: The Norra Levy is in")
+
+
+def test_twin_games_differing_in_a_piece_the_caller_cannot_see_read_the_same_to_it(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "with").mkdir()
+    (tmp_path / "without").mkdir()
+    twins = (_game(tmp_path / "with", _reserve), _game(tmp_path / "without"))
+    replies = [_attempt(g, _placed(RESERVE)) for g in twins]
+    assert RESERVE in twins[0].state.features and RESERVE not in twins[1].state.features
+    assert replies[0] == replies[1] == conferences_api.NOT_SEEN
+    for who in (ILSE, OLAF):
+        assert seen(twins[0], who) == seen(twins[1], who)
+
+
+def test_with_conferences_off_a_call_is_refused_as_before(tmp_path: Path) -> None:
+    g = Game(world(tmp_path, rules=("holders", "agreements")), "ilse", "tomas", "olaf")
+    g.open()
+    assert _attempt(g, _placed(GALLEYS)) == conference.NOT_ON

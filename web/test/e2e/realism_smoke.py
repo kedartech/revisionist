@@ -524,10 +524,74 @@ def locked_order(page: Page, report: dict[str, object]) -> None:
     set_layout(page, "Today's room")
     view_button(page, "Board").click()
     page.locator("main.rl-board").wait_for(timeout=10_000)
+    held_on_piece(page, report)
     check(
         "the locked order raises no page error",
         len([p for p in problems if p.startswith("pageerror")]) == errors,
     )
+
+
+LOCK_PIECE = "Atlantic Fleet"
+"""The piece the canned lock's held order moves: the fleet the detach form names."""
+
+
+def held_on_piece(page: Page, report: dict[str, object]) -> None:
+    """The held order on its piece (LKM): on a territory map the fleet's marker (or the
+    closed stack it is in) carries the padlock and says it in its label; on any map the
+    fleet's sheet lists the held order with who can allow it, marked asked."""
+    page.locator("figure.rl-map-figure").first.wait_for(timeout=10_000)
+    seen = page.evaluate(
+        """(name) => {
+      const label = (el) => el.getAttribute('aria-label') || '';
+      const on = [...document.querySelectorAll('.rl-tm-mark, .rl-tm-stack')]
+        .map(label).filter((l) => l.includes(name) && /held order/i.test(l));
+      return { territory: !!document.querySelector('svg.rl-tm-svg'), on,
+        glyphs: document.querySelectorAll('.rl-tm-held .rl-lock-glyph').length };
+    }""",
+        LOCK_PIECE,
+    )
+    report["lock_on_map"] = seen
+    if seen["territory"]:
+        check(
+            "the held order shows on its piece on the map, with the padlock",
+            seen["glyphs"] >= 1 and len(seen["on"]) >= 1,
+            str(seen),
+        )
+    pick = """(name) => {
+      const label = (el) => el.getAttribute('aria-label') || '';
+      const stack = [...document.querySelectorAll('.rl-tm-stack')]
+        .find((s) => label(s).includes(name));
+      const mark = [...document.querySelectorAll('.rl-mk')].find((m) => label(m).includes(name)
+        && m.getAttribute('aria-pressed') !== null);
+      const hit = mark ?? stack;
+      hit?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      return hit ? (mark ? 'mark' : 'stack') : null;
+    }"""
+    first = page.evaluate(pick, LOCK_PIECE)
+    if first == "stack":
+        page.wait_for_timeout(300)
+        first = page.evaluate(pick, LOCK_PIECE)
+    sheet = page.locator(".rl-piece-held")
+    try:
+        sheet.first.wait_for(timeout=10_000)
+    except PlaywrightTimeout:
+        check("the held order shows in its piece's sheet", False, str(first))
+        return
+    report["lock_piece_sheet"] = sheet.first.inner_text()
+    row = sheet.first.locator("li")
+    check(
+        "the held order shows in its piece's sheet, with who can allow it, marked asked",
+        row.count() == 1
+        and row.first.locator(".rl-lock-who").inner_text().strip() == LOCK_WHO
+        and row.first.locator(".rl-held-status").inner_text().strip() == "Asked",
+        str(report["lock_piece_sheet"]),
+    )
+    sheet.first.scroll_into_view_if_needed()
+    page.screenshot(path=str(OUT / f"00f-lock-piece-{SIZE[0]}x{SIZE[1]}.png"))
+    close = page.locator(".rl-sheet-close")
+    if close.count() and close.first.is_visible():
+        close.first.click()
+        page.wait_for_timeout(200)
 
 
 def phone_board(page: Page, report: dict[str, object]) -> None:

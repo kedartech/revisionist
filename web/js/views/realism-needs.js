@@ -19,6 +19,8 @@ export const NEEDS_NONE = 'Nothing waits on you. Press Done when you are.';
 export const AT_CLOSE = 'Due at this wake\'s close';
 /** The due words of a matter with no set day. */
 export const NO_DAY = 'No set day';
+/** The word on what a style folds away; everything behind it opens. */
+export const MORE = 'More';
 
 /**
  * The registry: kind -> `build(rv)`, which answers that kind's lines over the room's data, each
@@ -176,12 +178,27 @@ function doneControl(wake, onDone, cls) {
 
 /**
  * The list: its heading with one badge, a line per matter (what it is, from whom, by when, and
- * one action button calling `onAction(line)`), the empty line, and Done at its foot. From 1024 px
+ * one action button calling `onAction(line)`), the empty line, and Done at its foot. With `top` set, only that many lines show and the rest sit behind "More". From 1024 px
  * it is a rail beside the map; below that it is a half sheet, shown while `open`, which Escape or
  * Close shuts through `onClose`.
  */
-export function needsList(rv, lines, { open = false, onAction, onDone, onClose } = {}) {
+export function needsList(rv, lines, { open = false, onAction, onDone, onClose, top = null } = {}) {
   const today = rv.clock?.world_date;
+  const line = (l) => h('li', {
+    class: `rl-need${urgent(l, today) ? ' urgent' : ''}`, 'data-kind': l.kind, 'data-need': l.key,
+  },
+  h('p', { class: 'rl-need-top' },
+    h('span', { class: 'rl-need-kind' }, l.label),
+    h('span', { class: 'rl-need-due' }, dueWords(l))),
+  h('p', { class: 'rl-need-what' }, l.what),
+  l.lock ? h('p', { class: 'rl-need-lock' }, lockTag(l.lock), l.status ? h('span', { class: `rl-need-status${l.status === 'Asked' ? ' asked' : ''}` }, l.status) : null) : null,
+  h('p', { class: 'rl-need-from' }, `From ${l.from}`),
+  l.action ? h('button', {
+    type: 'button', class: 'rl-btn rl-need-act', 'data-need': l.key, 'aria-label': `${l.action.word}: ${l.what}`,
+    onclick: () => onAction?.(l),
+  }, l.action.word) : null);
+  const shown = top === null ? lines : lines.slice(0, top);
+  const rest = top === null ? [] : lines.slice(top);
   return h('section', {
     class: `rl-needs${open ? ' open' : ''}`, id: 'rl-needs', 'aria-labelledby': 'rl-needs-h',
     onkeydown: (e) => { if (open && e.key === 'Escape') { e.preventDefault(); onClose?.(); } },
@@ -191,23 +208,26 @@ export function needsList(rv, lines, { open = false, onAction, onDone, onClose }
     h('span', { class: 'rl-needs-order' }, 'By due day'),
     h('button', { type: 'button', class: 'rl-btn rl-needs-close', onclick: () => onClose?.() }, 'Close')),
   lines.length
-    ? h('ul', { class: 'rl-needs-lines', role: 'list' }, lines.map((line) => h('li', {
-      class: `rl-need${urgent(line, today) ? ' urgent' : ''}`, 'data-kind': line.kind, 'data-need': line.key,
-    },
-    h('p', { class: 'rl-need-top' },
-      h('span', { class: 'rl-need-kind' }, line.label),
-      h('span', { class: 'rl-need-due' }, dueWords(line))),
-    h('p', { class: 'rl-need-what' }, line.what),
-    line.lock ? h('p', { class: 'rl-need-lock' }, lockTag(line.lock), line.status ? h('span', { class: `rl-need-status${line.status === 'Asked' ? ' asked' : ''}` }, line.status) : null) : null,
-    h('p', { class: 'rl-need-from' }, `From ${line.from}`),
-    line.action ? h('button', {
-      type: 'button', class: 'rl-btn rl-need-act', 'data-need': line.key, 'aria-label': `${line.action.word}: ${line.what}`,
-      onclick: () => onAction?.(line),
-    }, line.action.word) : null)))
+    ? h('ul', { class: 'rl-needs-lines', role: 'list' }, shown.map(line))
     : h('p', { class: 'rl-needs-none' }, NEEDS_NONE),
+  rest.length
+    ? h('details', { class: 'rl-needs-more' },
+      h('summary', {}, `${MORE} (${rest.length})`),
+      h('ul', { class: 'rl-needs-lines', role: 'list' }, rest.map(line)))
+    : null,
   h('div', { class: 'rl-needs-done' },
     h('p', { class: 'hint' }, `Press Done for today when you have answered what you want to. ${DONE_HINT}`),
     doneControl(rv.wake, onDone, 'rl-needs-commit')));
+}
+
+/** The sheets a seat's list points at: sheet key -> how many of its lines open that sheet. */
+export function sheetMarks(lines) {
+  const marks = {};
+  for (const l of lines) {
+    const to = l.action?.to === 'sheet' ? l.action.sheet : null;
+    if (to) marks[to] = (marks[to] ?? 0) + 1;
+  }
+  return marks;
 }
 
 /** The phone's bottom bar: the Needs button with the list's badge, and Done for today. */

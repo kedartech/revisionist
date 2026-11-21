@@ -111,16 +111,22 @@ function taking(rv, odds) {
       row('Forced back', `${in100(odds.forced_back ?? 0)}${back}`)));
 }
 
+let folded = false;
+
+/** Whether the table of win shares by strength sits behind "More" (Beginner's room); set at each draw of the room. */
+export function foldOdds(on) { folded = Boolean(on); }
+
 /** The win share at each strength the reports allow. */
 function byStrength(odds, area) {
   if (!odds.by_strength?.length) return null;
+  const table = (...rows) => (folded ? h('details', { class: 'rl-odds-more' }, h('summary', {}, 'More'), rows) : rows);
   return h('section', { class: 'rl-odds-strengths' },
     h('h4', {}, 'If the report is wrong'),
-    h('table', { class: 'rl-odds-table' },
+    table(h('table', { class: 'rl-odds-table' },
       h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, 'Their strength'), h('th', { scope: 'col' }, `You win at ${area}`))),
       h('tbody', {}, odds.by_strength.map((s) => h('tr', {},
         h('th', { scope: 'row' }, String(s.strength)),
-        h('td', {}, s.win === null || s.win === undefined ? 'no run drew it' : in100(s.win)))))));
+        h('td', {}, s.win === null || s.win === undefined ? 'no run drew it' : in100(s.win))))))));
 }
 
 /** The terrain's public facts: all the reply gives without a report. */

@@ -1820,8 +1820,28 @@ class PlaybackStake(TypedDict):
     ``progressed``, ``met`` or ``undone`` for a goal."""
 
 
+class PlaybackHeld(TypedDict):
+    """One of the seat's own held orders was held or ended (LCK, ASK). Only its issuer's
+    seat is given it."""
+
+    kind: Literal["held"]
+    on: str
+    what: str
+    """``held``, or a ``HeldEnd`` value: ``landed``, ``failed``, ``replaced``,
+    ``withdrawn``."""
+    line: str
+    """The plain line the seat reads: who can allow it, the reason it failed, the later
+    order's words."""
+
+
 PlaybackStep = (
-    PlaybackOrder | PlaybackMove | PlaybackHalt | PlaybackPaper | PlaybackHolder | PlaybackStake
+    PlaybackOrder
+    | PlaybackMove
+    | PlaybackHalt
+    | PlaybackPaper
+    | PlaybackHolder
+    | PlaybackStake
+    | PlaybackHeld
 )
 """One step of a missed wake's playback, in the order it happened (``on`` is ISO)."""
 
@@ -1972,6 +1992,7 @@ __all__ = [
     "PlaceLift",
     "PlaceReach",
     "PlaybackHalt",
+    "PlaybackHeld",
     "PlaybackHolder",
     "PlaybackMove",
     "PlaybackOrder",

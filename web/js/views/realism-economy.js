@@ -60,6 +60,11 @@ export function shortfalls(own, printedByArea, areaByKey) {
   return out;
 }
 
+let folded = false;
+
+/** Whether the seat's own sheet keeps its components behind "More" (Beginner's room); set at each draw of the room. */
+export function foldEconomy(on) { folded = Boolean(on); }
+
 /** The seat's own sheet: components under the world's names. `map` is the seat's map block. */
 export function ownSheet(economy, map, { levers, act } = {}) {
   const own = economy.own;
@@ -74,9 +79,7 @@ export function ownSheet(economy, map, { levers, act } = {}) {
   const fuelLine = own.fuel_months === null || own.fuel_months === undefined
     ? `${fuel || 'Fuel'}: no stock is kept in this game`
     : `${fuel || 'Fuel'} lasts ${num(own.fuel_months)} months at this income`;
-  return h('section', { class: 'rl-eco-sheet', 'aria-label': `${own.nation.name}: the war economy`, 'data-nation': own.nation.key },
-    h('h3', {}, `${own.nation.name}: your war economy`),
-    h('p', { class: 'muted' }, `Counted for ${economy.day}.`),
+  const parts = [
     h('h4', {}, 'Income'),
     h('ul', { class: 'rl-eco-income' }, income.map((r) => h('li', { 'data-resource': r.key }, incomeLine(r)))),
     h('h4', {}, 'Pools'),
@@ -88,6 +91,12 @@ export function ownSheet(economy, map, { levers, act } = {}) {
         h('strong', {}, t.name),
         t.lines.map((l) => h('span', { class: 'rl-eco-why' }, ` ${l.resource}: pays ${num(l.paid)} of ${num(l.want)} printed, because ${l.why}.`)))))
       : h('p', { class: 'muted rl-eco-none' }, 'Every territory you hold pays what it prints.'),
+  ];
+  const components = folded ? h('details', { class: 'rl-eco-more' }, h('summary', {}, 'More'), parts) : parts;
+  return h('section', { class: 'rl-eco-sheet', 'aria-label': `${own.nation.name}: the war economy`, 'data-nation': own.nation.key },
+    h('h3', {}, `${own.nation.name}: your war economy`),
+    h('p', { class: 'muted' }, `Counted for ${economy.day}.`),
+    components,
     codebreakingBlock(levers, act));
 }
 

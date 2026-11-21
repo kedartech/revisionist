@@ -110,7 +110,7 @@ def reply(
     first, last = _range(state, commits, body, dropped or {})
     ledger = record.build(state, events, seat)
     fed = catchup.feed(state, events, seat, first, last)
-    played = playback.steps(fed, state, seat)
+    played = playback.steps(fed, state, seat, playback.held_orders(events, seat))
     pages: list[CatchupPage] = []
     for page in ledger.wakes:
         if not first <= page.number <= last:

@@ -11,7 +11,7 @@ aide's close; no test builds a pipeline ``Order`` by hand, and none calls a mode
 
 import json
 from datetime import timedelta
-from typing import Any
+from typing import Any, cast
 
 from revisionist.core import events as ev
 from revisionist.core.ids import QuantityId, SeatId
@@ -22,8 +22,9 @@ from revisionist.core.state import State
 from revisionist.core.visibility import private_to
 from revisionist.engine import options, wake
 from revisionist.engine import realism_tick as rt
+from revisionist.engine.pg_store import PostgresEventStore
 from revisionist.engine.store import MemoryStore, load_state
-from revisionist.engine.web import agenda_api, forecast
+from revisionist.engine.web import agenda_api, forecast, held, server
 from tests.test_engine_v2_contract import CAMPAIGN
 from tests.test_engine_v2_options import _store
 from tests.test_options_expects import _house, _move, _world
@@ -120,6 +121,36 @@ def test_an_order_filed_without_a_suggestion_has_no_forecast() -> None:
     assert _only_order(load_state(store, CAMPAIGN)).forecast is None
     _ticks(store, 3)
     assert _block(store, seat)["forecast"] == {"checked": 0, "held": 0, "orders": []}
+
+
+def test_a_pick_held_for_the_next_wake_keeps_its_forecast() -> None:
+    """A pick given after the seat committed is held, then filed from what was held: the
+    order it files carries the option's forecast."""
+    store, seat = _store(PlayStyle.BEGINNER)
+    _offered(store, seat)
+    (chosen,) = [o for o in _block(store, seat)["initiative"] if o["label"] == STATEMENT]
+    kept, label = server._held_args(
+        cast(PostgresEventStore, store),
+        load_state(store, CAMPAIGN),
+        seat,
+        "option",
+        {"pick": chosen["pick"]},
+        None,
+    )
+    assert label == STATEMENT
+    kept = json.loads(json.dumps(kept))  # stored as JSON in web_held_orders
+    assert held.file_one(store, CAMPAIGN, seat, "option", kept) is None
+    order = _only_order(load_state(store, CAMPAIGN))
+    assert order.forecast is not None and order.forecast.risks == RISKS
+    assert [m.target for m in order.forecast.expects] == [_house(load_state(store, CAMPAIGN))]
+
+
+def test_a_held_order_from_before_the_forecast_files_without_one() -> None:
+    store, seat = _store(PlayStyle.BEGINNER)
+    _offered(store, seat)
+    statement = {"ask": "Speak to the nation.", "effect": {"kind": "statement", "theme": "x"}}
+    assert held.file_one(store, CAMPAIGN, seat, "option", {"asks": [statement]}) is None
+    assert _only_order(load_state(store, CAMPAIGN)).forecast is None
 
 
 # --- rules 2 and 3: judged once settled, the record in its own block -----------------

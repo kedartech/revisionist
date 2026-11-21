@@ -451,6 +451,12 @@ def offered(store: EventStore, campaign_id: CampaignId, seat: SeatId, pick: str)
     return offer.options[n]
 
 
+def told(option: Option) -> Forecast:
+    """What the staff told the seat about ``option``: its expected moves and risks, the
+    forecast the order it files carries (FCK rule 1)."""
+    return Forecast(expects=option.expects, risks=option.risks)
+
+
 def pick_option(store: EventStore, campaign_id: CampaignId, seat: SeatId, pick: str) -> Reply:
     """File the offered option ``pick`` names with ``realism_tick.commit_order``, with
     the option's expected moves and risks as the order's forecast (FCK rule 1)."""
@@ -458,9 +464,8 @@ def pick_option(store: EventStore, campaign_id: CampaignId, seat: SeatId, pick: 
         chosen = offered(store, campaign_id, seat, pick)
     except ValueError as stale:
         return Reply(reply=str(stale), refused=True)
-    told = Forecast(expects=chosen.expects, risks=chosen.risks)
     try:
-        realism_tick.commit_order(store, campaign_id, seat, chosen.asks, told)
+        realism_tick.commit_order(store, campaign_id, seat, chosen.asks, told(chosen))
     except ValueError as refusal:
         return Reply(reply=str(refusal), refused=True)
     return Reply(reply=f"Filed: {chosen.label}.", refused=False)
@@ -585,4 +590,5 @@ __all__ = [
     "requests",
     "seat_style",
     "set_style",
+    "told",
 ]

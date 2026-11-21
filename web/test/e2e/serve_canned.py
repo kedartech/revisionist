@@ -133,4 +133,7 @@ if __name__ == "__main__":
     cli.transport_factory = Canned
     cmp.load_world = _load_world  # every caller reads it through the module (LKM)
     sys.argv = ["revisionist", "web", "serve", "--offline-prose", "--port", *sys.argv[1:2]]
-    cli.app()
+    try:
+        cli.app()
+    finally:
+        cmp.load_world = _LOAD_WORLD  # a run inside another process leaves no lock behind

@@ -16,7 +16,7 @@ export const STEP_SECONDS = 4;
 const text = (v) => (typeof v === 'string' && v.trim() ? v : null);
 
 /** The order a wake's steps play in: what moved against the seat, then its own, then the stakes. */
-export const PLAY_GROUPS = Object.freeze({ paper: 0, holder: 0, order: 1, move: 1, halt: 1, stake: 2 });
+export const PLAY_GROUPS = Object.freeze({ paper: 0, holder: 0, order: 1, move: 1, halt: 1, held: 1, stake: 2 });
 
 /** A wake's steps in play order, each group in the order the server gave; a kind not named in `PLAY_GROUPS` is not played. */
 export function playOrder(steps) {
@@ -53,6 +53,8 @@ export function stepLine(step, { map, record } = {}) {
     }
     case 'halt': return `${piece(step.piece)} held in ${area(step.area) ?? 'its area'}: the step to ${area(step.to) ?? 'the next area'} was refused (${step.reason})`;
     case 'stake': return `${step.name}: ${words(step.what)}`;
+    // one of the seat's own held orders, held or ended: the server writes the line from the seat's view
+    case 'held': return text(step.line) ?? '';
     default: return '';
   }
 }
@@ -99,13 +101,15 @@ export function wakePlayer({ pages, map, shapes, record, comeBack, reduced = fal
   const steps = [];
   let wake = null;
   for (const { page, step } of frames) {
+    const line = stepLine(step, { map, record });
+    if (step.kind === 'held' && !line) continue;
     if (page !== wake) {
       wake = page;
       items.push(h('li', { class: 'rl-plb-wake', 'data-wake': String(page.number) }, page.opened ? `Wake ${page.number}: ${page.opened}` : `Wake ${page.number}`));
     }
     const li = h('li', { class: 'rl-plb-step', 'data-kind': step.kind, 'data-wake': String(page.number) },
       h('span', { class: 'rl-plb-on' }, dayWords(step.on)),
-      h('span', { class: 'rl-plb-cap' }, stepLine(step, { map, record })));
+      h('span', { class: 'rl-plb-cap' }, line));
     items.push(li);
     steps.push({ li, step });
   }

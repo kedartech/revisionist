@@ -48,12 +48,15 @@ from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import compile_world, object_id
 from revisionist.engine import campaign as cmp
 from revisionist.engine import odds, orders_reader, realism_tick, runner, session_zero, wake
+from revisionist.engine import scheduler as sch
 from revisionist.engine.llm import Reply, Request, TransportError
+from revisionist.engine.pg_store import PostgresEventStore
 from revisionist.engine.store import EventStore, MemoryStore, load_state
 from revisionist.engine.web import agenda_api, agreements_api, battles_api, conferences_api
 from revisionist.engine.web import realism_snapshot as rs
 from revisionist.engine.web.stakes import seat_stakes
-from tests.async_table import SeatIds
+from tests.async_table import SeatIds, answer_days, digest, papers
+from tests.pg import PgDb
 
 World = dict[str, Any]
 Change = Callable[[World], None]
@@ -319,12 +322,22 @@ class Played:
 class Game:
     """One game in a memory store, played by the script through the engine."""
 
-    def __init__(self, cast: Cast, tmp: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def __init__(
+        self,
+        cast: Cast,
+        tmp: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        *,
+        store: EventStore | None = None,
+        offline: bool = False,
+    ) -> None:
         self.cast = cast
         self.tmp = tmp
+        self.offline = offline
+        """Offline, the tick asks no transport at all; otherwise every call gets ``NoModel``."""
         self.ids = SeatIds()
         self.ids.install(monkeypatch)
-        self.store: EventStore = MemoryStore()
+        self.store: EventStore = store if store is not None else MemoryStore()
         self.store.append_all(compile_world(cast.compiled(), CAMPAIGN, cmp.versions()))
         self.now = T0
         names = load_state(self.store, CAMPAIGN).entities
@@ -375,21 +388,40 @@ class Game:
         with self.ids.drawn_by(act):
             realism_tick.commit_order(self.store, CAMPAIGN, who, asks)
 
+    def commit(self, who: SeatId) -> None:
+        with self.ids.drawn_by(f"commit:{who}"):
+            assert wake.commit(self.store, CAMPAIGN, who, self.now)
+
+    def sitting(self, who: SeatId) -> None:
+        """The seat opens every paper it holds, as a browser does. Read marks are records:
+        they change nothing the world holds."""
+        held = [d for d in self.state.documents.values() if who in d.view.scope.known_by]
+        with self.ids.drawn_by(f"reads:{who}"):
+            for paper in held:
+                realism_tick.mark_read(self.store, CAMPAIGN, who, paper.view.doc_id)
+
     def close(self, present: tuple[SeatId, ...]) -> None:
         state = self.state
         if state.wake is not None and not state.wake.closed:
             self.now = state.wake.deadline
             for who in present:
-                with self.ids.drawn_by(f"commit:{who}"):
-                    wake.commit(self.store, CAMPAIGN, who, self.now)
+                self.commit(who)
         self._tick()
         self.played.wakes += 1
+
+    def deadline(self) -> None:
+        """The tick at the open wake's deadline: it closes, the aide plays every seat that
+        has not committed, and the next wake opens."""
+        state = self.state
+        assert state.wake is not None and not state.wake.closed
+        self.now = state.wake.deadline
+        self._tick()
 
     def _tick(self) -> None:
         runner.play_tick(
             self.store,
             CAMPAIGN,
-            offline=False,
+            offline=self.offline,
             transport_factory=NoModel,
             briefings=self.tmp / "briefings",
             warn=lambda _m: None,
@@ -726,6 +758,229 @@ def test_no_model_is_reached_beyond_the_prose_and_the_offers(games: dict[str, Ga
     the script's own canned reader, and the statement named a theme, so no group call."""
     assert games
     assert set(ASKED) <= {"prose", "options"}, ASKED
+
+
+# --- Rule 3: invariants 2, 3 and 4 on Salt Strait --------------------------------------
+# The 1941 slice's versions are ``tests/test_async_invariants.py``; these play the same
+# checks on the Salt Strait cast, through the same ``Game`` and ``tests/async_table.py``'s
+# digest and paper helpers.
+
+Step = Callable[[Game, int], None]
+"""One act in a wake's script, given the wake number."""
+
+INVARIANT_WAKES = 3
+
+
+def attacker_files(g: Game, n: int) -> None:
+    """Wake 0 the war, wake 1 the march, wake 2 the balloons to cover: each a form."""
+    c = g.cast
+    form = (c.war, c.march, c.cover)[n]
+    assert form is not None
+    g.form(g.attacker, form, f"attacker:{n}")
+
+
+def defender_files(g: Game, n: int) -> None:
+    """Wake 0 the balloon, wake 1 the levy's standing order, wake 2 the galleys' patrol."""
+    c = g.cast
+    if n == 0:
+        g.form(g.defender, c.recon, "defender:0")
+    elif n == 1:
+        body = {"force": c.defender_force, "kind": "withdraw_below", "below": 3}
+        g.contingency(g.defender, body, "defender:1")
+    else:
+        patrol = ("galley_patrol", {"intel": "patrol", "piece": "varda_galleys"})
+        g.form(g.defender, patrol, "defender:2")
+
+
+def commits(who: Callable[[Game], SeatId]) -> Step:
+    return lambda g, n: g.commit(who(g))
+
+
+def files(who: Callable[[Game], SeatId]) -> Step:
+    return lambda g, n: (attacker_files if who(g) == g.attacker else defender_files)(g, n)
+
+
+def attacker(g: Game) -> SeatId:
+    return g.attacker
+
+
+def defender(g: Game) -> SeatId:
+    return g.defender
+
+
+def quiet(who: Callable[[Game], SeatId]) -> Step:
+    """Present and quiet: reads every paper, files nothing, commits."""
+
+    def step(g: Game, n: int) -> None:
+        g.sitting(who(g))
+        g.commit(who(g))
+
+    return step
+
+
+def run_wakes(g: Game, script: list[Step], wakes: int = INVARIANT_WAKES) -> Game:
+    """The first tick, then each wake: the script's acts in order, then the deadline."""
+    g._tick()
+    for n in range(wakes):
+        current = g.state.wake
+        assert current is not None and current.number == n
+        for step in script:
+            step(g, n)
+        g.deadline()
+    return g
+
+
+def test_2_on_salt_strait_away_looks_like_present_and_quiet(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The attacker files the same three wakes with the defender away, then present and
+    quiet: the attacker's papers match in shape and his answers in day."""
+    seen: dict[str, tuple[Any, Any]] = {}
+    for defender_is in ("away", "present"):
+        with monkeypatch.context() as m:
+            g = Game(SALT_STRAIT, tmp_path / defender_is, m)
+            script: list[Step] = [files(attacker), commits(attacker)]
+            if defender_is == "present":
+                script.append(quiet(defender))
+            run_wakes(g, script)
+            state = g.state
+            aide = (g.defender,) if defender_is == "away" else ()
+            assert [c.timed_out for c in g.logged(ev.WakeClosed)] == [aide] * INVARIANT_WAKES
+            seen[defender_is] = (papers(state, g.attacker), answer_days(state, g.attacker))
+    away, present = seen["away"], seen["present"]
+    assert away[0], "the attacker holds papers"
+    assert away[0] == present[0], "the attacker's papers differ in shape"
+    assert away[1] == present[1], "the attacker's answer days differ"
+
+
+def attacker_in_sittings(sittings: int) -> Step:
+    """The attacker reads his papers at each of ``sittings`` sittings and files his form
+    at the fourth; the defender files and commits between them."""
+
+    def wake(g: Game, n: int) -> None:
+        for s in range(sittings):
+            g.sitting(g.attacker)
+            if s == 3:
+                attacker_files(g, n)
+            if s == 1:
+                defender_files(g, n)
+            if s == sittings - 2:
+                g.commit(g.defender)
+        g.commit(g.attacker)
+
+    return wake
+
+
+ATTACKER_FIRST: list[Step] = [
+    files(attacker),
+    commits(attacker),
+    files(defender),
+    commits(defender),
+]
+DEFENDER_FIRST: list[Step] = [
+    files(defender),
+    commits(defender),
+    files(attacker),
+    commits(attacker),
+]
+
+
+def alternating(g: Game, n: int) -> None:
+    for step in DEFENDER_FIRST if n % 2 else ATTACKER_FIRST:
+        step(g, n)
+
+
+def held_back(g: Game, n: int) -> None:
+    """The control: the attacker leaves out his last wake's form."""
+    if n < INVARIANT_WAKES - 1:
+        attacker_files(g, n)
+    g.commit(g.attacker)
+    defender_files(g, n)
+    g.commit(g.defender)
+
+
+PRESENCE: dict[str, list[Step]] = {
+    "attacker commits first": ATTACKER_FIRST,
+    "defender commits first": DEFENDER_FIRST,
+    "the order alternates": [alternating],
+    "attacker in ten sittings": [attacker_in_sittings(10)],
+}
+
+
+def test_3_on_salt_strait_presence_buys_nothing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Three wakes with the commit order permuted, and with one seat filing over ten
+    sittings: the same outcome digest. The control files one form fewer and differs, so
+    the digest can tell."""
+    digests: dict[str, str] = {}
+    filed: dict[str, int] = {}
+    for name, script in {**PRESENCE, "control": [held_back]}.items():
+        with monkeypatch.context() as m:
+            g = run_wakes(Game(SALT_STRAIT, tmp_path / name.replace(" ", "-"), m), script)
+            state = g.state
+            filed[name] = len([o for o in state.orders.values() if o.issuer == g.attacker])
+            assert [c.timed_out for c in g.logged(ev.WakeClosed)] == [()] * INVARIANT_WAKES
+            digests[name] = digest(state)
+    first = digests["attacker commits first"]
+    assert digests.pop("control") != first
+    assert {name: d for name, d in digests.items() if d != first} == {}
+    assert filed == {name: 2 if name == "control" else 3 for name in filed}
+
+
+def test_4_on_salt_strait_the_wake_closes_with_nobody_there(
+    pg_db: PgDb, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A deadline close through the scheduler with no client; the next wake opens and
+    its offers land for both seats."""
+    store = PostgresEventStore(pg_db.app_dsn)
+    try:
+        g = Game(SALT_STRAIT, tmp_path, monkeypatch, store=store, offline=True)
+        g._tick()
+        opened = g.state.wake
+        assert opened is not None and opened.number == 0
+        seats = {g.defender, g.attacker}
+        assert {p.seat_id for p in g.logged(ev.OptionsOffered) if p.wake == 0} == seats
+
+        def scheduler_at(minutes: int) -> list[sch.Action]:
+            at = opened.deadline + timedelta(minutes=minutes)
+            outcomes = sch.run(
+                store,
+                lambda: at,
+                offline=True,
+                transport_factory=cmp.live_transport,
+                briefings=tmp_path,
+                warn=lambda _m: None,
+                campaign=CAMPAIGN,
+            )
+            return [o.action for o in outcomes]
+
+        assert scheduler_at(-1) == [sch.Action.WAITING]
+        assert g.state.wake == opened, "nothing closes before the deadline"
+        assert scheduler_at(0) == [sch.Action.TICKED]
+        (closed,) = g.logged(ev.WakeClosed)
+        assert closed.wake == 0 and set(closed.timed_out) == seats
+        after = g.state.wake
+        assert after is not None and after.number == 1 and not after.closed
+        assert {p.seat_id for p in g.logged(ev.OptionsOffered) if p.wake == 1} == seats
+    finally:
+        store.close()
+
+
+def test_4_on_salt_strait_the_offers_land_with_nobody_there(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """As above in memory, for seats as they are claimed, no style chosen: the deadline
+    tick closes the wake with both seats played by the aide and the next offers land."""
+    g = Game(SALT_STRAIT, tmp_path, monkeypatch, offline=True)
+    g._tick()
+    g.deadline()
+    (closed,) = g.logged(ev.WakeClosed)
+    assert set(closed.timed_out) == {g.defender, g.attacker}
+    assert {p.seat_id for p in g.logged(ev.OptionsOffered) if p.wake == 1} == {
+        g.defender,
+        g.attacker,
+    }
 
 
 # --- Rule 4: the guard's allow-list -----------------------------------------------------

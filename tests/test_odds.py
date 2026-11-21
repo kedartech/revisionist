@@ -460,10 +460,33 @@ def test_an_ended_battle_gives_the_odds_as_they_truly_stood_beside_the_seats_own
     assert e.closing is not None
     truly, own = e.closing["truly"], e.closing["seen"]
     assert truly["known"] is True
-    assert [s["strength"] for s in truly["by_strength"]] == [4]  # the levy's true strength
     assert truly["reports"] == []
     assert own["known"] is False  # Norra had no report of the coast that day
     assert set(e.closing) == set(api.ClosingOdds.__annotations__)
+    assert set(truly) == set(api.OddsOutcome.__annotations__)
+
+
+def keys_in(value: Any) -> set[str]:
+    """Every key of every mapping inside ``value``."""
+    if isinstance(value, dict):
+        return set(value) | {k for v in value.values() for k in keys_in(v)}
+    if isinstance(value, list):
+        return {k for v in value for k in keys_in(v)}
+    return set()
+
+
+def test_the_closing_truth_names_no_enemy_strength_and_keeps_its_shares(tmp_path: Path) -> None:
+    """The truth half gives how the first day truly stood as shares, never the enemy's
+    exact strength: the round reports give the enemy's losses exactly, so a true total
+    would tell the seat what is left of the enemy."""
+    g = fought_out(tmp_path)
+    (mine,) = odds.ended(Service(), g.state, ILSE, g.log)
+    (theirs,) = odds.ended(Service(), g.state, TOMAS, g.log)
+    assert mine.closing is not None and theirs.closing is not None
+    for closing in (mine.closing, theirs.closing):
+        assert not any("strength" in k for k in keys_in(closing["truly"]))
+    assert mine.closing["truly"]["shares"] == {"win": 91.7, "stalemate": 0.0, "loss": 8.3}
+    assert theirs.closing["truly"]["shares"] == {"win": 10.0, "stalemate": 0.0, "loss": 90.0}
 
 
 def test_each_side_gets_its_own_closing_odds(tmp_path: Path) -> None:
@@ -471,7 +494,6 @@ def test_each_side_gets_its_own_closing_odds(tmp_path: Path) -> None:
     (mine,) = odds.ended(Service(), g.state, ILSE, g.log)
     (theirs,) = odds.ended(Service(), g.state, TOMAS, g.log)
     assert mine.closing is not None and theirs.closing is not None
-    assert [s["strength"] for s in theirs.closing["truly"]["by_strength"]] == [5]
     win, loss = mine.closing["truly"]["shares"], theirs.closing["truly"]["shares"]
     assert win is not None and loss is not None
     assert abs(win["win"] - loss["loss"]) < 10  # the same truth from either side, own seeds
@@ -487,6 +509,10 @@ def test_the_seats_own_picture_ignores_the_truth_while_the_truth_moves(tmp_path:
     assert w.closing is not None and s.closing is not None
     assert text(w.closing["seen"]) == text(s.closing["seen"])
     assert text(w.closing["truly"]) != text(s.closing["truly"])
+    a, b = dict(w.closing["truly"]), dict(s.closing["truly"])
+    moved = {k for k in a if a[k] != b[k]}
+    assert "shares" in moved
+    assert moved <= {"shares", "own_lost", "enemy_lost", "taken", "taken_days", "forced_back"}
 
 
 def test_no_closing_odds_before_the_battle_ends(tmp_path: Path) -> None:
@@ -495,6 +521,15 @@ def test_no_closing_odds_before_the_battle_ends(tmp_path: Path) -> None:
     assert odds.ended(Service(), g.state, ILSE, g.log) == []
     (b,) = rs.seat_realism(at_wake(g, 1), ILSE, set(), set(), None)["battles"]
     assert b["ended"] is None and b["closing"] is None
+
+
+def test_no_closing_odds_with_battles_off_or_in_a_stored_game(tmp_path: Path) -> None:
+    """A stored game's rules are empty, so battles are off there as in a game without them."""
+    g = fought_out(tmp_path)
+    off = g.state.model_copy(update={"rules": g.state.rules - {Rule.BATTLES}})
+    stored = g.state.model_copy(update={"rules": g.state.rules - g.state.rules})
+    assert odds.ended(Service(), off, ILSE, g.log) == []
+    assert odds.ended(Service(), stored, ILSE, g.log) == []
 
 
 def test_a_battle_the_seats_nation_did_not_fight_has_no_closing_odds(tmp_path: Path) -> None:

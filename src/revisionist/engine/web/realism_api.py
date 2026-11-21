@@ -1100,10 +1100,10 @@ class OddsAtStrength(TypedDict):
     """The win share, in percent, of the runs that drew that strength; None: none did."""
 
 
-class OddsReply(TypedDict):
-    """The ``odds`` action's spread (ODS), simulated from the seat's own picture: its own
-    pieces exactly, the enemy only as its reports put it. Never one figure. With no report
-    of the enemy there, ``known`` is false and only the terrain facts are given."""
+class OddsOutcome(TypedDict):
+    """How a battle comes out over the runs: the shares, the loss ranges, the taking and
+    the falling back, with no enemy strength in it. The truth half of an ended battle's
+    closing odds is this alone."""
 
     known: bool
     area: str
@@ -1122,16 +1122,25 @@ class OddsReply(TypedDict):
     """The chance, in percent, that the seat's side breaks and is forced back."""
     back_to: str | None
     """The area key the seat's piece would be forced back to; None: nowhere."""
-    by_strength: list[OddsAtStrength]
     reports: list[str]
     """The keys of the reports the enemy was read from."""
 
 
+class OddsReply(OddsOutcome):
+    """The ``odds`` action's spread (ODS), simulated from the seat's own picture: its own
+    pieces exactly, the enemy only as its reports put it. Never one figure. With no report
+    of the enemy there, ``known`` is false and only the terrain facts are given."""
+
+    by_strength: list[OddsAtStrength]
+
+
 class ClosingOdds(TypedDict):
     """An ended battle's odds on its first day (ODS rule 7): as they truly stood, with
-    both sides exactly, beside what the seat's own picture said that day."""
+    both sides exactly, beside what the seat's own picture said that day. The truth
+    half gives no win share by enemy strength: each row would name the enemy's exact
+    total, and the round reports give its losses exactly."""
 
-    truly: OddsReply
+    truly: OddsOutcome
     seen: OddsReply
 
 
@@ -1766,6 +1775,7 @@ __all__ = [
     "MarkArea",
     "NationStanding",
     "OddsAtStrength",
+    "OddsOutcome",
     "OddsReply",
     "OddsShares",
     "OddsTerrain",

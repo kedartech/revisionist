@@ -4154,12 +4154,6 @@
           "taken_days": 4,
           "forced_back": 8.3,
           "back_to": "norra_hills",
-          "by_strength": [
-            {
-              "strength": 4,
-              "win": 91.7
-            }
-          ],
           "reports": []
         }
       }

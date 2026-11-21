@@ -19,6 +19,7 @@ import { HOME_TITLE, homeSheet, speakNote, themeRead, withHome } from './realism
 import { needsAnswer } from './realism-answer.js';
 import { DIPLOMACY_TITLE, diplomacySheet, freshDiplomacy, hasDiplomacy } from './realism-diplomacy.js';
 import { areaCentre, matterOf, needLines, needsBar, needsList } from './realism-needs.js';
+import { ASK_TITLE, askOf, askSheet, formCheck, heldLines } from './realism-locks.js';
 import { chatDock, seenStore, settleMarks, threadCounts, unread } from './realism-chat.js';
 import { contactsTab } from './realism-contacts.js';
 import { characterDossier, settingDossier } from './realism-dossier.js';
@@ -639,6 +640,7 @@ export function realismRoom(ctx) {
         withCostStrips(standardForms(rv.desk, {
           onSubmit: (v) => act('Sending it…', 'lever', v),
           entities: entityChoices(rv.desk),
+          check: sendCheck(), onAsk: fileAndAsk,
         }), rv.desk?.levers, rv.court),
         hasDiplomacy(rv) ? h('section', { class: 'rl-dp-desk', 'aria-labelledby': 'rl-dp-desk-h' },
           h('h2', { id: 'rl-dp-desk-h' }, DIPLOMACY_TITLE), diplomacy()) : null,
@@ -1088,6 +1090,14 @@ export function realismRoom(ctx) {
       root.querySelector('.rl-over-title')?.focus();
       return;
     }
+    if (action.to === 'ask-for') return askFor(action.id);
+    if (action.to === 'ask') {
+      ui.ask = action.id;
+      openSheet(ui, 'ask', { need: line.key });
+      rerender();
+      root.querySelector('.rl-over-title')?.focus();
+      return;
+    }
     if (action.to === 'matter') ui.matter = action.id;
     openSheet(ui, action.to === 'matter' ? 'matter' : action.sheet, { need: line.key });
     rerender();
@@ -1108,6 +1118,48 @@ export function realismRoom(ctx) {
     markFiled(root, v.lever);
     return act('Sending it…', 'lever', v, then);
   }
+
+  /**
+   * A form's check before it is sent (LKM), with `locks` on; null with it off. The last reply on
+   * the status line goes as the check starts, so it is never read as this form's answer.
+   */
+  const sendCheck = () => {
+    const check = formCheck(rv);
+    return check && ((v) => {
+      ui.said = null;
+      ui.error = null;
+      showStatus();
+      return check(v);
+    });
+  };
+
+  /** Ask for the seat's held order `id` (LKM): the server files the ask and says so. */
+  const askFor = (id) => act('Asking…', 'ask', { order_id: id });
+
+  /**
+   * File a locked order to be held, then ask for it (LKM): the order the server newly holds is the
+   * one held line in the re-read room that was not there before; if the server held none (the seat
+   * is done for today, or it went out after all), its own reply stands and nothing is asked.
+   */
+  function fileAndAsk(v, then) {
+    ui.sheetForms = forgetForm(ui.sheetForms, v.lever);
+    markFiled(root, v.lever);
+    const before = new Set(heldLines(rv).map((l) => l.id));
+    return work('Filing it and asking…', async () => {
+      const r = await api.realism('lever', v);
+      ui.said = r.reply || null;
+      then?.(r);
+      if (r.refused) return;
+      const now = (await api.me())?.game?.view?.realism;
+      const fresh = heldLines(now).filter((l) => !before.has(l.id) && !l.asked);
+      if (fresh.length !== 1) return;
+      const asked = await api.realism('ask', { order_id: fresh[0].id });
+      ui.said = [r.reply, asked.reply].filter(Boolean).join(' ') || null;
+    });
+  }
+
+  /** The board's calls: a form is filed through the sheet's bookkeeping, a locked one filed and asked for. */
+  const boardAct = (m, a, b, t) => (a === 'lever' ? fileLever(b, t) : a === 'lever-ask' ? fileAndAsk(b, t) : act(m, a, b, t));
 
   /** A pick in the map-first room: a force opens its sheet, the map's switches redraw it, a person stays on the Court. */
   function pickOnMap(p) {
@@ -1180,7 +1232,7 @@ export function realismRoom(ctx) {
       return panel;
     }
     if (name === 'forms') {
-      const forms = standardForms(rv.desk, { onSubmit: fileLever, entities: entityChoices(rv.desk) });
+      const forms = standardForms(rv.desk, { onSubmit: fileLever, entities: entityChoices(rv.desk), check: sendCheck(), onAsk: fileAndAsk });
       if (forms) forms.open = true;
       return [writeBlock(), withCostStrips(forms, rv.desk?.levers, rv.court), stylePicker(rv.style, { act })];
     }
@@ -1190,6 +1242,7 @@ export function realismRoom(ctx) {
       panel?.removeAttribute('aria-labelledby');
       return panel;
     }
+    if (name === 'ask') return askSheet(rv, ui.ask, { onFile: fileLever });
     if (name === 'home') return rv.home ? homeSheet(rv.home, homeOpts()) : null;
     if (name === 'diplomacy') return hasDiplomacy(rv) ? diplomacy() : null;
     if (name === 'court') return courtBoard(rv, ui, { pick, act });
@@ -1210,7 +1263,7 @@ export function realismRoom(ctx) {
 
   /** A picked force's sheet: what it is and where, then the forms that move it, each with its cost strip. */
   function pieceBody(forms) {
-    const panel = piecePanel(rv, ui.piece, open, { pick, act: (m, a, b, t) => (a === 'lever' ? fileLever(b, t) : act(m, a, b, t)), theatre: ui.theatre ?? {} });
+    const panel = piecePanel(rv, ui.piece, open, { pick, act: boardAct, theatre: ui.theatre ?? {} });
     panel.querySelector('.rl-sheet-close')?.remove();
     panel.querySelector('h2')?.remove();
     panel.removeAttribute('aria-labelledby');
@@ -1226,7 +1279,7 @@ export function realismRoom(ctx) {
 
   /** The map-first room: the header, the sheet tabs, the map filling the rest, and the open sheet over it. */
   function mapFirstRoom(top) {
-    const map = theatreBoard(rv, ui, { pick, act: (m, a, b, t) => (a === 'lever' ? fileLever(b, t) : act(m, a, b, t)), open });
+    const map = theatreBoard(rv, ui, { pick, act: boardAct, open });
     const forms = map.querySelector('.rl-theatre-forms');
     forms?.remove();
     let name = openSheetOf(ui);
@@ -1238,13 +1291,17 @@ export function realismRoom(ctx) {
       closeSheet(ui);
       name = null;
     }
+    if (name === 'ask' && !askOf(rv, ui.ask)) { // the ask is settled
+      closeSheet(ui);
+      name = null;
+    }
     if (name === 'battle' && !battleAt(rv, ui.battle)) { // the battle is over
       closeSheet(ui);
       name = null;
     }
     const piece = name === 'piece' ? ui.piece.name : null;
     const title = piece ?? (name === 'home' ? HOME_TITLE : name === 'diplomacy' ? DIPLOMACY_TITLE : name === 'matter' ? matterOf(rv, ui.matter).title
-      : name === 'battle' ? battleTitle(battleAt(rv, ui.battle), rv.clock?.world_date) : undefined);
+      : name === 'ask' ? ASK_TITLE : name === 'battle' ? battleTitle(battleAt(rv, ui.battle), rv.clock?.world_date) : undefined);
     // the list is its own sheet on a phone, and a rail beside the map from 1024 px
     const sheet = name && name !== 'needs'
       ? overSheet({ name, title, piece, body: piece ? pieceBody(forms) : sheetBody(name), onClose: closeOver })
@@ -1297,7 +1354,7 @@ export function realismRoom(ctx) {
       viewSwitch(ui, pick),
       ...(ui.view === 'board' ? [
         newsBlock(whatChanged(rv.documents), (id) => readPress({ id })),
-        boardView(rv, ui, { pick, act, write: writeBlock(), open }),
+        boardView(rv, ui, { pick, act: (m, a, b, t) => (a === 'lever-ask' ? fileAndAsk(b, t) : act(m, a, b, t)), write: writeBlock(), open }),
       ] : [
         summaryTiles(rv, pick),
         newsBlock(whatChanged(rv.documents), (id) => readPress({ id })),

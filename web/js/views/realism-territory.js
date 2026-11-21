@@ -16,6 +16,7 @@ import { capitalGlyph, forceGlyph, pipGlyph, stanceClass, warGlyph, whatWord } f
 import { reportMarks, reportSheet, reportTables, reportsOf, ringsAndThreats, threatsSwitch, tokenMark } from './realism-reports.js';
 import { battleLayer, battleTable } from './realism-battle.js';
 import { bandOf } from './realism-home.js';
+import { lockMark, lockWords } from './realism-locks.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
 
@@ -403,17 +404,19 @@ function targetsLayer(targets, at, onTarget, nav) {
   return targets.map((t, i) => {
     const [x, y] = at([t.place.lon, t.place.lat]);
     const pick = () => onTarget?.(t.value);
-    const said = [t.days, t.liftWords ?? t.lift].filter(Boolean);
+    const said = [t.days, t.liftWords ?? t.lift, t.lock ? lockWords({ who: t.lock }) : null].filter(Boolean);
     const words = t.words ?? `Send to ${t.place.name}${said.length ? `: ${said.join('. ')}` : ''}`;
     const keys = nav ? arrows((dir) => nav.step(i, dir)) : {};
     // Escape on keyup, as the fan's: the keyup of the same press then lands here, not on the piece
     const back = nav ? { onkeyup: (e) => { if (e.key === 'Escape') { e.preventDefault(); nav.back(); } } } : {};
     return atPx({
-      class: `rl-map-target${t.refused ? ' refused' : ''}${t.chosen ? ' chosen' : ''}`, 'data-place': t.place.name, 'data-area': t.area ?? null,
+      class: `rl-map-target${t.refused ? ' refused' : ''}${t.chosen ? ' chosen' : ''}${t.lock ? ' locked' : ''}`, 'data-place': t.place.name, 'data-area': t.area ?? null,
       'aria-label': words, 'aria-pressed': String(t.chosen), 'aria-disabled': t.refused ? 'true' : null, ...activate(pick, keys), ...back,
     }, x, y,
     svg('circle', { r: MIN_TAP_PX / 2, class: 'rl-target-ring' }),
     [t.days, t.lift].filter(Boolean).map((line, i) => svg('text', { x: MIN_TAP_PX / 2 + 2, y: 4 + i * LABEL_PX * 1.2, 'font-size': LABEL_PX, class: 'rl-target-note' }, line)),
+    // a move the server's check locks: the padlock, and who can allow it as text (LKM)
+    t.lock ? lockMark(t.lock, -LABEL_PX * 0.4, -(MIN_TAP_PX / 2 + LABEL_PX * 0.6), LABEL_PX) : null,
     svg('title', {}, words));
   });
 }

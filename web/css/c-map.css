@@ -169,3 +169,27 @@
 .rl-pup-ghosts { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px dashed var(--rule); border-radius: var(--radius); }
 .rl-pup-ghosts ul { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
 .rl-pup-ghosts li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+/* locks (LKM): the padlock with who can allow it, on a lit move, in the piece sheet, a form and the needs list */
+.rl-map-target.locked .rl-target-ring { fill: var(--warn-soft); fill-opacity: 0.6; stroke: var(--warn); stroke-dasharray: 4 2; }
+.rl-tm-lock { pointer-events: none; }
+.rl-lock-glyph .rl-lock-body { fill: var(--warn); stroke: var(--surface); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.rl-lock-glyph .rl-lock-shackle { fill: none; stroke: var(--warn); stroke-width: 1.6px; }
+.rl-lock-note { fill: var(--warn); font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.rl-lock { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--warn); font-weight: 600; overflow-wrap: anywhere; }
+.rl-lock-icon { flex: none; }
+.rl-lock-choice { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--warn); border-radius: var(--radius); background: var(--warn-soft); }
+.rl-lock-choice p { margin: 0 0 var(--space-2); }
+.rl-lock-acts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.rl-lock-acts button { min-height: 44px; }
+.rl-piece-moves h3 { margin: var(--space-3) 0 var(--space-2); font: 600 15px/1.35 var(--font-chrome); }
+.rl-piece-moves ul { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
+.rl-piece-moves li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.rl-move-ok { color: var(--fg-muted); }
+.rl-need-lock { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: var(--space-1) 0; }
+.rl-need-status { color: var(--fg-muted); }
+.rl-need-status.asked { color: var(--fg-strong); }
+.rl-ask p { margin: 0 0 var(--space-2); }
+.rl-ask-words { font-weight: 600; overflow-wrap: anywhere; }
+.rl-ask-forms { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
+.rl-ask-forms li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.rl-ask-file { min-height: 44px; }

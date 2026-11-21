@@ -3,6 +3,7 @@
 
 import { h } from '../dom.js';
 import { instrument } from './realism.js';
+import { isLocked, lockedChoice } from './realism-locks.js';
 import { tag } from './ui-kit.js';
 
 /** The summary line: "Standard forms (n)". */
@@ -201,12 +202,31 @@ function strengthStepper(item, param) {
 }
 
 /**
+ * A form's send that runs the server's check first (LKM): allowed, beyond or no answer, it is
+ * sent as before; locked, the form shows the lock and two choices, File it to be held (`send`)
+ * and Ask (`ask`), and nothing is sent until one is pressed.
+ */
+function checkedSend(itemOf, check, send, ask) {
+  return (v) => Promise.resolve(check(v)).catch(() => null).then((c) => {
+    const item = itemOf();
+    item.querySelector('.rl-lock-choice')?.remove();
+    if (!isLocked(c)) return send(v);
+    const done = (fn) => () => { item.querySelector('.rl-lock-choice')?.remove(); fn?.(v); };
+    const choice = lockedChoice(c, { file: done(send), ask: done(ask) });
+    (item.querySelector('form') ?? item).append(choice);
+    choice.querySelector('.rl-lock-file')?.focus?.();
+    return null;
+  });
+}
+
+/**
  * `instrument(lever, ...)`, with the force select's detachments grouped under their fleets,
  * a place picker for each param that carries places, and a stepper for a strength.
  * `opts.force`: the force choice the form starts on, so the picker shows its days and reach.
  * `opts.onPlaces`: told the place picker's state (`placePicker`).
  */
-export function standardForm(lever, { force: chosen = null, onPlaces = null, ...opts } = {}) {
+export function standardForm(lever, { force: chosen = null, onPlaces = null, check = null, onAsk = null, ...opts } = {}) {
+  if (check && opts.onSubmit) opts.onSubmit = checkedSend(() => item, check, opts.onSubmit, onAsk);
   const item = instrument(lever, opts);
   const force = lever.params.find((p) => p.name === FORCE);
   const forceLabel = force?.label ?? 'the force';
@@ -224,12 +244,12 @@ export function standardForm(lever, { force: chosen = null, onPlaces = null, ...
  * carries places drawn as a place picker, then the line "For anything a form does not
  * cover, write the order in your own words.". No levers: null.
  */
-export function standardForms(desk, { onSubmit, entities }) {
+export function standardForms(desk, { onSubmit, entities, check = null, onAsk = null }) {
   const levers = desk.levers ?? [];
   if (!levers.length) return null;
   return h('details', { class: 'rl-forms' },
     h('summary', {}, formsSummary(levers)),
     h('ul', { class: 'rl-instruments', role: 'list' },
-      levers.map((lever) => standardForm(lever, { onSubmit, entities }))),
+      levers.map((lever) => standardForm(lever, { onSubmit, entities, check, onAsk }))),
     h('p', { class: 'rl-forms-note' }, 'For anything a form does not cover, write the order in your own words.'));
 }

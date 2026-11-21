@@ -35,6 +35,7 @@ const MORE = [
 /** The seat with every offered place on its map; `edit(places)` changes the form's places. */
 function seat(edit = () => {}) {
   const rv = structuredClone(fixture);
+  delete rv.locks; // a game with locks off: a form is sent with no check (g20-locks.test.js)
   rv.map.places = [...rv.map.places, ...MORE];
   const lever = rv.desk.levers.find((l) => l.name === 'move_fleet');
   edit(lever.params.find((p) => p.places?.length).places);

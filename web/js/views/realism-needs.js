@@ -10,6 +10,7 @@ import { worldDate } from '../rules.js';
 import { boxOf, holderRelation, territoryProjection } from '../realism-rules.js';
 import { DONE_HINT, dayKey, dayWords, itemHeading } from './realism-wake.js';
 import { floorMeasures } from './realism-home.js';
+import { askLines, heldLines, lockTag } from './realism-locks.js';
 
 /** The list's heading and its empty line [proposed]. */
 export const NEEDS_TITLE = 'What needs you';
@@ -25,7 +26,9 @@ export const NO_DAY = 'No set day';
  * days (ISO or in words) or null; `at: 'close'` words the due day as the wake's close; `paper` is
  * the id of the paper the matter came on; `action` is `{ word, to, ... }`, where `to` is
  * 'matter' (with the agenda item's `id`), 'sheet' (with its `sheet`), 'map' (with its `area`),
- * 'battle' (with the battle's `area`) or 'commit'. Kinds are listed in registry order where due day and arrival tie.
+ * 'battle' (with the battle's `area`), 'ask' (an ask put before the seat, with its `id`), 'ask-for'
+ * (the seat's held order to ask for, with its `id`) or 'commit'; a line with nothing to press has
+ * `action: null`. A held order's line also has `lock` (who can allow it) and `status`. Kinds are listed in registry order where due day and arrival tie.
  */
 const KINDS = new Map();
 
@@ -93,6 +96,19 @@ addNeedKind('battle', (rv) => (rv.battles ?? []).filter((b) => (b.decisions ?? [
 addNeedKind('floor', (rv) => floorMeasures(rv.home).map((m) => ({
   key: m.key, label: 'Your measure', what: m.what, from: 'the floor at home', due: null, arrived: null,
   action: { word: 'Show the floor', to: 'sheet', sheet: 'home' },
+})));
+
+// the seat's own held order (LKM): asked or not asked; one not yet asked offers Ask
+addNeedKind('held', (rv) => heldLines(rv).map((l) => ({
+  key: l.id, label: 'Held order', what: l.words, lock: l.who, status: l.asked ? 'Asked' : 'Not asked',
+  from: `Your own order, held ${worldDate(l.held)}`, due: null, arrived: l.held || null,
+  action: l.asked ? null : { word: 'Ask', to: 'ask-for', id: l.id },
+})));
+
+// an ask put before the seat (LKM): opened on the order's words and the seat's own forms that would allow it
+addNeedKind('ask', (rv) => askLines(rv).map((a) => ({
+  key: a.id, label: 'Asks your leave', what: a.words, from: a.by, due: null, arrived: a.asked || null,
+  action: { word: 'Open', to: 'ask', id: a.id },
 })));
 
 /** The papers that only acknowledge an order, and the papers an order's receipt names. */
@@ -182,11 +198,12 @@ export function needsList(rv, lines, { open = false, onAction, onDone, onClose }
       h('span', { class: 'rl-need-kind' }, line.label),
       h('span', { class: 'rl-need-due' }, dueWords(line))),
     h('p', { class: 'rl-need-what' }, line.what),
+    line.lock ? h('p', { class: 'rl-need-lock' }, lockTag(line.lock), line.status ? h('span', { class: `rl-need-status${line.status === 'Asked' ? ' asked' : ''}` }, line.status) : null) : null,
     h('p', { class: 'rl-need-from' }, `From ${line.from}`),
-    h('button', {
+    line.action ? h('button', {
       type: 'button', class: 'rl-btn rl-need-act', 'data-need': line.key, 'aria-label': `${line.action.word}: ${line.what}`,
       onclick: () => onAction?.(line),
-    }, line.action.word))))
+    }, line.action.word) : null)))
     : h('p', { class: 'rl-needs-none' }, NEEDS_NONE),
   h('div', { class: 'rl-needs-done' },
     h('p', { class: 'hint' }, `Press Done for today when you have answered what you want to. ${DONE_HINT}`),

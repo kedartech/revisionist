@@ -14,9 +14,13 @@ import json
 import os
 import re
 import sys
+from pathlib import Path
 from typing import Any
 
 from revisionist import cli
+from revisionist.core.state import Rule
+from revisionist.core.world import LockDecl, WorldFile
+from revisionist.engine import campaign as cmp
 from revisionist.engine.llm import Reply, Request
 from revisionist.engine.web import map_api
 
@@ -93,9 +97,43 @@ class Canned:
 CANNED_MARK_SECRET = "c4" * 32
 """A fixed, public secret for throwaway smoke databases only; never a deployment's."""
 
+CANNED_LOCK = {
+    "key": "canned_reykjavik",
+    "order": {"form": "detach_fleet", "params": {"to": "reykjavik"}},
+    "decider": {"person": "knox"},
+}
+"""One lock the browser smoke walks (LKM): a detachment sent to Reykjavik waits on the
+Secretary of the Navy. The smoke's own row, in the smoke's games only; the world file is
+not changed."""
+
+
+def _locked(world: WorldFile) -> WorldFile:
+    """The world with ``locks`` on and the smoke's one row, where the world has the form the
+    row names and no locks of its own; any other world as it is."""
+    forms = {lv.name for c in world.cards for lv in c.levers}
+    if world.locks or Rule.LOCKS in world.rules or CANNED_LOCK["order"]["form"] not in forms:
+        return world
+    return world.model_copy(
+        update={
+            "rules": tuple(sorted({*world.rules, Rule.LOCKS})),
+            "locks": (LockDecl.model_validate(CANNED_LOCK),),
+        }
+    )
+
+
+def _load_world(path: Path) -> WorldFile:
+    return _locked(_LOAD_WORLD(path))
+
+
+_LOAD_WORLD = cmp.load_world
+
 
 if __name__ == "__main__":
     os.environ.setdefault(map_api.MARK_SECRET_ENV, CANNED_MARK_SECRET)
     cli.transport_factory = Canned
+    cmp.load_world = _load_world  # every caller reads it through the module (LKM)
     sys.argv = ["revisionist", "web", "serve", "--offline-prose", "--port", *sys.argv[1:2]]
-    cli.app()
+    try:
+        cli.app()
+    finally:
+        cmp.load_world = _LOAD_WORLD  # a run inside another process leaves no lock behind

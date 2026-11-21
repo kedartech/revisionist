@@ -67,6 +67,7 @@ function seat({ committed = 1, you = false } = {}) {
   const rv = structuredClone(fixture);
   rv.battles = [];
   delete rv.home;
+  delete rv.locks; // a game with locks off: its held orders and asks are g20-locks.test.js's
   rv.agenda = { ...rv.agenda, items: [...rv.agenda.items, structuredClone(REQUEST), structuredClone(DECISION)] };
   rv.map = board();
   rv.clock = { ...rv.clock, world_date: TODAY };

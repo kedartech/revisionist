@@ -15,13 +15,16 @@ model call.
 from collections.abc import Sequence
 
 from revisionist.core import events as ev
-from revisionist.core.ids import CampaignId, EntityId, OrderId, SeatId, derived_id
+from revisionist.core.ids import CampaignId, EntityId, FeatureId, OrderId, SeatId, derived_id
 from revisionist.core.project import project
-from revisionist.core.realism import locks
+from revisionist.core.realism import locks, territory
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import words
+from revisionist.core.realism.resolvers.movement import FORCE
 from revisionist.core.state import State, View
+from revisionist.core.world_compile import object_id
 from revisionist.engine import orders_reader, realism_tick
+from revisionist.engine.web import map_api
 from revisionist.engine.web.realism_api import (
     AskForm,
     AskLine,
@@ -70,6 +73,7 @@ def block(state: State, seat: SeatId) -> LocksBlock | None:
             reason=h.reason,
             held=h.filed.isoformat(),
             asked=h.order_id in view.asked,
+            piece=_piece(state, view, h),
         )
         for h in sorted(view.held.values(), key=lambda h: (h.filed, h.order_id))
     ]
@@ -85,6 +89,20 @@ def block(state: State, seat: SeatId) -> LocksBlock | None:
         if a.seat == seat
     ]
     return LocksBlock(held=held, asks=asks)
+
+
+def _piece(state: State, view: View, held: locks.HeldOrder) -> str | None:
+    """The map key of the force a held form order moves, as ``realism_snapshot`` keys
+    the seat's own piece; None for a written order or a form naming no force."""
+    force = held.form.params.get(FORCE) if held.form is not None else None
+    if not isinstance(force, str):
+        return None
+    feature = state.features.get(FeatureId(object_id(state.campaign_id, "feature", force)))
+    if feature is None:
+        return None
+    polity = territory.nation(state, view.me.embodies) or view.me.embodies
+    raw = territory.mark_key(state, polity, feature)
+    return map_api.mark_key(state.campaign_id, map_api.viewing_nation(view), raw)
 
 
 def _forms(state: State, view: View, asked: locks.Asked) -> list[AskForm]:

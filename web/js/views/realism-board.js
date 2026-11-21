@@ -9,7 +9,9 @@ import { aimsBlock, certaintyWord, markWhatWord, sideLine, sightedLine, whereLin
 import { courtBoard } from './realism-court.js';
 import { contingencyPicker } from './realism-battle.js';
 import { concealSwitch } from './realism-reports.js';
-import { theatreBoard } from './realism-theatre.js';
+import { moveOrder, pieceMoves, theatreBoard } from './realism-theatre.js';
+import { daysLabel } from './realism-forms.js';
+import { heldOn, heldStatus, isLocked, lockCheck, lockTag, locksOn } from './realism-locks.js';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
   'September', 'October', 'November', 'December'];
@@ -106,8 +108,48 @@ export function piecePanel(rv, piece, open, { board = 'theatre', card = null, pi
     mark.document
       ? h('button', { type: 'button', class: 'rl-btn', onclick: () => open?.({ id: mark.document }) }, 'Open the page')
       : null,
+    pieceHeld(rv, mark),
+    pieceLocks(rv, mark),
     concealSwitch(rv.desk?.levers, mark, act),
     contingencyPicker(rv, mark, { act, pick, theatre }));
+}
+
+/**
+ * With `locks` on, the seat's held orders on this piece, as the server names their piece (LKM):
+ * each order's words, who can allow it, and asked or not asked. Null when none is held.
+ */
+function pieceHeld(rv, mark) {
+  const held = locksOn(rv) ? heldOn(rv, mark) : [];
+  if (!held.length) return null;
+  return h('section', { class: 'rl-piece-held' },
+    h('h3', {}, held.length === 1 ? 'A held order' : 'Held orders'),
+    h('ul', { role: 'list' }, held.map((l) => h('li', { 'data-held': l.id },
+      h('span', { class: 'rl-held-words' }, l.words), ' ', lockTag(l.who), ' ',
+      h('span', { class: 'rl-held-status' }, heldStatus(l))))));
+}
+
+/**
+ * With `locks` on, the piece's moves on the territory map that the server's check locks, each
+ * marked with who can allow it (LKM); the map draws them beside the allowed ones. Redrawn in place
+ * as the checks come in; empty while none is locked, so the sheet is no taller. Null with `locks`
+ * off, or when no form moves the piece.
+ */
+function pieceLocks(rv, mark) {
+  if (!locksOn(rv)) return null;
+  const p = pieceMoves(rv, mark);
+  if (!p?.moves.length) return null;
+  const box = h('section', { class: 'rl-piece-moves', 'aria-live': 'polite' });
+  const show = () => {
+    const locked = p.moves.map((mv) => [mv, lockCheck(rv, moveOrder(p, mv))]).filter(([, c]) => isLocked(c));
+    box.replaceChildren(...(locked.length ? [
+      h('h3', {}, locked.length === 1 ? 'A locked move' : 'Locked moves'),
+      h('ul', { role: 'list' }, locked.map(([mv, c]) => h('li', { 'data-area': mv.area.key },
+        h('span', { class: 'rl-move-to' }, `${mv.area.name}, ${daysLabel(mv.days)}`), ' ', lockTag(c.who)))),
+    ] : []));
+  };
+  for (const mv of p.moves) lockCheck(rv, moveOrder(p, mv), (changed) => { if (changed) show(); });
+  show();
+  return box;
 }
 
 /**

@@ -17,6 +17,7 @@ import { battleMarksOf, battlePickOrder, battleSheet, battleTargets } from './re
 import { oddsAsker } from './realism-odds.js';
 import { intelTokens, tokenBar, tokenChip, tokenOrder, tokenTargets } from './realism-reports.js';
 import { territoryDrawing, territoryView } from './realism-territory.js';
+import { formCheck, heldOn, isLocked, keptCheck, lockCheck, lockedChoice, locksOn } from './realism-locks.js';
 import { diplomacyKey } from './realism-diplomacy.js';
 
 const LAND_URL = '/assets/land-110m.json';
@@ -98,6 +99,7 @@ function movingForms(rv, piece, act, onPlaces) {
   const items = forms.map(({ lever, force }, n) => {
     const item = standardForm(lever, {
       force, onSubmit: (v) => act?.('Sending it…', 'lever', v), entities: [], onPlaces: (s) => onPlaces(n, s),
+      check: formCheck(rv), onAsk: (v) => act?.(ASKING, 'lever-ask', v),
     });
     item.querySelector('.rl-instrument-head [aria-expanded="false"]')?.click();
     return item;
@@ -132,10 +134,21 @@ function litPlaces(map, s, from) {
 
 // --- pick up and put down: a piece, a lit area, the chip -------------------------------
 
+/** The busy line while a locked order is filed and asked for. */
+const ASKING = 'Filing it and asking…';
+
+/** The order a picked piece's move files: the form, the force and the move's destination. */
+export const moveOrder = (p, mv) => ({ lever: p.lever.name, params: { force: p.force, to: mv.to.value } });
+
 /** The seat's own piece picked on a territory map, with the form that moves it; null when none. */
 function pickedPiece(rv, ui) {
   if (ui.piece?.kind !== 'force') return null;
-  const mark = (rv.map.marks ?? []).find((m) => m.name === ui.piece.name);
+  return pieceMoves(rv, (rv.map?.marks ?? []).find((m) => m.name === ui.piece.name));
+}
+
+/** Mark `mark`'s moves on a territory map, with the form that moves it: `{ mark, lever, force, moves }`, or null. */
+export function pieceMoves(rv, mark) {
+  if (!mark || !Array.isArray(rv.map?.areas) || !rv.map.areas.length) return null;
   const form = pieceForm(rv.desk?.levers, mark);
   if (!form || !mark.piece?.moves?.length) return null;
   // a form may offer places: each lights the area it lies in for this force, and files the place
@@ -144,14 +157,15 @@ function pickedPiece(rv, ui) {
   return { mark, ...form, moves };
 }
 
-/** The lit areas of picked piece `p`, at their label points in `shapes`. */
-function pieceTargets(p, shapes, goal) {
+/** The lit areas of picked piece `p`, at their label points in `shapes`; a move the server's check locks carries who can allow it. */
+function pieceTargets(rv, p, shapes, goal) {
   return p.moves.filter((mv) => shapes.areas?.[mv.area.key]).map((mv) => {
     const [lon, lat] = shapes.areas[mv.area.key].label;
+    const c = keptCheck(rv, moveOrder(p, mv));
     return {
       place: { name: mv.area.name, lon, lat }, value: mv.area.key, area: mv.area.key,
       days: daysLabel(mv.days), lift: mv.lift ? 'Needs lift' : null, liftWords: mv.lift ? liftWords(mv.lift) : null,
-      chosen: goal === mv.area.key,
+      chosen: goal === mv.area.key, lock: isLocked(c) ? c.who : null,
     };
   });
 }
@@ -196,12 +210,14 @@ function thereBlock(p, enemies) {
  * carrier and their load, the lift; a reported enemy there beside the seat's own piece. Send it
  * files the order; Odds opens the odds panel, which files nothing; Back (or Escape) closes it.
  */
-function confirmChip(rv, p, mv, shapes, { send, back }) {
+function confirmChip(rv, p, mv, shapes, { send, ask, back }) {
   const path = rv.court?.paths?.find((c) => c.id === p.lever.pipeline) ?? null;
   const due = arrival(rv.clock.world_date, path?.steps ?? null, mv.days);
   const esc = { onkeyup: (e) => { if (e.key === 'Escape') { e.preventDefault(); back(); } } };
   // the odds of this move from the seat's own picture (ODC): asking and closing file nothing
   const odds = oddsAsker(rv, { force: p.force, to: mv.area.key }, { what: () => `${p.mark.name} into ${mv.area.name}` });
+  const c = keptCheck(rv, moveOrder(p, mv));
+  const locked = isLocked(c) ? c : null;
   return h('section', { class: 'rl-pup-chip', role: 'group', 'aria-label': `Send ${p.mark.name} to ${mv.area.name}` },
     h('h3', { class: 'rl-pup-h' }, `Send ${p.mark.name} to ${mv.area.name}`),
     h('p', { class: 'rl-pup-days' }, `${daysLabel(mv.days)} on the move: ${mv.path.map((a, i) => `${a.name}, ${daysLabel(mv.step_days[i])}`).join('; ')}`),
@@ -210,8 +226,10 @@ function confirmChip(rv, p, mv, shapes, { send, back }) {
     carrierLines(path, rv.court).map((line) => h('p', { class: 'rl-pup-carrier' }, line)),
     h('p', { class: 'rl-pup-lift' }, mv.lift ? liftWords(mv.lift) : 'No lift needed'),
     thereBlock(p, reportedEnemies(rv.map, shapes, mv.area.key, standings(rv))),
+    // a move the server's check locks: file it to be held, or ask, in place of Send it (LKM)
+    locked ? lockedChoice(locked, { file: send, ask, esc }) : null,
     h('div', { class: 'rl-pup-acts' },
-      h('button', { type: 'button', class: 'primary', onclick: send, ...esc }, 'Send it'),
+      locked ? null : h('button', { type: 'button', class: 'primary', onclick: send, ...esc }, 'Send it'),
       odds.button,
       h('button', { type: 'button', onclick: back, ...esc }, 'Back')),
     odds.box);
@@ -291,6 +309,7 @@ export function theatreBoard(rv, ui, { pick, act, open } = {}) {
     openCapital: capitalOpener(rv.people),
     standings: rv.home?.standings ?? null, // a held territory's sheet shows its holder's band at home
     diplomacy: () => diplomacyKey(rv), // the Diplomatic layer's key, drawn under the map on that layer
+    held: locksOn(rv) ? (m) => heldOn(rv, m) : null, // the seat's held orders on each of its pieces, as the server names them (LKM)
     onTarget: (value) => (battlePick ? putBattle(value) : token ? putDown(value) : piece ? choose(value) : states.get(active)?.choose(value)),
     onMode: (mode) => pick?.({ theatre: { ...theatre, mode } }),
     onScope: (scope) => pick?.({ theatre: { ...theatre, scope } }),
@@ -351,14 +370,29 @@ export function theatreBoard(rv, ui, { pick, act, open } = {}) {
       return;
     }
     const mv = move();
+    const sent = (r) => { if (!r?.refused) { goal = null; if (ui.theatre) ui.theatre.goal = null; } };
     chipBox.replaceChildren(mv && shapes ? confirmChip(rv, piece, mv, shapes, {
-      send: () => act?.('Sending it…', 'lever', { lever: piece.lever.name, params: { force: piece.force, to: mv.to.value } },
-        (r) => { if (!r?.refused) { goal = null; if (ui.theatre) ui.theatre.goal = null; } }),
+      send: () => act?.('Sending it…', 'lever', moveOrder(piece, mv), sent),
+      ask: () => act?.(ASKING, 'lever-ask', moveOrder(piece, mv), sent),
       back: () => setGoal(null, mv.area.key),
     }) : '');
   };
-  const choose = (key) => { if (piece?.moves.some((mv) => mv.area.key === key)) setGoal(key, 'chip'); };
-  const targets = () => (battlePick ? battleLit() : token ? tokenLit() : piece && shapesFor(map.file) ? pieceTargets(piece, shapesFor(map.file), goal) : lit());
+  // the server's check of each lit move, asked once for this data; choosing a move asks again
+  // a lit move's lock is drawn when its answer differs from what is shown; the chip is rebuilt
+  // with focus kept on its first button when focus was in it
+  const rechip = () => {
+    const inChip = Boolean(document.activeElement?.closest?.('.rl-pup-chip'));
+    showChip();
+    if (inChip) (chipBox.querySelector('.rl-lock-file') ?? chipBox.querySelector('button.primary') ?? chipBox.querySelector('button'))?.focus();
+  };
+  const checked = (changed) => { if (changed && view.isConnected) { redraw(); rechip(); } };
+  const choose = (key) => {
+    const mv = piece?.moves.find((m) => m.area.key === key);
+    if (!mv) return;
+    lockCheck(rv, moveOrder(piece, mv), (changed) => { if (changed && view.isConnected && goal === key) { redraw(); rechip(); } }, { fresh: true });
+    setGoal(key, 'chip');
+  };
+  const targets = () => (battlePick ? battleLit() : token ? tokenLit() : piece && shapesFor(map.file) ? pieceTargets(rv, piece, shapesFor(map.file), goal) : lit());
   // the stack fanned out, by its area: the view's own, redrawn in place, focus kept on the stack
   let fanned = theatre.fanned ?? null;
   let fanFocus = null;
@@ -396,14 +430,18 @@ export function theatreBoard(rv, ui, { pick, act, open } = {}) {
   const fig0 = view.querySelector('figure.rl-map-figure');
   if (fig0) fig0.after(...below);
   else view.append(...below);
+  if (piece && locksOn(rv)) for (const mv of piece.moves) lockCheck(rv, moveOrder(piece, mv), checked);
   showChip();
   redraw = () => {
     const fig = view.querySelector('figure.rl-map-figure');
     if (!fig) return;
     const was = document.activeElement;
-    const focused = was?.closest?.('figure.rl-map-figure') === fig ? was.getAttribute('data-place') : null;
+    const inFig = was?.closest?.('figure.rl-map-figure') === fig;
+    const focused = inFig ? was.getAttribute('data-place') : null;
+    const mark = inFig && !focused ? was.getAttribute('data-key') : null; // a picked piece keeps focus over a lock's redraw
     fig.replaceChildren(drawing());
     if (focused) Array.from(fig.querySelectorAll('.rl-map-target')).find((t) => t.getAttribute('data-place') === focused)?.focus();
+    else if (mark) Array.from(fig.querySelectorAll('[data-key]')).find((t) => t.getAttribute('data-key') === mark && t.getAttribute('aria-pressed') !== null)?.focus();
     if (fanFocus !== null) {
       const here = Array.from(fig.querySelectorAll('[data-stack]')).filter((g) => g.getAttribute('data-stack') === fanFocus);
       (fanned === fanFocus ? here.find((g) => g.classList.contains('rl-tm-mark')) : here.find((g) => g.classList.contains('rl-tm-stack')))?.focus();

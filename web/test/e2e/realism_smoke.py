@@ -246,9 +246,11 @@ def main() -> int:
         try:
             if PHONE:
                 phone_board(page, report)
+                locked_order(page, report)
             else:
                 keyboard_move(page, report)
                 withdraw_move(page, report)
+                locked_order(page, report)
                 page.get_by_role("group", name="View").get_by_role("button", name="Desk").click()
                 page.locator("main.rl-room").wait_for(timeout=10_000)
                 header_and_menu(page, report, host)
@@ -417,6 +419,179 @@ def withdraw_move(page: Page, report: dict[str, object]) -> None:
         len([p for p in problems if p.startswith("pageerror")]) == errors,
     )
     shoot(page, "00b2-withdrawn")
+
+
+LOCK_WHO = "Frank Knox"
+"""Who can allow the canned server's one lock: a detachment sent to Reykjavik (serve_canned.py)."""
+
+
+def view_button(page: Page, word: str) -> Locator:
+    """The room's Board or Desk switch: the View group, or on a phone the room's panel tabs."""
+    if PHONE:
+        return page.get_by_role("navigation", name="Room panels").get_by_role("button", name=word)
+    return page.get_by_role("group", name="View").get_by_role("button", name=word)
+
+
+def set_layout(page: Page, word: str) -> None:
+    """Choose the room layout from the game menu ("Map first" or "Today's room")."""
+    page.get_by_role("button", name="Game").click()
+    menu = page.locator("dialog.rl-menu")
+    menu.wait_for(timeout=10_000)
+    menu.get_by_role("group", name="Room layout").get_by_role("button", name=word).click()
+    page.wait_for_timeout(300)
+    if menu.count() and menu.first.is_visible():
+        page.keyboard.press("Escape")
+    page.wait_for_timeout(200)
+
+
+def locked_order(page: Page, report: dict[str, object]) -> None:
+    """One locked order (LKM), on a game with the canned server's lock: on the Desk, the
+    fleet's detach form sent to Reykjavik is checked and shows the lock with who can allow it
+    and two choices; Ask files it to be held and asks; the held order is then in what needs
+    you, marked asked. Back on the Board after."""
+    errors = len([p for p in problems if p.startswith("pageerror")])
+    view_button(page, "Desk").click()
+    page.locator("details.rl-forms").first.wait_for(timeout=10_000)
+    forms = page.locator("details.rl-forms").first
+    if forms.get_attribute("open") is None:
+        forms.locator("summary").click()
+    item = forms.locator(".rl-instrument[data-lever=detach_fleet]")
+    if item.count() == 0:
+        check("the desk offers the detach form", False)
+        return
+    item = item.first
+    item.scroll_into_view_if_needed()
+    item.get_by_role("button", name="Draft").click()
+    form = item.locator("form.rl-form")
+    form.wait_for(timeout=10_000)
+    form.locator("select[name=force]").select_option("us_atlantic_fleet")
+    place = form.locator("input[type=radio][value=reykjavik]")
+    if place.count():
+        place.first.evaluate("(e) => e.click()")  # the picker's radio may sit under its label
+    else:
+        form.locator("select[name=to]").select_option("reykjavik")
+    strength = form.locator("input[name=strength]")
+    if strength.count():
+        strength.fill("1")
+    form.get_by_role("button", name="Sign and send").click()
+    choice = item.locator(".rl-lock-choice")
+    try:
+        choice.wait_for(timeout=15_000)
+    except PlaywrightTimeout:
+        report["lock_status"] = page.locator(".rl-status").inner_text()
+        check("a locked order shows the lock before it is sent", False, str(report["lock_status"]))
+        return
+    report["lock_choice"] = choice.inner_text()
+    check(
+        "a locked order shows the padlock and who can allow it",
+        choice.locator(".rl-lock .rl-lock-icon").count() == 1
+        and choice.locator(".rl-lock-who").inner_text().strip() == LOCK_WHO,
+        str(report["lock_choice"]),
+    )
+    acts = [b.strip() for b in choice.locator(".rl-lock-acts button").all_inner_texts()]
+    check(
+        "a locked order offers file it to be held, and ask",
+        acts == ["File it to be held", f"Ask {LOCK_WHO}"],
+        str(acts),
+    )
+    item.screenshot(path=str(OUT / f"00d-lock-choice-{SIZE[0]}x{SIZE[1]}.png"))
+    choice.get_by_role("button", name=f"Ask {LOCK_WHO}").click()
+    page.locator(".rl-status.said").filter(has_text=f"Asked {LOCK_WHO}").wait_for(timeout=30_000)
+    report["lock_status"] = page.locator(".rl-status").inner_text()
+    check("the locked order is filed to be held and asked for", True)
+    set_layout(page, "Map first")
+    if PHONE:
+        page.locator(".rl-needs-btn").click()
+    needs = page.locator("#rl-needs")
+    needs.wait_for(timeout=10_000)
+    line = needs.locator("li.rl-need[data-kind=held]")
+    report["lock_needs_line"] = line.first.inner_text() if line.count() else ""
+    check(
+        "the held order is in what needs you, marked asked, with who can allow it",
+        line.count() == 1
+        and line.first.locator(".rl-need-status").inner_text().strip() == "Asked"
+        and line.first.locator(".rl-lock-who").inner_text().strip() == LOCK_WHO
+        and line.first.locator("button").count() == 0,
+        str(report["lock_needs_line"]),
+    )
+    if line.count():
+        line.first.scroll_into_view_if_needed()
+    width = page.evaluate("document.documentElement.scrollWidth")
+    check("the needs list with a held order fits the viewport", width <= SIZE[0], str(width))
+    page.screenshot(path=str(OUT / f"00e-lock-needs-{SIZE[0]}x{SIZE[1]}.png"))
+    if PHONE:
+        page.keyboard.press("Escape")
+    set_layout(page, "Today's room")
+    view_button(page, "Board").click()
+    page.locator("main.rl-board").wait_for(timeout=10_000)
+    held_on_piece(page, report)
+    check(
+        "the locked order raises no page error",
+        len([p for p in problems if p.startswith("pageerror")]) == errors,
+    )
+
+
+LOCK_PIECE = "Atlantic Fleet"
+"""The piece the canned lock's held order moves: the fleet the detach form names."""
+
+
+def held_on_piece(page: Page, report: dict[str, object]) -> None:
+    """The held order on its piece (LKM): on a territory map the fleet's marker (or the
+    closed stack it is in) carries the padlock and says it in its label; on any map the
+    fleet's sheet lists the held order with who can allow it, marked asked."""
+    page.locator("figure.rl-map-figure").first.wait_for(timeout=10_000)
+    seen = page.evaluate(
+        """(name) => {
+      const label = (el) => el.getAttribute('aria-label') || '';
+      const on = [...document.querySelectorAll('.rl-tm-mark, .rl-tm-stack')]
+        .map(label).filter((l) => l.includes(name) && /held order/i.test(l));
+      return { territory: !!document.querySelector('svg.rl-tm-svg'), on,
+        glyphs: document.querySelectorAll('.rl-tm-held .rl-lock-glyph').length };
+    }""",
+        LOCK_PIECE,
+    )
+    report["lock_on_map"] = seen
+    if seen["territory"]:
+        check(
+            "the held order shows on its piece on the map, with the padlock",
+            seen["glyphs"] >= 1 and len(seen["on"]) >= 1,
+            str(seen),
+        )
+    pick = """(name) => {
+      const label = (el) => el.getAttribute('aria-label') || '';
+      const stack = [...document.querySelectorAll('.rl-tm-stack')]
+        .find((s) => label(s).includes(name));
+      const mark = [...document.querySelectorAll('.rl-mk')].find((m) => label(m).includes(name)
+        && m.getAttribute('aria-pressed') !== null);
+      const hit = mark ?? stack;
+      hit?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      return hit ? (mark ? 'mark' : 'stack') : null;
+    }"""
+    first = page.evaluate(pick, LOCK_PIECE)
+    if first == "stack":
+        page.wait_for_timeout(300)
+        first = page.evaluate(pick, LOCK_PIECE)
+    sheet = page.locator(".rl-piece-held")
+    try:
+        sheet.first.wait_for(timeout=10_000)
+    except PlaywrightTimeout:
+        check("the held order shows in its piece's sheet", False, str(first))
+        return
+    report["lock_piece_sheet"] = sheet.first.inner_text()
+    row = sheet.first.locator("li")
+    check(
+        "the held order shows in its piece's sheet, with who can allow it, marked asked",
+        row.count() == 1
+        and row.first.locator(".rl-lock-who").inner_text().strip() == LOCK_WHO
+        and row.first.locator(".rl-held-status").inner_text().strip() == "Asked",
+        str(report["lock_piece_sheet"]),
+    )
+    sheet.first.scroll_into_view_if_needed()
+    page.screenshot(path=str(OUT / f"00f-lock-piece-{SIZE[0]}x{SIZE[1]}.png"))
+    close = page.locator(".rl-sheet-close")
+    if close.count() and close.first.is_visible():
+        close.first.click()
+        page.wait_for_timeout(200)
 
 
 def phone_board(page: Page, report: dict[str, object]) -> None:

@@ -59,6 +59,7 @@ function seat(change = () => {}) {
     clock: { ...fixture.clock, world_date: TODAY },
     orders: { orders: [] },
   };
+  delete rv.locks; // a game with locks off: no move is checked (g20-locks.test.js)
   change(rv);
   return rv;
 }

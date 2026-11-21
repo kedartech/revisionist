@@ -109,10 +109,23 @@ def test_the_seat_data_carries_its_held_orders(tmp_path: Path) -> None:
         reason=HELD_FOR_ILSE,
         held=DAY.isoformat(),
         asked=True,
+        piece=by_id[order.order_id]["piece"],
     )
     assert by_id[shot.order_id]["asked"] is False
     assert by_id[shot.order_id]["words"] == "as written"
     assert shown["asks"] == []
+
+
+def test_a_held_move_names_the_piece_it_moves_by_its_map_key(tmp_path: Path) -> None:
+    store = played(tmp_path)
+    order = file(store, "isle")
+    shot = commit(store, KARA, gulf_fire())
+    assert isinstance(shot, locks.HeldOrder)
+    shown = realism(store, KARA)
+    pieces = {m["name"]: m["piece"]["key"] for m in shown["map"]["marks"] if m["piece"]}
+    by_id = {h["id"]: h for h in shown["locks"]["held"]}
+    assert by_id[order.order_id]["piece"] == pieces["The Norra Levy"]
+    assert by_id[shot.order_id]["piece"] is None
 
 
 def test_a_body_is_named_as_the_seat_is_told(tmp_path: Path) -> None:

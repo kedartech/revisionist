@@ -1497,6 +1497,61 @@
         "title": "Ask",
         "type": "object"
       },
+      "Asked": {
+        "additionalProperties": false,
+        "description": "A held order asked for, once, by its own seat (ASK): who asked, the person the ask\nwent to and the seat that holds that person, if any, and the order's plain words. It\ndecides nothing and opens nothing. The person asked learns only this.",
+        "properties": {
+          "asker": {
+            "title": "Asker",
+            "type": "string"
+          },
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seat"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          },
+          "words": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Words",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "asker",
+          "by",
+          "to",
+          "words",
+          "on"
+        ],
+        "title": "Asked",
+        "type": "object"
+      },
       "Asset": {
         "additionalProperties": false,
         "properties": {
@@ -4431,7 +4486,7 @@
       },
       "Decider": {
         "additionalProperties": false,
-        "description": "Who can allow a held order: a person, or a nation's chamber or chambers.",
+        "description": "Who can allow a held order: a person, or a nation's chamber or chambers, with the\nhead of that nation's government, to whom an ask goes (ASK).",
         "properties": {
           "chambers": {
             "default": [],
@@ -4441,6 +4496,18 @@
             },
             "title": "Chambers",
             "type": "array"
+          },
+          "head": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Head"
           },
           "nation": {
             "anyOf": [
@@ -9133,6 +9200,26 @@
           "filed"
         ],
         "title": "Order",
+        "type": "object"
+      },
+      "OrderAsked": {
+        "additionalProperties": false,
+        "description": "A seat asks, once, for its held order (ASK): one paper before the seat holding the\nperson who decides it, or the card when no seat does. Sealed to the asker and that\nseat. It decides nothing and opens nothing.",
+        "properties": {
+          "asked": {
+            "$ref": "#/$defs/Asked"
+          },
+          "kind": {
+            "const": "order_asked",
+            "default": "order_asked",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "asked"
+        ],
+        "title": "OrderAsked",
         "type": "object"
       },
       "OrderDrafted": {
@@ -14203,6 +14290,7 @@
             "operation_resolved": "#/$defs/OperationResolved",
             "opponents_ranked": "#/$defs/OpponentsRanked",
             "options_offered": "#/$defs/OptionsOffered",
+            "order_asked": "#/$defs/OrderAsked",
             "order_drafted": "#/$defs/OrderDrafted",
             "order_executed": "#/$defs/OrderExecuted",
             "order_held": "#/$defs/OrderHeld",
@@ -14446,6 +14534,9 @@
           },
           {
             "$ref": "#/$defs/HeldOrderEnded"
+          },
+          {
+            "$ref": "#/$defs/OrderAsked"
           },
           {
             "$ref": "#/$defs/PieceStepped"
@@ -15912,6 +16003,61 @@
           "ask"
         ],
         "title": "Ask",
+        "type": "object"
+      },
+      "Asked": {
+        "additionalProperties": false,
+        "description": "A held order asked for, once, by its own seat (ASK): who asked, the person the ask\nwent to and the seat that holds that person, if any, and the order's plain words. It\ndecides nothing and opens nothing. The person asked learns only this.",
+        "properties": {
+          "asker": {
+            "title": "Asker",
+            "type": "string"
+          },
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seat"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          },
+          "words": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Words",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "asker",
+          "by",
+          "to",
+          "words",
+          "on"
+        ],
+        "title": "Asked",
         "type": "object"
       },
       "Asset": {
@@ -17394,7 +17540,7 @@
       },
       "Decider": {
         "additionalProperties": false,
-        "description": "Who can allow a held order: a person, or a nation's chamber or chambers.",
+        "description": "Who can allow a held order: a person, or a nation's chamber or chambers, with the\nhead of that nation's government, to whom an ask goes (ASK).",
         "properties": {
           "chambers": {
             "default": [],
@@ -17404,6 +17550,18 @@
             },
             "title": "Chambers",
             "type": "array"
+          },
+          "head": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Head"
           },
           "nation": {
             "anyOf": [
@@ -24000,6 +24158,13 @@
         "title": "Answers",
         "type": "object"
       },
+      "asked": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Asked"
+        },
+        "title": "Asked",
+        "type": "object"
+      },
       "assets": {
         "additionalProperties": {
           "$ref": "#/$defs/Asset"
@@ -25158,6 +25323,61 @@
           "ask"
         ],
         "title": "Ask",
+        "type": "object"
+      },
+      "Asked": {
+        "additionalProperties": false,
+        "description": "A held order asked for, once, by its own seat (ASK): who asked, the person the ask\nwent to and the seat that holds that person, if any, and the order's plain words. It\ndecides nothing and opens nothing. The person asked learns only this.",
+        "properties": {
+          "asker": {
+            "title": "Asker",
+            "type": "string"
+          },
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seat"
+          },
+          "to": {
+            "title": "To",
+            "type": "string"
+          },
+          "words": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Words",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "asker",
+          "by",
+          "to",
+          "words",
+          "on"
+        ],
+        "title": "Asked",
         "type": "object"
       },
       "Asset": {
@@ -26423,7 +26643,7 @@
       },
       "Decider": {
         "additionalProperties": false,
-        "description": "Who can allow a held order: a person, or a nation's chamber or chambers.",
+        "description": "Who can allow a held order: a person, or a nation's chamber or chambers, with the\nhead of that nation's government, to whom an ask goes (ASK).",
         "properties": {
           "chambers": {
             "default": [],
@@ -26433,6 +26653,18 @@
             },
             "title": "Chambers",
             "type": "array"
+          },
+          "head": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Head"
           },
           "nation": {
             "anyOf": [
@@ -31600,6 +31832,13 @@
     "properties": {
       "agreements": {
         "$ref": "#/$defs/Agreements"
+      },
+      "asked": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Asked"
+        },
+        "title": "Asked",
+        "type": "object"
       },
       "assets": {
         "additionalProperties": {

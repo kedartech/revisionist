@@ -18,7 +18,7 @@ CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted, EconomySet, Yi
 TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDeclared,
 ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
-VoteSealed, ConferenceTallied, LocksDeclared, OrderHeld, HeldOrderEnded``, and
+VoteSealed, ConferenceTallied, LocksDeclared, OrderHeld, HeldOrderEnded, OrderAsked``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -97,7 +97,7 @@ from revisionist.core.realism.groups import Cause as GroupCause
 from revisionist.core.realism.groups import NationGroups, Proposal
 from revisionist.core.realism.holders import Capture
 from revisionist.core.realism.kinds import PieceKind, Resource
-from revisionist.core.realism.locks import HeldEnd, HeldOrder, LockRow
+from revisionist.core.realism.locks import Asked, HeldEnd, HeldOrder, LockRow
 from revisionist.core.realism.pipeline import (
     Order,
     OrderStatus,
@@ -722,6 +722,15 @@ class HeldOrderEnded(Model):
         if bool(self.reason) != (self.end is HeldEnd.FAILED):
             raise ValueError("a failure, and only a failure, carries its reason")
         return self
+
+
+class OrderAsked(Model):
+    """A seat asks, once, for its held order (ASK): one paper before the seat holding the
+    person who decides it, or the card when no seat does. Sealed to the asker and that
+    seat. It decides nothing and opens nothing."""
+
+    kind: Literal["order_asked"] = "order_asked"
+    asked: Asked
 
 
 class PieceStepped(Model):
@@ -1428,6 +1437,7 @@ Payload = Annotated[
     | LocksDeclared
     | OrderHeld
     | HeldOrderEnded
+    | OrderAsked
     | PieceStepped
     | AreaHeld
     | CaptureCounted
@@ -1531,6 +1541,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "locks_declared",
         "order_held",
         "held_order_ended",
+        "order_asked",
         "area_held",
         "capture_counted",
         "economy_set",

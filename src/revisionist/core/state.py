@@ -70,7 +70,7 @@ from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.groups import Groups
 from revisionist.core.realism.holders import Capture, Holding
 from revisionist.core.realism.kinds import Kinds
-from revisionist.core.realism.locks import HeldOrder, LockRow
+from revisionist.core.realism.locks import Asked, HeldOrder, LockRow
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
@@ -252,6 +252,9 @@ class State(_World):
     held: dict[OrderId, HeldOrder] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """With ``locks`` on, every order a lock holds and that has not ended, form or written
     (``order_held``, until ``held_order_ended``). Each seat sees its own (LCK)."""
+    asked: dict[OrderId, Asked] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """Each held order its seat has asked for, by its id, until it ends (ASK). The asker
+    and the seat asked see it."""
     styles: dict[SeatId, PlayStyle] = Field(default_factory=dict)
     """Each seat's play style. Private to the seat; absent means free."""
     standing: dict[SeatId, frozenset[EffectKind]] = Field(default_factory=dict)
@@ -306,6 +309,7 @@ class State(_World):
     limits (IOR). Engine only: how a seat is run is never shown."""
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "held",
+        "asked",
         "rules",
         "intelligence",
         "reports",
@@ -358,6 +362,8 @@ class View(_World):
     """The viewer's own engine-v2 orders, without the estimator's effects."""
     held: dict[OrderId, HeldOrder] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """The viewer's own held orders only (LCK)."""
+    asked: dict[OrderId, Asked] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """The asks the viewer made, and those put before the viewer's seat (ASK)."""
     style: PlayStyle | None = None
     """The viewer's own play style. None: free."""
     reports: dict[Label, Report] = Field(default_factory=dict)
@@ -366,6 +372,7 @@ class View(_World):
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "held",
+        "asked",
         "routed",
         "style",
         "reports",

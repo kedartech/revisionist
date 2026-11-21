@@ -699,11 +699,13 @@ class LockWhenDecl(Model):
 
 class LockDeciderDecl(Model):
     """Who can allow a held order (DCD): ``person`` a person key, or a body: ``nation`` a
-    polity key and ``chambers`` the keys of its chambers that pass the law."""
+    polity key, ``chambers`` the keys of its chambers that pass the law, and ``head`` the
+    person key of the head of its government, to whom an ask goes (ASK)."""
 
     person: Key | None = None
     nation: Key | None = None
     chambers: tuple[Label, ...] = ()
+    head: Key | None = None
 
 
 class LockDecl(Model):

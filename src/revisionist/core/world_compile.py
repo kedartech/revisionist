@@ -1731,7 +1731,8 @@ def _check_locks(world: WorldFile, sections: Mapping[str, str], problems: list[s
     """Each lock (DCD): its key once; a form that some card carries, with parameter values
     the form takes, or an effect kind with a zone (an area or place) or a force that
     exists; a condition naming a law clause some declared law carries, or a posture whose
-    zone and form exist; a decider that is a person, or a nation's chambers that exist,
+    zone and form exist; a decider that is a person, or a nation's chambers that exist
+    with the person at the head of its government (ASK),
     and never the person whose own card carries the form. With the rule off they are
     checked and left out of the game."""
     levers = {(c.person, lv.name): lv for c in world.cards for lv in c.levers}
@@ -1759,6 +1760,7 @@ def _check_locks(world: WorldFile, sections: Mapping[str, str], problems: list[s
                 person=None if d.person is None else EntityId(d.person),
                 nation=None if d.nation is None else EntityId(d.nation),
                 chambers=d.chambers,
+                head=None if d.head is None else EntityId(d.head),
             )
         except ValidationError as exc:
             problems.append(f"{where}: {_first_error(exc)}")
@@ -1777,9 +1779,12 @@ def _check_locks(world: WorldFile, sections: Mapping[str, str], problems: list[s
         ):
             problems.append(f"{where}: unknown area or place {o.zone}")
         _ref(problems, where, o.force, "feature", sections)
-        if d.person is not None and kinds.get(d.person) is not EntityKind.PERSON:
-            problems.append(f"{where}: unknown person {d.person}")
+        for who in (d.person, d.head):
+            if who is not None and kinds.get(who) is not EntityKind.PERSON:
+                problems.append(f"{where}: unknown person {who}")
         if d.nation is not None:
+            if d.head is None:
+                problems.append(f"{where}: a body names the head of its government")
             if kinds.get(d.nation) is not EntityKind.POLITY:
                 problems.append(f"{where}: unknown nation {d.nation}")
             for ch in d.chambers:
@@ -1902,7 +1907,10 @@ def _locks(world: WorldFile, ids: Mapping[str, str]) -> ev.LocksDeclared:
                 ),
                 when=when,
                 decider=Decider(
-                    person=entity(d.person), nation=entity(d.nation), chambers=d.chambers
+                    person=entity(d.person),
+                    nation=entity(d.nation),
+                    chambers=d.chambers,
+                    head=entity(d.head),
                 ),
             )
         )

@@ -18,6 +18,7 @@ from revisionist.core import ontology, record
 from revisionist.core.ids import (
     ContestId,
     DocumentId,
+    EntityId,
     EventId,
     FactId,
     GoalId,
@@ -722,3 +723,28 @@ def test_catchup_api_pages_have_the_record_shape() -> None:
     assert {"number", "opened", "days_passed", "papers", "filed", "settled", "aide_filed"} <= (
         fields
     )
+
+
+def test_an_ask_is_fed_to_the_asker_and_the_seat_asked_only() -> None:
+    # ASK: sealed to the asker and the seat holding the person asked, whatever the
+    # envelope says; an ask to a card no seat holds reaches the asker only.
+    from revisionist.core.realism.locks import Asked
+
+    assert "order_asked" in catchup.FEED_KINDS
+    asked = Asked(
+        order_id=OrderId("held"),
+        asker=SeatId("mine"),
+        by=EntityId("kara"),
+        to=EntityId("ilse"),
+        seat=SeatId("hers"),
+        words="March (To Isle)",
+        on=date(1941, 9, 1),
+    )
+
+    def seen(payload: ev.OrderAsked, viewer: str) -> bool:
+        return catchup._named(payload, typing.cast(View, SimpleNamespace(viewer=SeatId(viewer))))
+
+    made = ev.OrderAsked(asked=asked)
+    assert seen(made, "mine") and seen(made, "hers") and not seen(made, "other")
+    to_card = ev.OrderAsked(asked=asked.model_copy(update={"seat": None}))
+    assert seen(to_card, "mine") and not seen(to_card, "hers")

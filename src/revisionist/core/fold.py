@@ -21,7 +21,7 @@ from pydantic import ValidationError
 from revisionist.core import delta as d
 from revisionist.core import events as ev
 from revisionist.core.events import MUTATING_KINDS, Event
-from revisionist.core.goals import GoalKind, season_winners
+from revisionist.core.goals import Goal, GoalKind, aim_rule, aims_on, season_winners
 from revisionist.core.ids import CampaignId, EntityId, SeatId, derived_id
 from revisionist.core.ontology import (
     TRACK_MAX,
@@ -506,14 +506,21 @@ def _mutate(state: State, event: Event) -> State:
             g = p.goal
             _fresh(state.goals, g.goal_id, "goal")
             seat = _need(state.seats, g.seat_id, "seat")
+            if g.person is not None:
+                _aim_goal(state, g, seat)
+                return state.model_copy(update={"goals": _put(state.goals, g.goal_id, g)})
+            if g.clock_id is None:
+                raise FoldError(f"goal {g.goal_id} has no objective clock")
             clock = _need(state.clocks, g.clock_id, "clock")
             if clock.kind is not ClockKind.OBJECTIVE or clock.owner != seat.seat_id:
                 raise FoldError(f"goal {g.goal_id}: clock {g.clock_id} is not its objective")
-            if any(o.seat_id == g.seat_id for o in state.goals.values()):
+            if any(o.seat_id == g.seat_id and o.person is None for o in state.goals.values()):
                 raise FoldError(f"seat {g.seat_id} already has a goal")
             return state.model_copy(update={"goals": _put(state.goals, g.goal_id, g)})
         case ev.GoalProgressed():
             g = _need(state.goals, p.goal_id, "goal")
+            if g.clock_id is None:
+                raise FoldError(f"goal {g.goal_id} has no objective clock")
             objective = _need(state.clocks, g.clock_id, "clock")
             if p.parts_met > objective.segments_total:
                 raise FoldError(f"goal {g.goal_id}: {p.parts_met} parts on a clock that has fewer")
@@ -1372,6 +1379,20 @@ def _held_elsewhere(state: State, o: Order) -> bool:
         s.embodies == step.person and s.controller is Controller.HUMAN and s.seat_id != o.issuer
         for s in state.seats.values()
     )
+
+
+def _aim_goal(state: State, g: Goal, seat: Seat) -> None:
+    """An aim's goal (AIM): made for a human seat holding its person, from an aim with a
+    rule on the person's card, the aims rule on, and once per person and aim."""
+    if not aims_on(state):
+        raise FoldError("aims are not part of this game")
+    if seat.embodies != g.person or seat.controller is not Controller.HUMAN:
+        raise FoldError(f"goal {g.goal_id}: seat {seat.seat_id} is no player holding {g.person}")
+    rule = aim_rule(state, g)
+    if rule is None or rule.condition != g.condition:
+        raise FoldError(f"goal {g.goal_id}: not an aim on {g.person}'s card")
+    if any(o.person == g.person and o.aim == g.aim for o in state.goals.values()):
+        raise FoldError(f"goal {g.goal_id}: {g.person}'s aim {g.aim} already has a goal")
 
 
 def _hand_over(state: State) -> State:

@@ -433,6 +433,32 @@
         "title": "AgreementClause",
         "type": "object"
       },
+      "AgreementInForce": {
+        "additionalProperties": false,
+        "description": "An agreement is in force among nations that include every one ``between``\nnames, none of its clauses broken (AGR).",
+        "properties": {
+          "between": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 2,
+            "title": "Between",
+            "type": "array"
+          },
+          "check": {
+            "const": "agreement_in_force",
+            "default": "agreement_in_force",
+            "title": "Check",
+            "type": "string"
+          }
+        },
+        "required": [
+          "between"
+        ],
+        "title": "AgreementInForce",
+        "type": "object"
+      },
       "AgreementMade": {
         "additionalProperties": false,
         "description": "An agreement in force, in full (AGR): every named nation accepted the same version\nof an offer, or a world or a conference made it. Sealed to the seats of its parties'\nnations.",
@@ -567,6 +593,145 @@
         "title": "AgreementPublished",
         "type": "object"
       },
+      "AimRule": {
+        "additionalProperties": false,
+        "description": "What makes a card's aim a goal (AIM): its condition, in plain words, over the\nperiod it is judged in. ``sees`` holds one exposure per leaf, in ``leaves`` order,\nset by the compiler from the world. Engine only, on the card.",
+        "properties": {
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
+                "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
+                "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deadline"
+          },
+          "opens": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Opens"
+          },
+          "replaceable": {
+            "default": false,
+            "title": "Replaceable",
+            "type": "boolean"
+          },
+          "rule": {
+            "maxLength": 280,
+            "minLength": 1,
+            "title": "Rule",
+            "type": "string"
+          },
+          "sees": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Exposure"
+            },
+            "title": "Sees",
+            "type": "array"
+          }
+        },
+        "required": [
+          "condition",
+          "rule"
+        ],
+        "title": "AimRule",
+        "type": "object"
+      },
       "AllOf": {
         "additionalProperties": false,
         "properties": {
@@ -581,16 +746,23 @@
               "discriminator": {
                 "mapping": {
                   "act_of": "#/$defs/ActOf",
+                  "agreement_in_force": "#/$defs/AgreementInForce",
                   "all_of": "#/$defs/AllOf",
                   "any_of": "#/$defs/AnyOf",
+                  "at_war": "#/$defs/AtWar",
                   "commitment_in_force": "#/$defs/CommitmentInForce",
+                  "contest_won": "#/$defs/ContestWon",
                   "controls_asset": "#/$defs/ControlsAsset",
                   "disposition_at": "#/$defs/DispositionAt",
                   "entity_is": "#/$defs/EntityIs",
+                  "holds_area": "#/$defs/HoldsArea",
                   "holds_office": "#/$defs/HoldsOffice",
+                  "income_at": "#/$defs/IncomeAt",
                   "meter_at": "#/$defs/MeterAt",
                   "ordered": "#/$defs/Ordered",
-                  "quantity_at": "#/$defs/QuantityAt"
+                  "quantity_at": "#/$defs/QuantityAt",
+                  "regard_at": "#/$defs/RegardAt",
+                  "support_at": "#/$defs/SupportAt"
                 },
                 "propertyName": "check"
               },
@@ -621,6 +793,27 @@
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
+                },
+                {
+                  "$ref": "#/$defs/HoldsArea"
+                },
+                {
+                  "$ref": "#/$defs/IncomeAt"
+                },
+                {
+                  "$ref": "#/$defs/SupportAt"
+                },
+                {
+                  "$ref": "#/$defs/AgreementInForce"
+                },
+                {
+                  "$ref": "#/$defs/ContestWon"
+                },
+                {
+                  "$ref": "#/$defs/AtWar"
+                },
+                {
+                  "$ref": "#/$defs/RegardAt"
                 },
                 {
                   "$ref": "#/$defs/AllOf"
@@ -1109,16 +1302,23 @@
               "discriminator": {
                 "mapping": {
                   "act_of": "#/$defs/ActOf",
+                  "agreement_in_force": "#/$defs/AgreementInForce",
                   "all_of": "#/$defs/AllOf",
                   "any_of": "#/$defs/AnyOf",
+                  "at_war": "#/$defs/AtWar",
                   "commitment_in_force": "#/$defs/CommitmentInForce",
+                  "contest_won": "#/$defs/ContestWon",
                   "controls_asset": "#/$defs/ControlsAsset",
                   "disposition_at": "#/$defs/DispositionAt",
                   "entity_is": "#/$defs/EntityIs",
+                  "holds_area": "#/$defs/HoldsArea",
                   "holds_office": "#/$defs/HoldsOffice",
+                  "income_at": "#/$defs/IncomeAt",
                   "meter_at": "#/$defs/MeterAt",
                   "ordered": "#/$defs/Ordered",
-                  "quantity_at": "#/$defs/QuantityAt"
+                  "quantity_at": "#/$defs/QuantityAt",
+                  "regard_at": "#/$defs/RegardAt",
+                  "support_at": "#/$defs/SupportAt"
                 },
                 "propertyName": "check"
               },
@@ -1149,6 +1349,27 @@
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
+                },
+                {
+                  "$ref": "#/$defs/HoldsArea"
+                },
+                {
+                  "$ref": "#/$defs/IncomeAt"
+                },
+                {
+                  "$ref": "#/$defs/SupportAt"
+                },
+                {
+                  "$ref": "#/$defs/AgreementInForce"
+                },
+                {
+                  "$ref": "#/$defs/ContestWon"
+                },
+                {
+                  "$ref": "#/$defs/AtWar"
+                },
+                {
+                  "$ref": "#/$defs/RegardAt"
                 },
                 {
                   "$ref": "#/$defs/AllOf"
@@ -1598,6 +1819,37 @@
           "change"
         ],
         "title": "AssetTierDelta",
+        "type": "object"
+      },
+      "AtWar": {
+        "additionalProperties": false,
+        "description": "Nations ``a`` and ``b`` are at war (``war`` true) or not (false). Public.",
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          },
+          "check": {
+            "const": "at_war",
+            "default": "at_war",
+            "title": "Check",
+            "type": "string"
+          },
+          "war": {
+            "default": true,
+            "title": "War",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "title": "AtWar",
         "type": "object"
       },
       "Base": {
@@ -3968,6 +4220,32 @@
         "title": "ContestMoved",
         "type": "object"
       },
+      "ContestWon": {
+        "additionalProperties": false,
+        "description": "A contest has been decided for ``side`` (CON).",
+        "properties": {
+          "check": {
+            "const": "contest_won",
+            "default": "contest_won",
+            "title": "Check",
+            "type": "string"
+          },
+          "contest": {
+            "title": "Contest",
+            "type": "string"
+          },
+          "side": {
+            "title": "Side",
+            "type": "string"
+          }
+        },
+        "required": [
+          "contest",
+          "side"
+        ],
+        "title": "ContestWon",
+        "type": "object"
+      },
       "Contingency": {
         "additionalProperties": false,
         "description": "A force's standing order for a battle, set through the engagement effect (BDC).",
@@ -5418,6 +5696,16 @@
         "title": "ExpectSure",
         "type": "string"
       },
+      "Exposure": {
+        "description": "Whether the seat may see the fact a leaf of its aim reads (AIM rule 5).",
+        "enum": [
+          "public",
+          "own",
+          "hidden"
+        ],
+        "title": "Exposure",
+        "type": "string"
+      },
       "Fact": {
         "additionalProperties": false,
         "description": "A structured truth with an ACL. Never prose.",
@@ -6024,8 +6312,22 @@
       },
       "Goal": {
         "additionalProperties": false,
-        "description": "One player seat's secret goal. Private to its owner (decision 37).",
+        "description": "One player seat's secret goal. Private to its owner (decision 37).\n\nA goal made from a card's aim (AIM) is keyed to the person whose aim it is\n(``person``, ``source``, ``aim``): it is reached through the seat holding that\nperson at the time, has no objective clock, and ``seat_id`` names the seat it was\nmade for. A legacy goal has none of the three and keeps its seat and clock.",
         "properties": {
+          "aim": {
+            "anyOf": [
+              {
+                "maximum": 3,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Aim"
+          },
           "canary": {
             "anyOf": [
               {
@@ -6039,23 +6341,37 @@
             "title": "Canary"
           },
           "clock_id": {
-            "title": "Clock Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clock Id"
           },
           "condition": {
             "discriminator": {
               "mapping": {
                 "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
                 "all_of": "#/$defs/AllOf",
                 "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
                 "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
                 "controls_asset": "#/$defs/ControlsAsset",
                 "disposition_at": "#/$defs/DispositionAt",
                 "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
                 "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
                 "meter_at": "#/$defs/MeterAt",
                 "ordered": "#/$defs/Ordered",
-                "quantity_at": "#/$defs/QuantityAt"
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
               },
               "propertyName": "check"
             },
@@ -6086,6 +6402,27 @@
               },
               {
                 "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
               },
               {
                 "$ref": "#/$defs/AllOf"
@@ -6120,12 +6457,35 @@
             "default": null,
             "title": "Met Tick"
           },
+          "person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Person"
+          },
           "scope": {
             "$ref": "#/$defs/Scope"
           },
           "seat_id": {
             "title": "Seat Id",
             "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GoalSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "text": {
             "maxLength": 280,
@@ -6202,16 +6562,23 @@
             "discriminator": {
               "mapping": {
                 "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
                 "all_of": "#/$defs/AllOf",
                 "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
                 "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
                 "controls_asset": "#/$defs/ControlsAsset",
                 "disposition_at": "#/$defs/DispositionAt",
                 "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
                 "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
                 "meter_at": "#/$defs/MeterAt",
                 "ordered": "#/$defs/Ordered",
-                "quantity_at": "#/$defs/QuantityAt"
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
               },
               "propertyName": "check"
             },
@@ -6242,6 +6609,27 @@
               },
               {
                 "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
               },
               {
                 "$ref": "#/$defs/AllOf"
@@ -6355,6 +6743,16 @@
         ],
         "title": "GoalSet",
         "type": "object"
+      },
+      "GoalSource": {
+        "description": "Where a goal made from an aim comes from (AIM).",
+        "enum": [
+          "post",
+          "player",
+          "replacement"
+        ],
+        "title": "GoalSource",
+        "type": "string"
       },
       "GoalUndone": {
         "additionalProperties": false,
@@ -6692,6 +7090,32 @@
         "title": "HeldChoice",
         "type": "object"
       },
+      "HoldsArea": {
+        "additionalProperties": false,
+        "description": "A territory's holder now is ``holder`` (THL). Public.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "check": {
+            "const": "holds_area",
+            "default": "holds_area",
+            "title": "Check",
+            "type": "string"
+          },
+          "holder": {
+            "title": "Holder",
+            "type": "string"
+          }
+        },
+        "required": [
+          "area",
+          "holder"
+        ],
+        "title": "HoldsArea",
+        "type": "object"
+      },
       "HoldsOffice": {
         "additionalProperties": false,
         "properties": {
@@ -6715,6 +7139,43 @@
           "office"
         ],
         "title": "HoldsOffice",
+        "type": "object"
+      },
+      "IncomeAt": {
+        "additionalProperties": false,
+        "description": "A nation's war-economy figure (YLD), 0 to 100, against a line. Public.",
+        "properties": {
+          "check": {
+            "const": "income_at",
+            "default": "income_at",
+            "title": "Check",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "ge",
+              "le"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "maximum": 1000,
+            "minimum": 0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nation",
+          "op",
+          "value"
+        ],
+        "title": "IncomeAt",
         "type": "object"
       },
       "Inertia": {
@@ -7380,16 +7841,23 @@
             "discriminator": {
               "mapping": {
                 "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
                 "all_of": "#/$defs/AllOf",
                 "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
                 "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
                 "controls_asset": "#/$defs/ControlsAsset",
                 "disposition_at": "#/$defs/DispositionAt",
                 "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
                 "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
                 "meter_at": "#/$defs/MeterAt",
                 "ordered": "#/$defs/Ordered",
-                "quantity_at": "#/$defs/QuantityAt"
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
               },
               "propertyName": "check"
             },
@@ -7420,6 +7888,27 @@
               },
               {
                 "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
               },
               {
                 "$ref": "#/$defs/AllOf"
@@ -7562,16 +8051,23 @@
             "discriminator": {
               "mapping": {
                 "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
                 "all_of": "#/$defs/AllOf",
                 "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
                 "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
                 "controls_asset": "#/$defs/ControlsAsset",
                 "disposition_at": "#/$defs/DispositionAt",
                 "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
                 "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
                 "meter_at": "#/$defs/MeterAt",
                 "ordered": "#/$defs/Ordered",
-                "quantity_at": "#/$defs/QuantityAt"
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
               },
               "propertyName": "check"
             },
@@ -7602,6 +8098,27 @@
               },
               {
                 "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
               },
               {
                 "$ref": "#/$defs/AllOf"
@@ -9332,6 +9849,48 @@
         "title": "Reach",
         "type": "object"
       },
+      "RegardAt": {
+        "additionalProperties": false,
+        "description": "How ``a`` and ``b`` regard each other (a relationship's disposition, -5 to 5)\nagainst a line; 0 when they have no relationship yet.",
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          },
+          "check": {
+            "const": "regard_at",
+            "default": "regard_at",
+            "title": "Check",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "ge",
+              "le"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "maximum": 5,
+            "minimum": -5,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "a",
+          "b",
+          "op",
+          "value"
+        ],
+        "title": "RegardAt",
+        "type": "object"
+      },
       "Region": {
         "additionalProperties": false,
         "properties": {
@@ -10213,16 +10772,23 @@
                 "discriminator": {
                   "mapping": {
                     "act_of": "#/$defs/ActOf",
+                    "agreement_in_force": "#/$defs/AgreementInForce",
                     "all_of": "#/$defs/AllOf",
                     "any_of": "#/$defs/AnyOf",
+                    "at_war": "#/$defs/AtWar",
                     "commitment_in_force": "#/$defs/CommitmentInForce",
+                    "contest_won": "#/$defs/ContestWon",
                     "controls_asset": "#/$defs/ControlsAsset",
                     "disposition_at": "#/$defs/DispositionAt",
                     "entity_is": "#/$defs/EntityIs",
+                    "holds_area": "#/$defs/HoldsArea",
                     "holds_office": "#/$defs/HoldsOffice",
+                    "income_at": "#/$defs/IncomeAt",
                     "meter_at": "#/$defs/MeterAt",
                     "ordered": "#/$defs/Ordered",
-                    "quantity_at": "#/$defs/QuantityAt"
+                    "quantity_at": "#/$defs/QuantityAt",
+                    "regard_at": "#/$defs/RegardAt",
+                    "support_at": "#/$defs/SupportAt"
                   },
                   "propertyName": "check"
                 },
@@ -10253,6 +10819,27 @@
                   },
                   {
                     "$ref": "#/$defs/QuantityAt"
+                  },
+                  {
+                    "$ref": "#/$defs/HoldsArea"
+                  },
+                  {
+                    "$ref": "#/$defs/IncomeAt"
+                  },
+                  {
+                    "$ref": "#/$defs/SupportAt"
+                  },
+                  {
+                    "$ref": "#/$defs/AgreementInForce"
+                  },
+                  {
+                    "$ref": "#/$defs/ContestWon"
+                  },
+                  {
+                    "$ref": "#/$defs/AtWar"
+                  },
+                  {
+                    "$ref": "#/$defs/RegardAt"
                   },
                   {
                     "$ref": "#/$defs/AllOf"
@@ -10774,6 +11361,22 @@
             ],
             "default": null,
             "title": "Addressed As"
+          },
+          "aim_rules": {
+            "default": [],
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AimRule"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "maxItems": 3,
+            "title": "Aim Rules",
+            "type": "array"
           },
           "aims": {
             "default": [],
@@ -11862,6 +12465,50 @@
           "reason"
         ],
         "title": "StepRefused",
+        "type": "object"
+      },
+      "SupportAt": {
+        "additionalProperties": false,
+        "description": "A group's support at home (GRP), 0 to 100, against a line.",
+        "properties": {
+          "check": {
+            "const": "support_at",
+            "default": "support_at",
+            "title": "Check",
+            "type": "string"
+          },
+          "group": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Group",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "ge",
+              "le"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nation",
+          "group",
+          "op",
+          "value"
+        ],
+        "title": "SupportAt",
         "type": "object"
       },
       "Tally": {
@@ -13969,6 +14616,32 @@
         "title": "AgreementClause",
         "type": "object"
       },
+      "AgreementInForce": {
+        "additionalProperties": false,
+        "description": "An agreement is in force among nations that include every one ``between``\nnames, none of its clauses broken (AGR).",
+        "properties": {
+          "between": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 2,
+            "title": "Between",
+            "type": "array"
+          },
+          "check": {
+            "const": "agreement_in_force",
+            "default": "agreement_in_force",
+            "title": "Check",
+            "type": "string"
+          }
+        },
+        "required": [
+          "between"
+        ],
+        "title": "AgreementInForce",
+        "type": "object"
+      },
       "AgreementOffer": {
         "additionalProperties": false,
         "description": "An offer of an agreement, as its parties know it.",
@@ -14055,6 +14728,145 @@
         "title": "Agreements",
         "type": "object"
       },
+      "AimRule": {
+        "additionalProperties": false,
+        "description": "What makes a card's aim a goal (AIM): its condition, in plain words, over the\nperiod it is judged in. ``sees`` holds one exposure per leaf, in ``leaves`` order,\nset by the compiler from the world. Engine only, on the card.",
+        "properties": {
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
+                "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
+                "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deadline"
+          },
+          "opens": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Opens"
+          },
+          "replaceable": {
+            "default": false,
+            "title": "Replaceable",
+            "type": "boolean"
+          },
+          "rule": {
+            "maxLength": 280,
+            "minLength": 1,
+            "title": "Rule",
+            "type": "string"
+          },
+          "sees": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Exposure"
+            },
+            "title": "Sees",
+            "type": "array"
+          }
+        },
+        "required": [
+          "condition",
+          "rule"
+        ],
+        "title": "AimRule",
+        "type": "object"
+      },
       "AllOf": {
         "additionalProperties": false,
         "properties": {
@@ -14069,16 +14881,23 @@
               "discriminator": {
                 "mapping": {
                   "act_of": "#/$defs/ActOf",
+                  "agreement_in_force": "#/$defs/AgreementInForce",
                   "all_of": "#/$defs/AllOf",
                   "any_of": "#/$defs/AnyOf",
+                  "at_war": "#/$defs/AtWar",
                   "commitment_in_force": "#/$defs/CommitmentInForce",
+                  "contest_won": "#/$defs/ContestWon",
                   "controls_asset": "#/$defs/ControlsAsset",
                   "disposition_at": "#/$defs/DispositionAt",
                   "entity_is": "#/$defs/EntityIs",
+                  "holds_area": "#/$defs/HoldsArea",
                   "holds_office": "#/$defs/HoldsOffice",
+                  "income_at": "#/$defs/IncomeAt",
                   "meter_at": "#/$defs/MeterAt",
                   "ordered": "#/$defs/Ordered",
-                  "quantity_at": "#/$defs/QuantityAt"
+                  "quantity_at": "#/$defs/QuantityAt",
+                  "regard_at": "#/$defs/RegardAt",
+                  "support_at": "#/$defs/SupportAt"
                 },
                 "propertyName": "check"
               },
@@ -14109,6 +14928,27 @@
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
+                },
+                {
+                  "$ref": "#/$defs/HoldsArea"
+                },
+                {
+                  "$ref": "#/$defs/IncomeAt"
+                },
+                {
+                  "$ref": "#/$defs/SupportAt"
+                },
+                {
+                  "$ref": "#/$defs/AgreementInForce"
+                },
+                {
+                  "$ref": "#/$defs/ContestWon"
+                },
+                {
+                  "$ref": "#/$defs/AtWar"
+                },
+                {
+                  "$ref": "#/$defs/RegardAt"
                 },
                 {
                   "$ref": "#/$defs/AllOf"
@@ -14560,16 +15400,23 @@
               "discriminator": {
                 "mapping": {
                   "act_of": "#/$defs/ActOf",
+                  "agreement_in_force": "#/$defs/AgreementInForce",
                   "all_of": "#/$defs/AllOf",
                   "any_of": "#/$defs/AnyOf",
+                  "at_war": "#/$defs/AtWar",
                   "commitment_in_force": "#/$defs/CommitmentInForce",
+                  "contest_won": "#/$defs/ContestWon",
                   "controls_asset": "#/$defs/ControlsAsset",
                   "disposition_at": "#/$defs/DispositionAt",
                   "entity_is": "#/$defs/EntityIs",
+                  "holds_area": "#/$defs/HoldsArea",
                   "holds_office": "#/$defs/HoldsOffice",
+                  "income_at": "#/$defs/IncomeAt",
                   "meter_at": "#/$defs/MeterAt",
                   "ordered": "#/$defs/Ordered",
-                  "quantity_at": "#/$defs/QuantityAt"
+                  "quantity_at": "#/$defs/QuantityAt",
+                  "regard_at": "#/$defs/RegardAt",
+                  "support_at": "#/$defs/SupportAt"
                 },
                 "propertyName": "check"
               },
@@ -14600,6 +15447,27 @@
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
+                },
+                {
+                  "$ref": "#/$defs/HoldsArea"
+                },
+                {
+                  "$ref": "#/$defs/IncomeAt"
+                },
+                {
+                  "$ref": "#/$defs/SupportAt"
+                },
+                {
+                  "$ref": "#/$defs/AgreementInForce"
+                },
+                {
+                  "$ref": "#/$defs/ContestWon"
+                },
+                {
+                  "$ref": "#/$defs/AtWar"
+                },
+                {
+                  "$ref": "#/$defs/RegardAt"
                 },
                 {
                   "$ref": "#/$defs/AllOf"
@@ -14734,6 +15602,37 @@
         ],
         "title": "AssetStatus",
         "type": "string"
+      },
+      "AtWar": {
+        "additionalProperties": false,
+        "description": "Nations ``a`` and ``b`` are at war (``war`` true) or not (false). Public.",
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          },
+          "check": {
+            "const": "at_war",
+            "default": "at_war",
+            "title": "Check",
+            "type": "string"
+          },
+          "war": {
+            "default": true,
+            "title": "War",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "title": "AtWar",
+        "type": "object"
       },
       "Ballot": {
         "additionalProperties": false,
@@ -15934,6 +16833,32 @@
         "title": "ContestMove",
         "type": "object"
       },
+      "ContestWon": {
+        "additionalProperties": false,
+        "description": "A contest has been decided for ``side`` (CON).",
+        "properties": {
+          "check": {
+            "const": "contest_won",
+            "default": "contest_won",
+            "title": "Check",
+            "type": "string"
+          },
+          "contest": {
+            "title": "Contest",
+            "type": "string"
+          },
+          "side": {
+            "title": "Side",
+            "type": "string"
+          }
+        },
+        "required": [
+          "contest",
+          "side"
+        ],
+        "title": "ContestWon",
+        "type": "object"
+      },
       "Contingency": {
         "additionalProperties": false,
         "description": "A force's standing order for a battle, set through the engagement effect (BDC).",
@@ -16550,6 +17475,16 @@
         "title": "EntityStatus",
         "type": "string"
       },
+      "Exposure": {
+        "description": "Whether the seat may see the fact a leaf of its aim reads (AIM rule 5).",
+        "enum": [
+          "public",
+          "own",
+          "hidden"
+        ],
+        "title": "Exposure",
+        "type": "string"
+      },
       "Fact": {
         "additionalProperties": false,
         "description": "A structured truth with an ACL. Never prose.",
@@ -17007,8 +17942,22 @@
       },
       "Goal": {
         "additionalProperties": false,
-        "description": "One player seat's secret goal. Private to its owner (decision 37).",
+        "description": "One player seat's secret goal. Private to its owner (decision 37).\n\nA goal made from a card's aim (AIM) is keyed to the person whose aim it is\n(``person``, ``source``, ``aim``): it is reached through the seat holding that\nperson at the time, has no objective clock, and ``seat_id`` names the seat it was\nmade for. A legacy goal has none of the three and keeps its seat and clock.",
         "properties": {
+          "aim": {
+            "anyOf": [
+              {
+                "maximum": 3,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Aim"
+          },
           "canary": {
             "anyOf": [
               {
@@ -17022,23 +17971,37 @@
             "title": "Canary"
           },
           "clock_id": {
-            "title": "Clock Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clock Id"
           },
           "condition": {
             "discriminator": {
               "mapping": {
                 "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
                 "all_of": "#/$defs/AllOf",
                 "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
                 "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
                 "controls_asset": "#/$defs/ControlsAsset",
                 "disposition_at": "#/$defs/DispositionAt",
                 "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
                 "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
                 "meter_at": "#/$defs/MeterAt",
                 "ordered": "#/$defs/Ordered",
-                "quantity_at": "#/$defs/QuantityAt"
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
               },
               "propertyName": "check"
             },
@@ -17069,6 +18032,27 @@
               },
               {
                 "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
               },
               {
                 "$ref": "#/$defs/AllOf"
@@ -17103,12 +18087,35 @@
             "default": null,
             "title": "Met Tick"
           },
+          "person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Person"
+          },
           "scope": {
             "$ref": "#/$defs/Scope"
           },
           "seat_id": {
             "title": "Seat Id",
             "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GoalSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "text": {
             "maxLength": 280,
@@ -17134,6 +18141,16 @@
           "undoable"
         ],
         "title": "GoalKind",
+        "type": "string"
+      },
+      "GoalSource": {
+        "description": "Where a goal made from an aim comes from (AIM).",
+        "enum": [
+          "post",
+          "player",
+          "replacement"
+        ],
+        "title": "GoalSource",
         "type": "string"
       },
       "Group": {
@@ -17454,6 +18471,32 @@
         "title": "Holding",
         "type": "object"
       },
+      "HoldsArea": {
+        "additionalProperties": false,
+        "description": "A territory's holder now is ``holder`` (THL). Public.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "check": {
+            "const": "holds_area",
+            "default": "holds_area",
+            "title": "Check",
+            "type": "string"
+          },
+          "holder": {
+            "title": "Holder",
+            "type": "string"
+          }
+        },
+        "required": [
+          "area",
+          "holder"
+        ],
+        "title": "HoldsArea",
+        "type": "object"
+      },
       "HoldsOffice": {
         "additionalProperties": false,
         "properties": {
@@ -17477,6 +18520,43 @@
           "office"
         ],
         "title": "HoldsOffice",
+        "type": "object"
+      },
+      "IncomeAt": {
+        "additionalProperties": false,
+        "description": "A nation's war-economy figure (YLD), 0 to 100, against a line. Public.",
+        "properties": {
+          "check": {
+            "const": "income_at",
+            "default": "income_at",
+            "title": "Check",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "ge",
+              "le"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "maximum": 1000,
+            "minimum": 0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nation",
+          "op",
+          "value"
+        ],
+        "title": "IncomeAt",
         "type": "object"
       },
       "Inertia": {
@@ -17966,16 +19046,23 @@
             "discriminator": {
               "mapping": {
                 "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
                 "all_of": "#/$defs/AllOf",
                 "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
                 "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
                 "controls_asset": "#/$defs/ControlsAsset",
                 "disposition_at": "#/$defs/DispositionAt",
                 "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
                 "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
                 "meter_at": "#/$defs/MeterAt",
                 "ordered": "#/$defs/Ordered",
-                "quantity_at": "#/$defs/QuantityAt"
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
               },
               "propertyName": "check"
             },
@@ -18006,6 +19093,27 @@
               },
               {
                 "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
               },
               {
                 "$ref": "#/$defs/AllOf"
@@ -18104,16 +19212,23 @@
             "discriminator": {
               "mapping": {
                 "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
                 "all_of": "#/$defs/AllOf",
                 "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
                 "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
                 "controls_asset": "#/$defs/ControlsAsset",
                 "disposition_at": "#/$defs/DispositionAt",
                 "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
                 "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
                 "meter_at": "#/$defs/MeterAt",
                 "ordered": "#/$defs/Ordered",
-                "quantity_at": "#/$defs/QuantityAt"
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
               },
               "propertyName": "check"
             },
@@ -18144,6 +19259,27 @@
               },
               {
                 "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
               },
               {
                 "$ref": "#/$defs/AllOf"
@@ -19234,6 +20370,48 @@
         "title": "Reach",
         "type": "object"
       },
+      "RegardAt": {
+        "additionalProperties": false,
+        "description": "How ``a`` and ``b`` regard each other (a relationship's disposition, -5 to 5)\nagainst a line; 0 when they have no relationship yet.",
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          },
+          "check": {
+            "const": "regard_at",
+            "default": "regard_at",
+            "title": "Check",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "ge",
+              "le"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "maximum": 5,
+            "minimum": -5,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "a",
+          "b",
+          "op",
+          "value"
+        ],
+        "title": "RegardAt",
+        "type": "object"
+      },
       "Region": {
         "additionalProperties": false,
         "properties": {
@@ -19899,16 +21077,23 @@
                 "discriminator": {
                   "mapping": {
                     "act_of": "#/$defs/ActOf",
+                    "agreement_in_force": "#/$defs/AgreementInForce",
                     "all_of": "#/$defs/AllOf",
                     "any_of": "#/$defs/AnyOf",
+                    "at_war": "#/$defs/AtWar",
                     "commitment_in_force": "#/$defs/CommitmentInForce",
+                    "contest_won": "#/$defs/ContestWon",
                     "controls_asset": "#/$defs/ControlsAsset",
                     "disposition_at": "#/$defs/DispositionAt",
                     "entity_is": "#/$defs/EntityIs",
+                    "holds_area": "#/$defs/HoldsArea",
                     "holds_office": "#/$defs/HoldsOffice",
+                    "income_at": "#/$defs/IncomeAt",
                     "meter_at": "#/$defs/MeterAt",
                     "ordered": "#/$defs/Ordered",
-                    "quantity_at": "#/$defs/QuantityAt"
+                    "quantity_at": "#/$defs/QuantityAt",
+                    "regard_at": "#/$defs/RegardAt",
+                    "support_at": "#/$defs/SupportAt"
                   },
                   "propertyName": "check"
                 },
@@ -19939,6 +21124,27 @@
                   },
                   {
                     "$ref": "#/$defs/QuantityAt"
+                  },
+                  {
+                    "$ref": "#/$defs/HoldsArea"
+                  },
+                  {
+                    "$ref": "#/$defs/IncomeAt"
+                  },
+                  {
+                    "$ref": "#/$defs/SupportAt"
+                  },
+                  {
+                    "$ref": "#/$defs/AgreementInForce"
+                  },
+                  {
+                    "$ref": "#/$defs/ContestWon"
+                  },
+                  {
+                    "$ref": "#/$defs/AtWar"
+                  },
+                  {
+                    "$ref": "#/$defs/RegardAt"
                   },
                   {
                     "$ref": "#/$defs/AllOf"
@@ -20278,6 +21484,22 @@
             ],
             "default": null,
             "title": "Addressed As"
+          },
+          "aim_rules": {
+            "default": [],
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/AimRule"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "maxItems": 3,
+            "title": "Aim Rules",
+            "type": "array"
           },
           "aims": {
             "default": [],
@@ -21034,6 +22256,50 @@
           "on"
         ],
         "title": "StepOutcome",
+        "type": "object"
+      },
+      "SupportAt": {
+        "additionalProperties": false,
+        "description": "A group's support at home (GRP), 0 to 100, against a line.",
+        "properties": {
+          "check": {
+            "const": "support_at",
+            "default": "support_at",
+            "title": "Check",
+            "type": "string"
+          },
+          "group": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Group",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "ge",
+              "le"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nation",
+          "group",
+          "op",
+          "value"
+        ],
+        "title": "SupportAt",
         "type": "object"
       },
       "Tally": {
@@ -22635,6 +23901,32 @@
         "title": "AgreementClause",
         "type": "object"
       },
+      "AgreementInForce": {
+        "additionalProperties": false,
+        "description": "An agreement is in force among nations that include every one ``between``\nnames, none of its clauses broken (AGR).",
+        "properties": {
+          "between": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "minItems": 2,
+            "title": "Between",
+            "type": "array"
+          },
+          "check": {
+            "const": "agreement_in_force",
+            "default": "agreement_in_force",
+            "title": "Check",
+            "type": "string"
+          }
+        },
+        "required": [
+          "between"
+        ],
+        "title": "AgreementInForce",
+        "type": "object"
+      },
       "AgreementOffer": {
         "additionalProperties": false,
         "description": "An offer of an agreement, as its parties know it.",
@@ -22735,16 +24027,23 @@
               "discriminator": {
                 "mapping": {
                   "act_of": "#/$defs/ActOf",
+                  "agreement_in_force": "#/$defs/AgreementInForce",
                   "all_of": "#/$defs/AllOf",
                   "any_of": "#/$defs/AnyOf",
+                  "at_war": "#/$defs/AtWar",
                   "commitment_in_force": "#/$defs/CommitmentInForce",
+                  "contest_won": "#/$defs/ContestWon",
                   "controls_asset": "#/$defs/ControlsAsset",
                   "disposition_at": "#/$defs/DispositionAt",
                   "entity_is": "#/$defs/EntityIs",
+                  "holds_area": "#/$defs/HoldsArea",
                   "holds_office": "#/$defs/HoldsOffice",
+                  "income_at": "#/$defs/IncomeAt",
                   "meter_at": "#/$defs/MeterAt",
                   "ordered": "#/$defs/Ordered",
-                  "quantity_at": "#/$defs/QuantityAt"
+                  "quantity_at": "#/$defs/QuantityAt",
+                  "regard_at": "#/$defs/RegardAt",
+                  "support_at": "#/$defs/SupportAt"
                 },
                 "propertyName": "check"
               },
@@ -22775,6 +24074,27 @@
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
+                },
+                {
+                  "$ref": "#/$defs/HoldsArea"
+                },
+                {
+                  "$ref": "#/$defs/IncomeAt"
+                },
+                {
+                  "$ref": "#/$defs/SupportAt"
+                },
+                {
+                  "$ref": "#/$defs/AgreementInForce"
+                },
+                {
+                  "$ref": "#/$defs/ContestWon"
+                },
+                {
+                  "$ref": "#/$defs/AtWar"
+                },
+                {
+                  "$ref": "#/$defs/RegardAt"
                 },
                 {
                   "$ref": "#/$defs/AllOf"
@@ -22860,16 +24180,23 @@
               "discriminator": {
                 "mapping": {
                   "act_of": "#/$defs/ActOf",
+                  "agreement_in_force": "#/$defs/AgreementInForce",
                   "all_of": "#/$defs/AllOf",
                   "any_of": "#/$defs/AnyOf",
+                  "at_war": "#/$defs/AtWar",
                   "commitment_in_force": "#/$defs/CommitmentInForce",
+                  "contest_won": "#/$defs/ContestWon",
                   "controls_asset": "#/$defs/ControlsAsset",
                   "disposition_at": "#/$defs/DispositionAt",
                   "entity_is": "#/$defs/EntityIs",
+                  "holds_area": "#/$defs/HoldsArea",
                   "holds_office": "#/$defs/HoldsOffice",
+                  "income_at": "#/$defs/IncomeAt",
                   "meter_at": "#/$defs/MeterAt",
                   "ordered": "#/$defs/Ordered",
-                  "quantity_at": "#/$defs/QuantityAt"
+                  "quantity_at": "#/$defs/QuantityAt",
+                  "regard_at": "#/$defs/RegardAt",
+                  "support_at": "#/$defs/SupportAt"
                 },
                 "propertyName": "check"
               },
@@ -22900,6 +24227,27 @@
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
+                },
+                {
+                  "$ref": "#/$defs/HoldsArea"
+                },
+                {
+                  "$ref": "#/$defs/IncomeAt"
+                },
+                {
+                  "$ref": "#/$defs/SupportAt"
+                },
+                {
+                  "$ref": "#/$defs/AgreementInForce"
+                },
+                {
+                  "$ref": "#/$defs/ContestWon"
+                },
+                {
+                  "$ref": "#/$defs/AtWar"
+                },
+                {
+                  "$ref": "#/$defs/RegardAt"
                 },
                 {
                   "$ref": "#/$defs/AllOf"
@@ -23034,6 +24382,37 @@
         ],
         "title": "AssetStatus",
         "type": "string"
+      },
+      "AtWar": {
+        "additionalProperties": false,
+        "description": "Nations ``a`` and ``b`` are at war (``war`` true) or not (false). Public.",
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          },
+          "check": {
+            "const": "at_war",
+            "default": "at_war",
+            "title": "Check",
+            "type": "string"
+          },
+          "war": {
+            "default": true,
+            "title": "War",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "title": "AtWar",
+        "type": "object"
       },
       "Ballot": {
         "additionalProperties": false,
@@ -24013,6 +25392,32 @@
         "title": "ContestMove",
         "type": "object"
       },
+      "ContestWon": {
+        "additionalProperties": false,
+        "description": "A contest has been decided for ``side`` (CON).",
+        "properties": {
+          "check": {
+            "const": "contest_won",
+            "default": "contest_won",
+            "title": "Check",
+            "type": "string"
+          },
+          "contest": {
+            "title": "Contest",
+            "type": "string"
+          },
+          "side": {
+            "title": "Side",
+            "type": "string"
+          }
+        },
+        "required": [
+          "contest",
+          "side"
+        ],
+        "title": "ContestWon",
+        "type": "object"
+      },
       "Contingency": {
         "additionalProperties": false,
         "description": "A force's standing order for a battle, set through the engagement effect (BDC).",
@@ -24784,8 +26189,22 @@
       },
       "Goal": {
         "additionalProperties": false,
-        "description": "One player seat's secret goal. Private to its owner (decision 37).",
+        "description": "One player seat's secret goal. Private to its owner (decision 37).\n\nA goal made from a card's aim (AIM) is keyed to the person whose aim it is\n(``person``, ``source``, ``aim``): it is reached through the seat holding that\nperson at the time, has no objective clock, and ``seat_id`` names the seat it was\nmade for. A legacy goal has none of the three and keeps its seat and clock.",
         "properties": {
+          "aim": {
+            "anyOf": [
+              {
+                "maximum": 3,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Aim"
+          },
           "canary": {
             "anyOf": [
               {
@@ -24799,23 +26218,37 @@
             "title": "Canary"
           },
           "clock_id": {
-            "title": "Clock Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clock Id"
           },
           "condition": {
             "discriminator": {
               "mapping": {
                 "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
                 "all_of": "#/$defs/AllOf",
                 "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
                 "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
                 "controls_asset": "#/$defs/ControlsAsset",
                 "disposition_at": "#/$defs/DispositionAt",
                 "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
                 "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
                 "meter_at": "#/$defs/MeterAt",
                 "ordered": "#/$defs/Ordered",
-                "quantity_at": "#/$defs/QuantityAt"
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
               },
               "propertyName": "check"
             },
@@ -24846,6 +26279,27 @@
               },
               {
                 "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
               },
               {
                 "$ref": "#/$defs/AllOf"
@@ -24880,12 +26334,35 @@
             "default": null,
             "title": "Met Tick"
           },
+          "person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Person"
+          },
           "scope": {
             "$ref": "#/$defs/Scope"
           },
           "seat_id": {
             "title": "Seat Id",
             "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/GoalSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "text": {
             "maxLength": 280,
@@ -24911,6 +26388,16 @@
           "undoable"
         ],
         "title": "GoalKind",
+        "type": "string"
+      },
+      "GoalSource": {
+        "description": "Where a goal made from an aim comes from (AIM).",
+        "enum": [
+          "post",
+          "player",
+          "replacement"
+        ],
+        "title": "GoalSource",
         "type": "string"
       },
       "Group": {
@@ -25197,6 +26684,32 @@
         "title": "Holding",
         "type": "object"
       },
+      "HoldsArea": {
+        "additionalProperties": false,
+        "description": "A territory's holder now is ``holder`` (THL). Public.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "check": {
+            "const": "holds_area",
+            "default": "holds_area",
+            "title": "Check",
+            "type": "string"
+          },
+          "holder": {
+            "title": "Holder",
+            "type": "string"
+          }
+        },
+        "required": [
+          "area",
+          "holder"
+        ],
+        "title": "HoldsArea",
+        "type": "object"
+      },
       "HoldsOffice": {
         "additionalProperties": false,
         "properties": {
@@ -25220,6 +26733,43 @@
           "office"
         ],
         "title": "HoldsOffice",
+        "type": "object"
+      },
+      "IncomeAt": {
+        "additionalProperties": false,
+        "description": "A nation's war-economy figure (YLD), 0 to 100, against a line. Public.",
+        "properties": {
+          "check": {
+            "const": "income_at",
+            "default": "income_at",
+            "title": "Check",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "ge",
+              "le"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "maximum": 1000,
+            "minimum": 0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nation",
+          "op",
+          "value"
+        ],
+        "title": "IncomeAt",
         "type": "object"
       },
       "Inertia": {
@@ -25588,16 +27138,23 @@
             "discriminator": {
               "mapping": {
                 "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
                 "all_of": "#/$defs/AllOf",
                 "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
                 "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
                 "controls_asset": "#/$defs/ControlsAsset",
                 "disposition_at": "#/$defs/DispositionAt",
                 "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
                 "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
                 "meter_at": "#/$defs/MeterAt",
                 "ordered": "#/$defs/Ordered",
-                "quantity_at": "#/$defs/QuantityAt"
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
               },
               "propertyName": "check"
             },
@@ -25628,6 +27185,27 @@
               },
               {
                 "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
               },
               {
                 "$ref": "#/$defs/AllOf"
@@ -26779,6 +28357,48 @@
         "title": "Reach",
         "type": "object"
       },
+      "RegardAt": {
+        "additionalProperties": false,
+        "description": "How ``a`` and ``b`` regard each other (a relationship's disposition, -5 to 5)\nagainst a line; 0 when they have no relationship yet.",
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          },
+          "check": {
+            "const": "regard_at",
+            "default": "regard_at",
+            "title": "Check",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "ge",
+              "le"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "maximum": 5,
+            "minimum": -5,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "a",
+          "b",
+          "op",
+          "value"
+        ],
+        "title": "RegardAt",
+        "type": "object"
+      },
       "Region": {
         "additionalProperties": false,
         "properties": {
@@ -27140,16 +28760,23 @@
                 "discriminator": {
                   "mapping": {
                     "act_of": "#/$defs/ActOf",
+                    "agreement_in_force": "#/$defs/AgreementInForce",
                     "all_of": "#/$defs/AllOf",
                     "any_of": "#/$defs/AnyOf",
+                    "at_war": "#/$defs/AtWar",
                     "commitment_in_force": "#/$defs/CommitmentInForce",
+                    "contest_won": "#/$defs/ContestWon",
                     "controls_asset": "#/$defs/ControlsAsset",
                     "disposition_at": "#/$defs/DispositionAt",
                     "entity_is": "#/$defs/EntityIs",
+                    "holds_area": "#/$defs/HoldsArea",
                     "holds_office": "#/$defs/HoldsOffice",
+                    "income_at": "#/$defs/IncomeAt",
                     "meter_at": "#/$defs/MeterAt",
                     "ordered": "#/$defs/Ordered",
-                    "quantity_at": "#/$defs/QuantityAt"
+                    "quantity_at": "#/$defs/QuantityAt",
+                    "regard_at": "#/$defs/RegardAt",
+                    "support_at": "#/$defs/SupportAt"
                   },
                   "propertyName": "check"
                 },
@@ -27180,6 +28807,27 @@
                   },
                   {
                     "$ref": "#/$defs/QuantityAt"
+                  },
+                  {
+                    "$ref": "#/$defs/HoldsArea"
+                  },
+                  {
+                    "$ref": "#/$defs/IncomeAt"
+                  },
+                  {
+                    "$ref": "#/$defs/SupportAt"
+                  },
+                  {
+                    "$ref": "#/$defs/AgreementInForce"
+                  },
+                  {
+                    "$ref": "#/$defs/ContestWon"
+                  },
+                  {
+                    "$ref": "#/$defs/AtWar"
+                  },
+                  {
+                    "$ref": "#/$defs/RegardAt"
                   },
                   {
                     "$ref": "#/$defs/AllOf"
@@ -27917,6 +29565,50 @@
           "on"
         ],
         "title": "StepOutcome",
+        "type": "object"
+      },
+      "SupportAt": {
+        "additionalProperties": false,
+        "description": "A group's support at home (GRP), 0 to 100, against a line.",
+        "properties": {
+          "check": {
+            "const": "support_at",
+            "default": "support_at",
+            "title": "Check",
+            "type": "string"
+          },
+          "group": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Group",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "ge",
+              "le"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Value",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nation",
+          "group",
+          "op",
+          "value"
+        ],
+        "title": "SupportAt",
         "type": "object"
       },
       "Tally": {

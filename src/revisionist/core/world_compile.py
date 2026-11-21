@@ -24,10 +24,22 @@ from revisionist.core.fold import FoldError, replay
 from revisionist.core.goals import (
     MAX_DEPTH,
     MAX_PARTS,
+    AgreementInForce,
+    AimRule,
     AllOf,
     AnyOf,
+    AtWar,
+    ContestWon,
+    EntityIs,
+    Exposure,
     Goal,
+    HoldsArea,
+    IncomeAt,
+    Leaf,
     Ordered,
+    QuantityAt,
+    RegardAt,
+    SupportAt,
     WinCondition,
     depth,
     goal_kind,
@@ -498,6 +510,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_intelligence(world, sections, problems)
     _check_groups(world, problems)
     _check_contest_moves(world, sections, problems)
+    _check_aim_rules(world, sections, problems)
     for seat in world.seats:
         if seat.controller is Controller.HUMAN:
             problems.append(f"seat {seat.key}: a realism world names no human seat")
@@ -1670,8 +1683,111 @@ _CONDITION_REFS = {
     "relationship": "relationship",
     "person": "entity",
     "quantity": "quantity",
+    "area": "entity",
+    "nation": "entity",
+    "contest": "contest",
+    "side": "entity",
+    "a": "entity",
+    "b": "entity",
 }
-"""Which section each reference field of a win condition names."""
+"""Which section each reference field of a win condition names. An agreement's
+``between`` names entities too."""
+
+
+def _check_aim_rules(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """Each card's aim rules (AIM): for an aim the card has, once each, at most one
+    replaceable, opening on or before the deadline; a condition of bounded size that
+    names what the world declares, a group by its nation's own key. With the rule off
+    they are checked and left out of the game."""
+    groups_of = {d.nation: {g.key for g in d.groups} for d in world.groups}
+    for c in world.cards:
+        where = f"card {c.person}"
+        aims = [r.aim for r in c.aim_rules]
+        if len(set(aims)) != len(aims):
+            problems.append(f"{where}: an aim has two rules")
+        if sum(r.replaceable for r in c.aim_rules) > 1:
+            problems.append(f"{where}: at most one aim is replaceable")
+        for r in c.aim_rules:
+            at = f"{where} aim {r.aim}"
+            if r.aim > len(c.aims):
+                problems.append(f"{at}: the card has no aim {r.aim}")
+            if r.opens is not None and r.deadline is not None and r.opens > r.deadline:
+                problems.append(f"{at}: opens after its deadline")
+            if depth(r.condition) > MAX_DEPTH or len(leaves(r.condition)) > MAX_PARTS:
+                problems.append(f"{at}: condition too large")
+            for leaf in leaves(r.condition):
+                for name, section in _CONDITION_REFS.items():
+                    _ref(problems, at, getattr(leaf, name, None), section, sections)
+                _refs(problems, at, getattr(leaf, "between", ()), "entity", sections)
+                if isinstance(leaf, SupportAt) and leaf.group not in groups_of.get(leaf.nation, ()):
+                    problems.append(f"{at}: {leaf.nation} has no group {leaf.group}")
+
+
+def _polity_key(world: WorldFile, key: str) -> str | None:
+    """The key itself if it is a polity, else its nearest polity up the parents."""
+    decls = {d.key: d for d in world.entities}
+    seen: set[str] = set()
+    at: str | None = key
+    while at is not None and at in decls and at not in seen:
+        if decls[at].kind is EntityKind.POLITY:
+            return at
+        seen.add(at)
+        at = decls[at].parent
+    return None
+
+
+def _exposure(world: WorldFile, person: str, leaf: Leaf) -> Exposure:
+    """Whether the seat holding ``person`` may see the fact ``leaf`` reads (AIM rule 5):
+    the board's holders, wars and war-economy figures are public; a group's support,
+    an agreement and regard are its own nation's when its nation is in them, and a
+    quantity or a contest by its declared scope; anything else is hidden."""
+    own = _polity_key(world, person)
+    match leaf:
+        case HoldsArea() | IncomeAt() | AtWar() | EntityIs():
+            return Exposure.PUBLIC
+        case SupportAt():
+            return Exposure.OWN if leaf.nation == own else Exposure.HIDDEN
+        case AgreementInForce():
+            return Exposure.OWN if own in leaf.between else Exposure.HIDDEN
+        case RegardAt():
+            return Exposure.OWN if person in (leaf.a, leaf.b) else Exposure.HIDDEN
+        case QuantityAt():
+            q = next((d for d in world.quantities if d.key == leaf.quantity), None)
+            if q is not None and q.public:
+                return Exposure.PUBLIC
+            owner = None if q is None or q.owner is None else _polity_key(world, q.owner)
+            return Exposure.OWN if owner is not None and owner == own else Exposure.HIDDEN
+        case ContestWon():
+            k = next((d for d in world.contests if d.key == leaf.contest), None)
+            return Exposure.PUBLIC if k is not None and k.scope == "public" else Exposure.HIDDEN
+        case _:
+            return Exposure.HIDDEN
+
+
+def _aim_rules(world: WorldFile, c: CardDecl, ids: Mapping[str, str]) -> tuple[AimRule | None, ...]:
+    """A card's aim rules by the aims' index, keys bound to IDs, None where an aim has
+    no rule; empty with the ``aims`` rule off, so such a card is compiled as before."""
+    if Rule.AIMS not in world.rules or not c.aim_rules:
+        return ()
+    by_aim = {r.aim: r for r in c.aim_rules}
+    last = max(by_aim)
+    out: list[AimRule | None] = []
+    for i in range(1, last + 1):
+        r = by_aim.get(i)
+        if r is None:
+            out.append(None)
+            continue
+        out.append(
+            AimRule(
+                condition=_bind(r.condition, ids),
+                rule=r.rule,
+                opens=r.opens,
+                deadline=r.deadline,
+                sees=tuple(_exposure(world, c.person, x) for x in leaves(r.condition)),
+                replaceable=r.replaceable,
+            )
+        )
+    return tuple(out)
 
 
 def _check_goals(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
@@ -1734,7 +1850,11 @@ def _bind(c: WinCondition, ids: Mapping[str, str]) -> WinCondition:
     """The same condition with every key replaced by its ID."""
     if isinstance(c, AllOf | AnyOf):
         return c.model_copy(update={"conditions": tuple(_bind(x, ids) for x in c.conditions)})
-    update = {name: ids[getattr(c, name)] for name in _CONDITION_REFS if hasattr(c, name)}
+    update: dict[str, Any] = {
+        name: ids[getattr(c, name)] for name in _CONDITION_REFS if hasattr(c, name)
+    }
+    if isinstance(c, AgreementInForce):
+        update["between"] = tuple(EntityId(ids[k]) for k in c.between)
     return c.model_copy(update=update)
 
 
@@ -2067,7 +2187,7 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
         )
         for pl in world.pipelines
     )
-    cards = tuple(_card(c, ids) for c in world.cards)
+    cards = tuple(_card(c, ids, _aim_rules(world, c, ids)) for c in world.cards)
     templates = tuple(_template(m, ids) for m in world.mandates)
     outlets = tuple(
         Outlet(
@@ -2363,7 +2483,9 @@ def compile_figure(
     return events
 
 
-def _card(c: CardDecl, ids: Mapping[str, str]) -> SeatCard:
+def _card(
+    c: CardDecl, ids: Mapping[str, str], aim_rules: tuple[AimRule | None, ...] = ()
+) -> SeatCard:
     return SeatCard(
         person=EntityId(ids[c.person]),
         office=c.office,
@@ -2420,6 +2542,7 @@ def _card(c: CardDecl, ids: Mapping[str, str]) -> SeatCard:
         ),
         answers=tuple(_answer(a, ids) for a in c.answers),
         addressed_as=c.addressed_as,
+        aim_rules=aim_rules,
     )
 
 

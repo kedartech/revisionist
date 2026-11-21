@@ -828,6 +828,20 @@ class ConflictDecl(Model):
     irreducible: bool = False
 
 
+class AimRuleDecl(Model):
+    """What makes a card's aim a goal (AIM). ``aim`` counts the card's aims from 1; the
+    condition names keys, like a goal's (a group by its key in the nation's groups).
+    Who may see each leaf is worked out by the compiler from the world."""
+
+    aim: int = Field(ge=1, le=3)
+    condition: WinCondition
+    rule: str = Field(min_length=1, max_length=280)
+    """The success rule in plain words."""
+    opens: date | None = None
+    deadline: date | None = None
+    replaceable: bool = False
+
+
 class CardDecl(Model):
     """A person's seat card. ``person`` is a person key; the card has no key of its own."""
 
@@ -863,6 +877,8 @@ class CardDecl(Model):
     wants: SkipJsonSchema[tuple[Key, ...]] = ()
     """Topic keys. Written by hand, like ``holds_to``: not offered to a model."""
     holds_to: SkipJsonSchema[tuple[Key, ...]] = ()
+    aim_rules: SkipJsonSchema[tuple[AimRuleDecl, ...]] = Field(default=(), max_length=3)
+    """Read with the ``aims`` rule on (AIM). Written by hand: not offered to a model."""
 
 
 class TopicDecl(Model):

@@ -26,6 +26,7 @@ and asks are not in a view before then, and a skipped one never is.
 from collections.abc import Mapping
 from typing import Protocol
 
+from revisionist.core.goals import sees_goal
 from revisionist.core.ids import DocumentId, ScheduledEventId, SeatId
 from revisionist.core.ontology import ScheduledEvent, ScheduleSource, Seat
 from revisionist.core.realism import agreement, conference, detect, economy, groups
@@ -87,7 +88,7 @@ def project(state: State, seat: SeatId) -> View:
         facts=_visible(state.facts, seat),
         scheduled=_scheduled(state.scheduled, seat),
         commitments=_visible(state.commitments, seat),
-        goals=_visible(state.goals, seat),
+        goals={k: g for k, g in state.goals.items() if sees_goal(state, g, seat)},
         mandates=_visible(state.mandates, seat),
         wars=dict(state.wars),
         map=state.map,

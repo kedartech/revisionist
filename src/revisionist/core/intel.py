@@ -16,24 +16,32 @@ import hashlib
 from revisionist.core import delta as d
 from revisionist.core.goals import (
     ActOf,
+    AgreementInForce,
     AllOf,
     AnyOf,
+    AtWar,
     CommitmentInForce,
+    ContestWon,
     ControlsAsset,
     DispositionAt,
     EntityIs,
     Goal,
+    HoldsArea,
     HoldsOffice,
+    IncomeAt,
     Leaf,
     MeterAt,
     Ordered,
     QuantityAt,
+    RegardAt,
+    SupportAt,
     WinCondition,
     leaves,
 )
 from revisionist.core.ids import (
     AssetId,
     CommitmentId,
+    ContestId,
     DeltaId,
     EntityId,
     FactId,
@@ -92,6 +100,8 @@ def _name(state: State, ref: str) -> str:
         return f"ties between {_name(state, rel.a)} and {_name(state, rel.b)}"
     if (commitment := state.commitments.get(CommitmentId(ref))) is not None:
         return "a treaty of " + " and ".join(sorted(_name(state, p) for p in commitment.parties))
+    if (contest := state.contests.get(ContestId(ref))) is not None:
+        return contest.name
     return "something unknown"
 
 
@@ -113,6 +123,16 @@ def _object(leaf: Leaf) -> str:
             return leaf.person
         case QuantityAt():
             return leaf.quantity
+        case HoldsArea():
+            return leaf.area
+        case IncomeAt() | SupportAt():
+            return leaf.nation
+        case AgreementInForce():
+            return leaf.between[0]
+        case ContestWon():
+            return leaf.contest
+        case AtWar() | RegardAt():
+            return leaf.b
 
 
 def domain(state: State, leaf: Leaf) -> str:
@@ -136,6 +156,24 @@ def domain(state: State, leaf: Leaf) -> str:
             return "an act"
         case QuantityAt():
             return "a figure"
+        case HoldsArea():
+            return "territory"
+        case IncomeAt():
+            return "the war economy"
+        case SupportAt():
+            return "opinion at home"
+        case AgreementInForce():
+            return "a treaty"
+        case ContestWon():
+            return "a contest"
+        case AtWar():
+            return "war"
+        case RegardAt():
+            return "a relationship"
+
+
+def _bound(op: str) -> str:
+    return "at least" if op == "ge" else "at most"
 
 
 def render(state: State, c: WinCondition, *, swap: tuple[str, str] | None = None) -> str:
@@ -168,6 +206,20 @@ def render(state: State, c: WinCondition, *, swap: tuple[str, str] | None = None
             return f"{name(c.person)} acts{what}"
         case Ordered():
             return f"{name(c.person)} orders {c.effect.value.replace('_', ' ')}"
+        case HoldsArea():
+            return f"{name(c.holder)} holds {name(c.area)}"
+        case IncomeAt():
+            return f"{name(c.nation)}'s war economy {_bound(c.op)} {c.value}"
+        case SupportAt():
+            return f"{c.group} in {name(c.nation)} {_bound(c.op)} {c.value}"
+        case AgreementInForce():
+            return "an agreement of " + " and ".join(name(n) for n in c.between) + " in force"
+        case ContestWon():
+            return f"{name(c.side)} wins {name(c.contest)}"
+        case AtWar():
+            return f"{name(c.a)} and {name(c.b)} {'at war' if c.war else 'at peace'}"
+        case RegardAt():
+            return f"{name(c.a)} and {name(c.b)} regard {_bound(c.op)} {c.value}"
         case QuantityAt():
             return f"{name(c.quantity)} {'at least' if c.op == 'ge' else 'at most'} {c.value}"
 
@@ -195,6 +247,10 @@ def _decoy(state: State, leaf: Leaf, seed: str) -> str | None:
         case DispositionAt():
             pool = sorted(r for r in state.relationships if r != true)
         case CommitmentInForce() | ActOf() | Ordered() | QuantityAt():
+            pool = []
+        case HoldsArea() | IncomeAt() | SupportAt() | AgreementInForce():
+            pool = []
+        case ContestWon() | AtWar() | RegardAt():
             pool = []
     if not pool:
         return None

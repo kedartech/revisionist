@@ -29,7 +29,7 @@ from revisionist.core.state import State, View
 from revisionist.core.visibility import private_to
 from revisionist.engine import expects, options, realism_tick
 from revisionist.engine.store import EventStore, load_state
-from revisionist.engine.web import agreements_api, battles_api
+from revisionist.engine.web import agreements_api, battles_api, conferences_api
 from revisionist.engine.web.realism_api import (
     AgendaBlock,
     AgendaExpect,
@@ -251,6 +251,7 @@ def agenda(state: State, seat: SeatId, log: Iterable[Event]) -> AgendaBlock:
     items += requests(state, seat)
     items += offers(state, seat)
     items += held_steps(state, seat)
+    items += conferences_api.items(state, seat)
     style = seat_style(state, seat)
     if style == PlayStyle.BEGINNER.value:
         initiative += _news_asks(view, events)
@@ -529,15 +530,21 @@ def _due_battles(state: State, seat: SeatId) -> list[DueMatter]:
     ]
 
 
+def _due_votes(state: State, seat: SeatId) -> list[DueMatter]:
+    """Each conference the seat's nation votes in, due on its voting day (CNA): never the
+    vote the seat has sealed, nor what the aide would vote."""
+    return _due_items("vote", conferences_api.items(state, seat))
+
+
 DUE_KINDS: dict[str, DueKind] = {
     "request": _due_requests,
     "offer": _due_offers,
     "decision": _due_decisions,
     "capital": _due_capitals,
     "battle": _due_battles,
+    "vote": _due_votes,
 }
-"""The registry of due kinds, in the order a notice lists them. Votes (CNA) add theirs
-here."""
+"""The registry of due kinds, in the order a notice lists them."""
 
 
 def due_matters(state: State, seat: SeatId) -> list[DueMatter]:

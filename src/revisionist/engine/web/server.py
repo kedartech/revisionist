@@ -62,6 +62,7 @@ from revisionist.engine.web import (
     agreements_api,
     battles_api,
     catchup_api,
+    conferences_api,
     court,
     destinations,
     dossiers,
@@ -113,6 +114,8 @@ SEALED_BY_COMMIT = frozenset(
         "battle",
         "contingency",
         "agreement-publish",
+        "conference-call",
+        "conference-vote",
     }
 )
 """Actions that file or change an order, or answer another seat's request: held for the
@@ -567,6 +570,12 @@ class App:
                     asks, label = agreements_api.publish_asks(state, seat, body)
                     realism_tick.commit_order(store, cid, seat, asks)
                     reply = f"Sent: {label}."  # [proposed]
+                elif action == "conference-call":
+                    args, _ = conferences_api.call_args(state, seat, body)
+                    reply = conferences_api.call(store, cid, seat, args)
+                elif action == "conference-vote":
+                    args, _ = conferences_api.vote_args(state, seat, body)
+                    reply = conferences_api.vote(store, cid, seat, args)
                 else:
                     raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
             except (ValueError, KeyError, NotInPlayError, counsel.CounselRefusedError) as exc:
@@ -1069,6 +1078,10 @@ def _held_args(
     if action == "agreement-publish":
         asks, label = agreements_api.publish_asks(state, seat, body)
         return {"asks": [a.model_dump(mode="json") for a in asks]}, label
+    if action == "conference-call":
+        return conferences_api.call_args(state, seat, body)
+    if action == "conference-vote":
+        return conferences_api.vote_args(state, seat, body)
     if action == "file":
         if reading is None or not reading.asks:
             raise ValueError(orders_reader.NOTHING)

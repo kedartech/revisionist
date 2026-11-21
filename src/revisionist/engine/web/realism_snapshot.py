@@ -40,7 +40,14 @@ from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
 from revisionist.engine.aide import AideBrief
 from revisionist.engine.directive import Proposal, channels
-from revisionist.engine.web import agreements_api, battles_api, economy_api, home_api, map_api
+from revisionist.engine.web import (
+    agreements_api,
+    battles_api,
+    conferences_api,
+    economy_api,
+    home_api,
+    map_api,
+)
 from revisionist.engine.web.destinations import (
     FORCE,
     Known,
@@ -1119,11 +1126,11 @@ def seat_realism(
 ) -> dict[str, Any]:
     """The ``view.realism`` block of ``/api/me``: tray, desk, situation, orders, clock, map,
     threats, people, the world's developments, the war economy, the seat's battles, its
-    groups at home and its agreements. ``place_keys`` (``destinations.place_keys``) opens
-    movement forms to every place; ``withdrawable`` (``withdraw.withdrawable``) are the
-    orders the seat may take back; ``held_battles`` the area keys of battles it has a
-    decision held for the next wake; ``ended_battles`` (``odds.ended``) the battles it
-    fought that have ended;
+    groups at home, its agreements and its conferences. ``place_keys``
+    (``destinations.place_keys``) opens movement forms to every place; ``withdrawable``
+    (``withdraw.withdrawable``) are the orders the seat may take back; ``held_battles``
+    the area keys of battles it has a decision held for the next wake; ``ended_battles``
+    (``odds.ended``) the battles it fought that have ended;
     ``events`` the game's log, for what last moved each of its groups and the day each
     clause of its agreements was judged."""
     view = project(state, seat)
@@ -1162,6 +1169,7 @@ def seat_realism(
         "battles": battles_api.block(state, seat, view, forces, held_battles, ended_battles),
         "home": home_api.block(state, view, log),
         "agreements": agreements_api.block(state, seat, view, log),
+        "conferences": conferences_api.block(state, seat, view),
     }
 
 

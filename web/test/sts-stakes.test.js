@@ -51,9 +51,9 @@ test('the fixture carries contests with and without a lean, and a mandate', () =
 test('one tile per stake, in the data\'s order, then one per open mandate', () => {
   const strip = stakesStrip(stakes());
   const s = fixture.stakes;
-  assert.deepEqual(names(strip), [...s.contests.map((c) => c.name), ...s.mandates.map((m) => m.text)]);
+  assert.deepEqual(names(strip), [...s.contests.map((c) => c.name), ...s.mandates.map((m) => m.text), ...s.decided.map((c) => c.name)]);
   const kinds = tiles(strip).map((t) => t.getAttribute('data-kind'));
-  assert.deepEqual(kinds, [...s.contests.map(() => 'contest'), ...s.mandates.map(() => 'mandate')]);
+  assert.deepEqual(kinds, [...s.contests.map(() => 'contest'), ...s.mandates.map(() => 'mandate'), ...s.decided.map(() => 'decided')]);
   assert.equal(strip.getAttribute('role'), 'region');
   assert.ok(strip.getAttribute('aria-label'), 'a name for the region');
 });
@@ -65,8 +65,9 @@ test('a tile shows the name and the days left', () => {
   const strip = stakesStrip(s);
   const t = tiles(strip);
   assert.equal(words(t[0].querySelector('.rl-stake-days')), '24 days left');
-  assert.equal(words(t.at(-1).querySelector('.rl-stake-days')), '6 days left');
+  assert.equal(words(t.find((x) => x.getAttribute('data-kind') === 'mandate').querySelector('.rl-stake-days')), '6 days left');
   for (const tile of t) assert.ok(words(tile.querySelector('.rl-stake-name')), 'a name on every tile');
+  assert.equal(t.filter((x) => x.getAttribute('data-kind') !== 'decided').length, s.contests.length + s.mandates.length);
 });
 
 test('days left reads one day, many days, and due now at zero', () => {
@@ -88,7 +89,7 @@ test('the lean shows only on a contest whose data carries one', () => {
   s.contests.forEach((c, i) => {
     assert.equal(Boolean(t[i].querySelector('.rl-stake-lean')), Boolean(c.lean), c.name);
   });
-  for (const m of t.slice(s.contests.length)) assert.equal(m.querySelector('.rl-stake-lean'), null, 'no lean on a mandate');
+  for (const m of t.slice(s.contests.length).filter((x) => x.getAttribute('data-kind') === 'mandate')) assert.equal(m.querySelector('.rl-stake-lean'), null, 'no lean on a mandate');
 });
 
 test('a lean draws ten steps, as many on as its step, toward the first side, and names who it favours', () => {

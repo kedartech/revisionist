@@ -18,3 +18,27 @@
   .rl-stakes-list { padding: var(--space-2); }
   .rl-stake { min-width: 9.5rem; max-width: 14rem; }
 }
+
+/* The aim lines above the tiles: a chip and the aim's words on one tap target, the drill-down under it. */
+.rl-aims { display: flex; flex-direction: column; gap: var(--space-1); margin: 0; padding: var(--space-2) var(--space-3) 0; list-style: none; font: 13px/1.4 var(--font-chrome); color: var(--fg); }
+.rl-aim { min-width: 0; background: var(--surface-2); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-aim-toggle { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 44px; padding: var(--space-1) var(--space-3); background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.rl-aim-chip { flex: 0 0 auto; padding: 1px var(--space-2); border: 1px solid var(--rule-strong); border-radius: var(--radius); font: 600 11px/1.5 var(--font-chrome); text-transform: uppercase; letter-spacing: 0.06em; }
+.rl-aim[data-status="met"] .rl-aim-chip { color: var(--ok); border-color: var(--ok); background: var(--ok-soft); }
+.rl-aim[data-status="at_risk"] .rl-aim-chip { color: var(--warn); border-color: var(--warn); background: var(--warn-soft); }
+.rl-aim[data-status="failed"] .rl-aim-chip { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
+.rl-aim-text { min-width: 0; overflow-wrap: anywhere; color: var(--fg-strong); }
+.rl-aim-more { padding: 0 var(--space-3) var(--space-2); overflow-wrap: anywhere; }
+.rl-aim-more[hidden] { display: none; }
+.rl-aim-more p { margin: var(--space-1) 0; }
+.rl-aim-period, .rl-aim-reason { color: var(--fg-muted); }
+.rl-aim-leaves { margin: var(--space-1) 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
+.rl-aim-leaf { display: flex; flex-direction: column; gap: 2px; padding-left: var(--space-2); border-left: 2px solid var(--rule-strong); }
+.rl-aim-leaf[data-holds="true"] { border-left-color: var(--ok); }
+.rl-aim-leaf[data-holds="false"] { border-left-color: var(--warn); }
+.rl-aim-evidence { color: var(--fg-muted); }
+.rl-aim-uncertain { color: var(--warn); font-style: italic; }
+.rl-score { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); margin: 0; padding: var(--space-2) var(--space-3) 0; font: 13px/1.4 var(--font-chrome); color: var(--fg-strong); font-variant-numeric: tabular-nums; }
+.rl-stake[data-kind="decided"] { border-left: 3px solid var(--ok); }
+.rl-stake-winner { color: var(--ok); font-weight: 600; }
+.rl-pin .rl-aims { padding: 0; }

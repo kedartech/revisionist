@@ -549,6 +549,16 @@ def _due_votes(state: State, seat: SeatId) -> list[DueMatter]:
     return _due_items("vote", conferences_api.items(state, seat))
 
 
+def _due_asks(state: State, seat: SeatId) -> list[DueMatter]:
+    """Each ask put before the seat for another seat's held order (LKD rule 4): the
+    order's words and the asker, read from its own view. No clock ends an ask."""
+    from revisionist.engine.web import locks_api
+
+    found = locks_api.block(state, seat)
+    asks = found["asks"] if found is not None else []
+    return [DueMatter("ask", a["id"], a["words"], a["by"], locks_api.ASK_DUE) for a in asks]
+
+
 DUE_KINDS: dict[str, DueKind] = {
     "request": _due_requests,
     "offer": _due_offers,
@@ -556,6 +566,7 @@ DUE_KINDS: dict[str, DueKind] = {
     "capital": _due_capitals,
     "battle": _due_battles,
     "vote": _due_votes,
+    "ask": _due_asks,
 }
 """The registry of due kinds, in the order a notice lists them."""
 

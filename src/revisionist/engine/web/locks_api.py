@@ -1,0 +1,177 @@
+"""The seat's locks and the check before sending (LKD).
+
+With ``locks`` on, the seat's ``view.realism`` carries a ``locks`` block: its own held
+orders, each with the order in plain words, who can allow it, whether it has been asked
+for and the day it was held; and each ask put before it, with the asker and the order's
+words. The ``check`` action answers, for a draft order, what filing it now would do:
+``allowed``, ``locked`` with who can allow it, or ``beyond`` with today's refusal. It runs
+the filing itself (``realism_tick.form_filing``, ``realism_tick.written_filing``) on the
+game as it stands and logs nothing, so the check and the filing cannot differ. The lock
+the filing reads is ``locks.seen_lock``: a lock whose condition turns on a fact the seat
+cannot see holds nothing, so such an order checks as allowed. Nothing here makes a
+model call.
+"""
+
+from collections.abc import Sequence
+
+from revisionist.core import events as ev
+from revisionist.core.ids import CampaignId, EntityId, OrderId, SeatId, derived_id
+from revisionist.core.project import project
+from revisionist.core.realism import locks
+from revisionist.core.realism.agenda import Ask
+from revisionist.core.realism.card import words
+from revisionist.core.state import State, View
+from revisionist.engine import orders_reader, realism_tick
+from revisionist.engine.web.realism_api import (
+    AskForm,
+    AskLine,
+    HeldLine,
+    LockCheck,
+    LocksBlock,
+)
+
+ASK_DUE = "when you choose"  # [proposed]
+"""The due words of an ask in the decider's list and wake notice: no clock ends it."""
+ASKED = "Asked {who} for it."  # [proposed]
+"""The reply to the ``ask`` action."""
+
+
+def ask_id(campaign_id: CampaignId, order_id: OrderId) -> str:
+    """The token an ask is known by to the seat it was put before: never the held
+    order's own id, which only its issuer holds."""
+    return derived_id(campaign_id, "ask", order_id)
+
+
+def who(view: View, decider: locks.Decider) -> str:
+    """Who can allow an order, named from the seat's own view, as ``locks.reason``
+    names them."""
+    if decider.person is not None:
+        return _name(view, decider.person)
+    assert decider.nation is not None
+    chambers = " and ".join(c.replace("_", " ") for c in decider.chambers)
+    return f"{_name(view, decider.nation)}'s {chambers}"
+
+
+def _name(view: View, entity: EntityId) -> str:
+    found = view.entities.get(entity)
+    return found.name if found is not None else "whoever decides it"
+
+
+def block(state: State, seat: SeatId) -> LocksBlock | None:
+    """The seat's ``locks`` block, read from its own view; None with ``locks`` off."""
+    if not locks.on(state):
+        return None
+    view = project(state, seat)
+    held = [
+        HeldLine(
+            id=h.order_id,
+            words=locks.held_words(state, h),
+            who=who(view, h.decider),
+            reason=h.reason,
+            held=h.filed.isoformat(),
+            asked=h.order_id in view.asked,
+        )
+        for h in sorted(view.held.values(), key=lambda h: (h.filed, h.order_id))
+    ]
+    asks = [
+        AskLine(
+            id=ask_id(state.campaign_id, a.order_id),
+            by=_name(view, a.by),
+            words=a.words,
+            asked=a.on.isoformat(),
+            forms=_forms(state, view, a),
+        )
+        for a in sorted(view.asked.values(), key=lambda a: (a.on, a.order_id))
+        if a.seat == seat
+    ]
+    return LocksBlock(held=held, asks=asks)
+
+
+def _forms(state: State, view: View, asked: locks.Asked) -> list[AskForm]:
+    """The decider's own forms that would allow the asked order: the posture its lock's
+    row names, where that form is on his own desk. The row is a public rule of the
+    world; which row holds the order is engine side, and only the form it names is
+    told."""
+    held = state.held.get(asked.order_id)
+    row = next((r for r in view.locks if held is not None and r.key == held.row), None)
+    when = row.when if row is not None else None
+    if not isinstance(when, locks.PostureNotSet) or when.form is None or view.desk is None:
+        return []
+    lever = next((x for x in view.desk.levers if x.name == when.form), None)
+    if lever is None:
+        return []
+    terms = {**when.where, **when.posture}
+    return [
+        AskForm(
+            lever=lever.name,
+            label=lever.label or words(lever.name),
+            params={k: str(v) for k, v in terms.items()},
+        )
+    ]
+
+
+ALLOWED = LockCheck(check="allowed", who=None, reason="")
+
+
+def _beyond(reason: str) -> LockCheck:
+    return LockCheck(check="beyond", who=None, reason=reason)
+
+
+def _locked(state: State, seat: SeatId, hold: locks.HeldOrder) -> LockCheck:
+    return LockCheck(
+        check="locked", who=who(project(state, seat), hold.decider), reason=hold.reason
+    )
+
+
+def _held_in(landing: realism_tick.Landing) -> locks.HeldOrder | None:
+    return next((p.held for p, _ in landing if isinstance(p, ev.OrderHeld)), None)
+
+
+def check_form(state: State, seat: SeatId, lever: str, given: dict[str, str]) -> LockCheck:
+    """What filing the seat's form ``lever`` with ``given`` would do now. Logs nothing."""
+    try:
+        order = realism_tick.draft_order(state, seat, lever, given)
+    except ValueError as exc:
+        return _beyond(str(exc))
+    landing, filed = realism_tick.form_filing(state, seat, order)
+    hold = _held_in(landing) if landing else state.held.get(filed.order_id)
+    return ALLOWED if hold is None else _locked(state, seat, hold)
+
+
+def check_asks(state: State, seat: SeatId, asks: Sequence[Ask]) -> LockCheck:
+    """What filing the seat's written ``asks`` would do now. Logs nothing."""
+    if not asks:
+        return _beyond(orders_reader.NOTHING)
+    try:
+        _, filed = realism_tick.written_filing(state, seat, asks)
+    except ValueError as exc:
+        return _beyond(str(exc))
+    return _locked(state, seat, filed) if isinstance(filed, locks.HeldOrder) else ALLOWED
+
+
+def ask_label(state: State, seat: SeatId, order_id: str) -> str:
+    """The label of a held ask for the seat's held-orders list. Raises ``ValueError``
+    with the seat's words as the ask would now."""
+    today = state.in_world_date
+    if today is None:
+        raise ValueError(locks.NOT_HELD)
+    asked = locks.ask(state, seat, OrderId(order_id), today)
+    return f"Your ask for: {asked.words}"  # [proposed]
+
+
+def asked_reply(state: State, seat: SeatId, asked: locks.Asked) -> str:
+    return ASKED.format(who=_name(project(state, seat), asked.to))
+
+
+__all__ = [
+    "ALLOWED",
+    "ASKED",
+    "ASK_DUE",
+    "ask_id",
+    "ask_label",
+    "asked_reply",
+    "block",
+    "check_asks",
+    "check_form",
+    "who",
+]

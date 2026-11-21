@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from revisionist.core.ids import CampaignId, DocumentId, EntityId, SeatId
+from revisionist.core.ids import CampaignId, DocumentId, EntityId, OrderId, SeatId
 from revisionist.core.ontology import EntityKind, Persona, Phase
 from revisionist.core.project import project
 from revisionist.core.realism.agenda import Ask
@@ -66,6 +66,7 @@ from revisionist.engine.web import (
     court,
     destinations,
     dossiers,
+    locks_api,
     map_api,
     new_game_api,
     reach_groups,
@@ -80,6 +81,7 @@ from revisionist.engine.web import (
 from revisionist.engine.web import (
     held as held_orders,
 )
+from revisionist.engine.web import realism_api as api
 from revisionist.engine.web.accounts import (
     SESSION_DAYS,
     Account,
@@ -116,6 +118,7 @@ SEALED_BY_COMMIT = frozenset(
         "agreement-publish",
         "conference-call",
         "conference-vote",
+        "ask",
     }
 )
 """Actions that file or change an order, or answer another seat's request: held for the
@@ -359,6 +362,8 @@ class App:
                     return snapshot.checked(state, seat, pages)
                 if action == "map":
                     return snapshot.checked(state, seat, dict(map_api.map_reply(state)))
+                if action == "check":  # files nothing, so never held by a commit (LKD)
+                    return snapshot.checked(state, seat, dict(self._check(state, seat, body)))
                 if action == "odds":  # files nothing, so never held by a commit (ODS)
                     return snapshot.checked(state, seat, odds.reply(self.odds, state, seat, body))
                 if action == "read":
@@ -562,6 +567,10 @@ class App:
                     return snapshot.checked(state, seat, dict(done))
                 elif action == "withdraw":
                     return snapshot.checked(state, seat, self._withdraw(store, state, seat, body))
+                elif action == "ask":
+                    held_id = OrderId(_text(body, "order_id", 64))
+                    made = realism_tick.ask_order(store, cid, seat, held_id)
+                    reply = locks_api.asked_reply(state, seat, made)
                 elif action in ("battle", "contingency"):
                     asks, label = _battle_asks(state, seat, action, body)
                     realism_tick.commit_order(store, cid, seat, asks)
@@ -589,6 +598,17 @@ class App:
             return snapshot.checked(state, seat, {"reply": reply, "refused": False})
         finally:
             store.close()
+
+    def _check(self, state: State, seat: SeatId, body: dict[str, Any]) -> api.LockCheck:
+        """The check before sending (LKD): a form's lever and terms, or else the seat's
+        latest reading of a written order. Files nothing."""
+        if "lever" in body:
+            return locks_api.check_form(state, seat, _text(body, "lever", 120), _params(body))
+        with self._lock:
+            reading = self._readings.get((state.campaign_id, seat))
+        if reading is not None and reading.vote is not None:
+            return locks_api.ALLOWED
+        return locks_api.check_asks(state, seat, reading.asks if reading is not None else ())
 
     def _withdraw(
         self, store: PostgresEventStore, state: State, seat: SeatId, body: dict[str, Any]
@@ -1086,6 +1106,9 @@ def _held_args(
         return conferences_api.call_args(state, seat, body)
     if action == "conference-vote":
         return conferences_api.vote_args(state, seat, body)
+    if action == "ask":
+        order_id = _text(body, "order_id", 64)
+        return {"order_id": order_id}, locks_api.ask_label(state, seat, order_id)
     if action == "file":
         if reading is None or not reading.asks:
             raise ValueError(orders_reader.NOTHING)

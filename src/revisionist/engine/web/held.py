@@ -17,7 +17,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
-from revisionist.core.ids import CampaignId, EntityId, SeatId
+from revisionist.core.ids import CampaignId, EntityId, OrderId, SeatId
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.effect import Forecast
@@ -283,6 +283,8 @@ def file_one(
             conferences_api.call(store, campaign_id, seat, args)
         elif action == "conference-vote":
             conferences_api.vote(store, campaign_id, seat, args)
+        elif action == "ask":
+            realism_tick.ask_order(store, campaign_id, seat, OrderId(args["order_id"]))
         elif action == "answer":
             done = agenda_api.answer(store, campaign_id, seat, args["item"], args["accept"])
             return done["reply"] if done["refused"] else None

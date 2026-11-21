@@ -16,7 +16,10 @@ on, each wake also counts the battles opened, the rounds fought and the battles 
 while it was the latest wake opened (BTD): counts only, never a side or a figure. In a
 game with ``reports`` on, each wake also counts the reports every nation's sources made,
 by source, and the share that were wrong (RPD): engine-only counts for the operator,
-naming no piece. In a game with ``agreements`` on, each wake also counts the clauses of
+naming no piece. In a game with ``locks`` on, each wake also counts, per seat, the
+orders it filed, those a lock held, the asks it made and its held orders whose lock
+opened (LKD): counts only, never an order, a decider or a row. In a game with
+``agreements`` on, each wake also counts the clauses of
 agreements judged kept and judged broken while it was the latest wake opened (AGA):
 counts only, never an agreement, a party or a clause. In a game with ``aims`` on, each
 wake also counts, per seat, the aims of the person it holds that were met, at risk and
@@ -37,9 +40,9 @@ from revisionist.core import events as ev
 from revisionist.core.events import Event
 from revisionist.core.fold import apply, replay
 from revisionist.core.goals import AimStatus, aim_status, aims_on, holder_seat
-from revisionist.core.ids import CampaignId, EntityId, SeatId
+from revisionist.core.ids import CampaignId, EntityId, OrderId, SeatId
 from revisionist.core.ontology import Controller, EntityKind
-from revisionist.core.realism import agreement, battle, detect, economy, holders
+from revisionist.core.realism import agreement, battle, detect, economy, holders, locks
 from revisionist.core.realism.agreement import ClauseStatus
 from revisionist.core.state import State
 from revisionist.engine.store import EventStore
@@ -143,6 +146,15 @@ class Aims:
 
 
 @dataclass(frozen=True)
+class Locked:
+    number: int
+    seats: tuple[tuple[str, int, int, int, int], ...]
+    """Each seat that did any of these in the wake, by name: orders filed (held ones
+    among them), orders held, asks made and held orders whose lock opened. An order that
+    lands when its lock opens is not filed again."""
+
+
+@dataclass(frozen=True)
 class Report:
     campaign_id: CampaignId | None
     wakes: tuple[WakeRow, ...]
@@ -158,6 +170,8 @@ class Report:
     """One per wake opened, in a game with ``agreements`` on; else empty."""
     aims: tuple[Aims, ...] = ()
     """One per wake opened, in a game with ``aims`` on; else empty."""
+    locked: tuple[Locked, ...] = ()
+    """One per wake opened, in a game with ``locks`` on; else empty."""
     forecasts: tuple[int, int] | None = None
     """Expected moves checked and how many held, over every seat; None in a game where
     no order came from a suggested action."""
@@ -233,6 +247,7 @@ def build(events: Sequence[Event]) -> Report:
         _intelligence(events, state),
         _clauses(events, state),
         _aims(events) if aims_on(state) else (),
+        _locked(events, state),
         _forecasts(events, state),
     )
 
@@ -347,6 +362,55 @@ def _intelligence(events: Sequence[Event], state: State) -> tuple[Intelligence, 
     )
 
 
+def _locked(events: Sequence[Event], state: State) -> tuple[Locked, ...]:
+    """Each wake's per-seat lock counts, by the latest wake opened when each happened;
+    empty with ``locks`` off."""
+    if not locks.on(state):
+        return ()
+    landed = {
+        p.by
+        for e in events
+        if isinstance(p := e.payload, ev.HeldOrderEnded) and p.end is locks.HeldEnd.LANDED
+    }
+    counts: dict[int, dict[SeatId, list[int]]] = {}
+    number: int | None = None
+    for e in events:
+        p = e.payload
+        if isinstance(p, ev.WakeOpened):
+            number = p.wake
+            counts.setdefault(number, {})
+            continue
+        if number is None:
+            continue
+        found = _lock_count(p, landed)
+        if found is not None and found[0] in state.seats:
+            row = counts[number].setdefault(found[0], [0, 0, 0, 0])
+            row[found[1]] += 1
+            if isinstance(p, ev.OrderHeld):
+                row[0] += 1  # a held order was filed too
+    names = {s.seat_id: s.name for s in state.seats.values()}
+    return tuple(
+        Locked(n, tuple(sorted((names.get(s, s), c[0], c[1], c[2], c[3]) for s, c in rows.items())))
+        for n, rows in sorted(counts.items())
+    )
+
+
+def _lock_count(p: ev.Payload, landed: set[OrderId | None]) -> tuple[SeatId, int] | None:
+    """The seat an event counts for and which count: 0 filed, 1 held, 2 asked, 3
+    opened; None for an event none of them counts."""
+    if isinstance(p, ev.OrderDrafted) and p.order.routed_from is None:
+        return None if p.order.order_id in landed else (p.order.issuer, 0)
+    if isinstance(p, ev.OrderRouted):
+        return None if p.order.order_id in landed else (p.order.issuer, 0)
+    if isinstance(p, ev.OrderHeld):
+        return (p.held.issuer, 1)
+    if isinstance(p, ev.OrderAsked):
+        return (p.asked.asker, 2)
+    if isinstance(p, ev.HeldOrderEnded) and p.end is locks.HeldEnd.LANDED:
+        return (p.issuer, 3)
+    return None
+
+
 def _aims_at(state: State, number: int) -> Aims:
     """Per seat, the aims of the person it holds met, at risk and failed in ``state``."""
     counts: dict[SeatId, list[int]] = {}
@@ -432,6 +496,7 @@ def render(report: Report) -> list[str]:
     heard = {i.number: i for i in report.intelligence}
     judged = {c.number: c for c in report.clauses}
     aimed = {a.number: a for a in report.aims}
+    locked = {x.number: x for x in report.locked}
     for w in report.wakes:
         lines.append(f"  wake {w.number}: {w.how}")
         if w.number in held:
@@ -449,6 +514,8 @@ def render(report: Report) -> list[str]:
             lines.append(f"    clauses: {c.kept} kept, {c.broken} broken")
         if w.number in aimed:
             lines.append(_aimed(aimed[w.number]))
+        if w.number in locked:
+            lines.append(_locks_line(locked[w.number]))
     lines += [
         f"seat {s.name}: aide played {_plural(s.aide_wakes, 'wake')}; {_hours(s)}"
         for s in report.seats
@@ -497,6 +564,16 @@ def _aimed(a: Aims) -> str:
     return f"    aims: {rows}"
 
 
+def _locks_line(x: Locked) -> str:
+    if not x.seats:
+        return "    locks: none"
+    rows = "; ".join(
+        f"{name} filed {filed}, held {held}, asked {asked}, opened {opened}"
+        for name, filed, held, asked, opened in x.seats
+    )
+    return f"    locks: {rows}"
+
+
 def _heard(i: Intelligence) -> str:
     if not i.made:
         return "    reports: none"
@@ -520,6 +597,7 @@ __all__ = [
     "Clauses",
     "Fighting",
     "Holding",
+    "Locked",
     "Report",
     "Return",
     "SeatRow",

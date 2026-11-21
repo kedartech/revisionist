@@ -402,10 +402,19 @@ def _mutate(state: State, event: Event) -> State:
             k = _need(state.contests, p.contest_id, "contest")
             if k.decided:
                 raise FoldError(f"contest {k.contest_id!r} is decided")
+            moves = k.moves
+            if p.move is not None:  # CON: one of the contest's own moves, landing once
+                if p.move >= len(moves):
+                    raise FoldError(f"contest {k.contest_id!r} has no move {p.move}")
+                if moves[p.move].landed:
+                    raise FoldError(f"contest {k.contest_id!r}: move {p.move} has landed")
+                landed = moves[p.move].model_copy(update={"landed": True})
+                moves = (*moves[: p.move], landed, *moves[p.move + 1 :])
             k = k.model_copy(
                 update={
                     "track": _clamp(k.track + p.change, k.floor, TRACK_MAX),
                     "countdown_days": max(0, k.countdown_days - p.days),
+                    "moves": moves,
                 }
             )
             return state.model_copy(update={"contests": _put(state.contests, k.contest_id, k)})

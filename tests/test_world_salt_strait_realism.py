@@ -23,7 +23,6 @@ from revisionist.core import events as ev
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId, EntityId, EventId, OrderId, SeatId, derived_id
 from revisionist.core.realism import economy, groups
-from revisionist.core.realism.card import Lever
 from revisionist.core.realism.kinds import Domain, Role
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.resolvers import apply_changes, intel, movement
@@ -392,12 +391,6 @@ def test_each_polity_has_its_own_intelligence() -> None:
     assert any(d.codebreaking for d in declared.values())
     assert any(d.agents for d in declared.values())
     assert set(compiled().intelligence) == {entity(k) for k in POLITIES}
-
-
-def _lever(card_person: str, name: str) -> Lever:
-    state = compiled()
-    (lever,) = [lv for lv in state.cards[entity(card_person)].levers if lv.name == name]
-    return lever
 
 
 @pytest.mark.parametrize("person", list(PLAYED.values()))

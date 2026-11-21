@@ -64,14 +64,15 @@ export function needed(vote) {
 export const bandWords = (band) => (band ? `${band} at home` : 'no reading');
 
 /**
- * The top strip's bands: one per nation, the seat's own a button that opens the home sheet
- * (`onOpen`), every other nation's plain text. `open` marks the own button expanded, and
- * `sheet`, when given, is drawn under the bands (today's room). `null` without a home block.
+ * The top strip's bands: the seat's own, a button that opens the home sheet (`onOpen`), with or
+ * without a reading; every other nation's as plain text, and only when it has a reading. `open`
+ * marks the own button expanded, and `sheet`, when given, is drawn under the bands (today's
+ * room). `null` without a home block or when no band is left to show.
  */
 export function homeStrip(rv, { open = false, onOpen, sheet = null } = {}) {
-  const home = rv.home;
-  if (!home?.standings?.length) return null;
-  const chips = home.standings.map((s) => {
+  const shown = (rv.home?.standings ?? []).filter((s) => s.nation.relation === 'own' || s.band);
+  if (!shown.length) return null;
+  const chips = shown.map((s) => {
     const own = s.nation.relation === 'own';
     const label = `${own ? `${s.nation.name} (yours)` : s.nation.name}: ${bandWords(s.band)}`;
     return own

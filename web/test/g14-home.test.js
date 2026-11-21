@@ -84,15 +84,52 @@ const sheetOf = (root) => root.querySelector('.rl-over');
 
 test('the top strip shows each nation\'s band, the seat\'s own as the button that opens its home sheet', () => {
   let opened = 0;
-  const el = strip(seat(), { home: { open: false, onOpen: () => { opened += 1; } } });
+  const rv = seat();
+  rv.home.standings[1].band = 'shaken';
+  const el = strip(rv, { home: { open: false, onOpen: () => { opened += 1; } } });
   const chips = el.querySelectorAll('.rl-home-chip');
-  assert.deepEqual(chips.map(words), ['Norra (yours): steady at home', 'Sudland: no reading']);
+  assert.deepEqual(chips.map(words), ['Norra (yours): steady at home', 'Sudland: shaken at home']);
   const own = ownChip(el);
   assert.ok(own, 'the seat\'s own band is a button');
   assert.equal(own.getAttribute('aria-expanded'), 'false');
   fire(own, 'click');
   assert.equal(opened, 1);
   assert.equal(el.querySelectorAll('.rl-home-chip').filter((c) => c.tagName === 'BUTTON').length, 1, 'another nation\'s band opens nothing');
+});
+
+/** `rv` with standings: the own nation's band `own`, then [name, band] for each other nation. */
+function standing(own, others) {
+  const rv = seat();
+  const [mine] = rv.home.standings;
+  rv.home.standings = [
+    { nation: mine.nation, band: own },
+    ...others.map(([name, band], i) => ({ nation: { key: `N${i}`, name, relation: 'neutral' }, band })),
+  ];
+  return rv;
+}
+const chipWords = (rv) => strip(rv, { home: { open: false, onOpen: () => {} } }).querySelectorAll('.rl-home-chip').map(words);
+
+test('the strip leaves out every other nation with no reading', () => {
+  const rv = standing('steady', [['Vell', 'firm'], ['Aster', null], ['Kora', 'shaken'], ['Lund', null], ['Mire', null]]);
+  assert.deepEqual(chipWords(rv), ['Norra (yours): steady at home', 'Vell: firm at home', 'Kora: shaken at home']);
+});
+
+test('the seat\'s own nation keeps its band button with no reading', () => {
+  const rv = standing(null, [['Vell', 'firm'], ['Aster', null]]);
+  const el = strip(rv, { home: { open: false, onOpen: () => {} } });
+  assert.deepEqual(el.querySelectorAll('.rl-home-chip').map(words), ['Norra (yours): no reading', 'Vell: firm at home']);
+  assert.ok(ownChip(el), 'the own band is still the button');
+});
+
+test('when every other nation has no reading the strip shows the own band only', () => {
+  assert.deepEqual(chipWords(standing('steady', [['Vell', null], ['Aster', null]])), ['Norra (yours): steady at home']);
+});
+
+test('standings with no chip left add nothing to the strip', () => {
+  const rv = standing(null, [['Vell', null], ['Aster', null]]);
+  rv.home.standings.shift();
+  assert.equal(home.homeStrip(rv, { open: false, onOpen: () => {} }), null);
+  assert.equal(strip(rv).querySelectorAll('.rl-home').length, 0);
 });
 
 test('a game with no groups at home shows no band in the strip', () => {
@@ -149,11 +186,11 @@ test('another nation\'s groups are never drawn: its band only', () => {
   const h = seat().home;
   const sheet = home.homeSheet(h);
   assert.doesNotMatch(words(sheet), /Sudland/, 'the home sheet is the seat\'s own nation only');
-  const el = strip(seat(), { home: { open: true, onOpen: () => {}, sheet } });
+  const band = { ...seat(), home: { ...h, standings: h.standings.map((s) => (s.nation.name === 'Sudland' ? { ...s, band: 'shaken' } : s)) } };
+  const el = strip(band, { home: { open: true, onOpen: () => {}, sheet } });
   const sud = el.querySelectorAll('.rl-home-chip').find((c) => words(c).startsWith('Sudland'));
   assert.equal(sud.tagName, 'SPAN');
-  const band = { ...seat(), home: { ...h, standings: h.standings.map((s) => (s.nation.name === 'Sudland' ? { ...s, band: 'shaken' } : s)) } };
-  assert.equal(words(strip(band, { home: { open: false, onOpen: () => {} } }).querySelectorAll('.rl-home-chip')[1]), 'Sudland: shaken at home');
+  assert.equal(words(sud), 'Sudland: shaken at home');
 });
 
 test('in the map-first room the band opens the home sheet over the map, the minute poll keeps it, and Escape returns focus to the band', async () => {

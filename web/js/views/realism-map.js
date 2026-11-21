@@ -24,6 +24,8 @@ export function forceGlyph(mark, size) {
     fleet: svg('path', { d: `M${-q} 0H${q}M${-q} ${q / 2}Q0 ${q * 1.2} ${q} ${q / 2}`, class: 'rl-mk-glyph' }),
     army: svg('path', { d: `M${-q} ${-q / 1.5}L${q} ${q / 1.5}M${-q} ${q / 1.5}L${q} ${-q / 1.5}`, class: 'rl-mk-glyph' }),
     air: svg('path', { d: `M${-q} ${q / 2}L0 ${-q / 2}L${q} ${q / 2}`, class: 'rl-mk-glyph' }),
+    // an envoy: a sealed letter
+    envoy: svg('path', { d: `M${-q} ${-q / 1.5}H${q}V${q / 1.5}H${-q}ZM${-q} ${-q / 1.5}L0 ${q / 4}L${q} ${-q / 1.5}`, class: 'rl-mk-glyph rl-mk-envoy' }),
   }[mark.kind];
   const tick = mark.certainty === 'stale'
     ? svg('path', { d: `M${r * 1.2} ${-r * 1.6}l${r * 0.6} ${-r * 0.6}`, class: 'rl-mk-tick' })

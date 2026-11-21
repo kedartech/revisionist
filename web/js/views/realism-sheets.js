@@ -71,9 +71,9 @@ export function closeSheet(ui) {
 }
 
 /** The sheet tabs: one button per sheet with its count; the open one is expanded. */
-export function sheetTabs(open, counts, onTab) {
+export function sheetTabs(open, counts, onTab, more = []) {
   return h('nav', { class: 'rl-sheettabs', 'aria-label': 'Sheets' },
-    SHEETS.map(([key, label]) => {
+    [...SHEETS, ...more].map(([key, label]) => {
       const n = Number(counts?.[key]) || 0;
       return h('button', {
         type: 'button', class: 'rl-sheettab', 'data-sheet': key, 'aria-expanded': String(open === key),

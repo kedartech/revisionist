@@ -105,9 +105,10 @@ test('the layout chosen holds for the page: another game\'s room opens in it', (
 
 test('the sheet tabs name the seven sheets, and each opens over the map', () => {
   const { root } = room();
-  assert.deepEqual(tabs(root).querySelectorAll('button').map((b) => words(b).split(' ')[0]), SHEET_NAMES);
+  // DPL: a game with agreements or conferences adds the Diplomacy sheet after the seven
+  assert.deepEqual(tabs(root).querySelectorAll('button').map((b) => words(b).split(' ')[0]), [...SHEET_NAMES, 'Diplomacy']);
   assert.deepEqual(openSheet(root), [], 'the bare map');
-  for (const name of SHEET_NAMES) {
+  for (const name of [...SHEET_NAMES, 'Diplomacy']) {
     tab(root, name).click();
     const [sheet] = sheets(root);
     assert.ok(sheet, name);

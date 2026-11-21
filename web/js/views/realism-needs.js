@@ -36,6 +36,8 @@ export function addNeedKind(kind, build) {
 }
 
 const SEALED = new Set(['Request', 'Decision']);
+/** Kinds with a line of their own: an offer of agreement and a conference vote (DPL). */
+const OWN_LINE = new Set([...SEALED, 'Offer', 'Vote']);
 const items = (rv) => rv.agenda?.items ?? [];
 
 /** An agenda item as a line: `label`, and its paper when it came on one. */
@@ -46,12 +48,18 @@ const itemLine = (item, label, word) => ({
 });
 
 // a mandate on the seat's own agenda: from its principal, or the state of the world
-addNeedKind('agenda', (rv) => items(rv).filter((i) => !SEALED.has(i.kind))
+addNeedKind('agenda', (rv) => items(rv).filter((i) => !OWN_LINE.has(i.kind))
   .map((i) => itemLine(i, `Agenda: ${i.kind}`, 'Answer')));
 // another seat's request put to the seat's person, on the paper that brought it
 addNeedKind('request', (rv) => items(rv).filter((i) => i.kind === 'Request').map((i) => itemLine(i, 'Asks you', 'Answer')));
 // a step the seat's person holds on another seat's order
 addNeedKind('decision', (rv) => items(rv).filter((i) => i.kind === 'Decision').map((i) => itemLine(i, 'Your decision', 'Decide')));
+// an offer of agreement before the seat's nation: answered on its sheet, due on its expiry
+addNeedKind('offer', (rv) => items(rv).filter((i) => i.kind === 'Offer').map((i) => itemLine(i, 'Offer of agreement', 'Answer')));
+// a conference the seat's nation is invited to and has not tallied: voted on the Diplomacy sheet by its voting day
+addNeedKind('vote', (rv) => items(rv).filter((i) => i.kind === 'Vote').map((i) => ({
+  ...itemLine(i, 'Conference vote', 'Vote'), action: { word: 'Vote', to: 'sheet', sheet: 'diplomacy' },
+})));
 // the seat's own order, waiting at a step its own person holds
 addNeedKind('order', (rv) => (rv.orders?.orders ?? []).filter((o) => o.decision_needed).map((o) => ({
   key: o.id, label: 'Your order', what: `${o.label}: it waits on your decision`,

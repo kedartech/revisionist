@@ -146,10 +146,10 @@ def test_band_w_the_shared_wake_closes(tmp_path: Path, monkeypatch: pytest.Monke
     filed: list[Sequence[Ask]] = []
     real = realism_tick.commit_order
 
-    def spy(store: EventStore, cid: CampaignId, seat: SeatId, asks: Sequence[Ask]):  # type: ignore[no-untyped-def]
+    def spy(store: EventStore, cid: CampaignId, seat: SeatId, asks: Sequence[Ask], forecast=None):  # type: ignore[no-untyped-def]
         if seat == t.winston:
             filed.append(asks)
-        return real(store, cid, seat, asks)
+        return real(store, cid, seat, asks, forecast)
 
     monkeypatch.setattr(options, "aide_asks", lambda s, seat, tr: t.aide_orders())
     monkeypatch.setattr(realism_tick, "commit_order", spy)
@@ -467,9 +467,15 @@ def test_the_close_files_no_deal_whatever_the_aide_is_given(
     filed: list[Ask] = []
     real = realism_tick.commit_order
 
-    def spy(store: EventStore, cid: CampaignId, seat: SeatId, asks: Sequence[Ask]) -> object:
+    def spy(
+        store: EventStore,
+        cid: CampaignId,
+        seat: SeatId,
+        asks: Sequence[Ask],
+        forecast: rx.Forecast | None = None,
+    ) -> object:
         filed.extend(asks)
-        return real(store, cid, seat, asks)
+        return real(store, cid, seat, asks, forecast)
 
     monkeypatch.setattr(realism_tick, "commit_order", spy)
     wake.open_wake(t.store, CAMPAIGN, T0)

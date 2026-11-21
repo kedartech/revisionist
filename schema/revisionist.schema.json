@@ -6254,6 +6254,34 @@
         "title": "Fidelity",
         "type": "string"
       },
+      "Forecast": {
+        "additionalProperties": false,
+        "description": "What the staff expected a picked suggestion to move and what they thought it\nrisked, kept with the order it filed (FCS). Private to the issuer, as the order is.\nNo rule reads it: an order files and lands the same with or without it.",
+        "properties": {
+          "expects": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Expect"
+            },
+            "maxItems": 4,
+            "title": "Expects",
+            "type": "array"
+          },
+          "risks": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Risks"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "title": "Forecast",
+        "type": "object"
+      },
       "Goal": {
         "additionalProperties": false,
         "description": "One player seat's secret goal. Private to its owner (decision 37).\n\nA goal made from a card's aim (AIM) is keyed to the person whose aim it is\n(``person``, ``source``, ``aim``): it is reached through the seat holding that\nperson at the time, has no objective clock, and ``seat_id`` names the seat it was\nmade for. A legacy goal has none of the three and keeps its seat and clock.",
@@ -10246,6 +10274,17 @@
             "format": "date",
             "title": "Filed",
             "type": "string"
+          },
+          "forecast": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Forecast"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "issuer": {
             "title": "Issuer",
@@ -17251,6 +17290,70 @@
         "title": "EntityStatus",
         "type": "string"
       },
+      "Expect": {
+        "additionalProperties": false,
+        "description": "One move the seat's staff expect an option to make. Staff talk, not a forecast:\nno rule reads it, and filing the option is the same with or without it.",
+        "properties": {
+          "direction": {
+            "$ref": "#/$defs/ExpectDirection"
+          },
+          "on": {
+            "$ref": "#/$defs/ExpectOn"
+          },
+          "size": {
+            "maximum": 2,
+            "minimum": 1,
+            "title": "Size",
+            "type": "integer"
+          },
+          "sure": {
+            "$ref": "#/$defs/ExpectSure"
+          },
+          "target": {
+            "maxLength": 60,
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "target",
+          "direction",
+          "size",
+          "sure"
+        ],
+        "title": "Expect",
+        "type": "object"
+      },
+      "ExpectDirection": {
+        "enum": [
+          "gain",
+          "cost"
+        ],
+        "title": "ExpectDirection",
+        "type": "string"
+      },
+      "ExpectOn": {
+        "description": "What an expected move points at. Each is something the seat's view holds.",
+        "enum": [
+          "regard",
+          "stance",
+          "stake",
+          "figure"
+        ],
+        "title": "ExpectOn",
+        "type": "string"
+      },
+      "ExpectSure": {
+        "description": "How sure the staff are.",
+        "enum": [
+          "firm",
+          "likely",
+          "guess"
+        ],
+        "title": "ExpectSure",
+        "type": "string"
+      },
       "Exposure": {
         "description": "Whether the seat may see the fact a leaf of its aim reads (AIM rule 5).",
         "enum": [
@@ -17715,6 +17818,34 @@
         ],
         "title": "Fidelity",
         "type": "string"
+      },
+      "Forecast": {
+        "additionalProperties": false,
+        "description": "What the staff expected a picked suggestion to move and what they thought it\nrisked, kept with the order it filed (FCS). Private to the issuer, as the order is.\nNo rule reads it: an order files and lands the same with or without it.",
+        "properties": {
+          "expects": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Expect"
+            },
+            "maxItems": 4,
+            "title": "Expects",
+            "type": "array"
+          },
+          "risks": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Risks"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "title": "Forecast",
+        "type": "object"
       },
       "Goal": {
         "additionalProperties": false,
@@ -20382,6 +20513,37 @@
         "title": "Restart",
         "type": "object"
       },
+      "Risks": {
+        "additionalProperties": false,
+        "description": "How much the staff think an option risks, each from 0 (none) to 3. No rule reads it.",
+        "properties": {
+          "escalation": {
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Escalation",
+            "type": "integer"
+          },
+          "exposure": {
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Exposure",
+            "type": "integer"
+          },
+          "refusal": {
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Refusal",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "escalation",
+          "refusal",
+          "exposure"
+        ],
+        "title": "Risks",
+        "type": "object"
+      },
       "Role": {
         "description": "What a resource is for. Several resources may share a role; a role may have none.",
         "enum": [
@@ -20411,6 +20573,17 @@
             "format": "date",
             "title": "Filed",
             "type": "string"
+          },
+          "forecast": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Forecast"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "issuer": {
             "title": "Issuer",

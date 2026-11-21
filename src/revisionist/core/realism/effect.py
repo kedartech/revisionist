@@ -605,6 +605,71 @@ class Routing(Model):
         return self
 
 
+class ExpectOn(StrEnum):
+    """What an expected move points at. Each is something the seat's view holds."""
+
+    REGARD = "regard"
+    """A person's regard for the seat's person. ``target``: the person's entity key."""
+    STANCE = "stance"
+    """The stance of a leader weighed against the seat. ``target``: the leader's entity key."""
+    STAKE = "stake"
+    """An undecided contest. ``target``: the contest key."""
+    FIGURE = "figure"
+    """A reported figure with a value. ``target``: the quantity key."""
+
+
+class ExpectDirection(StrEnum):
+    GAIN = "gain"
+    """In the seat's favour."""
+    COST = "cost"
+    """Against it."""
+
+
+class ExpectSure(StrEnum):
+    """How sure the staff are."""
+
+    FIRM = "firm"
+    LIKELY = "likely"
+    GUESS = "guess"
+
+
+EXPECTS_MAX = 4
+
+
+class Expect(Model):
+    """One move the seat's staff expect an option to make. Staff talk, not a forecast:
+    no rule reads it, and filing the option is the same with or without it."""
+
+    on: ExpectOn
+    target: Label
+    direction: ExpectDirection
+    size: int = Field(ge=1, le=2)
+    """One step or two."""
+    sure: ExpectSure
+
+
+class Risks(Model):
+    """How much the staff think an option risks, each from 0 (none) to 3. No rule reads it."""
+
+    escalation: int = Field(ge=0, le=3)
+    refusal: int = Field(ge=0, le=3)
+    """That the person who must carry it out holds it or refuses it."""
+    exposure: int = Field(ge=0, le=3)
+    """That it comes out, and is held against the seat."""
+
+
+class Forecast(Model):
+    """What the staff expected a picked suggestion to move and what they thought it
+    risked, kept with the order it filed (FCS). Private to the issuer, as the order is.
+    No rule reads it: an order files and lands the same with or without it."""
+
+    expects: tuple[Expect, ...] = Field(default=(), max_length=EXPECTS_MAX)
+    risks: Risks | None = None
+
+    def empty(self) -> bool:
+        return self == Forecast()
+
+
 class RoutedOrderView(Model):
     """An engine-v2 order as its issuer knows it."""
 
@@ -621,6 +686,12 @@ class RoutedOrder(Model):
     issuer: SeatId
     filed: date
     parts: tuple[RoutedPart, ...] = Field(min_length=1, max_length=8)
+    forecast: Forecast | None = None
+    """The forecast of the suggested action this order was picked from (FCS). None for
+    an order written or formed by the seat, and for every order logged before it. A
+    pipeline order made from one of its parts carries no copy: read it by this id."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"forecast"})
 
     def view(self) -> RoutedOrderView:
         return RoutedOrderView(
@@ -634,6 +705,7 @@ class RoutedOrder(Model):
 __all__ = [
     "DISPOSITION_CAP",
     "ESTIMATED_ONLY",
+    "EXPECTS_MAX",
     "FIGURE_CAP",
     "GROUP_DAY_CAP",
     "IRREVERSIBLE",
@@ -653,8 +725,13 @@ __all__ = [
     "EffectKind",
     "Engagement",
     "EstimatedEffect",
+    "Expect",
+    "ExpectDirection",
+    "ExpectOn",
+    "ExpectSure",
     "Fidelity",
     "FidelityInputs",
+    "Forecast",
     "GroupNudge",
     "IntelOrder",
     "Investigate",
@@ -665,6 +742,7 @@ __all__ = [
     "PartView",
     "Posture",
     "ProposeMeasure",
+    "Risks",
     "Route",
     "RoutedOrder",
     "RoutedOrderView",

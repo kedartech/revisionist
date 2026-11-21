@@ -64,7 +64,15 @@ from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.arrivals import arrivals
 from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, ParamValue
 from revisionist.core.realism.document import DocumentView, Feed
-from revisionist.core.realism.effect import Deal, Effect, PartRef, Route, RoutedOrder, RoutedPart
+from revisionist.core.realism.effect import (
+    Deal,
+    Effect,
+    Forecast,
+    PartRef,
+    Route,
+    RoutedOrder,
+    RoutedPart,
+)
 from revisionist.core.realism.feeds import due_feeds, issue, seed_for_day
 from revisionist.core.realism.geography import in_play
 from revisionist.core.realism.pipeline import SETTLED, Order, OrderStatus, StepAction
@@ -869,10 +877,16 @@ def _pending_effects(state: State, seat: SeatId) -> list[Effect]:
 
 
 def commit_order(
-    store: EventStore, campaign_id: CampaignId, seat: SeatId, asks: Sequence[Ask]
+    store: EventStore,
+    campaign_id: CampaignId,
+    seat: SeatId,
+    asks: Sequence[Ask],
+    forecast: Forecast | None = None,
 ) -> RoutedOrder:
     """Route every ask on today's date and land them as one order. If any ask has no
-    route, raises ``ValueError`` with its words and nothing is logged."""
+    route, raises ``ValueError`` with its words and nothing is logged. ``forecast``: the
+    picked suggestion's expected moves and risks, stored on the routed order (an empty
+    one as none); no rule reads it."""
     state = load_state(store, campaign_id)
     today = state.in_world_date
     assert today is not None
@@ -912,7 +926,13 @@ def commit_order(
                 )
             said.add(words)
         parts.append(part)
-    order = RoutedOrder(order_id=OrderId(new_id()), issuer=seat, filed=today, parts=tuple(parts))
+    order = RoutedOrder(
+        order_id=OrderId(new_id()),
+        issuer=seat,
+        filed=today,
+        parts=tuple(parts),
+        forecast=None if forecast is None or forecast.empty() else forecast,
+    )
     _append(store, state, ev.OrderRouted(order=order), seat, private_to(seat))
     return order
 

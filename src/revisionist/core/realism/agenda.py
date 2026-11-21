@@ -25,7 +25,16 @@ from revisionist.core.ids import (
     SeatId,
     derived_id,
 )
-from revisionist.core.realism.effect import Effect, EffectKind
+from revisionist.core.realism.effect import (
+    EXPECTS_MAX,
+    Effect,
+    EffectKind,
+    Expect,
+    ExpectDirection,
+    ExpectOn,
+    ExpectSure,
+    Risks,
+)
 from revisionist.core.visibility import Scope
 
 MANDATE_CAP = 3
@@ -163,59 +172,6 @@ class Ask(Model):
     on them, and the estimator rules on it. Wave A (Phase 2)."""
 
     late_fields: ClassVar[frozenset[str]] = frozenset({"target"})
-
-
-class ExpectOn(StrEnum):
-    """What an expected move points at. Each is something the seat's view holds."""
-
-    REGARD = "regard"
-    """A person's regard for the seat's person. ``target``: the person's entity key."""
-    STANCE = "stance"
-    """The stance of a leader weighed against the seat. ``target``: the leader's entity key."""
-    STAKE = "stake"
-    """An undecided contest. ``target``: the contest key."""
-    FIGURE = "figure"
-    """A reported figure with a value. ``target``: the quantity key."""
-
-
-class ExpectDirection(StrEnum):
-    GAIN = "gain"
-    """In the seat's favour."""
-    COST = "cost"
-    """Against it."""
-
-
-class ExpectSure(StrEnum):
-    """How sure the staff are."""
-
-    FIRM = "firm"
-    LIKELY = "likely"
-    GUESS = "guess"
-
-
-EXPECTS_MAX = 4
-
-
-class Expect(Model):
-    """One move the seat's staff expect an option to make. Staff talk, not a forecast:
-    no rule reads it, and filing the option is the same with or without it."""
-
-    on: ExpectOn
-    target: Label
-    direction: ExpectDirection
-    size: int = Field(ge=1, le=2)
-    """One step or two."""
-    sure: ExpectSure
-
-
-class Risks(Model):
-    """How much the staff think an option risks, each from 0 (none) to 3. No rule reads it."""
-
-    escalation: int = Field(ge=0, le=3)
-    refusal: int = Field(ge=0, le=3)
-    """That the person who must carry it out holds it or refuses it."""
-    exposure: int = Field(ge=0, le=3)
-    """That it comes out, and is held against the seat."""
 
 
 class Option(Model):

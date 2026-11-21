@@ -268,8 +268,10 @@ def close_wake(
             asks = _allowed(state, seat, order)
             if not asks:
                 continue
+            forecast = options.forecast_of(order)
             try:
-                filed.append(realism_tick.commit_order(store, campaign_id, seat, asks).order_id)
+                made = realism_tick.commit_order(store, campaign_id, seat, asks, forecast)
+                filed.append(made.order_id)
             except ValueError as exc:
                 log.warning("aide order for %s dropped: %s", seat, exc)
         played = ev.WakeCommitted(

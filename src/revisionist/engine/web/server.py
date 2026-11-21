@@ -1068,7 +1068,11 @@ def _held_args(
         return {"order_id": order_id, "action": taken.value, "params": params}, label
     if action == "option":
         chosen = agenda_api.offered(store, state.campaign_id, seat, _text(body, "pick", 120))
-        return {"asks": [a.model_dump(mode="json") for a in chosen.asks]}, chosen.label
+        kept = {
+            "asks": [a.model_dump(mode="json") for a in chosen.asks],
+            "forecast": agenda_api.told(chosen).model_dump(mode="json"),
+        }
+        return kept, chosen.label
     if action == "battle":
         asks, label, area = battles_api.battle_asks(state, seat, body)
         return {"asks": [a.model_dump(mode="json") for a in asks], "area": area}, label

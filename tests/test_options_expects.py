@@ -305,11 +305,23 @@ def _with_moves(made: ev.OptionsOffered, state: State) -> ev.OptionsOffered:
     return made.model_copy(update={"offers": offers})
 
 
+def _unforecast(rows: list[str]) -> list[str]:
+    """The rows with the forecast the pick stores on its routed order taken out (FCK)."""
+    out: list[str] = []
+    for row in rows:
+        dumped = json.loads(row)
+        if dumped.get("kind") == "order_routed":
+            dumped["order"].pop("forecast", None)
+        out.append(json.dumps(dumped, separators=(",", ":")))
+    return out
+
+
 @pytest.mark.parametrize("style", [PlayStyle.BEGINNER, PlayStyle.GUIDED])
 def test_filing_an_action_is_the_same_with_and_without_the_fields(style: PlayStyle) -> None:
-    """The order filed is the same. A beginner's single-ask option is also ticked through
-    and the whole log compared; a guided plan's later rolls are seeded by its fresh order
-    id, so two filings of one plan differ there with or without the fields."""
+    """The order filed is the same but for the forecast it carries (FCK). A beginner's
+    single-ask option is also ticked through and the whole log compared; a guided plan's
+    later rolls are seeded by its fresh order id, so two filings of one plan differ there
+    with or without the fields."""
     filed: list[list[str]] = []
     logs: list[list[str]] = []
     for moves in (False, True):
@@ -325,10 +337,11 @@ def test_filing_an_action_is_the_same_with_and_without_the_fields(style: PlaySty
         assert bool(block["initiative"][0]["expects"]) is moves
         done = agenda_api.pick_option(store, CAMPAIGN, seat, pick)
         assert not done["refused"]
-        filed.append(_normalised(store))
+        assert ('"forecast"' in _normalised(store)[0]) is moves
+        filed.append(_unforecast(_normalised(store)))
         if style is PlayStyle.BEGINNER:
             rt.run_realism_tick(store, CAMPAIGN)
-            logs.append(_normalised(store))
+            logs.append(_unforecast(_normalised(store)))
     assert filed[0] == filed[1] and '"kind":"order_routed"' in filed[0][0]
     if style is PlayStyle.GUIDED:
         assert filed[0][0].count('"route":') >= 3
@@ -343,6 +356,7 @@ def test_no_rule_reads_expects_or_risks() -> None:
         "engine/expects.py",
         "engine/options.py",
         "engine/web/agenda_api.py",
+        "engine/web/forecast.py",
         "engine/web/realism_api.py",
     }
     read = re.compile(r"\.(expects|risks)\b|\[\"(expects|risks)\"\]")

@@ -3,7 +3,8 @@
 // `view.realism.court`. Past the court's load limit it says the order is likely to go slow. A
 // form whose path the court does not carry gets no strip.
 // The staff read on a suggested action: what the staff expect it to move (`expects`) and the
-// three risk levels (`risks`), from the agenda. Nothing here touches the page on import.
+// three risk levels (`risks`), from the agenda, and the forecast checked against what happened
+// (`agenda.forecast`). Nothing here touches the page on import.
 
 import { h } from '../dom.js';
 
@@ -158,4 +159,46 @@ export function staffRead(option) {
 /** `readLines(option)`: the option's lines; with risk levels the risk sentence moves to the caption. */
 export function readLines(option) {
   return option.risks ? { ...option, risk: '' } : option;
+}
+
+const OUTCOME_WORDS = { held: 'It happened', missed: 'It did not happen', open: 'Not settled yet' };
+
+/** `outcomeWords(outcome)`: held, missed or open, in words; open is never worded as a result. */
+export function outcomeWords(outcome) {
+  return OUTCOME_WORDS[outcome] ?? OUTCOME_WORDS.open;
+}
+
+/** `recordLine(forecast)`: the seat's record, "Your staff were right N of M"; null while none has settled. */
+export function recordLine(forecast) {
+  if (!forecast?.checked) return null;
+  return `Your staff were right ${forecast.held} of ${forecast.checked}`;
+}
+
+function forecastMove(move) {
+  return h('li', { class: 'rl-fc-move', 'data-outcome': move.outcome },
+    h('span', { class: 'rl-exp-name' }, `${move.name}${ON_SUFFIX[move.on] ?? ''}`),
+    h('span', { class: 'rl-fc-expect' }, expectWords(move)),
+    h('span', { class: 'rl-fc-outcome' }, outcomeWords(move.outcome)));
+}
+
+function forecastOrder(order) {
+  return h('li', { class: 'rl-fc-order' },
+    h('p', { class: 'rl-fc-asked' }, h('strong', {}, order.asked || 'Your order'), ` · filed ${order.filed}`),
+    order.aide ? h('p', { class: 'rl-fc-aide' }, 'Chosen by your aide') : null,
+    h('ul', { class: 'rl-fc-moves', role: 'list', 'aria-label': 'What the staff expected, and what happened' }, order.moves.map(forecastMove)),
+    order.settles ? h('p', { class: 'rl-fc-settles' }, `Settles ${order.settles}`) : null);
+}
+
+/**
+ * `forecastRecord(forecast)`: each filed order that came from a suggested action with its
+ * expected moves and how each came out, under the seat's record. Null when there are none.
+ */
+export function forecastRecord(forecast) {
+  const orders = (forecast?.orders ?? []).filter((o) => o.moves.length);
+  if (!orders.length) return null;
+  const record = recordLine(forecast);
+  return h('div', { class: 'rl-fc' },
+    h('h3', { id: 'rl-fc-h' }, 'Your staff\'s forecasts'),
+    record ? h('p', { class: 'rl-fc-record' }, record) : h('p', { class: 'rl-fc-record' }, 'None has settled yet'),
+    h('ul', { class: 'rl-fc-orders', role: 'list', 'aria-labelledby': 'rl-fc-h' }, orders.map(forecastOrder)));
 }

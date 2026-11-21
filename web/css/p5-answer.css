@@ -29,3 +29,17 @@
   .rl-ans-option .rl-ans-label, .rl-ans-option .rl-ans-line, .rl-ans-step .rl-ans-label, .rl-ans-step .rl-ans-line { grid-column: 1; }
   .rl-ans-option .rl-ans-choose, .rl-ans-option .rl-ans-filed { grid-column: 2; grid-row: 1 / span 2; justify-self: end; }
 }
+
+.rl-fc { display: grid; gap: 0.5rem; min-width: 0; padding-top: 0.75rem; border-top: 1px solid var(--rule); }
+.rl-fc-record { margin: 0; font: 600 0.875rem/1.4 var(--font-chrome); color: var(--fg-strong); }
+.rl-fc-orders, .rl-fc-moves { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; min-width: 0; }
+.rl-fc-order { display: grid; gap: 0.25rem; padding: 0.5rem 0.75rem; background: var(--field); border: 1px solid var(--rule); min-width: 0; }
+.rl-fc-asked, .rl-fc-aide, .rl-fc-settles { margin: 0; font: 400 0.8125rem/1.4 var(--font-chrome); color: var(--fg-read); overflow-wrap: anywhere; }
+.rl-fc-aide { color: var(--fg-muted); }
+.rl-fc-settles { color: var(--fg-muted); }
+.rl-fc-move { display: grid; gap: 0.125rem; min-width: 0; font: 400 0.8125rem/1.4 var(--font-chrome); }
+.rl-fc-move .rl-exp-name { min-width: 0; color: var(--fg-strong); overflow-wrap: anywhere; }
+.rl-fc-expect { min-width: 0; color: var(--fg-muted); overflow-wrap: anywhere; }
+.rl-fc-outcome { font-weight: 600; color: var(--fg-strong); }
+.rl-fc-move[data-outcome="held"] .rl-fc-outcome { color: var(--ok); }
+.rl-fc-move[data-outcome="open"] .rl-fc-outcome { color: var(--fg-muted); font-weight: 400; }

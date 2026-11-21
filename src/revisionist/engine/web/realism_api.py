@@ -1434,12 +1434,56 @@ class ConferencesBlock(TypedDict):
     conferences: list[ConferenceLine]
 
 
+class ForecastMove(TypedDict):
+    """One move the staff expected a picked suggestion to make, and how it came out (FCK)."""
+
+    on: str
+    """What it points at: "regard", "stance", "stake" or "figure"."""
+    name: str
+    """The person, leader, stake or figure, by name."""
+    direction: str
+    """"gain" for the seat, "cost" against it."""
+    size: int
+    sure: str
+    outcome: Literal["held", "missed", "open"]
+    """It moved the expected way by the settling day; it did not; not settled yet."""
+
+
+class ForecastOrder(TypedDict):
+    """One of the seat's own orders that came from a suggested action, with its forecast."""
+
+    id: str
+    """The order's opaque token, the same as its ``results`` entry's."""
+    filed: str
+    asked: str
+    """The order's own words."""
+    aide: bool
+    """True when the seat's aide chose it. The seat's own, sent to it alone."""
+    settles: str | None
+    """The day its forecast settles; None until the order is enacted."""
+    moves: list[ForecastMove]
+    """Only moves the seat could see at filing and, once settled, on the settling day."""
+    risks: AgendaRisks | None
+
+
+class ForecastBlock(TypedDict):
+    """The seat's own forecasts and its record: how many moves were checked (held or
+    missed) and how many held (FCK)."""
+
+    checked: int
+    held: int
+    orders: list[ForecastOrder]
+    """Newest first."""
+
+
 class AgendaBlock(TypedDict):
     style: str
     """``PlayStyle`` value; the client words it. The seat's own, sent to it alone."""
     items: list[AgendaItem]
     initiative: list[AgendaOption]
     """Options offered outside the agenda."""
+    forecast: ForecastBlock
+    """The seat's own forecasts, checked (FCK)."""
 
 
 class ResultPart(TypedDict):
@@ -1809,6 +1853,9 @@ __all__ = [
     "FloorBloc",
     "FloorChamber",
     "FloorVote",
+    "ForecastBlock",
+    "ForecastMove",
+    "ForecastOrder",
     "GroupMove",
     "HomeBlock",
     "HomeGroup",

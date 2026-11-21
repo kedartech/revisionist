@@ -70,6 +70,7 @@ from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.groups import Groups
 from revisionist.core.realism.holders import Capture, Holding
 from revisionist.core.realism.kinds import Kinds
+from revisionist.core.realism.locks import LockRow
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
@@ -163,6 +164,10 @@ class _World(Model):
     kinds: Kinds | None = None
     """The world's piece kinds and resources, set once by ``kinds_declared``: public rules
     of the world, the same in every view. None for a world that names neither."""
+    locks: tuple[LockRow, ...] = ()
+    """With ``locks`` on, the world's rows saying which order, under which condition,
+    needs which decision, from whom, set once by ``locks_declared`` (DCD): public rules of
+    the world, the same in every view. Read through ``locks.lock_for``."""
     holders: dict[EntityId, Holding] = Field(default_factory=dict)
     """With ``holders`` on, each territory that has changed hands: its holder now, by
     ``area_held``. A territory not here has the holder the board gives. Public (THL)."""
@@ -203,6 +208,7 @@ class _World(Model):
             "wars",
             "map",
             "kinds",
+            "locks",
             "holders",
             "economy",
         }
@@ -295,7 +301,6 @@ class State(_World):
     """With ``reports`` on, every order an aide filed for an absent seat
     (``wake_committed``), so the rules where an effect lands can hold the aide to its
     limits (IOR). Engine only: how a seat is run is never shown."""
-
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "rules",
         "intelligence",

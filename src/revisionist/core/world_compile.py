@@ -123,6 +123,13 @@ from revisionist.core.realism.effect import (
 from revisionist.core.realism.geography import AT_ONE_PLACE, FORCES, Feature, FeatureKind, Leg
 from revisionist.core.realism.kinds import Domain as PieceDomain
 from revisionist.core.realism.kinds import PieceKind, Resource, Role
+from revisionist.core.realism.locks import (
+    Decider,
+    LawNotInForce,
+    LockRow,
+    OrderMatch,
+    PostureNotSet,
+)
 from revisionist.core.realism.pipeline import Pipeline, Step
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.trade import TradeLine
@@ -141,6 +148,7 @@ from revisionist.core.world import (
     GoalDecl,
     LeverDecl,
     LinkDecl,
+    LockWhenDecl,
     MandateDecl,
     PactClauseDecl,
     PieceKindDecl,
@@ -500,6 +508,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "groups",
             "pacts",
             "conferences",
+            "locks",
         ):
             if getattr(world, name):
                 problems.append(f"{name}: only a realism world has {name}")
@@ -513,6 +522,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_contest_moves(world, sections, problems)
     _check_aim_rules(world, sections, problems)
     _check_command(world, problems)
+    _check_locks(world, sections, problems)
     for seat in world.seats:
         if seat.controller is Controller.HUMAN:
             problems.append(f"seat {seat.key}: a realism world names no human seat")
@@ -1717,6 +1727,186 @@ def _check_command(world: WorldFile, problems: list[str]) -> None:
             problems.append(f"feature {k}: named by two military cards ({', '.join(people)})")
 
 
+def _check_locks(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """Each lock (DCD): its key once; a form that some card carries, with parameter values
+    the form takes, or an effect kind with a zone (an area or place) or a force that
+    exists; a condition naming a law clause some declared law carries, or a posture whose
+    zone and form exist; a decider that is a person, or a nation's chambers that exist,
+    and never the person whose own card carries the form. With the rule off they are
+    checked and left out of the game."""
+    levers = {(c.person, lv.name): lv for c in world.cards for lv in c.levers}
+    chambers = {
+        (d.nation, g.chamber) for d in world.groups for g in d.groups if g.chamber is not None
+    }
+    kinds = {d.key: d.kind for d in world.entities}
+    areas = {d.key for d in _area_decls(world)}
+    seen: set[str] = set()
+    for row in world.locks:
+        where = f"lock {row.key}"
+        if row.key in seen:
+            problems.append(f"{where}: duplicate key")
+        seen.add(row.key)
+        o, d = row.order, row.decider
+        try:
+            match = OrderMatch(
+                form=o.form,
+                params=o.params,
+                effect=o.effect,
+                zone=None if o.zone is None else EntityId(o.zone),
+                force=None if o.force is None else FeatureId(o.force),
+            )
+            Decider(
+                person=None if d.person is None else EntityId(d.person),
+                nation=None if d.nation is None else EntityId(d.nation),
+                chambers=d.chambers,
+            )
+        except ValidationError as exc:
+            problems.append(f"{where}: {_first_error(exc)}")
+            continue
+        if match.form is not None:
+            _check_lock_form(where, levers, match.form, o.params, sections, problems)
+            carriers = {person for person, name in levers if name == match.form}
+            if d.person is not None and d.person in carriers:
+                problems.append(f"{where}: {d.person} carries the form and would decide an order of their own")
+        if (
+            o.zone is not None
+            and o.zone not in areas
+            and kinds.get(o.zone) is not EntityKind.LOCATION
+        ):
+            problems.append(f"{where}: unknown area or place {o.zone}")
+        _ref(problems, where, o.force, "feature", sections)
+        if d.person is not None and kinds.get(d.person) is not EntityKind.PERSON:
+            problems.append(f"{where}: unknown person {d.person}")
+        if d.nation is not None:
+            if kinds.get(d.nation) is not EntityKind.POLITY:
+                problems.append(f"{where}: unknown nation {d.nation}")
+            for ch in d.chambers:
+                if (d.nation, ch) not in chambers:
+                    problems.append(f"{where}: {d.nation} has no chamber {ch}")
+        if row.when is not None:
+            _check_lock_when(world, where, row.when, levers, areas, kinds, sections, problems)
+
+
+def _first_error(exc: ValidationError) -> str:
+    msg = str(exc.errors()[0].get("msg", "invalid"))
+    return msg.removeprefix("Value error, ")
+
+
+def _check_lock_form(
+    where: str,
+    levers: Mapping[tuple[str, str], LeverDecl],
+    form: str,
+    params: Mapping[str, ParamValue],
+    sections: Mapping[str, str],
+    problems: list[str],
+) -> None:
+    """The form is a lever some card carries, and every value named fits its parameter
+    on each card carrying it."""
+    found = [lv for (_, name), lv in levers.items() if name == form]
+    if not found:
+        problems.append(f"{where}: no card carries the form {form}")
+        return
+    for lv in found:
+        specs = {p.name: p for p in lv.params}
+        for name, value in params.items():
+            spec = specs.get(name)
+            if spec is None:
+                problems.append(f"{where}: the form {form} has no parameter {name}")
+            elif not _fits(spec, value, sections):
+                problems.append(f"{where}: {value!r} does not fit {form}'s {name}")
+
+
+def _check_lock_when(
+    world: WorldFile,
+    where: str,
+    when: LockWhenDecl,
+    levers: Mapping[tuple[str, str], LeverDecl],
+    areas: set[str],
+    kinds: Mapping[str, EntityKind],
+    sections: Mapping[str, str],
+    problems: list[str],
+) -> None:
+    try:
+        if when.check == "law_not_in_force":
+            LawNotInForce(clause=when.clause or "")
+        else:
+            PostureNotSet(
+                zone=None if when.zone is None else EntityId(when.zone),
+                rule=when.rule,
+                form=when.form,
+                where=when.where,
+                posture=when.posture,
+            )
+    except ValidationError as exc:
+        problems.append(f"{where}: {_first_error(exc)}")
+        return
+    if when.check == "law_not_in_force":
+        if when.clause not in _law_clauses(world):
+            problems.append(
+                f"{where}: no law the world declares carries the clause {when.clause!r}"
+            )
+        return
+    if (
+        when.zone is not None
+        and when.zone not in areas
+        and kinds.get(when.zone) is not EntityKind.LOCATION
+    ):
+        problems.append(f"{where}: unknown area or place {when.zone}")
+    if when.form is not None:
+        _check_lock_form(
+            where, levers, when.form, {**when.where, **when.posture}, sections, problems
+        )
+
+
+def _law_clauses(world: WorldFile) -> set[str]:
+    """The clause subjects of every law whose passed flag the world declares: the laws
+    ``votes.in_force`` can find in force (rules lane, read only)."""
+    from revisionist.core.realism.resolvers.votes import HISTORICAL
+
+    flags = {q.key for q in world.quantities}
+    return {
+        c.subject
+        for bill, measure in HISTORICAL.items()
+        if f"{bill}_passed" in flags
+        for c in measure.clauses
+    }
+
+
+def _locks(world: WorldFile, ids: Mapping[str, str]) -> ev.LocksDeclared:
+    """The world's locks in its own order, keys bound to ids (DCD)."""
+
+    def entity(key: str | None) -> EntityId | None:
+        return None if key is None else EntityId(ids[key])
+
+    rows: list[LockRow] = []
+    for r in world.locks:
+        o, d, w = r.order, r.decider, r.when
+        when: LawNotInForce | PostureNotSet | None = None
+        if w is not None and w.check == "law_not_in_force":
+            when = LawNotInForce(clause=w.clause or "")
+        elif w is not None:
+            when = PostureNotSet(
+                zone=entity(w.zone), rule=w.rule, form=w.form, where=w.where, posture=w.posture
+            )
+        rows.append(
+            LockRow(
+                key=r.key,
+                order=OrderMatch(
+                    form=o.form,
+                    params=o.params,
+                    effect=o.effect,
+                    zone=entity(o.zone),
+                    force=None if o.force is None else FeatureId(ids[o.force]),
+                ),
+                when=when,
+                decider=Decider(
+                    person=entity(d.person), nation=entity(d.nation), chambers=d.chambers
+                ),
+            )
+        )
+    return ev.LocksDeclared(rows=tuple(rows))
+
+
 def _check_aim_rules(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
     """Each card's aim rules (AIM): for an aim the card has, once each, at most one
     replaceable, opening on or before the deadline; a condition of bounded size that
@@ -2257,6 +2447,9 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
     if Rule.GROUPS in world.rules and world.groups:
         # Engine only: true support. A seat reads its own nation's groups from its view.
         out.append((_groups(world, ids), _engine_only(ids, "groups")))
+    if Rule.LOCKS in world.rules and world.locks:
+        # Public: which orders need whose decision is a rule of the world.
+        out.append((_locks(world, ids), PUBLIC))
     return out
 
 

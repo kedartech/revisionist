@@ -4429,6 +4429,47 @@
         "title": "Deal",
         "type": "object"
       },
+      "Decider": {
+        "additionalProperties": false,
+        "description": "Who can allow a held order: a person, or a nation's chamber or chambers.",
+        "properties": {
+          "chambers": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Chambers",
+            "type": "array"
+          },
+          "nation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Nation"
+          },
+          "person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Person"
+          }
+        },
+        "title": "Decider",
+        "type": "object"
+      },
       "Decision": {
         "description": "A side's decision for its battle (BDC). Reinforce is a move order, not stored.",
         "enum": [
@@ -7593,6 +7634,29 @@
         "title": "KnowledgeGrant",
         "type": "object"
       },
+      "LawNotInForce": {
+        "additionalProperties": false,
+        "description": "Holds while no passed law carrying ``clause`` is in force for the issuer's nation.",
+        "properties": {
+          "check": {
+            "const": "law_not_in_force",
+            "default": "law_not_in_force",
+            "title": "Check",
+            "type": "string"
+          },
+          "clause": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Clause",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clause"
+        ],
+        "title": "LawNotInForce",
+        "type": "object"
+      },
       "Leg": {
         "additionalProperties": false,
         "description": "One move the record says a feature made.",
@@ -7728,6 +7792,81 @@
           "b"
         ],
         "title": "Link",
+        "type": "object"
+      },
+      "LockRow": {
+        "additionalProperties": false,
+        "description": "One row of the world's ``locks``: which order, under which condition, needs\nwhich decision, from whom.",
+        "properties": {
+          "decider": {
+            "$ref": "#/$defs/Decider"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "order": {
+            "$ref": "#/$defs/OrderMatch"
+          },
+          "when": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "law_not_in_force": "#/$defs/LawNotInForce",
+                    "posture_not_set": "#/$defs/PostureNotSet"
+                  },
+                  "propertyName": "check"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/LawNotInForce"
+                  },
+                  {
+                    "$ref": "#/$defs/PostureNotSet"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "When"
+          }
+        },
+        "required": [
+          "key",
+          "order",
+          "decider"
+        ],
+        "title": "LockRow",
+        "type": "object"
+      },
+      "LocksDeclared": {
+        "additionalProperties": false,
+        "description": "The world's locks (DCD): which order, under which condition, needs which decision,\nfrom whom, in the world file's order. World data; once, at creation, with ``locks``\non.",
+        "properties": {
+          "kind": {
+            "const": "locks_declared",
+            "default": "locks_declared",
+            "title": "Kind",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/$defs/LockRow"
+            },
+            "minItems": 1,
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rows"
+        ],
+        "title": "LocksDeclared",
         "type": "object"
       },
       "MakeStatement": {
@@ -8921,6 +9060,80 @@
         "title": "OrderExecuted",
         "type": "object"
       },
+      "OrderMatch": {
+        "additionalProperties": false,
+        "description": "Which order a row holds: a form with some of its parameter values, or an effect\nkind with a zone or a force.",
+        "properties": {
+          "effect": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EffectKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "force": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Force"
+          },
+          "form": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Form"
+          },
+          "params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Params",
+            "type": "object"
+          },
+          "zone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Zone"
+          }
+        },
+        "title": "OrderMatch",
+        "type": "object"
+      },
       "OrderReceived": {
         "additionalProperties": false,
         "description": "Raw player text. Always Private to the seat. Encrypted at rest from Layer 9.",
@@ -9516,6 +9729,92 @@
         ],
         "title": "Posture",
         "type": "string"
+      },
+      "PostureNotSet": {
+        "additionalProperties": false,
+        "description": "Holds while no superior of the issuer has set the named posture for the zone.\n\nTwo namings, at least one given. The written path: the latest engagement a superior\nlanded whose zone names ``zone`` carries ``rule``. The form path: the latest enacted\norder of ``form`` a superior issued whose parameters carry ``where`` (the zone, as the\nform names it) also carries ``posture``.",
+        "properties": {
+          "check": {
+            "const": "posture_not_set",
+            "default": "posture_not_set",
+            "title": "Check",
+            "type": "string"
+          },
+          "form": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Form"
+          },
+          "posture": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Posture",
+            "type": "object"
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Engagement"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "where": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Where",
+            "type": "object"
+          },
+          "zone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Zone"
+          }
+        },
+        "title": "PostureNotSet",
+        "type": "object"
       },
       "Proposal": {
         "additionalProperties": false,
@@ -13726,6 +14025,7 @@
             "intent_filed": "#/$defs/IntentFiled",
             "intent_rejected": "#/$defs/IntentRejected",
             "kinds_declared": "#/$defs/KindsDeclared",
+            "locks_declared": "#/$defs/LocksDeclared",
             "mandate_issued": "#/$defs/MandateIssued",
             "mandate_settled": "#/$defs/MandateSettled",
             "map_declared": "#/$defs/MapDeclared",
@@ -13969,6 +14269,9 @@
           },
           {
             "$ref": "#/$defs/KindsDeclared"
+          },
+          {
+            "$ref": "#/$defs/LocksDeclared"
           },
           {
             "$ref": "#/$defs/PieceStepped"
@@ -16828,6 +17131,47 @@
         "title": "Deal",
         "type": "object"
       },
+      "Decider": {
+        "additionalProperties": false,
+        "description": "Who can allow a held order: a person, or a nation's chamber or chambers.",
+        "properties": {
+          "chambers": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Chambers",
+            "type": "array"
+          },
+          "nation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Nation"
+          },
+          "person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Person"
+          }
+        },
+        "title": "Decider",
+        "type": "object"
+      },
       "Decision": {
         "description": "A side's decision for its battle (BDC). Reinforce is a move order, not stored.",
         "enum": [
@@ -18776,6 +19120,29 @@
         "title": "Kinds",
         "type": "object"
       },
+      "LawNotInForce": {
+        "additionalProperties": false,
+        "description": "Holds while no passed law carrying ``clause`` is in force for the issuer's nation.",
+        "properties": {
+          "check": {
+            "const": "law_not_in_force",
+            "default": "law_not_in_force",
+            "title": "Check",
+            "type": "string"
+          },
+          "clause": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Clause",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clause"
+        ],
+        "title": "LawNotInForce",
+        "type": "object"
+      },
       "Leg": {
         "additionalProperties": false,
         "description": "One move the record says a feature made.",
@@ -18911,6 +19278,56 @@
           "b"
         ],
         "title": "Link",
+        "type": "object"
+      },
+      "LockRow": {
+        "additionalProperties": false,
+        "description": "One row of the world's ``locks``: which order, under which condition, needs\nwhich decision, from whom.",
+        "properties": {
+          "decider": {
+            "$ref": "#/$defs/Decider"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "order": {
+            "$ref": "#/$defs/OrderMatch"
+          },
+          "when": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "law_not_in_force": "#/$defs/LawNotInForce",
+                    "posture_not_set": "#/$defs/PostureNotSet"
+                  },
+                  "propertyName": "check"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/LawNotInForce"
+                  },
+                  {
+                    "$ref": "#/$defs/PostureNotSet"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "When"
+          }
+        },
+        "required": [
+          "key",
+          "order",
+          "decider"
+        ],
+        "title": "LockRow",
         "type": "object"
       },
       "MakeStatement": {
@@ -19592,6 +20009,80 @@
         "title": "Order",
         "type": "object"
       },
+      "OrderMatch": {
+        "additionalProperties": false,
+        "description": "Which order a row holds: a form with some of its parameter values, or an effect\nkind with a zone or a force.",
+        "properties": {
+          "effect": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EffectKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "force": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Force"
+          },
+          "form": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Form"
+          },
+          "params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Params",
+            "type": "object"
+          },
+          "zone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Zone"
+          }
+        },
+        "title": "OrderMatch",
+        "type": "object"
+      },
       "OrderStatus": {
         "enum": [
           "moving",
@@ -20035,6 +20526,92 @@
         ],
         "title": "Posture",
         "type": "string"
+      },
+      "PostureNotSet": {
+        "additionalProperties": false,
+        "description": "Holds while no superior of the issuer has set the named posture for the zone.\n\nTwo namings, at least one given. The written path: the latest engagement a superior\nlanded whose zone names ``zone`` carries ``rule``. The form path: the latest enacted\norder of ``form`` a superior issued whose parameters carry ``where`` (the zone, as the\nform names it) also carries ``posture``.",
+        "properties": {
+          "check": {
+            "const": "posture_not_set",
+            "default": "posture_not_set",
+            "title": "Check",
+            "type": "string"
+          },
+          "form": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Form"
+          },
+          "posture": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Posture",
+            "type": "object"
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Engagement"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "where": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Where",
+            "type": "object"
+          },
+          "zone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Zone"
+          }
+        },
+        "title": "PostureNotSet",
+        "type": "object"
       },
       "Proposal": {
         "additionalProperties": false,
@@ -23258,6 +23835,14 @@
         "title": "Last Seq",
         "type": "integer"
       },
+      "locks": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/LockRow"
+        },
+        "title": "Locks",
+        "type": "array"
+      },
       "mandates": {
         "additionalProperties": {
           "$ref": "#/$defs/Mandate"
@@ -25400,6 +25985,47 @@
         "title": "Deal",
         "type": "object"
       },
+      "Decider": {
+        "additionalProperties": false,
+        "description": "Who can allow a held order: a person, or a nation's chamber or chambers.",
+        "properties": {
+          "chambers": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Chambers",
+            "type": "array"
+          },
+          "nation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Nation"
+          },
+          "person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Person"
+          }
+        },
+        "title": "Decider",
+        "type": "object"
+      },
       "Desk": {
         "additionalProperties": false,
         "description": "The face plus what the person works with. Shown only to the person's own seat.",
@@ -26831,6 +27457,29 @@
         "title": "Kinds",
         "type": "object"
       },
+      "LawNotInForce": {
+        "additionalProperties": false,
+        "description": "Holds while no passed law carrying ``clause`` is in force for the issuer's nation.",
+        "properties": {
+          "check": {
+            "const": "law_not_in_force",
+            "default": "law_not_in_force",
+            "title": "Check",
+            "type": "string"
+          },
+          "clause": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Clause",
+            "type": "string"
+          }
+        },
+        "required": [
+          "clause"
+        ],
+        "title": "LawNotInForce",
+        "type": "object"
+      },
       "Lethality": {
         "enum": [
           "soft",
@@ -26928,6 +27577,56 @@
           "b"
         ],
         "title": "Link",
+        "type": "object"
+      },
+      "LockRow": {
+        "additionalProperties": false,
+        "description": "One row of the world's ``locks``: which order, under which condition, needs\nwhich decision, from whom.",
+        "properties": {
+          "decider": {
+            "$ref": "#/$defs/Decider"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "order": {
+            "$ref": "#/$defs/OrderMatch"
+          },
+          "when": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "law_not_in_force": "#/$defs/LawNotInForce",
+                    "posture_not_set": "#/$defs/PostureNotSet"
+                  },
+                  "propertyName": "check"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/LawNotInForce"
+                  },
+                  {
+                    "$ref": "#/$defs/PostureNotSet"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "When"
+          }
+        },
+        "required": [
+          "key",
+          "order",
+          "decider"
+        ],
+        "title": "LockRow",
         "type": "object"
       },
       "MakeStatement": {
@@ -27422,6 +28121,80 @@
           "filed"
         ],
         "title": "Order",
+        "type": "object"
+      },
+      "OrderMatch": {
+        "additionalProperties": false,
+        "description": "Which order a row holds: a form with some of its parameter values, or an effect\nkind with a zone or a force.",
+        "properties": {
+          "effect": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/EffectKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "force": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Force"
+          },
+          "form": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Form"
+          },
+          "params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Params",
+            "type": "object"
+          },
+          "zone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Zone"
+          }
+        },
+        "title": "OrderMatch",
         "type": "object"
       },
       "OrderStatus": {
@@ -27975,6 +28748,92 @@
         ],
         "title": "Posture",
         "type": "string"
+      },
+      "PostureNotSet": {
+        "additionalProperties": false,
+        "description": "Holds while no superior of the issuer has set the named posture for the zone.\n\nTwo namings, at least one given. The written path: the latest engagement a superior\nlanded whose zone names ``zone`` carries ``rule``. The form path: the latest enacted\norder of ``form`` a superior issued whose parameters carry ``where`` (the zone, as the\nform names it) also carries ``posture``.",
+        "properties": {
+          "check": {
+            "const": "posture_not_set",
+            "default": "posture_not_set",
+            "title": "Check",
+            "type": "string"
+          },
+          "form": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Form"
+          },
+          "posture": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Posture",
+            "type": "object"
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Engagement"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "where": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Where",
+            "type": "object"
+          },
+          "zone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Zone"
+          }
+        },
+        "title": "PostureNotSet",
+        "type": "object"
       },
       "Proposal": {
         "additionalProperties": false,
@@ -30225,6 +31084,14 @@
           }
         ],
         "default": null
+      },
+      "locks": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/LockRow"
+        },
+        "title": "Locks",
+        "type": "array"
       },
       "mandates": {
         "additionalProperties": {

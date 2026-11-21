@@ -58,6 +58,8 @@ FEED_KINDS: frozenset[str] = frozenset(
         "war_declared",
         "map_declared",
         "kinds_declared",
+        # Which orders need whose decision (DCD): public rules of the world.
+        "locks_declared",
         # A seat's own nation's pieces, step by step (sealed to its seats): playback's source.
         "piece_stepped",
         # A step of its own nation's piece refused for want of fuel, with the reason (FUL).

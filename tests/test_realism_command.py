@@ -1,8 +1,8 @@
 """The commander's seat (CMD): switches, a card's path, his own force, and who prevails.
 
-The toy world (``tests/worlds/territory-toy.yaml``) carries Norra's general, Kara Lind: a
-military card under the chancellor, Ilse Varg, commanding the Norra Levy, which the
-chancellor can order too. Every rule here is read with the ``command`` rule on; with it
+The toy world (``tests/worlds/territory-toy.yaml``) gains Norra's general, Kara Lind
+(``general``): a military card under the chancellor, Ilse Varg, commanding the Norra Levy,
+which the chancellor can order too. Every rule here is read with the ``command`` rule on; with it
 off, the same script runs as it did before.
 """
 
@@ -31,7 +31,7 @@ from revisionist.engine import campaign as cmp
 from revisionist.engine import realism_tick, session_zero
 from revisionist.engine.store import MemoryStore, load_state
 from tests.test_adjacency_moves import toy
-from tests.test_territory_model import CAMPAIGN, TOY, created, refused, variant
+from tests.test_territory_model import CAMPAIGN, created, refused, variant
 
 World = dict[str, Any]
 
@@ -50,6 +50,44 @@ FORCE = {"name": "force", "kind": "enum", "choices": ["norra_levy"]}
 
 def seat(person: EntityId) -> SeatId:
     return SeatId(derived_id(CAMPAIGN, "seat", person))
+
+
+def general(w: World) -> None:
+    """Kara Lind, Norra's general: a playable military card under Ilse with the levy."""
+    w["entities"].append({"key": "kara", "kind": "person", "name": "Kara Lind", "parent": "norra"})
+    w["cards"].append(
+        {
+            "person": "kara",
+            "office": "General of the Norra Levy",
+            "playable": True,
+            "path": "military",
+            "principals": ["ilse"],
+            "horizon_days": 14,
+            "inner_circle": [{"person": "ilse", "channel": "letter"}],
+            "authority": [
+                {"name": "the_levy", "effects": ["move_force"], "forces": ["norra_levy"]}
+            ],
+        }
+    )
+    w["roster"].append(
+        {
+            "entity": "kara",
+            "pitch": "The general who commands the levy.",
+            "reach": "The Norra Levy.",
+            "composite": True,
+        }
+    )
+
+
+def with_general(*changes: Callable[[World], None]) -> Callable[[World], None]:
+    """The general, then ``changes``, as one change for ``variant``."""
+
+    def change(w: World) -> None:
+        general(w)
+        for c in changes:
+            c(w)
+
+    return change
 
 
 def command(w: World) -> None:
@@ -145,7 +183,11 @@ class Game:
 
 
 def game(tmp: Path, *changes: Callable[[World], None]) -> Game:
-    return Game(toy(tmp, orders, *changes))
+    return Game(toy(tmp, general, orders, *changes))
+
+
+def world_state(tmp: Path) -> State:
+    return created(variant(tmp, general))[1]
 
 
 def replaced_papers(state: State) -> dict[SeatId, list[Any]]:
@@ -165,7 +207,7 @@ def test_command_and_locks_are_rules_a_world_may_switch_on(tmp_path: Path) -> No
     def both(w: World) -> None:
         w["rules"] = ["command", "locks"]
 
-    _, state = created(variant(tmp_path, both))
+    _, state = created(variant(tmp_path, with_general(both)))
     assert state.rules == frozenset({Rule.COMMAND, Rule.LOCKS})
 
 
@@ -174,27 +216,27 @@ def test_an_unknown_rule_name_is_still_refused(tmp_path: Path) -> None:
         w["rules"] = ["commanders"]
 
     with pytest.raises(ValueError):
-        variant(tmp_path, bad)
+        variant(tmp_path, with_general(bad))
 
 
 # --- Rule 2: a card's path ---------------------------------------------------------------
 
 
-def test_a_card_without_a_path_is_political_and_the_general_is_military() -> None:
-    _, state = created(cmp.load_world(TOY))
+def test_a_card_without_a_path_is_political_and_the_general_is_military(tmp_path: Path) -> None:
+    state = world_state(tmp_path)
     assert state.cards[ILSE].path is CardPath.POLITICAL
     assert state.cards[KARA].path is CardPath.MILITARY
 
 
-def test_a_political_card_dumps_as_it_did_before() -> None:
-    _, state = created(cmp.load_world(TOY))
+def test_a_political_card_dumps_as_it_did_before(tmp_path: Path) -> None:
+    state = world_state(tmp_path)
     assert "path" not in state.cards[ILSE].model_dump(mode="json")
     assert state.cards[KARA].model_dump(mode="json")["path"] == "military"
     assert SeatCard.model_validate(state.cards[ILSE].model_dump(mode="json")) == state.cards[ILSE]
 
 
-def test_the_general_answers_to_the_chancellor() -> None:
-    _, state = created(cmp.load_world(TOY))
+def test_the_general_answers_to_the_chancellor(tmp_path: Path) -> None:
+    state = world_state(tmp_path)
     assert superiors(state.cards, KARA) == (ILSE, NORRA)
     assert superiors(state.cards, ILSE) == (NORRA,)
 
@@ -207,9 +249,7 @@ def no_domain(w: World) -> None:
 
 
 def second_general(w: World) -> None:
-    w["entities"].insert(
-        3, {"key": "olav", "kind": "person", "name": "Olav Holm", "parent": "norra"}
-    )
+    w["entities"].append({"key": "olav", "kind": "person", "name": "Olav Holm", "parent": "norra"})
     w["cards"].append(
         {
             "person": "olav",
@@ -223,20 +263,20 @@ def second_general(w: World) -> None:
 
 
 def test_a_playable_military_card_with_no_force_is_refused(tmp_path: Path) -> None:
-    problems = refused(toy(tmp_path, command, no_domain))
+    problems = refused(toy(tmp_path, general, command, no_domain))
     assert any(
         "card kara: a playable military card needs a domain naming a force" in p for p in problems
     )
 
 
 def test_a_force_named_by_two_military_cards_is_refused(tmp_path: Path) -> None:
-    problems = refused(toy(tmp_path, command, second_general))
+    problems = refused(toy(tmp_path, general, command, second_general))
     assert any("feature norra_levy: named by two military cards" in p for p in problems)
 
 
 def test_with_command_off_the_compiler_does_not_read_the_path(tmp_path: Path) -> None:
-    created(variant(tmp_path, no_domain))
-    created(variant(tmp_path, second_general))
+    created(variant(tmp_path, with_general(no_domain)))
+    created(variant(tmp_path, with_general(second_general)))
 
 
 # --- Rule 4: a military card orders his own force through his own forms ----------------

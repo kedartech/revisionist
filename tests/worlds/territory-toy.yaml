@@ -1,8 +1,7 @@
 # A toy world for the territory rules (tests only).
 #
-# Two powers already at war on the start date, one leader each, both playable, and
-# Norra's general, playable, under its chancellor, on a flat map (`toy.map.json`
-# beside this file). No rule of the territory game is
+# Two powers already at war on the start date, one leader each, both playable, on a
+# flat map (`toy.map.json` beside this file). No rule of the territory game is
 # switched on yet: `rules: []`. The world names its own piece kinds and resources
 # (levies and galleys, not armies and fleets), so a rule that reads a kind's name
 # instead of its domain or role shows up here. Later items add the rules they test.
@@ -21,7 +20,6 @@ entities:
   - {key: sudland, kind: polity, name: Sudland}
   - {key: ilse, kind: person, name: Ilse Varg, parent: norra}
   - {key: tomas, kind: person, name: Tomas Brand, parent: sudland}
-  - {key: kara, kind: person, name: Kara Lind, parent: norra}
   # Norrhavn is a port on the gulf: a galley there stands in the gulf, and a levy
   # embarks or lands there. Sudby is not.
   - {key: norrhavn, kind: location, name: Norrhavn, at: [150, 150], within: norra_plain, port_on: the_gulf}
@@ -167,21 +165,9 @@ cards:
     playable: true
     principals: [sudland]
     horizon_days: 14
-  # Norra's general: a military card under the chancellor, commanding the levy the
-  # chancellor can order too. Read only with the `command` rule on.
-  - person: kara
-    office: General of the Norra Levy
-    playable: true
-    path: military
-    principals: [ilse]
-    horizon_days: 14
-    inner_circle: [{person: ilse, channel: letter}]
-    authority:
-      - {name: the_levy, effects: [move_force], forces: [norra_levy]}
 
 seats: []
 
 roster:
   - {entity: ilse, pitch: The chancellor who started the war., reach: The army of Norra., composite: true}
   - {entity: tomas, pitch: The premier who must hold the border., reach: The army of Sudland., composite: true}
-  - {entity: kara, pitch: The general who commands the levy., reach: The Norra Levy., composite: true}

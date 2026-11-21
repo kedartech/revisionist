@@ -21,7 +21,7 @@ from revisionist.core.events import Event
 from revisionist.core.ids import CampaignId, EntityId, MandateId, OrderId, SeatId, derived_id
 from revisionist.core.ontology import Controller
 from revisionist.core.project import project
-from revisionist.core.realism import advance, holders, mandates, pipelines, process
+from revisionist.core.realism import advance, agreement, holders, mandates, pipelines, process
 from revisionist.core.realism.agenda import Offer, Option, PlayStyle, TriggerKind
 from revisionist.core.realism.effect import RoutedPart
 from revisionist.core.realism.pipeline import StepAction
@@ -29,7 +29,7 @@ from revisionist.core.state import State, View
 from revisionist.core.visibility import private_to
 from revisionist.engine import expects, options, realism_tick
 from revisionist.engine.store import EventStore, load_state
-from revisionist.engine.web import battles_api
+from revisionist.engine.web import agreements_api, battles_api, conferences_api
 from revisionist.engine.web.realism_api import (
     AgendaBlock,
     AgendaExpect,
@@ -45,6 +45,7 @@ _NEWS = re.compile(r"n\.[0-9A-Z]{26}\.\d")
 _WRITE_IT = "Write it as an order to the person who should carry it out."
 _GONE = "That request is no longer before you."
 HELD_STEP = "Decision"  # [proposed] the kind of a held step on its holder's agenda
+OFFER_KIND = "Offer"  # [proposed] plan, AGA Defaults: an offer of agreement on the agenda
 _GIVEN = {True: "You have agreed to it.", False: "You have declined it."}  # [proposed]
 """A request's line on its holder's agenda once they have answered it."""
 _CHOSEN = "You have chosen to {action}."  # [proposed]
@@ -52,6 +53,10 @@ _CHOSEN = "You have chosen to {action}."  # [proposed]
 _ANSWERED = {  # [proposed]
     True: "You agree to {issuer}'s request. Your answer goes out on the day it is due.",
     False: "You decline {issuer}'s request. Your answer goes out on the day it is due.",
+}
+_ANSWERED_OFFER = {  # [proposed]
+    True: "You accept {issuer}'s offer. Your answer counts on the day the offer is due.",
+    False: "You decline {issuer}'s offer. Your answer counts on the day the offer is due.",
 }
 
 
@@ -244,7 +249,9 @@ def agenda(state: State, seat: SeatId, log: Iterable[Event]) -> AgendaBlock:
             )
         )
     items += requests(state, seat)
+    items += offers(state, seat)
     items += held_steps(state, seat)
+    items += conferences_api.items(state, seat)
     style = seat_style(state, seat)
     if style == PlayStyle.BEGINNER.value:
         initiative += _news_asks(view, events)
@@ -270,13 +277,42 @@ def _item_id(state: State, asked: advance.Awaiting) -> str:
     return process.request_paper_id(state.campaign_id, asked.order_id, asked.part)
 
 
+def _is_offer(state: State, asked: advance.Awaiting) -> bool:
+    """Whether ``asked`` is one nation's share of an offer of agreement (AGR)."""
+    assert asked.part is not None
+    return agreement.is_offer(state.routed[asked.order_id].parts[asked.part])
+
+
 def requests(state: State, seat: SeatId) -> list[AgendaItem]:
     """Each request another seat has put to ``seat``'s person, as an agenda item of kind
-    "Request", answered with ``answer``."""
+    "Request", answered with ``answer``. An offer of agreement is an "Offer" instead."""
     return [
         _awaiting_item(state, seat, asked, "Request", _item_id(state, asked))
         for asked in _asked(state, seat)
+        if not _is_offer(state, asked)
     ]
+
+
+def offers(state: State, seat: SeatId) -> list[AgendaItem]:
+    """Each offer of agreement before ``seat``'s nation, as an agenda item of kind
+    "Offer" (AGA): who offers, the terms as ``agreement.render_terms`` gives them (a clause
+    the rules do not check says so), and the offer's due day, its expiry. The ``agreements``
+    block carries the same terms clause by clause under the item's id. Answered with
+    ``answer``, which keeps the answer sealed to the seat until that day."""
+    out: list[AgendaItem] = []
+    for asked in _asked(state, seat):
+        if not _is_offer(state, asked):
+            continue
+        assert asked.part is not None
+        part = state.routed[asked.order_id].parts[asked.part]
+        offer = agreements_api.offer_of(state, asked.order_id, part.effect)
+        if offer is None:
+            continue
+        item = _awaiting_item(state, seat, asked, OFFER_KIND, _item_id(state, asked))
+        text = f"{asked.label} {agreement.render_terms(state, offer)}"
+        item["text"] = process.WITHHELD if scan_text(state, seat, text) else text
+        out.append(item)
+    return out
 
 
 def _step_actions(state: State, order_id: OrderId) -> list[str]:
@@ -352,16 +388,18 @@ def held_steps(state: State, seat: SeatId) -> list[AgendaItem]:
 def answer(
     store: EventStore, campaign_id: CampaignId, seat: SeatId, item: str, accept: bool
 ) -> Reply:
-    """The seat answers the request ``item`` names: a ``request_answered`` sealed to the
-    seat, so nothing the issuer reads moves. The seat sees it on its agenda and may give
-    it again; on the due day it decides the request in the card's place."""
+    """The seat answers the request or offer of agreement ``item`` names: a
+    ``request_answered`` sealed to the seat, so nothing the issuer reads moves. The seat
+    sees it on its agenda and may give it again; on the due day it decides the request in
+    the card's place, and an offer by AGR's rule."""
     state = load_state(store, campaign_id)
     asked = next((a for a in _asked(state, seat) if _item_id(state, a) == item), None)
     if asked is None or asked.part is None:
         return Reply(reply=_GONE, refused=True)
     given = process.answered(state, state.routed[asked.order_id], asked.part, accept)
     realism_tick._append(store, state, given, seat, private_to(seat))
-    return Reply(reply=_ANSWERED[accept].format(issuer=asked.issuer), refused=False)
+    said = _ANSWERED_OFFER if _is_offer(state, asked) else _ANSWERED
+    return Reply(reply=said[accept].format(issuer=asked.issuer), refused=False)
 
 
 def seat_style(state: State, seat: SeatId) -> str:
@@ -455,6 +493,11 @@ def _due_requests(state: State, seat: SeatId) -> list[DueMatter]:
     return _due_items("request", requests(state, seat))
 
 
+def _due_offers(state: State, seat: SeatId) -> list[DueMatter]:
+    """Each offer of agreement before the seat (AGA), once: the request line skips it."""
+    return _due_items("offer", offers(state, seat))
+
+
 def _due_decisions(state: State, seat: SeatId) -> list[DueMatter]:
     return _due_items("decision", held_steps(state, seat))
 
@@ -487,14 +530,21 @@ def _due_battles(state: State, seat: SeatId) -> list[DueMatter]:
     ]
 
 
+def _due_votes(state: State, seat: SeatId) -> list[DueMatter]:
+    """Each conference the seat's nation votes in, due on its voting day (CNA): never the
+    vote the seat has sealed, nor what the aide would vote."""
+    return _due_items("vote", conferences_api.items(state, seat))
+
+
 DUE_KINDS: dict[str, DueKind] = {
     "request": _due_requests,
+    "offer": _due_offers,
     "decision": _due_decisions,
     "capital": _due_capitals,
     "battle": _due_battles,
+    "vote": _due_votes,
 }
-"""The registry of due kinds, in the order a notice lists them. Offers (AGA) and votes
-(CNA) add theirs here."""
+"""The registry of due kinds, in the order a notice lists them."""
 
 
 def due_matters(state: State, seat: SeatId) -> list[DueMatter]:
@@ -515,12 +565,14 @@ def due_matters(state: State, seat: SeatId) -> list[DueMatter]:
 __all__ = [
     "AT_CLOSE",
     "DUE_KINDS",
+    "OFFER_KIND",
     "DueKind",
     "DueMatter",
     "agenda",
     "answer",
     "due_matters",
     "offered",
+    "offers",
     "pick_option",
     "requests",
     "seat_style",

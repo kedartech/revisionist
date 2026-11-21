@@ -16,7 +16,9 @@ on, each wake also counts the battles opened, the rounds fought and the battles 
 while it was the latest wake opened (BTD): counts only, never a side or a figure. In a
 game with ``reports`` on, each wake also counts the reports every nation's sources made,
 by source, and the share that were wrong (RPD): engine-only counts for the operator,
-naming no piece.
+naming no piece. In a game with ``agreements`` on, each wake also counts the clauses of
+agreements judged kept and judged broken while it was the latest wake opened (AGA):
+counts only, never an agreement, a party or a clause.
 
 An operator command (``revisionist db wake-report``) that prints counts and public
 board facts, and no record's content. Nothing a seat reaches imports it.
@@ -31,7 +33,8 @@ from revisionist.core.events import Event
 from revisionist.core.fold import apply, replay
 from revisionist.core.ids import CampaignId, EntityId, SeatId
 from revisionist.core.ontology import Controller, EntityKind
-from revisionist.core.realism import battle, detect, economy, holders
+from revisionist.core.realism import agreement, battle, detect, economy, holders
+from revisionist.core.realism.agreement import ClauseStatus
 from revisionist.core.state import State
 from revisionist.engine.store import EventStore
 from revisionist.engine.web import catchup_api
@@ -105,6 +108,13 @@ class Fighting:
 
 
 @dataclass(frozen=True)
+class Clauses:
+    number: int
+    kept: int
+    broken: int
+
+
+@dataclass(frozen=True)
 class Intelligence:
     number: int
     by_source: tuple[tuple[str, int], ...]
@@ -130,6 +140,8 @@ class Report:
     """One per wake opened, in a game with ``battles`` on; else empty."""
     intelligence: tuple[Intelligence, ...] = ()
     """One per wake opened, in a game with ``reports`` on; else empty."""
+    clauses: tuple[Clauses, ...] = ()
+    """One per wake opened, in a game with ``agreements`` on; else empty."""
 
 
 @dataclass
@@ -200,6 +212,7 @@ def build(events: Sequence[Event]) -> Report:
         _holdings(events),
         _fighting(events, state),
         _intelligence(events, state),
+        _clauses(events, state),
     )
 
 
@@ -256,6 +269,26 @@ def _fighting(events: Sequence[Event], state: State) -> tuple[Fighting, ...]:
                 if isinstance(p, kind):
                     counts[number][i] += 1
     return tuple(Fighting(n, *c) for n, c in sorted(counts.items()))
+
+
+def _clauses(events: Sequence[Event], state: State) -> tuple[Clauses, ...]:
+    """Each wake's clauses judged kept and judged broken, by the latest wake opened when
+    each was judged; empty with ``agreements`` off."""
+    if not agreement.on(state):
+        return ()
+    counts: dict[int, list[int]] = {}
+    number: int | None = None
+    for e in events:
+        p = e.payload
+        if isinstance(p, ev.WakeOpened):
+            number = p.wake
+            counts.setdefault(number, [0, 0])
+        elif number is not None and isinstance(p, ev.ClauseJudged):
+            if p.status is ClauseStatus.KEPT:
+                counts[number][0] += 1
+            elif p.status is ClauseStatus.BROKEN:
+                counts[number][1] += 1
+    return tuple(Clauses(n, *c) for n, c in sorted(counts.items()))
 
 
 def _intelligence(events: Sequence[Event], state: State) -> tuple[Intelligence, ...]:
@@ -336,6 +369,7 @@ def render(report: Report) -> list[str]:
     held = {h.number: h for h in report.holdings}
     fought = {f.number: f for f in report.fighting}
     heard = {i.number: i for i in report.intelligence}
+    judged = {c.number: c for c in report.clauses}
     for w in report.wakes:
         lines.append(f"  wake {w.number}: {w.how}")
         if w.number in held:
@@ -348,6 +382,9 @@ def render(report: Report) -> list[str]:
             )
         if w.number in heard:
             lines.append(_heard(heard[w.number]))
+        if w.number in judged:
+            c = judged[w.number]
+            lines.append(f"    clauses: {c.kept} kept, {c.broken} broken")
     lines += [
         f"seat {s.name}: aide played {_plural(s.aide_wakes, 'wake')}; {_hours(s)}"
         for s in report.seats
@@ -401,6 +438,7 @@ def lines(store: EventStore, campaign_ids: Sequence[CampaignId]) -> list[str]:
 
 
 __all__ = [
+    "Clauses",
     "Fighting",
     "Holding",
     "Report",

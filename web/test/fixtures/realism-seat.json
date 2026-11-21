@@ -4353,5 +4353,191 @@
         "band": null
       }
     ]
+  },
+  "agreements": {
+    "agreements": [
+      {
+        "id": "agr-0",
+        "parties": [
+          "Norra",
+          "Sudland"
+        ],
+        "wording": "",
+        "made": "1900-04-02",
+        "published": null,
+        "party": true,
+        "clauses": [
+          {
+            "text": "Norra: The Norra Levy is in The Norra Plain, by 3 April 1900.",
+            "checked": true,
+            "state": "kept",
+            "on": "1900-04-03"
+          },
+          {
+            "text": "Norra: no piece enters The Isle, at all times.",
+            "checked": true,
+            "state": "pending",
+            "on": null
+          },
+          {
+            "text": "Norra: Friendship between the two crowns. (not checked by the rules).",
+            "checked": false,
+            "state": "unchecked",
+            "on": null
+          }
+        ]
+      }
+    ],
+    "offers": [
+      {
+        "by": "Norra",
+        "terms": {
+          "parties": [
+            "Norra",
+            "Sudland"
+          ],
+          "clauses": [
+            {
+              "text": "Norra: no piece enters The Isle, at all times.",
+              "checked": true,
+              "interpretation": false
+            },
+            {
+              "text": "Norra: Free passage for traders. (not checked by the rules).",
+              "checked": false,
+              "interpretation": false
+            }
+          ],
+          "wording": "Peace on the isle.",
+          "text": "Parties: Norra, Sudland. Clause 1: Norra: no piece enters The Isle, at all times. Clause 2: Norra: Free passage for traders. (not checked by the rules)."
+        },
+        "filed": "1900-04-02",
+        "expires": "1900-04-06",
+        "answers": [
+          {
+            "nation": "Sudland",
+            "answer": null
+          }
+        ],
+        "item": null
+      },
+      {
+        "by": "Ostmark",
+        "terms": {
+          "parties": [
+            "Ostmark",
+            "Norra"
+          ],
+          "clauses": [
+            {
+              "text": "Ostmark: no war declared on Norra, at all times.",
+              "checked": true,
+              "interpretation": false
+            }
+          ],
+          "wording": "Ostmark stays out.",
+          "text": "Parties: Ostmark, Norra. Clause 1: Ostmark: no war declared on Norra, at all times."
+        },
+        "filed": "1900-04-02",
+        "expires": "1900-04-06",
+        "answers": [],
+        "item": "4CB1HQP7RTP4J38MKTKDBK08VF"
+      }
+    ]
+  },
+  "offer_reading": {
+    "reply": "Your offer is ready to sign. Read the terms, then sign to send it.",
+    "refused": false,
+    "proposal": {
+      "person": null,
+      "channel": null,
+      "text": "Peace on the isle.",
+      "parts": [
+        "Parties: Norra, Sudland.",
+        "Clause 1: Norra: no piece enters The Isle, at all times.",
+        "Your wording, which the rules do not check: Peace on the isle."
+      ],
+      "reason": null
+    },
+    "terms": {
+      "parties": [
+        "Norra",
+        "Sudland"
+      ],
+      "clauses": [
+        {
+          "text": "Norra: no piece enters The Isle, at all times.",
+          "checked": true,
+          "interpretation": false
+        }
+      ],
+      "wording": "Peace on the isle.",
+      "text": "Parties: Norra, Sudland. Clause 1: Norra: no piece enters The Isle, at all times."
+    }
+  },
+  "conferences": {
+    "conferences": [
+      {
+        "key": "charter",
+        "called_by": "Norra",
+        "invited": [
+          "Norra",
+          "Sudland",
+          "Ostmark"
+        ],
+        "text": "Free trade on the gulf, and no tariffs.",
+        "clauses": [],
+        "unanimous": false,
+        "called": "1900-04-02",
+        "voting_day": "1900-04-06",
+        "public": false,
+        "vote": "for",
+        "can_vote": false,
+        "tallied": "1900-04-11",
+        "result": "agreement",
+        "votes": [
+          {
+            "nation": "Norra",
+            "vote": "for"
+          },
+          {
+            "nation": "Sudland",
+            "vote": "abstain"
+          },
+          {
+            "nation": "Ostmark",
+            "vote": "for"
+          }
+        ],
+        "agreement": "7MPN4C8V4CZSHHZ5T9NNZYNDW4"
+      },
+      {
+        "key": "commission",
+        "called_by": "Norra",
+        "invited": [
+          "Norra",
+          "Sudland",
+          "Ostmark"
+        ],
+        "text": "A standing commission for the strait.",
+        "clauses": [
+          {
+            "text": "Norra: no war declared on Vesta, at all times.",
+            "checked": true,
+            "interpretation": false
+          }
+        ],
+        "unanimous": false,
+        "called": "1900-04-14",
+        "voting_day": "1900-04-18",
+        "public": false,
+        "vote": "abstain",
+        "can_vote": true,
+        "tallied": null,
+        "result": null,
+        "votes": [],
+        "agreement": null
+      }
+    ]
   }
 }

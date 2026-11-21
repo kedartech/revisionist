@@ -125,6 +125,35 @@ def _locks_declared(state: State, p: ev.LocksDeclared) -> State:
     return state.model_copy(update={"locks": p.rows})
 
 
+def _order_held(state: State, p: ev.OrderHeld) -> State:
+    """A held order, with ``locks`` on: its id new to every order table, its seat and, for
+    a form, its pipeline known (LCK)."""
+    if Rule.LOCKS not in state.rules:
+        raise FoldError("order_held needs the locks rule")
+    h = p.held
+    for table in (state.held, state.orders, state.routed):
+        _fresh(table, h.order_id, "order")
+    _need(state.seats, h.issuer, "seat")
+    if h.form is not None:
+        _need(state.pipelines, h.form.pipeline, "pipeline")
+    return state.model_copy(update={"held": _put(state.held, h.order_id, h)})
+
+
+def _held_order_ended(state: State, p: ev.HeldOrderEnded) -> State:
+    """A held order ends once, by its own seat's record; the order that replaced it or
+    that it landed as must already be filed (LCK)."""
+    h = _need(state.held, p.order_id, "held order")
+    if h.issuer != p.issuer:
+        raise FoldError(f"held order {p.order_id} is not that seat's")
+    if p.on < h.filed:
+        raise FoldError(f"held order {p.order_id} ends before it was held")
+    if p.by is not None and not any(p.by in t for t in (state.held, state.orders, state.routed)):
+        raise FoldError(f"held order {p.order_id}: unknown order {p.by!r}")
+    return state.model_copy(
+        update={"held": {k: v for k, v in state.held.items() if k != h.order_id}}
+    )
+
+
 def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
     if not groups.on(state):
         raise FoldError("groups_declared needs the groups rule")
@@ -602,6 +631,8 @@ def _mutate(state: State, event: Event) -> State:
             | ev.MapDeclared()
             | ev.KindsDeclared()
             | ev.LocksDeclared()
+            | ev.OrderHeld()
+            | ev.HeldOrderEnded()
             | ev.AreaHeld()
             | ev.CaptureCounted()
             | ev.EconomySet()
@@ -1025,6 +1056,10 @@ def _realism(state: State, p: ev.Payload) -> State:
             return state.model_copy(update={"kinds": kinds})
         case ev.LocksDeclared():
             return _locks_declared(state, p)
+        case ev.OrderHeld():
+            return _order_held(state, p)
+        case ev.HeldOrderEnded():
+            return _held_order_ended(state, p)
         case ev.IntelligenceDeclared():
             if Rule.REPORTS not in state.rules:
                 raise FoldError("intelligence_declared needs the reports rule")

@@ -26,6 +26,7 @@ refused or whose call fails keeps its body lines, and the tick still closes. Del
 import logging
 from collections.abc import Sequence
 from datetime import date, timedelta
+from typing import Any
 
 from revisionist.core import events as ev
 from revisionist.core import goals, history
@@ -43,6 +44,7 @@ from revisionist.core.ids import (
     derived_id,
 )
 from revisionist.core.ontology import Phase
+from revisionist.core.project import project
 from revisionist.core.realism import (
     actors,
     agreement,
@@ -55,6 +57,7 @@ from revisionist.core.realism import (
     economy,
     groups,
     holders,
+    locks,
     mandates,
     opponents,
     process,
@@ -95,7 +98,7 @@ from revisionist.core.realism.resolvers import (
     resolver_for,
 )
 from revisionist.core.realism.resolvers.movement import FORCE, STRENGTH
-from revisionist.core.realism.route import due_executions, route
+from revisionist.core.realism.route import due_executions, held, route
 from revisionist.core.realism.war import polity_of
 from revisionist.core.realism.war_rules import contacts, order_refusal
 from revisionist.core.resolution import TickStage
@@ -406,6 +409,10 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return private_to(state.mandates[payload.mandate_id].seat_id)
     if isinstance(payload, ev.OrderRouted):
         return private_to(payload.order.issuer)
+    if isinstance(payload, ev.OrderHeld):
+        return private_to(payload.held.issuer)
+    if isinstance(payload, ev.HeldOrderEnded):
+        return private_to(payload.issuer)
     if isinstance(payload, ev.AnswerPlanned | ev.AnswerMade):
         seat = actors.seat_of(state, payload.figure)
         return private_to(seat) if seat is not None else PUBLIC
@@ -772,15 +779,67 @@ def _widened(state: State, found: Lever, spec: ParamSpec, raw: str) -> ParamValu
     return _fits(spec, raw)
 
 
+Landing = list[tuple[ev.Payload, Scope]]
+"""What a filing logs, in order, each event with its scope."""
+
+
 def file_order(
     store: EventStore, campaign_id: CampaignId, seat: SeatId, lever: str, given: dict[str, str]
 ) -> Order:
-    """Draft the seat's order for ``lever`` dated today. Every parameter must be given
-    and fit its spec. Raises ``ValueError``."""
+    """Draft the seat's order for ``lever`` dated today and file it: it lands, or a lock
+    holds it (``form_filing``). Every parameter must be given and fit its spec. Raises
+    ``ValueError``."""
     state = load_state(store, campaign_id)
     order = draft_order(state, seat, lever, given)
-    _append(store, state, ev.OrderDrafted(order=order), seat)
-    return order
+    landing, filed = form_filing(state, seat, order)
+    _append_all(store, state, landing, seat)
+    return filed
+
+
+def form_filing(state: State, seat: SeatId, order: Order) -> tuple[Landing, Order]:
+    """What filing the drafted ``order`` logs, and the order as filed. It lands, or, when
+    a lock holds it as the seat's view shows it, it is held with the row and the decider
+    (LCK); then each of the seat's held orders aimed at the same force and zone ends,
+    replaced. Nothing, and the order already held, when the seat's same filing is held."""
+    lock = locks.seen_lock(state, seat, order)
+    again = locks.retried(state, seat, order) if lock is not None else None
+    if again is not None and again.form is not None:
+        return [], again.form
+    if lock is None:
+        first: tuple[ev.Payload, Scope] = (ev.OrderDrafted(order=order), PUBLIC)
+    else:
+        hold = locks.HeldOrder(
+            order_id=order.order_id,
+            issuer=seat,
+            filed=order.filed,
+            form=order,
+            **_lock(state, seat, lock),
+        )
+        first = (ev.OrderHeld(held=hold), private_to(seat))
+    return [first, *_replacing(state, seat, order, order.order_id, order.filed)], order
+
+
+def _lock(state: State, issuer: SeatId, lock: locks.Lock) -> dict[str, Any]:
+    """What a held order keeps of ``lock``: its row, its decider and the reason its seat
+    is told."""
+    row = lock.row.key if lock.row is not None else None
+    view = project(state, issuer)
+    return {"row": row, "decider": lock.decider, "reason": locks.reason(view, lock)}
+
+
+def _replacing(
+    state: State, seat: SeatId, order: Order | Sequence[Ask], by: OrderId, on: date
+) -> Landing:
+    """An end for each of the seat's held orders that a later ``order`` replaces."""
+    return [
+        (
+            ev.HeldOrderEnded(
+                order_id=h.order_id, issuer=seat, end=locks.HeldEnd.REPLACED, on=on, by=by
+            ),
+            private_to(seat),
+        )
+        for h in locks.replaced(state, seat, order)
+    ]
 
 
 def draft_order(state: State, seat: SeatId, lever: str, given: dict[str, str]) -> Order:
@@ -882,17 +941,32 @@ def commit_order(
     seat: SeatId,
     asks: Sequence[Ask],
     forecast: Forecast | None = None,
-) -> RoutedOrder:
-    """Route every ask on today's date and land them as one order. If any ask has no
-    route, raises ``ValueError`` with its words and nothing is logged. ``forecast``: the
-    picked suggestion's expected moves and risks, stored on the routed order (an empty
-    one as none); no rule reads it."""
+) -> RoutedOrder | locks.HeldOrder:
+    """Route every ask on today's date and land them as one order, or hold it
+    (``written_filing``). If any ask has no route and no lock holds it, raises
+    ``ValueError`` with its words and nothing is logged. ``forecast``: the picked
+    suggestion's expected moves and risks, stored on the routed order (an empty one as
+    none); no rule reads it."""
     state = load_state(store, campaign_id)
+    landing, filed = written_filing(state, seat, asks, forecast)
+    _append_all(store, state, landing, seat)
+    return filed
+
+
+def written_filing(
+    state: State, seat: SeatId, asks: Sequence[Ask], forecast: Forecast | None = None
+) -> tuple[Landing, RoutedOrder | locks.HeldOrder]:
+    """What filing the written ``asks`` logs, and the order as filed. Every refusal of
+    today's comes first. Then, when a lock holds any ask as the seat's view shows it, the
+    whole order is held with the first such lock's row and decider (LCK); else it lands as
+    one routed order. Each of the seat's held orders aimed at the same force and zone
+    ends, replaced. Nothing, and the order already held, when the same asks are held."""
     today = state.in_world_date
     assert today is not None
     pending = _pending_effects(state, seat)
     said = _pending_words(state, seat)
     parts: list[RoutedPart] = []
+    found: list[locks.Lock] = []
     deals = [
         a for a in asks if isinstance(a.effect, Deal) and (a.effect.parties or a.effect.publish)
     ]
@@ -915,8 +989,13 @@ def commit_order(
                 )
             pending.append(ask.effect)
         routing = route(state, seat, ask, today)
+        lock = held(state, seat, ask, today)
+        if lock is not None:
+            found.append(lock)
         if routing.part is None:
-            raise ValueError(routing.refusal)
+            if lock is None:
+                raise ValueError(routing.refusal)
+            continue
         part = routing.part
         if part.effect is None:
             words = (_words(part.ask), part.target or part.executor)
@@ -926,15 +1005,30 @@ def commit_order(
                 )
             said.add(words)
         parts.append(part)
+    kept = None if forecast is None or forecast.empty() else forecast
+    if found:
+        again = locks.retried(state, seat, asks)
+        if again is not None:
+            return [], again
+        hold = locks.HeldOrder(
+            order_id=OrderId(new_id()),
+            issuer=seat,
+            filed=today,
+            asks=tuple(asks),
+            forecast=kept,
+            **_lock(state, seat, found[0]),
+        )
+        return [
+            (ev.OrderHeld(held=hold), private_to(seat)),
+            *_replacing(state, seat, asks, hold.order_id, today),
+        ], hold
     order = RoutedOrder(
-        order_id=OrderId(new_id()),
-        issuer=seat,
-        filed=today,
-        parts=tuple(parts),
-        forecast=None if forecast is None or forecast.empty() else forecast,
+        order_id=OrderId(new_id()), issuer=seat, filed=today, parts=tuple(parts), forecast=kept
     )
-    _append(store, state, ev.OrderRouted(order=order), seat, private_to(seat))
-    return order
+    return [
+        (ev.OrderRouted(order=order), private_to(seat)),
+        *_replacing(state, seat, asks, order.order_id, today),
+    ], order
 
 
 NOT_YOURS = "That decision is not yours to take."  # [proposed]
@@ -1075,6 +1169,28 @@ def set_flag(
     return True
 
 
+def _append_all(store: EventStore, state: State, landing: Landing, actor: SeatId) -> None:
+    """Log ``landing`` as one batch numbered from ``state``, checked by the fold first."""
+    if not landing:
+        return
+    versions = cmp.versions()
+    batch = [
+        Event(
+            event_id=EventId(new_id()),
+            campaign_id=state.campaign_id,
+            seq=state.last_seq + i,
+            tick=state.tick,
+            actor=actor,
+            scope=scope,
+            payload=payload,
+            versions=versions,
+        )
+        for i, (payload, scope) in enumerate(landing, start=1)
+    ]
+    replay(batch, initial=state)
+    store.append_all(batch)
+
+
 def _append(
     store: EventStore,
     state: State,
@@ -1099,11 +1215,13 @@ def _append(
 __all__ = [
     "NOT_YOURS",
     "NO_AMEND",
+    "Landing",
     "OpeningWritten",
     "RealismTickResult",
     "commit_order",
     "draft_order",
     "file_order",
+    "form_filing",
     "held_step_order",
     "mark_read",
     "open_play",
@@ -1114,4 +1232,5 @@ __all__ = [
     "take_step",
     "wake_line",
     "write_opening",
+    "written_filing",
 ]

@@ -11,6 +11,7 @@ from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, SeatId
+from revisionist.core.realism import locks
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import Domain, SeatCard
 from revisionist.core.realism.effect import (
@@ -90,9 +91,31 @@ def _not_in_service(state: State, ask: Ask, on: date) -> str:
     return f"{feature.name} is not in service until {feature.in_service:%-d %B %Y}."
 
 
+NOBODY = "Nobody under you commands that. Name the person who decides it."
+
+
 def route(state: State, issuer: SeatId, ask: Ask, on: date) -> Routing:
     """Command inside the card's authority; process for a measure; influence on a named
     person; otherwise the words for why nobody can take it."""
+    return _route(state, issuer, ask, on) or Routing(refusal=NOBODY)
+
+
+def held(state: State, issuer: SeatId, ask: Ask, on: date) -> locks.Lock | None:
+    """The lock that holds the ask, read from the issuer's own view, once it passes every
+    refusal of today's; None with ``locks`` off. An ask nobody under the issuer commands
+    may be held there, in place of that refusal; an ask the router takes is held only on
+    a command, never on a measure or an approach to a named person (LCK)."""
+    if not locks.on(state):
+        return None
+    routing = _route(state, issuer, ask, on)
+    if routing is not None and (routing.part is None or routing.part.route is not Route.COMMAND):
+        return None
+    return locks.seen_lock(state, issuer, ask)
+
+
+def _route(state: State, issuer: SeatId, ask: Ask, on: date) -> Routing | None:
+    """``route``'s answer, or None where only its last refusal is left: nobody under the
+    issuer commands the ask."""
     card = state.cards[state.seats[issuer].embodies]
     late = _not_in_service(state, ask, on)
     if late:
@@ -127,7 +150,7 @@ def route(state: State, issuer: SeatId, ask: Ask, on: date) -> Routing:
         )
     if ask.effect is None and ask.target is None:
         return Routing(refusal="Name who should act on it.")
-    return Routing(refusal="Nobody under you commands that. Name the person who decides it.")
+    return None
 
 
 def fidelity_inputs(state: State, executor: EntityId | None) -> FidelityInputs:
@@ -213,10 +236,12 @@ def due_executions(state: State, today: date) -> list[ev.OrderExecuted]:
 
 
 __all__ = [
+    "NOBODY",
     "carry_out",
     "due_executions",
     "execute_on",
     "fidelity_inputs",
+    "held",
     "outside_the_law",
     "route",
 ]

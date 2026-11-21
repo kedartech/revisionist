@@ -17,7 +17,7 @@ The shared toy world is left as it is, so every other test that reads it is unch
 
 import ast
 from collections.abc import Callable
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +25,7 @@ import pytest
 import yaml
 
 from revisionist.core import events as ev
-from revisionist.core.fold import replay
+from revisionist.core.fold import replay, state_hash
 from revisionist.core.ids import (
     EntityId,
     FeatureId,
@@ -50,8 +50,10 @@ from revisionist.core.realism.locks import Decider, Lock, lock_for
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.state import Rule, State
 from revisionist.core.world import WorldFile
-from revisionist.core.world_compile import object_id
+from revisionist.core.world_compile import compile_world, object_id
 from revisionist.engine import campaign as cmp
+from revisionist.engine import realism_tick, session_zero
+from revisionist.engine.store import MemoryStore, load_state
 from tests.test_realism_command import card, general
 from tests.test_territory_model import CAMPAIGN, created, refused, variant
 
@@ -604,3 +606,372 @@ def test_the_lock_rules_name_nothing_from_any_world() -> None:
     }
     named = sorted(literals & (_world_words() | {"set_watch", "march", "assembly", LAW}))
     assert not named, f"locks.py names world data: {named}"
+
+
+# --- The held order (LCK) ------------------------------------------------------------
+#
+# The game in an event store, with Ilse, Kara and Olaf each played. Kara's march to the
+# Isle is held for Ilse by form; her shot in the Gulf is held for Ilse by a written row;
+# Olaf's order to the kites, which nobody under him commands, is held for Ilse, the
+# nearest card above him that does.
+
+HELD_FOR_ILSE = "Held until Ilse Varg allows it."
+HELD_FOR_ASSEMBLY = "Held until Norra's assembly allows it."
+
+
+def isle_move(w: World) -> None:
+    """A written row: any move to the Isle needs Ilse."""
+    w["locks"].append(
+        {
+            "key": "isle_move",
+            "order": {"effect": "move_force", "zone": "isle"},
+            "decider": {"person": "ilse"},
+        }
+    )
+
+
+def public_law(w: World) -> None:
+    """The arming law's passed flag is public, so every seat can see whether it passed."""
+    next(q for q in w["quantities"] if q["key"] == FLAG)["public"] = True
+
+
+def law_passed(w: World) -> None:
+    next(q for q in w["quantities"] if q["key"] == FLAG)["value"] = 1
+
+
+def kites_laid_up(w: World) -> None:
+    next(f for f in w["features"] if f["key"] == "norra_kites")["in_service"] = "1900-09-01"
+
+
+def unlocked(w: World) -> None:
+    w["rules"] = [r for r in w["rules"] if r != "locks"]
+
+
+def played(tmp: Path, *changes: Callable[[World], None]) -> MemoryStore:
+    tmp.mkdir(parents=True, exist_ok=True)
+    store = MemoryStore()
+    store.append_all(compile_world(world(tmp, *changes), CAMPAIGN, cmp.versions()))
+    state = load_state(store, CAMPAIGN)
+    for person in (ILSE, KARA, OLAF):
+        session_zero.claim(store, CAMPAIGN, seat(person), state.entities[person].name)
+    realism_tick.open_play(store, CAMPAIGN)
+    return store
+
+
+def file(store: MemoryStore, to: str, person: EntityId = KARA) -> Order:
+    params = {"force": "norra_levy", "to": to}
+    return realism_tick.file_order(store, CAMPAIGN, seat(person), "march", params)
+
+
+def commit(store: MemoryStore, person: EntityId, *asks: Ask) -> RoutedOrder | locks.HeldOrder:
+    return realism_tick.commit_order(store, CAMPAIGN, seat(person), asks)
+
+
+def kites_to_isle(words: str = "Send the kites to the Isle.") -> Ask:
+    return Ask(ask=words, effect=MoveForce(force=KITES, to=ISLE))
+
+
+def logged(store: MemoryStore, kind: type[Any]) -> list[Any]:
+    return [e.payload for e in store.read(CAMPAIGN) if isinstance(e.payload, kind)]
+
+
+def test_a_form_order_a_lock_holds_is_stored_held_not_carried_out(tmp_path: Path) -> None:
+    store = played(tmp_path)
+    order = file(store, "isle")
+    state = load_state(store, CAMPAIGN)
+    held = state.held[order.order_id]
+    assert held.form == order and held.row == "island_march"
+    assert held.decider == Decider(person=ILSE) and held.reason == HELD_FOR_ILSE
+    assert order.order_id not in state.orders and not logged(store, ev.OrderDrafted)
+    plain = file(store, "norra_hills")
+    assert plain.order_id in load_state(store, CAMPAIGN).orders
+
+
+def test_a_written_order_a_lock_holds_is_stored_held_with_every_ask(tmp_path: Path) -> None:
+    store = played(tmp_path)
+    shot = commit(store, KARA, gulf_fire())
+    assert isinstance(shot, locks.HeldOrder)
+    assert (shot.row, shot.decider, shot.asks) == (
+        "gulf_fire",
+        Decider(person=ILSE),
+        (gulf_fire(),),
+    )
+    derived = commit(store, OLAF, kites_to_isle())
+    assert isinstance(derived, locks.HeldOrder)
+    assert (derived.row, derived.decider, derived.reason) == (
+        None,
+        Decider(person=ILSE),
+        HELD_FOR_ILSE,
+    )
+    state = load_state(store, CAMPAIGN)
+    assert set(state.held) == {shot.order_id, derived.order_id} and not state.routed
+    # A command the issuer's own domain takes, and no row holds, lands as before.
+    landed = commit(store, KARA, written(MoveForce(force=LEVY, to=key_id("norra_hills"))))
+    assert isinstance(landed, RoutedOrder)
+
+
+def test_a_routed_command_a_written_row_holds_is_held(tmp_path: Path) -> None:
+    store = played(tmp_path, isle_move)
+    filed = commit(store, KARA, written(MoveForce(force=LEVY, to=ISLE)))
+    assert isinstance(filed, locks.HeldOrder) and filed.row == "isle_move"
+
+
+def test_with_locks_off_every_order_is_refused_or_carried_out_as_before(tmp_path: Path) -> None:
+    store = played(tmp_path, unlocked)
+    assert file(store, "isle").order_id in load_state(store, CAMPAIGN).orders
+    for person, ask in ((KARA, gulf_fire()), (OLAF, kites_to_isle())):
+        with pytest.raises(ValueError, match="Nobody under you commands that"):
+            commit(store, person, ask)
+    assert not load_state(store, CAMPAIGN).held
+
+
+def test_a_refusal_of_todays_still_refuses_first_in_its_own_words(tmp_path: Path) -> None:
+    store = played(tmp_path, kites_laid_up)
+    with pytest.raises(ValueError, match=r"^The Norra Kites is not in service until 1 September"):
+        commit(store, OLAF, kites_to_isle())
+    with pytest.raises(ValueError) as caught:
+        realism_tick.file_order(store, CAMPAIGN, seat(KARA), "march", {"force": "norra_levy"})
+    unlocked_store = played(tmp_path / "off", kites_laid_up, unlocked)
+    with pytest.raises(ValueError) as before:
+        realism_tick.file_order(
+            unlocked_store, CAMPAIGN, seat(KARA), "march", {"force": "norra_levy"}
+        )
+    assert str(caught.value) == str(before.value)
+    assert not load_state(store, CAMPAIGN).held
+
+
+def test_the_reason_names_the_body_when_the_seat_can_see_the_law(tmp_path: Path) -> None:
+    store = played(tmp_path, public_law)
+    order = file(store, "sudland_coast")
+    held = load_state(store, CAMPAIGN).held[order.order_id]
+    assert held.decider == Decider(nation=NORRA, chambers=("assembly",))
+    assert held.reason == HELD_FOR_ASSEMBLY
+    passed = played(tmp_path / "passed", public_law, law_passed)
+    assert file(passed, "sudland_coast").order_id in load_state(passed, CAMPAIGN).orders
+
+
+def _seen(store: MemoryStore, person: EntityId) -> tuple[Any, ...]:
+    """What the seat holds of its orders and papers: its held orders, with their ids left
+    out, and its documents' words."""
+    from revisionist.core.project import project
+
+    view = project(load_state(store, CAMPAIGN), seat(person))
+    held = sorted(
+        (h.row, h.decider, h.reason, h.form and h.form.params) for h in view.held.values()
+    )
+    papers = sorted((d.title, d.kind) for d in view.documents.values())
+    return tuple(held), tuple(papers), len(view.orders), len(view.routed)
+
+
+def test_two_games_differing_only_in_a_hidden_fact_give_the_seat_the_same(tmp_path: Path) -> None:
+    def run(tmp: Path, *changes: Callable[[World], None]) -> tuple[MemoryStore, Order, Order]:
+        store = played(tmp, *changes)
+        isle = file(store, "isle")
+        coast = file(store, "sudland_coast")
+        realism_tick.run_realism_tick(store, CAMPAIGN)
+        return store, isle, coast
+
+    # The arming law's flag is hidden from Kara: passed in one game, not in the other.
+    a, a_isle, a_coast = run(tmp_path / "a")
+    b, b_isle, b_coast = run(tmp_path / "b", law_passed)
+    assert _seen(a, KARA) == _seen(b, KARA)
+    # The march to the Isle is held in both, for the same reason.
+    for store, isle in ((a, a_isle), (b, b_isle)):
+        assert load_state(store, CAMPAIGN).held[isle.order_id].reason == HELD_FOR_ILSE
+    # The march to the coast turns on the hidden law, so it goes on as an ordinary order.
+    for store, coast in ((a, a_coast), (b, b_coast)):
+        state = load_state(store, CAMPAIGN)
+        assert coast.order_id in state.orders and coast.order_id not in state.held
+
+
+def test_a_held_order_has_no_clock_expiry(tmp_path: Path) -> None:
+    store = played(tmp_path)
+    order = file(store, "isle")
+    shot = commit(store, KARA, gulf_fire())
+    for _ in range(40):
+        realism_tick.run_realism_tick(store, CAMPAIGN)
+    state = load_state(store, CAMPAIGN)
+    assert state.in_world_date is not None and state.in_world_date > DAY + timedelta(days=30)
+    assert {order.order_id, shot.order_id} <= set(state.held)
+    assert not logged(store, ev.HeldOrderEnded)
+
+
+def test_a_later_order_to_the_same_force_and_zone_replaces_it(tmp_path: Path) -> None:
+    store = played(tmp_path)
+    form = file(store, "isle")
+    # Another zone for the same force leaves it held.
+    file(store, "norra_hills")
+    assert form.order_id in load_state(store, CAMPAIGN).held
+    # A written order to the same force and zone lands, and the held form order ends.
+    later = commit(store, KARA, written(MoveForce(force=LEVY, to=ISLE)))
+    assert isinstance(later, RoutedOrder)
+    (ended,) = logged(store, ev.HeldOrderEnded)
+    assert (ended.order_id, ended.end, ended.by) == (
+        form.order_id,
+        locks.HeldEnd.REPLACED,
+        later.order_id,
+    )
+    assert form.order_id not in load_state(store, CAMPAIGN).held
+    # A held written order is replaced by a later held one in other words.
+    first = commit(store, OLAF, kites_to_isle())
+    second = commit(store, OLAF, kites_to_isle("The kites to the Isle, now."))
+    assert set(load_state(store, CAMPAIGN).held) == {second.order_id}
+    assert logged(store, ev.HeldOrderEnded)[-1].by == second.order_id != first.order_id
+
+
+def test_a_retried_filing_makes_no_second_held_order(tmp_path: Path) -> None:
+    store = played(tmp_path)
+    first = file(store, "isle")
+    again = file(store, "isle")
+    shot = commit(store, KARA, gulf_fire())
+    shot_again = commit(store, KARA, gulf_fire())
+    assert (again, shot_again) == (first, shot)
+    assert len(logged(store, ev.OrderHeld)) == 2
+
+
+def test_the_same_filing_after_the_lock_opens_lands_and_replaces_the_held_one(
+    tmp_path: Path,
+) -> None:
+    store = played(tmp_path)
+    first = file(store, "isle")
+    watch = Ask(
+        ask="Guard the Gulf.",
+        effect=SetEngagement(force=KITES, zone=GULF, rule=Engagement.SHOOT_ON_SIGHT),
+    )
+    assert isinstance(commit(store, ILSE, watch), RoutedOrder)
+    for _ in range(5):
+        realism_tick.run_realism_tick(store, CAMPAIGN)
+        if lock_for(load_state(store, CAMPAIGN), seat(KARA), march("isle")) is None:
+            break
+    assert lock_for(load_state(store, CAMPAIGN), seat(KARA), march("isle")) is None
+    again = file(store, "isle")
+    state = load_state(store, CAMPAIGN)
+    assert again.order_id != first.order_id and again.order_id in state.orders
+    assert first.order_id not in state.held
+    assert logged(store, ev.HeldOrderEnded)[-1].by == again.order_id
+
+
+def test_a_filing_retried_after_a_restart_gives_one_held_order_and_one_digest(
+    tmp_path: Path,
+) -> None:
+    store = played(tmp_path)
+    file(store, "isle")
+    commit(store, OLAF, kites_to_isle())
+    twin = MemoryStore()
+    twin.append_all(list(store.read(CAMPAIGN)))
+    file(twin, "isle")
+    commit(twin, OLAF, kites_to_isle())
+    assert len(logged(twin, ev.OrderHeld)) == 2
+    assert state_hash(load_state(twin, CAMPAIGN)) == state_hash(load_state(store, CAMPAIGN))
+
+
+def test_each_seat_sees_its_own_held_orders_only(tmp_path: Path) -> None:
+    from revisionist.core.project import project
+    from revisionist.engine import catchup
+
+    store = played(tmp_path)
+    order = file(store, "isle")
+    state = load_state(store, CAMPAIGN)
+    assert set(project(state, seat(KARA)).held) == {order.order_id}
+    assert not project(state, seat(ILSE)).held and not project(state, seat(OLAF)).held
+
+    def kinds(person: EntityId) -> list[str]:
+        return [f.event.kind for f in catchup.seat_events(store, CAMPAIGN, seat(person), 0, 9)]
+
+    assert "order_held" in kinds(KARA)
+    assert "order_held" not in kinds(ILSE) and "order_held" not in kinds(OLAF)
+
+
+def test_the_held_order_event_folds_only_with_the_rule_and_once(tmp_path: Path) -> None:
+    from revisionist.core.fold import FoldError
+
+    store = played(tmp_path)
+    order = file(store, "isle")
+    state = load_state(store, CAMPAIGN)
+    held = state.held[order.order_id]
+    with pytest.raises(FoldError, match="duplicate order"):
+        realism_tick._append(store, state, ev.OrderHeld(held=held), seat(KARA))
+    off = state.model_copy(update={"rules": state.rules - {Rule.LOCKS}, "held": {}})
+    with pytest.raises(FoldError, match="needs the locks rule"):
+        realism_tick._append(store, off, ev.OrderHeld(held=held), seat(KARA))
+
+
+def test_the_written_reader_files_a_held_order_and_tells_the_seat_why(tmp_path: Path) -> None:
+    from revisionist.engine import orders_reader
+    from revisionist.engine.web.realism_api import OrderProposal
+
+    store = played(tmp_path)
+    shown = OrderProposal(
+        person="Ilse Varg", channel="letter", text="Fire.", parts=["fire"], reason=None
+    )
+    reply = orders_reader.file_order(
+        store, CAMPAIGN, seat(KARA), orders_reader.Reading(shown=shown, asks=(gulf_fire(),))
+    )
+    assert (reply["reply"], reply["refused"]) == (HELD_FOR_ILSE, False)
+    assert len(load_state(store, CAMPAIGN).held) == 1
+
+
+# --- Code seats and aides never file a held order ------------------------------------
+
+
+def test_a_code_seats_answer_that_would_be_held_is_dropped_with_the_refusal(
+    tmp_path: Path,
+) -> None:
+    from revisionist.core.realism import actors, answering
+    from revisionist.core.realism.answer import Answer, AnswerAct, AnswerWhen
+    from revisionist.core.realism.route import NOBODY
+
+    def answer(act: AnswerAct) -> Answer:
+        when = AnswerWhen(every_days=7, start=DAY)
+        return Answer(key="k", aim=1, when=when, act=act, delay_days=0, cooldown_days=7)
+
+    events, _ = created(world(tmp_path, isle_move))
+    (unplayed,) = actors.unseated(replay(events), [KARA])
+    last = events[-1]
+    state = replay(
+        [
+            *events,
+            last.model_copy(
+                update={
+                    "seq": last.seq + 1,
+                    "event_id": derived_id(CAMPAIGN, "event", "kara-ai"),
+                    "payload": unplayed,
+                }
+            ),
+        ]
+    )
+    march_isle = AnswerAct(lever="march", params={"force": "norra_levy", "to": "isle"})
+    move_isle = AnswerAct(effect=MoveForce(force=LEVY, to=ISLE))
+    for act in (march_isle, move_isle):
+        (made,) = answering._make(state, KARA, answer(act), DAY)
+        assert isinstance(made, ev.AnswerMade) and made.refusal == NOBODY[:60]
+    hills = AnswerAct(lever="march", params={"force": "norra_levy", "to": "norra_hills"})
+    drafted, made = answering._make(state, KARA, answer(hills), DAY)
+    assert isinstance(drafted, ev.OrderDrafted) and isinstance(made, ev.AnswerMade)
+    assert made.order == drafted.order.order_id
+
+
+def test_the_aide_passes_over_a_holdable_option_at_the_head_of_its_list(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from revisionist.core.realism.agenda import Option
+    from revisionist.engine import options
+
+    state = load_state(played(tmp_path, isle_move), CAMPAIGN)
+    to_isle = Option(label="To the Isle", asks=(written(MoveForce(force=LEVY, to=ISLE)),))
+    hills = Option(
+        label="To the hills", asks=(written(MoveForce(force=LEVY, to=key_id("norra_hills"))),)
+    )
+
+    def offered(*listed: Option) -> list[options.AideOrder]:
+        monkeypatch.setattr(options, "_live", lambda view: [object()])
+        monkeypatch.setattr(options, "_wants_a_deal", lambda mandate: False)
+        monkeypatch.setattr(
+            options,
+            "_options_for",
+            lambda state, view, *rest: tuple(options._clean(state, view.viewer, view, listed)),
+        )
+        return options.aide_asks(state, seat(KARA), None)
+
+    assert [tuple(o) for o in offered(to_isle, hills)] == [hills.asks]
+    assert offered(to_isle) == []

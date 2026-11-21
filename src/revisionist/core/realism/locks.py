@@ -23,10 +23,18 @@ of ``principals`` with a domain that covers the order's effect.
 
 ``lock_for`` is a pure function of state. Nothing here names a place, a nation, a
 person, a bill or a form: every one comes from the world file.
+
+A held order (LCK) is an order a lock holds: stored, not carried out, with its row and
+its decider, until it lands, fails its re-check, is withdrawn, or a later order from its
+seat to the same force and zone replaces it. It has no clock expiry. Whether an order is
+held, and the reason its seat is told, are read from what the seat can see
+(``seen_lock``): a condition that turns on a fact outside the seat's view is judged as the
+view shows it, so two games that differ only in such a fact hold the order alike.
 """
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Container, Iterable, Mapping, Sequence
 from datetime import date
+from enum import StrEnum
 from typing import TYPE_CHECKING, Annotated, Literal
 
 from pydantic import Field, model_validator
@@ -39,13 +47,14 @@ from revisionist.core.realism.card import Desk, Domain, superiors
 from revisionist.core.realism.effect import (
     EffectKind,
     Engagement,
+    Forecast,
     MoveForce,
     SetEngagement,
 )
 from revisionist.core.realism.pipeline import Order, OrderStatus
 
 if TYPE_CHECKING:
-    from revisionist.core.state import State
+    from revisionist.core.state import State, View
 
 
 class OrderMatch(Model):
@@ -154,6 +163,55 @@ class Lock(Model):
 
     row: LockRow | None = None
     decider: Decider
+
+
+class HeldEnd(StrEnum):
+    """How a held order ends."""
+
+    REPLACED = "replaced"
+    """A later order from its seat to the same force and zone took its place."""
+    LANDED = "landed"
+    """Its lock opened and it passed its re-check: it landed as an ordinary order."""
+    FAILED = "failed"
+    """Its lock opened and it failed its re-check."""
+    WITHDRAWN = "withdrawn"
+    """Its seat took it back."""
+
+
+class HeldOrder(Model):
+    """An order a lock holds: a form order as drafted, or a written order's asks, with
+    the row that holds it (none for a derived decider), its decider, and the reason its
+    seat was told. No clock ends it."""
+
+    order_id: OrderId
+    issuer: SeatId
+    filed: date
+    form: Order | None = None
+    """A form order, as it would have entered its pipeline."""
+    asks: tuple[Ask, ...] = Field(default=(), max_length=8)
+    """A written order's asks, every one, as filed."""
+    forecast: Forecast | None = None
+    """A written order's forecast, as it would have been stored with it (FCS)."""
+    row: Label | None = None
+    decider: Decider
+    reason: str = Field(min_length=1, max_length=300)
+    """The words its seat was told, built from that seat's view only."""
+
+    @model_validator(mode="after")
+    def _shape(self) -> "HeldOrder":
+        if (self.form is None) == (not self.asks):
+            raise ValueError("a held order is a form order or a written order, not both")
+        form = self.form
+        if form is not None and (
+            (form.order_id, form.issuer, form.filed) != (self.order_id, self.issuer, self.filed)
+            or form.status is not OrderStatus.MOVING
+            or form.step
+            or form.outcomes
+        ):
+            raise ValueError("a held form order is the order as drafted, under the same id")
+        if form is not None and self.forecast is not None:
+            raise ValueError("only a written order carries a forecast")
+        return self
 
 
 def on(state: "State") -> bool:
@@ -289,18 +347,156 @@ def _settled(order: Order) -> date:
     return order.outcomes[-1].on if order.outcomes else order.filed
 
 
+# --- The held order (LCK) ------------------------------------------------------------
+
+
+def seen_lock(state: "State", seat: SeatId, order: Order | Ask) -> Lock | None:
+    """The lock that holds the seat's order, or None. A lock whose condition turns on a
+    fact the seat cannot see holds nothing: the order goes on as an ordinary order, so
+    two games that differ only in that fact treat the seat's order alike."""
+    if not on(state) or seat not in state.seats:
+        return None
+    found = lock_for(state, seat, order)
+    if found is None or (found.row is not None and _hidden(state, seat, found.row.when)):
+        return None
+    return found
+
+
+def _hidden(state: "State", seat: SeatId, when: Condition | None) -> bool:
+    """Whether the condition reads a fact outside the seat's view. A law's passed flags
+    are hidden unless their scope admits the seat. A posture is set by the seat's own
+    superiors, whose orders come down its chain, so the seat knows it."""  # [proposed]
+    if not isinstance(when, LawNotInForce):
+        return False
+    from revisionist.core.realism.resolvers import qid
+    from revisionist.core.realism.resolvers.votes import HISTORICAL
+
+    read = [
+        state.quantities.get(qid(state, f"{bill}_passed"))
+        for bill, measure in sorted(HISTORICAL.items())
+        if when.clause in {c.subject for c in measure.clauses}
+    ]
+    return any(q.scope is None or not q.scope.visible_to(seat) for q in read if q is not None)
+
+
+def reason(view: "View", lock: Lock) -> str:
+    """What the seat is told of its held order, from its own view: who can allow it, and
+    nothing of the condition behind it."""
+    decider = lock.decider
+    if decider.person is not None:
+        who = _name(view, decider.person)
+    else:
+        assert decider.nation is not None
+        chambers = " and ".join(c.replace("_", " ") for c in decider.chambers)
+        who = f"{_name(view, decider.nation)}'s {chambers}"
+    return f"Held until {who} allows it."  # [proposed]
+
+
+def _name(view: "View", who: EntityId) -> str:
+    found = view.entities.get(who)
+    return found.name if found is not None else "whoever decides it"
+
+
+Aim = tuple[FeatureId | None, EntityId | None]
+"""A force and a zone an order is aimed at; either may be missing, not both."""
+
+
+def aims(state: "State", seat: SeatId, order: Order | Sequence[Ask]) -> frozenset[Aim]:
+    """The forces and zones an order is aimed at: a movement form's force and where it
+    goes; a written move's force and where it goes; an engagement's force and zone."""
+    found: set[Aim] = set()
+    if isinstance(order, Order):
+        found.add(_form_aim(state, seat, order))
+    else:
+        for ask in order:
+            effect = ask.effect
+            if isinstance(effect, MoveForce):
+                found.add((effect.force, effect.to))
+            elif isinstance(effect, SetEngagement):
+                found.add((effect.force, zone_of(state, effect.zone)))
+    return frozenset(a for a in found if a != (None, None))
+
+
+def _form_aim(state: "State", seat: SeatId, order: Order) -> Aim:
+    from revisionist.core.realism.pipelines import destination
+    from revisionist.core.realism.resolvers.movement import FORCE
+    from revisionist.core.world_compile import object_id
+
+    held = state.seats.get(seat)
+    card = state.cards.get(held.embodies) if held is not None else None
+    lever = next((x for x in card.levers if x.name == order.lever), None) if card else None
+    to = destination(lever) if lever is not None else None
+    if to is None:
+        return (None, None)
+
+    def keyed(value: ParamValue | None, kind: str, known: Container[str]) -> str | None:
+        """The id a form's value names: the id itself, or the object a world key names."""
+        if not isinstance(value, str):
+            return None
+        ids = (value, object_id(state.campaign_id, kind, value))
+        return next((v for v in ids if v in known), None)
+
+    force = keyed(order.params.get(FORCE), "feature", state.features)
+    place = keyed(order.params.get(to.name), "entity", state.entities)
+    return (
+        FeatureId(force) if force is not None else None,
+        EntityId(place) if place is not None else None,
+    )
+
+
+def same_filing(held: HeldOrder, order: Order | Sequence[Ask]) -> bool:
+    """Whether ``order`` is the filing ``held`` already holds, retried: the same form
+    with the same terms, or the same asks."""
+    if isinstance(order, Order):
+        form = held.form
+        return form is not None and (form.lever, form.params) == (order.lever, order.params)
+    return held.form is None and held.asks == tuple(order)
+
+
+def retried(state: "State", seat: SeatId, order: Order | Sequence[Ask]) -> HeldOrder | None:
+    """The seat's held order that ``order`` repeats, if any."""
+    return next(
+        (
+            h
+            for h in sorted(state.held.values(), key=lambda h: h.order_id)
+            if h.issuer == seat and same_filing(h, order)
+        ),
+        None,
+    )
+
+
+def replaced(state: "State", seat: SeatId, order: Order | Sequence[Ask]) -> list[HeldOrder]:
+    """The seat's held orders a later ``order`` from it replaces: those aimed at a force
+    and zone it is aimed at too, in id order."""
+    mine = aims(state, seat, order)
+    return [
+        h
+        for h in sorted(state.held.values(), key=lambda h: h.order_id)
+        if h.issuer == seat and mine & aims(state, seat, h.form or h.asks)
+    ]
+
+
 __all__ = [
+    "Aim",
     "Condition",
     "Decider",
+    "HeldEnd",
+    "HeldOrder",
     "LawNotInForce",
     "Lock",
     "LockRow",
     "OrderMatch",
     "PostureNotSet",
+    "aims",
     "covering",
     "decider_for",
     "lock_for",
     "on",
     "posture_set",
+    "reason",
+    "replaced",
+    "retried",
+    "same_filing",
+    "seen_lock",
     "zone_of",
 ]

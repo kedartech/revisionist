@@ -24,12 +24,12 @@ from revisionist.core.project import project
 from revisionist.core.realism.card import ChannelKind, Contact, ParamKind, ParamValue, words
 from revisionist.core.realism.pipeline import Order
 from revisionist.core.state import State, View
-from revisionist.core.visibility import PUBLIC, private_to
+from revisionist.core.visibility import private_to
 from revisionist.engine import campaign as cmp
 from revisionist.engine.aide import AIDE_MODEL, Draft, valid
 from revisionist.engine.ids import new_id
 from revisionist.engine.llm import Request, Transport, TransportError, prompt_text, prompt_version
-from revisionist.engine.realism_tick import draft_order
+from revisionist.engine.realism_tick import draft_order, form_filing
 from revisionist.engine.store import EventStore, load_state
 
 TEXT_MAX = 1000
@@ -224,14 +224,17 @@ def sign(
     seat: SeatId,
     proposal: Proposal,
 ) -> Order:
-    """File the signed proposal: ``directive_given`` and ``order_drafted`` in one batch.
-    The address and the order are checked again here, as the lever form's are. Raises
-    ``ValueError``."""
+    """File the signed proposal: ``directive_given`` and the order in one batch, the
+    order landed or held as ``realism_tick.form_filing`` says. The address and the order
+    are checked again here, as the lever form's are. Raises ``ValueError``."""
     state = load_state(store, campaign_id)
     text = _addressed(state, seat, proposal.person, proposal.channel, proposal.text)
-    order = draft_order(
+    drafted = draft_order(
         state, seat, proposal.lever, {k: str(v) for k, v in proposal.params.items()}
     )
+    landing, order = form_filing(state, seat, drafted)
+    if not landing:
+        return order
     versions = cmp.versions()
     versions = versions.model_copy(
         update={"prompt": f"{versions.prompt},directive={prompt_version('directive')}"}
@@ -256,9 +259,7 @@ def sign(
             payload=payload,
             versions=versions,
         )
-        for i, (payload, scope) in enumerate(
-            ((given, private_to(seat)), (ev.OrderDrafted(order=order), PUBLIC)), start=1
-        )
+        for i, (payload, scope) in enumerate(((given, private_to(seat)), *landing), start=1)
     ]
     replay(batch, initial=state)
     store.append_all(batch)

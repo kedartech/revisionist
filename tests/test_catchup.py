@@ -6,8 +6,9 @@ import contextlib
 import json
 import re
 import typing
-from datetime import timedelta
+from datetime import date, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -37,9 +38,11 @@ from revisionist.core.realism.document import (
     DocumentView,
 )
 from revisionist.core.realism.effect import Fidelity
+from revisionist.core.realism.locks import HeldEnd
 from revisionist.core.realism.pipeline import OrderStatus, StepAction, StepOutcome
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.sealing import scopes_in
+from revisionist.core.state import View
 from revisionist.core.visibility import PUBLIC, private_to
 from revisionist.engine import campaign as cmp
 from revisionist.engine import catchup, options, realism_tick
@@ -128,6 +131,22 @@ def test_offers_and_agreements_are_fed_to_their_parties() -> None:
     # agreement is in the seat's view.
     kinds = {"agreement_offered", "agreement_made", "clause_judged", "agreement_published"}
     assert kinds <= catchup.FEED_KINDS
+
+
+def test_a_held_order_and_its_end_are_fed_to_its_own_seat_only() -> None:
+    # LCK: sealed to the issuer's seat, and kept only for the seat whose order it is,
+    # whatever the envelope says.
+    assert {"order_held", "held_order_ended"} <= catchup.FEED_KINDS
+    held = ev.HeldOrderEnded(
+        order_id=OrderId("held"),
+        issuer=SeatId("mine"),
+        end=HeldEnd.REPLACED,
+        on=date(1941, 9, 1),
+        by=OrderId("later"),
+    )
+    mine = typing.cast(View, SimpleNamespace(viewer=SeatId("mine")))
+    other = typing.cast(View, SimpleNamespace(viewer=SeatId("other")))
+    assert catchup._named(held, mine) and not catchup._named(held, other)
 
 
 def test_a_conferences_call_and_tally_are_fed_and_a_sealed_vote_never_is() -> None:

@@ -23,7 +23,7 @@ from revisionist.core.realism.conference import Conference, ConferenceText, Vote
 from revisionist.core.realism.effect import AgreementClause
 from revisionist.core.realism.war import polity_of
 from revisionist.core.state import State, View
-from revisionist.engine import wake
+from revisionist.engine import orders_reader, wake
 from revisionist.engine.store import EventStore
 from revisionist.engine.web.agreements_api import checked
 from revisionist.engine.web.realism_api import (
@@ -37,6 +37,7 @@ from revisionist.engine.web.realism_api import (
 VOTE_KIND = "Vote"  # [proposed] a conference the seat's nation votes in, on its agenda
 CALLED = "The conference is called. Each nation invited is told; it votes on {day}."  # [proposed]
 SEALED_VOTE = "Your vote is sealed. No one sees it before the tally."  # [proposed]
+NOT_SEEN = "A clause names something you do not know of."  # [proposed]
 _YOURS = "Your vote, sealed until the tally: {vote}."  # [proposed]
 _CALLS = "{caller} calls a conference of {invited}: {wording}"  # [proposed]
 _WORDING_MAX = 600
@@ -111,6 +112,12 @@ def _invited(state: State, seat: SeatId, body: Mapping[str, Any]) -> tuple[Entit
     return tuple(dict.fromkeys(((own,) if own is not None else ()) + tuple(named)))
 
 
+def _known(state: State, view: View, clause: AgreementClause) -> bool:
+    """Whether the clause names only what the seat's view holds, as an offer's clause
+    must, and what the world has; the caller is told the same either way."""
+    return orders_reader._seen(view, clause) and not agreement.clause_refusal(state, clause)
+
+
 def call_args(state: State, seat: SeatId, body: Mapping[str, Any]) -> tuple[dict[str, Any], str]:
     """The ``conference-call`` action, checked against the open wake: what filing it
     needs and its label. Raises ``ValueError`` with the reason it is refused."""
@@ -127,6 +134,10 @@ def call_args(state: State, seat: SeatId, body: Mapping[str, Any]) -> tuple[dict
     key = _text(body, "key", 60, required=False) or derived_id(
         state.campaign_id, "conference-call", seat, state.tick, wording
     )
+    if conference.on(state):
+        view = project(state, seat)
+        if not all(_known(state, view, c) for c in text.clauses):
+            raise ValueError(NOT_SEEN)
     why = conference.call_refusal(state, seat, key, invited, text, voting_day)
     if why:
         raise ValueError(why)

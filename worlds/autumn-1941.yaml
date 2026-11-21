@@ -16,7 +16,9 @@ start_date: 1941-09-01
 # battles and reports (ITD): battles run one round a day; enemy pieces reach a nation only as
 # reports from the people named under `intelligence`.
 # groups (GRD): each nation's groups at home, declared under `groups`.
-rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims]
+# command and locks (KCD): Admiral King's card is a military card under the President, and
+# two of his naval orders are held by the locks declared under `locks`.
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks]
 
 entities:
   # A polity's capital (PCW): a place in its own territory; a neutral's or an occupied nation's is its
@@ -185,6 +187,11 @@ regions:
   - {key: eastern_front, name: The Eastern Front}
   - {key: europe, name: Europe}
   - {key: atlantic, name: The Atlantic}
+  # The war zone (KCD), the route beyond Iceland: its sea zones are the Western Approaches and
+  # the Mid-Ocean Gap. gap: true, [proposed]: Ava's unsourced reading. The combat area of
+  # Proclamation 2376 (neutrality_act_1939) ran round the British Isles out to 20 degrees west,
+  # so it held the Western Approaches but not most of the Mid-Ocean Gap. Josh rules.
+  - {key: war_zone, name: The war zone, parent: atlantic}
   - {key: mediterranean, name: The Mediterranean and the Middle East}
   - {key: pacific, name: China}
 
@@ -283,8 +290,8 @@ sea_zones:
   - {key: gulf_of_bothnia, name: The Gulf of Bothnia, region: europe, terrain: sea}
   - {key: bay_of_biscay, name: The Bay of Biscay, region: europe, terrain: sea}
   - {key: english_channel, name: The English Channel, region: atlantic, terrain: sea}
-  - {key: western_approaches_area, name: The Western Approaches, region: atlantic, terrain: sea}
-  - {key: mid_ocean_gap, name: The Mid-Ocean Gap, region: atlantic, terrain: sea}
+  - {key: western_approaches_area, name: The Western Approaches, region: war_zone, terrain: sea}
+  - {key: mid_ocean_gap, name: The Mid-Ocean Gap, region: war_zone, terrain: sea}
   - {key: western_atlantic, name: The Western Atlantic, region: atlantic, terrain: sea}
   - {key: labrador_sea, name: The Labrador Sea, region: atlantic, terrain: sea}
   - {key: denmark_strait, name: The Denmark Strait, region: atlantic, terrain: sea}
@@ -1121,6 +1128,8 @@ assets:
   - {key: army_ministry, kind: office, name: Army Minister of Japan, tier: 3, controller: tojo}
   - {key: italian_premiership, kind: office, name: Prime Minister of Italy, tier: 3, controller: mussolini}
   - {key: chinese_chairmanship, kind: office, name: Chairman of the National Government, tier: 4, controller: chiang}
+  # KCD: the ninth playable card's post. The tier is [proposed], as Tojo's and Mussolini's are.
+  - {key: atlantic_fleet_command, kind: office, name: "Commander in Chief, Atlantic Fleet", tier: 3, controller: king}
 
 sources:
   - key: voteview
@@ -1173,6 +1182,7 @@ sources:
   - {key: deakin_storry_1966, title: "F. W. Deakin and G. R. Storry, The Case of Richard Sorge (Chatto and Windus, 1966): Sorge's radio reports to Red Army intelligence until his arrest on 18 October 1941", note: "Named citation; not read. Confirm the date and pages before release."}
   - {key: wakeman_2003, title: "Frederic Wakeman Jr., Spymaster: Dai Li and the Chinese Secret Service (University of California Press, 2003)", note: "For Dai Li's Military Statistics Bureau running agents in occupied China and reporting to Chiang. Named citation; not read. Confirm before release."}
   - {key: glantz_house_1995, title: "David M. Glantz and Jonathan M. House, When Titans Clashed (University Press of Kansas, 1995): the fall of Kiev on 19 September and of Kalinin on 14 October 1941", note: "Named citation; not read. Confirm the pages before release."}
+  - {key: neutrality_act_1939, title: "Neutrality Act of 4 November 1939 (54 Stat. 4), section 3, Combat Areas; with Proclamation 2376 of the same day defining the combat area", note: "Read (presidency.ucsb.edu, Proclamation 2376, which quotes section 3). Section 3(a): once the President defines combat areas it is unlawful for any citizen of the United States or any American vessel to proceed into or through them. The area: the waters round the British Isles out to 20 W, from the north coast of Spain to Norway."}
   - {key: fdr_1941_09_11, title: "Roosevelt's fireside chat of 11 September 1941 on the Greer: the Navy's patrols of the Atlantic and the order to shoot on sight", note: "Named citation; not read. Confirm the text before release."}
   - {key: lane_choice, title: "The lane's own choice: no published measure", note: "Hubs and prestige ranks chosen by the lane for play; kept as gaps for Josh to mark."}
   - {key: tripartite_1940, title: "Tripartite Pact between Germany, Italy and Japan, Berlin, 27 September 1940: Article 3, the parties' assistance when one is attacked by a power not then in the war", note: "Named citation; the lane had no network and read no edition. Confirm the text before release."}
@@ -1349,6 +1359,12 @@ pipelines:
     steps:
       - {person: stark, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, amend, refuse]}
       - {person: king, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, refuse]}
+  # King's own forms (KCD): through his own staff, with no step above him. The step is his.
+  - key: atlantic_fleet_staff
+    name: Through the Atlantic Fleet's staff
+    gap: true
+    steps:
+      - {person: king, kind: clerical, days: 1, assumed: true}
   - key: cable_to_churchill
     name: A cable to the Prime Minister
     gap: true
@@ -2649,21 +2665,71 @@ cards:
     holds_to: [europe_first]
     reach: {rank: 3}
     horizon_days: 7
+  # The ninth playable card (KCD): a military card, flagged playable by hand, under Stark and so
+  # under the President. His own forms go through his own staff (atlantic_fleet_staff), with no
+  # step above him; the President's naval order still crosses his desk. His aims and their
+  # conditions are written from his office: every line [proposed] (values sheet).
   - person: king
     office: Commander in Chief, Atlantic Fleet
     voice: "Gruff and curt; gives orders, not reasons, and expects them carried out at once."
     addressed_as: "Admiral King"
+    playable: true
+    path: military
     principals: [stark]
     powers: [command the Atlantic Fleet, order escorts and patrols]
-    inner_circle: [{person: stark, channel: cable}]
+    inner_circle:
+      - {person: stark, channel: cable}
+      - {person: roosevelt, channel: cable}
     feeds: [atlantic_reports]
-    pipelines: [naval_order]
+    pipelines: [naval_order, atlantic_fleet_staff]
+    levers:
+      - name: move_fleet
+        pipeline: atlantic_fleet_staff
+        resolver: movement
+        label: "Move the fleet"
+        summary: "Send the Atlantic Fleet to another base. Your staff carries it out."
+        params:
+          - {name: force, kind: enum, choices: [us_atlantic_fleet], label: "Which fleet", choice_labels: ["The Atlantic Fleet"]}
+          - {name: to, kind: enum, choices: [norfolk, argentia, reykjavik], label: "To", choice_labels: ["Norfolk", "Argentia", "Reykjavik"]}
+      - name: detach_fleet
+        pipeline: atlantic_fleet_staff
+        resolver: movement
+        label: "Detach part of the fleet"
+        summary: "Send part of the Atlantic Fleet's strength to another base; the rest stays where it is."
+        params:
+          - {name: force, kind: enum, choices: [us_atlantic_fleet], label: "Which fleet", choice_labels: ["The Atlantic Fleet"]}
+          - {name: to, kind: enum, choices: [norfolk, argentia, reykjavik], label: "To", choice_labels: ["Norfolk", "Argentia", "Reykjavik"]}
+          - {name: strength, kind: int, lo: 1, hi: 4, label: "How much of its strength"}
+      # The fleet's naval order: how it fights in a stated zone. war_zone is the route beyond
+      # Iceland into the war zone (the region war_zone above). Two of its orders are locked
+      # (`locks`). The President's own naval order keeps its three zones.
+      - name: fleet_naval_order
+        pipeline: atlantic_fleet_staff
+        resolver: shipping
+        label: "Give the fleet a naval order"
+        summary: "Tell the Atlantic Fleet how to act at sea in a stated zone."
+        params:
+          - {name: order, kind: enum, choices: [escort_convoys, shoot_on_sight, hold_in_port], label: "The order", choice_labels: ["Escort the convoys", "Shoot on sight", "Hold in port"]}
+          - {name: zone, kind: enum, choices: [western_atlantic, iceland_route, war_zone], label: "Where", choice_labels: ["Western Atlantic", "The Iceland route", "Beyond Iceland, into the war zone"]}
     loyalty: 0
     competence: 4
     wants: [naval_engagement, fleet_movements]
     holds_to: [atlantic_escort]
     reach: {rank: 2}
     horizon_days: 7
+    aims:
+      - "Get the convoys through to Britain."
+      - "Hold the Atlantic bases the fleet escorts to."
+      - "Win the fleet leave to escort beyond Iceland."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "The war against Germany is decided for Britain.", condition: {check: contest_won, contest: atlantic_war, side: uk}}
+      - {aim: 2, deadline: 1941-12-07, rule: "Iceland, Newfoundland and Britain's two home territories stay British.", condition: {check: all_of, conditions: [{check: holds_area, area: iceland, holder: uk}, {check: holds_area, area: newfoundland, holder: uk}, {check: holds_area, area: britain_south, holder: uk}, {check: holds_area, area: britain_north, holder: uk}]}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "The Neutrality revision becomes law.", condition: {check: quantity_at, quantity: neutrality_revision_passed, op: ge, value: 1}}
+    authority:
+      - name: atlantic_fleet
+        effects: [move_force, engagement]
+        forces: [us_atlantic_fleet]
+        summary: "Command of the Atlantic Fleet: where it goes, what it detaches, how it fights."
   - person: kramer
     office: Navy communications intelligence translator
     voice: "Precise translator's register; marks the urgent passage and adds one short note of his own."
@@ -3118,6 +3184,16 @@ mandates:
     condition: {check: ordered, person: roosevelt, effect: statement}
     days: 14
     text: "The Kearny is hit and eleven are dead: tell the country what the Navy will do."
+  # KCD: after the Greer the Atlantic Fleet took up the escort of the fast HX convoys as far as
+  # the meeting point south of Iceland (HX 150, from 16 Sep). Named, not read: gap: true.
+  - key: greer_escorts
+    kind: order
+    issuer: stark
+    trigger: {"on": history, history: greer_incident}
+    to: [king]
+    condition: {check: ordered, person: king, effect: engagement}
+    days: 14
+    text: "After the Greer, the Chief of Naval Operations wants the fleet escorting the HX convoys toward Iceland."
   # The Commons pressed for the Atlantic convoys through the autumn.
   - key: commons_convoys
     kind: order
@@ -3222,6 +3298,11 @@ roster:
     reach: The Military Affairs Commission, the Burma Road, and Soong in Washington.
     composite: false
     sides: [{contest: us_japan_talks, side: china}]
+  - entity: king
+    pitch: Admiral commanding the Atlantic Fleet in an undeclared war at sea.
+    reach: The Atlantic Fleet, what it may do under the President, and a cable to him.
+    composite: false
+    sides: [{contest: neutrality_revision, side: interventionists}]
 
 # Starting regard [proposed] (SHT, 14 Nov sheet), -2 to 2: between Roosevelt and
 # each of his people, and between each pair of the eight leaders. Public, as the
@@ -3320,6 +3401,24 @@ contests:
       - {kind: line, toward: germany, nation: ussr, line: 35, falling: true}
       - {kind: agreement_made, toward: uk, between: [uk, usa]}
       - {kind: agreement_broken, toward: germany, between: [uk, ussr]}
+
+# Locks (KCD): which of King's orders need whose decision, and while what holds.
+locks:
+  # Shoot on sight on the Iceland route: the posture is the President's, so the order is held
+  # until he has set shoot on sight there by his own naval order. gap: true, [proposed].
+  - key: iceland_shoot_on_sight
+    order: {form: fleet_naval_order, params: {order: shoot_on_sight, zone: iceland_route}}
+    when: {check: posture_not_set, form: naval_order, where: {zone: iceland_route}, posture: {order: shoot_on_sight}}
+    decider: {person: roosevelt}
+  # Escort beyond Iceland into the war zone: held while the Neutrality revision is not in force,
+  # and Congress decides. The Act's reach (neutrality_act_1939, section 3): once the President
+  # defined combat areas it was unlawful for any American citizen or American vessel to proceed
+  # into or through them. It names citizens and American vessels, not the Navy; that escort
+  # therefore ends at Iceland until the revision passes is the game's reading. gap: true, [proposed].
+  - key: war_zone_escort
+    order: {form: fleet_naval_order, params: {order: escort_convoys, zone: war_zone}}
+    when: {check: law_not_in_force, clause: "war zones closed to American ships"}
+    decider: {nation: usa, chambers: [house, senate], head: roosevelt}
 
 # Pacts in force on 1 September 1941 (PCW). The clause chosen for each is [proposed]: the rules judge
 # what they can, and wording they cannot express is kept and marked unchecked.

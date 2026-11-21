@@ -12,7 +12,7 @@ happenings, the writing batch and the Monday drift.
 
 With ``contests`` and ``aims`` on (AMC), the walk runs on to the last deciding day: each
 day the contests take their moves and are decided on their day, and every aim on the
-eight playable cards is checked from state. Each aim's status and each contest's end
+nine playable cards is checked from state. Each aim's status and each contest's end
 are printed, for reading, not asserted.
 """
 
@@ -47,8 +47,18 @@ SEEDS = [
 START, END = date(1941, 9, 1), date(1941, 12, 1)
 SEASON_END = date(1941, 12, 7)
 """The last deciding day: the walk runs on to it for the aims and contests (AMC)."""
-ROSTER = ("roosevelt", "churchill", "stalin", "hitler", "konoe", "tojo", "mussolini", "chiang")
-"""The eight playable cards, in the world's roster order."""
+ROSTER = (
+    "roosevelt",
+    "churchill",
+    "stalin",
+    "hitler",
+    "konoe",
+    "tojo",
+    "mussolini",
+    "chiang",
+    "king",
+)
+"""The nine playable cards, in the world's roster order."""
 FIRED = {
     date(1941, 9, 4): "greer_incident",
     date(1941, 10, 17): "kearny_hit",

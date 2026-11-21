@@ -217,3 +217,20 @@ people:
     fact: Chongqing has been China's wartime capital since 1938.
     portrait: chiang.jpg
     credit: About 1943. Public domain
+  king:
+    bio: Admiral Ernest J. King has commanded the Atlantic Fleet since it was formed in February 1941.
+      A naval aviator and submariner as well as a surface officer, he is known through the Navy for a
+      hard temper and harder standards. Since the summer his ships have carried American troops to
+      Iceland and patrolled the western Atlantic, in a war the United States has not declared.
+    arena: Your arena is the Atlantic Fleet. You decide where it goes, what you detach and how it fights,
+      but what it may do at sea is the President's to set, through Admiral Stark. Beyond Iceland lie the
+      waters the Neutrality Act closes to American ships.
+    history:
+    - His flagship, the cruiser Augusta, carried Roosevelt to the Atlantic Conference at Argentia in August 1941.
+    - From mid-September 1941 his destroyers escorted fast convoys as far as a meeting point south of Iceland.
+    - Became Commander in Chief, United States Fleet, at the end of December 1941.
+    quote: null
+    source: null
+    fact: He wore the wings of a naval aviator, earned at the age of forty-eight.
+    portrait: null
+    credit: null

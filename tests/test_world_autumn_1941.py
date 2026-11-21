@@ -1,4 +1,4 @@
-"""The autumn-1941 realism world: it compiles, nobody is pre-seated, the eight
+"""The autumn-1941 realism world: it compiles, nobody is pre-seated, the nine
 playable cards are the roster, and every figure is cited or a gap."""
 
 from revisionist.core.fold import replay
@@ -18,6 +18,7 @@ PLAYABLE = {
     "tojo",
     "mussolini",
     "chiang",
+    "king",  # KCD: the Atlantic Fleet's commander, flagged playable by hand
 }
 
 # Unsourced values a plan Josh approved puts in the world as [proposed], each marked
@@ -69,10 +70,10 @@ def test_it_compiles_with_no_seat_and_a_clean_draft() -> None:
     assert not state.seats and state.in_world_date == world.start_date
 
 
-def test_the_eight_playable_cards_are_the_roster() -> None:
+def test_the_nine_playable_cards_are_the_roster() -> None:
     world = _world()
     playable = {c.person for c in world.cards if c.playable}
-    assert len(playable) == 8 == len(world.roster)
+    assert len(playable) == 9 == len(world.roster)
     assert playable == PLAYABLE == {c.entity for c in world.roster}
 
 

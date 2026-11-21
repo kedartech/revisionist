@@ -238,8 +238,12 @@ def run_realism_tick(
 
     if TickStage.RESOLVE not in done:
         batch = []
+        made = goals.aim_goals(em.state)
+        if made:
+            em.commit([em.event(g, scope=g.goal.scope) for g in made])
         for change in goals.check(em.state):
-            owner = em.state.goals[change.goal_id].seat_id
+            goal = em.state.goals[change.goal_id]
+            owner = goals.holder_seat(em.state, goal) or goal.seat_id
             batch.append(em.event(change, scope=private_to(owner)))
         batch.append(em.event(ev.TickStageCompleted(stage=TickStage.RESOLVE)))
         em.commit(batch)

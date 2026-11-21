@@ -446,16 +446,18 @@ def test_goals_compile_with_their_own_private_objective_clock() -> None:
     varda, ostrel = SeatId(ids["varda_seat"]), SeatId(ids["ostrel_seat"])
     goals = {goal.seat_id: goal for goal in state.goals.values()}
     assert set(goals) == {varda, ostrel}
+    clock_of = {seat: goal.clock_id for seat, goal in goals.items() if goal.clock_id is not None}
+    assert set(clock_of) == {varda, ostrel}
     for seat, goal in goals.items():
-        clock = state.clocks[goal.clock_id]
+        clock = state.clocks[clock_of[seat]]
         assert clock.kind is ClockKind.OBJECTIVE and clock.owner == seat
         assert goal.clock_id in state.seats[seat].objectives
         assert clock.scope.known_by == goal.scope.known_by == {seat}
         assert goal.kind.value == "undoable" and goal.met_tick is None
-    assert state.clocks[goals[varda].clock_id].segments_total == 2
-    assert state.clocks[goals[varda].clock_id].segments_filled == 1  # Varda holds the Saltworks
-    assert state.clocks[goals[ostrel].clock_id].segments_total == 1
-    assert state.clocks[goals[ostrel].clock_id].segments_filled == 0
+    assert state.clocks[clock_of[varda]].segments_total == 2
+    assert state.clocks[clock_of[varda]].segments_filled == 1  # Varda holds the Saltworks
+    assert state.clocks[clock_of[ostrel]].segments_total == 1
+    assert state.clocks[clock_of[ostrel]].segments_filled == 0
     assert goals[ostrel].condition.holder == EntityId(ids["ostrel"])  # type: ignore[union-attr]
 
 

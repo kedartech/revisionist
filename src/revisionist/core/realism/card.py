@@ -15,7 +15,7 @@ Three nested shapes, by who may read them:
 
 from collections.abc import Iterable
 from enum import StrEnum
-from typing import Annotated, ClassVar
+from typing import TYPE_CHECKING, Annotated, ClassVar
 
 from pydantic import Field, StringConstraints, model_validator
 
@@ -24,6 +24,9 @@ from revisionist.core.ids import EntityId, FeatureId, FeedId, PipelineId
 from revisionist.core.realism.answer import Answer, ParamValue
 from revisionist.core.realism.effect import EffectKind
 from revisionist.core.realism.quantity import ResolverKey
+
+if TYPE_CHECKING:
+    from revisionist.core.goals import AimRule
 
 
 def words(key: str) -> str:
@@ -271,6 +274,11 @@ class SeatCard(Desk):
     free-text interests and doctrine where an order's appeal is weighed."""
     holds_to: tuple[Label, ...] = Field(default=(), exclude_if=lambda v: not v)
     """Keys of the topics this person holds to."""
+    aim_rules: tuple["AimRule | None", ...] = Field(
+        default=(), max_length=3, exclude_if=lambda v: not v
+    )
+    """What makes each aim a goal (AIM), by the aims' index: None for an aim with no
+    condition. Read with the ``aims`` rule on."""
 
     late_fields: ClassVar[frozenset[str]] = Desk.late_fields | {
         "competence",
@@ -279,6 +287,7 @@ class SeatCard(Desk):
         "answers",
         "wants",
         "holds_to",
+        "aim_rules",
     }
 
     @model_validator(mode="after")
@@ -286,6 +295,14 @@ class SeatCard(Desk):
         keys = [a.key for a in self.answers]
         if len(set(keys)) != len(keys):
             raise ValueError(f"card {self.person}: an answer is named twice")
+        return self
+
+    @model_validator(mode="after")
+    def _aim_rules(self) -> "SeatCard":
+        if len(self.aim_rules) > len(self.aims):
+            raise ValueError(f"card {self.person}: a rule for an aim the card does not have")
+        if sum(r is not None and r.replaceable for r in self.aim_rules) > 1:
+            raise ValueError(f"card {self.person}: at most one aim is replaceable")
         return self
 
     def topics(self) -> tuple[Label, ...]:
@@ -318,3 +335,8 @@ __all__ = [
     "Topic",
     "words",
 ]
+
+
+# The aims' rules name a win condition, and goals imports this module. A plain import
+# works in either order; goals rebuilds SeatCard once it has defined AimRule.
+import revisionist.core.goals  # noqa: E402, F401

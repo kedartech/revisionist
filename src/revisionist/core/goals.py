@@ -7,20 +7,34 @@ whether a goal is met; ``goal_met`` does, from State alone.
 Each goal has a kind from a fixed table keyed on its condition. A Lasting
 goal, once met, stays met whatever the world does later. An Undoable goal
 counts only while it holds, and must hold at season end to win.
+
+Aims become goals (AIM). With the ``aims`` rule on, a card's aim may carry an
+``AimRule``: a condition over what the territory rules move (a territory's holder, a
+nation's income, a group's support, an agreement in force, a contest won, a war, a
+quantity, regard), its success rule in plain words, the period it is judged over, and
+for each leaf whether the fact it reads is public, the seat's own nation's, or hidden
+from the seat. The tick makes one goal per such aim for each person a human seat
+holds, keyed to the person (``Goal.person``), so a person handed to another seat keeps
+his goals and only the seat holding him sees them. Goals are checked every tick from
+state alone; an aim is met while its condition holds, failed once it cannot change,
+and otherwise at risk (``aim_status``).
 """
 
 from __future__ import annotations
 
+from datetime import date
 from enum import StrEnum
-from typing import TYPE_CHECKING, Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
 
 from pydantic import Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from revisionist.core._base import Model
 from revisionist.core.ids import (
     AssetId,
     ClockId,
     CommitmentId,
+    ContestId,
     EntityId,
     GoalId,
     MeterId,
@@ -42,7 +56,7 @@ from revisionist.core.realism.pipeline import OrderStatus
 from revisionist.core.visibility import Scope
 
 if TYPE_CHECKING:
-    from revisionist.core.events import GoalMet, GoalProgressed, GoalUndone
+    from revisionist.core.events import GoalMet, GoalProgressed, GoalSet, GoalUndone
     from revisionist.core.state import State, View
 
 MAX_PARTS = 8
@@ -126,6 +140,69 @@ class QuantityAt(Model):
     value: int
 
 
+class HoldsArea(Model):
+    """A territory's holder now is ``holder`` (THL). Public."""
+
+    check: Literal["holds_area"] = "holds_area"
+    area: EntityId
+    holder: EntityId
+
+
+class IncomeAt(Model):
+    """A nation's war-economy figure (YLD), 0 to 100, against a line. Public."""
+
+    check: Literal["income_at"] = "income_at"
+    nation: EntityId
+    op: Op
+    value: int = Field(ge=0, le=1000)
+
+
+class SupportAt(Model):
+    """A group's support at home (GRP), 0 to 100, against a line."""
+
+    check: Literal["support_at"] = "support_at"
+    nation: EntityId
+    group: str = Field(min_length=1, max_length=60)
+    op: Op
+    value: int = Field(ge=0, le=100)
+
+
+class AgreementInForce(Model):
+    """An agreement is in force among nations that include every one ``between``
+    names, none of its clauses broken (AGR)."""
+
+    check: Literal["agreement_in_force"] = "agreement_in_force"
+    between: tuple[EntityId, ...] = Field(min_length=2, max_length=8)
+
+
+class ContestWon(Model):
+    """A contest has been decided for ``side`` (CON)."""
+
+    check: Literal["contest_won"] = "contest_won"
+    contest: ContestId
+    side: EntityId
+
+
+class AtWar(Model):
+    """Nations ``a`` and ``b`` are at war (``war`` true) or not (false). Public."""
+
+    check: Literal["at_war"] = "at_war"
+    a: EntityId
+    b: EntityId
+    war: bool = True
+
+
+class RegardAt(Model):
+    """How ``a`` and ``b`` regard each other (a relationship's disposition, -5 to 5)
+    against a line; 0 when they have no relationship yet."""
+
+    check: Literal["regard_at"] = "regard_at"
+    a: EntityId
+    b: EntityId
+    op: Op
+    value: int = Field(ge=-5, le=5)
+
+
 class AllOf(Model):
     check: Literal["all_of"] = "all_of"
     conditions: tuple[WinCondition, ...] = Field(min_length=1, max_length=MAX_PARTS)
@@ -146,6 +223,13 @@ Leaf = (
     | ActOf
     | Ordered
     | QuantityAt
+    | HoldsArea
+    | IncomeAt
+    | SupportAt
+    | AgreementInForce
+    | ContestWon
+    | AtWar
+    | RegardAt
 )
 
 WinCondition = Annotated[
@@ -158,23 +242,46 @@ WinCondition = Annotated[
     | ActOf
     | Ordered
     | QuantityAt
+    | SkipJsonSchema[HoldsArea]
+    | SkipJsonSchema[IncomeAt]
+    | SkipJsonSchema[SupportAt]
+    | SkipJsonSchema[AgreementInForce]
+    | SkipJsonSchema[ContestWon]
+    | SkipJsonSchema[AtWar]
+    | SkipJsonSchema[RegardAt]
     | AllOf
     | AnyOf,
     Field(discriminator="check"),
 ]
+"""Every check. The territory rules' checks (AIM) are kept out of the schema a model is
+offered, like the territory rules' world keys; they validate everywhere."""
+
+AimCondition = Annotated[
+    HoldsOffice
+    | ControlsAsset
+    | EntityIs
+    | MeterAt
+    | CommitmentInForce
+    | DispositionAt
+    | ActOf
+    | Ordered
+    | QuantityAt
+    | HoldsArea
+    | IncomeAt
+    | SupportAt
+    | AgreementInForce
+    | ContestWon
+    | AtWar
+    | RegardAt
+    | AllOf
+    | AnyOf,
+    Field(discriminator="check"),
+]
+"""The same checks as ``WinCondition``, with the territory rules' checks in its schema:
+the type of an aim's condition and a goal's, so the committed event schema shows them."""
 
 AllOf.model_rebuild()
 AnyOf.model_rebuild()
-
-
-def _rebuild_users() -> None:
-    """Resolve the ``WinCondition`` forward references in the ontology."""
-    from revisionist.core.ontology import ScheduledEvent
-
-    ScheduledEvent.model_rebuild(_types_namespace={"WinCondition": WinCondition})
-
-
-_rebuild_users()
 
 
 def depth(c: WinCondition) -> int:
@@ -199,17 +306,71 @@ class GoalKind(StrEnum):
     """Counts only while it holds; must hold at season end."""
 
 
+class GoalSource(StrEnum):
+    """Where a goal made from an aim comes from (AIM)."""
+
+    POST = "post"
+    """The card's own aim: what the person was set on at the start."""
+    PLAYER = "player"
+    """The player's own aim. Declared; no rule makes one yet."""
+    REPLACEMENT = "replacement"
+    """An aim given in place of one the person can no longer pursue. Declared; unused."""
+
+
+class Exposure(StrEnum):
+    """Whether the seat may see the fact a leaf of its aim reads (AIM rule 5)."""
+
+    PUBLIC = "public"
+    OWN = "own"
+    """Its own nation's: the seats of the person's nation see it."""
+    HIDDEN = "hidden"
+    """Hidden from the seat: shown as uncertain."""
+
+
+class AimRule(Model):
+    """What makes a card's aim a goal (AIM): its condition, in plain words, over the
+    period it is judged in. ``sees`` holds one exposure per leaf, in ``leaves`` order,
+    set by the compiler from the world. Engine only, on the card."""
+
+    condition: AimCondition
+    rule: str = Field(min_length=1, max_length=280)
+    """The success rule in plain words."""
+    opens: date | None = None
+    """The first day the aim is judged; None: from the start."""
+    deadline: date | None = None
+    """The last day the aim is judged; after it, its status holds as it stood. None:
+    judged to the season's end."""
+    sees: tuple[Exposure, ...] = ()
+    replaceable: bool = False
+    """The aim a player's own aim would replace in a later run; at most one per card."""
+
+    @model_validator(mode="after")
+    def _shape(self) -> AimRule:
+        if depth(self.condition) > MAX_DEPTH or len(leaves(self.condition)) > MAX_PARTS:
+            raise ValueError(f"an aim's condition has at most {MAX_PARTS} checks, {MAX_DEPTH} deep")
+        if len(self.sees) != len(leaves(self.condition)):
+            raise ValueError("an aim says who sees each leaf of its condition, once each")
+        if self.opens is not None and self.deadline is not None and self.opens > self.deadline:
+            raise ValueError("an aim opens on or before its deadline")
+        return self
+
+
 class Goal(Model):
-    """One player seat's secret goal. Private to its owner (decision 37)."""
+    """One player seat's secret goal. Private to its owner (decision 37).
+
+    A goal made from a card's aim (AIM) is keyed to the person whose aim it is
+    (``person``, ``source``, ``aim``): it is reached through the seat holding that
+    person at the time, has no objective clock, and ``seat_id`` names the seat it was
+    made for. A legacy goal has none of the three and keeps its seat and clock."""
 
     goal_id: GoalId
     seat_id: SeatId
     text: str = Field(max_length=280)
     """The goal as the player agreed it, in words. Never shown to another seat."""
-    condition: WinCondition
+    condition: AimCondition
     kind: GoalKind
-    clock_id: ClockId
-    """The objective clock that shows progress to the owner."""
+    clock_id: ClockId | None
+    """The objective clock that shows progress to the owner. None for an aim's goal."""
     met_tick: int | None = None
     """The first tick the goal held, if it ever has."""
     holding: bool = False
@@ -217,6 +378,13 @@ class Goal(Model):
     scope: Scope
     canary: str | None = None
     """Test-only unique marker, as on Fact."""
+    person: EntityId | None = None
+    """AIM: the person whose aim it is; None for a legacy goal."""
+    source: GoalSource | None = None
+    aim: int | None = Field(default=None, ge=1, le=3)
+    """Which of the person's card's aims, counting from 1."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"person", "source", "aim"})
 
     @model_validator(mode="after")
     def _shape(self) -> Goal:
@@ -226,10 +394,28 @@ class Goal(Model):
             raise ValueError(f"a win condition has at most {MAX_PARTS} checks")
         if self.kind is not goal_kind(self.condition):
             raise ValueError("a goal's kind comes from its condition")
+        keyed = (self.person is not None, self.source is not None, self.aim is not None)
+        if any(keyed) and not all(keyed):
+            raise ValueError("an aim's goal names its person, its source and its aim")
+        if self.person is None and self.clock_id is None:
+            raise ValueError("a goal that is not an aim's has an objective clock")
         return self
 
 
 _LASTING_STATUSES = frozenset({EntityStatus.DEAD, EntityStatus.DISSOLVED})
+
+
+def _rebuild_users() -> None:
+    """Resolve the ``WinCondition`` and ``AimRule`` forward references in the ontology
+    and on the seat card."""
+    from revisionist.core.ontology import ScheduledEvent
+    from revisionist.core.realism.card import SeatCard
+
+    ScheduledEvent.model_rebuild(_types_namespace={"WinCondition": WinCondition})
+    SeatCard.model_rebuild(_types_namespace={"AimRule": AimRule})
+
+
+_rebuild_users()
 
 
 def goal_kind(c: WinCondition) -> GoalKind:
@@ -288,10 +474,54 @@ def goal_met(world: State | View, c: WinCondition) -> bool:
                 and quantity.value is not None
                 and _compare(quantity.value, c.op, c.value)
             )
+        case HoldsArea():
+            from revisionist.core.realism import holders
+
+            return holders.holder(world, c.area) == c.holder
+        case IncomeAt():
+            from revisionist.core.realism import economy
+
+            return _compare_figure(economy.figure(world, c.nation), c.op, c.value)
+        case SupportAt():
+            from revisionist.core.realism import groups
+
+            support = groups.support(world, c.nation, c.group)
+            return support is not None and _compare(support, c.op, c.value)
+        case AgreementInForce():
+            return _in_force(world, c)
+        case ContestWon():
+            contest = world.contests.get(c.contest)
+            return contest is not None and contest.decided and contest.winner == c.side
+        case AtWar():
+            from revisionist.core.realism.war import at_war
+
+            return at_war(world, c.a, c.b) is c.war
+        case RegardAt():
+            return _compare(_regard(world, c.a, c.b), c.op, c.value)
         case AllOf():
             return all(goal_met(world, x) for x in c.conditions)
         case AnyOf():
             return any(goal_met(world, x) for x in c.conditions)
+
+
+def _compare_figure(value: float, op: Op, target: int) -> bool:
+    return value >= target if op == "ge" else value <= target
+
+
+def _in_force(world: State | View, c: AgreementInForce) -> bool:
+    from revisionist.core.realism.agreement import ClauseStatus
+
+    wanted = set(c.between)
+    return any(
+        wanted <= set(a.parties) and ClauseStatus.BROKEN not in a.statuses
+        for a in world.agreements.made.values()
+    )
+
+
+def _regard(world: State | View, a: EntityId, b: EntityId) -> int:
+    """The disposition between ``a`` and ``b``, either way round; 0 with none."""
+    found = next((r for r in world.relationships.values() if {r.a, r.b} == {a, b}), None)
+    return 0 if found is None else found.disposition
 
 
 def _acted(world: State | View, c: ActOf) -> bool:
@@ -363,7 +593,9 @@ def check(state: State) -> list[GoalProgressed | GoalMet | GoalUndone]:
     for goal in sorted(state.goals.values(), key=lambda g: g.goal_id):
         if goal.holding and goal.kind is GoalKind.LASTING:
             continue
-        clock = state.clocks.get(goal.clock_id)
+        if goal.person is not None and not judged(state, goal):
+            continue
+        clock = state.clocks.get(goal.clock_id) if goal.clock_id is not None else None
         now = progress(state, goal.condition)
         if clock is not None and clock.segments_filled != now:
             out.append(GoalProgressed(goal_id=goal.goal_id, parts_met=now))
@@ -372,6 +604,164 @@ def check(state: State) -> list[GoalProgressed | GoalMet | GoalUndone]:
             out.append(GoalMet(goal_id=goal.goal_id))
         elif not met and goal.holding:
             out.append(GoalUndone(goal_id=goal.goal_id))
+    return out
+
+
+# --- aims become goals (AIM) ------------------------------------------------------
+
+
+class AimStatus(StrEnum):
+    MET = "met"
+    """The condition holds now, or held when the aim's period closed."""
+    AT_RISK = "at_risk"
+    """It does not hold now, and still can."""
+    FAILED = "failed"
+    """It does not hold, and can no longer change."""
+
+
+def aims_on(state: State | View) -> bool:
+    """Whether aims become goals in this game: the ``aims`` rule on."""
+    from revisionist.core.state import Rule
+
+    rules: frozenset[Rule] = getattr(state, "rules", frozenset())
+    return Rule.AIMS in rules
+
+
+def aim_rule(state: State, goal: Goal) -> AimRule | None:
+    """The rule on the card of ``goal``'s person that it was made from; None for a
+    legacy goal or a card that has lost it."""
+    if goal.person is None or goal.aim is None:
+        return None
+    card = state.cards.get(goal.person)
+    if card is None or goal.aim > len(card.aim_rules):
+        return None
+    return card.aim_rules[goal.aim - 1]
+
+
+def judged(state: State, goal: Goal) -> bool:
+    """Whether an aim's goal is checked today: inside its period, from its opening day
+    to its deadline. A legacy goal is always checked."""
+    rule = aim_rule(state, goal)
+    today = state.in_world_date
+    if rule is None or today is None:
+        return goal.person is None
+    if rule.opens is not None and today < rule.opens:
+        return False
+    return rule.deadline is None or today <= rule.deadline
+
+
+def _settled(world: State, c: WinCondition) -> bool:
+    """Whether ``c``, not holding, can no longer come to hold: a contest decided for
+    another side, a person dead or a body dissolved when the check wants otherwise."""
+    match c:
+        case AllOf():
+            return any(_settled(world, x) for x in c.conditions if not goal_met(world, x))
+        case AnyOf():
+            return all(_settled(world, x) for x in c.conditions)
+        case ContestWon():
+            contest = world.contests.get(c.contest)
+            return contest is not None and contest.decided and contest.winner != c.side
+        case EntityIs():
+            entity = world.entities.get(c.entity)
+            return entity is not None and entity.status in _FINAL and entity.status is not c.status
+        case _:
+            return False
+
+
+def aim_status(state: State, goal: Goal) -> AimStatus:
+    """An aim's status, from state and its period alone: met while its condition holds
+    (after the deadline, as it stood on the last day judged), failed when it does not
+    hold and can no longer change (the deadline passed, or the world settled it), and
+    otherwise at risk. Never reads an order or who played a wake. Reads the goal as
+    ``state`` holds it."""
+    goal = state.goals.get(goal.goal_id, goal)
+    rule = aim_rule(state, goal)
+    today = state.in_world_date
+    closed = (
+        rule is not None
+        and rule.deadline is not None
+        and today is not None
+        and today > rule.deadline
+    )
+    if closed:
+        return AimStatus.MET if goal.holding else AimStatus.FAILED
+    opened = rule is None or rule.opens is None or (today is not None and today >= rule.opens)
+    if opened and goal_met(state, goal.condition):
+        return AimStatus.MET
+    if _settled(state, goal.condition):
+        return AimStatus.FAILED
+    return AimStatus.AT_RISK
+
+
+def holder_seat(state: State, goal: Goal) -> SeatId | None:
+    """The seat ``goal`` is reached through: for an aim's goal, the seat holding its
+    person now, while a player holds it; None while the code runs the person. For a
+    legacy goal, its own seat."""
+    if goal.person is None:
+        return goal.seat_id
+    from revisionist.core.state import seat_of_person  # state imports us
+
+    seat = seat_of_person(state, goal.person)
+    if seat is None or seat.controller is not Controller.HUMAN:
+        return None
+    return seat.seat_id
+
+
+def sees_goal(state: State, goal: Goal, seat: SeatId) -> bool:
+    """Whether ``seat`` sees ``goal``: an aim's goal only from the seat holding its
+    person, or once the season has made every goal public; a legacy goal by its scope."""
+    from revisionist.core.visibility import Visibility
+
+    if goal.person is None or goal.scope.visibility is Visibility.PUBLIC:
+        return goal.scope.visible_to(seat)
+    return holder_seat(state, goal) == seat
+
+
+def aim_goal_id(campaign_id: str, person: EntityId, aim: int) -> GoalId:
+    from revisionist.core.ids import derived_id
+
+    return GoalId(derived_id(campaign_id, "aim-goal", person, aim))
+
+
+def aim_goals(state: State) -> list[GoalSet]:
+    """With ``aims`` on, a ``GoalSet`` for each aim with a rule on the card of each
+    person a human seat holds whose aims have no goals yet, in seat order: once per
+    person, so a claim and a hand-over make them and a later seat for the same person
+    makes none. A code seat's person gets none."""
+    from revisionist.core.events import GoalSet  # events imports us
+    from revisionist.core.visibility import private_to
+
+    if not aims_on(state):
+        return []
+    has = {g.person for g in state.goals.values() if g.person is not None}
+    out: list[GoalSet] = []
+    for seat in sorted(state.seats.values(), key=lambda s: s.seat_id):
+        person = seat.embodies
+        if seat.controller is not Controller.HUMAN or person in has:
+            continue
+        card = state.cards.get(person)
+        if card is None:
+            continue
+        has.add(person)
+        for i, rule in enumerate(card.aim_rules, start=1):
+            if rule is None or i > len(card.aims):
+                continue
+            out.append(
+                GoalSet(
+                    goal=Goal(
+                        goal_id=aim_goal_id(state.campaign_id, person, i),
+                        seat_id=seat.seat_id,
+                        text=card.aims[i - 1],
+                        condition=rule.condition,
+                        kind=goal_kind(rule.condition),
+                        clock_id=None,
+                        scope=private_to(seat.seat_id),
+                        person=person,
+                        source=GoalSource.POST,
+                        aim=i,
+                    )
+                )
+            )
     return out
 
 
@@ -490,6 +880,10 @@ def difficulty(state: State, seat: SeatId, c: WinCondition) -> int:
             rel = state.relationships.get(c.relationship)
             return 2 + (abs(rel.disposition - c.value) if rel is not None else 0)
         case CommitmentInForce() | ActOf() | Ordered() | QuantityAt():
+            return 2
+        case HoldsArea() | IncomeAt() | SupportAt() | AgreementInForce():
+            return 2
+        case ContestWon() | AtWar() | RegardAt():
             return 2
 
 

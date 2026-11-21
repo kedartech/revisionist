@@ -51,7 +51,7 @@ def dashboard(view: View) -> Dashboard:
     own = [g for g in view.goals.values() if g.seat_id == view.viewer]
     if own:
         g = own[0]
-        clock = view.clocks.get(g.clock_id)
+        clock = view.clocks.get(g.clock_id) if g.clock_id is not None else None
         goal = GoalLine(
             text=g.text,
             kind=g.kind,

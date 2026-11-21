@@ -1434,6 +1434,65 @@ class ConferencesBlock(TypedDict):
     conferences: list[ConferenceLine]
 
 
+class HeldLine(TypedDict):
+    """One of the seat's own held orders (LKD rule 1), read from its own view."""
+
+    id: str
+    """The held order's id, which the ``ask`` action takes."""
+    words: str
+    """The order in plain words."""
+    who: str
+    """Who can allow it: a person's name, or a nation's chambers."""
+    reason: str
+    """What the seat was told when it was held."""
+    held: str
+    """The world day it was held."""
+    asked: bool
+    """Whether the seat has asked for it."""
+
+
+class AskForm(TypedDict):
+    """One of the decider's own forms whose filing would allow the asked order: the
+    row's posture, with the terms that set it."""
+
+    lever: str
+    label: str
+    params: dict[str, str]
+
+
+class AskLine(TypedDict):
+    """An ask put before the seat (LKD rule 4): who asked and the order's plain words."""
+
+    id: str
+    """An opaque token for the ask."""
+    by: str
+    """The asker's name."""
+    words: str
+    asked: str
+    """The world day it was asked."""
+    forms: list[AskForm]
+    """The seat's own forms that would allow it; empty where it has none."""
+
+
+class LocksBlock(TypedDict):
+    """The seat's locks, with ``locks`` on: its own held orders and the asks put
+    before it. Absent with the rule off."""
+
+    held: list[HeldLine]
+    asks: list[AskLine]
+
+
+class LockCheck(TypedDict):
+    """The check before sending (LKD rule 2): what filing the draft would do now."""
+
+    check: Literal["allowed", "locked", "beyond"]
+    """``allowed``: it goes out; ``locked``: a lock holds it; ``beyond``: it is refused."""
+    who: str | None
+    """For ``locked``, who can allow it; None otherwise."""
+    reason: str
+    """For ``locked``, what the seat would be told; for ``beyond``, today's refusal."""
+
+
 class ForecastMove(TypedDict):
     """One move the staff expected a picked suggestion to make, and how it came out (FCK)."""
 
@@ -1817,6 +1876,8 @@ __all__ = [
     "AgreementClauseLine",
     "AgreementLine",
     "AgreementsBlock",
+    "AskForm",
+    "AskLine",
     "BattlePiece",
     "BattleRoundLine",
     "BattleView",
@@ -1857,12 +1918,15 @@ __all__ = [
     "ForecastMove",
     "ForecastOrder",
     "GroupMove",
+    "HeldLine",
     "HomeBlock",
     "HomeGroup",
     "HomeTheme",
     "LeverChoice",
     "LeverLine",
     "LeverParam",
+    "LockCheck",
+    "LocksBlock",
     "MapArea",
     "MapCapital",
     "MapFile",

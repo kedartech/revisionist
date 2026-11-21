@@ -4653,5 +4653,60 @@
         "agreement": null
       }
     ]
-  }
+  },
+  "locks": {
+    "held": [
+      {
+        "id": "01M7YNVKSY384MG2G9E0YC4RXY",
+        "words": "March (Force Norra levy, To Isle)",
+        "who": "Ilse Varg",
+        "reason": "Held until Ilse Varg allows it.",
+        "held": "1900-04-02",
+        "asked": true
+      },
+      {
+        "id": "01M7YNVKSZFHJ8A6SZVCZRT5E5",
+        "words": "as written",
+        "who": "Ilse Varg",
+        "reason": "Held until Ilse Varg allows it.",
+        "held": "1900-04-02",
+        "asked": false
+      }
+    ],
+    "asks": [
+      {
+        "id": "MPPQKYR3D1W0FFVZ1QMH4YPXNQ",
+        "by": "Kara Lind",
+        "words": "March (Force Norra levy, To Isle)",
+        "asked": "1900-04-02",
+        "forms": [
+          {
+            "lever": "set_watch",
+            "label": "Set watch",
+            "params": {
+              "zone": "gulf",
+              "order": "guard"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "lock_check": [
+    {
+      "check": "locked",
+      "who": "Ilse Varg",
+      "reason": "Held until Ilse Varg allows it."
+    },
+    {
+      "check": "allowed",
+      "who": null,
+      "reason": ""
+    },
+    {
+      "check": "beyond",
+      "who": null,
+      "reason": "march takes exactly: force, to"
+    }
+  ]
 }

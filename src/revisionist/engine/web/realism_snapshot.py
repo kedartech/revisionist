@@ -46,6 +46,7 @@ from revisionist.engine.web import (
     conferences_api,
     economy_api,
     home_api,
+    locks_api,
     map_api,
 )
 from revisionist.engine.web.destinations import (
@@ -1170,7 +1171,15 @@ def seat_realism(
         "home": home_api.block(state, view, log),
         "agreements": agreements_api.block(state, seat, view, log),
         "conferences": conferences_api.block(state, seat, view),
+        **_locks(state, seat),
     }
+
+
+def _locks(state: State, seat: SeatId) -> dict[str, Any]:
+    """The seat's ``locks`` block (LKD); no key at all with ``locks`` off, so a game
+    without the rule is sent what it was before."""
+    found = locks_api.block(state, seat)
+    return {} if found is None else {"locks": found}
 
 
 __all__ = [

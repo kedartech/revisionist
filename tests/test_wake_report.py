@@ -6,6 +6,7 @@ An operator command; invariant 5 keeps it away from every seat.
 
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 from typer.testing import CliRunner
@@ -693,3 +694,57 @@ def test_a_game_without_forecasts_prints_no_forecast_line(table: Table) -> None:
     report = wake_report.build(played(table))
     assert report.forecasts is None
     assert not any(x.startswith("forecasts:") for x in wake_report.render(report))
+
+
+def locks_log(tmp: Path, *changes: Any) -> list[Event]:
+    """The lock tests' world (``tests/test_realism_locks.py``). Wake 0: Kara files the
+    march to the Isle (held for Ilse) and the march to the hills, asks for the held one,
+    and Ilse guards the Gulf. Wake 1: the clock runs until the held march lands."""
+    from revisionist.core.realism import locks
+    from revisionist.engine import realism_tick
+    from revisionist.engine.store import load_state
+    from tests import test_realism_locks as lk
+
+    store = lk.played(tmp, *changes)
+
+    def add(*payloads: ev.Payload) -> None:
+        for p in payloads:
+            realism_tick._append(store, load_state(store, TOY_CAMPAIGN), p, lk.seat(lk.ILSE))
+
+    add(ev.WakeOpened(wake=0, deadline=T0 + 12 * HOUR, opened_at=T0))
+    held = lk.file(store, "isle")
+    lk.file(store, "norra_hills")
+    if locks.on(load_state(store, TOY_CAMPAIGN)):
+        lk.ask(store, held.order_id)
+    lk.commit(store, lk.ILSE, lk.guard_the_gulf())
+    add(
+        ev.WakeClosed(wake=0, how="deadline"),
+        ev.WakeOpened(wake=1, deadline=T0 + 24 * HOUR, opened_at=T0 + 12 * HOUR),
+    )
+    lk.tick_until(store, lambda s: held.order_id not in s.held)
+    return list(store.read(TOY_CAMPAIGN))
+
+
+def test_each_wake_counts_per_seat_orders_filed_held_asked_and_opened(tmp_path: Path) -> None:
+    report = wake_report.build(locks_log(tmp_path))
+    assert [(x.number, x.seats) for x in report.locked] == [
+        (0, (("Ilse Varg", 1, 0, 0, 0), ("Kara Lind", 2, 1, 1, 0))),
+        (1, (("Kara Lind", 0, 0, 0, 1),)),
+    ]
+    out = wake_report.render(report)
+    first = out.index("  wake 0: deadline")
+    assert out[first + 1] == (
+        "    locks: Ilse Varg filed 1, held 0, asked 0, opened 0;"
+        " Kara Lind filed 2, held 1, asked 1, opened 0"
+    )
+    assert out[out.index("  wake 1: open") + 1] == (
+        "    locks: Kara Lind filed 0, held 0, asked 0, opened 1"
+    )
+
+
+def test_a_game_without_locks_prints_no_lock_lines(tmp_path: Path) -> None:
+    from tests import test_realism_locks as lk
+
+    report = wake_report.build(locks_log(tmp_path, lk.unlocked))
+    assert report.locked == ()
+    assert not any(x.strip().startswith("locks:") for x in wake_report.render(report))

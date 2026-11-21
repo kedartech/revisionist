@@ -93,6 +93,7 @@ def project(state: State, seat: SeatId) -> View:
         wars=dict(state.wars),
         map=state.map,
         kinds=state.kinds,
+        locks=state.locks,
         holders=dict(state.holders),
         economy=economy.seen_by(state, seat),
         groups=groups.seen_by(state, seat),

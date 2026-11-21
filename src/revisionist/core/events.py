@@ -18,7 +18,7 @@ CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted, EconomySet, Yi
 TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDeclared,
 ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
-VoteSealed, ConferenceTallied``, and
+VoteSealed, ConferenceTallied, LocksDeclared``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -97,6 +97,7 @@ from revisionist.core.realism.groups import Cause as GroupCause
 from revisionist.core.realism.groups import NationGroups, Proposal
 from revisionist.core.realism.holders import Capture
 from revisionist.core.realism.kinds import PieceKind, Resource
+from revisionist.core.realism.locks import LockRow
 from revisionist.core.realism.pipeline import (
     Order,
     OrderStatus,
@@ -680,6 +681,15 @@ class KindsDeclared(Model):
     kind: Literal["kinds_declared"] = "kinds_declared"
     pieces: tuple[PieceKind, ...] = ()
     resources: tuple[Resource, ...] = ()
+
+
+class LocksDeclared(Model):
+    """The world's locks (DCD): which order, under which condition, needs which decision,
+    from whom, in the world file's order. World data; once, at creation, with ``locks``
+    on."""
+
+    kind: Literal["locks_declared"] = "locks_declared"
+    rows: tuple[LockRow, ...] = Field(min_length=1)
 
 
 class PieceStepped(Model):
@@ -1383,6 +1393,7 @@ Payload = Annotated[
     | WarDeclared
     | MapDeclared
     | KindsDeclared
+    | LocksDeclared
     | PieceStepped
     | AreaHeld
     | CaptureCounted
@@ -1483,6 +1494,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "war_declared",
         "map_declared",
         "kinds_declared",
+        "locks_declared",
         "area_held",
         "capture_counted",
         "economy_set",

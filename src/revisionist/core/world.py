@@ -50,7 +50,7 @@ from revisionist.core.ontology import (
     SeatKind,
 )
 from revisionist.core.realism.agenda import MandateKind, TriggerKind
-from revisionist.core.realism.answer import Answer
+from revisionist.core.realism.answer import Answer, ParamValue
 from revisionist.core.realism.card import Address, Aim, CardPath, ChannelKind, ParamSpec
 from revisionist.core.realism.detect import Source as IntelSource
 from revisionist.core.realism.document import Bias, Classification, DocumentKind
@@ -60,6 +60,7 @@ from revisionist.core.realism.effect import (
     MAX_PARTIES,
     ClauseType,
     EffectKind,
+    Engagement,
 )
 from revisionist.core.realism.geography import FeatureKind
 from revisionist.core.realism.groups import Group, Theme
@@ -669,6 +670,52 @@ class GroupsDecl(Model):
     nation's groups by (FWG). Writing that names one moves the groups by this table."""
 
 
+class LockOrderDecl(Model):
+    """Which order a lock holds (DCD), in world-file keys: ``form`` a lever's name with
+    some of its parameter values as the form takes them, or ``effect`` an effect kind
+    with ``zone`` (a territory, sea zone or place key) or ``force`` (a feature key)."""
+
+    form: Label | None = None
+    params: dict[Label, ParamValue] = Field(default_factory=dict)
+    effect: EffectKind | None = None
+    zone: Key | None = None
+    force: Key | None = None
+
+
+class LockWhenDecl(Model):
+    """A lock's condition (DCD): ``law_not_in_force`` with ``clause`` (a law's clause
+    subject); or ``posture_not_set`` with the written naming (``zone`` a territory, sea
+    zone or place key, and ``rule``), the form naming (``form``, ``where`` the zone's
+    values and ``posture`` the posture's), or both."""
+
+    check: Literal["law_not_in_force", "posture_not_set"]
+    clause: str | None = Field(default=None, max_length=200)
+    zone: Key | None = None
+    rule: Engagement | None = None
+    form: Label | None = None
+    where: dict[Label, ParamValue] = Field(default_factory=dict)
+    posture: dict[Label, ParamValue] = Field(default_factory=dict)
+
+
+class LockDeciderDecl(Model):
+    """Who can allow a held order (DCD): ``person`` a person key, or a body: ``nation`` a
+    polity key and ``chambers`` the keys of its chambers that pass the law."""
+
+    person: Key | None = None
+    nation: Key | None = None
+    chambers: tuple[Label, ...] = ()
+
+
+class LockDecl(Model):
+    """One lock (DCD), with ``locks`` on: which order, under which condition (none: always),
+    needs which decision, from whom."""
+
+    key: Key
+    order: LockOrderDecl
+    when: LockWhenDecl | None = None
+    decider: LockDeciderDecl
+
+
 class PactClauseDecl(Model):
     """One clause of a pact (PCT), as AGR's typed list has it, in world-file keys:
     ``binds``, ``nation`` polity keys; ``force`` a feature key; ``area`` a territory or sea
@@ -1022,6 +1069,9 @@ class WorldFile(Model):
     conferences: SkipJsonSchema[tuple[ConferenceDecl, ...]] = ()
     """The conferences the world schedules, with ``conference`` on (CNF). Written by
     hand: not offered to a model."""
+    locks: SkipJsonSchema[tuple[LockDecl, ...]] = ()
+    """Which orders need whose decision, and when, with ``locks`` on (DCD). A world with
+    none is unchanged. Written by hand: not offered to a model."""
     map_data: SkipJsonSchema[bytes | None] = Field(default=None, exclude=True)
     """The bytes of the map file ``map`` names, read by the world loader from beside
     the world file, not from the world file itself. None when no file was found."""
@@ -1070,6 +1120,10 @@ __all__ = [
     "LegDecl",
     "LeverDecl",
     "LinkDecl",
+    "LockDeciderDecl",
+    "LockDecl",
+    "LockOrderDecl",
+    "LockWhenDecl",
     "MandateDecl",
     "MapDecl",
     "MeterDecl",

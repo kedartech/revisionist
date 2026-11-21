@@ -6,10 +6,12 @@
 # Lune Isles stand in the sound. The Salt Strait joins the outer sea to the sound.
 #
 # The world names its own terrain, resources and piece kinds. Two leaders are playable
-# (Varda, Ostrel); Kesh and the Lune Isles are run by code from their cards. Only the
-# territory rule is on; later items add the rest. `worlds/salt-strait.yaml` and
-# `worlds/salt-strait-duo.yaml` are separate worlds and are not read here.
-# Every name and number is invented. [proposed]
+# (Varda, Ostrel); Kesh and the Lune Isles are run by code from their cards. Every rule the
+# 1941 world has is on (SSG), with yields, a trade line, groups at home, intelligence, a
+# pact, a conference, a contest and aims of its own; the three rules read by a live model
+# (`writing`, `clause_reader`, `written_orders`) stay off, as in every shipped world.
+# `worlds/salt-strait.yaml` and `worlds/salt-strait-duo.yaml` are separate worlds and are
+# not read here. Every name and number is invented. [proposed]
 
 world: salt-strait-realism
 name: Salt Strait
@@ -17,14 +19,15 @@ ruleset: realism
 start: "The Salt Strait, spring 1900"
 start_date: 1900-04-02
 
-rules: [territories]
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims]
 
 entities:
   # polities
-  - {key: varda, kind: polity, name: Varda, tags: [hinge, mercantile]}
-  - {key: ostrel, kind: polity, name: Ostrel, tags: [continental, military]}
-  - {key: kesh, kind: polity, name: Kesh, tags: [theocratic, insular]}
-  - {key: lune, kind: polity, name: Lune Isles, tags: [maritime, federated]}
+  # A polity's capital: a place in its own territory. [proposed]
+  - {key: varda, kind: polity, name: Varda, tags: [hinge, mercantile], capital: saltworks}
+  - {key: ostrel, kind: polity, name: Ostrel, tags: [continental, military], capital: kael}
+  - {key: kesh, kind: polity, name: Kesh, tags: [theocratic, insular], capital: high_temple}
+  - {key: lune, kind: polity, name: Lune Isles, tags: [maritime, federated], capital: lune_haven}
   # people: a leader and the aide every order and report passes through
   - {key: oren_vale, kind: person, name: Oren Vale, parent: varda}
   - {key: mira, kind: person, name: Mira Toll, parent: varda, tags: [chief_of_staff]}
@@ -59,15 +62,18 @@ regions:
   - {key: the_shores, name: The Shores}
   - {key: the_waters, name: The Waters and the Isles}
 
+# Each territory yields every resource (SSG), in the resource's unit a month: salt as output,
+# levies as manpower, fodder as fuel, roads as supply (a road hub in every territory) and
+# renown as prestige. Every figure is invented. [proposed]
 territories:
-  - {key: ostrel_heartland, name: The Ostrel Heartland, region: the_shores, terrain: heath, holder: ostrel, sites: [kael], source: salt_strait}
-  - {key: harrow_pass, name: Harrow Pass, region: the_shores, terrain: crags, holder: ostrel, sites: [harrow_fort], source: salt_strait}
-  - {key: varda_saltworks, name: The Saltworks Coast, region: the_shores, terrain: lowland, holder: varda, sites: [saltworks], source: salt_strait}
-  - {key: varda_downs, name: The Varda Downs, region: the_shores, terrain: heath, holder: varda, sites: [esk_harbour], source: salt_strait}
-  - {key: kesh_lowlands, name: The Kesh Lowlands, region: the_shores, terrain: lowland, holder: kesh, sites: [high_temple], source: salt_strait}
-  - {key: kesh_shore, name: The Kesh Shore, region: the_shores, terrain: lowland, holder: kesh, sites: [kesh_quay], source: salt_strait}
-  - {key: free_harbours, name: The Free Harbours, region: the_shores, terrain: lowland, holder: lune, sites: [free_port], source: salt_strait}
-  - {key: lune_isles, name: The Lune Isles, region: the_waters, terrain: heath, holder: lune, sites: [lune_haven], source: salt_strait}
+  - {key: ostrel_heartland, name: The Ostrel Heartland, region: the_shores, terrain: heath, holder: ostrel, sites: [kael], yields: {salt: 3, levies: 4, fodder: 2, roads: 1, renown: 2}, source: salt_strait}
+  - {key: harrow_pass, name: Harrow Pass, region: the_shores, terrain: crags, holder: ostrel, sites: [harrow_fort], yields: {salt: 0, levies: 1, fodder: 0, roads: 1, renown: 1}, source: salt_strait}
+  - {key: varda_saltworks, name: The Saltworks Coast, region: the_shores, terrain: lowland, holder: varda, sites: [saltworks], yields: {salt: 4, levies: 2, fodder: 1, roads: 1, renown: 2}, source: salt_strait}
+  - {key: varda_downs, name: The Varda Downs, region: the_shores, terrain: heath, holder: varda, sites: [esk_harbour], yields: {salt: 1, levies: 2, fodder: 2, roads: 1, renown: 1}, source: salt_strait}
+  - {key: kesh_lowlands, name: The Kesh Lowlands, region: the_shores, terrain: lowland, holder: kesh, sites: [high_temple], yields: {salt: 2, levies: 3, fodder: 3, roads: 1, renown: 2}, source: salt_strait}
+  - {key: kesh_shore, name: The Kesh Shore, region: the_shores, terrain: lowland, holder: kesh, sites: [kesh_quay], yields: {salt: 1, levies: 1, fodder: 1, roads: 1, renown: 1}, source: salt_strait}
+  - {key: free_harbours, name: The Free Harbours, region: the_shores, terrain: lowland, holder: lune, sites: [free_port], yields: {salt: 2, levies: 1, fodder: 0, roads: 1, renown: 1}, source: salt_strait}
+  - {key: lune_isles, name: The Lune Isles, region: the_waters, terrain: heath, holder: lune, sites: [lune_haven], yields: {salt: 1, levies: 1, fodder: 1, roads: 1, renown: 2}, source: salt_strait}
 
 sea_zones:
   - {key: the_outer_sea, name: The Outer Sea, region: the_waters, terrain: open_water}
@@ -100,23 +106,152 @@ resources:
   - {key: roads, name: Roads, unit: leagues, role: supply}
   - {key: renown, name: Renown, unit: marks, role: prestige}
 
-# The world's own piece kinds: no air kind.
+# The world's own piece kinds. A balloon corps is the one kind that flies (SSG): a tethered
+# observation balloon that searches the areas a step from it, so a reconnaissance flight has
+# a piece to fly. A galley on patrol searches its zone and those beside it. Search and
+# concealment figures are invented. [proposed]
 piece_kinds:
   - {key: levy, name: Levy, domain: land, days_per_step: {lowland: 4, heath: 5, crags: 9}}
-  - {key: galley, name: Galley, domain: sea, days_per_step: {narrows: 2, open_water: 3}, max_strength: 3}
+  - {key: galley, name: Galley, domain: sea, days_per_step: {narrows: 2, open_water: 3}, max_strength: 3, detect: 50}
+  - {key: balloon_corps, name: Balloon corps, domain: air, days_per_step: {lowland: 2, heath: 2, crags: 3, narrows: 2, open_water: 2}, range_steps: 1, detect: 50, max_strength: 2}
   - {key: rider, name: Rider, domain: envoy, days_per_step: {lowland: 2, heath: 2, crags: 4, narrows: 3, open_water: 4}}
 
 features:
-  - {key: varda_levy, kind: piece, piece: levy, name: The Varda Levy, side: varda, places: [saltworks], source: salt_strait}
-  - {key: varda_galleys, kind: piece, piece: galley, name: The Varda Galleys, side: varda, places: [esk_harbour], source: salt_strait}
+  - {key: varda_levy, kind: piece, piece: levy, name: The Varda Levy, side: varda, tier: 2, places: [saltworks], source: salt_strait}
+  - {key: varda_galleys, kind: piece, piece: galley, name: The Varda Galleys, side: varda, tier: 2, places: [esk_harbour], source: salt_strait}
   - {key: varda_rider, kind: piece, piece: rider, name: The Varda Rider, side: varda, places: [saltworks], source: salt_strait}
-  - {key: ostrel_levy, kind: piece, piece: levy, name: The Ostrel Levy, side: ostrel, places: [kael], source: salt_strait}
-  - {key: ostrel_galleys, kind: piece, piece: galley, name: The Ostrel Galleys, side: ostrel, places: [kael], source: salt_strait}
+  - {key: varda_balloons, kind: piece, piece: balloon_corps, name: The Varda Balloon Corps, side: varda, tier: 1, places: [saltworks], source: salt_strait}
+  - {key: ostrel_levy, kind: piece, piece: levy, name: The Ostrel Levy, side: ostrel, tier: 2, places: [kael], source: salt_strait}
+  - {key: ostrel_galleys, kind: piece, piece: galley, name: The Ostrel Galleys, side: ostrel, tier: 2, places: [kael], source: salt_strait}
   - {key: ostrel_rider, kind: piece, piece: rider, name: The Ostrel Rider, side: ostrel, places: [kael], source: salt_strait}
-  - {key: kesh_levy, kind: piece, piece: levy, name: The Temple Levy, side: kesh, places: [high_temple], source: salt_strait}
+  - {key: ostrel_balloons, kind: piece, piece: balloon_corps, name: The Ostrel Balloon Corps, side: ostrel, tier: 1, places: [kael], source: salt_strait}
+  - {key: kesh_levy, kind: piece, piece: levy, name: The Temple Levy, side: kesh, tier: 2, places: [high_temple], source: salt_strait}
   - {key: kesh_rider, kind: piece, piece: rider, name: The Kesh Rider, side: kesh, places: [high_temple], source: salt_strait}
-  - {key: lune_galleys, kind: piece, piece: galley, name: The Lune Galleys, side: lune, places: [lune_haven], source: salt_strait}
-  - {key: lune_levy, kind: piece, piece: levy, name: The Harbour Levy, side: lune, places: [free_port], source: salt_strait}
+  - {key: lune_galleys, kind: piece, piece: galley, name: The Lune Galleys, side: lune, tier: 2, places: [lune_haven], source: salt_strait}
+  - {key: lune_levy, kind: piece, piece: levy, name: The Harbour Levy, side: lune, tier: 2, places: [free_port], source: salt_strait}
+
+# The playable leaders' offices: a person of the roster controls one (the character rule,
+# with contests on).
+assets:
+  - {key: varda_first_ministry, kind: office, name: First Minister of Varda, tier: 3, controller: oren_vale}
+  - {key: ostrel_marshalcy, kind: office, name: Marshal of Ostrel, tier: 3, controller: general_aske}
+
+# One trade line (SSG): Kesh sells fodder to Ostrel across the Outer Sea, a month. [proposed]
+trade_lines:
+  - {key: kesh_ostrel_fodder, exporter: kesh, importer: ostrel, resource: fodder, amount: 1.0, source: salt_strait}
+
+# Each nation's intelligence on 2 April 1900 (SSG), with `reports` on: for each source, the
+# person who reports it and the channel. The first source listed ranks highest. The two
+# playable nations have every source, so each of the five intelligence forms can act;
+# Varda reads Ostrel's cipher at level 1 and Ostrel has a spy in the Varda Downs. [proposed]
+intelligence:
+  - nation: varda
+    codebreaking: 1
+    sources:
+      - {source: contact, person: mira, channel: in_person}
+      - {source: air, person: mira, channel: in_person}
+      - {source: patrol, person: mira, channel: letter}
+      - {source: codebreaking, person: mira, channel: in_person}
+      - {source: agent, person: mira, channel: letter}
+  - nation: ostrel
+    sources:
+      - {source: contact, person: sefa, channel: in_person}
+      - {source: air, person: sefa, channel: courier}
+      - {source: patrol, person: sefa, channel: courier}
+      - {source: agent, person: sefa, channel: courier}
+      - {source: codebreaking, person: sefa, channel: in_person}
+    agents:
+      - {area: varda_downs}
+  - nation: kesh
+    sources:
+      - {source: contact, person: tam_orrin, channel: letter}
+      - {source: agent, person: tam_orrin, channel: letter}
+    agents:
+      - {area: the_strait}
+  - nation: lune
+    sources:
+      - {source: contact, person: ines_corr, channel: letter}
+      - {source: patrol, person: ines_corr, channel: letter}
+
+# Each nation's groups at home on 2 April 1900 (SSG), with `groups` on, and the themes its
+# writing may name. The groups that feed levies start at 50, so each nation's levies are its
+# printed yield on the first day; every group starts at its baseline. Every support, weight,
+# move and theme is invented. [proposed]
+groups:
+  - nation: varda
+    groups:
+      - key: salt_guilds
+        name: The Salt Guilds
+        kind: guild
+        start: 55
+        baseline: 55
+        feeds: {output: 1, standing: 1}
+        moved_by: {territory_lost: -3, losses_at_sea: -2, agreement_broken: -2}
+      - key: downs_yeomanry
+        name: The Downs Yeomanry
+        kind: militia
+        start: 50
+        baseline: 50
+        feeds: {manpower: 1, standing: 1}
+        moved_by: {battle_won: 2, battle_lost: -2, territory_lost: -3, capital_threatened: -3}
+    themes:
+      - {key: the_open_strait, name: The open strait, moves: {salt_guilds: 2, downs_yeomanry: 1}}
+      - {key: the_pass_held, name: Harrow Pass held, moves: {downs_yeomanry: 2, salt_guilds: -1}}
+  - nation: ostrel
+    groups:
+      - key: marshals_staff
+        name: The Marshal's staff
+        kind: officer corps
+        start: 50
+        baseline: 50
+        feeds: {manpower: 1, standing: 2}
+        moved_by: {battle_won: 3, battle_lost: -3, territory_taken: 2, territory_lost: -2}
+      - key: kael_burghers
+        name: The Kael burghers
+        kind: townsmen
+        start: 45
+        baseline: 45
+        feeds: {output: 1}
+        moved_by: {losses_at_sea: -2, war_declared: -2, agreement_broken: -1}
+    themes:
+      - {key: the_march_south, name: The march south, moves: {marshals_staff: 2, kael_burghers: -1}}
+      - {key: fodder_and_bread, name: Fodder and bread, moves: {kael_burghers: 2}}
+  - nation: kesh
+    groups:
+      - key: temple_orders
+        name: The Temple orders
+        kind: clergy
+        start: 60
+        baseline: 60
+        feeds: {standing: 2}
+        moved_by: {territory_lost: -3, war_declared: -1}
+      - key: lowland_tithers
+        name: The lowland tithers
+        kind: peasantry
+        start: 50
+        baseline: 50
+        feeds: {manpower: 1, output: 1}
+        moved_by: {territory_lost: -2, battle_lost: -1}
+    themes:
+      - {key: the_pulpit_speaks, name: The pulpit speaks, moves: {temple_orders: 2, lowland_tithers: 1}}
+  - nation: lune
+    groups:
+      - key: isle_captains
+        name: The Isle captains
+        kind: seafarers
+        start: 50
+        baseline: 50
+        feeds: {manpower: 1, standing: 1}
+        moved_by: {battle_won: 2, battle_lost: -3, losses_at_sea: -2}
+      - key: harbour_factors
+        name: The harbour factors
+        kind: traders
+        start: 50
+        baseline: 50
+        feeds: {output: 1}
+        moved_by: {losses_at_sea: -3, agreement_broken: -2}
+    themes:
+      - {key: free_waters, name: Free waters, moves: {isle_captains: 1, harbour_factors: 2}}
 
 sources:
   - key: salt_strait
@@ -126,8 +261,8 @@ sources:
 
 # Each leader's aide reports where the leader's own forces stand.
 feeds:
-  - {key: varda_muster, name: Mira Toll's muster roll, author: mira, kind: report, channel: letter, every_days: 7, latency_days: 1, sights: [varda_levy, varda_galleys, varda_rider], source: salt_strait}
-  - {key: ostrel_muster, name: Sefa Marr's muster roll, author: sefa, kind: report, channel: courier, every_days: 7, latency_days: 1, sights: [ostrel_levy, ostrel_galleys, ostrel_rider], source: salt_strait}
+  - {key: varda_muster, name: Mira Toll's muster roll, author: mira, kind: report, channel: letter, every_days: 7, latency_days: 1, sights: [varda_levy, varda_galleys, varda_rider, varda_balloons], source: salt_strait}
+  - {key: ostrel_muster, name: Sefa Marr's muster roll, author: sefa, kind: report, channel: courier, every_days: 7, latency_days: 1, sights: [ostrel_levy, ostrel_galleys, ostrel_rider, ostrel_balloons], source: salt_strait}
   - {key: kesh_muster, name: Tam Orrin's muster roll, author: tam_orrin, kind: report, channel: letter, every_days: 7, latency_days: 1, sights: [kesh_levy, kesh_rider], source: salt_strait}
   - {key: lune_muster, name: Ines Corr's muster roll, author: ines_corr, kind: report, channel: letter, every_days: 7, latency_days: 1, sights: [lune_galleys, lune_levy], source: salt_strait}
 
@@ -165,13 +300,71 @@ cards:
         resolver: movement
         label: "Move a force"
         params:
-          - {name: force, kind: enum, choices: [varda_levy, varda_galleys, varda_rider], label: "Force"}
+          - {name: force, kind: enum, choices: [varda_levy, varda_galleys, varda_rider, varda_balloons], label: "Force"}
           - {name: to, kind: enum, choices: [ostrel_heartland, harrow_pass, varda_saltworks, varda_downs, kesh_lowlands, kesh_shore, free_harbours, lune_isles, the_outer_sea, the_strait, the_lune_sound], label: "To"}
+      - name: declare_war
+        pipeline: varda_order
+        resolver: war
+        label: "Declare war"
+        summary: "Send a herald with a declaration of war."
+        params:
+          - {name: target, kind: enum, choices: [ostrel], label: "On whom"}
+      - name: fly_balloon
+        pipeline: varda_order
+        resolver: intel
+        label: "Send up the balloon"
+        summary: "Have the balloon corps look over an area a step away."
+        params:
+          - {name: intel, kind: enum, choices: [recon]}
+          - {name: piece, kind: enum, choices: [varda_balloons], label: "Which balloon", choice_labels: ["The Varda Balloon Corps"]}
+          - {name: area, kind: enum, choices: [harrow_pass, varda_downs, the_strait], label: "Over"}
+      - name: galley_patrol
+        pipeline: varda_order
+        resolver: intel
+        label: "Send the galleys on patrol"
+        summary: "Have the galleys watch their waters and the waters beside them."
+        params:
+          - {name: intel, kind: enum, choices: [patrol]}
+          - {name: piece, kind: enum, choices: [varda_galleys], label: "Which galleys", choice_labels: ["The Varda Galleys"]}
+      - name: place_a_spy
+        pipeline: varda_order
+        resolver: intel
+        label: "Place a spy"
+        summary: "Put a spy in place to report what moves there."
+        params:
+          - {name: intel, kind: enum, choices: [agent]}
+          - {name: area, kind: enum, choices: [ostrel_heartland, harrow_pass, kesh_shore], label: "Where"}
+      - name: pay_the_cipher_clerks
+        pipeline: varda_order
+        resolver: intel
+        label: "Pay the cipher clerks"
+        summary: "Spend salt on the clerks who read the other courts' letters."
+        params:
+          - {name: intel, kind: enum, choices: [codebreaking]}
+      - name: hide_a_force
+        pipeline: varda_order
+        resolver: intel
+        label: "Hide a force, or show it"
+        summary: "Keep a force out of sight, or let it be seen again."
+        params:
+          - {name: intel, kind: enum, choices: [conceal]}
+          - {name: piece, kind: enum, choices: [varda_levy, varda_galleys], label: "Which force"}
+          - {name: concealed, kind: enum, choices: ["yes", "no"], label: "Hidden"}
     inner_circle:
       - {person: mira, channel: in_person}
     feeds: [varda_muster]
     pipelines: [varda_order]
     horizon_days: 14
+    aims:
+      - "Keep the Saltworks Coast and the Varda Downs in Varda's hands."
+      - "Keep Varda's war economy at 50 or more."
+      - "Keep the peace with Ostrel and the Salt Guilds content."
+    # What makes each aim a goal (SSG): every line and date invented [proposed]. Aim 3 is the
+    # one a player's own aim would replace.
+    aim_rules:
+      - {aim: 1, deadline: 1900-07-31, rule: "Varda holds the Saltworks Coast and the Varda Downs.", condition: {check: all_of, conditions: [{check: holds_area, area: varda_saltworks, holder: varda}, {check: holds_area, area: varda_downs, holder: varda}]}}
+      - {aim: 2, deadline: 1900-07-31, rule: "Varda's war-economy figure is 50 or more.", condition: {check: income_at, nation: varda, op: ge, value: 50}}
+      - {aim: 3, deadline: 1900-07-31, replaceable: true, rule: "Varda is not at war with Ostrel, and the Salt Guilds' support is 50 or more.", condition: {check: all_of, conditions: [{check: at_war, a: varda, b: ostrel, war: false}, {check: support_at, nation: varda, group: salt_guilds, op: ge, value: 50}]}}
   - person: general_aske
     office: Marshal of Ostrel
     playable: true
@@ -182,13 +375,71 @@ cards:
         resolver: movement
         label: "Move a force"
         params:
-          - {name: force, kind: enum, choices: [ostrel_levy, ostrel_galleys, ostrel_rider], label: "Force"}
+          - {name: force, kind: enum, choices: [ostrel_levy, ostrel_galleys, ostrel_rider, ostrel_balloons], label: "Force"}
           - {name: to, kind: enum, choices: [ostrel_heartland, harrow_pass, varda_saltworks, varda_downs, kesh_lowlands, kesh_shore, free_harbours, lune_isles, the_outer_sea, the_strait, the_lune_sound], label: "To"}
+      - name: declare_war
+        pipeline: ostrel_order
+        resolver: war
+        label: "Declare war"
+        summary: "Send a herald with a declaration of war."
+        params:
+          - {name: target, kind: enum, choices: [varda], label: "On whom"}
+      - name: fly_balloon
+        pipeline: ostrel_order
+        resolver: intel
+        label: "Send up the balloon"
+        summary: "Have the balloon corps look over an area a step away."
+        params:
+          - {name: intel, kind: enum, choices: [recon]}
+          - {name: piece, kind: enum, choices: [ostrel_balloons], label: "Which balloon", choice_labels: ["The Ostrel Balloon Corps"]}
+          - {name: area, kind: enum, choices: [harrow_pass, the_outer_sea], label: "Over"}
+      - name: galley_patrol
+        pipeline: ostrel_order
+        resolver: intel
+        label: "Send the galleys on patrol"
+        summary: "Have the galleys watch their waters and the waters beside them."
+        params:
+          - {name: intel, kind: enum, choices: [patrol]}
+          - {name: piece, kind: enum, choices: [ostrel_galleys], label: "Which galleys", choice_labels: ["The Ostrel Galleys"]}
+      - name: place_a_spy
+        pipeline: ostrel_order
+        resolver: intel
+        label: "Place a spy"
+        summary: "Put a spy in place to report what moves there."
+        params:
+          - {name: intel, kind: enum, choices: [agent]}
+          - {name: area, kind: enum, choices: [varda_saltworks, varda_downs, kesh_shore], label: "Where"}
+      - name: pay_the_cipher_clerks
+        pipeline: ostrel_order
+        resolver: intel
+        label: "Pay the cipher clerks"
+        summary: "Spend salt on the clerks who read the other courts' letters."
+        params:
+          - {name: intel, kind: enum, choices: [codebreaking]}
+      - name: hide_a_force
+        pipeline: ostrel_order
+        resolver: intel
+        label: "Hide a force, or show it"
+        summary: "Keep a force out of sight, or let it be seen again."
+        params:
+          - {name: intel, kind: enum, choices: [conceal]}
+          - {name: piece, kind: enum, choices: [ostrel_levy, ostrel_galleys], label: "Which force"}
+          - {name: concealed, kind: enum, choices: ["yes", "no"], label: "Hidden"}
     inner_circle:
       - {person: sefa, channel: in_person}
     feeds: [ostrel_muster]
     pipelines: [ostrel_order]
     horizon_days: 14
+    aims:
+      - "Take the Saltworks Coast and keep Harrow Pass."
+      - "Win the mastery of the Salt Strait."
+      - "Keep the Marshal's staff behind the march."
+    # What makes each aim a goal (SSG): every line and date invented [proposed]. Aim 3 is the
+    # one a player's own aim would replace.
+    aim_rules:
+      - {aim: 1, deadline: 1900-07-31, rule: "Ostrel holds Harrow Pass and the Saltworks Coast.", condition: {check: all_of, conditions: [{check: holds_area, area: harrow_pass, holder: ostrel}, {check: holds_area, area: varda_saltworks, holder: ostrel}]}}
+      - {aim: 2, deadline: 1900-07-31, rule: "Ostrel wins the contest for the mastery of the Salt Strait.", condition: {check: contest_won, contest: strait_mastery, side: ostrel}}
+      - {aim: 3, deadline: 1900-07-31, replaceable: true, rule: "The Marshal's staff's support is 50 or more and Ostrel's war-economy figure is 40 or more.", condition: {check: all_of, conditions: [{check: support_at, nation: ostrel, group: marshals_staff, op: ge, value: 50}, {check: income_at, nation: ostrel, op: ge, value: 40}]}}
   - person: abbess_ren
     office: Abbess of the High Pulpit
     principals: [kesh]
@@ -228,3 +479,50 @@ seats: []
 roster:
   - {entity: oren_vale, pitch: The First Minister who keeps the strait open and Varda's., reach: The Saltworks and the Varda galleys., composite: true}
   - {entity: general_aske, pitch: The Marshal who means to march through Harrow Pass., reach: The Ostrel levy and its galleys., composite: true}
+
+# The contest of the season (SSG): Varda and Ostrel over the strait, decided 120 days after
+# the start, on 31 July 1900. Each move is a step toward one side. [proposed]
+contests:
+  - key: strait_mastery
+    kind: rivalry
+    name: Mastery of the Salt Strait
+    prize: Whether Varda keeps the strait open or Ostrel closes it behind Harrow Pass.
+    sides: [varda, ostrel]
+    countdown_days: 120
+    moves:
+      - {kind: holder, toward: ostrel, territory: varda_saltworks}
+      - {kind: holder, toward: ostrel, territory: varda_downs}
+      - {kind: holder, toward: varda, territory: harrow_pass}
+      - {kind: battle, toward: varda, region: the_waters}
+      - {kind: battle, toward: ostrel, region: the_waters}
+      - {kind: battle, toward: ostrel, region: the_shores}
+      - {kind: battle, toward: varda, region: the_shores}
+      - {kind: line, toward: ostrel, nation: varda, line: 40, falling: true}
+      - {kind: agreement_made, toward: varda, between: [varda, lune]}
+
+# One pact in force at the start (SSG): Kesh and the Lune Isles defend each other. [proposed]
+pacts:
+  - key: harbour_compact
+    name: The Harbour Compact
+    parties: [kesh, lune]
+    public: true
+    wording: Kesh and the Lune Isles each go to war within seven days on any power that newly attacks the other.
+    source: salt_strait
+    clauses:
+      - {type: defend, binds: kesh, nation: lune, days: 7}
+      - {type: defend, binds: lune, nation: kesh, days: 7}
+
+# A conference the world schedules (SSG): the Lune Isles call the four powers to keep the
+# peace of the strait for the season. [proposed]
+conferences:
+  - key: strait_peace_conference
+    caller: lune
+    invited: [lune, varda, ostrel, kesh]
+    opens: 1900-05-14
+    voting_day: 1900-05-18
+    public: true
+    wording: Varda and Ostrel declare no war on each other this season, and the strait stays open to every flag.
+    source: salt_strait
+    clauses:
+      - {type: no_war, binds: varda, nation: ostrel}
+      - {type: no_war, binds: ostrel, nation: varda}

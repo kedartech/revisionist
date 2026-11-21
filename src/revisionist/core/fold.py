@@ -68,6 +68,7 @@ from revisionist.core.realism.effect import (
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.holders import Holding
 from revisionist.core.realism.kinds import Kinds
+from revisionist.core.realism.locks import PostureNotSet
 from revisionist.core.realism.pipeline import (
     ADVANCES,
     SETTLED,
@@ -103,6 +104,25 @@ def _need[K, V](items: Mapping[K, V], key: K, what: str) -> V:
 def _fresh[K, V](items: Mapping[K, V], key: K, what: str) -> None:
     if key in items:
         raise FoldError(f"duplicate {what} {key!r}")
+
+
+def _locks_declared(state: State, p: ev.LocksDeclared) -> State:
+    """The world's locks, once, with ``locks`` on; each row's key once, and every person,
+    nation, area and force it names already in the world (DCD)."""
+    if Rule.LOCKS not in state.rules:
+        raise FoldError("locks_declared needs the locks rule")
+    if state.locks:
+        raise FoldError("the locks are declared once")
+    if len({r.key for r in p.rows}) < len(p.rows):
+        raise FoldError("locks_declared: a row is named twice")
+    for r in p.rows:
+        posture = r.when.zone if isinstance(r.when, PostureNotSet) else None
+        for who in (r.decider.person, r.decider.nation, r.order.zone, posture):
+            if who is not None:
+                _need(state.entities, who, "entity")
+        if r.order.force is not None:
+            _need(state.features, r.order.force, "feature")
+    return state.model_copy(update={"locks": p.rows})
 
 
 def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
@@ -581,6 +601,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.WarDeclared()
             | ev.MapDeclared()
             | ev.KindsDeclared()
+            | ev.LocksDeclared()
             | ev.AreaHeld()
             | ev.CaptureCounted()
             | ev.EconomySet()
@@ -1002,6 +1023,8 @@ def _realism(state: State, p: ev.Payload) -> State:
                         raise FoldError(f"piece kind {k.key}: carries unknown kind {lifted}")
             kinds = Kinds(pieces=pieces, resources=resources)
             return state.model_copy(update={"kinds": kinds})
+        case ev.LocksDeclared():
+            return _locks_declared(state, p)
         case ev.IntelligenceDeclared():
             if Rule.REPORTS not in state.rules:
                 raise FoldError("intelligence_declared needs the reports rule")

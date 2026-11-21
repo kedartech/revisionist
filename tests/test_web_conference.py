@@ -299,7 +299,7 @@ def _call(game_: Realism, ada: Client, **extra: Any) -> dict[str, Any]:
     } | extra
     status, out = post(ada, "conference-call", **body)
     assert status == 200, out
-    return out
+    return dict(out)
 
 
 def test_the_call_action_calls_the_conference(

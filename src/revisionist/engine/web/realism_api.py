@@ -1323,6 +1323,51 @@ class AgreementsBlock(TypedDict):
     offers: list[OfferLine]
 
 
+class ConferenceVoteLine(TypedDict):
+    """One invited nation's counted vote, as the tally gives it (CNA rule 3): never which
+    seat cast it, or whether it was a person's or the aide's."""
+
+    nation: str
+    vote: Literal["for", "against", "abstain"]
+
+
+class ConferenceLine(TypedDict):
+    """A conference the seat's nation is invited to, or a public one (CNA rule 3)."""
+
+    key: str
+    """The ``conference-vote`` action takes it; also the id of its "Vote" agenda item."""
+    called_by: str
+    invited: list[str]
+    """The invited nations, by name, the caller's first."""
+    text: str
+    clauses: list[TermClause]
+    """The text's clauses in the rules' fixed words; empty for a text of wording only."""
+    unanimous: bool
+    called: str
+    """The day it was called, or a world's conference opened."""
+    voting_day: str
+    public: bool
+    vote: Literal["for", "against", "abstain"] | None
+    """The seat's own sealed vote; None while it has sealed none."""
+    can_vote: bool
+    """Whether ``conference-vote`` would take a vote now: invited, not yet tallied, and no
+    vote sealed in an earlier wake."""
+    tallied: str | None
+    result: Literal["agreement", "resolution", "failed", "cancelled"] | None
+    """None until the tally."""
+    votes: list[ConferenceVoteLine]
+    """Each invited nation's counted vote, after the tally only; empty before it."""
+    agreement: str | None
+    """The agreement a passed text made, when it made one."""
+
+
+class ConferencesBlock(TypedDict):
+    """Conferences as the seat sees them, with ``conference`` on (CNA rule 3). Read from
+    the seat's view, which holds no other seat's vote."""
+
+    conferences: list[ConferenceLine]
+
+
 class AgendaBlock(TypedDict):
     style: str
     """``PlayStyle`` value; the client words it. The seat's own, sent to it alone."""
@@ -1672,6 +1717,9 @@ __all__ = [
     "ChamberVote",
     "Clock",
     "ClosingOdds",
+    "ConferenceLine",
+    "ConferenceVoteLine",
+    "ConferencesBlock",
     "ContactLine",
     "Court",
     "CourtOrder",

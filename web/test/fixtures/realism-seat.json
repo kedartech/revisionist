@@ -4474,5 +4474,70 @@
       "wording": "Peace on the isle.",
       "text": "Parties: Norra, Sudland. Clause 1: Norra: no piece enters The Isle, at all times."
     }
+  },
+  "conferences": {
+    "conferences": [
+      {
+        "key": "charter",
+        "called_by": "Norra",
+        "invited": [
+          "Norra",
+          "Sudland",
+          "Ostmark"
+        ],
+        "text": "Free trade on the gulf, and no tariffs.",
+        "clauses": [],
+        "unanimous": false,
+        "called": "1900-04-02",
+        "voting_day": "1900-04-06",
+        "public": false,
+        "vote": "for",
+        "can_vote": false,
+        "tallied": "1900-04-11",
+        "result": "agreement",
+        "votes": [
+          {
+            "nation": "Norra",
+            "vote": "for"
+          },
+          {
+            "nation": "Sudland",
+            "vote": "abstain"
+          },
+          {
+            "nation": "Ostmark",
+            "vote": "for"
+          }
+        ],
+        "agreement": "7MPN4C8V4CZSHHZ5T9NNZYNDW4"
+      },
+      {
+        "key": "commission",
+        "called_by": "Norra",
+        "invited": [
+          "Norra",
+          "Sudland",
+          "Ostmark"
+        ],
+        "text": "A standing commission for the strait.",
+        "clauses": [
+          {
+            "text": "Norra: no war declared on Vesta, at all times.",
+            "checked": true,
+            "interpretation": false
+          }
+        ],
+        "unanimous": false,
+        "called": "1900-04-14",
+        "voting_day": "1900-04-18",
+        "public": false,
+        "vote": "abstain",
+        "can_vote": true,
+        "tallied": null,
+        "result": null,
+        "votes": [],
+        "agreement": null
+      }
+    ]
   }
 }

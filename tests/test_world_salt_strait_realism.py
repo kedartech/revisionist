@@ -1,4 +1,5 @@
-"""Salt Strait as a second world: a flat hand-written map and a playable cast (SSM).
+"""Salt Strait as a second world: a flat hand-written map and a playable cast (SSM), and
+at parity with 1941: yields, a trade line, groups, a pact, intelligence and aims (SSG).
 
 ``worlds/salt-strait-realism.yaml`` plays the four polities of Salt Strait under the
 current ruleset, on a flat map written by hand straight into the committed format
@@ -21,11 +22,13 @@ import yaml
 from revisionist.core import events as ev
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId, EntityId, EventId, OrderId, SeatId, derived_id
-from revisionist.core.realism.kinds import Role
+from revisionist.core.realism import economy, groups
+from revisionist.core.realism.card import Lever
+from revisionist.core.realism.kinds import Domain, Role
 from revisionist.core.realism.pipeline import Order, OrderStatus
-from revisionist.core.realism.resolvers import apply_changes, movement
+from revisionist.core.realism.resolvers import apply_changes, intel, movement
 from revisionist.core.realism.territory import StepCause
-from revisionist.core.state import Rule, State
+from revisionist.core.state import MODEL_READ_RULES, Rule, State
 from revisionist.core.visibility import PUBLIC
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import compile_world, resolve_keys
@@ -43,6 +46,23 @@ START = date(1900, 4, 2)
 POLITIES = {"varda": "Varda", "ostrel": "Ostrel", "kesh": "Kesh", "lune": "Lune Isles"}
 PLAYED = {"varda": "oren_vale", "ostrel": "general_aske"}
 RUN_BY_CODE = {"kesh": "abbess_ren", "lune": "admiral_quell"}
+RULES = {
+    Rule.TERRITORIES,
+    Rule.HOLDERS,
+    Rule.ECONOMY,
+    Rule.SUPPLY,
+    Rule.FUEL,
+    Rule.AID,
+    Rule.BATTLES,
+    Rule.REPORTS,
+    Rule.AGREEMENTS,
+    Rule.CONFERENCE,
+    Rule.GROUPS,
+    Rule.CONTESTS,
+    Rule.AIMS,
+}
+"""Every rule name the engine had when Salt Strait reached parity (SSG), less the three read
+by a live model, which stay off in a shipped world."""
 
 
 def _map_check() -> ModuleType:
@@ -90,7 +110,7 @@ def test_the_world_compiles_under_the_current_ruleset() -> None:
     w = world()
     assert w.ruleset == "realism"
     assert w.start_date == START
-    assert w.rules == (Rule.TERRITORIES,)
+    assert set(w.rules) == RULES
     events = compile_world(w, CAMPAIGN, cmp.versions())
     state = replay(events)
     names = {e.name for e in state.entities.values()}
@@ -158,9 +178,14 @@ def test_the_world_names_its_own_resources_one_per_role() -> None:
     }
 
 
-def test_the_world_names_its_own_piece_kinds_and_none_flies() -> None:
+def test_the_world_names_its_own_piece_kinds_and_one_flies() -> None:
     kinds = {k.key: k.domain.value for k in world().piece_kinds}
-    assert kinds == {"levy": "land", "galley": "sea", "rider": "envoy"}
+    assert kinds == {
+        "levy": "land",
+        "galley": "sea",
+        "rider": "envoy",
+        "balloon_corps": "air",
+    }
 
 
 def test_no_key_is_borrowed_from_the_1941_world() -> None:
@@ -299,3 +324,146 @@ def test_a_galley_moves_two_sea_zones_and_a_levy_one_territory_at_its_kinds_days
 
 def _on(days: int) -> date:
     return START + timedelta(days=days)
+
+
+# --- At parity with 1941 (SSG) -------------------------------------------------------------
+
+
+def compiled() -> State:
+    return replay(compile_world(world(), CAMPAIGN, cmp.versions()))
+
+
+def test_the_rules_are_every_rule_but_the_three_a_model_reads() -> None:
+    rules = set(world().rules)
+    assert rules == RULES
+    assert RULES <= set(Rule)
+    assert not rules & MODEL_READ_RULES
+    autumn = cmp.load_world(ROOT / "worlds" / "autumn-1941.yaml")
+    assert set(autumn.rules) <= rules
+    assert compiled().rules == frozenset(RULES)
+
+
+def test_every_territory_yields_each_resource_and_every_nation_has_a_figure() -> None:
+    w = world()
+    resources = {r.key for r in w.resources}
+    for t in w.territories:
+        assert set(t.yields) == resources, t.key
+        assert sum(t.yields.values()) > 0, t.key
+    state = load_state(opened(), CAMPAIGN)
+    figures = {key: economy.figure(state, entity(key)) for key in POLITIES}
+    assert all(f > 0 for f in figures.values()), figures
+    assert max(figures.values()) == 100
+
+
+def test_one_trade_line_runs_between_two_nations() -> None:
+    w = world()
+    (line,) = w.trade_lines
+    roles = {r.key: r.role for r in w.resources}
+    assert roles[line.resource] in (Role.OUTPUT, Role.MANPOWER, Role.FUEL)
+    assert {line.exporter, line.importer} <= set(POLITIES)
+    assert line.exporter != line.importer and not line.cut
+    assert set(compiled().economy.lines) == {line.key}
+
+
+def test_each_polity_has_groups_at_home_and_themes() -> None:
+    w = world()
+    declared = {d.nation: d for d in w.groups}
+    assert set(declared) == set(POLITIES)
+    for nation, d in declared.items():
+        assert len(d.groups) >= 2, nation
+        assert d.themes, nation
+    state = compiled()
+    assert set(state.groups.declared) == {entity(k) for k in POLITIES}
+    assert set(state.groups.themes) == {entity(k) for k in POLITIES}
+    opened_state = load_state(opened(), CAMPAIGN)
+    for key in POLITIES:
+        assert groups.manpower_factor(opened_state, entity(key)) == 1.0, key
+        assert groups.output_factor(opened_state, entity(key)) == 1.0, key
+
+
+def test_each_polity_has_its_own_intelligence() -> None:
+    w = world()
+    people = {d.key: d.parent for d in w.entities if d.kind.value == "person"}
+    declared = {d.nation: d for d in w.intelligence}
+    assert set(declared) == set(POLITIES)
+    for nation, d in declared.items():
+        assert d.sources, nation
+        assert {people[s.person] for s in d.sources} == {nation}
+    assert any(d.codebreaking for d in declared.values())
+    assert any(d.agents for d in declared.values())
+    assert set(compiled().intelligence) == {entity(k) for k in POLITIES}
+
+
+def _lever(card_person: str, name: str) -> Lever:
+    state = compiled()
+    (lever,) = [lv for lv in state.cards[entity(card_person)].levers if lv.name == name]
+    return lever
+
+
+@pytest.mark.parametrize("person", list(PLAYED.values()))
+def test_each_playable_leader_has_every_intelligence_form(person: str) -> None:
+    state = compiled()
+    card = state.cards[entity(person)]
+    forms = {intel.form_of(lv): lv for lv in card.levers if intel.form_of(lv) is not None}
+    assert set(forms) == set(intel.Form)
+    w = world()
+    (decl,) = [c for c in w.cards if c.person == person]
+    side = decl.principals[0]
+    own = {f.key: f for f in w.features if f.side == side}
+    kinds = {k.key: k.domain for k in w.piece_kinds}
+    for lv in decl.levers:
+        if lv.resolver != "intel":
+            continue
+        assert lv.pipeline == decl.pipelines[0]
+        params = {p.name: p.choices for p in lv.params}
+        for piece in params.get("piece", ()):
+            assert piece in own, (lv.name, piece)
+        if params["intel"] == ("recon",):
+            assert {kinds[own[p].piece or ""] for p in params["piece"]} == {Domain.AIR}
+        if params["intel"] == ("patrol",):
+            assert {kinds[own[p].piece or ""] for p in params["piece"]} == {Domain.SEA}
+
+
+def test_one_pact_is_in_force_at_the_start() -> None:
+    (pact,) = world().pacts
+    assert set(pact.parties) <= set(POLITIES) and len(pact.parties) >= 2
+    assert any(c.type.value != "unchecked" for c in pact.clauses)
+    made = compiled().agreements.made
+    assert len(made) == 1
+    (agreement,) = made.values()
+    assert set(agreement.parties) == {entity(k) for k in pact.parties}
+
+
+def test_a_conference_is_scheduled() -> None:
+    w = world()
+    (conf,) = w.conferences
+    assert set(conf.invited) == set(POLITIES)
+    assert w.start_date is not None and conf.opens > w.start_date
+    assert len(compiled().conferences.held) == 1
+
+
+def test_a_contest_moves_on_play_between_the_two_playable_nations() -> None:
+    (contest,) = world().contests
+    assert set(PLAYED) <= set(contest.sides)
+    assert contest.moves
+    (k,) = compiled().contests.values()
+    assert len(k.moves) == len(contest.moves)
+
+
+@pytest.mark.parametrize("person", list(PLAYED.values()))
+def test_each_playable_leader_has_three_aims_with_conditions(person: str) -> None:
+    (card,) = [c for c in world().cards if c.person == person]
+    assert len(card.aims) == 3
+    assert sorted(r.aim for r in card.aim_rules) == [1, 2, 3]
+    assert sum(r.replaceable for r in card.aim_rules) == 1
+    assert all(r.rule and r.deadline is not None for r in card.aim_rules)
+    rules = compiled().cards[entity(person)].aim_rules
+    assert len(rules) == 3 and all(r is not None for r in rules)
+
+
+def test_a_game_with_every_rule_on_opens_and_runs_a_week() -> None:
+    store = opened()
+    for _ in range(7):
+        run_realism_tick(store, CAMPAIGN)
+    state = load_state(store, CAMPAIGN)
+    assert state.in_world_date is not None and state.in_world_date > START

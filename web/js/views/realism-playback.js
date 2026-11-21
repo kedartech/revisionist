@@ -18,11 +18,14 @@ const text = (v) => (typeof v === 'string' && v.trim() ? v : null);
 /** The order a wake's steps play in: what moved against the seat, then its own, then the stakes. */
 export const PLAY_GROUPS = Object.freeze({ paper: 0, holder: 0, order: 1, move: 1, halt: 1, held: 1, stake: 2 });
 
-/** A wake's steps in play order, each group in the order the server gave; a kind not named in `PLAY_GROUPS` is not played. */
+/**
+ * A wake's steps in play order, each group in the order the server gave; a kind not named in
+ * `PLAY_GROUPS` is not played, nor is a `held` step with no line to show.
+ */
 export function playOrder(steps) {
   return (Array.isArray(steps) ? steps : [])
     .map((step, i) => ({ step, i, group: PLAY_GROUPS[step?.kind] }))
-    .filter((x) => x.group !== undefined)
+    .filter((x) => x.group !== undefined && (x.step.kind !== 'held' || text(x.step.line)))
     .sort((a, b) => a.group - b.group || a.i - b.i)
     .map((x) => x.step);
 }
@@ -102,7 +105,6 @@ export function wakePlayer({ pages, map, shapes, record, comeBack, reduced = fal
   let wake = null;
   for (const { page, step } of frames) {
     const line = stepLine(step, { map, record });
-    if (step.kind === 'held' && !line) continue;
     if (page !== wake) {
       wake = page;
       items.push(h('li', { class: 'rl-plb-wake', 'data-wake': String(page.number) }, page.opened ? `Wake ${page.number}: ${page.opened}` : `Wake ${page.number}`));

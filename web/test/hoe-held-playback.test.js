@@ -44,9 +44,10 @@ test('a held step with no usable line draws nothing, and a wake of only such ste
   const blank = [{ kind: 'held', on: '1900-04-05', what: 'landed' }, { kind: 'held', on: '1900-04-05', what: 'held', line: '  ' }];
   const el = play.wakePlayer({ pages: [page([...blank, HELD[1]])], reduced: true });
   assert.equal(el.querySelectorAll('li.rl-plb-step').length, 1);
-  const only = play.wakePlayer({ pages: [page(blank)], reduced: true });
-  assert.equal(only.querySelectorAll('li.rl-plb-step').length, 0);
-  assert.equal(only.querySelectorAll('li.rl-plb-wake').length, 0);
+  assert.equal(el.querySelectorAll('li.rl-plb-wake').length, 1);
+  assert.deepEqual(play.playOrder(blank), []);
+  assert.equal(play.wakePlayer({ pages: [page(blank)], reduced: true }), null);
+  assert.equal(play.playbackDialog({ pages: [page(blank)], reduced: true }), null);
 });
 
 test('another kind\'s line is unchanged', () => {

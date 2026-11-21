@@ -218,6 +218,12 @@ def scope(state: "State", conf: Conference) -> "Scope":
 # --- filing ---------------------------------------------------------------------------
 
 
+def call_key(campaign_id: str, seat: SeatId, name: str) -> str:
+    """The key a seat's call of ``name`` is filed under: its own, so no seat's call can
+    take, or be refused for, the name of a conference it cannot see."""
+    return derived_id(campaign_id, "conference-call-key", seat, name)
+
+
 def call_refusal(
     state: "State",
     seat: SeatId,
@@ -226,7 +232,8 @@ def call_refusal(
     text: ConferenceText,
     voting_day: date,
 ) -> str:
-    """Why a seat may not call this conference; empty when it may."""
+    """Why a seat may not call this conference under the name ``key``; empty when it may.
+    The name is taken only by the seat's own call of it, or by a conference it sees."""
     from revisionist.core.ontology import EntityKind
     from revisionist.core.realism import agreement
 
@@ -238,7 +245,9 @@ def call_refusal(
     own = _nation(state, seat)
     if own is None or own not in invited:
         return "Your own nation must be invited."
-    if key in state.conferences.held:
+    if call_key(state.campaign_id, seat, key) in state.conferences.held or (
+        key in seen_by(state, seat).held
+    ):
         return "A conference of that name has been called."
     if len(set(invited)) != len(invited) or len(invited) < 2:
         return "A conference invites two or more nations, each once."
@@ -270,7 +279,8 @@ def call(
     voting_day: date,
     public: bool,
 ) -> "Payload":
-    """The ``conference_called`` a seat's call lands; raises ``ValueError`` when refused."""
+    """The ``conference_called`` a seat's call of ``key`` lands, filed under
+    ``call_key``; raises ``ValueError`` when refused."""
     from revisionist.core import events as ev
 
     why = call_refusal(state, seat, key, invited, text, voting_day)
@@ -280,7 +290,7 @@ def call(
     assert own is not None and state.in_world_date is not None
     topics = topics_of(state, text.wording, text.clauses)
     conf = Conference(
-        key=key,
+        key=call_key(state.campaign_id, seat, key),
         caller=own,
         invited=tuple(invited),
         text=text.model_copy(update={"topics": topics}),
@@ -321,11 +331,12 @@ def scheduled(
 
 
 def vote_refusal(state: "State", seat: SeatId, key: str) -> str:
-    """Why ``seat`` may not seal a vote in conference ``key`` now; empty when it may."""
+    """Why ``seat`` may not seal a vote in conference ``key`` now; empty when it may.
+    A conference the seat does not see is refused as one that does not exist."""
     if not on(state):
         return NOT_ON
-    conf = state.conferences.held.get(key)
-    if conf is None or not opened(conf, state.in_world_date):
+    conf = seen_by(state, seat).held.get(key)
+    if conf is None:
         return NO_SUCH
     own = _nation(state, seat)
     if own is None or own not in conf.invited:
@@ -617,6 +628,7 @@ __all__ = [
     "Vote",
     "binding",
     "call",
+    "call_key",
     "call_refusal",
     "fallback",
     "made",

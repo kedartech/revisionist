@@ -47,7 +47,10 @@ NORRA, SUDLAND, OSTMARK, VESTA = (entity(k) for k in ("norra", "sudland", "ostma
 ILSE, TOMAS, OLAF, INGE = (seat(p) for p in ("ilse", "tomas", "olaf", "inge"))
 THREE = (NORRA, SUDLAND, OSTMARK)
 DEADLINE = datetime(1900, 1, 1, tzinfo=UTC)
-CHARTER = "charter"
+NAME = "charter"
+"""The name Ilse calls the conference by, and the key of the world's scheduled one."""
+CHARTER = conference.call_key(CAMPAIGN, ILSE, NAME)
+"""The key Ilse's call of ``NAME`` is filed under."""
 
 
 def day(n: int) -> date:
@@ -139,7 +142,7 @@ class Game(Logged):
         text: ConferenceText | None = None,
         voting_day: date | None = None,
         public: bool = False,
-        key: str = CHARTER,
+        key: str = NAME,
     ) -> Conference:
         today = self.state.in_world_date
         assert today is not None
@@ -154,7 +157,7 @@ class Game(Logged):
         )
         assert isinstance(called, ev.ConferenceCalled)
         self.land(called, conference.scope(self.state, called.conference))
-        return self.state.conferences.held[key]
+        return self.state.conferences.held[called.conference.key]
 
     def vote(self, by: SeatId, choice: Vote, key: str = CHARTER) -> None:
         self.land(conference.vote(self.state, by, key, choice), private_to(by))
@@ -274,6 +277,7 @@ def test_with_the_rule_off_nothing_is_called_or_walked(tmp_path: Path) -> None:
         g.state, ILSE, CHARTER, THREE, ConferenceText(wording="x"), day(9)
     )
     assert why == conference.NOT_ON
+    assert conference.vote_refusal(g.state, ILSE, CHARTER) == conference.NOT_ON
     assert conference.walk(g.state, day(5)) == []
 
 
@@ -315,7 +319,7 @@ def test_a_later_vote_in_the_same_wake_replaces_the_earlier_and_a_later_wake_can
 def test_an_uninvited_seat_cannot_vote(tmp_path: Path) -> None:
     g = game(tmp_path)
     g.open()
-    g.call(invited=(NORRA, OSTMARK))
+    g.call(invited=(NORRA, OSTMARK), public=True)
     assert conference.vote_refusal(g.state, TOMAS, CHARTER) == conference.NOT_INVITED
 
 
@@ -445,7 +449,7 @@ def test_no_quorum_cancels_the_conference(tmp_path: Path) -> None:
     def scheduled(w: World) -> None:
         w["conferences"] = [
             {
-                "key": CHARTER,
+                "key": NAME,
                 "caller": "norra",
                 "invited": ["norra", "ostmark", "vesta"],
                 "wording": "A charter for the gulf.",
@@ -457,10 +461,10 @@ def test_no_quorum_cancels_the_conference(tmp_path: Path) -> None:
 
     g = game(tmp_path, scheduled, people=("ilse", "tomas"))
     g.open()  # nothing to vote on before it opens
-    assert conference.vote_refusal(g.state, ILSE, CHARTER) == conference.NO_SUCH
+    assert conference.vote_refusal(g.state, ILSE, NAME) == conference.NO_SUCH
     out = run_until_tallied(g)
-    assert tallied(g).outcome is Outcome.CANCELLED
-    assert counted(g) == {NORRA: Vote.ABSTAIN}
+    assert tallied(g, NAME).outcome is Outcome.CANCELLED
+    assert counted(g, NAME) == {NORRA: Vote.ABSTAIN}
     assert of(out, ev.AgreementMade) == []
 
 
@@ -576,7 +580,7 @@ def _seen(f: catchup.SeatEvent) -> tuple[int, int, Any, Any]:
 def scheduled_charter(w: World) -> None:
     w["conferences"] = [
         {
-            "key": CHARTER,
+            "key": NAME,
             "caller": "norra",
             "invited": ["norra", "sudland", "ostmark"],
             "wording": "Free trade on the gulf.",
@@ -590,9 +594,9 @@ def scheduled_charter(w: World) -> None:
 
 def test_a_worlds_conference_opens_on_its_date(tmp_path: Path) -> None:
     g = game(tmp_path, scheduled_charter)
-    held = g.state.conferences.held[CHARTER]
+    held = g.state.conferences.held[NAME]
     assert held.tally_wake is None and held.text.topics == ("trade",)
-    assert CHARTER not in project(g.state, ILSE).conferences.held, "seen before it opens"
+    assert NAME not in project(g.state, ILSE).conferences.held, "seen before it opens"
     g.open()
     g.close()
     out = g.tick(day(2))
@@ -602,7 +606,7 @@ def test_a_worlds_conference_opens_on_its_date(tmp_path: Path) -> None:
     out = g.tick(day(5))
     (opened,) = of(out, ev.ConferenceCalled)
     assert opened.conference.tally_wake == 3
-    assert CHARTER in project(g.state, TOMAS).conferences.held
+    assert NAME in project(g.state, TOMAS).conferences.held
 
 
 def test_a_world_conference_is_checked(tmp_path: Path) -> None:
@@ -634,8 +638,8 @@ def in_force(g: Game, *clauses: AgreementClause) -> Agreement:
     return g.state.agreements.made[x.agreement_id]
 
 
-def vote_clause(binds: EntityId, present: bool = True) -> AgreementClause:
-    return AgreementClause(type=ClauseType.VOTE, binds=binds, text=CHARTER, present=present)
+def vote_clause(binds: EntityId, present: bool = True, key: str = CHARTER) -> AgreementClause:
+    return AgreementClause(type=ClauseType.VOTE, binds=binds, text=key, present=present)
 
 
 def test_a_vote_clause_is_kept_or_broken_by_the_tally_only(tmp_path: Path) -> None:
@@ -679,11 +683,11 @@ def test_a_vote_clause_on_a_cancelled_conference_is_void_and_costs_nothing(
         w["conferences"][0]["invited"] = ["norra", "ostmark", "vesta"]
 
     g = game(tmp_path, scheduled, people=("ilse", "tomas"))
-    x = in_force(g, vote_clause(NORRA))
+    x = in_force(g, vote_clause(NORRA, key=NAME))
     before = dict(g.state.relationships)
     g.open()
     run_until_tallied(g)
-    assert tallied(g).outcome is Outcome.CANCELLED
+    assert tallied(g, NAME).outcome is Outcome.CANCELLED
     assert g.state.agreements.made[x.agreement_id].statuses == (ClauseStatus.VOID,)
     assert dict(g.state.relationships) == before
 
@@ -702,6 +706,81 @@ def test_an_offer_whose_vote_clause_falls_before_the_voting_day_is_refused(
     on_time = early.model_copy(update={"on": conf.voting_day})
     fine = deal.model_copy(update={"clauses": (on_time,)})
     assert agreement.refusal(g.state, ILSE, fine) == ""
+
+
+# --- Refusals keep a conference out of view -------------------------------------------
+
+PRIVATE = (NORRA, SUDLAND)
+"""A conference of Norra and Sudland, which Olaf's Ostmark cannot see."""
+CALLED = "A conference of that name has been called."
+
+
+def test_a_vote_in_a_conference_the_seat_cannot_see_is_refused_as_one_that_does_not_exist(
+    tmp_path: Path,
+) -> None:
+    g = game(tmp_path)
+    g.open()
+    theirs = g.call(invited=PRIVATE)
+    assert theirs.key not in project(g.state, OLAF).conferences.held
+    held = conference.vote_refusal(g.state, OLAF, theirs.key)
+    absent = conference.vote_refusal(g.state, OLAF, "no-such-conference")
+    assert held == absent == conference.NO_SUCH
+
+
+def test_a_call_under_the_name_of_a_conference_the_caller_cannot_see_is_called(
+    tmp_path: Path,
+) -> None:
+    g = game(tmp_path)
+    g.open()
+    theirs = g.call(invited=PRIVATE)
+    text = ConferenceText(wording="A charter for the gulf.")
+    assert conference.call_refusal(g.state, OLAF, NAME, (OSTMARK, NORRA), text, day(9)) == ""
+    ours = g.call(by=OLAF, invited=(OSTMARK, NORRA))
+    assert ours.key != theirs.key and ours.caller == OSTMARK
+    assert g.state.conferences.held[theirs.key] == theirs
+
+
+def test_a_call_under_a_world_conferences_name_does_not_read_as_a_hold_on_it(
+    tmp_path: Path,
+) -> None:
+    g = game(tmp_path, scheduled_charter)
+    g.open()
+    assert NAME not in project(g.state, ILSE).conferences.held
+    text = ConferenceText(wording="A charter for the gulf.")
+    assert conference.call_refusal(g.state, ILSE, NAME, THREE, text, day(9)) == ""
+    mine = g.call()
+    assert mine.key != NAME and g.state.conferences.held[NAME].tally_wake is None
+
+
+def test_a_conference_the_seat_can_see_keeps_its_refusals(tmp_path: Path) -> None:
+    g = game(tmp_path)
+    g.open()
+    g.call(invited=(NORRA, OSTMARK), public=True)
+    text = ConferenceText(wording="Again.")
+    assert conference.call_refusal(g.state, ILSE, NAME, THREE, text, day(9)) == CALLED
+    assert conference.vote_refusal(g.state, TOMAS, CHARTER) == conference.NOT_INVITED
+    g.close()
+    closed = conference.vote_refusal(g.state, OLAF, CHARTER)
+    assert closed == "A vote is sealed while a wake is open."
+    g.tick(day(1))
+    g.open()
+    run_until_tallied(g)
+    g.open()
+    assert conference.vote_refusal(g.state, OLAF, CHARTER) == "That conference has voted."
+
+
+def test_a_call_under_an_opened_world_conferences_name_is_refused_as_before(
+    tmp_path: Path,
+) -> None:
+    g = game(tmp_path, scheduled_charter)
+    for last in (day(2), day(5)):
+        g.open()
+        g.close()
+        g.tick(last)
+    g.open()
+    assert NAME in project(g.state, TOMAS).conferences.held
+    text = ConferenceText(wording="Again.")
+    assert conference.call_refusal(g.state, TOMAS, NAME, THREE, text, day(12)) == CALLED
 
 
 # --- A written vote, with written orders on ------------------------------------------

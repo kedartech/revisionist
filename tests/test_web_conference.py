@@ -32,6 +32,7 @@ from tests.test_adjacency_moves import START, entity
 from tests.test_conference import (
     CHARTER,
     ILSE,
+    NAME,
     NORRA,
     OLAF,
     OSTMARK,
@@ -297,7 +298,7 @@ def trio(web: Web, tmp_path: Path) -> Iterator[tuple[Realism, Client, Client, Cl
 
 def _call(game_: Realism, ada: Client, **extra: Any) -> dict[str, Any]:
     body = {
-        "key": CHARTER,
+        "key": NAME,
         "text": "Free trade on the gulf.",
         "invited": [game_.ids["sudland"], game_.ids["ostmark"]],
         "voting_day": (START + timedelta(days=CONF_DAYS + 1)).isoformat(),
@@ -308,20 +309,26 @@ def _call(game_: Realism, ada: Client, **extra: Any) -> dict[str, Any]:
     return dict(out)
 
 
+def _key(game_: Realism) -> str:
+    """The key of the one conference called."""
+    (only,) = state_of(game_).conferences.held
+    return only
+
+
 def test_the_call_action_calls_the_conference(
     trio: tuple[Realism, Client, Client, Client],
 ) -> None:
     game_, ada, bea, _ = trio
     out = _call(game_, ada)
     assert not out["refused"], out
-    conf = state_of(game_).conferences.held[CHARTER]
+    (conf,) = state_of(game_).conferences.held.values()
     assert [str(n) for n in conf.invited] == [
         game_.ids["norra"],
         game_.ids["sudland"],
         game_.ids["ostmark"],
     ]
     assert conf.voting_day == START + timedelta(days=CONF_DAYS + 1)
-    assert [c["key"] for c in realism_of(bea)["conferences"]["conferences"]] == [CHARTER]
+    assert [c["key"] for c in realism_of(bea)["conferences"]["conferences"]] == [conf.key]
     again = _call(game_, ada)
     assert again["refused"]  # the name is taken
 
@@ -340,14 +347,15 @@ def test_the_vote_action_seals_for_against_and_abstain_and_a_later_one_replaces(
 ) -> None:
     game_, ada, bea, cy = trio
     _call(game_, ada)
+    key = _key(game_)
     for choice in ("for", "against", "abstain"):
-        status, out = post(bea, "conference-vote", conference=CHARTER, vote=choice)
+        status, out = post(bea, "conference-vote", conference=key, vote=choice)
         assert status == 200 and not out["refused"], out
-        ballot = state_of(game_).conferences.votes[CHARTER]
+        ballot = state_of(game_).conferences.votes[key]
         assert [b.vote.value for b in ballot.values()] == [choice]
     assert realism_of(bea)["conferences"]["conferences"][0]["vote"] == "abstain"
     assert realism_of(cy)["conferences"]["conferences"][0]["vote"] is None
-    status, out = post(bea, "conference-vote", conference=CHARTER, vote="maybe")
+    status, out = post(bea, "conference-vote", conference=key, vote="maybe")
     assert out["refused"]
 
 
@@ -358,9 +366,10 @@ def test_a_vote_after_the_seats_commit_is_held_for_the_next_wake(
     _call(game_, ada)
     status, out = post(bea, "commit")
     assert status == 200 and not out["refused"], out
-    status, out = post(bea, "conference-vote", conference=CHARTER, vote="for")
+    key = _key(game_)
+    status, out = post(bea, "conference-vote", conference=key, vote="for")
     assert status == 200 and not out["refused"] and "held" in out, out
-    assert CHARTER not in state_of(game_).conferences.votes
+    assert key not in state_of(game_).conferences.votes
 
 
 # --- A call's clauses are checked against the caller's view ---------------------------
@@ -483,3 +492,52 @@ def test_with_conferences_off_a_call_is_refused_as_before(tmp_path: Path) -> Non
     g = Game(world(tmp_path, rules=("holders", "agreements")), "ilse", "tomas", "olaf")
     g.open()
     assert _attempt(g, _placed(GALLEYS)) == conference.NOT_ON
+
+
+# --- Refusals keep a conference out of view --------------------------------------------
+
+
+def test_a_seat_probing_a_private_conference_of_others_reads_it_as_not_there(
+    trio: tuple[Realism, Client, Client, Client],
+) -> None:
+    game_, ada, _, cy = trio
+    assert not _call(game_, ada, invited=[game_.ids["sudland"]])["refused"]
+    (theirs,) = state_of(game_).conferences.held.values()
+    probes = [
+        post(cy, "conference-vote", conference=key, vote="for")
+        for key in (theirs.key, "no-such-conference")
+    ]
+    assert [p[0] for p in probes] == [200, 200]
+    assert probes[0][1]["refused"] and probes[0][1]["reply"] == probes[1][1]["reply"]
+    ours = _call(game_, cy, invited=[game_.ids["norra"]])
+    assert not ours["refused"], ours
+    assert len(state_of(game_).conferences.held) == 2
+
+
+def test_twin_games_differing_in_a_private_conference_of_others_read_the_same_to_a_seat(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "with").mkdir()
+    (tmp_path / "without").mkdir()
+    twins = (game(tmp_path / "with"), game(tmp_path / "without"))
+    for g in twins:
+        g.open()
+    theirs = twins[0].call(invited=(NORRA, SUDLAND))
+    text = ConferenceText(wording="A charter for the gulf.")
+    replies = [
+        (
+            conference.vote_refusal(g.state, OLAF, theirs.key),
+            conference.call_refusal(g.state, OLAF, NAME, (OSTMARK, NORRA), text, day(9)),
+        )
+        for g in twins
+    ]
+    assert replies[0] == replies[1]
+    for g in twins:
+        g.call(by=OLAF, invited=(OSTMARK, NORRA), text=text)
+    assert seen(twins[0], OLAF) == seen(twins[1], OLAF)
+    for g in twins:
+        run_until_tallied(g)
+        g.open()
+    assert theirs.key in twins[0].state.conferences.held
+    assert twins[0].state.conferences.held[theirs.key].tally is not None
+    assert seen(twins[0], OLAF) == seen(twins[1], OLAF)

@@ -17,6 +17,7 @@ import { courtBoard } from './realism-court.js';
 import { header } from './frame.js';
 import { HOME_TITLE, homeSheet, speakNote, themeRead, withHome } from './realism-home.js';
 import { needsAnswer } from './realism-answer.js';
+import { DIPLOMACY_TITLE, diplomacySheet, freshDiplomacy, hasDiplomacy } from './realism-diplomacy.js';
 import { areaCentre, matterOf, needLines, needsBar, needsList } from './realism-needs.js';
 import { chatDock, seenStore, settleMarks, threadCounts, unread } from './realism-chat.js';
 import { contactsTab } from './realism-contacts.js';
@@ -639,8 +640,13 @@ export function realismRoom(ctx) {
           onSubmit: (v) => act('Sending it…', 'lever', v),
           entities: entityChoices(rv.desk),
         }), rv.desk?.levers, rv.court),
+        hasDiplomacy(rv) ? h('section', { class: 'rl-dp-desk', 'aria-labelledby': 'rl-dp-desk-h' },
+          h('h2', { id: 'rl-dp-desk-h' }, DIPLOMACY_TITLE), diplomacy()) : null,
         commitPanel(rv.wake, { act })));
   }
+
+  /** The Diplomacy sheet (DPL), with the offer being built, its reading and the call kept on `ui` across redraws. */
+  const diplomacy = () => diplomacySheet(rv, (ui.dpl ??= freshDiplomacy()), { act, redraw: rerender });
 
   /** Open a standard form on the desk, for a draft the aide suggested. */
   function useDraft(d) {
@@ -1185,6 +1191,7 @@ export function realismRoom(ctx) {
       return panel;
     }
     if (name === 'home') return rv.home ? homeSheet(rv.home, homeOpts()) : null;
+    if (name === 'diplomacy') return hasDiplomacy(rv) ? diplomacy() : null;
     if (name === 'court') return courtBoard(rv, ui, { pick, act });
     if (name === 'people') return peoplePanel();
     if (name === 'battle') {
@@ -1236,7 +1243,7 @@ export function realismRoom(ctx) {
       name = null;
     }
     const piece = name === 'piece' ? ui.piece.name : null;
-    const title = piece ?? (name === 'home' ? HOME_TITLE : name === 'matter' ? matterOf(rv, ui.matter).title
+    const title = piece ?? (name === 'home' ? HOME_TITLE : name === 'diplomacy' ? DIPLOMACY_TITLE : name === 'matter' ? matterOf(rv, ui.matter).title
       : name === 'battle' ? battleTitle(battleAt(rv, ui.battle), rv.clock?.world_date) : undefined);
     // the list is its own sheet on a phone, and a rail beside the map from 1024 px
     const sheet = name && name !== 'needs'
@@ -1246,7 +1253,7 @@ export function realismRoom(ctx) {
     const lines = needLines(rv);
     const done = () => act(commitBusy(rv.wake), 'commit', {});
     const listed = needsList(rv, lines, { open: name === 'needs', onAction: needAction, onDone: done, onClose: closeOver });
-    return [...top, sheetTabs(name, sheetCounts(), toggleOver),
+    return [...top, sheetTabs(name, sheetCounts(), toggleOver, hasDiplomacy(rv) ? [['diplomacy', DIPLOMACY_TITLE]] : []),
       h('main', { class: `rl-mapfirst${sheet ? ' sheeted' : ''}`, 'aria-label': 'Map' },
         listed, h('section', { class: 'rl-mapfirst-map', 'aria-label': 'The map' }, map), sheet),
       needsBar(rv, lines, { open: name === 'needs', onToggle: toggleNeeds, onDone: done })];

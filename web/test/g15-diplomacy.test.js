@@ -220,7 +220,7 @@ test('the offer builder sends free wording, the nations named and the typed clau
   const text = el.querySelector('textarea');
   text.value = 'Peace on the isle.';
   fire(text, 'input');
-  const sud = el.querySelectorAll('input[type="checkbox"]').find((i) => i.getAttribute('value') === SUDLAND);
+  const sud = el.querySelectorAll('input[type="checkbox"]').find((i) => i.value === SUDLAND);
   sud.checked = true;
   fire(sud, 'change');
   const type = el.querySelector('select.rl-dp-addtype');
@@ -346,7 +346,7 @@ test('the conference sheet calls a conference: its text, the nations invited, th
   const text = form.querySelector('textarea');
   text.value = 'A toll-free strait.';
   fire(text, 'input');
-  const sud = form.querySelectorAll('input[type="checkbox"]').find((i) => i.getAttribute('value') === SUDLAND);
+  const sud = form.querySelectorAll('input[type="checkbox"]').find((i) => i.value === SUDLAND);
   sud.checked = true;
   fire(sud, 'change');
   const day = form.querySelector('input[type="date"]');
@@ -417,6 +417,8 @@ test('an agreement the seat is party to has Publish, which files agreement-publi
   assert.match(words(agreementOf(el, 'pact-1')), /Public since 1 April 1900/);
   const rv = seat((x) => { x.agreements.agreements[0].published = '1900-04-03'; });
   assert.equal(buttons(dpl.agreementsSection(rv.agreements, { act }), 'Publish').length, 0, 'published already: no Publish');
+  const other = seat((x) => { x.agreements.agreements[0].party = false; });
+  assert.equal(buttons(dpl.agreementsSection(other.agreements, { act }), 'Publish').length, 0, 'not a party, not public: no Publish');
 });
 
 // --- The room: the Diplomacy sheet ------------------------------------------------------------
@@ -473,7 +475,7 @@ test('the offer builder\'s reading opens in the sheet, and signing it sends the 
   const text = sheet().querySelector('.rl-dp-builder textarea');
   text.value = 'Peace on the isle.';
   fire(text, 'input');
-  const sud = sheet().querySelectorAll('.rl-dp-builder input[type="checkbox"]').find((i) => i.getAttribute('value') === SUDLAND);
+  const sud = sheet().querySelectorAll('.rl-dp-builder input[type="checkbox"]').find((i) => i.value === SUDLAND);
   sud.checked = true;
   fire(sud, 'change');
   buttons(sheet(), 'Read the terms')[0].click();

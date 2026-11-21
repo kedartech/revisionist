@@ -1,0 +1,58 @@
+/* The diplomacy layer (realism-diplomacy.js): the Diplomatic layer's key under the map, and the
+   Diplomacy sheet (agreements with a chip per clause, the offer builder and its terms to sign, the
+   conferences and the call form). Tokens only; every button and check is 44px to tap, every row of
+   chips and buttons wraps, and long words break, so nothing is wider than 390px. A chip says its
+   state in words, never by colour alone. */
+.rl-dp-key, .rl-dp-sheet { min-width: 0; max-width: 100%; box-sizing: border-box; overflow-wrap: anywhere; font: 14px/1.45 var(--font-chrome); color: var(--fg); }
+.rl-dp-key { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-dp-keypart { min-width: 0; flex: 1 1 14rem; }
+.rl-dp-key h3, .rl-dp-sheet h3 { margin: 0 0 var(--space-2); font: 700 15px/1.35 var(--font-head); color: var(--fg-strong); }
+.rl-dp-sheet h4 { margin: var(--space-3) 0 var(--space-2); font: 600 12px/1.3 var(--font-head); text-transform: uppercase; letter-spacing: .08em; color: var(--fg-muted); }
+.rl-dp-key ul, .rl-dp-list, .rl-dp-clauses, .rl-dp-terms-list, .rl-dp-answers, .rl-dp-votes, .rl-dp-clauserows { list-style: none; margin: 0; padding: 0; }
+.rl-dp-key li { margin: var(--space-1) 0; }
+.rl-dp-nation { padding-left: var(--space-2); border-left: 3px solid var(--rule-strong); }
+.rl-dp-nation.rl-rel-own { border-left-color: var(--ok); }
+.rl-dp-nation.rl-rel-enemy { border-left-color: var(--danger); border-left-style: double; border-left-width: 4px; }
+.rl-dp-nation.rl-rel-ally { border-left-color: var(--info); border-left-style: dashed; }
+
+.rl-dp-sheet > section, .rl-dp-desk .rl-dp-sheet > section { margin-bottom: var(--space-5); }
+.rl-dp-list { display: grid; gap: var(--space-3); }
+.rl-dp-agreement, .rl-dp-offer, .rl-dp-conference, .rl-dp-clause { padding: var(--space-2) var(--space-3); background: var(--surface-2); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-dp-sheet p { margin: var(--space-1) 0; }
+.rl-dp-head strong { color: var(--fg-strong); }
+.rl-dp-wording { font-style: italic; color: var(--fg); }
+.rl-dp-clause-line, .rl-dp-term { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1) var(--space-2); margin: var(--space-1) 0; }
+.rl-dp-text { flex: 1 1 12rem; min-width: 0; }
+
+.rl-dp-chip, .rl-dp-tag { display: inline-flex; align-items: center; min-height: 24px; padding: 0 var(--space-2); border: 1px solid var(--rule-strong); border-radius: var(--radius); font: 600 12px/1.3 var(--font-chrome); white-space: nowrap; background: var(--surface); color: var(--fg); }
+.rl-dp-chip.rl-dp-kept { border-color: var(--ok); background: var(--ok-soft); }
+.rl-dp-chip.rl-dp-broken { border-color: var(--danger); background: var(--danger-soft); border-width: 2px; }
+.rl-dp-chip.rl-dp-pending, .rl-dp-chip.rl-dp-called { border-color: var(--info); background: var(--info-soft); }
+.rl-dp-chip.rl-dp-void { color: var(--fg-muted); text-decoration: line-through; }
+.rl-dp-chip.rl-dp-unchecked, .rl-dp-tag.rl-dp-unchecked { border-style: dashed; color: var(--fg-muted); background: none; }
+.rl-dp-read { font-size: 12px; color: var(--intel); font-weight: 600; }
+.rl-dp-on { font-size: 12px; }
+.rl-dp-due { font-weight: 600; color: var(--fg-strong); }
+.rl-dp-result { font-weight: 700; color: var(--fg-strong); }
+.rl-dp-yours { color: var(--fg-strong); }
+
+.rl-dp-btn { min-height: 44px; min-width: 44px; }
+.rl-dp-pair, .rl-dp-vote, .rl-dp-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: var(--space-2) 0; }
+.rl-dp-vote button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--fg-strong); }
+.rl-dp-publish { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.rl-dp-signed { margin: var(--space-3) 0; padding: var(--space-2) var(--space-3); border-left: 4px solid var(--accent); background: var(--surface); }
+.rl-dp-terms .btn-1, .rl-dp-read-btn, .rl-dp-call .btn-1 { min-height: 44px; }
+
+.rl-dp-field { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin: var(--space-2) 0; }
+.rl-dp-wide { flex-direction: column; align-items: stretch; }
+.rl-dp-field select, .rl-dp-field input { min-height: 44px; max-width: 100%; box-sizing: border-box; }
+.rl-dp-field textarea { width: 100%; box-sizing: border-box; }
+.rl-dp-nationset { margin: var(--space-2) 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--rule); border-radius: var(--radius); min-width: 0; }
+.rl-dp-check { display: inline-flex; align-items: center; min-height: 44px; margin-right: var(--space-3); }
+.rl-dp-check input { width: 20px; height: 20px; }
+.rl-dp-clauserows { display: grid; gap: var(--space-2); margin: var(--space-2) 0; }
+
+.rl-dp-key :focus-visible, .rl-dp-sheet :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* the envoy's glyph on the map (realism-map.js forceGlyph) */
+.rl-mk-envoy { stroke-linejoin: round; }

@@ -17,6 +17,7 @@ import { battleMarksOf, battlePickOrder, battleSheet, battleTargets } from './re
 import { oddsAsker } from './realism-odds.js';
 import { intelTokens, tokenBar, tokenChip, tokenOrder, tokenTargets } from './realism-reports.js';
 import { territoryDrawing, territoryView } from './realism-territory.js';
+import { diplomacyKey } from './realism-diplomacy.js';
 
 const LAND_URL = '/assets/land-110m.json';
 let coast = null;
@@ -289,6 +290,7 @@ export function theatreBoard(rv, ui, { pick, act, open } = {}) {
     selected: ui.piece?.kind === 'force' ? ui.piece.name : null,
     openCapital: capitalOpener(rv.people),
     standings: rv.home?.standings ?? null, // a held territory's sheet shows its holder's band at home
+    diplomacy: () => diplomacyKey(rv), // the Diplomatic layer's key, drawn under the map on that layer
     onTarget: (value) => (battlePick ? putBattle(value) : token ? putDown(value) : piece ? choose(value) : states.get(active)?.choose(value)),
     onMode: (mode) => pick?.({ theatre: { ...theatre, mode } }),
     onScope: (scope) => pick?.({ theatre: { ...theatre, scope } }),
@@ -307,7 +309,9 @@ export function theatreBoard(rv, ui, { pick, act, open } = {}) {
   const waits = waitingOrders(rv);
   const drawn = territorial ? withGhosts(map, waits) : map;
   // a picked piece on a territory map lights its moves; the chosen one opens the chip
-  const piece = territorial && theatre.layer !== 'diplomatic' ? pickedPiece(rv, ui) : null;
+  // on the Diplomatic layer only an envoy is picked up and put down
+  const picked = territorial ? pickedPiece(rv, ui) : null;
+  const piece = theatre.layer === 'diplomatic' && picked?.mark.piece?.domain !== 'envoy' ? null : picked;
   // an intelligence token picked up lights where it may go down; put down, it opens its chip
   const tokens = territorial && theatre.layer !== 'diplomatic' && theatre.layer !== 'economy' ? intelTokens(rv) : [];
   const token = tokens.find((t) => t.id === theatre.token) ?? null;

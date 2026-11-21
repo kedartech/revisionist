@@ -108,15 +108,17 @@ not changed."""
 
 
 def _locked(world: WorldFile) -> WorldFile:
-    """The world with ``locks`` on and the smoke's one row, where the world has the form the
-    row names and no locks of its own; any other world as it is."""
+    """The world with ``locks`` on and the smoke's one row beside its own rows, where the
+    world has the form the row names and no row of that key; any other world as it is. A
+    world with locks of its own (autumn 1941 since KCD) keeps them: none holds this form."""
     forms = {lv.name for c in world.cards for lv in c.levers}
-    if world.locks or Rule.LOCKS in world.rules or CANNED_LOCK["order"]["form"] not in forms:
+    keys = {r.key for r in world.locks}
+    if CANNED_LOCK["key"] in keys or CANNED_LOCK["order"]["form"] not in forms:
         return world
     return world.model_copy(
         update={
             "rules": tuple(sorted({*world.rules, Rule.LOCKS})),
-            "locks": (LockDecl.model_validate(CANNED_LOCK),),
+            "locks": (*world.locks, LockDecl.model_validate(CANNED_LOCK)),
         }
     )
 

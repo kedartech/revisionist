@@ -10,7 +10,7 @@ like an ordered one. There is no new endpoint: the steps ride the ``catchup`` re
 The server cases play the territory toy (``tests/worlds/territory-toy.yaml``) with
 ``territories`` on, a field order on each card, a harbour count for Ilse every 13 days,
 and a scripted leg for the Norra Herald and one for the Sudland Levy. The fog case plays
-``autumn-1941`` with all eight playable leaders seated.
+``autumn-1941`` with all nine playable leaders seated.
 """
 
 import json
@@ -331,7 +331,7 @@ def test_steps_ride_the_catchup_page_and_no_playback_endpoint_answers(
     assert status != 200
 
 
-# --- The fog, over a whole game and all eight seats ----------------------------------------
+# --- The fog, over a whole game and all nine seats ----------------------------------------
 
 AUTUMN = "autumn-1941"
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAW")
@@ -383,13 +383,13 @@ def assert_fogged(state: State, events: list[ev.Event], seat: SeatId, last: int)
     return n
 
 
-def test_no_seat_of_eight_gets_a_step_its_view_does_not_hold() -> None:
+def test_no_seat_of_nine_gets_a_step_its_view_does_not_hold() -> None:
     store = MemoryStore()
     decl = cmp.load_world(cmp.world_path(AUTUMN))
     store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))
     state = load_state(store, CAMPAIGN)
     people = sorted(p for p, c in state.cards.items() if c.playable)
-    assert len(people) == 8
+    assert len(people) == 9
     for person in people:
         name = state.entities[person].name
         session_zero.claim(store, CAMPAIGN, SeatId(derived_id(CAMPAIGN, "seat", person)), name)
@@ -397,7 +397,7 @@ def test_no_seat_of_eight_gets_a_step_its_view_does_not_hold() -> None:
     for _ in range(6):
         realism_tick.run_realism_tick(store, CAMPAIGN, prose=Templates())
     state, events = load_state(store, CAMPAIGN), list(store.read(CAMPAIGN))
-    assert len(state.seats) == 8
+    assert len(state.seats) == 9
     counts = {seat: assert_fogged(state, events, seat, 99) for seat in state.seats}
     assert all(counts.values()), counts
     everything = [catchup.SeatEvent(wake=0, event=e) for e in events]
@@ -407,7 +407,7 @@ def test_no_seat_of_eight_gets_a_step_its_view_does_not_hold() -> None:
         for step in playback_steps(everything, state, seat).get(0, [])
         if step["kind"] == "paper" and step["paper"] not in held(state, events, seat)["paper"]
     ]
-    assert len(set(leaks)) == 8, "the check bites: the whole log would leak to every seat"
+    assert len(set(leaks)) == 9, "the check bites: the whole log would leak to every seat"
 
 
 def test_no_seat_of_the_toy_gets_a_step_its_view_does_not_hold(

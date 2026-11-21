@@ -42,6 +42,8 @@ from revisionist.engine.web.threats import seat_threats
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 WORLD = "autumn-1941"
 HEADS = ("roosevelt", "stalin", "hitler", "konoe", "tojo", "mussolini", "chiang")
+FIGURES = (*HEADS, "king")
+"""Everyone weighed: the heads, and Admiral King, who holds the Atlantic Fleet's command."""
 
 
 def begun(who: str = "churchill") -> tuple[EventStore, SeatId, dict[str, EntityId]]:
@@ -146,7 +148,7 @@ def test_an_irreducible_conflict_keeps_the_stance_at_obstructing_or_worse() -> N
 def test_the_people_weighed_are_the_unplayed_ones_with_an_office_to_act_from() -> None:
     store, seat, keys = begun()
     state = load_state(store, CAMPAIGN)
-    assert set(opponents.figures(state, seat)) == {keys[k] for k in HEADS}
+    assert set(opponents.figures(state, seat)) == {keys[k] for k in FIGURES}
 
 
 def test_sides_come_from_contests_allies_and_wars() -> None:
@@ -193,7 +195,7 @@ def test_the_first_settling_gives_every_figure_a_stance_and_a_later_one_only_cha
     day = date(1941, 9, 2)
     first = opponents.settle(state, day)
     changed = [p for p in first if isinstance(p, ev.StanceChanged)]
-    assert {p.figure for p in changed} == {keys[k] for k in HEADS}
+    assert {p.figure for p in changed} == {keys[k] for k in FIGURES}
     assert all(p.standing.cause is StanceCause.START and p.standing.on == day for p in changed)
     (ranked,) = [p for p in first if isinstance(p, ev.OpponentsRanked)]
     assert set(ranked.active) == {keys["hitler"], keys["mussolini"]}

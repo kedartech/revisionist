@@ -1,6 +1,6 @@
-"""The 44 people of autumn 1941 who are not playable carry the rank, loyalty and
-competence of the people authoring sheets, and the two heads of state are reached as
-heads. Roosevelt's people want and hold to the world's topics and start with a regard
+"""The 43 people of autumn 1941 who are not playable, and Admiral King, who is, carry the
+rank, loyalty and competence of the people authoring sheets, and the two heads of state are
+reached as heads. Roosevelt's people want and hold to the world's topics and start with a regard
 toward him; the eight leaders start with a regard toward each other."""
 
 from datetime import date
@@ -121,6 +121,9 @@ PAIRS = {
     frozenset(("mussolini", "chiang")): -1,
 }
 
+PLAYABLE_ON_THE_SHEET = {"king"}
+"""People on the sheet whose cards are playable: they keep the sheet's values."""
+
 WORLD = cmp.load_world(cmp.world_path("autumn-1941"))
 
 
@@ -130,7 +133,7 @@ def _state() -> tuple[State, dict[str, str]]:
 
 def test_every_person_who_is_not_playable_carries_the_sheet_values() -> None:
     state, ids = _state()
-    assert {c.person for c in WORLD.cards if not c.playable} == set(SHEET)
+    assert {c.person for c in WORLD.cards if not c.playable} == set(SHEET) - PLAYABLE_ON_THE_SHEET
     got = {}
     for key in SHEET:
         card = state.cards[EntityId(ids[key])]

@@ -16,7 +16,7 @@ import { capitalGlyph, forceGlyph, pipGlyph, stanceClass, warGlyph, whatWord } f
 import { reportMarks, reportSheet, reportTables, reportsOf, ringsAndThreats, threatsSwitch, tokenMark } from './realism-reports.js';
 import { battleLayer, battleTable } from './realism-battle.js';
 import { bandOf } from './realism-home.js';
-import { lockMark, lockWords } from './realism-locks.js';
+import { heldWords, lockMark, lockWords } from './realism-locks.js';
 
 const r2 = (n) => Math.round(n * 100) / 100;
 
@@ -178,13 +178,17 @@ const markWhat = (m) => m.piece?.kind ?? (m.kind === 'piece' ? 'Piece' : whatWor
 /** Where a mark stands, in words: an own piece's area, the area a page places it in, else its places. */
 const markWhere = (m) => m.piece?.area?.name ?? m.area?.name ?? whereLine(m);
 
-function markLabel(m, where) {
+/** The seat's held orders on mark `m`, as the drawing's `held` option gives them (none in a still drawing). */
+const heldOf = (m, opts) => opts.held?.(m) ?? [];
+
+function markLabel(m, where, held = []) {
   const p = m.piece;
   const said = [
     `${m.name}: ${markWhat(m)}, ${sideLine(m)}, ${certaintyWord(m.certainty)}${where ? `, ${where}` : ''}`,
     p?.posture ? postureWord(p.posture) : null,
     p?.under_way ? courseLine(p.under_way) : null,
     p?.waiting ? `Order ${waitWords(p.waiting)}` : null,
+    ...held.map(heldWords),
   ];
   return said.filter(Boolean).join('; ');
 }
@@ -239,14 +243,17 @@ const markLook = (m, chosen) => `rl-mk rl-mk-${m.kind} rl-side-${m.side} rl-c-${
 
 /** One mark at `xy`, `dx` pixels from it (a fanned stack's place for it). */
 function oneMark(m, xy, dx, from, opts, extra = {}) {
-  const words = markLabel(m, markWhere(m));
+  const held = heldOf(m, opts);
+  const words = markLabel(m, markWhere(m), held);
   const chosen = opts.selected === m.name;
   const keys = chosen && opts.nav ? arrows((dir) => opts.nav.step(null, dir)) : {};
   const common = opts.still ? { class: markLook(m, chosen) } : {
     class: markLook(m, chosen), 'aria-label': words, 'aria-pressed': String(chosen), ...activate(() => opts.onSelect?.(m.name), keys), ...extra,
   };
   return sliding(atPx({ ...common, 'data-key': markKey(m) }, xy[0], xy[1],
-    svg('g', { transform: `translate(${dx} ${m.piece ? -MARK_LIFT : 0})` }, markBody(m, chosen)),
+    svg('g', { transform: `translate(${dx} ${m.piece ? -MARK_LIFT : 0})` }, markBody(m, chosen),
+      // a held order on this piece: the padlock, and who can allow it as text (LKM)
+      held.length ? svg('g', { class: 'rl-tm-held' }, lockMark(held[0].who, MIN_MARK_PX / 2 + 2, -MIN_MARK_PX / 2, LABEL_PX * 0.9)) : null),
     svg('title', {}, words)), xy, from);
 }
 
@@ -257,7 +264,8 @@ function oneMark(m, xy, dx, from, opts, extra = {}) {
 function closedStack(here, key, xy, froms, opts) {
   const top = here.find((m) => froms.get(m)) ?? here[0];
   const where = markWhere(top);
-  const words = `${here.length} pieces in ${where}: ${here.map((m) => m.name).join(', ')}`;
+  const held = here.filter((m) => heldOf(m, opts).length).map((m) => m.name);
+  const words = `${here.length} pieces in ${where}: ${here.map((m) => m.name).join(', ')}${held.length ? `; held order on ${held.join(', ')}` : ''}`;
   const lift = here.some((m) => m.piece) ? -MARK_LIFT : 0;
   const r = MIN_MARK_PX / 2;
   const fan = () => opts.onFan?.(key);
@@ -272,6 +280,8 @@ function closedStack(here, key, xy, froms, opts) {
       forceGlyph({ ...top, kind: top.piece ? GLYPH[top.piece.domain] : top.kind }, MIN_MARK_PX))), xy, froms.get(top)),
     atPx({ class: 'rl-tm-count' }, xy[0], xy[1], svg('g', { transform: `translate(${r * 1.4 + 4} ${lift - r - 4})` },
       svg('circle', { r: 9 }), svg('text', { 'text-anchor': 'middle', dy: '0.35em', 'font-size': LABEL_PX }, String(here.length)))),
+    // a held order on a piece in the stack: the padlock alone, opposite the count (LKM)
+    held.length ? atPx({ class: 'rl-tm-held' }, xy[0], xy[1], lockMark(null, -(r * 1.4 + 4), lift - r - 4, LABEL_PX * 0.9)) : null,
     svg('title', {}, words));
 }
 

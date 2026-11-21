@@ -11,7 +11,7 @@ import { contingencyPicker } from './realism-battle.js';
 import { concealSwitch } from './realism-reports.js';
 import { moveOrder, pieceMoves, theatreBoard } from './realism-theatre.js';
 import { daysLabel } from './realism-forms.js';
-import { isLocked, lockCheck, lockTag, locksOn } from './realism-locks.js';
+import { heldOn, heldStatus, isLocked, lockCheck, lockTag, locksOn } from './realism-locks.js';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August',
   'September', 'October', 'November', 'December'];
@@ -108,9 +108,24 @@ export function piecePanel(rv, piece, open, { board = 'theatre', card = null, pi
     mark.document
       ? h('button', { type: 'button', class: 'rl-btn', onclick: () => open?.({ id: mark.document }) }, 'Open the page')
       : null,
+    pieceHeld(rv, mark),
     pieceLocks(rv, mark),
     concealSwitch(rv.desk?.levers, mark, act),
     contingencyPicker(rv, mark, { act, pick, theatre }));
+}
+
+/**
+ * With `locks` on, the seat's held orders on this piece, as the server names their piece (LKM):
+ * each order's words, who can allow it, and asked or not asked. Null when none is held.
+ */
+function pieceHeld(rv, mark) {
+  const held = locksOn(rv) ? heldOn(rv, mark) : [];
+  if (!held.length) return null;
+  return h('section', { class: 'rl-piece-held' },
+    h('h3', {}, held.length === 1 ? 'A held order' : 'Held orders'),
+    h('ul', { role: 'list' }, held.map((l) => h('li', { 'data-held': l.id },
+      h('span', { class: 'rl-held-words' }, l.words), ' ', lockTag(l.who), ' ',
+      h('span', { class: 'rl-held-status' }, heldStatus(l))))));
 }
 
 /**

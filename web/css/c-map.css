@@ -181,10 +181,13 @@
 .rl-lock-choice p { margin: 0 0 var(--space-2); }
 .rl-lock-acts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .rl-lock-acts button { min-height: 44px; }
-.rl-piece-moves h3 { margin: var(--space-3) 0 var(--space-2); font: 600 15px/1.35 var(--font-chrome); }
-.rl-piece-moves ul { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
-.rl-piece-moves li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.rl-piece-moves h3, .rl-piece-held h3 { margin: var(--space-3) 0 var(--space-2); font: 600 15px/1.35 var(--font-chrome); }
+.rl-piece-moves ul, .rl-piece-held ul { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
+.rl-piece-moves li, .rl-piece-held li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .rl-move-ok { color: var(--fg-muted); }
+.rl-held-words { overflow-wrap: anywhere; }
+.rl-held-status { color: var(--fg-muted); }
+.rl-tm-held { pointer-events: none; }
 .rl-need-lock { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: var(--space-1) 0; }
 .rl-need-status { color: var(--fg-muted); }
 .rl-need-status.asked { color: var(--fg-strong); }

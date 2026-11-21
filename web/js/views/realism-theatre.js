@@ -17,7 +17,7 @@ import { battleMarksOf, battlePickOrder, battleSheet, battleTargets } from './re
 import { oddsAsker } from './realism-odds.js';
 import { intelTokens, tokenBar, tokenChip, tokenOrder, tokenTargets } from './realism-reports.js';
 import { territoryDrawing, territoryView } from './realism-territory.js';
-import { formCheck, isLocked, keptCheck, lockCheck, lockedChoice, locksOn } from './realism-locks.js';
+import { formCheck, heldOn, isLocked, keptCheck, lockCheck, lockedChoice, locksOn } from './realism-locks.js';
 import { diplomacyKey } from './realism-diplomacy.js';
 
 const LAND_URL = '/assets/land-110m.json';
@@ -309,6 +309,7 @@ export function theatreBoard(rv, ui, { pick, act, open } = {}) {
     openCapital: capitalOpener(rv.people),
     standings: rv.home?.standings ?? null, // a held territory's sheet shows its holder's band at home
     diplomacy: () => diplomacyKey(rv), // the Diplomatic layer's key, drawn under the map on that layer
+    held: locksOn(rv) ? (m) => heldOn(rv, m) : null, // the seat's held orders on each of its pieces, as the server names them (LKM)
     onTarget: (value) => (battlePick ? putBattle(value) : token ? putDown(value) : piece ? choose(value) : states.get(active)?.choose(value)),
     onMode: (mode) => pick?.({ theatre: { ...theatre, mode } }),
     onScope: (scope) => pick?.({ theatre: { ...theatre, scope } }),

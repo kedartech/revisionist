@@ -18,6 +18,18 @@ export const heldLines = (rv) => rv?.locks?.held ?? [];
 /** The asks put before the seat, as the server sent them. */
 export const askLines = (rv) => rv?.locks?.asks ?? [];
 
+/** The seat's held orders on map mark `mark`: those whose `piece` the server set to the mark's piece key. */
+export function heldOn(rv, mark) {
+  const key = mark?.piece?.key;
+  return key ? heldLines(rv).filter((l) => l.piece === key) : [];
+}
+
+/** A held order's ask, in a word. */
+export const heldStatus = (l) => (l.asked ? 'Asked' : 'Not asked');
+
+/** A held order in words, as a map mark's label says it. */
+export const heldWords = (l) => `Held order: ${l.words}, ${l.who} can allow it, ${l.asked ? 'asked' : 'not asked'}`;
+
 /** A locked check in words: who can allow it. */
 export const lockWords = (c) => `Locked: ${c.who} can allow it`;
 
@@ -39,11 +51,11 @@ export function lockTag(who) {
     h('span', { class: 'rl-lock-who' }, who));
 }
 
-/** The lock mark on the map, at (x, y) in pixels from a lit area's centre: the padlock and who. */
+/** The lock mark on the map, at (x, y) in pixels from a lit area's or a piece's centre: the padlock, and who when given. */
 export function lockMark(who, x, y, fontSize) {
   return svg('g', { class: 'rl-tm-lock', transform: `translate(${x} ${y})`, 'aria-hidden': 'true' },
     padlock(fontSize),
-    svg('text', { x: fontSize * 0.75, y: fontSize * 0.35, 'font-size': fontSize, class: 'rl-lock-note' }, who));
+    who ? svg('text', { x: fontSize * 0.75, y: fontSize * 0.35, 'font-size': fontSize, class: 'rl-lock-note' }, who) : null);
 }
 
 // --- the check: the server's answer, kept for the room's data it was asked under -------------

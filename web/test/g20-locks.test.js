@@ -274,6 +274,60 @@ test('each held order is a line in what needs you, asked or not asked; only the 
   assert.deepEqual(seen, [open.key]);
 });
 
+/** The mark on the map whose name is `name`, as drawn (the piece's own marker, not a stack). */
+const markOn = (view, name) => view.querySelectorAll('g.rl-tm-mark').find((g) => g.getAttribute('aria-label')?.startsWith(`${name}:`));
+
+test('a held order shows on its piece: on the map mark and in the piece sheet, with who and asked or not asked', async () => {
+  stubApi(() => ALLOWED);
+  const rv = seat();
+  const r = await room(rv);
+  const stack = r.view.querySelector('g.rl-tm-stack');
+  assert.ok(stack.querySelector('.rl-tm-held .rl-lock-glyph'), 'the closed stack carries the padlock');
+  assert.match(stack.getAttribute('aria-label'), /held order on The Norra Levy/);
+  const levy = markOn(await pickLevy(r), LEVY);
+  assert.ok(levy.querySelector('.rl-tm-held .rl-lock-glyph'), 'the padlock on the levy');
+  assert.equal(words(levy.querySelector('.rl-tm-held .rl-lock-note')), ILSE);
+  assert.match(levy.getAttribute('aria-label'), /Held order: March \(Force Norra levy, To Isle\), Ilse Varg can allow it, asked/);
+  assert.equal(markOn(r.view, 'The Norra Kites').querySelector('.rl-tm-held'), null, 'a piece with nothing held has no lock');
+  const panel = piecePanel(rv, { kind: 'force', name: LEVY }, () => {}, {});
+  const rows = panel.querySelectorAll('.rl-piece-held li');
+  assert.equal(rows.length, 1);
+  assert.match(words(rows[0]), /March \(Force Norra levy, To Isle\)/);
+  assert.equal(words(rows[0].querySelector('.rl-lock-who')), ILSE);
+  assert.match(words(rows[0]), /Asked/);
+  assert.equal(piecePanel(rv, { kind: 'force', name: 'The Norra Kites' }, () => {}, {}).querySelector('.rl-piece-held'), null);
+});
+
+test('a held order not yet asked for shows on its piece as not asked', () => {
+  const rv = seat((x) => { x.locks.held[0].asked = false; });
+  const panel = piecePanel(rv, { kind: 'force', name: LEVY }, () => {}, {});
+  assert.match(words(panel.querySelector('.rl-piece-held li')), /Not asked/);
+});
+
+test('a held order is drawn on the piece the server names only: a written order and an unknown piece go nowhere', async () => {
+  stubApi(() => ALLOWED);
+  const rv = seat((x) => { x.locks.held[0].piece = 'm-not-on-this-map'; });
+  const r = await room(rv);
+  assert.equal(r.view.querySelectorAll('.rl-tm-held').length, 0);
+  await pickLevy(r);
+  assert.equal(r.view.querySelectorAll('.rl-tm-held').length, 0);
+  for (const name of [LEVY, 'The Norra Kites', 'The Norra Herald']) {
+    assert.equal(piecePanel(rv, { kind: 'force', name }, () => {}, {}).querySelector('.rl-piece-held'), null, name);
+  }
+});
+
+test('with locks off no piece carries a held order', async () => {
+  stubApi();
+  const rv = seat(unlocked);
+  const r = await room(rv);
+  assert.equal(r.view.querySelectorAll('.rl-tm-held').length, 0);
+  assert.doesNotMatch(r.view.querySelector('g.rl-tm-stack').getAttribute('aria-label'), /held/);
+  await pickLevy(r);
+  assert.equal(r.view.querySelectorAll('.rl-tm-held').length, 0);
+  assert.doesNotMatch(markOn(r.view, LEVY).getAttribute('aria-label'), /Held/);
+  assert.equal(piecePanel(rv, { kind: 'force', name: LEVY }, () => {}, {}).querySelector('.rl-piece-held'), null);
+});
+
 // --- rule 4: the decider's ask, opened on the words and his own forms -------------------------
 
 test('the decider sees each ask in his list and opens it on the order\'s words and his own form', () => {

@@ -86,6 +86,10 @@ FEED_KINDS: frozenset[str] = frozenset(
         "order_settled",
         "order_routed",
         "order_executed",
+        # A held order and its end (LCK): sealed to the issuer's seat, and kept only while
+        # the order is the seat's own.
+        "order_held",
+        "held_order_ended",
         "influence_decided",
         "effects_applied",
         # Offers and agreements (AGR): sealed to the parties' seats, public once published,
@@ -222,6 +226,10 @@ def _named(p: ev.Payload, view: View) -> bool:
             return p.order_id in view.orders
         case ev.OrderRouted():
             return p.order.order_id in view.routed
+        case ev.OrderHeld():
+            return p.held.issuer == view.viewer
+        case ev.HeldOrderEnded():
+            return p.issuer == view.viewer
         case ev.OrderExecuted() | ev.EffectsApplied() | ev.InfluenceDecided():
             return p.order_id in view.routed
         case ev.GoalProgressed() | ev.GoalMet() | ev.GoalUndone():

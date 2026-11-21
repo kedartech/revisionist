@@ -32,8 +32,9 @@ from revisionist.core.realism.effect import (
     Route,
     SetEngagement,
 )
+from revisionist.core.realism.locks import HeldOrder
 from revisionist.core.realism.reach import channels_to
-from revisionist.core.realism.route import route
+from revisionist.core.realism.route import held, route
 from revisionist.core.realism.war import polity_of
 from revisionist.core.state import Rule, State, View
 from revisionist.engine.aide import AIDE_MODEL
@@ -529,6 +530,9 @@ def read_order(
     for ask in asks:
         routed = route(state, seat, ask, today)
         part = routed.part
+        if part is None and held(state, seat, ask, today) is not None:
+            parts.append(ask.ask.replace("_", " "))
+            continue
         if part is None:
             return _unfileable(text, routed.refusal or UNREADABLE, name, said)
         if part.route is Route.INFLUENCE and (
@@ -572,9 +576,11 @@ def file_order(
         ):
             return Reply(reply=CHANGED, refused=True)
     try:
-        commit_order(store, campaign_id, seat, reading.asks)
+        filed = commit_order(store, campaign_id, seat, reading.asks)
     except ValueError as exc:
         return Reply(reply=str(exc), refused=True)
+    if isinstance(filed, HeldOrder):
+        return Reply(reply=filed.reason, refused=False)
     who = reading.shown["person"]
     return Reply(reply=f"Sent to {who}." if who else "Your order is filed.", refused=False)
 

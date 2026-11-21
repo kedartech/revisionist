@@ -7084,6 +7084,152 @@
         "title": "HeldChoice",
         "type": "object"
       },
+      "HeldEnd": {
+        "description": "How a held order ends.",
+        "enum": [
+          "replaced",
+          "landed",
+          "failed",
+          "withdrawn"
+        ],
+        "title": "HeldEnd",
+        "type": "string"
+      },
+      "HeldOrder": {
+        "additionalProperties": false,
+        "description": "An order a lock holds: a form order as drafted, or a written order's asks, with\nthe row that holds it (none for a derived decider), its decider, and the reason its\nseat was told. No clock ends it.",
+        "properties": {
+          "asks": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Ask"
+            },
+            "maxItems": 8,
+            "title": "Asks",
+            "type": "array"
+          },
+          "decider": {
+            "$ref": "#/$defs/Decider"
+          },
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "forecast": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Forecast"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "form": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Order"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "issuer": {
+            "title": "Issuer",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "row": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Row"
+          }
+        },
+        "required": [
+          "order_id",
+          "issuer",
+          "filed",
+          "decider",
+          "reason"
+        ],
+        "title": "HeldOrder",
+        "type": "object"
+      },
+      "HeldOrderEnded": {
+        "additionalProperties": false,
+        "description": "A held order ends (LCK): replaced by a later order from its seat to the same force\nand zone, landed, failed its re-check, or withdrawn. Sealed to the issuer's seat.",
+        "properties": {
+          "by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "By"
+          },
+          "end": {
+            "$ref": "#/$defs/HeldEnd"
+          },
+          "issuer": {
+            "title": "Issuer",
+            "type": "string"
+          },
+          "kind": {
+            "const": "held_order_ended",
+            "default": "held_order_ended",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "reason": {
+            "default": "",
+            "maxLength": 300,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "issuer",
+          "end",
+          "on"
+        ],
+        "title": "HeldOrderEnded",
+        "type": "object"
+      },
       "HoldsArea": {
         "additionalProperties": false,
         "description": "A territory's holder now is ``holder`` (THL). Public.",
@@ -9058,6 +9204,26 @@
           "on"
         ],
         "title": "OrderExecuted",
+        "type": "object"
+      },
+      "OrderHeld": {
+        "additionalProperties": false,
+        "description": "A lock holds a seat's order (LCK): it passed every refusal of today's and is\nstored, not carried out, with the row and the decider. Sealed to the issuer's seat;\nno clock ends it.",
+        "properties": {
+          "held": {
+            "$ref": "#/$defs/HeldOrder"
+          },
+          "kind": {
+            "const": "order_held",
+            "default": "order_held",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "held"
+        ],
+        "title": "OrderHeld",
         "type": "object"
       },
       "OrderMatch": {
@@ -14020,6 +14186,7 @@
             "group_moved": "#/$defs/GroupMoved",
             "group_proposed": "#/$defs/GroupProposed",
             "groups_declared": "#/$defs/GroupsDeclared",
+            "held_order_ended": "#/$defs/HeldOrderEnded",
             "influence_decided": "#/$defs/InfluenceDecided",
             "intelligence_declared": "#/$defs/IntelligenceDeclared",
             "intent_filed": "#/$defs/IntentFiled",
@@ -14038,6 +14205,7 @@
             "options_offered": "#/$defs/OptionsOffered",
             "order_drafted": "#/$defs/OrderDrafted",
             "order_executed": "#/$defs/OrderExecuted",
+            "order_held": "#/$defs/OrderHeld",
             "order_received": "#/$defs/OrderReceived",
             "order_routed": "#/$defs/OrderRouted",
             "order_settled": "#/$defs/OrderSettled",
@@ -14272,6 +14440,12 @@
           },
           {
             "$ref": "#/$defs/LocksDeclared"
+          },
+          {
+            "$ref": "#/$defs/OrderHeld"
+          },
+          {
+            "$ref": "#/$defs/HeldOrderEnded"
           },
           {
             "$ref": "#/$defs/PieceStepped"
@@ -15651,6 +15825,93 @@
           "office"
         ],
         "title": "Appointment",
+        "type": "object"
+      },
+      "Ask": {
+        "additionalProperties": false,
+        "description": "One part of an order before it is routed: what the seat wants, in short words,\nand the typed effect where the reader found one.",
+        "properties": {
+          "ask": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Ask",
+            "type": "string"
+          },
+          "effect": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "allocate": "#/$defs/Allocate",
+                    "appointment": "#/$defs/Appointment",
+                    "deal": "#/$defs/Deal",
+                    "disclosure": "#/$defs/Disclosure",
+                    "disposition": "#/$defs/ShiftDisposition",
+                    "engagement": "#/$defs/SetEngagement",
+                    "investigate": "#/$defs/Investigate",
+                    "measure": "#/$defs/ProposeMeasure",
+                    "move_force": "#/$defs/MoveForce",
+                    "statement": "#/$defs/MakeStatement"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/MoveForce"
+                  },
+                  {
+                    "$ref": "#/$defs/SetEngagement"
+                  },
+                  {
+                    "$ref": "#/$defs/Allocate"
+                  },
+                  {
+                    "$ref": "#/$defs/Appointment"
+                  },
+                  {
+                    "$ref": "#/$defs/ProposeMeasure"
+                  },
+                  {
+                    "$ref": "#/$defs/MakeStatement"
+                  },
+                  {
+                    "$ref": "#/$defs/Investigate"
+                  },
+                  {
+                    "$ref": "#/$defs/Deal"
+                  },
+                  {
+                    "$ref": "#/$defs/ShiftDisposition"
+                  },
+                  {
+                    "$ref": "#/$defs/Disclosure"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Effect"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target"
+          }
+        },
+        "required": [
+          "ask"
+        ],
+        "title": "Ask",
         "type": "object"
       },
       "Asset": {
@@ -18711,6 +18972,87 @@
           "action"
         ],
         "title": "HeldChoice",
+        "type": "object"
+      },
+      "HeldOrder": {
+        "additionalProperties": false,
+        "description": "An order a lock holds: a form order as drafted, or a written order's asks, with\nthe row that holds it (none for a derived decider), its decider, and the reason its\nseat was told. No clock ends it.",
+        "properties": {
+          "asks": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Ask"
+            },
+            "maxItems": 8,
+            "title": "Asks",
+            "type": "array"
+          },
+          "decider": {
+            "$ref": "#/$defs/Decider"
+          },
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "forecast": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Forecast"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "form": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Order"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "issuer": {
+            "title": "Issuer",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "row": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Row"
+          }
+        },
+        "required": [
+          "order_id",
+          "issuer",
+          "filed",
+          "decider",
+          "reason"
+        ],
+        "title": "HeldOrder",
         "type": "object"
       },
       "Holding": {
@@ -23792,6 +24134,13 @@
         "title": "Handovers",
         "type": "object"
       },
+      "held": {
+        "additionalProperties": {
+          "$ref": "#/$defs/HeldOrder"
+        },
+        "title": "Held",
+        "type": "object"
+      },
       "holders": {
         "additionalProperties": {
           "$ref": "#/$defs/Holding"
@@ -24722,6 +25071,93 @@
           "office"
         ],
         "title": "Appointment",
+        "type": "object"
+      },
+      "Ask": {
+        "additionalProperties": false,
+        "description": "One part of an order before it is routed: what the seat wants, in short words,\nand the typed effect where the reader found one.",
+        "properties": {
+          "ask": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Ask",
+            "type": "string"
+          },
+          "effect": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "allocate": "#/$defs/Allocate",
+                    "appointment": "#/$defs/Appointment",
+                    "deal": "#/$defs/Deal",
+                    "disclosure": "#/$defs/Disclosure",
+                    "disposition": "#/$defs/ShiftDisposition",
+                    "engagement": "#/$defs/SetEngagement",
+                    "investigate": "#/$defs/Investigate",
+                    "measure": "#/$defs/ProposeMeasure",
+                    "move_force": "#/$defs/MoveForce",
+                    "statement": "#/$defs/MakeStatement"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/MoveForce"
+                  },
+                  {
+                    "$ref": "#/$defs/SetEngagement"
+                  },
+                  {
+                    "$ref": "#/$defs/Allocate"
+                  },
+                  {
+                    "$ref": "#/$defs/Appointment"
+                  },
+                  {
+                    "$ref": "#/$defs/ProposeMeasure"
+                  },
+                  {
+                    "$ref": "#/$defs/MakeStatement"
+                  },
+                  {
+                    "$ref": "#/$defs/Investigate"
+                  },
+                  {
+                    "$ref": "#/$defs/Deal"
+                  },
+                  {
+                    "$ref": "#/$defs/ShiftDisposition"
+                  },
+                  {
+                    "$ref": "#/$defs/Disclosure"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Effect"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Target"
+          }
+        },
+        "required": [
+          "ask"
+        ],
+        "title": "Ask",
         "type": "object"
       },
       "Asset": {
@@ -26562,6 +26998,70 @@
         "title": "EntityStatus",
         "type": "string"
       },
+      "Expect": {
+        "additionalProperties": false,
+        "description": "One move the seat's staff expect an option to make. Staff talk, not a forecast:\nno rule reads it, and filing the option is the same with or without it.",
+        "properties": {
+          "direction": {
+            "$ref": "#/$defs/ExpectDirection"
+          },
+          "on": {
+            "$ref": "#/$defs/ExpectOn"
+          },
+          "size": {
+            "maximum": 2,
+            "minimum": 1,
+            "title": "Size",
+            "type": "integer"
+          },
+          "sure": {
+            "$ref": "#/$defs/ExpectSure"
+          },
+          "target": {
+            "maxLength": 60,
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "target",
+          "direction",
+          "size",
+          "sure"
+        ],
+        "title": "Expect",
+        "type": "object"
+      },
+      "ExpectDirection": {
+        "enum": [
+          "gain",
+          "cost"
+        ],
+        "title": "ExpectDirection",
+        "type": "string"
+      },
+      "ExpectOn": {
+        "description": "What an expected move points at. Each is something the seat's view holds.",
+        "enum": [
+          "regard",
+          "stance",
+          "stake",
+          "figure"
+        ],
+        "title": "ExpectOn",
+        "type": "string"
+      },
+      "ExpectSure": {
+        "description": "How sure the staff are.",
+        "enum": [
+          "firm",
+          "likely",
+          "guess"
+        ],
+        "title": "ExpectSure",
+        "type": "string"
+      },
       "Fact": {
         "additionalProperties": false,
         "description": "A structured truth with an ACL. Never prose.",
@@ -26668,6 +27168,34 @@
         ],
         "title": "Fidelity",
         "type": "string"
+      },
+      "Forecast": {
+        "additionalProperties": false,
+        "description": "What the staff expected a picked suggestion to move and what they thought it\nrisked, kept with the order it filed (FCS). Private to the issuer, as the order is.\nNo rule reads it: an order files and lands the same with or without it.",
+        "properties": {
+          "expects": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Expect"
+            },
+            "maxItems": 4,
+            "title": "Expects",
+            "type": "array"
+          },
+          "risks": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Risks"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "title": "Forecast",
+        "type": "object"
       },
       "Goal": {
         "additionalProperties": false,
@@ -27131,6 +27659,87 @@
           "action"
         ],
         "title": "HeldChoice",
+        "type": "object"
+      },
+      "HeldOrder": {
+        "additionalProperties": false,
+        "description": "An order a lock holds: a form order as drafted, or a written order's asks, with\nthe row that holds it (none for a derived decider), its decider, and the reason its\nseat was told. No clock ends it.",
+        "properties": {
+          "asks": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Ask"
+            },
+            "maxItems": 8,
+            "title": "Asks",
+            "type": "array"
+          },
+          "decider": {
+            "$ref": "#/$defs/Decider"
+          },
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "forecast": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Forecast"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "form": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Order"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "issuer": {
+            "title": "Issuer",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "row": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Row"
+          }
+        },
+        "required": [
+          "order_id",
+          "issuer",
+          "filed",
+          "decider",
+          "reason"
+        ],
+        "title": "HeldOrder",
         "type": "object"
       },
       "Holding": {
@@ -29336,6 +29945,37 @@
         "title": "Restart",
         "type": "object"
       },
+      "Risks": {
+        "additionalProperties": false,
+        "description": "How much the staff think an option risks, each from 0 (none) to 3. No rule reads it.",
+        "properties": {
+          "escalation": {
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Escalation",
+            "type": "integer"
+          },
+          "exposure": {
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Exposure",
+            "type": "integer"
+          },
+          "refusal": {
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Refusal",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "escalation",
+          "refusal",
+          "exposure"
+        ],
+        "title": "Risks",
+        "type": "object"
+      },
       "Role": {
         "description": "What a resource is for. Several resources may share a role; a role may have none.",
         "enum": [
@@ -31053,6 +31693,13 @@
       },
       "groups": {
         "$ref": "#/$defs/Groups"
+      },
+      "held": {
+        "additionalProperties": {
+          "$ref": "#/$defs/HeldOrder"
+        },
+        "title": "Held",
+        "type": "object"
       },
       "holders": {
         "additionalProperties": {

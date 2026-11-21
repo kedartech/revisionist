@@ -88,7 +88,9 @@ def _enacted(order: Order) -> Order:
 
 
 def _measure(store: MemoryStore, fdr: SeatId, measure: rx.ProposeMeasure) -> rx.RoutedOrder:
-    return rt.commit_order(store, CAMPAIGN, fdr, [Ask(ask="Revise the act.", effect=measure)])
+    order = rt.commit_order(store, CAMPAIGN, fdr, [Ask(ask="Revise the act.", effect=measure)])
+    assert isinstance(order, rx.RoutedOrder)
+    return order
 
 
 def test_a_measure_routes_process_and_drafts_one_pipeline_order() -> None:
@@ -177,7 +179,9 @@ def test_a_process_order_runs_its_pipeline_and_enacts() -> None:
 
 def _ask_wheeler(store: MemoryStore, cid: CampaignId, fdr: SeatId) -> rx.RoutedOrder:
     ask = Ask(ask="Ask Wheeler to back the convoys.", target=_entity(cid, "wheeler"))
-    return rt.commit_order(store, cid, fdr, [ask])
+    order = rt.commit_order(store, cid, fdr, [ask])
+    assert isinstance(order, rx.RoutedOrder)
+    return order
 
 
 def _decisions(store: MemoryStore, cid: CampaignId) -> list[ev.InfluenceDecided]:

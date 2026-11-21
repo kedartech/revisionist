@@ -4,7 +4,8 @@ Each day, after the day's acts have landed, every unplayed person with written a
 looks at what landed: a form someone filed that went through, or a typed act that was
 carried out. An answer whose trigger matches, whose stance gate holds and whose
 cooldown has run is taken up and falls due some days later; on that day the person
-files an order of their own through the same routing as a player's. Taking up an
+files an order of their own through the same routing as a player's; an order a lock
+would hold is dropped with the router's refusal (LCK). Taking up an
 answer to someone's act costs that someone a point of the person's regard, unless the
 answer is a good turn. Code decides throughout; no model is asked.
 
@@ -20,7 +21,7 @@ from typing import NamedTuple
 from revisionist.core import events as ev
 from revisionist.core.goals import Ordered
 from revisionist.core.ids import EntityId, MandateId, OrderId, SeatId, derived_id
-from revisionist.core.realism import actors, opponents
+from revisionist.core.realism import actors, locks, opponents
 from revisionist.core.realism.agenda import (
     MANDATE_CAP,
     Ask,
@@ -44,7 +45,7 @@ from revisionist.core.realism.effect import (
 from revisionist.core.realism.pass_world import PassWorld
 from revisionist.core.realism.pipeline import SETTLED, Order, OrderStatus
 from revisionist.core.realism.resolvers import settled_on
-from revisionist.core.realism.route import route
+from revisionist.core.realism.route import NOBODY, held, route
 from revisionist.core.realism.war_rules import order_refusal
 from revisionist.core.state import State
 from revisionist.core.visibility import private_to
@@ -290,6 +291,8 @@ def _make(state: State, figure: EntityId, answer: Answer, day: date) -> list[ev.
             params=dict(act.params),
             filed=day,
         )
+        if locks.seen_lock(state, seat, order) is not None:
+            return [made(refusal=NOBODY[:60])]
         return [ev.OrderDrafted(order=order), made(order=oid)]
     assert act.effect is not None
     effect = act.effect
@@ -300,9 +303,12 @@ def _make(state: State, figure: EntityId, answer: Answer, day: date) -> list[ev.
         if isinstance(put, str):
             return [made(refusal=put)]
         return [put, made(mandate=put.mandate.mandate_id)]
-    routing = route(state, seat, Ask(ask=_said(effect), effect=effect), day)
+    ask = Ask(ask=_said(effect), effect=effect)
+    routing = route(state, seat, ask, day)
     if routing.part is None:
         return [made(refusal=routing.refusal[:60] or "no route")]
+    if held(state, seat, ask, day) is not None:
+        return [made(refusal=NOBODY[:60])]
     routed = RoutedOrder(order_id=oid, issuer=seat, filed=day, parts=(routing.part,))
     return [ev.OrderRouted(order=routed), made(order=oid)]
 

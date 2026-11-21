@@ -70,7 +70,7 @@ from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.groups import Groups
 from revisionist.core.realism.holders import Capture, Holding
 from revisionist.core.realism.kinds import Kinds
-from revisionist.core.realism.locks import LockRow
+from revisionist.core.realism.locks import HeldOrder, LockRow
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
@@ -249,6 +249,9 @@ class State(_World):
     """Engine only: seats learn of features from documents that sight them."""
     routed: dict[OrderId, RoutedOrder] = Field(default_factory=dict)
     """Engine v2 orders, with the estimator's effects."""
+    held: dict[OrderId, HeldOrder] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``locks`` on, every order a lock holds and that has not ended, form or written
+    (``order_held``, until ``held_order_ended``). Each seat sees its own (LCK)."""
     styles: dict[SeatId, PlayStyle] = Field(default_factory=dict)
     """Each seat's play style. Private to the seat; absent means free."""
     standing: dict[SeatId, frozenset[EffectKind]] = Field(default_factory=dict)
@@ -302,6 +305,7 @@ class State(_World):
     (``wake_committed``), so the rules where an effect lands can hold the aide to its
     limits (IOR). Engine only: how a seat is run is never shown."""
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
+        "held",
         "rules",
         "intelligence",
         "reports",
@@ -352,6 +356,8 @@ class View(_World):
     """Only quantities whose scope admits the viewer."""
     routed: dict[OrderId, RoutedOrderView] = Field(default_factory=dict)
     """The viewer's own engine-v2 orders, without the estimator's effects."""
+    held: dict[OrderId, HeldOrder] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """The viewer's own held orders only (LCK)."""
     style: PlayStyle | None = None
     """The viewer's own play style. None: free."""
     reports: dict[Label, Report] = Field(default_factory=dict)
@@ -359,6 +365,7 @@ class View(_World):
     opaque key: the only enemy-piece data a view holds (DET)."""
 
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
+        "held",
         "routed",
         "style",
         "reports",

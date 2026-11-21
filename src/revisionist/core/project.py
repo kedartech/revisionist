@@ -124,6 +124,7 @@ def project(state: State, seat: SeatId) -> View:
             if q.scope is not None and q.scope.visible_to(seat)
         },
         routed={k: o.view() for k, o in state.routed.items() if o.issuer == seat},
+        held={k: h for k, h in state.held.items() if h.issuer == seat},
         style=state.styles.get(seat),
         reports={
             **detect.seen_by(state, polity_of(state, me.embodies)),

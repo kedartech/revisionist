@@ -18,7 +18,7 @@ CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted, EconomySet, Yi
 TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDeclared,
 ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
-VoteSealed, ConferenceTallied, LocksDeclared``, and
+VoteSealed, ConferenceTallied, LocksDeclared, OrderHeld, HeldOrderEnded``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -97,7 +97,7 @@ from revisionist.core.realism.groups import Cause as GroupCause
 from revisionist.core.realism.groups import NationGroups, Proposal
 from revisionist.core.realism.holders import Capture
 from revisionist.core.realism.kinds import PieceKind, Resource
-from revisionist.core.realism.locks import LockRow
+from revisionist.core.realism.locks import HeldEnd, HeldOrder, LockRow
 from revisionist.core.realism.pipeline import (
     Order,
     OrderStatus,
@@ -690,6 +690,38 @@ class LocksDeclared(Model):
 
     kind: Literal["locks_declared"] = "locks_declared"
     rows: tuple[LockRow, ...] = Field(min_length=1)
+
+
+class OrderHeld(Model):
+    """A lock holds a seat's order (LCK): it passed every refusal of today's and is
+    stored, not carried out, with the row and the decider. Sealed to the issuer's seat;
+    no clock ends it."""
+
+    kind: Literal["order_held"] = "order_held"
+    held: HeldOrder
+
+
+class HeldOrderEnded(Model):
+    """A held order ends (LCK): replaced by a later order from its seat to the same force
+    and zone, landed, failed its re-check, or withdrawn. Sealed to the issuer's seat."""
+
+    kind: Literal["held_order_ended"] = "held_order_ended"
+    order_id: OrderId
+    issuer: SeatId
+    end: HeldEnd
+    on: date
+    by: OrderId | None = None
+    """For a replacement, the later order; for a landing, the order it landed as."""
+    reason: str = Field(default="", max_length=300)
+    """For a failure, the words its seat is told."""
+
+    @model_validator(mode="after")
+    def _shape(self) -> "HeldOrderEnded":
+        if (self.by is not None) != (self.end in (HeldEnd.REPLACED, HeldEnd.LANDED)):
+            raise ValueError("a replacement or a landing, and only those, name the order")
+        if bool(self.reason) != (self.end is HeldEnd.FAILED):
+            raise ValueError("a failure, and only a failure, carries its reason")
+        return self
 
 
 class PieceStepped(Model):
@@ -1394,6 +1426,8 @@ Payload = Annotated[
     | MapDeclared
     | KindsDeclared
     | LocksDeclared
+    | OrderHeld
+    | HeldOrderEnded
     | PieceStepped
     | AreaHeld
     | CaptureCounted
@@ -1495,6 +1529,8 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "map_declared",
         "kinds_declared",
         "locks_declared",
+        "order_held",
+        "held_order_ended",
         "area_held",
         "capture_counted",
         "economy_set",

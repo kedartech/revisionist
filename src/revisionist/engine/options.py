@@ -43,7 +43,7 @@ from revisionist.core.realism.effect import (
     Posture,
     SetEngagement,
 )
-from revisionist.core.realism.route import route
+from revisionist.core.realism.route import held, route
 from revisionist.core.record import Record, WakePage
 from revisionist.core.state import State, View
 from revisionist.core.visibility import private_to
@@ -660,12 +660,34 @@ def _forecast(option: Option) -> Forecast | None:
     return None if found.empty() else found
 
 
+def _aide_may(state: State, option: Option, allowed: frozenset[EffectKind]) -> tuple[Ask, ...]:
+    """The option's asks the aide may file: no deal, no irreversible ask the seat has not
+    put in a standing order, and in a battle game no press, withdrawal or contingency."""
+    return tuple(
+        a
+        for a in _battle_safe(state, option.asks)
+        if not isinstance(a.effect, Deal)
+        and (
+            a.effect is None
+            or EffectKind(a.effect.kind) not in IRREVERSIBLE
+            or EffectKind(a.effect.kind) in allowed
+        )
+    )
+
+
+def _held(state: State, seat: SeatId, asks: Sequence[Ask]) -> bool:
+    """Whether a lock would hold any of the asks, as the seat's own view shows it (LCK):
+    the aide never files a held order and never asks on the seat's behalf."""
+    today = state.in_world_date
+    return today is not None and any(held(state, seat, a, today) is not None for a in asks)
+
+
 def aide_asks(state: State, seat: SeatId, transport: Transport | None) -> list[AideOrder]:
     """The orders an aide files for an absent seat, one per live mandate: its first
-    beginner option, less any irreversible ask the seat has not put in a standing order,
-    less any deal, and in a battle game less any press, withdrawal or contingency. A
-    mandate a deal would meet is skipped, so the opening lapses. Each order carries the
-    chosen option's forecast."""
+    beginner option a lock would not hold, less any irreversible ask the seat has not put
+    in a standing order, less any deal, and in a battle game less any press, withdrawal or
+    contingency. A mandate a deal would meet is skipped, so the opening lapses. Each order
+    carries the chosen option's forecast."""
     global last_cost
     last_cost = None
     if seat not in state.seats:
@@ -677,19 +699,10 @@ def aide_asks(state: State, seat: SeatId, transport: Transport | None) -> list[A
         if _wants_a_deal(mandate):
             continue
         options = _options_for(state, view, mandate, PlayStyle.BEGINNER, transport)
-        if not options:
+        picks = ((o, _aide_may(state, o, allowed)) for o in options)
+        chosen, asks = next(((o, a) for o, a in picks if not _held(state, seat, a)), (None, ()))
+        if chosen is None:
             continue
-        chosen = options[0]
-        asks = tuple(
-            a
-            for a in _battle_safe(state, chosen.asks)
-            if not isinstance(a.effect, Deal)
-            and (
-                a.effect is None
-                or EffectKind(a.effect.kind) not in IRREVERSIBLE
-                or EffectKind(a.effect.kind) in allowed
-            )
-        )
         if asks:
             orders.append(AideOrder(asks, _forecast(chosen)))
         if len(orders) == AIDE_ORDERS:

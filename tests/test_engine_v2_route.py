@@ -320,6 +320,7 @@ def _play(campaign: CampaignId, loyalty: int) -> tuple[RoutedOrder, State, str]:
             )
         ],
     )
+    assert isinstance(order, RoutedOrder)
     result = run_realism_tick(store, campaign)
     return order, load_state(store, campaign), result.state_hash or ""
 

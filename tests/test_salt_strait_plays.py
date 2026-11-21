@@ -96,9 +96,9 @@ class Cast:
     war: Form | None
     """The attacker's declaration of war, or None when the two are at war at the start."""
     march: Form
-    cover: Form
-    """The attacker's air piece moved to cover the front."""
-    recall: Form
+    cover: Form | None
+    """The attacker's air piece moved to cover the front, if the cast has one."""
+    recall: Form | None
     """The air piece sent home once the battle is over, where only the agent sees it."""
     recon: Form
     """The defender's reconnaissance flight, by its form."""
@@ -112,8 +112,9 @@ class Cast:
     """The defender's group the theme moves."""
     offer_area: str
     """The area the offer's dated place clause names (the attacker's own)."""
-    patrol: Form
-    """A form the attacker files while the battle runs, so each wake is one world day."""
+    patrol: Form | None
+    """A form the attacker files while the battle runs, so each wake is one world day; None
+    where the cast's horizon already makes every wake one day."""
 
     def entity(self, key: str) -> EntityId:
         return EntityId(object_id(CAMPAIGN, "entity", key))
@@ -137,21 +138,24 @@ def model_rules(w: World) -> None:
 
 
 def authority(people: dict[str, tuple[str, list[str]]]) -> Change:
-    """Each named leader commands his own forces through his aide, and speaks in public."""
+    """Each named leader commands the named forces through his aide, and speaks in public.
+    The domains are added to any the card already has."""
 
     def change(w: World) -> None:
         for card in w["cards"]:
             if card["person"] in people:
                 executor, forces = people[card["person"]]
-                card["authority"] = [
+                held = card.setdefault("authority", [])
+                held.append(
                     {
                         "name": "army",
                         "effects": ["move_force", "engagement", "investigate", "allocate"],
                         "forces": forces,
                         "executor": executor,
-                    },
-                    {"name": "public_word", "effects": ["statement", "measure"]},
-                ]
+                    }
+                )
+                if not any("statement" in d.get("effects", []) for d in held):
+                    held.append({"name": "public_word", "effects": ["statement", "measure"]})
 
     return change
 
@@ -170,6 +174,15 @@ def horizon(people: tuple[str, ...], days: int) -> Change:
         for card in w["cards"]:
             if card["person"] in people:
                 card["horizon_days"] = days
+
+    return change
+
+
+def placed(piece: str, place: str) -> Change:
+    def change(w: World) -> None:
+        for f in w["features"]:
+            if f["key"] == piece:
+                f["places"] = [place]
 
     return change
 
@@ -213,7 +226,49 @@ SALT_STRAIT = Cast(
     patrol=("galley_patrol", {"intel": "patrol", "piece": "ostrel_galleys"}),
 )
 
-CASTS = (SALT_STRAIT,)
+NINETEEN_41 = Cast(
+    name="autumn-1941",
+    world="autumn-1941",
+    changes=(
+        model_rules,
+        authority(
+            {
+                "churchill": ("ismay", ["western_desert_force"]),
+                "hitler": ("jodl", ["afrika_korps"]),
+            }
+        ),
+        tiers({"afrika_korps": 5, "western_desert_force": 3}),
+        placed("afrika_korps", "tripoli"),
+        horizon(("hitler",), 1),
+    ),
+    defender="churchill",
+    attacker="hitler",
+    defender_nation="uk",
+    attacker_nation="germany",
+    defender_force="western_desert_force",
+    attacker_force="afrika_korps",
+    front="egypt",
+    war=None,
+    march=("move_army", {"force": "afrika_korps", "to": "alexandria"}),
+    cover=None,
+    recall=None,
+    recon=("fly_recon", {"intel": "recon", "piece": "bomber_command", "area": "occupied_france"}),
+    aide="Sir Hastings Ismay",
+    agent={"kind": "investigate", "target": "tripolitania", "question": "agent", "intel": "agent"},
+    theme="an_appeal_to_america",
+    group="public",
+    offer_area="cyrenaica",
+    patrol=None,
+)
+
+"""The 1941 cast: Hitler's Afrika Korps marches on Egypt, held by Churchill's Western
+Desert Force. The test's copy gives each leader command of his desert army, sets the two
+armies' strengths, starts the Afrika Korps at Tripoli (the seeded battle then runs the
+script's course: an even first round, a lull while Hitler holds, and the Western Desert
+Force leaving by its standing order when he presses), and gives Hitler a one-day horizon
+so every wake is one world day, which the patrol does on Salt Strait."""
+
+CASTS = (SALT_STRAIT, NINETEEN_41)
 
 
 # --- no model -------------------------------------------------------------------------
@@ -386,7 +441,8 @@ class Game:
             self.vote()
         elif n == 2:
             self.form(foe, c.march, "march")
-            self.form(foe, c.cover, "cover")
+            if c.cover is not None:
+                self.form(foe, c.cover, "cover")
             self.ask_odds()
         else:
             self.fight(n)
@@ -451,11 +507,12 @@ class Game:
         battle = state.battles.get(front)
         marching = not any(b.battle.area == front for b in self.logged(ev.BattleOpened))
         if battle is None and not marching:
-            if not self.played.recalled:
+            if not self.played.recalled and c.recall is not None:
                 self.form(self.attacker, c.recall, "recall")
                 self.played.recalled = True
             return
-        self.form(self.attacker, c.patrol, f"patrol:{n}")
+        if c.patrol is not None:
+            self.form(self.attacker, c.patrol, f"patrol:{n}")
         if battle is None:
             return
         decision = "hold" if not self.played.decisions else "press"
@@ -592,8 +649,9 @@ def test_the_flight_from_its_form_and_the_agent_from_writing_both_act(
     flown = [f.feature for f in g.logged(ev.FeatureSet) if f.feature.feature_id == piece]
     assert any(f.recon == area and f.recon_on is not None for f in flown)
     mine = g.key(cast.defender_nation)
-    (placed,) = [a for a in g.logged(ev.AgentSet) if a.nation == mine]
-    assert placed.agent.area == g.key(cast.agent["target"])
+    placed, *later = [a for a in g.logged(ev.AgentSet) if a.nation == mine]
+    assert placed.agent.area == g.key(cast.agent["target"]) and placed.agent.lost is None
+    assert all(a.agent.lost is not None for a in later), "a later set only marks the agent lost"
     intel = g.state.intelligence[mine]
     assert any(a.area == placed.agent.area for a in intel.agents)
 

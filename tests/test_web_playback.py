@@ -25,18 +25,24 @@ from revisionist.core import events as ev
 from revisionist.core.ids import CampaignId, EntityId, EventId, FeatureId, SeatId, derived_id
 from revisionist.core.ontology import Controller
 from revisionist.core.project import project
+from revisionist.core.realism import locks
+from revisionist.core.realism.agenda import Ask
+from revisionist.core.realism.effect import MoveForce
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, private_to
 from revisionist.core.world_compile import compile_world
 from revisionist.engine import campaign as cmp
 from revisionist.engine import catchup, realism_tick, session_zero
+from revisionist.engine import wake as wk
 from revisionist.engine.prose import Author, Written, template_prose
 from revisionist.engine.store import MemoryStore, load_state
-from revisionist.engine.web import map_api
+from revisionist.engine.web import catchup_api, map_api, playback
 from revisionist.engine.web import realism_api as api
 from revisionist.engine.web.record_api import _token
 from tests import test_adjacency_moves as adj
+from tests import test_realism_locks as lk
 from tests import test_territory_model as tm
+from tests.test_territory_model import CAMPAIGN as TOY
 from tests.test_web import PASSWORD, Client, Web, web  # noqa: F401
 from tests.test_web_realism import Realism, make_host, post
 from tests.test_web_wake import begin, log_of, seat_of, state_of
@@ -44,7 +50,7 @@ from tests.test_web_wake import begin, log_of, seat_of, state_of
 FIXTURES = Path(__file__).parents[1] / "web" / "test" / "fixtures"
 CLOSED = ("wake_committed", "wake_closed", "seat_handover", "by_aide", "timed_out", "aide")
 CAUSES = ("scripted", "ordered", "forced", "cause")
-KINDS = ("order", "move", "halt", "paper", "holder", "stake")
+KINDS = ("order", "move", "halt", "paper", "holder", "stake", "held")
 World = dict[str, Any]
 
 
@@ -377,7 +383,7 @@ def assert_fogged(state: State, events: list[ev.Event], seat: SeatId, last: int)
         for step in steps:
             kind = step["kind"]
             assert set(step) == shape(kind), step
-            if kind != "holder":
+            if kind not in ("holder", "held"):
                 assert step[POINTS[kind]] in allowed[kind], (seat, wake, step)
             n += 1
     return n
@@ -439,3 +445,266 @@ def test_the_seat_fixture_carries_a_catchup_page_with_steps_of_the_reply_shape(
     for step in fixture["steps"]:
         assert set(step) == shape(step["kind"]), step
     assert [s["kind"] for s in fixture["steps"]] == [s["kind"] for s in page["steps"]]
+
+
+# --- Held orders: each end told to its own seat ----------------------------------------
+#
+# The lock tests' world (``tests/test_realism_locks.py``): the toy with ``locks`` on,
+# Ilse Varg the chancellor, her general Kara Lind and Kara's aide Olaf Brun. A written
+# move of the Norra Levy to the Isle needs Ilse while she has not set a watch on the Gulf.
+
+NOW = datetime(2026, 1, 5, 9, tzinfo=UTC)
+LEVY_TO_ISLE = MoveForce(force=lk.LEVY, to=lk.ISLE)
+OLD_KINDS = frozenset(
+    {
+        "order_drafted",
+        "order_routed",
+        "order_step_taken",
+        "order_settled",
+        "order_executed",
+        "piece_stepped",
+        "step_refused",
+        "document_issued",
+        "area_held",
+        "contest_moved",
+        "contest_decided",
+        "mandate_issued",
+        "mandate_settled",
+        "goal_progressed",
+        "goal_met",
+        "goal_undone",
+    }
+)
+
+
+def watched_move(w: World) -> None:
+    w["locks"].append(
+        {
+            "key": "levy_to_isle",
+            "order": {"effect": "move_force", "zone": "isle"},
+            "when": dict(lk.ROWS[0]["when"]),
+            "decider": {"person": "ilse"},
+        }
+    )
+
+
+def lock_game(tmp: Path, *changes: Callable[[World], None]) -> MemoryStore:
+    store = lk.played(tmp, watched_move, *changes)
+    wk.open_wake(store, TOY, NOW)
+    return store
+
+
+def wake_tick(store: MemoryStore, *present: EntityId) -> None:
+    """The open wake closes (the aide plays every seat not ``present``), the world ticks
+    and the next wake opens."""
+    for person in present:
+        wk.commit(store, TOY, lk.seat(person), NOW)
+    wk.close_wake(store, TOY, NOW, None)
+    realism_tick.run_realism_tick(store, TOY)
+    wk.open_wake(store, TOY, NOW)
+
+
+def stand_down_the_levy(store: MemoryStore) -> None:
+    """The levy is out of service until 1901, as a resolver would set it."""
+    state = load_state(store, TOY)
+    levy = state.features[lk.LEVY].model_copy(update={"in_service": date(1901, 1, 1)})
+    realism_tick._append(store, state, ev.FeatureSet(feature=levy), lk.seat(lk.ILSE))
+
+
+def until_ended(store: MemoryStore, order_id: Any, *present: EntityId) -> None:
+    for _ in range(8):
+        if lk.ends(store, order_id):
+            return
+        wake_tick(store, *present)
+    raise AssertionError("the held order never ended")
+
+
+def failing(tmp: Path, *present: EntityId, olaf_held: bool = False) -> tuple[MemoryStore, Any]:
+    """Kara's written move to the Isle is held; the levy stands down; Ilse sets the watch
+    and the lock opens, but the re-check fails."""
+    store = lock_game(tmp)
+    held = lk.commit(store, lk.KARA, lk.written(LEVY_TO_ISLE))
+    assert isinstance(held, locks.HeldOrder)
+    if olaf_held:
+        assert isinstance(lk.commit(store, lk.OLAF, lk.gulf_fire()), locks.HeldOrder)
+    stand_down_the_levy(store)
+    lk.commit(store, lk.ILSE, lk.guard_the_gulf())
+    until_ended(store, held.order_id, lk.ILSE, *present)
+    return store, held
+
+
+def caught(store: MemoryStore, person: EntityId, **body: Any) -> list[dict[str, Any]]:
+    state, events = load_state(store, TOY), list(store.read(TOY))
+    return list(catchup_api.reply(state, events, lk.seat(person), body)["pages"])
+
+
+def held_lines(pages: list[dict[str, Any]]) -> list[tuple[int, dict[str, Any]]]:
+    return [(p["number"], s) for p in pages for s in p["steps"] if s["kind"] == "held"]
+
+
+def everything(store: MemoryStore) -> int:
+    state = load_state(store, TOY)
+    assert state.wake is not None
+    return state.wake.number
+
+
+FAILED = "Your held order failed: The Norra Levy is not in service until 1 January 1901."
+
+
+def test_a_held_order_whose_re_check_fails_is_told_to_its_seat_with_the_reason(
+    tmp_path: Path,
+) -> None:
+    store, held = failing(tmp_path)
+    (end,) = lk.ends(store, held.order_id)
+    lines = held_lines(caught(store, lk.KARA, first=0, last=everything(store)))
+    assert [s["what"] for _, s in lines] == ["held", "failed"]
+    (wake, failed) = lines[-1]
+    assert set(failed) == shape("held")
+    assert failed["line"] == FAILED and failed["on"] == end.on.isoformat()
+    # On the page of the wake it happened in, as the seat's seam places the end.
+    state, events = load_state(store, TOY), list(store.read(TOY))
+    fed = catchup.feed(state, events, lk.seat(lk.KARA), 0, everything(store))
+    (where,) = [f.wake for f in fed if isinstance(f.event.payload, ev.HeldOrderEnded)]
+    assert wake == where
+    held_line = lines[0][1]
+    assert held_line["line"] == "Held until Ilse Varg allows it: as written."
+    assert held_line["on"] == held.filed.isoformat()
+
+
+def test_a_held_order_that_lands_is_told_with_its_day_and_words(tmp_path: Path) -> None:
+    store = lock_game(tmp_path)
+    order = lk.file(store, "isle")
+    lk.commit(store, lk.ILSE, lk.guard_the_gulf())
+    until_ended(store, order.order_id, lk.ILSE, lk.KARA)
+    (end,) = lk.ends(store, order.order_id)
+    assert end.end is locks.HeldEnd.LANDED
+    lines = held_lines(caught(store, lk.KARA, first=0, last=everything(store)))
+    assert [(s["what"], s["on"], s["line"]) for _, s in lines] == [
+        (
+            "held",
+            order.filed.isoformat(),
+            "Held until Ilse Varg allows it: March (Force Norra levy, To Isle).",
+        ),
+        (
+            "landed",
+            end.on.isoformat(),
+            "Your held order went ahead: March (Force Norra levy, To Isle).",
+        ),
+    ]
+
+
+def test_a_replaced_held_order_is_told_with_the_later_orders_words(tmp_path: Path) -> None:
+    store = lock_game(tmp_path)
+    lk.file(store, "isle")
+    lk.commit(store, lk.KARA, Ask(ask="The levy to the Isle.", effect=LEVY_TO_ISLE))
+    first = lk.commit(store, lk.OLAF, lk.kites_to_isle())
+    lk.commit(store, lk.OLAF, lk.kites_to_isle("The kites to the Isle, now."))
+    last = everything(store)
+    kara = [s["line"] for _, s in held_lines(caught(store, lk.KARA, first=0, last=last))]
+    assert kara[-1] == "Your held order was replaced by a later one: The levy to the Isle."
+    olaf = [
+        (s["what"], s["line"]) for _, s in held_lines(caught(store, lk.OLAF, first=0, last=last))
+    ]
+    assert olaf == [
+        ("held", "Held until Ilse Varg allows it: Send the kites to the Isle."),
+        ("held", "Held until Ilse Varg allows it: The kites to the Isle, now."),
+        ("replaced", "Your held order was replaced by a later one: The kites to the Isle, now."),
+    ]
+    assert isinstance(first, locks.HeldOrder)
+
+
+def test_no_other_seat_is_told_of_a_held_order_or_its_end(tmp_path: Path) -> None:
+    store, _ = failing(tmp_path)
+    last = everything(store)
+    for person in (lk.ILSE, lk.OLAF):
+        pages = caught(store, person, first=0, last=last)
+        assert not held_lines(pages), person
+        assert "not in service" not in json.dumps(pages)
+    # The playback refuses the lines itself, even given the whole log as one wake.
+    state, events = load_state(store, TOY), list(store.read(TOY))
+    whole = [catchup.SeatEvent(wake=0, event=e) for e in events]
+    for person in (lk.ILSE, lk.OLAF):
+        steps = playback_steps(whole, state, lk.seat(person)).get(0, [])
+        assert not [s for s in steps if s["kind"] == "held"], person
+    mine = playback_steps(whole, state, lk.seat(lk.KARA)).get(0, [])
+    assert [s["what"] for s in mine if s["kind"] == "held"] == ["held", "failed"]
+
+
+def untokened(pages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The pages without order and paper ids: one more event in a twin shifts every
+    later id."""
+    out = []
+    for page in pages:
+        kept = {k: v for k, v in page.items() if k not in ("filed", "settled")}
+        kept["steps"] = [
+            {k: v for k, v in s.items() if k not in ("order", "paper")} for s in page["steps"]
+        ]
+        out.append(kept)
+    return out
+
+
+def test_another_seats_held_order_leaves_a_seats_catch_up_as_it_was(tmp_path: Path) -> None:
+    plain, _ = failing(tmp_path / "plain")
+    twin, _ = failing(tmp_path / "twin", olaf_held=True)
+    last = everything(plain)
+    assert everything(twin) == last
+    for person in (lk.KARA, lk.ILSE):
+        a = untokened(caught(plain, person, first=0, last=last))
+        assert a == untokened(caught(twin, person, first=0, last=last)), person
+    olaf = held_lines(caught(twin, lk.OLAF, first=0, last=last))
+    assert [s["what"] for _, s in olaf] == ["held"]
+
+
+def test_a_seat_that_was_away_reads_the_same_lines_as_one_that_was_present(
+    tmp_path: Path,
+) -> None:
+    away, _ = failing(tmp_path / "away")
+    here, _ = failing(tmp_path / "here", lk.KARA)
+    last = everything(away)
+    assert everything(here) == last
+    seen = held_lines(caught(here, lk.KARA, first=0, last=last))
+    assert [s["what"] for _, s in seen] == ["held", "failed"]
+    assert held_lines(caught(away, lk.KARA, first=0, last=last)) == seen
+    # Coming back once the wake that holds the end has closed, with no range named, the
+    # away seat reads the end and its reason.
+    wake_tick(away, lk.ILSE)
+    back = held_lines(caught(away, lk.KARA))
+    assert back[-1][1]["line"] == FAILED
+
+
+def unchanged(store: MemoryStore, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every seat's catch-up is what the playback gave before held orders had steps."""
+    last = everything(store)
+    now = {p: caught(store, p, first=0, last=last) for p in (lk.ILSE, lk.KARA, lk.OLAF)}
+    with monkeypatch.context() as m:
+        m.setattr(playback, "STEP_KINDS", OLD_KINDS)
+        before = {p: caught(store, p, first=0, last=last) for p in now}
+    assert now == before
+    assert any(p["steps"] for pages in now.values() for p in pages)
+    made = {s["kind"] for pages in now.values() for p in pages for s in p["steps"]}
+    assert "held" not in made and made <= set(KINDS), made
+
+
+def test_with_locks_off_the_catch_up_and_playback_are_as_before(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = lock_game(tmp_path, lk.unlocked)
+    lk.file(store, "isle")
+    lk.commit(store, lk.KARA, lk.written(LEVY_TO_ISLE))
+    lk.commit(store, lk.ILSE, lk.guard_the_gulf())
+    for _ in range(3):
+        wake_tick(store, lk.ILSE)
+    assert not lk.logged(store, ev.OrderHeld)
+    unchanged(store, monkeypatch)
+
+
+def test_a_game_with_locks_on_and_no_held_order_is_as_before(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = lock_game(tmp_path)
+    lk.file(store, "norra_hills")
+    lk.commit(store, lk.ILSE, lk.guard_the_gulf())
+    for _ in range(3):
+        wake_tick(store, lk.ILSE)
+    assert not lk.logged(store, ev.OrderHeld)
+    unchanged(store, monkeypatch)

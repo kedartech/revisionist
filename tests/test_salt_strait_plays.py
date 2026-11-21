@@ -20,7 +20,9 @@ for a wake and then presses, and the defender's levy withdraws by its standing o
 The same script body plays the 1941 world with only the cast changed (``CASTS``). The
 test's copy of each world changes data only (``Cast.changes``): it switches on the three
 rules a live model reads, which every shipped world leaves off, and the rest is listed as
-findings against the items that own the data (``FINDINGS``). This file changes no rule.
+findings against the items that own the data. Invariants 2, 3 and 4 are played on the
+Salt Strait cast as well (rule 3), as ``tests/test_async_invariants.py`` plays them on the
+1941 slice. This file changes no rule.
 """
 
 import json
@@ -333,8 +335,7 @@ class Game:
     ) -> None:
         self.cast = cast
         self.tmp = tmp
-        self.offline = offline
-        """Offline, the tick asks no transport at all; otherwise every call gets ``NoModel``."""
+        self.offline = offline  # offline the tick asks no transport; else every call gets NoModel
         self.ids = SeatIds()
         self.ids.install(monkeypatch)
         self.store: EventStore = store if store is not None else MemoryStore()
@@ -915,7 +916,8 @@ def test_3_on_salt_strait_presence_buys_nothing(
     the digest can tell."""
     digests: dict[str, str] = {}
     filed: dict[str, int] = {}
-    for name, script in {**PRESENCE, "control": [held_back]}.items():
+    scripts: dict[str, list[Step]] = {**PRESENCE, "control": [held_back]}
+    for name, script in scripts.items():
         with monkeypatch.context() as m:
             g = run_wakes(Game(SALT_STRAIT, tmp_path / name.replace(" ", "-"), m), script)
             state = g.state

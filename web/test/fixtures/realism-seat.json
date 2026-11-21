@@ -2290,7 +2290,81 @@
         "text": "Keep the convoys moving to Iceland.",
         "days_left": 6
       }
-    ]
+    ],
+    "decided": [
+      {
+        "name": "The Kearny incident",
+        "prize": "Whether a torpedoed destroyer moves Congress.",
+        "sides": [
+          "Aid-to-Britain bloc",
+          "Non-interventionist bloc"
+        ],
+        "winner": "Aid-to-Britain bloc"
+      }
+    ],
+    "aims": [
+      {
+        "aim": 1,
+        "text": "Keep Britain in the war.",
+        "source": "post",
+        "status": "met",
+        "rule": "Britain is at war with Germany.",
+        "opens": null,
+        "deadline": null,
+        "leaves": [
+          {
+            "reads": "United Kingdom and Germany at war",
+            "seen": "public",
+            "holds": true,
+            "evidence": [
+              "United Kingdom and Germany are at war."
+            ]
+          }
+        ],
+        "reason": "It holds now."
+      },
+      {
+        "aim": 2,
+        "text": "Bring Congress round on the Neutrality Act.",
+        "source": "post",
+        "status": "at_risk",
+        "rule": "Support for the interventionists in the United States at least 55, by the deciding day.",
+        "opens": null,
+        "deadline": "1941-11-13",
+        "leaves": [
+          {
+            "reads": "support for interventionists in United States at least 55",
+            "seen": "own",
+            "holds": false,
+            "evidence": [
+              "Interventionists in United States stands at 51."
+            ]
+          }
+        ],
+        "reason": "It does not hold now; it still can. 24 days are left."
+      },
+      {
+        "aim": 3,
+        "text": "Keep Japan from striking south.",
+        "source": "post",
+        "status": "at_risk",
+        "rule": "Japan's shipping to the south at most 200000 tons.",
+        "opens": null,
+        "deadline": null,
+        "leaves": [
+          {
+            "reads": "a figure at most 200000",
+            "seen": "uncertain",
+            "holds": null,
+            "evidence": []
+          }
+        ],
+        "reason": "It is uncertain: one of its checks reads what is hidden from you."
+      }
+    ],
+    "degree": null,
+    "drift": 3,
+    "season_days_left": 48
   },
   "court": {
     "paths": [

@@ -18,7 +18,9 @@ game with ``reports`` on, each wake also counts the reports every nation's sourc
 by source, and the share that were wrong (RPD): engine-only counts for the operator,
 naming no piece. In a game with ``agreements`` on, each wake also counts the clauses of
 agreements judged kept and judged broken while it was the latest wake opened (AGA):
-counts only, never an agreement, a party or a clause.
+counts only, never an agreement, a party or a clause. In a game with ``aims`` on, each
+wake also counts, per seat, the aims of the person it holds that were met, at risk and
+failed as the wake ended (SCD): counts only, never an aim's words or its condition.
 
 An operator command (``revisionist db wake-report``) that prints counts and public
 board facts, and no record's content. Nothing a seat reaches imports it.
@@ -31,6 +33,7 @@ from statistics import median
 from revisionist.core import events as ev
 from revisionist.core.events import Event
 from revisionist.core.fold import apply, replay
+from revisionist.core.goals import AimStatus, aim_status, aims_on, holder_seat
 from revisionist.core.ids import CampaignId, EntityId, SeatId
 from revisionist.core.ontology import Controller, EntityKind
 from revisionist.core.realism import agreement, battle, detect, economy, holders
@@ -129,6 +132,14 @@ class Intelligence:
 
 
 @dataclass(frozen=True)
+class Aims:
+    number: int
+    seats: tuple[tuple[str, int, int, int], ...]
+    """Each seat holding a person with aims, by name: how many were met, at risk and
+    failed as the wake ended."""
+
+
+@dataclass(frozen=True)
 class Report:
     campaign_id: CampaignId | None
     wakes: tuple[WakeRow, ...]
@@ -142,6 +153,8 @@ class Report:
     """One per wake opened, in a game with ``reports`` on; else empty."""
     clauses: tuple[Clauses, ...] = ()
     """One per wake opened, in a game with ``agreements`` on; else empty."""
+    aims: tuple[Aims, ...] = ()
+    """One per wake opened, in a game with ``aims`` on; else empty."""
 
 
 @dataclass
@@ -213,6 +226,7 @@ def build(events: Sequence[Event]) -> Report:
         _fighting(events, state),
         _intelligence(events, state),
         _clauses(events, state),
+        _aims(events) if aims_on(state) else (),
     )
 
 
@@ -320,6 +334,38 @@ def _intelligence(events: Sequence[Event], state: State) -> tuple[Intelligence, 
     )
 
 
+def _aims_at(state: State, number: int) -> Aims:
+    """Per seat, the aims of the person it holds met, at risk and failed in ``state``."""
+    counts: dict[SeatId, list[int]] = {}
+    order = (AimStatus.MET, AimStatus.AT_RISK, AimStatus.FAILED)
+    for g in state.goals.values():
+        seat = holder_seat(state, g) if g.person is not None else None
+        if seat is None:
+            continue
+        counts.setdefault(seat, [0, 0, 0])[order.index(aim_status(state, g))] += 1
+    names = {s.seat_id: s.name for s in state.seats.values()}
+    rows = sorted((names.get(seat, seat), c[0], c[1], c[2]) for seat, c in counts.items())
+    return Aims(number, tuple(rows))
+
+
+def _aims(events: Sequence[Event]) -> tuple[Aims, ...]:
+    """Each wake's aims per seat as it ended (when the next wake opened, or now for the
+    latest), folding the log once in order."""
+    state: State | None = None
+    out: list[Aims] = []
+    number: int | None = None
+    for e in events:
+        p = e.payload
+        if isinstance(p, ev.WakeOpened) and state is not None and number is not None:
+            out.append(_aims_at(state, number))
+        state = replay([e]) if state is None else apply(state, e)
+        if isinstance(p, ev.WakeOpened):
+            number = p.wake
+    if state is not None and number is not None:
+        out.append(_aims_at(state, number))
+    return tuple(out)
+
+
 def _how(closed: ev.WakeClosed | None) -> str:
     if closed is None:
         return OPEN
@@ -370,6 +416,7 @@ def render(report: Report) -> list[str]:
     fought = {f.number: f for f in report.fighting}
     heard = {i.number: i for i in report.intelligence}
     judged = {c.number: c for c in report.clauses}
+    aimed = {a.number: a for a in report.aims}
     for w in report.wakes:
         lines.append(f"  wake {w.number}: {w.how}")
         if w.number in held:
@@ -385,6 +432,8 @@ def render(report: Report) -> list[str]:
         if w.number in judged:
             c = judged[w.number]
             lines.append(f"    clauses: {c.kept} kept, {c.broken} broken")
+        if w.number in aimed:
+            lines.append(_aimed(aimed[w.number]))
     lines += [
         f"seat {s.name}: aide played {_plural(s.aide_wakes, 'wake')}; {_hours(s)}"
         for s in report.seats
@@ -419,6 +468,15 @@ def _holding(h: Holding) -> list[str]:
     return out
 
 
+def _aimed(a: Aims) -> str:
+    if not a.seats:
+        return "    aims: no seat holds a person with aims"
+    rows = "; ".join(
+        f"{name} {met} met, {risk} at risk, {failed} failed" for name, met, risk, failed in a.seats
+    )
+    return f"    aims: {rows}"
+
+
 def _heard(i: Intelligence) -> str:
     if not i.made:
         return "    reports: none"
@@ -438,6 +496,7 @@ def lines(store: EventStore, campaign_ids: Sequence[CampaignId]) -> list[str]:
 
 
 __all__ = [
+    "Aims",
     "Clauses",
     "Fighting",
     "Holding",

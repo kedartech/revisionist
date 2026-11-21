@@ -126,11 +126,11 @@ def _ready(order: RoutedOrder, part: RoutedPart) -> date | None:
     return max(done, order.filed)
 
 
-def _move(world: PassWorld, effect: MoveForce, on: date) -> list[ev.Payload]:
+def _move(world: PassWorld, effect: MoveForce, on: date, twin: bool = False) -> list[ev.Payload]:
     force = world.features.get(effect.force)
     if force is None:
         return []
-    in_battle = battle.land_posture(world.state, force, effect.posture, effect.to, on)
+    in_battle = battle.land_posture(world.state, force, effect.posture, effect.to, on, twin=twin)
     if in_battle is not None:
         for p in in_battle:
             if isinstance(p, ev.FeatureSet):
@@ -237,10 +237,11 @@ def _land(
     issuer: EntityId,
     on: date,
     author: EntityId,
+    twin: bool = False,
 ) -> tuple[list[ev.Payload], list[FactId]]:
     match effect:
         case MoveForce():
-            return _move(world, effect, on), []
+            return _move(world, effect, on, twin), []
         case SetEngagement():
             return _engage(world, effect, issuer, on), []
         case ShiftDisposition():
@@ -275,11 +276,12 @@ def _landed(
     on: date,
     author: EntityId,
     ref: str,
+    twin: bool = False,
 ) -> tuple[list[ev.Payload], list[FactId]]:
     """``_land``, with an intelligence order the rules refuse reported to the issuer in
     the rules' words, and what lands taken into the pass so the next part sees it."""
     try:
-        payloads, facts = _land(world, effect, issuer_seat, issuer, on, author)
+        payloads, facts = _land(world, effect, issuer_seat, issuer, on, author, twin)
     except detect.IntelError as exc:
         return _refused(world, issuer_seat, author, on, ref, str(exc)), []
     _take(world, payloads)
@@ -496,6 +498,15 @@ def apply_due(state: State, today: date) -> list[ev.Payload]:
                 continue
             due.append(_Due(order, i, part, max(today, ready), _carried(state, order, part)))
     heard = _heard(state, due, today)
+    # A side's decisions due in this pass settle by content, not by the order above (BDS).
+    twins = battle.twins(
+        state,
+        (
+            (d.order.issuer, f"{d.order.order_id}:{d.at}:{n}", e, d.on)
+            for d in due
+            for n, e in enumerate(d.effects)
+        ),
+    )
     for d in due:
         order, i, on = d.order, d.at, d.on
         issuer_seat = order.issuer
@@ -508,7 +519,9 @@ def apply_due(state: State, today: date) -> list[ev.Payload]:
                 events += statement.nudge(world, effect, issuer_seat, _words(d.part), on)
                 continue
             ref = f"{order.order_id}:{i}:{n}"
-            landed, facts = _landed(world, effect, issuer_seat, issuer, on, author, ref)
+            landed, facts = _landed(
+                world, effect, issuer_seat, issuer, on, author, ref, ref in twins
+            )
             events += landed
             revealed += [f for f in facts if f not in revealed]
         out += events

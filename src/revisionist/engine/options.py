@@ -37,6 +37,7 @@ from revisionist.core.realism.effect import (
     Effect,
     EffectKind,
     Engagement,
+    Forecast,
     MakeStatement,
     MoveForce,
     Posture,
@@ -637,27 +638,51 @@ def _battle_safe(state: State, asks: Sequence[Ask]) -> tuple[Ask, ...]:
     return tuple(out)
 
 
-def aide_asks(state: State, seat: SeatId, transport: Transport | None) -> list[tuple[Ask, ...]]:
+class AideOrder(tuple[Ask, ...]):
+    """The asks an aide files for one mandate, carrying the forecast of the option it
+    chose (FCS). Compares as its asks; the forecast rides along for ``commit_order``."""
+
+    forecast: Forecast | None = None
+
+    def __new__(cls, asks: Iterable[Ask], forecast: Forecast | None = None) -> "AideOrder":
+        order = super().__new__(cls, asks)
+        order.forecast = forecast
+        return order
+
+
+def forecast_of(order: Sequence[Ask]) -> Forecast | None:
+    """The forecast an aide's order carries; None for a plain sequence of asks."""
+    return order.forecast if isinstance(order, AideOrder) else None
+
+
+def _forecast(option: Option) -> Forecast | None:
+    found = Forecast(expects=option.expects, risks=option.risks)
+    return None if found.empty() else found
+
+
+def aide_asks(state: State, seat: SeatId, transport: Transport | None) -> list[AideOrder]:
     """The orders an aide files for an absent seat, one per live mandate: its first
     beginner option, less any irreversible ask the seat has not put in a standing order,
     less any deal, and in a battle game less any press, withdrawal or contingency. A
-    mandate a deal would meet is skipped, so the opening lapses."""
+    mandate a deal would meet is skipped, so the opening lapses. Each order carries the
+    chosen option's forecast."""
     global last_cost
     last_cost = None
     if seat not in state.seats:
         return []
     view = project(state, seat)
     allowed = state.standing.get(seat, frozenset())
-    orders: list[tuple[Ask, ...]] = []
+    orders: list[AideOrder] = []
     for mandate in _live(view):
         if _wants_a_deal(mandate):
             continue
         options = _options_for(state, view, mandate, PlayStyle.BEGINNER, transport)
         if not options:
             continue
+        chosen = options[0]
         asks = tuple(
             a
-            for a in _battle_safe(state, options[0].asks)
+            for a in _battle_safe(state, chosen.asks)
             if not isinstance(a.effect, Deal)
             and (
                 a.effect is None
@@ -666,7 +691,7 @@ def aide_asks(state: State, seat: SeatId, transport: Transport | None) -> list[t
             )
         )
         if asks:
-            orders.append(asks)
+            orders.append(AideOrder(asks, _forecast(chosen)))
         if len(orders) == AIDE_ORDERS:
             break
     return orders
@@ -678,7 +703,9 @@ __all__ = [
     "OPTIONS_SCHEMA",
     "PROMPT",
     "RECORDING",
+    "AideOrder",
     "aide_asks",
+    "forecast_of",
     "last_cost",
     "offer",
     "options_prompt",

@@ -95,7 +95,7 @@ from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, Scope, Visibility, private_to
 from revisionist.core.world_compile import card_policy, object_id
 from revisionist.engine import campaign as cmp
-from revisionist.engine import session_zero
+from revisionist.engine import season, session_zero
 from revisionist.engine.emit import Emitter, tail
 from revisionist.engine.estimate import aide_orders, estimate, reads_groups
 from revisionist.engine.ids import new_id
@@ -275,6 +275,8 @@ def run_realism_tick(
     digest = state_hash(em.state)
     em.commit([em.event(ev.TickClosed(state_hash=digest, costs=tuple(costs)))])
     em.store.save_snapshot(em.state)
+    if season.due(em.state):
+        season.end_season(em.store, campaign_id)
     return result.model_copy(update={"state_hash": digest})
 
 

@@ -88,8 +88,9 @@ def harbour_count(w: World) -> None:
 
 
 def legs(w: World) -> None:
-    """The record moves the Norra Herald toward Sudby and the Sudland Levy to Norrhavn."""
-    adj.set_feature("norra_herald", legs=[{"since": "1900-04-05", "places": ["sudby"]}])(w)
+    """The record moves the Norra Herald to the Gulf Roads (an envoy keeps out of enemy
+    ground, ENV) and the Sudland Levy to Norrhavn."""
+    adj.set_feature("norra_herald", legs=[{"since": "1900-04-05", "places": ["gulf_roads"]}])(w)
     adj.set_feature("sudland_levy", legs=[{"since": "1900-04-04", "places": ["norrhavn"]}])(w)
 
 

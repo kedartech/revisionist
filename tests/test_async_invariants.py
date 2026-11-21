@@ -7,7 +7,6 @@ into lapse and conference. A test that cannot pass yet is a strict expected
 failure naming the item that makes it pass; that item removes the mark.
 """
 
-import importlib
 import json
 from collections.abc import Callable, Sequence
 from datetime import date, timedelta
@@ -19,10 +18,11 @@ import pytest
 from revisionist.core import events as ev
 from revisionist.core.goals import Ordered
 from revisionist.core.ids import EventId, MandateId, SeatId, derived_id
-from revisionist.core.realism import advance
+from revisionist.core.realism import advance, conference
 from revisionist.core.realism import agenda as ra
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism.agenda import Ask, Option
+from revisionist.core.realism.conference import ConferenceText, Vote
 from revisionist.core.realism.effect import IRREVERSIBLE, EffectKind, Route
 from revisionist.core.realism.pipeline import step_due
 from revisionist.core.visibility import private_to
@@ -31,6 +31,7 @@ from revisionist.engine import catchup, options, realism_tick
 from revisionist.engine import scheduler as sch
 from revisionist.engine.pg_store import PostgresEventStore
 from revisionist.engine.store import MemoryStore
+from tests import test_conference as cnf
 from tests.async_table import AsyncTable, Step, answer_days, digest, papers, run_wakes
 from tests.pg import PgDb
 from tests.test_engine_v2_wake import CAMPAIGN
@@ -557,13 +558,32 @@ def test_8_offers_lapse(table: AsyncTable, monkeypatch: pytest.MonkeyPatch) -> N
     assert t.state.mandates[opening].status is ra.MandateStatus.EXPIRED
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=ModuleNotFoundError,
-    reason="stage 3: conference, group 1 point 4",
-)
-def test_8_votes_are_filed_ahead() -> None:
+def test_8_votes_are_filed_ahead(tmp_path: Path) -> None:
     """A conference tallies with one seat never present: votes are sealed ahead, and
     the aide votes by the card or abstains."""
-    conference = importlib.import_module("revisionist.core.realism.conference")
-    assert conference.tally  # stage 3 writes the test against its own API
+
+    def played(tomas: Vote | None) -> cnf.Game:
+        here = tmp_path / (tomas.value if tomas is not None else "away")
+        here.mkdir()
+        g = cnf.game(here)
+        g.open()
+        g.call(text=ConferenceText(wording="Free trade on the gulf."))
+        g.vote(cnf.ILSE, Vote.FOR)
+        if tomas is not None:
+            g.vote(cnf.TOMAS, tomas)
+        cnf.run_until_tallied(g)
+        return g
+
+    away = played(None)  # Tomas never sits; Olaf files nothing either
+    conf = away.state.conferences.held[cnf.CHARTER]
+    assert conf.tally is not None, "the tally waited on an absent seat"
+    assert conf.tally == conference.tally(away.state, conf, conf.tally.on)
+    counted = {v.nation: v.vote for v in conf.tally.votes}
+    # Olaf's card wants trade: the aide votes by it; Tomas's card leans on nothing
+    assert counted == {cnf.NORRA: Vote.FOR, cnf.SUDLAND: Vote.ABSTAIN, cnf.OSTMARK: Vote.FOR}
+    present = played(Vote.ABSTAIN)
+    assert present.state.conferences.held[cnf.CHARTER].tally == conf.tally, (
+        "away does not look like present and quiet"
+    )
+    with pytest.raises(ValueError, match="has voted"):
+        conference.vote(away.state, cnf.TOMAS, cnf.CHARTER, Vote.FOR)

@@ -146,8 +146,12 @@ def answer_due(state: State, order: RoutedOrder, i: int) -> tuple[date, EntityId
     elif part.target is None or _human(state, part.target):
         return None
     else:
-        channels = reach.channels_to(state, state.seats[order.issuer].embodies, part.target)
-        settled = order.filed + timedelta(days=reach.transit_days(channels[0]) if channels else 0)
+        person = state.seats[order.issuer].embodies
+        channels = reach.channels_to(state, person, part.target)
+        days = (
+            reach.transit(state, person, part.target, channels[0], order.filed) if channels else 0
+        )
+        settled = order.filed + timedelta(days=days)
     author, channel = reporter(state, order, i)
     return settled + timedelta(days=reach.transit_days(channel)), author
 

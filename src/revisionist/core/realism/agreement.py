@@ -8,10 +8,17 @@ parties, the wording and the clauses); a decline, or no answer by the due day, l
 with no obligation on anyone. The card never answers an offer, and neither does the aide.
 
 Each typed clause is judged from the state on its date, or each day while it stands;
-wording that fits no type is kept and never judged, and a vote clause is the
-conference's to judge. A broken clause costs the breaker's leader regard with each other
+wording that fits no type is kept and never judged, and a vote clause is judged only
+from the tally of its conference (CNF), void when that conference is cancelled or does
+not invite the nation it binds. A broken clause costs the breaker's leader regard with each other
 party's leader and, when the agreement is public, moves the breaker's groups at home.
 Nothing enforces a clause. Every rule here acts only with ``agreements`` on.
+
+An offer may name an envoy of the offering nation's as its carrier (ENV). It goes to one
+other nation, and is delivered on the day the envoy stands in the area that holds that
+nation's capital: only then is it recorded for its parties and its paper sent, and its
+expiry counts from that day. One the envoy has not delivered within ``CARRY_DAYS`` of
+filing lapses, told to the offering nation only.
 """
 
 import hashlib
@@ -34,7 +41,10 @@ if TYPE_CHECKING:
     from revisionist.core.visibility import Scope
 
 OFFER_DAYS = 4  # [proposed] plan, AGR Defaults
-"""World days an offer stands after it is filed; its answers are decided on the last."""
+"""World days an offer stands after it is filed, or after its envoy delivers it; its answers
+are decided on the last."""
+CARRY_DAYS = 30  # [proposed] ENV: an offer's envoy has this long to deliver it
+"""World days from filing within which an envoy delivers the offer it carries, else it lapses."""
 BREAK_REGARD = -2  # [proposed] plan, AGR Defaults
 """What a broken clause moves the regard between the breaker's leader and each other
 party's leader."""
@@ -56,7 +66,10 @@ class ClauseStatus(StrEnum):
     CALLED = "called"
     """A defence clause an attack has called on: war is due by the call's day."""
     UNCHECKED = "unchecked"
-    """Wording the rules cannot check, or a vote clause the conference judges."""
+    """Wording the rules cannot check."""
+    VOID = "void"
+    """A vote clause whose conference was cancelled or does not invite the nation it
+    binds: neither kept nor broken, and it costs nothing (CNF)."""
 
 
 class AgreementOffer(Model):
@@ -180,6 +193,11 @@ def _name(state: "State | View", who: EntityId | None) -> str:
     return found.name if found is not None else "an unknown party"
 
 
+def nation_name(state: "State | View", who: EntityId | None) -> str:
+    """The name of a nation or person, as the terms write it."""
+    return _name(state, who)
+
+
 def _day(day: date) -> str:
     return f"{day.day} {day:%B} {day.year}"
 
@@ -262,7 +280,8 @@ def parties_scope(state: "State", parties: Sequence[EntityId]) -> "Scope":
 # --- filing ---------------------------------------------------------------------------
 
 
-def _clause_refusal(state: "State", clause: AgreementClause) -> str:
+def clause_refusal(state: "State", clause: AgreementClause) -> str:
+    """Why a clause names what the world does not have; empty when it does not."""
     from revisionist.core.ontology import EntityKind
 
     board = state.map
@@ -304,9 +323,92 @@ def refusal(state: "State", seat: SeatId, deal: Deal) -> str:
         if party != own and speaker(state, party) is None:
             return f"No one answers for {found_party.name}."
     for clause in deal.clauses:
-        why = _clause_refusal(state, clause)
+        why = clause_refusal(state, clause) or _vote_refusal(state, seat, clause)
         if why:
             return why
+    return _envoy_refusal(state, own, deal)
+
+
+def _envoy_refusal(state: "State", own: EntityId, deal: Deal) -> str:
+    """An envoy carries an offer to one other nation that has a capital, and is a piece
+    of the offering nation's whose kind has the ``envoy`` domain (ENV rule 2)."""
+    from revisionist.core.realism import kinds, territory
+    from revisionist.core.realism.geography import in_play
+
+    if deal.envoy is None:
+        return ""
+    found = state.features.get(deal.envoy)
+    if (
+        found is None
+        or not in_play(found)
+        or kinds.domain(state, found) is not kinds.Domain.ENVOY
+        or territory.nation(state, found.side) != own
+    ):
+        return "An offer's envoy is an envoy of your own nation's."
+    if len(deal.parties) != 2:
+        return "An envoy carries an offer to one other nation."
+    if capital_area(state, deal.counterparty) is None:
+        name = _entity_name(state, deal.counterparty)
+        return f"{name} has no capital for an envoy to reach."
+    return ""
+
+
+def _entity_name(state: "State", entity: EntityId) -> str:
+    found = state.entities.get(entity)
+    return found.name if found is not None else str(entity)
+
+
+def capital_area(state: "State", nation: EntityId) -> EntityId | None:
+    """The area that holds ``nation``'s capital, as an envoy stands there; None for a
+    nation with no capital or a game with no board."""
+    from revisionist.core.realism import territory
+    from revisionist.core.realism.kinds import Domain
+
+    board = state.map
+    place = board.capitals.get(nation) if board is not None else None
+    return None if place is None else territory.area_of(state, place, Domain.ENVOY)
+
+
+def envoy_at(state: "State", envoy: FeatureId, nation: EntityId) -> date | None:
+    """The day from which the envoy has stood, in play, in the area that holds
+    ``nation``'s capital: the last day it was set down (``as_of``), which is never earlier
+    than the day it stepped in. None while it stands elsewhere (ENV)."""
+    from revisionist.core.realism.geography import in_play
+
+    found = state.features.get(envoy)
+    area = capital_area(state, nation)
+    if found is None or area is None or not in_play(found) or found.places[0] != area:
+        return None
+    return found.as_of
+
+
+def envoy_at_capital(state: "State", frm: EntityId, nation: EntityId) -> date | None:
+    """The earliest day from which an envoy of ``frm``'s has stood at ``nation``'s
+    capital, by the rule of ``envoy_at``; None when none stands there (ENV rule 3)."""
+    from revisionist.core.realism import kinds, territory
+
+    days = [
+        since
+        for f in sorted(state.features.values(), key=lambda x: x.feature_id)
+        if kinds.domain(state, f) is kinds.Domain.ENVOY
+        and territory.nation(state, f.side) == frm
+        and (since := envoy_at(state, f.feature_id, nation)) is not None
+    ]
+    return min(days, default=None)
+
+
+def _vote_refusal(state: "State", seat: SeatId, clause: AgreementClause) -> str:
+    """A vote clause names a conference the seat knows of, and falls due no earlier than
+    its voting day (rule 6, CNF)."""
+    from revisionist.core.realism import conference
+
+    if clause.type is not ClauseType.VOTE:
+        return ""
+    found = conference.seen_by(state, seat).held.get(clause.text)
+    if found is None:
+        return "A vote clause names a conference you know of."
+    if clause.on is not None and clause.on < found.voting_day:
+        return "A vote clause falls due no earlier than its conference's voting day."
     return ""
 
 
@@ -336,13 +438,36 @@ def publish_part(ask: str, deal: Deal) -> RoutedPart:
     return RoutedPart(route=Route.COMMAND, ask=ask, effect=deal, domain=PUBLISH_DOMAIN)
 
 
-def due(routed: "RoutedOrder") -> date:
-    """An offer's due day: its expiry."""
-    return routed.filed + timedelta(days=OFFER_DAYS)
+def due(routed: "RoutedOrder", delivered: date | None = None) -> date:
+    """An offer's due day: its expiry, counted from its delivery (by default, its filing)."""
+    return (delivered or routed.filed) + timedelta(days=OFFER_DAYS)
 
 
-def make_offer(state: "State", routed: "RoutedOrder", deal: Deal) -> AgreementOffer:
-    """The offer an order carries, as its parties know it."""
+def carried(routed: "RoutedOrder") -> FeatureId | None:
+    """The envoy that carries the order's offer, where one does."""
+    deal = _offer_of(routed)
+    return deal.envoy if deal is not None else None
+
+
+def delivered_on(state: "State", routed: "RoutedOrder") -> date | None:
+    """The day the order's offer reached the other nation: its filing, or for an offer an
+    envoy carries the day of delivery, None before it (ENV rule 2)."""
+    if carried(routed) is None:
+        return routed.filed
+    found = state.agreements.offers.get(routed.order_id)
+    return None if found is None else found.expires - timedelta(days=OFFER_DAYS)
+
+
+def lapse_day(routed: "RoutedOrder") -> date:
+    """The day an offer its envoy has not delivered lapses."""
+    return routed.filed + timedelta(days=CARRY_DAYS)
+
+
+def make_offer(
+    state: "State", routed: "RoutedOrder", deal: Deal, delivered: date | None = None
+) -> AgreementOffer:
+    """The offer an order carries, as its parties know it; delivered on ``delivered``
+    when an envoy carries it."""
     own = _nation(state, routed.issuer)
     return AgreementOffer(
         offer_id=routed.order_id,
@@ -352,7 +477,7 @@ def make_offer(state: "State", routed: "RoutedOrder", deal: Deal) -> AgreementOf
         wording=deal.wording,
         clauses=deal.clauses,
         filed=routed.filed,
-        expires=due(routed),
+        expires=due(routed, delivered),
     )
 
 
@@ -429,7 +554,7 @@ def _paper(
     )
 
 
-def _papers(
+def papers(
     state: "State",
     parties: Sequence[EntityId],
     key: Sequence[str],
@@ -449,12 +574,10 @@ def _papers(
 
 
 def statuses(clauses: Sequence[AgreementClause]) -> tuple[ClauseStatus, ...]:
-    """Each clause's status when an agreement is made: unchecked for wording and for a
-    vote clause (the conference's to judge), standing for every other."""
+    """Each clause's status when an agreement is made: unchecked for wording, standing
+    for every other (a vote clause stands until its conference's tally judges it)."""
     return tuple(
-        ClauseStatus.UNCHECKED
-        if c.type in (ClauseType.UNCHECKED, ClauseType.VOTE)
-        else ClauseStatus.STANDING
+        ClauseStatus.UNCHECKED if c.type is ClauseType.UNCHECKED else ClauseStatus.STANDING
         for c in clauses
     )
 
@@ -534,6 +657,8 @@ def _offer_day(state: "State", routed: "RoutedOrder", deal: Deal, day: date) -> 
 
     out: list[Payload] = []
     offer = state.agreements.offers.get(routed.order_id)
+    if offer is None and deal.envoy is not None:
+        return _undelivered(state, routed, deal, day)
     if offer is None:
         if routed.filed > day:
             return []
@@ -551,7 +676,7 @@ def _offer_day(state: "State", routed: "RoutedOrder", deal: Deal, day: date) -> 
     if all(p.accepted for _, p in parts):
         made = _made(state, offer, day)
         out.append(ev.AgreementMade(agreement=made))
-        out += _papers(
+        out += papers(
             state,
             offer.parties,
             ("made", made.agreement_id),
@@ -560,7 +685,7 @@ def _offer_day(state: "State", routed: "RoutedOrder", deal: Deal, day: date) -> 
             terms,
         )
     else:
-        out += _papers(
+        out += papers(
             state,
             offer.parties,
             ("lapsed", offer.offer_id),
@@ -568,6 +693,59 @@ def _offer_day(state: "State", routed: "RoutedOrder", deal: Deal, day: date) -> 
             "An offer of agreement lapsed",
             [("Why", "Not every named nation accepted it."), *terms],
         )
+    return out
+
+
+def _undelivered(state: "State", routed: "RoutedOrder", deal: Deal, day: date) -> list["Payload"]:
+    """An offer its envoy has not delivered: once its parts are decided on the lapse day,
+    closed with a paper to the offering nation's seats only; the other nation never knew
+    of it (ENV rule 2)."""
+    from revisionist.core import events as ev
+
+    parts = [(i, p) for i, p in enumerate(routed.parts) if is_offer(p)]
+    if any(p.decided is None for _, p in parts) or all(p.applied is not None for _, p in parts):
+        return []
+    out: list[Payload] = [
+        ev.EffectsApplied(order_id=routed.order_id, part=i, on=day)
+        for i, p in parts
+        if p.applied is None
+    ]
+    offer = make_offer(state, routed, deal)
+    why = "Its envoy did not reach the capital in time."
+    out += papers(
+        state,
+        (offer.by,),
+        ("lapsed", offer.offer_id),
+        day,
+        "An offer of agreement lapsed",
+        [("Why", why), *term_rows(state, offer)],
+    )
+    return out
+
+
+def deliveries(state: "State", day: date) -> list["Payload"]:
+    """With ``agreements`` on, each offer an envoy carries delivered on ``day``, read after
+    the day's moves: recorded for its parties, its expiry counted from the day the envoy
+    came to stand at the other nation's capital, never before it nor before the filing,
+    and before the lapse day (ENV rule 2)."""
+    if not on(state):
+        return []
+    from revisionist.core import events as ev
+
+    out: list[Payload] = []
+    for routed in sorted(state.routed.values(), key=lambda o: (o.filed, o.order_id)):
+        deal = _offer_of(routed)
+        if deal is None or deal.envoy is None or routed.order_id in state.agreements.offers:
+            continue
+        if routed.filed > day or lapse_day(routed) <= day:
+            continue
+        if any(p.decided is not None for p in routed.parts if is_offer(p)):
+            continue
+        since = envoy_at(state, deal.envoy, deal.counterparty)
+        if since is None:
+            continue
+        delivered = min(day, max(routed.filed, since))
+        out.append(ev.AgreementOffered(offer=make_offer(state, routed, deal, delivered)))
     return out
 
 
@@ -745,7 +923,7 @@ def _regard(state: "State", breaker: EntityId, wronged: EntityId) -> "Payload | 
     return ev.RelationshipSet(relationship=rel)
 
 
-def _broken(state: "State", x: Agreement, n: int, day: date) -> list["Payload"]:
+def broken_costs(state: "State", x: Agreement, n: int, day: date) -> list["Payload"]:
     """What a broken clause costs: regard between the breaker's leader and each other
     party's leader, and, when the agreement is public, the breaker's groups."""
     from revisionist.core.realism import groups
@@ -768,15 +946,21 @@ _TITLES = {
     ClauseStatus.KEPT: "A clause of an agreement was kept",
     ClauseStatus.BROKEN: "A clause of an agreement was broken",
     ClauseStatus.CALLED: "A clause of an agreement is called on",
+    ClauseStatus.VOID: "A clause of an agreement is void",
 }
+
+
+def title_of(status: ClauseStatus) -> str:
+    """The title of the paper a clause judged ``status`` sends."""
+    return _TITLES[status]
 
 
 def judge(state: "State", day: date, today: Sequence["Payload"]) -> list["Payload"]:
     """With ``agreements`` on, each agreement's typed clauses judged on ``day`` from the
     state and the day's events (``today``): a dated clause on its date, a standing one
     each day. Each judgement is a ``clause_judged`` with a paper to every party's seats;
-    a broken clause also costs what ``_broken`` says. Unchecked and vote clauses are never
-    judged here."""
+    a broken clause also costs what ``broken_costs`` says. Unchecked and vote clauses are
+    never judged here: a vote clause is judged by its conference's tally."""
     if not on(state):
         return []
     from revisionist.core import events as ev
@@ -809,9 +993,9 @@ def judge(state: "State", day: date, today: Sequence["Payload"]) -> list["Payloa
                     str(against),
                     day.isoformat(),
                 )
-                out += _papers(state, x.parties, key, day, _TITLES[status], rows)
+                out += papers(state, x.parties, key, day, _TITLES[status], rows)
                 if status is ClauseStatus.BROKEN:
-                    out += _broken(state, x, n, day)
+                    out += broken_costs(state, x, n, day)
     return out
 
 
@@ -825,15 +1009,19 @@ __all__ = [
     "Call",
     "ClauseStatus",
     "agreement_id",
+    "broken_costs",
+    "clause_refusal",
     "due",
     "is_offer",
     "is_publish",
     "judge",
     "make_offer",
+    "nation_name",
     "offer_parts",
     "offers_due",
     "on",
     "pact",
+    "papers",
     "parties_scope",
     "publish_part",
     "refusal",
@@ -843,5 +1031,6 @@ __all__ = [
     "speaker",
     "statuses",
     "term_rows",
+    "title_of",
     "version",
 ]

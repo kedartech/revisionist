@@ -4,7 +4,7 @@
 import { h, icon } from '../dom.js';
 import { itemDates, itemHeading, optionLines } from './realism-wake.js';
 import { agendaEntry, deadlineChip } from './realism-ideas.js';
-import { ANSWER_AT_CLOSE, DECISION_AT_DUE, requestChoices } from './realism-requests.js';
+import { ANSWER_AT_CLOSE, DECISION_AT_DUE, VOTE_SEALED, requestChoices } from './realism-requests.js';
 import { STEP_ACTIONS } from '../realism-rules.js';
 import { readLines, staffRead } from './realism-estimate.js';
 
@@ -97,9 +97,26 @@ function decisionAnswer(id, actions, given, act) {
     h('p', { class: 'rl-ans-when', id: when }, DECISION_AT_DUE));
 }
 
+/**
+ * For, Against and Abstain in a conference: `act('Sealing your vote…', 'conference-vote',
+ * { conference, vote })`. `given` (the item's `cause`) is the seat's own sealed vote.
+ */
+function voteAnswer(id, given, act) {
+  const when = `rl-ans-when-${id}`;
+  const vote = (value, word) => h('button', {
+    type: 'button', class: 'rl-ans-choose', 'aria-describedby': when,
+    onclick: () => act('Sealing your vote…', 'conference-vote', { conference: id, vote: value }),
+  }, word);
+  return h('div', { class: 'rl-ans-request' },
+    given ? h('p', { class: 'rl-ans-given' }, given) : null,
+    h('div', { class: 'rl-ans-pair' }, vote('for', 'For'), vote('against', 'Against'), vote('abstain', 'Abstain')),
+    h('p', { class: 'rl-ans-when', id: when }, VOTE_SEALED));
+}
+
 function choicesBlock(item, given, act) {
   const { choices } = item;
   if (choices.kind === 'request') return requestAnswer(item.id, given, act);
+  if (choices.kind === 'vote') return voteAnswer(item.id, given, act);
   if (choices.kind === 'decision') return decisionAnswer(item.id, choices.actions, given, act);
   if (choices.kind === 'options') return h('ul', { class: 'rl-ans-options', role: 'list' }, choices.options.map((o) => optionRow(o, act)));
   if (choices.kind === 'plan') return planRow(choices.options, act);

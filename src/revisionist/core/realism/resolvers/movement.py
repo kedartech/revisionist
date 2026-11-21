@@ -413,7 +413,7 @@ def _walk_one(
     own = territory.nation(state, moved.side)
     while moved.path and moved.step_due is not None and moved.step_due <= today:
         entered, on = moved.path[0], moved.step_due
-        if territory.barred(state, moved.side, entered) is not None:
+        if territory.barred(state, moved.side, entered, kinds.domain(state, moved)) is not None:
             moved = _halted(moved, on)
             break
         there = (closed or {}).get(entered)

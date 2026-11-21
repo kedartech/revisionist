@@ -24,7 +24,7 @@ from revisionist.core.realism.pipeline import StepAction
 from revisionist.engine import directive, realism_tick
 from revisionist.engine.store import EventStore
 from revisionist.engine.tick import NotInPlayError
-from revisionist.engine.web import agenda_api
+from revisionist.engine.web import agenda_api, conferences_api
 
 if TYPE_CHECKING:
     from psycopg import Connection
@@ -270,9 +270,13 @@ def file_one(
             realism_tick.take_step(
                 store, campaign_id, seat, args["order_id"], taken, args["params"]
             )
-        elif action in ("option", "file", "battle", "contingency"):
+        elif action in ("option", "file", "battle", "contingency", "agreement-publish"):
             asks = tuple(Ask.model_validate(a) for a in args["asks"])
             realism_tick.commit_order(store, campaign_id, seat, asks)
+        elif action == "conference-call":
+            conferences_api.call(store, campaign_id, seat, args)
+        elif action == "conference-vote":
+            conferences_api.vote(store, campaign_id, seat, args)
         elif action == "answer":
             done = agenda_api.answer(store, campaign_id, seat, args["item"], args["accept"])
             return done["reply"] if done["refused"] else None

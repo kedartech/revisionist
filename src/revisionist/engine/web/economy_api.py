@@ -7,10 +7,10 @@ same mark the seat's paper and wake notice carry). Every area also carries the y
 board prints.
 
 ``block`` is the ``economy`` block with ``economy`` on: every nation's public figure, and
-for the seat's own nation its income by resource, its pools, its months of fuel left and
-each held territory's yields and factors. It is read from the seat's ``View``, which holds
-its own nation's pools and moved yields and no other's, so no other nation's economy can
-reach the payload.
+for the seat's own nation its income by resource, its pools (with ``fuel`` on, its fuel
+stock too), its months of fuel left and each held territory's yields and factors. It is
+read from the seat's ``View``, which holds its own nation's pools and moved yields and no
+other's, so no other nation's economy can reach the payload.
 """
 
 from datetime import date
@@ -18,7 +18,7 @@ from typing import Literal
 
 from revisionist.core.ids import EntityId, SeatId
 from revisionist.core.ontology import EntityKind
-from revisionist.core.realism import economy, holders, territory
+from revisionist.core.realism import economy, holders, territory, trade
 from revisionist.core.realism.kinds import Role
 from revisionist.core.realism.war import at_war
 from revisionist.core.state import State, View
@@ -115,6 +115,25 @@ def _income(view: View, own: EntityId, day: date) -> list[EconomyIncome]:
     ]
 
 
+def _pools(state: State, view: View, own: EntityId) -> EconomyPools:
+    pools = view.economy.pools.get(own, economy.Pools())
+    out = EconomyPools(output=pools.output, manpower=pools.manpower)
+    if trade.on(state):
+        out["fuel"] = pools.fuel
+    return out
+
+
+def _fuel_months(state: State, view: View, own: EntityId, day: date) -> float | None:
+    """The stock over a month's fuel income as the first of the month pays it: the fuel
+    yields of what the nation holds and what its open trade lines pay."""
+    if not trade.on(state):
+        return None
+    monthly = economy.income(view, own, Role.FUEL, day) + trade.paid_to(view, own, Role.FUEL)
+    if monthly <= 0:
+        return None
+    return round(economy.stock(view, own) / monthly, 6)
+
+
 def _territories(view: View, own: EntityId, day: date) -> list[EconomyTerritory]:
     board = view.map
     held = [
@@ -151,12 +170,11 @@ def block(state: State, view: View) -> EconomyBlock | None:
     own = own_nation(view)
     mine: EconomyOwn | None = None
     if own is not None:
-        pools = view.economy.pools.get(own, economy.Pools())
         mine = EconomyOwn(
             nation=nation(state, own, own),
             income=_income(view, own, day),
-            pools=EconomyPools(output=pools.output, manpower=pools.manpower),
-            fuel_months=None,
+            pools=_pools(state, view, own),
+            fuel_months=_fuel_months(state, view, own, day),
             territories=_territories(view, own, day),
         )
     return EconomyBlock(day=day.isoformat(), figures=_figures(state, view, own), own=mine)

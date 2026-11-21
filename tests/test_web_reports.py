@@ -52,6 +52,8 @@ from tests.test_web_sighted_in_area import scouts
 
 SEATS = ("ilse", "tomas")
 ENEMIES = {"ilse": ("sudland_levy", "sudland_galleys"), "tomas": ("norra_levy", "norra_kites")}
+ENVOYS = {"ilse": (), "tomas": ("norra_herald",)}
+"""Every other nation's envoy is public: a report to each seat (ENV)."""
 NATION = {"ilse": NORRA, "tomas": SUDLAND}
 LINE = re.compile(
     r"strength \d+( to \d+)?, [^,]+, seen \d+ [A-Z][a-z]+ \d{4}, (confirmed|probable|possible)"
@@ -291,8 +293,9 @@ def test_a_seats_own_pieces_never_appear_as_reports(tmp_path: Path) -> None:
     on(g, day(3))
     for who in SEATS:
         keys = {r["key"] for r in shown(g.state, who)}
-        enemies = {sent_key(g.state, who, k) for k in ENEMIES[who]}
-        own = {sent_key(g.state, who, k) for k in ENEMIES[next(s for s in SEATS if s != who)]}
+        enemies = {sent_key(g.state, who, k) for k in (*ENEMIES[who], *ENVOYS[who])}
+        other = next(s for s in SEATS if s != who)
+        own = {sent_key(g.state, who, k) for k in (*ENEMIES[other], *ENVOYS[other])}
         assert keys and keys <= enemies and keys.isdisjoint(own)
 
 

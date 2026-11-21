@@ -35,7 +35,10 @@ export function forgetMarks() { lastAt.clear(); }
 const reducedMotion = () => Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
 
 /** The glyph a piece's domain draws with. */
-const GLYPH = Object.freeze({ land: 'army', sea: 'fleet', air: 'air' });
+const GLYPH = Object.freeze({ land: 'army', sea: 'fleet', air: 'air', envoy: 'envoy' });
+
+/** The seat's envoys: the only pieces the Diplomatic layer draws (DPL). */
+const envoyMarks = (map) => (map.marks ?? []).filter((m) => m.piece?.domain === 'envoy');
 
 export const areaKindWord = (area) => (area.kind === 'sea' ? 'Sea zone' : 'Land territory');
 
@@ -64,7 +67,7 @@ function holdPatterns(standings, tag) {
 export function offeredLayers(map) {
   const out = [];
   if ((map.marks ?? []).length || (map.orders ?? []).length || reportsOf(map).length) out.push('military');
-  if ((map.capitals ?? []).length) out.push('diplomatic');
+  if ((map.capitals ?? []).length || envoyMarks(map).length) out.push('diplomatic');
   return out;
 }
 
@@ -474,7 +477,8 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   const show = (key) => root?.querySelector(`.rl-tm-label[data-area="${key}"]`)?.classList.toggle('shown');
   const economy = opts.layer === 'economy';
   const diplomatic = opts.layer === 'diplomatic';
-  const targets = diplomatic || economy || opts.still ? [] : opts.targets ?? [];
+  // on the Diplomatic layer the lit areas are a picked envoy's moves (the theatre picks envoys only)
+  const targets = economy || opts.still ? [] : opts.targets ?? [];
   const front = ([a, b]) => b !== null && isFront(byKey.get(a), byKey.get(b));
   const borderKind = ([a, b]) => {
     if (b === null || !kinds.has(b)) return 'edge';
@@ -519,7 +523,8 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
     map, shapes, at, opts, areaPath: (key) => ringsPath(shapes.vertices, shapes.areas[key].rings, at),
   }),
   economy ? economyPips(areas, labelAt, (attrs, x, y) => atPx(attrs, x, y))
-    : diplomatic ? capitalsLayer(map, at, opts) : marksLayer(map, labelAt, at, opts),
+    : diplomatic ? [capitalsLayer(map, at, opts), marksLayer({ ...map, marks: envoyMarks(map) }, labelAt, at, opts)]
+      : marksLayer(map, labelAt, at, opts),
   diplomatic || economy ? null : reportMarks({ map, labelAt, atPx, activate, opts }),
   diplomatic || economy || !opts.token ? null : tokenMark(opts.token, labelAt.get(opts.token.at), atPx),
   diplomatic || economy ? null : battleLayer({ battles: opts.battles, labelAt, atPx, activate, opts }),
@@ -637,9 +642,12 @@ export function territoryView(map, shapes, opts = {}) {
       shapes ? territoryDrawing(map, shapes, { ...opts, layer, frame, zoom }) : h('p', { class: 'muted rl-tm-wait' }, opts.waiting ?? 'Drawing the map…')),
       opts.area ? areaSheet(map, opts.area, opts.onArea, opts.standings) : null,
       layer === 'military' && opts.report ? reportSheet(map, opts.report, opts) : null];
+  // the Diplomatic layer's key (realism-diplomacy.js): nations, capitals, public pacts and envoys
+  const key = layer === 'diplomatic' ? (typeof opts.diplomacy === 'function' ? opts.diplomacy() : opts.diplomacy) : null;
   return h('section', { class: 'rl-map rl-tmap', 'aria-labelledby': 'rl-map-h' },
     h('h2', { id: 'rl-map-h' }, 'Map'),
     h('p', { class: 'muted' }, 'The board as the game\'s map draws it; your pieces and reports from your own papers.'),
     bar,
-    body);
+    body,
+    key ?? null);
 }

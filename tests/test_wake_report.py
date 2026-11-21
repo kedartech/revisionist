@@ -502,3 +502,78 @@ def test_a_game_without_reports_prints_no_report_lines(tmp_path: Path) -> None:
     report = wake_report.build(territory_log(tmp_path))
     assert report.intelligence == ()
     assert not any("reports:" in line for line in wake_report.render(report))
+
+
+# --- AGA rule 6: per wake, the clauses judged kept and judged broken ---------------------
+
+
+def clause_log(tmp: Path) -> list[Event]:
+    """AGR's toy (``tests/test_agreements.py``): an agreement whose two dated clauses fall
+    due on day 1, the levy on the plain (kept) and on the isle (broken), with a clause of
+    wording. Wake 0 is judged through day 1; wake 1 through day 3; wake 2 is open."""
+    from tests import test_agreements as agr
+
+    g = agr.game(tmp)
+    at = T0
+    g.add([ev.WakeOpened(wake=0, deadline=at + 12 * HOUR, opened_at=at)])
+    agr.in_force(
+        g,
+        agr.clause(rx.ClauseType.PLACE, force=agr.LEVY, area=agr.PLAIN, on=day(1)),
+        agr.clause(rx.ClauseType.PLACE, force=agr.LEVY, area=agr.ISLE, on=day(1)),
+        agr.clause(rx.ClauseType.UNCHECKED, text="Friendship."),
+    )
+    agr.judged(g, day(1), day(1))
+    for n, last in ((0, day(3)), (1, None)):
+        at += 12 * HOUR
+        g.add(
+            [
+                ev.WakeClosed(wake=n, how="deadline"),
+                ev.WakeOpened(wake=n + 1, deadline=at + 12 * HOUR, opened_at=at),
+            ]
+        )
+        if last is not None:
+            agr.judged(g, day(2), last)
+    return g.log
+
+
+def test_each_wake_counts_the_clauses_kept_and_broken(tmp_path: Path) -> None:
+    log = clause_log(tmp_path)
+    by_wake: dict[int, list[int]] = {}
+    number = -1
+    for e in log:
+        p = e.payload
+        if isinstance(p, ev.WakeOpened):
+            number = p.wake
+            by_wake[number] = [0, 0]
+        elif isinstance(p, ev.ClauseJudged) and p.status.value in ("kept", "broken"):
+            by_wake[number][0 if p.status.value == "kept" else 1] += 1
+    assert by_wake[0] == [1, 1]
+    report = wake_report.build(log)
+    assert [(c.number, c.kept, c.broken) for c in report.clauses] == [
+        (n, *c) for n, c in sorted(by_wake.items())
+    ]
+    out = wake_report.render(report)
+    at = out.index("  wake 0: deadline")
+    assert "    clauses: 1 kept, 1 broken" in out[at : at + 4]
+    at = out.index("  wake 2: open")
+    assert "    clauses: 0 kept, 0 broken" in out[at : at + 4]
+
+
+def test_a_called_or_void_clause_is_neither_kept_nor_broken(tmp_path: Path) -> None:
+    log = clause_log(tmp_path)
+    called = [
+        e.model_copy(update={"payload": e.payload.model_copy(update={"status": status})})
+        for e in log
+        if isinstance(e.payload, ev.ClauseJudged)
+        for status in ("called", "void", "standing")
+    ][:3]
+    seq = log[-1].seq
+    extra = [c.model_copy(update={"seq": seq + 1 + n}) for n, c in enumerate(called)]
+    report = wake_report.build([*log, *extra])
+    assert report.clauses[-1].kept == 0 and report.clauses[-1].broken == 0
+
+
+def test_a_game_without_agreements_prints_no_clause_lines(tmp_path: Path) -> None:
+    report = wake_report.build(territory_log(tmp_path))
+    assert report.clauses == ()
+    assert not any("clauses:" in line for line in wake_report.render(report))

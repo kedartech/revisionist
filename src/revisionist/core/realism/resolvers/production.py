@@ -48,7 +48,7 @@ from revisionist.core.realism.document import (
 from revisionist.core.realism.economy import Pools
 from revisionist.core.realism.geography import Feature, FeatureKind
 from revisionist.core.realism.kinds import Domain
-from revisionist.core.realism.pipeline import Order, OrderStatus
+from revisionist.core.realism.pipeline import Order, OrderStatus, StepKind
 from revisionist.core.realism.quantity import QuantityChange
 from revisionist.core.realism.resolvers import evacuation, shipping
 from revisionist.core.realism.resolvers.shipping import shifted
@@ -468,11 +468,27 @@ def _aid_lever(state: State, person: EntityId, asker: EntityId) -> tuple[Lever, 
     return None
 
 
+def _asks(state: State, order: Order, asker: EntityId, giver: EntityId | None) -> bool:
+    """Whether ``order`` asks ``giver`` for aid: the world routes it through a decision by
+    a person of the giver's nation, which an order kept inside the asker's nation is not."""
+    pipeline = state.pipelines.get(order.pipeline)
+    return (
+        giver is not None
+        and giver != asker
+        and pipeline is not None
+        and any(
+            s.kind is StepKind.DECISION and polity_of(state, s.person) == giver
+            for s in pipeline.steps
+        )
+    )
+
+
 def _asked(state: State, order: Order) -> list[ev.MandateIssued]:
     """With ``economy`` on, a request from a nation that another nation's aid form names
-    raises its share on the agenda of each seat holding that form: an opportunity met by
-    filing the form for the asker, due ``AID_ANSWER_DAYS`` later. A full desk gets none;
-    nothing waits on the answer."""
+    raises its share on the agenda of each seat of that nation holding that form: an
+    opportunity met by filing the form for the asker, due ``AID_ANSWER_DAYS`` later. An
+    order is a request to the nations whose people decide a step of its pipeline. A full
+    desk gets none; nothing waits on the answer."""
     if not economy.on(state) or _aid(state, order) is not None:
         return []
     asker = polity_of(state, state.seats[order.issuer].embodies)
@@ -484,6 +500,8 @@ def _asked(state: State, order: Order) -> list[ev.MandateIssued]:
         person = state.seats[seat].embodies
         found = _aid_lever(state, person, asker)
         if found is None or _desk_full(state, seat):
+            continue
+        if not _asks(state, order, asker, polity_of(state, person)):
             continue
         lever, param = found
         key = next(c for c in param.choices if _polity(state, c) == asker)

@@ -11,7 +11,9 @@ have no card yet: ``compile_figure`` adds one person's card to a running campaig
 """
 
 from collections.abc import Callable, Mapping, Sequence
+from datetime import timedelta
 from itertools import pairwise
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -65,11 +67,13 @@ from revisionist.core.ontology import (
     Commitment,
     Contest,
     ContestKind,
+    ContestMove,
     Controller,
     Entity,
     EntityKind,
     Fact,
     Meter,
+    MoveKind,
     Persona,
     Relationship,
     ScheduledEvent,
@@ -96,6 +100,7 @@ from revisionist.core.realism.document import Feed
 from revisionist.core.realism.effect import (
     ESTIMATED_ONLY,
     AgreementClause,
+    ClauseType,
     EffectKind,
     MoveFigure,
     MoveForce,
@@ -115,6 +120,7 @@ from revisionist.core.world import (
     CardDecl,
     Cited,
     ClauseDecl,
+    ContestDecl,
     DevelopmentDecl,
     EntityDecl,
     FeatureDecl,
@@ -169,6 +175,8 @@ def compile_world(world: WorldFile, campaign_id: CampaignId, versions: Versions)
     emitted = _emit(world, ids, sections)
     if Rule.FUEL in world.rules:
         emitted += _stocks(world, ids, _events(emitted, campaign_id, versions))
+    if Rule.CONFERENCE in world.rules:
+        emitted += _conferences(world, ids, campaign_id)
     if Rule.AGREEMENTS in world.rules:
         emitted += _pacts(world, ids, campaign_id)
     events = _events(emitted, campaign_id, versions)
@@ -421,6 +429,8 @@ def _check_v3(world: WorldFile, sections: Mapping[str, str], problems: list[str]
             problems.append(f"{where}: a trial has one power under trial")
         if k.kind is ContestKind.TRIAL and k.track < 0:
             problems.append(f"{where}: a trial's track runs 0..100")
+        if k.moves and world.ruleset == "legacy":
+            problems.append(f"{where}: only a realism world's contests have moves")
     if world.schedule and world.start_date is None:
         problems.append("schedule: history's clock needs a start_date")
     for h in world.schedule:
@@ -476,6 +486,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "intelligence",
             "groups",
             "pacts",
+            "conferences",
         ):
             if getattr(world, name):
                 problems.append(f"{name}: only a realism world has {name}")
@@ -486,6 +497,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_kinds(world, problems)
     _check_intelligence(world, sections, problems)
     _check_groups(world, problems)
+    _check_contest_moves(world, sections, problems)
     for seat in world.seats:
         if seat.controller is Controller.HUMAN:
             problems.append(f"seat {seat.key}: a realism world names no human seat")
@@ -560,6 +572,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_wars(world, sections, problems)
     _check_trade(world, sections, problems)
     _check_pacts(world, sections, problems)
+    _check_conferences(world, sections, problems)
     playable = {c.person for c in world.cards if c.playable}
     listed = {ch.entity for ch in world.roster}
     # A listed person with no card yet is built when picked (compile_figure).
@@ -664,12 +677,101 @@ def _check_pacts(world: WorldFile, sections: Mapping[str, str], problems: list[s
                 problems.append(f"{at}: no card has the form {c.form}")
             if c.on is not None and world.start_date is not None and c.on < world.start_date:
                 problems.append(f"{at}: dated before the start")
+            if c.type is ClauseType.VOTE:
+                held = {x.key: x for x in world.conferences}.get(c.text)
+                if held is None:
+                    problems.append(f"{at}: names no conference the world schedules")
+                elif c.on is not None and c.on < held.voting_day:
+                    problems.append(f"{at}: falls due before its conference's voting day")
             try:
                 _pact_clause(c, {})
             except ValidationError as exc:
                 problems.append(
                     f"{at}: {str(exc.errors()[0]['msg']).removeprefix('Value error, ')}"
                 )
+
+
+# --- conferences (CNF) -----------------------------------------------------------------
+
+
+def _check_conferences(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """Conferences only with the conference rule on, which needs agreements; each once,
+    cited, inviting two or more distinct polities with the caller among them, its clauses
+    binding a nation invited and holding no vote clause, opening on or after the start and
+    voting at least ``CONF_DAYS`` days after it opens."""
+    from revisionist.core.realism.conference import CONF_DAYS
+
+    polities = {d.key for d in world.entities if d.kind is EntityKind.POLITY}
+    if Rule.CONFERENCE in world.rules and Rule.AGREEMENTS not in world.rules:
+        problems.append("rules: conference needs agreements")
+    if world.conferences and Rule.CONFERENCE not in world.rules:
+        problems.append("conferences: needs the conference rule")
+    seen: set[str] = set()
+    for x in world.conferences:
+        where = f"conference {x.key}"
+        if x.key in seen:
+            problems.append(f"{where}: duplicate key")
+        seen.add(x.key)
+        _check_cited(problems, where, x, sections)
+        if len(x.invited) < 2:
+            problems.append(f"{where}: invites at least two nations")
+        if len(set(x.invited)) != len(x.invited):
+            problems.append(f"{where}: invites a nation twice")
+        if x.caller not in x.invited:
+            problems.append(f"{where}: the caller {x.caller} is not invited")
+        for nation in x.invited:
+            _ref(problems, where, nation, "entity", sections)
+            if nation in sections and nation not in polities:
+                problems.append(f"{where}: {nation} is not a polity")
+        if world.start_date is not None and x.opens < world.start_date:
+            problems.append(f"{where}: opens before the start")
+        if (x.voting_day - x.opens).days < CONF_DAYS:
+            problems.append(f"{where}: votes less than {CONF_DAYS} days after it opens")
+        for n, c in enumerate(x.clauses, start=1):
+            at = f"{where}: clause {n}"
+            if c.binds not in x.invited:
+                problems.append(f"{at} binds {c.binds}, which is not invited")
+            if c.type is ClauseType.VOTE:
+                problems.append(f"{at}: a conference's text holds no vote clause")
+            _ref(problems, at, c.nation, "entity", sections)
+            _ref(problems, at, c.force, "feature", sections)
+            try:
+                _pact_clause(c, {})
+            except ValidationError as exc:
+                problems.append(
+                    f"{at}: {str(exc.errors()[0]['msg']).removeprefix('Value error, ')}"
+                )
+
+
+def _conferences(
+    world: WorldFile, ids: Mapping[str, str], campaign_id: CampaignId
+) -> list[tuple[ev.Payload, Scope]]:
+    """Each scheduled conference, in file order, sealed to a seat nobody holds until the
+    day walk opens it on its day."""
+    from revisionist.core.realism import conference
+
+    topics = {t.key: _topic(t) for t in world.topics}
+    held = SeatId(derived_id(campaign_id, "engine-only", "conference"))
+    scope = Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
+    out: list[tuple[ev.Payload, Scope]] = []
+    for x in world.conferences:
+        clauses = tuple(_pact_clause(c, ids) for c in x.clauses)
+        said = conference.text_words(" ".join([x.wording, *(c.text for c in clauses)]))
+        touched = tuple(sorted(k for k, t in topics.items() if t.touched(None, (), said)))
+        text = conference.ConferenceText(
+            wording=x.wording, clauses=clauses, topics=touched, unanimous=x.unanimous
+        )
+        made = conference.scheduled(
+            x.key,
+            EntityId(ids[x.caller]),
+            tuple(EntityId(ids[k]) for k in x.invited),
+            text,
+            x.opens,
+            x.voting_day,
+            x.public,
+        )
+        out.append((ev.ConferenceCalled(conference=made), scope))
+    return out
 
 
 def _pact_clause(c: PactClauseDecl, ids: Mapping[str, str]) -> AgreementClause:
@@ -1099,6 +1201,61 @@ def _check_intelligence(world: WorldFile, sections: Mapping[str, str], problems:
         for agent in intel.agents:
             if agent.area not in areas:
                 problems.append(f"{where}: agent in {agent.area}, not an area of the board")
+
+
+_MOVE_FIELDS: dict[MoveKind, tuple[frozenset[str], ...]] = {
+    MoveKind.BATTLE: (frozenset({"region"}),),
+    MoveKind.HOLDER: (frozenset({"territory"}),),
+    MoveKind.FLAG: (frozenset({"quantity"}),),
+    MoveKind.LINE: (
+        frozenset({"quantity", "line"}),
+        frozenset({"nation", "line"}),
+        frozenset({"nation", "group", "line"}),
+    ),
+    MoveKind.AGREEMENT_MADE: (frozenset({"between"}),),
+    MoveKind.AGREEMENT_BROKEN: (frozenset({"between"}),),
+}
+"""The fields each kind of contest move names, for a line one of three sets (CON)."""
+
+
+def _check_contest_moves(
+    world: WorldFile, sections: Mapping[str, str], problems: list[str]
+) -> None:
+    """Each contest move (CON): toward one of its contest's sides, naming the fields its
+    kind names and no other, each a region, territory, quantity, polity or that polity's
+    group the world declares; an agreement move names two or more distinct polities, and
+    only a line falls. With the rule off they are checked and left out of the game."""
+    regions = {r.key for r in world.regions}
+    territories = {t.key for t in world.territories}
+    polities = {d.key for d in world.entities if d.kind is EntityKind.POLITY}
+    groups_of = {d.nation: {g.key for g in d.groups} for d in world.groups}
+    for k in world.contests:
+        for i, m in enumerate(k.moves):
+            where = f"contest {k.key} move {i}"
+            if m.toward not in k.sides:
+                problems.append(f"{where}: {m.toward} is not a side of {k.key}")
+            given = frozenset(
+                name
+                for name in ("region", "territory", "quantity", "nation", "group", "line")
+                if getattr(m, name) is not None
+            ) | ({"between"} if m.between else set())
+            if given not in _MOVE_FIELDS[m.kind]:
+                problems.append(f"{where}: a {m.kind.value} move names {sorted(given)}")
+                continue
+            if m.falling and m.kind is not MoveKind.LINE:
+                problems.append(f"{where}: only a line move falls")
+            if m.region is not None and m.region not in regions:
+                problems.append(f"{where}: unknown region {m.region}")
+            if m.territory is not None and m.territory not in territories:
+                problems.append(f"{where}: unknown territory {m.territory}")
+            _ref(problems, where, m.quantity, "quantity", sections)
+            for nation in (m.nation, *m.between):
+                if nation is not None and nation not in polities:
+                    problems.append(f"{where}: {nation} is not a polity")
+            if m.between and (len(set(m.between)) != len(m.between) or len(m.between) < 2):
+                problems.append(f"{where}: an agreement move names two or more nations, once each")
+            if m.group is not None and m.group not in groups_of.get(m.nation or "", set()):
+                problems.append(f"{where}: {m.nation} has no group {m.group}")
 
 
 def _check_groups(world: WorldFile, problems: list[str]) -> None:
@@ -1596,6 +1753,32 @@ def _maybe[T](ids: Mapping[str, str], key: str | None, to: Callable[[str], T]) -
     return None if key is None else to(ids[key])
 
 
+def _contest_rules(world: WorldFile, ids: Mapping[str, str], k: ContestDecl) -> dict[str, Any]:
+    """A contest's moves and deciding day (CON), with the ``contests`` rule on and a start
+    date; nothing otherwise, so a game with the rule off is compiled as before."""
+    from revisionist.core.realism.contests import STEPS
+
+    if Rule.CONTESTS not in world.rules or world.start_date is None:
+        return {}
+    moves = tuple(
+        ContestMove(
+            kind=m.kind,
+            toward=EntityId(ids[m.toward]),
+            step=m.step if m.step is not None else STEPS[m.kind],
+            region=m.region,
+            area=_maybe(ids, m.territory, EntityId),
+            quantity=_maybe(ids, m.quantity, QuantityId),
+            nation=_maybe(ids, m.nation, EntityId),
+            group=m.group,
+            line=m.line,
+            falling=m.falling,
+            between=tuple(EntityId(ids[n]) for n in m.between),
+        )
+        for m in k.moves
+    )
+    return {"moves": moves, "decides": world.start_date + timedelta(days=k.countdown_days)}
+
+
 def _scope(spec: ScopeSpec, ids: Mapping[str, str]) -> Scope:
     if isinstance(spec, ScopeDecl):
         known = frozenset(SeatId(ids[key]) for key in spec.known_by)
@@ -1723,6 +1906,7 @@ def _emit(
             momentum=k.momentum,
             countdown_days=k.countdown_days,
             scope=scope,
+            **_contest_rules(world, ids, k),
         )
         out.append((ev.ContestCreated(contest=contest), scope))
     for h in world.schedule:

@@ -24,7 +24,7 @@ from revisionist.core import events as ev
 from revisionist.core.goals import ActOf
 from revisionist.core.ids import FeatureId, OrderId, derived_id
 from revisionist.core.realism import resolvers
-from revisionist.core.realism.agenda import MandateKind
+from revisionist.core.realism.agenda import MANDATE_CAP, MandateKind
 from revisionist.core.realism.economy import Pools
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.resolvers import production, shipping
@@ -35,6 +35,8 @@ from revisionist.core.realism.resolvers.production import (
 )
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import object_id
+from revisionist.engine import campaign as cmp
+from revisionist.engine import wake_report
 from tests.test_adjacency_moves import START, Logged, World, entity, seat, set_feature
 from tests.test_adjacency_moves import toy as territories_toy
 from tests.test_realism_production import with_economy
@@ -87,14 +89,27 @@ def route(w: World) -> None:
 
 def forms(w: World) -> None:
     """The aid form on Norra's card and the request form on Vesta's, both by the rule name
-    ``production``; Sudland's card has neither."""
+    ``production``; Sudland's card has neither. The request travels through Norra's
+    chancery; Vesta's ordinary form (``fit_out``) stays in Vesta's arsenal."""
     w["pipelines"] = [
         {
             "key": "chancery",
             "name": "The chancery",
             "source": "toy",
             "steps": [{"person": "ilse", "kind": "decision", "days": 1}],
-        }
+        },
+        {
+            "key": "arsenal",
+            "name": "The arsenal",
+            "source": "toy",
+            "steps": [{"person": "petra", "kind": "decision", "days": 1}],
+        },
+        {
+            "key": "admiralty",
+            "name": "The admiralty",
+            "source": "toy",
+            "steps": [{"person": "tomas", "kind": "decision", "days": 1}],
+        },
     ]
     send = {
         "name": "send_aid",
@@ -113,13 +128,35 @@ def forms(w: World) -> None:
         "resolver": "production",
         "params": [{"name": "item", "kind": "enum", "choices": ["grain", "iron"]}],
     }
+    fit_out = {
+        "name": "fit_out",
+        "pipeline": "arsenal",
+        "resolver": "production",
+        "params": [{"name": "sector", "kind": "enum", "choices": ["galleys", "grain"]}],
+    }
     for card in w["cards"]:
-        card["pipelines"] = ["chancery"]
-        card["levers"] = {"petra": [plead], "ilse": [send]}.get(card["person"], [])
+        card["pipelines"] = ["chancery", "arsenal", "admiralty"]
+        card["levers"] = {"petra": [plead, fit_out], "ilse": [send]}.get(card["person"], [])
+
+
+def sudland_gives(w: World) -> None:
+    """Sudland's admiral holds an aid form that can name Vesta too."""
+    (card,) = [c for c in w["cards"] if c["person"] == "tomas"]
+    card["levers"].append(
+        {
+            "name": "lend_galleys",
+            "pipeline": "admiralty",
+            "resolver": "production",
+            "params": [
+                {"name": "to", "kind": "enum", "choices": [VESTA]},
+                {"name": "pct", "kind": "int", "lo": 0, "hi": 100},
+            ],
+        }
+    )
 
 
 def world(tmp: Path, *changes: object) -> WorldFile:
-    return territories_toy(tmp, vesta, chest, route, with_economy, *changes, forms)  # type: ignore[arg-type]
+    return territories_toy(tmp, vesta, chest, route, with_economy, forms, *changes)  # type: ignore[arg-type]
 
 
 def galleys(tier: int) -> object:
@@ -137,13 +174,12 @@ def day(n: int) -> date:
 
 
 def enact(g: Logged, who: str, lever: str, on: date = START, n: int = 1, **params: object) -> Order:
+    (form,) = [lv for lv in g.state.cards[entity(who)].levers if lv.name == lever]
     order = Order(
-        order_id=OrderId(derived_id(CAMPAIGN, "aid-order", who, n)),
+        order_id=OrderId(derived_id(CAMPAIGN, "aid-order", who, lever, n)),
         issuer=seat(who),
         lever=lever,
-        pipeline=next(
-            p.pipeline_id for p in g.state.pipelines.values() if p.name == "The chancery"
-        ),
+        pipeline=form.pipeline,
         params=dict(params),
         filed=on,
     )
@@ -307,6 +343,94 @@ def test_without_economy_a_request_puts_nothing_on_the_agenda(tmp_path: Path) ->
 
     g = Logged(world(tmp_path, holders_only), "ilse", "tomas", "petra")
     assert _request(g) == ()
+
+
+def _ordinary(g: Logged, n: int = 1) -> tuple[resolvers.Change, ...]:
+    order = enact(g, "petra", "fit_out", n=n, sector="galleys")
+    return tuple(resolvers.ON_ORDER["production"](g.state, order))
+
+
+def test_an_ordinary_production_order_puts_nothing_on_the_givers_agenda(tmp_path: Path) -> None:
+    g = game(tmp_path)
+    assert _ordinary(g) == ()
+
+
+def test_a_request_reaches_only_the_seats_of_the_nation_it_passes_through(
+    tmp_path: Path,
+) -> None:
+    g = game(tmp_path, sudland_gives)
+    assert [c.mandate.seat_id for c in _request(g) if isinstance(c, ev.MandateIssued)] == [
+        seat("ilse")
+    ]
+
+
+def test_a_full_desk_gets_no_request(tmp_path: Path) -> None:
+    g = game(tmp_path)
+    for n in range(MANDATE_CAP):
+        g.add(resolvers.apply_changes(g.state, _request_n(g, n)))
+    assert _request_n(g, MANDATE_CAP) == ()
+
+
+def _request_n(g: Logged, n: int) -> tuple[resolvers.Change, ...]:
+    order = enact(g, "petra", "plead", n=n, item="grain")
+    return tuple(resolvers.ON_ORDER["production"](g.state, order))
+
+
+def _giver_sees(g: Logged) -> tuple[object, ...]:
+    """The giver's agenda, the papers it can read, and the wake report, as payloads."""
+    ilse = seat("ilse")
+    agenda = sorted(m.model_dump_json() for m in g.state.mandates.values() if m.seat_id == ilse)
+    papers = [
+        e.payload.model_dump_json()
+        for e in g.log
+        if isinstance(e.payload, ev.DocumentIssued) and e.scope.visible_to(ilse)
+    ]
+    report = wake_report.render(wake_report.build(g.log))
+    return agenda, papers, report
+
+
+def test_twin_games_differing_in_an_ordinary_order_look_the_same_to_the_giver(
+    tmp_path: Path,
+) -> None:
+    seen = []
+    for twin, ordinary in (("a", False), ("b", True)):
+        (tmp_path / twin).mkdir()
+        g = game(tmp_path / twin)
+        enact(g, "petra", "plead", item="grain")
+        if ordinary:
+            enact(g, "petra", "fit_out", sector="galleys")
+        g.walk(day(1), day(AID_ANSWER_DAYS))
+        seen.append(_giver_sees(g))
+    assert seen[0][0], "the request reached the giver in both games"
+    assert seen[0] == seen[1]
+
+
+# --- The 1941 world: only the request form asks for aid ----------------------------------
+
+AUTUMN = Path(__file__).parents[1] / "worlds" / "autumn-1941.yaml"
+
+
+@pytest.fixture(scope="module")
+def autumn() -> Logged:
+    return Logged(cmp.load_world(AUTUMN), "roosevelt", "churchill", "stalin")
+
+
+@pytest.mark.parametrize(
+    ("who", "lever", "params", "asks"),
+    [
+        ("churchill", "production_priority", {"sector": "escorts", "force": "home_fleet"}, False),
+        ("stalin", "state_defence_order", {"sector": "tanks"}, False),
+        ("stalin", "aid_request", {"item": "tanks"}, True),
+    ],
+)
+def test_in_1941_only_the_request_form_asks_roosevelt_for_aid(
+    autumn: Logged, who: str, lever: str, params: dict[str, str], asks: bool
+) -> None:
+    order = enact(autumn, who, lever, date(1941, 9, 10), 1, **params)
+    out = resolvers.ON_ORDER["production"](autumn.state, order)
+    seats = [c.mandate.seat_id for c in out if isinstance(c, ev.MandateIssued)]
+    assert seats == ([seat("roosevelt")] if asks else [])
+    assert len(out) == len(seats)
 
 
 # --- Rule 3: the quantity, the route and the recipients come from the form and the world

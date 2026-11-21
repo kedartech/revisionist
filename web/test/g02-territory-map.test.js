@@ -366,8 +366,11 @@ test('every area has a twin in List mode: its name, kind, region and neighbours'
 // --- Rule 7: one layer at a time, one switch, a layer with nothing to draw not offered -------
 
 test('one layer shows at a time; a layer with nothing to draw yet is not offered', async () => {
-  assert.deepEqual(offeredLayers(TMAP), ['military']);
-  const { view } = await drawn();
+  // DPL: the seat's envoy (the Norra Herald) is drawn on the diplomatic layer, so a board with one offers it
+  const noEnvoy = TMAP.marks.filter((m) => m.piece?.domain !== 'envoy');
+  assert.deepEqual(offeredLayers({ ...TMAP, marks: noEnvoy }), ['military']);
+  assert.deepEqual(offeredLayers(TMAP), ['military', 'diplomatic']);
+  const { view } = await drawn(seat({ marks: noEnvoy }));
   // ECO: the economy layer is offered after them wherever the board prints a yield
   assert.deepEqual(group(view, 'Layer').querySelectorAll('button').map(words), ['Military', 'Economy']);
   assert.deepEqual(pressed(group(view, 'Layer')), ['Military'], 'the board opens on the first layer, not the economy');
@@ -376,12 +379,13 @@ test('one layer shows at a time; a layer with nothing to draw yet is not offered
   const both = board(seat({ capitals }), ui({ layer: 'diplomatic' }));
   assert.deepEqual(group(both, 'Layer').querySelectorAll('button').map(words), ['Military', 'Diplomatic', 'Economy']);
   assert.deepEqual(pressed(group(both, 'Layer')), ['Diplomatic']);
-  assert.equal(both.querySelectorAll('g.rl-tm-mark, g.rl-tm-stack').length, 0, 'the diplomatic layer draws no pieces');
+  const pieces = both.querySelectorAll('g.rl-tm-mark, g.rl-tm-stack');
+  assert.deepEqual(pieces.map((g) => /Norra Herald/.test(g.getAttribute('aria-label'))), [true], 'the diplomatic layer draws the envoy and no other piece');
   assert.equal(both.querySelectorAll('g.rl-cap').length, 1);
   const mil = board(seat({ capitals }), ui({ layer: 'military' }));
   assert.equal(mil.querySelectorAll('g.rl-cap').length, 0, 'the military layer draws no capitals');
   assert.ok(mil.querySelectorAll('g.rl-tm-mark, g.rl-tm-stack').length > 0);
-  const asked = board(seat(), ui({ layer: 'diplomatic' }));
+  const asked = board(seat({ marks: noEnvoy }), ui({ layer: 'diplomatic' }));
   assert.ok(asked.querySelectorAll('g.rl-tm-mark, g.rl-tm-stack').length > 0, 'a layer not offered falls back to one that is');
 });
 

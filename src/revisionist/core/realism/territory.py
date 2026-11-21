@@ -17,7 +17,8 @@ With ``territories`` switched on, a piece stands in one area and moves by adjace
 step at a time (ADJ). ``plan`` finds the course of fewest days for the piece's domain:
 land pieces over land territories and declared crossings (across sea zones only by lift,
 from a port to a port), sea pieces over sea zones, air pieces over any area within their
-range of a base of their side, envoys over any area. A step into an area takes the kind's
+range of a base of their side, envoys over any area not held by a power at war with theirs
+(ENV). A step into an area takes the kind's
 ``days_per_step`` for the terrain of the area entered, and ties between courses of equal
 days go to the one whose area keys sort first. ``step`` is the one function that
 completes a step, whatever moved the piece; each step lands one ``piece_stepped`` event.
@@ -349,15 +350,20 @@ def allied(state: "State", a: EntityId, b: EntityId) -> bool:
     return any(at_war(state, b, foe) for foe in foes if foe != b)
 
 
-def barred(state: "State", side: EntityId | None, area: EntityId) -> EntityId | None:
+def barred(
+    state: "State", side: EntityId | None, area: EntityId, domain: "Domain | str | None" = None
+) -> EntityId | None:
     """The holder that bars a piece of ``side`` from ``area``: a polity neither its own, an
-    ally, nor at war with it. None when the piece may enter."""
+    ally, nor at war with it; for an envoy, a polity at war with its own (ENV). None when
+    the piece may enter."""
     from revisionist.core.realism.war import at_war
 
     own = nation(state, side)
     held = holder(state, area)
     if held is None or own is None or held == own:
         return None
+    if domain == "envoy":
+        return held if at_war(state, own, held) else None
     if allied(state, own, held) or at_war(state, own, held):
         return None
     return held
@@ -522,7 +528,7 @@ def plans(state: "State", piece: "Feature") -> dict[EntityId, Plan]:
     in_range = _air_range(state, piece, kind)
     reach = _reach(state, piece)
     ship = carrier(state, piece)
-    shut = {a for a in g.kind if barred(state, piece.side, a) is not None}
+    shut = {a for a in g.kind if barred(state, piece.side, a, domain) is not None}
     slower = _slower(piece)
 
     def moves(here: EntityId, by_lift: bool) -> Iterable[tuple[EntityId, int]]:
@@ -572,9 +578,11 @@ def _why(state: "State", piece: "Feature", kind: "PieceKind", area: EntityId) ->
     there = _name(state, area)
     if not stands_on(kind.domain, _graph(board).kind[area]):
         return f"{piece.name} cannot stand in {there}."
-    held = barred(state, piece.side, area)
+    held = barred(state, piece.side, area, kind.domain)
     if held is not None:
         own = _name(state, nation(state, piece.side))
+        if kind.domain == "envoy":
+            return f"{there} is held by {_name(state, held)}, at war with {own}."
         return f"{there} is held by {_name(state, held)}, neither {own}'s ally nor at war with it."
     in_range = _air_range(state, piece, kind)
     if in_range is not None and area not in in_range:

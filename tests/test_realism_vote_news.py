@@ -289,6 +289,10 @@ def test_the_press_page_holds_only_the_public_facts() -> None:
         assert {r.state.documents[d.doc_id].truth.news_id for d in held} == {item.news_id}
 
 
+def _bill_news(n: NewsEvent) -> bool:
+    return n.topic is NewsTopic.VOTE and not n.headline.endswith("'s conference")
+
+
 @pytest.mark.usefixtures("db", "fixed_campaign")
 def test_a_bill_passed_in_play_is_on_the_seat_press_after_the_next_wake() -> None:
     run("new", "autumn-1941", "--seat", "roosevelt")
@@ -302,10 +306,11 @@ def test_a_bill_passed_in_play_is_on_the_seat_press_after_the_next_wake() -> Non
         pytest.fail("the bill never reached Roosevelt's desk")
     run("step", oid, "pass")
     _, state = current()
-    assert [n for n in state.news.values() if n.topic is NewsTopic.VOTE] == []
+    # the world's own scheduled conferences also report as vote news; the bill's is not among them
+    assert [n for n in state.news.values() if _bill_news(n)] == []
     run("tick", "--offline")
     _, state = current()
-    (item,) = (n for n in state.news.values() if n.topic is NewsTopic.VOTE)
+    (item,) = (n for n in state.news.values() if _bill_news(n))
     assert item.on == settled_on(state.orders[oid])
     (seat,) = (s.seat_id for s in state.seats.values() if s.kind is SeatKind.PLAYER)
     view = project(state, seat)

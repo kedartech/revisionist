@@ -14,7 +14,11 @@ from revisionist.core.visibility import Scope, private_to
 def land(
     world: PassWorld, effect: Deal, issuer_seat: SeatId, issuer: EntityId, on: date
 ) -> tuple[list[ev.Payload], list[FactId]]:
-    """Private facts for the deal's terms, plus a disposition shift when accepted."""
+    """Private facts for the deal's terms, plus a disposition shift when accepted. An
+    offer of agreement (named parties) or a publishing order lands nothing here: AGR's
+    day walk makes or publishes the agreement (AGA rule 3)."""
+    if effect.parties or effect.publish is not None:
+        return [], []
     unique = {f.fact_id: f for f in _facts(world, effect, issuer_seat, issuer, on)}
     fresh = [f for f in unique.values() if world.claim(f.fact_id, world.state.facts)]
     if len(fresh) < len(unique):

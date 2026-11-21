@@ -56,11 +56,12 @@ def _same_shape(example: Any, shape: Any) -> None:
 
 
 def _same_shapes(examples: list[Any], shape: Any) -> None:
-    """The examples of one shape (the items of a list, or the one object): each has exactly
-    the declared keys. A nested shape, a list of shapes or an optional shape needs an example
-    somewhere among them, and its examples are checked together."""
+    """The examples of one shape (the items of a list, or the one object): each has every
+    required key and no undeclared one; a ``NotRequired`` key may be absent. A nested shape, a
+    list of shapes or an optional shape needs an example somewhere among them, and its examples
+    are checked together."""
     for example in examples:
-        assert set(example) == set(shape.__annotations__), shape
+        assert shape.__required_keys__ <= set(example) <= set(shape.__annotations__), shape
     for key, kind in shape.__annotations__.items():
         if is_typeddict(kind):
             _same_shapes([example[key] for example in examples], kind)
@@ -87,6 +88,9 @@ def _same_shapes(examples: list[Any], shape: Any) -> None:
         ("listing", api.DocumentListing),
         ("economy", api.EconomyBlock),
         ("home", api.HomeBlock),
+        ("agreements", api.AgreementsBlock),
+        ("offer_reading", api.OfferReading),
+        ("conferences", api.ConferencesBlock),
     ],
 )
 def test_the_web_fixture_has_the_api_shape(key: str, shape: Any) -> None:

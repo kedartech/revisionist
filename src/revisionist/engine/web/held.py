@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 from revisionist.core.ids import CampaignId, EntityId, SeatId
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import ChannelKind
+from revisionist.core.realism.effect import Forecast
 from revisionist.core.realism.pipeline import StepAction
 from revisionist.engine import directive, realism_tick
 from revisionist.engine.store import EventStore
@@ -272,7 +273,12 @@ def file_one(
             )
         elif action in ("option", "file", "battle", "contingency", "agreement-publish"):
             asks = tuple(Ask.model_validate(a) for a in args["asks"])
-            realism_tick.commit_order(store, campaign_id, seat, asks)
+            told = args.get("forecast")
+            if told is None:
+                realism_tick.commit_order(store, campaign_id, seat, asks)
+            else:  # a picked suggestion keeps its forecast (FCK)
+                forecast = Forecast.model_validate(told)
+                realism_tick.commit_order(store, campaign_id, seat, asks, forecast)
         elif action == "conference-call":
             conferences_api.call(store, campaign_id, seat, args)
         elif action == "conference-vote":

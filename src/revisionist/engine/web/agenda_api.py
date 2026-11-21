@@ -23,13 +23,13 @@ from revisionist.core.ontology import Controller
 from revisionist.core.project import project
 from revisionist.core.realism import advance, agreement, holders, mandates, pipelines, process
 from revisionist.core.realism.agenda import Offer, Option, PlayStyle, TriggerKind
-from revisionist.core.realism.effect import RoutedPart
+from revisionist.core.realism.effect import Forecast, RoutedPart
 from revisionist.core.realism.pipeline import StepAction
 from revisionist.core.state import State, View
 from revisionist.core.visibility import private_to
 from revisionist.engine import expects, options, realism_tick
 from revisionist.engine.store import EventStore, load_state
-from revisionist.engine.web import agreements_api, battles_api, conferences_api
+from revisionist.engine.web import agreements_api, battles_api, conferences_api, forecast
 from revisionist.engine.web.realism_api import (
     AgendaBlock,
     AgendaExpect,
@@ -215,7 +215,8 @@ def _news_asks(view: View, events: list[Event]) -> list[AgendaOption]:
 
 
 def agenda(state: State, seat: SeatId, log: Iterable[Event]) -> AgendaBlock:
-    """Each live mandate and the seat's offers from ``log``, all from its own view."""
+    """Each live mandate and the seat's offers from ``log``, all from its own view, and
+    the seat's own forecasts, checked (``forecast.block``)."""
     view = project(state, seat)
     events = list(log)
     made = _latest(events, seat, _wake(state))
@@ -255,7 +256,12 @@ def agenda(state: State, seat: SeatId, log: Iterable[Event]) -> AgendaBlock:
     style = seat_style(state, seat)
     if style == PlayStyle.BEGINNER.value:
         initiative += _news_asks(view, events)
-    return AgendaBlock(style=style, items=items, initiative=initiative)
+    return AgendaBlock(
+        style=style,
+        items=items,
+        initiative=initiative,
+        forecast=forecast.block(state, seat, events),
+    )
 
 
 def _awaiting(state: State, seat: SeatId) -> list[advance.Awaiting]:
@@ -445,14 +451,21 @@ def offered(store: EventStore, campaign_id: CampaignId, seat: SeatId, pick: str)
     return offer.options[n]
 
 
+def told(option: Option) -> Forecast:
+    """What the staff told the seat about ``option``: its expected moves and risks, the
+    forecast the order it files carries (FCK rule 1)."""
+    return Forecast(expects=option.expects, risks=option.risks)
+
+
 def pick_option(store: EventStore, campaign_id: CampaignId, seat: SeatId, pick: str) -> Reply:
-    """File the offered option ``pick`` names with ``realism_tick.commit_order``."""
+    """File the offered option ``pick`` names with ``realism_tick.commit_order``, with
+    the option's expected moves and risks as the order's forecast (FCK rule 1)."""
     try:
         chosen = offered(store, campaign_id, seat, pick)
     except ValueError as stale:
         return Reply(reply=str(stale), refused=True)
     try:
-        realism_tick.commit_order(store, campaign_id, seat, chosen.asks)
+        realism_tick.commit_order(store, campaign_id, seat, chosen.asks, told(chosen))
     except ValueError as refusal:
         return Reply(reply=str(refusal), refused=True)
     return Reply(reply=f"Filed: {chosen.label}.", refused=False)
@@ -577,4 +590,5 @@ __all__ = [
     "requests",
     "seat_style",
     "set_style",
+    "told",
 ]

@@ -504,6 +504,9 @@ def locked_order(page: Page, report: dict[str, object]) -> None:
         page.locator(".rl-needs-btn").click()
     needs = page.locator("#rl-needs")
     needs.wait_for(timeout=10_000)
+    more = needs.locator("details.rl-needs-more > summary")
+    if more.count():  # Beginner shows one next step; the rest is behind More (BGN)
+        more.first.click()
     line = needs.locator("li.rl-need[data-kind=held]")
     report["lock_needs_line"] = line.first.inner_text() if line.count() else ""
     check(

@@ -16,7 +16,7 @@ start_date: 1941-09-01
 # battles and reports (ITD): battles run one round a day; enemy pieces reach a nation only as
 # reports from the people named under `intelligence`.
 # groups (GRD): each nation's groups at home, declared under `groups`.
-rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups]
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims]
 
 entities:
   # A polity's capital (PCW): a place in its own territory; a neutral's or an occupied nation's is its
@@ -1637,6 +1637,12 @@ cards:
       - "Keep Britain and the Soviet Union supplied through Lend-Lease, short of a declaration of war."
       - "Protect the Atlantic convoys against German submarines."
       - "Hold Japan in check with the oil embargo and talks while the Army and Navy rearm."
+    # What makes each aim a goal: every line and date [proposed] (values sheet). Aims 1 and 2
+    # are from the post; aim 3 is the default a player's own aim would replace.
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "The Soviet Union is made eligible for Lend-Lease and the United States is not at war with Germany.", condition: {check: all_of, conditions: [{check: quantity_at, quantity: soviet_lend_lease_eligible, op: ge, value: 1}, {check: at_war, a: usa, b: germany, war: false}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "Britain's war-economy figure stays at 34 or more, and Iceland and Newfoundland stay British.", condition: {check: all_of, conditions: [{check: income_at, nation: uk, op: ge, value: 34}, {check: holds_area, area: iceland, holder: uk}, {check: holds_area, area: newfoundland, holder: uk}]}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "The United States is not at war with Japan, and Japan has taken neither the Philippines nor the Dutch East Indies.", condition: {check: all_of, conditions: [{check: at_war, a: usa, b: japan, war: false}, {check: holds_area, area: philippines, holder: usa}, {check: holds_area, area: dutch_east_indies, holder: netherlands}]}}
     voice: Warm, confident, evasive when pressed; never commits to a date for war.
     addressed_as: "Mr. President"
     interests: [aid to Britain and the Soviet Union, keeping the public behind him]
@@ -1801,6 +1807,10 @@ cards:
       - "Keep Britain fighting and the Atlantic supply line open."
       - "Bring the United States into the war."
       - "Send what aid can be spared to the Soviet Union, and hold Egypt and the Middle East."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Britain holds both its home territories and its war-economy figure stays at 34 or more.", condition: {check: all_of, conditions: [{check: holds_area, area: britain_south, holder: uk}, {check: holds_area, area: britain_north, holder: uk}, {check: income_at, nation: uk, op: ge, value: 34}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "The United States is at war with Germany.", condition: {check: at_war, a: usa, b: germany}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "The Anglo-Soviet agreement stands unbroken, and Britain holds Egypt, Iraq and the Levant.", condition: {check: all_of, conditions: [{check: agreement_in_force, between: [uk, ussr]}, {check: holds_area, area: egypt, holder: uk}, {check: holds_area, area: iraq, holder: uk}, {check: holds_area, area: levant, holder: uk}]}}
     voice: Sonorous, combative, given to long dictated minutes and set-piece speeches.
     addressed_as: "Prime Minister"
     interests: [bring America into the war, hold the Atlantic supply line]
@@ -1921,6 +1931,10 @@ cards:
       - "Stop the German advance on Leningrad, Kiev and Moscow."
       - "Move war industry east of the Urals and keep the Red Army supplied."
       - "Press Britain and the United States for supplies and a second front."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "The Soviet Union holds the Leningrad, Kiev and Moscow areas.", condition: {check: all_of, conditions: [{check: holds_area, area: leningrad_area, holder: ussr}, {check: holds_area, area: kiev_area, holder: ussr}, {check: holds_area, area: moscow_area, holder: ussr}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "The Soviet war-economy figure stays at 38 or more and the evacuated workers' support at 45 or more.", condition: {check: all_of, conditions: [{check: income_at, nation: ussr, op: ge, value: 38}, {check: support_at, nation: ussr, group: evacuated_workers, op: ge, value: 45}]}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "An agreement binding Britain and the United States to supply the Soviet Union is in force, and Roosevelt's regard stays at 1 or better.", condition: {check: all_of, conditions: [{check: agreement_in_force, between: [ussr, uk, usa]}, {check: regard_at, a: stalin, b: roosevelt, op: ge, value: 1}]}}
     voice: Blunt, suspicious, speaks in short orders and rarely explains.
     addressed_as: "Comrade Stalin"
     interests: [Western supply, a second front, survival of Moscow]
@@ -2059,6 +2073,10 @@ cards:
       - "Destroy the Red Army and take Leningrad, the Ukraine and Moscow before winter."
       - "Keep the United States out of the war while the campaign in the East is decided."
       - "Starve Britain of supplies by submarine war in the Atlantic."
+    aim_rules:
+      - {aim: 1, deadline: 1941-11-30, rule: "By 30 November Germany holds the Leningrad, Kiev and Moscow areas.", condition: {check: all_of, conditions: [{check: holds_area, area: leningrad_area, holder: germany}, {check: holds_area, area: kiev_area, holder: germany}, {check: holds_area, area: moscow_area, holder: germany}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "The United States is not at war with Germany.", condition: {check: at_war, a: usa, b: germany, war: false}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "Britain's war-economy figure falls to 32 or below.", condition: {check: income_at, nation: uk, op: le, value: 32}}
     successor: goering
     voice: Hectoring, monologuing, prone to grievance and vast promises.
     addressed_as: "Mein Führer"
@@ -2166,6 +2184,10 @@ cards:
       - "Reach a settlement with the United States that lifts the oil embargo."
       - "Seek a meeting with Roosevelt before the Army's deadline for war runs out."
       - "Hold the cabinet together between the Army, the Navy and the Court."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "An agreement between Japan and the United States is in force.", condition: {check: agreement_in_force, between: [japan, usa]}}
+      - {aim: 2, deadline: 1941-10-15, rule: "By 15 October Roosevelt's regard for Konoe has risen to 0 or better.", condition: {check: regard_at, a: konoe, b: roosevelt, op: ge, value: 0}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "The Army, the Navy and the Court each keep their support at 45 or more.", condition: {check: all_of, conditions: [{check: support_at, nation: japan, group: army, op: ge, value: 45}, {check: support_at, nation: japan, group: navy, op: ge, value: 45}, {check: support_at, nation: japan, group: court, op: ge, value: 45}]}}
     voice: Courtly, indecisive, speaks in hints and defers to the Throne.
     addressed_as: "Prime Minister"
     interests: [settlement with the United States, avoid a break with the Army]
@@ -2297,6 +2319,10 @@ cards:
       - "Refuse any withdrawal of the Army from China."
       - "Hold the government to its deadline: if talks fail by early October, prepare for war."
       - "Secure the oil and resources of Southeast Asia."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Japan holds North China, the Wuhan area and the South China coast.", condition: {check: all_of, conditions: [{check: holds_area, area: north_china, holder: japan}, {check: holds_area, area: wuhan_area, holder: japan}, {check: holds_area, area: south_china_coast, holder: japan}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "By the season's end the talks are settled one way: an agreement with the United States is in force, or Japan is at war with it.", condition: {check: any_of, conditions: [{check: agreement_in_force, between: [japan, usa]}, {check: at_war, a: japan, b: usa}]}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "Japan holds Indochina and the Dutch East Indies.", condition: {check: all_of, conditions: [{check: holds_area, area: indochina, holder: japan}, {check: holds_area, area: dutch_east_indies, holder: japan}]}}
     voice: Clipped, bureaucratic and rigid; speaks for the Army's position.
     addressed_as: "General Tojo"
     interests: [keep the China gains, a deadline for the talks]
@@ -2388,6 +2414,10 @@ cards:
       - "Hold Libya and the Italian position in the Mediterranean."
       - "Keep Italy's place beside Germany, with an Italian corps on the Eastern Front."
       - "Keep the supply route to North Africa open against attacks from Malta."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Italy holds Tripolitania, Cyrenaica and the Dodecanese.", condition: {check: all_of, conditions: [{check: holds_area, area: tripolitania, holder: italy}, {check: holds_area, area: cyrenaica, holder: italy}, {check: holds_area, area: dodecanese, holder: italy}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "An agreement with Germany stands unbroken and Hitler's regard for Mussolini stays at 1 or better.", condition: {check: all_of, conditions: [{check: agreement_in_force, between: [italy, germany]}, {check: regard_at, a: mussolini, b: hitler, op: ge, value: 1}]}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "Italy's war-economy figure stays at 13 or more and its industrialists' support at 45 or more.", condition: {check: all_of, conditions: [{check: income_at, nation: italy, op: ge, value: 13}, {check: support_at, nation: italy, group: industrialists, op: ge, value: 45}]}}
     voice: Theatrical, boastful, with a defensive edge about Germany.
     addressed_as: "Duce"
     interests: [keep pace with Germany, hold North Africa]
@@ -2483,6 +2513,10 @@ cards:
       - "Keep China in the war against Japan and hold Chongqing."
       - "Secure American and British loans and arms, and the Burma Road supply line."
       - "Prevent any American settlement with Japan made at China's expense."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "China holds Szechwan, where Chungking stands, and Hunan.", condition: {check: all_of, conditions: [{check: holds_area, area: szechwan, holder: china}, {check: holds_area, area: hunan, holder: china}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "Britain holds Burma and Lend-Lease money is allocated to China.", condition: {check: all_of, conditions: [{check: holds_area, area: burma, holder: uk}, {check: quantity_at, quantity: lend_lease_share_china, op: ge, value: 1}]}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "The US-Japan negotiations are decided for the United States, or the United States and Japan are at war.", condition: {check: any_of, conditions: [{check: contest_won, contest: us_japan_talks, side: usa}, {check: at_war, a: usa, b: japan}]}}
     voice: Stern, moralising, impatient with allies who promise more than they send.
     addressed_as: "Generalissimo"
     interests: [American aid, keep Japan tied down in China]
@@ -3235,6 +3269,8 @@ relationships:
   - {key: tojo_chiang, a: tojo, b: chiang, disposition: -2}
   - {key: mussolini_chiang, a: mussolini, b: chiang, disposition: -1}
 
+# Contests (CON): what moves each, every step and line [proposed] (values sheet); a step left out
+# takes its kind's default. Each is decided countdown_days after the start date.
 contests:
   - key: neutrality_revision
     kind: rivalry
@@ -3242,18 +3278,48 @@ contests:
     prize: Whether Congress repeals the 1939 Act's bans on arming merchant ships and on war zones.
     sides: [interventionists, noninterventionists]
     countdown_days: 73
+    moves:
+      - {kind: flag, toward: interventionists, quantity: neutrality_revision_passed}
+      - {kind: flag, toward: interventionists, quantity: arm_merchant_ships_passed}
+      - {kind: line, toward: noninterventionists, quantity: neutrality_revision_house_nays, line: 218, step: 25}
+      - {kind: line, toward: noninterventionists, quantity: neutrality_revision_senate_nays, line: 49, step: 25}
   - key: us_japan_talks
     kind: rivalry
     name: The US-Japan negotiations
     prize: Whether talks end in a modus vivendi or in war in the Pacific.
     sides: [usa, japan, china]
     countdown_days: 97
+    moves:
+      - {kind: line, toward: usa, nation: japan, line: 80, falling: true}
+      - {kind: battle, toward: usa, region: pacific}
+      - {kind: battle, toward: japan, region: pacific}
+      - {kind: battle, toward: china, region: pacific}
+      - {kind: holder, toward: japan, territory: philippines}
+      - {kind: holder, toward: japan, territory: malaya}
+      - {kind: holder, toward: japan, territory: dutch_east_indies}
+      - {kind: holder, toward: japan, territory: hunan}
+      - {kind: holder, toward: china, territory: wuhan_area}
+      - {kind: agreement_made, toward: japan, between: [japan, usa]}
   - key: atlantic_war
     kind: rivalry
     name: The war against Germany
     prize: Whether Britain's sea supply holds, the Soviet front survives, and America is drawn in.
     sides: [uk, germany, ussr, italy]
     countdown_days: 97
+    moves:
+      - {kind: battle, toward: uk, region: atlantic}
+      - {kind: battle, toward: uk, region: mediterranean}
+      - {kind: battle, toward: germany, region: atlantic}
+      - {kind: battle, toward: germany, region: eastern_front}
+      - {kind: battle, toward: ussr, region: eastern_front}
+      - {kind: holder, toward: germany, territory: leningrad_area}
+      - {kind: holder, toward: germany, territory: moscow_area}
+      - {kind: holder, toward: germany, territory: egypt}
+      - {kind: holder, toward: italy, territory: egypt}
+      - {kind: line, toward: germany, nation: uk, line: 30, falling: true}
+      - {kind: line, toward: germany, nation: ussr, line: 35, falling: true}
+      - {kind: agreement_made, toward: uk, between: [uk, usa]}
+      - {kind: agreement_broken, toward: germany, between: [uk, ussr]}
 
 # Pacts in force on 1 September 1941 (PCW). The clause chosen for each is [proposed]: the rules judge
 # what they can, and wording they cannot express is kept and marked unchecked.

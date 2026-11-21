@@ -9,6 +9,11 @@ none outside twice its band, votes 1-3 pass in every seed.
 With ``groups`` on (GRD), the votes are the blocs' tallies, opinion is the figure the
 American groups publish, and the day walk moves the groups as a tick does: the day's
 happenings, the writing batch and the Monday drift.
+
+With ``contests`` and ``aims`` on (AMC), the walk runs on to the last deciding day: each
+day the contests take their moves and are decided on their day, and every aim on the
+eight playable cards is checked from state. Each aim's status and each contest's end
+are printed, for reading, not asserted.
 """
 
 from collections.abc import Iterable
@@ -16,8 +21,11 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from revisionist.core import events as ev
+from revisionist.core import goals
+from revisionist.core.goals import Goal, GoalSource
 from revisionist.core.ids import CampaignId, EntityId, ScheduledEventId, derived_id
-from revisionist.core.realism import battle, groups, holders
+from revisionist.core.ontology import Contest
+from revisionist.core.realism import battle, contests, groups, holders
 from revisionist.core.realism.pipeline import Order, StepAction, StepOutcome
 from revisionist.core.realism.resolvers import (
     ON_DAY,
@@ -30,12 +38,17 @@ from revisionist.core.realism.resolvers import (
     value,
 )
 from revisionist.core.state import State
+from revisionist.core.visibility import private_to
 from tests.test_realism_resolvers import Rig
 
 SEEDS = [
     CampaignId(derived_id(CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV"), "seed", n)) for n in range(10)
 ]
 START, END = date(1941, 9, 1), date(1941, 12, 1)
+SEASON_END = date(1941, 12, 7)
+"""The last deciding day: the walk runs on to it for the aims and contests (AMC)."""
+ROSTER = ("roosevelt", "churchill", "stalin", "hitler", "konoe", "tojo", "mussolini", "chiang")
+"""The eight playable cards, in the world's roster order."""
 FIRED = {
     date(1941, 9, 4): "greer_incident",
     date(1941, 10, 17): "kearny_hit",
@@ -83,6 +96,10 @@ class Run:
     """The American opinion figure on the last day."""
     battles: list[tuple[date, str, str]]
     """Each battle that opened: the day, the area's key and the attacker's key (ITD)."""
+    aims: dict[tuple[str, int], str]
+    """Each playable card's aim, by person key and number: its status on the last day."""
+    contests: dict[str, tuple[int, str]]
+    """Each contest by key: its track and its winner's key (or "none") on the last day."""
 
 
 def play(seed: CampaignId) -> Run:
@@ -90,12 +107,13 @@ def play(seed: CampaignId) -> Run:
     r = Rig("autumn-1941", seed)
     r.seat("roosevelt")
     r.close_session_zero()
+    aims = _aim_goals(r)
     orders: dict[int, Order] = {}
     about: dict[date, int | None] = {}
     sunk: list[int] = []
     battles: list[tuple[date, str, str]] = []
     day = START
-    while day <= END:
+    while day <= SEASON_END:
         if day > START:
             r.add(ev.DateAdvanced(to=day))
         day_from = r.state
@@ -130,6 +148,7 @@ def play(seed: CampaignId) -> Run:
         opened, happened = _steps_and_battles(r, before, day)
         battles += opened
         _groups_walk(r, day_from, before, happened, day)
+        _contests_and_aims(r, day_from, happened, day, aims)
         about[day] = _opinion(r)
         day += timedelta(days=1)
 
@@ -149,6 +168,11 @@ def play(seed: CampaignId) -> Run:
         about_24sep=v_on(about, date(1941, 9, 24)),
         about_end=v_on(about, END),
         battles=battles,
+        aims={k: goals.aim_status(r.state, g).value for k, g in aims.items()},
+        contests={
+            key: (k.track, "none" if k.winner is None else _key(r, k.winner))
+            for key, k in _contests(r).items()
+        },
     )
 
 
@@ -194,6 +218,60 @@ def _groups_walk(
         r.add(payload)
     for payload in groups.drift(r.state, day):
         r.add(payload)
+
+
+def _aim_goals(r: Rig) -> dict[tuple[str, int], Goal]:
+    """A goal for every aim with a rule on each playable card (AMC), as a claim makes one
+    for its person. Kept beside the game, not folded: the run seats one person only, and
+    an aim's status reads state and the goal alone."""
+    seat = r.seats["roosevelt"]
+    made: dict[tuple[str, int], Goal] = {}
+    for key in ROSTER:
+        person = EntityId(r.ids[key])
+        card = r.state.cards[person]
+        for i, rule in enumerate(card.aim_rules, start=1):
+            if rule is None:
+                continue
+            made[(key, i)] = Goal(
+                goal_id=goals.aim_goal_id(r.campaign, person, i),
+                seat_id=seat,
+                text=card.aims[i - 1],
+                condition=rule.condition,
+                kind=goals.goal_kind(rule.condition),
+                clock_id=None,
+                scope=private_to(seat),
+                person=person,
+                source=GoalSource.POST,
+                aim=i,
+            )
+    return made
+
+
+def _contests_and_aims(
+    r: Rig,
+    day_from: State,
+    happened: list[ev.Payload],
+    day: date,
+    aims: dict[tuple[str, int], Goal],
+) -> None:
+    """The contests' part of the day walk (CON): the day's moves read from the state the
+    day began from, then the deciding day; then every aim inside its period checked from
+    state (AIM), its goal holding what the check found."""
+    for moved in contests.moves(r.state, day_from, happened, day - timedelta(days=1), day):
+        r.add(moved)
+    for decided in contests.decisions(r.state, day):
+        r.add(decided)
+    for key, goal in aims.items():
+        if goals.judged(r.state, goal):
+            aims[key] = goal.model_copy(update={"holding": goals.goal_met(r.state, goal.condition)})
+
+
+def _key(r: Rig, some_id: str) -> str:
+    return next(k for k, v in r.ids.items() if v == some_id)
+
+
+def _contests(r: Rig) -> dict[str, Contest]:
+    return {_key(r, k.contest_id): k for k in r.state.contests.values()}
 
 
 def _opinion(r: Rig) -> int | None:
@@ -263,8 +341,31 @@ def table(results: list[Run], checks: list[Check]) -> str:
         for b in fought
     ]
     return "\n".join(
-        [*rows, "out of band:", *(bad or ["  none"]), "battles opened:", *(opened or ["  none"])]
+        [
+            *rows,
+            "out of band:",
+            *(bad or ["  none"]),
+            "battles opened:",
+            *(opened or ["  none"]),
+            *ends(results),
+        ]
     )
+
+
+def ends(results: list[Run]) -> list[str]:
+    """Each aim's status and each contest's end on the last deciding day, counted over the
+    seeds (AMC): printed for reading, not a band."""
+    rows = [f"aims on {SEASON_END} (seeds met / at risk / failed):"]
+    for aim in sorted(results[0].aims, key=lambda k: (ROSTER.index(k[0]), k[1])):
+        got = [f.aims[aim] for f in results]
+        rows.append(
+            f"  {aim[0]:<10} {aim[1]}  {got.count('met'):>2} / {got.count('at_risk'):>2} /"
+            f" {got.count('failed'):>2}"
+        )
+    rows.append("contests (track, winner) per seed:")
+    for key in sorted(results[0].contests):
+        rows.append(f"  {key:<20} " + " ".join(f"{f.contests[key]}" for f in results))
+    return rows
 
 
 def test_the_historical_run_stays_in_its_bands() -> None:

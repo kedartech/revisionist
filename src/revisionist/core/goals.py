@@ -27,6 +27,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
 
 from pydantic import Field, model_validator
+from pydantic.json_schema import SkipJsonSchema
 
 from revisionist.core._base import Model
 from revisionist.core.ids import (
@@ -241,6 +242,30 @@ WinCondition = Annotated[
     | ActOf
     | Ordered
     | QuantityAt
+    | SkipJsonSchema[HoldsArea]
+    | SkipJsonSchema[IncomeAt]
+    | SkipJsonSchema[SupportAt]
+    | SkipJsonSchema[AgreementInForce]
+    | SkipJsonSchema[ContestWon]
+    | SkipJsonSchema[AtWar]
+    | SkipJsonSchema[RegardAt]
+    | AllOf
+    | AnyOf,
+    Field(discriminator="check"),
+]
+"""Every check. The territory rules' checks (AIM) are kept out of the schema a model is
+offered, like the territory rules' world keys; they validate everywhere."""
+
+AimCondition = Annotated[
+    HoldsOffice
+    | ControlsAsset
+    | EntityIs
+    | MeterAt
+    | CommitmentInForce
+    | DispositionAt
+    | ActOf
+    | Ordered
+    | QuantityAt
     | HoldsArea
     | IncomeAt
     | SupportAt
@@ -252,6 +277,8 @@ WinCondition = Annotated[
     | AnyOf,
     Field(discriminator="check"),
 ]
+"""The same checks as ``WinCondition``, with the territory rules' checks in its schema:
+the type of an aim's condition and a goal's, so the committed event schema shows them."""
 
 AllOf.model_rebuild()
 AnyOf.model_rebuild()
@@ -305,7 +332,7 @@ class AimRule(Model):
     period it is judged in. ``sees`` holds one exposure per leaf, in ``leaves`` order,
     set by the compiler from the world. Engine only, on the card."""
 
-    condition: WinCondition
+    condition: AimCondition
     rule: str = Field(min_length=1, max_length=280)
     """The success rule in plain words."""
     opens: date | None = None
@@ -340,7 +367,7 @@ class Goal(Model):
     seat_id: SeatId
     text: str = Field(max_length=280)
     """The goal as the player agreed it, in words. Never shown to another seat."""
-    condition: WinCondition
+    condition: AimCondition
     kind: GoalKind
     clock_id: ClockId | None
     """The objective clock that shows progress to the owner. None for an aim's goal."""

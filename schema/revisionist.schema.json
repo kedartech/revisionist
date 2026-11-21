@@ -746,23 +746,16 @@
               "discriminator": {
                 "mapping": {
                   "act_of": "#/$defs/ActOf",
-                  "agreement_in_force": "#/$defs/AgreementInForce",
                   "all_of": "#/$defs/AllOf",
                   "any_of": "#/$defs/AnyOf",
-                  "at_war": "#/$defs/AtWar",
                   "commitment_in_force": "#/$defs/CommitmentInForce",
-                  "contest_won": "#/$defs/ContestWon",
                   "controls_asset": "#/$defs/ControlsAsset",
                   "disposition_at": "#/$defs/DispositionAt",
                   "entity_is": "#/$defs/EntityIs",
-                  "holds_area": "#/$defs/HoldsArea",
                   "holds_office": "#/$defs/HoldsOffice",
-                  "income_at": "#/$defs/IncomeAt",
                   "meter_at": "#/$defs/MeterAt",
                   "ordered": "#/$defs/Ordered",
-                  "quantity_at": "#/$defs/QuantityAt",
-                  "regard_at": "#/$defs/RegardAt",
-                  "support_at": "#/$defs/SupportAt"
+                  "quantity_at": "#/$defs/QuantityAt"
                 },
                 "propertyName": "check"
               },
@@ -793,27 +786,6 @@
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
-                },
-                {
-                  "$ref": "#/$defs/HoldsArea"
-                },
-                {
-                  "$ref": "#/$defs/IncomeAt"
-                },
-                {
-                  "$ref": "#/$defs/SupportAt"
-                },
-                {
-                  "$ref": "#/$defs/AgreementInForce"
-                },
-                {
-                  "$ref": "#/$defs/ContestWon"
-                },
-                {
-                  "$ref": "#/$defs/AtWar"
-                },
-                {
-                  "$ref": "#/$defs/RegardAt"
                 },
                 {
                   "$ref": "#/$defs/AllOf"
@@ -1302,23 +1274,16 @@
               "discriminator": {
                 "mapping": {
                   "act_of": "#/$defs/ActOf",
-                  "agreement_in_force": "#/$defs/AgreementInForce",
                   "all_of": "#/$defs/AllOf",
                   "any_of": "#/$defs/AnyOf",
-                  "at_war": "#/$defs/AtWar",
                   "commitment_in_force": "#/$defs/CommitmentInForce",
-                  "contest_won": "#/$defs/ContestWon",
                   "controls_asset": "#/$defs/ControlsAsset",
                   "disposition_at": "#/$defs/DispositionAt",
                   "entity_is": "#/$defs/EntityIs",
-                  "holds_area": "#/$defs/HoldsArea",
                   "holds_office": "#/$defs/HoldsOffice",
-                  "income_at": "#/$defs/IncomeAt",
                   "meter_at": "#/$defs/MeterAt",
                   "ordered": "#/$defs/Ordered",
-                  "quantity_at": "#/$defs/QuantityAt",
-                  "regard_at": "#/$defs/RegardAt",
-                  "support_at": "#/$defs/SupportAt"
+                  "quantity_at": "#/$defs/QuantityAt"
                 },
                 "propertyName": "check"
               },
@@ -1349,27 +1314,6 @@
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
-                },
-                {
-                  "$ref": "#/$defs/HoldsArea"
-                },
-                {
-                  "$ref": "#/$defs/IncomeAt"
-                },
-                {
-                  "$ref": "#/$defs/SupportAt"
-                },
-                {
-                  "$ref": "#/$defs/AgreementInForce"
-                },
-                {
-                  "$ref": "#/$defs/ContestWon"
-                },
-                {
-                  "$ref": "#/$defs/AtWar"
-                },
-                {
-                  "$ref": "#/$defs/RegardAt"
                 },
                 {
                   "$ref": "#/$defs/AllOf"
@@ -6562,23 +6506,16 @@
             "discriminator": {
               "mapping": {
                 "act_of": "#/$defs/ActOf",
-                "agreement_in_force": "#/$defs/AgreementInForce",
                 "all_of": "#/$defs/AllOf",
                 "any_of": "#/$defs/AnyOf",
-                "at_war": "#/$defs/AtWar",
                 "commitment_in_force": "#/$defs/CommitmentInForce",
-                "contest_won": "#/$defs/ContestWon",
                 "controls_asset": "#/$defs/ControlsAsset",
                 "disposition_at": "#/$defs/DispositionAt",
                 "entity_is": "#/$defs/EntityIs",
-                "holds_area": "#/$defs/HoldsArea",
                 "holds_office": "#/$defs/HoldsOffice",
-                "income_at": "#/$defs/IncomeAt",
                 "meter_at": "#/$defs/MeterAt",
                 "ordered": "#/$defs/Ordered",
-                "quantity_at": "#/$defs/QuantityAt",
-                "regard_at": "#/$defs/RegardAt",
-                "support_at": "#/$defs/SupportAt"
+                "quantity_at": "#/$defs/QuantityAt"
               },
               "propertyName": "check"
             },
@@ -6609,27 +6546,6 @@
               },
               {
                 "$ref": "#/$defs/QuantityAt"
-              },
-              {
-                "$ref": "#/$defs/HoldsArea"
-              },
-              {
-                "$ref": "#/$defs/IncomeAt"
-              },
-              {
-                "$ref": "#/$defs/SupportAt"
-              },
-              {
-                "$ref": "#/$defs/AgreementInForce"
-              },
-              {
-                "$ref": "#/$defs/ContestWon"
-              },
-              {
-                "$ref": "#/$defs/AtWar"
-              },
-              {
-                "$ref": "#/$defs/RegardAt"
               },
               {
                 "$ref": "#/$defs/AllOf"
@@ -7841,23 +7757,16 @@
             "discriminator": {
               "mapping": {
                 "act_of": "#/$defs/ActOf",
-                "agreement_in_force": "#/$defs/AgreementInForce",
                 "all_of": "#/$defs/AllOf",
                 "any_of": "#/$defs/AnyOf",
-                "at_war": "#/$defs/AtWar",
                 "commitment_in_force": "#/$defs/CommitmentInForce",
-                "contest_won": "#/$defs/ContestWon",
                 "controls_asset": "#/$defs/ControlsAsset",
                 "disposition_at": "#/$defs/DispositionAt",
                 "entity_is": "#/$defs/EntityIs",
-                "holds_area": "#/$defs/HoldsArea",
                 "holds_office": "#/$defs/HoldsOffice",
-                "income_at": "#/$defs/IncomeAt",
                 "meter_at": "#/$defs/MeterAt",
                 "ordered": "#/$defs/Ordered",
-                "quantity_at": "#/$defs/QuantityAt",
-                "regard_at": "#/$defs/RegardAt",
-                "support_at": "#/$defs/SupportAt"
+                "quantity_at": "#/$defs/QuantityAt"
               },
               "propertyName": "check"
             },
@@ -7888,27 +7797,6 @@
               },
               {
                 "$ref": "#/$defs/QuantityAt"
-              },
-              {
-                "$ref": "#/$defs/HoldsArea"
-              },
-              {
-                "$ref": "#/$defs/IncomeAt"
-              },
-              {
-                "$ref": "#/$defs/SupportAt"
-              },
-              {
-                "$ref": "#/$defs/AgreementInForce"
-              },
-              {
-                "$ref": "#/$defs/ContestWon"
-              },
-              {
-                "$ref": "#/$defs/AtWar"
-              },
-              {
-                "$ref": "#/$defs/RegardAt"
               },
               {
                 "$ref": "#/$defs/AllOf"
@@ -8051,23 +7939,16 @@
             "discriminator": {
               "mapping": {
                 "act_of": "#/$defs/ActOf",
-                "agreement_in_force": "#/$defs/AgreementInForce",
                 "all_of": "#/$defs/AllOf",
                 "any_of": "#/$defs/AnyOf",
-                "at_war": "#/$defs/AtWar",
                 "commitment_in_force": "#/$defs/CommitmentInForce",
-                "contest_won": "#/$defs/ContestWon",
                 "controls_asset": "#/$defs/ControlsAsset",
                 "disposition_at": "#/$defs/DispositionAt",
                 "entity_is": "#/$defs/EntityIs",
-                "holds_area": "#/$defs/HoldsArea",
                 "holds_office": "#/$defs/HoldsOffice",
-                "income_at": "#/$defs/IncomeAt",
                 "meter_at": "#/$defs/MeterAt",
                 "ordered": "#/$defs/Ordered",
-                "quantity_at": "#/$defs/QuantityAt",
-                "regard_at": "#/$defs/RegardAt",
-                "support_at": "#/$defs/SupportAt"
+                "quantity_at": "#/$defs/QuantityAt"
               },
               "propertyName": "check"
             },
@@ -8098,27 +7979,6 @@
               },
               {
                 "$ref": "#/$defs/QuantityAt"
-              },
-              {
-                "$ref": "#/$defs/HoldsArea"
-              },
-              {
-                "$ref": "#/$defs/IncomeAt"
-              },
-              {
-                "$ref": "#/$defs/SupportAt"
-              },
-              {
-                "$ref": "#/$defs/AgreementInForce"
-              },
-              {
-                "$ref": "#/$defs/ContestWon"
-              },
-              {
-                "$ref": "#/$defs/AtWar"
-              },
-              {
-                "$ref": "#/$defs/RegardAt"
               },
               {
                 "$ref": "#/$defs/AllOf"
@@ -10772,23 +10632,16 @@
                 "discriminator": {
                   "mapping": {
                     "act_of": "#/$defs/ActOf",
-                    "agreement_in_force": "#/$defs/AgreementInForce",
                     "all_of": "#/$defs/AllOf",
                     "any_of": "#/$defs/AnyOf",
-                    "at_war": "#/$defs/AtWar",
                     "commitment_in_force": "#/$defs/CommitmentInForce",
-                    "contest_won": "#/$defs/ContestWon",
                     "controls_asset": "#/$defs/ControlsAsset",
                     "disposition_at": "#/$defs/DispositionAt",
                     "entity_is": "#/$defs/EntityIs",
-                    "holds_area": "#/$defs/HoldsArea",
                     "holds_office": "#/$defs/HoldsOffice",
-                    "income_at": "#/$defs/IncomeAt",
                     "meter_at": "#/$defs/MeterAt",
                     "ordered": "#/$defs/Ordered",
-                    "quantity_at": "#/$defs/QuantityAt",
-                    "regard_at": "#/$defs/RegardAt",
-                    "support_at": "#/$defs/SupportAt"
+                    "quantity_at": "#/$defs/QuantityAt"
                   },
                   "propertyName": "check"
                 },
@@ -10819,27 +10672,6 @@
                   },
                   {
                     "$ref": "#/$defs/QuantityAt"
-                  },
-                  {
-                    "$ref": "#/$defs/HoldsArea"
-                  },
-                  {
-                    "$ref": "#/$defs/IncomeAt"
-                  },
-                  {
-                    "$ref": "#/$defs/SupportAt"
-                  },
-                  {
-                    "$ref": "#/$defs/AgreementInForce"
-                  },
-                  {
-                    "$ref": "#/$defs/ContestWon"
-                  },
-                  {
-                    "$ref": "#/$defs/AtWar"
-                  },
-                  {
-                    "$ref": "#/$defs/RegardAt"
                   },
                   {
                     "$ref": "#/$defs/AllOf"
@@ -14881,23 +14713,16 @@
               "discriminator": {
                 "mapping": {
                   "act_of": "#/$defs/ActOf",
-                  "agreement_in_force": "#/$defs/AgreementInForce",
                   "all_of": "#/$defs/AllOf",
                   "any_of": "#/$defs/AnyOf",
-                  "at_war": "#/$defs/AtWar",
                   "commitment_in_force": "#/$defs/CommitmentInForce",
-                  "contest_won": "#/$defs/ContestWon",
                   "controls_asset": "#/$defs/ControlsAsset",
                   "disposition_at": "#/$defs/DispositionAt",
                   "entity_is": "#/$defs/EntityIs",
-                  "holds_area": "#/$defs/HoldsArea",
                   "holds_office": "#/$defs/HoldsOffice",
-                  "income_at": "#/$defs/IncomeAt",
                   "meter_at": "#/$defs/MeterAt",
                   "ordered": "#/$defs/Ordered",
-                  "quantity_at": "#/$defs/QuantityAt",
-                  "regard_at": "#/$defs/RegardAt",
-                  "support_at": "#/$defs/SupportAt"
+                  "quantity_at": "#/$defs/QuantityAt"
                 },
                 "propertyName": "check"
               },
@@ -14928,27 +14753,6 @@
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
-                },
-                {
-                  "$ref": "#/$defs/HoldsArea"
-                },
-                {
-                  "$ref": "#/$defs/IncomeAt"
-                },
-                {
-                  "$ref": "#/$defs/SupportAt"
-                },
-                {
-                  "$ref": "#/$defs/AgreementInForce"
-                },
-                {
-                  "$ref": "#/$defs/ContestWon"
-                },
-                {
-                  "$ref": "#/$defs/AtWar"
-                },
-                {
-                  "$ref": "#/$defs/RegardAt"
                 },
                 {
                   "$ref": "#/$defs/AllOf"
@@ -15400,23 +15204,16 @@
               "discriminator": {
                 "mapping": {
                   "act_of": "#/$defs/ActOf",
-                  "agreement_in_force": "#/$defs/AgreementInForce",
                   "all_of": "#/$defs/AllOf",
                   "any_of": "#/$defs/AnyOf",
-                  "at_war": "#/$defs/AtWar",
                   "commitment_in_force": "#/$defs/CommitmentInForce",
-                  "contest_won": "#/$defs/ContestWon",
                   "controls_asset": "#/$defs/ControlsAsset",
                   "disposition_at": "#/$defs/DispositionAt",
                   "entity_is": "#/$defs/EntityIs",
-                  "holds_area": "#/$defs/HoldsArea",
                   "holds_office": "#/$defs/HoldsOffice",
-                  "income_at": "#/$defs/IncomeAt",
                   "meter_at": "#/$defs/MeterAt",
                   "ordered": "#/$defs/Ordered",
-                  "quantity_at": "#/$defs/QuantityAt",
-                  "regard_at": "#/$defs/RegardAt",
-                  "support_at": "#/$defs/SupportAt"
+                  "quantity_at": "#/$defs/QuantityAt"
                 },
                 "propertyName": "check"
               },
@@ -15447,27 +15244,6 @@
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
-                },
-                {
-                  "$ref": "#/$defs/HoldsArea"
-                },
-                {
-                  "$ref": "#/$defs/IncomeAt"
-                },
-                {
-                  "$ref": "#/$defs/SupportAt"
-                },
-                {
-                  "$ref": "#/$defs/AgreementInForce"
-                },
-                {
-                  "$ref": "#/$defs/ContestWon"
-                },
-                {
-                  "$ref": "#/$defs/AtWar"
-                },
-                {
-                  "$ref": "#/$defs/RegardAt"
                 },
                 {
                   "$ref": "#/$defs/AllOf"
@@ -19046,23 +18822,16 @@
             "discriminator": {
               "mapping": {
                 "act_of": "#/$defs/ActOf",
-                "agreement_in_force": "#/$defs/AgreementInForce",
                 "all_of": "#/$defs/AllOf",
                 "any_of": "#/$defs/AnyOf",
-                "at_war": "#/$defs/AtWar",
                 "commitment_in_force": "#/$defs/CommitmentInForce",
-                "contest_won": "#/$defs/ContestWon",
                 "controls_asset": "#/$defs/ControlsAsset",
                 "disposition_at": "#/$defs/DispositionAt",
                 "entity_is": "#/$defs/EntityIs",
-                "holds_area": "#/$defs/HoldsArea",
                 "holds_office": "#/$defs/HoldsOffice",
-                "income_at": "#/$defs/IncomeAt",
                 "meter_at": "#/$defs/MeterAt",
                 "ordered": "#/$defs/Ordered",
-                "quantity_at": "#/$defs/QuantityAt",
-                "regard_at": "#/$defs/RegardAt",
-                "support_at": "#/$defs/SupportAt"
+                "quantity_at": "#/$defs/QuantityAt"
               },
               "propertyName": "check"
             },
@@ -19093,27 +18862,6 @@
               },
               {
                 "$ref": "#/$defs/QuantityAt"
-              },
-              {
-                "$ref": "#/$defs/HoldsArea"
-              },
-              {
-                "$ref": "#/$defs/IncomeAt"
-              },
-              {
-                "$ref": "#/$defs/SupportAt"
-              },
-              {
-                "$ref": "#/$defs/AgreementInForce"
-              },
-              {
-                "$ref": "#/$defs/ContestWon"
-              },
-              {
-                "$ref": "#/$defs/AtWar"
-              },
-              {
-                "$ref": "#/$defs/RegardAt"
               },
               {
                 "$ref": "#/$defs/AllOf"
@@ -19212,23 +18960,16 @@
             "discriminator": {
               "mapping": {
                 "act_of": "#/$defs/ActOf",
-                "agreement_in_force": "#/$defs/AgreementInForce",
                 "all_of": "#/$defs/AllOf",
                 "any_of": "#/$defs/AnyOf",
-                "at_war": "#/$defs/AtWar",
                 "commitment_in_force": "#/$defs/CommitmentInForce",
-                "contest_won": "#/$defs/ContestWon",
                 "controls_asset": "#/$defs/ControlsAsset",
                 "disposition_at": "#/$defs/DispositionAt",
                 "entity_is": "#/$defs/EntityIs",
-                "holds_area": "#/$defs/HoldsArea",
                 "holds_office": "#/$defs/HoldsOffice",
-                "income_at": "#/$defs/IncomeAt",
                 "meter_at": "#/$defs/MeterAt",
                 "ordered": "#/$defs/Ordered",
-                "quantity_at": "#/$defs/QuantityAt",
-                "regard_at": "#/$defs/RegardAt",
-                "support_at": "#/$defs/SupportAt"
+                "quantity_at": "#/$defs/QuantityAt"
               },
               "propertyName": "check"
             },
@@ -19259,27 +19000,6 @@
               },
               {
                 "$ref": "#/$defs/QuantityAt"
-              },
-              {
-                "$ref": "#/$defs/HoldsArea"
-              },
-              {
-                "$ref": "#/$defs/IncomeAt"
-              },
-              {
-                "$ref": "#/$defs/SupportAt"
-              },
-              {
-                "$ref": "#/$defs/AgreementInForce"
-              },
-              {
-                "$ref": "#/$defs/ContestWon"
-              },
-              {
-                "$ref": "#/$defs/AtWar"
-              },
-              {
-                "$ref": "#/$defs/RegardAt"
               },
               {
                 "$ref": "#/$defs/AllOf"
@@ -21077,23 +20797,16 @@
                 "discriminator": {
                   "mapping": {
                     "act_of": "#/$defs/ActOf",
-                    "agreement_in_force": "#/$defs/AgreementInForce",
                     "all_of": "#/$defs/AllOf",
                     "any_of": "#/$defs/AnyOf",
-                    "at_war": "#/$defs/AtWar",
                     "commitment_in_force": "#/$defs/CommitmentInForce",
-                    "contest_won": "#/$defs/ContestWon",
                     "controls_asset": "#/$defs/ControlsAsset",
                     "disposition_at": "#/$defs/DispositionAt",
                     "entity_is": "#/$defs/EntityIs",
-                    "holds_area": "#/$defs/HoldsArea",
                     "holds_office": "#/$defs/HoldsOffice",
-                    "income_at": "#/$defs/IncomeAt",
                     "meter_at": "#/$defs/MeterAt",
                     "ordered": "#/$defs/Ordered",
-                    "quantity_at": "#/$defs/QuantityAt",
-                    "regard_at": "#/$defs/RegardAt",
-                    "support_at": "#/$defs/SupportAt"
+                    "quantity_at": "#/$defs/QuantityAt"
                   },
                   "propertyName": "check"
                 },
@@ -21124,27 +20837,6 @@
                   },
                   {
                     "$ref": "#/$defs/QuantityAt"
-                  },
-                  {
-                    "$ref": "#/$defs/HoldsArea"
-                  },
-                  {
-                    "$ref": "#/$defs/IncomeAt"
-                  },
-                  {
-                    "$ref": "#/$defs/SupportAt"
-                  },
-                  {
-                    "$ref": "#/$defs/AgreementInForce"
-                  },
-                  {
-                    "$ref": "#/$defs/ContestWon"
-                  },
-                  {
-                    "$ref": "#/$defs/AtWar"
-                  },
-                  {
-                    "$ref": "#/$defs/RegardAt"
                   },
                   {
                     "$ref": "#/$defs/AllOf"
@@ -24027,23 +23719,16 @@
               "discriminator": {
                 "mapping": {
                   "act_of": "#/$defs/ActOf",
-                  "agreement_in_force": "#/$defs/AgreementInForce",
                   "all_of": "#/$defs/AllOf",
                   "any_of": "#/$defs/AnyOf",
-                  "at_war": "#/$defs/AtWar",
                   "commitment_in_force": "#/$defs/CommitmentInForce",
-                  "contest_won": "#/$defs/ContestWon",
                   "controls_asset": "#/$defs/ControlsAsset",
                   "disposition_at": "#/$defs/DispositionAt",
                   "entity_is": "#/$defs/EntityIs",
-                  "holds_area": "#/$defs/HoldsArea",
                   "holds_office": "#/$defs/HoldsOffice",
-                  "income_at": "#/$defs/IncomeAt",
                   "meter_at": "#/$defs/MeterAt",
                   "ordered": "#/$defs/Ordered",
-                  "quantity_at": "#/$defs/QuantityAt",
-                  "regard_at": "#/$defs/RegardAt",
-                  "support_at": "#/$defs/SupportAt"
+                  "quantity_at": "#/$defs/QuantityAt"
                 },
                 "propertyName": "check"
               },
@@ -24074,27 +23759,6 @@
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
-                },
-                {
-                  "$ref": "#/$defs/HoldsArea"
-                },
-                {
-                  "$ref": "#/$defs/IncomeAt"
-                },
-                {
-                  "$ref": "#/$defs/SupportAt"
-                },
-                {
-                  "$ref": "#/$defs/AgreementInForce"
-                },
-                {
-                  "$ref": "#/$defs/ContestWon"
-                },
-                {
-                  "$ref": "#/$defs/AtWar"
-                },
-                {
-                  "$ref": "#/$defs/RegardAt"
                 },
                 {
                   "$ref": "#/$defs/AllOf"
@@ -24180,23 +23844,16 @@
               "discriminator": {
                 "mapping": {
                   "act_of": "#/$defs/ActOf",
-                  "agreement_in_force": "#/$defs/AgreementInForce",
                   "all_of": "#/$defs/AllOf",
                   "any_of": "#/$defs/AnyOf",
-                  "at_war": "#/$defs/AtWar",
                   "commitment_in_force": "#/$defs/CommitmentInForce",
-                  "contest_won": "#/$defs/ContestWon",
                   "controls_asset": "#/$defs/ControlsAsset",
                   "disposition_at": "#/$defs/DispositionAt",
                   "entity_is": "#/$defs/EntityIs",
-                  "holds_area": "#/$defs/HoldsArea",
                   "holds_office": "#/$defs/HoldsOffice",
-                  "income_at": "#/$defs/IncomeAt",
                   "meter_at": "#/$defs/MeterAt",
                   "ordered": "#/$defs/Ordered",
-                  "quantity_at": "#/$defs/QuantityAt",
-                  "regard_at": "#/$defs/RegardAt",
-                  "support_at": "#/$defs/SupportAt"
+                  "quantity_at": "#/$defs/QuantityAt"
                 },
                 "propertyName": "check"
               },
@@ -24227,27 +23884,6 @@
                 },
                 {
                   "$ref": "#/$defs/QuantityAt"
-                },
-                {
-                  "$ref": "#/$defs/HoldsArea"
-                },
-                {
-                  "$ref": "#/$defs/IncomeAt"
-                },
-                {
-                  "$ref": "#/$defs/SupportAt"
-                },
-                {
-                  "$ref": "#/$defs/AgreementInForce"
-                },
-                {
-                  "$ref": "#/$defs/ContestWon"
-                },
-                {
-                  "$ref": "#/$defs/AtWar"
-                },
-                {
-                  "$ref": "#/$defs/RegardAt"
                 },
                 {
                   "$ref": "#/$defs/AllOf"
@@ -27138,23 +26774,16 @@
             "discriminator": {
               "mapping": {
                 "act_of": "#/$defs/ActOf",
-                "agreement_in_force": "#/$defs/AgreementInForce",
                 "all_of": "#/$defs/AllOf",
                 "any_of": "#/$defs/AnyOf",
-                "at_war": "#/$defs/AtWar",
                 "commitment_in_force": "#/$defs/CommitmentInForce",
-                "contest_won": "#/$defs/ContestWon",
                 "controls_asset": "#/$defs/ControlsAsset",
                 "disposition_at": "#/$defs/DispositionAt",
                 "entity_is": "#/$defs/EntityIs",
-                "holds_area": "#/$defs/HoldsArea",
                 "holds_office": "#/$defs/HoldsOffice",
-                "income_at": "#/$defs/IncomeAt",
                 "meter_at": "#/$defs/MeterAt",
                 "ordered": "#/$defs/Ordered",
-                "quantity_at": "#/$defs/QuantityAt",
-                "regard_at": "#/$defs/RegardAt",
-                "support_at": "#/$defs/SupportAt"
+                "quantity_at": "#/$defs/QuantityAt"
               },
               "propertyName": "check"
             },
@@ -27185,27 +26814,6 @@
               },
               {
                 "$ref": "#/$defs/QuantityAt"
-              },
-              {
-                "$ref": "#/$defs/HoldsArea"
-              },
-              {
-                "$ref": "#/$defs/IncomeAt"
-              },
-              {
-                "$ref": "#/$defs/SupportAt"
-              },
-              {
-                "$ref": "#/$defs/AgreementInForce"
-              },
-              {
-                "$ref": "#/$defs/ContestWon"
-              },
-              {
-                "$ref": "#/$defs/AtWar"
-              },
-              {
-                "$ref": "#/$defs/RegardAt"
               },
               {
                 "$ref": "#/$defs/AllOf"
@@ -28760,23 +28368,16 @@
                 "discriminator": {
                   "mapping": {
                     "act_of": "#/$defs/ActOf",
-                    "agreement_in_force": "#/$defs/AgreementInForce",
                     "all_of": "#/$defs/AllOf",
                     "any_of": "#/$defs/AnyOf",
-                    "at_war": "#/$defs/AtWar",
                     "commitment_in_force": "#/$defs/CommitmentInForce",
-                    "contest_won": "#/$defs/ContestWon",
                     "controls_asset": "#/$defs/ControlsAsset",
                     "disposition_at": "#/$defs/DispositionAt",
                     "entity_is": "#/$defs/EntityIs",
-                    "holds_area": "#/$defs/HoldsArea",
                     "holds_office": "#/$defs/HoldsOffice",
-                    "income_at": "#/$defs/IncomeAt",
                     "meter_at": "#/$defs/MeterAt",
                     "ordered": "#/$defs/Ordered",
-                    "quantity_at": "#/$defs/QuantityAt",
-                    "regard_at": "#/$defs/RegardAt",
-                    "support_at": "#/$defs/SupportAt"
+                    "quantity_at": "#/$defs/QuantityAt"
                   },
                   "propertyName": "check"
                 },
@@ -28807,27 +28408,6 @@
                   },
                   {
                     "$ref": "#/$defs/QuantityAt"
-                  },
-                  {
-                    "$ref": "#/$defs/HoldsArea"
-                  },
-                  {
-                    "$ref": "#/$defs/IncomeAt"
-                  },
-                  {
-                    "$ref": "#/$defs/SupportAt"
-                  },
-                  {
-                    "$ref": "#/$defs/AgreementInForce"
-                  },
-                  {
-                    "$ref": "#/$defs/ContestWon"
-                  },
-                  {
-                    "$ref": "#/$defs/AtWar"
-                  },
-                  {
-                    "$ref": "#/$defs/RegardAt"
                   },
                   {
                     "$ref": "#/$defs/AllOf"

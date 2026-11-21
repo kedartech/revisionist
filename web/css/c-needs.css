@@ -43,3 +43,8 @@
   .rl-needs-close { display: none; }
   .rl-needsbar { display: none; }
 }
+
+/* Beginner's map-first room: the three aims above the map, and what folds behind More. */
+.rl-beginner-board { padding: 0.5rem 0.75rem; }
+.rl-beginner-board > h2 { margin: 0 0 0.4rem; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.rl-eco-more > summary, .rl-odds-more > summary { cursor: pointer; margin: 0.4rem 0; }

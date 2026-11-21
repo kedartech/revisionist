@@ -8,8 +8,9 @@ toy world is that of ``tests/test_battle_decisions.py``.
 """
 
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import date, timedelta
+from itertools import permutations
 from pathlib import Path
 from typing import Any
 
@@ -33,6 +34,7 @@ from revisionist.core.realism.effect import (
     SetEngagement,
 )
 from revisionist.core.state import State
+from tests.async_table import digest, papers
 from tests.test_adjacency_moves import Logged, World, entity, piece, seat
 from tests.test_battle_decisions import ISLE, at_wake, fight, opened, second_levy
 from tests.test_battles import COAST, OPENS, horizon, link, no_ferry, payloads, to_coast
@@ -251,3 +253,141 @@ def test_a_game_without_battles_lands_today_s_events(
     _as_before(monkeypatch)
     assert seamed == _landed(off, NEXT)
     assert not [e for e in seamed if '"battle_decided"' in e]
+
+
+# --- BDS: a side's decisions in one wake settle by content ------------------------------
+#
+# Order ids are ULIDs in play, so the order of filing is the order of the ids. These tests
+# give the ids by hand in the order each run files them: ``FIRST`` to the first filed.
+
+FIRST = ("bds-order-0", "bds-order-1", "bds-order-2")
+
+
+def officer(person: str, polity: str, office: str) -> Callable[[World], None]:
+    """A second playable seat whose card commands Norra's levy: ``person`` of ``polity``."""
+
+    def change(w: World) -> None:
+        if polity not in {e["key"] for e in w["entities"]}:
+            w["entities"].append({"key": polity, "kind": "polity", "name": polity.title()})
+        w["entities"] += [
+            {"key": person, "kind": "person", "name": person.title(), "parent": polity},
+            {"key": f"{person}_aide", "kind": "person", "name": f"Aide of {person}"},
+        ]
+        w["cards"].append(
+            {
+                "person": person,
+                "office": office,
+                "playable": True,
+                "principals": [polity],
+                "horizon_days": 14,
+                "authority": [
+                    {
+                        "name": "army",
+                        "effects": ["move_force", "engagement"],
+                        "forces": ["norra_levy"],
+                    }
+                ],
+                "inner_circle": [{"person": f"{person}_aide", "channel": "courier"}],
+            }
+        )
+        w["roster"].append(
+            {"entity": person, "pitch": office, "reach": "The army of Norra.", "composite": True}
+        )
+
+    return change
+
+
+DEPUTY = officer("ivar", "norra", "Marshal of Norra")
+"""A second seat of Norra, the side's own nation; its seat key sorts after Ilse's."""
+ALLY = officer("otto", "vesta", "Envoy-general of Vesta")
+"""A seat of another nation on Norra's side; its seat key sorts before Ilse's."""
+
+Filing = tuple[str, Posture]
+"""Who files, and the posture on Norra's levy (no destination)."""
+
+
+def wake_of(tmp: Path, filings: Sequence[Filing], *extra: Callable[[World], None]) -> Logged:
+    """The coast's battle open, each filing made in the order given (``FIRST`` ids in that
+    order), all in one wake on ``NEXT``, and the day walked."""
+    tmp.mkdir()
+    g = opened(tmp, army, *extra)
+    claims = {by for by, _ in filings} - {"ilse", "tomas"}
+    g.add([ev.CharacterClaimed(seat_id=seat(p), entity_id=entity(p)) for p in sorted(claims)])
+    for n, (by, posture) in enumerate(filings):
+        routed = RoutedOrder(
+            order_id=OrderId(FIRST[n]),
+            issuer=seat(by),
+            filed=NEXT,
+            parts=(
+                RoutedPart(
+                    route=Route.COMMAND, effect=move(g, "norra_levy", posture), domain="army"
+                ),
+            ),
+        )
+        g.add(
+            [
+                ev.OrderRouted(order=routed),
+                ev.OrderExecuted(order_id=routed.order_id, part=0, on=NEXT, fidelity=Fidelity.FULL),
+            ]
+        )
+    g.walk(NEXT, NEXT)
+    return g
+
+
+def outcome(g: Logged) -> tuple[Any, ...]:
+    """The outcome digest (``tests/async_table.digest``) and every seat's papers. The
+    routed orders and the documents are keyed by order id, which is the filing order by
+    construction here, so the digest leaves those two maps out; ``papers`` gives each
+    seat's papers by their shape, with no id."""
+    world = g.state.model_copy(update={"routed": {}, "documents": {}})
+    return digest(world), repr([papers(g.state, s) for s in sorted(g.state.seats)])
+
+
+def test_two_seats_of_a_side_settle_the_same_whoever_filed_first(tmp_path: Path) -> None:
+    a = wake_of(tmp_path / "a", [("ilse", Posture.ATTACK), ("ivar", Posture.WITHDRAW)], DEPUTY)
+    b = wake_of(tmp_path / "b", [("ivar", Posture.WITHDRAW), ("ilse", Posture.ATTACK)], DEPUTY)
+    for g in (a, b):
+        assert fight(g).attacker.decision is Decision.PRESS  # Ilse's seat key sorts first
+        assert fight(g).attacker.decided_wake == 0
+        assert piece(g.state, "norra_levy").places == (entity(COAST),)
+    assert outcome(a) == outcome(b)
+
+
+def test_three_decisions_for_one_side_in_any_order_give_one_outcome(tmp_path: Path) -> None:
+    three: list[Filing] = [
+        ("ilse", Posture.ATTACK),
+        ("ilse", Posture.HOLD),
+        ("ivar", Posture.WITHDRAW),
+    ]
+    seen = set()
+    for n, order in enumerate(permutations(three)):
+        g = wake_of(tmp_path / str(n), list(order), DEPUTY)
+        # Ilse's seat first; of her two, the more cautious: hold.
+        assert fight(g).attacker.decision is Decision.HOLD
+        seen.add(outcome(g))
+    assert len(seen) == 1
+
+
+def test_the_seat_of_the_sides_own_nation_comes_before_an_ally(tmp_path: Path) -> None:
+    assert str(seat("otto")) < str(seat("ilse"))
+    for n, order in enumerate(
+        (
+            [("otto", Posture.WITHDRAW), ("ilse", Posture.ATTACK)],
+            [("ilse", Posture.ATTACK), ("otto", Posture.WITHDRAW)],
+        )
+    ):
+        g = wake_of(tmp_path / str(n), order, ALLY)
+        assert fight(g).attacker.decision is Decision.PRESS
+
+
+def test_twins_settle_no_decision_without_battles(tmp_path: Path) -> None:
+    g = opened(tmp_path, army)
+    off = g.state.model_copy(
+        update={"rules": g.state.rules - {r for r in g.state.rules if r.value == "battles"}}
+    )
+    wanted = [
+        (seat("ilse"), "a", move(g, "norra_levy", Posture.ATTACK), NEXT),
+        (seat("ilse"), "b", move(g, "norra_levy", Posture.WITHDRAW), NEXT),
+    ]
+    assert battle.twins(off, wanted) == frozenset()
+    assert battle.twins(g.state, wanted) == {"a"}

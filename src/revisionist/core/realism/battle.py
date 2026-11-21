@@ -35,6 +35,8 @@ holds. Each piece carries a contingency, set through the engagement effect
 (``land_contingency``): hold, hold at all costs, fall back when outnumbered, or withdraw
 below a strength. Contingencies are checked at the start of every round, in the day walk,
 with no player. ``battle_decided`` records a decision and the pieces that join a side.
+Two decisions for one side due in one pass, from one seat or from several (allies join a
+side), settle by content, never by filing order (``twins``, BDS).
 
 Head-on moves (HON). When pieces of two powers at war would each complete a step into the
 other's area on the same day, neither enters: a meeting battle opens on that border
@@ -1324,8 +1326,59 @@ def _withdrawal(
     return named if named is not None and _may_go(state, force, area, named) else None
 
 
+CAUTION = (Decision.WITHDRAW, Decision.HOLD, Decision.PRESS)  # [proposed] BDS
+"""The most cautious decision first: the order a seat's own competing decisions settle in."""
+
+
+def twins(state: "State", wanted: Iterable[tuple[SeatId, str, object, date]]) -> frozenset[str]:
+    """Of the parts landing in one pass, the refs of those that are a second decision for
+    a side's battle and so are refused as twins (rule 3; BDS). Each part is (issuing seat,
+    ref, effect as carried, day it lands). One decision lands per side, chosen by content,
+    never by filing order: a seat whose person belongs to the side's own nation first, then
+    the lowest seat key, then the most cautious decision (``CAUTION``), then the lowest
+    force id, destination and day. Parts equal in all of these are the same decision; the
+    ref only names which of them is counted. Empty with ``battles`` off, where no posture is
+    a decision (``_reading``)."""
+    from revisionist.core.realism.effect import MoveForce
+    from revisionist.core.realism.war import polity_of
+
+    chosen: dict[tuple[EntityId, int], tuple[tuple[object, ...], str]] = {}
+    out: set[str] = set()
+    for seat, ref, effect, day in wanted:
+        force = state.features.get(effect.force) if isinstance(effect, MoveForce) else None
+        if force is None or not isinstance(effect, MoveForce):
+            continue
+        read = _reading(state, force, effect.posture, effect.to)
+        if read is None:
+            continue
+        fought, decision, _ = read
+        sides = (fought.attacker, fought.defender)
+        i = next((n for n, side in enumerate(sides) if force.feature_id in side.pieces), None)
+        if i is None:
+            continue  # rule 9: refused by ``land_posture`` itself
+        person = state.seats[seat].embodies if seat in state.seats else None
+        lead = person is not None and polity_of(state, person) == sides[i].nation
+        rank: tuple[object, ...] = (not lead, str(seat), CAUTION.index(decision))
+        rank += (str(force.feature_id), str(effect.to or ""), day, ref)
+        key = (fought.area, i)
+        held = chosen.get(key)
+        if held is None or rank < held[0]:
+            if held is not None:
+                out.add(held[1])
+            chosen[key] = (rank, ref)
+        else:
+            out.add(ref)
+    return frozenset(out)
+
+
 def land_posture(
-    state: "State", force: "Feature", posture: "Posture | None", to: EntityId | None, on: date
+    state: "State",
+    force: "Feature",
+    posture: "Posture | None",
+    to: EntityId | None,
+    on: date,
+    *,
+    twin: bool = False,
 ) -> list["Payload"] | None:
     """A posture landing on ``force`` (with the destination of its move, if any): with
     ``battles`` on and the force in a battle, the changes that land instead of today's,
@@ -1334,9 +1387,12 @@ def land_posture(
     first round on or after ``on`` until changed (rules 1 and 2). A second decision for the
     battle in one wake (rule 3), a piece on neither side (rule 9) and a withdrawal with
     nowhere it may go are refused: the force is left as it was. A withdrawing side leaves
-    one step for the area named, losing one step if the other side presses (rule 4)."""
+    one step for the area named, losing one step if the other side presses (rule 4).
+    ``twin``: a decision ``twins`` refused for this pass, left as it was the same way."""
     from revisionist.core import events as ev
 
+    if twin:
+        return [ev.FeatureSet(feature=force.model_copy(update={"as_of": max(on, force.as_of)}))]
     read = _reading(state, force, posture, to)
     if read is None:
         return None
@@ -1487,6 +1543,7 @@ def walk(before: "State", state: "State", day: date, met: Sequence[Meet] = ()) -
 
 __all__ = [
     "AIR_SUPPORT",
+    "CAUTION",
     "DOUBLE_MARGIN",
     "DRAW_TOP",
     "LULL_DAYS",
@@ -1524,6 +1581,7 @@ __all__ = [
     "score",
     "seed",
     "simulate",
+    "twins",
     "walk",
     "won",
 ]

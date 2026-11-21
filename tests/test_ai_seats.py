@@ -143,7 +143,9 @@ OWN_ORDERS = frozenset(
 """What an AI seat may be scoped: its answers and the orders they file, as a player's
 orders are scoped to the player."""
 
-NATION_STATE = frozenset({"piece_stepped", "economy_set", "step_refused", "trade_set"})
+NATION_STATE = frozenset(
+    {"piece_stepped", "economy_set", "step_refused", "trade_set", "group_moved"}
+)
 """A nation's own state, scoped to its seats as to a player's (``realism_tick._nation_scope``):
 no page, report or mandate."""
 

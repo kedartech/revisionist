@@ -53,7 +53,7 @@ def test_an_enacted_declaration_yields_the_war_fact_relationship_and_news() -> N
 
 
 def test_a_seeded_opinion_rises_and_a_gap_is_left_alone() -> None:
-    r = hitler_rig()
+    r = rig(seat="hitler", groups=False)  # the Gallup questions move only with groups off
     r.set_value(KEYS[0], 98)
     changes = war.resolve(r.state, declare(r))
     puts = [c for c in changes if isinstance(c, QuantityChange)]

@@ -43,7 +43,7 @@ def hide(r: Rig, key: str, scope: Scope | None) -> None:
 
 
 def test_a_rise_on_monday_is_one_news_item_with_the_figure() -> None:
-    r = rig()
+    r = rig(groups=False)
     r.set_value("opinion_target", 58)
     (item,) = poll_news(opinion.on_day(r.state, MONDAY))
     assert item.on == MONDAY
@@ -58,7 +58,7 @@ def test_a_rise_on_monday_is_one_news_item_with_the_figure() -> None:
 
 
 def test_a_fall_reads_down() -> None:
-    r = rig()
+    r = rig(groups=False)
     r.set_value("opinion_target", 50)
     (item,) = poll_news(opinion.on_day(r.state, MONDAY))
     assert item.headline == "Poll: Roosevelt's course down to 54%"
@@ -67,7 +67,7 @@ def test_a_fall_reads_down() -> None:
 
 
 def test_an_incident_that_moves_the_figure_is_news_too() -> None:
-    r = rig()
+    r = rig(groups=False)
     greer = next(s for i, s in r.state.scheduled.items() if i == r.ids["greer_incident"])
     r.add(ev.ScheduledEventFired(scheduled_id=greer.scheduled_id))
     (item,) = poll_news(opinion.on_day(r.state, MONDAY))
@@ -75,7 +75,7 @@ def test_an_incident_that_moves_the_figure_is_news_too() -> None:
 
 
 def test_no_news_when_the_figure_does_not_move() -> None:
-    r = rig()
+    r = rig(groups=False)
     assert poll_news(opinion.on_day(r.state, MONDAY)) == []  # no target set
     r.set_value("opinion_target", 55)
     assert poll_news(opinion.on_day(r.state, MONDAY)) == []  # at target
@@ -84,7 +84,7 @@ def test_no_news_when_the_figure_does_not_move() -> None:
 
 
 def test_one_item_per_move_never_one_per_wake_or_day() -> None:
-    r = rig()
+    r = rig(groups=False)
     r.set_value("opinion_target", 58)
     items = walk(r)
     assert [i.on for i in items] == [MONDAY + timedelta(weeks=n) for n in range(3)]
@@ -96,7 +96,7 @@ def test_one_item_per_move_never_one_per_wake_or_day() -> None:
 
 @pytest.mark.parametrize("private", [False, True])
 def test_a_figure_off_the_public_record_makes_no_news(private: bool) -> None:
-    r = rig()
+    r = rig(groups=False)
     r.set_value("opinion_target", 58)
     hide(r, "gallup_fdr_about_right", private_to(r.seats["roosevelt"]) if private else None)
     changes = opinion.on_day(r.state, MONDAY)
@@ -106,7 +106,7 @@ def test_a_figure_off_the_public_record_makes_no_news(private: bool) -> None:
 
 
 def test_the_private_target_never_reaches_the_news() -> None:
-    r = rig()
+    r = rig(groups=False)
     r.set_value("opinion_target", TARGET)
     (item,) = poll_news(opinion.on_day(r.state, MONDAY))
     assert str(TARGET) not in item.model_dump_json()
@@ -114,7 +114,7 @@ def test_the_private_target_never_reaches_the_news() -> None:
 
 
 def test_each_seat_press_prints_the_public_facts() -> None:
-    r = Rig()
+    r = Rig(groups=False)
     roosevelt, churchill = r.seat("roosevelt"), r.seat("churchill")
     r.close_session_zero()
     r.set_value("opinion_target", TARGET)
@@ -137,7 +137,7 @@ def test_each_seat_press_prints_the_public_facts() -> None:
 
 
 def test_the_figure_survives_the_longest_outlet_name_in_a_press_title() -> None:
-    r = Rig()
+    r = Rig(groups=False)
     r.seat("roosevelt")
     r.close_session_zero()
     r.set_value("gallup_fdr_about_right", 100)

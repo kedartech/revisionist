@@ -1216,6 +1216,30 @@ class AgendaOption(TypedDict):
     """None where the staff gave no levels. The steps of a guided plan share the plan's."""
 
 
+class TermClause(TypedDict):
+    """One clause of an offer or agreement, in the fixed words ``agreement.render_clause``
+    gives it (AGA)."""
+
+    text: str
+    checked: bool
+    """False for wording the rules cannot check: it is never judged."""
+    interpretation: bool
+    """True when the aide read the clause from the seat's own wording (TRT): the seat
+    signs the rendered words, and its wording stands beside them unchecked."""
+
+
+class OfferTerms(TypedDict):
+    """The terms of an offer of agreement as signing and its agenda item show them (AGA)."""
+
+    parties: list[str]
+    """The named nations, by name, in the offer's order."""
+    clauses: list[TermClause]
+    wording: str
+    """The offer's own wording, which the rules do not check; empty when it has none."""
+    text: str
+    """Every term in one line: ``agreement.render_terms``."""
+
+
 class AgendaItem(TypedDict):
     """One live mandate with what the seat is offered for it."""
 
@@ -1238,6 +1262,65 @@ class AgendaItem(TypedDict):
     actions: list[str]
     """A held decision: the step actions its step allows, less ``amend``, in the order of
     ``StepAction``; the ``step`` action takes one. Empty for every other kind."""
+
+
+class AgreementClauseLine(TypedDict):
+    """One clause of an agreement in force, with its state (AGA rule 4)."""
+
+    text: str
+    checked: bool
+    state: Literal["pending", "kept", "broken", "called", "void", "unchecked"]
+    """``pending``: in force and not yet judged; ``unchecked``: wording never judged."""
+    on: str | None
+    """The day it was last judged; for a pending dated clause, the day it is judged on;
+    None for a standing or unchecked clause not yet judged."""
+
+
+class AgreementLine(TypedDict):
+    """An agreement the seat's nation is party to, or a public one (AGA rule 4)."""
+
+    id: str
+    """The ``agreement-publish`` action takes it."""
+    parties: list[str]
+    wording: str
+    made: str
+    published: str | None
+    """The day a party published it; None while only its parties know of it."""
+    party: bool
+    """Whether the seat's own nation is a party: only a party may publish it."""
+    clauses: list[AgreementClauseLine]
+
+
+class OfferAnswer(TypedDict):
+    """One named nation's answer to the seat's own offer, as the seat knows it: None
+    until the offer's due day decides it (AGA rule 3)."""
+
+    nation: str
+    answer: Literal["accepted", "declined"] | None
+
+
+class OfferLine(TypedDict):
+    """An open offer of agreement the seat's nation is named in (AGA)."""
+
+    by: str
+    """The offering nation, by name."""
+    terms: OfferTerms
+    filed: str
+    expires: str
+    answers: list[OfferAnswer]
+    """The seat's own offer: each other nation's answer. Empty for an offer to the seat."""
+    item: str | None
+    """An offer before the seat to answer: the id of its "Offer" item on the agenda, which
+    the ``answer`` action takes. None once answered on its due day, and for its own offer."""
+
+
+class AgreementsBlock(TypedDict):
+    """Agreements as the seat sees them, with ``agreements`` on (AGA rule 4): every
+    agreement its nation is party to and every public one, and its open offers. Read
+    from the seat's view, which holds no private agreement of other nations."""
+
+    agreements: list[AgreementLine]
+    offers: list[OfferLine]
 
 
 class AgendaBlock(TypedDict):
@@ -1327,6 +1410,17 @@ class OrderProposal(TypedDict):
     """Each part in words; empty when it cannot be filed."""
     reason: str | None
     """Why it cannot be filed, in words."""
+
+
+class OfferReading(TypedDict):
+    """The reply to ``agreement-offer`` (and to ``order`` when the aide read a treaty):
+    the proposal to sign and its terms (AGA)."""
+
+    reply: str
+    refused: bool
+    proposal: OrderProposal
+    terms: OfferTerms | None
+    """None when nothing can be signed; ``proposal.reason`` says why."""
 
 
 class TimelinePoint(TypedDict):
@@ -1565,6 +1659,9 @@ __all__ = [
     "AgendaBlock",
     "AgendaItem",
     "AgendaOption",
+    "AgreementClauseLine",
+    "AgreementLine",
+    "AgreementsBlock",
     "BattlePiece",
     "BattleRoundLine",
     "BattleView",
@@ -1624,6 +1721,10 @@ __all__ = [
     "OddsReply",
     "OddsShares",
     "OddsTerrain",
+    "OfferAnswer",
+    "OfferLine",
+    "OfferReading",
+    "OfferTerms",
     "OpenMeasure",
     "OrderProposal",
     "OrderResult",
@@ -1672,6 +1773,7 @@ __all__ = [
     "Stakes",
     "StepLine",
     "StrengthRange",
+    "TermClause",
     "Threat",
     "TimelinePoint",
     "WakeHeader",

@@ -270,7 +270,7 @@ def file_one(
             realism_tick.take_step(
                 store, campaign_id, seat, args["order_id"], taken, args["params"]
             )
-        elif action in ("option", "file", "battle", "contingency"):
+        elif action in ("option", "file", "battle", "contingency", "agreement-publish"):
             asks = tuple(Ask.model_validate(a) for a in args["asks"])
             realism_tick.commit_order(store, campaign_id, seat, asks)
         elif action == "answer":

@@ -59,6 +59,7 @@ from revisionist.engine.store import load_state
 from revisionist.engine.tick import NotInPlayError
 from revisionist.engine.web import (
     agenda_api,
+    agreements_api,
     battles_api,
     catchup_api,
     court,
@@ -102,7 +103,17 @@ BUSY = "The game is busy with another change. Try again in a moment."
 HELP_KEPT = 40
 """Lines of each seat's talk with its aide kept in memory [proposed]."""
 SEALED_BY_COMMIT = frozenset(
-    {"lever", "sign", "option", "file", "step", "answer", "battle", "contingency"}
+    {
+        "lever",
+        "sign",
+        "option",
+        "file",
+        "step",
+        "answer",
+        "battle",
+        "contingency",
+        "agreement-publish",
+    }
 )
 """Actions that file or change an order, or answer another seat's request: held for the
 next wake once the seat has committed this one, or while it is closing."""
@@ -527,7 +538,17 @@ class App:
                         "refused": not reading.asks,
                         "proposal": reading.shown,
                     }
+                    if reading.version:  # a treaty: its terms, the clauses the aide's reading
+                        out |= agreements_api.reading_reply(
+                            state, seat, reading, True, str(out["reply"])
+                        )
                     return snapshot.checked(state, seat, out)
+                elif action == "agreement-offer":
+                    reading = agreements_api.offer_reading(state, seat, body)
+                    with self._lock:
+                        self._readings[(cid, seat)] = reading
+                    offered = agreements_api.reading_reply(state, seat, reading, False)
+                    return snapshot.checked(state, seat, dict(offered))
                 elif action == "file":
                     with self._lock:
                         signed = self._readings.get((cid, seat))
@@ -540,6 +561,10 @@ class App:
                     return snapshot.checked(state, seat, self._withdraw(store, state, seat, body))
                 elif action in ("battle", "contingency"):
                     asks, label = _battle_asks(state, seat, action, body)
+                    realism_tick.commit_order(store, cid, seat, asks)
+                    reply = f"Sent: {label}."  # [proposed]
+                elif action == "agreement-publish":
+                    asks, label = agreements_api.publish_asks(state, seat, body)
                     realism_tick.commit_order(store, cid, seat, asks)
                     reply = f"Sent: {label}."  # [proposed]
                 else:
@@ -1040,6 +1065,9 @@ def _held_args(
         return {"asks": [a.model_dump(mode="json") for a in asks], "area": area}, label
     if action == "contingency":
         asks, label = battles_api.contingency_asks(state, seat, body)
+        return {"asks": [a.model_dump(mode="json") for a in asks]}, label
+    if action == "agreement-publish":
+        asks, label = agreements_api.publish_asks(state, seat, body)
         return {"asks": [a.model_dump(mode="json") for a in asks]}, label
     if action == "file":
         if reading is None or not reading.asks:

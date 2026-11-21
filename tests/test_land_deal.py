@@ -118,3 +118,15 @@ def test_landing_the_same_deal_twice_changes_nothing() -> None:
     again = land(sl, effect)
     assert again == []
     assert (dict(sl.state.facts), dict(sl.state.relationships)) == before
+
+
+def test_an_accepted_offer_of_agreement_lands_nothing_here() -> None:
+    """AGA rule 3: an offer naming its parties is made into an agreement by AGR's day walk,
+    and a publishing order publishes one; neither lands the old deal's facts or regard."""
+    sl = Slice()
+    usa, uk = sl.entity("usa"), sl.entity("uk")
+    offered = rx.Deal(counterparty=uk, parties=(usa, uk), wording="Destroyers for bases.")
+    published = rx.Deal(counterparty=uk, publish="agr-1")
+    for effect in (offered, offered.model_copy(update={"accept": True}), published):
+        assert land(sl, effect) == []
+    assert sl.state.facts == {} and sl.state.relationships == {}

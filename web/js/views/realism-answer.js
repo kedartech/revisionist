@@ -6,7 +6,7 @@ import { itemDates, itemHeading, optionLines } from './realism-wake.js';
 import { agendaEntry, deadlineChip } from './realism-ideas.js';
 import { ANSWER_AT_CLOSE, DECISION_AT_DUE, VOTE_SEALED, requestChoices } from './realism-requests.js';
 import { STEP_ACTIONS } from '../realism-rules.js';
-import { readLines, staffRead } from './realism-estimate.js';
+import { forecastRecord, readLines, staffRead } from './realism-estimate.js';
 
 /**
  * Every live item, leader requests (`issuer` set) first, then desk matters, each as
@@ -141,5 +141,6 @@ export function needsAnswer(agenda, { act, today }) {
         agendaEntry(raw.get(item.id), item.heading, item.text, [
           item.dates ? h('p', { class: 'rl-ans-dates' }, item.dates, ' ', deadlineChip(raw.get(item.id).deadline, today)) : null,
           choicesBlock(item, raw.get(item.id).cause, act)]))))
-      : h('p', { class: 'rl-ans-none' }, 'Nothing is waiting on you. Your ideas are below.'));
+      : h('p', { class: 'rl-ans-none' }, 'Nothing is waiting on you. Your ideas are below.'),
+    forecastRecord(agenda.forecast));
 }

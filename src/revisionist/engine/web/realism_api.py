@@ -1449,6 +1449,9 @@ class HeldLine(TypedDict):
     """The world day it was held."""
     asked: bool
     """Whether the seat has asked for it."""
+    piece: str | None
+    """The map key of the seat's own piece the held form order moves, as the seat's map
+    keys that piece; None for a written order or a form that moves no piece."""
 
 
 class AskForm(TypedDict):

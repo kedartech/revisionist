@@ -4662,7 +4662,8 @@
         "who": "Ilse Varg",
         "reason": "Held until Ilse Varg allows it.",
         "held": "1900-04-02",
-        "asked": true
+        "asked": true,
+        "piece": "m35dfd73080046750681e78fb6ca37f7f"
       },
       {
         "id": "01M7YNVKSZFHJ8A6SZVCZRT5E5",
@@ -4670,7 +4671,8 @@
         "who": "Ilse Varg",
         "reason": "Held until Ilse Varg allows it.",
         "held": "1900-04-02",
-        "asked": false
+        "asked": false,
+        "piece": null
       }
     ],
     "asks": [

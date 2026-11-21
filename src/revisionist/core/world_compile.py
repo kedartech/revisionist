@@ -1767,7 +1767,9 @@ def _check_locks(world: WorldFile, sections: Mapping[str, str], problems: list[s
             _check_lock_form(where, levers, match.form, o.params, sections, problems)
             carriers = {person for person, name in levers if name == match.form}
             if d.person is not None and d.person in carriers:
-                problems.append(f"{where}: {d.person} carries the form and would decide an order of their own")
+                problems.append(
+                    f"{where}: {d.person} carries the form and would decide an order of their own"
+                )
         if (
             o.zone is not None
             and o.zone not in areas

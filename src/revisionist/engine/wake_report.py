@@ -21,6 +21,9 @@ agreements judged kept and judged broken while it was the latest wake opened (AG
 counts only, never an agreement, a party or a clause. In a game with ``aims`` on, each
 wake also counts, per seat, the aims of the person it holds that were met, at risk and
 failed as the wake ended (SCD): counts only, never an aim's words or its condition.
+In a game where any order came from a suggested action, the report also counts the
+expected moves checked so far and how many held (FCK, ``forecast.judge``): counts only,
+never a seat, an order or a target.
 
 An operator command (``revisionist db wake-report``) that prints counts and public
 board facts, and no record's content. Nothing a seat reaches imports it.
@@ -40,7 +43,7 @@ from revisionist.core.realism import agreement, battle, detect, economy, holders
 from revisionist.core.realism.agreement import ClauseStatus
 from revisionist.core.state import State
 from revisionist.engine.store import EventStore
-from revisionist.engine.web import catchup_api
+from revisionist.engine.web import catchup_api, forecast
 
 UNKNOWN = "unknown"
 OPEN = "open"
@@ -155,6 +158,9 @@ class Report:
     """One per wake opened, in a game with ``agreements`` on; else empty."""
     aims: tuple[Aims, ...] = ()
     """One per wake opened, in a game with ``aims`` on; else empty."""
+    forecasts: tuple[int, int] | None = None
+    """Expected moves checked and how many held, over every seat; None in a game where
+    no order came from a suggested action."""
 
 
 @dataclass
@@ -227,7 +233,14 @@ def build(events: Sequence[Event]) -> Report:
         _intelligence(events, state),
         _clauses(events, state),
         _aims(events) if aims_on(state) else (),
+        _forecasts(events, state),
     )
+
+
+def _forecasts(events: Sequence[Event], state: State) -> tuple[int, int] | None:
+    if not any(o.forecast is not None for o in state.routed.values()):
+        return None
+    return forecast.tally(forecast.judge(events))
 
 
 def _name(state: State, entity: EntityId | None) -> str:
@@ -402,8 +415,9 @@ def _hours(row: SeatRow) -> str:
 
 def render(report: Report) -> list[str]:
     """The report as lines of text."""
+    told = [] if report.forecasts is None else [_forecast_line(report.forecasts)]
     if not report.wakes:
-        return ["no wake has opened"]
+        return ["no wake has opened", *told]
     counts = {
         how: sum(1 for w in report.wakes if w.how == how)
         for how in ("all_committed", "deadline", "host", UNKNOWN, OPEN)
@@ -412,6 +426,7 @@ def render(report: Report) -> list[str]:
         f"campaign {report.campaign_id}",
         f"wakes: {len(report.wakes)}; " + ", ".join(f"{how} {n}" for how, n in counts.items()),
     ]
+    lines += told
     held = {h.number: h for h in report.holdings}
     fought = {f.number: f for f in report.fighting}
     heard = {i.number: i for i in report.intelligence}
@@ -466,6 +481,11 @@ def _holding(h: Holding) -> list[str]:
     if h.figures:
         out.append("    figures: " + ", ".join(f"{name} {n:.1f}" for name, n in h.figures))
     return out
+
+
+def _forecast_line(counts: tuple[int, int]) -> str:
+    checked, held_up = counts
+    return f"forecasts: {checked} checked, {held_up} held"
 
 
 def _aimed(a: Aims) -> str:

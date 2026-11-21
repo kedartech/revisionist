@@ -25,7 +25,9 @@ from tests import test_adjacency_moves as adj
 from tests import test_detection as det
 from tests import test_economy as te
 from tests import test_realism_aims as ta
+from tests import test_web_forecast as tf
 from tests.test_adjacency_moves import day, entity
+from tests.test_engine_v2_contract import CAMPAIGN as V2_CAMPAIGN
 from tests.test_engine_v2_wake import CAMPAIGN, T0, Table
 from tests.test_territory_model import CAMPAIGN as TOY_CAMPAIGN
 
@@ -657,3 +659,37 @@ def test_a_game_without_aims_prints_no_aims_lines(table: Table) -> None:
     report = wake_report.build(played(table))
     assert report.aims == ()
     assert not any(x.startswith("    aims:") for x in wake_report.render(report))
+
+
+# --- forecasts checked and held (FCK) ---------------------------------------------------
+
+
+def _forecast_log(raise_house: bool, ticks: int = 3) -> list[Event]:
+    """A beginner picked the public statement expecting the House Democrats to rise, and
+    the clock ran ``ticks`` ticks (three pass its settling day); the House rose when
+    ``raise_house``."""
+    store, seat = tf._picked()
+    if raise_house:
+        tf._raise_house(store, seat, 3)
+    tf._ticks(store, ticks)
+    return list(store.read(V2_CAMPAIGN))
+
+
+@pytest.mark.parametrize(
+    ("raise_house", "ticks", "checked", "held"),
+    [(True, 3, 1, 1), (False, 3, 1, 0), (True, 1, 0, 0)],
+)
+def test_the_report_counts_forecasts_checked_and_held(
+    raise_house: bool, ticks: int, checked: int, held: int
+) -> None:
+    report = wake_report.build(_forecast_log(raise_house, ticks))
+    assert report.forecasts == (checked, held)
+    out = wake_report.render(report)
+    assert f"forecasts: {checked} checked, {held} held" in out
+    assert not any("House Democrats" in line for line in out)
+
+
+def test_a_game_without_forecasts_prints_no_forecast_line(table: Table) -> None:
+    report = wake_report.build(played(table))
+    assert report.forecasts is None
+    assert not any(x.startswith("forecasts:") for x in wake_report.render(report))

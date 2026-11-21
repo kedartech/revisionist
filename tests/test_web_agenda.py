@@ -190,3 +190,15 @@ def test_no_player_facing_string_holds_an_underscore() -> None:
             agenda_api.set_style(store, CAMPAIGN, sl.fdr, "bad_style"),
         ):
             assert "_" not in reply["reply"]
+
+
+def test_the_agenda_carries_the_seats_forecast_block() -> None:
+    sl, store = _world(PlayStyle.BEGINNER)
+    assert _block(store, sl.fdr)["forecast"] == {"checked": 0, "held": 0, "orders": []}
+    (item,) = _block(store, sl.fdr)["items"]
+    assert not agenda_api.pick_option(store, CAMPAIGN, sl.fdr, item["options"][0]["pick"])[
+        "refused"
+    ]
+    (order,) = load_state(store, CAMPAIGN).routed.values()
+    assert order.forecast is None, "the desk's own options carry no expected moves"
+    assert _block(store, sl.fdr)["forecast"]["orders"] == []

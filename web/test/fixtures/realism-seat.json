@@ -1446,7 +1446,53 @@
           "exposure": 2
         }
       }
-    ]
+    ],
+    "forecast": {
+      "checked": 1,
+      "held": 1,
+      "orders": [
+        {
+          "id": "0a614e7d1f17",
+          "filed": "1 September 1941",
+          "asked": "State our position plainly",
+          "aide": false,
+          "settles": "9 September 1941",
+          "moves": [
+            {
+              "on": "figure",
+              "name": "House Democrats",
+              "direction": "gain",
+              "size": 1,
+              "sure": "likely",
+              "outcome": "held"
+            }
+          ],
+          "risks": {
+            "escalation": 2,
+            "refusal": 1,
+            "exposure": 0
+          }
+        },
+        {
+          "id": "e918d7d335b6",
+          "filed": "1 September 1941",
+          "asked": "Patrol",
+          "aide": true,
+          "settles": null,
+          "moves": [
+            {
+              "on": "figure",
+              "name": "House Democrats",
+              "direction": "gain",
+              "size": 1,
+              "sure": "likely",
+              "outcome": "open"
+            }
+          ],
+          "risks": null
+        }
+      ]
+    }
   },
   "results": [
     {

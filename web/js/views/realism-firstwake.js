@@ -16,6 +16,16 @@ export const FIRST_WAKE = Object.freeze({
   dismiss: 'Dismiss',
 });
 
+/** The card on Beginner's map-first room, worded for what that room shows [proposed]. */
+export const FIRST_WAKE_BEGINNER = Object.freeze({
+  ...FIRST_WAKE,
+  steps: Object.freeze([
+    'Read your three aims above the map.',
+    'Do the next step in What needs you.',
+    'Press Done; come back when the notice says.',
+  ]),
+});
+
 /**
  * Whether the card shows: wake 0 is open, this seat has not pressed Done, and the card has not
  * been dismissed for it. `dismissed` is the wake number it was dismissed for, or null.
@@ -27,21 +37,22 @@ export function firstWakeDue(wake, dismissed) {
 
 /**
  * `firstWakeCard(wake, { dismissed, onDismiss })`: the card, or null when it is not due.
- * Dismiss, or Escape with focus in the card, calls `onDismiss()`.
+ * Dismiss, or Escape with focus in the card, calls `onDismiss()`. `beginner` words it for Beginner's map-first room.
  */
-export function firstWakeCard(wake, { dismissed, onDismiss }) {
+export function firstWakeCard(wake, { dismissed, onDismiss, beginner = false }) {
   if (!firstWakeDue(wake, dismissed)) return null;
+  const words = beginner ? FIRST_WAKE_BEGINNER : FIRST_WAKE;
   return h('section', {
     class: 'rl-firstwake',
     role: 'region',
-    'aria-label': FIRST_WAKE.label,
+    'aria-label': words.label,
     onkeydown: (e) => {
       if (e.key !== 'Escape') return;
       e.preventDefault();
       onDismiss();
     },
   },
-  h('h2', { class: 'rl-firstwake-h' }, FIRST_WAKE.heading),
-  h('ol', { class: 'rl-firstwake-steps' }, FIRST_WAKE.steps.map((step) => h('li', {}, step))),
-  h('button', { type: 'button', class: 'ghost rl-firstwake-dismiss', onclick: onDismiss }, FIRST_WAKE.dismiss));
+  h('h2', { class: 'rl-firstwake-h' }, words.heading),
+  h('ol', { class: 'rl-firstwake-steps' }, words.steps.map((step) => h('li', {}, step))),
+  h('button', { type: 'button', class: 'ghost rl-firstwake-dismiss', onclick: onDismiss }, words.dismiss));
 }

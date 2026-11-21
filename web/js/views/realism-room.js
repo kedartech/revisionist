@@ -18,7 +18,7 @@ import { header } from './frame.js';
 import { HOME_TITLE, homeSheet, speakNote, themeRead, withHome } from './realism-home.js';
 import { needsAnswer } from './realism-answer.js';
 import { DIPLOMACY_TITLE, diplomacySheet, freshDiplomacy, hasDiplomacy } from './realism-diplomacy.js';
-import { areaCentre, matterOf, needLines, needsBar, needsList } from './realism-needs.js';
+import { areaCentre, matterOf, needLines, needsBar, needsList, sheetMarks } from './realism-needs.js';
 import { ASK_TITLE, askOf, askSheet, formCheck, heldLines } from './realism-locks.js';
 import { chatDock, seenStore, settleMarks, threadCounts, unread } from './realism-chat.js';
 import { contactsTab } from './realism-contacts.js';
@@ -38,9 +38,11 @@ import { playbackDialog, wakePlayer } from './realism-playback.js';
 import { peopleRoster, personDossier } from './realism-people.js';
 import {
   closeSheet, forgetForm, layoutChoice, markFiled, openSheet, openSheetOf, overSheet, readForms, restoreForms,
-  returnTarget, roomLayout, setRoomLayout, sheetTabs,
+  returnTarget, roomLayout, setRoomLayout, SHEETS, sheetTabs,
 } from './realism-sheets.js';
-import { stakesStrip } from './realism-stakes.js';
+import { aimList, stakesStrip } from './realism-stakes.js';
+import { foldEconomy } from './realism-economy.js';
+import { foldOdds } from './realism-odds.js';
 import { loadShapes, shapesFor, theatreBoard } from './realism-theatre.js';
 import { statusStrip, summaryTiles } from './realism-status.js';
 import { sideSwitch, tabBar } from './realism-tabs.js';
@@ -290,8 +292,17 @@ function handoverSection({ api, run }) {
   return { nodes, load };
 }
 
+/** The menu's quiet route to every sheet on Beginner: one button per sheet, `onOpen(key)` on a press. */
+export function allSheetsList(sheets, onOpen) {
+  return h('div', { class: 'rl-allsheets', role: 'group', 'aria-labelledby': 'rl-allsheets-h' },
+    h('h3', { id: 'rl-allsheets-h' }, 'All sheets'),
+    h('div', { class: 'row' }, sheets.map(([key, label]) => h('button', {
+      type: 'button', class: 'ghost', 'data-sheet': key, onclick: () => onOpen(key),
+    }, label))));
+}
+
 /** The game menu: pause, resume and end for the host; how to start another game. */
-export function gameMenu(game, ctx, work, onLayout = null) {
+export function gameMenu(game, ctx, work, onLayout = null, allSheets = null) {
   const out = h('div', { class: 'outcome', role: 'status', 'aria-live': 'polite' });
   const dialog = h('dialog', { class: 'sheet rl-menu', 'aria-labelledby': 'rl-menu-h' });
   const close = () => dialog.close();
@@ -379,6 +390,7 @@ export function gameMenu(game, ctx, work, onLayout = null) {
     host,
     notices.nodes,
     onLayout ? layoutChoice((key) => { close(); onLayout(key); }) : null,
+    allSheets ? allSheetsList(allSheets.sheets, (key) => { close(); allSheets.onOpen(key); }) : null,
     h('h3', {}, 'A new game'),
     h('p', { class: 'hint' }, game.host
       ? 'You play one game at a time. End this one, and you can start another straight away.'
@@ -1277,6 +1289,15 @@ export function realismRoom(ctx) {
     press: pressUnread(pressPapers(rv.documents.documents), pressSeenBy.read()),
   });
 
+  /** Whether the room is the map-first room on Beginner, which folds away what a seat can open. */
+  const beginner = () => mapFirst() && rv.style === 'beginner';
+  /** The sheets Beginner leaves off the tab bar until a line in the list is in them. */
+  const QUIET = ['court', 'home', 'diplomacy'];
+  /** The quiet sheets that are not among the seven tabs, as extra tabs while a line in the list is in them. */
+  const quietTabs = (marks) => [['home', HOME_TITLE], ['diplomacy', DIPLOMACY_TITLE]].filter(([key]) => marks[key]);
+  /** Every sheet the room has, the menu's quiet route on Beginner. */
+  const everySheet = () => [...SHEETS, ['home', HOME_TITLE], ...(hasDiplomacy(rv) ? [['diplomacy', DIPLOMACY_TITLE]] : [])];
+
   /** The map-first room: the header, the sheet tabs, the map filling the rest, and the open sheet over it. */
   function mapFirstRoom(top) {
     const map = theatreBoard(rv, ui, { pick, act: boardAct, open });
@@ -1309,8 +1330,15 @@ export function realismRoom(ctx) {
     if (sheet) restoreForms(sheet, ui.sheetForms);
     const lines = needLines(rv);
     const done = () => act(commitBusy(rv.wake), 'commit', {});
-    const listed = needsList(rv, lines, { open: name === 'needs', onAction: needAction, onDone: done, onClose: closeOver });
-    return [...top, sheetTabs(name, sheetCounts(), toggleOver, hasDiplomacy(rv) ? [['diplomacy', DIPLOMACY_TITLE]] : []),
+    const listed = needsList(rv, lines, { open: name === 'needs', onAction: needAction, onDone: done, onClose: closeOver, top: beginner() ? 1 : null });
+    const marks = Object.fromEntries(QUIET.map((key) => [key, sheetMarks(lines)[key] ?? 0]));
+    const tabs = beginner()
+      ? sheetTabs(name, { ...sheetCounts(), ...marks }, toggleOver, quietTabs(marks))
+      : sheetTabs(name, sheetCounts(), toggleOver, hasDiplomacy(rv) ? [['diplomacy', DIPLOMACY_TITLE]] : []);
+    if (beginner() && !marks.court) tabs.querySelector('button[data-sheet="court"]')?.remove();
+    const aims = beginner() ? aimList((rv.stakes?.aims ?? []).slice(0, 3), 'rl-beginner-aims') : null;
+    return [...top, tabs,
+      aims ? h('section', { class: 'rl-beginner-board', 'aria-label': 'Your aims' }, h('h2', {}, 'Your aims'), aims) : null,
       h('main', { class: `rl-mapfirst${sheet ? ' sheeted' : ''}`, 'aria-label': 'Map' },
         listed, h('section', { class: 'rl-mapfirst-map', 'aria-label': 'The map' }, map), sheet),
       needsBar(rv, lines, { open: name === 'needs', onToggle: toggleNeeds, onDone: done })];
@@ -1318,11 +1346,13 @@ export function realismRoom(ctx) {
 
   function build() {
     root.classList.toggle('rl-layout-map', mapFirst()); // c-sheets.css trims the header on a phone
+    foldEconomy(beginner());
+    foldOdds(beginner());
     const [menuBtn, menu] = gameMenu(game, ctx, work, (next) => {
       setRoomLayout(next);
       rerender();
       root.querySelector('.rl-menu-btn')?.focus();
-    });
+    }, beginner() ? { sheets: everySheet(), onOpen: (key) => { openSheet(ui, key); rerender(); } } : null);
     const { character, setting, happened, intro: opening } = sheets();
     pending = opening ?? happened;
     const extra = [
@@ -1345,7 +1375,7 @@ export function realismRoom(ctx) {
         : { open: Boolean(ui.homeOpen && rv.home), onOpen: toggleHome, sheet: rv.home ? homeSheet(rv.home, homeOpts()) : null }),
     ];
     const dialogs = [menu, character, setting, happened, opening, missedDialog(), playingDialog()];
-    if (mapFirst()) return [...mapFirstRoom([...top, status, firstWakeCard(rv.wake, { dismissed: ui.firstWakeOff, onDismiss: dismissFirstWake })]), ...dialogs].filter(Boolean);
+    if (mapFirst()) return [...mapFirstRoom([...top, status, firstWakeCard(rv.wake, { dismissed: ui.firstWakeOff, onDismiss: dismissFirstWake, beginner: beginner() })]), ...dialogs].filter(Boolean);
     return [
       ...top,
       stakesStrip(rv.stakes, { aims: ui.view !== 'board' }),

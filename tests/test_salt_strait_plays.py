@@ -660,3 +660,31 @@ def test_aims_are_scored_at_the_seasons_end(games: dict[str, Game], cast: Cast) 
     (ended,) = g.logged(ev.SeasonEnded)
     assert set(ended.winners) == set(season_winners(state))
     assert set(ended.winners) <= {g.defender, g.attacker}
+
+
+def test_no_model_is_reached_beyond_the_prose_and_the_offers(games: dict[str, Game]) -> None:
+    """Every game ran on canned replies: the only calls the tick made were the prose and
+    the wake's offers, each answered by a canned failure; the written orders were read by
+    the script's own canned reader, and the statement named a theme, so no group call."""
+    assert games
+    assert set(ASKED) <= {"prose", "options"}, ASKED
+
+
+# --- Rule 4: the guard's allow-list -----------------------------------------------------
+
+
+ALLOW = Path(__file__).with_name("fixed_names_allow.txt")
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "finding: nine lines still name an owner, not stored games only: production.py "
+        "(until PRD, five lines), war_rules.py declare_war and detach_fleet (until EFD), "
+        "uboat_directive and usa (until SHP); those items clear them"
+    ),
+)
+def test_every_line_left_in_the_allow_list_is_for_stored_games_only() -> None:
+    lines = [x for x in ALLOW.read_text().splitlines() if x.strip() and not x.startswith("#")]
+    assert lines
+    assert [x for x in lines if x.rsplit("|", 1)[1].strip() != "stored games only"] == []

@@ -458,7 +458,9 @@ def _seated_slice(store: MemoryStore) -> tuple[CampaignId, rx.RoutedOrder]:
         Ask(ask="Shoot on sight in the western Atlantic.", effect=shoot),
         Ask(ask="Ask Wheeler to hold his fire in the Senate.", target=wheeler),
     ]
-    return CAMPAIGN, rt.commit_order(store, CAMPAIGN, fdr, asks)
+    order = rt.commit_order(store, CAMPAIGN, fdr, asks)
+    assert isinstance(order, rx.RoutedOrder)
+    return CAMPAIGN, order
 
 
 def test_the_estimate_stage_rules_each_uncovered_part_once_and_resumes() -> None:

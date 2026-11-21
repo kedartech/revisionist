@@ -92,9 +92,9 @@ def aide_filings(t: AsyncTable, monkeypatch: pytest.MonkeyPatch) -> list[tuple[S
     filed: list[tuple[SeatId, Ask]] = []
     real = realism_tick.commit_order
 
-    def spy(store: Any, cid: Any, seat: SeatId, asks: Sequence[Ask]) -> Any:
+    def spy(store: Any, cid: Any, seat: SeatId, asks: Sequence[Ask], forecast: Any = None) -> Any:
         filed.extend((seat, a) for a in asks)
-        return real(store, cid, seat, asks)
+        return real(store, cid, seat, asks, forecast)
 
     monkeypatch.setattr(realism_tick, "commit_order", spy)
     return filed

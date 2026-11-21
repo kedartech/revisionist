@@ -17,12 +17,15 @@ from pathlib import Path
 from typing import Any
 
 from revisionist.core import events as ev
+from revisionist.core.project import project
 from revisionist.core.realism import economy
 from revisionist.core.realism.economy import CAPTURE_LAG_DAYS, Pools
 from revisionist.core.state import State
+from revisionist.engine.web import economy_api
 from revisionist.engine.web import realism_api as api
 from revisionist.engine.web import realism_snapshot as rs
 from tests import test_economy as te
+from tests import test_fuel_trade as tf
 from tests import test_holders as th
 from tests.test_adjacency_moves import START, Logged, World, day, entity, seat
 from tests.test_adjacency_moves import toy as territories_toy
@@ -195,6 +198,73 @@ def test_without_economy_there_is_no_block(tmp_path: Path) -> None:
     assert block(state)["economy"] is None
 
 
+# --- Fuel: the seat's own stock and the months it lasts ----------------------------------
+
+
+def fuel_own(state: State, who: str = "tomas") -> dict[str, Any]:
+    return own(state, who)
+
+
+def test_a_fuel_game_shows_the_seat_its_stock_and_the_months_it_lasts(tmp_path: Path) -> None:
+    state = tf.play(tmp_path, tf.stocks(sudland=12), tf.line(amount=3))
+    mine = fuel_own(state)
+    assert mine["pools"]["fuel"] == 12
+    assert mine["fuel_months"] == 4.0
+
+
+def test_a_stock_with_no_fuel_income_is_sent_and_its_months_are_null(tmp_path: Path) -> None:
+    state = tf.play(tmp_path, tf.stocks(sudland=12))
+    mine = fuel_own(state)
+    assert mine["pools"]["fuel"] == 12
+    assert mine["fuel_months"] is None
+
+
+def test_a_cut_line_pays_nothing_so_its_months_are_null(tmp_path: Path) -> None:
+    state = tf.play(tmp_path, tf.stocks(sudland=12), tf.line(amount=3, cut=True))
+    assert fuel_own(state)["fuel_months"] is None
+
+
+def test_months_count_the_fuel_income_not_another_resources(tmp_path: Path) -> None:
+    state = tf.play(tmp_path, tf.stocks(sudland=12), tf.line(resource="grain", amount=3))
+    assert fuel_own(state)["fuel_months"] is None
+
+
+def test_a_game_without_fuel_sends_no_stock_and_null_months(tmp_path: Path) -> None:
+    mine = own(te.game(tmp_path).state, "ilse")
+    assert mine["pools"] == {"output": 0, "manpower": 0}
+    assert mine["fuel_months"] is None
+
+
+def test_a_game_that_differs_in_another_nations_fuel_gives_the_seat_the_same_block(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    a = tf.play(tmp_path / "a", tf.stocks(sudland=12, norra=111.25), tf.line(amount=3))
+    b = tf.play(
+        tmp_path / "b",
+        tf.stocks(sudland=12, norra=987.5),
+        tf.line(amount=3),
+        tf.line("ost_norra", importer="norra", amount=7.5),
+    )
+    assert block(a, "tomas")["economy"] == block(b, "tomas")["economy"]
+    mine = json.dumps(block(b, "tomas")["economy"])
+    for secret in ("987.5", "111.25", "7.5"):
+        assert secret not in mine
+    assert own(b, "ilse")["pools"]["fuel"] == 987.5
+
+
+def test_the_stock_is_read_from_the_seats_view_not_from_state(tmp_path: Path) -> None:
+    state = tf.play(tmp_path, tf.stocks(sudland=12, norra=500), tf.line(amount=3))
+    view = project(state, seat("tomas"))
+    assert set(view.economy.pools) == {entity(SUDLAND)}
+    seen = view.economy.model_copy(update={"pools": {entity(SUDLAND): Pools(fuel=6)}})
+    out = economy_api.block(state, view.model_copy(update={"economy": seen}))
+    assert out is not None and out["own"] is not None
+    assert out["own"]["pools"]["fuel"] == 6
+    assert out["own"]["fuel_months"] == 2.0
+
+
 # --- The fog: no other nation's pool, stock, moved yield or factor in any payload ------
 
 
@@ -256,7 +326,8 @@ def test_the_seat_fixture_carries_an_economy_block_in_the_snapshot_shape(
     shape([fixture["own"]], api.EconomyOwn)
     shape(fixture["own"]["income"], api.EconomyIncome)
     shape(fixture["own"]["territories"], api.EconomyTerritory)
-    shape([fixture["own"]["pools"]], api.EconomyPools)
+    assert set(fixture["own"]["pools"]) == api.EconomyPools.__required_keys__
+    assert api.EconomyPools.__optional_keys__ == {"fuel"}
 
 
 def test_the_seat_fixture_carries_areas_with_holders_in_the_snapshot_shape(

@@ -1,5 +1,6 @@
 """The wake report (WRP): how each wake closed, the aide's wakes and the hours to each
-commit per seat, and whether catch-up gave a page for every wake a returning seat missed.
+commit per seat, and whether catch-up gave a page for every wake a returning seat missed;
+with aims on, each seat's aims met, at risk and failed per wake (SCD).
 An operator command; invariant 5 keeps it away from every seat.
 """
 
@@ -14,6 +15,7 @@ from revisionist.core import events as ev
 from revisionist.core.events import Event
 from revisionist.core.fold import replay
 from revisionist.core.ids import FeatureId
+from revisionist.core.ontology import Controller
 from revisionist.core.realism import detect, economy
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism.agenda import Ask
@@ -22,8 +24,10 @@ from revisionist.engine.store import MemoryStore, SqliteStore, StoreError
 from tests import test_adjacency_moves as adj
 from tests import test_detection as det
 from tests import test_economy as te
+from tests import test_realism_aims as ta
 from tests.test_adjacency_moves import day, entity
 from tests.test_engine_v2_wake import CAMPAIGN, T0, Table
+from tests.test_territory_model import CAMPAIGN as TOY_CAMPAIGN
 
 runner = CliRunner()
 
@@ -577,3 +581,79 @@ def test_a_game_without_agreements_prints_no_clause_lines(tmp_path: Path) -> Non
     report = wake_report.build(territory_log(tmp_path))
     assert report.clauses == ()
     assert not any("clauses:" in line for line in wake_report.render(report))
+
+
+# --- aims met, at risk and failed (SCD) -----------------------------------------------
+
+
+PLAIN_SUDLAND: ta.World = {"check": "holds_area", "area": "norra_plain", "holder": "sudland"}
+
+
+def aims_log(tmp: Path) -> list[Event]:
+    """The toy world with aims on: Ilse's three aims (the hills, held; the isle, not yet;
+    Sudland's hills by the first day, missed) and Tomas's two (the isle, held; the Norra
+    plain, not yet), both seats played by people, over two wakes."""
+    ilse = (
+        ta.rule(1, ta.HILLS_HELD),
+        ta.rule(2, ta.ISLE_HELD),
+        ta.rule(3, {**ta.HILLS_HELD, "holder": "sudland"}, deadline=ta.day(1).isoformat()),
+    )
+
+    tomas = (ta.rule(1, {**ta.ISLE_HELD, "holder": "sudland"}), ta.rule(2, PLAIN_SUDLAND))
+
+    def lines(w: ta.World) -> None:
+        w["cards"][0]["aims"] = ["One.", "Two.", "Three."]
+        w["cards"][1]["aims"] = ["Hold the isle.", "Take the plain."]
+
+    g = ta.Game(ta.world(tmp, ta.aims(ilse=ilse, tomas=tomas), lines))
+    g.hand(ta.TOMAS, Controller.HUMAN)
+    for n in (1, 2):
+        g.land(ev.WakeOpened(wake=n, deadline=ta.DEADLINE))
+        g.tick()
+        g.land(ev.WakeClosed(wake=n))
+    return list(g.store.read(TOY_CAMPAIGN))
+
+
+def test_each_wake_counts_each_seats_aims_met_at_risk_and_failed(tmp_path: Path) -> None:
+    log = aims_log(tmp_path)
+    state = replay(log)
+    ilse = state.seats[ta.seat_of(state, ta.ILSE)].name
+    tomas = state.seats[ta.seat_of(state, ta.TOMAS)].name
+    report = wake_report.build(log)
+    want = tuple(sorted([(ilse, 1, 1, 1), (tomas, 1, 1, 0)]))
+    assert [a.number for a in report.aims] == [0, 1, 2]
+    assert report.aims[0].seats == ()  # goals are made by the first tick, in wake 1
+    assert [a.seats for a in report.aims[1:]] == [want, want]
+
+
+def test_the_aims_line_follows_each_wake(tmp_path: Path) -> None:
+    log = aims_log(tmp_path)
+    state = replay(log)
+    ilse = state.seats[ta.seat_of(state, ta.ILSE)].name
+    out = wake_report.render(wake_report.build(log))
+    at = out.index("  wake 2: unknown")  # closed by a bare record: no reason
+    line = out[at + 1 : at + 8]
+    aims = [x for x in line if x.startswith("    aims: ")]
+    assert len(aims) == 1
+    assert f"{ilse} 1 met, 1 at risk, 1 failed" in aims[0]
+    assert "One." not in "\n".join(out) and "holds_area" not in "\n".join(out)
+
+
+def test_the_command_prints_the_aims_per_seat_per_wake(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    path = tmp_path / "aims.db"
+    store = SqliteStore(path)
+    store.append_all(aims_log(tmp_path))
+    store.close()
+    monkeypatch.setenv("REVISIONIST_DB", str(path))
+    code, out = _out()
+    assert code == 0, out
+    assert out.count("1 met, 1 at risk, 1 failed") == 2
+    assert out.count("1 met, 1 at risk, 0 failed") == 2
+
+
+def test_a_game_without_aims_prints_no_aims_lines(table: Table) -> None:
+    report = wake_report.build(played(table))
+    assert report.aims == ()
+    assert not any(x.startswith("    aims:") for x in wake_report.render(report))

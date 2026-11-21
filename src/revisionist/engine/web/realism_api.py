@@ -449,6 +449,8 @@ class Stake(TypedDict):
     """Days from the world date to the deciding day; 0 once it is past."""
     lean: StakeLean | None
     """None until the contest's track has moved in this game."""
+    winner: str | None
+    """Once the contest is decided, the side it was decided for, by name; else None."""
 
 
 class StakeMandate(TypedDict):
@@ -459,11 +461,56 @@ class StakeMandate(TypedDict):
     """Days from the world date to its deadline; 0 once it is past."""
 
 
+class StakeLeaf(TypedDict):
+    """One check of an aim's condition as the seat may see it (SCD)."""
+
+    reads: str
+    """What the check reads, in words."""
+    seen: str
+    """``public``, ``own`` (its own nation's) or ``uncertain`` (hidden from the seat)."""
+    holds: bool | None
+    """Whether it holds now; None for an uncertain check."""
+    evidence: list[str]
+    """What the seat's own view shows of it, in words: public facts and its own nation's,
+    or for an uncertain check only what its own reports hold; possibly none."""
+
+
+class StakeAim(TypedDict):
+    """One of the seat's own aims, with its status and why (SCD)."""
+
+    aim: int
+    """Which of the card's aims, counting from 1."""
+    text: str
+    source: str
+    """Where the aim comes from: ``post``, ``player`` or ``replacement``."""
+    status: str
+    """``met``, ``at_risk`` or ``failed``; never reveals a fact hidden from the seat."""
+    rule: str
+    """The success rule in plain words."""
+    opens: str | None
+    """The first day it is judged (ISO date); None: from the start."""
+    deadline: str | None
+    """The last day it is judged (ISO date); None: to the season's end."""
+    leaves: list[StakeLeaf]
+    reason: str
+    """Why it has its status, in words."""
+
+
 class Stakes(TypedDict):
-    """What is at stake for the seat: open contests, then its own open mandates, soonest first."""
+    """What is at stake for the seat: contests, then its own open mandates, soonest
+    first; then its own aims, the degree of the win they make as they stand, the drift
+    from history and the days to the season's end (SCD)."""
 
     contests: list[Stake]
     mandates: list[StakeMandate]
+    aims: list[StakeAim]
+    degree: str | None
+    """``full win`` with three of three aims holding, ``win`` with two of three (or
+    every aim of a card with fewer than two), else None. No points total."""
+    drift: int
+    """How far the world has drifted from history (public)."""
+    season_days_left: int | None
+    """Days from the world date to the season's end; None when no contest decides it."""
 
 
 class CourtOrder(TypedDict):

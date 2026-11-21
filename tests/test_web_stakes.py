@@ -148,23 +148,35 @@ def test_a_contest_the_view_does_not_hold_is_absent(game: Game) -> None:
     assert len(game.stakes(hidden)["contests"]) == 2
 
 
-def test_a_decided_contest_sends_its_winner_after_the_open_ones(game: Game) -> None:
+def test_a_decided_contest_is_no_longer_at_stake(game: Game) -> None:
+    state = game.state
+    talks = state.contests[game.contest("us_japan_talks")]
+    decided = with_contest(state, talks.model_copy(update={"decided": True, "countdown_days": 0}))
+    assert set(by_name(game.stakes(decided))) == {
+        "Revising the Neutrality Act",
+        "The war against Germany",
+    }
+
+
+def test_a_decided_contest_sends_its_winner(game: Game) -> None:
     state = game.state
     talks = state.contests[game.contest("us_japan_talks")]
     japan = next(k for k, e in state.entities.items() if e.name == "Japan")
-    decided = with_contest(
-        state, talks.model_copy(update={"decided": True, "countdown_days": 0, "winner": japan})
-    )
-    contests = game.stakes(decided)["contests"]
-    assert [s["name"] for s in contests][-1] == "The US-Japan negotiations"
-    named = by_name(game.stakes(decided))
-    assert named["The US-Japan negotiations"]["winner"] == "Japan"
-    assert named["The US-Japan negotiations"]["days_left"] == 0
-    assert named["The war against Germany"]["winner"] is None
+    won = with_contest(state, talks.model_copy(update={"decided": True, "winner": japan}))
+    assert game.stakes(won)["decided"] == [
+        {
+            "name": "The US-Japan negotiations",
+            "prize": talks.prize,
+            "sides": ["United States", "Japan", "China"],
+            "winner": "Japan",
+        }
+    ]
+    drawn = with_contest(state, talks.model_copy(update={"decided": True}))
+    assert game.stakes(drawn)["decided"][0]["winner"] is None
 
 
-def test_no_contest_has_a_winner_before_it_is_decided(game: Game) -> None:
-    assert all(s["winner"] is None for s in game.stakes()["contests"])
+def test_no_contest_is_decided_at_the_start(game: Game) -> None:
+    assert game.stakes()["decided"] == []
 
 
 # --- the lean -------------------------------------------------------------------
@@ -305,7 +317,9 @@ def test_the_client_fixture_carries_the_stakes_in_the_servers_shape() -> None:
     leaves = [x for a in stakes["aims"] for x in a["leaves"]]
     assert all(set(x) == set(api.StakeLeaf.__annotations__) for x in leaves)
     assert {x["seen"] for x in leaves} == {"public", "own", "uncertain"}
-    assert any(s["winner"] for s in stakes["contests"])
+    assert stakes["decided"] and all(
+        set(d) == set(api.StakeDecided.__annotations__) for d in stakes["decided"]
+    )
     leans = [s["lean"] for s in stakes["contests"]]
     assert any(lean is None for lean in leans)
     assert any(

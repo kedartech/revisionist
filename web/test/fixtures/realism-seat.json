@@ -2259,8 +2259,7 @@
         "lean": {
           "step": 7,
           "favours": "Aid-to-Britain bloc"
-        },
-        "winner": null
+        }
       },
       {
         "name": "The US-Japan negotiations",
@@ -2271,8 +2270,7 @@
           "China"
         ],
         "days_left": 48,
-        "lean": null,
-        "winner": null
+        "lean": null
       },
       {
         "name": "The war against Germany",
@@ -2284,9 +2282,16 @@
           "Italy"
         ],
         "days_left": 48,
-        "lean": null,
-        "winner": null
-      },
+        "lean": null
+      }
+    ],
+    "mandates": [
+      {
+        "text": "Keep the convoys moving to Iceland.",
+        "days_left": 6
+      }
+    ],
+    "decided": [
       {
         "name": "The Kearny incident",
         "prize": "Whether a torpedoed destroyer moves Congress.",
@@ -2294,18 +2299,7 @@
           "Aid-to-Britain bloc",
           "Non-interventionist bloc"
         ],
-        "days_left": 0,
-        "lean": {
-          "step": 8,
-          "favours": "Aid-to-Britain bloc"
-        },
         "winner": "Aid-to-Britain bloc"
-      }
-    ],
-    "mandates": [
-      {
-        "text": "Keep the convoys moving to Iceland.",
-        "days_left": 6
       }
     ],
     "aims": [

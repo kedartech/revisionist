@@ -449,8 +449,16 @@ class Stake(TypedDict):
     """Days from the world date to the deciding day; 0 once it is past."""
     lean: StakeLean | None
     """None until the contest's track has moved in this game."""
+
+
+class StakeDecided(TypedDict):
+    """One decided contest the seat's view holds, with the side it was decided for (SCD)."""
+
+    name: str
+    prize: str
+    sides: list[str]
     winner: str | None
-    """Once the contest is decided, the side it was decided for, by name; else None."""
+    """The winning side by name; None when it was decided for no side."""
 
 
 class StakeMandate(TypedDict):
@@ -497,12 +505,14 @@ class StakeAim(TypedDict):
 
 
 class Stakes(TypedDict):
-    """What is at stake for the seat: contests, then its own open mandates, soonest
-    first; then its own aims, the degree of the win they make as they stand, the drift
-    from history and the days to the season's end (SCD)."""
+    """What is at stake for the seat: open contests, then its own open mandates, soonest
+    first; then the decided contests with their winners, its own aims, the degree of the
+    win they make as they stand, the drift from history and the days to the season's end
+    (SCD)."""
 
     contests: list[Stake]
     mandates: list[StakeMandate]
+    decided: list[StakeDecided]
     aims: list[StakeAim]
     degree: str | None
     """``full win`` with three of three aims holding, ``win`` with two of three (or

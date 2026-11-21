@@ -6,8 +6,8 @@ season's end (SCD).
 A contest's countdown is counted from the in-world date it was created on, since the
 realism tick never runs it down (``ContestMoved`` comes only from the older tick). A
 lean is sent only once the log holds a move of the contest's track, and then only as
-one of ten steps and the side it favours. A decided contest stays, after the undecided
-ones, with its winner.
+one of ten steps and the side it favours. A decided contest leaves the open list and is
+sent among the decided ones, with its winner.
 
 The aims are the goals of the person the seat holds now (``goals.holder_seat``), never
 another seat's. Each carries its source, its status, its success rule, its period, each
@@ -44,6 +44,7 @@ from revisionist.engine import season
 from revisionist.engine.web.realism_api import (
     Stake,
     StakeAim,
+    StakeDecided,
     StakeLeaf,
     StakeLean,
     StakeMandate,
@@ -356,36 +357,40 @@ def season_days_left(state: State) -> int | None:
 
 def _contests(view: View, today: date, events: Sequence[Event]) -> list[Stake]:
     deciding, moved = _deciding_days(events)
-    held = sorted(
-        view.contests.values(),
-        key=lambda k: (
-            k.decided,
-            0 if k.decided else (deciding.get(k.contest_id, _due(today, k)) - today).days,
-            k.name,
-        ),
-    )
-    return [
+    contests = [
         Stake(
             name=k.name,
             prize=k.prize,
             sides=[_name(view, s) for s in k.sides],
-            days_left=(
-                0
-                if k.decided
-                else max(0, (deciding.get(k.contest_id, _due(today, k)) - today).days)
-            ),
+            days_left=max(0, (deciding.get(k.contest_id, _due(today, k)) - today).days),
             lean=_lean(view, k) if k.contest_id in moved else None,
-            winner=_name(view, k.winner) if k.decided and k.winner is not None else None,
         )
-        for k in held
+        for k in view.contests.values()
+        if not k.decided
+    ]
+    contests.sort(key=lambda s: (s["days_left"], s["name"]))
+    return contests
+
+
+def _decided(view: View) -> list[StakeDecided]:
+    """The decided contests the seat's view holds, by name, each with its winner."""
+    return [
+        StakeDecided(
+            name=k.name,
+            prize=k.prize,
+            sides=[_name(view, s) for s in k.sides],
+            winner=_name(view, k.winner) if k.winner is not None else None,
+        )
+        for k in sorted(view.contests.values(), key=lambda k: (k.name, k.contest_id))
+        if k.decided
     ]
 
 
 def seat_stakes(state: State, seat: SeatId, events: Sequence[Event]) -> Stakes:
-    """The ``view.realism.stakes`` block: the contests the seat's view holds (the decided
-    ones last, with their winners), then the seat's own live mandates, each list soonest first;
-    then its own aims by number, the degree they make, the drift from history and the
-    days to the season's end."""
+    """The ``view.realism.stakes`` block: the undecided contests the seat's view holds,
+    then the seat's own live mandates, each list soonest first; then the decided contests
+    with their winners, its own aims by number, the degree they make, the drift from
+    history and the days to the season's end."""
     view = project(state, seat)
     today = view.in_world_date
     aims = [_aim(state, view, g) for g in own_goals(state, seat)] if gl.aims_on(state) else []
@@ -401,6 +406,7 @@ def seat_stakes(state: State, seat: SeatId, events: Sequence[Event]) -> Stakes:
     return Stakes(
         contests=_contests(view, today, events) if today is not None else [],
         mandates=mandates,
+        decided=_decided(view),
         aims=aims,
         degree=degree(state, seat, aims),
         drift=view.divergence,

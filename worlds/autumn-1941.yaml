@@ -15,30 +15,32 @@ start_date: 1941-09-01
 
 # battles and reports (ITD): battles run one round a day; enemy pieces reach a nation only as
 # reports from the people named under `intelligence`.
-rules: [territories, holders, economy, supply, fuel, aid, battles, reports]
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference]
 
 entities:
-  - {key: usa, kind: polity, name: United States}
-  - {key: uk, kind: polity, name: United Kingdom}
-  - {key: japan, kind: polity, name: Japan}
-  - {key: germany, kind: polity, name: Germany}
-  - {key: italy, kind: polity, name: Italy}
-  - {key: ussr, kind: polity, name: Soviet Union}
-  - {key: china, kind: polity, name: China}
+  # A polity's capital (PCW): a place in its own territory; a neutral's or an occupied nation's is its
+  # territory itself where the map has no place for it, and Portugal, with no territory, has none.
+  - {key: usa, kind: polity, name: United States, capital: washington}
+  - {key: uk, kind: polity, name: United Kingdom, capital: london}
+  - {key: japan, kind: polity, name: Japan, capital: tokyo}
+  - {key: germany, kind: polity, name: Germany, capital: berlin}
+  - {key: italy, kind: polity, name: Italy, capital: rome}
+  - {key: ussr, kind: polity, name: Soviet Union, capital: moscow}
+  - {key: china, kind: polity, name: China, capital: chungking}
   # Holders with no seat: neutrals and co-belligerents the five wars leave out.
-  - {key: french_state, kind: polity, name: The French State}
-  - {key: sweden, kind: polity, name: Sweden}
-  - {key: spain, kind: polity, name: Spain}
+  - {key: french_state, kind: polity, name: The French State, capital: vichy_france}
+  - {key: sweden, kind: polity, name: Sweden, capital: sweden_area}
+  - {key: spain, kind: polity, name: Spain, capital: iberia}
   - {key: portugal, kind: polity, name: Portugal}
-  - {key: ireland_state, kind: polity, name: Ireland}
-  - {key: finland_state, kind: polity, name: Finland}
-  - {key: hungary, kind: polity, name: Hungary}
-  - {key: romania_state, kind: polity, name: Romania}
-  - {key: turkey_state, kind: polity, name: Turkey}
-  - {key: iran_state, kind: polity, name: Iran}
-  - {key: thailand_state, kind: polity, name: Thailand}
-  - {key: netherlands, kind: polity, name: The Netherlands}
-  - {key: cuba, kind: polity, name: Cuba}
+  - {key: ireland_state, kind: polity, name: Ireland, capital: ireland}
+  - {key: finland_state, kind: polity, name: Finland, capital: finland}
+  - {key: hungary, kind: polity, name: Hungary, capital: hungary_slovakia}
+  - {key: romania_state, kind: polity, name: Romania, capital: romania}
+  - {key: turkey_state, kind: polity, name: Turkey, capital: turkey}
+  - {key: iran_state, kind: polity, name: Iran, capital: iran}
+  - {key: thailand_state, kind: polity, name: Thailand, capital: thailand}
+  - {key: netherlands, kind: polity, name: The Netherlands, capital: dutch_east_indies}
+  - {key: cuba, kind: polity, name: Cuba, capital: caribbean}
   - {key: house, kind: org, name: House of Representatives, parent: usa}
   - {key: senate, kind: org, name: Senate, parent: usa}
   - {key: state_dept, kind: org, name: Department of State, parent: usa}
@@ -164,7 +166,7 @@ entities:
   - {key: chungking_herald, kind: org, name: "The Chungking Herald", parent: china, tags: [press]}
   - {key: heartland_sentinel, kind: org, name: "The Heartland Sentinel", parent: usa, tags: [press, opposition]}
   # A neutral country with no people in play: it exists for its paper.
-  - {key: switzerland, kind: polity, name: Switzerland}
+  - {key: switzerland, kind: polity, name: Switzerland, capital: switzerland_area}
   - {key: alpine_gazette, kind: org, name: "The Alpine Gazette", parent: switzerland, tags: [press, neutral]}
 
 # The board: the 1941 map built from the recipes under maps/src/autumn-1941 (maps/README.md).
@@ -791,6 +793,12 @@ sources:
   - {key: glantz_house_1995, title: "David M. Glantz and Jonathan M. House, When Titans Clashed (University Press of Kansas, 1995): the fall of Kiev on 19 September and of Kalinin on 14 October 1941", note: "Named citation; not read. Confirm the pages before release."}
   - {key: fdr_1941_09_11, title: "Roosevelt's fireside chat of 11 September 1941 on the Greer: the Navy's patrols of the Atlantic and the order to shoot on sight", note: "Named citation; not read. Confirm the text before release."}
   - {key: lane_choice, title: "The lane's own choice: no published measure", note: "Hubs and prestige ranks chosen by the lane for play; kept as gaps for Josh to mark."}
+  - {key: tripartite_1940, title: "Tripartite Pact between Germany, Italy and Japan, Berlin, 27 September 1940: Article 3, the parties' assistance when one is attacked by a power not then in the war", note: "Named citation; the lane had no network and read no edition. Confirm the text before release."}
+  - {key: anglo_soviet_1941, title: "Agreement for joint action between the United Kingdom and the Soviet Union in the war against Germany, Moscow, 12 July 1941", note: "Named citation; not read. The clause kept is no armistice or separate peace except by mutual consent. Confirm the text and its treaty series number before release."}
+  - {key: soviet_japanese_1941, title: "Soviet-Japanese Neutrality Pact, Moscow, 13 April 1941: Article 2, neutrality if either is the object of hostilities by a third power", note: "Named citation; not read. Confirm the text before release."}
+  - {key: moscow_conference_1941, title: "The Moscow Conference of 29 September to 1 October 1941 (Beaverbrook and Harriman with Stalin and Molotov): the supply protocol", note: "Named citation (FRUS 1941, vol. I); not read. The mission left London on 22 September and reached Moscow on 28 September. Confirm the dates and the protocol before release."}
+  - {key: anti_comintern_1941, title: "Protocol prolonging the Anti-Comintern Pact for five years, Berlin, 25 November 1941, with the adhering states' signatures", note: "Named citation (Documents on German Foreign Policy, Series D, vol. XIII); not read. Confirm the date, the signatories and the term before release."}
+  - {key: kurusu_arrival, title: "Special Ambassador Saburo Kurusu's journey from Tokyo on 5 November to Washington on 15 November 1941", note: "Named citation (FRUS: Japan, 1931-1941, vol. II); not read. Confirm the dates before release."}
 
 quantities:
   - {key: senate_democrats, owner: senate, name: Senate Democrats, value: 66, unit: seats, source: congress_77th, public: true}
@@ -909,6 +917,13 @@ features:
   - {key: afrika_korps, kind: piece, piece: army, name: Afrika Korps, side: germany, tier: 3, places: [bardia], gap: true}
   - {key: ninth_war_area, kind: piece, piece: army, name: Ninth War Area, side: china, tier: 3, places: [changsha], gap: true}
   - {key: eleventh_army, kind: piece, piece: army, name: Eleventh Army, side: japan, tier: 4, places: [wuhan], legs: [{since: 1941-09-17, places: [changsha]}, {since: 1941-10-06, places: [wuhan]}], gap: true}
+  # Envoys (PCW): scripted missions, each a leg that sets the piece going on the day named. The record has
+  # the Moscow mission leave London on 22 September and arrive on 28th; the map's route is longer than the
+  # real one, so the leg starts on 16 September [proposed] to bring it to Moscow on the record's day.
+  # source: moscow_conference_1941
+  - {key: moscow_mission, kind: piece, piece: envoy, name: The Anglo-American mission to Moscow, side: uk, tier: 1, places: [london], legs: [{since: 1941-09-16, places: [moscow]}], gap: true}
+  # source: kurusu_arrival
+  - {key: kurusu_mission, kind: piece, piece: envoy, name: Kurusu's special mission to Washington, side: japan, tier: 1, places: [tokyo], legs: [{since: 1941-11-05, places: [washington]}], gap: true}
 
 feeds:
   - {key: state_dept_reports, name: State Department memoranda, author: hull, kind: memo, channel: letter, classification: confidential, reports: [japan_oil_stocks], every_days: 7, latency_days: 1, assumed: true, gap: true}
@@ -2857,6 +2872,67 @@ contests:
     prize: Whether Britain's sea supply holds, the Soviet front survives, and America is drawn in.
     sides: [uk, germany, ussr, italy]
     countdown_days: 97
+
+# Pacts in force on 1 September 1941 (PCW). The clause chosen for each is [proposed]: the rules judge
+# what they can, and wording they cannot express is kept and marked unchecked.
+pacts:
+  - key: tripartite_pact
+    name: The Tripartite Pact
+    parties: [japan, germany, italy]
+    public: true
+    wording: Each party will assist the others with all political, economic and military means when one is attacked by a power not now in the war.
+    source: tripartite_1940
+    clauses:
+      - {type: defend, binds: japan, nation: germany, days: 7}
+      - {type: defend, binds: japan, nation: italy, days: 7}
+      - {type: defend, binds: germany, nation: japan, days: 7}
+      - {type: defend, binds: germany, nation: italy, days: 7}
+      - {type: defend, binds: italy, nation: japan, days: 7}
+      - {type: defend, binds: italy, nation: germany, days: 7}
+  - key: anglo_soviet_agreement
+    name: The Anglo-Soviet agreement of 12 July 1941
+    parties: [uk, ussr]
+    public: true
+    wording: Neither government will negotiate or conclude an armistice or treaty of peace with Germany except by mutual agreement.
+    source: anglo_soviet_1941
+    clauses:
+      - {type: unchecked, binds: uk, text: "Negotiate or conclude no armistice or peace with Germany except by mutual agreement."}
+      - {type: unchecked, binds: ussr, text: "Negotiate or conclude no armistice or peace with Germany except by mutual agreement."}
+  - key: soviet_japanese_neutrality
+    name: The Soviet-Japanese Neutrality Pact
+    parties: [ussr, japan]
+    public: true
+    wording: Each party will keep peace and friendly relations with the other and respect its territorial integrity.
+    source: soviet_japanese_1941
+    clauses:
+      - {type: no_attack, binds: ussr, nation: japan}
+      - {type: no_attack, binds: japan, nation: ussr}
+
+# Conferences (PCW): the sourced last day is the voting day; the call opens CONF_DAYS earlier [proposed].
+conferences:
+  - key: moscow_supply_conference
+    caller: ussr
+    invited: [ussr, uk, usa]
+    opens: 1941-09-27
+    voting_day: 1941-10-01
+    public: true
+    wording: The three powers settle the arms and raw materials Britain and the United States will supply to the Soviet Union.
+    source: moscow_conference_1941
+    clauses:
+      - {type: unchecked, binds: uk, text: "Supply the Soviet Union with arms and raw materials on the Moscow schedule."}
+      - {type: unchecked, binds: usa, text: "Supply the Soviet Union with arms and raw materials on the Moscow schedule."}
+  - key: anti_comintern_renewal
+    caller: germany
+    invited: [germany, japan, italy, hungary, romania_state, finland_state, spain]
+    opens: 1941-11-21
+    voting_day: 1941-11-25
+    public: true
+    wording: The Anti-Comintern Pact is prolonged for five years, with new adherents.
+    source: anti_comintern_1941
+    clauses:
+      - {type: unchecked, binds: germany, text: "Prolong the Anti-Comintern Pact for five years."}
+      - {type: unchecked, binds: japan, text: "Prolong the Anti-Comintern Pact for five years."}
+      - {type: unchecked, binds: italy, text: "Prolong the Anti-Comintern Pact for five years."}
 
 schedule:
   - key: greer_incident

@@ -13,7 +13,7 @@ Three nested shapes, by who may read them:
 - ``SeatCard``: the desk plus the policy the engine runs an AI person by. Engine only.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from enum import StrEnum
 from typing import TYPE_CHECKING, Annotated, ClassVar
 
@@ -112,6 +112,13 @@ class Contact(Model):
     channel: ChannelKind
 
 
+class CardPath(StrEnum):
+    """Which ladder the office stands on (CMD). Read with the ``command`` rule on."""
+
+    POLITICAL = "political"
+    MILITARY = "military"
+
+
 class CardFace(Model):
     """What anyone knows of the office: who holds it, its powers and its channels."""
 
@@ -122,6 +129,11 @@ class CardFace(Model):
     """Formal powers, as the constitution or the record states them."""
     inner_circle: tuple[Contact, ...] = ()
     """Always reachable, fast and secure (spec §8.1). Everyone else is reached by ``reach``."""
+    path: CardPath = CardPath.POLITICAL
+    """Political, or military: a commander who orders his own force (CMD). A card
+    without it is political, and a stored card has none."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"path"})
 
 
 class Tie(StrEnum):
@@ -200,7 +212,7 @@ class Desk(CardFace):
     """What the person was set on at the start, as the record has it. Shown to the
     seat; not a rule."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"authority", "reach", "aims"})
+    late_fields: ClassVar[frozenset[str]] = CardFace.late_fields | {"authority", "reach", "aims"}
 
     @model_validator(mode="after")
     def _distinct_domains(self) -> "Desk":
@@ -316,10 +328,29 @@ class SeatCard(Desk):
         return Desk.model_validate(self.model_dump(include=set(Desk.model_fields)))
 
 
+def superiors(cards: Mapping[EntityId, Desk], person: EntityId) -> tuple[EntityId, ...]:
+    """The chain of ``principals`` above ``person``, nearest first: each principal,
+    then each principal's own, as far as cards go. A principal with no card (an
+    electorate, a polity) ends its branch. Each person once, so a loop ends (CMD)."""
+    out: list[EntityId] = []
+    frontier = [person]
+    while frontier:
+        nxt: list[EntityId] = []
+        for who in frontier:
+            card = cards.get(who)
+            for up in card.principals if card is not None else ():
+                if up != person and up not in out:
+                    out.append(up)
+                    nxt.append(up)
+        frontier = nxt
+    return tuple(out)
+
+
 __all__ = [
     "CHANNELS",
     "Aim",
     "CardFace",
+    "CardPath",
     "ChannelKind",
     "Conflict",
     "Contact",
@@ -333,6 +364,7 @@ __all__ = [
     "SeatCard",
     "Tie",
     "Topic",
+    "superiors",
     "words",
 ]
 

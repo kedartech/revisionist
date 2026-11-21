@@ -103,6 +103,11 @@ class Rule(StrEnum):
     """Treaty and bill wording read into clauses by a live model."""
     WRITTEN_ORDERS = "written_orders"
     """Written orders checked against their form by a live model."""
+    COMMAND = "command"
+    """The commander's seat: a card's path, the superior prevailing, and the step on a
+    superior's order that may only pass or stall (CMD)."""
+    LOCKS = "locks"
+    """Orders held until the person or body that can allow them does (DCD onward)."""
 
 
 MODEL_READ_RULES = frozenset({Rule.WRITING, Rule.CLAUSE_READER, Rule.WRITTEN_ORDERS})

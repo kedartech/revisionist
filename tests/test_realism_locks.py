@@ -168,7 +168,7 @@ ROWS: list[World] = [
         "key": "coast_march",
         "order": {"form": "march", "params": {"to": "sudland_coast"}},
         "when": {"check": "law_not_in_force", "clause": LAW},
-        "decider": {"nation": "norra", "chambers": ["assembly"]},
+        "decider": {"nation": "norra", "chambers": ["assembly"], "head": "ilse"},
     },
     {
         "key": "gulf_fire",
@@ -242,7 +242,9 @@ def test_the_locks_reach_state_once_through_one_public_declaration(tmp_path: Pat
     assert len(declared) == 1 and declared[0].scope.visibility.value == "public"
     assert [r.key for r in state.locks] == ["island_march", "coast_march", "gulf_fire"]
     assert row(state, "island_march").decider == Decider(person=ILSE)
-    assert row(state, "coast_march").decider == Decider(nation=NORRA, chambers=("assembly",))
+    assert row(state, "coast_march").decider == Decider(
+        nation=NORRA, chambers=("assembly",), head=ILSE
+    )
     assert row(state, "gulf_fire").order.zone == GULF
 
 
@@ -347,7 +349,9 @@ def test_a_law_row_holds_the_order_for_the_chamber_until_the_law_is_in_force(
 ) -> None:
     state = game(tmp_path)
     found = lock_for(state, seat(KARA), march("sudland_coast"))
-    assert found is not None and found.decider == Decider(nation=NORRA, chambers=("assembly",))
+    assert found is not None and found.decider == Decider(
+        nation=NORRA, chambers=("assembly",), head=ILSE
+    )
     qid = QuantityId(object_id(CAMPAIGN, "quantity", FLAG))
     passed = state.quantities[qid].model_copy(update={"value": 1})
     law = state.model_copy(update={"quantities": {**state.quantities, qid: passed}})
@@ -493,7 +497,7 @@ def only(r: World) -> Callable[[World], None]:
             {
                 "key": "x",
                 "order": {"form": "march"},
-                "decider": {"nation": "ostmark", "chambers": ["assembly"]},
+                "decider": {"nation": "ostmark", "chambers": ["assembly"], "head": "ilse"},
             },
             "lock x: unknown nation ostmark",
         ),
@@ -501,7 +505,7 @@ def only(r: World) -> Callable[[World], None]:
             {
                 "key": "x",
                 "order": {"form": "march"},
-                "decider": {"nation": "norra", "chambers": ["senate"]},
+                "decider": {"nation": "norra", "chambers": ["senate"], "head": "ilse"},
             },
             "lock x: norra has no chamber senate",
         ),
@@ -509,9 +513,29 @@ def only(r: World) -> Callable[[World], None]:
             {
                 "key": "x",
                 "order": {"form": "march"},
-                "decider": {"nation": "sudland", "chambers": ["assembly"]},
+                "decider": {"nation": "sudland", "chambers": ["assembly"], "head": "ilse"},
             },
             "lock x: sudland has no chamber assembly",
+        ),
+        (
+            {
+                "key": "x",
+                "order": {"form": "march"},
+                "decider": {"nation": "norra", "chambers": ["assembly"]},
+            },
+            "lock x: a body names the head of its government",
+        ),
+        (
+            {
+                "key": "x",
+                "order": {"form": "march"},
+                "decider": {"nation": "norra", "chambers": ["assembly"], "head": "greta"},
+            },
+            "lock x: unknown person greta",
+        ),
+        (
+            {"key": "x", "order": {"form": "march"}, "decider": {"person": "ilse", "head": "ilse"}},
+            "lock x: only a body names the head of its government",
         ),
         (
             {"key": "x", "order": {"form": "march"}, "decider": {"person": "kara"}},
@@ -744,7 +768,7 @@ def test_the_reason_names_the_body_when_the_seat_can_see_the_law(tmp_path: Path)
     store = played(tmp_path, public_law)
     order = file(store, "sudland_coast")
     held = load_state(store, CAMPAIGN).held[order.order_id]
-    assert held.decider == Decider(nation=NORRA, chambers=("assembly",))
+    assert held.decider == Decider(nation=NORRA, chambers=("assembly",), head=ILSE)
     assert held.reason == HELD_FOR_ASSEMBLY
     passed = played(tmp_path / "passed", public_law, law_passed)
     assert file(passed, "sudland_coast").order_id in load_state(passed, CAMPAIGN).orders
@@ -829,7 +853,7 @@ def test_a_retried_filing_makes_no_second_held_order(tmp_path: Path) -> None:
     assert len(logged(store, ev.OrderHeld)) == 2
 
 
-def test_the_same_filing_after_the_lock_opens_lands_and_replaces_the_held_one(
+def test_once_the_lock_opens_the_held_order_lands_itself_and_a_new_filing_is_ordinary(
     tmp_path: Path,
 ) -> None:
     store = played(tmp_path)
@@ -843,12 +867,13 @@ def test_the_same_filing_after_the_lock_opens_lands_and_replaces_the_held_one(
         realism_tick.run_realism_tick(store, CAMPAIGN)
         if lock_for(load_state(store, CAMPAIGN), seat(KARA), march("isle")) is None:
             break
-    assert lock_for(load_state(store, CAMPAIGN), seat(KARA), march("isle")) is None
+    state = load_state(store, CAMPAIGN)
+    assert lock_for(state, seat(KARA), march("isle")) is None
+    assert first.order_id not in state.held
+    assert logged(store, ev.HeldOrderEnded)[-1].end is locks.HeldEnd.LANDED
     again = file(store, "isle")
     state = load_state(store, CAMPAIGN)
-    assert again.order_id != first.order_id and again.order_id in state.orders
-    assert first.order_id not in state.held
-    assert logged(store, ev.HeldOrderEnded)[-1].by == again.order_id
+    assert again.order_id in state.orders and again.order_id not in state.held
 
 
 def test_a_filing_retried_after_a_restart_gives_one_held_order_and_one_digest(
@@ -975,3 +1000,334 @@ def test_the_aide_passes_over_a_holdable_option_at_the_head_of_its_list(
 
     assert [tuple(o) for o in offered(to_isle, hills)] == [hills.asks]
     assert offered(to_isle) == []
+
+
+# --- The ask, and the lock opening from state (ASK) ----------------------------------
+#
+# Kara's march to the Isle is held for Ilse until Ilse sets a watch on the Gulf (the
+# posture shape); her march to the Sudland Coast is held for Norra's assembly until the
+# arming law is in force (the law shape), and an ask for it goes to Ilse, the head of
+# Norra's government the row names.
+
+
+def guard_the_gulf() -> Ask:
+    return Ask(
+        ask="Guard the Gulf.",
+        effect=SetEngagement(force=KITES, zone=GULF, rule=Engagement.SHOOT_ON_SIGHT),
+    )
+
+
+def pass_the_law(store: MemoryStore) -> None:
+    """The arming law's flag set to passed between wakes, as a vote's resolver would."""
+    state = load_state(store, CAMPAIGN)
+    assert state.in_world_date is not None
+    from revisionist.core.realism.resolvers import qid
+
+    q = state.quantities[qid(state, FLAG)]
+    done = q.model_copy(update={"value": 1, "as_of": state.in_world_date})
+    realism_tick._append(store, state, ev.QuantitySet(quantity=done), seat(ILSE))
+
+
+def tick_until(store: MemoryStore, done: Callable[[State], bool], ticks: int = 8) -> State:
+    for _ in range(ticks):
+        realism_tick.run_realism_tick(store, CAMPAIGN)
+        state = load_state(store, CAMPAIGN)
+        if done(state):
+            return state
+    return load_state(store, CAMPAIGN)
+
+
+def ask(store: MemoryStore, order_id: OrderId, person: EntityId = KARA) -> locks.Asked:
+    return realism_tick.ask_order(store, CAMPAIGN, seat(person), order_id)
+
+
+def ends(store: MemoryStore, order_id: OrderId) -> list[ev.HeldOrderEnded]:
+    return [e for e in logged(store, ev.HeldOrderEnded) if e.order_id == order_id]
+
+
+def landed_as(order_id: OrderId) -> OrderId:
+    return OrderId(derived_id(CAMPAIGN, "landed", order_id))
+
+
+def test_the_ask_puts_one_paper_before_the_seat_holding_the_decider(tmp_path: Path) -> None:
+    store = played(tmp_path)
+    order = file(store, "isle")
+    asked = ask(store, order.order_id)
+    assert (asked.asker, asked.by, asked.to, asked.seat) == (seat(KARA), KARA, ILSE, seat(ILSE))
+    assert asked.words == "March (Force Norra levy, To Isle)"
+    assert asked.on == DAY
+    (made,) = logged(store, ev.OrderAsked)
+    assert made.asked == asked
+    state = load_state(store, CAMPAIGN)
+    assert state.asked == {order.order_id: asked}
+
+
+def test_an_ask_for_a_bodys_order_goes_to_the_head_of_its_government(tmp_path: Path) -> None:
+    store = played(tmp_path, public_law)
+    order = file(store, "sudland_coast")
+    asked = ask(store, order.order_id)
+    assert (asked.to, asked.seat) == (ILSE, seat(ILSE))
+
+
+def test_an_ask_to_a_card_no_seat_holds_is_recorded_and_reaches_no_seat(tmp_path: Path) -> None:
+    from revisionist.engine import catchup
+
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    store = MemoryStore()
+    store.append_all(compile_world(world(tmp_path), CAMPAIGN, cmp.versions()))
+    state = load_state(store, CAMPAIGN)
+    for person in (KARA, OLAF):
+        session_zero.claim(store, CAMPAIGN, seat(person), state.entities[person].name)
+    realism_tick.open_play(store, CAMPAIGN)
+    order = file(store, "isle")
+    asked = ask(store, order.order_id)
+    assert (asked.to, asked.seat) == (ILSE, None)
+    (e,) = [e for e in store.read(CAMPAIGN) if e.kind == "order_asked"]
+    assert e.scope.known_by == frozenset({seat(KARA)})
+    fed = catchup.seat_events(store, CAMPAIGN, seat(OLAF), 0, 9)
+    assert "order_asked" not in [f.event.kind for f in fed]
+
+
+def test_a_second_ask_is_refused_and_only_the_holders_seat_may_ask(tmp_path: Path) -> None:
+    store = played(tmp_path)
+    order = file(store, "isle")
+    with pytest.raises(ValueError, match=locks.NOT_HELD):
+        ask(store, order.order_id, OLAF)
+    ask(store, order.order_id)
+    with pytest.raises(ValueError, match=locks.ASKED_ALREADY):
+        ask(store, order.order_id)
+    with pytest.raises(ValueError, match=locks.NOT_HELD):
+        ask(store, OrderId(derived_id(CAMPAIGN, "order", "none")))
+    assert len(logged(store, ev.OrderAsked)) == 1
+
+
+def test_the_ask_folds_once_only_for_the_seats_own_held_order(tmp_path: Path) -> None:
+    from revisionist.core.fold import FoldError
+
+    store = played(tmp_path)
+    order = file(store, "isle")
+    state = load_state(store, CAMPAIGN)
+    asked = locks.ask(state, seat(KARA), order.order_id, DAY)
+    olafs = asked.model_copy(update={"asker": seat(OLAF), "by": OLAF})
+    with pytest.raises(FoldError, match="not that seat's"):
+        realism_tick._append(store, state, ev.OrderAsked(asked=olafs), seat(OLAF))
+    wrong = asked.model_copy(update={"seat": seat(OLAF)})
+    with pytest.raises(FoldError, match="does not hold"):
+        realism_tick._append(store, state, ev.OrderAsked(asked=wrong), seat(KARA))
+    realism_tick._append(store, state, ev.OrderAsked(asked=asked), seat(KARA))
+    with pytest.raises(FoldError, match="asked for already"):
+        realism_tick._append(
+            store, load_state(store, CAMPAIGN), ev.OrderAsked(asked=asked), seat(KARA)
+        )
+    off = state.model_copy(update={"rules": state.rules - {Rule.LOCKS}})
+    with pytest.raises(FoldError, match="needs the locks rule"):
+        realism_tick._append(store, off, ev.OrderAsked(asked=asked), seat(KARA))
+
+
+def test_the_asker_and_the_seat_asked_see_the_ask_and_no_one_else(tmp_path: Path) -> None:
+    from revisionist.core.project import project
+    from revisionist.engine import catchup
+
+    store = played(tmp_path)
+    order = file(store, "isle")
+    asked = ask(store, order.order_id)
+    state = load_state(store, CAMPAIGN)
+    assert project(state, seat(KARA)).asked == {order.order_id: asked}
+    ilse = project(state, seat(ILSE))
+    assert ilse.asked == {order.order_id: asked} and not ilse.held
+    assert not project(state, seat(OLAF)).asked
+
+    def kinds(person: EntityId) -> list[str]:
+        return [f.event.kind for f in catchup.seat_events(store, CAMPAIGN, seat(person), 0, 9)]
+
+    assert "order_asked" in kinds(KARA) and "order_asked" in kinds(ILSE)
+    assert "order_asked" not in kinds(OLAF)
+
+
+def test_the_ask_decides_nothing_and_opens_nothing(tmp_path: Path) -> None:
+    from revisionist.engine import season
+
+    store = played(tmp_path)
+    order = file(store, "isle")
+    ask(store, order.order_id)
+    state = load_state(store, CAMPAIGN)
+    assert not locks.open_now(state, state.held[order.order_id])
+    for _ in range(6):
+        realism_tick.run_realism_tick(store, CAMPAIGN)
+    season.end_season(store, CAMPAIGN)
+    state = load_state(store, CAMPAIGN)
+    assert order.order_id in state.held and order.order_id in state.asked
+    assert not ends(store, order.order_id) and landed_as(order.order_id) not in state.orders
+
+
+def test_asked_then_the_superior_sets_the_posture_and_the_order_lands(tmp_path: Path) -> None:
+    store = played(tmp_path)
+    order = file(store, "isle")
+    ask(store, order.order_id)
+    assert isinstance(commit(store, ILSE, guard_the_gulf()), RoutedOrder)
+    state = tick_until(store, lambda s: order.order_id not in s.held)
+    (end,) = ends(store, order.order_id)
+    assert (end.end, end.by) == (locks.HeldEnd.LANDED, landed_as(order.order_id))
+    landed = state.orders[landed_as(order.order_id)]
+    assert (landed.lever, landed.params, landed.issuer) == ("march", order.params, seat(KARA))
+    # Dated the day the lock opened, not the day it was filed.
+    assert landed.filed == end.on and end.on > order.filed
+    assert order.order_id not in state.asked
+
+
+def test_asked_then_the_law_comes_in_force_and_the_order_lands(tmp_path: Path) -> None:
+    store = played(tmp_path, public_law)
+    order = file(store, "sudland_coast")
+    ask(store, order.order_id)
+    realism_tick.run_realism_tick(store, CAMPAIGN)
+    assert order.order_id in load_state(store, CAMPAIGN).held
+    pass_the_law(store)
+    state = tick_until(store, lambda s: order.order_id not in s.held, ticks=1)
+    (end,) = ends(store, order.order_id)
+    assert end.end is locks.HeldEnd.LANDED
+    assert state.orders[landed_as(order.order_id)].params["to"] == "sudland_coast"
+
+
+def test_opened_with_no_ask_the_order_still_lands(tmp_path: Path) -> None:
+    store = played(tmp_path)
+    order = file(store, "isle")
+    commit(store, ILSE, guard_the_gulf())
+    state = tick_until(store, lambda s: order.order_id not in s.held)
+    assert landed_as(order.order_id) in state.orders and not logged(store, ev.OrderAsked)
+
+
+def test_a_written_held_order_lands_as_a_routed_order_dated_the_day(tmp_path: Path) -> None:
+    def gulf_watched_move(w: World) -> None:
+        w["locks"].append(
+            {
+                "key": "levy_to_isle",
+                "order": {"effect": "move_force", "zone": "isle"},
+                "when": dict(ROWS[0]["when"]),
+                "decider": {"person": "ilse"},
+            }
+        )
+
+    store = played(tmp_path, gulf_watched_move)
+    held = commit(store, KARA, written(MoveForce(force=LEVY, to=ISLE)))
+    assert isinstance(held, locks.HeldOrder) and held.row == "levy_to_isle"
+    commit(store, ILSE, guard_the_gulf())
+    state = tick_until(store, lambda s: held.order_id not in s.held)
+    (end,) = ends(store, held.order_id)
+    routed = state.routed[landed_as(held.order_id)]
+    assert end.end is locks.HeldEnd.LANDED and routed.filed == end.on > held.filed
+    assert [p.effect for p in routed.parts] == [MoveForce(force=LEVY, to=ISLE)]
+
+
+def test_an_opened_order_that_fails_its_re_check_ends_failed_with_the_reason(
+    tmp_path: Path,
+) -> None:
+    def gulf_watched_move(w: World) -> None:
+        w["locks"].append(
+            {
+                "key": "levy_to_isle",
+                "order": {"effect": "move_force", "zone": "isle"},
+                "when": dict(ROWS[0]["when"]),
+                "decider": {"person": "ilse"},
+            }
+        )
+
+    store = played(tmp_path, gulf_watched_move)
+    held = commit(store, KARA, written(MoveForce(force=LEVY, to=ISLE)))
+    assert isinstance(held, locks.HeldOrder)
+    # Between the filing and the opening the levy is stood down, as a resolver would.
+    state = load_state(store, CAMPAIGN)
+    levy = state.features[LEVY].model_copy(update={"in_service": date(1901, 1, 1)})
+    realism_tick._append(store, state, ev.FeatureSet(feature=levy), seat(ILSE))
+    commit(store, ILSE, guard_the_gulf())
+    state = tick_until(store, lambda s: held.order_id not in s.held)
+    (end,) = ends(store, held.order_id)
+    assert (end.end, end.by) == (locks.HeldEnd.FAILED, None)
+    assert end.reason == "The Norra Levy is not in service until 1 January 1901."
+    assert landed_as(held.order_id) not in state.routed
+
+
+def test_a_row_with_no_condition_or_a_derived_decider_never_opens_from_state(
+    tmp_path: Path,
+) -> None:
+    store = played(tmp_path)
+    shot = commit(store, KARA, gulf_fire())
+    derived = commit(store, OLAF, kites_to_isle())
+    state = load_state(store, CAMPAIGN)
+    assert not any(locks.open_now(state, state.held[h.order_id]) for h in (shot, derived))
+    off = state.model_copy(update={"rules": state.rules - {Rule.LOCKS}})
+    assert not locks.open_now(off, state.held[shot.order_id])
+
+
+def _script(tmp: Path, monkeypatch: pytest.MonkeyPatch, restart: bool) -> MemoryStore:
+    """Both shapes: filed, asked, opened, landed; with a restart (a fresh store from the
+    log, and the ask retried) between the asks and the unlocks when ``restart``."""
+    minted = iter(range(10_000))
+    monkeypatch.setattr(
+        realism_tick, "new_id", lambda: derived_id(CAMPAIGN, "ask-id", next(minted))
+    )
+    store = played(tmp, public_law)
+    isle = file(store, "isle")
+    coast = file(store, "sudland_coast")
+    ask(store, isle.order_id)
+    ask(store, coast.order_id)
+    if restart:
+        twin = MemoryStore()
+        twin.append_all(list(store.read(CAMPAIGN)))
+        store = twin
+        with pytest.raises(ValueError, match=locks.ASKED_ALREADY):
+            ask(store, isle.order_id)
+    commit(store, ILSE, guard_the_gulf())
+    pass_the_law(store)
+    tick_until(store, lambda s: not s.held)
+    return store
+
+
+def test_one_decision_and_one_unlock_give_one_digest_across_a_restart(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    a = _script(tmp_path / "a", monkeypatch, restart=False)
+    b = _script(tmp_path / "b", monkeypatch, restart=False)
+    c = _script(tmp_path / "c", monkeypatch, restart=True)
+    digests = {state_hash(load_state(s, CAMPAIGN)) for s in (a, b, c)}
+    assert len(digests) == 1
+    for s in (a, b, c):
+        assert len(logged(s, ev.OrderAsked)) == 2
+        landed = [e for e in logged(s, ev.HeldOrderEnded) if e.end is locks.HeldEnd.LANDED]
+        assert len(landed) == 2
+        assert not load_state(s, CAMPAIGN).held
+
+
+def test_a_restart_mid_wake_gives_one_unlock(tmp_path: Path) -> None:
+    from revisionist.core.resolution import TickStage
+
+    store = played(tmp_path)
+    order = file(store, "isle")
+    commit(store, ILSE, guard_the_gulf())
+    for _ in range(8):
+        realism_tick.run_realism_tick(store, CAMPAIGN, stop_after=TickStage.PIPELINES)
+        realism_tick.run_realism_tick(store, CAMPAIGN)
+        if order.order_id not in load_state(store, CAMPAIGN).held:
+            break
+    assert len(ends(store, order.order_id)) == 1
+    realism_tick.run_realism_tick(store, CAMPAIGN)
+    assert len(ends(store, order.order_id)) == 1
+    assert len([o for o in logged(store, ev.OrderDrafted) if o.order.lever == "march"]) == 1
+
+
+def test_an_opened_order_another_lock_still_holds_stays_held(tmp_path: Path) -> None:
+    def second_row(w: World) -> None:
+        w["locks"].append(
+            {
+                "key": "isle_by_law",
+                "order": {"form": "march", "params": {"to": "isle"}},
+                "when": dict(ROWS[1]["when"]),
+                "decider": {"nation": "norra", "chambers": ["assembly"], "head": "ilse"},
+            }
+        )
+
+    store = played(tmp_path, second_row)
+    order = file(store, "isle")
+    commit(store, ILSE, guard_the_gulf())
+    state = tick_until(store, lambda s: order.order_id not in s.held, ticks=4)
+    assert order.order_id in state.held and not ends(store, order.order_id)
+    assert locks.open_now(state, state.held[order.order_id])

@@ -98,7 +98,7 @@ from revisionist.core.realism.resolvers import (
     resolver_for,
 )
 from revisionist.core.realism.resolvers.movement import FORCE, STRENGTH
-from revisionist.core.realism.route import due_executions, held, route
+from revisionist.core.realism.route import NOBODY, due_executions, held, route
 from revisionist.core.realism.war import polity_of
 from revisionist.core.realism.war_rules import contacts, order_refusal
 from revisionist.core.resolution import TickStage
@@ -413,6 +413,8 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return private_to(payload.held.issuer)
     if isinstance(payload, ev.HeldOrderEnded):
         return private_to(payload.issuer)
+    if isinstance(payload, ev.OrderAsked):
+        return _asked_scope(payload.asked)
     if isinstance(payload, ev.AnswerPlanned | ev.AnswerMade):
         seat = actors.seat_of(state, payload.figure)
         return private_to(seat) if seat is not None else PUBLIC
@@ -479,6 +481,12 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         held = SeatId(derived_id(state.campaign_id, "engine-only", "battle"))
         return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
     return PUBLIC  # a player's ``order_drafted`` too, as ``file_order`` lands it
+
+
+def _asked_scope(asked: locks.Asked) -> Scope:
+    """An ask is sealed to the asker and the seat asked, if a seat holds that person."""
+    seats = {asked.asker} | ({asked.seat} if asked.seat is not None else set())
+    return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset(seats))
 
 
 def _nation_scope(state: State, nation: EntityId) -> Scope:
@@ -647,12 +655,89 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         while made := answering.make(state, day):
             add(made)
         add(opponents.settle(state, day, [*landed, *planned], wake_start))
+        add(_unlocked(state, day))  # ASK: each held order once a day, after the day's acts
     close_from, close_mark = state, len(out)
     add(holders.close(state, until))  # the wake's close: a capital marked before falls
     closing = [e.payload for e in out[close_mark:]]
     add(groups.react(state, close_from, closing, until))  # GRP: the close's happenings
     add(contests.moves(state, walk_from, [e.payload for e in out[walk_mark:]], until, until))
     return out
+
+
+def _unlocked(state: State, day: date) -> list[ev.Payload]:
+    """Each held order, once a world day, in id order (ASK): when its lock is open from
+    state, it is re-checked against today's refusals and lands as an ordinary order dated
+    ``day``, or ends failed with the reason. One still held by another lock stays held.
+    An ask plays no part."""
+    out: list[ev.Payload] = []
+    for h in sorted(state.held.values(), key=lambda h: h.order_id):
+        if not locks.open_now(state, h) or _locked_still(state, h, day):
+            continue
+        landed_id = OrderId(derived_id(state.campaign_id, "landed", h.order_id))
+        landing, refusal = _relanded(state, h, landed_id, day)
+        end = dict(order_id=h.order_id, issuer=h.issuer, on=day)
+        if landing is None:
+            failed = refusal[:300] or NOBODY
+            out.append(ev.HeldOrderEnded(**end, end=locks.HeldEnd.FAILED, reason=failed))
+            continue
+        out += [landing, ev.HeldOrderEnded(**end, end=locks.HeldEnd.LANDED, by=landed_id)]
+    return out
+
+
+def _locked_still(state: State, h: locks.HeldOrder, day: date) -> bool:
+    """Whether another lock holds the order now that its own has opened."""
+    if h.form is not None:
+        return locks.lock_for(state, h.issuer, h.form) is not None
+    return any(held(state, h.issuer, ask, day) is not None for ask in h.asks)
+
+
+def _relanded(
+    state: State, held: locks.HeldOrder, landed_id: OrderId, day: date
+) -> tuple[ev.OrderDrafted | ev.OrderRouted | None, str]:
+    """The held order as an ordinary order dated ``day``, under ``landed_id``, once it
+    passes today's refusals; else None and the first refusal's words."""
+    seat = held.issuer
+    form = held.form
+    if form is not None:
+        card = state.cards[state.seats[seat].embodies]
+        if not any(x.name == form.lever for x in card.levers):
+            return None, f"no lever {form.lever!r} on your card"
+        given = {k: v if isinstance(v, str) else str(v) for k, v in form.params.items()}
+        refused = order_refusal(state, seat, form.lever, given)
+        if not refused:
+            try:
+                _refuse_twin_form(state, seat, form.lever, dict(form.params))
+            except ValueError as exc:
+                refused = str(exc)
+        if refused:
+            return None, refused
+        landed = form.model_copy(update={"order_id": landed_id, "filed": day})
+        return ev.OrderDrafted(order=landed), ""
+    parts: list[RoutedPart] = []
+    for ask in held.asks:
+        routing = route(state, seat, ask, day)
+        if routing.part is None:
+            return None, routing.refusal
+        parts.append(routing.part)
+    order = RoutedOrder(
+        order_id=landed_id, issuer=seat, filed=day, parts=tuple(parts), forecast=held.forecast
+    )
+    return ev.OrderRouted(order=order), ""
+
+
+def ask_order(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, order_id: OrderId
+) -> locks.Asked:
+    """The seat asks, once, for its held order (ASK): one paper before the seat holding
+    the person who decides it, or the card when no seat does, dated today. It decides
+    nothing and opens nothing. Raises ``ValueError`` with the seat's words."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    if today is None:
+        raise ValueError(locks.NOT_HELD)
+    asked = locks.ask(state, seat, order_id, today)
+    _append_all(store, state, [(ev.OrderAsked(asked=asked), _asked_scope(asked))], seat)
+    return asked
 
 
 # --- what a human does between ticks ---------------------------------------------
@@ -1218,6 +1303,7 @@ __all__ = [
     "Landing",
     "OpeningWritten",
     "RealismTickResult",
+    "ask_order",
     "commit_order",
     "draft_order",
     "file_order",

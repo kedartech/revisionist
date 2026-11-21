@@ -117,7 +117,7 @@ def _locks_declared(state: State, p: ev.LocksDeclared) -> State:
         raise FoldError("locks_declared: a row is named twice")
     for r in p.rows:
         posture = r.when.zone if isinstance(r.when, PostureNotSet) else None
-        for who in (r.decider.person, r.decider.nation, r.order.zone, posture):
+        for who in (r.decider.person, r.decider.nation, r.decider.head, r.order.zone, posture):
             if who is not None:
                 _need(state.entities, who, "entity")
         if r.order.force is not None:
@@ -150,8 +150,30 @@ def _held_order_ended(state: State, p: ev.HeldOrderEnded) -> State:
     if p.by is not None and not any(p.by in t for t in (state.held, state.orders, state.routed)):
         raise FoldError(f"held order {p.order_id}: unknown order {p.by!r}")
     return state.model_copy(
-        update={"held": {k: v for k, v in state.held.items() if k != h.order_id}}
+        update={
+            "held": {k: v for k, v in state.held.items() if k != h.order_id},
+            "asked": {k: v for k, v in state.asked.items() if k != h.order_id},
+        }
     )
+
+
+def _order_asked(state: State, p: ev.OrderAsked) -> State:
+    """A seat's ask for its own held order, once, with ``locks`` on; the seat it names
+    holds the person asked (ASK)."""
+    if Rule.LOCKS not in state.rules:
+        raise FoldError("order_asked needs the locks rule")
+    a = p.asked
+    h = _need(state.held, a.order_id, "held order")
+    if h.issuer != a.asker or state.seats[a.asker].embodies != a.by:
+        raise FoldError(f"held order {a.order_id} is not that seat's")
+    if a.order_id in state.asked:
+        raise FoldError(f"held order {a.order_id} is asked for already")
+    if a.on < h.filed:
+        raise FoldError(f"held order {a.order_id} is asked for before it was held")
+    _need(state.entities, a.to, "entity")
+    if a.seat is not None and _need(state.seats, a.seat, "seat").embodies != a.to:
+        raise FoldError(f"seat {a.seat} does not hold {a.to}")
+    return state.model_copy(update={"asked": _put(state.asked, a.order_id, a)})
 
 
 def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
@@ -633,6 +655,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.LocksDeclared()
             | ev.OrderHeld()
             | ev.HeldOrderEnded()
+            | ev.OrderAsked()
             | ev.AreaHeld()
             | ev.CaptureCounted()
             | ev.EconomySet()
@@ -1060,6 +1083,8 @@ def _realism(state: State, p: ev.Payload) -> State:
             return _order_held(state, p)
         case ev.HeldOrderEnded():
             return _held_order_ended(state, p)
+        case ev.OrderAsked():
+            return _order_asked(state, p)
         case ev.IntelligenceDeclared():
             if Rule.REPORTS not in state.rules:
                 raise FoldError("intelligence_declared needs the reports rule")

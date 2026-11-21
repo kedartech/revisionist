@@ -128,11 +128,15 @@ Condition = Annotated[LawNotInForce | PostureNotSet, Field(discriminator="check"
 
 
 class Decider(Model):
-    """Who can allow a held order: a person, or a nation's chamber or chambers."""
+    """Who can allow a held order: a person, or a nation's chamber or chambers, with the
+    head of that nation's government, to whom an ask goes (ASK)."""
 
     person: EntityId | None = None
     nation: EntityId | None = None
     chambers: tuple[Label, ...] = ()
+    head: EntityId | None = None
+    """With a body: the head of the nation's government, named by the row (the compiler
+    requires it). An ask for an order the body decides goes to this person (ASK)."""
 
     @model_validator(mode="after")
     def _shape(self) -> "Decider":
@@ -141,6 +145,8 @@ class Decider(Model):
             raise ValueError("a decider is a person or a body, not both")
         if body and (self.nation is None or not self.chambers):
             raise ValueError("a body names its nation and its chambers")
+        if self.head is not None and not body:
+            raise ValueError("only a body names the head of its government")
         if len(set(self.chambers)) != len(self.chambers):
             raise ValueError("a body names a chamber twice")
         return self
@@ -476,8 +482,90 @@ def replaced(state: "State", seat: SeatId, order: Order | Sequence[Ask]) -> list
     ]
 
 
+# --- The ask, and the lock opening from state (ASK) -----------------------------------
+
+
+class Asked(Model):
+    """A held order asked for, once, by its own seat (ASK): who asked, the person the ask
+    went to and the seat that holds that person, if any, and the order's plain words. It
+    decides nothing and opens nothing. The person asked learns only this."""
+
+    order_id: OrderId
+    asker: SeatId
+    by: EntityId
+    """The asker's person."""
+    to: EntityId
+    """The decider, or for a body the head of the nation's government the row names."""
+    seat: SeatId | None = None
+    """The seat holding ``to`` when the ask was made; None: the ask reached the card."""
+    words: str = Field(min_length=1, max_length=300)
+    """The order in plain words."""
+    on: date
+
+
+def asked_of(decider: Decider) -> EntityId | None:
+    """The person an ask goes to: the decider, or the head of the body's government;
+    None for a body whose row named no head."""
+    return decider.person if decider.person is not None else decider.head
+
+
+ASKED_ALREADY = "You have already asked for that order."  # [proposed]
+NOT_HELD = "That order is not held."  # [proposed]
+NOBODY_TO_ASK = "Nobody can be asked for that order."  # [proposed]
+
+
+def ask(state: "State", seat: SeatId, order_id: OrderId, day: date) -> Asked:
+    """The seat's ask for its held order ``order_id``, dated ``day``: one paper before the
+    seat holding the person who decides it, or the card when no seat does, with the
+    order's plain words. Raises ``ValueError`` with the seat's words when the order is not
+    its own held order, or it has asked for it already. Opens nothing."""
+    held = state.held.get(order_id) if on(state) else None
+    if held is None or held.issuer != seat or seat not in state.seats:
+        raise ValueError(NOT_HELD)
+    if order_id in state.asked:
+        raise ValueError(ASKED_ALREADY)
+    to = asked_of(held.decider)
+    if to is None:
+        raise ValueError(NOBODY_TO_ASK)
+    at = next((s for s, x in sorted(state.seats.items()) if x.embodies == to), None)
+    return Asked(
+        order_id=order_id,
+        asker=seat,
+        by=state.seats[seat].embodies,
+        to=to,
+        seat=at,
+        words=held_words(state, held),
+        on=day,
+    )
+
+
+def held_words(state: "State", held: HeldOrder) -> str:
+    """A held order in plain words: a form's label and terms, or a written order's asks."""
+    from revisionist.core.realism.pipelines import order_words
+
+    said = order_words(state, held.form) if held.form else " ".join(a.ask for a in held.asks)
+    return " ".join(said.split())[:300] or "An order."
+
+
+def open_now(state: "State", held: HeldOrder) -> bool:
+    """Whether the held order's lock is open: its row's condition, read from state, no
+    longer holds. A row with no condition, a derived decider, or a row the state no longer
+    carries never opens from state. Nothing with ``locks`` off."""
+    if not on(state) or held.row is None:
+        return False
+    row = next((r for r in state.locks if r.key == held.row), None)
+    if row is None or row.when is None:
+        return False
+    issuer = state.seats[held.issuer].embodies
+    return not _holds(state, issuer, row.when)
+
+
 __all__ = [
+    "ASKED_ALREADY",
+    "NOBODY_TO_ASK",
+    "NOT_HELD",
     "Aim",
+    "Asked",
     "Condition",
     "Decider",
     "HeldEnd",
@@ -488,10 +576,14 @@ __all__ = [
     "OrderMatch",
     "PostureNotSet",
     "aims",
+    "ask",
+    "asked_of",
     "covering",
     "decider_for",
+    "held_words",
     "lock_for",
     "on",
+    "open_now",
     "posture_set",
     "reason",
     "replaced",

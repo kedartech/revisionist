@@ -131,10 +131,10 @@ def test_the_world_switches_on_contests_and_aims() -> None:
     assert {Rule.CONTESTS, Rule.AIMS} <= set(w.rules)
 
 
-def test_eight_playable_cards_hold_twenty_four_aims() -> None:
+def test_nine_playable_cards_hold_twenty_seven_aims() -> None:
     doc = raw()
-    assert len(playable(doc)) == 8
-    assert sum(len(cards(doc)[p]["aims"]) for p in playable(doc)) == 24
+    assert len(playable(doc)) == 9
+    assert sum(len(cards(doc)[p]["aims"]) for p in playable(doc)) == 27
 
 
 def test_every_aim_has_a_condition_a_rule_can_change() -> None:

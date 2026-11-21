@@ -335,7 +335,7 @@ def test_the_autumn_desks_and_orders_carry_no_snake_case() -> None:
     ids = resolve_keys(world, CAMPAIGN)
     events = compile_world(world, CAMPAIGN, cmp.versions())
     playable = [c.person for c in world.cards if c.playable]
-    assert len(playable) == 8
+    assert len(playable) == 9
     seats = {k: SeatId(derived_id(CAMPAIGN, "seat", k)) for k in playable}
 
     def add(p: ev.Payload) -> None:

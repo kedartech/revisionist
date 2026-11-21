@@ -46,6 +46,7 @@ from revisionist.core.ontology import (
     Controller,
     DevelopmentCategory,
     EntityKind,
+    MoveKind,
     SeatKind,
 )
 from revisionist.core.realism.agenda import MandateKind, TriggerKind
@@ -235,9 +236,34 @@ class SeatDecl(Model):
     agent: AgentDecl | None = None
 
 
+class ContestMoveDecl(Model):
+    """A move of a contest (CON): what happened, and the side it steps toward.
+
+    ``kind: battle`` names a ``region``; ``holder`` a ``territory``; ``flag`` a
+    ``quantity``; ``line`` a ``line`` and one of a ``quantity``, a ``nation`` (its
+    war-economy figure) or a ``nation`` and its ``group`` (the group's support), with
+    ``falling: true`` to count a crossing downward; ``agreement_made`` and
+    ``agreement_broken`` name two or more nations in ``between``. ``step`` defaults by
+    kind (``contests.STEPS``)."""
+
+    kind: MoveKind
+    toward: Key
+    """One of the contest's sides."""
+    step: int | None = Field(default=None, ge=1, le=100)
+    region: Key | None = None
+    territory: Key | None = None
+    quantity: Key | None = None
+    nation: Key | None = None
+    group: Key | None = None
+    line: float | None = None
+    falling: bool = False
+    between: tuple[Key, ...] = ()
+
+
 class ContestDecl(Model):
     """A contest (spec §5.3). ``sides`` names entity keys: a rivalry's 2-4 sides,
-    or a trial's one power under trial."""
+    or a trial's one power under trial. With the ``contests`` rule on, ``moves`` say
+    what moves its track (CON) and it is decided ``countdown_days`` after the start."""
 
     key: Key
     kind: ContestKind
@@ -248,6 +274,8 @@ class ContestDecl(Model):
     momentum: int = Field(default=0, ge=-20, le=20)
     countdown_days: int = Field(ge=1)
     scope: ScopeSpec = "public"
+    moves: SkipJsonSchema[tuple[ContestMoveDecl, ...]] = ()
+    """Kept out of the draft's schema, like the other keys of the territory rules."""
 
 
 class HistoryDecl(Model):
@@ -1003,6 +1031,7 @@ __all__ = [
     "ConflictDecl",
     "ContactDecl",
     "ContestDecl",
+    "ContestMoveDecl",
     "DevelopmentDeck",
     "DevelopmentDecl",
     "DevelopmentEffectDecl",

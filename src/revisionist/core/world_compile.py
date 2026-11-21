@@ -11,7 +11,9 @@ have no card yet: ``compile_figure`` adds one person's card to a running campaig
 """
 
 from collections.abc import Callable, Mapping, Sequence
+from datetime import timedelta
 from itertools import pairwise
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -65,11 +67,13 @@ from revisionist.core.ontology import (
     Commitment,
     Contest,
     ContestKind,
+    ContestMove,
     Controller,
     Entity,
     EntityKind,
     Fact,
     Meter,
+    MoveKind,
     Persona,
     Relationship,
     ScheduledEvent,
@@ -116,6 +120,7 @@ from revisionist.core.world import (
     CardDecl,
     Cited,
     ClauseDecl,
+    ContestDecl,
     DevelopmentDecl,
     EntityDecl,
     FeatureDecl,
@@ -424,6 +429,8 @@ def _check_v3(world: WorldFile, sections: Mapping[str, str], problems: list[str]
             problems.append(f"{where}: a trial has one power under trial")
         if k.kind is ContestKind.TRIAL and k.track < 0:
             problems.append(f"{where}: a trial's track runs 0..100")
+        if k.moves and world.ruleset == "legacy":
+            problems.append(f"{where}: only a realism world's contests have moves")
     if world.schedule and world.start_date is None:
         problems.append("schedule: history's clock needs a start_date")
     for h in world.schedule:
@@ -490,6 +497,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_kinds(world, problems)
     _check_intelligence(world, sections, problems)
     _check_groups(world, problems)
+    _check_contest_moves(world, sections, problems)
     for seat in world.seats:
         if seat.controller is Controller.HUMAN:
             problems.append(f"seat {seat.key}: a realism world names no human seat")
@@ -1195,6 +1203,61 @@ def _check_intelligence(world: WorldFile, sections: Mapping[str, str], problems:
                 problems.append(f"{where}: agent in {agent.area}, not an area of the board")
 
 
+_MOVE_FIELDS: dict[MoveKind, tuple[frozenset[str], ...]] = {
+    MoveKind.BATTLE: (frozenset({"region"}),),
+    MoveKind.HOLDER: (frozenset({"territory"}),),
+    MoveKind.FLAG: (frozenset({"quantity"}),),
+    MoveKind.LINE: (
+        frozenset({"quantity", "line"}),
+        frozenset({"nation", "line"}),
+        frozenset({"nation", "group", "line"}),
+    ),
+    MoveKind.AGREEMENT_MADE: (frozenset({"between"}),),
+    MoveKind.AGREEMENT_BROKEN: (frozenset({"between"}),),
+}
+"""The fields each kind of contest move names, for a line one of three sets (CON)."""
+
+
+def _check_contest_moves(
+    world: WorldFile, sections: Mapping[str, str], problems: list[str]
+) -> None:
+    """Each contest move (CON): toward one of its contest's sides, naming the fields its
+    kind names and no other, each a region, territory, quantity, polity or that polity's
+    group the world declares; an agreement move names two or more distinct polities, and
+    only a line falls. With the rule off they are checked and left out of the game."""
+    regions = {r.key for r in world.regions}
+    territories = {t.key for t in world.territories}
+    polities = {d.key for d in world.entities if d.kind is EntityKind.POLITY}
+    groups_of = {d.nation: {g.key for g in d.groups} for d in world.groups}
+    for k in world.contests:
+        for i, m in enumerate(k.moves):
+            where = f"contest {k.key} move {i}"
+            if m.toward not in k.sides:
+                problems.append(f"{where}: {m.toward} is not a side of {k.key}")
+            given = frozenset(
+                name
+                for name in ("region", "territory", "quantity", "nation", "group", "line")
+                if getattr(m, name) is not None
+            ) | ({"between"} if m.between else set())
+            if given not in _MOVE_FIELDS[m.kind]:
+                problems.append(f"{where}: a {m.kind.value} move names {sorted(given)}")
+                continue
+            if m.falling and m.kind is not MoveKind.LINE:
+                problems.append(f"{where}: only a line move falls")
+            if m.region is not None and m.region not in regions:
+                problems.append(f"{where}: unknown region {m.region}")
+            if m.territory is not None and m.territory not in territories:
+                problems.append(f"{where}: unknown territory {m.territory}")
+            _ref(problems, where, m.quantity, "quantity", sections)
+            for nation in (m.nation, *m.between):
+                if nation is not None and nation not in polities:
+                    problems.append(f"{where}: {nation} is not a polity")
+            if m.between and (len(set(m.between)) != len(m.between) or len(m.between) < 2):
+                problems.append(f"{where}: an agreement move names two or more nations, once each")
+            if m.group is not None and m.group not in groups_of.get(m.nation or "", set()):
+                problems.append(f"{where}: {m.nation} has no group {m.group}")
+
+
 def _check_groups(world: WorldFile, problems: list[str]) -> None:
     """Each nation's groups (GRP): a polity once, and a chamber's seats within each vote's
     members voting; each theme once, moving only the nation's own groups (FWG). With the
@@ -1690,6 +1753,32 @@ def _maybe[T](ids: Mapping[str, str], key: str | None, to: Callable[[str], T]) -
     return None if key is None else to(ids[key])
 
 
+def _contest_rules(world: WorldFile, ids: Mapping[str, str], k: ContestDecl) -> dict[str, Any]:
+    """A contest's moves and deciding day (CON), with the ``contests`` rule on and a start
+    date; nothing otherwise, so a game with the rule off is compiled as before."""
+    from revisionist.core.realism.contests import STEPS
+
+    if Rule.CONTESTS not in world.rules or world.start_date is None:
+        return {}
+    moves = tuple(
+        ContestMove(
+            kind=m.kind,
+            toward=EntityId(ids[m.toward]),
+            step=m.step if m.step is not None else STEPS[m.kind],
+            region=m.region,
+            area=_maybe(ids, m.territory, EntityId),
+            quantity=_maybe(ids, m.quantity, QuantityId),
+            nation=_maybe(ids, m.nation, EntityId),
+            group=m.group,
+            line=m.line,
+            falling=m.falling,
+            between=tuple(EntityId(ids[n]) for n in m.between),
+        )
+        for m in k.moves
+    )
+    return {"moves": moves, "decides": world.start_date + timedelta(days=k.countdown_days)}
+
+
 def _scope(spec: ScopeSpec, ids: Mapping[str, str]) -> Scope:
     if isinstance(spec, ScopeDecl):
         known = frozenset(SeatId(ids[key]) for key in spec.known_by)
@@ -1817,6 +1906,7 @@ def _emit(
             momentum=k.momentum,
             countdown_days=k.countdown_days,
             scope=scope,
+            **_contest_rules(world, ids, k),
         )
         out.append((ev.ContestCreated(contest=contest), scope))
     for h in world.schedule:

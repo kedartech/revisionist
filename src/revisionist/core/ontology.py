@@ -24,6 +24,7 @@ from revisionist.core.ids import (
     FactId,
     IntentId,
     MeterId,
+    QuantityId,
     RelationshipId,
     ScheduledEventId,
     SeatId,
@@ -198,6 +199,79 @@ class ContestKind(StrEnum):
 TRACK_MIN, TRACK_MAX = -100, 100
 
 
+class MoveKind(StrEnum):
+    """What moves a contest (CON): each a step toward one of its sides."""
+
+    BATTLE = "battle"
+    """A battle won, in a named region, by a nation on the side."""
+    HOLDER = "holder"
+    """A named territory taken by a nation on the side."""
+    FLAG = "flag"
+    """A measure's flag (a quantity) set: from none or 0 to any other value."""
+    LINE = "line"
+    """A quantity, a nation's war-economy figure, or a group's support crossing a line."""
+    AGREEMENT_MADE = "agreement_made"
+    """An agreement made among nations that include every one named."""
+    AGREEMENT_BROKEN = "agreement_broken"
+    """A clause judged broken in such an agreement."""
+
+
+class ContestMove(Model):
+    """One move a contest names (CON). It lands once: ``landed`` from the day it did.
+
+    ``region`` (a region key, its subregions included) for a battle; ``area`` for a
+    holder; ``quantity`` for a flag; for a line, exactly one of ``quantity``, ``nation``
+    alone (its war-economy figure) or ``nation`` with ``group`` (the group's support),
+    crossed upward to at or above ``line``, or with ``falling`` downward to below it;
+    ``between`` (two or more nations) for an agreement."""
+
+    kind: MoveKind
+    toward: EntityId
+    """The side it steps toward."""
+    step: int = Field(ge=1, le=TRACK_MAX)
+    region: Label | None = None
+    area: EntityId | None = None
+    quantity: QuantityId | None = None
+    nation: EntityId | None = None
+    group: Label | None = None
+    line: float | None = None
+    falling: bool = False
+    between: tuple[EntityId, ...] = ()
+    landed: bool = False
+
+    @model_validator(mode="after")
+    def _shape(self) -> "ContestMove":
+        given = {
+            "region": self.region is not None,
+            "area": self.area is not None,
+            "quantity": self.quantity is not None,
+            "nation": self.nation is not None,
+            "group": self.group is not None,
+            "line": self.line is not None,
+            "between": bool(self.between),
+        }
+        wanted: dict[MoveKind, tuple[set[str], ...]] = {
+            MoveKind.BATTLE: ({"region"},),
+            MoveKind.HOLDER: ({"area"},),
+            MoveKind.FLAG: ({"quantity"},),
+            MoveKind.LINE: (
+                {"quantity", "line"},
+                {"nation", "line"},
+                {"nation", "group", "line"},
+            ),
+            MoveKind.AGREEMENT_MADE: ({"between"},),
+            MoveKind.AGREEMENT_BROKEN: ({"between"},),
+        }
+        names = {k for k, v in given.items() if v}
+        if names not in wanted[self.kind]:
+            raise ValueError(f"a {self.kind.value} move names {sorted(names)}")
+        if self.falling and self.kind is not MoveKind.LINE:
+            raise ValueError("only a line move falls")
+        if self.between and (len(set(self.between)) != len(self.between) or len(self.between) < 2):
+            raise ValueError("an agreement move names two or more nations, each once")
+        return self
+
+
 class Contest(Model):
     """A pressure that keeps the world moving (spec §5.3).
 
@@ -219,9 +293,18 @@ class Contest(Model):
     winner: EntityId | None = None
     """None for a draw, an unfinished contest, or a failed trial."""
     scope: Scope
+    moves: tuple[ContestMove, ...] = ()
+    """What moves it (CON), each landing once; none in a contest stored before."""
+    decides: date | None = None
+    """The deciding day (CON): the world's start date plus ``countdown_days``, set when
+    the ``contests`` rule is on; None in every contest stored before."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"moves", "decides"})
 
     @model_validator(mode="after")
     def _shape(self) -> "Contest":
+        if any(m.toward not in self.sides for m in self.moves):
+            raise ValueError("a move steps toward one of the contest's sides")
         if len(set(self.sides)) != len(self.sides):
             raise ValueError("a contest names each side once")
         if self.kind is ContestKind.RIVALRY and len(self.sides) < 2:

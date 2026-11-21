@@ -3650,6 +3650,19 @@
             "title": "Decided",
             "type": "boolean"
           },
+          "decides": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Decides"
+          },
           "kind": {
             "$ref": "#/$defs/ContestKind"
           },
@@ -3658,6 +3671,14 @@
             "minimum": -20,
             "title": "Momentum",
             "type": "integer"
+          },
+          "moves": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/ContestMove"
+            },
+            "title": "Moves",
+            "type": "array"
           },
           "name": {
             "title": "Name",
@@ -3772,15 +3793,134 @@
         "title": "ContestKind",
         "type": "string"
       },
+      "ContestMove": {
+        "additionalProperties": false,
+        "description": "One move a contest names (CON). It lands once: ``landed`` from the day it did.\n\n``region`` (a region key, its subregions included) for a battle; ``area`` for a\nholder; ``quantity`` for a flag; for a line, exactly one of ``quantity``, ``nation``\nalone (its war-economy figure) or ``nation`` with ``group`` (the group's support),\ncrossed upward to at or above ``line``, or with ``falling`` downward to below it;\n``between`` (two or more nations) for an agreement.",
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Area"
+          },
+          "between": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Between",
+            "type": "array"
+          },
+          "falling": {
+            "default": false,
+            "title": "Falling",
+            "type": "boolean"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Group"
+          },
+          "kind": {
+            "$ref": "#/$defs/MoveKind"
+          },
+          "landed": {
+            "default": false,
+            "title": "Landed",
+            "type": "boolean"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Line"
+          },
+          "nation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Nation"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Quantity"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Region"
+          },
+          "step": {
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Step",
+            "type": "integer"
+          },
+          "toward": {
+            "title": "Toward",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "toward",
+          "step"
+        ],
+        "title": "ContestMove",
+        "type": "object"
+      },
       "ContestMoved": {
         "additionalProperties": false,
-        "description": "A contest's track moved, by momentum or by a resolved order, and its\ncountdown ran down by the in-world days the tick covered.",
+        "description": "A contest's track moved, by momentum, by a resolved order, or by one of its own\nmoves landing (CON: ``move``, the move's index, once), and its countdown ran down by\nthe in-world days the tick covered (none for a move).",
         "properties": {
           "cause": {
             "default": "momentum",
             "enum": [
               "momentum",
-              "order"
+              "order",
+              "move"
             ],
             "title": "Cause",
             "type": "string"
@@ -3806,6 +3946,19 @@
             "default": "contest_moved",
             "title": "Kind",
             "type": "string"
+          },
+          "move": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Move"
           }
         },
         "required": [
@@ -7752,6 +7905,19 @@
         ],
         "title": "MoveForce",
         "type": "object"
+      },
+      "MoveKind": {
+        "description": "What moves a contest (CON): each a step toward one of its sides.",
+        "enum": [
+          "battle",
+          "holder",
+          "flag",
+          "line",
+          "agreement_made",
+          "agreement_broken"
+        ],
+        "title": "MoveKind",
+        "type": "string"
       },
       "NarrationWritten": {
         "additionalProperties": false,
@@ -15559,6 +15725,19 @@
             "title": "Decided",
             "type": "boolean"
           },
+          "decides": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Decides"
+          },
           "kind": {
             "$ref": "#/$defs/ContestKind"
           },
@@ -15567,6 +15746,14 @@
             "minimum": -20,
             "title": "Momentum",
             "type": "integer"
+          },
+          "moves": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/ContestMove"
+            },
+            "title": "Moves",
+            "type": "array"
           },
           "name": {
             "title": "Name",
@@ -15628,6 +15815,124 @@
         ],
         "title": "ContestKind",
         "type": "string"
+      },
+      "ContestMove": {
+        "additionalProperties": false,
+        "description": "One move a contest names (CON). It lands once: ``landed`` from the day it did.\n\n``region`` (a region key, its subregions included) for a battle; ``area`` for a\nholder; ``quantity`` for a flag; for a line, exactly one of ``quantity``, ``nation``\nalone (its war-economy figure) or ``nation`` with ``group`` (the group's support),\ncrossed upward to at or above ``line``, or with ``falling`` downward to below it;\n``between`` (two or more nations) for an agreement.",
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Area"
+          },
+          "between": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Between",
+            "type": "array"
+          },
+          "falling": {
+            "default": false,
+            "title": "Falling",
+            "type": "boolean"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Group"
+          },
+          "kind": {
+            "$ref": "#/$defs/MoveKind"
+          },
+          "landed": {
+            "default": false,
+            "title": "Landed",
+            "type": "boolean"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Line"
+          },
+          "nation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Nation"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Quantity"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Region"
+          },
+          "step": {
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Step",
+            "type": "integer"
+          },
+          "toward": {
+            "title": "Toward",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "toward",
+          "step"
+        ],
+        "title": "ContestMove",
+        "type": "object"
       },
       "Contingency": {
         "additionalProperties": false,
@@ -18067,6 +18372,19 @@
         ],
         "title": "MoveForce",
         "type": "object"
+      },
+      "MoveKind": {
+        "description": "What moves a contest (CON): each a step toward one of its sides.",
+        "enum": [
+          "battle",
+          "holder",
+          "flag",
+          "line",
+          "agreement_made",
+          "agreement_broken"
+        ],
+        "title": "MoveKind",
+        "type": "string"
       },
       "NationVote": {
         "additionalProperties": false,
@@ -23486,6 +23804,19 @@
             "title": "Decided",
             "type": "boolean"
           },
+          "decides": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Decides"
+          },
           "kind": {
             "$ref": "#/$defs/ContestKind"
           },
@@ -23494,6 +23825,14 @@
             "minimum": -20,
             "title": "Momentum",
             "type": "integer"
+          },
+          "moves": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/ContestMove"
+            },
+            "title": "Moves",
+            "type": "array"
           },
           "name": {
             "title": "Name",
@@ -23555,6 +23894,124 @@
         ],
         "title": "ContestKind",
         "type": "string"
+      },
+      "ContestMove": {
+        "additionalProperties": false,
+        "description": "One move a contest names (CON). It lands once: ``landed`` from the day it did.\n\n``region`` (a region key, its subregions included) for a battle; ``area`` for a\nholder; ``quantity`` for a flag; for a line, exactly one of ``quantity``, ``nation``\nalone (its war-economy figure) or ``nation`` with ``group`` (the group's support),\ncrossed upward to at or above ``line``, or with ``falling`` downward to below it;\n``between`` (two or more nations) for an agreement.",
+        "properties": {
+          "area": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Area"
+          },
+          "between": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Between",
+            "type": "array"
+          },
+          "falling": {
+            "default": false,
+            "title": "Falling",
+            "type": "boolean"
+          },
+          "group": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Group"
+          },
+          "kind": {
+            "$ref": "#/$defs/MoveKind"
+          },
+          "landed": {
+            "default": false,
+            "title": "Landed",
+            "type": "boolean"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Line"
+          },
+          "nation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Nation"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Quantity"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Region"
+          },
+          "step": {
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Step",
+            "type": "integer"
+          },
+          "toward": {
+            "title": "Toward",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "toward",
+          "step"
+        ],
+        "title": "ContestMove",
+        "type": "object"
       },
       "Contingency": {
         "additionalProperties": false,
@@ -25423,6 +25880,19 @@
         ],
         "title": "MoveForce",
         "type": "object"
+      },
+      "MoveKind": {
+        "description": "What moves a contest (CON): each a step toward one of its sides.",
+        "enum": [
+          "battle",
+          "holder",
+          "flag",
+          "line",
+          "agreement_made",
+          "agreement_broken"
+        ],
+        "title": "MoveKind",
+        "type": "string"
       },
       "NationVote": {
         "additionalProperties": false,

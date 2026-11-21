@@ -2634,6 +2634,15 @@
         "title": "CardAmended",
         "type": "object"
       },
+      "CardPath": {
+        "description": "Which ladder the office stands on (CMD). Read with the ``command`` rule on.",
+        "enum": [
+          "political",
+          "military"
+        ],
+        "title": "CardPath",
+        "type": "string"
+      },
       "CardsDeclared": {
         "additionalProperties": false,
         "description": "The scenario's cards, feeds and pipelines, compiled from the world file.\n\nOne event, after the entities it names, so the fold can check every\nreference at once. Engine only: cards carry the AI policy fields.",
@@ -10612,7 +10621,9 @@
           "aid",
           "writing",
           "clause_reader",
-          "written_orders"
+          "written_orders",
+          "command",
+          "locks"
         ],
         "title": "Rule",
         "type": "string"
@@ -11378,6 +11389,10 @@
             "maxItems": 6,
             "title": "Opposes",
             "type": "array"
+          },
+          "path": {
+            "$ref": "#/$defs/CardPath",
+            "default": "political"
           },
           "person": {
             "title": "Person",
@@ -15873,6 +15888,15 @@
         },
         "title": "Capture",
         "type": "object"
+      },
+      "CardPath": {
+        "description": "Which ladder the office stands on (CMD). Read with the ``command`` rule on.",
+        "enum": [
+          "political",
+          "military"
+        ],
+        "title": "CardPath",
+        "type": "string"
       },
       "ChannelKind": {
         "description": "How words travel. Each trades speed against exposure (direction, channels table).",
@@ -20911,7 +20935,9 @@
           "aid",
           "writing",
           "clause_reader",
-          "written_orders"
+          "written_orders",
+          "command",
+          "locks"
         ],
         "title": "Rule",
         "type": "string"
@@ -21495,6 +21521,10 @@
             "maxItems": 6,
             "title": "Opposes",
             "type": "array"
+          },
+          "path": {
+            "$ref": "#/$defs/CardPath",
+            "default": "political"
           },
           "person": {
             "title": "Person",
@@ -24427,6 +24457,10 @@
             "title": "Office",
             "type": "string"
           },
+          "path": {
+            "$ref": "#/$defs/CardPath",
+            "default": "political"
+          },
           "person": {
             "title": "Person",
             "type": "string"
@@ -24452,6 +24486,15 @@
         ],
         "title": "CardFace",
         "type": "object"
+      },
+      "CardPath": {
+        "description": "Which ladder the office stands on (CMD). Read with the ``command`` rule on.",
+        "enum": [
+          "political",
+          "military"
+        ],
+        "title": "CardPath",
+        "type": "string"
       },
       "ChannelKind": {
         "description": "How words travel. Each trades speed against exposure (direction, channels table).",
@@ -25423,6 +25466,10 @@
             "maxLength": 60,
             "title": "Office",
             "type": "string"
+          },
+          "path": {
+            "$ref": "#/$defs/CardPath",
+            "default": "political"
           },
           "person": {
             "title": "Person",

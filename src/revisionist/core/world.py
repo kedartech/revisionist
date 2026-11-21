@@ -51,7 +51,7 @@ from revisionist.core.ontology import (
 )
 from revisionist.core.realism.agenda import MandateKind, TriggerKind
 from revisionist.core.realism.answer import Answer
-from revisionist.core.realism.card import Address, Aim, ChannelKind, ParamSpec
+from revisionist.core.realism.card import Address, Aim, CardPath, ChannelKind, ParamSpec
 from revisionist.core.realism.detect import Source as IntelSource
 from revisionist.core.realism.document import Bias, Classification, DocumentKind
 from revisionist.core.realism.effect import (
@@ -879,6 +879,9 @@ class CardDecl(Model):
     holds_to: SkipJsonSchema[tuple[Key, ...]] = ()
     aim_rules: SkipJsonSchema[tuple[AimRuleDecl, ...]] = Field(default=(), max_length=3)
     """Read with the ``aims`` rule on (AIM). Written by hand: not offered to a model."""
+    path: SkipJsonSchema[CardPath] = CardPath.POLITICAL
+    """Political or military (CMD), read with the ``command`` rule on. Written by hand:
+    not offered to a model."""
 
 
 class TopicDecl(Model):

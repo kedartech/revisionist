@@ -117,6 +117,8 @@ def test_the_fixed_list_of_rule_names() -> None:
         "writing",
         "clause_reader",
         "written_orders",
+        "command",
+        "locks",
     ]
 
 

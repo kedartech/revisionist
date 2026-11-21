@@ -189,6 +189,19 @@ def _sent(state: State, force: Feature, to: EntityId, as_of: date) -> Feature | 
     )
 
 
+def moved_force(state: State, order: Order) -> FeatureId | None:
+    """The force a form order moves or detaches: its lever names this resolver and its
+    ``force`` a feature in play. None for any other order (CMD)."""
+    if order.routed_from is not None or order.measure is not None or FORCE not in order.params:
+        return None
+    try:
+        resolver = rs.resolver_for(state, order)
+    except KeyError:
+        return None
+    force = FeatureId(object_id(state.campaign_id, "feature", str(order.params[FORCE])))
+    return force if resolver == "movement" and force in state.features else None
+
+
 def resolve(state: State, order: Order) -> tuple[Feature, ...]:
     """The force under way, or halted if sent where it already is; for an order that
     names a strength, the force and the detachment it sends. Nothing for a lift its

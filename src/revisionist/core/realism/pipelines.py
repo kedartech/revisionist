@@ -13,6 +13,14 @@ seat's order puts the order before that seat as one paper, and falls due
 until then (``step_chosen``) and taken that day in the card's place; with none, the
 card takes it, holding rather than passing an order that cannot be undone. A step on a seat's
 own order that its own person holds still waits for that seat.
+
+With ``command`` on (CMD), a human seat holding a step on an order issued from up his own
+chain of ``principals`` may only pass or stall it, and a step he leaves unanswered passes on
+its held due day, the card unconsulted, even on an order that cannot be undone. Two form
+orders moving one force meet when the second is about to act: the lower one, issued from
+down the other's chain, is settled as lapsed, "replaced" and the reason on its issuer's own
+paper, when the superior's order acted earlier in the same walk or is at its last step and
+due by the walk's end (the date the wake runs to).
 """
 
 from datetime import date, timedelta
@@ -28,6 +36,7 @@ from revisionist.core.realism.card import (
     ParamSpec,
     ParamValue,
     SeatCard,
+    superiors,
     words,
 )
 from revisionist.core.realism.document import (
@@ -47,7 +56,8 @@ from revisionist.core.realism.pipeline import (
     StepOutcome,
     step_due,
 )
-from revisionist.core.state import State, View
+from revisionist.core.realism.resolvers.movement import moved_force
+from revisionist.core.state import Rule, State, View
 from revisionist.core.visibility import PUBLIC, Scope, Visibility
 from revisionist.core.world_compile import object_id
 
@@ -75,6 +85,26 @@ def held_by_another(state: State, order: Order) -> SeatId | None:
         return None
     seat = process.holder(state, state.pipelines[order.pipeline].steps[order.step].person)
     return seat if seat is not None and seat != order.issuer else None
+
+
+SUBORDINATE: frozenset[StepAction] = frozenset({StepAction.PASS, StepAction.STALL})
+"""What a seat may do at a step on an order from up his own chain (CMD)."""
+
+
+def under_issuer(state: State, order: Order) -> bool:
+    """With ``command`` on: the order waits at a step another human seat holds, and the
+    order's issuer is on the holder's chain of ``principals`` (CMD)."""
+    if Rule.COMMAND not in state.rules or held_by_another(state, order) is None:
+        return False
+    holder = state.pipelines[order.pipeline].steps[order.step].person
+    return state.seats[order.issuer].embodies in superiors(state.cards, holder)
+
+
+def step_allowed(state: State, order: Order) -> frozenset[StepAction]:
+    """What a human may do at the step the order waits at: the step's own set, cut to
+    pass and stall on an order from up the holder's chain (CMD)."""
+    allowed = state.pipelines[order.pipeline].steps[order.step].allowed
+    return allowed & SUBORDINATE if under_issuer(state, order) else allowed
 
 
 def _arrived(order: Order) -> date:
@@ -256,6 +286,8 @@ def _held(
     chosen = order.held_choice
     if chosen is not None and chosen.step == order.step:
         return chosen.action, dict(chosen.amended)
+    if under_issuer(state, order):
+        return StepAction.PASS, {}
     return _held_policy(state, orders, order, seed)
 
 
@@ -447,17 +479,96 @@ def _held_paper(state: State, order: Order, seat: SeatId) -> ev.DocumentIssued:
     issuer = state.seats[order.issuer].embodies
     label = _lever(state, order).label or words(order.lever)
     on = _arrived(order)
+    said = [("Order", order_words(state, order))]
+    if under_issuer(state, order):
+        said.append(("You may", MAY_UNDER))
     return process.held_paper(
         state,
         held_paper_id(state.campaign_id, order.order_id, order.step),
         seat,
         issuer=issuer,
         title=f"For your decision: {label}",
-        said=[("Order", order_words(state, order))],
+        said=said,
         issued=on,
         arrives_on=on,
         due=due,
     )
+
+
+MAY_UNDER = "Pass it on or hold it: it comes from above you."
+REPLACED = "replaced"
+"""The reason a lower order on a force is settled: a superior's order stands (CMD)."""
+
+
+def _superior_order(state: State, orders: dict[OrderId, Order], order: Order) -> Order | None:
+    """With ``command`` on, the order of a person up ``order``'s issuer's chain that moves
+    the same force and acted in this walk (``orders`` holds the walk's own), or is at its
+    last step and due by the walk's end: both first act on the force in one wake. None
+    when there is none (CMD)."""
+    if Rule.COMMAND not in state.rules:
+        return None
+    force = moved_force(state, order)
+    if force is None:
+        return None
+    above = superiors(state.cards, state.seats[order.issuer].embodies)
+    end = state.in_world_date
+    current = {**state.orders, **orders}
+    for other in sorted(current.values(), key=lambda o: (o.filed, o.order_id)):
+        walked = other.order_id in orders
+        if other.order_id == order.order_id or state.seats[other.issuer].embodies not in above:
+            continue
+        if moved_force(state, other) != force:
+            continue
+        steps = state.pipelines[other.pipeline].steps
+        if other.status is OrderStatus.ENACTED:
+            if walked:
+                return other
+        elif other.status is OrderStatus.MOVING and other.step == len(steps) - 1:
+            due = _due(state, other)
+            if due is not None and end is not None and due <= end:
+                return other
+    return None
+
+
+def _replaced(state: State, order: Order, by: Order, on: date) -> tuple[Order, list[RealismStep]]:
+    """``order`` settled as lapsed in favour of ``by``, with the reason on a paper sealed
+    to its issuer when a player reads it (CMD)."""
+    out: list[RealismStep] = [ev.OrderSettled(order_id=order.order_id, status=OrderStatus.LAPSED)]
+    if order.issuer in actors.readers(state):
+        superior = state.seats[by.issuer].embodies
+        label = _lever(state, order).label or words(order.lever)
+        doc_id = reply_doc_id(state.campaign_id, order.order_id, len(order.outcomes))
+        reason = (
+            f"{_trim_title(state.entities[superior].name, 40)}'s order for the same force stands."
+        )
+        out.append(
+            ev.DocumentIssued(
+                document=DocumentView(
+                    doc_id=doc_id,
+                    kind=DocumentKind.MEMO,
+                    author=superior,
+                    issued=on,
+                    arrives=on,
+                    channel=ChannelKind.LETTER,
+                    classification=Classification.CONFIDENTIAL,
+                    title=_trim_title(f"On your order: {label}"),
+                    body=(
+                        BodyField(label="What was done", value=REPLACED),
+                        BodyField(label="Order", value=label[:60]),
+                        BodyField(label="Why", value=reason[:60]),
+                        BodyField(label="Outcome", value=OrderStatus.LAPSED.value),
+                    ),
+                    scope=Scope(visibility=Visibility.PRIVATE, known_by=frozenset({order.issuer})),
+                ),
+                truth=DocumentTruth(doc_id=doc_id),
+            )
+        )
+    return order.model_copy(update={"status": OrderStatus.LAPSED}), out
+
+
+def _acts(order: Order, action: StepAction, steps: int) -> bool:
+    """True when ``action`` carries the order through its last step."""
+    return action in ADVANCES and order.step + 1 >= steps
 
 
 def _act(
@@ -546,7 +657,12 @@ def run_pipelines(state: State, today: date, seed: str) -> list[RealismStep]:
             action = StepAction.PASS
         else:
             action, amended = _policy(state, orders, order, seed, step.allowed)
-        orders[oid], out = _act(state, order, action, on, amended)
+        steps_n = len(state.pipelines[order.pipeline].steps)
+        superior = _superior_order(state, orders, order) if _acts(order, action, steps_n) else None
+        if superior is not None:
+            orders[oid], out = _replaced(state, order, superior, on)
+        else:
+            orders[oid], out = _act(state, order, action, on, amended)
         events += out
         tell(orders[oid])
 
@@ -569,6 +685,10 @@ def human_step(
     """A human's decision at the step they hold, with what it causes. Raises
     ``ValueError`` when the order is not waiting on them or the action is not allowed."""
     order = checked_step(state, order_id, action, amended)
+    acts = _acts(order, action, len(state.pipelines[order.pipeline].steps))
+    superior = _superior_order(state, {}, order) if acts else None
+    if superior is not None:
+        return _replaced(state, order, superior, today)[1]
     return _act(state, order, action, today, amended or {})[1]
 
 
@@ -584,8 +704,7 @@ def checked_step(
     order = state.orders.get(order_id)
     if order is None or not waiting_on_human(state, order):
         raise ValueError(f"order {order_id} is not waiting on a human")
-    step = state.pipelines[order.pipeline].steps[order.step]
-    if action not in step.allowed:
+    if action not in step_allowed(state, order):
         raise ValueError(f"step {order.step} does not allow {action.value}")
     if (action is StepAction.AMEND) != bool(amended):
         raise ValueError("an amendment, and only an amendment, carries edits")
@@ -596,6 +715,9 @@ def checked_step(
 
 __all__ = [
     "DESTINATION",
+    "MAY_UNDER",
+    "REPLACED",
+    "SUBORDINATE",
     "RealismStep",
     "checked_step",
     "destination",
@@ -608,5 +730,7 @@ __all__ = [
     "place_named",
     "reply_doc_id",
     "run_pipelines",
+    "step_allowed",
+    "under_issuer",
     "waiting_on_human",
 ]

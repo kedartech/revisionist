@@ -98,6 +98,7 @@ from revisionist.core.realism import territory as tm
 from revisionist.core.realism.agenda import MandateKind, MandateTemplate, Trigger, TriggerKind
 from revisionist.core.realism.answer import ENTITY_FIELDS, Answer, ParamValue
 from revisionist.core.realism.card import (
+    CardPath,
     Conflict,
     Contact,
     Domain,
@@ -511,6 +512,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_groups(world, problems)
     _check_contest_moves(world, sections, problems)
     _check_aim_rules(world, sections, problems)
+    _check_command(world, problems)
     for seat in world.seats:
         if seat.controller is Controller.HUMAN:
             problems.append(f"seat {seat.key}: a realism world names no human seat")
@@ -1694,6 +1696,27 @@ _CONDITION_REFS = {
 ``between`` names entities too."""
 
 
+def _check_command(world: WorldFile, problems: list[str]) -> None:
+    """With ``command`` on (CMD): a playable military card has a domain naming a force,
+    and no force is named by two military cards. With it off, a card's path is not read."""
+    if Rule.COMMAND not in world.rules:
+        return
+    named: dict[str, list[str]] = {}
+    for c in world.cards:
+        if c.path is not CardPath.MILITARY:
+            continue
+        forces = {k for dm in c.authority for k in dm.forces}
+        if c.playable and not forces:
+            problems.append(
+                f"card {c.person}: a playable military card needs a domain naming a force"
+            )
+        for k in sorted(forces):
+            named.setdefault(k, []).append(c.person)
+    for k, people in sorted(named.items()):
+        if len(people) > 1:
+            problems.append(f"feature {k}: named by two military cards ({', '.join(people)})")
+
+
 def _check_aim_rules(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
     """Each card's aim rules (AIM): for an aim the card has, once each, at most one
     replaceable, opening on or before the deadline; a condition of bounded size that
@@ -2490,6 +2513,7 @@ def _card(
         person=EntityId(ids[c.person]),
         office=c.office,
         playable=c.playable,
+        path=c.path,
         powers=c.powers,
         inner_circle=tuple(
             Contact(person=EntityId(ids[k.person]), channel=k.channel) for k in c.inner_circle

@@ -593,6 +593,41 @@
         "title": "AgreementPublished",
         "type": "object"
       },
+      "AidFinding": {
+        "additionalProperties": false,
+        "description": "An aid finding as the board holds it (PRL): the form, the figure it draws on, and\neach recipient's share figure and eligibility flag, by polity.",
+        "properties": {
+          "draws_on": {
+            "title": "Draws On",
+            "type": "string"
+          },
+          "eligible": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Eligible",
+            "type": "object"
+          },
+          "form": {
+            "maxLength": 60,
+            "title": "Form",
+            "type": "string"
+          },
+          "shares": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Shares",
+            "type": "object"
+          }
+        },
+        "required": [
+          "form",
+          "draws_on"
+        ],
+        "title": "AidFinding",
+        "type": "object"
+      },
       "AimRule": {
         "additionalProperties": false,
         "description": "What makes a card's aim a goal (AIM): its condition, in plain words, over the\nperiod it is judged in. ``sees`` holds one exposure per leaf, in ``leaves`` order,\nset by the compiler from the world. Engine only, on the card.",
@@ -7974,6 +8009,28 @@
         "title": "Lever",
         "type": "object"
       },
+      "LiftPriority": {
+        "additionalProperties": false,
+        "description": "The production priority's form and the choice of it that grows a lift pool (PRL).",
+        "properties": {
+          "choice": {
+            "maxLength": 60,
+            "title": "Choice",
+            "type": "string"
+          },
+          "form": {
+            "maxLength": 60,
+            "title": "Form",
+            "type": "string"
+          }
+        },
+        "required": [
+          "form",
+          "choice"
+        ],
+        "title": "LiftPriority",
+        "type": "object"
+      },
       "Link": {
         "additionalProperties": false,
         "description": "Two areas that border, ``a`` before ``b``; ``crossing`` names a link across\nwater or a strait where they share no border.",
@@ -10067,6 +10124,33 @@
           }
         },
         "title": "PostureNotSet",
+        "type": "object"
+      },
+      "Production": {
+        "additionalProperties": false,
+        "description": "What the production rules read from the world (PRL). Absent from a board compiled\nbefore it: such a stored game keeps the rules' own names.",
+        "properties": {
+          "findings": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AidFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LiftPriority"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "title": "Production",
         "type": "object"
       },
       "Proposal": {
@@ -13899,6 +13983,17 @@
             "title": "Ports",
             "type": "array"
           },
+          "production": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Production"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "regions": {
             "default": [],
             "items": {
@@ -15180,6 +15275,41 @@
           }
         },
         "title": "Agreements",
+        "type": "object"
+      },
+      "AidFinding": {
+        "additionalProperties": false,
+        "description": "An aid finding as the board holds it (PRL): the form, the figure it draws on, and\neach recipient's share figure and eligibility flag, by polity.",
+        "properties": {
+          "draws_on": {
+            "title": "Draws On",
+            "type": "string"
+          },
+          "eligible": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Eligible",
+            "type": "object"
+          },
+          "form": {
+            "maxLength": 60,
+            "title": "Form",
+            "type": "string"
+          },
+          "shares": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Shares",
+            "type": "object"
+          }
+        },
+        "required": [
+          "form",
+          "draws_on"
+        ],
+        "title": "AidFinding",
         "type": "object"
       },
       "AimRule": {
@@ -19747,6 +19877,28 @@
         "title": "Lever",
         "type": "object"
       },
+      "LiftPriority": {
+        "additionalProperties": false,
+        "description": "The production priority's form and the choice of it that grows a lift pool (PRL).",
+        "properties": {
+          "choice": {
+            "maxLength": 60,
+            "title": "Choice",
+            "type": "string"
+          },
+          "form": {
+            "maxLength": 60,
+            "title": "Form",
+            "type": "string"
+          }
+        },
+        "required": [
+          "form",
+          "choice"
+        ],
+        "title": "LiftPriority",
+        "type": "object"
+      },
       "Link": {
         "additionalProperties": false,
         "description": "Two areas that border, ``a`` before ``b``; ``crossing`` names a link across\nwater or a strait where they share no border.",
@@ -21111,6 +21263,33 @@
           }
         },
         "title": "PostureNotSet",
+        "type": "object"
+      },
+      "Production": {
+        "additionalProperties": false,
+        "description": "What the production rules read from the world (PRL). Absent from a board compiled\nbefore it: such a stored game keeps the rules' own names.",
+        "properties": {
+          "findings": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AidFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LiftPriority"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "title": "Production",
         "type": "object"
       },
       "Proposal": {
@@ -23901,6 +24080,17 @@
             "title": "Ports",
             "type": "array"
           },
+          "production": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Production"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "regions": {
             "default": [],
             "items": {
@@ -25005,6 +25195,41 @@
           }
         },
         "title": "Agreements",
+        "type": "object"
+      },
+      "AidFinding": {
+        "additionalProperties": false,
+        "description": "An aid finding as the board holds it (PRL): the form, the figure it draws on, and\neach recipient's share figure and eligibility flag, by polity.",
+        "properties": {
+          "draws_on": {
+            "title": "Draws On",
+            "type": "string"
+          },
+          "eligible": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Eligible",
+            "type": "object"
+          },
+          "form": {
+            "maxLength": 60,
+            "title": "Form",
+            "type": "string"
+          },
+          "shares": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Shares",
+            "type": "object"
+          }
+        },
+        "required": [
+          "form",
+          "draws_on"
+        ],
+        "title": "AidFinding",
         "type": "object"
       },
       "AllOf": {
@@ -28387,6 +28612,28 @@
         "title": "Lever",
         "type": "object"
       },
+      "LiftPriority": {
+        "additionalProperties": false,
+        "description": "The production priority's form and the choice of it that grows a lift pool (PRL).",
+        "properties": {
+          "choice": {
+            "maxLength": 60,
+            "title": "Choice",
+            "type": "string"
+          },
+          "form": {
+            "maxLength": 60,
+            "title": "Form",
+            "type": "string"
+          }
+        },
+        "required": [
+          "form",
+          "choice"
+        ],
+        "title": "LiftPriority",
+        "type": "object"
+      },
       "Link": {
         "additionalProperties": false,
         "description": "Two areas that border, ``a`` before ``b``; ``crossing`` names a link across\nwater or a strait where they share no border.",
@@ -29674,6 +29921,33 @@
           }
         },
         "title": "PostureNotSet",
+        "type": "object"
+      },
+      "Production": {
+        "additionalProperties": false,
+        "description": "What the production rules read from the world (PRL). Absent from a board compiled\nbefore it: such a stored game keeps the rules' own names.",
+        "properties": {
+          "findings": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AidFinding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LiftPriority"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "title": "Production",
         "type": "object"
       },
       "Proposal": {
@@ -31594,6 +31868,17 @@
             },
             "title": "Ports",
             "type": "array"
+          },
+          "production": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Production"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "regions": {
             "default": [],

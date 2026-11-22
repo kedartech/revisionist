@@ -797,6 +797,34 @@ class TradeLineDecl(Cited):
     cut: bool = False
 
 
+class AidFindingDecl(Model):
+    """An aid finding (PRL): the form (a lever name) that allocates a share of the figure
+    ``draws_on``, the figure each recipient's share is written to (``shares``, by polity),
+    and the flag a finding naming a recipient sets to 1 (``eligible``, by polity)."""
+
+    form: Label
+    draws_on: Key
+    shares: dict[Key, Key] = Field(default_factory=dict)
+    eligible: dict[Key, Key] = Field(default_factory=dict)
+
+
+class LiftPriorityDecl(Model):
+    """The production priority (PRL): the form (a lever name) a nation's latest enacted
+    order of which, while it names the choice ``grows_lift_on``, grows the nation's lift pool
+    on each 1st."""
+
+    form: Label
+    grows_lift_on: Label
+
+
+class ProductionDecl(Model):
+    """What the production rules read from the world instead of a name of their own (PRL).
+    Read in a game with a map."""
+
+    findings: tuple[AidFindingDecl, ...] = ()
+    priority: LiftPriorityDecl | None = None
+
+
 class RegionDecl(Model):
     key: Key
     name: Label
@@ -1074,6 +1102,10 @@ class WorldFile(Model):
     locks: SkipJsonSchema[tuple[LockDecl, ...]] = ()
     """Which orders need whose decision, and when, with ``locks`` on (DCD). A world with
     none is unchanged. Written by hand: not offered to a model."""
+    production: SkipJsonSchema[ProductionDecl | None] = None
+    """The aid finding and the production priority the production rules read (PRL), with a
+    map. A world with none runs no finding and grows no lift pool by a priority. Written by
+    hand: not offered to a model."""
     map_data: SkipJsonSchema[bytes | None] = Field(default=None, exclude=True)
     """The bytes of the map file ``map`` names, read by the world loader from beside
     the world file, not from the world file itself. None when no file was found."""

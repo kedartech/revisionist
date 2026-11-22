@@ -108,6 +108,7 @@ from revisionist.core.realism.card import (
     Reach,
     SeatCard,
     Topic,
+    war_need_problems,
 )
 from revisionist.core.realism.document import Feed
 from revisionist.core.realism.effect import (
@@ -1235,13 +1236,15 @@ def _check_movement(world: WorldFile, where: str, lever: LeverDecl, problems: li
 
 
 def _check_war_needs(world: WorldFile, where: str, lever: LeverDecl, problems: list[str]) -> None:
-    """A choice that needs a war names a nation of the world to be at war with (WRL)."""
+    """A choice that needs a war is one the form offers, and names a nation of the world to
+    be at war with (WRL)."""
+    problems += [f"{where}: {p}" for p in war_need_problems(lever.params, lever.needs_war)]
     polities = {e.key for e in world.entities if e.kind is EntityKind.POLITY}
-    for spec in lever.params:
-        for choice, need in spec.needs_war.items():
+    for name, marks in lever.needs_war.items():
+        for choice, need in marks.items():
             if need.nation not in polities:
                 problems.append(
-                    f"{where}: {spec.name} needs_war {choice}: {need.nation} is not a nation"
+                    f"{where}: needs_war {name} {choice}: {need.nation} is not a nation"
                 )
 
 
@@ -2806,6 +2809,7 @@ def _card(
                 params=lv.params,
                 label=lv.label,
                 summary=lv.summary,
+                needs_war=lv.needs_war,
             )
             for lv in c.levers
         ),

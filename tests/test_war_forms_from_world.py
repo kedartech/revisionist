@@ -7,6 +7,7 @@ whose forms have other names gets the same refusals, word for word, as 1941's. A
 (no territory rules) keeps the checks it had by name.
 """
 
+import json
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -19,7 +20,7 @@ from revisionist.core import events as ev
 from revisionist.core.fold import apply, replay
 from revisionist.core.ids import CampaignId, EntityId, EventId, FeatureId, SeatId, derived_id
 from revisionist.core.realism import territory, war_rules
-from revisionist.core.realism.card import ParamSpec
+from revisionist.core.realism.card import Lever
 from revisionist.core.realism.geography import Feature, FeatureKind
 from revisionist.core.realism.war import War, war_id_for
 from revisionist.core.state import State
@@ -56,14 +57,10 @@ LEVERS: list[dict[str, Any]] = [
         "pipeline": "norra_order",
         "resolver": "shipping",
         "params": [
-            {
-                "name": "stance",
-                "kind": "enum",
-                "choices": ["spare_them", "ram_on_sight"],
-                "needs_war": {"ram_on_sight": {"nation": "ostmark", "refusal": RAM}},
-            },
+            {"name": "stance", "kind": "enum", "choices": ["spare_them", "ram_on_sight"]},
             {"name": "waters", "kind": "enum", "choices": ["the_gulf"]},
         ],
+        "needs_war": {"stance": {"ram_on_sight": {"nation": "ostmark", "refusal": RAM}}},
     },
     {
         "name": "galley_drill",
@@ -229,38 +226,54 @@ def test_a_form_named_uboat_directive_with_no_mark_is_not_refused() -> None:
     assert t.refusal("uboat_directive", posture="attack_us_shipping") == ""
 
 
+def compile_problems(needs_war: dict[str, Any]) -> tuple[str, ...]:
+    lever = {**LEVERS[2], "needs_war": needs_war}
+    with pytest.raises(WorldError) as caught:
+        compile_world(toy(toy_raw([lever])), CAMPAIGN, cmp.versions())
+    return caught.value.problems
+
+
 def test_a_mark_naming_no_nation_of_the_world_is_refused_at_compile() -> None:
-    galley = LEVERS[2]
-    stance = {
-        **galley["params"][0],
-        "needs_war": {"ram_on_sight": {"nation": "usa", "refusal": RAM}},
-    }
-    lever = {**galley, "params": [stance, galley["params"][1]]}
-    with pytest.raises(WorldError) as caught:
-        compile_world(toy(toy_raw([lever])), CAMPAIGN, cmp.versions())
-    assert any("needs_war" in p and "usa is not a nation" in p for p in caught.value.problems)
-    stance["needs_war"] = {"ram_on_sight": {"nation": "norrhavn", "refusal": RAM}}
-    with pytest.raises(WorldError) as caught:
-        compile_world(toy(toy_raw([lever])), CAMPAIGN, cmp.versions())
-    assert any("norrhavn is not a nation" in p for p in caught.value.problems)
+    usa = compile_problems({"stance": {"ram_on_sight": {"nation": "usa", "refusal": RAM}}})
+    assert any("needs_war stance ram_on_sight: usa is not a nation" in p for p in usa)
+    town = compile_problems({"stance": {"ram_on_sight": {"nation": "norrhavn", "refusal": RAM}}})
+    assert any("norrhavn is not a nation" in p for p in town)
+
+
+def test_a_mark_on_no_choice_of_the_form_is_refused_at_compile() -> None:
+    need = {"nation": "ostmark", "refusal": RAM}
+    assert any(
+        "needs_war names no parameter mood" in p for p in compile_problems({"mood": {"a": need}})
+    )
+    assert any(
+        "needs_war: stance offers no choice board" in p
+        for p in compile_problems({"stance": {"board": need}})
+    )
 
 
 @pytest.mark.parametrize(
-    "spec",
-    [
-        {"kind": "enum", "choices": ["a"], "needs_war": {"b": {"nation": "x", "refusal": "so."}}},
-        {"kind": "int", "lo": 1, "hi": 2, "needs_war": {"a": {"nation": "x", "refusal": "so."}}},
-        {"kind": "enum", "choices": ["a"], "needs_war": {"a": {"nation": "x", "refusal": ""}}},
-    ],
+    "marks",
+    [{"stance": {"b": "so."}}, {"mood": {"a": "so."}}, {"stance": {"a": ""}}],
+    ids=["no such choice", "no such parameter", "no words"],
 )
-def test_a_mark_on_no_choice_of_the_form_is_refused(spec: dict[str, Any]) -> None:
+def test_a_lever_with_a_bad_mark_is_refused(marks: dict[str, dict[str, str]]) -> None:
+    needs = {k: {c: {"nation": "x", "refusal": r} for c, r in v.items()} for k, v in marks.items()}
+    spec = {"name": "stance", "kind": "enum", "choices": ["a"]}
+    lever = {"name": "f", "pipeline": "p", "resolver": "shipping", "params": [spec]}
     with pytest.raises(ValidationError):
-        ParamSpec.model_validate({"name": "stance", **spec})
+        Lever.model_validate({**lever, "needs_war": needs})
 
 
-def test_a_spec_without_a_mark_dumps_as_before() -> None:
-    spec = ParamSpec.model_validate({"name": "stance", "kind": "enum", "choices": ["a"]})
-    assert "needs_war" not in spec.model_dump(mode="json")
+def test_a_lever_without_a_mark_dumps_as_before() -> None:
+    spec = {"name": "stance", "kind": "enum", "choices": ["a"]}
+    lever = Lever.model_validate(
+        {"name": "f", "pipeline": "p", "resolver": "shipping", "params": [spec]}
+    )
+    assert "needs_war" not in lever.model_dump(mode="json")
+
+
+def test_the_world_schema_offered_to_a_model_has_no_mark() -> None:
+    assert "needs_war" not in json.dumps(WorldFile.model_json_schema())
 
 
 # --- 1941, a territory game: the same words as before --------------------------------------
@@ -269,11 +282,12 @@ def test_a_spec_without_a_mark_dumps_as_before() -> None:
 def test_1941_marks_attack_us_shipping_as_needing_the_war_with_the_united_states() -> None:
     world = cmp.load_world(cmp.world_path("autumn-1941"))
     hitler = next(c for c in world.cards if c.person == "hitler")
-    lever = next(lv for lv in hitler.levers if lv.resolver == "shipping" and lv.params)
-    marks = {p.name: p.needs_war for p in lever.params if p.needs_war}
-    assert {k: {c: n.nation for c, n in v.items()} for k, v in marks.items()} == {
-        "posture": {"attack_us_shipping": "usa"}
-    }
+    marks = {lv.name: lv.needs_war for lv in hitler.levers if lv.needs_war}
+    assert list(marks) == ["uboat_directive"]
+    found = {k: {c: n.nation for c, n in v.items()} for k, v in marks["uboat_directive"].items()}
+    assert found == {"posture": {"attack_us_shipping": "usa"}}
+    marked = [lv.name for c in world.cards for lv in c.levers if lv.needs_war]
+    assert marked == ["uboat_directive"]
 
 
 def test_1941_refusals_are_word_for_word_as_before() -> None:

@@ -7967,6 +7967,22 @@
             "title": "Name",
             "type": "string"
           },
+          "needs_war": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/$defs/WarNeed"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Needs War",
+            "type": "object"
+          },
           "params": {
             "default": [],
             "items": {
@@ -9697,16 +9713,6 @@
             "maxLength": 60,
             "title": "Name",
             "type": "string"
-          },
-          "needs_war": {
-            "additionalProperties": {
-              "$ref": "#/$defs/WarNeed"
-            },
-            "propertyNames": {
-              "maxLength": 60
-            },
-            "title": "Needs War",
-            "type": "object"
           }
         },
         "required": [
@@ -19868,6 +19874,22 @@
             "title": "Name",
             "type": "string"
           },
+          "needs_war": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/$defs/WarNeed"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Needs War",
+            "type": "object"
+          },
           "params": {
             "default": [],
             "items": {
@@ -20914,16 +20936,6 @@
             "maxLength": 60,
             "title": "Name",
             "type": "string"
-          },
-          "needs_war": {
-            "additionalProperties": {
-              "$ref": "#/$defs/WarNeed"
-            },
-            "propertyNames": {
-              "maxLength": 60
-            },
-            "title": "Needs War",
-            "type": "object"
           }
         },
         "required": [
@@ -28636,6 +28648,22 @@
             "title": "Name",
             "type": "string"
           },
+          "needs_war": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/$defs/WarNeed"
+              },
+              "propertyNames": {
+                "maxLength": 60
+              },
+              "type": "object"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Needs War",
+            "type": "object"
+          },
           "params": {
             "default": [],
             "items": {
@@ -29466,16 +29494,6 @@
             "maxLength": 60,
             "title": "Name",
             "type": "string"
-          },
-          "needs_war": {
-            "additionalProperties": {
-              "$ref": "#/$defs/WarNeed"
-            },
-            "propertyNames": {
-              "maxLength": 60
-            },
-            "title": "Needs War",
-            "type": "object"
           }
         },
         "required": [

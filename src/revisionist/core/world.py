@@ -51,7 +51,7 @@ from revisionist.core.ontology import (
 )
 from revisionist.core.realism.agenda import MandateKind, TriggerKind
 from revisionist.core.realism.answer import Answer, ParamValue
-from revisionist.core.realism.card import Address, Aim, CardPath, ChannelKind, ParamSpec
+from revisionist.core.realism.card import Address, Aim, CardPath, ChannelKind, ParamSpec, WarNeed
 from revisionist.core.realism.detect import Source as IntelSource
 from revisionist.core.realism.document import Bias, Classification, DocumentKind
 from revisionist.core.realism.effect import (
@@ -874,6 +874,9 @@ class LeverDecl(Model):
     params: tuple[ParamSpec, ...] = ()
     label: Label = ""
     summary: str = Field(default="", max_length=300)
+    needs_war: SkipJsonSchema[dict[Label, dict[Label, WarNeed]]] = Field(default_factory=dict)
+    """The choices a seat's nation may take only at war with a nation, by parameter and
+    choice, each naming the nation's key and the words of the refusal (WRL)."""
 
 
 class ContactDecl(Model):

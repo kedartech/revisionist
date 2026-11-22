@@ -274,6 +274,7 @@ Sealing:
 - `trade.py`: Fuel and trade: oil is spent to move, and a trade line can be cut (FUL).
 - `war.py`: Wars, public news and the papers that print it (engine v2, consequences).
 - `war_rules.py`: What a state of war allows and forbids, and what it sets in motion.
+- `war_rules_stored.py`: The Autumn 1941 names the war rules keep for a stored game (WRL).
 
 ### Rules a world switches on
 

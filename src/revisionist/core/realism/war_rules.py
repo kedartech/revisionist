@@ -180,8 +180,8 @@ def _war_need_refusal(state: State, own: EntityId, form: Lever, params: dict[str
     """Why the seat's nation may not take a choice the world marks as needing a war: it is
     not at war with the nation the mark names. Empty if it is, or if the world has no such
     nation."""
-    for spec in form.params:
-        need = spec.needs_war.get(params.get(spec.name, ""))
+    for name, marks in form.needs_war.items():
+        need = marks.get(params.get(name, ""))
         nation = None if need is None else _world_entity(state, need.nation)
         if need is not None and nation is not None and not at_war(state, own, nation):
             return _not_at_war(state, own, nation, need.refusal)

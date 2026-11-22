@@ -182,3 +182,29 @@ def test_the_schema_version_is_the_one_in_the_code() -> None:
     from revisionist.core import SCHEMA_VERSION
 
     assert f'`SCHEMA_VERSION = "{SCHEMA_VERSION}"`' in DOC
+
+
+def test_every_script_is_listed() -> None:
+    scripts = [p.name for p in sorted((ROOT / "scripts").glob("*.py"))]
+    assert "map_build.py" in scripts and "map_check.py" in scripts
+    missing = [name for name in scripts if name not in DOC]
+    assert not missing, f"docs/entry-points.md lacks {missing}"
+
+
+def test_every_rule_module_is_listed() -> None:
+    folder = SRC / "core" / "realism"
+    modules = [
+        p.relative_to(folder).as_posix()
+        for p in sorted(folder.rglob("*.py"))
+        if p.name != "__init__.py"
+    ]
+    assert "locks.py" in modules and "land/allocate.py" in modules
+    missing = [m for m in modules if f"`{m}`" not in DOC]
+    assert not missing, f"docs/entry-points.md lacks rule modules {missing}"
+
+
+def test_every_rule_name_is_listed() -> None:
+    from revisionist.core.state import Rule
+
+    missing = [r.value for r in Rule if f"`{r.value}`" not in DOC]
+    assert not missing, f"docs/entry-points.md lacks rule names {missing}"

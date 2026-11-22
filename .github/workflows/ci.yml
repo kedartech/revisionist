@@ -56,7 +56,8 @@ jobs:
     if: needs.changes.outputs.python == 'true'
     name: pytest ${{ matrix.shard }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The slowest shard takes 11 to 17 minutes in November 2026, and one has run past 20.
+    timeout-minutes: 30
     strategy:
       # A failing shard leaves the others running, so every failure is reported.
       fail-fast: false

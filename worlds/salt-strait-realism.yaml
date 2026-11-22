@@ -294,6 +294,15 @@ cards:
     office: First Minister of Varda
     playable: true
     principals: [varda]
+    authority:
+      - name: army
+        effects: [move_force, engagement, investigate, allocate]
+        executor: mira
+        forces: [varda_levy, varda_galleys, varda_balloons]
+        summary: "Orders to the Varda forces, carried out by the chief of staff."
+      - name: public_word
+        effects: [statement, measure]
+        summary: "Speak to the nation and the strait."
     levers:
       - name: move_force
         pipeline: varda_order
@@ -369,6 +378,15 @@ cards:
     office: Marshal of Ostrel
     playable: true
     principals: [ostrel]
+    authority:
+      - name: army
+        effects: [move_force, engagement, investigate, allocate]
+        executor: sefa
+        forces: [ostrel_levy, ostrel_galleys, ostrel_balloons]
+        summary: "Orders to the Ostrel forces, carried out by the chief of staff."
+      - name: public_word
+        effects: [statement, measure]
+        summary: "Speak to the nation and the strait."
     levers:
       - name: move_force
         pipeline: ostrel_order

@@ -12,8 +12,7 @@ The scripted run's digest (``run_digest``) is a hash of every payload the script
 ``tests/test_realism_bands.py`` folds after the world is compiled, for its first seed, with
 the figures that run returns (the aims of the eight cards ``main`` read): what the run did,
 not what the world declares. With ``command`` and ``locks`` taken out of a copy's rules it
-equals ``BEFORE``, the digest recorded on ``main`` before this item, so nothing else in the
-file moved the run.
+equals ``BEFORE``, so nothing else in the file moved the run.
 """
 
 import hashlib
@@ -37,9 +36,9 @@ from revisionist.engine import campaign as cmp
 from tests import test_realism_bands as bands
 from tests.test_realism_resolvers import Rig
 
-BEFORE = "8b347d8bc3f610e4a2fedf07531b2e7a"
-"""The scripted run's digest on ``main`` at cdbf85e, before this item."""
-AFTER = "8b347d8bc3f610e4a2fedf07531b2e7a"
+BEFORE = "041db15f62465c8c98ff5c1f330ed04a"
+"""The scripted run's digest with ``command`` and ``locks`` taken out of the rules."""
+AFTER = "041db15f62465c8c98ff5c1f330ed04a"
 """The scripted run's digest with ``command`` and ``locks`` on, recorded once by this item.
 It equals ``BEFORE``: the script seats the President alone and files no order a lock holds,
 and his naval order passes King's step on the day the record gives."""

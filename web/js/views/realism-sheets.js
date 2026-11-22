@@ -1,4 +1,4 @@
-// The map-first room: a second layout beside today's, chosen from the game menu. The map fills
+// The map-first room: the default layout of a territory game, with the classic room beside it, chosen from the game menu. The map fills
 // the screen; Papers, Orders, Forms, Messages, the Court, People and Press each open as a sheet
 // over it (at the side from 1024 px, a half sheet from the bottom below that: c-sheets.css), and
 // a picked force opens its own. One sheet at a time; Escape or Close shuts it and focus goes back
@@ -14,23 +14,28 @@ export const SHEETS = Object.freeze([
   ['court', 'Court'], ['people', 'People'], ['press', 'Press'],
 ]);
 const LABEL = new Map(SHEETS);
-const LAYOUTS = [['room', 'Today\'s room'], ['map', 'Map first']];
+const LAYOUTS = [['map', 'Map first'], ['room', 'Classic layout']]; // [proposed]
 
-// Held for the page's life: no account setting stores it yet, so a reload opens today's room.
-let layout = 'room';
+// Held for the page's life: no account setting stores it yet, so a reload opens the default.
+let layout = null;
+let territorial = false;
 
-/** The room layout this page shows: 'room' (today's, the default) or 'map'. */
-export function roomLayout() { return layout; }
+/** Whether the game drawn is a territory game; only such a game has the map-first room. */
+export function setTerritorial(on) { territorial = Boolean(on); }
 
-/** Choose the layout; anything but 'map' is today's room. */
+/** The room layout this page shows: 'map' for a territory game unless the player chose the classic one; else 'room'. */
+export function roomLayout() { return territorial && layout !== 'room' ? 'map' : 'room'; }
+
+/** Choose the layout; anything but 'map' is the classic room. */
 export function setRoomLayout(next) { layout = next === 'map' ? 'map' : 'room'; }
 
 /** The game menu's layout choice: two buttons, the current one pressed; a click calls `onPick(key)`. */
 export function layoutChoice(onPick) {
+  if (!territorial) return null;
   return h('div', { class: 'rl-layout', role: 'group', 'aria-labelledby': 'rl-layout-h' },
     h('h3', { id: 'rl-layout-h' }, 'Room layout'),
     h('div', { class: 'row' }, LAYOUTS.map(([key, word]) => h('button', {
-      type: 'button', class: 'ghost', 'aria-pressed': String(layout === key), onclick: () => onPick(key),
+      type: 'button', class: 'ghost', 'aria-pressed': String(roomLayout() === key), onclick: () => onPick(key),
     }, word))));
 }
 

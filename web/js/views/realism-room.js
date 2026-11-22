@@ -1039,7 +1039,7 @@ export function realismRoom(ctx) {
     if (from?.need) return [...root.querySelectorAll('.rl-needs .rl-need-act')].find((b) => b.getAttribute('data-need') === from.need) ?? null;
     if (from?.tab === 'needs') return root.querySelector('.rl-needsbar .rl-needs-btn');
     if (from?.home) return root.querySelector('.rl-strip .rl-home-own');
-    if (from?.battle) return root.querySelectorAll('.rl-mapfirst g.rl-bt-mark').find((g) => g.getAttribute('data-area') === from.battle) ?? null;
+    if (from?.battle) return [...root.querySelectorAll('.rl-mapfirst g.rl-bt-mark')].find((g) => g.getAttribute('data-area') === from.battle) ?? null;
     return returnTarget(root, from);
   }
 

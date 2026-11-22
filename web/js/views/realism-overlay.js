@@ -58,7 +58,8 @@ export function leavingLines(orders) {
 
 /** The part of the seat's map the overlay draws: own marks and orders under way; null if none. */
 function ownMap(map) {
-  if (!map || !Array.isArray(map.marks)) return null;
+  // the picture is drawn in degrees; a flat hand-written map has none, so it has no picture here
+  if (!map || !Array.isArray(map.marks) || map.coords === 'flat') return null;
   const marks = map.marks.filter((m) => m.side === 'own' && m.places?.length);
   const orders = (map.orders ?? []).filter((o) => o.status === 'under_way');
   if (!marks.length && !orders.length) return null;

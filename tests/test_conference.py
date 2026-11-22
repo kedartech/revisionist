@@ -445,7 +445,7 @@ def test_a_nations_seats_that_differ_make_its_abstention(tmp_path: Path) -> None
 
 def test_no_quorum_cancels_the_conference(tmp_path: Path) -> None:
     # A world's conference invites Norra, Ostmark and Vesta; nobody holds Ostmark or
-    # Vesta, so one of three nations has a vote.
+    # Vesta and the world gives neither a head, so one of three nations has a vote.
     def scheduled(w: World) -> None:
         w["conferences"] = [
             {
@@ -459,7 +459,7 @@ def test_no_quorum_cancels_the_conference(tmp_path: Path) -> None:
             }
         ]
 
-    g = game(tmp_path, scheduled, people=("ilse", "tomas"))
+    g = game(tmp_path, scheduled, headless, people=("ilse", "tomas"))
     g.open()  # nothing to vote on before it opens
     assert conference.vote_refusal(g.state, ILSE, NAME) == conference.NO_SUCH
     out = run_until_tallied(g)
@@ -489,6 +489,193 @@ def test_a_unanimous_text_passes_only_with_every_nation_for(tmp_path: Path) -> N
         g.vote(OLAF, olaf)
         run_until_tallied(g)
         assert tallied(g).outcome is outcome
+
+
+# --- A nation no seat holds votes by its leader's card ----------------------------------
+
+
+WORLDS = Path(__file__).parents[1] / "worlds"
+
+
+def headless(w: World) -> None:
+    """Ostmark's regent has no card, so the world gives Ostmark no head."""
+    w["cards"] = [c for c in w["cards"] if c["person"] != "olaf"]
+    w["roster"] = [r for r in w["roster"] if r["entity"] != "olaf"]
+
+
+def leaning(wants: Sequence[str], holds: Sequence[str]) -> Callable[[World], None]:
+    def change(w: World) -> None:
+        (card,) = (c for c in w["cards"] if c["person"] == "olaf")
+        card["wants"], card["holds_to"] = list(wants), list(holds)
+
+    return change
+
+
+def charter_on(wording: str, *binds: str) -> Callable[[World], None]:
+    """A world's conference on ``wording`` inviting Norra, Sudland and Ostmark, opening on
+    the second day; each of ``binds`` bound to no war on Vesta."""
+
+    def change(w: World) -> None:
+        w["conferences"] = [
+            {
+                "key": NAME,
+                "caller": "norra",
+                "invited": ["norra", "sudland", "ostmark"],
+                "wording": wording,
+                "opens": "1900-04-03",
+                "voting_day": "1900-04-08",
+                "clauses": [{"type": "no_war", "binds": b, "nation": "vesta"} for b in binds],
+                "gap": True,
+            }
+        ]
+
+    return change
+
+
+def seatless(tmp: Path, *changes: Callable[[World], None]) -> Game:
+    """Ilse and Tomas seated, nobody for Ostmark, and the world's conference open to vote
+    in: a wake has closed over its opening day and the next is open."""
+    g = game(tmp, *changes, people=("ilse", "tomas"))
+    g.open()
+    g.close()
+    g.tick(day(4))
+    g.open()
+    assert NAME in project(g.state, ILSE).conferences.held
+    return g
+
+
+def test_a_nation_no_seat_holds_votes_as_its_leaders_card_leans(tmp_path: Path) -> None:
+    for wording, lean in (
+        ("Free trade on the gulf.", Vote.FOR),
+        ("Neutrality for the gulf.", Vote.AGAINST),
+        ("A charter for the gulf.", Vote.ABSTAIN),
+    ):
+        g = seatless(tmp_path, charter_on(wording))
+        run_until_tallied(g)
+        votes = {NORRA: Vote.ABSTAIN, SUDLAND: Vote.ABSTAIN, OSTMARK: lean}
+        assert counted(g, NAME) == votes, wording
+
+
+def test_a_seatless_nation_counts_in_quorum_and_tally_as_a_seats_fallback(
+    tmp_path: Path,
+) -> None:
+    # Ilse for, Sudland silent, Ostmark (nobody's) for by Olaf's card: two nations for.
+    g = seatless(tmp_path, charter_on("Free trade on the gulf."))
+    g.vote(ILSE, Vote.FOR, NAME)
+    run_until_tallied(g)
+    assert tallied(g, NAME).outcome is Outcome.AGREEMENT
+    (x,) = made(g)
+    assert x.parties == (NORRA, OSTMARK)
+
+
+def test_a_seatless_nation_bound_by_the_text_abstains_and_is_not_bound(tmp_path: Path) -> None:
+    g = seatless(
+        tmp_path, charter_on("Free trade and no war in the gulf.", "norra", "sudland", "ostmark")
+    )
+    g.vote(ILSE, Vote.FOR, NAME)
+    g.vote(TOMAS, Vote.FOR, NAME)
+    run_until_tallied(g)
+    assert counted(g, NAME)[OSTMARK] is Vote.ABSTAIN, "a seatless nation acceded to an obligation"
+    (x,) = made(g)
+    assert x.parties == (NORRA, SUDLAND)
+    assert OSTMARK not in {c.binds for c in x.clauses}
+
+
+def test_a_nation_with_a_seat_is_counted_by_its_seats_alone(tmp_path: Path) -> None:
+    # Olaf's card leans for a text on trade; his seat seals against. One vote for Ostmark.
+    g = game(tmp_path)
+    g.open()
+    g.call(text=ConferenceText(wording="Free trade on the gulf."))
+    g.vote(OLAF, Vote.AGAINST)
+    run_until_tallied(g)
+    assert [v.nation for v in tallied(g).votes] == [NORRA, SUDLAND, OSTMARK]
+    assert counted(g)[OSTMARK] is Vote.AGAINST
+
+
+def test_the_result_paper_shows_the_seatless_nations_vote(tmp_path: Path) -> None:
+    g = seatless(tmp_path, charter_on("Free trade on the gulf."))
+    run_until_tallied(g)
+    conf = g.state.conferences.held[NAME]
+    paper = g.state.documents[conference.paper_id(g.state, conf, "result", ILSE)]
+    rows = [(b.label, b.value) for b in paper.view.body]
+    assert ("Ostmark", "for") in rows
+
+
+def test_a_seatless_nations_vote_is_seen_by_no_seat_before_the_tally(tmp_path: Path) -> None:
+    def played(wants: Sequence[str], holds: Sequence[str]) -> Game:
+        return seatless(tmp_path, charter_on("Free trade on the gulf."), leaning(wants, holds))
+
+    a, b = played(["trade"], []), played([], ["trade"])
+    for s in (ILSE, TOMAS):
+        assert project(a.state, s).conferences == project(b.state, s).conferences
+        fa = [_seen(f) for f in catchup.feed(a.state, a.log, s, 0, 99)]
+        fb = [_seen(f) for f in catchup.feed(b.state, b.log, s, 0, 99)]
+        assert fa == fb
+    run_until_tallied(a)
+    run_until_tallied(b)
+    assert (counted(a, NAME)[OSTMARK], counted(b, NAME)[OSTMARK]) == (Vote.FOR, Vote.AGAINST)
+
+
+def test_a_tally_already_logged_is_not_recomputed(tmp_path: Path) -> None:
+    g = seatless(tmp_path, charter_on("Free trade on the gulf."))
+    stored = conference.Tally(on=day(6), outcome=Outcome.CANCELLED)
+    g.land(ev.ConferenceTallied(conference=NAME, tally=stored))
+    g.close()
+    out = g.tick(day(12))
+    assert of(out, ev.ConferenceTallied) == []
+    assert tallied(g, NAME) == stored
+
+
+def _played_to_the_tally(g: Game, key: str, votes: dict[SeatId, Vote]) -> conference.Tally:
+    """A wake every third day, each seat in ``votes`` sealing its vote once the conference
+    is open to it; the other seats never sit."""
+    for _ in range(40):
+        g.open()
+        for s, choice in votes.items():
+            if not conference.vote_refusal(g.state, s, key):
+                g.vote(s, choice, key)
+        g.close()
+        today = g.state.in_world_date
+        assert today is not None
+        g.tick(today + timedelta(days=3))
+        if g.state.conferences.held[key].tally is not None:
+            break
+    return tallied(g, key)
+
+
+def test_salt_straits_conference_is_tallied_with_one_seat_absent_all_along() -> None:
+    g = Game(cmp.load_world(WORLDS / "salt-strait-realism.yaml"), "oren_vale", "general_aske")
+    key = "strait_peace_conference"
+    result = _played_to_the_tally(g, key, {seat("oren_vale"): Vote.FOR})
+    lune, varda, ostrel, kesh = (entity(k) for k in ("lune", "varda", "ostrel", "kesh"))
+    assert result.outcome is Outcome.RESOLUTION
+    assert counted(g, key) == {
+        lune: Vote.ABSTAIN,
+        varda: Vote.FOR,
+        ostrel: Vote.ABSTAIN,
+        kesh: Vote.ABSTAIN,
+    }
+    conf = g.state.conferences.held[key]
+    for nation, person in ((lune, "admiral_quell"), (kesh, "abbess_ren")):
+        assert conference.head(g.state, nation) == entity(person)
+        assert conference.lean(g.state, conf, nation, entity(person)) is Vote.ABSTAIN
+
+
+def test_the_moscow_conference_is_tallied_with_only_a_british_seat() -> None:
+    g = Game(cmp.load_world(WORLDS / "autumn-1941.yaml"), "churchill")
+    key = "moscow_supply_conference"
+    result = _played_to_the_tally(g, key, {})
+    ussr, uk, usa = (entity(k) for k in ("ussr", "uk", "usa"))
+    assert result.outcome is not Outcome.CANCELLED
+    assert set(counted(g, key)) == {ussr, uk, usa}
+    conf = g.state.conferences.held[key]
+    assert conference.head(g.state, ussr) == entity("stalin")
+    assert conference.head(g.state, usa) == entity("roosevelt")
+    assert counted(g, key) == {
+        ussr: conference.lean(g.state, conf, ussr, entity("stalin")),
+        uk: Vote.ABSTAIN,
+        usa: Vote.ABSTAIN,
+    }
 
 
 # --- Rule 5: an agreement among the nations for --------------------------------------
@@ -682,7 +869,7 @@ def test_a_vote_clause_on_a_cancelled_conference_is_void_and_costs_nothing(
         scheduled_charter(w)
         w["conferences"][0]["invited"] = ["norra", "ostmark", "vesta"]
 
-    g = game(tmp_path, scheduled, people=("ilse", "tomas"))
+    g = game(tmp_path, scheduled, headless, people=("ilse", "tomas"))
     x = in_force(g, vote_clause(NORRA, key=NAME))
     before = dict(g.state.relationships)
     g.open()

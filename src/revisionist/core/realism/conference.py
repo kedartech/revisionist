@@ -12,7 +12,9 @@ walk follows the second wake opening after the call, so every seat has at least 
 wakes to vote. A seat with no vote sealed by then is given the aide's fallback: it
 abstains on a binding text (one whose passing would bind its nation), and on any other
 votes as its leader's card leans on the text's topics, or abstains. The fallback is the
-same whoever runs the seat, so nothing in the tally says who was present.
+same whoever runs the seat, so nothing in the tally says who was present. An invited
+nation no seat holds casts one vote by the same rule, read from the card of the person
+the world gives as its head; with no head it has no vote.
 
 ``tally`` counts nations, not seats: a nation's vote is its seats' vote when they agree
 and an abstention when they differ. Quorum is a majority of the invited nations with a
@@ -366,13 +368,21 @@ def vote(state: "State", seat: SeatId, key: str, choice: Vote) -> "Payload":
 
 
 def fallback(state: "State", conf: Conference, seat: SeatId) -> Vote:
-    """The aide's vote for a seat with none sealed (rule 3): abstain on a binding text;
-    else for when the text touches only topics the leader's card wants, against when
-    only topics it holds to, and abstain otherwise. It never reads who runs the seat."""
+    """The aide's vote for a seat with none sealed (rule 3): the lean of the seat's own
+    card. It never reads who runs the seat."""
     nation = _nation(state, seat)
-    if nation is None or binding(conf, nation):
+    if nation is None:
         return Vote.ABSTAIN
-    card = state.cards.get(state.seats[seat].embodies)
+    return lean(state, conf, nation, state.seats[seat].embodies)
+
+
+def lean(state: "State", conf: Conference, nation: EntityId, person: EntityId) -> Vote:
+    """How ``person``'s card votes for ``nation``: abstain on a text binding the nation;
+    else for when the text touches only topics the card wants, against when only topics
+    it holds to, and abstain otherwise."""
+    if binding(conf, nation):
+        return Vote.ABSTAIN
+    card = state.cards.get(person)
     touched = set(conf.text.topics)
     if card is None or not touched:
         return Vote.ABSTAIN
@@ -384,8 +394,30 @@ def fallback(state: "State", conf: Conference, seat: SeatId) -> Vote:
     return Vote.ABSTAIN
 
 
+HEAD_RANK = 5
+"""A card's rank as a head of government."""
+
+
+def head(state: "State", nation: EntityId) -> EntityId | None:
+    """The person the world gives as ``nation``'s head: of the nation's people whose card
+    leads it (a head of government's rank, or the nation itself among its principals),
+    the highest in rank, a playable leader before any other, then in id order. None when
+    no card leads it."""
+    from revisionist.core.realism.war import polity_of
+
+    leads = [
+        (-card.reach.rank, person not in state.roster, person)
+        for person, card in state.cards.items()
+        if polity_of(state, person) == nation
+        and (card.reach.rank == HEAD_RANK or nation in card.principals)
+    ]
+    return min(leads)[2] if leads else None
+
+
 def seat_votes(state: "State", conf: Conference) -> dict[EntityId, list[Vote]]:
-    """Each invited nation's seats' votes: the sealed vote, else the fallback."""
+    """Each invited nation's votes: for a nation with seats, each seat's sealed vote, else
+    its fallback; for a nation no seat holds, one vote by its head's card (no vote when
+    the world gives it no head)."""
     from revisionist.core.realism.holders import holding_seats
 
     sealed = state.conferences.votes.get(conf.key, {})
@@ -396,6 +428,12 @@ def seat_votes(state: "State", conf: Conference) -> dict[EntityId, list[Vote]]:
             out[nation] = [
                 sealed[s].vote if s in sealed else fallback(state, conf, s) for s in seats
             ]
+            continue
+        leader = head(state, nation)
+        if leader is not None:
+            vote = lean(state, conf, nation, leader)
+            assert vote is not Vote.FOR or not binding(conf, nation)
+            out[nation] = [vote]
     return out
 
 
@@ -631,6 +669,8 @@ __all__ = [
     "call_key",
     "call_refusal",
     "fallback",
+    "head",
+    "lean",
     "made",
     "on",
     "opened",

@@ -1005,14 +1005,6 @@ def test_4_on_salt_strait_the_offers_land_with_nobody_there(
 ALLOW = Path(__file__).with_name("fixed_names_allow.txt")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "finding: nine lines still name an owner, not stored games only: production.py "
-        "(until PRD, five lines), war_rules.py declare_war and detach_fleet (until EFD), "
-        "uboat_directive and usa (until SHP); those items clear them"
-    ),
-)
 def test_every_line_left_in_the_allow_list_is_for_stored_games_only() -> None:
     lines = [x for x in ALLOW.read_text().splitlines() if x.strip() and not x.startswith("#")]
     assert lines

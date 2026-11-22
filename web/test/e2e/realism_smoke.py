@@ -239,10 +239,11 @@ def main() -> int:
             page.get_by_label("Invite code").fill(CODE)
             page.get_by_role("button", name="Join").click()
 
-        page.locator("main.rl-board").wait_for(timeout=60_000)
+        page.locator("main.rl-board, main.rl-mapfirst").first.wait_for(timeout=60_000)
         page.wait_for_timeout(300)
         through_intro(page, report)
         shoot(page, "00-opening")
+        opening(page, report)
         try:
             if PHONE:
                 phone_board(page, report)
@@ -432,16 +433,36 @@ def view_button(page: Page, word: str) -> Locator:
     return page.get_by_role("group", name="View").get_by_role("button", name=word)
 
 
-def set_layout(page: Page, word: str) -> None:
-    """Choose the room layout from the game menu ("Map first" or "Today's room")."""
+def set_layout(page: Page, word: str) -> bool:
+    """Choose the room layout from the game menu ("Map first" or "Classic layout"); a game
+    without territories has no choice, and nothing is clicked."""
     page.get_by_role("button", name="Game").click()
     menu = page.locator("dialog.rl-menu")
     menu.wait_for(timeout=10_000)
-    menu.get_by_role("group", name="Room layout").get_by_role("button", name=word).click()
-    page.wait_for_timeout(300)
+    group = menu.get_by_role("group", name="Room layout")
+    chosen = group.count() > 0
+    if chosen:
+        group.get_by_role("button", name=word).click()
+        page.wait_for_timeout(300)
     if menu.count() and menu.first.is_visible():
         page.keyboard.press("Escape")
     page.wait_for_timeout(200)
+    return chosen
+
+
+def opening(page: Page, report: dict[str, object]) -> None:
+    """A territory game opens in the map-first room; the walk below is the classic
+    room's, so the smoke takes Classic layout from the game menu. A game without
+    territories opens the classic room and offers no layout choice."""
+    map_first = page.locator("main.rl-mapfirst").count() > 0
+    report["opening_layout"] = "map" if map_first else "room"
+    if not map_first:
+        return
+    check(
+        "a territory game opens in the map-first room", page.locator("main.rl-board").count() == 0
+    )
+    check("the map-first room offers Classic layout", set_layout(page, "Classic layout"))
+    page.locator("main.rl-board").wait_for(timeout=10_000)
 
 
 def locked_order(page: Page, report: dict[str, object]) -> None:
@@ -499,32 +520,32 @@ def locked_order(page: Page, report: dict[str, object]) -> None:
     page.locator(".rl-status.said").filter(has_text=f"Asked {LOCK_WHO}").wait_for(timeout=30_000)
     report["lock_status"] = page.locator(".rl-status").inner_text()
     check("the locked order is filed to be held and asked for", True)
-    set_layout(page, "Map first")
-    if PHONE:
-        page.locator(".rl-needs-btn").click()
-    needs = page.locator("#rl-needs")
-    needs.wait_for(timeout=10_000)
-    more = needs.locator("details.rl-needs-more > summary")
-    if more.count():  # Beginner shows one next step; the rest is behind More (BGN)
-        more.first.click()
-    line = needs.locator("li.rl-need[data-kind=held]")
-    report["lock_needs_line"] = line.first.inner_text() if line.count() else ""
-    check(
-        "the held order is in what needs you, marked asked, with who can allow it",
-        line.count() == 1
-        and line.first.locator(".rl-need-status").inner_text().strip() == "Asked"
-        and line.first.locator(".rl-lock-who").inner_text().strip() == LOCK_WHO
-        and line.first.locator("button").count() == 0,
-        str(report["lock_needs_line"]),
-    )
-    if line.count():
-        line.first.scroll_into_view_if_needed()
-    width = page.evaluate("document.documentElement.scrollWidth")
-    check("the needs list with a held order fits the viewport", width <= SIZE[0], str(width))
-    page.screenshot(path=str(OUT / f"00e-lock-needs-{SIZE[0]}x{SIZE[1]}.png"))
-    if PHONE:
-        page.keyboard.press("Escape")
-    set_layout(page, "Today's room")
+    if set_layout(page, "Map first"):  # only a territory game has the map-first room
+        if PHONE:
+            page.locator(".rl-needs-btn").click()
+        needs = page.locator("#rl-needs")
+        needs.wait_for(timeout=10_000)
+        more = needs.locator("details.rl-needs-more > summary")
+        if more.count():  # Beginner shows one next step; the rest is behind More (BGN)
+            more.first.click()
+        line = needs.locator("li.rl-need[data-kind=held]")
+        report["lock_needs_line"] = line.first.inner_text() if line.count() else ""
+        check(
+            "the held order is in what needs you, marked asked, with who can allow it",
+            line.count() == 1
+            and line.first.locator(".rl-need-status").inner_text().strip() == "Asked"
+            and line.first.locator(".rl-lock-who").inner_text().strip() == LOCK_WHO
+            and line.first.locator("button").count() == 0,
+            str(report["lock_needs_line"]),
+        )
+        if line.count():
+            line.first.scroll_into_view_if_needed()
+        width = page.evaluate("document.documentElement.scrollWidth")
+        check("the needs list with a held order fits the viewport", width <= SIZE[0], str(width))
+        page.screenshot(path=str(OUT / f"00e-lock-needs-{SIZE[0]}x{SIZE[1]}.png"))
+        if PHONE:
+            page.keyboard.press("Escape")
+        set_layout(page, "Classic layout")
     view_button(page, "Board").click()
     page.locator("main.rl-board").wait_for(timeout=10_000)
     held_on_piece(page, report)

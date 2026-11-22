@@ -38,7 +38,7 @@ import { playbackDialog, wakePlayer } from './realism-playback.js';
 import { peopleRoster, personDossier } from './realism-people.js';
 import {
   closeSheet, forgetForm, layoutChoice, markFiled, openSheet, openSheetOf, overSheet, readForms, restoreForms,
-  returnTarget, roomLayout, setRoomLayout, SHEETS, sheetTabs,
+  returnTarget, roomLayout, setRoomLayout, setTerritorial, SHEETS, sheetTabs,
 } from './realism-sheets.js';
 import { aimList, stakesStrip } from './realism-stakes.js';
 import { foldEconomy } from './realism-economy.js';
@@ -409,6 +409,7 @@ export function realismRoom(ctx) {
   uiFor(game.id);
   if (lastRoot?.isConnected && roomLayout() === 'map') ui.sheetForms = readForms(lastRoot, ui.sheetForms);
   const rv = game.view.realism;
+  setTerritorial(rv.map?.areas?.length > 0);
   if (!rv.brief && ui.brief?.tick === rv.wake_tick) rv.brief = ui.brief.brief;
   const seatName = game.view.seat?.name ?? '';
   const root = h('div', { class: 'screen war-screen realism-screen' });

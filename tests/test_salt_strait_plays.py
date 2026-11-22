@@ -197,12 +197,6 @@ SALT_STRAIT = Cast(
     world="salt-strait-realism",
     changes=(
         model_rules,
-        authority(
-            {
-                "oren_vale": ("mira", ["varda_levy", "varda_galleys", "varda_balloons"]),
-                "general_aske": ("sefa", ["ostrel_levy", "ostrel_galleys", "ostrel_balloons"]),
-            }
-        ),
         tiers({"ostrel_levy": 5, "varda_levy": 3}),
         horizon(("oren_vale", "general_aske"), 14),
     ),

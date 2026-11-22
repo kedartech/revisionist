@@ -12,6 +12,7 @@ from revisionist.core.realism.effect import Allocate, IntelOrder
 from revisionist.core.realism.pass_world import PassWorld
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.war import polity_of
+from revisionist.core.state import State
 from revisionist.core.visibility import private_to
 
 
@@ -42,27 +43,41 @@ def land(
             world.quantities[less.quantity_id] = less
             world.quantities[more.quantity_id] = more
             payloads += [ev.QuantitySet(quantity=less), ev.QuantitySet(quantity=more)]
-    fact = Fact(
+    fact = receipt(state, effect.recipient, issuer, issuer_seat, effect.what, effect.amount, on)
+    if world.claim(fact.fact_id, state.facts):
+        payloads.append(ev.FactAsserted(fact=fact))
+    return payloads, []
+
+
+def receipt(
+    state: State,
+    recipient: EntityId,
+    issuer: EntityId,
+    issuer_seat: SeatId,
+    what: str,
+    amount: int,
+    on: date,
+) -> Fact:
+    """The recipient's receipt of ``amount`` of ``what`` from the issuer, private to the
+    issuer's seat: one fact per allocation, whichever path filed it."""
+    return Fact(
         fact_id=FactId(
             derived_id(
                 state.campaign_id,
                 "fact",
                 "allocate",
-                effect.recipient,
+                recipient,
                 issuer,
-                effect.what,
-                effect.amount,
+                what,
+                amount,
                 on.isoformat(),
             )
         ),
-        subject=effect.recipient,
+        subject=recipient,
         predicate="received_from",
         obj=issuer,
         scope=private_to(issuer_seat),
     )
-    if world.claim(fact.fact_id, state.facts):
-        payloads.append(ev.FactAsserted(fact=fact))
-    return payloads, []
 
 
 def _held(world: PassWorld, polity: EntityId | None, name: str) -> Quantity | None:

@@ -15,6 +15,7 @@ prose, and the runner's leak report and wake notices are left out of the ticks: 
 and tell, and change nothing the world holds.
 """
 
+import contextlib
 import functools
 import json
 from collections import Counter
@@ -29,6 +30,8 @@ from revisionist.core import events as ev
 from revisionist.core import fold
 from revisionist.core.ids import CampaignId, EntityId, FeatureId, SeatId, derived_id
 from revisionist.core.ontology import Phase
+from revisionist.core.realism import locks
+from revisionist.core.realism.pipeline import OrderStatus, StepAction
 from revisionist.core.state import Rule, State
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import compile_world, object_id
@@ -40,7 +43,7 @@ from revisionist.engine.realism_tick import run_realism_tick
 from revisionist.engine.store import MemoryStore, load_state
 from revisionist.engine.web.server import MODEL_DOWN, model_down
 from tests.locked_orders_script import Ids
-from tests.written_order_cases import CASES, ENTITY_FIELDS, FEATURE_FIELDS, FIXES, Case
+from tests.written_order_cases import CASES, ENTITY_FIELDS, FEATURE_FIELDS, FIXES, Case, naval
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 WORLDS = {"1941": "autumn-1941", "salt": "salt-strait-realism"}
@@ -140,8 +143,11 @@ def written_orders_on(world: WorldFile) -> WorldFile:
     )
 
 
-def _open(name: str) -> Opened:
+def _open(name: str, without: tuple[Rule, ...] = ()) -> Opened:
     world = written_orders_on(cmp.load_world(cmp.world_path(WORLDS[name])))
+    if without:
+        kept = tuple(r for r in world.rules if r not in without)
+        world = world.model_copy(update={"rules": type(world.rules)(kept)})
     ids = Ids(CAMPAIGN)
     with pytest.MonkeyPatch.context() as mp:
         ids.install(mp)
@@ -157,13 +163,14 @@ def _open(name: str) -> Opened:
     return Opened(world, list(store.read(CAMPAIGN)), people)
 
 
-_OPENED: dict[str, Opened] = {}
+_OPENED: dict[tuple[str, tuple[Rule, ...]], Opened] = {}
 
 
-def opened(name: str) -> Opened:
-    if name not in _OPENED:
-        _OPENED[name] = _open(name)
-    return _OPENED[name]
+def opened(name: str, without: tuple[Rule, ...] = ()) -> Opened:
+    """The world opened, with the rules in ``without`` off in the test's copy."""
+    if (name, without) not in _OPENED:
+        _OPENED[name, without] = _open(name, without)
+    return _OPENED[name, without]
 
 
 def _no_hash(state: State) -> str:
@@ -465,6 +472,139 @@ def test_a_reader_that_fails_files_nothing_and_says_so(
     assert dict(down.asked) == {orders_reader.CALL_CLASS: 1}
     assert not signable, f"a failed reading offers {signable} asks to sign: {said}"
     assert told in said
+
+
+def test_a_lend_lease_finding_records_the_receipt_its_written_allocation_does(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The form's finding, once enacted, records Britain's receipt from the President,
+    private to his seat, as the written allocation it stands for does. The President
+    holds the finding's last step and passes it."""
+    case = next(c for c in CASES if c.lever == "lend_lease_finding")
+    monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
+    game = Game(opened(case.world), monkeypatch, Canned())
+    assert game.form(case) == ""
+    (finding,) = (o for o in game.state.orders.values() if o.lever == case.lever)
+    for _ in range(6):
+        if game.state.orders[finding.order_id].status is OrderStatus.MOVING:
+            with game.ids.drawn_by("step"), contextlib.suppress(ValueError):
+                realism_tick.take_step(
+                    game.store, CAMPAIGN, seat("roosevelt"), finding.order_id, StepAction.PASS, {}
+                )
+        game.now = game.state.wake.deadline if game.state.wake else game.now
+        for person in game.base.people:
+            with game.ids.drawn_by(f"commit:{person}"):
+                wake.commit(game.store, CAMPAIGN, seat(person), game.now)
+        game.tick()
+    assert game.state.orders[finding.order_id].status is OrderStatus.ENACTED
+    receipts = [
+        f
+        for f in game.state.facts.values()
+        if f.predicate == "received_from"
+        and f.subject == entity("uk")
+        and f.obj == entity("roosevelt")
+    ]
+    assert len(receipts) == 1
+    assert receipts[0].scope.known_by == frozenset({seat("roosevelt")})
+
+
+# --- the two locked orders --------------------------------------------------------------
+
+LOCKED = (
+    naval("king", "fleet_naval_order", "escort_convoys", "war_zone"),
+    naval("king", "fleet_naval_order", "shoot_on_sight", "iceland_route"),
+)
+"""Admiral King's escort into the war zone, held while the Neutrality revision is not in
+force (Congress decides), and his shoot on sight on the Iceland route, held until the
+President sets it there by his own naval order."""
+OPENS_ICELAND = naval("roosevelt", "naval_order", "shoot_on_sight", "iceland_route")
+"""The President's form that opens the Iceland lock from state."""
+
+HELD_AROUND = (
+    "core lane fix item: a written order a lock holds goes through the lock's check;"
+    " the 1941 lock rows name forms, and a written order is matched against effect rows only"
+)
+
+
+def _held(game: Game) -> list[tuple[Any, ...]]:
+    """Each held order of Admiral King's: its filing day, decider and held words."""
+    state = game.state
+    return [
+        (h.filed, h.decider, locks.held_words(state, h))
+        for h in state.held.values()
+        if h.issuer == seat("king")
+    ]
+
+
+@pytest.mark.parametrize("case", LOCKED, ids=lambda c: c.params["zone"])
+def test_a_locked_form_is_held_and_names_its_decider(
+    case: Case, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
+    game = Game(opened(case.world), monkeypatch, Canned())
+    assert game.form(case) == ""
+    (held,) = _held(game)
+    assert held[0] == game.state.in_world_date
+
+
+@pytest.mark.xfail(strict=True, reason=HELD_AROUND)
+@pytest.mark.parametrize("case", LOCKED, ids=lambda c: c.params["zone"])
+def test_a_locked_written_order_is_held_as_its_form_is(
+    case: Case, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The same decider named in the same held words, on the same filing day."""
+    monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
+    by_form = Game(opened(case.world), monkeypatch, Canned())
+    in_writing = Game(opened(case.world), monkeypatch, Canned())
+    assert by_form.form(case) == in_writing.written(case) == ""
+    assert _held(in_writing) == _held(by_form)
+
+
+def _landed(game: Game) -> list[Any]:
+    return [
+        e.payload.on
+        for e in game.store.read(CAMPAIGN)
+        if isinstance(e.payload, ev.HeldOrderEnded)
+        and e.payload.issuer == seat("king")
+        and e.payload.end is locks.HeldEnd.LANDED
+    ]
+
+
+@pytest.mark.xfail(strict=True, reason=HELD_AROUND)
+def test_a_locked_written_order_lands_the_day_its_form_does(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The President's naval order opens the Iceland lock from state: both twins land
+    Admiral King's order on one day, and the outcomes are equal."""
+    case = LOCKED[1]
+    monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
+    games = []
+    for file in ("form", "written"):
+        game = Game(opened(case.world), monkeypatch, Canned())
+        assert game.form(OPENS_ICELAND) == ""
+        assert getattr(game, file)(case) == ""
+        game.play()
+        games.append(game)
+    by_form, in_writing = games
+    assert len(_landed(by_form)) == 1
+    assert _landed(in_writing) == _landed(by_form)
+    assert outcome(in_writing.state) == outcome(by_form.state)
+
+
+@pytest.mark.parametrize("case", LOCKED, ids=lambda c: c.params["zone"])
+def test_with_locks_off_a_locked_order_goes_through_as_an_ordinary_one(
+    case: Case, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
+    base = opened(case.world, without=(Rule.LOCKS,))
+    by_form = Game(base, monkeypatch, Canned())
+    in_writing = Game(base, monkeypatch, Canned())
+    assert by_form.form(case) == in_writing.written(case) == ""
+    assert _held(by_form) == _held(in_writing) == []
+    assert [o.lever for o in by_form.state.orders.values() if o.issuer == seat("king")] == [
+        case.lever
+    ]
+    assert [r for r in in_writing.state.routed.values() if r.issuer == seat("king")]
 
 
 # --- orders the rules refuse ------------------------------------------------------------

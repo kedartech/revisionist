@@ -48,6 +48,7 @@ from revisionist.core.realism.document import (
 from revisionist.core.realism.economy import Pools
 from revisionist.core.realism.geography import Feature, FeatureKind
 from revisionist.core.realism.kinds import Domain
+from revisionist.core.realism.land import allocate
 from revisionist.core.realism.pipeline import Order, OrderStatus, StepKind
 from revisionist.core.realism.quantity import QuantityChange
 from revisionist.core.realism.resolvers import evacuation, shipping
@@ -67,23 +68,30 @@ AID_USD_PER_POINT = 100_000_000  # [proposed] plan, AID Defaults
 AID_LEAD_DAYS = 45  # [proposed] plan, AID Defaults
 AID_ANSWER_DAYS = 14  # [proposed]
 AID_UNIT = "USD"  # [proposed] the unit of a figure aid is drawn from
+LEND_LEASE = "lend_lease"
+"""What a finding allocates, as its receipt names it: the share is its amount."""
 
 
 def resolve(state: State, order: Order) -> tuple["rs.Change", ...]:
     """Changes from one order enacted through its pipeline: a Lend-Lease finding's
-    figures, and with ``economy`` on, a request for aid put on the giver's agenda."""
+    figures and the recipient's receipt, and with ``economy`` on, a request for aid put on
+    the giver's agenda."""
     recipient = order.params.get("recipient")
     if order.status is not OrderStatus.ENACTED:
         return ()
     if order.lever != "lend_lease_finding":
         return tuple(_asked(state, order))
     as_of = rs.settled_on(order)
-    out = []
+    out: list[rs.Change | None] = []
     if recipient == "ussr":
         out.append(put(state, "soviet_lend_lease_eligible", 1, as_of))
     total, share = rs.value(state, "lend_lease_second_appropriation"), order.params.get("share_pct")
     if total is not None and isinstance(share, int):
         out.append(put(state, f"lend_lease_share_{recipient}", total * share // 100, as_of))
+    taker = EntityId(object_id(state.campaign_id, "entity", str(recipient)))
+    if taker in state.entities and isinstance(share, int):
+        issuer = state.seats[order.issuer].embodies
+        out.append(allocate.receipt(state, taker, issuer, order.issuer, LEND_LEASE, share, as_of))
     return tuple(c for c in out if c is not None)
 
 

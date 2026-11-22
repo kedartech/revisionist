@@ -589,17 +589,15 @@ AUTHORITY = "data lane fix item: a card's authority covers every order its forms
 WAR = "core lane fix item: a written declaration of war declares the war"
 DETACH = "core lane fix item: a written detachment moves only the strength it names"
 INERT = "core lane fix item for the forms that change nothing (EFD's list)"
-RECEIPT = "rules lane: a written allocation records a receipt its form does not"
-PATROL = "rules lane: a written patrol sets no patrol posture in 1941"
 
 FIXES: dict[str, str] = {
-    "1941.roosevelt.lend_lease_finding": RECEIPT,
+    "1941.roosevelt.lend_lease_finding": TIMING,
     "1941.roosevelt.naval_order": INERT,
     "1941.roosevelt.move_fleet": TIMING,
     "1941.roosevelt.detach_fleet": DETACH,
     "1941.roosevelt.public_address": INERT,
     "1941.roosevelt.fly_recon": AUTHORITY,
-    "1941.roosevelt.send_on_patrol": PATROL,
+    "1941.roosevelt.send_on_patrol": TIMING,
     "1941.churchill.convoy_orders": INERT,
     "1941.churchill.production_priority": AUTHORITY,
     "1941.churchill.move_fleet": TIMING,
@@ -607,7 +605,7 @@ FIXES: dict[str, str] = {
     "1941.churchill.move_army": AUTHORITY,
     "1941.churchill.broadcast": INERT,
     "1941.churchill.fly_recon": AUTHORITY,
-    "1941.churchill.send_on_patrol": PATROL,
+    "1941.churchill.send_on_patrol": TIMING,
     "1941.churchill.send_an_agent": AUTHORITY,
     "1941.churchill.fund_the_codebreakers": AUTHORITY,
     "1941.stalin.state_defence_order": INERT,

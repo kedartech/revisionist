@@ -51,11 +51,11 @@ src/revisionist/core/realism/resolvers/opinion.py | national_unity | stored game
 src/revisionist/core/realism/resolvers/opinion.py | opinion_target | stored games only
 src/revisionist/core/realism/resolvers/opinion.py | public_address | stored games only
 src/revisionist/core/realism/resolvers/opinion.py | reuben_james_sunk | stored games only
-src/revisionist/core/realism/resolvers/production.py | lend_lease_finding | until PRD
-src/revisionist/core/realism/resolvers/production.py | lend_lease_second_appropriation | until PRD
-src/revisionist/core/realism/resolvers/production.py | production_priority | until PRD
-src/revisionist/core/realism/resolvers/production.py | soviet_lend_lease_eligible | until PRD
-src/revisionist/core/realism/resolvers/production.py | ussr | until PRD
+src/revisionist/core/realism/resolvers/production_stored.py | lend_lease_finding | stored games only
+src/revisionist/core/realism/resolvers/production_stored.py | lend_lease_second_appropriation | stored games only
+src/revisionist/core/realism/resolvers/production_stored.py | production_priority | stored games only
+src/revisionist/core/realism/resolvers/production_stored.py | soviet_lend_lease_eligible | stored games only
+src/revisionist/core/realism/resolvers/production_stored.py | ussr | stored games only
 src/revisionist/core/realism/resolvers/shipping.py | naval_order | stored games only
 src/revisionist/core/realism/resolvers/shipping.py | uboat_directive | stored games only
 src/revisionist/core/realism/resolvers/shipping.py | uboat_posture | stored games only

@@ -32,8 +32,10 @@ An operator command (``revisionist db wake-report``) that prints counts and publ
 board facts, and no record's content. Nothing a seat reaches imports it.
 """
 
+import json
 from collections.abc import Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from statistics import median
 
 from revisionist.core import events as ev
@@ -45,11 +47,23 @@ from revisionist.core.ontology import Controller, EntityKind
 from revisionist.core.realism import agreement, battle, detect, economy, holders, locks
 from revisionist.core.realism.agreement import ClauseStatus
 from revisionist.core.state import State
+from revisionist.core.world_compile import object_id
 from revisionist.engine.store import EventStore
 from revisionist.engine.web import catchup_api, forecast
 
 UNKNOWN = "unknown"
 OPEN = "open"
+
+INERT_FORMS_FILE = Path(__file__).with_name("inert_forms.json")
+"""Each form, by its card's person key and its name, that changes nothing when enacted in
+the shipped worlds: data, since no rule names a place or a person. ``tests/test_every_form_acts.py``
+holds it equal to what the walk finds; each form leaves when its fix merges, and the stage 5
+gate needs it empty."""
+
+
+def inert_forms() -> tuple[tuple[str, str], ...]:
+    """The forms the file names, as (person, form) pairs."""
+    return tuple((p, f) for p, f in json.loads(INERT_FORMS_FILE.read_text()))
 
 
 @dataclass(frozen=True)
@@ -175,6 +189,9 @@ class Report:
     forecasts: tuple[int, int] | None = None
     """Expected moves checked and how many held, over every seat; None in a game where
     no order came from a suggested action."""
+    inert: int | None = None
+    """Forms on the cards that change nothing when enacted (``inert_forms``); None in a
+    game whose cards have no forms."""
 
 
 @dataclass
@@ -189,6 +206,7 @@ def build(events: Sequence[Event]) -> Report:
     if not events:
         return Report(None, (), (), ())
     state = replay(events)
+    inert = _inert(state)
     opened: dict[int, ev.WakeOpened] = {}
     closed: dict[int, ev.WakeClosed] = {}
     seats: dict[SeatId, _Seat] = {}
@@ -249,7 +267,18 @@ def build(events: Sequence[Event]) -> Report:
         _aims(events) if aims_on(state) else (),
         _locked(events, state),
         _forecasts(events, state),
+        inert,
     )
+
+
+def _inert(state: State) -> int | None:
+    """How many of the cards' forms are in ``inert_forms``; None with no forms at all."""
+    named = {
+        (EntityId(object_id(state.campaign_id, "entity", person)), lever)
+        for person, lever in inert_forms()
+    }
+    forms = [(entity, lever.name) for entity, card in state.cards.items() for lever in card.levers]
+    return sum(1 for form in forms if form in named) if forms else None
 
 
 def _forecasts(events: Sequence[Event], state: State) -> tuple[int, int] | None:
@@ -480,6 +509,8 @@ def _hours(row: SeatRow) -> str:
 def render(report: Report) -> list[str]:
     """The report as lines of text."""
     told = [] if report.forecasts is None else [_forecast_line(report.forecasts)]
+    if report.inert is not None:
+        told.append(f"forms that change nothing: {report.inert}")
     if not report.wakes:
         return ["no wake has opened", *told]
     counts = {

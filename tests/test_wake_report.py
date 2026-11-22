@@ -748,3 +748,18 @@ def test_a_game_without_locks_prints_no_lock_lines(tmp_path: Path) -> None:
     report = wake_report.build(locks_log(tmp_path, lk.unlocked))
     assert report.locked == ()
     assert not any(x.strip().startswith("locks:") for x in wake_report.render(report))
+
+
+def test_the_report_counts_the_forms_that_change_nothing(tmp_path: Path) -> None:
+    """Every game whose cards have forms prints how many of them change nothing, the count
+    ``tests/test_every_form_acts.py`` holds to what the walk finds; 0 is the gate."""
+    from revisionist.core.world_compile import compile_world
+    from revisionist.engine import campaign as cmp
+    from tests.locked_orders_script import autumn_1941
+
+    events = compile_world(autumn_1941(tmp_path), CAMPAIGN, cmp.versions())
+    report = wake_report.build(events)
+    here = {c.person for c in autumn_1941(tmp_path).cards}
+    assert report.inert == len([f for f in wake_report.inert_forms() if f[0] in here]) > 0
+    assert f"forms that change nothing: {report.inert}" in wake_report.render(report)
+    assert wake_report.build([]).inert is None

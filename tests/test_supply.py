@@ -193,6 +193,68 @@ def test_a_captured_hub_works_for_its_taker_only_after_the_lag(tmp_path: Path) -
     assert status(g, "norra_levy").supplied
 
 
+# --- A piece attacking into enemy ground draws supply from the friendly area behind it ---
+
+AT_SUDBY = set_feature("norra_levy", places=["sudby"])
+"""Norra's levy in the Sudland Coast, which Sudland holds: over land it borders the hills."""
+
+
+def test_a_piece_in_the_enemy_area_it_attacks_draws_supply_from_behind_it(
+    tmp_path: Path,
+) -> None:
+    g = game(tmp_path, *railed(), AT_SUDBY)
+    assert status(g, "norra_levy") == supply.Status(True, entity(HILLS), 1, None)
+
+
+def test_the_step_into_enemy_ground_counts_one_more(tmp_path: Path) -> None:
+    g = game(tmp_path, hub(HILLS, False), levers, AT_SUDBY)  # the port on the plain alone
+    assert status(g, "norra_levy") == supply.Status(True, entity(PLAIN), 2, None)
+
+
+def test_a_neighbour_at_the_step_limit_supplies_no_further(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    g = game(tmp_path, hub(HILLS, False), levers, AT_SUDBY)
+    monkeypatch.setattr(supply, "SUPPLY_STEPS", 1)  # the hills are one step from the port
+    assert status(g, "norra_levy") == supply.Status(False, None, None, entity(HILLS))
+
+
+def test_a_piece_two_areas_deep_in_enemy_ground_stays_out_of_supply(tmp_path: Path) -> None:
+    g = game(tmp_path, levers, AT_SUDBY)
+    taken(g, HILLS, "sudland", START)
+    assert status(g, "norra_levy") == supply.Status(False, None, None, entity(PLAIN))
+    assert words(g, "ilse", "norra_levy", HILLS) == (
+        "The Norra Levy is out of supply, so it cannot be sent into The Norra Hills, "
+        "held by Sudland. The nearest area it would be supplied in is The Norra Plain."
+    )
+
+
+def test_a_piece_whose_neighbours_are_all_out_of_supply_stays_out(tmp_path: Path) -> None:
+    g = game(tmp_path, *lone(AT_SUDBY))
+    assert status(g, "norra_levy") == supply.Status(False, None, None, None)
+
+
+def test_an_air_wing_over_enemy_ground_does_not_draw_from_behind(tmp_path: Path) -> None:
+    g = game(tmp_path, based, AT_SUDBY, set_feature("norra_kites", places=["sudby"]))
+    assert status(g, "norra_levy").supplied  # beside it in the coast, by the hills
+    assert status(g, "norra_kites") == supply.Status(False, None, None, None)
+
+
+def test_a_ship_off_a_coast_its_side_supplies_does_not_draw_from_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    g = game(
+        tmp_path,
+        based,
+        hub(ISLE, True),  # a source of Sudland's on the open sea's shore
+        place("deep", "open_sea", (180, 215)),
+        set_feature("sudland_galleys", places=["deep"]),
+    )
+    monkeypatch.setitem(RADIUS_STEPS, "sea", Radius(0, None))
+    assert entity(ISLE) in supply.sources(g.state, entity("sudland"))
+    assert status(g, "sudland_galleys") == supply.Status(False, None, None, None)
+
+
 # --- Rule 2: sea and air pieces are supplied within their kind's radius of a base -------
 
 

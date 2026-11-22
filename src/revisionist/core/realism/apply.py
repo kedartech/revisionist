@@ -21,6 +21,7 @@ from revisionist.core.ids import (
     FactId,
     FeatureId,
     OrderId,
+    QuantityId,
     RelationshipId,
     SeatId,
     derived_id,
@@ -62,6 +63,7 @@ from revisionist.core.realism.effect import (
 from revisionist.core.realism.geography import Feature, in_play
 from revisionist.core.realism.land import allocate, appointment, deal, investigate, statement
 from revisionist.core.realism.pass_world import PassWorld
+from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.routing import travel_days
 from revisionist.core.realism.war import polity_of
 from revisionist.core.state import State
@@ -69,6 +71,8 @@ from revisionist.core.visibility import PUBLIC, Scope, private_to
 
 # Copied from ``engine.estimate.REASON_WITHHELD``: the core never imports the engine.
 REASON_WITHHELD = "The referee's account of this cannot be shown to you."
+
+NO_CHANGE = "no change"
 
 LINE = 60
 """A body line holds a label's worth of words."""
@@ -417,6 +421,39 @@ def _words(part: RoutedPart) -> str:
     return statement.text_hash("", part.ask)
 
 
+MOVED = "Moved"
+"""The label of a report line naming a figure the order moved."""
+
+
+def _moved(
+    state: State,
+    before: dict[QuantityId, Quantity],
+    effect: EstimatedEffect,
+    payloads: Sequence[ev.Payload],
+    issuer: EntityId,
+) -> list[BodyField]:
+    """The figures one landed effect moved, as the issuer may be told: a figure the
+    estimator ruled moved, by the percent it ruled (never the true amount), and a pool of
+    the issuer's own nation, by what it lost or gained. Another nation's pool is not read
+    out, so the paper tells the seat nothing it could not know."""
+    out: list[BodyField] = []
+    own = polity_of(state, issuer)
+    for p in payloads:
+        if not isinstance(p, ev.QuantitySet):
+            continue
+        now, was = p.quantity, before.get(p.quantity.quantity_id)
+        if was is None or was.value is None or now.value is None or now.value == was.value:
+            continue
+        if isinstance(effect, MoveFigure):
+            text = f"{now.name} {effect.percent:+d}%"
+        elif own is not None and now.owner == own:
+            text = f"{now.name} {now.value - was.value:+d} {now.unit}"
+        else:
+            continue
+        out.append(BodyField(label=MOVED, value=text[:LINE]))
+    return out
+
+
 ALREADY_HEARD = "has already heard from you today"
 """[proposed] The report's line for a group a seat's other writing of the day moved."""
 NO_MOVE = "took no further word this week"
@@ -513,22 +550,25 @@ def apply_due(state: State, today: date) -> list[ev.Payload]:
         issuer = state.seats[issuer_seat].embodies
         events: list[ev.Payload] = []
         revealed: list[FactId] = []
+        moved: list[BodyField] = []
         author = reporter(state, order, i)[0]
         for n, effect in enumerate(d.effects):
             if isinstance(effect, GroupNudge):
                 events += statement.nudge(world, effect, issuer_seat, _words(d.part), on)
                 continue
             ref = f"{order.order_id}:{i}:{n}"
+            before = dict(world.quantities)
             landed, facts = _landed(
                 world, effect, issuer_seat, issuer, on, author, ref, ref in twins
             )
+            moved += [m for m in _moved(state, before, effect, landed, issuer) if m not in moved]
             events += landed
             revealed += [f for f in facts if f not in revealed]
         out += events
         out.append(
             ev.EffectsApplied(order_id=order.order_id, part=i, on=on, revealed=tuple(revealed))
         )
-        doc = report(state, order, i, on, tuple(heard.get((order.order_id, i), ())))
+        doc = report(state, order, i, on, (*moved, *heard.get((order.order_id, i), ())))
         if doc is not None:
             out.append(doc)
     return out
@@ -685,7 +725,9 @@ def report(
     groups_heard: Sequence[BodyField] = (),
 ) -> ev.DocumentIssued | None:
     """The paper the issuer gets for one applied part. None for a seat nobody plays.
-    ``groups_heard``: what the seat's writing did to its groups at home."""
+    ``groups_heard``: what the order moved (``MOVED`` lines) and what the seat's writing
+    did to its groups at home; the paper never reads "no change" when it names a move."""
+    moved = any(b.label == MOVED for b in groups_heard)
     if part >= len(order.parts) or order.issuer not in actors.readers(state):
         return None
     routed = order.parts[part]
@@ -720,7 +762,8 @@ def report(
         # The estimator writes before the target decides, so its words can contradict
         # the answer; the account of an approach comes from the decision itself.
         body += _lines(safe(answer(state, order, routed)), "Answer")
-    elif routed.reason:
+    elif routed.reason and not (moved and NO_CHANGE in routed.reason.casefold()):
+        # An account that says nothing changed is left out when the paper names what did.
         body += _lines(safe(routed.reason), "Account")
     body += groups_heard
     doc_id = report_doc_id(state.campaign_id, order.order_id, part)

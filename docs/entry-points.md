@@ -210,6 +210,113 @@ Store and event log:
 Sealing:
 - `src/revisionist/engine/seal.py:84` `KeyringSealer`, `src/revisionist/engine/seal.py:255` `PgKeyring`, `src/revisionist/engine/seal.py:248` `new_master_key()`, `src/revisionist/engine/seal.py:232` `load_master_key()`, `src/revisionist/engine/seal.py:330` `destroy_key()`.
 
+### Rule modules
+
+`src/revisionist/core/realism/` holds the rules of the realism game: pure functions of state, no I/O. Each file below, with its first docstring line.
+
+- `actors.py`: Seats for the people nobody plays, so their acts go through the same routing as a player's.
+- `advance.py`: The event-driven advance (plan, Phase 2 unit B1).
+- `agenda.py`: The agenda, play styles and the options a seat is offered (engine v2; spec §8.5-8.6).
+- `agreement.py`: Agreements with clauses the rules can check (AGR).
+- `answer.py`: What a person nobody plays does back (strategy step 2).
+- `answering.py`: People nobody plays answer what is done to them (strategy step 2).
+- `apply.py`: Applying a part's effects to the world (engine v2, spec §8.2-8.3).
+- `arrivals.py`: What a force's arrival sets going: the commanding seat's report of it (spec §8.3).
+- `bases.py`: Reach: how far a side can hold a force from its bases (reach, R2).
+- `battle.py`: Battles that last several days, one round a day (BTL).
+- `card.py`: Seat cards: one record per person, for every office (pillar 2).
+- `check.py`: Gaps in a world file: what is still unsourced, before anyone plays it.
+- `conference.py`: The conference: seats vote on a text, votes sealed ahead (CNF).
+- `contests.py`: Contests that move and decide (CON).
+- `detachments.py`: Detachments (reach R4): part of a force sent off as a force of its own, and its return.
+- `detect.py`: Detection: every known enemy piece is a report (DET).
+- `document.py`: Documents: every metric reaches a person as a report (pillar 3).
+- `economy.py`: What a territory yields, and one war-economy figure per nation (YLD).
+- `effect.py`: The effect vocabulary, routes and fidelity (engine v2; spec §8.2-8.3).
+- `feeds.py`: Feeds: documents that report the truth through an author's bias (pillar 3).
+- `geography.py`: Geography: forces, fronts and routes on the map (realism, Batch 6).
+- `groups.py`: Groups at home, defined by the world (GRP).
+- `holders.py`: Who holds each territory, and capture that takes time (THL).
+- `kinds.py`: What a piece is and what a resource is for: the world names them, the engine reads roles.
+- `land/allocate.py`: Landing an Allocate effect in the world: a quantity moves between polities, and the recipient's receipt is always recorded as a private fact.
+- `land/appointment.py`: Landing an Appointment effect in the world: a public office fact and public news.
+- `land/deal.py`: Landing a Deal effect in the world: an offer is recorded to its issuer; an accepted deal records its terms and moves the relationship between the two parties.
+- `land/investigate.py`: Landing an Investigate effect: a private report of what the issuing seat already sees, or, for an intelligence order, a reconnaissance flight or an agent placed (IOR).
+- `land/statement.py`: Landing a MakeStatement effect in the world.
+- `locks.py`: Deciders and what locks an order (DCD).
+- `mandates.py`: The agenda (engine v2, spec §8.5).
+- `opponents.py`: Who stands where toward each seat, and who is actively opposing it.
+- `pass_world.py`: The world as it stands mid-pass, shared by `apply` and the `land` modules.
+- `person.py`: `project_person(state, person, asker) -> PersonView`: what one person on a card knows when a seat consults them.
+- `pipeline.py`: Orders as pipelines (pillar 4).
+- `pipelines.py`: Running orders through their pipelines (plan, Phase 2 unit B2).
+- `press.py`: Each seat's press: public news worded in its own outlet's voice (engine v2, consequences).
+- `process.py`: Process and influence parts (engine v2, spec §8.2).
+- `prose.py`: The prose post-check: a written page may state no figure its page does not.
+- `quantity.py`: Quantities: the numbers outcomes are computed from (pillar 6).
+- `reach.py`: Reach: who a person can get word to, by which channel, and how fast (spec §8.1, §8.4).
+- `resolvers/evacuation.py`: The evacuation order (EVC), under the rule name `economy`.
+- `resolvers/intel.py`: The intelligence orders from a form (INT): a lever whose rule name is `intel`.
+- `resolvers/movement.py`: The movement resolver (realism, Batch 6; the fifth, by Josh's word).
+- `resolvers/opinion.py`: The opinion resolver (plan, Phase 2 unit B3).
+- `resolvers/production.py`: The production resolver (plan, Phase 2 unit B3; PRD).
+- `resolvers/shipping.py`: The shipping resolver (plan, Phase 2 unit B3).
+- `resolvers/trade.py`: Embargo and trade orders (EMB), under the rule name `trade`.
+- `resolvers/votes.py`: The votes resolver (plan, Phase 2 unit B3).
+- `resolvers/war.py`: The war resolver: what a declaration of war sets going.
+- `route.py`: The router and the command path (engine v2; spec §8.1-8.2).
+- `routing.py`: Sea routing: how far a fleet sails between two places (reach, R3).
+- `sealift.py`: Sealift (reach, R6): an army crosses the sea only on its side's shipping.
+- `stance.py`: Where a person nobody plays stands toward a seat: five stances, from a score.
+- `supply.py`: Supply: pieces operate only within reach of the rail and ports their side holds (SUP).
+- `territory.py`: The board a world file defines: regions, territories, sea zones and who borders whom.
+- `trade.py`: Fuel and trade: oil is spent to move, and a trade line can be cut (FUL).
+- `war.py`: Wars, public news and the papers that print it (engine v2, consequences).
+- `war_rules.py`: What a state of war allows and forbids, and what it sets in motion.
+
+### Rules a world switches on
+
+`rules:` in a world file names the rules the world plays by (`Rule` in `src/revisionist/core/state.py`). A rule that is not named does not act, so a stored game and a world that names none behave as before. Each rule checks its name before it acts.
+
+- `territories`: the board; areas, adjacency and pieces that stand in one area (`territory.py`). The others below need it.
+- `holders`: who holds each territory, and capture that takes time (`holders.py`). Needs `territories`.
+- `economy`: yields, pools and one public figure per nation (`economy.py`). Needs `holders`.
+- `supply`: a piece operates only within reach of the rail and ports its side holds (`supply.py`).
+- `fuel`: oil spent to move, trade lines that can be cut (`trade.py`). Needs `economy`.
+- `battles`: fights that last several days, one round a day (`battle.py`).
+- `reports`: an enemy piece is known only as a report (`detect.py`).
+- `groups`: groups at home, whose support moves by happenings, writing and the weekly cap (`groups.py`).
+- `agreements`: offers with clauses the rules can check (`agreement.py`).
+- `conference`: a vote on a text with votes sealed ahead (`conference.py`).
+- `contests`: contests that move and decide (`contests.py`).
+- `aims`: the seat's aims are its win, scored in degrees (`agenda.py`, `core/goals.py`).
+- `aid`: aid drawn from a nation's production that arrives after a lead time (`resolvers/production.py`, `land/allocate.py`). Named in the world file; the aid code reads `economy`.
+- `writing`: free writing moves groups; leans on a live model's reading, off in every shipped world.
+- `clause_reader`: treaty and bill wording read into clauses by a live model; off in every shipped world.
+- `written_orders`: written orders checked against their form by a live model; off in every shipped world.
+- `command`: the commander's seat, a card's path, the superior prevailing, and the step that may only pass or stall (`card.py`, `pipelines.py`, `resolvers/movement.py`).
+- `locks`: orders held until the person or body that can allow them does (`locks.py`, `engine/web/locks_api.py`).
+
+### Event kinds
+
+`src/revisionist/core/events.py` holds 117 event kinds. Every one is in exactly one of `FEED_KINDS` or `NEVER` in `src/revisionist/engine/catchup.py`, and `tests/test_catchup.py` checks that split and the fog on the fed ones. The lists below are copied from those two sets.
+
+- Fed to a seat through `seat_events()`, after its own view cuts them (50): `agreement_made`, `agreement_offered`, `agreement_published`, `area_held`, `asset_created`, `briefing_delivered`, `clause_judged`, `clock_created`, `commitment_created`, `conference_called`, `conference_tallied`, `contest_created`, `contest_decided`, `contest_moved`, `date_advanced`, `divergence_changed`, `document_issued`, `document_written`, `effects_applied`, `entity_created`, `fact_asserted`, `goal_met`, `goal_progressed`, `goal_set`, `goal_undone`, `held_order_ended`, `influence_decided`, `kinds_declared`, `locks_declared`, `mandate_issued`, `mandate_settled`, `map_declared`, `meter_created`, `narration_written`, `order_asked`, `order_drafted`, `order_executed`, `order_held`, `order_routed`, `order_settled`, `order_step_taken`, `piece_stepped`, `quantity_set`, `relationship_set`, `scheduled_event_fired`, `season_ended`, `statement_issued`, `step_refused`, `wake_opened`, `war_declared`.
+- Never fed (67): `admin_read`, `agent_assigned`, `agent_set`, `answer_made`, `answer_planned`, `battle_decided`, `battle_ended`, `battle_opened`, `battle_round`, `campaign_created`, `capture_counted`, `card_amended`, `cards_declared`, `character_claimed`, `character_listed`, `character_released`, `clarification_asked`, `codebreaking_set`, `cost_logged`, `counsel_held`, `delta_applied`, `delta_proposed`, `delta_rejected`, `directive_given`, `document_flagged`, `document_read`, `economy_set`, `effects_estimated`, `feasibility_rated`, `feature_set`, `goal_approved`, `goal_proposed`, `group_moved`, `group_proposed`, `groups_declared`, `intelligence_declared`, `intent_filed`, `intent_rejected`, `news_reported`, `operation_opened`, `operation_resolved`, `opponents_ranked`, `options_offered`, `order_received`, `play_style_set`, `report_made`, `request_answered`, `rolled`, `scheduled_event_created`, `scheduled_event_skipped`, `sealed`, `seat_created`, `seat_handover`, `seat_status_set`, `session_zero_closed`, `session_zero_opened`, `settings_set`, `stance_changed`, `step_chosen`, `tick_closed`, `tick_opened`, `tick_stage_completed`, `trade_set`, `vote_sealed`, `wake_closed`, `wake_committed`, `yield_changed`.
+
+### Scripts
+
+Build-time tools; the game never imports them.
+
+- `scripts/map_build.py` (`python scripts/map_build.py build worlds/maps/src/<slug>`, run with `uv run --group map`): builds a map file, its world fragment and its map object from a recipe and the cached Natural Earth files in `REVISIONIST_MAP_DATA`, each checked against the SHA-256 in `worlds/maps/SOURCES.md`.
+- `scripts/map_check.py` (`check MAP.json`, `check --world WORLD.yaml`, `check --region STAGING.yaml`, `adjacency MAP.json`, `render MAP.json`): the map file checker, the one adjacency predicate the build also uses, and the proof sheet.
+- `scripts/ci_changes.py`: reads changed paths and says whether CI needs the Python tests and the browser test. `scripts/ci_shard.py` (with `scripts/ci_timings.json`): prints the test files of one CI shard. `scripts/ci_pg_client.sh`: the Postgres client tools for CI.
+- `scripts/prose_ab.py`: the same five pages written by two models for a blind read; makes live model calls and refuses to run without `--live`.
+
+### Designed and not built
+
+Deception (feints and false radio traffic) is designed and not built. The design note is `kedartech/revisionist/plans/2026-11-17-revisionist-second-run-interface-design.md`, section "Deception (designed, not built)", in the cherith-labs vault. No code, event kind, rule name or action here belongs to it.
+
 ## 5. Web/JSON API and client
 Backend package: `src/revisionist/engine/web/`. Stdlib `ThreadingHTTPServer` (`src/revisionist/engine/web/server.py:1386` `serve()`), plain HTTP. Bind to a private address.
 

@@ -37,11 +37,12 @@ import pytest
 import yaml
 
 from revisionist.core import events as ev
+from revisionist.core.fold import replay
 from revisionist.core.goals import season_winners
 from revisionist.core.ids import CampaignId, EntityId, FeatureId, SeatId, derived_id
 from revisionist.core.ontology import Phase
 from revisionist.core.project import project
-from revisionist.core.realism import conference, economy, holders, territory
+from revisionist.core.realism import conference, economy, holders, supply, territory
 from revisionist.core.realism.battle import Ending
 from revisionist.core.realism.kinds import Role
 from revisionist.core.realism.pipeline import Order
@@ -632,6 +633,25 @@ def test_the_battle_runs_three_days_with_a_decision_changed_and_a_contingency_fi
     assert withdrew, "the defender's levy left the front by its standing order"
     assert g.played.away_from is not None
     assert all(d > g.played.decisions[0][0] for d, _ in g.played.decisions[1:])
+
+
+def test_the_attacker_in_the_ground_it_attacks_draws_supply_from_behind_it(
+    games: dict[str, Game],
+) -> None:
+    """Ostrel's levy stands in the Varda coast it attacks, beside ground Ostrel holds: on
+    the day of the first round it is in supply, so that round's score has no penalty."""
+    g = game_of(games, SALT_STRAIT)
+    front = g.key(SALT_STRAIT.front)
+    events = list(g.store.read(CAMPAIGN))
+    first = next(
+        i
+        for i, e in enumerate(events)
+        if isinstance(e.payload, ev.BattleRound) and e.payload.area == front
+    )
+    before = replay(events[:first])
+    attackers = [before.features[p] for p in before.battles[front].attacker.pieces]
+    found = [supply.status(before, f) for f in attackers]
+    assert found and all(s is not None and s.supplied for s in found), found
 
 
 @ON_EACH

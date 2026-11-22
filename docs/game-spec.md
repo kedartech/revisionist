@@ -358,6 +358,34 @@ Each band is an automated test, written to fail on the base (`ed1a2e3`) and pass
 
 Bands H and W are gates of Phases 2 and 3; A, A′, E and F are written as tests in Phase 1 and must pass by the end of Phase 3.
 
+### 8.8 The board (rule `territories`; `core/realism/territory.py`)
+
+A world with `territories` has a board of land territories and sea zones, with their neighbours. The board is public: every view holds the same one, compiled into a single `map_declared` event; the shapes stay in a map file that the game names by hash and is served from (`engine/maps.py`). A piece stands in one area and moves one step at a time by adjacency, at the days its kind takes for the terrain it enters. Land pieces cross the sea only by sealift (`sealift.py`), sea pieces move over sea zones, air pieces over any area within range of a base (`bases.py`). With `holders` on, each land territory has a holder and a territory is taken in the day walk after a piece has stood there for full days (`holders.py`); a capital falls only after a whole wake's notice. With `economy`, `supply` and `fuel` on, a territory yields, a piece out of supply may not attack, and oil is spent to move (`economy.py`, `supply.py`, `trade.py`).
+
+### 8.9 Battles (rule `battles`; `core/realism/battle.py`)
+
+A battle opens in an area on the day pieces of two powers at war stand in it, and is fought one round a day while the attacker presses. `battle.simulate` is the one place the round, the losses, the break and the end are written, so the day walk and the odds call the same code. A broken side is forced back one step, or destroyed with nowhere to go; when no defender is left the capture count starts. A seat gives a side's decision (press, hold, withdraw) and may file a standing order for a battle. The odds a seat is shown (section 10; `engine/odds.py`) are a spread from its own picture, never one figure.
+
+### 8.10 What a seat can see of the enemy (rule `reports`; `core/realism/detect.py`)
+
+A nation knows an enemy piece only as a report: the kind or "unknown", a strength range, the area, the day seen, the source, a confidence of A, B or C and the day it reaches the seats. Each world day every source rolls once per enemy piece in its cover: contact, air search, patrol, codebreaking and agents. The true strength of an enemy piece reaches no seat except through a report, and the seat's odds and battle block are built from its reports and its own pieces (`engine/odds.py`, `engine/web/battles_api.py`). The events that hold true figures are never fed (`engine/catchup.py`).
+
+### 8.11 Groups at home (rule `groups`; `core/realism/groups.py`)
+
+A world may give each nation groups at home with a support from 0 to 100, what each feeds (votes, standing, manpower, output, opinion) and what moves it. Support moves for three reasons, each in the day walk and each a logged `group_moved`: what happened, what was written (settled once a world day by content, under a daily and a weekly cap), and a broken clause of a public agreement. A seat reads its own nation's groups from its own data and the others' from the press.
+
+### 8.12 Agreements (rule `agreements`; `core/realism/agreement.py`)
+
+An offer names its parties, its wording and its clauses, and is answered by a seat of each other named nation. It becomes an agreement only when every named nation has accepted the same version; a decline or no answer by the due day lapses it. Typed clauses are judged from state on their date, wording that fits no type is kept and never judged, and nothing enforces a clause: a broken one costs the breaker's leader regard and, when the agreement is public, moves its groups at home. The card never answers an offer, and neither does the aide.
+
+### 8.13 The conference (rule `conference`; `core/realism/conference.py`)
+
+A seat calls a conference: the nations it invites, a text and a voting day at least four world days away. Each invited seat seals one vote (for, against, abstain) in any wake before the tally, and a later vote replaces the earlier. The tally counts nations, not seats. A seat with no vote is given the aide's fallback, the same whoever runs the seat, and an invited nation no seat holds votes by its head's card. Quorum is a majority of the invited nations with a vote. A text passes when the nations for outnumber the nations against (all must be for if it says unanimous), and becomes an agreement among the nations that voted for it when there are at least two; with fewer it binds no one.
+
+### 8.14 Deception (designed, not built)
+
+Feints and false radio traffic are designed, not built. The design is in the vault note `kedartech/revisionist/plans/2026-11-17-revisionist-second-run-interface-design.md`, section "Deception (designed, not built)". Nothing in the code, the events or the screens belongs to it.
+
 ## 9. Async model and activity [decided principle; proposed mechanics]
 
 - **Resolution ticks:** intents are batched per window and resolved together. Collisions are real, and being awake at 3 a.m. gives no first-mover advantage. Ticks fire on a timer, when everyone has submitted, or when the host advances them. One in-world clock that only ticks advance.

@@ -37,6 +37,16 @@ Module map:
 | `engine/play.py` | `give_order`, `get_briefing`, `status_lines`: what a seat does between ticks, shared by the CLI and the bot (Layer 9a) |
 | `engine/discord/` | Discord transport: REST deliverer and outbox, routing deliverer and public poster, operational tables (seats, invites, channels), command handlers, the gateway bot, the server template (Layers 9a-9b) |
 | `core/sealing.py`, `engine/seal.py` | which key seals an event and what needs an admin read (pure); AES-GCM sealing, keyrings, the master key (Layer 9b) |
+| `core/realism/territory.py`, `engine/maps.py`, `engine/web/map_api.py`, `scripts/map_build.py`, `scripts/map_check.py` | the board: areas, adjacency and a piece's course; the map object a game's stored hash names; the map as a seat sees it; the build and the checker (territories) |
+| `core/realism/holders.py`, `economy.py`, `supply.py`, `trade.py` | who holds each territory and capture over days; yields, pools and the public figure; supply read from the day's state; fuel and trade lines (holders, economy, supply, fuel) |
+| `core/realism/bases.py`, `sealift.py`, `routing.py`, `detachments.py`, `resolvers/movement.py` | reach from bases, sealift, sea routes, detachments and the movement resolver |
+| `core/realism/battle.py`, `engine/odds.py`, `engine/web/battles_api.py` | battles of one round a day and the one `simulate`; the odds spread from a seat's own picture; the seat's battles block (battles) |
+| `core/realism/detect.py` | every enemy piece known only as a report: sources, ranges, confidence (reports) |
+| `core/realism/groups.py`, `engine/web/reach_groups.py` | groups at home: support, the daily and weekly caps, what a group feeds and is moved by (groups) |
+| `core/realism/agreement.py`, `core/realism/conference.py`, `engine/web/agreements_api.py`, `engine/web/conferences_api.py` | offers with checkable clauses; the conference, sealed votes and the tally (agreements, conference) |
+| `core/realism/locks.py`, `engine/web/locks_api.py`, `core/realism/card.py` | deciders, held orders, the ask and the check before sending; a card's path (locks, command) |
+| `core/realism/contests.py`, `core/goals.py`, `core/realism/agenda.py` | contests that move and decide; aims scored in degrees (contests, aims) |
+| `engine/catchup.py`, `engine/wake_report.py` | the fog path every feed reads (every event kind is fed or never fed); the operator's read-only wake report |
 | `schema/revisionist.schema.json` | exported JSON Schema; CI fails on drift |
 
 ---

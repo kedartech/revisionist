@@ -54,6 +54,15 @@ class ParamKind(StrEnum):
     TEXT = "text"
 
 
+class WarNeed(Model):
+    """What one choice of a form needs: its issuer's nation at war with ``nation``, a
+    polity's world key (WRL). A seat whose nation is not is told "<its nation> is not at war
+    with <nation>, " and then ``refusal``."""
+
+    nation: Label
+    refusal: str = Field(min_length=1, max_length=120)
+
+
 class ParamSpec(Model):
     """One typed parameter of a lever. An order's params and every amendment must fit it."""
 
@@ -68,6 +77,9 @@ class ParamSpec(Model):
     """What the form calls it. Empty: the client words the name itself."""
     choice_labels: tuple[Label, ...] = Field(default=(), exclude_if=lambda v: not v)
     """One per choice, in order, or none."""
+    needs_war: dict[Label, WarNeed] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """The choices its issuer's nation may take only at war with another, by choice (WRL).
+    Read with ``territories`` on; left out of the dump when empty, as in every stored game."""
 
     @model_validator(mode="after")
     def _shape(self) -> "ParamSpec":
@@ -84,6 +96,8 @@ class ParamSpec(Model):
             raise ValueError(f"{self.kind.value} parameter {self.name}: only an enum has choices")
         if self.choice_labels and len(self.choice_labels) != len(self.choices):
             raise ValueError(f"parameter {self.name}: needs one choice label per choice")
+        if any(c not in self.choices for c in self.needs_war):
+            raise ValueError(f"parameter {self.name}: needs_war names a choice it does not offer")
         return self
 
 

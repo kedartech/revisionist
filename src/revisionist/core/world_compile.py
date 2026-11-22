@@ -593,6 +593,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
                 )
             if lv.resolver == "movement":
                 _check_movement(world, f"{where}: lever {lv.name}", lv, problems)
+            _check_war_needs(world, f"{where}: lever {lv.name}", lv, problems)
     _check_answers(world, sections, problems)
     _check_topics(world, problems)
     _check_wars(world, sections, problems)
@@ -1231,6 +1232,17 @@ def _check_movement(world: WorldFile, where: str, lever: LeverDecl, problems: li
         for choice in spec.choices:
             if choice not in allowed:
                 problems.append(f"{where}: {choice} is not a {what}")
+
+
+def _check_war_needs(world: WorldFile, where: str, lever: LeverDecl, problems: list[str]) -> None:
+    """A choice that needs a war names a nation of the world to be at war with (WRL)."""
+    polities = {e.key for e in world.entities if e.kind is EntityKind.POLITY}
+    for spec in lever.params:
+        for choice, need in spec.needs_war.items():
+            if need.nation not in polities:
+                problems.append(
+                    f"{where}: {spec.name} needs_war {choice}: {need.nation} is not a nation"
+                )
 
 
 def _check_cited(problems: list[str], where: str, decl: Cited, sections: Mapping[str, str]) -> None:

@@ -9697,6 +9697,16 @@
             "maxLength": 60,
             "title": "Name",
             "type": "string"
+          },
+          "needs_war": {
+            "additionalProperties": {
+              "$ref": "#/$defs/WarNeed"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Needs War",
+            "type": "object"
           }
         },
         "required": [
@@ -13898,6 +13908,29 @@
           "war"
         ],
         "title": "WarDeclared",
+        "type": "object"
+      },
+      "WarNeed": {
+        "additionalProperties": false,
+        "description": "What one choice of a form needs: its issuer's nation at war with ``nation``, a\npolity's world key (WRL). A seat whose nation is not is told \"<its nation> is not at war\nwith <nation>, \" and then ``refusal``.",
+        "properties": {
+          "nation": {
+            "maxLength": 60,
+            "title": "Nation",
+            "type": "string"
+          },
+          "refusal": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Refusal",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nation",
+          "refusal"
+        ],
+        "title": "WarNeed",
         "type": "object"
       },
       "WorldMap": {
@@ -20881,6 +20914,16 @@
             "maxLength": 60,
             "title": "Name",
             "type": "string"
+          },
+          "needs_war": {
+            "additionalProperties": {
+              "$ref": "#/$defs/WarNeed"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Needs War",
+            "type": "object"
           }
         },
         "required": [
@@ -23995,6 +24038,29 @@
           "declared_by"
         ],
         "title": "War",
+        "type": "object"
+      },
+      "WarNeed": {
+        "additionalProperties": false,
+        "description": "What one choice of a form needs: its issuer's nation at war with ``nation``, a\npolity's world key (WRL). A seat whose nation is not is told \"<its nation> is not at war\nwith <nation>, \" and then ``refusal``.",
+        "properties": {
+          "nation": {
+            "maxLength": 60,
+            "title": "Nation",
+            "type": "string"
+          },
+          "refusal": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Refusal",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nation",
+          "refusal"
+        ],
+        "title": "WarNeed",
         "type": "object"
       },
       "WorldMap": {
@@ -29400,6 +29466,16 @@
             "maxLength": 60,
             "title": "Name",
             "type": "string"
+          },
+          "needs_war": {
+            "additionalProperties": {
+              "$ref": "#/$defs/WarNeed"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Needs War",
+            "type": "object"
           }
         },
         "required": [
@@ -31784,6 +31860,29 @@
           "declared_by"
         ],
         "title": "War",
+        "type": "object"
+      },
+      "WarNeed": {
+        "additionalProperties": false,
+        "description": "What one choice of a form needs: its issuer's nation at war with ``nation``, a\npolity's world key (WRL). A seat whose nation is not is told \"<its nation> is not at war\nwith <nation>, \" and then ``refusal``.",
+        "properties": {
+          "nation": {
+            "maxLength": 60,
+            "title": "Nation",
+            "type": "string"
+          },
+          "refusal": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Refusal",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nation",
+          "refusal"
+        ],
+        "title": "WarNeed",
         "type": "object"
       },
       "WorldMap": {

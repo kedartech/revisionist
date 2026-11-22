@@ -2032,6 +2032,8 @@ cards:
         params:
           - {name: posture, kind: enum, choices: [restrict_us_ships, unrestricted_atlantic, attack_us_shipping], label: "Posture", choice_labels: ["Spare American ships", "Unrestricted warfare in the Atlantic", "Attack American ships on sight"]}
           - {name: theatre, kind: enum, choices: [north_atlantic, arctic, mediterranean], label: "Which waters", choice_labels: ["The North Atlantic", "The Arctic", "The Mediterranean"]}
+        needs_war:
+          posture: {attack_us_shipping: {nation: usa, refusal: "so the U-boats cannot be ordered to attack American ships on sight."}}
       - name: production_priority
         pipeline: okw_directive
         resolver: production

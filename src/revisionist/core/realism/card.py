@@ -54,6 +54,15 @@ class ParamKind(StrEnum):
     TEXT = "text"
 
 
+class WarNeed(Model):
+    """What one choice of a form needs: its issuer's nation at war with ``nation``, a
+    polity's world key (WRL). A seat whose nation is not is told "<its nation> is not at war
+    with <nation>, " and then ``refusal``."""
+
+    nation: Label
+    refusal: str = Field(min_length=1, max_length=120)
+
+
 class ParamSpec(Model):
     """One typed parameter of a lever. An order's params and every amendment must fit it."""
 
@@ -96,13 +105,39 @@ class Lever(Model):
     params: tuple[ParamSpec, ...] = ()
     label: Label = Field(default="", exclude_if=lambda v: not v)
     summary: str = Field(default="", max_length=300, exclude_if=lambda v: not v)
+    needs_war: dict[Label, dict[Label, WarNeed]] = Field(
+        default_factory=dict, exclude_if=lambda v: not v
+    )
+    """The choices its issuer's nation may take only at war with another, by parameter and
+    choice (WRL). Read with ``territories`` on; left out of the dump when empty, as in every
+    stored game."""
 
     @model_validator(mode="after")
     def _distinct(self) -> "Lever":
         names = [p.name for p in self.params]
         if len(set(names)) != len(names):
             raise ValueError(f"lever {self.name}: a parameter is named twice")
+        if problems := war_need_problems(self.params, self.needs_war):
+            raise ValueError(f"lever {self.name}: {problems[0]}")
         return self
+
+
+def war_need_problems(
+    params: Iterable["ParamSpec"], needs_war: Mapping[str, Mapping[str, WarNeed]]
+) -> list[str]:
+    """What is wrong with a form's ``needs_war``: a parameter it does not have, or a choice
+    that parameter does not offer."""
+    choices = {p.name: p.choices for p in params}
+    out: list[str] = []
+    for name, marks in needs_war.items():
+        if name not in choices:
+            out.append(f"needs_war names no parameter {name}")
+        out += [
+            f"needs_war: {name} offers no choice {c}"
+            for c in marks
+            if c not in choices.get(name, ())
+        ]
+    return out
 
 
 class Contact(Model):

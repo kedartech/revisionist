@@ -82,7 +82,7 @@ src/revisionist/core/realism/routing.py | uk | stored games only
 src/revisionist/core/realism/routing.py | usa | stored games only
 src/revisionist/core/realism/sealift.py | uk | stored games only
 src/revisionist/core/realism/sealift.py | uk_sealift_grt | stored games only
-src/revisionist/core/realism/war_rules.py | declare_war | until EFD
-src/revisionist/core/realism/war_rules.py | detach_fleet | until EFD
-src/revisionist/core/realism/war_rules.py | uboat_directive | until SHP
-src/revisionist/core/realism/war_rules.py | usa | until SHP
+src/revisionist/core/realism/war_rules_stored.py | declare_war | stored games only
+src/revisionist/core/realism/war_rules_stored.py | detach_fleet | stored games only
+src/revisionist/core/realism/war_rules_stored.py | uboat_directive | stored games only
+src/revisionist/core/realism/war_rules_stored.py | usa | stored games only

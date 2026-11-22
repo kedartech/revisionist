@@ -6,10 +6,11 @@ from revisionist.core import events as ev
 from revisionist.core.ids import DocumentId, EntityId, FeatureId, SeatId, derived_id
 from revisionist.core.ontology import EntityKind
 from revisionist.core.realism import actors, reach, supply, territory
+from revisionist.core.realism import war_rules_stored as stored
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.bases import Tier
 from revisionist.core.realism.bases import reach as reach_of
-from revisionist.core.realism.card import ChannelKind, Desk
+from revisionist.core.realism.card import ChannelKind, Desk, Lever
 from revisionist.core.realism.detachments import DETACHMENTS_PER_SIDE
 from revisionist.core.realism.document import (
     BodyField,
@@ -20,6 +21,7 @@ from revisionist.core.realism.document import (
 )
 from revisionist.core.realism.effect import Engagement, SetEngagement
 from revisionist.core.realism.geography import FORCES, Feature, FeatureKind, in_play
+from revisionist.core.realism.resolvers.movement import STRENGTH
 from revisionist.core.realism.war import NewsEvent, NewsTopic, War, at_war, polity_of
 from revisionist.core.state import State
 from revisionist.core.visibility import private_to
@@ -27,6 +29,10 @@ from revisionist.core.world_compile import object_id
 
 LINE = 60
 REFUSAL = 200
+WAR, MOVEMENT = "war", "movement"
+"""The rules whose forms take the declaration and the detachment checks."""
+TARGET = "target"
+"""The parameter a war form names its target by, as the war rule reads it."""
 
 
 def _clip(text: str, limit: int = LINE) -> str:
@@ -87,9 +93,8 @@ def _reach_refusal(state: State, seat: SeatId, lever: str, params: dict[str, str
     """Why the seat's own force may not be sent where the order says: the place is beyond
     what its side's bases allow. Empty if it may, and for anything the movement rule does
     not act on."""
-    card = state.cards.get(state.seats[seat].embodies)
-    found = None if card is None else next((x for x in card.levers if x.name == lever), None)
-    if found is None or found.resolver != "movement":
+    found = _form(state, seat, lever)
+    if found is None or found.resolver != MOVEMENT:
         return ""
     force = state.features.get(
         FeatureId(object_id(state.campaign_id, "feature", params.get("force", "")))
@@ -139,36 +144,84 @@ def _supply_refusal(state: State, piece: Feature, course: territory.Plan) -> str
 
 
 def order_refusal(state: State, seat: SeatId, lever: str, params: dict[str, str]) -> str:
-    """The words for why the seat may not pull this lever now; empty if it may."""
+    """The words for why the seat may not pull this lever now; empty if it may.
+
+    In a territory game the world says which check a form takes (WRL): a form whose rule is
+    ``war`` takes the declaration of war checks; a ``movement`` form with a ``strength``
+    takes the detachment check; a choice its parameter marks ``needs_war`` takes the
+    shoot-on-sight check against the nation the mark names. A game without the territory
+    rules, as every stored game is, keeps the checks it had by the form's name."""
     own = _own_polity(state, seat)
     if own is None:
         return ""
     if refused := _reach_refusal(state, seat, lever, params):
         return refused
-    if lever == "detach_fleet":
+    if not territory.on(state):
+        return _stored_refusal(state, own, lever, params)
+    form = _form(state, seat, lever)
+    if form is None:
+        return ""
+    if form.resolver == MOVEMENT and any(p.name == STRENGTH for p in form.params):
         return _detach_refusal(state, params)
-    if lever == "uboat_directive" and params.get("posture") == "attack_us_shipping":
-        usa = _world_entity(state, "usa")
-        if usa is None or at_war(state, own, usa):
-            return ""
+    if refused := _war_need_refusal(state, own, form, params):
+        return refused
+    if form.resolver == WAR:
+        return _declaration_refusal(state, own, params)
+    return ""
+
+
+def _form(state: State, seat: SeatId, lever: str) -> Lever | None:
+    """The seat's own form of that name, if its card has one."""
+    card = state.cards.get(state.seats[seat].embodies)
+    return None if card is None else next((x for x in card.levers if x.name == lever), None)
+
+
+def _war_need_refusal(state: State, own: EntityId, form: Lever, params: dict[str, str]) -> str:
+    """Why the seat's nation may not take a choice the world marks as needing a war: it is
+    not at war with the nation the mark names. Empty if it is, or if the world has no such
+    nation."""
+    for name, marks in form.needs_war.items():
+        need = marks.get(params.get(name, ""))
+        nation = None if need is None else _world_entity(state, need.nation)
+        if need is not None and nation is not None and not at_war(state, own, nation):
+            return _not_at_war(state, own, nation, need.refusal)
+    return ""
+
+
+def _not_at_war(state: State, own: EntityId, nation: EntityId, refusal: str) -> str:
+    return _clip(
+        f"{state.entities[own].name} is not at war with {state.entities[nation].name}, {refusal}",
+        REFUSAL,
+    )
+
+
+def _declaration_refusal(state: State, own: EntityId, params: dict[str, str]) -> str:
+    """Why the seat's nation may not declare war on the power the order names: it is itself,
+    is not a power, or is already at war with it. Empty if it may."""
+    target = _world_entity(state, params.get(TARGET, ""))
+    if target is not None and target == own:
+        return _clip(f"{state.entities[own].name} cannot declare war on itself.", REFUSAL)
+    if target is not None and state.entities[target].kind is not EntityKind.POLITY:
+        return _clip(f"{state.entities[target].name} is not a power to declare war on.", REFUSAL)
+    if target is not None and at_war(state, own, target):
         return _clip(
-            f"{state.entities[own].name} is not at war with {state.entities[usa].name}, "
-            "so the U-boats cannot be ordered to attack American ships on sight.",
+            f"{state.entities[own].name} is already at war with {state.entities[target].name}.",
             REFUSAL,
         )
-    if lever == "declare_war":
-        target = _world_entity(state, params.get("target", ""))
-        if target is not None and target == own:
-            return _clip(f"{state.entities[own].name} cannot declare war on itself.", REFUSAL)
-        if target is not None and state.entities[target].kind is not EntityKind.POLITY:
-            return _clip(
-                f"{state.entities[target].name} is not a power to declare war on.", REFUSAL
-            )
-        if target is not None and at_war(state, own, target):
-            return _clip(
-                f"{state.entities[own].name} is already at war with {state.entities[target].name}.",
-                REFUSAL,
-            )
+    return ""
+
+
+def _stored_refusal(state: State, own: EntityId, lever: str, params: dict[str, str]) -> str:
+    """The checks a game without the territory rules takes, by the 1941 form's name."""
+    if lever == stored.DETACH:
+        return _detach_refusal(state, params)
+    if lever == stored.SHOOT_FORM and params.get(stored.SHOOT_PARAM) == stored.SHOOT_CHOICE:
+        usa = _world_entity(state, stored.SHOOT_NATION)
+        if usa is None or at_war(state, own, usa):
+            return ""
+        return _not_at_war(state, own, usa, stored.SHOOT_REFUSAL)
+    if lever == stored.DECLARE:
+        return _declaration_refusal(state, own, params)
     return ""
 
 

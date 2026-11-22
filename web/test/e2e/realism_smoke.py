@@ -172,6 +172,12 @@ def main() -> int:
     report: dict[str, object] = {}
     with sync_playwright() as p:
         browser = p.chromium.launch()
+        if CODE == "salt":  # the Salt Strait walk alone (a developer's run)
+            try:
+                salt_strait(p, browser, report)
+            finally:
+                print(json.dumps({**report, "checks": checks, "problems": problems}, indent=2))
+            return 1 if problems else 0
         page = browser.new_page(
             viewport={"width": SIZE[0], "height": SIZE[1]},
             bypass_csp=False,
@@ -272,6 +278,8 @@ def main() -> int:
                 problems.append(f"rule: page text contains {word!r}")
         if host and not PHONE:
             end_game(page, report, v2)
+        if host and not v2:
+            salt_strait(p, browser, report)
         browser.close()
     report["checks"] = checks
     report["problems"] = problems
@@ -1198,6 +1206,8 @@ def after_wake(page: Page, report: dict[str, object], host: bool) -> None:
 
 
 def narrow(page: Page) -> None:
+    page.wait_for_timeout(1_000)  # the wake player opens when its pages arrive, over the room
+    playback_closed(page)
     page.set_viewport_size({"width": 390, "height": 844})
     page.wait_for_timeout(300)
     width = page.evaluate("document.documentElement.scrollWidth")
@@ -1277,6 +1287,502 @@ def end_game(page: Page, report: dict[str, object], v2: bool) -> None:
         no_filler(page, "the reveal")
         shoot(page, "18-reveal")
         axe(page, "reveal")
+
+
+# --- the new room, walked on a canned Salt Strait game (SMK) ---------------------------------
+#
+# A second game on a second account, after the autumn 1941 walk: the Marshal of Ostrel on
+# Beginner, with the Varda leader a second player who is only ever Done (the engine answers
+# for a nation only through a seat a human holds, so an offer or a conference needs one).
+# The same steps run twice, by keyboard alone at desktop width and by taps at 390 by 844.
+
+SALT = "Salt Strait"
+SALT_LEVY = "The Ostrel Levy"
+SALT_FRONT = "The Saltworks Coast"
+SALT_WORDING = "Our levy keeps off that shore this season."
+SALT_SPEECH = "We speak on the march south, and hold the line."
+SALT_CALL = "The strait stays open to every flag."
+LABEL = "(a.getAttribute('aria-label') || a.labels?.[0]?.textContent || a.textContent || '').trim()"
+
+
+def named(sel: str, text: str) -> str:
+    """A JS predicate on `a`: it matches `sel` and its name starts with `text`."""
+    return f"a.matches({json.dumps(sel)}) && {LABEL}.startsWith({json.dumps(text)})"
+
+
+def reach(page: Page, sel: str, text: str = "") -> bool:
+    """Put the focus on the control `sel` named `text`: by Tab on a desktop, and on a phone by
+    tapping it (which presses a button, puts the cursor in a field and ticks a box)."""
+    if not PHONE:
+        return tab_to(page, named(sel, text), 400)
+    found = (
+        f"[...document.querySelectorAll({json.dumps(sel)})]"
+        f".find((a) => a.getClientRects().length && {named(sel, text)})"
+    )
+    # Playwright's tap scrolls the control into view, waits for it to be still and taps a
+    # point where the control itself is on top (a mark under the sticky bar, or cut by the
+    # map's frame, is not tapped); a hand-made tap at a mark's centre landed on the map
+    if not page.evaluate(
+        f"() => {{ document.querySelector('[data-smk-reach]')?.removeAttribute('data-smk-reach'); "
+        f"const a = {found}; a?.setAttribute('data-smk-reach', ''); return !!a; }}"
+    ):
+        return False
+    try:
+        page.locator("[data-smk-reach]").tap(timeout=10_000)
+    except PlaywrightTimeout:
+        return False
+    return True
+
+
+def press(page: Page, sel: str, text: str = "", key: str = "Enter") -> bool:
+    """Press a control the way the width is walked: Tab to it and a key, or a tap."""
+    found = reach(page, sel, text)
+    if found and not PHONE:
+        page.keyboard.press(key)
+    return found
+
+
+def write(page: Page, sel: str, text: str, value: str) -> bool:
+    found = reach(page, sel, text)
+    if found:
+        page.keyboard.type(value)
+    return found
+
+
+def said(loc: Locator) -> str:
+    """A sheet's words as the page prints them in a lower case, so a heading's capitals do
+    not matter."""
+    return loc.inner_text().lower()
+
+
+def over(page: Page) -> Locator:
+    """The sheet over the map: the last of the room's sheets."""
+    return page.locator(".rl-over").last
+
+
+def sheet_open(page: Page, word: str) -> None:
+    """Open a sheet of the room from the Game menu's list of every sheet, which is the quiet
+    route to each on Beginner."""
+    page.wait_for_timeout(300)
+    press(page, "button", "Game")
+    menu = page.locator("dialog.rl-menu[open]")
+    menu.wait_for(timeout=10_000)
+    check(f"the Game menu lists the {word} sheet", press(page, "dialog.rl-menu button", word))
+    over(page).wait_for(timeout=10_000)
+    page.wait_for_timeout(500)
+
+
+def sheet_close(page: Page, word: str) -> None:
+    """Close the open sheet by its Close button, and see the map again."""
+    check(f"the {word} sheet has a Close button", press(page, ".rl-over button", "Close"))
+    page.wait_for_timeout(400)
+    check(f"the {word} sheet closes", page.locator(".rl-over").count() == 0)
+
+
+def settle(page: Page, said: str, name: str) -> None:
+    """Wait for the room's one status line to say `said`."""
+    try:
+        page.locator(".rl-status").filter(has_text=said).first.wait_for(timeout=30_000)
+        check(name, True)
+    except PlaywrightTimeout:
+        check(name, False, page.locator(".rl-status").first.inner_text())
+
+
+def salt_start(page: Page, report: dict[str, object], play: object) -> None:
+    """A new account hosts Salt Strait as the Marshal of Ostrel, with a second account holding
+    the Varda leader; the second only commits (`play.commit()`), through the API."""
+    page.goto(BASE + "/")
+    page.get_by_role("link", name="Create an account").click()
+    page.get_by_role("heading", name="Create an account").wait_for()
+    page.get_by_label("Handle").fill(f"rsalt{int(time.time()) % 100000}")
+    page.get_by_label("Password").fill("a long enough passphrase")
+    page.get_by_role("button", name="Create account").click()
+    page.get_by_role("heading", name="Your recovery codes").wait_for()
+    page.get_by_label("I've kept these somewhere safe").check()
+    page.get_by_role("button", name="Continue").click()
+    page.get_by_role("heading", name="Join a game").wait_for()
+    page.get_by_role("link", name="Start a new game").click()
+    page.get_by_role("button", name=f"Start {SALT}").click()
+    page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
+    page.get_by_role("button", name="General Aske: open the dossier").click()
+    dossier = page.locator("dialog.rl-cd[open]")
+    dossier.wait_for(timeout=10_000)
+    page.get_by_role("button", name="Play General Aske").click()
+    dossier.get_by_role("button", name="Yes, play General Aske").click()
+    page.get_by_role("heading", name="You are General Aske").wait_for(timeout=60_000)
+    if not page.get_by_label("Beginner").is_checked():
+        page.get_by_label("Beginner").check()
+        page.locator(".play-style .outcome > *").first.wait_for(timeout=10_000)
+    check("the Salt Strait seat plays on Beginner", page.get_by_label("Beginner").is_checked())
+    page.get_by_role("button", name="Invite a player").click()
+    page.locator(".outcome", has_text="Send this code").wait_for(timeout=10_000)
+    code = re.search(
+        r"Send this code[^\n]*\n+\s*([A-Z0-9-]{8,})", page.locator("body").inner_text()
+    )
+    check("the host is given a code for the second player", code is not None)
+    play.join(code.group(1) if code else "")  # type: ignore[attr-defined]
+    page.get_by_role("button", name="Begin the game").click()  # Salt Strait has no crawl
+    page.locator("main.rl-board, main.rl-mapfirst").first.wait_for(timeout=60_000)
+    page.wait_for_timeout(300)
+    through_intro(page, report)
+    check(
+        "a Salt Strait game opens in the map-first room",
+        page.locator("main.rl-mapfirst").count() == 1,
+    )
+    shoot(page, "20-salt-opening")
+
+
+class Second:
+    """The Varda leader's account, driven through the API: it joins, picks its leader and
+    presses Done each wake, which is all the walk needs of it."""
+
+    def __init__(self, playwright: object) -> None:
+        self.api = playwright.request.new_context()  # type: ignore[attr-defined]
+
+    def call(self, path: str, body: dict[str, object]) -> dict[str, object]:
+        got = self.api.post(BASE + path, data=body)
+        check(f"the second player's {path} answers", got.ok, str(got.status))
+        return got.json() if got.ok else {}
+
+    def join(self, code: str) -> None:
+        handle = f"rsecond{int(time.time()) % 100000}"
+        self.call("/api/signup", {"handle": handle, "password": "a long enough passphrase"})
+        self.call("/api/seat/join", {"code": code})
+        done = self.call("/api/new/pick", {"name": "Oren Vale"})
+        check("the second player takes the Varda leader", "Oren Vale" in str(done.get("reply")))
+
+    def commit(self) -> None:
+        self.call("/api/realism/commit", {})
+
+
+def playback_closed(page: Page) -> None:
+    """Close the wake player if it opened over the room (Skip while it plays, To the map
+    once it has played), so the room's own controls take a press again."""
+    player = page.locator("dialog.rl-plb-dialog[open]")
+    if not player.count():
+        return
+    shoot(page, "salt-playback")
+    word = "To the map" if player.get_by_role("button", name="To the map").count() else "Skip"
+    check(
+        f"the wake player's {word} can be reached", press(page, "dialog.rl-plb-dialog button", word)
+    )
+    page.wait_for_timeout(400)
+    check("the wake player closes", player.count() == 0)
+
+
+def salt_day(page: Page, play: Second, name: str) -> None:
+    """The second player presses Done, then the host does, which runs the day; the sheet of
+    what happened is read and closed, and the wake player after it."""
+    playback_closed(page)
+    play.commit()
+    before = world_day(page)
+    check(f"{name}: Done for today can be reached", press(page, "button", "Done for today"))
+    page.locator(".rl-status.said").filter(has_text="calendar moves").wait_for(timeout=WAKE_MS)
+    sheet = page.locator("dialog.rl-hap[open]")
+    sheet.wait_for(timeout=10_000)
+    check(f"{name}: the day moves on", world_day(page) != before, before)
+    shoot(page, f"{name}-happened")
+    check(f"{name}: To the desk can be reached", press(page, "dialog.rl-hap button", "To the desk"))
+    page.wait_for_timeout(500)
+    check(f"{name}: What happened closes", page.locator("dialog.rl-hap[open]").count() == 0)
+    page.wait_for_timeout(600)
+    playback_closed(page)
+
+
+def needs_list_opened(page: Page) -> None:
+    """On a phone, What needs you is folded behind the Needs button: a tap unfolds it."""
+    check("the Needs button opens What needs you", press(page, ".rl-needsbar button", "Needs"))
+    page.locator(".rl-needs.open").first.wait_for(timeout=10_000)
+
+
+def needs_list_closed(page: Page) -> None:
+    """On a phone, fold What needs you away again by its Close button, if it is still open."""
+    if page.locator(".rl-needs.open").count():
+        check("What needs you has a Close button", press(page, ".rl-needs.open button", "Close"))
+        page.wait_for_timeout(400)
+    check("What needs you folds away", page.locator(".rl-needs.open").count() == 0)
+
+
+def needs_opened(page: Page, report: dict[str, object]) -> None:
+    """\"What needs you\" opens from the keyboard (a tap on a phone), and its one matter opens."""
+    if PHONE:
+        needs_list_opened(page)
+    listed = page.locator(".rl-needs").first
+    check("What needs you lists the matter waiting", "make your position public" in said(listed))
+    check("Tab reaches a matter's Answer button", press(page, ".rl-needs button", "Answer"))
+    over(page).wait_for(timeout=10_000)
+    page.wait_for_timeout(500)
+    shoot(page, "21-salt-needs")
+    check("the matter opens its own sheet", "position public" in said(over(page)))
+    sheet_close(page, "matter")
+    if PHONE:
+        needs_list_closed(page)
+
+
+def salt_move(page: Page, report: dict[str, object]) -> None:
+    """Pick the Ostrel levy in Harrow Pass and send it to the Saltworks Coast, next door."""
+    errors = len([p for p in problems if p.startswith("pageerror")])
+    check("the levy can be picked on the map", press(page, "[aria-label]", f"{SALT_LEVY}:"))
+    page.wait_for_timeout(800)
+    lit = page.locator(".rl-map-target")
+    check("a picked piece lights the areas next to it", lit.count() > 0, str(lit.count()))
+    check(
+        "the Saltworks Coast is lit, a step from Harrow Pass",
+        press(page, ".rl-map-target", f"Send to {SALT_FRONT}"),
+    )
+    page.locator(".rl-pup-chip").wait_for(timeout=10_000)
+    shoot(page, "22-salt-move")
+    check("Send it files the move", press(page, ".rl-pup-chip button", "Send it"))
+    settle(page, "Sent to", "the move is sent")
+    check(
+        "the move raises no page error",
+        len([p for p in problems if p.startswith("pageerror")]) == errors,
+    )
+
+
+def quiet_wake(page: Page) -> None:
+    """Rule 2 starts in a quiet wake: the list says nothing waits but Done."""
+    if PHONE:
+        needs_list_opened(page)
+    try:
+        page.locator(".rl-needs", has_text="Nothing waits on you").first.wait_for(timeout=10_000)
+    except PlaywrightTimeout:
+        pass
+    text = page.locator(".rl-needs").first.inner_text()
+    check("the wake is quiet: only Done waits", "Nothing waits on you" in text, text[:200])
+    if PHONE:
+        needs_list_closed(page)
+
+
+def statement(page: Page, first: bool = False) -> None:
+    """From the Home sheet's composer: a statement on a theme of the nation's. The first, on
+    the first day, answers the opening matter (make your position public), so the next wake
+    is quiet; the second is rule 2's, in that quiet wake."""
+    tag = "the opening statement" if first else "the statement"
+    sheet_open(page, "At home")
+    check(
+        f"{tag}: the Home sheet offers Speak to the nation",
+        press(page, "button", "Speak to the nation"),
+    )
+    page.wait_for_timeout(600)
+    check(
+        f"{tag}: the composer names the nation's themes and the cap",
+        "the march south" in said(over(page)) and "at most" in said(over(page)),
+    )
+    check(
+        f"{tag}: Tab reaches the composer's words",
+        write(page, "textarea", "Your instruction", SALT_SPEECH),
+    )
+    check(f"{tag}: the aide reads it", press(page, "button", "Prepare the order"))
+    over(page).get_by_role("button", name="Sign and send").wait_for(timeout=30_000)
+    check(
+        f"{tag}: the staff's read names the groups it moves",
+        "your staff's read" in said(over(page)),
+    )
+    shoot(page, "21b-salt-opening-statement" if first else "23-salt-statement")
+    check(f"{tag} is signed", press(page, ".rl-over button", "Sign and send"))
+    settle(page, "Sent to", f"{tag} is sent")
+    sheet_close(page, "Forms")
+
+
+def diplomacy_open(page: Page) -> None:
+    sheet_open(page, "Diplomacy")
+    check(
+        "the Diplomacy sheet carries agreements and conferences",
+        all(w in said(over(page)) for w in ("agreements", "conferences")),
+    )
+
+
+def offer(page: Page) -> None:
+    """From the offer builder: wording to Varda, read, signed."""
+    check("Tab reaches the offer's wording", write(page, "textarea", "Your wording", SALT_WORDING))
+    check(
+        "the offer can be made to Varda",
+        press(page, ".rl-dp-builder input[type=checkbox]", "Varda", key="Space"),
+    )
+    check("the offer's terms are read", press(page, ".rl-dp-builder button", "Read the terms"))
+    over(page).get_by_role("button", name="Sign and send").wait_for(timeout=30_000)
+    check("the terms the seat signs are shown", "the terms you sign" in said(over(page)))
+    shoot(page, "24-salt-offer")
+    check("the offer is signed", press(page, ".rl-over button", "Sign and send"))
+    settle(page, "filed", "the offer is filed")
+
+
+def vote_state(page: Page) -> tuple[str, str]:
+    """The conference's vote line and the pressed vote button, as the sheet shows them."""
+    return (
+        page.locator(".rl-dp-vote").first.locator("xpath=preceding-sibling::p[1]").inner_text(),
+        page.locator(".rl-dp-vote button[aria-pressed=true]").first.inner_text()
+        if page.locator(".rl-dp-vote button[aria-pressed=true]").count()
+        else "",
+    )
+
+
+def conference(page: Page) -> None:
+    """Call a conference of the nation and Varda, then vote For, Against, Abstain, each
+    replacing the last, and read the vote back from the sheet."""
+    check(
+        "Tab reaches the call's words",
+        write(page, ".rl-dp-call textarea", "The text put to the vote", SALT_CALL),
+    )
+    check(
+        "Varda can be invited",
+        press(page, ".rl-dp-call input[type=checkbox]", "Varda", key="Space"),
+    )
+    check("the conference is called", press(page, ".rl-dp-call button", "Call the conference"))
+    settle(page, "conference is called", "the call is sent")
+    try:
+        page.locator(".rl-dp-vote").first.wait_for(timeout=10_000)
+    except PlaywrightTimeout:
+        check("the called conference shows the seat's vote control", False)
+        return
+    shoot(page, "25-salt-conference")
+    for word in ("For", "Against", "Abstain"):
+        check(f"Tab reaches the {word} vote", press(page, ".rl-dp-vote button", word))
+        try:  # the status line says "Sealing your vote…" while it goes: wait for the sheet itself
+            page.locator(".rl-dp-vote button[aria-pressed=true]", has_text=word).first.wait_for(
+                timeout=30_000
+            )
+            check(f"the {word} vote is filed", True)
+        except PlaywrightTimeout:
+            check(f"the {word} vote is filed", False, page.locator(".rl-status").first.inner_text())
+        page.wait_for_timeout(600)
+        line, pressed = vote_state(page)
+        check(f"the sheet reads the {word} vote back", pressed == word, f"{line!r} / {pressed!r}")
+    shoot(page, "26-salt-votes")
+
+
+def publish(page: Page) -> None:
+    """Publish the agreement the seat is party to and that only its parties know."""
+    found = press(page, ".rl-dp-agreements button", "Publish the agreement of Ostrel and Kesh")
+    check("Tab reaches Publish on an agreement the seat is party to", found)
+    settle(page, "Publish the agreement", "the publication is sent")
+    page.wait_for_timeout(800)
+    shoot(page, "27-salt-publish")
+
+
+def battle_day(page: Page, play: Second) -> None:
+    """Run days until the levy's battle opens (a few wakes: each lasts a day)."""
+    for n in range(8):
+        if page.locator("[aria-label^='Battle at']").count():
+            return
+        salt_day(page, play, f"salt-day-{n}")
+    check("the levy's battle opens within a few days", False)
+
+
+def battle_sheet(page: Page, report: dict[str, object]) -> None:
+    """The battle's sheet: its odds panel, then a decision filed. On a desktop it opens from
+    the battle's mark on the map; on a phone from What needs you, the list a thumb works from,
+    since at 390 px the mark sits under the pieces fighting there (the report says whether a
+    tap on the mark could reach it)."""
+    if PHONE:
+        mark = page.locator("[aria-label^='Battle at']").first
+        try:
+            mark.tap(timeout=5_000, trial=True)
+            report["salt_phone_battle_mark_tappable"] = True
+        except PlaywrightTimeout:
+            report["salt_phone_battle_mark_tappable"] = False
+        needs_list_opened(page)
+        check(
+            "What needs you lists the battle",
+            "the battle at" in said(page.locator(".rl-needs").first),
+        )
+        check("the battle's Decide button can be tapped", press(page, ".rl-needs button", "Decide"))
+    else:
+        check("Tab reaches the battle's mark", press(page, "[aria-label]", "Battle at"))
+    over(page).wait_for(timeout=10_000)
+    page.wait_for_timeout(600)
+    check("the battle sheet offers the seat's decisions", "your decision" in said(over(page)))
+    check("Tab reaches the Odds button", press(page, ".rl-bt-odds button", "Odds"))
+    box = over(page).locator(".rl-odds").first
+    box.wait_for(timeout=15_000)
+    check("the odds panel opens on the battle's area", "odds · the saltworks coast" in said(box))
+    answered = box.locator(".rl-odds-outcome, .rl-odds-refused, .rl-odds-unknown").first
+    try:
+        answered.wait_for(timeout=30_000)
+        check("the odds desk answers in the panel", True)
+        report["salt_odds"] = answered.get_attribute("class")
+    except PlaywrightTimeout:
+        check("the odds desk answers in the panel", False, said(box)[:200])
+    shoot(page, "28-salt-odds")
+    check("the odds panel has a Close button", press(page, ".rl-odds button", "Close"))
+    page.wait_for_timeout(400)
+    check("the odds panel closes", over(page).locator(".rl-odds").count() == 0)
+    check("Tab reaches the Hold decision", press(page, ".rl-bt-decisions button", "Hold"))
+    try:  # the decision is filed through the server: wait for the sheet to say so
+        over(page).filter(has_text=re.compile("its decision for this wake", re.I)).wait_for(
+            timeout=30_000
+        )
+        check("the sheet says the decision is filed for this wake", True)
+    except PlaywrightTimeout:
+        check("the sheet says the decision is filed for this wake", False, said(over(page))[:300])
+    shoot(page, "29-salt-decision")
+    sheet_close(page, "battle")
+    if PHONE:
+        needs_list_closed(page)
+
+
+def sheets_opened(page: Page) -> None:
+    """The Home and Diplomacy sheets open, hold what they should and close."""
+    sheet_open(page, "At home")
+    check("the Home sheet shows the nation's groups", "groups" in said(over(page)))
+    shoot(page, "30-salt-home")
+    sheet_close(page, "At home")
+    diplomacy_open(page)
+    shoot(page, "31-salt-diplomacy")
+    sheet_close(page, "Diplomacy")
+
+
+def phone_room(page: Page, report: dict[str, object]) -> None:
+    """At 390 by 844: the map is at least half the viewport's height, a sheet no more than
+    half of it, and the page as wide as the viewport."""
+    figure = page.locator("figure.rl-map-figure").first
+    figure.scroll_into_view_if_needed()
+    box = figure.bounding_box() or {"height": 0}
+    report["salt_phone_map_height"] = box["height"]
+    check("the map is at least half the viewport's height", box["height"] >= SIZE[1] / 2, str(box))
+    sheet_open(page, "Diplomacy")
+    sheet = over(page).bounding_box() or {"height": 1e9}
+    report["salt_phone_sheet_height"] = sheet["height"]
+    check("a sheet is a half sheet", sheet["height"] <= SIZE[1] / 2 + 1, str(sheet))
+    sheet_close(page, "Diplomacy")
+    width = page.evaluate("document.documentElement.scrollWidth")
+    check("the page is as wide as the viewport", width == SIZE[0], str(width))
+
+
+def salt_strait(playwright: object, browser: object, report: dict[str, object]) -> None:
+    """The whole walk: rule 1 (needs, a move, the odds, a decision, Home and Diplomacy) and
+    rule 2 (a statement, an offer, a conference and its votes, a publication), at this width."""
+    ctx = browser.new_context(  # type: ignore[attr-defined]
+        viewport={"width": SIZE[0], "height": SIZE[1]}, has_touch=PHONE, is_mobile=PHONE
+    )
+    page = ctx.new_page()
+    watch(page)
+    play = Second(playwright)
+    try:
+        salt_start(page, report, play)
+        needs_opened(page, report)
+        salt_move(page, report)
+        statement(page, first=True)
+        salt_day(page, play, "salt-first-day")
+        quiet_wake(page)
+        statement(page)
+        diplomacy_open(page)
+        offer(page)
+        conference(page)
+        publish(page)
+        sheet_close(page, "Diplomacy")
+        battle_day(page, play)
+        battle_sheet(page, report)
+        sheets_opened(page)
+        if PHONE:
+            phone_room(page, report)
+    except Exception:
+        page.screenshot(path=str(OUT / "zz-salt-failed.png"), full_page=True)
+        (OUT / "zz-salt-failed.aria.txt").write_text(page.locator("body").aria_snapshot())
+        raise
+    finally:
+        ctx.close()
 
 
 if __name__ == "__main__":

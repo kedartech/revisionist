@@ -3402,6 +3402,19 @@ contests:
       - {kind: agreement_made, toward: uk, between: [uk, usa]}
       - {kind: agreement_broken, toward: germany, between: [uk, ussr]}
 
+# Production keys (PRL): what the production rules read instead of names of their own. The
+# finding is Roosevelt's Lend-Lease form: it draws on the second appropriation, writes each
+# recipient's share, and a finding naming the Soviet Union makes it eligible. The priority is
+# the production-priority form; merchant ships grow a nation's lift pool on each 1st (a nation
+# with no lift_pool, as every nation here, grows none). The values are the rules' own before PRL.
+production:
+  findings:
+    - form: lend_lease_finding
+      draws_on: lend_lease_second_appropriation
+      shares: {uk: lend_lease_share_uk, ussr: lend_lease_share_ussr, china: lend_lease_share_china}
+      eligible: {ussr: soviet_lend_lease_eligible}
+  priority: {form: production_priority, grows_lift_on: merchant_ships}
+
 # Locks (KCD): which of King's orders need whose decision, and while what holds.
 locks:
   # Shoot on sight on the Iceland route: the posture is the President's, so the order is held

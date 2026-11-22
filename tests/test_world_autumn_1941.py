@@ -115,3 +115,12 @@ def test_every_mandate_goes_to_a_playable_person() -> None:
     assert world.mandates
     assert all(set(m.to) <= playable for m in world.mandates)
     assert playable <= {k for m in world.mandates for k in m.to}
+
+
+def test_no_card_or_office_names_chiang_chairman_of_the_national_government() -> None:
+    world = _world()
+    chiang_offices = [c.office for c in world.cards if c.person == "chiang"]
+    held = [a.name for a in world.assets if a.kind == "office" and a.controller == "chiang"]
+    assert chiang_offices and held
+    for title in chiang_offices + held:
+        assert "National Government" not in title, title

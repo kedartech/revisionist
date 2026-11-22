@@ -23,10 +23,12 @@ import pytest
 from revisionist.core import events as ev
 from revisionist.core.goals import ActOf
 from revisionist.core.ids import FeatureId, OrderId, derived_id
+from revisionist.core.ontology import Fact
 from revisionist.core.realism import resolvers
 from revisionist.core.realism.agenda import MANDATE_CAP, MandateKind
 from revisionist.core.realism.economy import Pools
 from revisionist.core.realism.pipeline import Order, OrderStatus
+from revisionist.core.realism.quantity import QuantityChange
 from revisionist.core.realism.resolvers import production, shipping
 from revisionist.core.realism.resolvers.production import (
     AID_ANSWER_DAYS,
@@ -452,3 +454,161 @@ def test_a_form_naming_no_nation_sends_nothing(tmp_path: Path) -> None:
     enact(g, "ilse", "send_aid", pct=50, by=ROUTE)
     walk_days(g, AID_LEAD_DAYS, AID_LEAD_DAYS)
     assert output(g, VESTA) == 0
+
+
+# --- PRL: the finding and the priority read the world, never a 1941 name ----------------
+#
+# The toy's finding is ``send_aid``, it draws on Norra's war chest, writes Vesta's share to
+# ``vesta_allotment`` and clears Vesta through ``vesta_cleared``; its priority form is
+# ``set_course``, whose choice ``hulls`` grows Norra's shipping. None of these is a 1941 key,
+# so a rule that named ``lend_lease_finding``, ``soviet_lend_lease_eligible`` or ``ussr``
+# could not pass.
+
+ALLOTMENT, SUDLAND_ALLOTMENT, CLEARED = "vesta_allotment", "sudland_allotment", "vesta_cleared"
+POOL = "norra_shipping"
+
+
+def finding_keys(w: World) -> None:
+    """The world names its finding, the figure it draws on, each nation's share figure and
+    the one nation it clears."""
+    for key, name, unit in (
+        (ALLOTMENT, "Aid allotted to Vesta", "USD"),
+        (SUDLAND_ALLOTMENT, "Aid allotted to Sudland", "USD"),
+        (CLEARED, "Vesta cleared for aid (1 yes, 0 no)", "flag"),
+    ):
+        w["quantities"].append(
+            {"key": key, "owner": NORRA, "name": name, "unit": unit, "computed": True}
+        )
+    w["production"] = {
+        "findings": [
+            {
+                "form": "send_aid",
+                "draws_on": "norra_chest",
+                "shares": {VESTA: ALLOTMENT, "sudland": SUDLAND_ALLOTMENT},
+                "eligible": {VESTA: CLEARED},
+            }
+        ],
+    }
+
+
+def priority_keys(w: World) -> None:
+    """The world names the priority form and the choice of it that grows the lift pool."""
+    w.setdefault("production", {})["priority"] = {"form": "set_course", "grows_lift_on": "hulls"}
+
+
+def priority_form(w: World) -> None:
+    """A priority form on Norra's card: ``hulls`` grows its shipping, ``galleys`` does not."""
+    (card,) = [c for c in w["cards"] if c["person"] == "ilse"]
+    card["levers"].append(
+        {
+            "name": "set_course",
+            "pipeline": "chancery",
+            "resolver": "production",
+            "params": [{"name": "yard", "kind": "enum", "choices": ["hulls", "galleys"]}],
+        }
+    )
+
+
+def _outcome(
+    g: Logged, order: Order, fund: int, flag: str, shares: Sequence[str]
+) -> list[tuple[object, ...]]:
+    """What a finding changed, in order, by role: the eligibility flag's value, each share
+    figure's value as a fraction of the fund, and a receipt to its recipient."""
+    roles = {resolvers.qid(g.state, flag): "flag"}
+    roles |= {resolvers.qid(g.state, s): "share" for s in shares}
+    out: list[tuple[object, ...]] = []
+    for c in resolvers.ON_ORDER["production"](g.state, order):
+        if isinstance(c, QuantityChange):
+            role = roles.get(c.quantity_id, "other")
+            out.append((role, c.value / fund if role == "share" else c.value))
+        elif isinstance(c, Fact):
+            out.append(("receipt", c.predicate, c.obj == g.state.seats[order.issuer].embodies))
+        else:
+            out.append((type(c).__name__,))
+    return out
+
+
+TOY_SHARES = (ALLOTMENT, SUDLAND_ALLOTMENT)
+AUTUMN_SHARES = ("lend_lease_share_uk", "lend_lease_share_ussr", "lend_lease_share_china")
+AUTUMN_FUND = 5_985_000_000
+
+
+@pytest.mark.parametrize(("toy_to", "autumn_to"), [(VESTA, "ussr"), ("sudland", "uk")])
+def test_a_finding_under_other_keys_plays_as_the_1941_finding(
+    tmp_path: Path, autumn: Logged, toy_to: str, autumn_to: str
+) -> None:
+    g = game(tmp_path, finding_keys)
+    toy = _outcome(g, send(g, to=toy_to, pct=10), CHEST, CLEARED, TOY_SHARES)
+    n = 2 if autumn_to == "ussr" else 3
+    order = enact(
+        autumn,
+        "roosevelt",
+        "lend_lease_finding",
+        date(1941, 10, 30),
+        n,
+        recipient=autumn_to,
+        share_pct=10,
+        route="arctic_route",
+    )
+    real = _outcome(autumn, order, AUTUMN_FUND, "soviet_lend_lease_eligible", AUTUMN_SHARES)
+    assert toy == real
+    assert toy[0] == (("flag", 1) if toy_to == VESTA else ("share", 0.1))
+
+
+def test_the_finding_writes_the_share_figure_the_world_names(tmp_path: Path) -> None:
+    g = game(tmp_path, finding_keys)
+    g.add(resolvers.apply_changes(g.state, production.resolve(g.state, send(g, pct=10))))
+    assert resolvers.value(g.state, ALLOTMENT) == CHEST // 10
+    assert resolvers.value(g.state, CLEARED) == 1
+    assert resolvers.value(g.state, SUDLAND_ALLOTMENT) is None
+
+
+def test_another_recipient_is_not_made_eligible(tmp_path: Path) -> None:
+    g = game(tmp_path, finding_keys)
+    g.add(resolvers.apply_changes(g.state, production.resolve(g.state, send(g, to="sudland"))))
+    assert resolvers.value(g.state, CLEARED) is None
+    assert resolvers.value(g.state, SUDLAND_ALLOTMENT) == CHEST // 2
+
+
+def test_a_world_without_the_keys_runs_no_finding(tmp_path: Path) -> None:
+    g = game(tmp_path)
+    assert production.resolve(g.state, send(g, pct=10)) == ()
+
+
+def test_a_world_without_the_figure_the_finding_draws_on_writes_no_share(tmp_path: Path) -> None:
+    def no_chest(w: World) -> None:
+        w["quantities"] = [q for q in w["quantities"] if q["key"] != "norra_chest"]
+        w["production"]["findings"][0]["draws_on"] = CLEARED
+
+    g = game(tmp_path, finding_keys, no_chest)
+    out = _outcome(g, send(g, pct=10), CHEST, CLEARED, TOY_SHARES)
+    assert out == [("flag", 1), ("receipt", "received_from", True)]
+
+
+def _set_course(g: Logged, yard: str, on: date, n: int) -> None:
+    enact(g, "ilse", "set_course", on=on, n=n, yard=yard)
+
+
+def _gain(g: Logged, on: date) -> int:
+    before = resolvers.value(g.state, POOL)
+    g.add(resolvers.apply_changes(g.state, production.on_day(g.state, on)))
+    after = resolvers.value(g.state, POOL)
+    assert before is not None and after is not None
+    return after - before
+
+
+MAY, JUNE = date(1900, 5, 1), date(1900, 6, 1)
+
+
+def test_the_priority_the_world_names_grows_the_lift_pool_on_the_1st(tmp_path: Path) -> None:
+    g = game(tmp_path, priority_form, finding_keys, priority_keys)
+    _set_course(g, "hulls", START, 1)
+    assert _gain(g, MAY) == production.MERCHANT_GRT_PM
+    _set_course(g, "galleys", MAY, 2)
+    assert _gain(g, JUNE) == 0
+
+
+def test_without_the_keys_the_priority_grows_nothing(tmp_path: Path) -> None:
+    g = game(tmp_path, priority_form)
+    _set_course(g, "hulls", START, 1)
+    assert _gain(g, MAY) == 0

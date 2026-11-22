@@ -405,6 +405,41 @@ def test_another_recipient_gets_a_share_but_no_eligibility() -> None:
     assert value(r.state, "soviet_lend_lease_eligible") is None
 
 
+def stored(r: Rig) -> Rig:
+    """The same game on a board compiled before PRL: it holds no production keys."""
+    assert r.state.map is not None and r.state.map.production is not None
+    board = r.state.map.model_copy(update={"production": None})
+    r.state = r.state.model_copy(update={"map": board})
+    return r
+
+
+@pytest.mark.parametrize(("recipient", "share"), [("ussr", 10), ("uk", 50), ("china", 5)])
+def test_a_stored_board_without_the_keys_finds_as_the_world_keys_do(
+    recipient: str, share: int
+) -> None:
+    live, old = rig(), stored(rig())
+    assert production.resolve(old.state, finding(old, recipient, share)) == production.resolve(
+        live.state, finding(live, recipient, share)
+    )
+
+
+def test_a_stored_game_without_a_map_keeps_the_1941_finding() -> None:
+    r = rig(POINTS)
+    r.fold_changes(production.resolve(r.state, finding(r, "ussr", 10)))
+    assert value(r.state, "soviet_lend_lease_eligible") == 1
+    assert value(r.state, "lend_lease_share_ussr") == 598_500_000
+
+
+def test_a_board_whose_keys_name_no_finding_runs_none() -> None:
+    r = rig()
+    assert r.state.map is not None and r.state.map.production is not None
+    empty = r.state.map.production.model_copy(update={"findings": ()})
+    r.state = r.state.model_copy(
+        update={"map": r.state.map.model_copy(update={"production": empty})}
+    )
+    assert production.resolve(r.state, finding(r, "ussr", 10)) == ()
+
+
 # --- opinion --------------------------------------------------------------------
 
 

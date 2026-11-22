@@ -509,6 +509,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "pacts",
             "conferences",
             "locks",
+            "production",
         ):
             if getattr(world, name):
                 problems.append(f"{name}: only a realism world has {name}")
@@ -596,6 +597,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_topics(world, problems)
     _check_wars(world, sections, problems)
     _check_trade(world, sections, problems)
+    _check_production(world, problems)
     _check_pacts(world, sections, problems)
     _check_conferences(world, sections, problems)
     playable = {c.person for c in world.cards if c.playable}
@@ -928,6 +930,44 @@ def _check_trade(world: WorldFile, sections: Mapping[str, str], problems: list[s
             problems.append(f"{where}: a line runs between two nations")
         if roles.get(line.resource) not in PAID_ROLES:
             problems.append(f"{where}: {line.resource} is not output, manpower or fuel")
+
+
+def _check_production(world: WorldFile, problems: list[str]) -> None:
+    """The aid findings and the production priority (PRL): only with a map; each form a
+    lever of the ``production`` rule name; each figure a quantity; each recipient a polity;
+    the priority's choice one its form offers."""
+    decl = world.production
+    if decl is None:
+        return
+    if world.map is None:
+        problems.append("production: the production keys need a map")
+    levers = [lv for c in world.cards for lv in c.levers if lv.resolver == "production"]
+    names = {lv.name for lv in levers}
+    quantities = {q.key for q in world.quantities}
+    polities = {d.key for d in world.entities if d.kind is EntityKind.POLITY}
+    forms: set[str] = set()
+    for f in decl.findings:
+        where = f"production finding {f.form}"
+        if f.form not in names:
+            problems.append(f"{where}: no production lever has that name")
+        if f.form in forms:
+            problems.append(f"{where}: named twice")
+        forms.add(f.form)
+        for figure in (f.draws_on, *f.shares.values(), *f.eligible.values()):
+            if figure not in quantities:
+                problems.append(f"{where}: {figure} is not a quantity")
+        for nation in (*f.shares, *f.eligible):
+            if nation not in polities:
+                problems.append(f"{where}: {nation} is not a polity")
+    p = decl.priority
+    if p is not None:
+        where = f"production priority {p.form}"
+        if p.form not in names:
+            problems.append(f"{where}: no production lever has that name")
+        elif not any(
+            p.grows_lift_on in s.choices for lv in levers if lv.name == p.form for s in lv.params
+        ):
+            problems.append(f"{where}: the form offers no choice {p.grows_lift_on}")
 
 
 def _check_answers(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
@@ -2565,6 +2605,30 @@ def _board(world: WorldFile, ids: Mapping[str, str]) -> tm.WorldMap:
             for e in world.entities
             if e.capital is not None
         },
+        production=_production(world, ids),
+    )
+
+
+def _production(world: WorldFile, ids: Mapping[str, str]) -> tm.Production:
+    """The aid findings and the production priority as the board holds them (PRL); empty,
+    never None, for a world that declares none, so a new game reads no name of its own."""
+    decl = world.production
+    if decl is None:
+        return tm.Production()
+    priority = decl.priority
+    return tm.Production(
+        findings=tuple(
+            tm.AidFinding(
+                form=f.form,
+                draws_on=QuantityId(ids[f.draws_on]),
+                shares={EntityId(ids[k]): QuantityId(ids[v]) for k, v in f.shares.items()},
+                eligible={EntityId(ids[k]): QuantityId(ids[v]) for k, v in f.eligible.items()},
+            )
+            for f in decl.findings
+        ),
+        priority=None
+        if priority is None
+        else tm.LiftPriority(form=priority.form, choice=priority.grows_lift_on),
     )
 
 

@@ -142,6 +142,31 @@ class Base(Model):
         return self.sea if domain == "sea" else self.land
 
 
+class AidFinding(Model):
+    """An aid finding as the board holds it (PRL): the form, the figure it draws on, and
+    each recipient's share figure and eligibility flag, by polity."""
+
+    form: Label
+    draws_on: QuantityId
+    shares: dict[EntityId, QuantityId] = Field(default_factory=dict)
+    eligible: dict[EntityId, QuantityId] = Field(default_factory=dict)
+
+
+class LiftPriority(Model):
+    """The production priority's form and the choice of it that grows a lift pool (PRL)."""
+
+    form: Label
+    choice: Label
+
+
+class Production(Model):
+    """What the production rules read from the world (PRL). Absent from a board compiled
+    before it: such a stored game keeps the rules' own names."""
+
+    findings: tuple[AidFinding, ...] = ()
+    priority: LiftPriority | None = None
+
+
 class WorldMap(Model):
     """The board: everything about the map but its shapes."""
 
@@ -161,8 +186,13 @@ class WorldMap(Model):
     """Each lifting polity's pool of shipping, by the quantity that holds it."""
     capitals: dict[EntityId, EntityId] = Field(default_factory=dict)
     """Each polity's capital site, a place, by the polity (``capital`` in the world)."""
+    production: Production | None = None
+    """The aid findings and the production priority (``production`` in the world; PRL).
+    None on a board compiled before PRL; empty for a world that declares none."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"ports", "bases", "lift_pools", "capitals"})
+    late_fields: ClassVar[frozenset[str]] = frozenset(
+        {"ports", "bases", "lift_pools", "capitals", "production"}
+    )
 
     def areas(self) -> tuple[EntityId, ...]:
         return tuple(t.area for t in self.territories) + tuple(z.area for z in self.sea_zones)

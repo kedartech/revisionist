@@ -1,11 +1,16 @@
 """The production resolver (plan, Phase 2 unit B3; PRD).
 
-Lend-Lease findings and allocations, deliveries after a lead time. While a side's
-latest enacted production priority is merchant ships, its troop-lift pool (sealift, R6)
-gains a fixed tonnage on each 1st; in Autumn 1941 that is Churchill's priority and
-Britain's pool. The other sectors and Stalin's ``aid_request`` change nothing in this
-wave: no quantity is declared for them yet. That is the rule name ``production``, which
-stored games keep.
+Aid findings and allocations, deliveries after a lead time. While a side's latest
+enacted production priority names the choice that grows its troop-lift pool (sealift, R6),
+the pool gains a fixed tonnage on each 1st. The other forms of the rule name change nothing
+here. That is the rule name ``production``.
+
+Which form is the finding, the figure it draws on, each recipient's share figure and
+eligibility flag, and which form and choice is the priority, are the world's
+(``production``, PRL), read from the board. A board compiled before PRL holds none of
+them; a stored game on such a board, or one without a map, keeps the Autumn 1941 names
+in ``production_stored``: Lend-Lease, the Soviet Union's eligibility, Churchill's merchant
+ships.
 
 The rule name ``economy`` (PRD), with the ``economy`` rule on: an enacted form that names
 a ``force`` builds one strength step for it, ``LEAD_DAYS`` after the order left its last
@@ -26,8 +31,16 @@ from typing import NamedTuple
 
 from revisionist.core import events as ev
 from revisionist.core.goals import ActOf
-from revisionist.core.ids import DocumentId, EntityId, FeatureId, MandateId, SeatId, derived_id
-from revisionist.core.ontology import EntityKind
+from revisionist.core.ids import (
+    DocumentId,
+    EntityId,
+    FeatureId,
+    MandateId,
+    QuantityId,
+    SeatId,
+    derived_id,
+)
+from revisionist.core.ontology import EntityKind, Fact
 from revisionist.core.realism import actors, economy, kinds, sealift, territory
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.agenda import (
@@ -52,6 +65,7 @@ from revisionist.core.realism.land import allocate
 from revisionist.core.realism.pipeline import Order, OrderStatus, StepKind
 from revisionist.core.realism.quantity import QuantityChange
 from revisionist.core.realism.resolvers import evacuation, shipping
+from revisionist.core.realism.resolvers import production_stored as stored
 from revisionist.core.realism.resolvers.shipping import shifted
 from revisionist.core.realism.resolvers.votes import put
 from revisionist.core.realism.war import polity_of
@@ -76,54 +90,110 @@ def _matter(state: State, lever: str) -> str:
     return next((t.key for t in state.topics.values() if lever in t.levers), lever)
 
 
+def _keys(state: State) -> territory.Production | None:
+    """The world's production keys, empty for a world that declares none; None for a game
+    whose board predates them, or that has no board: a stored game, read by ``stored``."""
+    return None if state.map is None else state.map.production
+
+
 def resolve(state: State, order: Order) -> tuple["rs.Change", ...]:
-    """Changes from one order enacted through its pipeline: a Lend-Lease finding's
-    figures and the recipient's receipt, and with ``economy`` on, a request for aid put on
-    the giver's agenda."""
-    recipient = order.params.get("recipient")
+    """Changes from one order enacted through its pipeline: an aid finding's figures and
+    the recipient's receipt, and with ``economy`` on, a request for aid put on the giver's
+    agenda."""
     if order.status is not OrderStatus.ENACTED:
         return ()
-    if order.lever != "lend_lease_finding":
+    keys = _keys(state)
+    if keys is None:
+        return _stored_finding(state, order)
+    found = next((f for f in keys.findings if f.form == order.lever), None)
+    if found is None:
         return tuple(_asked(state, order))
+    aid = _aid(state, order)
+    if aid is None:
+        return ()
     as_of = rs.settled_on(order)
     out: list[rs.Change | None] = []
-    if recipient == "ussr":
-        out.append(put(state, "soviet_lend_lease_eligible", 1, as_of))
-    total, share = rs.value(state, "lend_lease_second_appropriation"), order.params.get("share_pct")
-    if total is not None and isinstance(share, int):
-        out.append(put(state, f"lend_lease_share_{recipient}", total * share // 100, as_of))
-    taker = EntityId(object_id(state.campaign_id, "entity", str(recipient)))
-    if taker in state.entities and isinstance(share, int):
-        issuer = state.seats[order.issuer].embodies
-        what = _matter(state, order.lever)
-        out.append(allocate.receipt(state, taker, issuer, order.issuer, what, share, as_of))
+    if (flag := found.eligible.get(aid.recipient)) is not None:
+        out.append(_set(state, flag, 1, as_of))
+    total, figure = _value(state, found.draws_on), found.shares.get(aid.recipient)
+    if total is not None and figure is not None:
+        out.append(_set(state, figure, total * aid.share_pct // 100, as_of))
+    out.append(_receipt(state, order, aid.recipient, aid.share_pct, as_of))
     return tuple(c for c in out if c is not None)
 
 
-def _priority(state: State, side: EntityId, today: date) -> object:
-    """The sector of the latest production priority a seat of ``side`` has enacted by
-    ``today``; None when it has enacted none."""
+def _value(state: State, figure: QuantityId) -> int | None:
+    q = state.quantities.get(figure)
+    return None if q is None else q.value
+
+
+def _set(state: State, figure: QuantityId, value: int, as_of: date) -> QuantityChange | None:
+    """A change to ``figure``, or None when the game holds no such figure."""
+    if figure not in state.quantities:
+        return None
+    return QuantityChange(quantity_id=figure, value=value, as_of=as_of)
+
+
+def _receipt(state: State, order: Order, taker: EntityId, share: int, as_of: date) -> Fact:
+    issuer = state.seats[order.issuer].embodies
+    what = _matter(state, order.lever)
+    return allocate.receipt(state, taker, issuer, order.issuer, what, share, as_of)
+
+
+def _stored_finding(state: State, order: Order) -> tuple["rs.Change", ...]:
+    """A stored game's finding, by the Autumn 1941 names (``production_stored``)."""
+    if order.lever != stored.FINDING:
+        return tuple(_asked(state, order))
+    recipient = order.params.get(stored.RECIPIENT)
+    as_of = rs.settled_on(order)
+    out: list[rs.Change | None] = []
+    if recipient == stored.ELIGIBLE_NATION:
+        out.append(put(state, stored.ELIGIBLE_FLAG, 1, as_of))
+    total, share = rs.value(state, stored.FUND), order.params.get(stored.SHARE)
+    if total is not None and isinstance(share, int):
+        out.append(put(state, stored.share_figure(recipient), total * share // 100, as_of))
+    taker = EntityId(object_id(state.campaign_id, "entity", str(recipient)))
+    if taker in state.entities and isinstance(share, int):
+        out.append(_receipt(state, order, taker, share, as_of))
+    return tuple(c for c in out if c is not None)
+
+
+def _priority(state: State, side: EntityId, today: date) -> bool:
+    """Whether the latest priority a seat of ``side`` has enacted by ``today`` names the
+    choice that grows a lift pool: the world's form and choice, or a stored game's."""
+    keys = _keys(state)
+    if keys is None:
+        form, grows = stored.PRIORITY, stored.GROWS
+    elif keys.priority is None:
+        return False
+    else:
+        form, grows = keys.priority.form, keys.priority.choice
     enacted = [
-        (rs.settled_on(o), o.filed, str(o.order_id), o.params.get("sector"))
+        (rs.settled_on(o), o.filed, str(o.order_id), o)
         for o in state.orders.values()
         if o.status is OrderStatus.ENACTED
-        and o.lever == "production_priority"
+        and o.lever == form
         and rs.settled_on(o) <= today
         and polity_of(state, state.seats[o.issuer].embodies) == side
     ]
-    return max(enacted, default=(None,) * 4)[3]
+    if not enacted:
+        return False
+    latest = max(enacted, key=lambda e: e[:3])[3]
+    if keys is None:
+        return latest.params.get(stored.SECTOR) == grows
+    return grows in latest.params.values()
 
 
 def on_day(state: State, today: date) -> tuple[QuantityChange, ...]:
-    """On the 1st, each lift pool whose side's priority is merchant ships gains the
-    month's tonnage. A pool with no owner names no side and gains nothing."""
+    """On the 1st, each lift pool whose side's latest priority names the growing choice
+    gains the month's tonnage. A pool with no owner names no side and gains nothing."""
     if today.day != 1:
         return ()
     out = []
     for pool in sealift.pools(state):
         q = state.quantities[pool]
         side = None if q.owner is None else polity_of(state, q.owner)
-        if side is not None and _priority(state, side, today) == "merchant_ships":
+        if side is not None and _priority(state, side, today):
             out.append(shifted(state, pool, MERCHANT_GRT_PM, today))
     return tuple(c for c in out if c is not None)
 

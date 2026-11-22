@@ -239,10 +239,11 @@ def main() -> int:
             page.get_by_label("Invite code").fill(CODE)
             page.get_by_role("button", name="Join").click()
 
-        page.locator("main.rl-board").wait_for(timeout=60_000)
+        page.locator("main.rl-board, main.rl-mapfirst").first.wait_for(timeout=60_000)
         page.wait_for_timeout(300)
         through_intro(page, report)
         shoot(page, "00-opening")
+        opening(page, report)
         try:
             if PHONE:
                 phone_board(page, report)
@@ -447,6 +448,21 @@ def set_layout(page: Page, word: str) -> bool:
         page.keyboard.press("Escape")
     page.wait_for_timeout(200)
     return chosen
+
+
+def opening(page: Page, report: dict[str, object]) -> None:
+    """A territory game opens in the map-first room; the walk below is the classic
+    room's, so the smoke takes Classic layout from the game menu. A game without
+    territories opens the classic room and offers no layout choice."""
+    map_first = page.locator("main.rl-mapfirst").count() > 0
+    report["opening_layout"] = "map" if map_first else "room"
+    if not map_first:
+        return
+    check(
+        "a territory game opens in the map-first room", page.locator("main.rl-board").count() == 0
+    )
+    check("the map-first room offers Classic layout", set_layout(page, "Classic layout"))
+    page.locator("main.rl-board").wait_for(timeout=10_000)
 
 
 def locked_order(page: Page, report: dict[str, object]) -> None:

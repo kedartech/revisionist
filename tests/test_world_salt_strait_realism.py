@@ -21,7 +21,15 @@ import yaml
 
 from revisionist.core import events as ev
 from revisionist.core.fold import replay
-from revisionist.core.ids import CampaignId, EntityId, EventId, OrderId, SeatId, derived_id
+from revisionist.core.ids import (
+    CampaignId,
+    EntityId,
+    EventId,
+    FeatureId,
+    OrderId,
+    SeatId,
+    derived_id,
+)
 from revisionist.core.realism import economy, groups
 from revisionist.core.realism.kinds import Domain, Role
 from revisionist.core.realism.pipeline import Order, OrderStatus
@@ -32,9 +40,10 @@ from revisionist.core.visibility import PUBLIC
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
-from revisionist.engine import realism_tick, session_zero
+from revisionist.engine import odds, realism_tick, session_zero
 from revisionist.engine.realism_tick import draft_order, run_realism_tick
 from revisionist.engine.store import MemoryStore, load_state
+from revisionist.engine.web import battles_api
 
 ROOT = Path(__file__).resolve().parents[1]
 WORLD = ROOT / "worlds" / "salt-strait-realism.yaml"
@@ -460,3 +469,58 @@ def test_a_game_with_every_rule_on_opens_and_runs_a_week() -> None:
         run_realism_tick(store, CAMPAIGN)
     state = load_state(store, CAMPAIGN)
     assert state.in_world_date is not None and state.in_world_date > START
+
+
+# --- The leaders command their own armies ------------------------------------------------
+
+FORCES = {
+    "oren_vale": ["varda_levy", "varda_galleys", "varda_balloons"],
+    "general_aske": ["ostrel_levy", "ostrel_galleys", "ostrel_balloons"],
+}
+
+
+def _commands(state: State, person: str, force: str) -> bool:
+    from revisionist.core.realism import war_rules
+
+    fid = FeatureId(ids()[force])
+    return any(s == seat(person) for s, _ in war_rules.commanders(state, fid))
+
+
+@pytest.mark.parametrize(
+    ("person", "other"), [("oren_vale", "general_aske"), ("general_aske", "oren_vale")]
+)
+def test_each_leader_commands_his_nations_forces_and_not_the_others(
+    person: str, other: str
+) -> None:
+    state = load_state(opened(), CAMPAIGN)
+    assert all(_commands(state, person, f) for f in FORCES[person])
+    assert not any(_commands(state, person, f) for f in FORCES[other])
+
+
+@pytest.mark.parametrize(
+    ("person", "other"), [("oren_vale", "general_aske"), ("general_aske", "oren_vale")]
+)
+def test_a_leader_files_a_standing_order_for_his_force_and_is_refused_the_others(
+    person: str, other: str
+) -> None:
+    state = load_state(opened(), CAMPAIGN)
+    asks, _ = battles_api.contingency_asks(
+        state, seat(person), {"force": FORCES[person][0], "kind": "hold_fast"}
+    )
+    assert len(asks) == 1
+    with pytest.raises(ValueError, match="not yours to order"):
+        battles_api.contingency_asks(
+            state, seat(person), {"force": FORCES[other][0], "kind": "hold_fast"}
+        )
+
+
+@pytest.mark.parametrize(
+    ("person", "other"), [("oren_vale", "general_aske"), ("general_aske", "oren_vale")]
+)
+def test_the_odds_desk_takes_a_leaders_own_force_and_refuses_the_others(
+    person: str, other: str
+) -> None:
+    state = load_state(opened(), CAMPAIGN)
+    assert odds._piece(state, seat(person), FORCES[person][0]).name
+    with pytest.raises(ValueError, match="not yours to order"):
+        odds._piece(state, seat(person), FORCES[other][0])

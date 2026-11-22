@@ -68,8 +68,12 @@ AID_USD_PER_POINT = 100_000_000  # [proposed] plan, AID Defaults
 AID_LEAD_DAYS = 45  # [proposed] plan, AID Defaults
 AID_ANSWER_DAYS = 14  # [proposed]
 AID_UNIT = "USD"  # [proposed] the unit of a figure aid is drawn from
-LEND_LEASE = "lend_lease"
-"""What a finding allocates, as its receipt names it: the share is its amount."""
+
+
+def _matter(state: State, lever: str) -> str:
+    """What an order of ``lever`` allocates, as its receipt names it: the key of the first
+    topic the lever touches, else the lever's own name."""
+    return next((t.key for t in state.topics.values() if lever in t.levers), lever)
 
 
 def resolve(state: State, order: Order) -> tuple["rs.Change", ...]:
@@ -91,7 +95,8 @@ def resolve(state: State, order: Order) -> tuple["rs.Change", ...]:
     taker = EntityId(object_id(state.campaign_id, "entity", str(recipient)))
     if taker in state.entities and isinstance(share, int):
         issuer = state.seats[order.issuer].embodies
-        out.append(allocate.receipt(state, taker, issuer, order.issuer, LEND_LEASE, share, as_of))
+        what = _matter(state, order.lever)
+        out.append(allocate.receipt(state, taker, issuer, order.issuer, what, share, as_of))
     return tuple(c for c in out if c is not None)
 
 

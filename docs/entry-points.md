@@ -260,6 +260,7 @@ Sealing:
 - `resolvers/movement.py`: The movement resolver (realism, Batch 6; the fifth, by Josh's word).
 - `resolvers/opinion.py`: The opinion resolver (plan, Phase 2 unit B3).
 - `resolvers/production.py`: The production resolver (plan, Phase 2 unit B3; PRD).
+- `resolvers/production_stored.py`: The Autumn 1941 names the production rules keep for a stored game (PRL).
 - `resolvers/shipping.py`: The shipping resolver (plan, Phase 2 unit B3).
 - `resolvers/trade.py`: Embargo and trade orders (EMB), under the rule name `trade`.
 - `resolvers/votes.py`: The votes resolver (plan, Phase 2 unit B3).

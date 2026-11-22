@@ -313,6 +313,7 @@ Build-time tools; the game never imports them.
 - `scripts/map_build.py` (`python scripts/map_build.py build worlds/maps/src/<slug>`, run with `uv run --group map`): builds a map file, its world fragment and its map object from a recipe and the cached Natural Earth files in `REVISIONIST_MAP_DATA`, each checked against the SHA-256 in `worlds/maps/SOURCES.md`.
 - `scripts/map_check.py` (`check MAP.json`, `check --world WORLD.yaml`, `check --region STAGING.yaml`, `adjacency MAP.json`, `render MAP.json`): the map file checker, the one adjacency predicate the build also uses, and the proof sheet.
 - `scripts/ci_changes.py`: reads changed paths and says whether CI needs the Python tests and the browser test. `scripts/ci_shard.py` (with `scripts/ci_timings.json`): prints the test files of one CI shard. `scripts/ci_pg_client.sh`: the Postgres client tools for CI.
+- `scripts/make_web_icons.py` (`python scripts/make_web_icons.py <logo image>`, from the repo root; needs Pillow, which the project does not install): cuts the web client's install icons in `web/icons/` from the square logo file and keeps the source as `web/icons/logo-1024.png`. Run by hand when the logo changes; the game never runs it.
 - `scripts/prose_ab.py`: the same five pages written by two models for a blind read; makes live model calls and refuses to run without `--live`.
 
 ### Designed and not built

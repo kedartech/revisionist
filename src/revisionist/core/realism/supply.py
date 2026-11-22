@@ -9,8 +9,10 @@ territories each held by its side or an ally, joins the area it stands in to a s
 territory held by its side or an ally that has a working ``supply`` yield (one whose
 ``economy.factor`` for the supply role is above nothing today, so a hub taken from another
 holder works for its taker only after ``SUPPLY_LAG_DAYS``), or that holds a port the side
-may use. The chain never runs through enemy or neutral ground. A land piece at sea is
-carried by its own shipping and counts as supplied.
+may use. The chain never runs through enemy or neutral ground, except that its last step
+may enter the area the piece stands in: a piece attacking into enemy ground draws supply
+from a neighbour in the network short of the step limit. A land piece at sea is carried by
+its own shipping and counts as supplied.
 
 A sea or air piece is in supply within its kind's operating radius of a base of its side
 (``bases.area_reach``); a board with no bases sets no such limit. An envoy needs none.
@@ -173,7 +175,29 @@ def status(state: "State", feature: "Feature") -> Status | None:
     if area in reach:
         steps, src = reach[area]
         return Status(True, src, steps, None)
+    if (behind := _behind(state, area, reach)) is not None:
+        steps, src = behind
+        return Status(True, src, steps + 1, None)
     return Status(False, None, None, _nearest(state, area, set(reach)))
+
+
+def _behind(
+    state: "State", area: EntityId, reach: dict[EntityId, tuple[int, EntityId]]
+) -> tuple[int, EntityId] | None:
+    """For a land piece in an area outside the network: the nearest land neighbour inside
+    it short of the step limit, with its steps and source (ties as ``_reach`` breaks them).
+    The last step, into the piece's own area, need not be friendly."""
+    from revisionist.core.realism import territory
+    from revisionist.core.realism.kinds import Domain
+
+    board = state.map
+    assert board is not None
+    near = [
+        reach[n]
+        for n in territory.neighbours(board, area, Domain.LAND)
+        if n in reach and reach[n][0] < SUPPLY_STEPS
+    ]
+    return min(near) if near else None
 
 
 __all__ = ["SUPPLY_STEPS", "Status", "on", "sources", "status"]

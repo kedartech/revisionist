@@ -345,8 +345,21 @@ def test_air_counts_only_within_its_range(tmp_path: Path) -> None:
 
 
 def test_a_side_out_of_supply_scores_one_less(tmp_path: Path) -> None:
-    """With supply on and no source in the toy, every land piece is out of supply."""
+    """With supply on and no source but Norrhavn's port, Sudland's levy is out of supply;
+    Norra's levy in the coast draws supply from the hills behind it, by the port."""
     g = to_coast(tmp_path, rules("territories", "holders", "supply", "battles"))
+    (first, *_) = payloads(g.walk(day(1), day(30)), ev.BattleRound)
+    da, dd = first.draws
+    assert first.scores == (5 + da + 1, 4 + dd + 1 - 1)
+
+
+def test_an_attacker_with_no_source_behind_it_scores_one_less(tmp_path: Path) -> None:
+    def no_port(w: World) -> None:
+        for e in w["entities"]:
+            if e["key"] == "norrhavn":
+                e.pop("port_on")
+
+    g = to_coast(tmp_path, rules("territories", "holders", "supply", "battles"), no_port)
     (first, *_) = payloads(g.walk(day(1), day(30)), ev.BattleRound)
     da, dd = first.draws
     assert first.scores == (5 + da + 1 - 1, 4 + dd + 1 - 1)

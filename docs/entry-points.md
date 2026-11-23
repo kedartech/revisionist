@@ -309,7 +309,7 @@ The third run declares sixteen more names, each read by a later item; until its 
 - `deciders`: locks decided by the kind of question, and by a council (`locks.rows_on()`, `locks.matters_due()`, `locks.matter_granted()`; a seat chooses on a matter by `realism_tick.choose_matter()`).
 - `own_aim`: the player's own aim, filled from the world's patterns and scored (`aim_patterns.py`, `aim_patterns.fill()`, `aim_patterns.ladder()`).
 - `offers`: a priced offer to a bloc, with a promise that comes due (`offers.py`, `offers.points()`; a seat offers by `realism_tick.make_offer()`).
-- `classes`: every happening has a class: felt, reported or secret.
+- `classes`: every happening has a class: felt, reported or secret, as the world's `happenings` give it (`groups.cls()`, the one place a rule reads it); a secret kind moves no group, and a law touching daily life passes as its own kind (`groups.passed()`).
 - `losses`: the size of losses moves the mood at home.
 - `places`: places with political weight: lost, abandoned or retaken.
 - `posts`: player, person and post kept apart, and the ladder of posts.
@@ -464,7 +464,7 @@ Frontend (static, no build):
   - `0012_web_notices.sql`: `web_notice_addresses` (an account's notice address and IANA zone) and `web_notices_sent` (one row per seat and wake once its notice has gone). Read as empty until migrated (`src/revisionist/engine/notice.py`).
   - `0013_web_held_orders.sql`: `web_held_orders` (an order a seat gave after committing, kept until the next wake opens; `filed_in` and `dropped` record what became of it). Read as empty until migrated (`src/revisionist/engine/web/held.py`).
 - Event log: `src/revisionist/core/events.py` (event models). `src/revisionist/core/fold.py:107` `apply()`, `src/revisionist/core/fold.py:119` `replay()`. `src/revisionist/engine/store.py:103` `load_state()`. The Postgres store reads from a snapshot plus the tail (`src/revisionist/engine/pg_store.py`).
-- Schema export: `src/revisionist/schema_export.py:33` writes `schema/revisionist.schema.json`, which is committed. `tests/test_schema.py:85` checks it is current. `src/revisionist/core/__init__.py:23` `SCHEMA_VERSION = "72"`.
+- Schema export: `src/revisionist/schema_export.py:33` writes `schema/revisionist.schema.json`, which is committed. `tests/test_schema.py:85` checks it is current. `src/revisionist/core/__init__.py:23` `SCHEMA_VERSION = "73"`.
 - Worlds: `worlds/autumn-1941.yaml`, `worlds/engine-v2-slice-1941.yaml`, `worlds/realism-slice-1941.yaml`, `worlds/realism-toy.yaml`, `worlds/salt-strait.yaml`, `worlds/salt-strait-duo.yaml`. Resolved from `src/revisionist/engine/campaign.py:33` `WORLDS_DIR` by `world_path()` (`src/revisionist/engine/campaign.py:85`). Sidecar text for two of them: `worlds/dossiers/autumn-1941.yaml` and `worlds/dossiers/engine-v2-slice-1941.yaml`. Drafts `tests/drafts/florence-1478.yaml` and `washington-1962.yaml` are fixtures.
 - Briefings: `src/revisionist/engine/campaign.py:226-235` `briefings_dir()`: `REVISIONIST_BRIEFINGS_DIR`, else `<db>-briefings` beside a SQLite file, else `./revisionist-briefings`. Files `t<tick>-<seat>.md` from `FileDeliverer` (`src/revisionist/engine/campaign.py:208-223`).
 - Setting card waiting for `establish confirm`: `src/revisionist/cli.py:231-234` `_card_file()`, `revisionist-card.json` beside briefings.

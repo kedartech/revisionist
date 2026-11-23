@@ -1,7 +1,7 @@
 """The shipping resolver (plan, Phase 2 unit B3).
 
-Atlantic losses from U-boat strength and escort level. Churchill's
-``convoy_orders`` and Mussolini's ``libya_convoys`` change nothing in this wave.
+Atlantic losses from U-boat strength and escort level. Outside a territory game
+Churchill's ``convoy_orders`` and Mussolini's ``libya_convoys`` change nothing.
 Once the escort level has reached 1 the escort factor counts from that month, even
 if a later order holds the ships in port.
 
@@ -26,7 +26,9 @@ from is the one the world names for it (``lift_pool``).
 
 - A convoy priority raises the escort level on the route it names by ``ESCORT_RAISE``
   while it is its nation's latest.
-- A requisition adds ``REQUISITION_GRT`` to the issuer's nation's lift pool.
+- A requisition adds ``REQUISITION_GRT`` to the issuer's nation's lift pool. A form whose
+  every parameter is free text is a message instead: the person abroad who let it through
+  thinks better of the issuer by ``MESSAGE_REGARD``.
 - A supply convoy keeps the pieces it names supplied for ``CONVOY_DAYS`` (``supplied``),
   unless it is cut: while an enemy holds a territory its route names, it is cut with a
   chance of ``CONVOY_CUT_PCT`` in 100.
@@ -35,26 +37,30 @@ from is the one the world names for it (``lift_pool``).
 - Sea pieces sink shipping on the routes crossing the zone they stand in: those of a
   nation at war with theirs, or of one their nation's latest raid directive names; in
   the directive's waters they press harder. Escorts, and a law arming a nation's merchant
-  ships from the month after it passes, cut what a route loses. On the 1st, each nation's
-  pool loses ``LOSS_SHARE_PCT`` of what its routes lost in the month just ended.
+  ships from the month after it passes, cut what a route loses. An escort's cut grows
+  month by month from the month the route first had one, to its full cut in its
+  ``ESCORT_RAMP_MONTHS``th month. On the 1st, each nation's pool loses ``LOSS_SHARE_PCT``
+  of what its routes lost in the month just ended.
 """
 
 from collections.abc import Callable
 from datetime import date, timedelta
 from typing import NamedTuple
 
-from revisionist.core.ids import EntityId, FeatureId, QuantityId
-from revisionist.core.ontology import EntityKind
+from revisionist.core.ids import EntityId, FeatureId, QuantityId, RelationshipId, derived_id
+from revisionist.core.ontology import EntityKind, Relationship
 from revisionist.core.realism import kinds, supply, territory
 from revisionist.core.realism import resolvers as rs
+from revisionist.core.realism.card import ParamKind
 from revisionist.core.realism.geography import Feature, FeatureKind
 from revisionist.core.realism.kinds import Domain
-from revisionist.core.realism.pipeline import Order, OrderStatus
+from revisionist.core.realism.pipeline import Order, OrderStatus, StepKind
 from revisionist.core.realism.quantity import QuantityChange
 from revisionist.core.realism.resolvers import votes
 from revisionist.core.realism.resolvers.votes import put
 from revisionist.core.realism.war import at_war, polity_of
 from revisionist.core.state import State
+from revisionist.core.visibility import private_to
 from revisionist.core.world_compile import object_id
 
 ESCORT_LEVEL = {"hold_in_port": 0, "escort_convoys": 1, "shoot_on_sight": 2}
@@ -72,14 +78,14 @@ LOSS_POOLS = ("uk_sealift_grt",)
 MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
 
 
-def resolve(state: State, order: Order) -> tuple[QuantityChange, ...]:
+def resolve(state: State, order: Order) -> tuple[QuantityChange | Relationship, ...]:
     """Changes from one order enacted through its pipeline. In a territory game only a
-    requisition changes a figure when it is enacted; the other forms act as they are read
-    (``escort_level``, ``losses``, ``supplied``)."""
+    requisition changes a figure and a message a regard when it is enacted; the other forms
+    act as they are read (``escort_level``, ``losses``, ``supplied``)."""
     if order.status is not OrderStatus.ENACTED:
         return ()
     if on(state):
-        return _requisition(state, order)
+        return _message(state, order) or _requisition(state, order)
     as_of = rs.settled_on(order)
     if order.lever == "naval_order" and order.params.get("zone") in ESCORT_ZONES:
         level = ESCORT_LEVEL.get(str(order.params.get("order")))
@@ -176,7 +182,11 @@ def on_day(state: State, today: date) -> tuple[QuantityChange, ...]:
 ESCORT_RAISE = 1  # [proposed] plan, SHP Defaults: escort plus one level
 ESCORT_LEVEL_PM = ESCORT_STEP_PM
 """Per mille off a route's losses for each escort level on it."""
+ESCORT_RAMP_MONTHS = 3  # [proposed] sinkings fall from Oct (176,622) to Nov (120,541) on the record
+"""Months a route's escort takes to reach its full cut, counting the month it first sailed."""
 RAID_GRT_PER_TIER = 70_000  # [proposed] about Sep 1941's sinkings for a U-boat arm of strength 3
+MESSAGE_REGARD = 1  # [proposed]
+"""How far a message moves the regard of the person abroad who let it through."""
 REQUISITION_GRT = 50_000  # [proposed]
 """Tonnage one enacted requisition takes into the state's service, into its lift pool."""
 CONVOY_DAYS = 30  # [proposed]
@@ -336,6 +346,26 @@ def escort_level(state: State, route: Feature, day: date) -> int:
     return base + (ESCORT_RAISE if raised else 0)
 
 
+def _escort_pm(state: State, route: Feature, last: date) -> int:
+    """Per mille of its losses ``route`` keeps under escort in the month that ends ``last``.
+    An escort's cut grows by a share each month from the month the route first had an
+    escort level of 1 or more, and is full from its ``ESCORT_RAMP_MONTHS``th month."""
+    level = escort_level(state, route, last)
+    since = next(
+        (
+            rs.settled_on(o)
+            for o, _ in _enacted(state, last)
+            if escort_level(state, route, rs.settled_on(o)) >= 1
+        ),
+        None,
+    )
+    if not level or since is None:
+        return 1000
+    months = (last.year - since.year) * 12 + last.month - since.month + 1
+    ramp = min(months, ESCORT_RAMP_MONTHS)
+    return max(ESCORT_FLOOR_PM, 1000 - ESCORT_LEVEL_PM * level * ramp // ESCORT_RAMP_MONTHS)
+
+
 def cut(state: State, order: Order, day: date) -> bool:
     """Whether a supply convoy is cut on ``day``: an enemy of its nation holds a territory
     its route names, and the convoy's draw falls under ``CONVOY_CUT_PCT``."""
@@ -433,7 +463,7 @@ def losses(state: State, last: date) -> dict[FeatureId, int]:
         if r.feature_id not in raw:
             continue
         own = territory.nation(state, r.side)
-        escort_pm = max(ESCORT_FLOOR_PM, 1000 - ESCORT_LEVEL_PM * escort_level(state, r, last))
+        escort_pm = _escort_pm(state, r, last)
         arm_pm = (
             1000 - 10 * ARMING_CUT_PCT if own is not None and _armed(state, own, last) else 1000
         )
@@ -466,3 +496,43 @@ def _requisition(state: State, order: Order) -> tuple[QuantityChange, ...]:
     pool = _pool(state, _nation(state, order))
     change = None if pool is None else shifted(state, pool, REQUISITION_GRT, rs.settled_on(order))
     return () if change is None else (change,)
+
+
+def _message(state: State, order: Order) -> tuple[Relationship, ...]:
+    """A form whose every parameter is free text is a message, not a requisition: once
+    enacted, the first person of another nation who decides a step of its pipeline thinks
+    better of the issuer by ``MESSAGE_REGARD``. Nothing for any other form, or a message
+    no one abroad decides."""
+    issuer = state.seats[order.issuer].embodies
+    card = state.cards.get(issuer)
+    lever = next((lv for lv in card.levers if lv.name == order.lever), None) if card else None
+    if lever is None or not lever.params or any(p.kind is not ParamKind.TEXT for p in lever.params):
+        return ()
+    nation = polity_of(state, issuer)
+    pipeline = state.pipelines.get(order.pipeline)
+    decider = next(
+        (
+            step.person
+            for step in (pipeline.steps if pipeline is not None else ())
+            if step.kind is StepKind.DECISION
+            and polity_of(state, step.person) not in (None, nation)
+        ),
+        None,
+    )
+    if decider is None:
+        return ()
+    now = next((r for r in state.relationships.values() if (r.a, r.b) == (decider, issuer)), None)
+    if now is None:
+        return (
+            Relationship(
+                relationship_id=RelationshipId(
+                    derived_id(state.campaign_id, "rel", decider, issuer)
+                ),
+                a=decider,
+                b=issuer,
+                disposition=max(-5, min(5, MESSAGE_REGARD)),
+                scope=private_to(order.issuer),
+            ),
+        )
+    moved = max(-5, min(5, now.disposition + MESSAGE_REGARD))
+    return () if moved == now.disposition else (now.model_copy(update={"disposition": moved}),)

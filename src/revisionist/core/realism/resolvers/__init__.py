@@ -48,12 +48,14 @@ Change = (
     | ev.CodebreakingSet
     | ev.BattleDecided
     | ev.GroupMoved
+    | ev.GroupProposed
 )
 """A quantity's new value, a feature as it now stands, a war declared, a public news
 event, a fact asserted, a relationship as it now stands, a nation's pools as they now
 stand, a paper issued, part of a yield moved, a matter put on a seat's agenda, a trade
 line cut or reopened, a nation's agent or codebreaking level set, a battle decision
-taken by an order's posture, or a group at home moved by a measure passed."""
+taken by an order's posture, a group at home moved by a measure passed, or a form's
+theme proposed to the day's batch."""
 OrderFn = Callable[[State, Order], tuple[Change, ...]]
 DayFn = Callable[[State, date], tuple[Change, ...]]
 
@@ -207,7 +209,8 @@ def apply_changes(state: State, changes: tuple[Change, ...]) -> list[ev.Payload]
             | ev.AgentSet
             | ev.CodebreakingSet
             | ev.BattleDecided
-            | ev.GroupMoved,
+            | ev.GroupMoved
+            | ev.GroupProposed,
         ):
             out.append(c)
         else:

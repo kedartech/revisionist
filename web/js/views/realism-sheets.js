@@ -1,5 +1,5 @@
 // The map-first room: the default layout of a territory game, with the classic room beside it, chosen from the game menu. The map fills
-// the screen; Papers, Orders, Forms, Messages, the Court, People and Press each open as a sheet
+// the screen; each part of the four groups (realism-groups.js) and the messenger open as a sheet
 // over it (at the side from 1024 px, a half sheet from the bottom below that: c-sheets.css), and
 // a picked force opens its own. One sheet at a time; Escape or Close shuts it and focus goes back
 // to what opened it. The room (realism-room.js) builds each sheet's body; this file holds the
@@ -7,13 +7,11 @@
 // Nothing here touches the page on import.
 
 import { h } from '../dom.js';
+import { groupOf } from './realism-groups.js';
 
-/** The seven sheets, in tab order: [key, label]. A picked force's sheet is `piece`. */
-export const SHEETS = Object.freeze([
-  ['papers', 'Papers'], ['orders', 'Orders'], ['forms', 'Forms'], ['messages', 'Messages'],
-  ['court', 'Court'], ['people', 'People'], ['press', 'Press'],
-]);
-const LABEL = new Map(SHEETS);
+/** The messenger's sheet's title; a group's part takes its group's name. */
+const MESSAGES_TITLE = 'Messages';
+
 const LAYOUTS = [['map', 'Map first'], ['room', 'Classic layout']]; // [proposed]
 
 // Held for the page's life: no account setting stores it yet, so a reload opens the default.
@@ -54,9 +52,12 @@ export function openSheetOf(ui) {
  * Open sheet `name`, closing any other: the messenger and the newspaper desk keep their own open
  * flags, so a thread the aide opens or a paper read from the news opens its sheet the same way.
  * Opening the Court clears the pick; any sheet but a force's drops a picked force. `from` is what
- * opened it (`{ tab }` or `{ mark }`), where focus goes back when it closes.
+ * opened it (`{ tab }` or `{ mark }`), where focus goes back when it closes. A part of a group
+ * becomes the part that group opens on next (`ui.parts`).
  */
 export function openSheet(ui, name, from = { tab: name }) {
+  const group = groupOf(name);
+  if (group) ui.parts = { ...ui.parts, [group.key]: name };
   ui.chat = { ...ui.chat, open: name === 'messages' };
   ui.press = { ...ui.press, open: name === 'press' };
   ui.sheet = name === 'messages' || name === 'press' ? null : name;
@@ -75,32 +76,22 @@ export function closeSheet(ui) {
   return from;
 }
 
-/** The sheet tabs: one button per sheet with its count; the open one is expanded. */
-export function sheetTabs(open, counts, onTab, more = []) {
-  return h('nav', { class: 'rl-sheettabs', 'aria-label': 'Sheets' },
-    [...SHEETS, ...more].map(([key, label]) => {
-      const n = Number(counts?.[key]) || 0;
-      return h('button', {
-        type: 'button', class: 'rl-sheettab', 'data-sheet': key, 'aria-expanded': String(open === key),
-        'aria-controls': open === key ? 'rl-over' : null, onclick: () => onTab(key),
-      }, label, n > 0 ? [' ', h('span', { class: 'badge tone-warn rl-tab-count' }, String(n))] : null);
-    }));
-}
-
 /**
- * One sheet over the map: `<section class="rl-over" role="dialog">` with its title, a Close and
- * the body. Escape inside it or Close calls `onClose`. Not modal: the map under it stays live, so a
- * lit area can be picked while a form is open.
+ * One sheet over the map: `<section class="rl-over" role="dialog">` with its title (a part's is
+ * its group's), a Close, a group's part tabs (`parts`) and the body. Escape inside it or Close
+ * calls `onClose`. Not modal: the map under it stays live, so a lit area can be picked while a
+ * form is open.
  */
-export function overSheet({ name, title, body, onClose, piece = null }) {
+export function overSheet({ name, title, body, onClose, piece = null, parts = null }) {
   return h('section', {
     class: 'rl-over', id: 'rl-over', role: 'dialog', 'aria-modal': 'false', 'aria-labelledby': 'rl-over-h',
     'data-sheet': name, 'data-piece': piece,
     onkeydown: (e) => { if (e.key === 'Escape') { e.preventDefault(); onClose(); } },
   },
   h('div', { class: 'rl-over-head' },
-    h('h2', { class: 'rl-over-title', id: 'rl-over-h', tabindex: '-1' }, title ?? LABEL.get(name) ?? name),
+    h('h2', { class: 'rl-over-title', id: 'rl-over-h', tabindex: '-1' }, title ?? groupOf(name)?.label ?? (name === 'messages' ? MESSAGES_TITLE : name)),
     h('button', { type: 'button', class: 'rl-btn rl-over-close', onclick: onClose }, 'Close')),
+  parts,
   h('div', { class: 'rl-over-body' }, body));
 }
 
@@ -186,7 +177,10 @@ export function markFiled(root, lever) {
   }
 }
 
-/** The element focus goes back to when a sheet opened by `from` closes: its tab, or the force's mark. */
+/**
+ * The element focus goes back to when a sheet opened by `from` closes: the force's mark, the
+ * chat button for the messenger, or the tab of the group (`from.group`, or the group of `from.tab`).
+ */
 export function returnTarget(root, from) {
   if (from?.mark) {
     const named = (el) => (el.getAttribute('aria-label') ?? '').startsWith(`${from.mark}:`);
@@ -194,6 +188,7 @@ export function returnTarget(root, from) {
       ?? [...root.querySelectorAll('.rl-mapfirst [data-stack]')].find((g) => (g.getAttribute('aria-label') ?? '').includes(from.mark))
       ?? null;
   }
-  const tab = from?.tab ?? 'messages';
-  return [...root.querySelectorAll('.rl-sheettabs button')].find((b) => b.getAttribute('data-sheet') === tab) ?? null;
+  const group = from?.group ?? groupOf(from?.tab)?.key ?? null;
+  if (!group) return (from?.tab ?? 'messages') === 'messages' ? root.querySelector('.rl-roombar .rl-chat-btn') : null;
+  return [...root.querySelectorAll('.rl-sheettabs button')].find((b) => b.getAttribute('data-group') === group) ?? null;
 }

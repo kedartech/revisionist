@@ -1,7 +1,8 @@
-"""The war's timeline and who held power on a date (Phase 4 unit E1).
+"""The start points and who held power on a date (Phase 4 unit E1).
 
-The curated start points are the ready-made worlds plus a short list of the war's
-turning dates. Who held power on a date is one cheap model call, kept per date."""
+The curated start points are the ready-made worlds, each at its own name and date, plus
+a short list of the war's turning dates. Who held power on a date is one cheap model
+call, kept per date, asked only for a date inside the war or one no ready world starts on."""
 
 from dataclasses import dataclass
 from datetime import date
@@ -74,13 +75,15 @@ class HeldPower:
 _held: dict[date, tuple[HeldPower, ...]] = {}
 
 
-def start_points() -> tuple[StartPoint, ...]:
-    """The curated start points, oldest first: the ready-made worlds, then the turning dates."""
+def start_points(worlds: tuple[str, ...] | None = None) -> tuple[StartPoint, ...]:
+    """The curated start points, oldest first: the ready-made worlds (``worlds``, default
+    every ready one) each at its own name and date, then the turning dates."""
     from revisionist.engine.web.server import READY
 
     points = [
         StartPoint(world.start_date, world.name, key)
         for key in READY
+        if worlds is None or key in worlds
         if (world := cmp.load_world(cmp.world_path(key))).start_date is not None
     ]
     points += [StartPoint(on, label, None) for on, label in TURNING_DATES]
@@ -88,8 +91,12 @@ def start_points() -> tuple[StartPoint, ...]:
 
 
 def held_power(on: date, transport: Transport) -> tuple[HeldPower, ...]:
-    """Up to ``HELD_MAX`` who held power ``on``. One call per date for the process."""
+    """Up to ``HELD_MAX`` who held power ``on``. One call per date for the process. A date
+    outside the war is refused, unless a ready-made world starts on it: that world's own
+    people are its roster, so nobody is listed and no call is made."""
     if not WAR_START <= on <= WAR_END:
+        if any(p.world for p in start_points() if p.on == on):
+            return ()
         raise OutsideWarError(OUTSIDE)
     if on in _held:
         return _held[on]

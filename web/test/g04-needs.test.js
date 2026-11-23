@@ -166,15 +166,18 @@ test('the map-first room has no count tiles, no agenda panel in any sheet, and o
   const { root } = await room();
   assert.equal(root().querySelector('.rl-tiles'), null, 'no count tiles');
   for (const tab of root().querySelectorAll('.rl-sheettabs button')) {
-    tab.click();
-    const sheet = root().querySelector('.rl-over');
-    assert.equal(sheet.querySelector('.rl-ans'), null, `no agenda panel in ${words(tab)}`);
+    if (tab.getAttribute('aria-expanded') !== 'true') tab.click();
+    for (const part of root().querySelectorAll('.rl-over .rl-parts button').map((b) => b.getAttribute('data-sheet'))) {
+      root().querySelectorAll('.rl-over .rl-parts button').find((b) => b.getAttribute('data-sheet') === part).click();
+      const sheet = root().querySelector('.rl-over');
+      assert.equal(sheet.querySelector('.rl-ans'), null, `no agenda panel in ${words(tab)}: ${part}`);
+    }
   }
   root().querySelector('.rl-over .rl-over-close').click();
   const counts = root().querySelectorAll('.rl-needs-count');
   assert.ok(counts.length >= 1, 'the badge');
   assert.ok(counts.every((c) => words(c) === '5'), 'every badge says the list\'s count');
-  const orders = root().querySelectorAll('.rl-sheettabs button').find((b) => b.getAttribute('data-sheet') === 'orders');
+  const orders = root().querySelectorAll('.rl-sheettabs button').find((b) => b.getAttribute('data-group') === 'orders');
   assert.equal(orders.querySelector('.rl-tab-count'), null, 'the order waiting on a decision is counted in the list, not on its tab');
 });
 

@@ -759,3 +759,17 @@ def test_an_ask_is_fed_to_the_asker_and_the_seat_asked_only() -> None:
     assert seen(made, "mine") and seen(made, "hers") and not seen(made, "other")
     to_card = ev.OrderAsked(asked=asked.model_copy(update={"seat": None}))
     assert seen(to_card, "mine") and not seen(to_card, "hers")
+
+
+def test_a_cards_answer_to_an_ask_is_fed_to_the_asker_only() -> None:
+    # AAK: sealed to the asker's seat, and kept only for that seat, whatever the envelope
+    # says; the person answered for never reads it, nor does any other seat.
+    assert "ask_answered" in catchup.FEED_KINDS
+    answer = ev.AskAnswered(
+        order_id=OrderId("held"), asker=SeatId("mine"), on=date(1941, 9, 3), granted=False
+    )
+
+    def seen(viewer: str) -> bool:
+        return catchup._named(answer, typing.cast(View, SimpleNamespace(viewer=SeatId(viewer))))
+
+    assert seen("mine") and not seen("hers") and not seen("other")

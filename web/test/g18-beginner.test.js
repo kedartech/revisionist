@@ -1,5 +1,5 @@
 // Beginner shows less (BGN), one test or more per plan rule: 1. on Beginner the map-first room shows
-// the board, the seat's three aims and one next step, the top line of "What needs you"; 2. the Court,
+// the board, the seat's three aims (the bar's marks) and one next step, the top line of "What needs you"; 2. the Court,
 // Home and Diplomacy sheets carry a mark when something in them is a line in the list, and with
 // nothing waiting stay reachable by the game menu's "All sheets", so every proactive composer opens
 // in a quiet wake; 3. the economy's components and the odds table's rows sit behind "More"; 4. the
@@ -81,9 +81,9 @@ test('Beginner shows the seat\'s three aims and the top line of the list; the re
   const rv = seat('beginner', withLines);
   assert.equal(needLines(rv).length, 2);
   const root = room(rv);
-  const aims = root.querySelector('.rl-beginner-board');
-  assert.ok(aims, 'the aims above the map');
-  assert.equal(aims.querySelectorAll('.rl-aim').length, 3);
+  const aims = root.querySelector('.rl-roombar .rl-aimmarks');
+  assert.ok(aims, 'the aims on the bar above the map');
+  assert.equal(aims.querySelectorAll('.rl-aimmark').length, 3);
   assert.ok(root.querySelector('.rl-mapfirst .rl-theatre'), 'the board');
   const shown = root.querySelectorAll('.rl-needs-lines').find((u) => u.parentNode.getAttribute('id') === 'rl-needs').querySelectorAll('.rl-need');
   assert.equal(shown.length, 1, 'one next step');
@@ -94,11 +94,11 @@ test('Beginner shows the seat\'s three aims and the top line of the list; the re
   assert.ok(root.querySelector('.rl-needs-commit'), 'Done is still at the foot');
 });
 
-test('Free shows every line and no aims block', () => {
+test('Free shows every line, and the same aim marks', () => {
   const root = room(seat('free', withLines));
   assert.equal(waiting(root).length, 2);
   assert.equal(root.querySelector('.rl-needs-more'), null);
-  assert.equal(root.querySelector('.rl-beginner-board'), null);
+  assert.equal(root.querySelectorAll('.rl-roombar .rl-aimmark').length, 3);
 });
 
 // rule 2: marks, and the quiet route
@@ -201,13 +201,14 @@ test('the odds table\'s rows sit behind More on Beginner and in view on Free', (
 
 // rule 4: the first-wake card
 
-test('the first-wake card on Beginner\'s map-first room names the aims above the map and the list', () => {
+test('the first-wake card on Beginner\'s map-first room names the aim marks and the list', () => {
   const wake0 = { wake: 0, deadline: '1941-09-01T21:00:00+00:00', committed: 0, humans: 1, you_committed: false, is_host: true, can_close: true };
-  const root = room(seat('beginner', (r) => { r.wake = wake0; }));
-  const card = root.querySelector('.rl-firstwake');
-  assert.ok(card);
+  const firstRow = (root) => root.querySelectorAll('.rl-needs .rl-need').find((r) => r.getAttribute('data-kind') === 'first');
+  const card = firstRow(room(seat('beginner', (r) => { r.wake = wake0; })));
+  assert.ok(card, 'the first row of What needs you');
   assert.deepEqual(card.querySelectorAll('li').map(words), [...FIRST_WAKE_BEGINNER.steps]);
   assert.ok(!words(card).includes('pinned on the Board'));
-  const free = room(seat('free', (r) => { r.wake = wake0; }));
-  assert.deepEqual(free.querySelector('.rl-firstwake').querySelectorAll('li').map(words), [...FIRST_WAKE.steps]);
+  assert.ok(words(card).includes('the marks at the top'));
+  const free = firstRow(room(seat('free', (r) => { r.wake = wake0; })));
+  assert.deepEqual(free.querySelectorAll('li').map(words), [...FIRST_WAKE.steps]);
 });

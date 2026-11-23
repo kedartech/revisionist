@@ -20,7 +20,7 @@ export const FIRST_WAKE = Object.freeze({
 export const FIRST_WAKE_BEGINNER = Object.freeze({
   ...FIRST_WAKE,
   steps: Object.freeze([
-    'Read your three aims above the map.',
+    'Read your three aims: the marks at the top.',
     'Do the next step in What needs you.',
     'Press Done; come back when the notice says.',
   ]),
@@ -33,6 +33,15 @@ export const FIRST_WAKE_BEGINNER = Object.freeze({
 export function firstWakeDue(wake, dismissed) {
   if (!wake || !wake.deadline || wake.wake !== 0) return false;
   return !wake.you_committed && dismissed !== wake.wake;
+}
+
+/**
+ * The card's words for this wake, or null when it is not due: the map-first room draws them as
+ * the first row of "What needs you". `beginner` words them for Beginner.
+ */
+export function firstWakeWords(wake, { dismissed = null, beginner = false } = {}) {
+  if (!firstWakeDue(wake, dismissed)) return null;
+  return beginner ? FIRST_WAKE_BEGINNER : FIRST_WAKE;
 }
 
 /**

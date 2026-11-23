@@ -25,7 +25,10 @@ from revisionist.core.world import LockDecl, PactClauseDecl, PactDecl, WarDecl, 
 from revisionist.engine import campaign as cmp
 from revisionist.engine import timeline as tl
 from revisionist.engine.llm import Reply, Request
-from revisionist.engine.web import map_api, new_game_api, server
+from revisionist.engine.web import limits, map_api, new_game_api, server
+
+SMOKE_SIGNUPS = 50
+"""Sign-ups an hour from one address: every smoke, at both widths, signs up from this machine."""
 
 
 def _directive(prompt: str) -> dict[str, Any]:
@@ -248,6 +251,8 @@ _LOAD_WORLD = cmp.load_world
 if __name__ == "__main__":
     os.environ.setdefault(map_api.MARK_SECRET_ENV, CANNED_MARK_SECRET)
     cli.transport_factory = Canned
+    address_lines = limits.ADDRESS_LINES
+    limits.ADDRESS_LINES = {**address_lines, "signup": SMOKE_SIGNUPS}
     unoffer = _offer_salt_strait()
     cmp.load_world = _load_world  # every caller reads it through the module (LKM)
     sys.argv = ["revisionist", "web", "serve", "--offline-prose", "--port", *sys.argv[1:2]]
@@ -255,4 +260,5 @@ if __name__ == "__main__":
         cli.app()
     finally:
         cmp.load_world = _LOAD_WORLD  # a run inside another process leaves no lock behind
+        limits.ADDRESS_LINES = address_lines
         unoffer()

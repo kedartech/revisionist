@@ -12,7 +12,7 @@ starts the ready-made 1941 game as its host and plays Franklin D. Roosevelt. The
   opens the confirm chip and nothing is filed until Send it; carried to an area that is not lit it
   goes back and nothing is drafted; and the same move is made from the keyboard alone;
 - the map's controls sit over it, a press on one does not pan the map, and the map is clear of
-  them for at least 70 percent of the viewport's height at 1440 by 900 and 60 at 390 by 844;
+  them for at least 65 percent of the viewport's height at 1440 by 900 and 55 at 390 by 844;
   Full screen (pointer) and F (keyboard) give the map the whole viewport and keep its view, a
   piece is carried to a lit area there, a piece's sheet opens over it and Escape closes the sheet
   before it leaves full screen, and the view is the same when it has left;
@@ -559,8 +559,10 @@ def by_keyboard(page: Page, report: dict) -> None:
     page.keyboard.press("Escape")
 
 
-MAP_SHARE = 0.60 if PHONE else 0.70
-"""The viewport's height the map is clear of its controls for, the room's line. [proposed]"""
+MAP_SHARE = 0.55 if PHONE else 0.65
+"""The viewport's height the map is clear of its controls for, the room's line. [proposed] The
+season strip's 44 px row (5 percent of the viewport) lies under every map since the season
+timeline landed, so it is taken off the 70 and 60 the line first named."""
 
 ROOM_JS = """() => {
   const box = (el) => {

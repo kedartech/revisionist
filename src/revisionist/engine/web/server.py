@@ -183,6 +183,8 @@ REALISM_ACTIONS = (
     "report",
     "reports",
     "report-mark",
+    "aim-check",
+    "aim-set",
 )
 """Every ``/api/realism/<action>``: ``App.realism`` answers any other as no such call."""
 
@@ -421,6 +423,15 @@ class App:
                     )
                 if action == "check":  # files nothing, so never held by a commit (LKD)
                     return snapshot.checked(state, seat, dict(self._check(state, seat, body)))
+                if action in ("aim-check", "aim-set"):  # no order: never held by a commit
+                    key, values = stakes.aim_args(body)
+                    found = (
+                        stakes.aim_check(state, seat, key, values)
+                        if action == "aim-check"
+                        else stakes.aim_set(store, cid, seat, key, values)
+                    )
+                    out = stakes.aim_reply(found, setting=action == "aim-set")
+                    return snapshot.checked(state, seat, out)
                 if action == "odds":  # files nothing, so never held by a commit (ODS)
                     return snapshot.checked(state, seat, odds.reply(self.odds, state, seat, body))
                 if action == "read":

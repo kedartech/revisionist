@@ -22,17 +22,25 @@ at the season's end it is a win or a full win exactly for the seats that rule cr
 No points total.
 """
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date, timedelta
 from enum import Enum
 
+from revisionist.core import aim_patterns
 from revisionist.core import events as ev
 from revisionist.core import goals as gl
 from revisionist.core.contest import leader
 from revisionist.core.events import Event
 from revisionist.core.goals import AimRule, AimStatus, Exposure, Goal, Leaf, WinCondition
-from revisionist.core.ids import ContestId, EntityId, SeatId
-from revisionist.core.ontology import TRACK_MAX, TRACK_MIN, Contest, ContestKind, Phase
+from revisionist.core.ids import CampaignId, ContestId, EntityId, SeatId
+from revisionist.core.ontology import (
+    TRACK_MAX,
+    TRACK_MIN,
+    Contest,
+    ContestKind,
+    Controller,
+    Phase,
+)
 from revisionist.core.project import project
 from revisionist.core.realism import economy, groups, holders
 from revisionist.core.realism.agenda import MandateStatus
@@ -40,8 +48,14 @@ from revisionist.core.realism.agreement import ClauseStatus
 from revisionist.core.realism.card import words
 from revisionist.core.realism.war import at_war
 from revisionist.core.state import State, View
-from revisionist.engine import season
+from revisionist.engine import realism_tick, season
+from revisionist.engine.store import EventStore
 from revisionist.engine.web.realism_api import (
+    AimBlankLine,
+    AimCheck,
+    AimPatternLine,
+    AimValue,
+    OwnAimBlock,
     Stake,
     StakeAim,
     StakeDecided,
@@ -424,13 +438,130 @@ def seat_stakes(state: State, seat: SeatId, events: Sequence[Event]) -> Stakes:
     )
 
 
+# --- the seat's own aim: its ladder, the check and the set (OWR) ------------------------
+
+AIM_STANDS = "It stands: {text}"
+"""[proposed] The check's reply when a filled pattern stands."""
+AIM_CANNOT = "It cannot stand as filled."
+"""[proposed] The check's reply when it does not; the reasons follow in ``aim``."""
+AIM_SET = "Your own aim is set: {text}"
+"""[proposed] The set's reply when the aim is stored."""
+AIM_NOT_SET = "Your own aim was not set."
+"""[proposed] The set's reply when it is refused (after the window, a second time, or a
+pattern that does not stand); the reasons follow in ``aim``."""
+KEY_MAX = 120
+
+
+def own_aim_block(state: State, seat: SeatId) -> OwnAimBlock | None:
+    """The patterns the seat's post may use (``aim_patterns.ladder``), each blank with the
+    values its view allows, while the person it holds may still set an own aim: own aims
+    part of the game, a player holding a card with a replaceable aim, none set and the
+    window open. None otherwise."""
+    if not aim_patterns.on(state) or seat not in state.seats:
+        return None
+    me = state.seats[seat]
+    found = aim_patterns.replaceable(state, me.embodies)
+    card = state.cards.get(me.embodies)
+    if (
+        found is None
+        or card is None
+        or me.controller is not Controller.HUMAN
+        or not aim_patterns.window_open(state, me.embodies)
+    ):
+        return None
+    return OwnAimBlock(
+        aim=found[0],
+        replaces=card.aims[found[0] - 1],
+        patterns=[
+            AimPatternLine(
+                key=r.key,
+                sentence=r.sentence,
+                blanks=[
+                    AimBlankLine(
+                        name=b.name,
+                        values=[
+                            AimValue(value=v, label=label)
+                            for v, label in zip(b.values, b.labels, strict=True)
+                        ],
+                    )
+                    for b in r.blanks
+                ],
+                difficulty=r.difficulty,
+                government=r.government,
+            )
+            for r in aim_patterns.ladder(state, seat)
+        ],
+    )
+
+
+def aim_args(body: Mapping[str, object]) -> tuple[str, dict[str, aim_patterns.BlankValue]]:
+    """The pattern's key and each blank's value from an ``aim-check`` or ``aim-set`` body.
+    Raises ``ValueError`` on a body no pattern could take."""
+    key = body.get("key")
+    if not isinstance(key, str) or not key or len(key) > KEY_MAX:
+        raise ValueError("key names a pattern.")
+    given = body.get("values", {})
+    if not isinstance(given, dict):
+        raise ValueError("values names each blank with its value.")
+    values: dict[str, aim_patterns.BlankValue] = {}
+    for name, v in given.items():
+        if not isinstance(name, str) or isinstance(v, bool) or not isinstance(v, str | int):
+            raise ValueError("values names each blank with its value.")
+        values[name] = v
+    return key, values
+
+
+def _checked(out: aim_patterns.Filled | aim_patterns.Refused) -> AimCheck:
+    if isinstance(out, aim_patterns.Refused):
+        return AimCheck(stands=False, text=None, reasons=list(out.reasons))
+    return AimCheck(stands=True, text=out.text, reasons=[])
+
+
+def aim_check(
+    state: State, seat: SeatId, key: str, values: Mapping[str, aim_patterns.BlankValue]
+) -> AimCheck:
+    """What the pattern ``key`` filled with ``values`` makes for the seat, from its own view
+    (``aim_patterns.fill``). Files nothing."""
+    return _checked(aim_patterns.fill(state, seat, key, values))
+
+
+def aim_set(
+    store: EventStore,
+    campaign_id: CampaignId,
+    seat: SeatId,
+    key: str,
+    values: Mapping[str, aim_patterns.BlankValue],
+) -> AimCheck:
+    """Store the filled pattern as the seat's own aim (``realism_tick.set_own_aim``) and
+    answer with it as stored; or the reasons it cannot be, storing nothing."""
+    return _checked(realism_tick.set_own_aim(store, campaign_id, seat, key, values))
+
+
+def aim_reply(found: AimCheck, setting: bool) -> dict[str, object]:
+    """The reply to ``aim-check`` (``setting`` false) or ``aim-set``, in fixed words."""
+    if found["stands"]:
+        said = (AIM_SET if setting else AIM_STANDS).format(text=found["text"])
+    else:
+        said = AIM_NOT_SET if setting else AIM_CANNOT
+    return {"reply": said, "refused": not found["stands"], "aim": found}
+
+
 __all__ = [
+    "AIM_CANNOT",
+    "AIM_NOT_SET",
+    "AIM_SET",
+    "AIM_STANDS",
     "FULL_WIN",
     "SEASON_END_SEEN",
     "STEPS",
     "UNCERTAIN",
     "WIN",
+    "aim_args",
+    "aim_check",
+    "aim_reply",
+    "aim_set",
     "degree",
+    "own_aim_block",
     "own_goals",
     "season_days_left",
     "seat_stakes",

@@ -1,6 +1,7 @@
 """Realism snapshots: what a seat's JSON carries, built from its own view and nothing more."""
 
 import json
+from collections.abc import Mapping
 from datetime import date, timedelta
 
 import pytest
@@ -333,10 +334,20 @@ def test_words_turns_a_key_into_plain_words() -> None:
 def test_the_autumn_desks_and_orders_carry_no_snake_case() -> None:
     world = cmp.load_world(cmp.world_path("autumn-1941"))
     ids = resolve_keys(world, CAMPAIGN)
-    events = compile_world(world, CAMPAIGN, cmp.versions())
+    compiled = compile_world(world, CAMPAIGN, cmp.versions())
     playable = [c.person for c in world.cards if c.playable]
     assert len(playable) == len(world.roster)
-    seats = {k: SeatId(derived_id(CAMPAIGN, "seat", k)) for k in playable}
+    most = world.settings.max_human_seats
+    for n in range(0, len(playable), most):
+        _no_snake_case_on_the_desks(compiled, ids, playable[n : n + most])
+
+
+def _no_snake_case_on_the_desks(
+    compiled: list[ev.Event], ids: Mapping[str, str], people: list[str]
+) -> None:
+    """The desks of ``people``, seated together in one game (no more than it seats)."""
+    events = list(compiled)
+    seats = {k: SeatId(derived_id(CAMPAIGN, "seat", k)) for k in people}
 
     def add(p: ev.Payload) -> None:
         events.append(

@@ -8137,6 +8137,18 @@
         "additionalProperties": false,
         "description": "Something the person can set moving. Names a pipeline and a resolver, never a verb.",
         "properties": {
+          "escort_levels": {
+            "additionalProperties": {
+              "maximum": 2,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Escort Levels",
+            "type": "object"
+          },
           "label": {
             "default": "",
             "maxLength": 60,
@@ -20187,6 +20199,18 @@
         "additionalProperties": false,
         "description": "Something the person can set moving. Names a pipeline and a resolver, never a verb.",
         "properties": {
+          "escort_levels": {
+            "additionalProperties": {
+              "maximum": 2,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Escort Levels",
+            "type": "object"
+          },
           "label": {
             "default": "",
             "maxLength": 60,
@@ -29104,6 +29128,18 @@
         "additionalProperties": false,
         "description": "Something the person can set moving. Names a pipeline and a resolver, never a verb.",
         "properties": {
+          "escort_levels": {
+            "additionalProperties": {
+              "maximum": 2,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Escort Levels",
+            "type": "object"
+          },
           "label": {
             "default": "",
             "maxLength": 60,

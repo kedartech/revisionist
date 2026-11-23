@@ -75,3 +75,28 @@
 .rl-home-speak h3 { margin: 0 0 var(--space-1); font: 700 15px/1.35 var(--font-head); }
 .rl-home-speak ul { margin: var(--space-1) 0; padding-left: var(--space-4); }
 .rl-home-cap { color: var(--fg-strong); }
+
+/* What moved since the last wake: one line a group, its bar against the heaviest; a loss in red. */
+.rl-home-since ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.rl-home-since-btn { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); width: 100%; min-width: 0; min-height: 44px; padding: var(--space-1) var(--space-2); background: var(--surface-2); border: 1px solid var(--rule); border-radius: var(--radius); color: var(--fg); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.rl-home-since-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-home-since-line { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.rl-home-since-bar { display: block; flex: 0 0 100%; width: 100%; height: 6px; }
+.rl-home-since-fill { fill: var(--fg-muted); }
+.rl-home-since-row.up .rl-home-arrow { color: var(--ok); }
+.rl-home-since-row.down .rl-home-arrow, .rl-home-since-row.down .rl-home-since-fill { color: var(--danger); fill: var(--danger); }
+.rl-home-since-moves { margin: var(--space-1) 0 0 var(--space-3); padding: 0; list-style: none; font-size: 13px; }
+.rl-home-since-moves li.down { color: var(--danger); }
+.rl-home-since-moves[hidden] { display: none; }
+/* A count at the last wake above the count now; a bloc whose count moved is outlined. */
+.rl-home-then { margin: var(--space-1) 0; }
+.rl-home-thenbar { display: block; width: 100%; height: 10px; opacity: 0.6; }
+.rl-home-thenline, .rl-home-thenmoved { margin: var(--space-1) 0 0; font-size: 13px; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+.rl-home-token.moved { border-color: var(--fg-strong); border-style: dashed; }
+.rl-home-was { color: var(--fg-muted); }
+/* Places of weight: a threatened one in red. */
+.rl-home-places ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.rl-home-place { font-size: 13px; overflow-wrap: anywhere; }
+.rl-home-holder { color: var(--fg-muted); }
+.rl-home-place.threatened, .rl-home-place.threatened .rl-home-threat { color: var(--danger); }
+.rl-home-threat { font: 600 12px/1 var(--font-chrome); text-transform: uppercase; }

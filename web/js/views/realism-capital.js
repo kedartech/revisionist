@@ -10,7 +10,9 @@
 // on (PRB), a bloc picked for a measure on its way shows what it would take; choosing a price
 // runs the server's check, whose count as it would stand is drawn on the track beside the count
 // as it is, with the confirm chip; a live offer is marked on its bloc's piece, and the promises
-// made are what the seat holds and owes.
+// made are what the seat holds and owes. What moved since the seat's last wake is marked on each
+// bloc and group the server sent a line for, picking one lists each move with how it reached the
+// public, and a vote the server sent a count then for has that count's track above the count now.
 // Everything drawn is a count, a line or a day the seat's view sent: the line that carries a
 // vote is the one the server sends with it, and only the seat's own nation's blocs and groups are
 // read. Nothing here touches the page on import.
@@ -19,7 +21,7 @@ import { h, svg } from '../dom.js';
 import { flagBadge } from '../flags.js';
 import { askedForFull, browserFull } from '../map/view.js';
 import { worldDate } from '../rules.js';
-import { moveWords, promiseWords, promisesMade, supportStep, themesFor } from './realism-home.js';
+import { moveWords, movedSince, promiseWords, promisesMade, sinceWords, supportStep, themesFor } from './realism-home.js';
 import { personToken } from './realism-people.js';
 import { daysBetween } from './realism-timeline.js';
 import { DUE_FLASH, MARK_MS, along, cameDue, lastDrawn, play, runCount, slideMarker, stated, track as stepTrack } from './realism-tracks.js';
@@ -221,16 +223,23 @@ export const grow = (seats, total) => Math.max(1, Math.round((12 * seats) / Math
 /** The words of a live offer on its bloc's piece. */
 const liveWords = (live) => (live.mine ? 'your offer is live' : 'an offer is live');
 
-function piece({ key, name, sub, support, size, theme, live = null, picked, onPick }) {
+/** The server's line of what moved group `key` since the seat's last wake; null when it sent none. */
+const sinceOf = (home, key) => (home?.moved ?? []).find((m) => m.group === key) ?? null;
+
+/** A net change as a signed figure: "+5", "−6". */
+const figure = (n) => (n < 0 ? `−${-n}` : `+${n}`);
+
+function piece({ key, name, sub, support, size, theme, since = null, live = null, picked, onPick }) {
   const step = supportStep(support);
   const moved = lit(theme, key);
   return h('button', {
-    type: 'button', class: `rl-cap-piece${size ? ` g${size}` : ''}${moved ? ` lit ${moved.n < 0 ? 'down' : 'up'}` : ''}${live ? ' offered' : ''}`,
+    type: 'button', class: `rl-cap-piece${size ? ` g${size}` : ''}${moved ? ` lit ${moved.n < 0 ? 'down' : 'up'}` : ''}${since ? ` since since-${since.change < 0 ? 'down' : 'up'}` : ''}${live ? ' offered' : ''}`,
     'data-key': `piece:${key}`, 'data-group': key, 'aria-pressed': String(picked),
-    'aria-label': `${name}${sub ? `, ${sub}` : ''}, support ${step} of 5${moved ? `; ${theme.name} moves it ${moved.words}` : ''}${live ? `; ${liveWords(live)}` : ''}. Pick it`,
+    'aria-label': `${name}${sub ? `, ${sub}` : ''}, support ${step} of 5${since ? `; moved ${signed(since.change)} since your last wake` : ''}${moved ? `; ${theme.name} moves it ${moved.words}` : ''}${live ? `; ${liveWords(live)}` : ''}. Pick it`,
     onclick: () => onPick(key),
   },
   live ? h('span', { class: 'rl-cap-offered', 'aria-hidden': 'true' }, capital(liveWords(live))) : null,
+  since ? h('span', { class: 'rl-cap-since', 'aria-hidden': 'true' }, `${since.change < 0 ? '↓' : '↑'} ${figure(since.change)}`) : null,
   h('span', { class: 'rl-cap-pname' }, name),
   sub ? h('span', { class: 'rl-cap-psub' }, sub) : null,
   steps(step),
@@ -245,13 +254,13 @@ function pieces(home, chamber, { theme, pick, onPick, offers = new Map() }) {
   return [
     h('h4', { class: 'rl-cap-h' }, 'Blocs in the chamber, by seats'),
     h('div', { class: 'rl-cap-pieces rl-cap-blocs' }, chamber.blocs.map((b) => piece({
-      key: b.group, name: b.name, sub: plural(b.seats, 'seat'), support: b.support, size: grow(b.seats, total), theme,
+      key: b.group, name: b.name, sub: plural(b.seats, 'seat'), support: b.support, size: grow(b.seats, total), theme, since: sinceOf(home, b.group),
       live: offers.get(b.group)?.live ?? null, picked: pick === b.group, onPick,
     }))),
     outside.length ? [
       h('h4', { class: 'rl-cap-h' }, 'Outside the chamber: they move the blocs'),
       h('div', { class: 'rl-cap-pieces rl-cap-groups' }, outside.map((g) => piece({
-        key: g.key, name: g.name, sub: g.kind, support: g.support, theme, picked: pick === g.key, onPick,
+        key: g.key, name: g.name, sub: g.kind, support: g.support, theme, since: sinceOf(home, g.key), picked: pick === g.key, onPick,
       }))),
     ] : null,
   ];
@@ -282,6 +291,21 @@ function moveTrack(key, parts, v, offers, countEl) {
   }
 }
 
+/** The label of a vote's track as it stood at the seat's last wake `[proposed]`. */
+export const AT_WAKE = 'At your last wake';
+
+/**
+ * Vote `v` as it stood at the seat's last wake, whole and by bloc, as the server sent it (a bloc
+ * with no count then counted nothing); null when it sent no count then.
+ */
+function thenVote(v) {
+  if (!Array.isArray(v?.then)) return null;
+  return {
+    vote: v.vote, yeas: v.then[0], nays: v.then[1], carries: v.carries,
+    blocs: (v.blocs ?? []).map((b) => ({ group: b.group, yeas: b.then?.[0] ?? 0, nays: b.then?.[1] ?? 0 })),
+  };
+}
+
 /** A vote as a track: yeas from the left by bloc, nays from the right, those not yet counted between, and the line that carries it. */
 function track(chamber, v, label = null, moving = null) {
   const total = chamber.blocs.reduce((n, b) => n + b.seats, 0);
@@ -292,7 +316,7 @@ function track(chamber, v, label = null, moving = null) {
   let at = 0;
   order.forEach((g, i) => {
     const w = share(counts.get(g)?.yeas ?? 0, total);
-    if (w > 0) yeas.push(svg('rect', { class: `rl-cap-yea b${i % 7}`, 'data-group': g, x: at, y: 0, width: w, height: 10 }));
+    if (w > 0) yeas.push(svg('rect', { class: `rl-cap-yea b${i % 7}${counts.get(g)?.moved ? ' moved' : ''}`, 'data-group': g, x: at, y: 0, width: w, height: 10 }));
     at += w;
   });
   const nays = [];
@@ -307,7 +331,7 @@ function track(chamber, v, label = null, moving = null) {
   const byBloc = (v.blocs ?? []).map((b) => `${named.get(b.group) ?? b.group} ${b.yeas} yea, ${b.nays} nay`).join('; ');
   const countEl = h('p', { class: 'rl-cap-count' }, `${v.yeas} yea · ${v.nays} nay`);
   if (moving) moveTrack(moving.key, [...yeas, ...nays].map((el) => ({ el })), v, moving.offers, countEl);
-  return h('div', { class: `rl-cap-trackbox${label === WOULD_STAND ? ' would' : ''}` },
+  return h('div', { class: `rl-cap-trackbox${label === WOULD_STAND ? ' would' : label === AT_WAKE ? ' then' : ''}` },
     label ? h('p', { class: 'rl-cap-h rl-cap-trackname' }, label) : null,
     line ? h('p', { class: 'rl-cap-carryword' }, `${v.carries} carry it`) : null,
     svg('svg', {
@@ -385,7 +409,8 @@ function voteMiddle(rv, q, state, on) {
     h('span', { class: 'rl-cap-stepcount' }, `${x.yeas} yea${Number.isFinite(x.carries) ? ` · ${x.carries} carry it` : ''}`)))) : null,
     tokens(stepsOf(rv, q.measure.order_id), on.person),
     orderPath(rv, q.measure.order_id),
-    v ? track(chamber, v, would ? STANDS_NOW : null, { key: `count:${q.measure.order_id}:${v.vote}`, offers: offerBlocs(home, q.measure.key) }) : null,
+    thenVote(v) ? track(chamber, thenVote(v), AT_WAKE) : null,
+    v ? track(chamber, v, would || thenVote(v) ? STANDS_NOW : null, { key: `count:${q.measure.order_id}:${v.vote}`, offers: offerBlocs(home, q.measure.key) }) : null,
     would ? track(chamber, would, WOULD_STAND) : null,
     pieces(home, chamber, { theme: on.theme, pick: state.pick, onPick: on.pick, offers: offerBlocs(home, q.measure.key) }),
   ];
@@ -513,6 +538,15 @@ function stakeMiddle(q) {
 
 // --- the right column, and the seat's moves -----------------------------------------------------
 
+/** Each move of group `key` since the seat's last wake, against the seat or for it, when the server sent its line; else a line saying it has not moved. */
+function sinceList(home, key) {
+  const line = (movedSince(home) ?? []).find((m) => m.group === key);
+  if (!line) return h('p', { class: 'rl-cap-sincenone' }, 'Not moved since your last wake');
+  return h('section', { class: 'rl-cap-sincebox', 'aria-label': 'Since your last wake' },
+    h('h5', { class: 'rl-cap-h' }, `Since your last wake: ${figure(line.change)}`),
+    h('ul', { class: 'rl-cap-sincelist', role: 'list' }, line.moves.map((m) => h('li', { class: m.change < 0 ? 'down' : 'up' }, sinceWords(m)))));
+}
+
 function pickedCard(rv, q, state, on) {
   const home = ownHome(rv);
   const key = state.pick;
@@ -527,6 +561,7 @@ function pickedCard(rv, q, state, on) {
     count ? h('p', { class: 'rl-cap-oncount' }, `On this vote: ${count.yeas} yea, ${count.nays} nay`) : null,
     bloc ? h('p', {}, `${bloc.seats} seats`) : null,
     h('p', { class: 'rl-cap-moved' }, g ? (moveWords(g.last_moved) ?? 'Not moved yet') : 'Not moved yet'),
+    sinceList(home, key),
     h('p', { class: 'rl-cap-themes' }, themes.length ? `Moved by: ${themes.join(', ')}` : 'No theme moves it'),
     v && bloc ? offerPart(home, q, v, offerBlocs(home, q.measure.key).get(key), state, on) : null,
     h('button', { type: 'button', class: 'rl-cap-speak', 'data-key': 'speak-card', onclick: () => on.speak() }, 'Speak to the nation'));

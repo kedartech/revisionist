@@ -93,7 +93,7 @@ export function withHome(strip, rv, opts) {
 }
 
 /** The themes that move group `key`: "The Levy Act (up 1)". */
-function themesFor(home, key) {
+export function themesFor(home, key) {
   return (home.themes ?? []).filter((t) => t.moves?.[key]).map((t) => `${t.name} (${signed(t.moves[key])})`);
 }
 
@@ -122,12 +122,15 @@ function supportBar(g) {
   return h('div', { class: 'rl-home-support' }, bar, num);
 }
 
+/** A last move in words: "Up 5 on 2 April 1900: a battle won"; null when nothing has moved it. */
+export const moveWords = (moved) => (moved ? `${capital(signed(moved.change))} on ${worldDate(moved.on)}: ${causeWords(moved.cause)}` : null);
+
 /** A last move as an arrow and its words: "↑ Up 5 on 2 April 1900: a battle won". */
 function moveLine(moved) {
   if (!moved) return h('p', { class: 'rl-home-moved' }, 'Not moved yet');
   return h('p', { class: `rl-home-moved ${moved.change < 0 ? 'down' : 'up'}` },
     h('span', { class: 'rl-home-arrow', 'aria-hidden': 'true' }, moved.change < 0 ? '↓' : '↑'), ' ',
-    `${capital(signed(moved.change))} on ${worldDate(moved.on)}: ${causeWords(moved.cause)}`);
+    moveWords(moved));
 }
 
 function groupToken(home, g) {

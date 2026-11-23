@@ -145,6 +145,7 @@ NEW_GAME_ACTIONS = (
     "style",
     "invite",
     "begin",
+    "opening",
 )
 """Every ``/api/new/<action>``: ``App.new_game`` answers any other as no such call."""
 REALISM_ACTIONS = (

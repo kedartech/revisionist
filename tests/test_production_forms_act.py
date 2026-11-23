@@ -30,14 +30,13 @@ from revisionist.core.realism.resolvers.production import (
     STEP_MANPOWER,
 )
 from revisionist.core.state import Rule
-from tests.test_adjacency_moves import START, Logged, entity, seat, set_feature
+from tests.test_adjacency_moves import START, Logged, World, entity, seat, set_feature
 from tests.test_adjacency_moves import toy as territories_toy
 from tests.test_realism_production import (
     LEVY,
     NORRA,
     RICH,
     SUDLAND,
-    World,
     forms,
     forts,
     papers,

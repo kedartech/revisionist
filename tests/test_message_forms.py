@@ -15,9 +15,8 @@ from revisionist.core.ids import OrderId, derived_id
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.resolvers import apply_changes, shipping
 from revisionist.core.realism.resolvers.shipping import MESSAGE_REGARD
-from tests.test_adjacency_moves import START, Logged, entity, seat
+from tests.test_adjacency_moves import START, Logged, World, entity, seat
 from tests.test_adjacency_moves import toy as territories_toy
-from tests.test_realism_production import World
 from tests.test_territory_model import CAMPAIGN
 
 

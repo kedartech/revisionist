@@ -360,8 +360,34 @@ def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
     for c in p.classes:
         _fresh(classes, c.kind, "class of happening")
         classes[c.kind] = c
-    g = state.groups.model_copy(update={"declared": found, "themes": themes, "classes": classes})
+    if p.places and not groups.places_on(state):
+        raise FoldError("groups_declared: places need the places rule")
+    weighed: set[tuple[EntityId, EntityId]] = set()
+    for place in p.places:
+        if (place.territory, place.nation) in weighed:
+            raise FoldError(f"groups_declared: {place.territory} weighed twice")
+        weighed.add((place.territory, place.nation))
+        _need(state.entities, place.territory, "entity")
+        keys = {g.key for g in found.get(place.nation, ())}
+        if not set(place.moves) <= keys:
+            raise FoldError(f"groups_declared: a place names a group {place.nation} lacks")
+    g = state.groups.model_copy(
+        update={"declared": found, "themes": themes, "classes": classes, "places": p.places}
+    )
     return state.model_copy(update={"groups": g})
+
+
+def _piece_stepped(state: State, p: ev.PieceStepped) -> State:
+    """With ``places`` on, a step out of a weighted place kept as the day the nation's
+    piece left it (PLW); any other step changes nothing here."""
+    weighted = {place.territory for place in state.groups.places}
+    if not groups.places_on(state) or p.left not in weighted:
+        return state
+    g = state.groups
+    by = _put(g.left.get(p.left, {}), p.nation, p.on)
+    return state.model_copy(
+        update={"groups": g.model_copy(update={"left": _put(g.left, p.left, by)})}
+    )
 
 
 def _losses_held(state: State, p: ev.LossesHeld) -> State:
@@ -898,6 +924,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.MatterChosen()
             | ev.OfferMade()
             | ev.OfferSettled()
+            | ev.PieceStepped()
             | ev.AreaHeld()
             | ev.CaptureCounted()
             | ev.EconomySet()
@@ -1388,6 +1415,8 @@ def _realism(state: State, p: ev.Payload) -> State:
             )
         case ev.GroupsDeclared():
             return _groups_declared(state, p)
+        case ev.PieceStepped():
+            return _piece_stepped(state, p)
         case ev.GroupMoved():
             return _group_moved(state, p)
         case ev.GroupProposed():

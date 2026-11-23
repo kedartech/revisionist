@@ -593,6 +593,10 @@ AUDIENCE = (
     "core lane fix item: a written statement to another nation lands as its form does"
     " (the form is heard at home through its audience's theme)"
 )
+PRODUCTION = (
+    "core lane fix item: a written production order lands as its form does"
+    " (the form builds a step, mobilises, or brings the aid another nation let through)"
+)
 SHIPPING = (
     "core lane fix item: a written shipping order lands as its form does"
     " (the form acts through escort levels, losses and the lift pool)"
@@ -615,7 +619,8 @@ FIXES: dict[str, str] = {
     "1941.churchill.send_on_patrol": TIMING,
     "1941.churchill.send_an_agent": AUTHORITY,
     "1941.churchill.fund_the_codebreakers": AUTHORITY,
-    "1941.stalin.state_defence_order": INERT,
+    "1941.stalin.state_defence_order": PRODUCTION,
+    "1941.stalin.aid_request": PRODUCTION,
     "1941.stalin.move_army": TIMING,
     "1941.stalin.send_on_patrol": AUTHORITY,
     "1941.stalin.send_an_agent": AUTHORITY,
@@ -626,10 +631,10 @@ FIXES: dict[str, str] = {
     "1941.hitler.fly_recon": AUTHORITY,
     "1941.hitler.send_on_patrol": TIMING,
     "1941.konoe.requisition_shipping": SHIPPING,
-    "1941.konoe.mobilisation_plan": INERT,
+    "1941.konoe.mobilisation_plan": PRODUCTION,
     "1941.konoe.send_an_agent": AUTHORITY,
     "1941.tojo.requisition_shipping": SHIPPING,
-    "1941.tojo.mobilisation_plan": INERT,
+    "1941.tojo.mobilisation_plan": PRODUCTION,
     "1941.tojo.fly_recon": AUTHORITY,
     "1941.tojo.send_on_patrol": AUTHORITY,
     "1941.tojo.send_an_agent": AUTHORITY,

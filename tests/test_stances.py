@@ -42,8 +42,13 @@ from revisionist.engine.web.threats import seat_threats
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 WORLD = "autumn-1941"
 HEADS = ("roosevelt", "stalin", "hitler", "konoe", "tojo", "mussolini", "chiang")
-FIGURES = (*HEADS, "king")
-"""Everyone weighed: the heads, and Admiral King, who holds the Atlantic Fleet's command."""
+FIGURES = tuple(
+    c.person
+    for c in cmp.load_world(cmp.world_path(WORLD)).cards
+    if c.authority and c.person != "churchill"
+)
+"""Everyone weighed when Churchill is played: the world's cards with an office to act from, the
+heads and the commanders the world gives a force."""
 
 
 def begun(who: str = "churchill") -> tuple[EventStore, SeatId, dict[str, EntityId]]:

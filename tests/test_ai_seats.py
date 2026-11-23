@@ -91,7 +91,8 @@ def test_an_unplayed_person_gets_an_ai_seat_once() -> None:
     human = churchill(store)
     made = seat_the_rest(store)
     state = load_state(store, CAMPAIGN)
-    assert len(made) == 8 and human not in made
+    roster = cmp.load_world(cmp.world_path("autumn-1941")).roster
+    assert len(made) == len(roster) - 1 and human not in made
     for seat_id in made:
         seat = state.seats[seat_id]
         assert seat.kind is SeatKind.FACTION and seat.controller is Controller.AI

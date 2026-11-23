@@ -434,8 +434,8 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
     if isinstance(payload, ev.OfferSettled):
         settled = next(o for o in state.offers if o.offer_id == payload.offer_id)
         return _nation_scope(state, settled.nation)
-    if isinstance(payload, ev.GroupProposed):
-        # Engine only: the writing in waiting; the batch, not the filing, moves a group.
+    if isinstance(payload, ev.GroupProposed | ev.LossesHeld):
+        # Engine only: the writing in waiting, the battle losses held (LSS).
         held = SeatId(derived_id(state.campaign_id, "engine-only", "groups"))
         return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
     if isinstance(payload, ev.ContestMoved | ev.ContestDecided):
@@ -640,6 +640,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         today = [e.payload for e in out[day_mark:]]
         add(agreement.judge(state, day, today))  # AGR: each clause on its day, from the state
         add(groups.react(state, day_from, today, day, sea=before_on_day))
+        add(groups.losses(state, day_from, today, day))  # LSS: the day's losses, by size
         add(groups.batch(state, day))  # GRP: the day's writing, settled in one batch
         add(groups.drift(state, day))  # GRP: on a Monday, toward the baseline
         add(offers.walk(state, day))  # PRC: a measure decided, a promise on its due day

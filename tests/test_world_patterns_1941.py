@@ -50,6 +50,7 @@ POSTS = {
     "king": "fleet_commander",
     "tovey": "fleet_commander",
     "doenitz": "fleet_commander",
+    "yamamoto": "fleet_commander",
 }
 """The kind of post each playable card names. [proposed]"""
 STATED = frozenset(
@@ -84,6 +85,12 @@ NOT_ISSUED: dict[str, tuple[int, str, str]] = {
         "konoe",
         "Holding the government to its deadline for war; his own Prime Minister opposes him"
         " over the October deadline.",
+    ),
+    "yamamoto": (
+        1,
+        "nagano",
+        "Taking Hawaii; the Chief of the Navy General Staff, his principal, opposed the Hawaii"
+        " operation until Yamamoto threatened to resign.",
     ),
 }
 """For each playable card that carries one, an aim its own government would not issue: the

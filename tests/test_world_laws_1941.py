@@ -3,7 +3,7 @@
 The four bills the votes rule's code table holds are declared as laws in the world file:
 each with its key, title, clauses, the passed quantity the world declares for it, and what
 it does. The rows the blocs carry for them stay, under the same keys. The world's rules gain
-``laws`` and ``ask_answers``; ``deciders`` waits for a council and a post's questions. The
+``laws`` and ``ask_answers``; ``deciders`` went on with the Liaison Conference (NJP). The
 fleet commander's second lock (``war_zone_escort``) finds the declared Neutrality revision
 by its clause, never in the code table. The three escort choices of the two naval order
 forms are marked with the levels the shipping rule gives their words, so the scripted run
@@ -35,17 +35,18 @@ from tests.test_rule_names import BASELINE_1941
 from tests.test_world_template import TEMPLATE, wc
 
 SWITCHES = (Rule.LAWS, Rule.ASK_ANSWERS)
-"""The third-run switches this item turns on for 1941. ``deciders`` stays off: with it on, the
-world check requires a council and the kinds of question a post decides, which 1941 does not
-declare yet."""
+"""The third-run switches this item turns on for 1941. ``deciders`` is the Japanese item's,
+which gives 1941 its first council."""
 
 BILLS = ("neutrality_revision", "draft_extension", "lend_lease_appropriation", "arm_merchant_ships")
 """The four bills the votes rule's code table holds, as the send-bill form names them."""
 
-LOCKED_ON = "8641c8d7a4a9c4a7eb7c23580ea290f1"
+LOCKED_ON = "cf060dae30160f898b43fa5474244ff2"
 """The locked-orders game's digest on the shipped 1941 world, the switches on. The game's state
-carries everything the world declares, Britain's and Germany's commanders, the Commons' blocs,
-its law and the commanders' locks among them, so it is recorded for the world as it stands;
+carries everything the world declares, Britain's, Germany's and Japan's commanders, the Commons'
+blocs, its law, the Liaison Conference, the commanders' locks and the seats of everyone an ask
+could go to (the Chief of the Navy General Staff among them), so it is
+recorded for the world as it stands;
 both locks land on the same days with the switches on and off."""
 
 CLAUSE = "war zones closed to American ships"
@@ -89,7 +90,7 @@ def _lever(world: WorldFile, person: str, name: str) -> Any:
 
 def test_the_world_switches_on_laws_and_ask_answers_and_compiles() -> None:
     world = _world()
-    assert set(SWITCHES) <= set(world.rules) and Rule.DECIDERS not in world.rules
+    assert set(SWITCHES) <= set(world.rules)
     state = Rig().state
     assert set(SWITCHES) <= state.rules
     assert [law.key for law in state.laws] == [law.key for law in world.laws]

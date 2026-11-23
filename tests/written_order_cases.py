@@ -556,10 +556,25 @@ NINETEEN_41: tuple[Case, ...] = (
         "Send two of the U-boat flotillas in to Lorient.",
         move("uboat_arm", "lorient"),
     ),
+    # Admiral Yamamoto: the moves no lock holds
+    f41(
+        "yamamoto",
+        "combined_fleet_move",
+        {"force": "combined_fleet", "to": "kure"},
+        "Bring the Combined Fleet in to Kure.",
+        move("combined_fleet", "kure"),
+    ),
+    f41(
+        "yamamoto",
+        "combined_fleet_detach",
+        {"force": "combined_fleet", "to": "kure", "strength": "2"},
+        "Send two of the fleet's divisions in to Kure.",
+        move("combined_fleet", "kure"),
+    ),
 )
 """Every form on every playable card of Autumn 1941; Admiral King's naval order once in
-each zone it names, the war zone included; Admiral Tovey's and Admiral Dönitz's two forms
-where no lock holds them."""
+each zone it names, the war zone included; Admiral Tovey's, Admiral Dönitz's and Admiral
+Yamamoto's two forms where no lock holds them."""
 
 
 # --- Salt Strait -------------------------------------------------------------------------
@@ -736,6 +751,7 @@ FIXES: dict[str, str] = {
     "1941.king.fleet_naval_order.war_zone": SHIPPING,
     "1941.tovey.home_fleet_detach": DETACH,
     "1941.doenitz.uboat_detach": DETACH,
+    "1941.yamamoto.combined_fleet_detach": DETACH,
     "salt.oren_vale.move_force": TIMING,
     "salt.oren_vale.declare_war": WAR,
     "salt.oren_vale.galley_patrol": TIMING,

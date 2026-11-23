@@ -188,11 +188,12 @@ NEVER: frozenset[str] = frozenset(
         "agent_set",
         "codebreaking_set",
         # Groups at home (GRP): true support. A seat reads its own nation's groups from its
-        # own data and others' from the press; the declaration and the writing in waiting
-        # are engine only.
+        # own data and others' from the press; the declaration, the writing in waiting and
+        # the battle losses held (LSS) are engine only.
         "groups_declared",
         "group_moved",
         "group_proposed",
+        "losses_held",
         "scheduled_event_created",
         "scheduled_event_skipped",
         # Costs, ticks and admin.

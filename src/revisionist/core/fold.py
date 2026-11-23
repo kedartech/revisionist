@@ -364,6 +364,26 @@ def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
     return state.model_copy(update={"groups": g})
 
 
+def _losses_held(state: State, p: ev.LossesHeld) -> State:
+    """Battle losses held, added or replaced by their nation, group, battle and day; those
+    whose battle has ended and whose felt share has landed by the event's day dropped."""
+    if not groups.on(state) or not groups.losses_on(state):
+        raise FoldError("losses_held needs the groups and losses rules")
+    held = {h.key(): h for h in state.groups.held}
+    for h in p.held:
+        if groups.group(state, h.polity, h.group) is None:
+            raise FoldError(f"losses_held: {h.polity} has no group {h.group}")
+        if h.on < h.opened:
+            raise FoldError(f"losses_held: losses at {h.area} before its battle opened")
+        held[h.key()] = h
+    kept = tuple(
+        h
+        for _, h in sorted(held.items())
+        if not (h.ended and (p.on - h.on).days >= groups.FELT_DAYS)
+    )
+    return state.model_copy(update={"groups": state.groups.model_copy(update={"held": kept})})
+
+
 def _group_moved(state: State, p: ev.GroupMoved) -> State:
     """A group's support set; for writing, the points spent kept for the week cap and the
     writing settled taken out of waiting."""
@@ -894,6 +914,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.GroupsDeclared()
             | ev.GroupMoved()
             | ev.GroupProposed()
+            | ev.LossesHeld()
             | ev.AgreementOffered()
             | ev.AgreementMade()
             | ev.ClauseJudged()
@@ -1378,6 +1399,8 @@ def _realism(state: State, p: ev.Payload) -> State:
                 raise FoldError(f"group_proposed: {wrote.polity} has no group {wrote.group}")
             g = state.groups.model_copy(update={"proposed": (*state.groups.proposed, wrote)})
             return state.model_copy(update={"groups": g})
+        case ev.LossesHeld():
+            return _losses_held(state, p)
         case (
             ev.AgreementOffered() | ev.AgreementMade() | ev.ClauseJudged() | ev.AgreementPublished()
         ):

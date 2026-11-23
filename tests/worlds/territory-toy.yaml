@@ -155,7 +155,7 @@ groups:
         start: 40
         baseline: 45
         feeds: {standing: 3, opinion: 1}
-        moved_by: {territory_taken: 3, territory_lost: -3, losses_at_sea: -2}
+        moved_by: {territory_taken: 3, territory_lost: -3, losses_at_sea: -2, battle_losses: -1}
   - nation: sudland
     groups:
       - key: farmers
@@ -164,7 +164,7 @@ groups:
         start: 30
         baseline: 35
         feeds: {output: 1}
-        moved_by: {territory_taken: 2, battle_lost: -3}
+        moved_by: {territory_taken: 2, battle_lost: -3, battle_losses: -1}
 
 # How each kind of happening reaches the groups, read with the `classes` rule on: felt,
 # reported or secret. A kind not listed is reported; a mixed kind is reported with the

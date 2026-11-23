@@ -121,6 +121,7 @@ test('while a message is out, any other action says why it waits instead of doin
 // --- the wake overlay on a territory game draws the game's own map ---------------------------
 
 const seat = JSON.parse(read('test/fixtures/realism-seat.json'));
+const BY_HASH = `/maps/${seat.territory_map.file.sha256}.json`;
 const TOY = JSON.parse(read('test/fixtures/toy.map.json'));
 const COAST = { rings: [[[0, 0], [10, 0], [10, 10], [0, 10]]] };
 
@@ -130,7 +131,8 @@ function serve(shapes = TOY, file = seat.territory_map.file) {
   const was = globalThis.fetch;
   globalThis.fetch = async (url) => {
     asked.push(url);
-    const body = url === '/api/realism/map' ? { reply: '', refused: false, file, map: shapes } : COAST;
+    const body = url === `/maps/${file.sha256}.json` ? shapes
+      : url === '/api/realism/map' ? { reply: '', refused: false, file, map: shapes } : COAST;
     return { ok: true, status: 200, json: async () => structuredClone(body) };
   };
   return { asked, done: () => { globalThis.fetch = was; } };
@@ -148,7 +150,7 @@ test('a territory game draws the wake overlay from its own map object, and never
     await settle();
     assert.ok(ovl.querySelector('figure.rl-ovl-map svg.rl-tm-svg'), 'the territory map is drawn in the overlay');
     assert.ok(ovl.querySelector('path.rl-area'), 'with the game\'s own areas');
-    assert.deepEqual(net.asked, ['/api/realism/map'], 'only the map object is fetched');
+    assert.deepEqual(net.asked, [BY_HASH], 'only the map object is fetched, by its hash');
     ovl.remove();
   } finally { net.done(); }
 });
@@ -163,7 +165,7 @@ test('the game\'s map object is fetched by its hash once and kept for the next o
     await settle();
     const later = placed(wake(structuredClone(seat.territory_map)));
     await settle();
-    assert.equal(net.asked.filter((u) => u === '/api/realism/map').length, 1);
+    assert.equal(net.asked.filter((u) => u === BY_HASH).length, 1);
     assert.ok(later.querySelector('svg.rl-tm-svg'), 'a later overlay draws at once from the kept shapes');
   } finally { net.done(); }
 });

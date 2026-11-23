@@ -7,6 +7,9 @@
 // home as a five-step meter when the server sent a reading, and for the seat's own nation its war
 // economy and its home sheet. With no economy block the nations are listed with flags and bands.
 // Only what the seat's view carries is drawn: another nation's components are never read.
+// `standingGrid` is World's Standing part: a tile for each nation with its flag, name and relation,
+// the nations it is at war with as small flags (the public list) and its public pacts by name; a
+// tile opens that nation's card.
 // Nothing here touches the page on import.
 
 import { h, svg } from '../dom.js';
@@ -190,4 +193,61 @@ export function nationsPanel(rv, { state = {}, act, onOffer = null, onHome = nul
   // the flags arrive once a page: redraw with them unless the seat is working in the panel
   flags.then(() => { if (root.isConnected && globalThis.document?.activeElement?.closest?.('.rl-nb') !== root) draw(); });
   return root;
+}
+
+/** The wars of each nation in `rv.wars`, by its key: the other side of each, as `{ key, name }`, in the list's order. */
+export function warsOf(rv) {
+  const by = new Map();
+  const add = (k, other) => by.set(k, [...(by.get(k) ?? []), other]);
+  for (const w of rv.wars ?? []) {
+    if (!w?.a?.key || !w?.b?.key) continue;
+    add(w.a.key, w.b);
+    add(w.b.key, w.a);
+  }
+  return by;
+}
+
+/** The public pacts of each nation, by its name: a pact's wording, else its parties; only those the view marks public. */
+export function pactsOf(rv) {
+  const by = new Map();
+  for (const a of rv.agreements?.agreements ?? []) {
+    if (a?.published === null || a?.published === undefined || !a.parties?.length) continue;
+    const name = String(a.wording ?? '').trim()
+      || (a.parties.length > 1 ? `${a.parties.slice(0, -1).join(', ')} and ${a.parties.at(-1)}` : a.parties[0]);
+    for (const party of new Set(a.parties)) by.set(party, [...(by.get(party) ?? []), name]);
+  }
+  return by;
+}
+
+/**
+ * World's Standing part: `standingGrid(rv, { onOpen })`, one tile for each nation in the server's
+ * order, `onOpen(key)` called when a tile is pressed. `null` with neither an economy nor a home block.
+ */
+export function standingGrid(rv, { onOpen = null } = {}) {
+  const rows = nationRows(rv);
+  if (!rows.length) return null;
+  const wars = warsOf(rv);
+  const pacts = pactsOf(rv);
+  const known = new Map(rows.map((r) => [r.nation.key, relOf(r.nation)]));
+  const tile = ({ nation }) => {
+    const rel = relOf(nation);
+    const foes = wars.get(nation.key) ?? [];
+    const named = pacts.get(nation.name) ?? [];
+    const label = [rel === 'own' ? `${nation.name} (yours)` : `${nation.name}, ${rel}`,
+      foes.length ? `at war with ${foes.map((f) => f.name).join(', ')}` : null,
+      named.length ? `pacts: ${named.join(', ')}` : null].filter(Boolean).join('. ');
+    return h('li', {}, h('button', {
+      type: 'button', class: `rl-sg-tile${rel === 'own' ? ' rl-nb-own' : ''}`, 'data-nation': nation.key, 'data-relation': rel,
+      'aria-label': `${label}. Open its card`, onclick: () => onOpen?.(nation.key),
+    },
+    h('span', { class: 'rl-sg-head' },
+      flagOf(rv, nation, { height: 32 }),
+      h('span', { class: 'rl-sg-name' }, nation.name),
+      h('span', { class: 'rl-sg-relline' }, relMark(rel), h('span', { class: 'rl-sg-relation' }, RELATIONS[rel]))),
+    foes.length ? h('span', { class: 'rl-sg-wars' }, h('span', { class: 'rl-sg-tag' }, 'At war'),
+      foes.map((f) => flagOf(rv, { ...f, relation: known.get(f.key) ?? 'neutral' }, { height: 16, alone: true }))) : null,
+    named.length ? h('span', { class: 'rl-sg-pacts' }, named.map((n) => h('span', { class: 'rl-sg-pact' }, n))) : null));
+  };
+  return h('section', { class: 'rl-nb rl-sg', 'aria-label': 'Where each nation stands' },
+    h('ul', { class: 'rl-sg-grid', role: 'list' }, rows.map(tile)));
 }

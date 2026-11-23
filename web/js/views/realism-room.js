@@ -48,7 +48,7 @@ import {
 } from './realism-groups.js';
 import { openAim, stakesStrip } from './realism-stakes.js';
 import { foldEconomy } from './realism-economy.js';
-import { nationRows, nationsPanel } from './realism-nations.js';
+import { nationRows, nationsPanel, standingGrid } from './realism-nations.js';
 import { foldOdds } from './realism-odds.js';
 import { loadShapes, shapesFor, theatreBoard } from './realism-theatre.js';
 import { aimMarks, roomBar, statusStrip, summaryTiles } from './realism-status.js';
@@ -1329,6 +1329,7 @@ export function realismRoom(ctx) {
       return sheet;
     }
     if (name === 'nations') return nationsBody();
+    if (name === 'standing') return standingGrid(rv, { onOpen: cardFromGrid });
     if (name === 'aims') return stakesStrip(rv.stakes) ?? h('p', { class: 'hint' }, 'You hold no aims in this game.');
     if (name === 'press') {
       const desk = pressDesk().querySelector('dialog.rl-pd');
@@ -1382,9 +1383,9 @@ export function realismRoom(ctx) {
   const beginner = () => mapFirst() && rv.style === 'beginner';
   /** The parts Beginner leaves out of their group until a line in the list is in them. */
   const QUIET = ['court', 'home', 'diplomacy'];
-  /** Whether part `key` has a body in this game: the Standing part has none yet, and Nations, Home and Diplomacy need their blocks. */
+  /** Whether part `key` has a body in this game: Nations and Standing need a nation to list, Home and Diplomacy their blocks. */
   const hasPart = (key) => (key === 'nations' ? nationRows(rv).length > 0 : key === 'home' ? Boolean(rv.home)
-    : key === 'diplomacy' ? hasDiplomacy(rv) : key !== 'standing');
+    : key === 'diplomacy' ? hasDiplomacy(rv) : key === 'standing' ? nationRows(rv).length > 0 : true);
   /** Every part the room has, by group, for the menu's quiet route on Beginner. */
   const everyPart = () => GROUPS.map((g) => ({ ...g, parts: g.parts.filter(([key]) => hasPart(key)) })).filter((g) => g.parts.length);
   /** The parts drawn in their groups: on Beginner a quiet part only while a line is in it or it is open. */
@@ -1396,6 +1397,16 @@ export function realismRoom(ctx) {
     const onOffer = mapFirst() && rv.agreements ? offerTo : null;
     ui.nations ??= {};
     return nationsPanel(rv, { state: ui.nations, act, onOffer, onHome: homeFromCard });
+  }
+
+  /** A tile of the Standing grid: World opens at Nations with that nation's card open. */
+  function cardFromGrid(key) {
+    ui.nations ??= {};
+    ui.nations.open = key;
+    ui.nations.eco = false;
+    openSheet(ui, 'nations', { group: 'world' });
+    rerender();
+    root.querySelector('.rl-over .rl-nb-card-title')?.focus();
   }
 
   /** The seat's own card's At home: World opens at Home. */

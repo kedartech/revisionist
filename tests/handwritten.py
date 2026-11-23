@@ -140,7 +140,7 @@ DIRECTIVE_BY_TEXT: Mapping[str, Any] = {
 
 
 def directive_reply(request: Request) -> Any:
-    return DIRECTIVE_BY_TEXT[request.prompt.rsplit("\n", 1)[1]]
+    return DIRECTIVE_BY_TEXT[request.prompt.splitlines()[-2]]  # inside the quoted block
 
 
 AB_BY_MODEL_AND_TITLE: Mapping[tuple[str, str], str] = {

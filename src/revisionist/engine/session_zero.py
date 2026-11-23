@@ -53,7 +53,14 @@ from revisionist.core.world_compile import WorldError, check_history, compile_wo
 from revisionist.engine import campaign as cmp
 from revisionist.engine.agent import AGENT_MODEL
 from revisionist.engine.ids import new_id
-from revisionist.engine.llm import RESOLVER_MODEL, Request, Transport, TransportError, prompt_text
+from revisionist.engine.llm import (
+    RESOLVER_MODEL,
+    Request,
+    Transport,
+    TransportError,
+    prompt_text,
+    quote_player,
+)
 from revisionist.engine.pitch import SettingCard, read_pitch
 from revisionist.engine.store import EventStore, Sealer, StoreError, load_state
 
@@ -99,7 +106,7 @@ def _request(
     place: str, settings: Settings, problems: Sequence[str], effort: int | None = None
 ) -> Request:
     prompt = (
-        f"## Place and date\n{place}\n\n"
+        f"## Place and date\n{quote_player(place)}\n\n"
         "## Settings (fixed by the table; for tone only)\n"
         + settings.model_dump_json()
         + "\n\nDraft the world file."
@@ -117,6 +124,7 @@ def _request(
         schema=DRAFT_SCHEMA,
         max_usd=2.0,
         effort=effort,
+        player_text=True,
     )
 
 
@@ -528,9 +536,10 @@ def search(
         prompt="## Roster\n"
         + json.dumps(listing)
         + "\n\n## What the player wants to play\n"
-        + wanted,
+        + quote_player(wanted),
         schema=SEARCH_SCHEMA,
         max_usd=0.1,
+        player_text=True,
     )
     named = [c.entity_id for c in _resolve(state, wanted) if c.entity_id in free]
     hits: list[EntityId] = []
@@ -599,9 +608,10 @@ def _record_people(
         prompt=f"## Start\n{_start(store, campaign_id)}\n\n## Already on the roster\n"
         + json.dumps(sorted(state.entities[e].name for e in state.roster))
         + "\n\n## What the player wants to play\n"
-        + wanted,
+        + quote_player(wanted),
         schema=RECORD_SCHEMA,
         max_usd=0.3,
+        player_text=True,
     )
     try:
         reply = transport.call(request)
@@ -726,13 +736,15 @@ def pick(
             call_class="character_pick",
             model=SESSION_ZERO_MODEL,
             system=prompt_text("character_pick"),
-            prompt=f"## Start\n{_start(store, campaign_id)}\n\n## The person\n{wanted}\n\n"
+            prompt=f"## Start\n{_start(store, campaign_id)}\n\n"
+            f"## The person\n{quote_player(wanted)}\n\n"
             "## Already in the world\n"
             + json.dumps(known)
             + "\n\n## On the roster\n"
             + json.dumps(sorted(state.entities[c.entity_id].name for c in state.roster.values())),
             schema=PICK_SCHEMA,
             max_usd=0.5,
+            player_text=True,
         )
     )
     cmp.log_cost(store, campaign_id, "character_pick", [reply.cost("character_pick")], seat)
@@ -876,7 +888,11 @@ def propose_goals(
         f"## Start\n{_start(store, campaign_id)}\n\n## What your character knows\n"
         + view.model_dump_json(exclude={"own_pending"})
         + f"\n\n## Route\n{_ROUTE_ASK[route]}"
-        + (f"\n\n## The player's goal\n{text.strip()[:280]}" if route == "own" else "")
+        + (
+            f"\n\n## The player's goal\n{quote_player(text.strip()[:280])}"
+            if route == "own"
+            else ""
+        )
     )
     reply = transport.call(
         Request(
@@ -886,6 +902,7 @@ def propose_goals(
             prompt=prompt,
             schema=GOAL_SCHEMA,
             max_usd=0.2,
+            player_text=True,
         )
     )
     cmp.log_cost(store, campaign_id, "goal", [reply.cost("goal")], seat)

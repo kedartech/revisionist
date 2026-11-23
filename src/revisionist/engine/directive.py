@@ -28,7 +28,14 @@ from revisionist.core.visibility import private_to
 from revisionist.engine import campaign as cmp
 from revisionist.engine.aide import AIDE_MODEL, Draft, valid
 from revisionist.engine.ids import new_id
-from revisionist.engine.llm import Request, Transport, TransportError, prompt_text, prompt_version
+from revisionist.engine.llm import (
+    Request,
+    Transport,
+    TransportError,
+    prompt_text,
+    prompt_version,
+    quote_player,
+)
 from revisionist.engine.realism_tick import draft_order, form_filing
 from revisionist.engine.store import EventStore, load_state
 
@@ -127,7 +134,7 @@ def directive_prompt(view: View, person: str, channel: ChannelKind, text: str) -
         f"## Your principal\n{principal}" + (f", {office}" if office else "") + "\n\n"
         f"## Their instruments\n{json.dumps(levers, ensure_ascii=False)}\n\n"
         f"## Today\n{view.in_world_date.isoformat() if view.in_world_date else ''}\n\n"
-        f"## To {person}, by {words(channel.value).lower()}\n{text}"
+        f"## To {person}, by {words(channel.value).lower()}\n{quote_player(text)}"
     )
 
 
@@ -146,6 +153,7 @@ class ClaudeDirectiveReader:
             prompt=directive_prompt(view, person, channel, text),
             schema=DIRECTIVE_SCHEMA,
             max_usd=self.max_usd,
+            player_text=True,
         )
         self.requests.append(req)
         reply = self.transport.call(req)

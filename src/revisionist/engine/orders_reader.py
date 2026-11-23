@@ -39,7 +39,14 @@ from revisionist.core.realism.war import polity_of
 from revisionist.core.state import Rule, State, View
 from revisionist.engine.aide import AIDE_MODEL
 from revisionist.engine.directive import TEXT_MAX
-from revisionist.engine.llm import Request, Transport, TransportError, cli_schema, prompt_text
+from revisionist.engine.llm import (
+    Request,
+    Transport,
+    TransportError,
+    cli_schema,
+    prompt_text,
+    quote_player,
+)
 from revisionist.engine.options import _forces, _named_ok
 from revisionist.engine.realism_tick import commit_order
 from revisionist.engine.store import EventStore, load_state
@@ -192,7 +199,8 @@ def orders_prompt(
     clauses: bool = False,
     conferences: bool = False,
 ) -> str:
-    """The seat's own view, compact: desk, date, the objects it may name, then the words."""
+    """The seat's own view, compact: desk, date, the objects it may name, then the words.
+    A player's words, the order's and each conference text's, stand only in quoted blocks."""
     desk = view.desk
     seat: dict[str, Any] = {"name": view.me.name, "entity": view.me.embodies}
     if desk is not None:
@@ -223,17 +231,22 @@ def orders_prompt(
     }
     if clauses:
         world["clause_list"] = _clause_list(view)
+    held = [
+        c
+        for c in (view.conferences.held.values() if conferences else ())
+        if c.tally is None and _nation_of(view) in c.invited
+    ]
     if conferences:
-        world["conferences"] = [
-            {"key": c.key, "text": c.text.wording, "voting_day": str(c.voting_day)}
-            for c in view.conferences.held.values()
-            if c.tally is None and _nation_of(view) in c.invited
-        ]
+        world["conferences"] = [{"key": c.key, "voting_day": str(c.voting_day)} for c in held]
+    texts = "".join(
+        f"\n\n## The text of conference {c.key}\n{quote_player(c.text.wording)}" for c in held
+    )
     to = f"To {person}, by {channel}" if person else "No one named"
     return (
         "## What the seat can see\n"
         + json.dumps(world, separators=(",", ":"), default=str)
-        + f"\n\n## {to}\n{text}"
+        + texts
+        + f"\n\n## {to}\n{quote_player(text)}"
     )
 
 
@@ -468,6 +481,7 @@ def read_order(
                     conferences=votes,
                 ),
                 schema=cli_schema(schema),
+                player_text=True,
             )
         )
     except TransportError:

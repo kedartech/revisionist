@@ -1,5 +1,5 @@
 {
- "0a0fd40e749dd3e86a280452": {
+ "054f50a798ac04c2fad57673": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -25,7 +25,32 @@
    "usd": 0.0
   }
  },
- "4c837f6380ea617c717c6294": {
+ "4c62cb62d47a2565e1fa7515": {
+  "call_class": "estimator",
+  "hand_written": true,
+  "model": "claude-sonnet-5-5",
+  "note": "hand-written for tests; not a model reply (quantity)",
+  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"4W7GBHN946QWXFJTADTT7CJMGV\",\"issuer\":\"Frank",
+  "reply": {
+   "cached_tokens": 0,
+   "input_tokens": 0,
+   "model": "hand",
+   "output": {
+    "effects": [
+     {
+      "bloc": "isolationists",
+      "count": 40,
+      "kind": "set_votes"
+     }
+    ],
+    "rationale": "A count, which no effect may carry.",
+    "reason": "Forty votes fall away."
+   },
+   "output_tokens": 0,
+   "usd": 0.0
+  }
+ },
+ "9a29bf7677212667b85d7dd0": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -51,32 +76,7 @@
    "usd": 0.0
   }
  },
- "7ba27afc4e52587801e92773": {
-  "call_class": "estimator",
-  "hand_written": true,
-  "model": "claude-sonnet-5-5",
-  "note": "hand-written for tests; not a model reply (quantity)",
-  "prompt_head": "## World (truth) and the part to rule on\n{\"date\":\"1941-09-01\",\"order\":{\"id\":\"4W7GBHN946QWXFJTADTT7CJMGV\",\"issuer\":\"Frank",
-  "reply": {
-   "cached_tokens": 0,
-   "input_tokens": 0,
-   "model": "hand",
-   "output": {
-    "effects": [
-     {
-      "bloc": "isolationists",
-      "count": 40,
-      "kind": "set_votes"
-     }
-    ],
-    "rationale": "A count, which no effect may carry.",
-    "reason": "Forty votes fall away."
-   },
-   "output_tokens": 0,
-   "usd": 0.0
-  }
- },
- "d278fe7c73c6be0de701a4e0": {
+ "aacdbd5a8fda37b18ec98282": {
   "call_class": "estimator",
   "hand_written": true,
   "model": "claude-sonnet-5-5",

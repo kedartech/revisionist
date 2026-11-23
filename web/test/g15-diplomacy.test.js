@@ -450,7 +450,12 @@ async function room(rv) {
   return { root: () => doc.body.firstElementChild ?? root, calls };
 }
 
-const tabOf = (root, key) => root.querySelectorAll('.rl-sheettabs button').find((b) => b.getAttribute('data-sheet') === key);
+/** Part `key` of World: World opened from the bar, then the part's own tab; undefined when World has no such part. */
+const tabOf = (root, key) => {
+  const world = root.querySelectorAll('.rl-sheettabs button').find((b) => b.getAttribute('data-group') === 'world');
+  if (world && world.getAttribute('aria-expanded') !== 'true') world.click();
+  return root.querySelectorAll('.rl-over .rl-parts button').find((b) => b.getAttribute('data-sheet') === key);
+};
 
 test('the map-first room has a Diplomacy sheet: the agreements, the offer builder and the conferences', async () => {
   const { root } = await room(seat());
@@ -459,7 +464,7 @@ test('the map-first room has a Diplomacy sheet: the agreements, the offer builde
   tab.click();
   const sheet = root().querySelector('.rl-over');
   assert.equal(sheet.getAttribute('data-sheet'), 'diplomacy');
-  assert.equal(words(sheet.querySelector('.rl-over-title')), 'Diplomacy');
+  assert.equal(words(sheet.querySelector('.rl-over-title')), 'World');
   for (const cls of ['rl-dp-agreements', 'rl-dp-builder', 'rl-dp-conferences']) assert.ok(sheet.querySelector(`.${cls}`), cls);
 });
 

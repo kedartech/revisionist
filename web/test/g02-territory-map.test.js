@@ -302,7 +302,7 @@ test('hiddenLabels(): an overlap hides the later label; apart, none', () => {
   assert.deepEqual([...rules.hiddenLabels(two, 0.01)], []);
 });
 
-// --- Rule 5: zoom 1, 2, 4 by buttons and pinch; the phone map is never under half the height --
+// --- Rule 5: zoom 1, 2, 4 by buttons, any zoom by pinch; the phone map is never under half the height
 
 test('zoom is 1, 2 and 4 times within the frame, by buttons', async () => {
   const picks = [];
@@ -319,7 +319,7 @@ test('zoom is 1, 2 and 4 times within the frame, by buttons', async () => {
   assert.deepEqual([x2, y2], [150, 75]);
 });
 
-test('a pinch picks the nearest zoom step', () => {
+test('a pinch zooms to its spread, not to a step, and is told once', () => {
   assert.equal(rules.pinchZoom(1, 1.1), 1);
   assert.equal(rules.pinchZoom(1, 2.2), 2);
   assert.equal(rules.pinchZoom(2, 2.5), 4);
@@ -335,7 +335,7 @@ test('a pinch picks the nearest zoom step', () => {
   pic.dispatchEvent(ev('pointerup', 1, 120, 100));
   pic.dispatchEvent(ev('pointerup', 2, 180, 100));
   assert.equal(views.length, 1, 'told once, at the end');
-  assert.equal(views[0].zoom, 4, 'spread three times: the 4× step');
+  assert.equal(views[0].zoom, 3, 'spread three times: three times');
   assert.deepEqual(views[0].centre, [150, 100]);
 });
 

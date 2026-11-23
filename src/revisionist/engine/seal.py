@@ -19,7 +19,7 @@ import json
 import os
 import secrets
 import stat
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
@@ -229,6 +229,20 @@ def master_key_path() -> Path | None:
     return None
 
 
+def master_key_problem(environ: Mapping[str, str]) -> str | None:
+    """What is wrong with the master key file ``environ`` names, in words that hold
+    no path and no key; ``None`` when none is named, it is missing here or it is fine."""
+    named = environ.get(MASTER_KEY_ENV)
+    path = Path(named) if named else None
+    if path is None and (creds := environ.get("CREDENTIALS_DIRECTORY")):
+        path = Path(creds) / CREDENTIAL
+    if path is None or not path.is_file():
+        return None
+    if path.stat().st_mode & (stat.S_IRWXG | stat.S_IRWXO):
+        return f"{MASTER_KEY_ENV}: the master key file is readable by others; chmod 600 it"
+    return None
+
+
 def load_master_key(path: Path) -> bytes:
     """32 random bytes, raw or base64. Refused if anyone but the owner can read it."""
     if path.stat().st_mode & (stat.S_IRWXG | stat.S_IRWXO):
@@ -351,5 +365,6 @@ __all__ = [
     "is_sealed_body",
     "load_master_key",
     "master_key_path",
+    "master_key_problem",
     "new_master_key",
 ]

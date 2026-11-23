@@ -299,6 +299,25 @@ Sealing:
 - `command`: the commander's seat, a card's path, the superior prevailing, and the step that may only pass or stall (`card.py`, `pipelines.py`, `resolvers/movement.py`).
 - `locks`: orders held until the person or body that can allow them does (`locks.py`, `engine/web/locks_api.py`).
 
+The third run declares sixteen more names, each read by a later item; until its reader is built a name does nothing, and no shipped world names one:
+
+- `laws`: laws declared by the world, read by locks, votes and shipping.
+- `ask_answers`: an ask to a decider nobody plays is answered by its card on a due day.
+- `deciders`: locks decided by the kind of question, and by a council.
+- `own_aim`: the player's own aim, filled from the world's patterns and scored.
+- `offers`: a priced offer to a bloc, with a promise that comes due.
+- `classes`: every happening has a class: felt, reported or secret.
+- `losses`: the size of losses moves the mood at home.
+- `places`: places with political weight: lost, abandoned or retaken.
+- `posts`: player, person and post kept apart, and the ladder of posts.
+- `office`: the office question as a formal sitting, and blocs turning on the leader.
+- `elections`: elections redraw a chamber.
+- `defiance`: acting without permission, and refusing an order from above.
+- `aide_note`: the aide's note of what waits for the seat.
+- `peace`: an armistice and its terms end a war.
+- `post_view`: a commander's view limited to his post.
+- `playable_rule`: who can be played comes from a rule over the cards.
+
 ### Event kinds
 
 `src/revisionist/core/events.py` holds 117 event kinds. Every one is in exactly one of `FEED_KINDS` or `NEVER` in `src/revisionist/engine/catchup.py`, and `tests/test_catchup.py` checks that split and the fog on the fed ones. The lists below are copied from those two sets.
@@ -442,7 +461,7 @@ Frontend (static, no build):
   - `0012_web_notices.sql`: `web_notice_addresses` (an account's notice address and IANA zone) and `web_notices_sent` (one row per seat and wake once its notice has gone). Read as empty until migrated (`src/revisionist/engine/notice.py`).
   - `0013_web_held_orders.sql`: `web_held_orders` (an order a seat gave after committing, kept until the next wake opens; `filed_in` and `dropped` record what became of it). Read as empty until migrated (`src/revisionist/engine/web/held.py`).
 - Event log: `src/revisionist/core/events.py` (event models). `src/revisionist/core/fold.py:107` `apply()`, `src/revisionist/core/fold.py:119` `replay()`. `src/revisionist/engine/store.py:103` `load_state()`. The Postgres store reads from a snapshot plus the tail (`src/revisionist/engine/pg_store.py`).
-- Schema export: `src/revisionist/schema_export.py:33` writes `schema/revisionist.schema.json`, which is committed. `tests/test_schema.py:85` checks it is current. `src/revisionist/core/__init__.py:23` `SCHEMA_VERSION = "65"`.
+- Schema export: `src/revisionist/schema_export.py:33` writes `schema/revisionist.schema.json`, which is committed. `tests/test_schema.py:85` checks it is current. `src/revisionist/core/__init__.py:23` `SCHEMA_VERSION = "66"`.
 - Worlds: `worlds/autumn-1941.yaml`, `worlds/engine-v2-slice-1941.yaml`, `worlds/realism-slice-1941.yaml`, `worlds/realism-toy.yaml`, `worlds/salt-strait.yaml`, `worlds/salt-strait-duo.yaml`. Resolved from `src/revisionist/engine/campaign.py:33` `WORLDS_DIR` by `world_path()` (`src/revisionist/engine/campaign.py:85`). Sidecar text for two of them: `worlds/dossiers/autumn-1941.yaml` and `worlds/dossiers/engine-v2-slice-1941.yaml`. Drafts `tests/drafts/florence-1478.yaml` and `washington-1962.yaml` are fixtures.
 - Briefings: `src/revisionist/engine/campaign.py:226-235` `briefings_dir()`: `REVISIONIST_BRIEFINGS_DIR`, else `<db>-briefings` beside a SQLite file, else `./revisionist-briefings`. Files `t<tick>-<seat>.md` from `FileDeliverer` (`src/revisionist/engine/campaign.py:208-223`).
 - Setting card waiting for `establish confirm`: `src/revisionist/cli.py:231-234` `_card_file()`, `revisionist-card.json` beside briefings.

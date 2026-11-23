@@ -119,6 +119,22 @@ def test_the_fixed_list_of_rule_names() -> None:
         "written_orders",
         "command",
         "locks",
+        "laws",
+        "ask_answers",
+        "deciders",
+        "own_aim",
+        "offers",
+        "classes",
+        "losses",
+        "places",
+        "posts",
+        "office",
+        "elections",
+        "defiance",
+        "aide_note",
+        "peace",
+        "post_view",
+        "playable_rule",
     ]
 
 

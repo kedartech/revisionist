@@ -14,7 +14,6 @@ import json
 import logging
 import mimetypes
 import threading
-import time
 from collections.abc import Callable
 from datetime import date, datetime
 from http import HTTPStatus
@@ -66,6 +65,8 @@ from revisionist.engine.web import (
     court,
     destinations,
     dossiers,
+    guard,
+    limits,
     locks_api,
     map_api,
     new_game_api,
@@ -93,10 +94,7 @@ from revisionist.engine.web.handlers import NOT_LINKED, WebHandlers
 
 log = logging.getLogger("revisionist.web")
 
-COOKIE = "rv_session"
-BODY_MAX = 64 * 1024
-SIGNIN_TRIES = 10
-"""Failed sign-ins (or recoveries) per handle per 15 minutes."""
+COOKIE = guard.COOKIE
 READY = ("autumn-1941", "engine-v2-slice-1941")
 """[proposed] The ready-made realism worlds a web account may start."""
 OFFERED = ("autumn-1941",)
@@ -146,13 +144,6 @@ def model_down(exc: TransportError) -> str:
     return MODEL_DOWN
 
 
-CSP = (
-    "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
-    "font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; "
-    "form-action 'self'"
-)
-
-
 class ApiError(Exception):
     def __init__(self, status: HTTPStatus, message: str) -> None:
         super().__init__(message)
@@ -188,7 +179,7 @@ class App:
         self.handlers = WebHandlers(
             dsn, transport_factory=transport_factory, clock=clock, briefings=briefings
         )
-        self._failures: dict[str, list[float]] = {}
+        self.signin = limits.SigninThrottle()
         self._lock = threading.Lock()
         self._briefs: dict[tuple[CampaignId, SeatId], tuple[int, dict[str, Any]]] = {}
         """Each seat's aide brief and the wake (``state.tick``) it was read at: one model
@@ -214,19 +205,13 @@ class App:
         assert isinstance(store, PostgresEventStore)
         return store
 
-    # --- sign-in throttle ------------------------------------------------------
-
-    def throttled(self, handle: str) -> bool:
-        key = handle.strip().casefold()
-        now = time.monotonic()
-        with self._lock:
-            recent = [t for t in self._failures.get(key, []) if now - t < 900]
-            self._failures[key] = recent
-            return len(recent) >= SIGNIN_TRIES
-
-    def failed(self, handle: str) -> None:
-        with self._lock:
-            self._failures.setdefault(handle.strip().casefold(), []).append(time.monotonic())
+    def limited(
+        self, store: PostgresEventStore, account: Account, action: str
+    ) -> dict[str, Any] | None:
+        """The limits' refusal of one action, as the reply to send, or None. The game is not
+        looked up yet, so no campaign is named."""
+        refusal = limits.check(store, account.account_id, None, action, self.clock())
+        return None if refusal is None else refusal.reply()
 
     # --- reads -----------------------------------------------------------------
 
@@ -327,6 +312,9 @@ class App:
         """One ``/api/realism/<action>``. A refusal is a reply, not an error."""
         store = self.open()
         try:
+            refused = self.limited(store, account, f"realism/{action}")
+            if refused is not None:
+                return refused
             link = self.handlers._game_of(store, account.account_id, "status")
             if isinstance(link, str):
                 raise ApiError(HTTPStatus.BAD_REQUEST, link)
@@ -712,6 +700,9 @@ class App:
         refusal is a reply, not an error."""
         store = self.open()
         try:
+            refused = self.limited(store, account, f"game/{action}")
+            if refused is not None:
+                return refused
             if action == "reveal":  # the game is over: no seat in play to look up
                 return self._reveal(store, account, _text(body, "game", 64))
             if action == "notice-address":  # the account's own, in a game or not
@@ -790,16 +781,22 @@ class App:
     # --- a new game ------------------------------------------------------------
 
     def new_game(self, account: Account, action: str, body: dict[str, Any]) -> dict[str, Any]:
-        """One ``/api/new/<action>``: start a realism game, choose its people, invite
-        the others and begin. A refusal is a reply, not an error."""
+        """One ``/api/new/<action>``: start a realism game, read its opening, choose its
+        people, invite the others and begin. A refusal is a reply, not an error."""
         store = self.open()
         try:
+            refused = self.limited(store, account, f"new/{action}")
+            if refused is not None:
+                return refused
             if action == "worlds":
                 decls = [(k, cmp.load_world(cmp.world_path(k))) for k in OFFERED]
                 return {"worlds": [{"key": k, "name": d.name, "start": d.start} for k, d in decls]}
             if action == "timeline":
                 return {"timeline": new_game_api.timeline()}
+            link = self.handlers.seat_of(store, account.account_id)
             if action == "figures":
+                if link is not None and new_game_api.ready_made(store, link.campaign_id):
+                    return {"reply": new_game_api.SET_BY_WORLD, "refused": True}
                 try:
                     found = new_game_api.figures(
                         _date(body),
@@ -809,7 +806,6 @@ class App:
                 except TransportError as exc:
                     return {"reply": model_down(exc), "refused": True}
                 return {"reply": "", "refused": False, "figures": found}
-            link = self.handlers.seat_of(store, account.account_id)
             if action in ("ready", "pitch", "cast", "start"):
                 if link is not None:
                     return {"reply": dh.ALREADY_SEATED, "refused": True}
@@ -828,6 +824,11 @@ class App:
                 return self._start(store, account, action, body)
             if link is None:
                 raise ApiError(HTTPStatus.BAD_REQUEST, NOT_LINKED)
+            if action == "opening":
+                state = load_state(store, link.campaign_id)
+                if state.ruleset != "realism":
+                    raise ApiError(HTTPStatus.BAD_REQUEST, "This game is not choosing its people.")
+                return {"reply": "", "refused": False, "opening": new_game_api.opening(state)}
             # The scheduler's per-game lock: no other choice, release or Begin lands between
             # Begin's check for waiting players and its last write, and no pass runs a tick
             # on a game half begun.
@@ -946,13 +947,16 @@ class App:
     def _pick(
         self, store: PostgresEventStore, state: State, seat: SeatId, name: str
     ) -> dict[str, Any]:
-        """Take a person from the cast, building their card first if no one has."""
+        """Take a person from the cast, building their card first if no one has. A game
+        made from a ready-made world takes only its roster's people and makes no model call."""
         if seat in state.seats:
             return {"reply": f"You already play {state.seats[seat].name}.", "refused": True}
         person = next(
             (c for c in state.roster if state.entities[c].name.casefold() == name.casefold()),
             None,
         )
+        if person is None and new_game_api.ready_made(store, state.campaign_id):
+            return {"reply": new_game_api.OFF_ROSTER, "refused": True}
         if person is None:
             # Not on the roster: the record may still place them. The pick adds them to the
             # world, but a realism claim waits for a card, so it refuses; the card is built
@@ -1156,18 +1160,6 @@ def _refused_note(reason: str) -> str:
     return line + " Ask me below how to set it up, and I will point you to the right form."
 
 
-def _json_body(raw: bytes) -> dict[str, Any]:
-    if not raw:
-        return {}
-    try:
-        body = json.loads(raw)
-    except ValueError:
-        raise ApiError(HTTPStatus.BAD_REQUEST, "That request was not valid JSON.") from None
-    if not isinstance(body, dict):
-        raise ApiError(HTTPStatus.BAD_REQUEST, "Send a JSON object.")
-    return body
-
-
 def _text(body: dict[str, Any], key: str, limit: int, *, required: bool = True) -> str:
     value = body.get(key, "")
     if not isinstance(value, str):
@@ -1308,27 +1300,14 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
 
         # --- plumbing ----------------------------------------------------------
 
-        def _headers(self, status: HTTPStatus, kind: str, length: int) -> None:
-            self.send_response(status)
-            self.send_header("Content-Type", kind)
-            self.send_header("Content-Length", str(length))
-            self.send_header("Content-Security-Policy", CSP)
-            self.send_header("X-Content-Type-Options", "nosniff")
-            self.send_header("Referrer-Policy", "no-referrer")
-            self.send_header("Cross-Origin-Opener-Policy", "same-origin")
-
         def _send_json(self, status: HTTPStatus, payload: Any, cookie: str | None = None) -> None:
             body = json.dumps(payload, ensure_ascii=False).encode()
-            self._headers(status, "application/json; charset=utf-8", len(body))
-            self.send_header("Cache-Control", "no-store")
-            if cookie is not None:
-                self.send_header("Set-Cookie", cookie)
+            guard.json_headers(self, status, len(body), cookie)
             self.end_headers()
             self.wfile.write(body)
 
         def _cookie(self, token: str, max_age: int) -> str:
-            secure = "; Secure" if app.secure_cookie else ""
-            return f"{COOKIE}={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={max_age}{secure}"
+            return guard.cookie(token, max_age, app.secure_cookie)
 
         def _token(self) -> str | None:
             jar = SimpleCookie()
@@ -1355,20 +1334,13 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                 raise ApiError(HTTPStatus.UNAUTHORIZED, "Sign in first.")
             return account
 
-        def _same_origin(self) -> None:
-            """Writes must come from this page: a JSON body with our own Origin."""
-            if not self.headers.get("Content-Type", "").startswith("application/json"):
-                raise ApiError(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, "Send JSON.")
-            origin = self.headers.get("Origin")
-            host = self.headers.get("Host", "")
-            if origin is not None and urlsplit(origin).netloc != host:
-                raise ApiError(HTTPStatus.FORBIDDEN, "Cross-origin request refused.")
-
-        def _body(self) -> dict[str, Any]:
-            length = int(self.headers.get("Content-Length") or 0)
-            if length > BODY_MAX:
-                raise ApiError(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "That request is too large.")
-            return _json_body(self.rfile.read(length) if length else b"")
+        def _address_refused(self, what: str) -> bool:
+            """Send the limits' refusal of a sign-up, sign-in or recovery, if there is one."""
+            refusal = limits.address(self, what)
+            if refusal is None:
+                return False
+            self._send_json(HTTPStatus.OK, refusal.reply())
+            return True
 
         # --- verbs -------------------------------------------------------------
 
@@ -1397,8 +1369,8 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
         def do_POST(self) -> None:
             path = urlsplit(self.path).path
             try:
-                self._same_origin()
-                body = self._body()
+                guard.same_origin(self.headers)
+                body = guard.body(self.headers, self.rfile, guard.json_body)
                 if path == "/api/signup":
                     self._signup(body)
                 elif path == "/api/signin":
@@ -1413,6 +1385,14 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     if run is None:
                         raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
                     account = self._need_account()
+                    store = app.open()
+                    try:
+                        refused = app.limited(store, account, f"seat/{action}")
+                    finally:
+                        store.close()
+                    if refused is not None:
+                        self._send_json(HTTPStatus.OK, refused)
+                        return
                     reply = str(run(app.handlers, account.account_id, body))
                     self._send_json(HTTPStatus.OK, {"reply": reply, "refused": reply in REFUSALS})
                 elif path.startswith("/api/new/"):
@@ -1429,7 +1409,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     self._send_json(HTTPStatus.OK, out)
                 else:
                     raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
-            except ApiError as exc:
+            except (ApiError, guard.RefusedError) as exc:
                 self._send_json(exc.status, {"error": exc.message})
             except snapshot.WithheldError:
                 log.warning("realism reply withheld: canary hit")
@@ -1443,6 +1423,8 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
         # --- accounts ----------------------------------------------------------
 
         def _signup(self, body: dict[str, Any]) -> None:
+            if self._address_refused("signup"):
+                return
             handle = _text(body, "handle", 32)
             password = body.get("password")
             if not isinstance(password, str):
@@ -1462,18 +1444,20 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
             )
 
         def _signin(self, body: dict[str, Any]) -> None:
+            if self._address_refused("signin"):
+                return
             handle = _text(body, "handle", 32)
             password = body.get("password")
             if not isinstance(password, str):
                 raise ApiError(HTTPStatus.BAD_REQUEST, "password must be text.")
-            if app.throttled(handle):
+            if app.signin.throttled(handle):
                 raise ApiError(HTTPStatus.TOO_MANY_REQUESTS, "Too many tries. Wait 15 minutes.")
             store = app.open()
             try:
                 accounts = Accounts(store.conn)
                 account = accounts.sign_in(handle, password)
                 if account is None:
-                    app.failed(handle)
+                    app.signin.failed(handle)
                     raise ApiError(HTTPStatus.UNAUTHORIZED, "That handle and password don't match.")
                 token = accounts.open_session(account.account_id, app.clock())
             finally:
@@ -1485,19 +1469,21 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
             )
 
         def _recover(self, body: dict[str, Any]) -> None:
+            if self._address_refused("recover"):
+                return
             handle = _text(body, "handle", 32)
             code = _text(body, "code", 20)
             password = body.get("password")
             if not isinstance(password, str):
                 raise ApiError(HTTPStatus.BAD_REQUEST, "password must be text.")
-            if app.throttled(handle):
+            if app.signin.throttled(handle):
                 raise ApiError(HTTPStatus.TOO_MANY_REQUESTS, "Too many tries. Wait 15 minutes.")
             store = app.open()
             try:
                 accounts = Accounts(store.conn)
                 got = accounts.recover(handle, code, password)
                 if got is None:
-                    app.failed(handle)
+                    app.signin.failed(handle)
                     raise ApiError(HTTPStatus.UNAUTHORIZED, "That handle and code don't match.")
                 account, codes = got
                 token = accounts.open_session(account.account_id, app.clock())
@@ -1535,9 +1521,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                 kind += "; charset=utf-8"
             if target.suffix == ".js":
                 kind = "text/javascript; charset=utf-8"
-            self._headers(HTTPStatus.OK, kind, len(data))
-            cache = "no-cache" if target.suffix in (".html", ".js", ".css") else "max-age=86400"
-            self.send_header("Cache-Control", cache)
+            guard.static_headers(self, HTTPStatus.OK, kind, len(data), target.suffix)
             self.end_headers()
             self.wfile.write(data)
 

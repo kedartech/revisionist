@@ -364,6 +364,24 @@ def _usa(w: World) -> None:
     w["entities"].append({"key": "usa", "kind": "polity", "name": "Usonia"})
     help_ = {"key": "gallup_help_britain", "owner": "usa", "name": "Help", "value": 50}
     w["quantities"].append({**help_, "unit": "percent", "source": "toy"})
+    w["pipelines"] = [
+        {
+            "key": "proclamation",
+            "name": "A proclamation",
+            "source": "toy",
+            "steps": [{"person": "ilse", "kind": "decision", "days": 1}],
+        }
+    ]
+    card = next(c for c in w["cards"] if c["person"] == "ilse")
+    card["pipelines"] = ["proclamation"]
+    card["levers"] = [
+        {
+            "name": "declare_war",
+            "pipeline": "proclamation",
+            "resolver": "war",
+            "params": [{"name": "target", "kind": "enum", "choices": ["usa"]}],
+        }
+    ]
 
 
 def _declaration() -> Order:

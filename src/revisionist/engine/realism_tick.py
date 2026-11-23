@@ -415,6 +415,8 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return private_to(payload.issuer)
     if isinstance(payload, ev.OrderAsked):
         return _asked_scope(payload.asked)
+    if isinstance(payload, ev.AskAnswered):
+        return private_to(payload.asker)
     if isinstance(payload, ev.AnswerPlanned | ev.AnswerMade):
         seat = actors.seat_of(state, payload.figure)
         return private_to(seat) if seat is not None else PUBLIC
@@ -655,6 +657,9 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         while made := answering.make(state, day):
             add(made)
         add(opponents.settle(state, day, [*landed, *planned], wake_start))
+        add(actors.unseated(state, answering.ask_deciders(state, day)))  # AAK: a seat to file from
+        while answer := answering.answer_ask(state, day):
+            add(answer)
         add(_unlocked(state, day))  # ASK: each held order once a day, after the day's acts
     close_from, close_mark = state, len(out)
     add(holders.close(state, until))  # the wake's close: a capital marked before falls

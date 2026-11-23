@@ -6,7 +6,7 @@
 // order. Nothing here works out a day or a holder the view did not send, and nothing touches
 // the page on import.
 
-import { h } from '../dom.js';
+import { h, svg } from '../dom.js';
 import { worldDate } from '../rules.js';
 import { receiptLine } from './realism-acks.js';
 import { NO_ORDERS, orderChip, orderGroups, orderLines } from './realism-orders.js';
@@ -41,7 +41,7 @@ export function along(heldDays, stepDays) {
 }
 
 function marker(m) {
-  const el = h('span', { class: 'rl-trk-marker', 'data-order': m.id });
+  const el = h('span', { class: `rl-trk-marker${m.held ? ' locked' : ''}`, 'data-order': m.id }, m.held ? lock() : null);
   el.style?.setProperty('--rl-trk-at', `${Math.round(m.at * 100)}%`);
   return el;
 }
@@ -54,7 +54,7 @@ function segment(s) {
   },
   h('span', { class: 'rl-trk-bar', 'aria-hidden': 'true' }, s.markers.map(marker)),
   s.body,
-  h('span', { class: 'rl-trk-days' }, stated(s.days)));
+  h('span', { class: 'rl-trk-days' }, s.note ?? stated(s.days)));
   if (!unstated) li.style?.setProperty('--rl-trk-grow', String(s.days));
   return li;
 }
@@ -62,10 +62,89 @@ function segment(s) {
 /**
  * A track labelled `label`: one segment per `{ name, kind: 'stop' | 'mark', days, body, markers }`
  * in order, each as long as its days beyond its least size (a step with no time stated a fixed
- * short gap), its days written under it, and each marker `{ id, at }` on its bar `at` of the way along.
+ * short gap), its days written under it (or its `note`), and each marker `{ id, at, held }` on its
+ * bar `at` of the way along, a held one with its lock.
  */
 export function track(label, segs) {
   return h('ol', { class: 'rl-trk', 'aria-label': label }, segs.map(segment));
+}
+
+// --- motion ---------------------------------------------------------------------------------
+// Motion shows a change in the game since the board last drew it, once; under reduced motion
+// the end state stands at once. What was drawn is kept here, by key, for the next draw.
+
+/** How long a marker, a bloc's part or a count takes to reach its new place `[proposed]`. */
+export const MOVE_MS = 600;
+/** How long a mark that came due takes to mark itself `[proposed]`. */
+export const MARK_MS = 900;
+/** The flash a promise's mark plays once on the draw it came due. */
+export const DUE_FLASH = [{ opacity: 1 }, { opacity: 0.2 }, { opacity: 1 }, { opacity: 0.2 }, { opacity: 1 }];
+
+const drawn = new Map();
+
+/** What was drawn under `key` the last time (undefined the first time); keeps `now` for the next. */
+export function lastDrawn(key, now) {
+  const was = drawn.get(key);
+  drawn.set(key, now);
+  return was;
+}
+
+/** Forgets every value kept between draws. */
+export const forgetDrawn = () => drawn.clear();
+
+/** Whether the seat's device asks for reduced motion. */
+export const reducedMotion = () => Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+
+/** Plays `frames` on `el` once; nothing under reduced motion or where the page cannot animate. */
+export function play(el, frames, ms = MOVE_MS) {
+  if (!el || reducedMotion() || typeof el.animate !== 'function') return null;
+  return el.animate(frames, { duration: ms, easing: 'ease-in-out' });
+}
+
+/**
+ * Writes `say(to)` into `el`; when `from` differs, it first runs from `say(from)` through the
+ * numbers between, ending on `to`. Each of `from` and `to` is a list of numbers.
+ */
+export function runCount(el, from, to, say, ms = MOVE_MS) {
+  el.textContent = say(to);
+  if (!from || reducedMotion() || from.every((n, i) => n === to[i])) return;
+  const frames = Math.max(1, Math.round(ms / 50));
+  const at = (k) => to.map((n, i) => Math.round(from[i] + ((n - from[i]) * k) / frames));
+  el.textContent = say(from);
+  for (let k = 1; k <= frames; k += 1) setTimeout(() => { el.textContent = say(at(k)); }, (ms * k) / frames);
+}
+
+/** A held order's lock, drawn on its marker. */
+const lock = () => svg('svg', { class: 'rl-trk-lock', viewBox: '0 0 10 12', width: 10, height: 12, 'aria-hidden': 'true', focusable: 'false' },
+  svg('path', { d: 'M2.5 5V3.5a2.5 2.5 0 0 1 5 0V5' }), svg('rect', { x: 1, y: 5, width: 8, height: 6, rx: 1 }));
+
+/**
+ * Slides marker `m` from where it stood last drawn (`from`: `{ step, at }`) to where it stands,
+ * once the page has laid the track out: the bars of the two steps give the distance.
+ */
+export function slideMarker(m, from, to) {
+  if (!from || (from.step === to.step && from.at === to.at) || reducedMotion()) return;
+  const next = globalThis.requestAnimationFrame ?? ((f) => setTimeout(f, 0));
+  next(() => {
+    const bars = m.closest('ol.rl-trk')?.querySelectorAll('.rl-trk-bar') ?? [];
+    const was = bars[from.step];
+    const now = bars[to.step];
+    if (!was?.getBoundingClientRect || !now?.getBoundingClientRect) return;
+    const a = was.getBoundingClientRect();
+    const b = now.getBoundingClientRect();
+    const dx = Math.round(a.left + from.at * a.width - (b.left + to.at * b.width));
+    if (dx) play(m, [{ transform: `translateX(${dx}px)` }, { transform: 'none' }]);
+  });
+}
+
+/**
+ * Whether the thing kept as `key` came due on this draw: its day `due` is reached by `today`
+ * and either the last draw saw it not yet due, or this is the first draw and today is its day.
+ */
+export function cameDue(key, due, today) {
+  const now = Boolean(due && today && due <= today);
+  const was = lastDrawn(`due:${key}`, now);
+  return now && (was === false || (was === undefined && due === today));
 }
 
 // --- the Sent part ---------------------------------------------------------------------------

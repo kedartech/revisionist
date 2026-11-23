@@ -3045,6 +3045,7 @@
           "agreement_broken",
           "measure_passed",
           "war_declared",
+          "daily_life_passed",
           "writing",
           "drift",
           "offer_taken",
@@ -3261,6 +3262,16 @@
         ],
         "title": "ClarificationAsked",
         "type": "object"
+      },
+      "Class": {
+        "description": "How a kind of happening reaches the groups at home (HCL).",
+        "enum": [
+          "felt",
+          "reported",
+          "secret"
+        ],
+        "title": "Class",
+        "type": "string"
       },
       "Classification": {
         "enum": [
@@ -7414,6 +7425,14 @@
         "additionalProperties": false,
         "description": "Each nation's groups at home as the world declares them (GRP), by nation, in the\nworld file's order. Engine only: a seat reads its own nation's groups from its own\ndata; once, at creation.",
         "properties": {
+          "classes": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/KindClass"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
           "kind": {
             "const": "groups_declared",
             "default": "groups_declared",
@@ -7443,7 +7462,8 @@
           "losses_at_sea",
           "agreement_broken",
           "measure_passed",
-          "war_declared"
+          "war_declared",
+          "daily_life_passed"
         ],
         "title": "Happening",
         "type": "string"
@@ -8107,6 +8127,31 @@
         "type": "object"
       },
       "JsonValue": {},
+      "KindClass": {
+        "additionalProperties": false,
+        "description": "The class the world gives a kind of happening (HCL), and the share of it that is\nfelt: 1 for a felt kind, 0 for a reported one unless the world gives a share, which\nmakes the kind mixed (that share felt, the rest reported). A secret kind has none.",
+        "properties": {
+          "felt": {
+            "default": 0.0,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Felt",
+            "type": "number"
+          },
+          "kind": {
+            "$ref": "#/$defs/Happening"
+          },
+          "reach": {
+            "$ref": "#/$defs/Class"
+          }
+        },
+        "required": [
+          "kind",
+          "reach"
+        ],
+        "title": "KindClass",
+        "type": "object"
+      },
       "KindsDeclared": {
         "additionalProperties": false,
         "description": "The world's own piece kinds and resources, in the world file's order. Public; once,\nat creation, before any feature is set.",
@@ -17963,6 +18008,16 @@
         "title": "CharacterSide",
         "type": "object"
       },
+      "Class": {
+        "description": "How a kind of happening reaches the groups at home (HCL).",
+        "enum": [
+          "felt",
+          "reported",
+          "secret"
+        ],
+        "title": "Class",
+        "type": "string"
+      },
       "Classification": {
         "enum": [
           "open",
@@ -20324,6 +20379,16 @@
         "additionalProperties": false,
         "description": "Groups' truth. A seat sees its own nation's part only.",
         "properties": {
+          "classes": {
+            "additionalProperties": {
+              "$ref": "#/$defs/KindClass"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Happening"
+            },
+            "title": "Classes",
+            "type": "object"
+          },
           "declared": {
             "additionalProperties": {
               "items": {
@@ -20398,7 +20463,8 @@
           "losses_at_sea",
           "agreement_broken",
           "measure_passed",
-          "war_declared"
+          "war_declared",
+          "daily_life_passed"
         ],
         "title": "Happening",
         "type": "string"
@@ -20902,6 +20968,31 @@
         "type": "object"
       },
       "JsonValue": {},
+      "KindClass": {
+        "additionalProperties": false,
+        "description": "The class the world gives a kind of happening (HCL), and the share of it that is\nfelt: 1 for a felt kind, 0 for a reported one unless the world gives a share, which\nmakes the kind mixed (that share felt, the rest reported). A secret kind has none.",
+        "properties": {
+          "felt": {
+            "default": 0.0,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Felt",
+            "type": "number"
+          },
+          "kind": {
+            "$ref": "#/$defs/Happening"
+          },
+          "reach": {
+            "$ref": "#/$defs/Class"
+          }
+        },
+        "required": [
+          "kind",
+          "reach"
+        ],
+        "title": "KindClass",
+        "type": "object"
+      },
       "Kinds": {
         "additionalProperties": false,
         "description": "The world's piece kinds and resources, by key, in the world file's order.",
@@ -28083,6 +28174,16 @@
         "title": "CharacterSide",
         "type": "object"
       },
+      "Class": {
+        "description": "How a kind of happening reaches the groups at home (HCL).",
+        "enum": [
+          "felt",
+          "reported",
+          "secret"
+        ],
+        "title": "Class",
+        "type": "string"
+      },
       "Classification": {
         "enum": [
           "open",
@@ -30086,6 +30187,16 @@
         "additionalProperties": false,
         "description": "Groups' truth. A seat sees its own nation's part only.",
         "properties": {
+          "classes": {
+            "additionalProperties": {
+              "$ref": "#/$defs/KindClass"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Happening"
+            },
+            "title": "Classes",
+            "type": "object"
+          },
           "declared": {
             "additionalProperties": {
               "items": {
@@ -30160,7 +30271,8 @@
           "losses_at_sea",
           "agreement_broken",
           "measure_passed",
-          "war_declared"
+          "war_declared",
+          "daily_life_passed"
         ],
         "title": "Happening",
         "type": "string"
@@ -30581,6 +30693,31 @@
         "type": "object"
       },
       "JsonValue": {},
+      "KindClass": {
+        "additionalProperties": false,
+        "description": "The class the world gives a kind of happening (HCL), and the share of it that is\nfelt: 1 for a felt kind, 0 for a reported one unless the world gives a share, which\nmakes the kind mixed (that share felt, the rest reported). A secret kind has none.",
+        "properties": {
+          "felt": {
+            "default": 0.0,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Felt",
+            "type": "number"
+          },
+          "kind": {
+            "$ref": "#/$defs/Happening"
+          },
+          "reach": {
+            "$ref": "#/$defs/Class"
+          }
+        },
+        "required": [
+          "kind",
+          "reach"
+        ],
+        "title": "KindClass",
+        "type": "object"
+      },
       "Kinds": {
         "additionalProperties": false,
         "description": "The world's piece kinds and resources, by key, in the world file's order.",

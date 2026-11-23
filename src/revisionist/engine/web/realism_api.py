@@ -1025,6 +1025,7 @@ class GroupMove(TypedDict):
         "agreement_broken",
         "measure_passed",
         "war_declared",
+        "daily_life_passed",
         "writing",
         "drift",
         "offer_taken",

@@ -517,6 +517,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "trade_lines",
             "intelligence",
             "groups",
+            "happenings",
             "pacts",
             "conferences",
             "locks",
@@ -533,6 +534,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_kinds(world, problems)
     _check_intelligence(world, sections, problems)
     _check_groups(world, problems)
+    _check_happenings(world, problems)
     _check_prices(world, sections, problems)
     _check_contest_moves(world, sections, problems)
     _check_aim_rules(world, sections, problems)
@@ -1388,6 +1390,16 @@ def _check_groups(world: WorldFile, problems: list[str]) -> None:
             ]
 
 
+def _check_happenings(world: WorldFile, problems: list[str]) -> None:
+    """Each kind of happening classed once (HCL). With the rule off they are checked and
+    left out of the game."""
+    seen: set[str] = set()
+    for c in world.happenings:
+        if c.kind in seen:
+            problems.append(f"happenings: {c.kind} is classed twice")
+        seen.add(c.kind)
+
+
 def _check_prices(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
     """Each bloc's prices (PRC): a key once per bloc; a condition of bounded size that
     names what the world declares, a group by its nation's own key, and holds at least one
@@ -1437,7 +1449,8 @@ def _groups(world: WorldFile, ids: Mapping[str, str]) -> ev.GroupsDeclared:
                 themes=d.themes,
             )
             for d in world.groups
-        )
+        ),
+        classes=world.happenings if Rule.CLASSES in world.rules else (),
     )
 
 

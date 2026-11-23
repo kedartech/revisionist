@@ -166,6 +166,14 @@ groups:
         feeds: {output: 1}
         moved_by: {territory_taken: 2, battle_lost: -3}
 
+# How each kind of happening reaches the groups, read with the `classes` rule on: felt,
+# reported or secret. A kind not listed is reported; a mixed kind is reported with the
+# share of it that is felt.
+happenings:
+  - {kind: capital_threatened, reach: felt}
+  - {kind: battle_lost, reach: reported, felt: 0.4}
+  - {kind: agreement_broken, reach: secret}
+
 # The player's own aim, read with the own_aim rule on: patterns a player may fill to
 # replace his card's replaceable aim. `$name` in a condition is a blank the sentence names
 # as `{name}`; `$nation` and `$person` stand for the person's own nation and the person.

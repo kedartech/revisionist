@@ -716,7 +716,6 @@ ABSENT_ON_PURPOSE = {
     "production": "no aid finding is run in the strait",
     "wars": "the season opens at peace; a war is declared in play",
     "groups.groups.abroad": "writing is read by a live model and stays off",
-    "groups.groups.prices": "no bloc names a price for its votes",
     "cards.successor": "nobody is named to succeed in one season",
     "features.legs": "the season opens on its first day: no force has moved yet",
     "cards.reach": "every person keeps rank 0 and no chain",
@@ -734,6 +733,9 @@ ABSENT_ON_PURPOSE = {
     "clocks": "the older ruleset only",
     "facts": "the older ruleset only",
     "commitments": "the older ruleset only",
+    "groups.groups.prices": "no bloc is offered a price: offers stay off",
+    "happenings": "classes stay off: every kind of happening is reported",
+    "happenings.felt": "classes stay off: no kind is part felt",
 }
 """The questions on main that Salt Strait leaves unanswered, each on purpose, by the first
 key of its row in ``worlds/TEMPLATE.md``, with why (SSO rule 4)."""

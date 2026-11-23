@@ -356,7 +356,11 @@ def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
         found[nation.nation] = nation.groups
         if nation.themes:
             themes[nation.nation] = nation.themes
-    g = state.groups.model_copy(update={"declared": found, "themes": themes})
+    classes: dict[groups.Happening, groups.KindClass] = {}
+    for c in p.classes:
+        _fresh(classes, c.kind, "class of happening")
+        classes[c.kind] = c
+    g = state.groups.model_copy(update={"declared": found, "themes": themes, "classes": classes})
     return state.model_copy(update={"groups": g})
 
 

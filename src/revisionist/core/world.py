@@ -66,7 +66,7 @@ from revisionist.core.realism.effect import (
     Engagement,
 )
 from revisionist.core.realism.geography import FeatureKind
-from revisionist.core.realism.groups import Group, Theme
+from revisionist.core.realism.groups import Group, KindClass, Theme
 from revisionist.core.realism.kinds import MAX_STRENGTH, Domain, Role
 from revisionist.core.realism.pipeline import StepAction, StepKind
 from revisionist.core.realism.quantity import ResolverKey
@@ -1179,6 +1179,11 @@ class WorldFile(Model):
     """Each nation's groups at home, with ``groups`` on: support, baseline, what each
     feeds and what moves it. A world with none is unchanged. Written by hand: not offered
     to a model."""
+    happenings: SkipJsonSchema[tuple[KindClass, ...]] = ()
+    """The class of each kind of happening the world classes, with ``classes`` on (HCL):
+    felt, reported or secret, and for a mixed kind the share felt. A kind not listed is
+    reported. With the rule off they are checked and left out of the game. Written by
+    hand: not offered to a model."""
     pacts: SkipJsonSchema[tuple[PactDecl, ...]] = ()
     """The pacts in force on the start date, with ``agreements`` on (PCT). Written by
     hand: not offered to a model."""

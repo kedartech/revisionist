@@ -97,7 +97,7 @@ from revisionist.core.realism.economy import Amount, Pools
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.groups import Cause as GroupCause
-from revisionist.core.realism.groups import NationGroups, Proposal
+from revisionist.core.realism.groups import KindClass, NationGroups, Proposal
 from revisionist.core.realism.holders import Capture
 from revisionist.core.realism.kinds import PieceKind, Resource
 from revisionist.core.realism.laws import Law
@@ -1018,6 +1018,11 @@ class GroupsDeclared(Model):
 
     kind: Literal["groups_declared"] = "groups_declared"
     nations: tuple[NationGroups, ...] = ()
+    classes: tuple[KindClass, ...] = ()
+    """With ``classes`` on, the class the world gives each kind of happening it classes
+    (HCL), in the world file's order."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"classes"})
 
 
 class GroupMoved(Model):

@@ -39,13 +39,17 @@ THIRD_RUN = (
     "post_view",
     "playable_rule",
 )
-READ = frozenset({"laws", "own_aim", "ask_answers", "deciders", "classes", "places"})
+READ = frozenset(
+    {"laws", "own_aim", "ask_answers", "deciders", "offers", "classes", "losses", "places"}
+)
 """The names whose reader has been built: a world that names one is no longer as with it off."""
 UNREAD = tuple(n for n in THIRD_RUN if n not in READ)
 
 SHIPPED_ON: dict[str, frozenset[str]] = {
     "autumn-1941": frozenset({"own_aim", "laws", "ask_answers", "deciders"}),
-    "salt-strait-realism": frozenset({"laws", "ask_answers", "deciders", "own_aim"}),
+    "salt-strait-realism": frozenset(
+        {"laws", "ask_answers", "deciders", "own_aim", "offers", "classes", "losses", "places"}
+    ),
 }
 """The names a shipped world's own lane has switched on, by world; each one whose reader
 has been built."""

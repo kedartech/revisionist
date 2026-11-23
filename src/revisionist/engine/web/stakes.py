@@ -346,9 +346,19 @@ def degree(state: State, seat: SeatId, aims: Sequence[StakeAim]) -> str | None:
     return WIN if met >= max(1, min(2, count)) else None
 
 
-def season_days_left(state: State) -> int | None:
-    """Days from the world date to the season's last deciding day; None without one."""
+SEASON_END_SEEN = True
+"""[proposed] The days to the season's end count only the contests the seat's view holds,
+so a contest hidden from the seat cannot be told by the day it decides. Off: every
+contest in the world counts."""
+
+
+def season_days_left(state: State, view: View | None = None) -> int | None:
+    """Days from the world date to the season's last deciding day; None without one.
+    With ``SEASON_END_SEEN`` and a ``view``, the last day among the contests it holds."""
     last = season.last_deciding_day(state)
+    if SEASON_END_SEEN and view is not None and last is not None:
+        days = [k.decides for k in view.contests.values() if k.decides is not None]
+        last = max(days) if days else None
     today = state.in_world_date
     if last is None or today is None:
         return None
@@ -410,12 +420,13 @@ def seat_stakes(state: State, seat: SeatId, events: Sequence[Event]) -> Stakes:
         aims=aims,
         degree=degree(state, seat, aims),
         drift=view.divergence,
-        season_days_left=season_days_left(state),
+        season_days_left=season_days_left(state, view),
     )
 
 
 __all__ = [
     "FULL_WIN",
+    "SEASON_END_SEEN",
     "STEPS",
     "UNCERTAIN",
     "WIN",

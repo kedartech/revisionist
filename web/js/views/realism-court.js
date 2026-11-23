@@ -1,20 +1,19 @@
 // The Court board: the seat's own people along the paths its orders travel
-// (view.realism.court). One row per path with the forms that use it: a square per decision
-// step in order, a small mark for a clerical step between them, and each of the seat's orders
-// in flight as a token on the square of whoever holds it. Under the paths, the circle and chain
-// on no path, grouped by bloc; beside them, each chamber's seats by party with the line that
-// carries a vote, and its public votes. A picked square or chip shows that person's figure
-// card with the two moves the seat already has on them: ask them a question, or write them an
-// order. Nothing here touches the page on import.
+// (view.realism.court). One track per path with the forms that use it: a stop per decision step
+// in order, a small mark for a clerical step, each step as long as its days with the days under
+// it, and each of the seat's orders in flight a marker on the step that holds it, named under
+// the track. Under the paths, the circle and chain on no path, grouped by bloc; beside them, each
+// chamber's seats by party with the line that carries a vote, and its public votes. A picked
+// stop or chip shows that person's figure card with the two moves the seat already has on them:
+// ask them a question, or write them an order. Nothing here touches the page on import.
 
 import { h, svg } from '../dom.js';
 import { worldDate } from '../rules.js';
 import { channelWord } from '../realism-rules.js';
 import { figureCard } from './realism-figure.js';
+import { along, track } from './realism-tracks.js';
 
 const ROSTER = ['yours', 'opponents', 'others'];
-const days = (n) => `${n} ${n === 1 ? 'day' : 'days'}`;
-const stated = (n) => (Number.isInteger(n) ? days(n) : 'no time stated');
 
 /** The People roster line for `person` and the tab it sits on, or null when the roster has none. */
 function rosterLine(people, person) {
@@ -34,15 +33,16 @@ function contactFor(reach, name) {
   return null;
 }
 
-/** "Send a bill to Congress: day 9 of about 8": the day it is on, counting the day it came as one. */
+/** "Send a bill to Congress, with Sam Rayburn: day 9 of about 8": the day it is on, counting the day it came as one. */
 function token(o, step) {
   const on = `day ${o.held_days + 1}`;
   const of = Number.isInteger(step.days) ? `${on} of about ${step.days}` : `${on}; no time stated`;
-  return h('li', { class: 'rl-court-tok' }, `${o.label}: ${of}`);
+  return h('li', { class: 'rl-court-tok' }, `${o.label}, with ${step.you ? 'you' : step.name}: ${of}`);
 }
 
-function tokens(step) {
-  return step.orders.length ? h('ul', { class: 'rl-court-toks' }, step.orders.map((o) => token(o, step))) : null;
+function tokens(path) {
+  const all = path.steps.flatMap((s) => s.orders.map((o) => token(o, s)));
+  return all.length ? h('ul', { class: 'rl-court-toks', 'aria-label': 'Your orders on this path' }, all) : null;
 }
 
 /** Only the waiting tokens on this seat's square contribute to its load. */
@@ -59,40 +59,47 @@ function load(step, limit) {
   h('span', { 'aria-hidden': 'true' }, `${count} of ${limit}${slow ? ' · slow' : ''}`));
 }
 
-/** A decision step's square: a button that picks the person, or for the seat's own step a plain box. */
+/** A decision step's stop: a button that picks the person, or for the seat's own step a plain box. */
 function square(step, selected, onPick, limit) {
   const holds = step.orders.length > 0;
+  const name = step.you ? 'You' : step.name;
   const body = [
-    h('span', { class: 'rl-court-name' }, step.you ? 'You' : step.name),
+    h('span', { class: 'rl-court-name' }, name),
     step.office ? h('span', { class: 'rl-court-office' }, step.office) : null,
-    h('span', { class: 'rl-court-days' }, stated(step.days)),
     load(step, limit),
-    tokens(step),
   ];
   const cls = `rl-court-sq${holds ? ' holds' : ''}${step.you ? ' you' : ''}`;
-  if (step.you) return h('div', { class: cls }, body);
+  const title = step.office ? `${name}, ${step.office}` : name;
+  if (step.you) return h('div', { class: cls, title }, body);
   return h('button', {
     type: 'button',
     class: cls,
+    title,
     'aria-pressed': selected === step.person ? 'true' : 'false',
     onclick: () => onPick(step),
   }, body);
 }
 
-/** A clerical step: a small mark with who and how long, and any order waiting there. */
+/** A clerical step: a small mark with who, never a person to pick. */
 function clerk(step) {
-  return [h('span', { class: 'rl-court-clerk' }, `${step.name}, ${stated(step.days)}`), tokens(step)];
+  return h('span', { class: 'rl-court-clerk', title: step.name }, step.name);
 }
 
 function pathRow(path, selected, onPick, limit) {
-  const steps = path.steps.map((s) => h('li', { class: `rl-court-step${s.kind === 'clerical' ? ' clerk' : ''}` },
-    s.kind === 'clerical' ? clerk(s) : square(s, selected, onPick, limit)));
+  const segs = path.steps.map((s) => ({
+    name: s.you ? 'You' : s.name,
+    kind: s.kind === 'clerical' ? 'mark' : 'stop',
+    days: s.days,
+    body: s.kind === 'clerical' ? clerk(s) : square(s, selected, onPick, limit),
+    markers: s.orders.map((o) => ({ id: o.id, at: along(o.held_days, s.days) })),
+  }));
   return h('li', { class: 'rl-court-path' },
     h('h3', { class: 'rl-court-path-name' }, path.name),
     path.forms.length ? h('p', { class: 'rl-court-forms' }, `Forms: ${path.forms.join(', ')}`) : null,
-    steps.length
-      ? h('ol', { class: 'rl-court-line' }, steps)
-      : h('p', { class: 'muted' }, 'No step is known on this path.'));
+    segs.length
+      ? track(`${path.name}: its steps`, segs)
+      : h('p', { class: 'muted' }, 'No step is known on this path.'),
+    tokens(path));
 }
 
 /** "in person" or "by cable": how the seat reaches someone. */

@@ -136,6 +136,10 @@ cuts:
 sea_zones:
   - {key: gulf, name: The Gulf, region: baltic, terrain: sea,
      polygon: [[19, 54.5], [25, 54.5], [25, 59.2], [19, 59.2]]}
+rivers:
+  - {key: river, name: The River, region: baltic, terrain: river, width: 0.25,
+     borders: [[EST-..., LVA-...]],        # pairs of units whose shared border the river is
+     polygon: [[24, 56], [28, 56], [28, 58], [24, 58]]}   # optional: the stretch it follows
 crossings:
   - {a: estonia, b: gulf, name: the ferry, source: "..."}
 ```
@@ -154,8 +158,11 @@ What the build does, in order, refusing with a message that names the file, prov
    from every province than the simplify tolerance (an islet nearer a coast than that cannot be kept
    apart from it when the coast is simplified, and is water); the ocean is the box less the land. Each
    sea zone is its polygon cut from the ocean, so a coast is one border that the land territory and the sea zone share. Two zones over the
-   same water fail. Land and water no recipe claims become the backdrop, so the areas and the backdrop
-   cover the box exactly.
+   same water fail. Each river zone is a strip `width` wide along the shared borders of its pairs of
+   units (within its polygon when it gives one), taken from the land of those units, so the river
+   parts its two banks and each bank shares a border with it; a pair that shares no border fails, as
+   do two river zones over the same land. A river zone is listed with the sea zones. Land and water
+   no recipe claims become the backdrop, so the areas and the backdrop cover the box exactly.
 5. Nodes every border with every other, then simplifies all of them together, so neighbours keep one
    shared border: with the tool's `coverage_simplify` when it has one (GEOS 3.12 or later), and
    otherwise by splitting the borders into arcs at their junctions and simplifying each arc once

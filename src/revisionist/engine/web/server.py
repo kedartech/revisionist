@@ -377,9 +377,7 @@ class App:
                     order = realism_tick.file_order(
                         store, cid, seat, _text(body, "lever", 120), _params(body)
                     )
-                    first = state.pipelines[order.pipeline].steps[0]
-                    who = state.entities[first.person].name
-                    reply = f"Sent to {who}: {_lever_label(state, seat, order.lever)}."
+                    reply = _filed_reply(store, cid, state, seat, order)
                 elif action in ("directive", "sign"):
                     asked = directive.Proposal(
                         person=_contact(state, seat, _text(body, "to", 120)),
@@ -418,9 +416,7 @@ class App:
                             )
                         return snapshot.checked(state, seat, out)
                     order = directive.sign(store, cid, seat, asked)
-                    first = state.pipelines[order.pipeline].steps[0]
-                    who = state.entities[first.person].name
-                    reply = f"Sent to {who}: {_lever_label(state, seat, order.lever)}."
+                    reply = _filed_reply(store, cid, state, seat, order)
                 elif action == "aide":
                     kept = self._brief_for(cid, seat, state.tick)
                     if kept is not None and body.get("again") is not True:
@@ -1033,7 +1029,7 @@ class App:
             store.close()
 
 
-NOT_OFFERED = "You cannot do that with this order."  # [proposed]
+NOT_OFFERED = held_orders.NOT_OFFERED
 """The refusal of a step action the seat was not offered, the same for every action."""
 
 
@@ -1064,6 +1060,19 @@ _STANDING: dict[OrderStatus, str] = {
     OrderStatus.LAPSED: "It has lapsed.",
     OrderStatus.WITHDRAWN: "It has been withdrawn.",
 }
+
+
+def _filed_reply(
+    store: PostgresEventStore, cid: CampaignId, state: State, seat: SeatId, order: Order
+) -> str:
+    """What the seat is told of a form order it filed: the reason a lock holds it, else
+    who it went to."""
+    hold = load_state(store, cid).held.get(order.order_id)
+    if hold is not None:
+        return hold.reason
+    first = state.pipelines[order.pipeline].steps[0]
+    who = state.entities[first.person].name
+    return f"Sent to {who}: {_lever_label(state, seat, order.lever)}."
 
 
 def _lever_label(state: State, seat: SeatId, name: str) -> str:

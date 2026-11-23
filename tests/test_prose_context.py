@@ -13,6 +13,7 @@ from revisionist.core.realism import apply
 from revisionist.core.realism import effect as rx
 from revisionist.core.state import State
 from revisionist.core.visibility import PUBLIC, Scope, Visibility, private_to
+from revisionist.engine.llm import quote_player
 from revisionist.engine.prose import Author, Written, accepted, author_of, page_lines
 from revisionist.engine.prose_context import page_context
 from tests.test_engine_v2_contract import Slice
@@ -106,7 +107,7 @@ def test_the_context_rides_on_the_author_block_and_into_the_prompt() -> None:
     page = _page(state, "Shoot on sight")
     author = author_of(state, page.author, [page])
     assert author.context[page.doc_id]["asked"] == ASK
-    assert page_lines(page, author)["context"]["asked"] == ASK
+    assert page_lines(page, author)["context"]["asked"] == quote_player(ASK)
     bare = Author(entity=page.author, name="x")
     assert "context" not in page_lines(page, bare)
 

@@ -1,22 +1,22 @@
 {
- "1f8fad19845ec895e7f2bb7a": {
+ "3244b6e037ecc2a4b5575759": {
   "call_class": "counsel",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## You are\nHarry L. Hopkins, Special assistant to the President\nVoice: Wry, informal and direct; cuts to \"what do you ne",
+  "prompt_head": "## You are\nErich Raeder, Commander in Chief of the Navy\nVoice: Correct, formal and austere; argues the Navy's Atlantic c",
   "reply": {
    "cached_tokens": 312,
-   "input_tokens": 3006,
+   "input_tokens": 1059,
    "model": "claude-sonnet-5-5",
    "output": {
-    "text": "Mr. President, going by the list as Harriman sent it, tanks come first: they ask for 500 a month, and 400 aircraft a month behind that. That is what they asked for, mind you, not what they will get. I can't tell you yet what we can ship against it; that is a question for the Army and for the British, who will want their share. My advice is to tell Stalin something definite soon, even if it is less than the list."
+    "text": "Mein Fuehrer, the matter before you is the Greer: she has been fired on, and the U-boats' rules toward American ships must be settled. My papers give me nothing more on the incident itself, and I will not guess at it. The Navy's case stands as I have always put it: the Americans escort the convoys in all but name, and our commanders cannot fight with one hand tied. I ask that they be free to defend themselves against any escort that attacks them. The decision is yours."
    },
-   "output_tokens": 106,
-   "usd": 0.007072
+   "output_tokens": 121,
+   "usd": 0.003328
   }
  },
- "8f7311d9cf9ab41c8a82f85b": {
+ "56fca02f32282f3f478bc71d": {
   "call_class": "counsel",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
@@ -50,21 +50,21 @@
    "usd": 0.006586
   }
  },
- "e5c9e0952cd868ba18818cb9": {
+ "ceb2538c96913d87f71285e5": {
   "call_class": "counsel",
   "hand_written": true,
   "model": "claude-sonnet-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## You are\nErich Raeder, Commander in Chief of the Navy\nVoice: Correct, formal and austere; argues the Navy's Atlantic c",
+  "prompt_head": "## You are\nHarry L. Hopkins, Special assistant to the President\nVoice: Wry, informal and direct; cuts to \"what do you ne",
   "reply": {
    "cached_tokens": 312,
-   "input_tokens": 1059,
+   "input_tokens": 3006,
    "model": "claude-sonnet-5-5",
    "output": {
-    "text": "Mein Fuehrer, the matter before you is the Greer: she has been fired on, and the U-boats' rules toward American ships must be settled. My papers give me nothing more on the incident itself, and I will not guess at it. The Navy's case stands as I have always put it: the Americans escort the convoys in all but name, and our commanders cannot fight with one hand tied. I ask that they be free to defend themselves against any escort that attacks them. The decision is yours."
+    "text": "Mr. President, going by the list as Harriman sent it, tanks come first: they ask for 500 a month, and 400 aircraft a month behind that. That is what they asked for, mind you, not what they will get. I can't tell you yet what we can ship against it; that is a question for the Army and for the British, who will want their share. My advice is to tell Stalin something definite soon, even if it is less than the list."
    },
-   "output_tokens": 121,
-   "usd": 0.003328
+   "output_tokens": 106,
+   "usd": 0.007072
   }
  }
 }

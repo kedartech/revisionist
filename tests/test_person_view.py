@@ -26,7 +26,7 @@ from revisionist.core.visibility import Scope, private_to
 from revisionist.engine import campaign as cmp
 from revisionist.engine import counsel
 from revisionist.engine.counsel import Asker, ClaudeCounsellor, consult, counsel_prompt
-from revisionist.engine.llm import Reply, Request, TransportError
+from revisionist.engine.llm import Reply, Request, TransportError, quote_player
 from revisionist.engine.store import EventStore, MemoryStore, load_state
 from tests.counsel_scenario import QUESTION, hopkins, roosevelt_seat, ticked
 from tests.test_realism_tick import CAMPAIGN
@@ -284,7 +284,8 @@ def test_a_person_with_no_news_and_no_principal_gets_todays_prompt_bytes() -> No
         "## You are\nVyacheslav Molotov\nVoice: Stone-faced.\n\n## Today\n1941-09-04\n\n"
         '## Your papers\n[{"kind": "letter", "title": "On the supply protocol", '
         '"issued": "1941-09-04", "channel": "cable", "lines": [{"label": "Tanks a month", '
-        '"value": 500, "unit": "tanks"}]}]\n\n## Winston Churchill asks you, by cable\nTanks?'
+        '"value": 500, "unit": "tanks"}]}]\n\n## Winston Churchill asks you, by cable\n'
+        + quote_player("Tanks?")
     )
     told = counsel_prompt(
         bare(mandates=("Settle the convoys.",)), Asker(name="x"), ChannelKind.CABLE, "Tanks?"

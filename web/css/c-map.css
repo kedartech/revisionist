@@ -84,6 +84,11 @@
 .rl-target-note { fill: var(--fg-strong); font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; vector-effect: non-scaling-stroke; }
 .rl-map-target:hover .rl-target-ring { stroke-width: 3px; }
 .rl-map-target.chosen .rl-target-ring { fill: var(--accent-soft); fill-opacity: 0.9; stroke: var(--accent); stroke-width: 3px; }
+/* a piece carried to a lit area: it rides lifted under the finger, the lit area under it is marked */
+.rl-tm-mark[data-grab] { cursor: grab; }
+.rl-tm-lifted { pointer-events: none; cursor: grabbing; filter: drop-shadow(0 6px 4px var(--backdrop)); }
+.rl-map-target.under .rl-target-ring { fill: var(--accent-soft); fill-opacity: 0.9; stroke: var(--fg-strong); stroke-width: 3px; }
+.rl-area.rl-drop-over { stroke: var(--fg-strong); stroke-width: 3px; vector-effect: non-scaling-stroke; }
 .rl-map-target.refused { cursor: not-allowed; }
 .rl-map-target.refused .rl-target-ring { fill: none; stroke: var(--fg-muted); stroke-dasharray: 3 2; }
 .rl-map-target.refused .rl-target-note { fill: var(--fg-muted); }

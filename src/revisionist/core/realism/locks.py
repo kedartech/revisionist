@@ -10,7 +10,7 @@ form order; an effect row matches a written order's typed effect. Its condition 
 closed check over state, or none, when the order always needs the decision:
 
 - ``law_not_in_force``: no passed law carrying the named clause is in force for the
-  issuer's nation (``votes.in_force``, read only).
+  issuer's nation (``laws.in_force``: the world's declared laws with ``laws`` on).
 - ``posture_not_set``: no superior of the issuer has set the named posture for the zone.
   The form path and the written path name a zone differently (a form's own parameter
   values, against a written order's ``SetEngagement.zone``), so the check carries both
@@ -41,6 +41,7 @@ from pydantic import Field, model_validator
 
 from revisionist.core._base import Label, Model
 from revisionist.core.ids import EntityId, FeatureId, OrderId, SeatId
+from revisionist.core.realism import laws
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.answer import ParamValue
 from revisionist.core.realism.card import Desk, Domain, superiors
@@ -301,11 +302,10 @@ def zone_of(state: "State", zone: str) -> EntityId | None:
 
 def _holds(state: "State", issuer: EntityId, when: LawNotInForce | PostureNotSet) -> bool:
     if isinstance(when, LawNotInForce):
-        from revisionist.core.realism.resolvers.votes import in_force
         from revisionist.core.realism.war import polity_of
 
         nation = polity_of(state, issuer)
-        return nation is None or nation not in in_force(state, when.clause)
+        return nation is None or nation not in laws.in_force(state, when.clause)
     return not posture_set(state, issuer, when)
 
 
@@ -374,15 +374,8 @@ def _hidden(state: "State", seat: SeatId, when: Condition | None) -> bool:
     superiors, whose orders come down its chain, so the seat knows it."""  # [proposed]
     if not isinstance(when, LawNotInForce):
         return False
-    from revisionist.core.realism.resolvers import qid
-    from revisionist.core.realism.resolvers.votes import HISTORICAL
-
-    read = [
-        state.quantities.get(qid(state, f"{bill}_passed"))
-        for bill, measure in sorted(HISTORICAL.items())
-        if when.clause in {c.subject for c in measure.clauses}
-    ]
-    return any(q.scope is None or not q.scope.visible_to(seat) for q in read if q is not None)
+    read = laws.flags(state, when.clause)
+    return any(q.scope is None or not q.scope.visible_to(seat) for q in read)
 
 
 def reason(view: "View", lock: Lock) -> str:

@@ -1,8 +1,9 @@
 // The territory map: in a game whose `map` block has `areas`, the board is drawn from the
 // game's map file (the `map` action's shapes): land territories filled, sea zones outlined,
 // every border stroked. The frame is a region's, worked out from its areas alone, and holds
-// still whatever lights or lands; zoom is 1, 2 or 4 times within it. Marks and tap targets keep
-// a minimum size in pixels whatever the zoom. Every area is focusable and has a row in the list.
+// still whatever lights or lands; the view pans and zooms from 1 to 8 times within it, live
+// under the finger, and the zoom buttons stop at 1, 2 and 4. Marks and tap targets keep a
+// minimum size in pixels whatever the zoom. Every area is focusable and has a row in the list.
 
 import { h, svg } from '../dom.js';
 import {
@@ -12,6 +13,9 @@ import {
   whereLine, changedLine, fallingLine, frontLine, holderRelation, holderWords, isFront, yieldsLine,
 } from '../realism-rules.js';
 import { gestures } from '../map/gestures.js';
+import { clampZoom } from '../map/view.js';
+import { areaAt } from '../map/hit.js';
+import { trace } from '../map/projection.js';
 import { economyPips, hasYields } from './realism-economy.js';
 import { capitalGlyph, forceGlyph, pipGlyph, stanceClass, warGlyph, whatWord } from './realism-map.js';
 import { reportMarks, reportSheet, reportTables, reportsOf, ringsAndThreats, threatsSwitch, tokenMark } from './realism-reports.js';
@@ -81,8 +85,9 @@ function guessPx() {
   return { width: Math.max(w - 480, 320), height: Math.max(hgt - 160, 320) };
 }
 
-function ringsPath(vertices, rings, at) {
-  return rings.map((ring) => `M${ring.map((i) => at(vertices[i]).join(' ')).join('L')}Z`).join('');
+/** The SVG path of `rings` (vertex indices), each drawn by `line` (map coordinates to the drawing's points). */
+function ringsPath(vertices, rings, line) {
+  return rings.map((ring) => `M${line(ring.map((i) => vertices[i])).map((xy) => xy.join(' ')).join('L')}Z`).join('');
 }
 
 /** A group drawn at (x, y) in the drawing's units, its contents in pixels (`fit` scales it). */
@@ -108,22 +113,95 @@ const arrows = (step) => Object.fromEntries(Object.entries(NEXT).map(([k, dir]) 
 
 /**
  * Size every pixel-sized part of drawing `root` for `px` ({ width, height }, CSS pixels): marks
- * and labels keep their size whatever the window, and a label that would overlap one drawn
- * before it is hidden (shown again on a tap of its area).
+ * and labels keep their size whatever the window, and, when `labels` is true, a label that would
+ * overlap one drawn before it is hidden (shown again on a tap of its area).
  */
-export function fit(root, px) {
+export function fit(root, px, labels = true) {
   const [x, y, w, hgt] = root.getAttribute('viewBox').split(' ').map(Number);
   const k = unitsPerPx({ x, y, w, h: hgt }, px);
   root.setAttribute('data-k', String(k));
   for (const g of root.querySelectorAll('.rl-tm-px')) {
     g.setAttribute('transform', `translate(${g.getAttribute('data-x')} ${g.getAttribute('data-y')}) scale(${k})`);
   }
-  const labels = [...root.querySelectorAll('.rl-tm-label')];
-  const hide = hiddenLabels(labels.map((l) => ({
+  if (!labels) return k;
+  const all = [...root.querySelectorAll('.rl-tm-label')];
+  const hide = hiddenLabels(all.map((l) => ({
     key: l.getAttribute('data-area'), x: Number(l.getAttribute('data-x')), y: Number(l.getAttribute('data-y')), text: l.getAttribute('data-text'),
   })), k);
-  for (const l of labels) l.classList.toggle('hidden', hide.has(l.getAttribute('data-area')));
+  for (const l of all) l.classList.toggle('hidden', hide.has(l.getAttribute('data-area')));
   return k;
+}
+
+const viewBoxOf = (win) => `${r2(win.x)} ${r2(win.y)} ${r2(win.w)} ${r2(win.h)}`;
+
+/** Inline style through the CSS object model: the page's CSP refuses a `style` attribute. */
+function css(el, props) {
+  for (const [k, v] of Object.entries(props)) {
+    if (v === null) el.style?.removeProperty(k);
+    else el.style?.setProperty(k, v);
+  }
+}
+
+/**
+ * What a gesture on drawing `root` draws in each frame (`gestures`' `onLive`). The land keeps
+ * its drawing and is moved as one picture, by a transform the browser applies without drawing
+ * the land again; the marks and labels move into a layer of their own over it, drawn at the
+ * view as it now is and at their pixel size. When the gesture ends they go back and the drawing
+ * shows the new view. A drawing not on a page is drawn at the view itself in each frame.
+ */
+function liveLayer(root, px) {
+  let b = null;
+  let rest = null;
+  let layer = null;
+  let over = null;
+  let had = null;
+  return (win, { labels, end }) => {
+    if (end) {
+      if (layer) {
+        root.querySelector('g.rl-tm-frame')?.append(over);
+        layer.remove();
+      }
+      css(root, { transform: null, 'transform-origin': null });
+      root.classList.remove('rl-tm-moving');
+      root.setAttribute('viewBox', viewBoxOf(win));
+      fit(root, b ?? px, true);
+      had?.focus();
+      b = null; rest = null; layer = null; over = null; had = null;
+      return;
+    }
+    if (!b) {
+      const m = root.getBoundingClientRect?.();
+      b = m?.width ? m : { left: 0, top: 0, width: px.width, height: px.height };
+      const [x, y, w, h] = root.getAttribute('viewBox').split(' ').map(Number);
+      rest = { x, y, w, h };
+      over = root.querySelector('g.rl-tm-over');
+      const parent = root.parentNode;
+      if (parent && over) {
+        const pb = parent.getBoundingClientRect?.() ?? { left: b.left, top: b.top };
+        const active = globalThis.document?.activeElement;
+        had = active?.closest?.('g.rl-tm-over') === over ? active : null;
+        layer = svg('svg', { class: 'rl-tm-live', 'aria-hidden': 'true', preserveAspectRatio: 'xMidYMid meet' }, over);
+        css(layer, { left: `${r2(b.left - pb.left)}px`, top: `${r2(b.top - pb.top)}px`, width: `${r2(b.width)}px`, height: `${r2(b.height)}px` });
+        root.after(layer);
+        root.classList.add('rl-tm-moving');
+      }
+    }
+    if (!layer) {
+      root.setAttribute('viewBox', viewBoxOf(win));
+      fit(root, b, labels);
+      return;
+    }
+    const k0 = unitsPerPx(rest, b);
+    const k = unitsPerPx(win, b);
+    const s = k0 / k;
+    const off = (r, kk) => [(b.width - r.w / kk) / 2, (b.height - r.h / kk) / 2];
+    const [o0, o] = [off(rest, k0), off(win, k)];
+    const tx = o[0] + (rest.x - win.x) / k - s * o0[0];
+    const ty = o[1] + (rest.y - win.y) / k - s * o0[1];
+    css(root, { transform: `translate(${r2(tx)}px, ${r2(ty)}px) scale(${Math.round(s * 1e4) / 1e4})`, 'transform-origin': '0 0' });
+    layer.setAttribute('viewBox', viewBoxOf(win));
+    fit(layer, b, labels);
+  };
 }
 
 /** What a mark is: an own piece's kind as the world names it, "Piece" for another side's piece (a page does not name its kind), else the mark's kind. */
@@ -434,8 +512,10 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   const box = boxOf(map.box ?? shapes.box);
   const proj = territoryProjection(map.coords ?? shapes.coords, box);
   const frames = regionFrames(map, shapes);
-  const win = viewWindow(frameRect(frames.get(opts.frame ?? '') ?? frames.get(''), proj), opts.zoom ?? 1, opts.centre ?? null);
-  const at = ([x, y]) => [r2(proj.x(x)), r2(proj.y(y))];
+  const rect = frameRect(frames.get(opts.frame ?? '') ?? frames.get(''), proj);
+  const win = viewWindow(rect, opts.zoom ?? 1, opts.centre ?? null);
+  const at = (xy) => proj.point(xy).map(r2);
+  const line = (pts) => trace(proj, pts).map(([x, y]) => [r2(x), r2(y)]);
   const areas = (map.areas ?? []).filter((a) => shapes.areas?.[a.key]);
   const kinds = new Map(areas.map((a) => [a.key, a.kind]));
   const regions = new Map((map.regions ?? []).map((r) => [r.key, r.name]));
@@ -457,29 +537,35 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   const tag = `rl-hp-${clips}`;
   const byKey = new Map((map.areas ?? []).map((a) => [a.key, a]));
   const held = areas.filter((a) => a.kind === 'land' && a.holder && HOLD_PATTERNS[holderRelation(a)]);
-  const frameBox = { x: r2(win.x), y: r2(win.y), width: r2(win.w), height: r2(win.h) };
+  // the frame, not the window: land past the window shows while the view moves, none past the frame
+  const frameBox = { x: r2(rect.x), y: r2(rect.y), width: r2(rect.w), height: r2(rect.h) };
   root = svg('svg', {
-    class: 'rl-map-svg rl-tm-svg', viewBox: `${r2(win.x)} ${r2(win.y)} ${r2(win.w)} ${r2(win.h)}`, preserveAspectRatio: 'xMidYMid meet',
+    class: 'rl-map-svg rl-tm-svg', viewBox: viewBoxOf(win), preserveAspectRatio: 'xMidYMid meet',
     role: opts.still ? 'img' : 'group', 'aria-label': opts.label ?? 'Map of the board', 'data-frame': opts.frame ?? '',
+    tabindex: opts.still ? null : 0,
   },
   svg('defs', {}, svg('clipPath', { id: clip }, svg('rect', frameBox)), holdPatterns(new Set(held.map(holderRelation)), tag)),
   svg('g', { class: 'rl-tm-frame', 'clip-path': `url(#${clip})` },
-  svg('rect', { x: 0, y: 0, width: proj.width, height: proj.height, class: 'rl-map-sea' }),
-  (shapes.backdrop ?? []).map((ring) => svg('path', { d: ringsPath(shapes.vertices, [ring], at), class: 'rl-tm-backdrop' })),
+  proj.step
+    ? svg('path', { d: `M${line([[box.west, box.north], [box.east, box.north], [box.east, box.south], [box.west, box.south], [box.west, box.north]]).map((xy) => xy.join(' ')).join('L')}Z`, class: 'rl-map-sea' })
+    : svg('rect', { x: 0, y: 0, width: proj.width, height: proj.height, class: 'rl-map-sea' }),
+  (shapes.backdrop ?? []).map((ring) => svg('path', { d: ringsPath(shapes.vertices, [ring], line), class: 'rl-tm-backdrop' })),
   areas.map((a) => svg('path', {
-    d: ringsPath(shapes.vertices, shapes.areas[a.key].rings, at), class: `rl-area rl-area-${a.kind === 'sea' ? 'sea' : 'land'}`,
+    d: ringsPath(shapes.vertices, shapes.areas[a.key].rings, line), class: `rl-area rl-area-${a.kind === 'sea' ? 'sea' : 'land'}`,
     'data-area': a.key, 'aria-label': `${a.name}: ${areaKindWord(a)}, ${regions.get(a.region) ?? a.region}${heldBy(a)}`,
     ...(opts.still ? {} : activate(() => { show(a.key); opts.onArea?.(a.key); })),
   })),
   held.map((a) => svg('path', {
-    d: ringsPath(shapes.vertices, shapes.areas[a.key].rings, at), class: `rl-hold rl-hold-${holderRelation(a)}`,
+    d: ringsPath(shapes.vertices, shapes.areas[a.key].rings, line), class: `rl-hold rl-hold-${holderRelation(a)}`,
     'data-area': a.key, fill: `url(#${tag}-${holderRelation(a)})`, 'aria-hidden': 'true',
   })),
   borders(shapes).filter(({ between }) => kinds.has(between[0])).map(({ between, edges }) => svg('path', {
-    d: edges.map(([p, q]) => `M${at(shapes.vertices[p]).join(' ')}L${at(shapes.vertices[q]).join(' ')}`).join(''),
+    d: edges.map(([p, q]) => `M${line([shapes.vertices[p], shapes.vertices[q]]).map((xy) => xy.join(' ')).join('L')}`).join(''),
     class: `rl-border rl-border-${borderKind(between)}${front(between) ? ' rl-border-front' : ''}`,
     'data-between': between.filter(Boolean).join(' '), 'data-front': front(between) ? 'true' : null,
   })),
+  // what a gesture draws over the moving land, at its pixel size: labels, marks and lit areas
+  svg('g', { class: 'rl-tm-over' },
   areas.map((a) => atPx({ class: 'rl-tm-label', 'data-area': a.key, 'data-text': a.name, 'aria-hidden': 'true' },
     ...labelAt.get(a.key), svg('text', { 'font-size': LABEL_PX, 'text-anchor': 'middle', dy: '0.35em' }, a.name))),
   holdMarks(areas, labelAt),
@@ -487,7 +573,7 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   diplomatic || economy ? null : ordersLayer(map, labelAt, new Map(areas.map((a) => [a.name, labelAt.get(a.key)])), at),
   diplomatic || economy ? null : routeLayer(opts.route, labelAt),
   diplomatic || economy ? null : ringsAndThreats({
-    map, shapes, at, opts, areaPath: (key) => ringsPath(shapes.vertices, shapes.areas[key].rings, at),
+    map, shapes, at, opts, areaPath: (key) => ringsPath(shapes.vertices, shapes.areas[key].rings, line),
   }),
   economy ? economyPips(areas, labelAt, (attrs, x, y) => atPx(attrs, x, y))
     : diplomatic ? [capitalsLayer(map, at, opts), marksLayer({ ...map, marks: envoyMarks(map) }, labelAt, at, opts)]
@@ -496,10 +582,14 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   diplomatic || economy || !opts.token ? null : tokenMark(opts.token, labelAt.get(opts.token.at), atPx),
   diplomatic || economy ? null : battleLayer({ battles: opts.battles, labelAt, atPx, activate, opts }),
   // drawn last, over every mark: a lit area under a stack stays clickable
-  targetsLayer(targets, at, opts.onTarget, opts.nav)));
+  targetsLayer(targets, at, opts.onTarget, opts.nav))));
   const px = opts.px ?? guessPx();
   fit(root, px);
-  if (!opts.still) gestures(root, win, opts, px);
+  const onTap = (xy) => {
+    const key = areaAt(shapes, proj, xy, areas.map((a) => a.key));
+    if (key) { show(key); opts.onArea?.(key); }
+  };
+  if (!opts.still) gestures(root, rect, { ...opts, onTap, onLive: liveLayer(root, px), reduced: reducedMotion }, px);
   if (typeof globalThis.ResizeObserver === 'function') {
     new globalThis.ResizeObserver(([e]) => { if (e?.contentRect?.width) fit(root, e.contentRect); }).observe(root);
   }
@@ -588,7 +678,7 @@ export function territoryView(map, shapes, opts = {}) {
   const layer = offered.includes(opts.layer) ? opts.layer : first;
   const frames = shapes ? regionFrames(map, shapes) : null;
   const frame = frames?.has(opts.frame ?? '') ? opts.frame ?? '' : '';
-  const zoom = ZOOMS.includes(opts.zoom) ? opts.zoom : 1;
+  const zoom = clampZoom(opts.zoom ?? 1);
   const words = { military: 'Military', diplomatic: 'Diplomatic', economy: 'Economy' };
   const bar = h('div', { class: 'rl-bar' },
     offered.length > 1

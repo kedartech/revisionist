@@ -25,7 +25,12 @@ SKIPPABLE_PREFIXES = ("docs/", "web/")
 # Under those, the files Python tests or the code they run do open: the seat fixture
 # (several tests), the portraits with their SOURCES.md (dossiers.PORTRAITS_DIR) and the
 # canned smoke server (its start-up is tested).
-READ_BY_TESTS = ("web/test/fixtures/", "web/assets/portraits/", "web/test/e2e/serve_canned.py")
+READ_BY_TESTS = (
+    "web/test/fixtures/",
+    "web/assets/portraits/",
+    "web/assets/flags/",
+    "web/test/e2e/serve_canned.py",
+)
 
 
 def documentation(path: str) -> bool:

@@ -1491,6 +1491,10 @@ def web_serve(
     a private address such as the tailnet, never a public one."""
     import logging
 
+    if problems := cmp.secret_problems(
+        os.environ, free_transport=transport is WebTransport.OPENROUTER
+    ):
+        raise _fail("refusing to start:\n" + "\n".join(problems), EXIT_REFUSED)
     _pg_store("the web client", "").close()
     from revisionist.engine.web.server import App, serve
 

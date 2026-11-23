@@ -94,6 +94,7 @@ def project(state: State, seat: SeatId) -> View:
         map=state.map,
         kinds=state.kinds,
         locks=state.locks,
+        laws=state.laws,
         holders=dict(state.holders),
         economy=economy.seen_by(state, seat),
         groups=groups.seen_by(state, seat),

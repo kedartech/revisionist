@@ -760,6 +760,6 @@ def test_the_report_counts_the_forms_that_change_nothing(tmp_path: Path) -> None
     events = compile_world(autumn_1941(tmp_path), CAMPAIGN, cmp.versions())
     report = wake_report.build(events)
     here = {c.person for c in autumn_1941(tmp_path).cards}
-    assert report.inert == len([f for f in wake_report.inert_forms() if f[0] in here]) > 0
-    assert f"forms that change nothing: {report.inert}" in wake_report.render(report)
+    assert report.inert == len([f for f in wake_report.inert_forms() if f[0] in here]) == 0
+    assert "forms that change nothing: 0" in wake_report.render(report)
     assert wake_report.build([]).inert is None

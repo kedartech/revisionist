@@ -46,7 +46,7 @@ test('the dialog offers a bug, an idea and something confusing, and says who rea
   const dialog = reportDialog();
   const kinds = dialog.querySelectorAll('input[type="radio"]');
   assert.deepEqual(kinds.map((k) => k.value), ['bug', 'idea', 'confusing']);
-  assert.match(words(dialog.querySelector('.hint')), /Only the host and the makers read it/);
+  assert.match(words(dialog.querySelector('.hint')), /The host of this game reads what you write here\./);
 });
 
 test('filing sends the kind and the words through the realism action report, never the seat family', async () => {
@@ -126,6 +126,18 @@ test('the host\'s game menu opens an inbox of the game\'s reports and marks each
   buttons(rows[1], 'Acted on')[0].click();
   await tick();
   assert.deepEqual(calls.filter((c) => c[1] === 'report-mark').at(-1), ['realism', 'report-mark', { id: 6, status: 'acted', reply: 'Fixed in the next build.' }]);
+});
+
+test('an inbox row draws no office, even when a reply carries one', async () => {
+  const { open, dialog } = menuOf(true);
+  REPORTS[0].office = 'Chief of Staff';
+  try {
+    open.click();
+    await tick();
+    assert.ok(!/Chief of Staff/.test(words(dialog)));
+  } finally {
+    delete REPORTS[0].office;
+  }
 });
 
 test('a seat that is not the host gets no inbox and asks for none', async () => {

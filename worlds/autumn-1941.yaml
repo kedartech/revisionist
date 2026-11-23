@@ -18,7 +18,7 @@ start_date: 1941-09-01
 # groups (GRD): each nation's groups at home, declared under `groups`.
 # command and locks (KCD): Admiral King's card is a military card under the President, and
 # two of his naval orders are held by the locks declared under `locks`.
-rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks]
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, own_aim]
 
 entities:
   # A polity's capital (PCW): a place in its own territory; a neutral's or an occupied nation's is its
@@ -1501,6 +1501,60 @@ topics:
   - {key: finance, name: Credit and the Treasury, words: [credit, dollars, finance, treasury, gold, loan]}
   - {key: embargo, name: Embargo and freezing of assets, words: [embargo, oil, freeze, sanctions, exports]}
 
+# The player's own aim (OWD), read with own_aim on: patterns a player may fill to replace
+# his card's replaceable aim, by kind of post (a card's post_kind). No pattern names a place:
+# a place or a nation is a blank resolved from the seat's view, and a line is a closed list
+# none of whose values any group meets on the first day (support 25 to 75 at the start).
+# government: whether the person's own government would issue the aim. The list, the posts
+# each suits, the lines and the government marks are a balance decision. [proposed]
+aim_patterns:
+  - key: take_ground
+    posts: [head_of_government, war_minister, fleet_commander, army_commander]
+    sentence: Take {place} for {nation}.
+    condition: {check: holds_area, area: $place, holder: $nation}
+    blanks:
+      - {name: place, kind: territory_not_held}
+  - key: hold_and_take
+    posts: [war_minister, fleet_commander, army_commander]
+    sentence: Hold {held} and take {place}.
+    condition:
+      check: all_of
+      conditions:
+        - {check: holds_area, area: $held, holder: $nation}
+        - {check: holds_area, area: $place, holder: $nation}
+    blanks:
+      - {name: held, kind: territory_held}
+      - {name: place, kind: territory_not_held}
+  - key: war_with
+    posts: [head_of_government, war_minister, fleet_commander, army_commander]
+    sentence: Bring {nation} into the war against {foe}.
+    condition: {check: at_war, a: $nation, b: $foe}
+    blanks:
+      - {name: foe, kind: other_nation}
+    government: false
+  - key: raise_group
+    posts: [head_of_government, war_minister, fleet_commander, army_commander]
+    sentence: Lift {group} to {line} or more.
+    condition: {check: support_at, nation: $nation, group: $group, op: ge, value: $line}
+    blanks:
+      - {name: group, kind: own_group}
+      - {name: line, values: [80, 90]}
+    government: false
+  - key: weaken_group
+    posts: [head_of_government, war_minister]
+    sentence: Bring {group} down to {line} or less.
+    condition: {check: support_at, nation: $nation, group: $group, op: le, value: $line}
+    blanks:
+      - {name: group, kind: own_group}
+      - {name: line, values: [20, 10]}
+    government: false
+  - key: make_agreement
+    posts: [head_of_government]
+    sentence: Bring {other} into an agreement with {nation} and keep it in force.
+    condition: {check: agreement_in_force, between: [$nation, $other]}
+    blanks:
+      - {name: other, kind: other_nation}
+
 cards:
   # --- the eight playable cards ---
   # opposes: who each head is set against and over what (shown in the Opponents list).
@@ -1511,6 +1565,7 @@ cards:
   # the head's own forms, or a typed effect inside their authority. helps: costs no
   # regard. until: a history item that retires the answer.
   - person: roosevelt
+    post_kind: head_of_government
     allies: [uk, china]
     opposes:
       - {against: germany, over: "U-boat war on the Atlantic convoys"}
@@ -1702,6 +1757,7 @@ cards:
         summary: "Decide how the aid programme is shared out."
     reach: {rank: 5, chain: [usa], heads: true}
   - person: churchill
+    post_kind: head_of_government
     allies: [usa, ussr]
     opposes:
       - {against: germany, over: "the war at sea and the bombing of Britain", irreducible: true}
@@ -1871,6 +1927,7 @@ cards:
         summary: "Treat with other governments, through the Foreign Secretary."
     reach: {rank: 5, chain: [uk], heads: true}
   - person: stalin
+    post_kind: head_of_government
     allies: [uk]
     opposes:
       - {against: germany, over: "the invasion of the Soviet Union", irreducible: true}
@@ -1993,6 +2050,7 @@ cards:
         summary: "Treat with other governments, through the Commissar for Foreign Affairs."
     reach: {rank: 5, chain: [ussr], heads: true}
   - person: hitler
+    post_kind: head_of_government
     allies: [italy, japan]
     opposes:
       - {against: ussr, over: "the war in the East", irreducible: true}
@@ -2140,6 +2198,7 @@ cards:
         summary: "Treat with other governments, through the Foreign Minister."
     reach: {rank: 5, chain: [germany], heads: true}
   - person: konoe
+    post_kind: head_of_government
     allies: [germany, italy]
     opposes:
       - {against: china, over: "the China Incident"}
@@ -2243,6 +2302,7 @@ cards:
         summary: "Negotiate with the United States, through the Ambassador in Washington."
     reach: {rank: 4, chain: [japan]}
   - person: tojo
+    post_kind: war_minister
     allies: [germany, italy]
     opposes:
       - {against: china, over: "the Army's gains in China", irreducible: true}
@@ -2371,6 +2431,7 @@ cards:
         summary: "Speak for the Army's position."
     reach: {rank: 3, chain: [japan]}
   - person: mussolini
+    post_kind: head_of_government
     allies: [germany, japan]
     opposes:
       - {against: uk, over: "Malta, Libya and the Mediterranean"}
@@ -2473,6 +2534,7 @@ cards:
         summary: "Appoint and dismiss ministers and commanders."
     reach: {rank: 4, chain: [italy], heads: true}
   - person: chiang
+    post_kind: head_of_government
     allies: [usa]
     opposes:
       - {against: japan, over: "the invasion of China", irreducible: true}
@@ -2690,6 +2752,7 @@ cards:
   # step above him; the President's naval order still crosses his desk. His aims and their
   # conditions are written from his office: every line [proposed] (values sheet).
   - person: king
+    post_kind: fleet_commander
     office: Commander in Chief, Atlantic Fleet
     voice: "Gruff and curt; gives orders, not reasons, and expects them carried out at once."
     addressed_as: "Admiral King"

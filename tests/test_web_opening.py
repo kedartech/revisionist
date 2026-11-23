@@ -232,7 +232,11 @@ def test_a_nation_with_nobody_playable_is_not_listed() -> None:
     cid = CampaignId("opening-unplayable")
     store.append_all(compile_world(cmp.load_world(cmp.world_path(AUTUMN)), cid, cmp.versions()))
     state = load_state(store, cid)
-    italy = {c.person for c in roster.claimable(state) if c.name == "Benito Mussolini"}
+    italy = {
+        c.person
+        for c in roster.claimable(state)
+        if c.name in {"Benito Mussolini", "Angelo Iachino"}
+    }
     cards = {
         p: c.model_copy(update={"playable": False}) if p in italy else c
         for p, c in state.cards.items()

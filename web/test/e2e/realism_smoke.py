@@ -470,6 +470,7 @@ def opening(page: Page, report: dict[str, object]) -> None:
         "a territory game opens in the map-first room", page.locator("main.rl-board").count() == 0
     )
     room_top(page, report)
+    season_timeline(page, report)
     groups_walk(page, report)
     nations_chart(page, report, "1941")
     quiet_parts(page, report)
@@ -553,6 +554,102 @@ def room_top(page: Page, report: dict[str, object]) -> None:
     page.set_viewport_size({"width": SIZE[0], "height": SIZE[1]})
     page.evaluate("() => window.scrollTo(0, 0)")
     page.wait_for_timeout(300)
+
+
+# The season on one timeline (STL): a strip at the map's foot, 44 px closed; open, a list over
+# at most 40 percent of the map with the map's controls above it; a row opens its item.
+TL_SHARE = 0.40  # [proposed]
+TL_MEASURE = """() => {
+  const box = (el) => {
+    const r = el.getBoundingClientRect();
+    return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, height: r.height };
+  };
+  const tl = document.querySelector('.rl-mapfirst-map .rl-tl');
+  const svg = document.querySelector('main.rl-mapfirst svg.rl-map-svg');
+  if (!tl || !svg) return null;
+  const body = tl.querySelector('.rl-tl-body');
+  const cover = body ? box(body) : null;
+  const shown = (el) => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden';
+  // the map's controls: every control in the map's section that is not the strip's own
+  const sel = '.rl-mapfirst-map button, .rl-mapfirst-map select, .rl-mapfirst-map input';
+  const controls = [...document.querySelectorAll(sel)]
+    .filter((c) => !c.closest('.rl-tl') && !c.closest('svg') && shown(c));
+  const hit = (r) => r.bottom > cover.top + 1 && r.top < cover.bottom - 1
+    && r.right > cover.left && r.left < cover.right;
+  const under = cover ? controls.filter((c) => hit(c.getBoundingClientRect()))
+    .map((c) => (c.getAttribute('aria-label') || c.textContent).trim().slice(0, 40)) : [];
+  const marks = tl.querySelectorAll('.rl-tl-axis .rl-tl-mark').length;
+  return { head: box(tl.querySelector('.rl-tl-head')), map: box(svg), cover, under, marks,
+    rows: tl.querySelectorAll('.rl-tl-row').length, width: document.documentElement.scrollWidth };
+}"""
+
+
+def tl_marks(page: Page) -> int:
+    return page.locator(".rl-mapfirst-map .rl-tl .rl-tl-axis .rl-tl-mark").count()
+
+
+def season_timeline(page: Page, report: dict[str, object]) -> None:
+    """The strip on the 1941 game: closed, open by Enter or a tap, and one row's item opened."""
+    try:
+        page.locator(".rl-mapfirst-map .rl-tl").wait_for(timeout=10_000)
+    except PlaywrightTimeout:
+        check("the season's strip is drawn at the map's foot", False)
+        return
+    closed = page.evaluate(TL_MEASURE)
+    report["stl_closed"] = closed
+    check(
+        "the season's strip is drawn at the map's foot",
+        bool(closed) and closed["marks"] > 0,
+        str(closed),
+    )
+    check(
+        "closed, the strip is 44 px tall",
+        abs(closed["head"]["height"] - 44) < 1,
+        str(closed["head"]),
+    )
+    check(
+        "closed, the strip is under the map, not over it",
+        closed["head"]["top"] >= closed["map"]["bottom"] - 1,
+        str(closed),
+    )
+    shoot(page, "60-stl-closed")
+    check("Enter or a tap opens the strip", press(page, ".rl-tl-head", "The season"))
+    try:
+        page.locator(".rl-tl.open .rl-tl-list").wait_for(timeout=10_000)
+    except PlaywrightTimeout:
+        check("the open strip lists the season", False)
+        return
+    page.wait_for_timeout(200)
+    got = page.evaluate(TL_MEASURE)
+    report["stl_open"] = got
+    check("open, a row for every mark", got["rows"] == got["marks"] > 0, str(got))
+    cover = got["cover"]
+    covered = max(
+        0.0, min(cover["bottom"], got["map"]["bottom"]) - max(cover["top"], got["map"]["top"])
+    )
+    check(
+        f"open, the strip covers at most {TL_SHARE:.0%} of the map",
+        covered <= TL_SHARE * got["map"]["height"] + 1,
+        f"{covered:.0f} of {got['map']['height']:.0f}",
+    )
+    check("open, the map's controls sit above the strip", got["under"] == [], str(got["under"]))
+    check(
+        "the open strip keeps the page as wide as the viewport", got["width"] == SIZE[0], str(got)
+    )
+    report["stl_rows"] = page.locator(".rl-tl-row").evaluate_all(
+        "(rs) => rs.map((r) => r.getAttribute('aria-label'))"
+    )
+    shoot(page, "61-stl-open")
+    row = "Season:" if page.locator(".rl-tl-row[data-kind=end]").count() else ""
+    check("a row of the strip can be pressed", press(page, ".rl-tl-row", row))
+    try:
+        over(page).wait_for(timeout=10_000)
+        check("a row opens its item where it lives", True)
+        shoot(page, "62-stl-row-opened")
+        page.locator(".rl-over .rl-over-close").first.click()
+        page.wait_for_timeout(300)
+    except PlaywrightTimeout:
+        check("a row opens its item where it lives", False)
 
 
 # The sheets in four groups (SHG): the bar's four group tabs and the chat button; each group a
@@ -2006,8 +2103,23 @@ def salt_move(page: Page, report: dict[str, object]) -> None:
     )
     page.locator(".rl-pup-chip").wait_for(timeout=10_000)
     shoot(page, "22-salt-move")
+    marks = tl_marks(page)
     check("Send it files the move", press(page, ".rl-pup-chip button", "Send it"))
     settle(page, "Sent to", "the move is sent")
+    page.wait_for_timeout(500)
+    report["stl_move_marks"] = [marks, tl_marks(page)]
+    check(
+        "the move filed adds its mark to the season's strip",
+        tl_marks(page) == marks + 1,
+        str(report["stl_move_marks"]),
+    )
+    if page.locator(".rl-tl:not(.open) .rl-tl-head").count() and press(
+        page, ".rl-tl-head", "The season"
+    ):
+        page.wait_for_timeout(300)
+        shoot(page, "63-stl-after-move")
+        press(page, ".rl-tl-head", "The season")
+        page.wait_for_timeout(300)
     check(
         "the move raises no page error",
         len([p for p in problems if p.startswith("pageerror")]) == errors,
@@ -2209,13 +2321,19 @@ def sheets_opened(page: Page) -> None:
 
 
 def phone_room(page: Page, report: dict[str, object]) -> None:
-    """At 390 by 844: the map is at least half the viewport's height, a sheet no more than
-    half of it, and the page as wide as the viewport."""
+    """At 390 by 844: the map with the season's strip at its foot is at least half the
+    viewport's height, a sheet no more than half of it, and the page as wide as the viewport."""
     figure = page.locator("figure.rl-map-figure").first
     figure.scroll_into_view_if_needed()
     box = figure.bounding_box() or {"height": 0}
-    report["salt_phone_map_height"] = box["height"]
-    check("the map is at least half the viewport's height", box["height"] >= SIZE[1] / 2, str(box))
+    strip = page.locator(".rl-mapfirst-map .rl-tl-head")
+    foot = (strip.bounding_box() or {"height": 0})["height"] if strip.count() else 0
+    report["salt_phone_map_height"] = [box["height"], foot]
+    check(
+        "the map and the season's strip at its foot are at least half the viewport's height",
+        box["height"] + foot >= SIZE[1] / 2,
+        f"{box} + strip {foot}",
+    )
     sheet_open(page, "World: Diplomacy")
     sheet = over(page).bounding_box() or {"height": 1e9}
     report["salt_phone_sheet_height"] = sheet["height"]

@@ -1,4 +1,5 @@
-// The window on a map: zoom steps, the part of a frame shown, pixel sizing and the pinch rule.
+// The window on a map: zoom steps, the part of a frame shown, pixel sizing, the pinch rule and
+// the browser's own full screen.
 
 /** The zoom buttons' stops within a frame. [proposed] */
 export const ZOOMS = Object.freeze([1, 2, 4]);
@@ -46,6 +47,41 @@ export const unitsPerPx = (win, px) => Math.max(win.w / Math.max(px.width, 1), w
 export function pinchZoom(zoom, ratio) {
   const want = Math.log2(Math.max(zoom * ratio, 1e-6));
   return ZOOMS.reduce((best, z) => (Math.abs(Math.log2(z) - want) < Math.abs(Math.log2(best) - want) ? z : best), ZOOMS[0]);
+}
+
+/** Whether the map asked the browser for its own full screen, and has not given it back. */
+let askedFull = false;
+
+/** Forget that the browser was asked (tests). */
+export function forgetFull() { askedFull = false; }
+
+/** Whether the browser's full screen now on is the one the map asked for. */
+export const askedForFull = () => askedFull;
+
+/**
+ * Ask the browser for its own full screen (`on`), or give back the one the map asked for. A
+ * browser that has none (an iPhone) or refuses, or a page already full for another reason, is
+ * left as it is and nothing is thrown: the room fills the page with the map all the same.
+ */
+export function browserFull(on) {
+  const doc = globalThis.document;
+  const el = doc?.documentElement;
+  const now = doc?.fullscreenElement ?? doc?.webkitFullscreenElement ?? null;
+  try {
+    if (on) {
+      const ask = el?.requestFullscreen ?? el?.webkitRequestFullscreen;
+      if (!ask || now) return;
+      askedFull = true;
+      Promise.resolve(ask.call(el)).catch(() => { askedFull = false; });
+      return;
+    }
+    if (!askedFull) return;
+    askedFull = false;
+    const leave = doc.exitFullscreen ?? doc.webkitExitFullscreen;
+    if (now && leave) Promise.resolve(leave.call(doc)).catch(() => {});
+  } catch {
+    askedFull = false;
+  }
 }
 
 /**

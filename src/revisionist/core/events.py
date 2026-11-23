@@ -119,7 +119,7 @@ from revisionist.core.realism.trade import TradeLine
 from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.resolution import FeasibilityBand, OutcomeTier, RejectionReason, TickStage
 from revisionist.core.settings import Settings
-from revisionist.core.state import Rule, Ruleset
+from revisionist.core.state import Ladder, PostMove, Rule, Ruleset
 from revisionist.core.visibility import Scope
 
 
@@ -845,6 +845,36 @@ class PostChanged(Model):
         if self.holder == self.to:
             raise ValueError("a post changes hands")
         return self
+
+
+class LaddersDeclared(Model):
+    """Each post's ladder and the posts whose holders may move it (LDR), in the world
+    file's order. World data; once, at creation, with ``posts`` on and a ladder or a
+    ``moved_by`` declared."""
+
+    kind: Literal["ladders_declared"] = "ladders_declared"
+    ladders: tuple[Ladder, ...] = Field(min_length=1)
+
+
+class PostMoveOrdered(Model):
+    """A change of post ordered (LDR): the pending change, landing at the close of the
+    wake after the one it was ordered in, or the office question's cause when it would
+    take a seat's last authority. Sealed to the seat of the person moved."""
+
+    kind: Literal["post_move_ordered"] = "post_move_ordered"
+    move: PostMove
+
+
+class PostMoveSettled(Model):
+    """A pending change of post settled (LDR): ``landed`` when its post changes landed
+    with it, else void (the person or the post was no longer as it was ordered). Sealed
+    to the seat of the person moved."""
+
+    kind: Literal["post_move_settled"] = "post_move_settled"
+    move_id: str = Field(min_length=1, max_length=80)
+    seat: SeatId | None = None
+    on: date
+    landed: bool
 
 
 class PieceStepped(Model):
@@ -1580,6 +1610,9 @@ Payload = Annotated[
     | OfferMade
     | OfferSettled
     | PostChanged
+    | LaddersDeclared
+    | PostMoveOrdered
+    | PostMoveSettled
     | PieceStepped
     | AreaHeld
     | CaptureCounted
@@ -1693,6 +1726,9 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "offer_made",
         "offer_settled",
         "post_changed",
+        "ladders_declared",
+        "post_move_ordered",
+        "post_move_settled",
         "piece_stepped",
         "area_held",
         "capture_counted",

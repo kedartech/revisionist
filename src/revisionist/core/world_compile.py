@@ -143,7 +143,7 @@ from revisionist.core.realism.pipeline import Pipeline, Step
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.trade import TradeLine
 from revisionist.core.realism.war import Outlet, War, war_id_for
-from revisionist.core.state import Rule, State
+from revisionist.core.state import Ladder, Rule, State
 from revisionist.core.visibility import PUBLIC, Scope, Visibility, private_to
 from revisionist.core.world import (
     CardDecl,
@@ -1889,7 +1889,8 @@ _CONDITION_REFS = {
 
 def _check_posts(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
     """With ``posts`` on (PPP): a card's post is an office asset its person controls, and
-    no two cards name one post. With it off, a card's post is not read."""
+    no two cards name one post. With it off, a card's post is not read, nor an office's
+    ladder or movers (LDR), so one world serves both."""
     if Rule.POSTS not in world.rules:
         return
     held = {d.key: d for d in world.assets}
@@ -1909,6 +1910,47 @@ def _check_posts(world: WorldFile, sections: Mapping[str, str], problems: list[s
         if c.post in named:
             problems.append(f"{where}: post {c.post} is another card's post")
         named.add(c.post)
+    for a in world.assets:  # LDR: a ladder and its movers are offices, on an office
+        if not (a.ladder or a.moved_by):
+            continue
+        where = f"asset {a.key}"
+        if a.kind is not AssetKind.OFFICE:
+            problems.append(f"{where}: only an office has a ladder or moved_by")
+        for field, keys in (("ladder", a.ladder), ("moved_by", a.moved_by)):
+            for k in keys:
+                _ref(problems, f"{where}: {field}", k, "asset", sections)
+                other = held.get(k)
+                if other is not None and other.kind is not AssetKind.OFFICE:
+                    problems.append(f"{where}: {field} {k} is not an office")
+        if a.key in a.ladder or len(set(a.ladder)) < len(a.ladder):
+            problems.append(f"{where}: ladder repeats a post")
+        if a.key in a.moved_by:
+            problems.append(f"{where}: a post may not move itself")
+    below = {a.key: a.ladder for a in world.assets if a.ladder}
+    for start in below:  # a ladder that leads back to its post loops
+        seen, todo = set(), list(below[start])
+        while todo:
+            k = todo.pop()
+            if k == start:
+                problems.append(f"asset {start}: ladder loops back to it")
+                break
+            if k not in seen:
+                seen.add(k)
+                todo.extend(below.get(k, ()))
+
+
+def _ladders(world: WorldFile, ids: Mapping[str, str]) -> ev.LaddersDeclared | None:
+    """Each office's ladder and movers, keys bound to ids, in the world's order (LDR)."""
+    found = tuple(
+        Ladder(
+            post=AssetId(ids[a.key]),
+            ladder=tuple(AssetId(ids[k]) for k in a.ladder),
+            moved_by=tuple(AssetId(ids[k]) for k in a.moved_by),
+        )
+        for a in world.assets
+        if a.ladder or a.moved_by
+    )
+    return ev.LaddersDeclared(ladders=found) if found else None
 
 
 def _check_command(world: WorldFile, problems: list[str]) -> None:
@@ -2857,6 +2899,9 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
     if Rule.GROUPS in world.rules and world.groups:
         # Engine only: true support. A seat reads its own nation's groups from its view.
         out.append((_groups(world, ids), _engine_only(ids, "groups")))
+    if Rule.POSTS in world.rules and (ladders := _ladders(world, ids)) is not None:
+        # Public: who may move a post, and where its holder falls, are rules of the world.
+        out.append((ladders, PUBLIC))
     if Rule.LAWS in world.rules and world.laws:
         # Public: the laws a world declares are rules of the world.
         out.append((_laws(world, ids), PUBLIC))

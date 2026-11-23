@@ -5,6 +5,7 @@ from datetime import date
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, FactId, SeatId, derived_id
 from revisionist.core.ontology import Fact
+from revisionist.core.realism import ladder
 from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.effect import Appointment
 from revisionist.core.realism.pass_world import PassWorld
@@ -15,8 +16,18 @@ from revisionist.core.visibility import PUBLIC
 def land(
     world: PassWorld, effect: Appointment, issuer_seat: SeatId, issuer: EntityId, on: date
 ) -> tuple[list[ev.Payload], list[FactId]]:
-    """The office as a public fact and the appointment as public news, each folded once."""
+    """The office as a public fact and the appointment as public news, each folded once.
+    With ``posts`` on and an office that is a post, the pending change instead (LDR): the
+    post moves at the close of the next wake, and its news with it."""
     state = world.state
+    pending = ladder.order(state, effect.person, effect.office, effect.appoint, issuer, on)
+    if pending is not None:
+        first = pending[0]
+        if isinstance(first, ev.PostMoveOrdered) and not world.claim(
+            first.move.move_id, state.post_moves
+        ):
+            return [], []
+        return pending, []
     verb = "appoint" if effect.appoint else "dismiss"
     fact_id = FactId(
         derived_id(

@@ -145,6 +145,13 @@ class AssetDecl(Model):
     location: Key | None = None
     loyalty: int = Field(default=0, ge=-5, le=5)
     scope: ScopeSpec = "public"
+    ladder: SkipJsonSchema[tuple[Key, ...]] = Field(default=(), max_length=8)
+    """For an office, read with ``posts`` on (LDR): the lesser offices its holder falls to
+    when dismissed, first free one first. Written by hand: not offered to a model."""
+    moved_by: SkipJsonSchema[tuple[Key, ...]] = Field(default=(), max_length=8)
+    """For an office, read with ``posts`` on (LDR): the offices whose holders may appoint
+    to it or dismiss from it on their own order. None named: the old rule, an order from
+    one of its holder's principals. Written by hand: not offered to a model."""
 
 
 class RelationshipDecl(Model):

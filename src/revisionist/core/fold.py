@@ -32,7 +32,7 @@ from revisionist.core.goals import (
     goal_kind,
     season_winners,
 )
-from revisionist.core.ids import CampaignId, EntityId, SeatId, derived_id
+from revisionist.core.ids import AssetId, CampaignId, EntityId, SeatId, derived_id
 from revisionist.core.ontology import (
     TRACK_MAX,
     Asset,
@@ -102,7 +102,7 @@ from revisionist.core.realism.pipeline import (
 )
 from revisionist.core.realism.territory import holder as territory_holder
 from revisionist.core.realism.war import at_war, polity_of
-from revisionist.core.state import Rule, State, Wake, controller_after, seat_of_person
+from revisionist.core.state import Ladder, Rule, State, Wake, controller_after, seat_of_person
 from revisionist.core.visibility import PUBLIC, Scope
 
 
@@ -500,6 +500,64 @@ def _card_post(state: State, cards: Mapping[EntityId, SeatCard], c: SeatCard) ->
         raise FoldError(f"card {c.person}: {c.post} is another card's post")
 
 
+def _office(state: State, post: AssetId, what: str) -> None:
+    asset = _need(state.assets, post, "asset")
+    if asset.kind is not AssetKind.OFFICE:
+        raise FoldError(f"{what}: {post} is not an office")
+
+
+def _on_a_ladder(state: State, post: AssetId) -> bool:
+    """Whether the world names ``post`` in a ladder, as a post or a rung (LDR)."""
+    return any(post == lad.post or post in lad.ladder for lad in state.ladders.values())
+
+
+def _ladders_declared(state: State, p: ev.LaddersDeclared) -> State:
+    """Each post's ladder, once, with ``posts`` on: every post, rung and mover an office,
+    each post once, no post on its own ladder (LDR)."""
+    if Rule.POSTS not in state.rules:
+        raise FoldError("ladders_declared needs the posts rule")
+    if state.ladders:
+        raise FoldError("the ladders are declared once")
+    out: dict[AssetId, Ladder] = {}
+    for ladder in p.ladders:
+        _fresh(out, ladder.post, "ladder")
+        for post in (ladder.post, *ladder.ladder, *ladder.moved_by):
+            _office(state, post, "ladders_declared")
+        if ladder.post in ladder.ladder or len(set(ladder.ladder)) < len(ladder.ladder):
+            raise FoldError(f"ladders_declared: {ladder.post}'s ladder repeats a post")
+        if ladder.post in ladder.moved_by:
+            raise FoldError(f"ladders_declared: {ladder.post} may not move itself")
+        out[ladder.post] = ladder
+    return state.model_copy(update={"ladders": out})
+
+
+def _post_move_ordered(state: State, p: ev.PostMoveOrdered) -> State:
+    """A pending change of post, with ``posts`` on: its id once, its person a card, its
+    post an office (LDR)."""
+    if Rule.POSTS not in state.rules:
+        raise FoldError("post_move_ordered needs the posts rule")
+    m = p.move
+    _fresh(state.post_moves, m.move_id, "post move")
+    _need(state.cards, m.person, "card")
+    _need(state.entities, m.by, "entity")
+    _office(state, m.post, "post_move_ordered")
+    seat = seat_of_person(state, m.person)
+    if m.seat != (seat.seat_id if seat is not None else None):
+        raise FoldError(f"post_move_ordered: {m.move_id} names a seat its person has not")
+    return state.model_copy(update={"post_moves": _put(state.post_moves, m.move_id, m)})
+
+
+def _post_move_settled(state: State, p: ev.PostMoveSettled) -> State:
+    """The pending change ends (LDR); one that stands as the office question's cause is
+    not settled by a wake."""
+    _need(state.post_moves, p.move_id, "post move")
+    if p.seat != state.post_moves[p.move_id].seat:
+        raise FoldError(f"post_move_settled: {p.move_id} names another seat")
+    moves = dict(state.post_moves)
+    del moves[p.move_id]
+    return state.model_copy(update={"post_moves": moves})
+
+
 def _post_changed(state: State, p: ev.PostChanged) -> State:
     """The post moves (PPP): the old holder's card is left with his own, the new holder's
     takes the post's part over his own, and every step, executor and command part not yet
@@ -518,6 +576,8 @@ def _post_changed(state: State, p: ev.PostChanged) -> State:
         part = kept.part
     elif current is not None:
         part = post_part(cards[current])
+    elif _on_a_ladder(state, p.post):
+        part = PostPart()  # LDR: a lesser post no card named starts with no part
     else:
         raise FoldError(f"post_changed: {p.post} is no card's post")
     if current is not None:
@@ -1055,6 +1115,9 @@ def _mutate(state: State, event: Event) -> State:
             | ev.OfferMade()
             | ev.OfferSettled()
             | ev.PostChanged()
+            | ev.LaddersDeclared()
+            | ev.PostMoveOrdered()
+            | ev.PostMoveSettled()
             | ev.PieceStepped()
             | ev.AreaHeld()
             | ev.CaptureCounted()
@@ -1504,6 +1567,12 @@ def _realism(state: State, p: ev.Payload) -> State:
             return _offer_settled(state, p)
         case ev.PostChanged():
             return _post_changed(state, p)
+        case ev.LaddersDeclared():
+            return _ladders_declared(state, p)
+        case ev.PostMoveOrdered():
+            return _post_move_ordered(state, p)
+        case ev.PostMoveSettled():
+            return _post_move_settled(state, p)
         case ev.IntelligenceDeclared():
             if Rule.REPORTS not in state.rules:
                 raise FoldError("intelligence_declared needs the reports rule")

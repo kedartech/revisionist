@@ -180,7 +180,7 @@ as well.
 | The post a person holds, apart from the person | `cards.post` | an office asset's key, an office the person controls, no other card's post | `posts` | the card is its person's alone, as today | - | on main |
 | What a post rests on, and how its holder is removed | `cards.post.{rests_on, removed_by}` | one or two groups or bodies; a body's vote, a council, one person, the end of a term, or not at all | `office` | the holder faces no question on his office | - | this run: the office question as a formal sitting |
 | The support line and the days under it at which the base turns on the holder | `cards.post.turn_below` | a support line, and days for the warning and for the question | `office` | 30, 14 days and 21 days | - | this run: blocs turn on the leader |
-| The ladder below a post, and who may move its holder | `cards.post.{ladder, moved_by}` | post keys, never in a loop | `posts` | a dismissal leaves the holder with no post, and only a decider's grant moves him | - | this run: the ladder of posts |
+| The ladder below a post, and who may move its holder | `assets.{ladder, moved_by}` on an office | office keys, up to 8 each; no post on its own ladder; written by hand, never offered to a model | `posts` | a dismissal leaves the holder with no post, and the lock rows decide who moves him | - | on main |
 | Which kinds of question a post decides outright | `cards.post.decides` | `permission`, `war`, `peace`, `money`, `posts`, `office` | `deciders` | the post decides only through the lock rows | with `deciders` | this run: player, person and post kept apart |
 
 ## 6. Armed bodies and forces

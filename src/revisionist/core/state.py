@@ -159,6 +159,38 @@ class Wake(Model):
     closed: bool = False
 
 
+class Ladder(Model):
+    """A post's ladder (LDR), with ``posts`` on: the lesser posts its holder can fall to,
+    in order, and the posts whose holders may move him on their own order. Public: world
+    data, set once by ``ladders_declared``."""
+
+    post: AssetId
+    ladder: tuple[AssetId, ...] = Field(default=(), max_length=8)
+    moved_by: tuple[AssetId, ...] = Field(default=(), max_length=8)
+
+
+class PostMove(Model):
+    """A change of post ordered and waiting to land (LDR): the pending change. ``appoint``
+    puts ``person`` in ``post``; a dismissal takes him off it. It lands at the close of the
+    wake after ``wake``, the one it was ordered in. ``question``: it would take a seat's
+    last authority, so it is not done on order; it stands as the office question's cause
+    (OFQ) and never lands by itself. Engine side: sealed to the seat of the person moved."""
+
+    move_id: str = Field(min_length=1, max_length=80)
+    person: EntityId
+    seat: SeatId | None = None
+    """The seat that plays the person moved, when the move was ordered: the one seat that
+    reads it."""
+    by: EntityId
+    """Who ordered it."""
+    post: AssetId
+    appoint: bool = True
+    ordered: date
+    wake: int = Field(ge=-1)
+    """The wake it was ordered in; -1 before the first wake opens."""
+    question: bool = False
+
+
 class _World(Model):
     """Fields common to truth and view."""
 
@@ -312,6 +344,13 @@ class State(_World):
     """With ``posts`` on, every post that has changed hands, by its office asset
     (``post_changed``): who holds it and its part of the card (PPP). Engine only; a post
     that never moved is read from its holder's card."""
+    ladders: dict[AssetId, Ladder] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``posts`` on, each post's ladder and who may move its holder, by its office
+    asset (``ladders_declared``, LDR). World data, the same in every view."""
+    post_moves: dict[str, PostMove] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``posts`` on, each change of post ordered and not yet settled, by its id
+    (``post_move_ordered``, until ``post_move_settled``), LDR. Engine only: the seat of
+    the person moved reads it from its paper and its feed."""
     chosen: dict[OrderId, dict[SeatId, bool]] = Field(
         default_factory=dict, exclude_if=lambda v: not v
     )

@@ -8299,6 +8299,64 @@
         "title": "KnowledgeGrant",
         "type": "object"
       },
+      "Ladder": {
+        "additionalProperties": false,
+        "description": "A post's ladder (LDR), with ``posts`` on: the lesser posts its holder can fall to,\nin order, and the posts whose holders may move him on their own order. Public: world\ndata, set once by ``ladders_declared``.",
+        "properties": {
+          "ladder": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Ladder",
+            "type": "array"
+          },
+          "moved_by": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Moved By",
+            "type": "array"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          }
+        },
+        "required": [
+          "post"
+        ],
+        "title": "Ladder",
+        "type": "object"
+      },
+      "LaddersDeclared": {
+        "additionalProperties": false,
+        "description": "Each post's ladder and the posts whose holders may move it (LDR), in the world\nfile's order. World data; once, at creation, with ``posts`` on and a ladder or a\n``moved_by`` declared.",
+        "properties": {
+          "kind": {
+            "const": "ladders_declared",
+            "default": "ladders_declared",
+            "title": "Kind",
+            "type": "string"
+          },
+          "ladders": {
+            "items": {
+              "$ref": "#/$defs/Ladder"
+            },
+            "minItems": 1,
+            "title": "Ladders",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ladders"
+        ],
+        "title": "LaddersDeclared",
+        "type": "object"
+      },
       "Law": {
         "additionalProperties": false,
         "description": "One law the world declares: public rules of the world.",
@@ -10918,6 +10976,138 @@
           "cause"
         ],
         "title": "PostChanged",
+        "type": "object"
+      },
+      "PostMove": {
+        "additionalProperties": false,
+        "description": "A change of post ordered and waiting to land (LDR): the pending change. ``appoint``\nputs ``person`` in ``post``; a dismissal takes him off it. It lands at the close of the\nwake after ``wake``, the one it was ordered in. ``question``: it would take a seat's\nlast authority, so it is not done on order; it stands as the office question's cause\n(OFQ) and never lands by itself. Engine side: sealed to the seat of the person moved.",
+        "properties": {
+          "appoint": {
+            "default": true,
+            "title": "Appoint",
+            "type": "boolean"
+          },
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "move_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Move Id",
+            "type": "string"
+          },
+          "ordered": {
+            "format": "date",
+            "title": "Ordered",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          },
+          "question": {
+            "default": false,
+            "title": "Question",
+            "type": "boolean"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seat"
+          },
+          "wake": {
+            "minimum": -1,
+            "title": "Wake",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "move_id",
+          "person",
+          "by",
+          "post",
+          "ordered",
+          "wake"
+        ],
+        "title": "PostMove",
+        "type": "object"
+      },
+      "PostMoveOrdered": {
+        "additionalProperties": false,
+        "description": "A change of post ordered (LDR): the pending change, landing at the close of the\nwake after the one it was ordered in, or the office question's cause when it would\ntake a seat's last authority. Sealed to the seat of the person moved.",
+        "properties": {
+          "kind": {
+            "const": "post_move_ordered",
+            "default": "post_move_ordered",
+            "title": "Kind",
+            "type": "string"
+          },
+          "move": {
+            "$ref": "#/$defs/PostMove"
+          }
+        },
+        "required": [
+          "move"
+        ],
+        "title": "PostMoveOrdered",
+        "type": "object"
+      },
+      "PostMoveSettled": {
+        "additionalProperties": false,
+        "description": "A pending change of post settled (LDR): ``landed`` when its post changes landed\nwith it, else void (the person or the post was no longer as it was ordered). Sealed\nto the seat of the person moved.",
+        "properties": {
+          "kind": {
+            "const": "post_move_settled",
+            "default": "post_move_settled",
+            "title": "Kind",
+            "type": "string"
+          },
+          "landed": {
+            "title": "Landed",
+            "type": "boolean"
+          },
+          "move_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Move Id",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seat"
+          }
+        },
+        "required": [
+          "move_id",
+          "on",
+          "landed"
+        ],
+        "title": "PostMoveSettled",
         "type": "object"
       },
       "PostPart": {
@@ -15637,6 +15827,7 @@
             "intent_filed": "#/$defs/IntentFiled",
             "intent_rejected": "#/$defs/IntentRejected",
             "kinds_declared": "#/$defs/KindsDeclared",
+            "ladders_declared": "#/$defs/LaddersDeclared",
             "laws_declared": "#/$defs/LawsDeclared",
             "locks_declared": "#/$defs/LocksDeclared",
             "losses_held": "#/$defs/LossesHeld",
@@ -15665,6 +15856,8 @@
             "piece_stepped": "#/$defs/PieceStepped",
             "play_style_set": "#/$defs/PlayStyleSet",
             "post_changed": "#/$defs/PostChanged",
+            "post_move_ordered": "#/$defs/PostMoveOrdered",
+            "post_move_settled": "#/$defs/PostMoveSettled",
             "quantity_set": "#/$defs/QuantitySet",
             "relationship_set": "#/$defs/RelationshipSet",
             "report_made": "#/$defs/ReportMade",
@@ -15926,6 +16119,15 @@
           },
           {
             "$ref": "#/$defs/PostChanged"
+          },
+          {
+            "$ref": "#/$defs/LaddersDeclared"
+          },
+          {
+            "$ref": "#/$defs/PostMoveOrdered"
+          },
+          {
+            "$ref": "#/$defs/PostMoveSettled"
           },
           {
             "$ref": "#/$defs/PieceStepped"
@@ -21418,6 +21620,39 @@
         "title": "Kinds",
         "type": "object"
       },
+      "Ladder": {
+        "additionalProperties": false,
+        "description": "A post's ladder (LDR), with ``posts`` on: the lesser posts its holder can fall to,\nin order, and the posts whose holders may move him on their own order. Public: world\ndata, set once by ``ladders_declared``.",
+        "properties": {
+          "ladder": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Ladder",
+            "type": "array"
+          },
+          "moved_by": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Moved By",
+            "type": "array"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          }
+        },
+        "required": [
+          "post"
+        ],
+        "title": "Ladder",
+        "type": "object"
+      },
       "Law": {
         "additionalProperties": false,
         "description": "One law the world declares: public rules of the world.",
@@ -23103,6 +23338,72 @@
           "part"
         ],
         "title": "Post",
+        "type": "object"
+      },
+      "PostMove": {
+        "additionalProperties": false,
+        "description": "A change of post ordered and waiting to land (LDR): the pending change. ``appoint``\nputs ``person`` in ``post``; a dismissal takes him off it. It lands at the close of the\nwake after ``wake``, the one it was ordered in. ``question``: it would take a seat's\nlast authority, so it is not done on order; it stands as the office question's cause\n(OFQ) and never lands by itself. Engine side: sealed to the seat of the person moved.",
+        "properties": {
+          "appoint": {
+            "default": true,
+            "title": "Appoint",
+            "type": "boolean"
+          },
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "move_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Move Id",
+            "type": "string"
+          },
+          "ordered": {
+            "format": "date",
+            "title": "Ordered",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          },
+          "question": {
+            "default": false,
+            "title": "Question",
+            "type": "boolean"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seat"
+          },
+          "wake": {
+            "minimum": -1,
+            "title": "Wake",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "move_id",
+          "person",
+          "by",
+          "post",
+          "ordered",
+          "wake"
+        ],
+        "title": "PostMove",
         "type": "object"
       },
       "PostPart": {
@@ -26871,6 +27172,13 @@
         ],
         "default": null
       },
+      "ladders": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Ladder"
+        },
+        "title": "Ladders",
+        "type": "object"
+      },
       "last_seq": {
         "default": -1,
         "title": "Last Seq",
@@ -26982,6 +27290,13 @@
           "$ref": "#/$defs/Pipeline"
         },
         "title": "Pipelines",
+        "type": "object"
+      },
+      "post_moves": {
+        "additionalProperties": {
+          "$ref": "#/$defs/PostMove"
+        },
+        "title": "Post Moves",
         "type": "object"
       },
       "posts": {

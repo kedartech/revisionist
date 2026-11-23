@@ -254,10 +254,12 @@ def main() -> int:
             if PHONE:
                 phone_board(page, report)
                 locked_order(page, report)
+                capital_board(page, report)
             else:
                 keyboard_move(page, report)
                 withdraw_move(page, report)
                 locked_order(page, report)
+                capital_board(page, report)
                 page.get_by_role("group", name="View").get_by_role("button", name="Desk").click()
                 page.locator("main.rl-room").wait_for(timeout=10_000)
                 header_and_menu(page, report, host)
@@ -279,6 +281,10 @@ def main() -> int:
         if host and not PHONE:
             end_game(page, report, v2)
         if host and not v2:
+            # the first game's checks are kept even when the Salt Strait walk stops short
+            (OUT / "report.json").write_text(
+                json.dumps({**report, "checks": checks, "problems": problems}, indent=2)
+            )
             salt_strait(p, browser, report)
         browser.close()
     report["checks"] = checks
@@ -1157,6 +1163,104 @@ def held_on_piece(page: Page, report: dict[str, object]) -> None:
     if close.count() and close.first.is_visible():
         close.first.click()
         page.wait_for_timeout(200)
+
+
+def capital_board(page: Page, report: dict[str, object]) -> None:
+    """The Capital board (CBD), in the map-first room after the held order is filed: the switch
+    at the map's top left opens the Capital in the map's place, with the bar and the season's
+    strip kept; a chamber's bar opens its blocs and one is picked; the held order's chain opens the
+    map with its piece's sheet, whose lock line opens the question again; F and Escape go into
+    full screen and out; the page is as wide as the viewport. Back to the Classic layout after."""
+    errors = len([p for p in problems if p.startswith("pageerror")])
+    if not set_layout(page, "Map first"):
+        return
+    switch = page.locator(".rl-board-switch")
+    try:
+        switch.first.wait_for(timeout=10_000)
+    except PlaywrightTimeout:
+        check("the Capital switch is drawn with a held order to show", False)
+        set_layout(page, "Classic layout")
+        return
+    corner = page.evaluate(
+        "() => !!document.querySelector('.rl-tm-tools-start > .rl-board-switch:first-child')"
+    )
+    check("the Map and Capital switch sits at the map's top left", corner)
+    switch.get_by_role("button", name="Capital").click()
+    board = page.locator(".rl-cap")
+    board.wait_for(timeout=10_000)
+    kept = page.evaluate(
+        """() => ({ bar: !!document.querySelector('.rl-roombar'),
+          strip: !!document.querySelector('.rl-mapfirst-map .rl-tl'),
+          map: !!document.querySelector('.rl-mapfirst-map .rl-tmap') })"""
+    )
+    report["capital_kept"] = kept
+    check(
+        "the Capital takes the map's place, the bar and the season's strip kept",
+        kept["bar"] and kept["strip"] and not kept["map"],
+        str(kept),
+    )
+    rows = [t.strip() for t in board.locator("button.rl-cap-q").all_inner_texts()]
+    report["capital_rows"] = rows
+    check(  # the kind line is drawn in capitals
+        "the Capital lists the held order as a question",
+        any(LOCK_WHO.upper() in r.upper() for r in rows),
+        str(rows),
+    )
+    width = page.evaluate("document.documentElement.scrollWidth")
+    check("the Capital fits the viewport", width <= SIZE[0], str(width))
+    chamber = board.locator("button.rl-cap-chamber")
+    if chamber.count():
+        chamber.first.click()
+        piece = board.locator(".rl-cap-blocs button.rl-cap-piece")
+        piece.first.wait_for(timeout=10_000)
+        piece.first.click()
+        card = board.locator(".rl-cap-side .rl-cap-card")
+        card.wait_for(timeout=10_000)
+        report["capital_bloc"] = card.inner_text()
+        check("picking a bloc shows its card in the right column", card.count() == 1)
+        shoot(page, "40-capital-bloc")
+    else:
+        report["capital_bloc"] = "no chamber in this seat's view"
+    held = board.locator("button.rl-cap-q.k-held")
+    held.first.click()
+    chain = board.locator(".rl-cap-chain")
+    chain.wait_for(timeout=10_000)
+    report["capital_chain"] = chain.inner_text()
+    check("the held order's chain names who holds it", LOCK_WHO in chain.inner_text())
+    shoot(page, "41-capital-held-chain")
+    to_map = board.locator("button.rl-cap-tomap")
+    if to_map.count():
+        to_map.click()
+        sheet = page.locator(".rl-over[data-sheet=piece]")
+        sheet.wait_for(timeout=10_000)
+        check(
+            "the held order opens the map with its piece's sheet", LOCK_PIECE in sheet.inner_text()
+        )
+        back = sheet.locator("button.rl-held-capital")
+        back.first.click()
+        page.locator(".rl-cap button.rl-cap-q.k-held[aria-pressed=true]").wait_for(timeout=10_000)
+        check("the lock's line in the piece's sheet opens the question again", True)
+    else:
+        check("the held order's piece is on the map", False, str(report["capital_chain"]))
+    board.locator("button.rl-cap-q.k-held").first.focus()
+    page.keyboard.press("f")
+    page.locator(".rl-full .rl-cap").wait_for(timeout=10_000)
+    check("F takes the Capital into full screen", True)
+    shoot(page, "42-capital-full")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(300)
+    check(
+        "Escape gives the room back",
+        page.locator(".rl-full").count() == 0 and page.locator(".rl-cap").count() == 1,
+    )
+    page.locator(".rl-board-switch").get_by_role("button", name="Map").click()
+    page.locator(".rl-mapfirst-map .rl-tmap").wait_for(timeout=10_000)
+    check("one tap gives the map back", True)
+    check(
+        "the Capital raises no page error",
+        len([p for p in problems if p.startswith("pageerror")]) == errors,
+    )
+    set_layout(page, "Classic layout")
 
 
 def phone_board(page: Page, report: dict[str, object]) -> None:

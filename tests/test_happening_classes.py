@@ -163,6 +163,16 @@ def test_the_compiler_refuses_a_kind_classed_twice_or_a_share_on_a_secret_kind(
             toy(tmp_path, ruled("classes"), classed(bad))
 
 
+def test_a_classed_kind_survives_the_round_trip_a_stored_game_makes() -> None:
+    for raw in (
+        {"kind": "agreement_broken", "reach": "secret"},
+        {"kind": "battle_lost", "reach": "reported", "felt": 0.4},
+        {"kind": "capital_threatened", "reach": "felt"},
+    ):
+        c = groups.KindClass.model_validate(raw)
+        assert groups.KindClass.model_validate(c.model_dump(mode="json")) == c
+
+
 # --- rule 2: a secret happening moves no group ------------------------------------------
 
 

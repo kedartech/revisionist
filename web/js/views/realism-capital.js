@@ -22,6 +22,7 @@ import { worldDate } from '../rules.js';
 import { moveWords, promiseWords, promisesMade, supportStep, themesFor } from './realism-home.js';
 import { personToken } from './realism-people.js';
 import { daysBetween } from './realism-timeline.js';
+import { DUE_FLASH, MARK_MS, along, cameDue, lastDrawn, play, runCount, slideMarker, stated, track as stepTrack } from './realism-tracks.js';
 
 /** The two boards and their names on the switch `[proposed]`. */
 export const BOARDS = Object.freeze([['map', 'Map'], ['capital', 'Capital']]);
@@ -256,8 +257,33 @@ function pieces(home, chamber, { theme, pick, onPick, offers = new Map() }) {
   ];
 }
 
+/**
+ * Moves the parts of vote `v`'s track since it was last drawn as `key`: a bloc's part slides
+ * from its old place and width to its new, one whose bloc an offer was just filed with is drawn
+ * up from the blocs below, and the count runs from the old numbers to the new.
+ */
+function moveTrack(key, parts, v, offers, countEl) {
+  const now = { parts: Object.fromEntries(parts.map(({ el }) => [`${el.getAttribute('class').split(' ')[0]}:${el.getAttribute('data-group')}`, [Number(el.getAttribute('x')), Number(el.getAttribute('width'))]])),
+    count: [v.yeas, v.nays], live: [...offers].filter(([, b]) => b.live).map(([g]) => g) };
+  const was = lastDrawn(key, now);
+  runCount(countEl, was?.count, now.count, ([y, n]) => `${y} yea · ${n} nay`);
+  if (!was) return;
+  for (const { el } of parts) {
+    const g = el.getAttribute('data-group');
+    if (el.getAttribute('class').startsWith('rl-cap-yea') && now.live.includes(g) && !was.live.includes(g)) {
+      play(el, [{ opacity: 0, transform: 'translateY(12px)' }, { opacity: 1, transform: 'none' }]);
+      continue;
+    }
+    const id = `${el.getAttribute('class').split(' ')[0]}:${g}`;
+    const [x1, w1] = now.parts[id];
+    const old = was.parts[id];
+    if (!old) play(el, [{ opacity: 0 }, { opacity: 1 }]);
+    else if (old[0] !== x1 || old[1] !== w1) play(el, [{ transform: `translateX(${old[0]}px) scaleX(${+(old[1] / w1).toFixed(4)}) translateX(-${x1}px)` }, { transform: 'none' }]);
+  }
+}
+
 /** A vote as a track: yeas from the left by bloc, nays from the right, those not yet counted between, and the line that carries it. */
-function track(chamber, v, label = null) {
+function track(chamber, v, label = null, moving = null) {
   const total = chamber.blocs.reduce((n, b) => n + b.seats, 0);
   const order = chamber.blocs.map((b) => b.group);
   const counts = new Map((v.blocs ?? []).map((b) => [b.group, b]));
@@ -279,6 +305,8 @@ function track(chamber, v, label = null) {
   const open = Math.max(0, right - at);
   const line = Number.isFinite(v.carries);
   const byBloc = (v.blocs ?? []).map((b) => `${named.get(b.group) ?? b.group} ${b.yeas} yea, ${b.nays} nay`).join('; ');
+  const countEl = h('p', { class: 'rl-cap-count' }, `${v.yeas} yea · ${v.nays} nay`);
+  if (moving) moveTrack(moving.key, [...yeas, ...nays].map((el) => ({ el })), v, moving.offers, countEl);
   return h('div', { class: `rl-cap-trackbox${label === WOULD_STAND ? ' would' : ''}` },
     label ? h('p', { class: 'rl-cap-h rl-cap-trackname' }, label) : null,
     line ? h('p', { class: 'rl-cap-carryword' }, `${v.carries} carry it`) : null,
@@ -286,7 +314,7 @@ function track(chamber, v, label = null) {
       class: 'rl-cap-track', viewBox: '0 0 100 10', preserveAspectRatio: 'none', role: 'img', focusable: 'false',
       'aria-label': `${label ? `${label}: ` : ''}${v.yeas} yea and ${v.nays} nay of ${total} seats, the rest not yet counted${line ? `; ${v.carries} carry it` : ''}. By bloc: ${byBloc}`,
     }, yeas, open > 0 ? svg('rect', { class: 'rl-cap-open', x: at, y: 0, width: open, height: 10 }) : null, nays, carryLine(v.carries, total)),
-    h('p', { class: 'rl-cap-count' }, `${v.yeas} yea · ${v.nays} nay`));
+    countEl);
 }
 
 // --- the middle: who decides -------------------------------------------------------------------
@@ -314,6 +342,33 @@ function tokens(found, onPerson, label = 'Who it passes through', cls = 'rl-cap-
     h('ul', { class: 'rl-cap-tokens', role: 'list' }, found.map(({ line, tab }) => h('li', {}, personToken(line, tab, { onOpen: onPerson })))));
 }
 
+const stepName = (name) => h('span', { class: 'rl-cap-stepname' }, name);
+
+/**
+ * The path order `orderId` is on, as a track with its marker on the step that holds it and a
+ * line of where it stands; the marker slides from where it stood when last drawn. Null when no
+ * path in the seat's view holds it.
+ */
+function orderPath(rv, orderId) {
+  for (const path of rv?.court?.paths ?? []) {
+    const step = path.steps.findIndex((s) => s.orders.some((o) => o.id === orderId));
+    if (step < 0) continue;
+    const s = path.steps[step];
+    const held = s.orders.find((o) => o.id === orderId).held_days;
+    const at = along(held, s.days);
+    const t = stepTrack(`${path.name}: where it stands`, path.steps.map((x) => ({
+      name: x.you ? 'You' : x.name, kind: x.kind === 'clerical' ? 'mark' : 'stop', days: x.days, body: stepName(x.you ? 'You' : x.name),
+      markers: x.orders.filter((o) => o.id === orderId).map((o) => ({ id: o.id, at })),
+    })));
+    const where = `With ${s.you ? 'you' : s.name}: ${plural(held, 'day')} held${Number.isInteger(s.days) ? ` of about ${s.days}` : `; ${stated(s.days)}`}`;
+    const m = t.querySelector('.rl-trk-marker');
+    slideMarker(m, lastDrawn(`marker:${orderId}`, { step, at }), { step, at });
+    return h('section', { class: 'rl-cap-path', 'aria-label': 'Where it stands' },
+      h('h4', { class: 'rl-cap-h' }, path.name), t, h('p', { class: 'rl-cap-where' }, where));
+  }
+  return null;
+}
+
 // --- the middle: each kind of question ---------------------------------------------------------------
 
 function voteMiddle(rv, q, state, on) {
@@ -329,7 +384,8 @@ function voteMiddle(rv, q, state, on) {
     }, h('span', {}, capital(chamberName(x.vote))),
     h('span', { class: 'rl-cap-stepcount' }, `${x.yeas} yea${Number.isFinite(x.carries) ? ` · ${x.carries} carry it` : ''}`)))) : null,
     tokens(stepsOf(rv, q.measure.order_id), on.person),
-    v ? track(chamber, v, would ? STANDS_NOW : null) : null,
+    orderPath(rv, q.measure.order_id),
+    v ? track(chamber, v, would ? STANDS_NOW : null, { key: `count:${q.measure.order_id}:${v.vote}`, offers: offerBlocs(home, q.measure.key) }) : null,
     would ? track(chamber, would, WOULD_STAND) : null,
     pieces(home, chamber, { theme: on.theme, pick: state.pick, onPick: on.pick, offers: offerBlocs(home, q.measure.key) }),
   ];
@@ -381,6 +437,10 @@ function heldMiddle(rv, q, on) {
   const mark = markFor(rv, l.piece);
   return [
     h('p', { class: 'rl-cap-note' }, 'A lock on the map and a question here are the same thing seen from two sides. Each opens the other.'),
+    h('section', { class: 'rl-cap-held', 'aria-label': 'Where it stops' }, stepTrack(`${l.words}: where it stops`, [
+      { name: l.who, kind: 'stop', days: null, note: `Held since ${worldDate(l.held)}`, body: stepName(l.who), markers: [{ id: l.id, at: 0, held: true }] },
+      { name: 'Sent', kind: 'mark', days: null, note: 'Not until it is allowed', body: stepName('Sent'), markers: [] },
+    ])),
     h('ol', { class: 'rl-cap-chain', 'aria-label': 'The chain' },
       h('li', { class: 'rl-cap-link-box' },
         h('p', { class: 'rl-cap-h' }, 'The order'),
@@ -523,17 +583,25 @@ function sideColumn(rv, q, state, on) {
     h('h3', { class: 'rl-cap-h' }, 'Picked'),
     pickedCard(rv, q, state, on),
     h('h3', { class: 'rl-cap-h' }, 'You hold and owe'),
-    owed(ownHome(rv)));
+    owed(ownHome(rv), rv?.clock?.world_date ?? null));
 }
 
 /** The promises the seat has made, each with where it stands; with none, the line that nothing is owed. */
-function owed(home) {
+function owed(home, today) {
   const made = promisesMade(home);
   if (!made.length) return h('p', { class: 'rl-cap-owed' }, OWED_NONE);
-  return h('ul', { class: 'rl-cap-promises', role: 'list' }, made.map((p) => h('li', { class: `rl-cap-promise ${p.standing}`, 'data-offer': p.offer_id },
+  return h('ul', { class: 'rl-cap-promises', role: 'list' }, made.map((p) => promiseLine(p, today)));
+}
+
+/** One promise; on the draw it came due it marks itself, once. */
+function promiseLine(p, today) {
+  const due = cameDue(`promise:${p.offer_id}`, p.due, today);
+  const li = h('li', { class: `rl-cap-promise ${p.standing}`, 'data-offer': p.offer_id, 'data-came-due': due },
     h('span', { class: 'rl-cap-pname' }, `${p.name}: ${p.sentence}`),
     h('span', { class: 'rl-cap-psub' }, p.title),
-    h('span', { class: 'rl-cap-pstand' }, promiseWords(p)))));
+    h('span', { class: 'rl-cap-pstand' }, promiseWords(p)));
+  if (due) play(li, DUE_FLASH, MARK_MS);
+  return li;
 }
 
 function movesRow(home, state, on) {

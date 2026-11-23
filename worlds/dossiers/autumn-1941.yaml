@@ -285,3 +285,20 @@ people:
     fact: He told the Prime Minister in 1940 that he could run wild for six months or a year, but had no confidence for the second or third year.
     portrait: null
     credit: null
+  iachino:
+    bio: Admiral Angelo Iachino has commanded the Italian Battle Fleet since December 1940, from his
+      flagship at Taranto. He lost three cruisers at Cape Matapan in March 1941, and he takes the
+      fleet to sea short of fuel and of air cover, on orders from Rome.
+    arena: Your arena is the Italian Battle Fleet. You decide where it goes, what you detach and how
+      it fights, under the Chief of the Comando Supremo, and the Duce's own order over the fleet
+      stands over yours. A sortie east of the Sicilian narrows is the Duce's to permit; no chamber or
+      council answers for it.
+    history:
+    - Was naval attache in Tokyo and commanded cruisers in the Spanish war.
+    - Took command of the battle fleet after the British raid on Taranto in November 1940.
+    - Led the fleet at Cape Matapan in March 1941, where it lost three heavy cruisers in a night action.
+    quote: null
+    source: null
+    fact: The fleet's battleships needed oil Italy did not have; by the autumn of 1941 each sortie was weighed against the fuel it burnt.
+    portrait: null
+    credit: null

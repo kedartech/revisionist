@@ -352,19 +352,42 @@ def _pieces(case: Case) -> set[str]:
     return {v for k, v in case.params.items() if k in ("force", "piece")}
 
 
+@functools.cache
+def _with_above(name: str, person: str) -> frozenset[str]:
+    """``person`` and the people above him on his card's principals who sit at his own
+    table: those any table his case is played at must seat."""
+    cards = {c.person: c for c in cmp.load_world(cmp.world_path(WORLDS[name])).cards}
+    above: set[str] = set()
+    stack = [person]
+    while stack:
+        for up in cards[stack.pop()].principals:
+            if up in cards and up not in above and up != person:
+                above.add(up)
+                stack.append(up)
+    return frozenset({person, *above}) & set(table_of(name, person))
+
+
+def seated(case: Case, first: Case) -> bool:
+    """Whether the table ``first`` is played at seats ``case``'s person and those above him."""
+    return _with_above(case.world, case.person) <= set(table_of(first.world, first.person))
+
+
 def batches(cases: Sequence[Case]) -> list[tuple[Case, ...]]:
     """The cases played together: one world, one table and one fix to a batch, and at most
     one case per person and per piece, so no order in a batch replaces or redirects another.
     A batch's digests are equal when each of its orders lands as its form does; it costs one
-    twin pair where a case alone costs one each."""
+    twin pair where a case alone costs one each. A batch is played at its first case's table,
+    which seats every case's person and those above him; the cases of people the world's
+    first table does not seat are placed first, so the batches opened at their tables take
+    the other cases too."""
     out: list[list[Case]] = []
-    for case in cases:
+    for case in sorted(cases, key=lambda c: c.person in table_of(c.world, None)):
         home = next(
             (
                 b
                 for b in out
                 if (b[0].world, b[0].fix) == (case.world, case.fix)
-                and table_of(case.world, case.person) == table_of(b[0].world, b[0].person)
+                and seated(case, b[0])
                 and all(c.person != case.person and not _pieces(c) & _pieces(case) for c in b)
             ),
             None,
@@ -402,7 +425,8 @@ def test_the_batches_hold_every_case_once_and_share_no_person_or_piece() -> None
     played = batches(CASES)
     assert sorted(c.name for b in played for c in b) == sorted(c.name for c in CASES)
     for batch in played:
-        assert len({(c.world, c.fix, table_of(c.world, c.person)) for c in batch}) == 1
+        assert len({(c.world, c.fix) for c in batch}) == 1
+        assert all(seated(c, batch[0]) for c in batch)
         assert len({c.person for c in batch}) == len(batch)
         pieces = [p for c in batch for p in _pieces(c)]
         assert len(set(pieces)) == len(pieces)

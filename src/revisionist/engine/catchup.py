@@ -128,6 +128,9 @@ NEVER: frozenset[str] = frozenset(
         "request_answered",
         # A seat's sealed vote is its own until the tally counts its nation (CNF).
         "vote_sealed",
+        # A seat's choice on a matter is its own until the due day counts it, and the
+        # asker reads only the answer (QKD).
+        "matter_chosen",
         # A holder's choice at a step on another seat's order is theirs until the
         # step's held due day takes it (SHS).
         "step_chosen",
@@ -242,7 +245,7 @@ def _named(p: ev.Payload, view: View) -> bool:
         case ev.HeldOrderEnded():
             return p.issuer == view.viewer
         case ev.OrderAsked():
-            return view.viewer in (p.asked.asker, p.asked.seat)
+            return view.viewer in (p.asked.asker, p.asked.seat, *p.asked.seats)
         case ev.AskAnswered():
             return p.asker == view.viewer
         case ev.OrderExecuted() | ev.EffectsApplied() | ev.InfluenceDecided():

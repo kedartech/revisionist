@@ -1784,6 +1784,14 @@
             "default": null,
             "title": "Seat"
           },
+          "seats": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Seats",
+            "type": "array"
+          },
           "to": {
             "title": "To",
             "type": "string"
@@ -4645,6 +4653,37 @@
         "title": "CostLogged",
         "type": "object"
       },
+      "Council": {
+        "additionalProperties": false,
+        "description": "A council that decides (QKD): who sits on it, how many must agree, and the head an\nask goes to.",
+        "properties": {
+          "head": {
+            "title": "Head",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 24,
+            "minItems": 1,
+            "title": "Members",
+            "type": "array"
+          },
+          "needed": {
+            "minimum": 1,
+            "title": "Needed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "members",
+          "needed",
+          "head"
+        ],
+        "title": "Council",
+        "type": "object"
+      },
       "CounselHeld": {
         "additionalProperties": false,
         "description": "A seat consulted a person on its card. The words are prose and change nothing;\na record, sealed with the seat's key like an order's text.",
@@ -4751,7 +4790,7 @@
       },
       "Decider": {
         "additionalProperties": false,
-        "description": "Who can allow a held order: a person, or a nation's chamber or chambers, with the\nhead of that nation's government, to whom an ask goes (ASK).",
+        "description": "Who can allow a held order: a person, a nation's chamber or chambers, with the\nhead of that nation's government, to whom an ask goes (ASK), or a council (QKD).",
         "properties": {
           "chambers": {
             "default": [],
@@ -4761,6 +4800,17 @@
             },
             "title": "Chambers",
             "type": "array"
+          },
+          "council": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Council"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "head": {
             "anyOf": [
@@ -8457,6 +8507,17 @@
           "order": {
             "$ref": "#/$defs/OrderMatch"
           },
+          "question": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Question"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "when": {
             "anyOf": [
               {
@@ -8887,6 +8948,43 @@
           "map"
         ],
         "title": "MapDeclared",
+        "type": "object"
+      },
+      "MatterChosen": {
+        "additionalProperties": false,
+        "description": "A seat's sealed choice on a matter before it (QKD): to accept or decline the ask\nfor a held order, put to a council it sits on or to the person it holds. A later\nchoice before the due day replaces it. Sealed to the seat that chose: nobody else\nlearns of it, not even that it was made, and the due day counts it without saying\nwho agreed.",
+        "properties": {
+          "accept": {
+            "title": "Accept",
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "matter_chosen",
+            "default": "matter_chosen",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "seat_id": {
+            "title": "Seat Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "seat_id",
+          "accept",
+          "on"
+        ],
+        "title": "MatterChosen",
         "type": "object"
       },
       "Meter": {
@@ -10812,6 +10910,19 @@
         ],
         "title": "QuantitySet",
         "type": "object"
+      },
+      "Question": {
+        "description": "The kind of question a lock row puts (QKD) [proposed].",
+        "enum": [
+          "permission",
+          "war",
+          "peace",
+          "money",
+          "posts",
+          "office"
+        ],
+        "title": "Question",
+        "type": "string"
       },
       "Reach": {
         "additionalProperties": false,
@@ -14879,6 +14990,7 @@
             "mandate_issued": "#/$defs/MandateIssued",
             "mandate_settled": "#/$defs/MandateSettled",
             "map_declared": "#/$defs/MapDeclared",
+            "matter_chosen": "#/$defs/MatterChosen",
             "meter_created": "#/$defs/MeterCreated",
             "narration_written": "#/$defs/NarrationWritten",
             "news_reported": "#/$defs/NewsReported",
@@ -15146,6 +15258,9 @@
           },
           {
             "$ref": "#/$defs/AskAnswered"
+          },
+          {
+            "$ref": "#/$defs/MatterChosen"
           },
           {
             "$ref": "#/$defs/PieceStepped"
@@ -16844,6 +16959,14 @@
             "default": null,
             "title": "Seat"
           },
+          "seats": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Seats",
+            "type": "array"
+          },
           "to": {
             "title": "To",
             "type": "string"
@@ -18309,6 +18432,37 @@
         "title": "ControlsAsset",
         "type": "object"
       },
+      "Council": {
+        "additionalProperties": false,
+        "description": "A council that decides (QKD): who sits on it, how many must agree, and the head an\nask goes to.",
+        "properties": {
+          "head": {
+            "title": "Head",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 24,
+            "minItems": 1,
+            "title": "Members",
+            "type": "array"
+          },
+          "needed": {
+            "minimum": 1,
+            "title": "Needed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "members",
+          "needed",
+          "head"
+        ],
+        "title": "Council",
+        "type": "object"
+      },
       "Deal": {
         "additionalProperties": false,
         "description": "Offer a deal, or accept one.",
@@ -18357,7 +18511,7 @@
       },
       "Decider": {
         "additionalProperties": false,
-        "description": "Who can allow a held order: a person, or a nation's chamber or chambers, with the\nhead of that nation's government, to whom an ask goes (ASK).",
+        "description": "Who can allow a held order: a person, a nation's chamber or chambers, with the\nhead of that nation's government, to whom an ask goes (ASK), or a council (QKD).",
         "properties": {
           "chambers": {
             "default": [],
@@ -18367,6 +18521,17 @@
             },
             "title": "Chambers",
             "type": "array"
+          },
+          "council": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Council"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "head": {
             "anyOf": [
@@ -20757,6 +20922,17 @@
           "order": {
             "$ref": "#/$defs/OrderMatch"
           },
+          "question": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Question"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "when": {
             "anyOf": [
               {
@@ -22343,6 +22519,19 @@
         ],
         "title": "QuantityAt",
         "type": "object"
+      },
+      "Question": {
+        "description": "The kind of question a lock row puts (QKD) [proposed].",
+        "enum": [
+          "permission",
+          "war",
+          "peace",
+          "money",
+          "posts",
+          "office"
+        ],
+        "title": "Question",
+        "type": "string"
       },
       "Reach": {
         "additionalProperties": false,
@@ -25317,6 +25506,16 @@
         "title": "Cards",
         "type": "object"
       },
+      "chosen": {
+        "additionalProperties": {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "type": "object"
+        },
+        "title": "Chosen",
+        "type": "object"
+      },
       "clocks": {
         "additionalProperties": {
           "$ref": "#/$defs/Clock"
@@ -26829,6 +27028,14 @@
             "default": null,
             "title": "Seat"
           },
+          "seats": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Seats",
+            "type": "array"
+          },
           "to": {
             "title": "To",
             "type": "string"
@@ -28077,6 +28284,37 @@
         "title": "ControlsAsset",
         "type": "object"
       },
+      "Council": {
+        "additionalProperties": false,
+        "description": "A council that decides (QKD): who sits on it, how many must agree, and the head an\nask goes to.",
+        "properties": {
+          "head": {
+            "title": "Head",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 24,
+            "minItems": 1,
+            "title": "Members",
+            "type": "array"
+          },
+          "needed": {
+            "minimum": 1,
+            "title": "Needed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "members",
+          "needed",
+          "head"
+        ],
+        "title": "Council",
+        "type": "object"
+      },
       "Deal": {
         "additionalProperties": false,
         "description": "Offer a deal, or accept one.",
@@ -28125,7 +28363,7 @@
       },
       "Decider": {
         "additionalProperties": false,
-        "description": "Who can allow a held order: a person, or a nation's chamber or chambers, with the\nhead of that nation's government, to whom an ask goes (ASK).",
+        "description": "Who can allow a held order: a person, a nation's chamber or chambers, with the\nhead of that nation's government, to whom an ask goes (ASK), or a council (QKD).",
         "properties": {
           "chambers": {
             "default": [],
@@ -28135,6 +28373,17 @@
             },
             "title": "Chambers",
             "type": "array"
+          },
+          "council": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Council"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "head": {
             "anyOf": [
@@ -30072,6 +30321,17 @@
           "order": {
             "$ref": "#/$defs/OrderMatch"
           },
+          "question": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Question"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "when": {
             "anyOf": [
               {
@@ -31581,6 +31841,19 @@
         ],
         "title": "QuantityAt",
         "type": "object"
+      },
+      "Question": {
+        "description": "The kind of question a lock row puts (QKD) [proposed].",
+        "enum": [
+          "permission",
+          "war",
+          "peace",
+          "money",
+          "posts",
+          "office"
+        ],
+        "title": "Question",
+        "type": "string"
       },
       "Reach": {
         "additionalProperties": false,

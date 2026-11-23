@@ -131,11 +131,13 @@ from revisionist.core.realism.kinds import Domain as PieceDomain
 from revisionist.core.realism.kinds import PieceKind, Resource, Role
 from revisionist.core.realism.laws import Does, Law, LawEffect
 from revisionist.core.realism.locks import (
+    Council,
     Decider,
     LawNotInForce,
     LockRow,
     OrderMatch,
     PostureNotSet,
+    Question,
 )
 from revisionist.core.realism.pipeline import Pipeline, Step
 from revisionist.core.realism.quantity import Quantity
@@ -1803,9 +1805,10 @@ def _check_locks(world: WorldFile, sections: Mapping[str, str], problems: list[s
     the form takes, or an effect kind with a zone (an area or place) or a force that
     exists; a condition naming a law clause some declared law carries, or a posture whose
     zone and form exist; a decider that is a person, or a nation's chambers that exist
-    with the person at the head of its government (ASK),
-    and never the person whose own card carries the form. With the rule off they are
-    checked and left out of the game."""
+    with the person at the head of its government (ASK), or a council whose members each
+    have a card and whose count is no more than its members (QKD),
+    and never the person whose own card carries the form; a kind of question from the
+    closed list (QKD). With the rule off they are checked and left out of the game."""
     levers = {(c.person, lv.name): lv for c in world.cards for lv in c.levers}
     chambers = {
         (d.nation, g.chamber) for d in world.groups for g in d.groups if g.chamber is not None
@@ -1827,15 +1830,32 @@ def _check_locks(world: WorldFile, sections: Mapping[str, str], problems: list[s
                 zone=None if o.zone is None else EntityId(o.zone),
                 force=None if o.force is None else FeatureId(o.force),
             )
+            council = d.council
             Decider(
                 person=None if d.person is None else EntityId(d.person),
                 nation=None if d.nation is None else EntityId(d.nation),
                 chambers=d.chambers,
                 head=None if d.head is None else EntityId(d.head),
+                council=None
+                if council is None
+                else Council(
+                    members=tuple(EntityId(m) for m in council.members),
+                    needed=council.needed,
+                    head=EntityId(council.head),
+                ),
             )
         except ValidationError as exc:
             problems.append(f"{where}: {_first_error(exc)}")
             continue
+        if row.question is not None and row.question not in {q.value for q in Question}:
+            problems.append(f"{where}: unknown question {row.question}")
+        if d.council is not None:
+            carded = {c.person for c in world.cards}
+            for sitter in (*d.council.members, d.council.head):
+                if kinds.get(sitter) is not EntityKind.PERSON:
+                    problems.append(f"{where}: unknown person {sitter}")
+                elif sitter in d.council.members and sitter not in carded:
+                    problems.append(f"{where}: council member {sitter} has no card")
         if match.form is not None:
             _check_lock_form(where, levers, match.form, o.params, sections, problems)
             carriers = {person for person, name in levers if name == match.form}
@@ -2006,9 +2026,20 @@ def _locks(world: WorldFile, ids: Mapping[str, str]) -> ev.LocksDeclared:
     def entity(key: str | None) -> EntityId | None:
         return None if key is None else EntityId(ids[key])
 
+    deciders = Rule.DECIDERS in world.rules
     rows: list[LockRow] = []
     for r in world.locks:
         o, d, w = r.order, r.decider, r.when
+        council: Council | None = None
+        person = entity(d.person)
+        if d.council is not None and deciders:
+            council = Council(
+                members=tuple(EntityId(ids[m]) for m in d.council.members),
+                needed=d.council.needed,
+                head=EntityId(ids[d.council.head]),
+            )
+        elif d.council is not None:
+            person = entity(d.council.head)  # with deciders off the head decides alone
         when: LawNotInForce | PostureNotSet | None = None
         if w is not None and w.check == "law_not_in_force":
             when = LawNotInForce(clause=w.clause or "")
@@ -2028,11 +2059,13 @@ def _locks(world: WorldFile, ids: Mapping[str, str]) -> ev.LocksDeclared:
                 ),
                 when=when,
                 decider=Decider(
-                    person=entity(d.person),
+                    person=person,
                     nation=entity(d.nation),
                     chambers=d.chambers,
                     head=entity(d.head),
+                    council=council,
                 ),
+                question=Question(r.question) if deciders and r.question else None,
             )
         )
     return ev.LocksDeclared(rows=tuple(rows))

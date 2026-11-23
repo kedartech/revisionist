@@ -117,7 +117,7 @@ test('what the page header held is reachable from the game menu', () => {
   const names = menu.querySelectorAll('button').map(words);
   assert.ok(names.includes('Autumn 1941'), 'the campaign\'s name opens the setting');
   assert.ok(names.includes('Franklin D. Roosevelt'), 'the seat\'s name opens the dossier');
-  assert.ok(names.includes('Report a bug'));
+  assert.ok(names.includes('Report'));
   assert.ok(names.includes('Sign out'));
   assert.ok(words(menu).includes('Signed in as josh'));
   assert.ok(menu.querySelector('.rl-wake'), 'the wake\'s own line, with Run the day now for the host');

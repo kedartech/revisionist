@@ -18,7 +18,7 @@ import { battleAt, battleSheet, battleTitle } from './realism-battle.js';
 import { boardView, piecePanel, viewSwitch, withBoard } from './realism-board.js';
 import { courtBoard } from './realism-court.js';
 import { BOARD_KEY, boardSwitch, capitalBoard, hasCapital, startBoard } from './realism-capital.js';
-import { bugReport, header } from './frame.js';
+import { header, reportDialog, reportInbox } from './frame.js';
 import { homeSheet, speakNote, themeRead, withHome } from './realism-home.js';
 import { needsAnswer } from './realism-answer.js';
 import { DIPLOMACY_TITLE, diplomacySheet, freshDiplomacy, hasDiplomacy } from './realism-diplomacy.js';
@@ -361,6 +361,7 @@ export function gameMenu(game, ctx, work, onLayout = null, allSheets = null, ext
   });
   const notices = noticesSection({ api, run });
   const handover = game.host ? handoverSection({ api, run }) : null;
+  const inbox = game.host ? reportInbox() : null;
   const hours = h('input', { id: 'rl-wake-hours', name: 'hours', type: 'number', min: 1, max: 168, step: 1, required: true });
   const setHours = () => {
     if (!hours.reportValidity()) return;
@@ -400,6 +401,7 @@ export function gameMenu(game, ctx, work, onLayout = null, allSheets = null, ext
         endBtn),
       confirmEnd,
       handover.nodes,
+      inbox.nodes,
       h('div', { class: 'rl-field' }, h('label', { for: 'rl-wake-hours' }, 'Hours per wake'),
         h('div', { class: 'row' }, hours,
           h('button', { type: 'button', class: 'ghost', onclick: setHours }, 'Set'))),
@@ -423,7 +425,7 @@ export function gameMenu(game, ctx, work, onLayout = null, allSheets = null, ext
     out,
     h('div', { class: 'row end' }, closeBtn)));
   const open = h('button', {
-    type: 'button', class: 'rl-menu-btn', 'aria-haspopup': 'dialog', onclick: () => { if (work.idle()) { dialog.showModal(); handover?.load(); notices.load(); } },
+    type: 'button', class: 'rl-menu-btn', 'aria-haspopup': 'dialog', onclick: () => { if (work.idle()) { dialog.showModal(); handover?.load(); inbox?.load(); notices.load(); } },
   }, 'Game', icon('chevron', 12));
   return [open, dialog];
 }
@@ -1593,7 +1595,7 @@ export function realismRoom(ctx) {
     paceHeader(rv.clock),
     h('p', { class: 'hint' }, `Signed in as ${me.account.handle}`),
     h('div', { class: 'row' },
-      h('button', { type: 'button', class: 'ghost', 'aria-haspopup': 'dialog', onclick: () => { close(); bug.showModal(); } }, icon('bug', 14), 'Report a bug'),
+      h('button', { type: 'button', class: 'ghost', 'aria-haspopup': 'dialog', onclick: () => { close(); bug.showModal(); } }, icon('bug', 14), 'Report'),
       h('button', { type: 'button', class: 'ghost', onclick: () => { close(); ctx.signOut?.(); } }, icon('out', 14), 'Sign out')));
 
   function build() {
@@ -1602,7 +1604,7 @@ export function realismRoom(ctx) {
     foldEconomy(beginner());
     foldOdds(beginner());
     const { character, setting, happened, intro: opening } = sheets();
-    const bug = mapFirst() ? bugReport() : null;
+    const bug = mapFirst() ? reportDialog() : null;
     const [menuBtn, menu] = gameMenu(game, ctx, work, (next) => {
       setRoomLayout(next);
       rerender();

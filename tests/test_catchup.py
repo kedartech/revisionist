@@ -134,8 +134,10 @@ def test_a_battle_decision_is_never_fed() -> None:
 
 def test_a_groups_true_support_is_never_fed() -> None:
     # GRP: a seat reads its own nation's groups from its own data, others' from the press;
-    # the declaration and the writing in waiting are engine only.
-    assert {"groups_declared", "group_moved", "group_proposed"} <= catchup.NEVER
+    # the declaration and the writing in waiting are engine only. A move of its own
+    # nation's group is fed to its seats (HFR), kept only when its view holds that nation.
+    assert {"groups_declared", "group_proposed"} <= catchup.NEVER
+    assert "group_moved" in catchup.FEED_KINDS
 
 
 def test_offers_and_agreements_are_fed_to_their_parties() -> None:

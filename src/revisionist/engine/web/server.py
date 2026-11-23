@@ -56,6 +56,7 @@ from revisionist.engine.pg_store import PostgresEventStore
 from revisionist.engine.pitch import PITCH_MAX, PendingCard, PitchError, read_pitch
 from revisionist.engine.store import load_state
 from revisionist.engine.tick import NotInPlayError
+from revisionist.engine.web import accounts as web_accounts
 from revisionist.engine.web import (
     agenda_api,
     agreements_api,
@@ -82,7 +83,6 @@ from revisionist.engine.web import (
 from revisionist.engine.web import (
     held as held_orders,
 )
-from revisionist.engine.web import accounts as web_accounts
 from revisionist.engine.web import realism_api as api
 from revisionist.engine.web.accounts import (
     SESSION_DAYS,

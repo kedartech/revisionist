@@ -15,15 +15,24 @@ on its way, with each bloc that votes on it, the prices it would take and the of
 holds it, read from the seat's view; and the offers the seat itself made, each with its
 due day once its measure has passed. The count on the floor already carries a taken
 offer's points (``votes.bloc_counts``).
+
+What moved since the seat's last wake (HFR): its last wake is its player's last commit.
+Each group lists every move logged since, each worded from the move alone, and the block
+lists one line a group, heaviest net change first. Each vote of a measure on its way
+carries the count the votes rule gave it on the log as it stood at that commit, beside
+today's. Each place of political weight of the nation is listed with the holder and the
+threat its area shows on the seat's map.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from typing import Literal
 
 from revisionist.core import events as ev
 from revisionist.core.events import Event
+from revisionist.core.fold import replay
 from revisionist.core.ids import EntityId, SeatId
-from revisionist.core.ontology import EntityKind
+from revisionist.core.ontology import Controller, EntityKind
+from revisionist.core.project import project
 from revisionist.core.realism import groups, offers
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.resolvers import resolver_for, votes
@@ -37,8 +46,12 @@ from revisionist.engine.web.realism_api import (
     GroupMove,
     HomeBlock,
     HomeGroup,
+    HomeMove,
+    HomeMoved,
+    HomePlace,
     HomeTheme,
     LiveOffer,
+    MapArea,
     NationStanding,
     OfferBloc,
     OfferMeasure,
@@ -64,6 +77,34 @@ each from its lower bound."""
 OFFERED = "Offered to {bloc} for {measure}: {sentence}"  # [proposed]
 OFFER_HELD = "Your offer to {bloc}: {sentence}"  # [proposed]
 
+WHY: dict[str, str] = {
+    "battle_won": "a battle won",
+    "battle_lost": "a battle lost",
+    "territory_taken": "territory taken",
+    "territory_lost": "territory lost",
+    "capital_threatened": "the capital threatened",
+    "losses_at_sea": "shipping lost at sea",
+    "agreement_broken": "an agreement broken",
+    "measure_passed": "a measure passed",
+    "war_declared": "war declared",
+    "daily_life_passed": "a measure touching daily life passed",
+    "writing": "a statement",
+    "drift": "the weekly drift",
+    "offer_taken": "an offer taken",
+    "promise_kept": "a promise kept",
+    "promise_broken": "a promise broken",
+    "battle_losses": "battle losses reported",
+    "losses_felt": "earlier battle losses felt at home",
+    "losses_halved": "losses counted at half after a battle won",
+    "place_lost": "a place of weight lost in battle",
+    "place_abandoned": "a place of weight abandoned",
+    "place_retaken": "a place of weight retaken",
+}
+"""[proposed] each cause a group moves by, in plain words."""
+
+MOVED_LINE = "{name} {change:+d}: {why}"  # [proposed]
+MORE = " and {n} more"  # [proposed]
+
 
 def standing_band(figure: float) -> Band:
     """The public band a standing at home of ``figure`` (0 to 100) falls in."""
@@ -74,6 +115,128 @@ def carries(voting: int) -> int:
     """The yeas that carry a vote of ``voting`` members: the votes rule passes a vote on
     more yeas than nays among those voting (``votes.by_groups``)."""
     return voting // 2 + 1
+
+
+Counts = dict[tuple[str, str], tuple[list[int], dict[str, list[int]]]]
+"""Each vote's yeas and nays at the seat's last wake, whole and by bloc (``_then``)."""
+
+
+def last_wake(events: Sequence[Event], seat: SeatId, person: EntityId) -> int | None:
+    """The index in ``events`` of the seat's last wake: its player's last commit since a
+    player took ``person`` up, as the wake report counts it. None while it has none."""
+    out: int | None = None
+    for i, e in enumerate(events):
+        p = e.payload
+        if isinstance(p, ev.SeatHandover):
+            if p.entity_id == person and p.controller is Controller.HUMAN:
+                out = None
+        elif isinstance(p, ev.WakeCommitted) and p.seat_id == seat and not p.by_aide:
+            out = i
+    return out
+
+
+REACH: dict[str, Literal["felt", "reported"]] = {
+    "losses_felt": "felt",
+    "losses_halved": "reported",
+    "battle_losses": "reported",
+    "writing": "reported",
+    "offer_taken": "reported",
+    "promise_kept": "reported",
+    "promise_broken": "reported",
+    "drift": "felt",
+}
+"""[proposed] how a move whose cause is not a classed happening reached the public: the
+felt share of battle losses lands as ``losses_felt``, their reported share and the
+winner's correction by report, a statement, an offer and a promise by report, and the
+weekly drift as the mood at home."""
+
+
+def reach(view: View, cause: str) -> Literal["felt", "reported"]:
+    """How a move reached the public, felt or reported: a happening's class as the seat
+    holds it from its own nation's groups (``groups.cls`` where it holds none), else
+    ``REACH``."""
+    if cause in REACH:
+        return REACH[cause]
+    happening = groups.Happening(cause)
+    # A view carries no rules, so ``groups.cls`` on a view never reads the world's classes;
+    # the seat holds its own nation's classes (``groups.seen_by``), empty with the rule off.
+    found = view.groups.classes.get(happening) or groups.cls(view, happening)
+    return "felt" if found.reach is groups.Class.FELT else "reported"
+
+
+def _since(
+    view: View, events: Sequence[Event], own: EntityId, wake: int | None
+) -> dict[str, list[HomeMove]]:
+    """Every move of ``own``'s groups logged after index ``wake``, by group key: a move
+    the clamp held to nothing moved nothing."""
+    out: dict[str, list[HomeMove]] = {}
+    for e in events[0 if wake is None else wake + 1 :]:
+        p = e.payload
+        if isinstance(p, ev.GroupMoved) and p.polity == own and p.change:
+            out.setdefault(p.group, []).append(
+                HomeMove(
+                    cause=p.cause.value,
+                    change=p.change,
+                    on=p.on.isoformat(),
+                    why=WHY[p.cause.value],
+                    reach=reach(view, p.cause.value),
+                )
+            )
+    return out
+
+
+def _moved(view: View, own: EntityId, since: dict[str, list[HomeMove]]) -> list[HomeMoved]:
+    """One line a group that moved, heaviest net change first, the heaviest move named."""
+    out: list[HomeMoved] = []
+    for g in groups.of(view, own):
+        moves = since.get(g.key)
+        if not moves:
+            continue
+        net = sum(m["change"] for m in moves)
+        lead = max(moves, key=lambda m: abs(m["change"]))
+        line = MOVED_LINE.format(name=g.name, change=net, why=lead["why"])
+        if len(moves) > 1:
+            line += MORE.format(n=len(moves) - 1)
+        out.append(HomeMoved(group=g.key, name=g.name, change=net, line=line))
+    return sorted(out, key=lambda m: -abs(m["change"]))
+
+
+def _places(state: State, view: View, own: EntityId, areas: Sequence[MapArea]) -> list[HomePlace]:
+    """Each weighted place of ``own``, with the holder and the threat its area shows on
+    the seat's map; a place whose area the map does not show is left out."""
+    shown = {a["key"]: a for a in areas}
+    board = state.map
+    keys = {t.area: t.key for t in board.territories} if board is not None else {}
+    out: list[HomePlace] = []
+    for place in view.groups.places:
+        area = shown.get(keys.get(place.territory, ""))
+        if place.nation != own or area is None:
+            continue
+        threatened = area.get("falling") is not None or bool(area.get("threatened_from"))
+        out.append(
+            HomePlace(
+                key=area["key"], name=area["name"], holder=area["holder"], threatened=threatened
+            )
+        )
+    return out
+
+
+def _then(events: Sequence[Event], wake: int | None, seat: SeatId, own: EntityId) -> Counts:
+    """Each vote's count by bloc on the log as it stood at the seat's last wake, by order
+    and vote: the same tally ``_chambers`` gives today, run on the state replayed to
+    there. Empty while the seat has had no wake."""
+    if wake is None:
+        return {}
+    state = replay(events[: wake + 1])
+    out: Counts = {}
+    for chamber in _chambers(state, project(state, seat), own, {}):
+        for measure in chamber["measures"]:
+            for vote in measure["votes"]:
+                out[(measure["order_id"], vote["vote"])] = (
+                    [vote["yeas"], vote["nays"]],
+                    {b["group"]: [b["yeas"], b["nays"]] for b in vote["blocs"]},
+                )
+    return out
 
 
 def _last_moved(events: Iterable[Event], own: EntityId) -> dict[str, GroupMove]:
@@ -87,7 +250,7 @@ def _last_moved(events: Iterable[Event], own: EntityId) -> dict[str, GroupMove]:
     return out
 
 
-def _open_measures(state: State, view: View, own: EntityId) -> list[tuple[Order, str, str]]:
+def open_measures(state: State, view: View, own: EntityId) -> list[tuple[Order, str, str]]:
     """The seat's own orders on their way that the votes rule tallies, with each one's
     measure key and title."""
     out: list[tuple[Order, str, str]] = []
@@ -101,21 +264,32 @@ def _open_measures(state: State, view: View, own: EntityId) -> list[tuple[Order,
     return out
 
 
-def _chambers(state: State, view: View, own: EntityId) -> list[FloorChamber]:
+def _chambers(state: State, view: View, own: EntityId, then: Counts) -> list[FloorChamber]:
     blocs = [g for g in groups.of(view, own) if g.chamber is not None and g.seats is not None]
     chambers = list(dict.fromkeys(str(g.chamber) for g in blocs))
     measures: dict[str, list[OpenMeasure]] = {key: [] for key in chambers}
-    for order, key, title in _open_measures(state, view, own):
+    for order, key, title in open_measures(state, view, own):
         counted: dict[str, list[FloorVote]] = {}
         for chamber, vote, parts in votes.floor_counts(state, own, order, key, order.measure):
             yeas, nays = sum(y for _, y, _ in parts), sum(n for _, _, n in parts)
+            whole, by_bloc = then.get((order.order_id, vote), (None, {}))
             counted.setdefault(chamber, []).append(
                 FloorVote(
                     vote=vote,
                     yeas=yeas,
                     nays=nays,
-                    blocs=[BlocCount(group=g, yeas=y, nays=n) for g, y, n in parts],
+                    blocs=[
+                        BlocCount(
+                            group=g,
+                            yeas=y,
+                            nays=n,
+                            then=by_bloc.get(g),
+                            moved=g in by_bloc and by_bloc[g] != [y, n],
+                        )
+                        for g, y, n in parts
+                    ],
                     carries=carries(yeas + nays),
+                    then=whole,
                 )
             )
         for chamber, found in counted.items():
@@ -248,18 +422,24 @@ def offer_label(state: State, seat: SeatId, bloc: str, measure: str, key: str) -
     return OFFER_HELD.format(bloc=name, sentence=sentence)
 
 
-def block(state: State, view: View, events: Iterable[Event] = ()) -> HomeBlock | None:
+def block(
+    state: State, view: View, events: Iterable[Event] = (), areas: Sequence[MapArea] = ()
+) -> HomeBlock | None:
     """The ``home`` block with ``groups`` on: the seat's own nation's groups, its chambers
     with the seat's open measures counted by bloc, its themes, its standing as a figure,
     and every nation's standing as a band; with ``offers`` on, each measure on its way with
     what its blocs would take, and the seat's own promises. The groups, chambers, themes
     and offers are read from the seat's ``View``, which holds its own nation's and no
-    other's. None with the rule off and for a seat of no nation."""
+    other's. ``areas`` are the seat's map areas, which mark a threatened place. None with
+    the rule off and for a seat of no nation."""
     own = economy_api.own_nation(view)
     today = view.in_world_date
     if not groups.on(state) or own is None or today is None:
         return None
-    moved = _last_moved(events, own)
+    log = list(events)
+    moved = _last_moved(log, own)
+    wake = last_wake(log, view.viewer, view.me.embodies)
+    since = _since(view, log, own, wake)
     out = HomeBlock(
         day=today.isoformat(),
         nation=economy_api.nation(state, own, own),
@@ -270,11 +450,12 @@ def block(state: State, view: View, events: Iterable[Event] = ()) -> HomeBlock |
                 kind=g.kind,
                 support=groups.support(view, own, g.key) or 0,
                 last_moved=moved.get(g.key),
+                since=since.get(g.key, []),
                 feeds={f.value: w for f, w in g.feeds.items()},
             )
             for g in groups.of(view, own)
         ],
-        chambers=_chambers(state, view, own),
+        chambers=_chambers(state, view, own, _then(log, wake, view.viewer, own)),
         themes=[
             HomeTheme(key=t.key, name=t.name, moves=dict(t.moves))
             for t in view.groups.themes.get(own, ())
@@ -282,6 +463,8 @@ def block(state: State, view: View, events: Iterable[Event] = ()) -> HomeBlock |
         # read from state: a view holds no rules, and home_standing reads the economy rule
         standing=groups.home_standing(state, own),
         standings=_standings(state, own),
+        moved=_moved(view, own, since),
+        places=_places(state, view, own, areas) if groups.places_on(state) else [],
     )
     if offers.on(state):
         out["offers"] = _on_offer(state, view, own)

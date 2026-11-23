@@ -265,17 +265,18 @@ def lit(
     return out
 
 
-def map_reply(state: State) -> MapReply:
-    """The ``map`` action's answer: the same for every seat."""
+def map_reply(state: State, shapes: bool = True) -> MapReply:
+    """The ``map`` action's answer: the same for every seat. Without ``shapes`` the reply
+    carries the file and its hash and no map object."""
     board = state.map
     if board is None or not territory.on(state):
         return MapReply(reply=NO_MAP, refused=True, file=None, map=None)
     data = maps.map_object(board.sha256, board.file)
     if data is None:
         return MapReply(reply=MISSING, refused=True, file=None, map=None)
-    shapes: dict[str, object] = json.loads(data)
+    kept: dict[str, object] | None = json.loads(data) if shapes else None
     return MapReply(
-        reply="", refused=False, file=MapFile(name=board.file, sha256=board.sha256), map=shapes
+        reply="", refused=False, file=MapFile(name=board.file, sha256=board.sha256), map=kept
     )
 
 

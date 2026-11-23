@@ -1,7 +1,7 @@
 /* The map. Shape says side, fill and line say certainty; colour is a third cue only. Tokens only. */
 .rl-map { font: 14px/1.5 var(--font-chrome); color: var(--fg-strong); }
 .rl-map h2 { font: 600 16px/1.3 var(--font-chrome); margin: 0 0 var(--space-1); }
-.rl-filter[aria-pressed="true"] { background: var(--accent-bg); color: var(--on-accent); font-weight: 600; }
+.rl-filter[aria-pressed="true"] { background: var(--surface-3); border-color: var(--fg-strong); color: var(--fg-strong); font-weight: 600; }
 .rl-map-figure { margin: 0; border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; }
 .rl-map-svg { display: block; height: auto; max-height: 70vh; font-family: var(--font-chrome); }
 .rl-map-sea { fill: var(--chart-sea); }
@@ -51,7 +51,7 @@
 .rl-mk-arrow { stroke: var(--info); stroke-width: 2px; stroke-dasharray: 5 4; fill: none; vector-effect: non-scaling-stroke; }
 .rl-mk-arrowhead { fill: var(--info); }
 .rl-mk-goal { fill: none; stroke: var(--info); stroke-width: 2px; stroke-dasharray: 3 2; vector-effect: non-scaling-stroke; }
-.rl-o-under_way .rl-mk-arrow, .rl-o-under_way .rl-mk-goal { stroke: var(--ok); }
+.rl-o-under_way .rl-mk-arrow, .rl-o-under_way .rl-mk-goal { stroke: var(--ok); stroke-dasharray: none; }
 .rl-o-under_way .rl-mk-arrowhead { fill: var(--ok); }
 .rl-map-orders { margin-top: var(--space-4); }
 .rl-map-orders h3 { margin: 0 0 var(--space-1); font: 600 14px/1.3 var(--font-chrome); }

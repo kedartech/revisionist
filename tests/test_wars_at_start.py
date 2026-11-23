@@ -135,6 +135,9 @@ def test_the_fixed_list_of_rule_names() -> None:
         "peace",
         "post_view",
         "playable_rule",
+        "kinds_in_battle",
+        "weather",
+        "raising",
     ]
 
 

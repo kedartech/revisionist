@@ -395,14 +395,16 @@ def check_history(world: WorldFile) -> list[str]:
     """What a drafted historical world must also be (spec §5), beyond compiling.
 
     Humans arrive at the character step and goals at the goal step, so a draft
-    has neither; the roster offers 8-12 people to choose from. Factions need
-    holdings they can act with, so their people must be linked to them.
+    has neither; the roster offers 8-12 people to choose from, or the bound the
+    world's ``roster_limit`` sets. Factions need holdings they can act with, so their
+    people must be linked to them.
     """
     problems: list[str] = []
     if not world.start.strip():
         problems.append("world: no start (place and date)")
-    if not ROSTER_MIN <= len(world.roster) <= ROSTER_MAX:
-        problems.append(f"roster: {len(world.roster)} characters, not {ROSTER_MIN}-{ROSTER_MAX}")
+    least, most = world.roster_limit or (ROSTER_MIN, ROSTER_MAX)
+    if not least <= len(world.roster) <= most:
+        problems.append(f"roster: {len(world.roster)} characters, not {least}-{most}")
     for s in world.seats:
         if s.controller is Controller.HUMAN:
             problems.append(f"seat {s.key}: a draft has no human seats")

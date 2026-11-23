@@ -18,7 +18,10 @@ start_date: 1941-09-01
 # groups (GRD): each nation's groups at home, declared under `groups`.
 # command and locks (KCD): Admiral King's card is a military card under the President, and
 # two of his naval orders are held by the locks declared under `locks`.
-rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, own_aim]
+# laws and ask_answers (LWD): the four American bills are the laws declared under `laws`; an ask to
+# a person no player holds is answered on its due day. deciders stays off until the world names a
+# council and the kinds of question its posts decide, which the world check requires with it on.
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, own_aim, laws, ask_answers]
 
 entities:
   # A polity's capital (PCW): a place in its own territory; a neutral's or an occupied nation's is its
@@ -1643,6 +1646,7 @@ cards:
         params:
           - {name: order, kind: enum, choices: [escort_convoys, shoot_on_sight, hold_in_port], label: "The order", choice_labels: ["Escort the convoys", "Shoot on sight", "Hold in port"]}
           - {name: zone, kind: enum, choices: [western_atlantic, iceland_route, pacific], label: "Where", choice_labels: ["Western Atlantic", "The Iceland route", "The Pacific"]}
+        escort_level: {order: {escort_convoys: 1, shoot_on_sight: 2, hold_in_port: 0}}  # the levels shipping's ESCORT_LEVEL gives these words
       - name: move_fleet
         pipeline: naval_order
         resolver: movement
@@ -2794,6 +2798,7 @@ cards:
         params:
           - {name: order, kind: enum, choices: [escort_convoys, shoot_on_sight, hold_in_port], label: "The order", choice_labels: ["Escort the convoys", "Shoot on sight", "Hold in port"]}
           - {name: zone, kind: enum, choices: [western_atlantic, iceland_route, war_zone], label: "Where", choice_labels: ["Western Atlantic", "The Iceland route", "Beyond Iceland, into the war zone"]}
+        escort_level: {order: {escort_convoys: 1, shoot_on_sight: 2, hold_in_port: 0}}  # the levels shipping's ESCORT_LEVEL gives these words
     loyalty: 0
     competence: 4
     wants: [naval_engagement, fleet_movements]
@@ -3498,6 +3503,44 @@ production:
       shares: {uk: lend_lease_share_uk, ussr: lend_lease_share_ussr, china: lend_lease_share_china}
       eligible: {ussr: soviet_lend_lease_eligible}
   priority: {form: production_priority, grows_lift_on: merchant_ships}
+
+# Laws (LWD): the four American bills the season's votes are taken on, read with the laws rule on.
+# Each key is the key the blocs' rows under `groups` and the send-bill form carry, and each passed
+# flag is the one the blocs' tally writes. Titles and clauses are the votes rule's own [proposed]
+# (its clause on Lend-Lease money is the March act's 7,000,000,000; the October appropriation was
+# 5,985,000,000, `lend_lease_second_appropriation`). What each does is [proposed], from the two
+# effects the rules know: a law whose clause arms merchant ships arms them, and the draft adds 3 to
+# the manpower pool, the effects the shipping and economy rules give the clauses' words with the
+# rule off.
+laws:
+  - key: neutrality_revision  # source: hjr237_timeline (the Senate's text, House concurrence 13 Nov, signed 17 Nov)
+    title: Neutrality Act revision
+    nation: usa
+    clauses:
+      - {kind: power, subject: arm merchant ships}
+      - {kind: limit, subject: war zones closed to American ships}  # source: neutrality_act_1939, section 3
+    passed: neutrality_revision_passed
+    does: {kind: arms_merchant_ships}
+  - key: draft_extension  # source: voteview (the House's 203 to 202 of 12 Aug, `draft_extension_yeas`)
+    title: Selective Service extension
+    nation: usa
+    clauses:
+      - {kind: power, subject: hold draftees beyond twelve months}
+    passed: draft_extension_passed
+    does: {kind: adds_manpower, amount: 3}  # gap: true, [proposed] (plan, SHP Defaults)
+  - key: lend_lease_appropriation  # source: lend_lease_appropriations
+    title: Lend-Lease appropriation
+    nation: usa
+    clauses:
+      - {kind: money, subject: lend-lease supplies, amount: 7000000000}  # gap: true, [proposed]
+    passed: lend_lease_appropriation_passed
+  - key: arm_merchant_ships  # source: hjr237_timeline (the House's bill of 17 Oct: section 6 repealed)
+    title: Arming of merchant ships
+    nation: usa
+    clauses:
+      - {kind: power, subject: arm merchant ships}
+    passed: arm_merchant_ships_passed
+    does: {kind: arms_merchant_ships}
 
 # Locks (KCD): which of King's orders need whose decision, and while what holds.
 locks:

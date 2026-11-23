@@ -977,6 +977,9 @@ class GroupMove(TypedDict):
         "war_declared",
         "writing",
         "drift",
+        "offer_taken",
+        "promise_kept",
+        "promise_broken",
     ]
     change: int
     on: str

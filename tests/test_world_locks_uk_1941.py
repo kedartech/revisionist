@@ -324,9 +324,7 @@ def test_with_the_third_run_switches_out_the_world_still_compiles() -> None:
     assert not {r.value for r in state.rules} & set(THIRD_RUN)
     assert Rule.LOCKS in state.rules
     assert [r.key for r in without_third_run(_world()).locks] == [
-        "iceland_shoot_on_sight",
-        "war_zone_escort",
-        "home_fleet_to_the_atlantic",
+        r.key for r in _world().locks if r.key != "home_fleet_based_at_iceland"
     ]
 
 

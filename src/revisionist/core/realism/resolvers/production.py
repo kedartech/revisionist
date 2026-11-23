@@ -25,7 +25,8 @@ acts the same way when it names a force or a figure; one whose pipeline has a de
 a person of another nation is a request that nation granted, and ``AID_LEAD_DAYS`` later
 sends ``REQUEST_SHARE_PCT`` of that nation's aid fund to the asker (``_requested``); one
 naming none of these mobilises: ``LEAD_DAYS`` later its nation spends ``STEP_MANPOWER``
-manpower for ``MOBILISE_OUTPUT`` output (``_mobilised``).
+manpower for ``MOBILISE_OUTPUT`` output (``_mobilised``). A ``production`` form that would
+build on a day its nation holds less output than a step costs mobilises instead.
 Each enacted order counts once: it is read only on its due day. The due orders of a day
 are taken by settling day, then by what they name, then by id, so an earlier order spends
 first; pools are read before the same day's first-of-the-month payment (``economy.walk``
@@ -422,7 +423,9 @@ def economy_day(state: State, today: date) -> tuple["rs.Change", ...]:
         return ()
     out: list[rs.Change] = []
     for order in _due(state, today):
-        if rs.resolver_for(state, order) == "production" and _mobilises(state, order):
+        if rs.resolver_for(state, order) == "production" and (
+            _mobilises(state, order) or _output_short(state, order)
+        ):
             changes = _mobilised(state, order, today)
         else:
             changes = _build(state, order, today)
@@ -433,6 +436,14 @@ def economy_day(state: State, today: date) -> tuple["rs.Change", ...]:
         out += changes
         state = _after(state, changes)
     return (*out, *evacuation.on_day(state, today))
+
+
+def _output_short(state: State, order: Order) -> bool:
+    """Whether the issuer's nation holds less output than a step costs: a ``production``
+    form that would build then mobilises instead."""
+    nation = polity_of(state, state.seats[order.issuer].embodies)
+    pools = state.economy.pools.get(nation, Pools()) if nation is not None else Pools()
+    return pools.output < STEP_COST
 
 
 def _mobilised(state: State, order: Order, today: date) -> list["rs.Change"]:

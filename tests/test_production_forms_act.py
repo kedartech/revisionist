@@ -165,6 +165,18 @@ def test_a_mobilisation_with_no_manpower_raises_nothing(tmp_path: Path) -> None:
     assert "manpower" in said(paper)
 
 
+def test_a_production_form_whose_nation_is_short_of_output_mobilises_instead(
+    tmp_path: Path,
+) -> None:
+    g = game(tmp_path, {NORRA: Pools(output=STEP_COST - 1, manpower=5)})
+    enact(g, "build", "The war office", force=LEVY)
+    walk_days(g, 1, LEAD_DAYS)
+    assert tier(g, LEVY) == 2
+    assert pools(g, NORRA) == Pools(
+        output=STEP_COST - 1 + MOBILISE_OUTPUT, manpower=5 - STEP_MANPOWER
+    )
+
+
 def test_a_request_another_nation_decides_sends_its_aid_once_enacted(tmp_path: Path) -> None:
     g = game(tmp_path)
     enact(g, "ask", "The envoy", sector="oil")

@@ -1,4 +1,4 @@
-"""Browser smoke of the map as a surface: it follows the finger, zooms smoothly, and a tap is a tap.
+"""Browser smoke of the map as a surface: it follows the finger, zooms, and a piece is carried.
 
 Signs up a fresh account and either joins a game with an invite code or, with the code `new`,
 starts the ready-made 1941 game as its host and plays Franklin D. Roosevelt. Then, on the map:
@@ -7,6 +7,10 @@ starts the ready-made 1941 game as its host and plays Franklin D. Roosevelt. The
 - a pinch of two touches zooms to its spread, not to a step, and the wheel zooms (desktop);
 - the arrow keys pan the map and the plus key zooms it, from the keyboard alone;
 - one of the seat's own pieces is picked, the map is panned, and a lit place is tapped and chosen;
+- one of the seat's own pieces is carried by the finger (the mouse at desktop width) to a lit area:
+  it is picked up, its moves light, the map holds still, the lit area under it is marked, the drop
+  opens the confirm chip and nothing is filed until Send it; carried to an area that is not lit it
+  goes back and nothing is drafted; and the same move is made from the keyboard alone;
 - the map is panned and pinched for ten seconds with the processor slowed four times, and the
   time between frames is read: on the phone run the 95th percentile must be at or under 33.4 ms,
   two frame intervals (a frame's time comes in steps of 16.7 ms).
@@ -291,6 +295,259 @@ def tap_after_pan(page: Page, cdp: CDPSession, report: dict) -> None:
     page.keyboard.press("Escape")
 
 
+OWN_JS = """() => {
+  // one of the seat's own pieces that can be carried, reachable under the pointer
+  for (const m of document.querySelectorAll('.rl-tm-svg .rl-tm-mark[data-grab]')) {
+    const r = m.querySelector('.rl-tm-hit').getBoundingClientRect();
+    const x = r.left + r.width / 2; const y = r.top + r.height / 2;
+    if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) continue;
+    const on = document.elementFromPoint(x, y);
+    if (on && m.contains(on)) return { x, y, name: m.getAttribute('data-grab') };
+  }
+  return null;
+}"""
+
+LIT_JS = """() => {
+  // a lit area's ring the pointer can reach, the piece held over the map
+  for (const t of document.querySelectorAll('.rl-map-target:not([aria-disabled=true])')) {
+    const r = t.querySelector('circle').getBoundingClientRect();
+    const x = r.left + r.width / 2; const y = r.top + r.height / 2;
+    if (x < 8 || y < 8 || x > innerWidth - 8 || y > innerHeight - 8) continue;
+    const on = document.elementFromPoint(x, y);
+    if (on && t.contains(on)) {
+      return { x, y, area: t.getAttribute('data-area'), label: t.getAttribute('aria-label') };
+    }
+  }
+  return null;
+}"""
+
+UNLIT_JS = """(sel) => {
+  // a point of the map over an area that is not lit, well away from every lit ring
+  const svg = document.querySelector(sel);
+  const b = svg.getBoundingClientRect();
+  const targets = [...document.querySelectorAll('.rl-map-target')];
+  const lit = new Set(targets.map((t) => t.getAttribute('data-area')));
+  const rings = targets.map((t) => t.querySelector('circle').getBoundingClientRect());
+  const left = Math.max(b.left, 0) + 60; const right = Math.min(b.right, innerWidth) - 60;
+  const top = Math.max(b.top, 0) + 60; const bottom = Math.min(b.bottom, innerHeight) - 60;
+  for (let y = top; y < bottom; y += 23) {
+    for (let x = left; x < right; x += 23) {
+      const on = document.elementFromPoint(x, y);
+      if (!on || !on.matches('.rl-tm-svg path.rl-area')) continue;
+      if (lit.has(on.getAttribute('data-area'))) continue;
+      const far = (r) => Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2)) >= 80;
+      if (!rings.every(far)) continue;
+      return { x, y, area: on.getAttribute('data-area') };
+    }
+  }
+  return null;
+}"""
+
+HELD_JS = """() => {
+  const areas = (sel) => [...document.querySelectorAll(sel)].map((t) => t.dataset.area);
+  const lifted = [...document.querySelectorAll('.rl-tm-lifted')];
+  return { under: areas('.rl-map-target.under'), lifted: lifted.length,
+    shift: lifted[0]?.parentNode.style.transform ?? '',
+    chosen: areas('.rl-map-target[aria-pressed=true]'),
+    chip: !!document.querySelector('.rl-pup-chip'), lit: areas('.rl-map-target').length };
+}"""
+
+
+FOCUS_JS = """(name) => {
+  // focus piece `name`, or the first own piece that can be carried; its name
+  const all = [...document.querySelectorAll('.rl-tm-svg .rl-tm-mark[data-grab]')];
+  const m = name === null ? all[0] : all.find((x) => x.getAttribute('data-grab') === name);
+  m?.focus();
+  return m?.getAttribute('data-grab') ?? null;
+}"""
+
+
+def press(page: Page, cdp: CDPSession, x: float, y: float) -> None:
+    if PHONE:
+        touch(cdp, "touchStart", [(x, y)])
+    else:
+        page.mouse.move(x, y)
+        page.mouse.down()
+
+
+def move(
+    page: Page, cdp: CDPSession, a: tuple[float, float], b: tuple[float, float], steps: int
+) -> None:
+    for i in range(1, steps + 1):
+        at = (a[0] + (b[0] - a[0]) * i / steps, a[1] + (b[1] - a[1]) * i / steps)
+        if PHONE:
+            touch(cdp, "touchMove", [at])
+        else:
+            page.mouse.move(*at)
+        page.wait_for_timeout(16)
+
+
+def release(page: Page, cdp: CDPSession) -> None:
+    if PHONE:
+        touch(cdp, "touchEnd", [])
+    else:
+        page.mouse.up()
+
+
+def detail(page: Page, name: str, x: float, y: float) -> None:
+    """A close shot around (x, y): at 1440 wide the whole map is small."""
+    w, h = min(480, SIZE[0]), min(320, SIZE[1])
+    left = min(max(x - w / 2, 0), SIZE[0] - w)
+    top = min(max(y - h / 2, 0), SIZE[1] - h)
+    clip = {"x": left, "y": top, "width": w, "height": h}
+    page.screenshot(path=str(rs.OUT / f"{name}-{SIZE[0]}x{SIZE[1]}.png"), clip=clip)
+
+
+def clear(page: Page) -> None:
+    """Back out of a chosen move and close the sheet over the map, so the map has its room."""
+    back = page.locator(".rl-pup-chip").get_by_role("button", name="Back")
+    if back.count():
+        back.first.click()
+    close = page.locator(".rl-over .rl-over-head").get_by_role("button", name="Close")
+    if close.count():
+        close.first.click()
+    page.wait_for_timeout(300)
+
+
+def pick_up(page: Page, cdp: CDPSession, what: str) -> dict | None:
+    """Press on one of the seat's own pieces and move it 12 px; where the finger now is."""
+    clear(page)
+    page.get_by_role("button", name="Zoom 1 times").first.click()
+    settle(page, 500)
+    own = page.evaluate(OWN_JS)
+    rs.check(f"{what}: one of the seat's own pieces can be reached", own is not None)
+    if own is None:
+        return None
+    before = view(page)
+    press(page, cdp, own["x"], own["y"])
+    move(page, cdp, (own["x"], own["y"]), (own["x"] + 12, own["y"]), 3)
+    page.locator(".rl-map-target").first.wait_for(timeout=10_000)
+    page.wait_for_timeout(100)
+    held = page.evaluate(HELD_JS)
+    after = view(page)
+    rs.check(
+        f"{what}: pressed and moved, the piece is picked up and its moves light",
+        held["lit"] > 0 and held["lifted"] == 1,
+        json.dumps(held),
+    )
+    rs.check(
+        f"{what}: the map does not pan while a piece is carried",
+        (before["x"], before["y"], before["w"]) == (after["x"], after["y"], after["w"]),
+        f"{before} {after}",
+    )
+    return {**own, "at": (own["x"] + 12, own["y"])}
+
+
+def drag_to_lit(page: Page, cdp: CDPSession, report: dict, filed: list[str]) -> None:
+    """Carry a piece to a lit area, drop it, and confirm the chip."""
+    own = pick_up(page, cdp, "drop on a lit area")
+    if own is None:
+        return
+    spot = page.evaluate(LIT_JS)
+    rs.check("a lit area can be reached with the piece held", spot is not None)
+    if spot is None:
+        release(page, cdp)
+        return
+    report["dragged"] = {"piece": own["name"], "to": spot["label"]}
+    move(page, cdp, own["at"], (spot["x"], spot["y"]), 12)
+    page.wait_for_timeout(150)
+    held = page.evaluate(HELD_JS)
+    rs.check(
+        "the lit area under the held piece is marked",
+        held["under"] == [spot["area"]],
+        json.dumps(held),
+    )
+    rs.check(
+        "the held piece rides under the finger",
+        held["shift"].startswith("translate("),
+        json.dumps(held),
+    )
+    rs.shoot(page, "drg-01-held-over-lit")
+    detail(page, "drg-01-held-over-lit-detail", spot["x"], spot["y"])
+    before = len(filed)
+    release(page, cdp)
+    page.locator(".rl-pup-chip").first.wait_for(timeout=10_000)
+    page.wait_for_timeout(300)
+    held = page.evaluate(HELD_JS)
+    rs.check(
+        "the drop opens the confirm chip for that area",
+        held["chip"] and held["chosen"] == [spot["area"]],
+        json.dumps(held),
+    )
+    rs.check("the piece is back in its place on the board", held["lifted"] == 0, json.dumps(held))
+    rs.shoot(page, "drg-02-chip-after-drop")
+    detail(page, "drg-02-chip-after-drop-detail", spot["x"], spot["y"])
+    rs.check("nothing is filed by the drop", len(filed) == before, str(filed))
+    send = page.locator(".rl-pup-chip").get_by_role("button", name="Send it")
+    if send.count():
+        send.first.click()
+        page.wait_for_timeout(1500)
+        rs.check("Send it files the move", len(filed) == before + 1, str(filed))
+    else:
+        report["dragged"]["locked"] = True
+        rs.check(
+            "a locked move offers its choices in the chip",
+            page.locator(".rl-pup-chip .rl-lock-file").count() > 0,
+        )
+
+
+def drag_to_unlit(page: Page, cdp: CDPSession, report: dict, filed: list[str]) -> None:
+    """Carry a piece to an area that is not lit: it goes back, and nothing is drafted."""
+    own = pick_up(page, cdp, "drop on an area not lit")
+    if own is None:
+        return
+    spot = page.evaluate(UNLIT_JS, MAP)
+    rs.check("an area that is not lit can be reached with the piece held", spot is not None)
+    if spot is None:
+        release(page, cdp)
+        return
+    report["dragged_unlit"] = {"piece": own["name"], "to": spot["area"]}
+    move(page, cdp, own["at"], (spot["x"], spot["y"]), 12)
+    page.wait_for_timeout(150)
+    held = page.evaluate(HELD_JS)
+    rs.check("an area that is not lit is not marked", held["under"] == [], json.dumps(held))
+    rs.shoot(page, "drg-03-held-over-unlit")
+    before = len(filed)
+    release(page, cdp)
+    page.wait_for_timeout(600)
+    held = page.evaluate(HELD_JS)
+    rs.check(
+        "dropped where nothing is lit, the piece goes back and nothing is drafted",
+        held["lifted"] == 0
+        and not held["shift"]
+        and not held["chip"]
+        and held["chosen"] == []
+        and len(filed) == before,
+        json.dumps(held),
+    )
+
+
+def by_keyboard(page: Page, report: dict) -> None:
+    """The same move from the keyboard alone: Enter on the piece, an arrow to a lit area, Enter."""
+    clear(page)
+    page.get_by_role("button", name="Zoom 1 times").first.click()
+    settle(page, 500)
+    name = page.evaluate(FOCUS_JS, None)
+    rs.check("a piece can take the focus", name is not None)
+    if name is None:
+        return
+    page.keyboard.press("Enter")
+    page.locator(".rl-map-target").first.wait_for(timeout=10_000)
+    page.evaluate(FOCUS_JS, name)
+    page.keyboard.press("ArrowRight")
+    focused = page.evaluate("() => document.activeElement?.getAttribute('data-area')")
+    page.keyboard.press("Enter")
+    page.wait_for_timeout(400)
+    held = page.evaluate(HELD_JS)
+    report["keyboard"] = {"piece": name, "to": focused}
+    rs.check(
+        "by keyboard: a piece, an arrow and Enter open the chip",
+        bool(focused) and held["chip"] and held["chosen"] == [focused],
+        json.dumps(held),
+    )
+    page.keyboard.press("Escape")
+
+
 def frame_times(page: Page, cdp: CDPSession, report: dict) -> None:
     page.get_by_role("button", name="Zoom 1 times").first.click()
     settle(page, 500)
@@ -359,6 +616,18 @@ def main() -> int:
             start(page)
             follows(page, cdp, report)
             tap_after_pan(page, cdp, report)
+            filed: list[str] = []
+            page.on(
+                "request",
+                lambda r: (
+                    r.method == "POST"
+                    and r.url.endswith("/api/realism/lever")
+                    and filed.append(r.url)
+                ),
+            )
+            drag_to_lit(page, cdp, report, filed)
+            drag_to_unlit(page, cdp, report, filed)
+            by_keyboard(page, report)
             frame_times(page, cdp, report)
             width = page.evaluate("document.documentElement.scrollWidth")
             rs.check("the page is as wide as the viewport", width == SIZE[0], str(width))

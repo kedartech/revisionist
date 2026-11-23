@@ -1532,10 +1532,60 @@
         "title": "Ask",
         "type": "object"
       },
+      "AskAnswered": {
+        "additionalProperties": false,
+        "description": "The card of a person no human seat holds answers an ask on its due day (AAK):\ngranted or declined, once, and final for that held order. Sealed to the asker's seat,\nwhich it tells in one paper. A grant opens nothing itself: the person's own order\ndoes, once it is enacted.",
+        "properties": {
+          "asker": {
+            "title": "Asker",
+            "type": "string"
+          },
+          "granted": {
+            "title": "Granted",
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "ask_answered",
+            "default": "ask_answered",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "asker",
+          "on",
+          "granted"
+        ],
+        "title": "AskAnswered",
+        "type": "object"
+      },
       "Asked": {
         "additionalProperties": false,
         "description": "A held order asked for, once, by its own seat (ASK): who asked, the person the ask\nwent to and the seat that holds that person, if any, and the order's plain words. It\ndecides nothing and opens nothing. The person asked learns only this.",
         "properties": {
+          "answered": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Answered"
+          },
           "asker": {
             "title": "Asker",
             "type": "string"
@@ -1543,6 +1593,18 @@
           "by": {
             "title": "By",
             "type": "string"
+          },
+          "granted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Granted"
           },
           "on": {
             "format": "date",
@@ -14491,6 +14553,7 @@
             "answer_made": "#/$defs/AnswerMade",
             "answer_planned": "#/$defs/AnswerPlanned",
             "area_held": "#/$defs/AreaHeld",
+            "ask_answered": "#/$defs/AskAnswered",
             "asset_created": "#/$defs/AssetCreated",
             "battle_decided": "#/$defs/BattleDecided",
             "battle_ended": "#/$defs/BattleEnded",
@@ -14810,6 +14873,9 @@
           },
           {
             "$ref": "#/$defs/OrderAsked"
+          },
+          {
+            "$ref": "#/$defs/AskAnswered"
           },
           {
             "$ref": "#/$defs/PieceStepped"
@@ -16317,6 +16383,19 @@
         "additionalProperties": false,
         "description": "A held order asked for, once, by its own seat (ASK): who asked, the person the ask\nwent to and the seat that holds that person, if any, and the order's plain words. It\ndecides nothing and opens nothing. The person asked learns only this.",
         "properties": {
+          "answered": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Answered"
+          },
           "asker": {
             "title": "Asker",
             "type": "string"
@@ -16324,6 +16403,18 @@
           "by": {
             "title": "By",
             "type": "string"
+          },
+          "granted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Granted"
           },
           "on": {
             "format": "date",
@@ -25889,6 +25980,19 @@
         "additionalProperties": false,
         "description": "A held order asked for, once, by its own seat (ASK): who asked, the person the ask\nwent to and the seat that holds that person, if any, and the order's plain words. It\ndecides nothing and opens nothing. The person asked learns only this.",
         "properties": {
+          "answered": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Answered"
+          },
           "asker": {
             "title": "Asker",
             "type": "string"
@@ -25896,6 +26000,18 @@
           "by": {
             "title": "By",
             "type": "string"
+          },
+          "granted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Granted"
           },
           "on": {
             "format": "date",

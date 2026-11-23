@@ -4,6 +4,8 @@
 // still whatever lights or lands; the view pans and zooms from 1 to 8 times within it, live
 // under the finger, and the zoom buttons stop at 1, 2 and 4. Marks and tap targets keep a
 // minimum size in pixels whatever the zoom. Every area is focusable and has a row in the list.
+// One of the seat's own pieces can be carried by the finger to a lit area, as a tap picks it
+// and a tap on the lit area puts it down.
 
 import { h, svg } from '../dom.js';
 import {
@@ -130,6 +132,55 @@ export function fit(root, px, labels = true) {
   })), k);
   for (const l of all) l.classList.toggle('hidden', hide.has(l.getAttribute('data-area')));
   return k;
+}
+
+/**
+ * A piece carried over drawing `root` (`gestures`' carry hooks): it is drawn lifted where the
+ * finger has taken it, and the lit area under the finger is marked. Dropped on a lit area it is
+ * that area's target, as a tap on it is (`opts.onTarget`); anywhere else it slides back. Picking
+ * it up is `opts.onSelect`, as a tap on it is. `over` holds the marks and lit areas (it rides
+ * over the land while the view moves), `litAt(units)` finds the lit area under a point.
+ */
+function carrying(root, over, litAt, opts) {
+  const all = (el, sel) => Array.from(el?.querySelectorAll(sel) ?? []);
+  const grabbed = (key) => all(over, '[data-grab]').find((g) => g.getAttribute('data-grab') === key) ?? null;
+  let shown = '';
+  const mark = (key) => {
+    for (const el of all(root, '.rl-area.rl-drop-over')) el.classList.remove('rl-drop-over');
+    for (const el of all(over, '.rl-map-target.under')) el.classList.remove('under');
+    if (key === null) return;
+    all(over, '.rl-map-target').find((t) => t.getAttribute('data-area') === key)?.classList.add('under');
+    all(root, '.rl-area').find((a) => a.getAttribute('data-area') === key)?.classList.add('rl-drop-over');
+  };
+  return {
+    grab: (target) => target?.closest?.('[data-grab]')?.getAttribute('data-grab') ?? null,
+    carries: (key) => grabbed(key) !== null,
+    onLift: (key) => { if (opts.selected !== key) opts.onSelect?.(key); },
+    onCarry(key, [dx, dy], units) {
+      const g = grabbed(key);
+      if (!g) return;
+      g.classList.add('rl-tm-lifted');
+      // drawn over everything, the lit rings too, while it is held
+      if (g.parentNode?.parentNode === over && over.lastChild !== g.parentNode) over.append(g.parentNode);
+      shown = `translate(${r2(dx)}px, ${r2(dy)}px)`;
+      css(g.parentNode, { transform: shown });
+      mark(units ? litAt(units)?.area ?? null : null);
+    },
+    onDrop(key, units) {
+      const g = grabbed(key);
+      const lit = units ? litAt(units) : null;
+      mark(null);
+      if (g) {
+        g.classList.remove('rl-tm-lifted');
+        css(g.parentNode, { transform: null });
+        if (!lit && shown && !reducedMotion()) {
+          g.parentNode.animate?.([{ transform: shown }, { transform: 'translate(0px, 0px)' }], { duration: SLIDE_MS, easing: 'ease-out' });
+        }
+      }
+      shown = '';
+      if (lit) opts.onTarget?.(lit.value);
+    },
+  };
 }
 
 const viewBoxOf = (win) => `${r2(win.x)} ${r2(win.y)} ${r2(win.w)} ${r2(win.h)}`;
@@ -271,6 +322,9 @@ function markBody(m, chosen) {
   ];
 }
 
+/** Whether the seat may carry mark `m` to a lit area: its own piece (one its forms name), not under way. */
+const carriable = (m) => m.side === 'own' && Boolean(m.piece) && !m.piece.under_way;
+
 const markLook = (m, chosen) => `rl-mk rl-mk-${m.kind} rl-side-${m.side} rl-c-${m.certainty} rl-tm-mark${chosen ? ' selected' : ''}`;
 
 /** One mark at `xy`, `dx` pixels from it (a fanned stack's place for it). */
@@ -281,6 +335,7 @@ function oneMark(m, xy, dx, from, opts, extra = {}) {
   const keys = chosen && opts.nav ? arrows((dir) => opts.nav.step(null, dir)) : {};
   const common = opts.still ? { class: markLook(m, chosen) } : {
     class: markLook(m, chosen), 'aria-label': words, 'aria-pressed': String(chosen), ...activate(() => opts.onSelect?.(m.name), keys), ...extra,
+    'data-grab': carriable(m) ? m.name : null,
   };
   return sliding(atPx({ ...common, 'data-key': markKey(m) }, xy[0], xy[1],
     svg('g', { transform: `translate(${dx} ${m.piece ? -MARK_LIFT : 0})` }, markBody(m, chosen),
@@ -610,7 +665,13 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
     const key = areaAt(shapes, proj, xy, areas.map((a) => a.key));
     if (key) { show(key); opts.onArea?.(key); }
   };
-  if (!opts.still) gestures(root, rect, { ...opts, onTap, onLive: liveLayer(root, px), reduced: reducedMotion }, px);
+  // a piece is dropped on the lit area under the finger: the area the server lit, not its ring alone
+  const litAt = (xy) => {
+    const key = areaAt(shapes, proj, xy, targets.filter((t) => t.area && shapes.areas?.[t.area]).map((t) => t.area));
+    return key ? targets.find((t) => t.area === key) : null;
+  };
+  const carry = carrying(root, root.querySelector('g.rl-tm-over'), litAt, opts);
+  if (!opts.still) gestures(root, rect, { ...opts, ...carry, onTap, onLive: liveLayer(root, px), reduced: reducedMotion }, px);
   if (typeof globalThis.ResizeObserver === 'function') {
     new globalThis.ResizeObserver(([e]) => { if (e?.contentRect?.width) fit(root, e.contentRect); }).observe(root);
   }

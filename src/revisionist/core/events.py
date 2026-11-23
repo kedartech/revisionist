@@ -19,7 +19,7 @@ TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDec
 ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
 VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
-OrderAsked``, and
+OrderAsked, AskAnswered``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -744,6 +744,20 @@ class OrderAsked(Model):
     asked: Asked
 
 
+class AskAnswered(Model):
+    """The card of a person no human seat holds answers an ask on its due day (AAK):
+    granted or declined, once, and final for that held order. Sealed to the asker's seat,
+    which it tells in one paper. A grant opens nothing itself: the person's own order
+    does, once it is enacted."""
+
+    kind: Literal["ask_answered"] = "ask_answered"
+    order_id: OrderId
+    """The held order asked for."""
+    asker: SeatId
+    on: date
+    granted: bool
+
+
 class PieceStepped(Model):
     """A piece entered an area: one step, by order, by the record, or forced. Sealed to the
     seats of the piece's own nation, who know it by its mark (``territory.mark_key``), not
@@ -1450,6 +1464,7 @@ Payload = Annotated[
     | OrderHeld
     | HeldOrderEnded
     | OrderAsked
+    | AskAnswered
     | PieceStepped
     | AreaHeld
     | CaptureCounted
@@ -1555,6 +1570,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "order_held",
         "held_order_ended",
         "order_asked",
+        "ask_answered",
         "area_held",
         "capture_counted",
         "economy_set",

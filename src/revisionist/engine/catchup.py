@@ -94,6 +94,8 @@ FEED_KINDS: frozenset[str] = frozenset(
         "held_order_ended",
         # An ask for a held order (ASK): sealed to the asker and the seat asked.
         "order_asked",
+        # The card's answer to an ask (AAK): sealed to the asker's seat alone.
+        "ask_answered",
         "influence_decided",
         "effects_applied",
         # Offers and agreements (AGR): sealed to the parties' seats, public once published,
@@ -236,6 +238,8 @@ def _named(p: ev.Payload, view: View) -> bool:
             return p.issuer == view.viewer
         case ev.OrderAsked():
             return view.viewer in (p.asked.asker, p.asked.seat)
+        case ev.AskAnswered():
+            return p.asker == view.viewer
         case ev.OrderExecuted() | ev.EffectsApplied() | ev.InfluenceDecided():
             return p.order_id in view.routed
         case ev.GoalProgressed() | ev.GoalMet() | ev.GoalUndone():

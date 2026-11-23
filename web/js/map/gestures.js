@@ -22,6 +22,76 @@ const WHEEL_PER_PX = 0.0015;
 /** How much of the view's width or height an arrow key moves it. [proposed] */
 const KEY_PAN = 0.15;
 const PAN_KEYS = Object.freeze({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] });
+/** A piece carried this near the drawing's edge scrolls the map that way, at EDGE_SPEED px a ms at the edge itself. [proposed] */
+const EDGE_PX = 40;
+const EDGE_SPEED = 0.6;
+/** The click that ends a carry comes within this many ms of the lift. */
+const CLICK_MS = 400;
+
+/**
+ * The piece being carried, one at a time on the page. Picking it up makes the room draw the map
+ * again, so a carry outlives the drawing it began on and goes on in the drawing made for it:
+ * { id (the pointer), key (the piece), at ([x, y] of the pointer), from (the point under the
+ * press, in units), on (the carrying drawing's part), done (put back by Escape, the finger still down) }.
+ */
+let held = null;
+let swallowUntil = -Infinity;
+const clockNow = () => globalThis.performance?.now?.() ?? Date.now();
+const page = () => globalThis.document;
+
+function carryMove(e) {
+  if (!held || held.done || e.pointerId !== held.id) return;
+  held.at = [e.clientX, e.clientY];
+  held.on.move(true);
+}
+// Escape puts the piece back, and only that: the sheet it opened stays, as after a drop that misses
+function carryKey(e) {
+  if (!held || held.done || e.key !== 'Escape') return;
+  e.preventDefault();
+  e.stopPropagation();
+  finish(false);
+}
+function carryUp(e) {
+  if (!held || e.pointerId !== held.id) return;
+  if (!held.done) finish(e.type === 'pointerup');
+  letGo();
+}
+/** The carry is over: the document stops listening, and the click that follows is swallowed. */
+function letGo() {
+  held = null;
+  for (const [type, fn, capture] of CARRY) page()?.removeEventListener?.(type, fn, Boolean(capture));
+  swallowUntil = clockNow() + CLICK_MS;
+}
+// the click that ends a carry is not a press of what lies under the finger
+function carryClick(e) {
+  const late = clockNow() > swallowUntil;
+  swallowUntil = -Infinity;
+  page()?.removeEventListener?.('click', carryClick, true);
+  if (late) return;
+  e.preventDefault();
+  e.stopPropagation();
+}
+function watchClick() {
+  page()?.removeEventListener?.('click', carryClick, true);
+  page()?.addEventListener?.('click', carryClick, true);
+}
+const CARRY = [['pointermove', carryMove], ['pointerup', carryUp], ['pointercancel', carryUp], ['keydown', carryKey, true]];
+
+/** The carry ends: on the point under the finger when `dropped`, else back where it was. */
+function finish(dropped) {
+  const h = held;
+  h.done = true;
+  // the view the edge moved is told first: the room may draw the map again, and the drop goes to that drawing
+  h.on.still();
+  h.on.put(h.key, dropped ? h.at : null);
+}
+
+/** How fast (px a ms, [x, y]) a piece held at `[x, y]` scrolls drawing box `b`; null away from its edges. */
+function edgeSpeed([x, y], b) {
+  const pull = (p, lo, hi) => (p < lo + EDGE_PX ? -Math.min(lo + EDGE_PX - p, EDGE_PX) : p > hi - EDGE_PX ? Math.min(p - hi + EDGE_PX, EDGE_PX) : 0);
+  const v = [pull(x, b.left, b.left + b.width), pull(y, b.top, b.top + b.height)].map((d) => (d / EDGE_PX) * EDGE_SPEED);
+  return v[0] || v[1] ? v : null;
+}
 
 /** `d` units past the edge, shown as at most `give` units: a spring that stiffens. */
 const softly = (d, give) => (give > 0 ? give * (1 - Math.exp(-d / give)) : 0);
@@ -35,6 +105,13 @@ const softly = (d, give) => (give > 0 ? give * (1 - Math.exp(-d / give)) : 0);
  * centre })`. A tap on no control of the drawing is told as `opts.onTap([x, y])`, in units.
  * `opts`: { zoom, centre, selected (a piece is picked: the arrow keys are its), reduced (no
  * slide and no animated zoom; a value or a function), now, frame (an animation-frame scheduler) }.
+ *
+ * A press on what `opts.grab(target)` names (a piece's key) that moves TAP_PX or more carries it
+ * instead of panning: `opts.onLift(key)` once, then `opts.onCarry(key, [dx, dy], units)` as it
+ * moves (how far it has come in units, and the point under the finger, null off the drawing),
+ * scrolling the map when it is held near the edge; then `opts.onDrop(key, units)` on the lift, or
+ * with null on Escape. A drawing made while a piece is carried takes the carry over when
+ * `opts.carries(key)` says it draws that piece.
  */
 export function gestures(root, rect, opts = {}, px = { width: 1, height: 1 }) {
   const now = opts.now ?? (() => globalThis.performance?.now?.() ?? Date.now());
@@ -52,6 +129,8 @@ export function gestures(root, rect, opts = {}, px = { width: 1, height: 1 }) {
   let pinch = null;
   let samples = [];
   let swallow = false;
+  let scrolled = false;
+  let edgeT = null;
   const down = new Map();
 
   const measure = () => root.getBoundingClientRect?.() ?? { left: 0, top: 0, width: px.width, height: px.height };
@@ -149,6 +228,68 @@ export function gestures(root, rect, opts = {}, px = { width: 1, height: 1 }) {
     schedule();
   };
 
+  /**
+   * Whether the pointer at (x, y) is over this drawing: inside its box and, on a page, not under
+   * whatever covers it there (a sheet over the map).
+   */
+  const over = (x, y) => {
+    const b = at();
+    if (x < b.left || x > b.left + b.width || y < b.top || y > b.top + b.height) return false;
+    const hit = page()?.elementFromPoint?.(x, y);
+    return hit === undefined || hit === root || Boolean(root.contains?.(hit));
+  };
+  /** This drawing's part in a carry. */
+  const carrier = {
+    move(scroll) {
+      const b = at();
+      const [x, y] = held.at;
+      const u = toUnits(x, y);
+      opts.onCarry?.(held.key, [u[0] - held.from[0], u[1] - held.from[1]], over(x, y) ? u : null);
+      if (scroll && frame && edgeT === null && edgeSpeed(held.at, b)) { edgeT = now(); frame(edge); }
+    },
+    still() {
+      edgeT = null;
+      if (scrolled) { scrolled = false; end(); return; }
+      active = false;
+      box = null;
+    },
+    put(key, xy) {
+      opts.onDrop?.(key, xy ? carrierUnits(xy) : null);
+    },
+  };
+  const carrierUnits = ([x, y]) => (over(x, y) ? toUnits(x, y) : null);
+  /** One frame of the edge's scroll while a piece is held near it. */
+  function edge() {
+    if (!held || held.done || held.on !== carrier || edgeT === null) { edgeT = null; return; }
+    const v = edgeSpeed(held.at, at());
+    if (!v) { edgeT = null; return; }
+    const k = kNow();
+    const go = (ms) => clampCentre(rect, zoom, [raw[0] + v[0] * ms * k, raw[1] + v[1] * ms * k]);
+    // at the frame's edge already: nothing to scroll that way
+    if (go(1).every((c, i) => Math.abs(c - raw[i]) < 1e-9)) { edgeT = null; return; }
+    const t = now();
+    const dt = Math.min(Math.max(t - edgeT, 0), 64);
+    edgeT = t;
+    if (!scrolled) { begin(); scrolled = true; }
+    raw = go(dt);
+    const labels = t - lastLabels >= LABELS_MS;
+    if (labels) lastLabels = t;
+    opts.onLive?.(win(), { labels, end: false });
+    carrier.move(false);
+    frame(edge);
+  }
+  /** Pick up the piece pressed: the carry goes on from the document, whatever the room draws. */
+  const lift = (e) => {
+    press.carry = true;
+    press.moved = true;
+    held = { id: e.pointerId, key: press.grab, at: [e.clientX, e.clientY], from: toUnits(press.x, press.y), on: carrier, done: false };
+    for (const [type, fn, capture] of CARRY) page()?.addEventListener?.(type, fn, Boolean(capture));
+    watchClick();
+    opts.onLift?.(held.key);
+    held.on.move(true);
+  };
+  if (held && !held.done && opts.carries?.(held.key)) held.on = carrier;
+
   const spread = () => {
     const [a, b] = [...down.values()];
     return { d: Math.hypot(a.x - b.x, a.y - b.y), mid: [(a.x + b.x) / 2, (a.y + b.y) / 2] };
@@ -159,15 +300,22 @@ export function gestures(root, rect, opts = {}, px = { width: 1, height: 1 }) {
   };
 
   root.addEventListener('pointerdown', (e) => {
-    if (e.button > 0) return;
+    // a new press of the carrying pointer: its lift never came, so the piece goes back
+    if (held && e.pointerId === held.id) {
+      if (!held.done) finish(false);
+      letGo();
+    }
+    if (e.button > 0 || held) return;
     swallow = false;
     // a press during a slide catches the map where it is
     const caught = Boolean(anim);
     anim = null;
     begin();
     down.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (down.size === 1) drag(down.get(e.pointerId), caught);
-    else if (down.size === 2) {
+    if (down.size === 1) {
+      drag(down.get(e.pointerId), caught);
+      press.grab = caught ? null : opts.grab?.(e.target) ?? null;
+    } else if (down.size === 2) {
       const s = spread();
       pinch = { d: s.d, zoom, u: toUnits(...s.mid) };
       if (press) press.moved = true;
@@ -184,9 +332,10 @@ export function gestures(root, rect, opts = {}, px = { width: 1, height: 1 }) {
       schedule();
       return;
     }
-    if (!press || down.size !== 1) return;
+    if (!press || down.size !== 1 || press.carry) return;
     const dx = e.clientX - press.x; const dy = e.clientY - press.y;
     if (!press.moved && Math.hypot(dx, dy) < TAP_PX) return;
+    if (!press.moved && press.grab) { lift(e); return; }
     if (!press.moved) {
       press.moved = true;
       try { root.setPointerCapture?.(e.pointerId); } catch { /* a pointer the page no longer has */ }
@@ -198,7 +347,7 @@ export function gestures(root, rect, opts = {}, px = { width: 1, height: 1 }) {
     schedule();
   });
 
-  const lift = (e) => {
+  const up = (e) => {
     if (!down.has(e.pointerId)) return;
     down.delete(e.pointerId);
     if (pinch && down.size === 1) {
@@ -211,6 +360,7 @@ export function gestures(root, rect, opts = {}, px = { width: 1, height: 1 }) {
     pinch = null;
     const p = press;
     press = null;
+    if (p?.carry) return;
     if (!p?.moved) {
       if (p && e.type === 'pointerup' && now() - p.t <= TAP_MS && !e.target?.closest?.('[role="button"]')) {
         // a tap that no control of the drawing took: the drawing finds what lies under it
@@ -231,8 +381,8 @@ export function gestures(root, rect, opts = {}, px = { width: 1, height: 1 }) {
     anim = { kind: 'slide', v, t };
     schedule();
   };
-  root.addEventListener('pointerup', lift);
-  root.addEventListener('pointercancel', lift);
+  root.addEventListener('pointerup', up);
+  root.addEventListener('pointercancel', up);
 
   // the click that ends a pan is not a press of the mark under the finger
   root.addEventListener('click', (e) => {
@@ -251,14 +401,14 @@ export function gestures(root, rect, opts = {}, px = { width: 1, height: 1 }) {
   };
 
   root.addEventListener('wheel', (e) => {
-    if (down.size) return;
+    if (down.size || held) return;
     e.preventDefault();
     const perLine = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? at().height : 1;
     zoomBy(Math.exp(-e.deltaY * perLine * WHEEL_PER_PX), local([e.clientX, e.clientY]));
   }, { passive: false });
 
   root.addEventListener('keydown', (e) => {
-    if (e.defaultPrevented || down.size || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.defaultPrevented || down.size || held || e.altKey || e.ctrlKey || e.metaKey) return;
     const dir = PAN_KEYS[e.key];
     if (dir) {
       if (opts.selected) return;

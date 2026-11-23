@@ -589,6 +589,10 @@ AUTHORITY = "data lane fix item: a card's authority covers every order its forms
 WAR = "core lane fix item: a written declaration of war declares the war"
 DETACH = "core lane fix item: a written detachment moves only the strength it names"
 INERT = "core lane fix item for the forms that change nothing (EFD's list)"
+AUDIENCE = (
+    "core lane fix item: a written statement to another nation lands as its form does"
+    " (the form is heard at home through its audience's theme)"
+)
 SHIPPING = (
     "core lane fix item: a written shipping order lands as its form does"
     " (the form acts through escort levels, losses and the lift pool)"
@@ -599,7 +603,6 @@ FIXES: dict[str, str] = {
     "1941.roosevelt.naval_order": SHIPPING,
     "1941.roosevelt.move_fleet": TIMING,
     "1941.roosevelt.detach_fleet": DETACH,
-    "1941.roosevelt.public_address": INERT,
     "1941.roosevelt.fly_recon": AUTHORITY,
     "1941.roosevelt.send_on_patrol": TIMING,
     "1941.churchill.convoy_orders": SHIPPING,
@@ -607,7 +610,7 @@ FIXES: dict[str, str] = {
     "1941.churchill.move_fleet": TIMING,
     "1941.churchill.detach_fleet": DETACH,
     "1941.churchill.move_army": AUTHORITY,
-    "1941.churchill.broadcast": INERT,
+    "1941.churchill.broadcast": AUDIENCE,
     "1941.churchill.fly_recon": AUTHORITY,
     "1941.churchill.send_on_patrol": TIMING,
     "1941.churchill.send_an_agent": AUTHORITY,
@@ -636,7 +639,7 @@ FIXES: dict[str, str] = {
     "1941.mussolini.move_army": AUTHORITY,
     "1941.mussolini.send_on_patrol": AUTHORITY,
     "1941.chiang.arsenal_output": INERT,
-    "1941.chiang.appeal_abroad": INERT,
+    "1941.chiang.appeal_abroad": AUDIENCE,
     "1941.chiang.move_army": AUTHORITY,
     "1941.chiang.send_an_agent": AUTHORITY,
     "1941.king.detach_fleet": DETACH,

@@ -4,7 +4,9 @@ A split takes some of a force's strength (its ``tier``) to another place as a
 detachment; the rest stays where it is. The detachment is a feature of its own, with
 ``detached_from`` naming the force it came from, and it moves, raids and keeps its raid
 clock as any force does. A side may have only so many detachments of a kind in play
-at once, and a force keeps at least strength 1. A detachment is not split again.
+at once, and a force keeps at least strength 1. A detachment is not split again. A piece of
+a territory game counts by its domain: a sea piece as a fleet, an air piece as an air
+force, a land piece as an army.
 
 A detachment that stands where its parent stands, with neither under way, merges back
 on that day: its strength returns to the parent (to at most 5) and it leaves play
@@ -18,12 +20,19 @@ from datetime import date
 from revisionist.core.ids import EntityId, FeatureId
 from revisionist.core.realism.answer import ParamValue
 from revisionist.core.realism.geography import Feature, FeatureKind, in_play
+from revisionist.core.realism.kinds import Domain
 from revisionist.core.state import State
 from revisionist.core.world_compile import object_id
 
 DETACHMENTS_PER_SIDE = {FeatureKind.FLEET: 2, FeatureKind.ARMY: 0, FeatureKind.AIR: 1}
 """[proposed] The most detachments of each kind of force a side may have in play at once.
 An army detachment would make every front place it stood on a base for its side."""
+PIECE_AS = {
+    Domain.SEA: FeatureKind.FLEET,
+    Domain.LAND: FeatureKind.ARMY,
+    Domain.AIR: FeatureKind.AIR,
+}
+"""The force whose limit a piece of each domain keeps."""
 MAX_TIER = 5
 NAME = 60
 """The longest name a feature may carry."""
@@ -35,6 +44,29 @@ def live(features: Mapping[FeatureId, Feature], kind: FeatureKind, side: EntityI
         f.kind is kind and f.side == side and f.detached_from is not None and in_play(f)
         for f in features.values()
     )
+
+
+def _limit(state: State, parent: Feature) -> tuple[int, int]:
+    """The most detachments the parent's side may have of its sort, and how many it has."""
+    from revisionist.core.realism import kinds
+
+    if parent.kind is not FeatureKind.PIECE:
+        assert parent.side is not None
+        return DETACHMENTS_PER_SIDE.get(parent.kind, 0), live(
+            state.features, parent.kind, parent.side
+        )
+    domain = kinds.domain(state, parent)
+    force = PIECE_AS.get(domain) if domain is not None else None
+    most = DETACHMENTS_PER_SIDE.get(force, 0) if force is not None else 0
+    held = sum(
+        f.kind is FeatureKind.PIECE
+        and f.side == parent.side
+        and f.detached_from is not None
+        and in_play(f)
+        and kinds.domain(state, f) == domain
+        for f in state.features.values()
+    )
+    return most, held
 
 
 def slot(state: State, key: str) -> tuple[FeatureId, int]:
@@ -66,7 +98,8 @@ def split(
         return ()
     if n is None or not 1 <= n < parent.tier:
         return ()
-    if live(state.features, parent.kind, parent.side) >= DETACHMENTS_PER_SIDE.get(parent.kind, 0):
+    most, held = _limit(state, parent)
+    if held >= most:
         return ()
     fid, number = slot(state, key)
     suffix = f" detachment {number}"

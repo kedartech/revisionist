@@ -18,13 +18,15 @@ import pytest
 from revisionist.core import events as ev
 from revisionist.core.ids import CampaignId, EntityId, SeatId, derived_id
 from revisionist.engine import campaign as cmp
+from revisionist.engine import openrouter
 from revisionist.engine.llm import TransportError
 from revisionist.engine.openrouter import DOTS, ERNIE, FLINT
 from revisionist.engine.web import limits
 from revisionist.engine.web.server import App, make_handler
 from tests.test_openrouter import DAY, Clock, Fake, Script, make
 from tests.test_web import PASSWORD, Client, Web, _florence, web  # noqa: F401
-from tests.test_web_realism import Realism, post, solo  # noqa: F401
+from tests.test_web_held_orders import scheduler_close
+from tests.test_web_realism import Realism, make_host, post, solo  # noqa: F401
 
 LINES = [
     ("realism/order", 30),
@@ -40,14 +42,25 @@ LINES = [
     ("seat/pick", 10),
     ("seat/search", 10),
     ("new/figures", 10),
+    ("realism/close", 30),
+    ("realism/advance", 30),
+    ("realism/commit", 30),
+    ("new/ready", 10),
+    ("new/start", 10),
+    ("new/begin", 10),
+    ("realism/report", 20),
+    ("seat/bug", 20),
 ]
-WAKE_OWN = ("realism/commit", "realism/close", "realism/advance")
+WAKE = ("realism/commit", "realism/close", "realism/advance")
 FREE = (
     "realism/read",
     "realism/file",
     "realism/sign",
     "realism/lever",
+    "realism/reports",
+    "realism/report-mark",
     "new/worlds",
+    "new/opening",
     "seat/status",
 )
 
@@ -125,7 +138,7 @@ def test_a_refused_try_is_not_counted(web: Web) -> None:  # noqa: F811
     assert hits(web) == before == 3
 
 
-@pytest.mark.parametrize("action", WAKE_OWN + FREE)
+@pytest.mark.parametrize("action", FREE)
 def test_an_action_that_calls_no_player_model_is_never_counted(
     web: Web,  # noqa: F811
     action: str,
@@ -238,16 +251,17 @@ def test_the_ceiling_resets_at_the_next_wake(
     assert ask(game.web, account, "realism/order") is None
 
 
-@pytest.mark.parametrize("action", WAKE_OWN)
-def test_the_wakes_own_calls_are_never_refused(
+@pytest.mark.parametrize("action", WAKE)
+def test_a_wake_call_is_held_only_by_its_own_line_never_by_the_ceiling(
     solo: tuple[Realism, Client],  # noqa: F811
     action: str,
 ) -> None:
     game, _ = solo
     account = account_of(game.web, "ada")
     for line_action, line in LINES:
-        for _ in range(line + 1):
-            ask(game.web, account, line_action)
+        if line_action not in WAKE:
+            for _ in range(line + 1):
+                ask(game.web, account, line_action)
     spend(game, 9.0)
     assert isinstance(ask(game.web, account, "realism/aide"), limits.TemplateMode)
     assert ask(game.web, account, action) is None
@@ -260,6 +274,115 @@ def test_the_wake_advances_past_the_ceiling(
     game.web.app.offline_prose = True
     status, out = post(ada, "advance")
     assert status == 200 and "message" not in out, out
+
+
+def test_closing_advancing_and_committing_share_one_line(web: Web) -> None:  # noqa: F811
+    for _ in range(10):
+        for action in WAKE:
+            assert ask(web, "acct-a", action) is None
+    for action in WAKE:
+        assert isinstance(ask(web, "acct-a", action), limits.Refusal)
+    assert ask(web, "acct-a", "realism/order") is None
+
+
+def test_readying_starting_and_beginning_a_game_share_one_line(web: Web) -> None:  # noqa: F811
+    for _ in range(4):
+        for action in ("new/ready", "new/start"):
+            assert ask(web, "acct-a", action) is None
+    for _ in range(2):
+        assert ask(web, "acct-a", "new/begin") is None
+    for action in ("new/ready", "new/start", "new/begin"):
+        assert isinstance(ask(web, "acct-a", action), limits.Refusal)
+
+
+def test_a_counted_wake_or_new_game_makes_its_calls_as_the_games_own(
+    web: Web,  # noqa: F811
+) -> None:
+    assert ask(web, "acct-a", "realism/consult") is None
+    assert openrouter._ACCOUNT.get() == "acct-a"
+    for action in ("realism/close", "new/begin", "seat/bug"):
+        openrouter.serve_as("acct-a")
+        assert ask(web, "acct-a", action) is None
+        assert openrouter._ACCOUNT.get() == ""
+
+
+def test_a_written_order_counts_toward_the_ceiling(
+    solo: tuple[Realism, Client],  # noqa: F811
+) -> None:
+    game, _ = solo
+    spend(game, 5.0, "structure")
+    refused = ask(game.web, account_of(game.web, "ada"), "seat/order")
+    assert isinstance(refused, limits.Refusal) and refused.message == limits.SPENT
+
+
+def log_length(game: Realism) -> int:
+    store = game.web.app.open()
+    try:
+        return len(list(store.read(CampaignId(game.campaign))))
+    finally:
+        store.close()
+
+
+def test_a_host_who_closes_the_wake_on_and_on_is_refused_past_the_line(
+    solo: tuple[Realism, Client],  # noqa: F811
+) -> None:
+    game, ada = solo
+    make_host(game, ada)
+    transport = Counting()
+    game.web.app.transport_factory = lambda: transport
+    for _ in range(30):
+        status, out = post(ada, "close")
+        assert status == 200 and out["refused"] is False, out
+    before = log_length(game)
+    status, out = post(ada, "close")
+    assert status == 200
+    assert out == {"refused": True, "message": limits.LATER}
+    assert log_length(game) == before
+    assert transport.kinds == []
+    game.web.game.clock.now += timedelta(hours=1, seconds=1)
+    status, out = post(ada, "close")
+    assert out["refused"] is False, out
+
+
+def test_the_scheduler_closes_the_wake_when_the_host_is_past_the_line(
+    solo: tuple[Realism, Client],  # noqa: F811
+) -> None:
+    game, ada = solo
+    make_host(game, ada)
+    _, out = post(ada, "close")
+    assert out["refused"] is False, out
+    for _ in range(29):
+        assert ask(game.web, account_of(game.web, "ada"), "realism/close") is None
+    _, out = post(ada, "close")
+    assert out == {"refused": True, "message": limits.LATER}
+    before = hits(game.web)
+    scheduler_close(game)
+    scheduler_close(game)
+    assert hits(game.web) == before
+
+
+def campaigns(web: Web) -> int:  # noqa: F811
+    store = web.app.open()
+    try:
+        return len(list(store.campaign_ids()))
+    finally:
+        store.close()
+
+
+def test_a_host_who_ends_and_readies_games_on_and_on_is_refused_past_the_line(
+    web: Web,  # noqa: F811
+) -> None:
+    c, _ = web.signed_up("lorenzo")
+    for _ in range(10):
+        status, out = c.call("/api/new/ready", {"world": "engine-v2-slice-1941"})
+        assert status == 200 and out.get("refused") is not True, out
+        status, out = c.call("/api/game/end", {})
+        assert status == 200 and out["refused"] is False, out
+    made = campaigns(web)
+    status, out = c.call("/api/new/ready", {"world": "engine-v2-slice-1941"})
+    assert status == 200
+    assert out == {"refused": True, "message": limits.LATER}
+    assert campaigns(web) == made
 
 
 # --- rule 4: sign-up, sign-in and recovery by address ----------------------------------

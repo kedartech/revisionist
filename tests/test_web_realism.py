@@ -518,7 +518,7 @@ def test_a_directive_is_read_shown_and_filed_only_when_signed(
         "reason": None,
     }
     (prompt,) = reader.prompts
-    assert prompt.endswith(ASK["text"]) and "## To Cora Senn, by letter" in prompt
+    assert prompt.endswith(quote_player(ASK["text"])) and "## To Cora Senn, by letter" in prompt
     assert realism_of(ada)["orders"]["orders"] == [] and directives(game) == []
 
     p = out["proposal"]

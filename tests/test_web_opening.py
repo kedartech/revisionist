@@ -244,3 +244,36 @@ def test_a_nation_with_nobody_playable_is_not_listed() -> None:
 
 def test_the_cast_fixture_carries_the_opening_shape() -> None:
     _same_shape(json.loads(FIXTURE.read_text())["opening"], api.Opening)
+
+
+@pytest.mark.parametrize(("world", "nation"), [(AUTUMN, "United States"), (SALT, None)])
+def test_the_opening_says_a_ready_made_game_and_names_each_nation_by_its_world_key(
+    web: Web,  # noqa: F811
+    counting: Counting,
+    world: str,
+    nation: str | None,
+) -> None:
+    client, _ = hosted(web, world)
+    out = new(client, "opening")
+    assert out["ready_made"] is True
+    assert out["world"] == world
+    decl = cmp.load_world(cmp.world_path(world))
+    polities = {e.key for e in decl.entities if e.kind.value == "polity"}
+    listed = [n["key"] for n in out["opening"]["nations"] if n["key"] is not None]
+    assert listed and set(listed) <= set(out["nation_keys"])
+    assert set(out["nation_keys"].values()) <= polities
+    if nation is not None:
+        usa = next(n["key"] for n in out["opening"]["nations"] if n["name"] == nation)
+        assert out["nation_keys"][usa] == "usa"
+    assert counting.calls == []
+
+
+def test_the_opening_says_a_pitched_game_is_not_ready_made(web: Web) -> None:  # noqa: F811
+    from tests.test_web_pick import PLACED, Fake, seated
+
+    fake = Fake(PLACED)
+    client = seated(web, fake)
+    out = new(client, "opening")
+    assert out["refused"] is False
+    assert out["ready_made"] is False
+    assert fake.calls == []

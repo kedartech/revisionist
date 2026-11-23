@@ -1,0 +1,25 @@
+{
+  "autumn-1941": {
+    "usa": "usa.svg",
+    "uk": "uk.svg",
+    "japan": "japan.svg",
+    "germany": "germany.svg",
+    "italy": "italy.svg",
+    "ussr": "ussr.svg",
+    "china": "china.svg",
+    "french_state": "french_state.svg",
+    "sweden": "sweden.svg",
+    "spain": "spain.svg",
+    "portugal": "portugal.svg",
+    "ireland_state": "ireland_state.svg",
+    "finland_state": "finland_state.svg",
+    "hungary": "hungary.svg",
+    "romania_state": "romania_state.svg",
+    "turkey_state": "turkey_state.svg",
+    "iran_state": "iran_state.svg",
+    "thailand_state": "thailand_state.svg",
+    "netherlands": "netherlands.svg",
+    "cuba": "cuba.svg",
+    "switzerland": "switzerland.svg"
+  }
+}

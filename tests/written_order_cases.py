@@ -446,7 +446,7 @@ NINETEEN_41: tuple[Case, ...] = (
     f41(
         "mussolini",
         "libya_convoys",
-        {"route": "tripoli"},
+        {"route": "tripoli_route"},
         "Run the Libya convoys to Tripoli.",
         engage("tripoli", "escort"),
     ),
@@ -576,9 +576,56 @@ def _salt(
     )
 
 
+def fsalt(person: str, lever: str, params: dict[str, str], sentence: str, *reading: Effect) -> Case:
+    return Case("salt", person, lever, params, sentence, tuple(reading))
+
+
+SALT_WATCH = {"intel": "patrol", "piece": "varda_galleys", "order": "guard", "zone": "strait"}
+SALT_CONVOY_ACT: Effect = {
+    "kind": "measure",
+    "title": "Salt Convoy Act",
+    "clauses": [{"kind": "power", "subject": "arm the salt convoys", "amount": None}],
+}
+"""Varda's own law as a written bill: its title's words are the key the form's bill names."""
+
 SALT_STRAIT: tuple[Case, ...] = (
     *_salt("oren_vale", "varda", "ostrel", "harrow_pass", "kesh_shore", "varda_saltworks"),
     *_salt("general_aske", "ostrel", "varda", "harrow_pass", "kesh_shore", "harrow_pass"),
+    fsalt(
+        "oren_vale",
+        "set_watch",
+        SALT_WATCH,
+        "Put the galleys on watch on the strait.",
+        patrol("varda_galleys"),
+    ),
+    fsalt(
+        "oren_vale",
+        "send_bill",
+        {"bill": "salt_convoy_act", "urgency": "ordinary"},
+        "Send the Salt Convoy Act to the Salt Assembly.",
+        SALT_CONVOY_ACT,
+    ),
+    fsalt(
+        "oren_vale",
+        "move_galleys",
+        {"force": "varda_galleys", "to": "saltworks"},
+        "Send the galleys to the Saltworks.",
+        move("varda_galleys", "saltworks"),
+    ),
+    fsalt(
+        "brask",
+        "galley_watch",
+        SALT_WATCH,
+        "Put the galleys on watch on the strait.",
+        patrol("varda_galleys"),
+    ),
+    fsalt(
+        "brask",
+        "sail",
+        {"force": "varda_galleys", "to": "free_port"},
+        "Sail the galleys to the Free Port.",
+        move("varda_galleys", "free_port"),
+    ),
 )
 """Every form on every playable card of Salt Strait."""
 
@@ -589,70 +636,83 @@ AUTHORITY = "data lane fix item: a card's authority covers every order its forms
 WAR = "core lane fix item: a written declaration of war declares the war"
 DETACH = "core lane fix item: a written detachment moves only the strength it names"
 INERT = "core lane fix item for the forms that change nothing (EFD's list)"
+AUDIENCE = (
+    "core lane fix item: a written statement to another nation lands as its form does"
+    " (the form is heard at home through its audience's theme)"
+)
+PRODUCTION = (
+    "core lane fix item: a written production order lands as its form does"
+    " (the form builds a step, mobilises, or brings the aid another nation let through)"
+)
+MESSAGE = (
+    "core lane fix item: a written message lands as its form does"
+    " (the form raises the regard of the person abroad who let it through)"
+)
+SHIPPING = (
+    "core lane fix item: a written shipping order lands as its form does"
+    " (the form acts through escort levels, losses and the lift pool)"
+)
 
 FIXES: dict[str, str] = {
     "1941.roosevelt.lend_lease_finding": TIMING,
-    "1941.roosevelt.naval_order": INERT,
+    "1941.roosevelt.naval_order": SHIPPING,
     "1941.roosevelt.move_fleet": TIMING,
     "1941.roosevelt.detach_fleet": DETACH,
-    "1941.roosevelt.public_address": INERT,
+    "1941.roosevelt.cable_to_churchill": MESSAGE,
     "1941.roosevelt.fly_recon": AUTHORITY,
     "1941.roosevelt.send_on_patrol": TIMING,
-    "1941.churchill.convoy_orders": INERT,
+    "1941.churchill.convoy_orders": SHIPPING,
     "1941.churchill.production_priority": AUTHORITY,
     "1941.churchill.move_fleet": TIMING,
     "1941.churchill.detach_fleet": DETACH,
     "1941.churchill.move_army": AUTHORITY,
-    "1941.churchill.broadcast": INERT,
+    "1941.churchill.broadcast": AUDIENCE,
     "1941.churchill.fly_recon": AUTHORITY,
     "1941.churchill.send_on_patrol": TIMING,
     "1941.churchill.send_an_agent": AUTHORITY,
     "1941.churchill.fund_the_codebreakers": AUTHORITY,
-    "1941.stalin.state_defence_order": INERT,
+    "1941.stalin.state_defence_order": PRODUCTION,
+    "1941.stalin.aid_request": PRODUCTION,
     "1941.stalin.move_army": TIMING,
     "1941.stalin.send_on_patrol": AUTHORITY,
     "1941.stalin.send_an_agent": AUTHORITY,
-    "1941.hitler.uboat_directive": INERT,
+    "1941.hitler.uboat_directive": SHIPPING,
     "1941.hitler.production_priority": AUTHORITY,
     "1941.hitler.move_army": TIMING,
     "1941.hitler.declare_war": WAR,
     "1941.hitler.fly_recon": AUTHORITY,
     "1941.hitler.send_on_patrol": TIMING,
-    "1941.konoe.requisition_shipping": INERT,
-    "1941.konoe.mobilisation_plan": INERT,
+    "1941.konoe.requisition_shipping": SHIPPING,
+    "1941.konoe.mobilisation_plan": PRODUCTION,
     "1941.konoe.send_an_agent": AUTHORITY,
-    "1941.tojo.requisition_shipping": INERT,
-    "1941.tojo.mobilisation_plan": INERT,
+    "1941.tojo.requisition_shipping": SHIPPING,
+    "1941.tojo.mobilisation_plan": PRODUCTION,
     "1941.tojo.fly_recon": AUTHORITY,
     "1941.tojo.send_on_patrol": AUTHORITY,
     "1941.tojo.send_an_agent": AUTHORITY,
     "1941.tojo.hide_a_force": AUTHORITY,
-    "1941.mussolini.production_priority": INERT,
+    "1941.mussolini.production_priority": PRODUCTION,
     "1941.mussolini.move_fleet": AUTHORITY,
     "1941.mussolini.move_army": AUTHORITY,
     "1941.mussolini.send_on_patrol": AUTHORITY,
-    "1941.chiang.arsenal_output": INERT,
-    "1941.chiang.appeal_abroad": INERT,
+    "1941.chiang.arsenal_output": PRODUCTION,
+    "1941.chiang.appeal_abroad": AUDIENCE,
     "1941.chiang.move_army": AUTHORITY,
     "1941.chiang.send_an_agent": AUTHORITY,
     "1941.king.detach_fleet": DETACH,
-    "1941.king.fleet_naval_order.western_atlantic": INERT,
-    "1941.king.fleet_naval_order.iceland_route": INERT,
-    "1941.king.fleet_naval_order.war_zone": INERT,
+    "1941.king.fleet_naval_order.western_atlantic": SHIPPING,
+    "1941.king.fleet_naval_order.iceland_route": SHIPPING,
+    "1941.king.fleet_naval_order.war_zone": SHIPPING,
     "salt.oren_vale.move_force": TIMING,
     "salt.oren_vale.declare_war": WAR,
-    "salt.oren_vale.fly_balloon": TIMING,
     "salt.oren_vale.galley_patrol": TIMING,
-    "salt.oren_vale.place_a_spy": TIMING,
-    "salt.oren_vale.pay_the_cipher_clerks": INERT,
+    "salt.oren_vale.set_watch": TIMING,
     "salt.oren_vale.hide_a_force": TIMING,
     "salt.general_aske.move_force": TIMING,
     "salt.general_aske.declare_war": WAR,
-    "salt.general_aske.fly_balloon": TIMING,
     "salt.general_aske.galley_patrol": TIMING,
-    "salt.general_aske.place_a_spy": TIMING,
-    "salt.general_aske.pay_the_cipher_clerks": INERT,
     "salt.general_aske.hide_a_force": TIMING,
+    "salt.brask.galley_watch": TIMING,
 }
 """Each case whose written order and form still differ, and the fix item that owns the
 difference: the first one found, where a case has more than one."""

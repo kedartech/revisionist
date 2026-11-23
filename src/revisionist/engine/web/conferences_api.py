@@ -24,7 +24,7 @@ from revisionist.core.realism.effect import AgreementClause
 from revisionist.core.realism.war import polity_of
 from revisionist.core.state import State, View
 from revisionist.engine import orders_reader, wake
-from revisionist.engine.store import EventStore
+from revisionist.engine.store import EventStore, load_state
 from revisionist.engine.web.agreements_api import checked
 from revisionist.engine.web.realism_api import (
     AgendaItem,
@@ -152,9 +152,14 @@ def call_args(state: State, seat: SeatId, body: Mapping[str, Any]) -> tuple[dict
 
 
 def vote_args(state: State, seat: SeatId, body: Mapping[str, Any]) -> tuple[dict[str, Any], str]:
-    """The ``conference-vote`` action, checked against the open wake: the conference and
-    the vote, and its label. Raises ``ValueError`` with the reason it is refused."""
+    """The ``conference-vote`` action, checked against the open wake: the conference (its
+    key, or the name the seat gave when it called it) and the vote, and its label. Raises
+    ``ValueError`` with the reason it is refused."""
     key = _text(body, "conference", 60)
+    held = conference.seen_by(state, seat).held
+    named = conference.call_key(state.campaign_id, seat, key)
+    if key not in held and named in held:  # the name the seat gave its own call
+        key = named
     try:
         choice = Vote(_text(body, "vote", 10).lower())
     except ValueError:
@@ -166,15 +171,23 @@ def vote_args(state: State, seat: SeatId, body: Mapping[str, Any]) -> tuple[dict
 
 
 def call(store: EventStore, campaign_id: CampaignId, seat: SeatId, args: Mapping[str, Any]) -> str:
-    """Land a checked call; returns the reply. Raises ``ValueError`` when refused."""
+    """Land a checked call; returns the reply. Its clauses are checked against the
+    caller's view again, since a held call lands a wake after it was checked. Raises
+    ``ValueError`` when refused."""
     voting_day = date.fromisoformat(args["voting_day"])
+    text = ConferenceText.model_validate(args["text"])
+    state = load_state(store, campaign_id)
+    if conference.on(state):
+        view = project(state, seat)
+        if not all(_known(state, view, c) for c in text.clauses):
+            raise ValueError(NOT_SEEN)
     wake.call_conference(
         store,
         campaign_id,
         seat,
         args["key"],
         tuple(EntityId(n) for n in args["invited"]),
-        ConferenceText.model_validate(args["text"]),
+        text,
         voting_day,
         bool(args["public"]),
     )

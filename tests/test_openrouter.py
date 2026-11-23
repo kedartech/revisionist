@@ -7,6 +7,7 @@ cases and the bucket are driven by the fake server's script and a fake clock.
 import json
 import logging
 import threading
+import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -599,6 +600,56 @@ def test_the_bucket_is_shared_by_every_kind(fake: Fake, script: Script, clock: C
     for kind in kinds:
         t.call(req(kind))
     assert len(clock.slept) == 1
+
+
+def test_waiting_accounts_are_served_in_turn() -> None:
+    now = [0.0]
+    go = threading.Event()
+    lock = threading.Lock()
+
+    def sleep(s: float) -> None:
+        go.wait(5)
+        with lock:
+            now[0] += s
+        time.sleep(0.001)
+
+    bucket = orr.Bucket(1, lambda: now[0], sleep)
+    bucket.take("x")
+    served: list[str] = []
+    threads: list[threading.Thread] = []
+
+    def waiter(who: str) -> None:
+        bucket.take(who)
+        with lock:
+            served.append(who)
+
+    for who in ["a"] * 5 + ["b"]:
+        before = sum(len(v) for v in bucket.queue.values())
+        th = threading.Thread(target=waiter, args=(who,), daemon=True)
+        th.start()
+        threads.append(th)
+        for _ in range(500):
+            if sum(len(v) for v in bucket.queue.values()) > before:
+                break
+            time.sleep(0.002)
+    go.set()
+    for th in threads:
+        th.join(10)
+    assert served == ["a", "b", "a", "a", "a", "a"]
+    assert bucket.queue == {}
+
+
+def test_the_transport_takes_from_the_bucket_as_the_account_served(
+    fake: Fake, script: Script, clock: Clock
+) -> None:
+    t = make(fake, clock)
+    taken: list[str] = []
+    t.bucket.take = lambda who="": taken.append(who)  # type: ignore[method-assign]
+    orr.serve_as("acct-1")
+    t.call(req())
+    orr.serve_as("")
+    t.call(req())
+    assert taken == ["acct-1", ""]
 
 
 # --- the key --------------------------------------------------------------------------

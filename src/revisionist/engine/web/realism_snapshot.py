@@ -51,6 +51,7 @@ from revisionist.engine.web import (
     home_api,
     locks_api,
     map_api,
+    stakes,
 )
 from revisionist.engine.web.destinations import (
     FORCE,
@@ -1163,8 +1164,8 @@ def seat_realism(
 ) -> dict[str, Any]:
     """The ``view.realism`` block of ``/api/me``: tray, desk, situation, orders, clock, map,
     threats, people, the world's developments, the world's key and its nations' keys, the
-    public wars, the war economy, the seat's battles, its groups at home, its agreements
-    and its conferences. ``place_keys``
+    public wars, the war economy, the seat's battles, its groups at home, its agreements,
+    its conferences, and its own aim's ladder while it may set one. ``place_keys``
     (``destinations.place_keys``) opens movement forms to every place; ``withdrawable``
     (``withdraw.withdrawable``) are the orders the seat may take back; ``held_battles``
     the area keys of battles it has a decision held for the next wake; ``ended_battles``
@@ -1218,6 +1219,7 @@ def seat_realism(
         "agreements": agreements_api.block(state, seat, view, log),
         "conferences": conferences_api.block(state, seat, view),
         **_locks(state, seat),
+        **_own_aim(state, seat),
     }
 
 
@@ -1226,6 +1228,13 @@ def _locks(state: State, seat: SeatId) -> dict[str, Any]:
     without the rule is sent what it was before."""
     found = locks_api.block(state, seat)
     return {} if found is None else {"locks": found}
+
+
+def _own_aim(state: State, seat: SeatId) -> dict[str, Any]:
+    """The seat's ``own_aim`` block (OWR), while it may still set one; no key at all
+    otherwise, so a game without own aims is sent what it was before."""
+    found = stakes.own_aim_block(state, seat)
+    return {} if found is None else {"own_aim": found}
 
 
 __all__ = [

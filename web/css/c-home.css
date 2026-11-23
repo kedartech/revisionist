@@ -42,6 +42,28 @@
 .rl-home-chamber h5 { margin: var(--space-3) 0 var(--space-1); font: 600 14px/1.35 var(--font-head); color: var(--fg-strong); }
 .rl-home-tokens { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .rl-home-token { padding: var(--space-1) var(--space-2); background: var(--surface-2); border: 1px solid var(--rule-strong); border-radius: var(--radius); font-variant-numeric: tabular-nums; max-width: 100%; }
+.rl-home-seatbar { margin: var(--space-1) 0 var(--space-2); }
+.rl-home-bar-box { display: block; width: 100%; height: 46px; border: 1px solid var(--rule-strong); border-radius: var(--radius); background: var(--surface-3); }
+.rl-home-seg { stroke: var(--surface); stroke-width: 1px; vector-effect: non-scaling-stroke; cursor: pointer; }
+.rl-home-seg:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-home-seg[aria-pressed="true"] { stroke: var(--focus); stroke-width: 3px; }
+.rl-home-seg.b0 { fill: var(--fg-strong); fill-opacity: 0.6; }
+.rl-home-seg.b1 { fill: var(--fg-muted); fill-opacity: 0.6; }
+.rl-home-seg.b2 { fill: var(--info); fill-opacity: 0.45; }
+.rl-home-seg.b3 { fill: var(--fg); fill-opacity: 0.3; }
+.rl-home-seg.b4 { fill: var(--rule-strong); }
+.rl-home-seg.b5 { fill: var(--intel); fill-opacity: 0.25; }
+.rl-home-seg.b6 { fill: var(--field-border); fill-opacity: 0.5; }
+.rl-home-carry { stroke: var(--warn); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.rl-home-seatnote { font-size: 13px; color: var(--fg); font-variant-numeric: tabular-nums; }
+.rl-home-bloccard { margin-top: var(--space-2); }
+.rl-home-bloccard[hidden] { display: none; }
+.rl-home-votebar { display: block; width: 100%; padding: 0; background: none; border: 0; cursor: pointer; }
+.rl-home-votebar:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-home-vseg.yeas { fill: var(--fg-strong); fill-opacity: 0.7; }
+.rl-home-vseg.open { fill: var(--surface-3); }
+.rl-home-vseg.nays { fill: var(--fg-muted); fill-opacity: 0.6; }
+.rl-home-tokens[hidden] { display: none; }
 .rl-home-votename { color: var(--fg-muted); }
 .rl-home-line { color: var(--fg); }
 .rl-home-line strong { color: var(--fg-strong); }

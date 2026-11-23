@@ -29,3 +29,11 @@ The mark secret checks itself when the server is built (`engine/web/map_api.py`,
 Env files: `chmod 600`, owned by the unit's account, outside the checkout. `tests/test_security_secrets.py`
 holds the start checks and a scripted session (sign-up, sign-in, recovery, a failed model call) that
 fails if a password, a session token, a recovery code, a key or the mark secret reaches the log.
+
+Served names: set `REVISIONIST_PUBLIC_NAMES` in `revisionist.env` to the names the server is reached by,
+comma separated, each a host or `host:port` (a name with no port matches every port), for example
+`revisionist.tailf1d7f1.ts.net,127.0.0.1:8740`. The guard reads it on every request: a request whose
+`Host` is not on the list is refused with 421 on every method, static files included, and a write's
+`Origin` (or `Referer`) must be on the list. Unset, a write is refused with 421 unless its `Host` is an IP
+address, `localhost` or a `.ts.net` name, so a page whose own name re-resolves to this server (DNS
+rebinding) cannot write. It is not a secret; a deployment reached by any other name must set it.

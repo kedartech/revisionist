@@ -214,6 +214,18 @@ class Side:
             out: dict[str, Any] = self.app.state_for(self.accounts[who])
         return out
 
+    def new(self, who: str, action: str) -> dict[str, Any]:
+        """``/api/new/<action>`` as ``who``'s account sends it, through ``App``."""
+        with drawn_from(self.counts):
+            out: dict[str, Any] = self.app.new_game(self.accounts[who], action, {})
+        return out
+
+    def game(self, who: str, action: str) -> dict[str, Any]:
+        """``/api/game/<action>`` as ``who``'s account sends it, through ``App``."""
+        with drawn_from(self.counts):
+            out: dict[str, Any] = self.app.game(self.accounts[who], action, {})
+        return out
+
 
 def side(db: PgDb, tmp: Path, decl: WorldFile) -> Side:
     tmp.mkdir(parents=True, exist_ok=True)
@@ -286,8 +298,9 @@ READS = {"toy": TOY_READS, "salt": SALT_READS}
 
 def reads(s: Side, who: str, probes: tuple[Probe, ...]) -> dict[str, bytes]:
     """Every read ``who`` can make: the snapshot (every sheet's data is in it), each
-    page it holds, the map, catch-up, the check and the odds, and the wake notice."""
-    out = {"me": _call(lambda: s.me(who))}
+    page it holds, the map, catch-up, the opening's list of people, the check and the
+    odds, and the wake notice."""
+    out = {"me": _call(lambda: s.me(who)), "opening": opening(s, who)}
     me = json.loads(out["me"])
     realism = ((me.get("game") or {}).get("view") or {}).get("realism") or {}
     listing = realism.get("documents") or {}
@@ -306,10 +319,16 @@ def reads(s: Side, who: str, probes: tuple[Probe, ...]) -> dict[str, bytes]:
     return out
 
 
-def truth(s: Side) -> tuple[str, list[Any]]:
-    """What the game holds, whoever may see it: the state's hash and every order held
-    for the next wake. The two games of a pair must differ here, or the pair hides
-    nothing."""
+def opening(s: Side, who: str) -> bytes:
+    """``/api/new/opening`` as ``who`` reads it: the people of the game, who is taken,
+    and the seats left."""
+    return _call(lambda: s.new(who, "opening"))
+
+
+def truth(s: Side) -> tuple[str, list[Any], list[Any]]:
+    """What the game holds, whoever may see it: the state's hash, every order held for
+    the next wake and who filed each player report. The two games of a pair must differ
+    here, or the pair hides nothing."""
 
     def held(store: Any) -> list[Any]:
         rows = store.conn.execute(
@@ -317,7 +336,13 @@ def truth(s: Side) -> tuple[str, list[Any]]:
         ).fetchall()
         return [tuple(r) for r in rows]
 
-    return state_hash(s.state()), s.run(held)
+    def filed(store: Any) -> list[Any]:
+        rows = store.conn.execute(
+            "SELECT seat_id, kind FROM player_reports ORDER BY report_id"
+        ).fetchall()
+        return [tuple(r) for r in rows]
+
+    return state_hash(s.state()), s.run(held), s.run(filed)
 
 
 def where(key: str, x: bytes, y: bytes) -> str:
@@ -618,6 +643,27 @@ def salt_aims(w: World, hidden: bool) -> None:
         }
 
 
+def leaves(who: str) -> Act:
+    """``who``'s player leaves the game in the open wake, as the game menu's leave does:
+    the leader is the code's from the close."""
+
+    def act(s: Side, hidden: bool) -> None:
+        if hidden:
+            _done(s.game(who, "leave"))
+
+    return act
+
+
+REPORT_WORDS = "The toll on my desk reads 9 and the map says 8."
+INBOX = (Probe("reports", {"inbox": True}),)
+
+
+def report_author(s: Side, hidden: bool) -> None:
+    """The same words filed as a report by Kara, or (hidden) by Tomas of the other side:
+    the host reads them in the inbox, and must not learn whose they are."""
+    _done(s.act("tomas" if hidden else "kara", "report", kind="bug", text=REPORT_WORDS))
+
+
 SALT_PIECE_NAMES = (
     Probe("odds", {"force": "varda_levy", "to": "harrow_pass"}),
     Probe("odds", {"force": "varda_balloons", "to": "harrow_pass"}),
@@ -644,7 +690,9 @@ PAIRS: tuple[Pair, ...] = (
         names=unarrived_names,
         wakes=0,
     ),
+    Pair("report author", "toy", ("ilse",), act=report_author, names=lambda s: INBOX),
     Pair("person or code", "toy", ("ilse", "kara"), unseated="tomas"),
+    Pair("pending leave", "toy", ("ilse", "kara"), act=leaves("tomas")),
     Pair("hidden law", "toy", ("kara", "tomas"), change=toy_law),
     Pair(
         "written order awaiting the close",
@@ -677,6 +725,7 @@ PAIRS: tuple[Pair, ...] = (
         wakes=0,
     ),
     Pair("person or code", "salt", ("oren_vale",), unseated="general_aske"),
+    Pair("pending leave", "salt", ("oren_vale",), act=leaves("general_aske")),
     Pair(
         "written order awaiting the close",
         "salt",
@@ -695,6 +744,7 @@ NOT_BUILT: dict[str, str] = {
     "toy-private-agreement": "the toy world's two nations are at war and there is no third",
     "salt-held-order-and-ask": "Salt Strait declares no locks, so no order is ever held",
     "salt-hidden-law": "Salt Strait declares no law",
+    "salt-report-author": "Salt Strait seats one player besides the host, so no second author",
 }
 """Kinds that cannot be built in a world through its public entry points, left for the
 security review."""

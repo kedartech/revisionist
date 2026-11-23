@@ -15,6 +15,7 @@ import pytest
 
 from revisionist.core.ids import EntityId
 from revisionist.core.ontology import Fact
+from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.land import allocate
 from revisionist.core.realism.pipeline import Order, OrderStatus, StepAction
 from revisionist.core.realism.pipelines import waiting_on_human
@@ -23,7 +24,7 @@ from revisionist.core.state import Rule
 from revisionist.engine import campaign as cmp
 from revisionist.engine import realism_tick, wake
 from tests.test_realism_resolvers import POINTS, Rig, finding, rig, stored
-from tests.test_written_order_parity import CAMPAIGN, Canned, Game, entity, opened, seat
+from tests.test_written_order_parity import CAMPAIGN, Canned, Game, _ask, entity, opened, seat
 from tests.written_order_cases import CASES
 
 # --- the same day, played ---------------------------------------------------------------
@@ -59,8 +60,11 @@ def test_a_form_and_its_written_order_landing_one_day_write_one_receipt(
 ) -> None:
     """The President files the finding by form and leaves its last step until the day his
     written allocation for the same share is carried out; his pass that day goes through,
-    the next tick completes, and the game holds one receipt."""
+    the next tick completes, and the game holds one receipt. The allocation is filed by
+    the command path a picked suggestion takes, since the reader files it as the form."""
     case = next(c for c in CASES if c.lever == "lend_lease_finding")
+    effect = {k: v for k, v in case.reading[0].items() if k != "detail"}
+    allocation = Ask.model_validate(_ask(case.sentence, effect))
     monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
     game = Game(opened(case.world, without), monkeypatch, Canned())
     assert game.form(case) == ""
@@ -69,7 +73,8 @@ def test_a_form_and_its_written_order_landing_one_day_write_one_receipt(
     for _ in range(8):
         state = game.state
         if state.in_world_date == WRITTEN_ON:
-            assert game.written(case) == ""
+            with game.ids.drawn_by(f"order:{case.name}"):
+                realism_tick.commit_order(game.store, CAMPAIGN, seat("roosevelt"), [allocation])
         if state.in_world_date == LANDS:
             assert waiting_on_human(state, state.orders[form.order_id])
             (written,) = state.routed.values()

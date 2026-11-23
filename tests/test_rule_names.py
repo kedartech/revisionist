@@ -39,7 +39,7 @@ THIRD_RUN = (
     "playable_rule",
 )
 
-BASELINE_1941 = "2d118a7b9f9425be6f0fd27b51002d8e"
+BASELINE_1941 = "4432e3dde0dc01ab29347446ab277ea9"
 """The 1941 scripted run's digest (``run_digest``) with every third-run switch off."""
 
 

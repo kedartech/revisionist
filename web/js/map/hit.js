@@ -15,3 +15,12 @@ export function inArea(shapes, key, [x, y]) {
   return inside;
 }
 
+/**
+ * The first of areas `keys` under point `xy` of the drawing made with projection `proj`, or null.
+ * The point is turned back into map coordinates first: the area test runs on the map file's own.
+ */
+export function areaAt(shapes, proj, xy, keys) {
+  const at = proj.invert(xy);
+  return keys.find((key) => inArea(shapes, key, at)) ?? null;
+}
+

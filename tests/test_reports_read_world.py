@@ -1,13 +1,14 @@
 """Reports that read the world (RPT).
 
 An enacted order's report names the figure it moved and by how much, and never reads "no
-change" when something moved. A feed never says "no change" over a world whose true figures
-moved. Over every playable seat of both worlds, no paper is written by the seat's own person,
-and every report's author holds the subject's office. Every reply here is canned.
+change" when something moved. A feed page reads "no change" by its own claims alone: one that
+repeats its last full page's claims says so whether or not a hidden figure moved. Over every
+playable seat of both worlds, no paper is written by the seat's own person, and every report's
+author holds the subject's office. Every reply here is canned.
 """
 
-from datetime import timedelta
-from typing import cast
+from datetime import date, timedelta
+from typing import Any, cast
 
 import pytest
 
@@ -15,7 +16,7 @@ from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, OrderId, QuantityId, SeatId, derived_id
 from revisionist.core.realism import effect as rx
 from revisionist.core.realism.apply import MOVED, apply_due, reporter
-from revisionist.core.realism.document import DocumentView
+from revisionist.core.realism.document import DocumentView, Feed
 from revisionist.core.realism.feeds import NO_CHANGE, issue, seed_for_day
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.state import State
@@ -106,7 +107,19 @@ def test_an_allocation_names_the_issuers_own_pool_and_what_it_gave(sl: Slice) ->
     assert _lines(paper, MOVED) == ["tonnage -7 tons"], "the other nation's pool is not read out"
 
 
-def test_a_feed_never_says_no_change_over_figures_that_moved() -> None:
+def _biased(rig: Any, start: date) -> tuple[State, Feed]:
+    """The rig's feed skewed to 40 percent with no noise, its first page issued on ``start``."""
+    feed = rig.feed.model_copy(
+        update={"bias": rig.feed.bias.model_copy(update={"skew_pct": -60, "noise_pct": 0})}
+    )
+    feeds = {**rig.state.feeds, feed.feed_id: feed}
+    first = issue(rig.state.model_copy(update={"feeds": feeds}), feed, start, "s")
+    assert first is not None
+    rig.add(first)
+    return rig.state.model_copy(update={"feeds": feeds}), feed
+
+
+def test_a_feed_with_no_bias_says_no_change_over_figures_that_held() -> None:
     from tests.test_realism_feeds import Rig, _issue
 
     rig = Rig()
@@ -115,31 +128,43 @@ def test_a_feed_never_says_no_change_over_figures_that_moved() -> None:
     week = start + timedelta(days=7)
     same = issue(rig.state, rig.feed, week, seed_for_day(CAMPAIGN, week))
     assert same is not None and same.document.body[0].label == NO_CHANGE
-    # A true figure that moved by too little to change the claimed one: the claim repeats
-    # word for word, but the page does not say nothing changed.
-    q = rig.state.quantities[rig.qid]
-    feed = rig.feed.model_copy(
-        update={"bias": rig.feed.bias.model_copy(update={"skew_pct": -60, "noise_pct": 0})}
-    )
-    feeds = {**rig.state.feeds, feed.feed_id: feed}
-    rig.events.pop()
-    first = issue(rig.state.model_copy(update={"feeds": feeds}), feed, start, "s")
-    assert first is not None
-    rig.add(first)
-    base = rig.state.model_copy(update={"feeds": feeds})
+
+
+def test_a_page_that_repeats_its_claim_says_no_change_though_the_truth_moved() -> None:
+    from tests.test_realism_feeds import Rig
+
+    rig = Rig()
+    start = rig.state.quantities[rig.qid].as_of
+    week = start + timedelta(days=7)
+    base, feed = _biased(rig, start)
     quiet = issue(base, feed, week, "s")
     assert quiet is not None and quiet.document.body[0].label == NO_CHANGE
+    q = base.quantities[rig.qid]
     true = q.value or 0
-    for step in (1, 2):
-        moved = q.model_copy(update={"value": true + step})
-        state = base.model_copy(update={"quantities": {rig.qid: moved}})
-        page = issue(state, feed, week, "s")
-        assert page is not None
-        claim = true * 40 + 50
-        if ((true + step) * 40 + 50) // 100 == claim // 100:
-            assert page.document.body[0].label != NO_CHANGE
-            return
-    raise AssertionError("no small move left the claim as it was")
+    claim = (true * 40 + 50) // 100
+    step = next(s for s in (1, 2) if ((true + s) * 40 + 50) // 100 == claim)
+    moved = q.model_copy(update={"value": true + step})
+    page = issue(base.model_copy(update={"quantities": {rig.qid: moved}}), feed, week, "s")
+    assert page is not None
+    assert [b.label for b in page.document.body] == [NO_CHANGE], (
+        "the page repeats its claim, so it reads no change whatever the hidden figure did"
+    )
+
+
+def test_a_page_whose_claim_moved_states_it_in_full() -> None:
+    from tests.test_realism_feeds import Rig
+
+    rig = Rig()
+    start = rig.state.quantities[rig.qid].as_of
+    week = start + timedelta(days=7)
+    base, feed = _biased(rig, start)
+    q = base.quantities[rig.qid]
+    true = (q.value or 0) + 100
+    moved = q.model_copy(update={"value": true})
+    page = issue(base.model_copy(update={"quantities": {rig.qid: moved}}), feed, week, "s")
+    assert page is not None
+    assert page.document.body[0].label != NO_CHANGE
+    assert page.document.body[0].value == (true * 40 + 50) // 100
 
 
 # --- rule 2 -------------------------------------------------------------------------------

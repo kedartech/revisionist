@@ -168,8 +168,8 @@ def test_he_holds_a_post_that_meets_the_character_rule() -> None:
 def test_his_dossier_has_a_line_that_says_chiang_permits_giving_up_changsha() -> None:
     people, _ = dossiers.load("autumn-1941")
     assert people["xue_yue"]["bio"] and people["xue_yue"]["arena"]
-    arena = people["xue_yue"]["arena"] or ""
-    assert "Chiang" in arena and "Changsha" in arena
+    arena = " ".join((people["xue_yue"]["arena"] or "").split())
+    assert "give up Changsha without a fight is Chiang's to give" in arena
 
 
 def test_the_general_staff_and_chiang_are_up_his_chain() -> None:

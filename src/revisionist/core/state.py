@@ -73,6 +73,7 @@ from revisionist.core.realism.holders import Capture, Holding
 from revisionist.core.realism.kinds import Kinds
 from revisionist.core.realism.laws import Law
 from revisionist.core.realism.locks import Asked, HeldOrder, LockRow
+from revisionist.core.realism.offers import PricedOffer
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
@@ -224,6 +225,10 @@ class _World(Model):
     (``groups_declared``), their support (``group_moved``) and the writing in waiting
     (``group_proposed``) (GRP). True support: a view holds its own nation's groups only,
     and never the writing in waiting."""
+    offers: tuple[PricedOffer, ...] = ()
+    """With ``offers`` on, every offer of a price to a bloc and where it stands
+    (``offer_made``, ``offer_settled``) (PRC). A view holds those to its own nation's
+    blocs only."""
     agreements: Agreements = Field(default_factory=Agreements)
     """With ``agreements`` on, the offers (``agreement_offered``) and the agreements in
     force (``agreement_made``), with each clause's status (``clause_judged``) (AGR). A view
@@ -237,6 +242,7 @@ class _World(Model):
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
             "groups",
+            "offers",
             "agreements",
             "conferences",
             "goals",

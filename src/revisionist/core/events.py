@@ -19,7 +19,8 @@ TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDec
 ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
 VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
-OrderAsked, AskAnswered, MatterChosen, AimPatternsDeclared, OwnAimSet``, and
+OrderAsked, AskAnswered, MatterChosen, AimPatternsDeclared, OwnAimSet, OfferMade,
+OfferSettled``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -96,11 +97,12 @@ from revisionist.core.realism.economy import Amount, Pools
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.groups import Cause as GroupCause
-from revisionist.core.realism.groups import NationGroups, Proposal
+from revisionist.core.realism.groups import KindClass, NationGroups, Proposal
 from revisionist.core.realism.holders import Capture
 from revisionist.core.realism.kinds import PieceKind, Resource
 from revisionist.core.realism.laws import Law
 from revisionist.core.realism.locks import Asked, HeldEnd, HeldOrder, LockRow
+from revisionist.core.realism.offers import OfferStanding, PricedOffer
 from revisionist.core.realism.pipeline import (
     Order,
     OrderStatus,
@@ -789,6 +791,37 @@ class MatterChosen(Model):
     on: date
 
 
+class OfferMade(Model):
+    """A seat offers one price to one bloc of its own nation for one measure whose bill is
+    on its way (PRC). It waits for the next day's batch, which takes or refuses it by
+    content. Sealed to the seats of the bloc's nation."""
+
+    kind: Literal["offer_made"] = "offer_made"
+    offer: PricedOffer
+
+
+class OfferSettled(Model):
+    """Where an offer now stands (PRC): taken or refused by its day's batch, lapsed when
+    its measure did not pass, due once it passed, then kept or broken on its due day.
+    Sealed to the seats of the bloc's nation."""
+
+    kind: Literal["offer_settled"] = "offer_settled"
+    offer_id: Label
+    standing: OfferStanding
+    on: date
+    due: date | None = None
+    """The day the promise is read: on ``due``, ``kept`` and ``broken``."""
+
+    @model_validator(mode="after")
+    def _shape(self) -> "OfferSettled":
+        if self.standing is OfferStanding.FILED:
+            raise ValueError("an offer is filed only by offer_made")
+        owed = self.standing in (OfferStanding.DUE, OfferStanding.KEPT, OfferStanding.BROKEN)
+        if (self.due is not None) != owed:
+            raise ValueError("a due day goes with due, kept and broken only")
+        return self
+
+
 class PieceStepped(Model):
     """A piece entered an area: one step, by order, by the record, or forced. Sealed to the
     seats of the piece's own nation, who know it by its mark (``territory.mark_key``), not
@@ -985,6 +1018,11 @@ class GroupsDeclared(Model):
 
     kind: Literal["groups_declared"] = "groups_declared"
     nations: tuple[NationGroups, ...] = ()
+    classes: tuple[KindClass, ...] = ()
+    """With ``classes`` on, the class the world gives each kind of happening it classes
+    (HCL), in the world file's order."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"classes"})
 
 
 class GroupMoved(Model):
@@ -1499,6 +1537,8 @@ Payload = Annotated[
     | OrderAsked
     | AskAnswered
     | MatterChosen
+    | OfferMade
+    | OfferSettled
     | PieceStepped
     | AreaHeld
     | CaptureCounted
@@ -1608,6 +1648,8 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "order_asked",
         "ask_answered",
         "matter_chosen",
+        "offer_made",
+        "offer_settled",
         "area_held",
         "capture_counted",
         "economy_set",

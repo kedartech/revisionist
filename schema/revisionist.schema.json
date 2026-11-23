@@ -3045,8 +3045,12 @@
           "agreement_broken",
           "measure_passed",
           "war_declared",
+          "daily_life_passed",
           "writing",
-          "drift"
+          "drift",
+          "offer_taken",
+          "promise_kept",
+          "promise_broken"
         ],
         "title": "Cause",
         "type": "string"
@@ -3258,6 +3262,16 @@
         ],
         "title": "ClarificationAsked",
         "type": "object"
+      },
+      "Class": {
+        "description": "How a kind of happening reaches the groups at home (HCL).",
+        "enum": [
+          "felt",
+          "reported",
+          "secret"
+        ],
+        "title": "Class",
+        "type": "string"
       },
       "Classification": {
         "enum": [
@@ -7224,6 +7238,14 @@
             "title": "Name",
             "type": "string"
           },
+          "prices": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Price"
+            },
+            "title": "Prices",
+            "type": "array"
+          },
           "seats": {
             "anyOf": [
               {
@@ -7403,6 +7425,14 @@
         "additionalProperties": false,
         "description": "Each nation's groups at home as the world declares them (GRP), by nation, in the\nworld file's order. Engine only: a seat reads its own nation's groups from its own\ndata; once, at creation.",
         "properties": {
+          "classes": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/KindClass"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
           "kind": {
             "const": "groups_declared",
             "default": "groups_declared",
@@ -7432,7 +7462,8 @@
           "losses_at_sea",
           "agreement_broken",
           "measure_passed",
-          "war_declared"
+          "war_declared",
+          "daily_life_passed"
         ],
         "title": "Happening",
         "type": "string"
@@ -8096,6 +8127,31 @@
         "type": "object"
       },
       "JsonValue": {},
+      "KindClass": {
+        "additionalProperties": false,
+        "description": "The class the world gives a kind of happening (HCL), and the share of it that is\nfelt: 1 for a felt kind, 0 for a reported one unless the world gives a share, which\nmakes the kind mixed (that share felt, the rest reported). A secret kind has none.",
+        "properties": {
+          "felt": {
+            "default": 0.0,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Felt",
+            "type": "number"
+          },
+          "kind": {
+            "$ref": "#/$defs/Happening"
+          },
+          "reach": {
+            "$ref": "#/$defs/Class"
+          }
+        },
+        "required": [
+          "kind",
+          "reach"
+        ],
+        "title": "KindClass",
+        "type": "object"
+      },
       "KindsDeclared": {
         "additionalProperties": false,
         "description": "The world's own piece kinds and resources, in the world file's order. Public; once,\nat creation, before any feature is set.",
@@ -9430,6 +9486,85 @@
         "title": "Offer",
         "type": "object"
       },
+      "OfferMade": {
+        "additionalProperties": false,
+        "description": "A seat offers one price to one bloc of its own nation for one measure whose bill is\non its way (PRC). It waits for the next day's batch, which takes or refuses it by\ncontent. Sealed to the seats of the bloc's nation.",
+        "properties": {
+          "kind": {
+            "const": "offer_made",
+            "default": "offer_made",
+            "title": "Kind",
+            "type": "string"
+          },
+          "offer": {
+            "$ref": "#/$defs/PricedOffer"
+          }
+        },
+        "required": [
+          "offer"
+        ],
+        "title": "OfferMade",
+        "type": "object"
+      },
+      "OfferSettled": {
+        "additionalProperties": false,
+        "description": "Where an offer now stands (PRC): taken or refused by its day's batch, lapsed when\nits measure did not pass, due once it passed, then kept or broken on its due day.\nSealed to the seats of the bloc's nation.",
+        "properties": {
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due"
+          },
+          "kind": {
+            "const": "offer_settled",
+            "default": "offer_settled",
+            "title": "Kind",
+            "type": "string"
+          },
+          "offer_id": {
+            "maxLength": 60,
+            "title": "Offer Id",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "standing": {
+            "$ref": "#/$defs/OfferStanding"
+          }
+        },
+        "required": [
+          "offer_id",
+          "standing",
+          "on"
+        ],
+        "title": "OfferSettled",
+        "type": "object"
+      },
+      "OfferStanding": {
+        "description": "Where an offer stands.",
+        "enum": [
+          "filed",
+          "taken",
+          "refused",
+          "lapsed",
+          "due",
+          "kept",
+          "broken"
+        ],
+        "title": "OfferStanding",
+        "type": "string"
+      },
       "OperationOpened": {
         "additionalProperties": false,
         "properties": {
@@ -10681,6 +10816,218 @@
           }
         },
         "title": "PostureNotSet",
+        "type": "object"
+      },
+      "Price": {
+        "additionalProperties": false,
+        "description": "One thing a bloc will take for its votes on a measure (PRC rule 1).",
+        "properties": {
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
+                "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
+                "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "days": {
+            "maximum": 366,
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "loss": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Loss",
+            "type": "integer"
+          },
+          "points": {
+            "maximum": 20,
+            "minimum": 1,
+            "title": "Points",
+            "type": "integer"
+          },
+          "sentence": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Sentence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "sentence",
+          "condition",
+          "days",
+          "points",
+          "loss"
+        ],
+        "title": "Price",
+        "type": "object"
+      },
+      "PricedOffer": {
+        "additionalProperties": false,
+        "description": "One seat's offer of one price to one bloc for one measure.",
+        "properties": {
+          "bill": {
+            "title": "Bill",
+            "type": "string"
+          },
+          "bloc": {
+            "maxLength": 60,
+            "title": "Bloc",
+            "type": "string"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due"
+          },
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "measure": {
+            "maxLength": 60,
+            "title": "Measure",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "offer_id": {
+            "maxLength": 60,
+            "title": "Offer Id",
+            "type": "string"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "On"
+          },
+          "price": {
+            "maxLength": 60,
+            "title": "Price",
+            "type": "string"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "string"
+          },
+          "standing": {
+            "$ref": "#/$defs/OfferStanding",
+            "default": "filed"
+          }
+        },
+        "required": [
+          "offer_id",
+          "seat",
+          "nation",
+          "bloc",
+          "measure",
+          "price",
+          "bill",
+          "filed"
+        ],
+        "title": "PricedOffer",
         "type": "object"
       },
       "Production": {
@@ -14994,6 +15341,8 @@
             "meter_created": "#/$defs/MeterCreated",
             "narration_written": "#/$defs/NarrationWritten",
             "news_reported": "#/$defs/NewsReported",
+            "offer_made": "#/$defs/OfferMade",
+            "offer_settled": "#/$defs/OfferSettled",
             "operation_opened": "#/$defs/OperationOpened",
             "operation_resolved": "#/$defs/OperationResolved",
             "opponents_ranked": "#/$defs/OpponentsRanked",
@@ -15261,6 +15610,12 @@
           },
           {
             "$ref": "#/$defs/MatterChosen"
+          },
+          {
+            "$ref": "#/$defs/OfferMade"
+          },
+          {
+            "$ref": "#/$defs/OfferSettled"
           },
           {
             "$ref": "#/$defs/PieceStepped"
@@ -17653,6 +18008,16 @@
         "title": "CharacterSide",
         "type": "object"
       },
+      "Class": {
+        "description": "How a kind of happening reaches the groups at home (HCL).",
+        "enum": [
+          "felt",
+          "reported",
+          "secret"
+        ],
+        "title": "Class",
+        "type": "string"
+      },
       "Classification": {
         "enum": [
           "open",
@@ -19902,6 +20267,14 @@
             "title": "Name",
             "type": "string"
           },
+          "prices": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Price"
+            },
+            "title": "Prices",
+            "type": "array"
+          },
           "seats": {
             "anyOf": [
               {
@@ -20006,6 +20379,16 @@
         "additionalProperties": false,
         "description": "Groups' truth. A seat sees its own nation's part only.",
         "properties": {
+          "classes": {
+            "additionalProperties": {
+              "$ref": "#/$defs/KindClass"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Happening"
+            },
+            "title": "Classes",
+            "type": "object"
+          },
           "declared": {
             "additionalProperties": {
               "items": {
@@ -20080,7 +20463,8 @@
           "losses_at_sea",
           "agreement_broken",
           "measure_passed",
-          "war_declared"
+          "war_declared",
+          "daily_life_passed"
         ],
         "title": "Happening",
         "type": "string"
@@ -20584,6 +20968,31 @@
         "type": "object"
       },
       "JsonValue": {},
+      "KindClass": {
+        "additionalProperties": false,
+        "description": "The class the world gives a kind of happening (HCL), and the share of it that is\nfelt: 1 for a felt kind, 0 for a reported one unless the world gives a share, which\nmakes the kind mixed (that share felt, the rest reported). A secret kind has none.",
+        "properties": {
+          "felt": {
+            "default": 0.0,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Felt",
+            "type": "number"
+          },
+          "kind": {
+            "$ref": "#/$defs/Happening"
+          },
+          "reach": {
+            "$ref": "#/$defs/Class"
+          }
+        },
+        "required": [
+          "kind",
+          "reach"
+        ],
+        "title": "KindClass",
+        "type": "object"
+      },
       "Kinds": {
         "additionalProperties": false,
         "description": "The world's piece kinds and resources, by key, in the world file's order.",
@@ -21542,6 +21951,20 @@
         "title": "NewsTopic",
         "type": "string"
       },
+      "OfferStanding": {
+        "description": "Where an offer stands.",
+        "enum": [
+          "filed",
+          "taken",
+          "refused",
+          "lapsed",
+          "due",
+          "kept",
+          "broken"
+        ],
+        "title": "OfferStanding",
+        "type": "string"
+      },
       "Order": {
         "additionalProperties": false,
         "properties": {
@@ -22310,6 +22733,218 @@
           }
         },
         "title": "PostureNotSet",
+        "type": "object"
+      },
+      "Price": {
+        "additionalProperties": false,
+        "description": "One thing a bloc will take for its votes on a measure (PRC rule 1).",
+        "properties": {
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
+                "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
+                "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "days": {
+            "maximum": 366,
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "loss": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Loss",
+            "type": "integer"
+          },
+          "points": {
+            "maximum": 20,
+            "minimum": 1,
+            "title": "Points",
+            "type": "integer"
+          },
+          "sentence": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Sentence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "sentence",
+          "condition",
+          "days",
+          "points",
+          "loss"
+        ],
+        "title": "Price",
+        "type": "object"
+      },
+      "PricedOffer": {
+        "additionalProperties": false,
+        "description": "One seat's offer of one price to one bloc for one measure.",
+        "properties": {
+          "bill": {
+            "title": "Bill",
+            "type": "string"
+          },
+          "bloc": {
+            "maxLength": 60,
+            "title": "Bloc",
+            "type": "string"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due"
+          },
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "measure": {
+            "maxLength": 60,
+            "title": "Measure",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "offer_id": {
+            "maxLength": 60,
+            "title": "Offer Id",
+            "type": "string"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "On"
+          },
+          "price": {
+            "maxLength": 60,
+            "title": "Price",
+            "type": "string"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "string"
+          },
+          "standing": {
+            "$ref": "#/$defs/OfferStanding",
+            "default": "filed"
+          }
+        },
+        "required": [
+          "offer_id",
+          "seat",
+          "nation",
+          "bloc",
+          "measure",
+          "price",
+          "bill",
+          "filed"
+        ],
+        "title": "PricedOffer",
         "type": "object"
       },
       "Production": {
@@ -25719,6 +26354,14 @@
         "title": "News",
         "type": "object"
       },
+      "offers": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/PricedOffer"
+        },
+        "title": "Offers",
+        "type": "array"
+      },
       "opponents": {
         "additionalProperties": {
           "items": {
@@ -27530,6 +28173,16 @@
         ],
         "title": "CharacterSide",
         "type": "object"
+      },
+      "Class": {
+        "description": "How a kind of happening reaches the groups at home (HCL).",
+        "enum": [
+          "felt",
+          "reported",
+          "secret"
+        ],
+        "title": "Class",
+        "type": "string"
       },
       "Classification": {
         "enum": [
@@ -29456,6 +30109,14 @@
             "title": "Name",
             "type": "string"
           },
+          "prices": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Price"
+            },
+            "title": "Prices",
+            "type": "array"
+          },
           "seats": {
             "anyOf": [
               {
@@ -29526,6 +30187,16 @@
         "additionalProperties": false,
         "description": "Groups' truth. A seat sees its own nation's part only.",
         "properties": {
+          "classes": {
+            "additionalProperties": {
+              "$ref": "#/$defs/KindClass"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Happening"
+            },
+            "title": "Classes",
+            "type": "object"
+          },
           "declared": {
             "additionalProperties": {
               "items": {
@@ -29600,7 +30271,8 @@
           "losses_at_sea",
           "agreement_broken",
           "measure_passed",
-          "war_declared"
+          "war_declared",
+          "daily_life_passed"
         ],
         "title": "Happening",
         "type": "string"
@@ -30021,6 +30693,31 @@
         "type": "object"
       },
       "JsonValue": {},
+      "KindClass": {
+        "additionalProperties": false,
+        "description": "The class the world gives a kind of happening (HCL), and the share of it that is\nfelt: 1 for a felt kind, 0 for a reported one unless the world gives a share, which\nmakes the kind mixed (that share felt, the rest reported). A secret kind has none.",
+        "properties": {
+          "felt": {
+            "default": 0.0,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Felt",
+            "type": "number"
+          },
+          "kind": {
+            "$ref": "#/$defs/Happening"
+          },
+          "reach": {
+            "$ref": "#/$defs/Class"
+          }
+        },
+        "required": [
+          "kind",
+          "reach"
+        ],
+        "title": "KindClass",
+        "type": "object"
+      },
       "Kinds": {
         "additionalProperties": false,
         "description": "The world's piece kinds and resources, by key, in the world file's order.",
@@ -30755,6 +31452,20 @@
         ],
         "title": "NationVote",
         "type": "object"
+      },
+      "OfferStanding": {
+        "description": "Where an offer stands.",
+        "enum": [
+          "filed",
+          "taken",
+          "refused",
+          "lapsed",
+          "due",
+          "kept",
+          "broken"
+        ],
+        "title": "OfferStanding",
+        "type": "string"
       },
       "Order": {
         "additionalProperties": false,
@@ -31632,6 +32343,218 @@
           }
         },
         "title": "PostureNotSet",
+        "type": "object"
+      },
+      "Price": {
+        "additionalProperties": false,
+        "description": "One thing a bloc will take for its votes on a measure (PRC rule 1).",
+        "properties": {
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
+                "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
+                "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "days": {
+            "maximum": 366,
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "loss": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Loss",
+            "type": "integer"
+          },
+          "points": {
+            "maximum": 20,
+            "minimum": 1,
+            "title": "Points",
+            "type": "integer"
+          },
+          "sentence": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Sentence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "sentence",
+          "condition",
+          "days",
+          "points",
+          "loss"
+        ],
+        "title": "Price",
+        "type": "object"
+      },
+      "PricedOffer": {
+        "additionalProperties": false,
+        "description": "One seat's offer of one price to one bloc for one measure.",
+        "properties": {
+          "bill": {
+            "title": "Bill",
+            "type": "string"
+          },
+          "bloc": {
+            "maxLength": 60,
+            "title": "Bloc",
+            "type": "string"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due"
+          },
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "measure": {
+            "maxLength": 60,
+            "title": "Measure",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "offer_id": {
+            "maxLength": 60,
+            "title": "Offer Id",
+            "type": "string"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "On"
+          },
+          "price": {
+            "maxLength": 60,
+            "title": "Price",
+            "type": "string"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "string"
+          },
+          "standing": {
+            "$ref": "#/$defs/OfferStanding",
+            "default": "filed"
+          }
+        },
+        "required": [
+          "offer_id",
+          "seat",
+          "nation",
+          "bloc",
+          "measure",
+          "price",
+          "bill",
+          "filed"
+        ],
+        "title": "PricedOffer",
         "type": "object"
       },
       "Production": {
@@ -34057,6 +34980,14 @@
         },
         "title": "Meters",
         "type": "object"
+      },
+      "offers": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/PricedOffer"
+        },
+        "title": "Offers",
+        "type": "array"
       },
       "orders": {
         "additionalProperties": {

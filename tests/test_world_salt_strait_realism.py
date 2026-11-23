@@ -733,6 +733,9 @@ ABSENT_ON_PURPOSE = {
     "clocks": "the older ruleset only",
     "facts": "the older ruleset only",
     "commitments": "the older ruleset only",
+    "groups.groups.prices": "no bloc is offered a price: offers stay off",
+    "happenings": "classes stay off: every kind of happening is reported",
+    "happenings.felt": "classes stay off: no kind is part felt",
 }
 """The questions on main that Salt Strait leaves unanswered, each on purpose, by the first
 key of its row in ``worlds/TEMPLATE.md``, with why (SSO rule 4)."""

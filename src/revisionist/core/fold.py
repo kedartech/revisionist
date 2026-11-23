@@ -50,7 +50,16 @@ from revisionist.core.ontology import (
     SeatKind,
     SeatStatus,
 )
-from revisionist.core.realism import agreement, conference, detect, economy, groups, locks, trade
+from revisionist.core.realism import (
+    agreement,
+    conference,
+    detect,
+    economy,
+    groups,
+    locks,
+    offers,
+    trade,
+)
 from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, PlayStyle, opening_id
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
@@ -89,7 +98,7 @@ from revisionist.core.realism.pipeline import (
     StepKind,
 )
 from revisionist.core.realism.territory import holder as territory_holder
-from revisionist.core.realism.war import at_war
+from revisionist.core.realism.war import at_war, polity_of
 from revisionist.core.state import Rule, State, Wake, controller_after, seat_of_person
 from revisionist.core.visibility import PUBLIC, Scope
 
@@ -347,7 +356,11 @@ def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
         found[nation.nation] = nation.groups
         if nation.themes:
             themes[nation.nation] = nation.themes
-    g = state.groups.model_copy(update={"declared": found, "themes": themes})
+    classes: dict[groups.Happening, groups.KindClass] = {}
+    for c in p.classes:
+        _fresh(classes, c.kind, "class of happening")
+        classes[c.kind] = c
+    g = state.groups.model_copy(update={"declared": found, "themes": themes, "classes": classes})
     return state.model_copy(update={"groups": g})
 
 
@@ -379,6 +392,51 @@ def _group_moved(state: State, p: ev.GroupMoved) -> State:
     elif p.used:
         raise FoldError("group_moved: only writing spends points")
     return state.model_copy(update={"groups": g.model_copy(update=update)})
+
+
+def _offer_made(state: State, p: ev.OfferMade) -> State:
+    """A seat's offer of a price to a bloc of its own nation for a measure the world
+    declares, waiting for its batch, with ``offers`` on (PRC)."""
+    o = p.offer
+    if not offers.on(state):
+        raise FoldError("offer_made needs the offers rule")
+    if o.standing is not offers.OfferStanding.FILED:
+        raise FoldError("offer_made: an offer is made filed")
+    _need(state.seats, o.seat, "seat")
+    if polity_of(state, state.seats[o.seat].embodies) != o.nation:
+        raise FoldError(f"offer_made: {o.seat} is not a seat of {o.nation}")
+    if offers.price(state, o.nation, o.bloc, o.price) is None:
+        raise FoldError(f"offer_made: {o.nation} {o.bloc} has no price {o.price}")
+    if offers.law(state, o.nation, o.measure) is None:
+        raise FoldError(f"offer_made: {o.nation} has no law {o.measure}")
+    if any(x.offer_id == o.offer_id for x in state.offers):
+        raise FoldError(f"offer_made: {o.offer_id} is made twice")
+    return state.model_copy(update={"offers": (*state.offers, o)})
+
+
+def _offer_settled(state: State, p: ev.OfferSettled) -> State:
+    """An offer moves on from where it stands, once a day at most and never back; one
+    offer at most holds a bloc on a measure (PRC)."""
+    if not offers.on(state):
+        raise FoldError("offer_settled needs the offers rule")
+    found = next((o for o in state.offers if o.offer_id == p.offer_id), None)
+    if found is None:
+        raise FoldError(f"offer_settled: no offer {p.offer_id}")
+    if p.standing not in offers.NEXT.get(found.standing, frozenset()):
+        raise FoldError(
+            f"offer_settled: {p.offer_id} cannot go from {found.standing} to {p.standing}"
+        )
+    if p.on < (found.on or found.filed):
+        raise FoldError(f"offer_settled: {p.offer_id} moves before it last moved")
+    if found.due is not None and (p.due != found.due or p.on < found.due):
+        raise FoldError(f"offer_settled: {p.offer_id} is judged only on or after its due day")
+    if p.standing in offers.LIVE_STANDINGS and found.standing not in offers.LIVE_STANDINGS:
+        held = offers.live(state, found.nation, found.bloc, found.measure)
+        if held is not None:
+            raise FoldError(f"offer_settled: {found.bloc} is held on {found.measure} already")
+    moved = found.model_copy(update={"standing": p.standing, "on": p.on, "due": p.due})
+    out = tuple(moved if o.offer_id == p.offer_id else o for o in state.offers)
+    return state.model_copy(update={"offers": out})
 
 
 def _agreement_event(state: State, p: ev.Payload) -> State:
@@ -818,6 +876,8 @@ def _mutate(state: State, event: Event) -> State:
             | ev.OrderAsked()
             | ev.AskAnswered()
             | ev.MatterChosen()
+            | ev.OfferMade()
+            | ev.OfferSettled()
             | ev.AreaHeld()
             | ev.CaptureCounted()
             | ev.EconomySet()
@@ -1257,6 +1317,10 @@ def _realism(state: State, p: ev.Payload) -> State:
             return _ask_answered(state, p)
         case ev.MatterChosen():
             return _matter_chosen(state, p)
+        case ev.OfferMade():
+            return _offer_made(state, p)
+        case ev.OfferSettled():
+            return _offer_settled(state, p)
         case ev.IntelligenceDeclared():
             if Rule.REPORTS not in state.rules:
                 raise FoldError("intelligence_declared needs the reports rule")

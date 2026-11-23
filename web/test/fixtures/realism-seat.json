@@ -4734,5 +4734,100 @@
       "who": null,
       "reason": "march takes exactly: force, to"
     }
-  ]
+  ],
+  "own_aim": {
+    "aim": 3,
+    "replaces": "Hold the plain.",
+    "patterns": [
+      {
+        "key": "keep_support",
+        "sentence": "Keep {group} at {line} or more.",
+        "blanks": [
+          {
+            "name": "group",
+            "values": [
+              {
+                "value": "smiths",
+                "label": "The Smiths' Guild"
+              },
+              {
+                "value": "greens",
+                "label": "The Greens"
+              },
+              {
+                "value": "greys",
+                "label": "The Greys"
+              },
+              {
+                "value": "public",
+                "label": "The Norra Public"
+              }
+            ]
+          },
+          {
+            "name": "line",
+            "values": [
+              {
+                "value": 55,
+                "label": "55"
+              },
+              {
+                "value": 65,
+                "label": "65"
+              },
+              {
+                "value": 75,
+                "label": "75"
+              }
+            ]
+          }
+        ],
+        "difficulty": 3,
+        "government": false
+      },
+      {
+        "key": "make_peace",
+        "sentence": "Make peace with {foe}.",
+        "blanks": [
+          {
+            "name": "foe",
+            "values": [
+              {
+                "value": "TZHP5CPZR27M6255484EX48TQ6",
+                "label": "Sudland"
+              }
+            ]
+          }
+        ],
+        "difficulty": 4,
+        "government": false
+      },
+      {
+        "key": "take_ground",
+        "sentence": "Take {place} for {nation}.",
+        "blanks": [
+          {
+            "name": "place",
+            "values": [
+              {
+                "value": "CDXQ7JQD821DB2N9ZT74ZX7Q73",
+                "label": "The Sudland Coast"
+              },
+              {
+                "value": "8G8AZ9CP6FGAQ40JKEY4K0V9BS",
+                "label": "The Isle"
+              }
+            ]
+          }
+        ],
+        "difficulty": 4,
+        "government": true
+      }
+    ]
+  },
+  "aim_check": {
+    "stands": true,
+    "text": "Take The Isle for Norra.",
+    "reasons": []
+  }
 }

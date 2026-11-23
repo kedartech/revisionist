@@ -571,10 +571,25 @@ NINETEEN_41: tuple[Case, ...] = (
         "Send two of the fleet's divisions in to Kure.",
         move("combined_fleet", "kure"),
     ),
+    # Admiral Iachino: the moves no lock holds
+    f41(
+        "iachino",
+        "battle_fleet_move",
+        {"force": "italian_fleet", "to": "tripoli"},
+        "Take the battle fleet to Tripoli.",
+        move("italian_fleet", "tripoli"),
+    ),
+    f41(
+        "iachino",
+        "battle_fleet_detach",
+        {"force": "italian_fleet", "to": "tripoli", "strength": "2"},
+        "Send two of the fleet's divisions on to Tripoli.",
+        move("italian_fleet", "tripoli"),
+    ),
 )
 """Every form on every playable card of Autumn 1941; Admiral King's naval order once in
-each zone it names, the war zone included; Admiral Tovey's, Admiral Dönitz's and Admiral
-Yamamoto's two forms where no lock holds them."""
+each zone it names, the war zone included; Admiral Tovey's, Admiral Dönitz's, Admiral
+Yamamoto's and Admiral Iachino's two forms where no lock holds them."""
 
 
 # --- Salt Strait -------------------------------------------------------------------------
@@ -681,6 +696,10 @@ TIMING = "core lane fix item: a written order lands on the day its form would"
 AUTHORITY = "data lane fix item: a card's authority covers every order its forms give"
 WAR = "core lane fix item: a written declaration of war declares the war"
 DETACH = "core lane fix item: a written detachment moves only the strength it names"
+STAMP = (
+    "core lane fix item: a written engagement that sets no force's rule leaves the dates of"
+    " the forces its domain names as they were"
+)
 INERT = "core lane fix item for the forms that change nothing (EFD's list)"
 AUDIENCE = (
     "core lane fix item: a written statement to another nation lands as its form does"
@@ -737,6 +756,7 @@ FIXES: dict[str, str] = {
     "1941.tojo.send_on_patrol": AUTHORITY,
     "1941.tojo.send_an_agent": AUTHORITY,
     "1941.tojo.hide_a_force": AUTHORITY,
+    "1941.mussolini.libya_convoys": STAMP,
     "1941.mussolini.production_priority": PRODUCTION,
     "1941.mussolini.move_fleet": AUTHORITY,
     "1941.mussolini.move_army": AUTHORITY,
@@ -752,6 +772,7 @@ FIXES: dict[str, str] = {
     "1941.tovey.home_fleet_detach": DETACH,
     "1941.doenitz.uboat_detach": DETACH,
     "1941.yamamoto.combined_fleet_detach": DETACH,
+    "1941.iachino.battle_fleet_detach": DETACH,
     "salt.oren_vale.move_force": TIMING,
     "salt.oren_vale.declare_war": WAR,
     "salt.oren_vale.galley_patrol": TIMING,

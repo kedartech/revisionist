@@ -73,6 +73,40 @@ test('months of fuel are said under the fuel resource\'s own name when a stock i
   assert.equal(words(el.querySelector('.rl-eco-fuel')), 'Pitch lasts 3.5 months at this income');
 });
 
+test('the fuel stock is drawn as a mark of twelve months with its number, beside the months it lasts', () => {
+  const v = rv();
+  v.economy.own.pools.fuel = 420;
+  v.economy.own.fuel_months = 3.5;
+  const el = strip(v);
+  fire(chip(el, NORRA), 'click');
+  const row = el.querySelector('.rl-eco-fuelrow');
+  assert.ok(row, 'the stock and the months sit in one row');
+  assert.equal(words(row.querySelector('.rl-eco-stock')), 'Pitch stock 420');
+  const cells = row.querySelectorAll('.rl-eco-stockbar i');
+  assert.equal(cells.length, 12);
+  assert.equal(cells.filter((c) => c.getAttribute('data-on') === 'true').length, 4, '3.5 months fills four cells');
+  assert.equal(words(row.querySelector('.rl-eco-fuel')), 'Pitch lasts 3.5 months at this income');
+});
+
+test('a stock with no fuel income is drawn as an empty mark, and no stock sent draws none', () => {
+  const v = rv();
+  v.economy.own.pools.fuel = 90;
+  const el = strip(v);
+  fire(chip(el, NORRA), 'click');
+  assert.equal(words(el.querySelector('.rl-eco-stock')), 'Pitch stock 90');
+  assert.equal(el.querySelectorAll('.rl-eco-stockbar i').filter((c) => c.getAttribute('data-on') === 'true').length, 0);
+  const none = strip(rv());
+  fire(chip(none, NORRA), 'click');
+  assert.equal(none.querySelectorAll('.rl-eco-stock').length, 0);
+});
+
+test('the stock mark is drawn from tokens only and the sheet\'s row wraps', () => {
+  const css = read('css/c-economy.css');
+  assert.equal(css.match(/#[0-9a-fA-F]{3,8}\b|rgba?\(|hsl/g), null);
+  assert.match(css, /\.rl-eco-stockbar i\[data-on="true"\] \{[^}]*background: var\(--/);
+  assert.match(css, /\.rl-eco-fuelrow \{[^}]*flex-wrap: wrap/);
+});
+
 test('the sheet lists the territories that pay less than they print, and why', () => {
   const v = rv();
   const hills = v.map.areas.find((a) => a.key === 'norra_hills');

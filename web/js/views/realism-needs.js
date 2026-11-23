@@ -164,7 +164,7 @@ export function areaCentre(map, shapes, key) {
   const label = shapes?.areas?.[key]?.label;
   if (!label) return null;
   const proj = territoryProjection(map.coords ?? shapes.coords, boxOf(map.box ?? shapes.box));
-  return [proj.x(label[0]), proj.y(label[1])];
+  return proj.point(label);
 }
 
 const badge = (n) => (n > 0 ? h('span', { class: 'badge tone-warn rl-needs-count' }, String(n)) : null);

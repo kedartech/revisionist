@@ -12,6 +12,7 @@ installDom();
 const { MAP_PROJECTION, PROJECTIONS, boxOf, frameRect, territoryProjection, trace } = await import('../js/map/projection.js');
 const { areaAt } = await import('../js/map/hit.js');
 const { territoryDrawing } = await import('../js/views/realism-territory.js');
+const { areaCentre } = await import('../js/views/realism-needs.js');
 
 const WORLD = JSON.parse(readFileSync(new URL('../../worlds/maps/autumn-1941.json', import.meta.url)));
 const BOX = boxOf(WORLD.box);
@@ -151,6 +152,14 @@ test('each 1941 area\'s label point falls inside its own projected shape', () =>
     assert.ok(near(xy[0], lx, 0.006) && near(xy[1], ly, 0.006), `${key}: the label is at its projected point`);
     assert.ok(inside(paths.get(key), xy), `${key}: its label point is inside its drawn shape`);
   }
+});
+
+test('the room centres the map on an area at its label\'s projected point, on both kinds of map', () => {
+  const proj = territoryProjection('lonlat', BOX);
+  const key = Object.keys(WORLD.areas)[0];
+  assert.deepEqual(areaCentre(blockOf(WORLD), WORLD, key), proj.point(WORLD.areas[key].label));
+  const flat = { coords: 'flat', box: [0, 0, 300, 200], vertices: [], areas: { a: { rings: [], label: [250, 100] } } };
+  assert.deepEqual(areaCentre({ box: flat.box }, flat, 'a'), [250, 100]);
 });
 
 // --- Rule 2: a tap is turned back by the inverse -------------------------------------------

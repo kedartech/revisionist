@@ -7,12 +7,15 @@ client is sent the proposal in words.
 
 import json
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
+from itertools import zip_longest
 from typing import Any
 
-from pydantic import ValidationError
+from pydantic import Field, ValidationError
 
+from revisionist.core import events as ev
 from revisionist.core._base import Model
 from revisionist.core.canary import scan_text
 from revisionist.core.ids import CampaignId, EntityId, SeatId
@@ -20,7 +23,7 @@ from revisionist.core.ontology import EntityKind
 from revisionist.core.project import project
 from revisionist.core.realism import agreement, conference
 from revisionist.core.realism.agenda import Ask, Option
-from revisionist.core.realism.card import ChannelKind, words
+from revisionist.core.realism.card import ChannelKind, Lever, ParamKind, ParamSpec, words
 from revisionist.core.realism.conference import Vote
 from revisionist.core.realism.effect import (
     MAX_PARTIES,
@@ -28,21 +31,31 @@ from revisionist.core.realism.effect import (
     Allocate,
     ClauseType,
     Deal,
+    Effect,
+    Engagement,
+    IntelOrder,
     Investigate,
+    MoveForce,
+    Posture,
     Route,
     SetEngagement,
 )
-from revisionist.core.realism.locks import HeldOrder
+from revisionist.core.realism.locks import HeldOrder, zone_of
 from revisionist.core.realism.reach import channels_to
+from revisionist.core.realism.resolvers import intel
+from revisionist.core.realism.resolvers.movement import FORCE, TO
+from revisionist.core.realism.resolvers.production import _matter
+from revisionist.core.realism.resolvers.shipping import ESCORT_LEVEL
 from revisionist.core.realism.route import held, route
 from revisionist.core.realism.war import polity_of
 from revisionist.core.state import Rule, State, View
+from revisionist.core.world_compile import object_id
+from revisionist.engine import realism_tick
 from revisionist.engine.aide import AIDE_MODEL
 from revisionist.engine.directive import TEXT_MAX
 from revisionist.engine.llm import (
     Request,
     Transport,
-    TransportError,
     cli_schema,
     prompt_text,
     quote_player,
@@ -92,6 +105,9 @@ class Reading:
     vote: tuple[str, conference.Vote] | None = None
     """A written vote (CNF): the conference's key and the vote. Signing seals it as the
     conference's vote action does; ``asks`` stays empty, for it is not an order."""
+    forms: "tuple[Twin | None, ...]" = ()
+    """One per ask: the seat's own form that gives it, as signing files it (``twin``), or
+    None for an ask no form gives, routed as written."""
 
 
 class _Treaty(Model):
@@ -107,12 +123,25 @@ class _Reply(Model):
     reason: str = ""
 
 
-class _TreatyReply(_Reply):
-    """The reply with written orders on: it may also carry a treaty. A separate schema,
-    so a world with the rule off sends the request it always sent (recordings keep their
-    keys)."""
+class _WrittenAsk(Ask):
+    """An ask as the reader gives it with written orders on: it may name the values of its
+    form's parameters that its effect cannot hold."""
 
+    detail: dict[str, str | int] = Field(default_factory=dict)
+
+
+class _War(Model):
+    target: EntityId
+
+
+class _TreatyReply(_Reply):
+    """The reply with written orders on: it may also carry a treaty, a declaration of war,
+    and an ask's detail. A separate schema, so a world with the rule off sends the request
+    it always sent (recordings keep their keys)."""
+
+    asks: tuple[_WrittenAsk, ...]
     treaty: _Treaty | None = None
+    war: _War | None = None
 
 
 class _Ballot(Model):
@@ -144,6 +173,11 @@ TREATY_PROMPT = (
     "`on` (a date) when the order dates it. Propose a clause only where the words plainly "
     "say it; wording that fits no listed type is left out, and the order's own words stay "
     "as written. Never write a summary of the terms.\n"
+    "- `asks[].detail`: only when the ask fills one of the seat's `forms` and the order names "
+    "a value its effect cannot hold, such as a strength or a route: that parameter's name and "
+    "the value as the form takes it. Otherwise leave it out.\n"
+    "- `war`: only when the order declares war: `target`, the entity id of the nation. Leave "
+    "`asks` empty. Otherwise leave `war` out.\n"
 )
 
 
@@ -198,6 +232,7 @@ def orders_prompt(
     *,
     clauses: bool = False,
     conferences: bool = False,
+    forms: bool = False,
 ) -> str:
     """The seat's own view, compact: desk, date, the objects it may name, then the words.
     A player's words, the order's and each conference text's, stand only in quoted blocks."""
@@ -231,6 +266,11 @@ def orders_prompt(
     }
     if clauses:
         world["clause_list"] = _clause_list(view)
+    if forms and desk is not None:
+        world["forms"] = [
+            {"name": x.name, "params": {p.name: list(p.choices) or p.kind.value for p in x.params}}
+            for x in desk.levers
+        ]
     held = [
         c
         for c in (view.conferences.held.values() if conferences else ())
@@ -262,13 +302,18 @@ def _nation_of(view: View) -> EntityId | None:
     return None
 
 
-def _asked(raw: object) -> list[Ask]:
-    """Asks the reply holds that fit the schema; the rest, an unknown effect kind among
-    them, are dropped."""
-    out: list[Ask] = []
+def _asked(raw: object, written: bool = False) -> list[tuple[Ask, dict[str, str]]]:
+    """Asks the reply holds that fit the schema, each with its detail (written orders on
+    only); the rest, an unknown effect kind among them, are dropped."""
+    out: list[tuple[Ask, dict[str, str]]] = []
     for item in raw if isinstance(raw, list) else []:
         try:
-            out.append(Ask.model_validate(item))
+            if written and isinstance(item, dict) and "detail" in item:
+                read = _WrittenAsk.model_validate(item)
+                extra = {k: str(v) for k, v in read.detail.items()}
+                out.append((Ask.model_validate(read.model_dump(exclude={"detail"})), extra))
+            else:
+                out.append((Ask.model_validate(item), {}))
         except ValidationError:
             continue
     return out[:MAX_ASKS]
@@ -429,6 +474,168 @@ def _fallback_parties(state: State, me: EntityId, who: EntityId | None) -> tuple
     return (other,) if other is not None and other != polity_of(state, me) else ()
 
 
+Twin = tuple[str, dict[str, str]]
+"""A form of the seat's own and its parameters as the form takes them."""
+
+RULE_LEVEL = {Engagement.HOLD_FIRE: 0, Engagement.ESCORT: 1, Engagement.SHOOT_ON_SIGHT: 2}
+"""[proposed] The escort level an engagement's rule stands for, as a naval order's choice
+marks it (ESC): holding fire is no escort."""
+
+
+def _choice(state: State, spec: ParamSpec | None, kind: str, value: str | None) -> str | None:
+    """The choice of ``spec`` whose world key compiles to ``value``."""
+    if spec is None or value is None:
+        return None
+    return next((c for c in spec.choices if object_id(state.campaign_id, kind, c) == value), None)
+
+
+def _moved(state: State, lever: Lever, effect: Effect) -> dict[str, str] | None:
+    """A movement form's force and destination: a move with no posture."""
+    if not isinstance(effect, MoveForce) or effect.to is None or effect.posture is not None:
+        return None
+    params = {p.name: p for p in lever.params}
+    force = _choice(state, params.get(FORCE), "feature", effect.force)
+    to = _choice(state, params.get(TO), "entity", effect.to)
+    return None if force is None or to is None else {FORCE: force, TO: to}
+
+
+def _intel(state: State, seat: SeatId, lever: Lever, effect: Effect) -> dict[str, str] | None:
+    """An intelligence form's parameters, for the order its effect stands for: the effect
+    ``intel.effect_of`` gives, and for a concealment, whichever rule it names."""
+    form = intel.form_of(lever)
+    params = {p.name: p for p in lever.params}
+    piece, area = params.get(intel.PIECE), params.get(intel.AREA)
+    found: dict[str, str | None] | None = None
+    if form is intel.Form.RECON and isinstance(effect, Investigate):
+        if effect.intel is IntelOrder.RECON:
+            found = {
+                intel.PIECE: _choice(state, piece, "feature", effect.flier),
+                intel.AREA: _choice(state, area, "entity", effect.target),
+            }
+    elif form is intel.Form.AGENT and isinstance(effect, Investigate):
+        if effect.intel is IntelOrder.AGENT:
+            found = {intel.AREA: _choice(state, area, "entity", effect.target)}
+    elif form is intel.Form.PATROL and isinstance(effect, MoveForce):
+        if effect.posture is Posture.PATROL and effect.to is None:
+            found = {intel.PIECE: _choice(state, piece, "feature", effect.force)}
+    elif form is intel.Form.CODEBREAKING and isinstance(effect, Allocate):
+        own = polity_of(state, state.seats[seat].embodies)
+        if effect.intel is IntelOrder.CODEBREAKING and effect.recipient == own:
+            found = {}
+    elif form is intel.Form.CONCEAL and isinstance(effect, SetEngagement):
+        if effect.concealed is not None and effect.contingency is None:
+            shown = intel.YES if effect.concealed else "no"
+            hidden = params.get(intel.CONCEALED)
+            found = {
+                intel.PIECE: _choice(state, piece, "feature", effect.force),
+                intel.CONCEALED: shown if hidden is not None and shown in hidden.choices else None,
+            }
+    if form is None or found is None or any(v is None for v in found.values()):
+        return None
+    return {intel.INTEL: form.value} | {k: v for k, v in found.items() if v is not None}
+
+
+def _escort(state: State, lever: Lever, effect: Effect) -> dict[str, str] | None:
+    """A naval order's escort value and waters: an engagement in a zone, its rule read as
+    the escort level the world marks on the choice."""
+    if not isinstance(effect, SetEngagement) or len(lever.params) != 2:
+        return None
+    if effect.concealed is not None or effect.contingency is not None:
+        return None
+    levels = lever.escort_levels or ESCORT_LEVEL
+    order = next((p for p in lever.params if p.choices and set(p.choices) <= set(levels)), None)
+    waters = next((p for p in lever.params if p is not order), None)
+    want = RULE_LEVEL.get(effect.rule)
+    if order is None or waters is None or want is None:
+        return None
+    zone = zone_of(state, effect.zone)
+    where = next(
+        (
+            c
+            for c in waters.choices
+            if c == effect.zone or object_id(state.campaign_id, "entity", c) == zone
+        ),
+        None,
+    )
+    chosen = next((c for c in order.choices if levels.get(c) == want), None)
+    return None if where is None or chosen is None else {order.name: chosen, waters.name: where}
+
+
+def _aid(state: State, lever: Lever, effect: Effect) -> dict[str, str] | None:
+    """An aid finding's recipient and share: an allocation, in per cent, of what the
+    finding's receipt names."""
+    keys = state.map.production if state.map is not None else None
+    if keys is None or not any(f.form == lever.name for f in keys.findings):
+        return None
+    if not isinstance(effect, Allocate) or effect.intel is not None or effect.unit != "percent":
+        return None
+    if effect.what != _matter(state, lever.name):
+        return None
+    out: dict[str, str] = {}
+    for spec in lever.params:
+        if (c := _choice(state, spec, "entity", effect.recipient)) is not None:
+            out[spec.name] = c
+        elif spec.kind is ParamKind.INT and spec.lo is not None and spec.hi is not None:
+            if spec.lo <= effect.amount <= spec.hi:
+                out[spec.name] = str(effect.amount)
+    return out if len(out) == 2 else None
+
+
+def _filled(state: State, seat: SeatId, lever: Lever, effect: Effect) -> dict[str, str] | None:
+    """The parameters of ``lever`` the effect names, when its form gives that effect."""
+    if lever.resolver == "movement":
+        return _moved(state, lever, effect)
+    if lever.resolver == "intel":
+        return _intel(state, seat, lever, effect)
+    if lever.resolver == "shipping":
+        return _escort(state, lever, effect)
+    if lever.resolver == "production":
+        return _aid(state, lever, effect)
+    return None
+
+
+def twin(state: State, seat: SeatId, ask: Ask, detail: dict[str, str]) -> Twin | None:
+    """The one form on the seat's card that gives the ask's effect, with every parameter
+    filled: from the effect, and from ``detail`` for what the effect cannot hold. A detail
+    never names what the effect fills. None when no form, or more than one, fits."""
+    card = state.cards.get(state.seats[seat].embodies)
+    if card is None or ask.effect is None:
+        return None
+    found: list[Twin] = []
+    for lever in card.levers:
+        filled = _filled(state, seat, lever, ask.effect)
+        if filled is None or set(filled) & set(detail):
+            continue
+        given = filled | detail
+        if set(given) == {p.name for p in lever.params}:
+            found.append((lever.name, given))
+    return found[0] if len(found) == 1 else None
+
+
+def _war_reading(
+    state: State, seat: SeatId, text: str, raw: object, person: str | None, channel: str | None
+) -> Reading:
+    """A written declaration of war, read into the seat's own form that declares it on
+    that nation; refused when the card has none."""
+    try:
+        war = _War.model_validate(raw)
+    except ValidationError:
+        return _unfileable(text, UNREADABLE, person, channel)
+    nation = state.entities.get(war.target)
+    card = state.cards.get(state.seats[seat].embodies)
+    for lever in card.levers if card is not None and nation is not None else ():
+        params = [p for p in lever.params if p.kind is ParamKind.ENUM]
+        target = [(p.name, c) for p in params if (c := _choice(state, p, "entity", war.target))]
+        if lever.resolver == "war" and len(target) == 1 and len(lever.params) == 1:
+            assert nation is not None
+            ask = Ask(ask=f"Declare war on {nation.name}.", target=war.target)
+            shown = OrderProposal(
+                person=person, channel=channel, text=text, parts=[ask.ask], reason=None
+            )
+            return Reading(shown=shown, asks=(ask,), forms=((lever.name, dict(target)),))
+    return _unfileable(text, TO_THE_FORM, person, channel)
+
+
 def read_order(
     state: State, seat: SeatId, to: str, channel: str, text: str, transport: Transport
 ) -> Reading:
@@ -466,34 +673,29 @@ def read_order(
             return _unfileable(text, f"You cannot reach {name} that way.", name)
     said = words(how.value) if how is not None else None
 
-    try:
-        reply = transport.call(
-            Request(
-                call_class=CALL_CLASS,
-                model=AIDE_MODEL,
-                system=system,
-                prompt=orders_prompt(
-                    view,
-                    name or "",
-                    (said or "").lower(),
-                    text,
-                    clauses=reads_clauses,
-                    conferences=votes,
-                ),
-                schema=cli_schema(schema),
-                player_text=True,
-            )
+    reply = transport.call(
+        Request(
+            call_class=CALL_CLASS,
+            model=AIDE_MODEL,
+            system=system,
+            prompt=orders_prompt(
+                view,
+                name or "",
+                (said or "").lower(),
+                text,
+                clauses=reads_clauses,
+                conferences=votes,
+                forms=written,
+            ),
+            schema=cli_schema(schema),
+            player_text=True,
         )
-    except TransportError:
-        other = _fallback_parties(state, me, who) if written and agreement.on(state) else ()
-        if not other:
-            raise
-        return _treaty_reading(
-            state, view, seat, text, other, (), note=NO_CLAUSES, person=name, channel=said
-        )
+    )
     out = reply.output if isinstance(reply.output, dict) else {}
     if votes and isinstance(out.get("vote"), dict):
         return _vote_reading(state, seat, text, out["vote"], name, said)
+    if written and out.get("war") is not None and not out.get("asks"):
+        return _war_reading(state, seat, text, out["war"], name, said)
     found = out.get("treaty")
     if isinstance(found, dict) and found.get("parties"):
         if not written:
@@ -528,22 +730,26 @@ def read_order(
         )
     if who is None:
         return _unfileable(text, "Name who should act on it.")
+    read = _asked(out.get("asks"), written)
     asks = [
         a if a.effect is not None or a.target is not None else a.model_copy(update={"target": who})
-        for a in _asked(out.get("asks"))
+        for a, _ in read
     ]
     if not asks:
         return _unfileable(text, UNREADABLE, name, said)
     if not written and any(_new_order(a) for a in asks):
         return _unfileable(text, TO_THE_FORM, name, said)
     check = Option(label="order", asks=tuple(asks), to=who)
-    if not _named_ok(view, check) or scan_text(state, seat, check.model_dump_json()):
+    details = json.dumps([d for _, d in read])
+    if not _named_ok(view, check) or scan_text(state, seat, check.model_dump_json() + details):
         return _unfileable(text, UNREADABLE, name, said)
 
     parts: list[str] = []
+    routed_asks: list[bool] = []
     for ask in asks:
         routed = route(state, seat, ask, today)
         part = routed.part
+        routed_asks.append(part is not None)
         if part is None and held(state, seat, ask, today) is not None:
             parts.append(ask.ask.replace("_", " "))
             continue
@@ -554,8 +760,14 @@ def read_order(
         ):
             return _unfileable(text, UNREACHED, name, said)
         parts.append(ask.ask.replace("_", " "))
+    forms = tuple(
+        twin(state, seat, ask, detail) if ok else None
+        for ask, (_, detail), ok in zip(asks, read, routed_asks, strict=True)
+    )
+    if any(f is None and detail for f, (_, detail) in zip(forms, read, strict=True)):
+        return _unfileable(text, TO_THE_FORM, name, said)
     shown = OrderProposal(person=name, channel=said, text=text, parts=parts, reason=None)
-    return Reading(shown=shown, asks=tuple(asks))
+    return Reading(shown=shown, asks=tuple(asks), forms=forms if any(forms) else ())
 
 
 def file_order(
@@ -590,13 +802,43 @@ def file_order(
         ):
             return Reply(reply=CHANGED, refused=True)
     try:
-        filed = commit_order(store, campaign_id, seat, reading.asks)
+        if reading.forms:
+            reason = file_written(store, campaign_id, seat, reading.asks, reading.forms)
+        else:
+            filed = commit_order(store, campaign_id, seat, reading.asks)
+            reason = filed.reason if isinstance(filed, HeldOrder) else None
     except ValueError as exc:
         return Reply(reply=str(exc), refused=True)
-    if isinstance(filed, HeldOrder):
-        return Reply(reply=filed.reason, refused=False)
+    if reason is not None:
+        return Reply(reply=reason, refused=False)
     who = reading.shown["person"]
     return Reply(reply=f"Sent to {who}." if who else "Your order is filed.", refused=False)
 
 
-__all__ = ["Reading", "file_order", "orders_prompt", "read_order"]
+def file_written(
+    store: EventStore,
+    campaign_id: CampaignId,
+    seat: SeatId,
+    asks: Sequence[Ask],
+    forms: Sequence[Twin | None],
+) -> str | None:
+    """File a signed written order: each ask a form of the seat's gives as that form, by
+    every check the form takes and on the day it would land; the rest as one routed order.
+    The reason a lock gave the seat, or None. Raises ``ValueError``, logging nothing."""
+    state = load_state(store, campaign_id)
+    landing: realism_tick.Landing = []
+    rest: list[Ask] = []
+    for ask, form in zip_longest(asks, forms[: len(asks)]):
+        if form is None:
+            rest.append(ask)
+            continue
+        order = realism_tick.draft_order(state, seat, form[0], dict(form[1]))
+        landing += realism_tick.form_filing(state, seat, order)[0]
+    if rest:
+        landing += realism_tick.written_filing(state, seat, rest)[0]
+    realism_tick._append_all(store, state, landing, seat)
+    reasons = [p.held.reason for p, _ in landing if isinstance(p, ev.OrderHeld)]
+    return reasons[0] if reasons else None
+
+
+__all__ = ["Reading", "file_order", "file_written", "orders_prompt", "read_order", "twin"]

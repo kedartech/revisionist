@@ -20,9 +20,9 @@ import functools
 import json
 from collections import Counter
 from collections.abc import Iterator, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -38,12 +38,25 @@ from revisionist.core.world_compile import compile_world, object_id
 from revisionist.engine import campaign as cmp
 from revisionist.engine import orders_reader, realism_tick, session_zero, wake, wake_open
 from revisionist.engine.llm import Reply, Request, TransportError
+from revisionist.engine.pg_store import PostgresEventStore
 from revisionist.engine.prose import TemplateProseWriter
 from revisionist.engine.realism_tick import run_realism_tick
 from revisionist.engine.store import MemoryStore, load_state
+from revisionist.engine.web import held as held_orders
+from revisionist.engine.web import server
 from revisionist.engine.web.server import MODEL_DOWN, model_down
 from tests.locked_orders_script import Ids
-from tests.written_order_cases import CASES, ENTITY_FIELDS, FEATURE_FIELDS, FIXES, Case, naval
+from tests.written_order_cases import (
+    CASES,
+    ENTITY_FIELDS,
+    FEATURE_FIELDS,
+    FIXES,
+    Case,
+    detail,
+    move,
+    naval,
+    war,
+)
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 WORLDS = {"1941": "autumn-1941", "salt": "salt-strait-realism"}
@@ -97,12 +110,15 @@ class Canned:
 
     asks: list[dict[str, Any]] = field(default_factory=list)
     ruling: list[dict[str, Any]] = field(default_factory=list)
+    war: dict[str, Any] | None = None
     asked: Counter[str] = field(default_factory=Counter)
 
     def call(self, request: Request) -> Reply:
         self.asked[request.call_class] += 1
         if request.call_class == orders_reader.CALL_CLASS:
-            return Reply({"asks": self.asks, "reason": ""}, request.model, 0, 0, 0, 0.0)
+            out: dict[str, Any] = {"asks": self.asks, "reason": ""}
+            out |= {"war": self.war} if self.war is not None else {}
+            return Reply(out, request.model, 0, 0, 0, 0.0)
         if request.call_class == "estimator":
             out = {"effects": self.ruling, "reason": "As written.", "rationale": ""}
             return Reply(out, request.model, 0, 0, 0, 0.0)
@@ -227,15 +243,21 @@ class Game:
                 return f"form refused: {exc}"
         return ""
 
-    def written(self, case: Case) -> str:
+    def read(self, case: Case) -> orders_reader.Reading:
+        """The aide's reading of the case's sentence, as the table gives it."""
         state = self.state
-        asks = [_ask(case.sentence, effect) for effect in case.reading]
+        asks = [_ask(case.sentence, effect) for effect in case.reading if "war" not in effect]
         self.transport.asks = asks
         self.transport.ruling = [_keyed(e) for e in case.ruling]
+        declared = [e["war"] for e in case.reading if "war" in e]
+        self.transport.war = {"target": entity(declared[0])} if declared else None
         to = _addressee(state, case)
-        reading = orders_reader.read_order(
+        return orders_reader.read_order(
             state, seat(case.person), to, "", case.sentence, self.transport
         )
+
+    def written(self, case: Case) -> str:
+        reading = self.read(case)
         if not reading.asks:
             return f"written unreadable: {reading.shown['reason']}"
         with self.ids.drawn_by(f"order:{case.name}"):
@@ -269,7 +291,9 @@ def _keyed(effect: dict[str, Any]) -> dict[str, Any]:
 def _ask(sentence: str, effect: dict[str, Any]) -> dict[str, Any]:
     if set(effect) == {"target"}:
         return {"ask": sentence, "target": entity(effect["target"])}
-    return {"ask": sentence, "effect": _keyed(effect)}
+    plain = {k: v for k, v in effect.items() if k != "detail"}
+    out = {"ask": sentence, "effect": _keyed(plain)}
+    return out | ({"detail": effect["detail"]} if "detail" in effect else {})
 
 
 def _addressee(state: State, case: Case) -> str:
@@ -422,12 +446,6 @@ def test_each_case_asks_the_aide_once_and_the_estimator_once_per_approach(case: 
     assert not any(k.startswith(("aide:", "estimator:")) for k in twins.asked)
 
 
-READER_FALLBACK = (
-    "core lane fix item: a failed reading of an order to another nation's person tells the"
-    " seat the model is down, and offers no agreement reading in its place"
-)
-
-
 class Down(Canned):
     """The aide's model fails with ``why``."""
 
@@ -440,7 +458,6 @@ class Down(Canned):
         raise TransportError(self.why)
 
 
-@pytest.mark.xfail(strict=True, reason=READER_FALLBACK)
 @pytest.mark.parametrize(
     ("why", "told"),
     [
@@ -520,11 +537,6 @@ President sets it there by his own naval order."""
 OPENS_ICELAND = naval("roosevelt", "naval_order", "shoot_on_sight", "iceland_route")
 """The President's form that opens the Iceland lock from state."""
 
-HELD_AROUND = (
-    "core lane fix item: a written order a lock holds goes through the lock's check;"
-    " the 1941 lock rows name forms, and a written order is matched against effect rows only"
-)
-
 
 def _held(game: Game) -> list[tuple[Any, ...]]:
     """Each held order of Admiral King's: its filing day, decider and held words."""
@@ -547,7 +559,6 @@ def test_a_locked_form_is_held_and_names_its_decider(
     assert held[0] == game.state.in_world_date
 
 
-@pytest.mark.xfail(strict=True, reason=HELD_AROUND)
 @pytest.mark.parametrize("case", LOCKED, ids=lambda c: c.params["zone"])
 def test_a_locked_written_order_is_held_as_its_form_is(
     case: Case, monkeypatch: pytest.MonkeyPatch
@@ -570,7 +581,6 @@ def _landed(game: Game) -> list[Any]:
     ]
 
 
-@pytest.mark.xfail(strict=True, reason=HELD_AROUND)
 def test_a_locked_written_order_lands_the_day_its_form_does(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -601,10 +611,9 @@ def test_with_locks_off_a_locked_order_goes_through_as_an_ordinary_one(
     in_writing = Game(base, monkeypatch, Canned())
     assert by_form.form(case) == in_writing.written(case) == ""
     assert _held(by_form) == _held(in_writing) == []
-    assert [o.lever for o in by_form.state.orders.values() if o.issuer == seat("king")] == [
-        case.lever
-    ]
-    assert [r for r in in_writing.state.routed.values() if r.issuer == seat("king")]
+    for game in (by_form, in_writing):
+        kings = [o.lever for o in game.state.orders.values() if o.issuer == seat("king")]
+        assert kings == [case.lever]
 
 
 # --- orders the rules refuse ------------------------------------------------------------
@@ -618,11 +627,6 @@ NO_GROUND = Case(
     ({"kind": "move_force", "force": "home_forces", "to": "liverpool"},),
 )
 """An army sent to a port in a sea zone: no path ends there for it."""
-
-
-REFUSED_AT_FILING = (
-    "core lane fix item: a written order is refused at filing by the check its form takes"
-)
 
 
 def _refused(monkeypatch: pytest.MonkeyPatch) -> tuple[Game, str, Game, str]:
@@ -645,10 +649,94 @@ def test_the_rules_refuse_the_form_and_file_nothing(monkeypatch: pytest.MonkeyPa
     assert game.store.last_seq(CAMPAIGN) == before
 
 
-@pytest.mark.xfail(strict=True, reason=REFUSED_AT_FILING)
 def test_a_written_move_the_rules_refuse_is_refused_in_the_forms_words(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     by_form, form_told, in_writing, written_told = _refused(monkeypatch)
     assert written_told == "written refused: " + form_told.removeprefix("form refused: ")
     assert outcome(by_form.state) == outcome(in_writing.state)
+
+
+# --- the written path takes every check its form takes ----------------------------------
+
+
+@pytest.mark.parametrize("case", LOCKED, ids=lambda c: c.params["zone"])
+def test_with_written_orders_off_a_locked_written_order_is_held_as_its_form_is(
+    case: Case, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A plain engagement stays readable with the rule off, and the lock holds it there
+    as it holds the form."""
+    monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
+    base = opened(case.world, without=(Rule.WRITTEN_ORDERS,))
+    by_form = Game(base, monkeypatch, Canned())
+    in_writing = Game(base, monkeypatch, Canned())
+    assert by_form.form(case) == in_writing.written(case) == ""
+    assert _held(in_writing) == _held(by_form) != []
+
+
+def test_a_written_order_kept_for_the_next_wake_is_held_as_its_form_is(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Signed after the seat committed, the order is kept and filed at the next wake, and
+    the lock holds it then as it holds the form."""
+    case = LOCKED[0]
+    monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
+    by_form = Game(opened(case.world), monkeypatch, Canned())
+    assert by_form.form(case) == ""
+    in_writing = Game(opened(case.world), monkeypatch, Canned())
+    reading = in_writing.read(case)
+    kept, _ = server._held_args(
+        cast(PostgresEventStore, in_writing.store),
+        in_writing.state,
+        seat(case.person),
+        "file",
+        {},
+        reading,
+    )
+    kept = json.loads(json.dumps(kept))
+    with in_writing.ids.drawn_by(f"order:{case.name}"):
+        assert (
+            held_orders.file_one(in_writing.store, CAMPAIGN, seat(case.person), "file", kept)
+            is None
+        )
+    assert _held(in_writing) == _held(by_form) != []
+
+
+DETACH = next(c for c in CASES if c.person == "king" and c.lever == "detach_fleet")
+
+
+def test_a_detail_never_changes_what_the_effect_names(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A detail names only what the effect cannot hold; one that contradicts the effect
+    matches no form, and the reading is not offered to sign."""
+    monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
+    game = Game(opened("1941"), monkeypatch, Canned())
+    wrong = detail(move("us_atlantic_fleet", "reykjavik"), strength="2", to="norfolk")
+    reading = game.read(replace(DETACH, reading=(wrong,)))
+    assert not reading.asks
+    assert reading.shown["reason"] == orders_reader.TO_THE_FORM
+
+
+def test_a_written_detachment_is_refused_as_its_form_is(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A strength the form does not take is refused at filing in the form's words."""
+    monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
+    too_many = {**DETACH.params, "strength": "9"}
+    by_form = Game(opened("1941"), monkeypatch, Canned())
+    told = by_form.form(replace(DETACH, params=too_many))
+    reading = (detail(move("us_atlantic_fleet", "reykjavik"), strength="9"),)
+    in_writing = Game(opened("1941"), monkeypatch, Canned())
+    written_told = in_writing.written(replace(DETACH, reading=reading))
+    assert told.startswith("form refused: ")
+    assert written_told == "written refused: " + told.removeprefix("form refused: ")
+
+
+def test_a_written_declaration_needs_a_declaration_on_the_desk(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A seat whose card has no form that declares war on the nation cannot declare it in
+    writing either."""
+    monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
+    game = Game(opened("1941"), monkeypatch, Canned())
+    cable = next(c for c in CASES if c.lever == "cable_to_churchill")
+    reading = game.read(replace(cable, reading=(war("germany"),)))
+    assert not reading.asks
+    assert reading.shown["reason"] == orders_reader.TO_THE_FORM

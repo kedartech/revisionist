@@ -34,7 +34,9 @@ class Case:
     params: dict[str, str]
     sentence: str
     reading: tuple[Effect, ...]
-    """Each ask's effect, or ``{"target": key}`` for an approach with no typed effect."""
+    """Each ask's effect, or ``{"target": key}`` for an approach with no typed effect, or
+    ``{"war": key}`` for a declaration of war. An effect's ``detail`` names the values of
+    its form's parameters the effect cannot hold."""
     ruling: tuple[Effect, ...] = ()
     """The estimator's effects for an approach, as its reply carries them."""
     variant: str = ""
@@ -115,6 +117,17 @@ def approach(target: str) -> Effect:
     return {"target": target}
 
 
+def detail(effect: Effect, **params: str) -> Effect:
+    """``effect`` with the values of the form's parameters it cannot hold (a strength, a
+    route), as the reader names them beside it."""
+    return effect | {"detail": params}
+
+
+def war(target: str) -> Effect:
+    """A written declaration of war on ``target``, as the reader gives it beside the asks."""
+    return {"war": target}
+
+
 # --- Autumn 1941 -------------------------------------------------------------------------
 
 ORDER_RULE = {
@@ -167,7 +180,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "lend_lease_finding",
         {"recipient": "uk", "share_pct": "50", "route": "hx_route"},
         "Britain is to have half of what Lend-Lease ships, by the HX convoys.",
-        give("uk", "lend_lease", 50, "percent"),
+        detail(give("uk", "lend_lease", 50, "percent"), route="hx_route"),
     ),
     naval("roosevelt", "naval_order", "escort_convoys", "western_atlantic"),
     f41(
@@ -182,7 +195,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "detach_fleet",
         {"force": "us_atlantic_fleet", "to": "reykjavik", "strength": "2"},
         "Detach two squadrons of the Atlantic Fleet to Reykjavik.",
-        move("us_atlantic_fleet", "reykjavik"),
+        detail(move("us_atlantic_fleet", "reykjavik"), strength="2"),
     ),
     f41(
         "roosevelt",
@@ -246,7 +259,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "detach_fleet",
         {"force": "home_fleet", "to": "reykjavik", "strength": "2"},
         "Detach two squadrons of the Home Fleet to Reykjavik.",
-        move("home_fleet", "reykjavik"),
+        detail(move("home_fleet", "reykjavik"), strength="2"),
     ),
     f41(
         "churchill",
@@ -353,7 +366,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "declare_war",
         {"target": "usa"},
         "Declare war on the United States.",
-        approach("usa"),
+        war("usa"),
     ),
     f41(
         "hitler",
@@ -520,7 +533,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "detach_fleet",
         {"force": "us_atlantic_fleet", "to": "reykjavik", "strength": "2"},
         "Detach two squadrons to Reykjavik.",
-        move("us_atlantic_fleet", "reykjavik"),
+        detail(move("us_atlantic_fleet", "reykjavik"), strength="2"),
     ),
     *(
         naval("king", "fleet_naval_order", "escort_convoys", zone, "us_atlantic_fleet")
@@ -547,7 +560,7 @@ def _salt(
             "March the levy.",
             move(f"{nation}_levy", march),
         ),
-        fsalt("declare_war", {"target": enemy}, "Declare war.", approach(enemy)),
+        fsalt("declare_war", {"target": enemy}, "Declare war.", war(enemy)),
         fsalt(
             "fly_balloon",
             {"intel": "recon", "piece": f"{nation}_balloons", "area": area},
@@ -584,40 +597,26 @@ SALT_STRAIT: tuple[Case, ...] = (
 
 # --- the open differences ----------------------------------------------------------------
 
-TIMING = "core lane fix item: a written order lands on the day its form would"
 AUTHORITY = "data lane fix item: a card's authority covers every order its forms give"
-WAR = "core lane fix item: a written declaration of war declares the war"
-DETACH = "core lane fix item: a written detachment moves only the strength it names"
 INERT = "core lane fix item for the forms that change nothing (EFD's list)"
 
 FIXES: dict[str, str] = {
-    "1941.roosevelt.lend_lease_finding": TIMING,
     "1941.roosevelt.naval_order": INERT,
-    "1941.roosevelt.move_fleet": TIMING,
-    "1941.roosevelt.detach_fleet": DETACH,
     "1941.roosevelt.public_address": INERT,
     "1941.roosevelt.fly_recon": AUTHORITY,
-    "1941.roosevelt.send_on_patrol": TIMING,
     "1941.churchill.convoy_orders": INERT,
     "1941.churchill.production_priority": AUTHORITY,
-    "1941.churchill.move_fleet": TIMING,
-    "1941.churchill.detach_fleet": DETACH,
     "1941.churchill.move_army": AUTHORITY,
     "1941.churchill.broadcast": INERT,
     "1941.churchill.fly_recon": AUTHORITY,
-    "1941.churchill.send_on_patrol": TIMING,
     "1941.churchill.send_an_agent": AUTHORITY,
     "1941.churchill.fund_the_codebreakers": AUTHORITY,
     "1941.stalin.state_defence_order": INERT,
-    "1941.stalin.move_army": TIMING,
     "1941.stalin.send_on_patrol": AUTHORITY,
     "1941.stalin.send_an_agent": AUTHORITY,
     "1941.hitler.uboat_directive": INERT,
     "1941.hitler.production_priority": AUTHORITY,
-    "1941.hitler.move_army": TIMING,
-    "1941.hitler.declare_war": WAR,
     "1941.hitler.fly_recon": AUTHORITY,
-    "1941.hitler.send_on_patrol": TIMING,
     "1941.konoe.requisition_shipping": INERT,
     "1941.konoe.mobilisation_plan": INERT,
     "1941.konoe.send_an_agent": AUTHORITY,
@@ -635,24 +634,8 @@ FIXES: dict[str, str] = {
     "1941.chiang.appeal_abroad": INERT,
     "1941.chiang.move_army": AUTHORITY,
     "1941.chiang.send_an_agent": AUTHORITY,
-    "1941.king.detach_fleet": DETACH,
     "1941.king.fleet_naval_order.western_atlantic": INERT,
     "1941.king.fleet_naval_order.iceland_route": INERT,
-    "1941.king.fleet_naval_order.war_zone": INERT,
-    "salt.oren_vale.move_force": TIMING,
-    "salt.oren_vale.declare_war": WAR,
-    "salt.oren_vale.fly_balloon": TIMING,
-    "salt.oren_vale.galley_patrol": TIMING,
-    "salt.oren_vale.place_a_spy": TIMING,
-    "salt.oren_vale.pay_the_cipher_clerks": INERT,
-    "salt.oren_vale.hide_a_force": TIMING,
-    "salt.general_aske.move_force": TIMING,
-    "salt.general_aske.declare_war": WAR,
-    "salt.general_aske.fly_balloon": TIMING,
-    "salt.general_aske.galley_patrol": TIMING,
-    "salt.general_aske.place_a_spy": TIMING,
-    "salt.general_aske.pay_the_cipher_clerks": INERT,
-    "salt.general_aske.hide_a_force": TIMING,
 }
 """Each case whose written order and form still differ, and the fix item that owns the
 difference: the first one found, where a case has more than one."""

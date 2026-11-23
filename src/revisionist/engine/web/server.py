@@ -1465,6 +1465,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
         def do_GET(self) -> None:
             path = urlsplit(self.path).path
             try:
+                guard.served(self.headers)
                 if path == "/api/me":
                     account = self._account()
                     if account is None:
@@ -1481,7 +1482,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                 if path.startswith("/api/"):
                     raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
                 self._static(path)
-            except ApiError as exc:
+            except (ApiError, guard.RefusedError) as exc:
                 self._send_json(exc.status, {"error": exc.message})
             except snapshot.WithheldError:
                 log.warning("snapshot withheld: canary hit")

@@ -50,7 +50,7 @@ from revisionist.engine import campaign as cmp
 from revisionist.engine import scheduler as sch
 from revisionist.engine import wake as wk
 from revisionist.engine.discord import handlers as dh
-from revisionist.engine.discord.tables import Invites, SeatLinks
+from revisionist.engine.discord.tables import Invites, Link, SeatLinks
 from revisionist.engine.ids import new_id
 from revisionist.engine.llm import Transport, TransportError
 from revisionist.engine.pg_store import PostgresEventStore
@@ -75,6 +75,7 @@ from revisionist.engine.web import (
     reach_groups,
     realism_snapshot,
     record_api,
+    reports,
     results,
     reveal,
     snapshot,
@@ -179,6 +180,9 @@ REALISM_ACTIONS = (
     "agreement-publish",
     "conference-call",
     "conference-vote",
+    "report",
+    "reports",
+    "report-mark",
 )
 """Every ``/api/realism/<action>``: ``App.realism`` answers any other as no such call."""
 
@@ -396,6 +400,12 @@ class App:
                     return snapshot.checked(
                         state, seat, self._hold(store, state, seat, action, body)
                     )
+                if action in ("report", "reports", "report-mark"):
+                    host = WebSeats(store.conn).host(cid) == account.account_id
+                    filed = reports.action(
+                        store, state, seat, account.account_id, host, action, body, self.clock()
+                    )
+                    return snapshot.checked(state, seat, filed)
                 if action == "catchup":
                     pages = catchup_api.reply(
                         state,
@@ -511,7 +521,14 @@ class App:
                     reply = f"{answered.person} has answered."
                 elif action == "help":
                     question = _text(body, "question", aide_help.QUESTION_MAX)
-                    thread = self._aide_explains(store, state, seat, question, templated=templated)
+                    filed_as = reports.from_question(
+                        store, state, seat, account.account_id, question, self.clock()
+                    )
+                    thread = (
+                        self._aide_explains(store, state, seat, question, templated=templated)
+                        if filed_as is None
+                        else self._aide_note(state, seat, filed_as, question)
+                    )
                     out = {"reply": "", "refused": False, "help": thread}
                     return snapshot.checked(state, seat, out)
                 elif action == "step":
@@ -1256,6 +1273,16 @@ def _text(body: dict[str, Any], key: str, limit: int, *, required: bool = True) 
     return value
 
 
+def _bug(h: WebHandlers, account_id: str, notes: str) -> str:
+    """The seat action ``bug``, filed as a player report of the kind bug."""
+
+    def work(store: PostgresEventStore, link: Link) -> str:
+        state = load_state(store, link.campaign_id)
+        return reports.seat_bug(store, state, link.seat_id, account_id, notes, h.clock())
+
+    return h._as_seat(account_id, "bug", work)
+
+
 SEAT_ACTIONS: dict[str, Callable[[WebHandlers, str, dict[str, Any]], str]] = {
     "join": lambda h, a, b: h.join(a, _text(b, "code", 40)),
     "roster": lambda h, a, b: h.character(a, "roster"),
@@ -1288,7 +1315,7 @@ SEAT_ACTIONS: dict[str, Callable[[WebHandlers, str, dict[str, Any]], str]] = {
     "dispatch": lambda h, a, b: h.dispatch(a),
     "status": lambda h, a, b: h.status(a),
     "report": lambda h, a, b: h.report(a),
-    "bug": lambda h, a, b: h.bug(a, _text(b, "notes", 4000)),
+    "bug": lambda h, a, b: _bug(h, a, _text(b, "notes", reports.WORDS_MAX)),
 }
 
 

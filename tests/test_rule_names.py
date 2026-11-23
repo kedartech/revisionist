@@ -42,7 +42,7 @@ READ = frozenset({"laws"})
 """The names whose reader has been built: a world that names one is no longer as with it off."""
 UNREAD = tuple(n for n in THIRD_RUN if n not in READ)
 
-BASELINE_1941 = "f37494a26892a185fffd001d399b14b7"
+BASELINE_1941 = "45f00e1d6cb09e84245f4a7affb44692"
 """The 1941 scripted run's digest (``run_digest``) with every third-run switch off."""
 
 

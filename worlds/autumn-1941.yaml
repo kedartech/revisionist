@@ -154,6 +154,7 @@ entities:
   - {key: goering, kind: person, name: Hermann Goering, parent: germany}
   - {key: ribbentrop, kind: person, name: Joachim von Ribbentrop, parent: germany}
   - {key: raeder, kind: person, name: Erich Raeder, parent: kriegsmarine}
+  - {key: doenitz, kind: person, name: Karl Dönitz, parent: kriegsmarine}  # source: doenitz_1941
   - {key: jodl, kind: person, name: Alfred Jodl, parent: okw}
   - {key: mussolini, kind: person, name: Benito Mussolini, parent: italy}
   - {key: victor_emmanuel, kind: person, name: King Victor Emmanuel III, parent: italy}
@@ -1190,6 +1191,8 @@ assets:
   - {key: atlantic_fleet_command, kind: office, name: "Commander in Chief, Atlantic Fleet", tier: 3, controller: king}
   # NUK: the Home Fleet's commander's post. The tier is [proposed], as King's is.
   - {key: home_fleet_command, kind: office, name: "Commander in Chief, Home Fleet", tier: 3, controller: tovey}
+  # NGE: the U-boat arm's commander's post. The tier is [proposed], as Tovey's is.
+  - {key: uboat_command, kind: office, name: Commander of U-boats, tier: 3, controller: doenitz}
 
 sources:
   - key: voteview
@@ -1244,6 +1247,8 @@ sources:
   - {key: glantz_house_1995, title: "David M. Glantz and Jonathan M. House, When Titans Clashed (University Press of Kansas, 1995): the fall of Kiev on 19 September and of Kalinin on 14 October 1941", note: "Named citation; not read. Confirm the pages before release."}
   - {key: national_service_1941, title: "National Service (No. 2) Act 1941: men liable to the age of 51, unmarried women from 20 to 30", note: "Announced to the Commons by the Prime Minister on 2 December 1941; Royal Assent 18 December 1941. Named citation; the lane had no network and read no edition or division list. Confirm the dates and the divisions before release."}
   - {key: tovey_1941, title: "Admiral Sir John Tovey, Commander in Chief, Home Fleet, from December 1940 to May 1943, at Scapa Flow", note: "Named citation; not read. Confirm the dates before release."}
+  - {key: doenitz_1941, title: "Karl Dönitz, Befehlshaber der Unterseeboote (Commander of U-boats) from 1939, Vizeadmiral from September 1940, with his headquarters at Kernevel by Lorient from November 1940", note: "Named citation; the lane had no network and read no edition. Confirm the rank and dates before release."}
+  - {key: fuehrer_naval_17_sep_1941, title: "Fuehrer Conferences on Naval Affairs, 17 September 1941: Hitler orders the U-boats to avoid incidents with American ships", note: "Raeder asked leave to attack American escorts; Hitler refused until the campaign in the East is decided. Named citation; not read. Confirm the date and the wording before release."}
   - {key: neutrality_act_1939, title: "Neutrality Act of 4 November 1939 (54 Stat. 4), section 3, Combat Areas; with Proclamation 2376 of the same day defining the combat area", note: "Read (presidency.ucsb.edu, Proclamation 2376, which quotes section 3). Section 3(a): once the President defines combat areas it is unlawful for any citizen of the United States or any American vessel to proceed into or through them. The area: the waters round the British Isles out to 20 W, from the north coast of Spain to Norway."}
   - {key: fdr_1941_09_11, title: "Roosevelt's fireside chat of 11 September 1941 on the Greer: the Navy's patrols of the Atlantic and the order to shoot on sight", note: "Named citation; not read. Confirm the text before release."}
   - {key: lane_choice, title: "The lane's own choice: no published measure", note: "Hubs and prestige ranks chosen by the lane for play; kept as gaps for Josh to mark."}
@@ -1444,6 +1449,13 @@ pipelines:
     gap: true
     steps:
       - {person: tovey, kind: clerical, days: 1, assumed: true}
+  # Dönitz's own forms (NGE): through his own staff at Kernevel, with no step above him. The step
+  # is his.
+  - key: bdu_staff
+    name: Through the U-boat command's staff
+    gap: true
+    steps:
+      - {person: doenitz, kind: clerical, days: 1, assumed: true}
   - key: cable_to_churchill
     name: A cable to the Prime Minister
     gap: true
@@ -2932,6 +2944,62 @@ cards:
         effects: [move_force, engagement]
         forces: [home_fleet]
         summary: "Command of the Home Fleet: where it goes, what it detaches, how it fights."
+  # The eleventh playable card (NGE): a military card, flagged playable by hand, under the Navy's
+  # commander in chief and so under Hitler, whose own order over the U-boat arm stands. His own
+  # forms go through his own staff (bdu_staff), with no step above him. Aims 1 and 2 are the fleet
+  # commander's patterns filled in (hold_and_take, war_with); aim 3 is the default an own aim
+  # replaces. Germany has no body or council that decides: Hitler decides alone. source:
+  # doenitz_1941 for the post; every other line gap: true, [proposed].
+  - person: doenitz
+    post_kind: fleet_commander
+    office: Commander of U-boats
+    voice: "Clipped and exact; argues for more boats and a free hand in plain figures of tonnage sunk."
+    addressed_as: "Herr Vizeadmiral"
+    playable: true
+    path: military
+    principals: [raeder]
+    powers: [command the U-boat arm, dispose the boats against the convoys, report tonnage sunk]
+    inner_circle:
+      - {person: raeder, channel: cable}
+      - {person: hitler, channel: cable}
+    feeds: [german_naval_reports]
+    pipelines: [bdu_staff]
+    levers:
+      - name: uboat_move
+        pipeline: bdu_staff
+        resolver: movement
+        label: "Move the U-boats"
+        summary: "Send the U-boat arm to other waters. Your staff carries it out."
+        params:
+          - {name: force, kind: enum, choices: [uboat_arm], label: "Which boats", choice_labels: ["The U-boat arm"]}
+          - {name: to, kind: enum, choices: [lorient, north_atlantic, argentia], label: "To", choice_labels: ["Lorient", "The North Atlantic", "Off Argentia"]}
+      - name: uboat_detach
+        pipeline: bdu_staff
+        resolver: movement
+        label: "Detach part of the U-boats"
+        summary: "Send part of the U-boat arm to other waters; the rest stays where it is."
+        params:
+          - {name: force, kind: enum, choices: [uboat_arm], label: "Which boats", choice_labels: ["The U-boat arm"]}
+          - {name: to, kind: enum, choices: [lorient, north_atlantic, argentia], label: "To", choice_labels: ["Lorient", "The North Atlantic", "Off Argentia"]}
+          - {name: strength, kind: int, lo: 1, hi: 2, label: "How much of its strength"}
+    loyalty: 1
+    competence: 4
+    wants: [naval_engagement, fleet_movements]
+    reach: {rank: 2}
+    horizon_days: 7
+    aims:
+      - "Hold Occupied France and take Iceland."
+      - "Bring Germany into the war against the United States."
+      - "Sink 150,000 tons of Allied shipping in November."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Occupied France stays German, and Iceland is taken from Britain.", condition: {check: all_of, conditions: [{check: holds_area, area: occupied_france, holder: germany}, {check: holds_area, area: iceland, holder: germany}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "Germany is at war with the United States.", condition: {check: at_war, a: germany, b: usa}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "Allied merchant losses to U-boats in November reach 150,000 GRT or more.", condition: {check: quantity_at, quantity: uboat_losses_nov, op: ge, value: 150000}}
+    authority:
+      - name: uboat_arm
+        effects: [move_force, engagement]
+        forces: [uboat_arm]
+        summary: "Command of the U-boat arm: where the boats go, what is detached, how they fight."
   - person: kramer
     office: Navy communications intelligence translator
     voice: "Precise translator's register; marks the urgent passage and adds one short note of his own."
@@ -3407,6 +3475,17 @@ mandates:
     condition: {check: ordered, person: tovey, effect: move_force}
     days: 14
     text: "The convoys to Russia are to run every ten days: the First Sea Lord wants the Home Fleet placed to cover them."
+  # NGE: after the Greer, Hitler ordered the U-boats to avoid incidents with American ships (17
+  # September), and the Naval Staff passed the order down. Named, not read: gap: true, [proposed].
+  # source: fuehrer_naval_17_sep_1941
+  - key: uboats_clear_of_americans
+    kind: order
+    issuer: raeder
+    trigger: {"on": history, history: greer_incident}
+    to: [doenitz]
+    condition: {check: ordered, person: doenitz, effect: move_force}
+    days: 14
+    text: "The Fuehrer wants no incident with American ships: the Naval Staff wants the boats disposed clear of the American escorts."
   # The Commons pressed for the Atlantic convoys through the autumn.
   - key: commons_convoys
     kind: order
@@ -3525,6 +3604,11 @@ roster:
     reach: The Home Fleet, what it may do under the Admiralty, and a cable to the Prime Minister.
     composite: false
     sides: [{contest: atlantic_war, side: uk}]
+  - entity: doenitz
+    pitch: Admiral commanding the U-boats from Lorient, held back from American ships by Hitler's order.
+    reach: The U-boat arm, what it may do under the Navy's commander in chief, and a cable to Hitler.
+    composite: false
+    sides: [{contest: atlantic_war, side: germany}]
 
 # Starting regard [proposed] (SHT, 14 Nov sheet), -2 to 2: between Roosevelt and
 # each of his people, and between each pair of the eight leaders. Public, as the
@@ -3718,6 +3802,19 @@ locks:
     order: {form: home_fleet_move, params: {to: reykjavik}}
     when: {check: law_not_in_force, clause: call up unmarried women and men to fifty-one}
     decider: {nation: uk, chambers: [commons], head: churchill}
+  # NGE. Attacking American ships in the western Atlantic: the U-boats sent off Argentia, where
+  # the American escorts took over the HX convoys, or a detachment sent there, are held until
+  # Hitler has set the U-boats' posture in the North Atlantic to attack American ships, and Hitler
+  # decides alone: Germany has no body or council that answers for it. His order of 17 September
+  # held the boats from American ships. source: fuehrer_naval_17_sep_1941; gap: true, [proposed].
+  - key: uboats_against_american_ships
+    order: {form: uboat_move, params: {to: argentia}}
+    when: {check: posture_not_set, form: uboat_directive, where: {theatre: north_atlantic}, posture: {posture: attack_us_shipping}}
+    decider: {person: hitler}
+  - key: uboat_detachment_against_american_ships
+    order: {form: uboat_detach, params: {to: argentia}}
+    when: {check: posture_not_set, form: uboat_directive, where: {theatre: north_atlantic}, posture: {posture: attack_us_shipping}}
+    decider: {person: hitler}
 
 # Pacts in force on 1 September 1941 (PCW). The clause chosen for each is [proposed]: the rules judge
 # what they can, and wording they cannot express is kept and marked unchecked.

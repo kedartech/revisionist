@@ -2167,10 +2167,13 @@ def salt_start(page: Page, report: dict[str, object], play: object) -> None:
 
 class Second:
     """The Varda leader's account, driven through the API: it joins, picks its leader and
-    presses Done each wake, which is all the walk needs of it."""
+    presses Done each wake, which is all the walk needs of it. Its writes name the room's own
+    origin, as the page's do: the server refuses a write that names none."""
 
     def __init__(self, playwright: object) -> None:
-        self.api = playwright.request.new_context()  # type: ignore[attr-defined]
+        self.api = playwright.request.new_context(  # type: ignore[attr-defined]
+            extra_http_headers={"Origin": BASE}
+        )
 
     def call(self, path: str, body: dict[str, object]) -> dict[str, object]:
         got = self.api.post(BASE + path, data=body)

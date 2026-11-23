@@ -26,7 +26,9 @@ from is the one the world names for it (``lift_pool``).
 
 - A convoy priority raises the escort level on the route it names by ``ESCORT_RAISE``
   while it is its nation's latest.
-- A requisition adds ``REQUISITION_GRT`` to the issuer's nation's lift pool.
+- A requisition adds ``REQUISITION_GRT`` to the issuer's nation's lift pool. A form whose
+  every parameter is free text is a message instead: the person abroad who let it through
+  thinks better of the issuer by ``MESSAGE_REGARD``.
 - A supply convoy keeps the pieces it names supplied for ``CONVOY_DAYS`` (``supplied``),
   unless it is cut: while an enemy holds a territory its route names, it is cut with a
   chance of ``CONVOY_CUT_PCT`` in 100.
@@ -45,18 +47,20 @@ from collections.abc import Callable
 from datetime import date, timedelta
 from typing import NamedTuple
 
-from revisionist.core.ids import EntityId, FeatureId, QuantityId
-from revisionist.core.ontology import EntityKind
+from revisionist.core.ids import EntityId, FeatureId, QuantityId, RelationshipId, derived_id
+from revisionist.core.ontology import EntityKind, Relationship
 from revisionist.core.realism import kinds, supply, territory
 from revisionist.core.realism import resolvers as rs
+from revisionist.core.realism.card import ParamKind
 from revisionist.core.realism.geography import Feature, FeatureKind
 from revisionist.core.realism.kinds import Domain
-from revisionist.core.realism.pipeline import Order, OrderStatus
+from revisionist.core.realism.pipeline import Order, OrderStatus, StepKind
 from revisionist.core.realism.quantity import QuantityChange
 from revisionist.core.realism.resolvers import votes
 from revisionist.core.realism.resolvers.votes import put
 from revisionist.core.realism.war import at_war, polity_of
 from revisionist.core.state import State
+from revisionist.core.visibility import private_to
 from revisionist.core.world_compile import object_id
 
 ESCORT_LEVEL = {"hold_in_port": 0, "escort_convoys": 1, "shoot_on_sight": 2}
@@ -74,14 +78,14 @@ LOSS_POOLS = ("uk_sealift_grt",)
 MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
 
 
-def resolve(state: State, order: Order) -> tuple[QuantityChange, ...]:
+def resolve(state: State, order: Order) -> tuple[QuantityChange | Relationship, ...]:
     """Changes from one order enacted through its pipeline. In a territory game only a
-    requisition changes a figure when it is enacted; the other forms act as they are read
-    (``escort_level``, ``losses``, ``supplied``)."""
+    requisition changes a figure and a message a regard when it is enacted; the other forms
+    act as they are read (``escort_level``, ``losses``, ``supplied``)."""
     if order.status is not OrderStatus.ENACTED:
         return ()
     if on(state):
-        return _requisition(state, order)
+        return _message(state, order) or _requisition(state, order)
     as_of = rs.settled_on(order)
     if order.lever == "naval_order" and order.params.get("zone") in ESCORT_ZONES:
         level = ESCORT_LEVEL.get(str(order.params.get("order")))
@@ -181,6 +185,8 @@ ESCORT_LEVEL_PM = ESCORT_STEP_PM
 ESCORT_RAMP_MONTHS = 3  # [proposed] sinkings fall from Oct (176,622) to Nov (120,541) on the record
 """Months a route's escort takes to reach its full cut, counting the month it first sailed."""
 RAID_GRT_PER_TIER = 70_000  # [proposed] about Sep 1941's sinkings for a U-boat arm of strength 3
+MESSAGE_REGARD = 1  # [proposed]
+"""How far a message moves the regard of the person abroad who let it through."""
 REQUISITION_GRT = 50_000  # [proposed]
 """Tonnage one enacted requisition takes into the state's service, into its lift pool."""
 CONVOY_DAYS = 30  # [proposed]
@@ -490,3 +496,43 @@ def _requisition(state: State, order: Order) -> tuple[QuantityChange, ...]:
     pool = _pool(state, _nation(state, order))
     change = None if pool is None else shifted(state, pool, REQUISITION_GRT, rs.settled_on(order))
     return () if change is None else (change,)
+
+
+def _message(state: State, order: Order) -> tuple[Relationship, ...]:
+    """A form whose every parameter is free text is a message, not a requisition: once
+    enacted, the first person of another nation who decides a step of its pipeline thinks
+    better of the issuer by ``MESSAGE_REGARD``. Nothing for any other form, or a message
+    no one abroad decides."""
+    issuer = state.seats[order.issuer].embodies
+    card = state.cards.get(issuer)
+    lever = next((lv for lv in card.levers if lv.name == order.lever), None) if card else None
+    if lever is None or not lever.params or any(p.kind is not ParamKind.TEXT for p in lever.params):
+        return ()
+    nation = polity_of(state, issuer)
+    pipeline = state.pipelines.get(order.pipeline)
+    decider = next(
+        (
+            step.person
+            for step in (pipeline.steps if pipeline is not None else ())
+            if step.kind is StepKind.DECISION
+            and polity_of(state, step.person) not in (None, nation)
+        ),
+        None,
+    )
+    if decider is None:
+        return ()
+    now = next((r for r in state.relationships.values() if (r.a, r.b) == (decider, issuer)), None)
+    if now is None:
+        return (
+            Relationship(
+                relationship_id=RelationshipId(
+                    derived_id(state.campaign_id, "rel", decider, issuer)
+                ),
+                a=decider,
+                b=issuer,
+                disposition=max(-5, min(5, MESSAGE_REGARD)),
+                scope=private_to(order.issuer),
+            ),
+        )
+    moved = max(-5, min(5, now.disposition + MESSAGE_REGARD))
+    return () if moved == now.disposition else (now.model_copy(update={"disposition": moved}),)

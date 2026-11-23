@@ -13,12 +13,11 @@
 .rl-need { border-bottom: 1px solid var(--rule); border-left: 3px solid transparent; }
 .rl-need.urgent { border-left-color: var(--warn); }
 /* a line is one row: its kind's mark, its title and its due day; it opens in place */
-.rl-need-row { width: 100%; min-height: 44px; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: transparent; border: 0; border-radius: 0; color: var(--fg-strong); font: inherit; text-align: left; cursor: pointer; }
+.rl-need-row { width: 100%; min-height: 44px; display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: start; gap: 2px var(--space-2); padding: var(--space-2) var(--space-3); background: transparent; border: 0; border-radius: 0; color: var(--fg-strong); font: inherit; text-align: left; cursor: pointer; }
 .rl-need-row:hover { background: var(--surface-2); }
 .rl-need-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.rl-need-mark { flex: none; display: inline-flex; color: var(--fg-muted); }
-.rl-need-row .rl-need-what { flex: 1; min-width: 0; }
-.rl-need-row .rl-need-due { flex: none; }
+.rl-need-mark { display: inline-flex; padding-top: 2px; color: var(--fg-muted); }
+.rl-need-row .rl-need-due { grid-column: 2; text-align: left; }
 .rl-need-detail { display: grid; gap: var(--space-1); padding: 0 var(--space-3) var(--space-3) calc(var(--space-3) + 16px + var(--space-2)); }
 .rl-need-detail[hidden] { display: none; }
 .rl-need-detail .rl-firstwake-steps { margin: 0; padding-left: var(--space-4); }

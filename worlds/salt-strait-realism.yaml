@@ -497,6 +497,8 @@ seats: []
 roster:
   - {entity: oren_vale, pitch: The First Minister who keeps the strait open and Varda's., reach: The Saltworks and the Varda galleys., composite: true}
   - {entity: general_aske, pitch: The Marshal who means to march through Harrow Pass., reach: The Ostrel levy and its galleys., composite: true}
+# The roster holds two to four people, not the drafted 8 to 12. [proposed]
+roster_limit: [2, 4]
 
 # The contest of the season (SSG): Varda and Ostrel over the strait, decided 120 days after
 # the start, on 31 July 1900. Each move is a step toward one side. [proposed]

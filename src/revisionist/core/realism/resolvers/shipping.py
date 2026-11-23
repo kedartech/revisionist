@@ -20,7 +20,9 @@ world (SHP). A form's parameters are read by what each value names in the world:
 route, a piece, waters (a sea zone, a region of them, or a place at sea), a nation, or an
 escort value (``ESCORT_LEVEL``). A form naming a route and pieces is a supply convoy; a
 route alone, a convoy priority; waters and an escort value, an escort order; waters or a
-nation otherwise, a raid directive; nothing of these, a requisition. The sea zones a route
+nation otherwise, a raid directive; nothing of these, a requisition. An escort value is a
+choice the world marks with an escort level (ESC), or on an unmarked form one of
+``ESCORT_LEVEL``'s words. The sea zones a route
 crosses are those its places lie in or open on, and the pool a nation's shipping is drawn
 from is the one the world names for it (``lift_pool``).
 
@@ -37,7 +39,8 @@ from is the one the world names for it (``lift_pool``).
 - Sea pieces sink shipping on the routes crossing the zone they stand in: those of a
   nation at war with theirs, or of one their nation's latest raid directive names; in
   the directive's waters they press harder. Escorts, and a law arming a nation's merchant
-  ships from the month after it passes, cut what a route loses. An escort's cut grows
+  ships from the month after it passes (with ``laws`` on, a declared law that does
+  ``arms_merchant_ships``), cut what a route loses. An escort's cut grows
   month by month from the month the route first had one, to its full cut in its
   ``ESCORT_RAMP_MONTHS``th month. On the 1st, each nation's pool loses ``LOSS_SHARE_PCT``
   of what its routes lost in the month just ended.
@@ -49,7 +52,7 @@ from typing import NamedTuple
 
 from revisionist.core.ids import EntityId, FeatureId, QuantityId, RelationshipId, derived_id
 from revisionist.core.ontology import EntityKind, Relationship
-from revisionist.core.realism import kinds, supply, territory
+from revisionist.core.realism import kinds, laws, supply, territory
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.card import ParamKind
 from revisionist.core.realism.geography import Feature, FeatureKind
@@ -237,22 +240,41 @@ def _waters(state: State, key: str) -> frozenset[EntityId]:
     return frozenset({area}) if area in {z.area for z in board.sea_zones} else frozenset()
 
 
+def _marks(state: State, order: Order) -> tuple[str, dict[str, int]] | None:
+    """The parameter of ``order``'s form whose choices the world marks with escort levels,
+    and the marks (ESC); None for an unmarked form."""
+    seat = state.seats.get(order.issuer)
+    card = None if seat is None else state.cards.get(seat.embodies)
+    lever = next((lv for lv in card.levers if lv.name == order.lever), None) if card else None
+    if lever is None or not lever.escort_levels:
+        return None
+    marked = set(lever.escort_levels)
+    name = next(p.name for p in lever.params if set(p.choices) == marked)
+    return name, {c: int(v) for c, v in lever.escort_levels.items()}
+
+
 def form(state: State, order: Order) -> Form:
-    """What ``order`` names, by the type of each parameter's value."""
+    """What ``order`` names, by the type of each parameter's value. A form whose choices the
+    world marks with escort levels sets the level its choice is marked with, and its values
+    are never read as ``ESCORT_LEVEL``'s words; an unmarked form is read by those words."""
     routes: list[Feature] = []
     pieces: list[Feature] = []
     waters: set[EntityId] = set()
     nations: list[EntityId] = []
     escort = None
-    for _, raw in sorted(order.params.items()):
+    marks = _marks(state, order)
+    for name, raw in sorted(order.params.items()):
         if not isinstance(raw, str):
+            continue
+        if marks is not None and name == marks[0]:
+            escort = marks[1].get(raw)
             continue
         found = _feature(state, raw)
         if found is not None and found.kind is FeatureKind.ROUTE:
             routes.append(found)
         elif found is not None and kinds.of(state, found) is not None:
             pieces.append(found)
-        elif raw in ESCORT_LEVEL:
+        elif marks is None and raw in ESCORT_LEVEL:
             escort = ESCORT_LEVEL[raw]
         else:
             nation = state.entities.get(EntityId(object_id(state.campaign_id, "entity", raw)))
@@ -413,7 +435,7 @@ def _pool(state: State, nation: EntityId | None) -> QuantityId | None:
 
 def _armed(state: State, nation: EntityId, last: date) -> bool:
     """Whether a law arming ``nation``'s merchant ships passed before ``last``'s month."""
-    since = votes.in_force(state, votes.ARMING).get(nation)
+    since = votes.doing(state, laws.Does.ARMS_MERCHANT_SHIPS).get(nation)
     return since is not None and (since.year, since.month) < (last.year, last.month)
 
 

@@ -8,8 +8,9 @@ words. The ``check`` action answers, for a draft order, what filing it now would
 the filing itself (``realism_tick.form_filing``, ``realism_tick.written_filing``) on the
 game as it stands and logs nothing, so the check and the filing cannot differ. The lock
 the filing reads is ``locks.seen_lock``: a lock whose condition turns on a fact the seat
-cannot see holds nothing, so such an order checks as allowed. Nothing here makes a
-model call.
+cannot see holds nothing, so such an order checks as allowed. A draft offer to a bloc
+(PRR) is checked by the filing's own rule (``offers.offer``): allowed, or its refusal.
+Nothing here makes a model call.
 """
 
 from collections.abc import Sequence
@@ -17,7 +18,7 @@ from collections.abc import Sequence
 from revisionist.core import events as ev
 from revisionist.core.ids import CampaignId, EntityId, FeatureId, OrderId, SeatId, derived_id
 from revisionist.core.project import project
-from revisionist.core.realism import locks, territory
+from revisionist.core.realism import locks, offers, territory
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import words
 from revisionist.core.realism.resolvers.movement import FORCE
@@ -167,6 +168,20 @@ def check_asks(state: State, seat: SeatId, asks: Sequence[Ask]) -> LockCheck:
     return _locked(state, seat, filed) if isinstance(filed, locks.HeldOrder) else ALLOWED
 
 
+def check_offer(state: State, seat: SeatId, bloc: str, measure: str, key: str) -> LockCheck:
+    """What filing the seat's draft offer of price ``key`` to ``bloc`` for ``measure``
+    would do now (PRR rule 4): allowed, or refused in the words filing gives. No lock
+    holds an offer. Logs nothing."""
+    today = state.in_world_date
+    if today is None:
+        return _beyond(offers.NOT_ON)
+    try:
+        offers.offer(state, seat, bloc, measure, key, today)
+    except offers.OffersError as exc:
+        return _beyond(str(exc))
+    return ALLOWED
+
+
 def ask_label(state: State, seat: SeatId, order_id: str) -> str:
     """The label of a held ask for the seat's held-orders list. Raises ``ValueError``
     with the seat's words as the ask would now."""
@@ -191,5 +206,6 @@ __all__ = [
     "block",
     "check_asks",
     "check_form",
+    "check_offer",
     "who",
 ]

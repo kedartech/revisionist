@@ -138,6 +138,7 @@ def test_every_kind_reads_only_state_and_seat(tmp_path: Path) -> None:
         "battle",
         "vote",
         "ask",
+        "promise",
     ]
     for kind in agenda_api.DUE_KINDS.values():
         assert kind(state, TOMAS) == kind(state, TOMAS)

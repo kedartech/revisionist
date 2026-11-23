@@ -81,7 +81,7 @@ from revisionist.core.realism.quantity import RESOLVER_KEYS, Quantity
 from revisionist.core.realism.trade import TradeLine
 from revisionist.core.realism.war import War, war_id_for
 from revisionist.core.settings import Settings
-from revisionist.core.state import Rule
+from revisionist.core.state import Ladder, PostMove, Rule
 from revisionist.core.visibility import Scope, Visibility
 
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
@@ -1376,6 +1376,30 @@ realism_payloads = st.one_of(
         on=in_world_dates,
         cause=st.sampled_from(list(rc.PostCause)),
     ),
+    st.builds(
+        ev.LaddersDeclared,
+        ladders=st.lists(
+            st.builds(Ladder, post=asset_ids, ladder=st.tuples(asset_ids), moved_by=st.tuples()),
+            min_size=1,
+            max_size=2,
+        ).map(tuple),
+    ),
+    st.builds(
+        ev.PostMoveOrdered,
+        move=st.builds(
+            PostMove,
+            move_id=labels,
+            person=entity_ids,
+            seat=st.none(),
+            by=entity_ids,
+            post=asset_ids,
+            appoint=st.booleans(),
+            ordered=in_world_dates,
+            wake=st.integers(0, 6),
+            question=st.booleans(),
+        ),
+    ),
+    st.builds(ev.PostMoveSettled, move_id=labels, seat=st.none(), on=in_world_dates),
     st.builds(ev.AgreementOffered, offer=agreement_offers()),
     st.builds(ev.AgreementMade, agreement=agreements()),
     st.builds(

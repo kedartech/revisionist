@@ -58,6 +58,7 @@ from revisionist.core.realism import (
     economy,
     groups,
     holders,
+    ladder,
     locks,
     mandates,
     offers,
@@ -402,6 +403,10 @@ def _feed_documents(em: Emitter, today: date) -> list[Event]:
 
 
 def _scope_of(state: State, payload: ev.Payload) -> Scope:
+    if isinstance(payload, ev.PostMoveOrdered):
+        return ladder.scope_of(state, payload.move.seat)  # LDR: the person moved's seat
+    if isinstance(payload, ev.PostMoveSettled):
+        return ladder.scope_of(state, payload.seat)
     if isinstance(payload, ev.DocumentIssued):
         return payload.document.scope
     if isinstance(payload, ev.OrderExecuted | ev.EffectsApplied | ev.InfluenceDecided):
@@ -603,6 +608,8 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         day += timedelta(days=1)
         start, begun = begun or state, None
         day_from, day_mark = state, len(out)  # GRP: the day's happenings are read from here
+        for move_id in ladder.due(state):  # LDR: changes ordered a wake ago land
+            add(ladder.land(state, move_id, day))
         add(posts.walk(state, day))  # PPP: a vacant post to its successor, before any step
         add(offers.batch(state, day))  # PRC: the wake's offers, settled before a vote
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))

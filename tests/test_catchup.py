@@ -113,6 +113,12 @@ def test_the_worlds_laws_are_fed_to_every_seat() -> None:
     assert "laws_declared" in catchup.FEED_KINDS
 
 
+def test_the_ladders_and_a_pending_change_of_post_are_fed() -> None:
+    # Who may move a post and where its holder falls are public rules of the world; the
+    # pending change and its settling are sealed to the seat of the person moved (LDR).
+    assert {"ladders_declared", "post_move_ordered", "post_move_settled"} <= catchup.FEED_KINDS
+
+
 def test_the_worlds_aim_patterns_and_a_seats_own_aim_are_fed() -> None:
     # The aim patterns are public rules of the world; a player's own aim is sealed to the
     # seat holding the person and kept only while that seat's view holds it (OWC).

@@ -214,9 +214,16 @@ aim_patterns:
       - {name: foe, values: [norra, sudland]}
 
 # The chancellery is an office the chancellor holds: with the posts rule on, her card's
-# post, which may pass to another person while she plays on.
+# post, which may pass to another person while she plays on. Its ladder (LDR): a
+# chancellor put out of office falls to the council of state, if its seat is free.
 assets:
-  - {key: norra_chancellery, kind: office, name: Chancellor of Norra, tier: 4, controller: ilse}
+  - key: norra_chancellery
+    kind: office
+    name: Chancellor of Norra
+    tier: 4
+    controller: ilse
+    ladder: [norra_council_seat]
+  - {key: norra_council_seat, kind: office, name: Councillor of State, tier: 2, controller: norra}
 
 cards:
   - person: ilse

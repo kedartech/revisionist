@@ -160,6 +160,7 @@ entities:
   - {key: mussolini, kind: person, name: Benito Mussolini, parent: italy}
   - {key: victor_emmanuel, kind: person, name: King Victor Emmanuel III, parent: italy}
   - {key: cavallero, kind: person, name: Ugo Cavallero, parent: comando_supremo}
+  - {key: iachino, kind: person, name: Angelo Iachino, parent: italy}  # source: iachino_1941
   # Soviet Union, China
   - {key: stalin, kind: person, name: Joseph Stalin, parent: ussr}
   - {key: molotov, kind: person, name: Vyacheslav Molotov, parent: ussr}
@@ -1196,6 +1197,8 @@ assets:
   - {key: uboat_command, kind: office, name: Commander of U-boats, tier: 3, controller: doenitz}
   # NJP: the Combined Fleet's commander's post. The tier is [proposed], as Tovey's is.
   - {key: combined_fleet_command, kind: office, name: "Commander in Chief, Combined Fleet", tier: 3, controller: yamamoto}
+  # NIT: the Italian Battle Fleet's commander's post. The tier is [proposed], as Tovey's is.
+  - {key: battle_fleet_command, kind: office, name: "Commander in Chief, Battle Fleet", tier: 3, controller: iachino}
 
 sources:
   - key: voteview
@@ -1252,6 +1255,8 @@ sources:
   - {key: tovey_1941, title: "Admiral Sir John Tovey, Commander in Chief, Home Fleet, from December 1940 to May 1943, at Scapa Flow", note: "Named citation; not read. Confirm the dates before release."}
   - {key: doenitz_1941, title: "Karl Dönitz, Befehlshaber der Unterseeboote (Commander of U-boats) from 1939, Vizeadmiral from September 1940, with his headquarters at Kernevel by Lorient from November 1940", note: "Named citation; the lane had no network and read no edition. Confirm the rank and dates before release."}
   - {key: yamamoto_1941, title: "Admiral Isoroku Yamamoto, Commander in Chief of the Combined Fleet from August 1939, with his flagship in the Inland Sea by Kure", note: "Named citation; the lane had no network and read no edition. Confirm the rank and dates before release."}
+  - {key: iachino_1941, title: "Admiral Angelo Iachino, Commander in Chief of the Italian Battle Fleet (the Squadra Navale) from December 1940 to April 1943, with the fleet based at Taranto", note: "Named citation; the lane had no network and read no edition. Confirm the rank and dates before release."}
+  - {key: bragadin_1957, title: "Marc'Antonio Bragadin, The Italian Navy in World War II (United States Naval Institute, 1957): the battle fleet's sorties ordered from Rome through Supermarina", note: "Mussolini held the Ministry of the Navy; the sorties were held back for want of fuel and air cover. Named citation; not read. Confirm the chain of orders and the restrictions before release."}
   - {key: liaison_conference_1941, title: "The Liaison Conference of 1941: the Prime Minister, the Foreign, Army and Navy Ministers and the two Chiefs of Staff, deciding by consensus", note: "Named citation; not read. Confirm the membership and the rule of consensus before release."}
   - {key: fuehrer_naval_17_sep_1941, title: "Fuehrer Conferences on Naval Affairs, 17 September 1941: Hitler orders the U-boats to avoid incidents with American ships", note: "Raeder asked leave to attack American escorts; Hitler refused until the campaign in the East is decided. Named citation; not read. Confirm the date and the wording before release."}
   - {key: neutrality_act_1939, title: "Neutrality Act of 4 November 1939 (54 Stat. 4), section 3, Combat Areas; with Proclamation 2376 of the same day defining the combat area", note: "Read (presidency.ucsb.edu, Proclamation 2376, which quotes section 3). Section 3(a): once the President defines combat areas it is unlawful for any citizen of the United States or any American vessel to proceed into or through them. The area: the waters round the British Isles out to 20 W, from the north coast of Spain to Norway."}
@@ -1468,6 +1473,13 @@ pipelines:
     gap: true
     steps:
       - {person: yamamoto, kind: clerical, days: 1, assumed: true}
+  # Iachino's own forms (NIT): through the Battle Fleet's staff in his flagship, with no step
+  # above him. The step is his.
+  - key: battle_fleet_staff
+    name: Through the Battle Fleet's staff
+    gap: true
+    steps:
+      - {person: iachino, kind: clerical, days: 1, assumed: true}
   - key: cable_to_churchill
     name: A cable to the Prime Minister
     gap: true
@@ -2606,8 +2618,9 @@ cards:
     interests: [keep pace with Germany, hold North Africa]
     authority:
       - name: supreme_command
-        effects: [engagement]
+        effects: [move_force, engagement]
         executor: cavallero
+        forces: [italian_fleet, italian_army, italian_army_libya]
         summary: "Orders to the armed forces, carried out through the Comando Supremo."
       - name: war_economy
         effects: [allocate]
@@ -3070,6 +3083,62 @@ cards:
         effects: [move_force, engagement]
         forces: [combined_fleet]
         summary: "Command of the Combined Fleet: where it goes, what it detaches, how it fights."
+  # The thirteenth playable card (NIT): a military card, flagged playable by hand, under the
+  # Chief of the Comando Supremo and so under Mussolini, whose own order over the battle fleet
+  # stands. His own forms go through his own staff (battle_fleet_staff), with no step above him.
+  # Aims 1 and 2 are the fleet commander's patterns filled in (hold_and_take, take_ground); aim 3
+  # is the default an own aim replaces. A sortie east of the Sicilian narrows is Mussolini's to
+  # permit; Italy has no body or council that decides. source: iachino_1941 for the post,
+  # bragadin_1957 for the sorties ordered from Rome; every other line gap: true, [proposed].
+  - person: iachino
+    post_kind: fleet_commander
+    office: Commander in Chief, Battle Fleet
+    voice: "Correct and cautious; argues from fuel stocks and air cover, and wants his orders from Rome in writing before he risks the battleships."
+    addressed_as: "Signor Ammiraglio"
+    playable: true
+    path: military
+    principals: [cavallero]
+    powers: [command the Battle Fleet, cover the convoys to Libya, give battle at sea]
+    inner_circle:
+      - {person: cavallero, channel: cable}
+    feeds: [comando_supremo_reports]
+    pipelines: [battle_fleet_staff]
+    levers:
+      - name: battle_fleet_move
+        pipeline: battle_fleet_staff
+        resolver: movement
+        label: "Move the fleet"
+        summary: "Send the Italian Battle Fleet to other waters. Your staff carries it out."
+        params:
+          - {name: force, kind: enum, choices: [italian_fleet], label: "Which fleet", choice_labels: ["The Italian Battle Fleet"]}
+          - {name: to, kind: enum, choices: [taranto, tripoli, bardia], label: "To", choice_labels: ["Taranto", "Tripoli", "Bardia"]}
+      - name: battle_fleet_detach
+        pipeline: battle_fleet_staff
+        resolver: movement
+        label: "Detach part of the fleet"
+        summary: "Send part of the Italian Battle Fleet's strength to other waters; the rest stays where it is."
+        params:
+          - {name: force, kind: enum, choices: [italian_fleet], label: "Which fleet", choice_labels: ["The Italian Battle Fleet"]}
+          - {name: to, kind: enum, choices: [taranto, tripoli, bardia], label: "To", choice_labels: ["Taranto", "Tripoli", "Bardia"]}
+          - {name: strength, kind: int, lo: 1, hi: 3, label: "How much of its strength"}
+    loyalty: 1
+    competence: 3
+    wants: [naval_engagement, fleet_movements]
+    reach: {rank: 2}
+    horizon_days: 7
+    aims:
+      - "Hold Tripolitania and the Fezzan and take Malta and Cyprus."
+      - "Take the Tobruk enclave for Italy."
+      - "Keep Cyrenaica Italian, supplied by sea."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Tripolitania and the Fezzan stay Italian, and Malta and Cyprus are taken from Britain.", condition: {check: all_of, conditions: [{check: holds_area, area: tripolitania, holder: italy}, {check: holds_area, area: british_islands, holder: italy}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "Italy holds the Tobruk enclave.", condition: {check: holds_area, area: tobruk_area, holder: italy}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "Italy holds Cyrenaica.", condition: {check: holds_area, area: cyrenaica, holder: italy}}
+    authority:
+      - name: battle_fleet
+        effects: [move_force, engagement]
+        forces: [italian_fleet]
+        summary: "Command of the Italian Battle Fleet: where it goes, what it detaches, how it fights."
   - person: kramer
     office: Navy communications intelligence translator
     voice: "Precise translator's register; marks the urgent passage and adds one short note of his own."
@@ -3567,6 +3636,17 @@ mandates:
     condition: {check: ordered, person: yamamoto, effect: move_force}
     days: 21
     text: "The new Cabinet holds to early December if the talks fail: the Navy General Staff wants the Combined Fleet made ready."
+  # NIT: when Italian shipping is at sea for Libya, the Comando Supremo wants the battle fleet
+  # placed to cover the convoys, as it was sent out in November and December 1941. Named, not
+  # read: gap: true, [proposed]. source: bragadin_1957
+  - key: battle_fleet_covers_the_convoys
+    kind: order
+    issuer: cavallero
+    trigger: {"on": quantity, quantity: italy_sealift_grt, op: le, value: 140000}
+    to: [iachino]
+    condition: {check: ordered, person: iachino, effect: move_force}
+    days: 14
+    text: "Italian shipping is at sea for Libya: the Comando Supremo wants the battle fleet placed to cover the convoys."
   # The Commons pressed for the Atlantic convoys through the autumn.
   - key: commons_convoys
     kind: order
@@ -3695,6 +3775,11 @@ roster:
     reach: The Combined Fleet, what it may do under the Navy General Staff, and a cable to its Chief.
     composite: false
     sides: [{contest: us_japan_talks, side: japan}]
+  - entity: iachino
+    pitch: Admiral commanding the Italian Battle Fleet from Taranto, short of fuel and sent to sea from Rome.
+    reach: The Italian Battle Fleet, what it may do under the Comando Supremo, and a cable to its Chief.
+    composite: false
+    sides: [{contest: atlantic_war, side: italy}]
 
 # Starting regard [proposed] (SHT, 14 Nov sheet), -2 to 2: between Roosevelt and
 # each of his people, and between each pair of the eight leaders. Public, as the
@@ -3927,6 +4012,19 @@ locks:
     question: permission
     order: {form: combined_fleet_detach, params: {to: hitokappu_bay}}
     decider: {person: nagano}
+  # NIT. A sortie of the battle fleet east of the Sicilian narrows: the fleet sent to Bardia on
+  # the eastern Mediterranean, or part of it, where it would meet the Mediterranean Fleet from
+  # Alexandria, waits on Mussolini's permission. He held the Ministry of the Navy, and the
+  # fleet's sorties were ordered from Rome. No condition: only his grant opens it. Italy has no
+  # body or council that decides. source: bragadin_1957; the place, gap: true, [proposed].
+  - key: battle_fleet_sortie_east
+    question: permission
+    order: {form: battle_fleet_move, params: {to: bardia}}
+    decider: {person: mussolini}
+  - key: battle_fleet_detachment_east
+    question: permission
+    order: {form: battle_fleet_detach, params: {to: bardia}}
+    decider: {person: mussolini}
 
 # Pacts in force on 1 September 1941 (PCW). The clause chosen for each is [proposed]: the rules judge
 # what they can, and wording they cannot express is kept and marked unchecked.

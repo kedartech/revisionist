@@ -112,6 +112,11 @@ FEED_KINDS: frozenset[str] = frozenset(
         "offer_settled",
         # A post changing hands (PPP): public, as an appointment is news; never its part.
         "post_changed",
+        # Who may move a post and where its holder falls (LDR): public rules of the world.
+        "ladders_declared",
+        # The pending change of post (LDR): sealed to the seat of the person moved alone.
+        "post_move_ordered",
+        "post_move_settled",
         "influence_decided",
         "effects_applied",
         # Offers and agreements (AGR): sealed to the parties' seats, public once published,

@@ -70,6 +70,9 @@ FEED_KINDS: frozenset[str] = frozenset(
         "own_aim_set",
         # A seat's own nation's pieces, step by step (sealed to its seats): playback's source.
         "piece_stepped",
+        # A move of its own nation's group (sealed to its seats, HFR): its home block shows
+        # it already; playback's source for the home front.
+        "group_moved",
         # A step of its own nation's piece refused for want of fuel, with the reason (FUL).
         "step_refused",
         # Who holds each territory, as it changes (THL): public.
@@ -196,9 +199,8 @@ NEVER: frozenset[str] = frozenset(
         "codebreaking_set",
         # Groups at home (GRP): true support. A seat reads its own nation's groups from its
         # own data and others' from the press; the declaration, the writing in waiting and
-        # the battle losses held (LSS) are engine only.
+        # the battle losses held (LSS) are engine only. A move is fed (HFR).
         "groups_declared",
-        "group_moved",
         "group_proposed",
         "losses_held",
         "scheduled_event_created",
@@ -294,6 +296,8 @@ def _named(p: ev.Payload, view: View) -> bool:
             return p.conference.key in view.conferences.held
         case ev.ConferenceTallied():
             return p.conference in view.conferences.held
+        case ev.GroupMoved():
+            return p.polity in view.groups.declared  # a view holds its own nation's only
     return True
 
 

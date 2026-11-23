@@ -2034,7 +2034,8 @@
           "word": "Overwhelming",
           "as_of": "1941-10-18",
           "confidence": "firm"
-        }
+        },
+        "portrait": "hitler.jpg"
       },
       {
         "person": "C1GF7K677JE0H66EVTR4GCXE7D",
@@ -2088,7 +2089,8 @@
           "word": "Overwhelming",
           "as_of": null,
           "confidence": null
-        }
+        },
+        "portrait": "stalin.jpg"
       }
     ],
     "yours": [
@@ -2154,7 +2156,8 @@
           "confidence": null
         },
         "wants": [],
-        "holds_to": []
+        "holds_to": [],
+        "portrait": null
       },
       {
         "person": "63A3RZNQ0CYKDN5BVGECWKQT4P",
@@ -2227,7 +2230,8 @@
           "confidence": null
         },
         "wants": [],
-        "holds_to": []
+        "holds_to": [],
+        "portrait": null
       }
     ],
     "others": [
@@ -2270,7 +2274,8 @@
         },
         "bloc": "Department of State",
         "channel": null,
-        "power": null
+        "power": null,
+        "portrait": null
       }
     ]
   },
@@ -2290,6 +2295,24 @@
       "category": "Espionage",
       "headline": "Thirty-three accused German agents on trial",
       "asks": []
+    }
+  ],
+  "world_key": "territory-toy",
+  "nation_keys": {
+    "6G3FWX2XAZN1W0GBGGRVZ8P0HJ": "norra",
+    "TZHP5CPZR27M6255484EX48TQ6": "sudland"
+  },
+  "wars": [
+    {
+      "a": {
+        "key": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+        "name": "Norra"
+      },
+      "b": {
+        "key": "TZHP5CPZR27M6255484EX48TQ6",
+        "name": "Sudland"
+      },
+      "since": "1900-03-01"
     }
   ],
   "stakes": {
@@ -4424,7 +4447,8 @@
                     "yeas": 20,
                     "nays": 80
                   }
-                ]
+                ],
+                "carries": 101
               }
             ]
           }

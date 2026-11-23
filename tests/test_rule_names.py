@@ -73,8 +73,9 @@ def _with_third_run(rules: tuple[Rule, ...]) -> tuple[Rule, ...]:
 
 def test_the_sixteen_third_run_names_follow_the_rules_before_them() -> None:
     values = [r.value for r in Rule]
-    assert values[-len(THIRD_RUN) :] == list(THIRD_RUN)
-    assert values[: -len(THIRD_RUN)][-2:] == ["command", "locks"]
+    first = values.index(THIRD_RUN[0])
+    assert values[first : first + len(THIRD_RUN)] == list(THIRD_RUN)
+    assert values[first - 2 : first] == ["command", "locks"]
 
 
 def test_none_of_the_sixteen_leans_on_a_live_models_reading() -> None:

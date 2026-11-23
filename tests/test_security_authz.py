@@ -84,6 +84,8 @@ class Ids:
     """Kara's order in A held by a lock for Ilse, which Kara has asked for."""
     waiting: int = 0
     """Kara's order in A waiting for the next wake (``web_held_orders``)."""
+    report: int = 0
+    """Kara's report in A (``player_reports``)."""
     paper: str = ""
     """A paper only Kara holds in A."""
     item: str = ""
@@ -103,6 +105,7 @@ def made_up(ids: Ids) -> Ids:
         order=fake,
         held=fake,
         waiting=987654,
+        report=987655,
         paper=fake,
         item=fake,
         zero_host_person="Nobody Of Note",
@@ -256,6 +259,15 @@ ROWS: tuple[Row, ...] = (
     Row("realism", "agreement-publish", PLAY, _fixed(agreement="norra_sudland_pact")),
     Row("realism", "conference-call", PLAY, _fixed(conference="strait")),
     Row("realism", "conference-vote", PLAY, _fixed(conference="strait", vote="for")),
+    Row("realism", "report", PLAY, _fixed(kind="bug", text="The map is blank.")),
+    Row("realism", "reports", PLAY, _fixed(inbox=True)),
+    Row(
+        "realism",
+        "report-mark",
+        PLAY_HOST,
+        lambda ids: {"id": ids.report, "status": "seen"},
+        lambda ids: [{"id": ids.report, "status": "seen"}],
+    ),
 )
 
 
@@ -518,6 +530,7 @@ def build(db: PgDb, tmp: Path) -> World:
         act(kara, "lever", **ISLE)
         (ids.held,) = site.run(lambda store: list(load_state(store, A).held))
         act(kara, "ask", order_id=ids.held)
+        ids.report = int(act(kara, "report", kind="bug", text="The hills are blank.")["report"])
         ids.paper = site.run(lambda store: _paper(store, A, _seat(decl, A, "kara")))
         act(kara, "commit")
         ids.waiting = int(act(kara, "lever", **ISLE)["held"])
@@ -821,8 +834,10 @@ OWNED: tuple[tuple[str, str, Callable[[Ids], dict[str, Any]]], ...] = (
     ("flag", "a_kara", lambda ids: {"doc_id": ids.paper, "flagged": True}),
     ("step", "a_kara", lambda ids: {"order_id": ids.item, "action": "pass"}),
     ("withdraw", "a_kara", lambda ids: {"held_id": ids.waiting}),
+    ("report-mark", "a_ilse", lambda ids: {"id": ids.report, "status": "seen"}),
 )
-"""Requests the matrix sends as another seat, sent by the seat that holds the thing."""
+"""Requests the matrix sends as another seat, sent by the seat that holds the thing (the
+host, for a report in his game)."""
 
 
 @pytest.mark.parametrize(("action", "who", "body"), OWNED, ids=[o[0] for o in OWNED])

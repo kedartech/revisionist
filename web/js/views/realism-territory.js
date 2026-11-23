@@ -490,10 +490,30 @@ function routeLayer(route, labelAt) {
 const daysWord = (n) => (n === 1 ? '1 day' : `${n} days`);
 
 /**
+ * The coastline's land inside the map's box, as one even-odd path drawn under the areas, for a
+ * longitude-latitude map that has a backdrop; null for any other map, or before the coastline is here.
+ * A ring is shifted a turn of longitude either way when that brings it into the box.
+ */
+function notInPlay(shapes, coast, box, line) {
+  if (shapes.coords !== 'lonlat' || !(shapes.backdrop ?? []).length || !Array.isArray(coast?.rings)) return null;
+  const d = [];
+  for (const ring of coast.rings) {
+    const lons = ring.map(([lon]) => lon);
+    const lats = ring.map(([, lat]) => lat);
+    if (Math.max(...lats) < box.south || Math.min(...lats) > box.north) continue;
+    for (const turn of [-360, 0, 360]) {
+      if (Math.max(...lons) + turn < box.west || Math.min(...lons) + turn > box.east) continue;
+      d.push(`M${line(ring.map(([lon, lat]) => [lon + turn, lat])).map((xy) => xy.join(' ')).join('L')}Z`);
+    }
+  }
+  return d.length ? svg('path', { d: d.join(''), class: 'rl-tm-notland', 'aria-hidden': 'true' }) : null;
+}
+
+/**
  * The drawing of a territory map `map` (the seat's `map` block) from `shapes` (its map file).
  * `opts`: { frame (a region's key, '' or null for the whole map), zoom, centre, px, layer,
  * selected, onSelect, fanned (the stack shown fanned out, by its area), onFan, targets, onTarget, openCapital,
- * onView, still, label, route (a move's path: `routeLayer`), today, report (the picked report's key), onReport,
+ * coast (the coastline file's rings: land not in play), onView, still, label, route (a move's path: `routeLayer`), today, report (the picked report's key), onReport,
  * threats (the threats switch), token ({ intel, at, label }: an intelligence token put down), battles (`battleMarksOf`),
  * battle (the open battle's area), onBattle(mark) }. Arrow keys on the picked piece or a
  * lit area move focus along the lit areas; Escape on a lit area goes back to the piece.
@@ -549,6 +569,7 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   proj.step
     ? svg('path', { d: `M${line([[box.west, box.north], [box.east, box.north], [box.east, box.south], [box.west, box.south], [box.west, box.north]]).map((xy) => xy.join(' ')).join('L')}Z`, class: 'rl-map-sea' })
     : svg('rect', { x: 0, y: 0, width: proj.width, height: proj.height, class: 'rl-map-sea' }),
+  notInPlay(shapes, opts.coast, box, line),
   (shapes.backdrop ?? []).map((ring) => svg('path', { d: ringsPath(shapes.vertices, [ring], line), class: 'rl-tm-backdrop' })),
   areas.map((a) => svg('path', {
     d: ringsPath(shapes.vertices, shapes.areas[a.key].rings, line), class: `rl-area rl-area-${a.kind === 'sea' ? 'sea' : 'land'}`,

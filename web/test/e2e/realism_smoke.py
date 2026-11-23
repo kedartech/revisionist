@@ -1,7 +1,8 @@
 """Browser smoke run of the realism room against a live `revisionist web serve`.
 
 Signs up a fresh account and either joins a realism game with an invite code or, with
-the code `new`, starts the ready-made game as its host and plays Franklin D. Roosevelt.
+the code `new`, starts the ready-made game as its host and plays Franklin D. Roosevelt, chosen by
+nation, path and person (by keyboard alone at desktop width, by taps at 390).
 With the code `v2` it starts the engine-v2 slice from the timeline instead and checks
 the timeline, who held power and the play style first.
 Checks the room: the header names the player and its two names open the setting and the
@@ -237,7 +238,7 @@ def main() -> int:
             page.get_by_role("link", name="Start a new game").click()
             page.get_by_role("button", name="Start Autumn 1941").click()
             page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
-            play_from_dossier(page, report, "Franklin D. Roosevelt")
+            opening_steps(page, report, "Franklin D. Roosevelt")
             release_and_repick(page, report, "Franklin D. Roosevelt")
             page.get_by_role("button", name="Begin the game").wait_for(timeout=60_000)
             begin_with_crawl(page, report)
@@ -1339,6 +1340,77 @@ def phone_board(page: Page, report: dict[str, object]) -> None:
     page.screenshot(path=str(OUT / f"00c-phone-board-{SIZE[0]}x{SIZE[1]}.png"), full_page=True)
 
 
+STEPS_SHOWN = ".rl-op-everyone, .rl-cast-flat:not([hidden])"
+
+
+def show_everyone(page: Page) -> None:
+    """Open the flat cast under the opening's steps, once the screen has read the opening."""
+    page.locator(STEPS_SHOWN).first.wait_for(timeout=30_000)
+    toggle = page.locator("button.rl-op-everyone")
+    if toggle.count() and toggle.get_attribute("aria-expanded") == "false":
+        toggle.click()
+
+
+def step_texts(page: Page) -> list[str]:
+    return [t.strip() for t in page.locator(".rl-op-step").all_inner_texts()]
+
+
+def opening_steps(page: Page, report: dict, name: str) -> None:
+    """A ready-made game opens on a nation, a path and a person: walked by keyboard alone at
+    desktop width and by taps at 390, with a nation of one path on the way."""
+    page.locator(".rl-op").wait_for(timeout=30_000)
+    nations = page.locator("button.rl-op-nation").count()
+    report["opening_nations"] = nations
+    check("the opening opens on the nation step", nations >= 2, str(nations))
+    check(
+        "the opening draws the seats left as a meter",
+        page.locator(".rl-op-seats[role=meter] .rl-op-seat").count() > 0,
+    )
+    check(
+        "the flat cast waits behind Show everyone",
+        page.locator(".rl-cast-flat[hidden]").count() == 1,
+    )
+    shoot(page, "00o-opening-nation")
+    one = page.evaluate(
+        """async () => {
+          const r = await fetch('/api/new/opening', { method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' }, body: '{}' });
+          const o = (await r.json()).opening;
+          return o.nations.find((n) => n.paths.length === 1 && n.key !== null)?.name ?? null;
+        }"""
+    )
+    check("a nation is reached and chosen", press(page, "button.rl-op-nation", one), str(one))
+    page.locator(".rl-op-person").first.wait_for(timeout=10_000)
+    steps = step_texts(page)
+    report["opening_one_path_steps"] = steps
+    check(
+        "a nation with one path passes the path step and shows it chosen",
+        page.locator("button.rl-op-path").count() == 0
+        and steps[1].endswith("(the only one)")
+        and page.locator("span.rl-op-step.fixed").count() == 1,
+        str(steps),
+    )
+    shoot(page, "00p-opening-one-path")
+    check("Back to the nations is reached", press(page, "button.rl-op-back", "\u2039 Nations"))
+    check(
+        "the United States is reached and chosen",
+        press(page, "button.rl-op-nation", "United States"),
+    )
+    page.locator("button.rl-op-path").first.wait_for(timeout=10_000)
+    check("the paths are the nation's two", page.locator("button.rl-op-path").count() == 2)
+    shoot(page, "00q-opening-path")
+    check("the political path is reached and chosen", press(page, "button.rl-op-path", "Political"))
+    card = page.locator(".rl-op-person", has_text=name)
+    card.wait_for(timeout=10_000)
+    check("the person card shows the office", card.locator(".rl-op-office").count() == 1)
+    shoot(page, "00r-opening-person")
+    axe(page, "the opening")
+    width = page.evaluate("document.documentElement.scrollWidth")
+    check("the opening is as wide as the viewport", width <= SIZE[0], str(width))
+    check("Take this seat is reached", press(page, "button.rl-op-take", f"Take this seat: {name}"))
+    page.get_by_role("heading", name=f"You are {name}").wait_for(timeout=60_000)
+
+
 def play_from_dossier(page: Page, report: dict, name: str) -> None:
     """Open a cast card's dossier, check it reads as a dossier, and play that person."""
     page.get_by_role("button", name=f"{name}: open the dossier").click()
@@ -1372,6 +1444,7 @@ def release_and_repick(page: Page, report: dict, name: str) -> None:
     shoot(page, "00c-release-confirm")
     page.get_by_role("button", name="Yes, choose again").click()
     page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
+    show_everyone(page)
     check(
         "a released person is free on the cast again",
         page.get_by_role("button", name=f"{name}: open the dossier").count() == 1,
@@ -2063,6 +2136,7 @@ def salt_start(page: Page, report: dict[str, object], play: object) -> None:
     page.get_by_role("link", name="Start a new game").click()
     page.get_by_role("button", name=f"Start {SALT}").click()
     page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
+    show_everyone(page)
     page.get_by_role("button", name="General Aske: open the dossier").click()
     dossier = page.locator("dialog.rl-cd[open]")
     dossier.wait_for(timeout=10_000)

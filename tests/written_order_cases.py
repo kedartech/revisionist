@@ -597,6 +597,10 @@ PRODUCTION = (
     "core lane fix item: a written production order lands as its form does"
     " (the form builds a step, mobilises, or brings the aid another nation let through)"
 )
+MESSAGE = (
+    "core lane fix item: a written message lands as its form does"
+    " (the form raises the regard of the person abroad who let it through)"
+)
 SHIPPING = (
     "core lane fix item: a written shipping order lands as its form does"
     " (the form acts through escort levels, losses and the lift pool)"
@@ -607,6 +611,7 @@ FIXES: dict[str, str] = {
     "1941.roosevelt.naval_order": SHIPPING,
     "1941.roosevelt.move_fleet": TIMING,
     "1941.roosevelt.detach_fleet": DETACH,
+    "1941.roosevelt.cable_to_churchill": MESSAGE,
     "1941.roosevelt.fly_recon": AUTHORITY,
     "1941.roosevelt.send_on_patrol": TIMING,
     "1941.churchill.convoy_orders": SHIPPING,

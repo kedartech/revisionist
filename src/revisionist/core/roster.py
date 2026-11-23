@@ -6,8 +6,10 @@ qualify.
 """
 
 from revisionist.core import contest
+from revisionist.core._base import Model
 from revisionist.core.ids import ContestId, EntityId
 from revisionist.core.ontology import AssetKind, AssetStatus, EntityKind
+from revisionist.core.realism.card import CardPath
 from revisionist.core.state import State
 
 QUALIFYING_TIER = 2
@@ -76,6 +78,68 @@ def problems(state: State) -> list[str]:
         f"of tier {QUALIFYING_TIER}+ in a contest"
         for c in sorted(failing, key=lambda c: _order(state, c))
     ]
+
+
+class Candidate(Model):
+    """One roster person as the opening offers him: public, the same for every caller."""
+
+    person: EntityId
+    name: str
+    nation: EntityId | None
+    """The polity above the person in the parent chain; None when there is none."""
+    path: CardPath | None
+    """The card's path; None while the person has no card."""
+    office: str
+    pitch: str
+    taken: bool
+    reason: str | None
+    """Why the person may not be taken, in plain words; None when he may."""
+
+
+def claimable(state: State) -> tuple[Candidate, ...]:
+    """Every roster person, in name order, with whether a player may take him and why not.
+
+    The test is the claim's: unclaimed, the character rule where the world has contests,
+    and in a realism world a playable card. It reads the state alone, never a seat.
+    """
+    return tuple(_candidate(state, c) for c in sorted(state.roster, key=lambda c: _order(state, c)))
+
+
+def _candidate(state: State, entity: EntityId) -> Candidate:
+    name = state.entities[entity].name
+    card = state.cards.get(entity)
+    taken = state.roster[entity].claimed_by is not None
+    reason: str | None = None
+    if taken:
+        reason = f"{name} is already taken."
+    elif state.contests and not qualifies(state, entity):
+        reason = (
+            f"{name} does not meet the character rule: a playable character needs a force, "
+            f"office or network of tier {QUALIFYING_TIER} or more in one of the world's contests."
+        )
+    elif state.ruleset == "realism" and (card is None or not card.playable):
+        reason = f"{name} is not ready to be played yet."
+    return Candidate(
+        person=entity,
+        name=name,
+        nation=_nation(state, entity),
+        path=card.path if card is not None else None,
+        office=card.office if card is not None else "",
+        pitch=state.roster[entity].pitch,
+        taken=taken,
+        reason=reason,
+    )
+
+
+def _nation(state: State, entity: EntityId) -> EntityId | None:
+    seen: set[EntityId] = set()
+    at = state.entities[entity].parent
+    while at is not None and at not in seen and at in state.entities:
+        if state.entities[at].kind is EntityKind.POLITY:
+            return at
+        seen.add(at)
+        at = state.entities[at].parent
+    return None
 
 
 def _open(state: State, entity: EntityId) -> list[EntityId]:

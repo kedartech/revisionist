@@ -78,6 +78,8 @@ Key = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]*$", max_length=
 
 Latitude = Annotated[float, Field(ge=-90, le=90)]
 Longitude = Annotated[float, Field(ge=-180, le=180)]
+RosterSize = Annotated[int, Field(ge=2, le=40)]
+"""How many people a world's roster may hold, at either end of its bound. [proposed]"""
 
 _LAT_LON = TypeAdapter(tuple[Latitude, Longitude] | None)
 At = Annotated[tuple[float, float] | None, WithJsonSchema(_LAT_LON.json_schema())]
@@ -1039,6 +1041,9 @@ class WorldFile(Model):
     start: str = Field(default="", max_length=80)
     """A point in history, "Florence, April 1478". Set, it opens Session Zero."""
     roster: tuple[CharacterDecl, ...] = ()
+    roster_limit: SkipJsonSchema[tuple[RosterSize, RosterSize] | None] = None
+    """The least and most people the roster holds, in place of 8 and 12. Written by hand:
+    not offered to a model, so a drafted world keeps 8 to 12."""
     notes: tuple[Annotated[str, StringConstraints(max_length=200)], ...] = ()
     """Readings the GM chose where the record is disputed or silent (spec §5)."""
     start_date: date | None = None
@@ -1112,6 +1117,12 @@ class WorldFile(Model):
     map_data: SkipJsonSchema[bytes | None] = Field(default=None, exclude=True)
     """The bytes of the map file ``map`` names, read by the world loader from beside
     the world file, not from the world file itself. None when no file was found."""
+
+    @model_validator(mode="after")
+    def _roster_limit_in_order(self) -> "WorldFile":
+        if self.roster_limit is not None and self.roster_limit[0] > self.roster_limit[1]:
+            raise ValueError(f"roster_limit: {list(self.roster_limit)} is not least, most")
+        return self
 
     @model_validator(mode="after")
     def _places_on_the_globe(self) -> "WorldFile":

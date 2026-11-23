@@ -80,7 +80,7 @@ GREER_QUESTION = "Raeder, what should the U-boats do about the Americans now?"
 
 
 def counsel_reply(request: Request) -> Any:
-    question = request.prompt.rsplit("\n", 1)[1]
+    question = request.prompt.splitlines()[-2]  # the line inside the quoted block's close
     return {"text": COUNSEL_BY_QUESTION[question]}
 
 

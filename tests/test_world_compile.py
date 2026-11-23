@@ -1,9 +1,11 @@
 """Layer 7: the world compiler turns a world file into a valid campaign or refuses it."""
 
+import json
 from pathlib import Path
 
 import pytest
 import yaml
+from pydantic import ValidationError
 
 from revisionist.core import events as ev
 from revisionist.core._base import Model
@@ -23,6 +25,7 @@ from revisionist.core.visibility import Visibility
 from revisionist.core.world import (
     AgentDecl,
     AssetDecl,
+    CharacterDecl,
     ClockDecl,
     EntityDecl,
     FactDecl,
@@ -32,7 +35,15 @@ from revisionist.core.world import (
     SeatDecl,
     WorldFile,
 )
-from revisionist.core.world_compile import WorldError, compile_world, object_id, resolve_keys
+from revisionist.core.world_compile import (
+    WorldError,
+    check_history,
+    compile_world,
+    object_id,
+    resolve_keys,
+)
+from revisionist.engine import campaign as cmp
+from revisionist.engine import draft, session_zero
 from tests import fixtures as fx
 
 CANARY = "CANARY-VARDA-LEDGER-1a2b3c"
@@ -553,3 +564,83 @@ def test_salt_strait_with_a_contest_and_a_qualifying_character_compiles() -> Non
     world = world.model_copy(update={"assets": (*world.assets, guard)})
     state = replay(compile_world(world, fx.CAMPAIGN, fx.VERSIONS))
     assert len(state.roster) == 1
+
+
+# --- the roster bound -------------------------------------------------------------------
+
+ROOT = Path(__file__).resolve().parents[1]
+AUTUMN = ROOT / "worlds" / "autumn-1941.yaml"
+
+
+def _roster_of(n: int, **update: object) -> WorldFile:
+    """1941 with its roster grown or cut to ``n`` people."""
+    world = cmp.load_world(AUTUMN)
+    listed = {c.entity for c in world.roster}
+    others = [d.key for d in world.entities if d.kind is EntityKind.PERSON and d.key not in listed]
+    extra = tuple(CharacterDecl(entity=k, pitch="p", reach="r", composite=False) for k in others)
+    roster = (*world.roster, *extra)[:n]
+    assert len(roster) == n
+    return world.model_copy(update={"roster": roster, **update})
+
+
+def _roster_problems(world: WorldFile) -> list[str]:
+    return [p for p in check_history(world) if p.startswith("roster:")]
+
+
+def test_a_fourteen_person_roster_is_refused_today_and_accepted_with_the_key() -> None:
+    assert _roster_problems(_roster_of(14)) == ["roster: 14 characters, not 8-12"]
+    assert _roster_problems(_roster_of(14, roster_limit=(8, 16))) == []
+
+
+def test_the_world_bound_holds_at_both_ends() -> None:
+    assert _roster_problems(_roster_of(9, roster_limit=(10, 14))) == [
+        "roster: 9 characters, not 10-14"
+    ]
+    assert _roster_problems(_roster_of(13, roster_limit=(2, 12))) == [
+        "roster: 13 characters, not 2-12"
+    ]
+    assert _roster_problems(_roster_of(10, roster_limit=(10, 10))) == []
+
+
+def test_a_world_without_the_key_keeps_eight_to_twelve() -> None:
+    assert _roster_problems(_roster_of(8)) == []
+    assert _roster_problems(_roster_of(12)) == []
+    assert _roster_problems(_roster_of(7)) == ["roster: 7 characters, not 8-12"]
+    assert _roster_problems(_roster_of(13)) == ["roster: 13 characters, not 8-12"]
+
+
+@pytest.mark.parametrize("bound", [(1, 12), (2, 41), (12, 8), (0, 0)])
+def test_a_roster_limit_outside_two_to_forty_or_out_of_order_is_refused(
+    bound: tuple[int, int],
+) -> None:
+    raw = yaml.safe_load(AUTUMN.read_text())
+    raw["roster_limit"] = list(bound)
+    with pytest.raises(ValidationError):
+        WorldFile.model_validate(raw)
+
+
+def test_the_roster_limit_changes_nothing_compiled() -> None:
+    world = cmp.load_world(AUTUMN)
+    bounded = world.model_copy(update={"roster_limit": (2, 40)})
+    assert compile_world(bounded, fx.CAMPAIGN, fx.VERSIONS) == compile_world(
+        world, fx.CAMPAIGN, fx.VERSIONS
+    )
+
+
+def test_a_drafted_world_is_not_offered_the_roster_limit() -> None:
+    assert "roster_limit" not in json.dumps(session_zero.DRAFT_SCHEMA)
+    assert "roster_limit" not in json.dumps(draft.SCHEMAS)
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        ROOT / "worlds" / "salt-strait-realism.yaml",
+        ROOT / "tests" / "worlds" / "territory-toy.yaml",
+    ],
+)
+def test_salt_strait_and_the_toy_world_carry_a_roster_limit_that_holds_them(path: Path) -> None:
+    world = cmp.load_world(path)
+    assert world.roster_limit is not None
+    assert _roster_problems(world) == []
+    assert _roster_problems(world.model_copy(update={"roster_limit": None})) != []

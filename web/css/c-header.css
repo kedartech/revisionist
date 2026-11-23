@@ -96,3 +96,44 @@ button.danger { background: var(--danger); color: var(--on-accent); border-color
 .rl-handover-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .rl-handover-code input { min-width: 0; width: 100%; box-sizing: border-box; font-family: var(--font-code); }
 .rl-handover-says:empty { display: none; }
+/* The map-first room's one bar (realism-status.js roomBar): the date, the wake's clock and the
+   players done, the aim marks, Nations, the sheet tabs, Done and the game menu. One row from
+   768 px; two rows on a phone, where Done is in the bottom bar beside What needs you. */
+.rl-roombar { display: flex; flex-wrap: nowrap; align-items: center; gap: var(--space-1) var(--space-3); min-height: 52px; padding: 4px 12px; background: var(--chrome-bg); border-bottom: 1px solid var(--chrome-rule); color: var(--chrome-fg); }
+.rl-roombar > * { flex-shrink: 0; }
+.rl-bar-day { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.rl-bar-date { font: 600 14px/1.3 var(--font-chrome); font-variant-numeric: tabular-nums; color: var(--chrome-fg); white-space: nowrap; }
+.rl-bar-clock { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--chrome-fg-muted); font: 12px/1.3 var(--font-chrome); white-space: nowrap; }
+.rl-bar-closes { display: none; }
+.rl-aimmarks { display: inline-flex; align-items: center; gap: 0; padding: 0 var(--space-1); border: 1px solid var(--chrome-rule); border-radius: var(--radius); }
+.rl-aimmarks-word { padding: 0 var(--space-1); font: 600 11px/1 var(--font-code); letter-spacing: .08em; text-transform: uppercase; color: var(--chrome-fg-muted); }
+.rl-roombar .rl-aimmark { min-width: 32px; min-height: 44px; padding: 0 var(--space-1); display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 0; color: var(--fg-strong); cursor: pointer; }
+.rl-roombar .rl-aimmark.rl-aim-at_risk { color: var(--warn); }
+.rl-roombar .rl-aimmark.rl-aim-failed { color: var(--danger); }
+.rl-roombar .rl-aimmark[aria-expanded="true"] { box-shadow: inset 0 -2px 0 var(--fg-strong); }
+.rl-roombar .rl-aimmark:focus-visible, .rl-nations-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.rl-roombar .rl-nations-btn { min-height: 44px; }
+.rl-roombar .rl-sheettabs { flex: 1 1 0; min-width: 0; padding: 0; background: transparent; border: 0; }
+.rl-roombar .rl-sheettab { min-height: 44px; }
+.rl-bar-end { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
+.rl-roombar .rl-bar-done, .rl-roombar .rl-menu-btn { min-height: 44px; white-space: nowrap; }
+.rl-roombar .rl-committed { color: var(--chrome-fg); }
+.rl-menu-game .row { flex-wrap: wrap; }
+.rl-menu-game .rl-wake { padding-left: 0; border-left: 0; }
+@media (min-width: 1600px) {
+  .rl-bar-closes { display: inline; }
+}
+@media (max-width: 1023px) {
+  /* Done for today sits in the bottom bar below 1024 px */
+  .rl-roombar .rl-bar-done { display: none; }
+}
+@media (max-width: 767px) {
+  .rl-roombar { flex-wrap: wrap; row-gap: 2px; padding: 2px var(--space-2); }
+  .rl-bar-day { order: 0; flex: 1 1 auto; }
+  .rl-bar-end { order: 1; }
+  .rl-aimmarks { order: 2; }
+  .rl-aimmarks-word { display: none; }
+  .rl-roombar .rl-nations-btn { order: 3; }
+  .rl-roombar .rl-sheettabs { order: 4; flex-basis: 0; }
+  .rl-roombar .rl-sheettab { padding: var(--space-1) var(--space-2); }
+}

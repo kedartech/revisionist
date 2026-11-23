@@ -171,3 +171,5 @@ seats: []
 roster:
   - {entity: ilse, pitch: The chancellor who started the war., reach: The army of Norra., composite: true}
   - {entity: tomas, pitch: The premier who must hold the border., reach: The army of Sudland., composite: true}
+# The roster holds two to four people, not the drafted 8 to 12. [proposed]
+roster_limit: [2, 4]

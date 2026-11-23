@@ -13,7 +13,7 @@ from pydantic import Field, ValidationError
 
 from revisionist.core._base import Model
 from revisionist.core.events import CallCost
-from revisionist.engine.llm import Request, Transport, prompt_text
+from revisionist.engine.llm import Request, Transport, prompt_text, quote_player
 
 PITCH_MAX = 200
 PITCH_MODEL = "claude-haiku-5-5"
@@ -193,10 +193,11 @@ def read_pitch(
         call_class="pitch",
         model=PITCH_MODEL,
         system=prompt_text("pitch"),
-        prompt=f"## Pitch\n{text}",
+        prompt=f"## Pitch\n{quote_player(text)}",
         schema=PITCH_SCHEMA,
         max_usd=0.3,
         effort=effort,
+        player_text=True,
     )
     reply = transport.call(request)
     costs = [reply.cost("pitch")]

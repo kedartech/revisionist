@@ -299,6 +299,25 @@ Sealing:
 - `command`: the commander's seat, a card's path, the superior prevailing, and the step that may only pass or stall (`card.py`, `pipelines.py`, `resolvers/movement.py`).
 - `locks`: orders held until the person or body that can allow them does (`locks.py`, `engine/web/locks_api.py`).
 
+The third run declares sixteen more names, each read by a later item; until its reader is built a name does nothing, and no shipped world names one:
+
+- `laws`: laws declared by the world, read by locks, votes and shipping.
+- `ask_answers`: an ask to a decider nobody plays is answered by its card on a due day.
+- `deciders`: locks decided by the kind of question, and by a council.
+- `own_aim`: the player's own aim, filled from the world's patterns and scored.
+- `offers`: a priced offer to a bloc, with a promise that comes due.
+- `classes`: every happening has a class: felt, reported or secret.
+- `losses`: the size of losses moves the mood at home.
+- `places`: places with political weight: lost, abandoned or retaken.
+- `posts`: player, person and post kept apart, and the ladder of posts.
+- `office`: the office question as a formal sitting, and blocs turning on the leader.
+- `elections`: elections redraw a chamber.
+- `defiance`: acting without permission, and refusing an order from above.
+- `aide_note`: the aide's note of what waits for the seat.
+- `peace`: an armistice and its terms end a war.
+- `post_view`: a commander's view limited to his post.
+- `playable_rule`: who can be played comes from a rule over the cards.
+
 ### Event kinds
 
 `src/revisionist/core/events.py` holds 117 event kinds. Every one is in exactly one of `FEED_KINDS` or `NEVER` in `src/revisionist/engine/catchup.py`, and `tests/test_catchup.py` checks that split and the fog on the fed ones. The lists below are copied from those two sets.
@@ -312,6 +331,7 @@ Build-time tools; the game never imports them.
 
 - `scripts/map_build.py` (`python scripts/map_build.py build worlds/maps/src/<slug>`, run with `uv run --group map`): builds a map file, its world fragment and its map object from a recipe and the cached Natural Earth files in `REVISIONIST_MAP_DATA`, each checked against the SHA-256 in `worlds/maps/SOURCES.md`.
 - `scripts/map_check.py` (`check MAP.json`, `check --world WORLD.yaml`, `check --region STAGING.yaml`, `adjacency MAP.json`, `render MAP.json`): the map file checker, the one adjacency predicate the build also uses, and the proof sheet.
+- `scripts/world_check.py` (`uv run python scripts/world_check.py WORLD [WORLD ...]`, `--keys`): reads `worlds/TEMPLATE.md` and a world, and prints for each of the template's questions whether the world answers it, marks it a gap, leaves it absent, or leaves it absent while a rule it switches on needs it (exit status 1); `--keys` lists the keys the world loader accepts that no row of the template names.
 - `scripts/ci_changes.py`: reads changed paths and says whether CI needs the Python tests and the browser test. `scripts/ci_shard.py` (with `scripts/ci_timings.json`): prints the test files of one CI shard. `scripts/ci_pg_client.sh`: the Postgres client tools for CI.
 - `scripts/make_web_icons.py` (`python scripts/make_web_icons.py <logo image>`, from the repo root; needs Pillow, which the project does not install): cuts the web client's install icons in `web/icons/` from the square logo file and keeps the source as `web/icons/logo-1024.png`. Run by hand when the logo changes; the game never runs it.
 - `scripts/prose_ab.py`: the same five pages written by two models for a blind read; makes live model calls and refuses to run without `--live`.
@@ -326,6 +346,7 @@ Backend package: `src/revisionist/engine/web/`. Stdlib `ThreadingHTTPServer` (`s
 Modules:
 - `src/revisionist/engine/web/server.py`: the HTTP server. `App` (`src/revisionist/engine/web/server.py:138`) holds the DSN, static dir, transport, clock and `offline_prose`; `make_handler()` (`src/revisionist/engine/web/server.py:1139`) builds the request handler. Serves `web/` and the JSON routes below.
 - `src/revisionist/engine/web/handlers.py`: `WebHandlers(Handlers)` (`src/revisionist/engine/web/handlers.py:30`). Reuses the Discord command code; the seat is looked up in `web_seats`, not `discord_seats`.
+- `src/revisionist/engine/web/guard.py`: the request guard's copies of the server's plumbing: `headers()`, `json_headers()`, `static_cache()`, `cookie()`, `same_origin()` and `body()`; a turned-away request raises `RefusedError` with the status and words the server's `ApiError` carries. Nothing calls it until the server is wired to it. `src/revisionist/engine/web/limits.py`: `SigninThrottle` (the sign-in throttle's copy), and `check()` and `address()`, which return nothing yet; a later refusal is a `Refusal` value sent as a reply with `refused: true`, never raised.
 - `src/revisionist/engine/web/accounts.py`: accounts, sessions, recovery codes and web-held seats. Scrypt password hashes (`hash_password()`, `src/revisionist/engine/web/accounts.py:44`); `Accounts` (`src/revisionist/engine/web/accounts.py:92`), `WebSeats` (`src/revisionist/engine/web/accounts.py:217`).
 - `src/revisionist/engine/web/snapshot.py`: the seat's JSON, built from its own view and log. `seat_snapshot()` (`src/revisionist/engine/web/snapshot.py:169`), `checked()` (`src/revisionist/engine/web/snapshot.py:299`, leak scan before sending; raises `WithheldError`, `src/revisionist/engine/web/snapshot.py:42`), `campaign_info()` (`src/revisionist/engine/web/snapshot.py:74`), `schedule_info()` (`src/revisionist/engine/web/snapshot.py:95`), `roster()` (`src/revisionist/engine/web/snapshot.py:103`).
 - `src/revisionist/engine/web/held.py`: orders a seat gives after it has committed, or while its wake is closing, kept in `web_held_orders` until the next wake opens (`hold()` `src/revisionist/engine/web/held.py:135`, `listing()` `src/revisionist/engine/web/held.py:163`, `drop()` `src/revisionist/engine/web/held.py:189`, `clear()` `src/revisionist/engine/web/held.py:214`, `file_one()` `src/revisionist/engine/web/held.py:235`, `file_held()` `src/revisionist/engine/web/held.py:269`; `closing()` `src/revisionist/engine/web/held.py:98` is true only while a close of the campaign's wake is running; a leave, a join or a scheduler pass that closes nothing does not count). `src/revisionist/engine/web/catchup_api.py`: the `catchup` action's pages, `reply()` (`src/revisionist/engine/web/catchup_api.py:100`). `src/revisionist/engine/web/playback.py`: the playback feed, each page's `steps`, `steps()` (`src/revisionist/engine/web/playback.py:191`), built from the catch-up seam's events alone; only the kinds in `STEP_KINDS` make a step.
@@ -440,7 +461,7 @@ Frontend (static, no build):
   - `0012_web_notices.sql`: `web_notice_addresses` (an account's notice address and IANA zone) and `web_notices_sent` (one row per seat and wake once its notice has gone). Read as empty until migrated (`src/revisionist/engine/notice.py`).
   - `0013_web_held_orders.sql`: `web_held_orders` (an order a seat gave after committing, kept until the next wake opens; `filed_in` and `dropped` record what became of it). Read as empty until migrated (`src/revisionist/engine/web/held.py`).
 - Event log: `src/revisionist/core/events.py` (event models). `src/revisionist/core/fold.py:107` `apply()`, `src/revisionist/core/fold.py:119` `replay()`. `src/revisionist/engine/store.py:103` `load_state()`. The Postgres store reads from a snapshot plus the tail (`src/revisionist/engine/pg_store.py`).
-- Schema export: `src/revisionist/schema_export.py:33` writes `schema/revisionist.schema.json`, which is committed. `tests/test_schema.py:85` checks it is current. `src/revisionist/core/__init__.py:23` `SCHEMA_VERSION = "65"`.
+- Schema export: `src/revisionist/schema_export.py:33` writes `schema/revisionist.schema.json`, which is committed. `tests/test_schema.py:85` checks it is current. `src/revisionist/core/__init__.py:23` `SCHEMA_VERSION = "66"`.
 - Worlds: `worlds/autumn-1941.yaml`, `worlds/engine-v2-slice-1941.yaml`, `worlds/realism-slice-1941.yaml`, `worlds/realism-toy.yaml`, `worlds/salt-strait.yaml`, `worlds/salt-strait-duo.yaml`. Resolved from `src/revisionist/engine/campaign.py:33` `WORLDS_DIR` by `world_path()` (`src/revisionist/engine/campaign.py:85`). Sidecar text for two of them: `worlds/dossiers/autumn-1941.yaml` and `worlds/dossiers/engine-v2-slice-1941.yaml`. Drafts `tests/drafts/florence-1478.yaml` and `washington-1962.yaml` are fixtures.
 - Briefings: `src/revisionist/engine/campaign.py:226-235` `briefings_dir()`: `REVISIONIST_BRIEFINGS_DIR`, else `<db>-briefings` beside a SQLite file, else `./revisionist-briefings`. Files `t<tick>-<seat>.md` from `FileDeliverer` (`src/revisionist/engine/campaign.py:208-223`).
 - Setting card waiting for `establish confirm`: `src/revisionist/cli.py:231-234` `_card_file()`, `revisionist-card.json` beside briefings.

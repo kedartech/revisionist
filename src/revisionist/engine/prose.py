@@ -24,7 +24,7 @@ from revisionist.core.ids import DocumentId, EntityId
 from revisionist.core.realism.document import DocumentKind, DocumentView
 from revisionist.core.realism.prose import invented_numbers, numbers_in
 from revisionist.core.state import State
-from revisionist.engine.llm import Request, Transport, prompt_text, prompt_version
+from revisionist.engine.llm import Request, Transport, prompt_text, prompt_version, quote_player
 from revisionist.engine.prose_context import band, page_context
 
 PROSE_MODEL = "claude-sonnet-5-5"
@@ -140,7 +140,11 @@ def page_lines(page: DocumentView, author: Author) -> dict[str, Any]:
             for line in page.body
             if line.value is not None
         ],
-        **({"context": author.context[page.doc_id]} if page.doc_id in author.context else {}),
+        **(
+            {"context": _quoted(author.context[page.doc_id])}
+            if page.doc_id in author.context
+            else {}
+        ),
         **(
             {
                 "refused": f"Your last draft of this page was refused: it {why}. "
@@ -150,6 +154,12 @@ def page_lines(page: DocumentView, author: Author) -> dict[str, Any]:
             else {}
         ),
     }
+
+
+def _quoted(context: dict[str, Any]) -> dict[str, Any]:
+    """The page's context with the reader's own words as a quoted block."""
+    asked = context.get("asked")
+    return {**context, "asked": quote_player(asked)} if isinstance(asked, str) else context
 
 
 def prose_prompt(author: Author, pages: Sequence[DocumentView]) -> str:
@@ -177,6 +187,7 @@ class ClaudeProseWriter:
             prompt=prose_prompt(author, _views_only(pages)),
             schema=PROSE_SCHEMA,
             max_usd=self.max_usd,
+            player_text=any("asked" in author.context.get(p.doc_id, {}) for p in pages),
         )
 
     def write(self, author: Author, pages: Sequence[DocumentView]) -> Written:

@@ -60,6 +60,9 @@ export function shortfalls(own, printedByArea, areaByKey) {
   return out;
 }
 
+/** The stock mark's cells: one per month the stock lasts, up to a year. */
+const STOCK_CELLS = 12;
+
 let folded = false;
 
 /** Whether the seat's own sheet keeps its components behind "More" (Beginner's room); set at each draw of the room. */
@@ -79,12 +82,18 @@ export function ownSheet(economy, map, { levers, act } = {}) {
   const fuelLine = own.fuel_months === null || own.fuel_months === undefined
     ? `${fuel || 'Fuel'}: no stock is kept in this game`
     : `${fuel || 'Fuel'} lasts ${num(own.fuel_months)} months at this income`;
+  const stock = own.pools?.fuel;
+  const filled = Math.ceil(Math.min(Math.max(Number(own.fuel_months) || 0, 0), STOCK_CELLS));
+  const stockMark = stock === undefined ? null : h('span', { class: 'rl-eco-stock' },
+    `${fuel || 'Fuel'} stock ${num(stock)}`,
+    h('span', { class: 'rl-eco-stockbar', 'aria-hidden': 'true' },
+      Array.from({ length: STOCK_CELLS }, (_, i) => h('i', { 'data-on': String(i < filled) }))));
   const parts = [
     h('h4', {}, 'Income'),
     h('ul', { class: 'rl-eco-income' }, income.map((r) => h('li', { 'data-resource': r.key }, incomeLine(r)))),
     h('h4', {}, 'Pools'),
     h('ul', { class: 'rl-eco-pools' }, pools),
-    h('p', { class: 'rl-eco-fuel' }, fuelLine),
+    h('div', { class: 'rl-eco-fuelrow' }, stockMark, h('p', { class: 'rl-eco-fuel' }, fuelLine)),
     h('h4', {}, 'Territories that pay less than they print'),
     less.length
       ? h('ul', { class: 'rl-eco-less' }, less.map((t) => h('li', { 'data-area': t.area },

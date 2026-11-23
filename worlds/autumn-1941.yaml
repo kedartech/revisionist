@@ -1127,7 +1127,7 @@ assets:
   - {key: japan_premiership, kind: office, name: Prime Minister of Japan, tier: 4, controller: konoe}
   - {key: army_ministry, kind: office, name: Army Minister of Japan, tier: 3, controller: tojo}
   - {key: italian_premiership, kind: office, name: Prime Minister of Italy, tier: 3, controller: mussolini}
-  - {key: chinese_chairmanship, kind: office, name: Chairman of the National Government, tier: 4, controller: chiang}
+  - {key: chinese_chairmanship, kind: office, name: Chairman of the Military Affairs Commission, tier: 4, controller: chiang}
   # KCD: the ninth playable card's post. The tier is [proposed], as Tojo's and Mussolini's are.
   - {key: atlantic_fleet_command, kind: office, name: "Commander in Chief, Atlantic Fleet", tier: 3, controller: king}
 
@@ -2478,7 +2478,7 @@ cards:
         act: {effect: {kind: statement, theme: "no peace while Japan holds China"}}
         delay_days: 1
         cooldown_days: 21
-    office: Chairman of the National Government of China
+    office: Chairman of the Military Affairs Commission
     playable: true
     principals: [china]
     powers:

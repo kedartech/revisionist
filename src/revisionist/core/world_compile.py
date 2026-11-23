@@ -533,6 +533,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_kinds(world, problems)
     _check_intelligence(world, sections, problems)
     _check_groups(world, problems)
+    _check_prices(world, sections, problems)
     _check_contest_moves(world, sections, problems)
     _check_aim_rules(world, sections, problems)
     _check_aim_patterns(world, sections, problems)
@@ -1387,12 +1388,54 @@ def _check_groups(world: WorldFile, problems: list[str]) -> None:
             ]
 
 
+def _check_prices(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """Each bloc's prices (PRC): a key once per bloc; a condition of bounded size that
+    names what the world declares, a group by its nation's own key, and holds at least one
+    check an act changes. With the rule off they are checked and left out of the game."""
+    from revisionist.core.realism.offers import acted_on
+
+    groups_of = {d.nation: {g.key for g in d.groups} for d in world.groups}
+    for decl in world.groups:
+        for g in decl.groups:
+            keys = [p.key for p in g.prices]
+            if len(set(keys)) != len(keys):
+                problems.append(f"groups {decl.nation} {g.key}: a price key is given twice")
+            for price in g.prices:
+                at = f"groups {decl.nation} {g.key} price {price.key}"
+                if depth(price.condition) > MAX_DEPTH or len(leaves(price.condition)) > MAX_PARTS:
+                    problems.append(f"{at}: condition too large")
+                if not acted_on(price):
+                    problems.append(f"{at}: its condition holds nothing an act changes")
+                for leaf in leaves(price.condition):
+                    for name, section in _CONDITION_REFS.items():
+                        _ref(problems, at, getattr(leaf, name, None), section, sections)
+                    _refs(problems, at, getattr(leaf, "between", ()), "entity", sections)
+                    if isinstance(leaf, SupportAt) and leaf.group not in groups_of.get(
+                        leaf.nation, ()
+                    ):
+                        problems.append(f"{at}: {leaf.nation} has no group {leaf.group}")
+
+
 def _groups(world: WorldFile, ids: Mapping[str, str]) -> ev.GroupsDeclared:
     from revisionist.core.realism import groups
 
+    def bound(g: groups.Group) -> groups.Group:
+        if not g.prices:
+            return g
+        if Rule.OFFERS not in world.rules:
+            return g.model_copy(update={"prices": ()})
+        prices = tuple(
+            p.model_copy(update={"condition": _bind(p.condition, ids)}) for p in g.prices
+        )
+        return g.model_copy(update={"prices": prices})
+
     return ev.GroupsDeclared(
         nations=tuple(
-            groups.NationGroups(nation=EntityId(ids[d.nation]), groups=d.groups, themes=d.themes)
+            groups.NationGroups(
+                nation=EntityId(ids[d.nation]),
+                groups=tuple(bound(g) for g in d.groups),
+                themes=d.themes,
+            )
             for d in world.groups
         )
     )

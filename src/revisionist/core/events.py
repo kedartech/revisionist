@@ -19,7 +19,8 @@ TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDec
 ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
 VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
-OrderAsked, AskAnswered, MatterChosen, AimPatternsDeclared, OwnAimSet``, and
+OrderAsked, AskAnswered, MatterChosen, AimPatternsDeclared, OwnAimSet, OfferMade,
+OfferSettled``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -101,6 +102,7 @@ from revisionist.core.realism.holders import Capture
 from revisionist.core.realism.kinds import PieceKind, Resource
 from revisionist.core.realism.laws import Law
 from revisionist.core.realism.locks import Asked, HeldEnd, HeldOrder, LockRow
+from revisionist.core.realism.offers import OfferStanding, PricedOffer
 from revisionist.core.realism.pipeline import (
     Order,
     OrderStatus,
@@ -787,6 +789,37 @@ class MatterChosen(Model):
     seat_id: SeatId
     accept: bool
     on: date
+
+
+class OfferMade(Model):
+    """A seat offers one price to one bloc of its own nation for one measure whose bill is
+    on its way (PRC). It waits for the next day's batch, which takes or refuses it by
+    content. Sealed to the seats of the bloc's nation."""
+
+    kind: Literal["offer_made"] = "offer_made"
+    offer: PricedOffer
+
+
+class OfferSettled(Model):
+    """Where an offer now stands (PRC): taken or refused by its day's batch, lapsed when
+    its measure did not pass, due once it passed, then kept or broken on its due day.
+    Sealed to the seats of the bloc's nation."""
+
+    kind: Literal["offer_settled"] = "offer_settled"
+    offer_id: Label
+    standing: OfferStanding
+    on: date
+    due: date | None = None
+    """The day the promise is read: on ``due``, ``kept`` and ``broken``."""
+
+    @model_validator(mode="after")
+    def _shape(self) -> "OfferSettled":
+        if self.standing is OfferStanding.FILED:
+            raise ValueError("an offer is filed only by offer_made")
+        owed = self.standing in (OfferStanding.DUE, OfferStanding.KEPT, OfferStanding.BROKEN)
+        if (self.due is not None) != owed:
+            raise ValueError("a due day goes with due, kept and broken only")
+        return self
 
 
 class PieceStepped(Model):
@@ -1499,6 +1532,8 @@ Payload = Annotated[
     | OrderAsked
     | AskAnswered
     | MatterChosen
+    | OfferMade
+    | OfferSettled
     | PieceStepped
     | AreaHeld
     | CaptureCounted
@@ -1608,6 +1643,8 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "order_asked",
         "ask_answered",
         "matter_chosen",
+        "offer_made",
+        "offer_settled",
         "area_held",
         "capture_counted",
         "economy_set",

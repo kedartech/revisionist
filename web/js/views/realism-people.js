@@ -1,11 +1,12 @@
 // The People roster (view.realism.people): the leaders weighed against the seat, the seat's own
 // people and everyone else with an office, each as the seat's staff know them. A meter is a staff
 // assessment in five steps with a word, never the engine's number; a meter with nothing to go on
-// shows only its word. A row opens the person's figure card with everything the view holds on them.
+// shows only its word. A tile opens the person's figure card with everything the view holds on them.
 
 import { h } from '../dom.js';
 import { panelHead, seg } from './ui-kit.js';
 import { figureCard } from './realism-figure.js';
+import { monogram, portraitSrc } from './realism-dossier.js';
 
 export const PEOPLE_TABS = Object.freeze([
   { key: 'opponents', label: 'Opponents', empty: 'Nobody is set against you that your staff know of.' },
@@ -45,9 +46,18 @@ export function meter(label, m) {
       : null);
 }
 
-function row(line, tab, onOpen) {
+/** The portrait the roster line names, or the person's own initials. */
+function face(line) {
+  const src = portraitSrc(line.portrait);
+  return src
+    ? h('img', { class: 'rl-pp-portrait', src, alt: line.name, loading: 'lazy' })
+    : h('span', { class: 'rl-pp-mono', 'aria-hidden': 'true' }, monogram(line.name));
+}
+
+function tile(line, tab, onOpen) {
   return h('li', {},
-    h('button', { type: 'button', class: 'rl-pp-row', onclick: () => onOpen?.(line, tab) },
+    h('button', { type: 'button', class: 'rl-pp-row rl-pp-tile', onclick: () => onOpen?.(line, tab) },
+      h('span', { class: 'rl-pp-face' }, face(line)),
       h('span', { class: 'rl-pp-who' },
         h('span', { class: 'rl-pp-name' }, line.name),
         h('span', { class: 'rl-pp-office' }, line.office)),
@@ -66,7 +76,7 @@ export function peopleRoster(people, { tab, onTab, onOpen } = {}) {
     seg(PEOPLE_TABS.map((t) => ({ key: t.key, label: t.label, count: (people?.[t.key] ?? []).length })), on.key,
       (key) => onTab?.(key)),
     lines.length
-      ? h('ul', { class: 'rl-pp-list', 'aria-label': on.label }, lines.map((l) => row(l, on.key, onOpen)))
+      ? h('ul', { class: 'rl-pp-list rl-pp-tiles', 'aria-label': on.label }, lines.map((l) => tile(l, on.key, onOpen)))
       : h('p', { class: 'rl-none' }, on.empty));
 }
 

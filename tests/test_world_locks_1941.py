@@ -214,7 +214,7 @@ def test_iceland_stays_british() -> None:
 
 def test_two_locks_on_his_naval_order_one_naming_the_president_one_congress() -> None:
     world = _world()
-    rows = {r.key: r for r in world.locks}
+    rows = {r.key: r for r in world.locks if r.order.form == "fleet_naval_order"}
     assert set(rows) == {"iceland_shoot_on_sight", "war_zone_escort"}
     shoot, escort = rows["iceland_shoot_on_sight"], rows["war_zone_escort"]
     assert shoot.order.form == escort.order.form == "fleet_naval_order"

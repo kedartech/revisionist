@@ -16,7 +16,7 @@ from revisionist.engine.web import guard, limits, server
 CSP = (
     "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
     "font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; "
-    "form-action 'self'"
+    "form-action 'self'; manifest-src 'self'; worker-src 'self'"
 )
 
 
@@ -69,6 +69,8 @@ def test_headers_equal_the_servers(status: HTTPStatus, kind: str) -> None:
         ("X-Content-Type-Options", "nosniff"),
         ("Referrer-Policy", "no-referrer"),
         ("Cross-Origin-Opener-Policy", "same-origin"),
+        ("Cross-Origin-Resource-Policy", "same-origin"),
+        ("Permissions-Policy", guard.PERMISSIONS),
     ]
     names = [s[0] for s in ours.sent]
     assert "Content-Security-Policy" in names and "Cross-Origin-Opener-Policy" in names
@@ -128,7 +130,7 @@ CROSS = ("err", HTTPStatus.FORBIDDEN, "Cross-origin request refused.")
 ORIGIN_CASES: list[tuple[dict[str, str], Any]] = [
     ({}, SEND_JSON),
     ({"Content-Type": "text/plain"}, SEND_JSON),
-    ({"Content-Type": "application/json"}, ("ok", None)),
+    ({"Content-Type": "application/json"}, CROSS),
     (
         {
             "Content-Type": "application/json; charset=utf-8",
@@ -138,7 +140,7 @@ ORIGIN_CASES: list[tuple[dict[str, str], Any]] = [
         ("ok", None),
     ),
     ({"Content-Type": "application/json", "Host": "a.test", "Origin": "http://b.test"}, CROSS),
-    ({"Content-Type": "application/json", "Host": "a.test"}, ("ok", None)),
+    ({"Content-Type": "application/json", "Host": "a.test"}, CROSS),
     ({"Content-Type": "application/json", "Host": "", "Origin": "http://a.test"}, CROSS),
 ]
 

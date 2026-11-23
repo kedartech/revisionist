@@ -56,6 +56,7 @@ from revisionist.engine.pg_store import PostgresEventStore
 from revisionist.engine.pitch import PITCH_MAX, PendingCard, PitchError, read_pitch
 from revisionist.engine.store import load_state
 from revisionist.engine.tick import NotInPlayError
+from revisionist.engine.web import accounts as web_accounts
 from revisionist.engine.web import (
     agenda_api,
     agreements_api,
@@ -1314,6 +1315,8 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
         server_version = "revisionist-web"
         sys_version = ""
         protocol_version = "HTTP/1.1"
+        timeout = guard.IDLE_S
+        secure = app.secure_cookie
 
         @property
         def throttle(self) -> limits.SigninThrottle:
@@ -1404,6 +1407,8 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     self._recover(body)
                 elif path == "/api/signout":
                     self._signout()
+                elif path == "/api/signout-all":
+                    self._signout_all()
                 elif path.startswith("/api/seat/"):
                     action = path.removeprefix("/api/seat/")
                     run = SEAT_ACTIONS.get(action)
@@ -1435,6 +1440,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                 else:
                     raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
             except (ApiError, guard.RefusedError) as exc:
+                guard.closing(self, exc)
                 self._send_json(exc.status, {"error": exc.message})
             except snapshot.WithheldError:
                 log.warning("realism reply withheld: canary hit")
@@ -1530,6 +1536,15 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     store.close()
             self._send_json(HTTPStatus.OK, {"ok": True}, cookie=self._cookie("", 0))
 
+        def _signout_all(self) -> None:
+            account = self._need_account()
+            store = app.open()
+            try:
+                Accounts(store.conn).close_all(account.account_id)
+            finally:
+                store.close()
+            self._send_json(HTTPStatus.OK, {"ok": True}, cookie=self._cookie("", 0))
+
         # --- static ------------------------------------------------------------
 
         def _static(self, path: str) -> None:
@@ -1559,10 +1574,15 @@ def serve(app: App, host: str, port: int) -> None:
     mimetypes.add_type("application/manifest+json", ".webmanifest")
     server = ThreadingHTTPServer((host, port), make_handler(app))
     server.daemon_threads = True
+    stop = threading.Event()
+    threading.Thread(
+        target=web_accounts.sweep_daily, args=(app.open, app.clock, stop), daemon=True
+    ).start()
     log.info("web client on http://%s:%d/", host, port)
     try:
         server.serve_forever()
     finally:
+        stop.set()
         server.server_close()
 
 

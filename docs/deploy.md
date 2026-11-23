@@ -70,11 +70,11 @@ Playtest operations run in Discord (`/host ...`); the shell is for migrate, veri
 ```
 git clone <the repo> ~/src/revisionist
 cd ~/src/revisionist
-uv tool install --editable '.[postgres,discord]'   # puts `revisionist` in ~/.local/bin
+uv sync --frozen --extra postgres --extra discord --extra seal   # installs the locked versions; `revisionist` is at .venv/bin/revisionist, link it into ~/.local/bin
 (set -a; . ~/.config/revisionist/revisionist-admin.env; set +a; revisionist db migrate)   # "applied 0001_init, 0002_schedule, 0003_discord"
 ```
 
-`--editable` keeps `revisionist new salt-strait` finding the bundled `worlds/`. Rerunning `revisionist db migrate` is safe ("up to date"). After pulling new code, run it again before the next tick.
+The install follows `uv.lock`, the versions the CI audit checks, not the `>=` ranges in `pyproject.toml`, which would resolve to unaudited versions. Running from the checkout keeps `revisionist new salt-strait` finding the bundled `worlds/`. Rerunning `revisionist db migrate` is safe ("up to date"). After pulling new code, run it again before the next tick.
 
 Moving a SQLite campaign across, if you have one:
 
@@ -193,7 +193,7 @@ With the token in `revisionist.env`, the scheduler (§5) delivers by DM too: it 
 
 ```
 cd ~/src/revisionist && git pull
-uv tool install --editable '.[postgres,discord]' --force
+uv sync --frozen --extra postgres --extra discord --extra seal
 (set -a; . ~/.config/revisionist/revisionist-admin.env; set +a; revisionist db migrate)   # "applied 0003_discord"
 (
   set -a; . ~/.config/revisionist/revisionist.env; set +a
@@ -244,7 +244,7 @@ Create one text channel named `#chronicle` and give the bot **View Channel** and
 ### 9.8 Sealing campaigns at rest (Layer 9b)
 
 ```
-uv tool install --editable '.[postgres,discord,seal]' --force
+uv sync --frozen --extra postgres --extra discord --extra seal
 revisionist admin new-master-key ~/.config/revisionist/master.key     # mode 0600, never overwritten
 echo "REVISIONIST_MASTER_KEY_FILE=$HOME/.config/revisionist/master.key" >> ~/.config/revisionist/revisionist.env
 (set -a; . ~/.config/revisionist/revisionist-admin.env; set +a; revisionist db migrate)   # applies 0007_seal_keys
@@ -269,7 +269,7 @@ From then on every **new** campaign is sealed: its events and snapshots are AES-
 
 ### 9.10 A historical campaign (Layer 10 item 1)
 
-No migration: Session Zero, goals and the season end live in the event log. Update the tool (`uv tool install --editable '.[postgres,discord,seal]' --force`) and restart the bot so the new slash commands sync.
+No migration: Session Zero, goals and the season end live in the event log. Update the tool (`uv sync --frozen --extra postgres --extra discord --extra seal`) and restart the bot so the new slash commands sync.
 
 ```
 (
@@ -317,7 +317,7 @@ The project was called Wyrd Protocol through Layer 9a. Everything it installed c
    mv ~/.local/share/wyrd ~/.local/share/revisionist
    ```
    Check by eye that the DSNs now name the `revisionist` database and roles, and that the briefings and backup paths point at `~/.local/share/revisionist`.
-4. Swap the tool: `uv tool uninstall wyrd-protocol`, then from the checkout `uv tool install --editable '.[postgres,discord]'`.
+4. Swap the tool: `uv tool uninstall wyrd-protocol`, then from the checkout `uv sync --frozen --extra postgres --extra discord --extra seal`.
 5. `(set -a; . ~/.config/revisionist/revisionist-admin.env; set +a; revisionist db migrate)`. It applies `0004_rename`, which renames the trigger function `wyrd_append_only` to `revisionist_append_only`.
 6. Install and enable the new units and scripts as in §5 and §9.3.
 7. Rename the existing dumps so the restore drill finds them: `cd ~/.local/share/revisionist/backups && for f in wyrd-*.dump; do mv "$f" "revisionist-${f#wyrd-}"; done`. Rename the off-box copies the same way, or leave them and remember the old prefix.

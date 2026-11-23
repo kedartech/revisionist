@@ -901,6 +901,10 @@ class LeverDecl(Model):
     needs_war: SkipJsonSchema[dict[Label, dict[Label, WarNeed]]] = Field(default_factory=dict)
     """The choices a seat's nation may take only at war with a nation, by parameter and
     choice, each naming the nation's key and the words of the refusal (WRL)."""
+    escort_level: SkipJsonSchema[dict[Label, dict[Label, int]]] = Field(default_factory=dict)
+    """The escort level each choice of one parameter stands for, by parameter and choice
+    (ESC): 0 none, 1 escort, 2 shoot on sight. The compiler checks the range and that every
+    choice of the parameter is marked."""
 
 
 class ContactDecl(Model):

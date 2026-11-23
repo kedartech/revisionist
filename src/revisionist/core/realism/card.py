@@ -63,6 +63,11 @@ class WarNeed(Model):
     refusal: str = Field(min_length=1, max_length=120)
 
 
+ESCORT_LEVELS = (0, 1, 2)
+"""The levels a choice may mark: none, escort, shoot on sight."""
+EscortLevel = Annotated[int, Field(ge=0, le=2)]
+
+
 class ParamSpec(Model):
     """One typed parameter of a lever. An order's params and every amendment must fit it."""
 
@@ -111,6 +116,12 @@ class Lever(Model):
     """The choices its issuer's nation may take only at war with another, by parameter and
     choice (WRL). Read with ``territories`` on; left out of the dump when empty, as in every
     stored game."""
+    escort_levels: dict[Label, EscortLevel] = Field(
+        default_factory=dict, exclude_if=lambda v: not v
+    )
+    """The escort level each choice of one parameter stands for, choice to level (ESC): 0
+    none, 1 escort, 2 shoot on sight. Every choice of that parameter or none; left out of
+    the dump when empty, as in every stored game."""
 
     @model_validator(mode="after")
     def _distinct(self) -> "Lever":
@@ -119,6 +130,9 @@ class Lever(Model):
             raise ValueError(f"lever {self.name}: a parameter is named twice")
         if problems := war_need_problems(self.params, self.needs_war):
             raise ValueError(f"lever {self.name}: {problems[0]}")
+        marked = set(self.escort_levels)
+        if marked and not any(set(p.choices) == marked for p in self.params):
+            raise ValueError(f"lever {self.name}: escort_levels are not one parameter's choices")
         return self
 
 
@@ -136,6 +150,34 @@ def war_need_problems(
             f"needs_war: {name} offers no choice {c}"
             for c in marks
             if c not in choices.get(name, ())
+        ]
+    return out
+
+
+def escort_level_problems(
+    params: Iterable["ParamSpec"], marks: Mapping[str, Mapping[str, int]]
+) -> list[str]:
+    """What is wrong with a form's ``escort_level``: a parameter or choice it does not have,
+    a level outside 0 to 2, a marked parameter with a choice left unmarked, or marks on more
+    than one parameter."""
+    choices = {p.name: p.choices for p in params}
+    out: list[str] = []
+    if len(marks) > 1:
+        out.append("escort_level marks more than one parameter")
+    for name, levels in marks.items():
+        if name not in choices:
+            out.append(f"escort_level names no parameter {name}")
+            continue
+        out += [
+            f"escort_level: {name} offers no choice {c}" for c in levels if c not in choices[name]
+        ]
+        out += [
+            f"escort_level {name} {c}: {v} is not 0, 1 or 2"
+            for c, v in levels.items()
+            if v not in ESCORT_LEVELS
+        ]
+        out += [
+            f"escort_level {name} leaves {c} unmarked" for c in choices[name] if c not in levels
         ]
     return out
 

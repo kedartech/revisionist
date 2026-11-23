@@ -26,7 +26,6 @@ import yaml
 from revisionist.core import aim_patterns
 from revisionist.core.aim_patterns import Filled, Refused
 from revisionist.core.ids import EntityId, SeatId, derived_id
-from revisionist.core.settings import Settings
 from revisionist.core.state import Rule, State
 from revisionist.core.world import AimPatternDecl, CardDecl, WorldFile
 from revisionist.core.world_compile import compile_world, resolve_keys
@@ -148,7 +147,7 @@ def days_one(doc: dict[str, Any]) -> list[tuple[State, dict[str, SeatId]]]:
     """The first day of as many games as it takes to hold every playable card, each with no
     more players than a game seats."""
     people = playable(doc)
-    most = Settings().max_human_seats
+    most = decl(doc).settings.max_human_seats
     return [day_one(doc, people[n : n + most]) for n in range(0, len(people), most)]
 
 

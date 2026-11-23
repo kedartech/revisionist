@@ -125,7 +125,15 @@ def test_the_toy_world_with_the_unread_names_on_plays_as_with_them_off(
 # --- rule 4: no shipped world switches one on ---------------------------------------------
 
 
+SWITCHED_ON: dict[str, frozenset[str]] = {
+    "salt-strait-realism": frozenset({"laws", "ask_answers", "deciders", "own_aim"}),
+}
+"""The third-run rules a shipped world switches on by its own item, by world: Salt Strait's
+laws, answers to asks, deciders and own aim (SSO). Every other name stays off."""
+
+
 @pytest.mark.parametrize("path", sorted((ROOT / "worlds").glob("*.yaml")), ids=lambda p: p.stem)
 def test_no_shipped_world_names_a_third_run_rule(path: Path) -> None:
     raw = yaml.safe_load(path.read_text())
-    assert not set(raw.get("rules") or ()) & set(THIRD_RUN)
+    on = set(raw.get("rules") or ()) & set(THIRD_RUN)
+    assert on == SWITCHED_ON.get(path.stem, frozenset())

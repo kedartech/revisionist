@@ -24,8 +24,8 @@ entities:
   # A polity's capital (PCW): a place in its own territory; a neutral's or an occupied nation's is its
   # territory itself where the map has no place for it, and Portugal, with no territory, has none.
   - {key: usa, kind: polity, name: United States, capital: washington}
-  - {key: uk, kind: polity, name: United Kingdom, capital: london}
-  - {key: japan, kind: polity, name: Japan, capital: tokyo}
+  - {key: uk, kind: polity, name: United Kingdom, capital: london, lift_pool: uk_sealift_grt}
+  - {key: japan, kind: polity, name: Japan, capital: tokyo, lift_pool: japan_sealift_grt}
   - {key: germany, kind: polity, name: Germany, capital: berlin}
   - {key: italy, kind: polity, name: Italy, capital: rome}
   - {key: ussr, kind: polity, name: Soviet Union, capital: moscow}
@@ -3407,8 +3407,9 @@ contests:
 # Production keys (PRL): what the production rules read instead of names of their own. The
 # finding is Roosevelt's Lend-Lease form: it draws on the second appropriation, writes each
 # recipient's share, and a finding naming the Soviet Union makes it eligible. The priority is
-# the production-priority form; merchant ships grow a nation's lift pool on each 1st (a nation
-# with no lift_pool, as every nation here, grows none). The values are the rules' own before PRL.
+# the production-priority form; merchant ships grow a nation's lift pool on each 1st (Britain's
+# and Japan's are named on their entities; a nation with no lift_pool grows none). The values are
+# the rules' own before PRL.
 production:
   findings:
     - form: lend_lease_finding

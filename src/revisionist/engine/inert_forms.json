@@ -1,10 +1,6 @@
 [
  [
   "roosevelt",
-  "naval_order"
- ],
- [
-  "roosevelt",
   "detach_fleet"
  ],
  [
@@ -14,14 +10,6 @@
  [
   "roosevelt",
   "cable_to_churchill"
- ],
- [
-  "churchill",
-  "convoy_orders"
- ],
- [
-  "churchill",
-  "production_priority"
  ],
  [
   "churchill",
@@ -41,15 +29,7 @@
  ],
  [
   "hitler",
-  "uboat_directive"
- ],
- [
-  "hitler",
   "production_priority"
- ],
- [
-  "konoe",
-  "requisition_shipping"
  ],
  [
   "konoe",
@@ -58,10 +38,6 @@
  [
   "konoe",
   "cabinet_statement"
- ],
- [
-  "tojo",
-  "requisition_shipping"
  ],
  [
   "tojo",
@@ -90,10 +66,6 @@
  [
   "king",
   "detach_fleet"
- ],
- [
-  "king",
-  "fleet_naval_order"
  ],
  [
   "oren_vale",

@@ -3,11 +3,12 @@
 The ``battles`` block of ``view.realism`` lists each battle the seat's nation is a side
 of: its area, the day it opened, each round as the seat's own round reports give it (its
 side's losses and the enemy's as contact saw them), its side's strength, the range its
-own papers put the enemy at, the decision in force and the decisions it may still give.
+own intelligence puts the enemy at, the decision in force and the decisions it may still give.
 A battle the seat's nation is not in is not listed: the seat knows it only from the news.
 
 Nothing here reads a battle's true enemy figures, a round's draws or the other side's
-decision. The enemy's range comes from the seat's own sighting papers; the rounds come
+decision. The enemy's range comes from the seat's reports (``View.reports``) with
+``reports`` on, and from its own sighting papers with it off; the rounds come
 from the seat's own round reports, so a seat that commands none of its side's pieces
 sees none.
 
@@ -24,7 +25,7 @@ from datetime import date
 from typing import TYPE_CHECKING, Any
 
 from revisionist.core.ids import EntityId, FeatureId, SeatId
-from revisionist.core.realism import battle, territory
+from revisionist.core.realism import battle, detect, territory
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.battle import Battle, BattleSide, Decision
 from revisionist.core.realism.effect import (
@@ -160,13 +161,42 @@ def _steps(value: object) -> int:
     return int(head) if head.isdigit() else 0
 
 
-def _enemy_range(state: State, view: View, area: EntityId, enemy: EntityId) -> StrengthRange | None:
-    """The range the seat's latest papers put the enemy in ``area`` at: the figures they
-    give, and for a piece placed there with no figure, any tier. None before any paper
-    places an enemy piece there."""
-    own = own_sides(view)
+def _domain(state: State, area: EntityId) -> Domain:
     seas = {z.area for z in state.map.sea_zones} if state.map is not None else set()
-    domain = Domain.SEA if area in seas else Domain.LAND
+    return Domain.SEA if area in seas else Domain.LAND
+
+
+def _reported_range(state: State, view: View, area: EntityId) -> StrengthRange | None:
+    """With ``reports`` on, the range the seat's reports put the enemy in ``area`` at, as
+    the odds read them: each report there of the area's domain or of unknown kind, with
+    its strength range, or any strength its kind allows. None when no report is there."""
+    from revisionist.engine.odds import _range
+
+    domain = _domain(state, area)
+    pieces = view.kinds.pieces if view.kinds is not None else {}
+    low = high = 0
+    placed = False
+    for _key, r in sorted(view.reports.items()):
+        if r.area != area:
+            continue
+        kind = pieces.get(r.kind) if r.kind is not None else None
+        if kind is not None and kind.domain is not domain:
+            continue
+        placed = True
+        lo, hi = _range(view, r)
+        low, high = low + lo, high + hi
+    return StrengthRange(low=low, high=high) if placed else None
+
+
+def _enemy_range(state: State, view: View, area: EntityId, enemy: EntityId) -> StrengthRange | None:
+    """The range the seat's own intelligence puts the enemy in ``area`` at: its reports
+    with ``reports`` on; otherwise its latest papers, the figures they give, and for a
+    piece placed there with no figure, any tier. None before anything places an enemy
+    piece there."""
+    if detect.on(state):
+        return _reported_range(state, view, area)
+    own = own_sides(view)
+    domain = _domain(state, area)
     low = high = 0
     placed = False
     for (label, _kind), (_doc, _page, line) in sorted(latest_sightings(view).items()):

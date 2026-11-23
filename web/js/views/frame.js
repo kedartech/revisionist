@@ -54,8 +54,7 @@ function reportRow(r, extra = []) {
   return h('li', { class: 'rl-report' },
     h('div', { class: 'row' },
       h('strong', {}, KIND_NAME[r.kind] ?? r.kind),
-      h('span', { class: 'rl-report-status', 'data-status': r.status }, STATUS_NAME[r.status] ?? r.status),
-      r.office ? h('span', { class: 'hint' }, r.office) : null),
+      h('span', { class: 'rl-report-status', 'data-status': r.status }, STATUS_NAME[r.status] ?? r.status)),
     h('p', { class: 'rl-report-words' }, r.words),
     r.reply ? h('p', { class: 'rl-report-reply' }, h('span', { class: 'hint' }, 'Host: '), r.reply) : null,
     ...extra);
@@ -85,7 +84,7 @@ export function reportDialog() {
   let listed = false;
   const form = h('form', { method: 'dialog' },
     h('h2', { id: 'bug-title' }, 'Report a bug, an idea or something confusing'),
-    h('p', { class: 'hint' }, 'Pinned to this exact moment in the game. Only the host and the makers read it.'),
+    h('p', { class: 'hint' }, 'Pinned to this exact moment in the game. The host of this game reads what you write here. So do the makers.'),
     h('div', { class: 'row', role: 'radiogroup', 'aria-label': 'What kind of report' }, kinds),
     h('label', { for: 'bug-notes' }, 'What do you want to say'),
     notes,

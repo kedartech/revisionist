@@ -38,6 +38,9 @@ THIRD_RUN = (
     "post_view",
     "playable_rule",
 )
+READ = frozenset({"laws"})
+"""The names whose reader has been built: a world that names one is no longer as with it off."""
+UNREAD = tuple(n for n in THIRD_RUN if n not in READ)
 
 BASELINE_1941 = "9f79ef33c61e55ef8970852b7f64aa79"
 """The 1941 scripted run's digest (``run_digest``) with every third-run switch off."""
@@ -62,7 +65,7 @@ def _docstrings() -> dict[str, str | None]:
 
 
 def _with_third_run(rules: tuple[Rule, ...]) -> tuple[Rule, ...]:
-    return (*rules, *(Rule(n) for n in THIRD_RUN))
+    return (*rules, *(Rule(n) for n in UNREAD))
 
 
 # --- rule 1: the sixteen names ------------------------------------------------------------
@@ -93,7 +96,7 @@ def test_each_name_has_a_one_line_docstring_naming_its_reader(name: str) -> None
 # --- rule 3: a name whose reader has not merged changes nothing ---------------------------
 
 
-def test_the_1941_run_with_all_sixteen_on_folds_as_with_them_off(
+def test_the_1941_run_with_the_unread_names_on_folds_as_with_them_off(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     world = locks_1941._world()
@@ -101,7 +104,7 @@ def test_the_1941_run_with_all_sixteen_on_folds_as_with_them_off(
     assert locks_1941.run_digest(on, monkeypatch) == BASELINE_1941
 
 
-def test_the_toy_world_with_all_sixteen_on_plays_as_with_them_off(
+def test_the_toy_world_with_the_unread_names_on_plays_as_with_them_off(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def played(name: str, third_run: bool) -> tuple[set[str], dict[str, object]]:
@@ -115,7 +118,7 @@ def test_the_toy_world_with_all_sixteen_on_plays_as_with_them_off(
         return set(dumped.pop("rules")), dumped
 
     (rules_off, off), (rules_on, on) = played("off", False), played("on", True)
-    assert rules_on - rules_off == set(THIRD_RUN)
+    assert rules_on - rules_off == set(UNREAD)
     assert on == off
 
 

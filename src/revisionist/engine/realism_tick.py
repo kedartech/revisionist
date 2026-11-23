@@ -24,12 +24,12 @@ refused or whose call fails keeps its body lines, and the tick still closes. Del
 """
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date, timedelta
 from typing import Any
 
+from revisionist.core import aim_patterns, goals, history
 from revisionist.core import events as ev
-from revisionist.core import goals, history
 from revisionist.core._base import Model
 from revisionist.core.events import CallCost, Event, Versions
 from revisionist.core.fold import FoldError, replay, state_hash
@@ -59,6 +59,7 @@ from revisionist.core.realism import (
     holders,
     locks,
     mandates,
+    offers,
     opponents,
     process,
 )
@@ -428,6 +429,11 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return _nation_scope(state, payload.polity)
     if isinstance(payload, ev.GroupMoved):
         return _nation_scope(state, payload.polity)  # true support: the nation's seats (GRP)
+    if isinstance(payload, ev.OfferMade):
+        return _nation_scope(state, payload.offer.nation)  # PRC: the bloc's nation's seats
+    if isinstance(payload, ev.OfferSettled):
+        settled = next(o for o in state.offers if o.offer_id == payload.offer_id)
+        return _nation_scope(state, settled.nation)
     if isinstance(payload, ev.GroupProposed):
         # Engine only: the writing in waiting; the batch, not the filing, moves a group.
         held = SeatId(derived_id(state.campaign_id, "engine-only", "groups"))
@@ -486,8 +492,9 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
 
 
 def _asked_scope(asked: locks.Asked) -> Scope:
-    """An ask is sealed to the asker and the seat asked, if a seat holds that person."""
-    seats = {asked.asker} | ({asked.seat} if asked.seat is not None else set())
+    """An ask is sealed to the asker and the seat asked, if a seat holds that person, and
+    the seats holding a council's members (QKD)."""
+    seats = {asked.asker, *asked.seats} | ({asked.seat} if asked.seat is not None else set())
     return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset(seats))
 
 
@@ -575,7 +582,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         state = replay(batch, initial=state)
         out.extend(batch)
 
-    add(actors.unseated(state, answering.answerers(state)))
+    add(actors.unseated(state, [*answering.answerers(state), *answering.askable(state)]))
     begun: State | None = state  # moves the carried-in orders start begin on the first day
     wake_start = dict(state.opponents)
     walk_from, walk_mark = state, len(out)  # CON: each move reads from the last read on
@@ -594,6 +601,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         day += timedelta(days=1)
         start, begun = begun or state, None
         day_from, day_mark = state, len(out)  # GRP: the day's happenings are read from here
+        add(offers.batch(state, day))  # PRC: the wake's offers, settled before a vote
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))
         add(steps)
         settled = history.settle(state, day)
@@ -634,6 +642,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(groups.react(state, day_from, today, day, sea=before_on_day))
         add(groups.batch(state, day))  # GRP: the day's writing, settled in one batch
         add(groups.drift(state, day))  # GRP: on a Monday, toward the baseline
+        add(offers.walk(state, day))  # PRC: a measure decided, a promise on its due day
         read = [e.payload for e in out[walk_mark:]]
         add(contests.moves(state, walk_from, read, day - timedelta(days=1), day))  # CON
         walk_from, walk_mark = state, len(out)
@@ -657,7 +666,8 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         while made := answering.make(state, day):
             add(made)
         add(opponents.settle(state, day, [*landed, *planned], wake_start))
-        add(actors.unseated(state, answering.ask_deciders(state, day)))  # AAK: a seat to file from
+        while matter := _matter_answered(state, day):  # QKD: before a card answers an ask
+            add(matter)
         while answer := answering.answer_ask(state, day):
             add(answer)
         add(_unlocked(state, day))  # ASK: each held order once a day, after the day's acts
@@ -689,11 +699,24 @@ def _unlocked(state: State, day: date) -> list[ev.Payload]:
     return out
 
 
+def _matter_answered(state: State, day: date) -> list[ev.Payload]:
+    """The oldest matter due by ``day``, answered (QKD): granted or declined, told to the
+    asker alone. Call again on the state after it until it returns nothing."""
+    due = locks.matters_due(state, day)
+    if not due:
+        return []
+    asked = due[0]
+    granted = locks.matter_granted(state, asked)
+    return [ev.AskAnswered(order_id=asked.order_id, asker=asked.asker, on=day, granted=granted)]
+
+
 def _locked_still(state: State, h: locks.HeldOrder, day: date) -> bool:
     """Whether another lock holds the order now that its own has opened."""
+    opened = {h.row} if h.row is not None and locks.opened_by_grant(state, h) else set()
     if h.form is not None:
-        return locks.lock_for(state, h.issuer, h.form) is not None
-    return any(held(state, h.issuer, ask, day) is not None for ask in h.asks)
+        return locks.lock_for(state, h.issuer, h.form, opened) is not None
+    found = [held(state, h.issuer, ask, day) for ask in h.asks]
+    return any(f is not None and (f.row is None or f.row.key not in opened) for f in found)
 
 
 def _relanded(
@@ -743,6 +766,54 @@ def ask_order(
     asked = locks.ask(state, seat, order_id, today)
     _append_all(store, state, [(ev.OrderAsked(asked=asked), _asked_scope(asked))], seat)
     return asked
+
+
+def choose_matter(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, order_id: OrderId, accept: bool
+) -> None:
+    """The seat's sealed choice on the matter before it (QKD): to accept or decline the
+    ask for the held order ``order_id``, dated today; a later choice before the due day
+    replaces it. Raises ``ValueError`` with the seat's words."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    if today is None:
+        raise ValueError(locks.NOT_A_MEMBER)
+    locks.may_choose(state, seat, order_id)
+    chosen = ev.MatterChosen(order_id=order_id, seat_id=seat, accept=accept, on=today)
+    _append_all(store, state, [(chosen, private_to(seat))], seat)
+
+
+def make_offer(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, bloc: str, measure: str, price: str
+) -> offers.PricedOffer:
+    """The seat offers ``price`` to ``bloc`` of its own nation for ``measure`` (PRC), dated
+    today and sealed to the seats of that nation; the next day's batch takes or refuses it.
+    Raises ``ValueError`` with the seat's words."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    if today is None:
+        raise ValueError(offers.NOT_ON)
+    made = offers.offer(state, seat, bloc, measure, price, today)
+    _append_all(store, state, [(made, _nation_scope(state, made.offer.nation))], seat)
+    return made.offer
+
+
+def set_own_aim(
+    store: EventStore,
+    campaign_id: CampaignId,
+    seat: SeatId,
+    key: str,
+    values: Mapping[str, aim_patterns.BlankValue],
+) -> aim_patterns.OwnAim | aim_patterns.Refused:
+    """The seat sets its person's own aim from the pattern ``key`` filled with ``values``
+    (OWC): checked as ``aim_patterns.fill`` checks it, from the state it is numbered from,
+    and logged sealed to the seat; or the reasons it cannot stand, logging nothing."""
+    state = load_state(store, campaign_id)
+    out = aim_patterns.own_aim_set(state, seat, key, values)
+    if isinstance(out, aim_patterns.Refused):
+        return out
+    _append_all(store, state, [(out, private_to(seat))], seat)
+    return out.own
 
 
 # --- what a human does between ticks ---------------------------------------------
@@ -1319,6 +1390,7 @@ __all__ = [
     "run_realism_tick",
     "seat_player",
     "set_flag",
+    "set_own_aim",
     "stepped_order",
     "take_step",
     "wake_line",

@@ -79,7 +79,7 @@ def test_a_report_is_filed_with_its_kind_and_answered_with_its_number(
     before = state_of(game)
     number = file(ada, "idea", ADA_WORDS)
     (row,) = rows(game)
-    assert row["report_id"] == number
+    assert number == 1, "the author's first report"
     assert row["kind"] == "idea" and row["words"] == ADA_WORDS
     assert row["seat_id"] == seat_of(game, "ada")
     assert row["seq"] == before.last_seq and row["state_hash"] == state_hash(before)
@@ -123,7 +123,7 @@ def test_the_seat_action_bug_files_through_the_same_path(
     game, ada, _ = toy
     reply = ada.seat("bug", notes=ADA_WORDS)
     (row,) = rows(game)
-    assert reply.startswith(f"Bug {row['report_id']} filed"), reply
+    assert reply.startswith("Bug 1 filed"), reply
     assert row["kind"] == "bug" and row["words"] == ADA_WORDS
     assert bugs_table(game) == 0
 
@@ -172,7 +172,9 @@ def test_each_report_is_dropped_as_a_file_only_the_operator_reads(
     folder = tmp_path / "reports"
     monkeypatch.setenv(reports.DIR_ENV, str(folder))
     state = state_of(game)
-    number = file(ada, "confusing", ADA_WORDS)
+    file(ada, "confusing", ADA_WORDS)
+    (row,) = rows(game)
+    number = row["report_id"]
     (path,) = folder.iterdir()
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
     assert stat.S_IMODE(folder.stat().st_mode) == 0o700
@@ -257,23 +259,25 @@ def test_reports_gives_the_caller_its_own_with_status_and_reply(
     b1 = file(bram, "idea", BRAM_WORDS)
     mine = listed(ada)
     assert mine["refused"] is False and mine["inbox"] is False
-    assert [(r["id"], r["kind"], r["status"], r["reply"]) for r in mine["reports"]] == [
+    assert [(r["n"], r["kind"], r["status"], r["reply"]) for r in mine["reports"]] == [
         (a1, "bug", "new", "")
     ]
     assert mine["reports"][0]["words"] == ADA_WORDS
-    assert [r["id"] for r in listed(bram)["reports"]] == [b1]
+    assert [r["n"] for r in listed(bram)["reports"]] == [b1]
 
 
 def test_the_host_inbox_lists_every_report_in_his_game_and_others_get_the_empty_shape(
     toy: tuple[Realism, Client, Client],
 ) -> None:
     _, ada, bram = toy
-    a1 = file(ada, "bug", ADA_WORDS)
-    b1 = file(bram, "idea", BRAM_WORDS)
+    file(ada, "bug", ADA_WORDS)
+    file(bram, "idea", BRAM_WORDS)
     inbox = listed(ada, inbox=True)
     assert inbox["inbox"] is True and inbox["refused"] is False
-    assert [(r["id"], r["words"]) for r in inbox["reports"]] == [(a1, ADA_WORDS), (b1, BRAM_WORDS)]
-    assert all(r["office"] for r in inbox["reports"]), "the host sees which office filed it"
+    assert [(r["id"], r["n"], r["words"]) for r in inbox["reports"]] == [
+        (1, 1, ADA_WORDS),
+        (2, 1, BRAM_WORDS),
+    ]
     empty = listed(bram, inbox=True)
     assert empty == {"reply": "", "refused": False, "inbox": True, "reports": []}
 
@@ -307,8 +311,11 @@ def test_the_host_marks_a_report_and_its_author_sees_the_status_and_reply(
     toy: tuple[Realism, Client, Client],
 ) -> None:
     game, ada, bram = toy
-    b1 = file(bram, "idea", BRAM_WORDS)
-    status, out = post(ada, "report-mark", id=b1, status="acted", reply="Ships get names next.")
+    file(bram, "idea", BRAM_WORDS)
+    (row,) = listed(ada, inbox=True)["reports"]
+    status, out = post(
+        ada, "report-mark", id=row["id"], status="acted", reply="Ships get names next."
+    )
     assert status == 200 and out["refused"] is False, out
     (mine,) = listed(bram)["reports"]
     assert (mine["status"], mine["reply"]) == ("acted", "Ships get names next.")
@@ -320,7 +327,8 @@ def test_report_mark_is_refused_to_anyone_but_the_host_and_for_bad_values(
     toy: tuple[Realism, Client, Client],
 ) -> None:
     game, ada, bram = toy
-    a1 = file(ada, "bug", ADA_WORDS)
+    file(ada, "bug", ADA_WORDS)
+    (a1,) = [r["id"] for r in listed(ada, inbox=True)["reports"]]
     before = rows(game)
     for who, body in (
         (bram, {"id": a1, "status": "seen"}),
@@ -342,7 +350,8 @@ def test_a_report_in_another_game_reads_as_no_such_report(
     cara = other.seat("cara", "ada")
     make_host(other, cara)
     begin(other)
-    theirs = file(cara, "bug", "Another game's words.")
+    file(cara, "bug", "Another game's words.")
+    (theirs,) = [r["id"] for r in listed(cara, inbox=True)["reports"]]
     _, named = post(ada, "report-mark", id=theirs, status="seen")
     _, unknown = post(ada, "report-mark", id=theirs + 1000, status="seen")
     assert named["refused"] is True and named == unknown
@@ -357,9 +366,10 @@ def _cli(*args: str) -> Any:
 def test_the_operator_lists_shows_exports_and_marks_reports(
     toy: tuple[Realism, Client, Client], tmp_path: Path
 ) -> None:
-    _, ada, bram = toy
-    a1 = file(ada, "bug", ADA_WORDS)
-    b1 = file(bram, "idea", BRAM_WORDS)
+    game, ada, bram = toy
+    file(ada, "bug", ADA_WORDS)
+    file(bram, "idea", BRAM_WORDS)
+    a1, b1 = (r["report_id"] for r in rows(game))
     lines = _cli("list").output.splitlines()
     assert [line.split()[0] for line in lines] == [str(a1), str(b1)]
     assert "bug" in lines[0] and "new" in lines[0]
@@ -418,7 +428,7 @@ def test_a_prefixed_question_is_filed_as_a_report_and_no_model_reads_it(
     (row,) = rows(game)
     assert (row["kind"], row["words"]) == (kind, words)
     said = out["help"][-1]
-    assert said["from"] == "aide" and f"report {row['report_id']}" in said["text"].lower()
+    assert said["from"] == "aide" and "report 1," in said["text"].lower()
     assert calls == []
 
 
@@ -436,3 +446,81 @@ def test_the_digest_day_is_in_utc() -> None:
         datetime(2026, 11, 23, tzinfo=UTC),
         datetime(2026, 11, 24, tzinfo=UTC),
     )
+
+
+# --- the host reads what a player writes: told before filing, and shown less -----------
+
+
+HOST_READS = "The host of this game reads what you write here."
+
+
+def _told(text: str) -> bool:
+    return HOST_READS in text
+
+
+def test_the_report_control_s_paths_each_tell_the_player_the_host_reads_it(
+    toy: tuple[Realism, Client, Client],
+) -> None:
+    game, _, bram = toy
+    status, filed = post(bram, "report", kind="bug", text=BRAM_WORDS)
+    assert status == 200 and filed["refused"] is False and _told(filed["reply"]), filed
+    status, empty = post(bram, "report", kind="bug", text="  ")
+    assert empty["refused"] is True and _told(empty["reply"]), "told before a word is filed"
+    assert _told(bram.seat("bug", notes=BRAM_WORDS))
+    status, asked = post(bram, "help", question=f"idea: {BRAM_WORDS}")
+    assert status == 200 and _told(asked["help"][-1]["text"]), asked
+    assert len(rows(game)) == 3
+
+
+def test_the_host_inbox_shows_kind_status_words_and_numbers_but_not_who_or_when(
+    toy: tuple[Realism, Client, Client],
+) -> None:
+    game, ada, bram = toy
+    file(bram, "bug", BRAM_WORDS)
+    state = state_of(game)
+    bram_seat = state.seats[seat_of(game, "bram")]
+    office = reports.office(state, seat_of(game, "bram"))
+    (row,) = listed(ada, inbox=True)["reports"]
+    assert set(row) == {"id", "n", "kind", "status", "reply", "words"}, row
+    text = json.dumps(row)
+    for gone in (office, bram_seat.name, str(rows(game)[0]["filed_at"])[:16]):
+        assert gone not in text, (gone, text)
+
+
+def test_report_numbers_count_each_authors_own_in_the_game(
+    toy: tuple[Realism, Client, Client],
+    web: Web,  # noqa: F811
+) -> None:
+    _, ada, bram = toy
+    other = Realism(web)
+    cara = other.seat("cara", "ada")
+    make_host(other, cara)
+    begin(other)
+    file(cara, "bug", "Another game's words.")
+    file(cara, "bug", "And more.")
+    status, first = post(ada, "report", kind="bug", text=ADA_WORDS)
+    assert (
+        status == 200 and first["report"] == 1 and first["reply"].startswith("Report 1 filed.")
+    ), first
+    assert file(bram, "idea", BRAM_WORDS) == 1, "another player's report is not counted"
+    assert file(ada, "idea", "Second.") == 2
+    assert ada.seat("bug", notes="Third.").startswith("Bug 3 filed")
+    _, asked = post(ada, "help", question="report: Fourth.")
+    assert "report 4," in asked["help"][-1]["text"].lower(), asked
+    assert [r["n"] for r in listed(ada)["reports"]] == [1, 2, 3, 4]
+    assert "id" not in listed(ada)["reports"][0], "the operator's number stays with the operator"
+    inbox = listed(ada, inbox=True)["reports"]
+    assert [(r["id"], r["n"]) for r in inbox] == [(1, 1), (2, 1), (3, 2), (4, 3), (5, 4)]
+
+
+def test_the_stricter_reading_is_one_constant_away(
+    toy: tuple[Realism, Client, Client], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, ada, bram = toy
+    monkeypatch.setattr(reports, "HOST_READS_WORDS", False)
+    _, filed = post(bram, "report", kind="bug", text=BRAM_WORDS)
+    assert not _told(filed["reply"]) and "makers" in filed["reply"], filed
+    (row,) = listed(ada, inbox=True)["reports"]
+    assert set(row) == {"id", "n", "kind", "status", "reply"}, row
+    (mine,) = listed(bram)["reports"]
+    assert mine["words"] == BRAM_WORDS

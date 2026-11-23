@@ -184,6 +184,8 @@ REALISM_ACTIONS = (
     "report",
     "reports",
     "report-mark",
+    "aim-check",
+    "aim-set",
 )
 """Every ``/api/realism/<action>``: ``App.realism`` answers any other as no such call."""
 
@@ -422,6 +424,15 @@ class App:
                     )
                 if action == "check":  # files nothing, so never held by a commit (LKD)
                     return snapshot.checked(state, seat, dict(self._check(state, seat, body)))
+                if action in ("aim-check", "aim-set"):  # no order: never held by a commit
+                    key, values = stakes.aim_args(body)
+                    found = (
+                        stakes.aim_check(state, seat, key, values)
+                        if action == "aim-check"
+                        else stakes.aim_set(store, cid, seat, key, values)
+                    )
+                    out = stakes.aim_reply(found, setting=action == "aim-set")
+                    return snapshot.checked(state, seat, out)
                 if action == "odds":  # files nothing, so never held by a commit (ODS)
                     return snapshot.checked(state, seat, odds.reply(self.odds, state, seat, body))
                 if action == "read":
@@ -907,7 +918,7 @@ class App:
                 raise ApiError(HTTPStatus.BAD_REQUEST, NOT_LINKED)
             if action == "opening":
                 state = load_state(store, link.campaign_id)
-                if state.ruleset != "realism":
+                if state.ruleset != "realism" or state.phase is not Phase.SESSION_ZERO:
                     raise ApiError(HTTPStatus.BAD_REQUEST, "This game is not choosing its people.")
                 world = dossiers.world_key(store.read(link.campaign_id))
                 return {
@@ -1466,6 +1477,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
         def do_GET(self) -> None:
             path = urlsplit(self.path).path
             try:
+                guard.served(self.headers)
                 if path == "/api/me":
                     account = self._account()
                     if account is None:
@@ -1482,7 +1494,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                 if path.startswith("/api/"):
                     raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
                 self._static(path)
-            except ApiError as exc:
+            except (ApiError, guard.RefusedError) as exc:
                 self._send_json(exc.status, {"error": exc.message})
             except snapshot.WithheldError:
                 log.warning("snapshot withheld: canary hit")

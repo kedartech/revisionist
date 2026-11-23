@@ -187,14 +187,7 @@ def start(page: Page) -> None:
         page.get_by_role("link", name="Start a new game").click()
         page.get_by_role("button", name="Start Autumn 1941").click()
         page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
-        # the ready-made game opens on its nation, path and person steps; the flat cast waits
-        # behind Show everyone
-        everyone = page.get_by_role("button", name="Show everyone")
-        try:
-            everyone.wait_for(timeout=15_000)
-            everyone.click()
-        except Exception:
-            pass
+        rs.show_everyone(page)
         rs.play_from_dossier(page, {}, "Franklin D. Roosevelt")
         page.get_by_role("button", name="Begin the game").wait_for(timeout=60_000)
         rs.begin_with_crawl(page, {})

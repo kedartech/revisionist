@@ -166,12 +166,54 @@ groups:
         feeds: {output: 1}
         moved_by: {territory_taken: 2, battle_lost: -3}
 
+# How each kind of happening reaches the groups, read with the `classes` rule on: felt,
+# reported or secret. A kind not listed is reported; a mixed kind is reported with the
+# share of it that is felt.
+happenings:
+  - {kind: capital_threatened, reach: felt}
+  - {kind: battle_lost, reach: reported, felt: 0.4}
+  - {kind: agreement_broken, reach: secret}
+
+# The player's own aim, read with the own_aim rule on: patterns a player may fill to
+# replace his card's replaceable aim. `$name` in a condition is a blank the sentence names
+# as `{name}`; `$nation` and `$person` stand for the person's own nation and the person.
+# A blank takes a closed list of values or a kind resolved from the seat's view.
+aim_patterns:
+  - key: take_ground
+    posts: [head_of_government, military]
+    sentence: Take {place} for {nation}.
+    condition: {check: holds_area, area: $place, holder: $nation}
+    blanks:
+      - {name: place, kind: territory_not_held}
+  - key: keep_support
+    posts: [political]
+    sentence: Keep {group} at {line} or more.
+    condition: {check: support_at, nation: $nation, group: $group, op: ge, value: $line}
+    blanks:
+      - {name: group, kind: own_group}
+      - {name: line, values: [55, 65, 75]}
+    government: false
+  - key: make_peace
+    posts: [head_of_government]
+    sentence: Make peace with {foe}.
+    condition: {check: at_war, a: $nation, b: $foe, war: false}
+    blanks:
+      - {name: foe, kind: other_nation}
+    government: false
+  - key: army_peace
+    posts: [army_commander]
+    sentence: Make peace with {foe} on the army's terms.
+    condition: {check: at_war, a: $nation, b: $foe, war: false}
+    blanks:
+      - {name: foe, values: [norra, sudland]}
+
 cards:
   - person: ilse
     office: Chancellor of Norra
     playable: true
     principals: [norra]
     horizon_days: 14
+    post_kind: head_of_government
   - person: tomas
     office: Premier of Sudland
     playable: true

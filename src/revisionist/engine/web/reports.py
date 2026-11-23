@@ -11,7 +11,11 @@ Delivered three ways: a file per report in the folder ``$REVISIONIST_REPORTS_DIR
 (mode 600, the words in plain; without the folder nothing is written), the host's inbox
 (``reports`` with ``inbox: true``), and a count by kind in one digest a day
 (``send_digest``, through the notice sender, with no report's words). A report is read
-by its author, the host of its game and the operator, never by another seat.
+by its author, the host of its game and the operator, never by another seat; each filing
+reply, and the refusal of an empty one, tells the player so. The host's inbox carries a
+report's kind, status, words and its number among its author's reports, and not who filed
+it or when. A player numbers reports by their own (first, second, ...) in the game; the
+operator's ``report_id`` stays with the operator.
 """
 
 import base64
@@ -46,7 +50,12 @@ PREFIXES: Mapping[str, str] = {"report": "bug", "idea": "idea", "bug": "bug"}
 kind [proposed: a plain ``report:`` is a bug]."""
 _PREFIXED = re.compile(r"\s*(report|idea|bug)\s*:(.*)", re.IGNORECASE | re.DOTALL)
 
-FILED = "Report {n} filed. Only the host and the makers read it."
+HOST_READS_WORDS = True
+"""Whether the host's inbox carries a report's words. False is the stricter reading: the
+host sees kind, status and number only, and the words reach the operator alone."""
+HOST_READS = "The host of this game reads what you write here."
+MAKERS_READ = "Only the makers read what you write here."
+FILED = "Report {n} filed."
 LATER = "That is as many reports as an hour allows. Try again in an hour."
 NO_KIND = "A report is a bug, an idea or something confusing."
 NO_WORDS = "Write what you want to report."
@@ -63,6 +72,11 @@ _A = {"bug": "a bug", "idea": "an idea", "confusing": "something confusing"}
 
 class RefusedError(Exception):
     """A report not filed or not marked: its message is the reply."""
+
+
+def who_reads() -> str:
+    """The line every filing path gives the player: who reads the words."""
+    return HOST_READS if HOST_READS_WORDS else MAKERS_READ
 
 
 @dataclass(frozen=True)
@@ -82,7 +96,7 @@ class Report:
     filed_at: datetime
 
     def shown(self) -> dict[str, Any]:
-        """What its author sees."""
+        """The report as the operator's export writes it."""
         return {
             "id": self.report_id,
             "kind": self.kind,
@@ -165,7 +179,7 @@ def file(
         raise RefusedError(NO_KIND)
     words = words.strip()
     if not words:
-        raise RefusedError(NO_WORDS)
+        raise RefusedError(f"{NO_WORDS} {who_reads()}")
     if len(words) > WORDS_MAX:
         raise RefusedError(TOO_LONG)
     conn = store.conn
@@ -197,6 +211,19 @@ def file(
         except OSError:
             log.exception("report %s is stored, but its file could not be written", number)
     return number
+
+
+def ordinal(
+    store: PostgresEventStore, campaign_id: CampaignId, account_id: str, number: int
+) -> int:
+    """Report ``number``'s place among the reports ``account_id`` filed in the game."""
+    row = store.conn.execute(
+        "SELECT count(*) FROM player_reports"
+        " WHERE campaign_id = %s AND account_id = %s AND report_id <= %s",
+        (campaign_id, account_id, number),
+    ).fetchone()
+    assert row is not None
+    return int(row[0])
 
 
 def drop_text(
@@ -261,10 +288,8 @@ def from_question(
         if _missing(exc):
             return NOT_SET_UP
         raise
-    return (
-        f"I have filed that as report {number}, {_A[kind]}. "
-        "Only the host and the makers read it; I do not."
-    )
+    n = ordinal(store, state.campaign_id, account_id, number)
+    return f"I have filed that as report {n}, {_A[kind]}. {who_reads()} I do not."
 
 
 def seat_bug(
@@ -280,7 +305,8 @@ def seat_bug(
         number = file(store, state, seat, account_id, "bug", notes, now)
     except RefusedError as exc:
         return str(exc)
-    return f"Bug {number} filed at tick {state.tick}. Thank you."
+    n = ordinal(store, state.campaign_id, account_id, number)
+    return f"Bug {n} filed at tick {state.tick}. {who_reads()} Thank you."
 
 
 # --- the realism actions ------------------------------------------------------------
@@ -294,6 +320,34 @@ def own(store: PostgresEventStore, campaign_id: CampaignId, account_id: str) -> 
         (campaign_id, account_id),
     ).fetchall()
     return [_report(store, r) for r in rows]
+
+
+def mine(reports: list[Report]) -> list[dict[str, Any]]:
+    """An author's own reports as they see them, numbered by their place among them."""
+    return [
+        {k: v for k, v in r.shown().items() if k != "id"} | {"n": n}
+        for n, r in enumerate(reports, 1)
+    ]
+
+
+def inbox(reports: list[Report]) -> list[dict[str, Any]]:
+    """A game's reports as its host sees them: ``id`` is the place in the game's list (what
+    ``report-mark`` takes), ``n`` the place among its author's; no seat, office or time."""
+    seen: dict[str, int] = {}
+    out: list[dict[str, Any]] = []
+    for i, r in enumerate(reports, 1):
+        seen[r.account_id] = seen.get(r.account_id, 0) + 1
+        row: dict[str, Any] = {
+            "id": i,
+            "n": seen[r.account_id],
+            "kind": r.kind,
+            "status": r.status,
+            "reply": r.reply,
+        }
+        if HOST_READS_WORDS:
+            row["words"] = r.words
+        out.append(row)
+    return out
 
 
 def listing(
@@ -376,24 +430,25 @@ def action(
             if not isinstance(words, str):
                 raise RefusedError(NO_WORDS)
             number = file(store, state, seat, account_id, kind, words, now)
-            return {"reply": FILED.format(n=number), "refused": False, "report": number}
+            n = ordinal(store, state.campaign_id, account_id, number)
+            said = f"{FILED.format(n=n)} {who_reads()}"
+            return {"reply": said, "refused": False, "report": n}
         if name == "reports":
-            inbox = body.get("inbox") is True
-            if not inbox:
-                found = [r.shown() for r in own(store, state.campaign_id, account_id)]
+            hosts = body.get("inbox") is True
+            if not hosts:
+                found = mine(own(store, state.campaign_id, account_id))
             elif host:
-                found = [
-                    r.shown() | {"office": office(state, r.seat_id)}
-                    if r.seat_id in state.seats
-                    else r.shown() | {"office": ""}
-                    for r in listing(store, state.campaign_id)
-                ]
+                found = inbox(listing(store, state.campaign_id))
             else:
                 found = []
-            return {"reply": "", "refused": False, "inbox": inbox, "reports": found}
+            return {"reply": "", "refused": False, "inbox": hosts, "reports": found}
         if not host:
             return _refused(HOST_ONLY)
-        number = _number(body.get("id"))
+        place = _number(body.get("id"))
+        game = listing(store, state.campaign_id)
+        if not 1 <= place <= len(game):
+            raise RefusedError(NO_SUCH)
+        number = game[place - 1].report_id
         reply = body.get("reply")
         if reply is not None and not isinstance(reply, str):
             raise RefusedError(REPLY_LONG)
@@ -401,7 +456,7 @@ def action(
         mark(
             store, number, status if isinstance(status, str) else "", reply, now, state.campaign_id
         )
-        return {"reply": "Marked.", "refused": False, "id": number}
+        return {"reply": "Marked.", "refused": False, "id": place}
     except RefusedError as exc:
         return _refused(str(exc))
     except Exception as exc:
@@ -468,9 +523,12 @@ __all__ = [
     "file",
     "from_question",
     "get",
+    "inbox",
     "listing",
     "mark",
+    "mine",
     "office",
+    "ordinal",
     "own",
     "record",
     "seat_bug",

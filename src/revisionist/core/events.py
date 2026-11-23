@@ -19,7 +19,8 @@ TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDec
 ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
 VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
-OrderAsked, AskAnswered``, and
+OrderAsked, AskAnswered, MatterChosen, AimPatternsDeclared, OwnAimSet, OfferMade,
+OfferSettled``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -34,6 +35,7 @@ from typing import Annotated, ClassVar, Literal
 from pydantic import ConfigDict, Field, model_validator
 
 from revisionist.core._base import Label, Model
+from revisionist.core.aim_patterns import AimPatterns, OwnAim
 from revisionist.core.delta import Delta
 from revisionist.core.goals import Goal, GoalKind, WinCondition
 from revisionist.core.ids import (
@@ -95,11 +97,12 @@ from revisionist.core.realism.economy import Amount, Pools
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.groups import Cause as GroupCause
-from revisionist.core.realism.groups import NationGroups, Proposal
+from revisionist.core.realism.groups import KindClass, NationGroups, Proposal
 from revisionist.core.realism.holders import Capture
 from revisionist.core.realism.kinds import PieceKind, Resource
 from revisionist.core.realism.laws import Law
 from revisionist.core.realism.locks import Asked, HeldEnd, HeldOrder, LockRow
+from revisionist.core.realism.offers import OfferStanding, PricedOffer
 from revisionist.core.realism.pipeline import (
     Order,
     OrderStatus,
@@ -703,6 +706,22 @@ class LawsDeclared(Model):
     laws: tuple[Law, ...] = Field(min_length=1)
 
 
+class AimPatternsDeclared(Model):
+    """The world's aim patterns and each card's kind of post (OWC). World data; once, at
+    creation, with ``own_aim`` on. Public."""
+
+    kind: Literal["aim_patterns_declared"] = "aim_patterns_declared"
+    patterns: AimPatterns
+
+
+class OwnAimSet(Model):
+    """A player's own aim, filled from a pattern, stored for the person he holds in place
+    of the card's replaceable aim (OWC). Sealed to the seat holding the person."""
+
+    kind: Literal["own_aim_set"] = "own_aim_set"
+    own: OwnAim
+
+
 class OrderHeld(Model):
     """A lock holds a seat's order (LCK): it passed every refusal of today's and is
     stored, not carried out, with the row and the decider. Sealed to the issuer's seat;
@@ -756,6 +775,51 @@ class AskAnswered(Model):
     asker: SeatId
     on: date
     granted: bool
+
+
+class MatterChosen(Model):
+    """A seat's sealed choice on a matter before it (QKD): to accept or decline the ask
+    for a held order, put to a council it sits on or to the person it holds. A later
+    choice before the due day replaces it. Sealed to the seat that chose: nobody else
+    learns of it, not even that it was made, and the due day counts it without saying
+    who agreed."""
+
+    kind: Literal["matter_chosen"] = "matter_chosen"
+    order_id: OrderId
+    seat_id: SeatId
+    accept: bool
+    on: date
+
+
+class OfferMade(Model):
+    """A seat offers one price to one bloc of its own nation for one measure whose bill is
+    on its way (PRC). It waits for the next day's batch, which takes or refuses it by
+    content. Sealed to the seats of the bloc's nation."""
+
+    kind: Literal["offer_made"] = "offer_made"
+    offer: PricedOffer
+
+
+class OfferSettled(Model):
+    """Where an offer now stands (PRC): taken or refused by its day's batch, lapsed when
+    its measure did not pass, due once it passed, then kept or broken on its due day.
+    Sealed to the seats of the bloc's nation."""
+
+    kind: Literal["offer_settled"] = "offer_settled"
+    offer_id: Label
+    standing: OfferStanding
+    on: date
+    due: date | None = None
+    """The day the promise is read: on ``due``, ``kept`` and ``broken``."""
+
+    @model_validator(mode="after")
+    def _shape(self) -> "OfferSettled":
+        if self.standing is OfferStanding.FILED:
+            raise ValueError("an offer is filed only by offer_made")
+        owed = self.standing in (OfferStanding.DUE, OfferStanding.KEPT, OfferStanding.BROKEN)
+        if (self.due is not None) != owed:
+            raise ValueError("a due day goes with due, kept and broken only")
+        return self
 
 
 class PieceStepped(Model):
@@ -954,6 +1018,11 @@ class GroupsDeclared(Model):
 
     kind: Literal["groups_declared"] = "groups_declared"
     nations: tuple[NationGroups, ...] = ()
+    classes: tuple[KindClass, ...] = ()
+    """With ``classes`` on, the class the world gives each kind of happening it classes
+    (HCL), in the world file's order."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"classes"})
 
 
 class GroupMoved(Model):
@@ -1461,10 +1530,15 @@ Payload = Annotated[
     | KindsDeclared
     | LocksDeclared
     | LawsDeclared
+    | AimPatternsDeclared
+    | OwnAimSet
     | OrderHeld
     | HeldOrderEnded
     | OrderAsked
     | AskAnswered
+    | MatterChosen
+    | OfferMade
+    | OfferSettled
     | PieceStepped
     | AreaHeld
     | CaptureCounted
@@ -1567,10 +1641,15 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "kinds_declared",
         "locks_declared",
         "laws_declared",
+        "aim_patterns_declared",
+        "own_aim_set",
         "order_held",
         "held_order_ended",
         "order_asked",
         "ask_answered",
+        "matter_chosen",
+        "offer_made",
+        "offer_settled",
         "area_held",
         "capture_counted",
         "economy_set",

@@ -1168,7 +1168,8 @@ def held_on_piece(page: Page, report: dict[str, object]) -> None:
 
 def capital_board(page: Page, report: dict[str, object]) -> None:
     """The Capital board (CBD), in the map-first room after the held order is filed: the switch
-    at the map's top left opens the Capital in the map's place, with the bar and the season's
+    at the map's top left (on a phone, in the Game menu, the map's controls keeping to two rows)
+    opens the Capital in the map's place, with the bar and the season's
     strip kept; a chamber's bar opens its blocs and one is picked; the held order's chain opens the
     map with its piece's sheet, whose lock line opens the question again; F and Escape go into
     full screen and out; the page is as wide as the viewport. Back to the Classic layout after."""
@@ -1177,16 +1178,28 @@ def capital_board(page: Page, report: dict[str, object]) -> None:
         return
     switch = page.locator(".rl-board-switch")
     try:
-        switch.first.wait_for(timeout=10_000)
+        switch.first.wait_for(state="attached", timeout=10_000)
     except PlaywrightTimeout:
         check("the Capital switch is drawn with a held order to show", False)
         set_layout(page, "Classic layout")
         return
-    corner = page.evaluate(
-        "() => !!document.querySelector('.rl-tm-tools-start > .rl-board-switch:first-child')"
-    )
-    check("the Map and Capital switch sits at the map's top left", corner)
-    switch.get_by_role("button", name="Capital").click()
+    if PHONE:
+        hidden = page.evaluate(
+            """() => {
+              const s = [...document.querySelectorAll('.rl-mapfirst-map .rl-board-switch')];
+              return s.length > 0 && s.every((x) => getComputedStyle(x).display === 'none');
+            }"""
+        )
+        check("on a phone the switch is not among the map's controls", hidden)
+        page.locator(".rl-menu-btn").click()
+        menu = page.locator("dialog.rl-menu .rl-menu-board .rl-board-switch")
+        menu.get_by_role("button", name="Capital").click()
+    else:
+        corner = page.evaluate(
+            "() => !!document.querySelector('.rl-tm-tools-start > .rl-board-switch:first-child')"
+        )
+        check("the Map and Capital switch sits at the map's top left", corner)
+        switch.get_by_role("button", name="Capital").click()
     board = page.locator(".rl-cap")
     board.wait_for(timeout=10_000)
     kept = page.evaluate(

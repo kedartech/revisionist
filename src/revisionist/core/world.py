@@ -26,6 +26,7 @@ from typing import Annotated, Literal
 from pydantic import (
     Field,
     GetJsonSchemaHandler,
+    JsonValue,
     StringConstraints,
     TypeAdapter,
     WithJsonSchema,
@@ -35,6 +36,7 @@ from pydantic.json_schema import JsonSchemaValue, SkipJsonSchema
 from pydantic_core import CoreSchema
 
 from revisionist.core._base import Label, Model
+from revisionist.core.aim_patterns import BlankKind
 from revisionist.core.goals import WinCondition
 from revisionist.core.intent import Verb
 from revisionist.core.ontology import (
@@ -64,7 +66,7 @@ from revisionist.core.realism.effect import (
     Engagement,
 )
 from revisionist.core.realism.geography import FeatureKind
-from revisionist.core.realism.groups import Group, Theme
+from revisionist.core.realism.groups import Group, KindClass, Theme
 from revisionist.core.realism.kinds import MAX_STRENGTH, Domain, Role
 from revisionist.core.realism.pipeline import StepAction, StepKind
 from revisionist.core.realism.quantity import ResolverKey
@@ -700,15 +702,28 @@ class LockWhenDecl(Model):
     posture: dict[Label, ParamValue] = Field(default_factory=dict)
 
 
+class CouncilDecl(Model):
+    """A council that decides (QKD): ``members`` the person keys of who sits on it, each
+    with a card; ``needed`` how many must agree, no more than the members; ``head`` the
+    person key an ask goes to."""
+
+    members: tuple[Key, ...] = Field(min_length=1, max_length=24)
+    needed: int = Field(ge=1)
+    head: Key
+
+
 class LockDeciderDecl(Model):
     """Who can allow a held order (DCD): ``person`` a person key, or a body: ``nation`` a
     polity key, ``chambers`` the keys of its chambers that pass the law, and ``head`` the
-    person key of the head of its government, to whom an ask goes (ASK)."""
+    person key of the head of its government, to whom an ask goes (ASK); or, with
+    ``deciders`` on, a ``council`` (QKD). With ``deciders`` off a council's head decides
+    alone."""
 
     person: Key | None = None
     nation: Key | None = None
     chambers: tuple[Label, ...] = ()
     head: Key | None = None
+    council: CouncilDecl | None = None
 
 
 class LockDecl(Model):
@@ -719,6 +734,9 @@ class LockDecl(Model):
     order: LockOrderDecl
     when: LockWhenDecl | None = None
     decider: LockDeciderDecl
+    question: str | None = Field(default=None, max_length=40)
+    """With ``deciders`` on, the kind of question (``locks.Question``); absent: a question
+    of permission (QKD)."""
 
 
 class LawDoesDecl(Model):
@@ -950,6 +968,37 @@ class AimRuleDecl(Model):
     replaceable: bool = False
 
 
+class AimBlankDecl(Model):
+    """One blank of an aim pattern (OWC): ``values`` a closed list (world keys, group keys
+    or numbers), or ``kind`` resolved from the seat's view; one of the two."""
+
+    name: Key
+    values: tuple[Key | int, ...] = ()
+    kind: BlankKind | None = None
+
+    @model_validator(mode="after")
+    def _one(self) -> "AimBlankDecl":
+        if bool(self.values) == (self.kind is not None):
+            raise ValueError("a blank has a list of values or a kind, not both")
+        return self
+
+
+class AimPatternDecl(Model):
+    """One aim pattern (OWC), read with ``own_aim`` on: ``posts`` the kinds of post it
+    suits (a card's ``post_kind``, or its path), ``sentence`` the aim in words with each
+    blank as ``{name}``, ``condition`` an aim's condition in world keys with each blank as
+    ``$name`` (``$nation`` and ``$person`` stand for the person's own nation and the person),
+    and ``government`` whether the person's own government would issue it."""
+
+    key: Key
+    posts: tuple[Key, ...] = Field(min_length=1, max_length=8)
+    sentence: str = Field(min_length=1, max_length=200)
+    condition: dict[str, JsonValue]
+    blanks: tuple[AimBlankDecl, ...] = Field(default=(), max_length=4)
+    government: bool = True
+    deadline: date | None = None
+
+
 class CardDecl(Model):
     """A person's seat card. ``person`` is a person key; the card has no key of its own."""
 
@@ -990,6 +1039,9 @@ class CardDecl(Model):
     path: SkipJsonSchema[CardPath] = CardPath.POLITICAL
     """Political or military (CMD), read with the ``command`` rule on. Written by hand:
     not offered to a model."""
+    post_kind: SkipJsonSchema[Key | None] = None
+    """The kind of post the card holds, matched against an aim pattern's ``posts`` with
+    ``own_aim`` on (OWC). Written by hand: not offered to a model."""
 
 
 class TopicDecl(Model):
@@ -1127,6 +1179,11 @@ class WorldFile(Model):
     """Each nation's groups at home, with ``groups`` on: support, baseline, what each
     feeds and what moves it. A world with none is unchanged. Written by hand: not offered
     to a model."""
+    happenings: SkipJsonSchema[tuple[KindClass, ...]] = ()
+    """The class of each kind of happening the world classes, with ``classes`` on (HCL):
+    felt, reported or secret, and for a mixed kind the share felt. A kind not listed is
+    reported. With the rule off they are checked and left out of the game. Written by
+    hand: not offered to a model."""
     pacts: SkipJsonSchema[tuple[PactDecl, ...]] = ()
     """The pacts in force on the start date, with ``agreements`` on (PCT). Written by
     hand: not offered to a model."""
@@ -1136,6 +1193,10 @@ class WorldFile(Model):
     locks: SkipJsonSchema[tuple[LockDecl, ...]] = ()
     """Which orders need whose decision, and when, with ``locks`` on (DCD). A world with
     none is unchanged. Written by hand: not offered to a model."""
+    aim_patterns: SkipJsonSchema[tuple[AimPatternDecl, ...]] = ()
+    """The patterns a player may fill for his own aim, with ``own_aim`` on (OWC). With the
+    rule off they are checked and left out of the game. Written by hand: not offered to a
+    model."""
     laws: SkipJsonSchema[tuple[LawDecl, ...]] = ()
     """The laws the world declares, with ``laws`` on (LWC): what each binds, its clauses,
     the quantity that says it has passed, and what it does. With the rule off they are
@@ -1167,6 +1228,8 @@ class WorldFile(Model):
 __all__ = [
     "AdjacencyDecl",
     "AgentDecl",
+    "AimBlankDecl",
+    "AimPatternDecl",
     "AssetDecl",
     "CardDecl",
     "CharacterDecl",
@@ -1179,6 +1242,7 @@ __all__ = [
     "ContactDecl",
     "ContestDecl",
     "ContestMoveDecl",
+    "CouncilDecl",
     "DevelopmentDeck",
     "DevelopmentDecl",
     "DevelopmentEffectDecl",

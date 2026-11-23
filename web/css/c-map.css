@@ -130,6 +130,9 @@
   .rl-tm-overlay .rl-tm-wide { display: none; }
   .rl-tm-overlay .rl-tm-fold { display: inline-block; }
   .rl-tm-overlay .rl-tm-tools-end .rl-filters > [aria-pressed="true"] { display: none; }
+  /* the board switch shares the first row with the layers, and the regions the second with Threats */
+  .rl-tm-overlay .rl-board-switch button { min-width: 44px; padding: 0 var(--space-2); }
+  .rl-tm-overlay .rl-tm-fold-region { max-width: 8rem; }
   .rl-tm-stage { padding-left: var(--space-2); padding-right: calc(var(--tm-side) + 44px + var(--space-3)); }
   .rl-tm-stage > :not(.rl-map-figure):not(.rl-tm-corner) { width: 100%; }
   .rl-tm-full span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

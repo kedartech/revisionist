@@ -218,7 +218,7 @@ def test_no_decider_row_is_left_optional_under_its_switch() -> None:
 
 def test_a_question_not_built_yet_is_absent_and_says_so() -> None:
     got = lines_for(TOY)
-    kinds = next(line for q, line in got.items() if q.lower().startswith("who decides each kind"))
+    kinds = next(line for q, line in got.items() if q.lower().startswith("who decides to accept"))
     assert kinds.status == "absent"
     assert "not built yet" in kinds.text()
 

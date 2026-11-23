@@ -64,7 +64,7 @@ jobs:
       - run: uv python install 3.12
       - name: Export the locked dependencies
         run: |
-          uv export --frozen --no-dev --no-emit-project --no-hashes -o runtime-requirements.txt
+          uv export --frozen --no-dev --all-extras --no-emit-project --no-hashes -o runtime-requirements.txt
           uv export --frozen --only-dev --no-emit-project --no-hashes -o dev-requirements.txt
       - name: Audit the runtime Python dependencies
         run: uvx --with pip-audit pip-audit --requirement runtime-requirements.txt --no-deps --disable-pip

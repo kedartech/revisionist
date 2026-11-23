@@ -127,9 +127,10 @@ def test_the_world_schema_offered_to_a_model_has_no_mark() -> None:
     assert "escort_level" not in json.dumps(WorldFile.model_json_schema())
 
 
-def test_no_1941_form_is_marked() -> None:
+def test_the_1941_naval_orders_are_the_forms_marked() -> None:
     world = cmp.load_world(cmp.world_path("autumn-1941"))
-    assert [lv.name for c in world.cards for lv in c.levers if lv.escort_level] == []
+    marked = [(c.person, lv.name) for c in world.cards for lv in c.levers if lv.escort_level]
+    assert marked == [("roosevelt", "naval_order"), ("king", "fleet_naval_order")]
 
 
 def test_the_compiled_card_carries_the_marks_on_the_issuers_own_card() -> None:

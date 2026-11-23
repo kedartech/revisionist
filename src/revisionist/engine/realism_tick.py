@@ -34,6 +34,7 @@ from revisionist.core._base import Model
 from revisionist.core.events import CallCost, Event, Versions
 from revisionist.core.fold import FoldError, replay, state_hash
 from revisionist.core.ids import (
+    AssetId,
     CampaignId,
     DocumentId,
     EntityId,
@@ -59,13 +60,15 @@ from revisionist.core.realism import (
     holders,
     locks,
     mandates,
+    offers,
     opponents,
+    posts,
     process,
 )
 from revisionist.core.realism.advance import Wake, next_wake
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.arrivals import arrivals
-from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, ParamValue
+from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, ParamValue, PostCause
 from revisionist.core.realism.document import DocumentView, Feed
 from revisionist.core.realism.effect import (
     Deal,
@@ -428,8 +431,13 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return _nation_scope(state, payload.polity)
     if isinstance(payload, ev.GroupMoved):
         return _nation_scope(state, payload.polity)  # true support: the nation's seats (GRP)
-    if isinstance(payload, ev.GroupProposed):
-        # Engine only: the writing in waiting; the batch, not the filing, moves a group.
+    if isinstance(payload, ev.OfferMade):
+        return _nation_scope(state, payload.offer.nation)  # PRC: the bloc's nation's seats
+    if isinstance(payload, ev.OfferSettled):
+        settled = next(o for o in state.offers if o.offer_id == payload.offer_id)
+        return _nation_scope(state, settled.nation)
+    if isinstance(payload, ev.GroupProposed | ev.LossesHeld):
+        # Engine only: the writing in waiting, the battle losses held (LSS).
         held = SeatId(derived_id(state.campaign_id, "engine-only", "groups"))
         return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
     if isinstance(payload, ev.ContestMoved | ev.ContestDecided):
@@ -576,7 +584,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         state = replay(batch, initial=state)
         out.extend(batch)
 
-    add(actors.unseated(state, answering.answerers(state)))
+    add(actors.unseated(state, [*answering.answerers(state), *answering.askable(state)]))
     begun: State | None = state  # moves the carried-in orders start begin on the first day
     wake_start = dict(state.opponents)
     walk_from, walk_mark = state, len(out)  # CON: each move reads from the last read on
@@ -595,6 +603,8 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         day += timedelta(days=1)
         start, begun = begun or state, None
         day_from, day_mark = state, len(out)  # GRP: the day's happenings are read from here
+        add(posts.walk(state, day))  # PPP: a vacant post to its successor, before any step
+        add(offers.batch(state, day))  # PRC: the wake's offers, settled before a vote
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))
         add(steps)
         settled = history.settle(state, day)
@@ -633,8 +643,11 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         today = [e.payload for e in out[day_mark:]]
         add(agreement.judge(state, day, today))  # AGR: each clause on its day, from the state
         add(groups.react(state, day_from, today, day, sea=before_on_day))
+        add(groups.places(state, day_from, today, day))  # PLW: weighted places changed hands
+        add(groups.losses(state, day_from, today, day))  # LSS: the day's losses, by size
         add(groups.batch(state, day))  # GRP: the day's writing, settled in one batch
         add(groups.drift(state, day))  # GRP: on a Monday, toward the baseline
+        add(offers.walk(state, day))  # PRC: a measure decided, a promise on its due day
         read = [e.payload for e in out[walk_mark:]]
         add(contests.moves(state, walk_from, read, day - timedelta(days=1), day))  # CON
         walk_from, walk_mark = state, len(out)
@@ -660,7 +673,6 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(opponents.settle(state, day, [*landed, *planned], wake_start))
         while matter := _matter_answered(state, day):  # QKD: before a card answers an ask
             add(matter)
-        add(actors.unseated(state, answering.ask_deciders(state, day)))  # AAK: a seat to file from
         while answer := answering.answer_ask(state, day):
             add(answer)
         add(_unlocked(state, day))  # ASK: each held order once a day, after the day's acts
@@ -668,6 +680,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     add(holders.close(state, until))  # the wake's close: a capital marked before falls
     closing = [e.payload for e in out[close_mark:]]
     add(groups.react(state, close_from, closing, until))  # GRP: the close's happenings
+    add(groups.places(state, close_from, closing, until))  # PLW: a capital that fell
     add(contests.moves(state, walk_from, [e.payload for e in out[walk_mark:]], until, until))
     return out
 
@@ -774,6 +787,55 @@ def choose_matter(
     locks.may_choose(state, seat, order_id)
     chosen = ev.MatterChosen(order_id=order_id, seat_id=seat, accept=accept, on=today)
     _append_all(store, state, [(chosen, private_to(seat))], seat)
+
+
+def make_offer(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, bloc: str, measure: str, price: str
+) -> offers.PricedOffer:
+    """The seat offers ``price`` to ``bloc`` of its own nation for ``measure`` (PRC), dated
+    today and sealed to the seats of that nation; the next day's batch takes or refuses it.
+    Raises ``ValueError`` with the seat's words."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    if today is None:
+        raise ValueError(offers.NOT_ON)
+    made = offers.offer(state, seat, bloc, measure, price, today)
+    _append_all(store, state, [(made, _nation_scope(state, made.offer.nation))], seat)
+    return made.offer
+
+
+def change_post(
+    store: EventStore,
+    campaign_id: CampaignId,
+    post: AssetId,
+    to: EntityId | None,
+    cause: PostCause,
+) -> list[ev.PostChanged]:
+    """Give ``post`` to ``to``, or to nobody, today (PPP), as ``posts.change`` words it, in
+    one batch checked by the fold first. Nothing with ``posts`` off."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    if today is None:
+        raise ValueError("a post changes hands only in a game under way")
+    made = posts.change(state, post, to, today, cause)
+    if made:
+        versions = cmp.versions()
+        batch = [
+            Event(
+                event_id=EventId(new_id()),
+                campaign_id=campaign_id,
+                seq=state.last_seq + i,
+                tick=state.tick,
+                actor=None,
+                scope=PUBLIC,
+                payload=p,
+                versions=versions,
+            )
+            for i, p in enumerate(made, start=1)
+        ]
+        replay(batch, initial=state)
+        store.append_all(batch)
+    return made
 
 
 def set_own_aim(

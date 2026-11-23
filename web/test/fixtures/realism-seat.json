@@ -4490,6 +4490,53 @@
         },
         "band": null
       }
+    ],
+    "offers": [
+      {
+        "key": "barge_act",
+        "title": "The Barge Act",
+        "blocs": [
+          {
+            "group": "greens",
+            "name": "The Greens",
+            "prices": [
+              {
+                "key": "harbour_dues",
+                "sentence": "Set harbour dues lifted within ten days of the act.",
+                "points": 2,
+                "days": 10,
+                "loss": 6
+              },
+              {
+                "key": "guild_seat",
+                "sentence": "Set guild seat given within ten days of the act.",
+                "points": 3,
+                "days": 10,
+                "loss": 4
+              }
+            ],
+            "live": {
+              "price": "harbour_dues",
+              "points": 2,
+              "mine": true
+            }
+          }
+        ]
+      }
+    ],
+    "promises": [
+      {
+        "offer_id": "X2KJ18ER3BA2CCY8PKZ9SWZ0DX",
+        "group": "greens",
+        "name": "The Greens",
+        "measure": "barge_act",
+        "title": "The Barge Act",
+        "price": "harbour_dues",
+        "sentence": "Set harbour dues lifted within ten days of the act.",
+        "standing": "taken",
+        "filed": "1900-04-02",
+        "due": null
+      }
     ]
   },
   "agreements": {

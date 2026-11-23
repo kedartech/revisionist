@@ -61,7 +61,7 @@ from revisionist.core.realism.agenda import Mandate, MandateTemplate, PlayStyle
 from revisionist.core.realism.agreement import Agreements
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
-from revisionist.core.realism.card import CardFace, Desk, SeatCard, Topic
+from revisionist.core.realism.card import CardFace, Desk, Post, SeatCard, Topic
 from revisionist.core.realism.conference import Conferences
 from revisionist.core.realism.detect import Intelligence, Picture, Report
 from revisionist.core.realism.document import Document, DocumentView, Feed
@@ -73,6 +73,7 @@ from revisionist.core.realism.holders import Capture, Holding
 from revisionist.core.realism.kinds import Kinds
 from revisionist.core.realism.laws import Law
 from revisionist.core.realism.locks import Asked, HeldOrder, LockRow
+from revisionist.core.realism.offers import PricedOffer
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
@@ -222,8 +223,13 @@ class _World(Model):
     groups: Groups = Field(default_factory=Groups)
     """With ``groups`` on, each nation's groups at home as the world declares them
     (``groups_declared``), their support (``group_moved``) and the writing in waiting
-    (``group_proposed``) (GRP). True support: a view holds its own nation's groups only,
-    and never the writing in waiting."""
+    (``group_proposed``) (GRP); with ``losses`` on, the battle losses held
+    (``losses_held``) (LSS). True support: a view holds its own nation's groups only, and
+    never the writing in waiting or the losses held."""
+    offers: tuple[PricedOffer, ...] = ()
+    """With ``offers`` on, every offer of a price to a bloc and where it stands
+    (``offer_made``, ``offer_settled``) (PRC). A view holds those to its own nation's
+    blocs only."""
     agreements: Agreements = Field(default_factory=Agreements)
     """With ``agreements`` on, the offers (``agreement_offered``) and the agreements in
     force (``agreement_made``), with each clause's status (``clause_judged``) (AGR). A view
@@ -237,6 +243,7 @@ class _World(Model):
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
             "groups",
+            "offers",
             "agreements",
             "conferences",
             "goals",
@@ -301,6 +308,10 @@ class State(_World):
     asked: dict[OrderId, Asked] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """Each held order its seat has asked for, by its id, until it ends (ASK). The asker
     and the seat asked see it."""
+    posts: dict[AssetId, Post] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``posts`` on, every post that has changed hands, by its office asset
+    (``post_changed``): who holds it and its part of the card (PPP). Engine only; a post
+    that never moved is read from its holder's card."""
     chosen: dict[OrderId, dict[SeatId, bool]] = Field(
         default_factory=dict, exclude_if=lambda v: not v
     )
@@ -364,6 +375,7 @@ class State(_World):
     longer be set (OWC). Engine only."""
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "aim_shut",
+        "posts",
         "held",
         "asked",
         "chosen",

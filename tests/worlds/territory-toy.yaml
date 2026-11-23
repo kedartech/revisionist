@@ -155,7 +155,7 @@ groups:
         start: 40
         baseline: 45
         feeds: {standing: 3, opinion: 1}
-        moved_by: {territory_taken: 3, territory_lost: -3, losses_at_sea: -2}
+        moved_by: {territory_taken: 3, territory_lost: -3, losses_at_sea: -2, battle_losses: -1}
   - nation: sudland
     groups:
       - key: farmers
@@ -164,7 +164,21 @@ groups:
         start: 30
         baseline: 35
         feeds: {output: 1}
-        moved_by: {territory_taken: 2, battle_lost: -3}
+        moved_by: {territory_taken: 2, battle_lost: -3, battle_losses: -1}
+
+# How each kind of happening reaches the groups, read with the `classes` rule on: felt,
+# reported or secret. A kind not listed is reported; a mixed kind is reported with the
+# share of it that is felt.
+happenings:
+  - {kind: capital_threatened, reach: felt}
+  - {kind: battle_lost, reach: reported, felt: 0.4}
+  - {kind: agreement_broken, reach: secret}
+
+# Places with political weight, read with the `places` rule on: a territory, the nation
+# it matters to, and the points each of that nation's groups moves when it is lost after
+# a fight. Abandoning it costs twice that; retaking it moves them back.
+places:
+  - {territory: norra_plain, nation: norra, moves: {greys: -4, public: -2}}
 
 # The player's own aim, read with the own_aim rule on: patterns a player may fill to
 # replace his card's replaceable aim. `$name` in a condition is a blank the sentence names
@@ -199,6 +213,11 @@ aim_patterns:
     blanks:
       - {name: foe, values: [norra, sudland]}
 
+# The chancellery is an office the chancellor holds: with the posts rule on, her card's
+# post, which may pass to another person while she plays on.
+assets:
+  - {key: norra_chancellery, kind: office, name: Chancellor of Norra, tier: 4, controller: ilse}
+
 cards:
   - person: ilse
     office: Chancellor of Norra
@@ -206,6 +225,7 @@ cards:
     principals: [norra]
     horizon_days: 14
     post_kind: head_of_government
+    post: norra_chancellery
   - person: tomas
     office: Premier of Sudland
     playable: true

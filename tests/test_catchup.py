@@ -47,7 +47,7 @@ from revisionist.core.state import View
 from revisionist.core.visibility import PUBLIC, private_to
 from revisionist.engine import campaign as cmp
 from revisionist.engine import catchup, options, realism_tick
-from revisionist.engine.store import MemoryStore
+from revisionist.engine.store import MemoryStore, load_state
 from revisionist.engine.web import catchup_api
 from tests.async_table import AsyncTable
 from tests.test_engine_v2_wake import CAMPAIGN
@@ -773,3 +773,147 @@ def test_a_cards_answer_to_an_ask_is_fed_to_the_asker_only() -> None:
         return catchup._named(answer, typing.cast(View, SimpleNamespace(viewer=SeatId(viewer))))
 
     assert seen("mine") and not seen("hers") and not seen("other")
+
+
+def test_an_offer_to_a_bloc_and_where_it_stands_are_fed_to_the_seats_that_see_it() -> None:
+    # PRC: sealed to the seats of the bloc's nation, and kept only while the offer is in
+    # the seat's view; a seat of another nation never reads it, whatever the envelope says.
+    from revisionist.core.realism.offers import OfferStanding, PricedOffer
+
+    assert {"offer_made", "offer_settled"} <= catchup.FEED_KINDS
+    made = PricedOffer(
+        offer_id="an-offer",
+        seat=SeatId("mine"),
+        nation=EntityId("norra"),
+        bloc="greens",
+        measure="barge_act",
+        price="harbour_dues",
+        bill=OrderId("bill"),
+        filed=date(1900, 4, 2),
+    )
+    settled = ev.OfferSettled(
+        offer_id="an-offer", standing=OfferStanding.TAKEN, on=date(1900, 4, 3)
+    )
+
+    def seen(payload: ev.Payload, offers: tuple[PricedOffer, ...]) -> bool:
+        view = SimpleNamespace(viewer=SeatId("mine"), offers=offers)
+        return catchup._named(payload, typing.cast(View, view))
+
+    for payload in (ev.OfferMade(offer=made), settled):
+        assert seen(payload, (made,)) and not seen(payload, ())
+
+
+# --- an ask's answer and record say nothing of who holds the decider ---------------
+
+
+def _toy_fed(store: MemoryStore, person: EntityId) -> list[ev.Event]:
+    from tests import test_realism_locks as toy
+    from tests.test_territory_model import CAMPAIGN as TOY
+
+    fed = catchup.seat_events(store, TOY, toy.seat(person), 0, 99)
+    return [f.event for f in fed]
+
+
+def _asked_game(tmp: Path, *changes: Any, ilse: bool) -> MemoryStore:
+    """Kara's march to the Isle, held for Ilse and asked for, four wakes on: Ilse held
+    by a person with ``ilse``, else left to code."""
+    from tests import test_ask_answers as aa
+    from tests import test_realism_locks as toy
+
+    store = aa.unplayed(tmp, *changes, ilse=ilse)
+    order = toy.file(store, "isle")
+    aa.ask(store, order.order_id)
+    aa.tick_until(store, lambda s: False, ticks=4)
+    return store
+
+
+@pytest.mark.parametrize("mood", ["friendly", "hostile"])
+def test_a_cards_answer_on_a_plain_row_is_not_fed_to_its_asker(tmp_path: Path, mood: str) -> None:
+    # A person who holds the decider never answers for the card, so a card's answer fed
+    # to the asker would say the decider is run by code. Its effect still lands.
+    from tests import test_ask_answers as aa
+    from tests import test_realism_locks as toy
+
+    store = _asked_game(tmp_path, aa.answers_on, getattr(aa, mood), ilse=False)
+    assert aa.answered(store), "the card answered"
+    kinds = [e.kind for e in _toy_fed(store, toy.KARA)]
+    assert "ask_answered" not in kinds
+    assert "order_asked" in kinds and "order_held" in kinds
+    assert ("held_order_ended" in kinds) is (mood == "friendly")
+
+
+def test_the_askers_record_of_an_ask_is_the_same_whoever_holds_the_decider(
+    tmp_path: Path,
+) -> None:
+    from tests import test_ask_answers as aa
+    from tests import test_realism_locks as toy
+    from tests.test_territory_model import CAMPAIGN as TOY
+
+    games = {
+        held: _asked_game(tmp_path / str(held), aa.answers_on, aa.hostile, ilse=held)
+        for held in (True, False)
+    }
+    records, fed = {}, {}
+    for held, store in games.items():
+        state = load_state(store, TOY)
+        (made,) = state.asked.values()
+        assert (made.seat == toy.seat(toy.ILSE)) is held and (made.answered is None) is held
+        (mine,) = project(state, toy.seat(toy.KARA)).asked.values()
+        records[held] = mine.model_dump(mode="json", exclude={"order_id"})
+        (asked,) = [e for e in _toy_fed(store, toy.KARA) if isinstance(e.payload, ev.OrderAsked)]
+        fed[held] = asked.payload.model_dump(mode="json", exclude={"asked": {"order_id"}})
+    assert records[True] == records[False]
+    assert not {"seats", "answered", "granted"} & set(records[True])
+    assert records[True]["seat"] is None
+    assert fed[True] == fed[False] and fed[True]["asked"].get("seat") is None
+    # The seat asked keeps the whole ask: it is the one the ask was put before.
+    state = load_state(games[True], TOY)
+    (hers,) = project(state, toy.seat(toy.ILSE)).asked.values()
+    assert hers.seat == toy.seat(toy.ILSE)
+    (shown,) = [e for e in _toy_fed(games[True], toy.ILSE) if isinstance(e.payload, ev.OrderAsked)]
+    assert isinstance(shown.payload, ev.OrderAsked)
+    assert shown.payload.asked.seat == toy.seat(toy.ILSE)
+
+
+def test_an_ask_put_before_the_askers_own_seat_is_held_whole(tmp_path: Path) -> None:
+    # The head of a body may ask for his own order: the ask is then before his own seat,
+    # which keeps it whole, as any seat an ask is put before does.
+    from revisionist.core.realism import answering
+    from tests import test_ask_answers as aa
+    from tests import test_realism_locks as toy
+    from tests.test_territory_model import CAMPAIGN as TOY
+
+    store = _asked_game(tmp_path, aa.answers_on, aa.hostile, ilse=True)
+    state = load_state(store, TOY)
+    (made,) = state.asked.values()
+    own = made.model_copy(update={"asker": toy.seat(toy.ILSE)})
+    assert answering.as_asked(state, own, toy.seat(toy.ILSE)) == own
+    council = made.model_copy(update={"seat": None, "seats": (toy.seat(toy.KARA),)})
+    assert answering.as_asked(state, council, toy.seat(toy.KARA)) == council
+
+
+def test_with_ask_answers_off_the_askers_record_of_an_ask_is_as_logged(tmp_path: Path) -> None:
+    from tests import test_ask_answers as aa
+    from tests import test_realism_locks as toy
+    from tests.test_territory_model import CAMPAIGN as TOY
+
+    store = _asked_game(tmp_path, aa.hostile, ilse=True)
+    state = load_state(store, TOY)
+    (made,) = state.asked.values()
+    assert project(state, toy.seat(toy.KARA)).asked[made.order_id] == made
+    (asked,) = [e for e in _toy_fed(store, toy.KARA) if isinstance(e.payload, ev.OrderAsked)]
+    assert isinstance(asked.payload, ev.OrderAsked) and asked.payload.asked == made
+
+
+def test_an_answer_on_a_row_decided_by_its_kind_is_still_fed_to_its_asker(tmp_path: Path) -> None:
+    # QKD: such a row is answered on its due day whoever holds the decider, so the
+    # answer tells the asker nothing of who that is.
+    from tests import test_deciders as qd
+    from tests import test_realism_locks as toy
+
+    store, order_id = qd.asked_hills(
+        tmp_path, qd.leaning("ilse", 3), qd.leaning("greta", -3), olaf=True
+    )
+    qd.outcome(store, order_id)
+    kinds = [e.kind for e in _toy_fed(store, toy.KARA)]
+    assert kinds.count("ask_answered") == 1

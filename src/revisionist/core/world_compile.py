@@ -517,6 +517,8 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "trade_lines",
             "intelligence",
             "groups",
+            "happenings",
+            "places",
             "pacts",
             "conferences",
             "locks",
@@ -533,10 +535,14 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_kinds(world, problems)
     _check_intelligence(world, sections, problems)
     _check_groups(world, problems)
+    _check_happenings(world, problems)
+    _check_places(world, problems)
+    _check_prices(world, sections, problems)
     _check_contest_moves(world, sections, problems)
     _check_aim_rules(world, sections, problems)
     _check_aim_patterns(world, sections, problems)
     _check_command(world, problems)
+    _check_posts(world, sections, problems)
     _check_laws(world, problems)
     _check_locks(world, sections, problems)
     for seat in world.seats:
@@ -1387,14 +1393,116 @@ def _check_groups(world: WorldFile, problems: list[str]) -> None:
             ]
 
 
+def _check_happenings(world: WorldFile, problems: list[str]) -> None:
+    """Each kind of happening classed once (HCL). With the rule off they are checked and
+    left out of the game."""
+    seen: set[str] = set()
+    for c in world.happenings:
+        if c.kind in seen:
+            problems.append(f"happenings: {c.kind} is classed twice")
+        seen.add(c.kind)
+
+
+def _check_places(world: WorldFile, problems: list[str]) -> None:
+    """Each place with political weight (PLW): a territory weighed once for a polity, moving
+    only that polity's own groups; a group's ``moved_by`` names no place kind, whose
+    amounts the places give. ``places`` needs groups and holders. With the rule off they
+    are checked and left out of the game."""
+    from revisionist.core.realism.groups import Happening
+
+    if Rule.PLACES in world.rules:
+        problems += [
+            f"rules: places needs {r.value}"
+            for r in (Rule.GROUPS, Rule.HOLDERS)
+            if r not in world.rules
+        ]
+    kinds = {d.key: d.kind for d in world.entities}
+    land = {t.key for t in world.territories}
+    groups_of = {d.nation: {g.key for g in d.groups} for d in world.groups}
+    seen: set[tuple[str, str]] = set()
+    for place in world.places:
+        where = f"places {place.territory}"
+        if place.territory not in land:
+            problems.append(f"{where}: not a territory")
+        if kinds.get(place.nation) is not EntityKind.POLITY:
+            problems.append(f"{where}: {place.nation} is not a polity")
+        if (place.territory, place.nation) in seen:
+            problems.append(f"{where}: weighted twice for {place.nation}")
+        seen.add((place.territory, place.nation))
+        problems += [
+            f"{where}: {k} is not a group of {place.nation}"
+            for k in place.moves
+            if k not in groups_of.get(place.nation, ())
+        ]
+    placed = {Happening.PLACE_LOST, Happening.PLACE_ABANDONED, Happening.PLACE_RETAKEN}
+    for decl in world.groups:
+        for g in decl.groups:
+            problems += [
+                f"groups {decl.nation} {g.key}: {k} is moved by places, not moved_by"
+                for k in g.moved_by
+                if k in placed
+            ]
+
+
+def _check_prices(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """Each bloc's prices (PRC): a key once per bloc; a condition of bounded size that
+    names what the world declares, a group by its nation's own key, and holds at least one
+    check an act changes. With the rule off they are checked and left out of the game."""
+    from revisionist.core.realism.offers import acted_on
+
+    groups_of = {d.nation: {g.key for g in d.groups} for d in world.groups}
+    for decl in world.groups:
+        for g in decl.groups:
+            keys = [p.key for p in g.prices]
+            if len(set(keys)) != len(keys):
+                problems.append(f"groups {decl.nation} {g.key}: a price key is given twice")
+            for price in g.prices:
+                at = f"groups {decl.nation} {g.key} price {price.key}"
+                if depth(price.condition) > MAX_DEPTH or len(leaves(price.condition)) > MAX_PARTS:
+                    problems.append(f"{at}: condition too large")
+                if not acted_on(price):
+                    problems.append(f"{at}: its condition holds nothing an act changes")
+                for leaf in leaves(price.condition):
+                    for name, section in _CONDITION_REFS.items():
+                        _ref(problems, at, getattr(leaf, name, None), section, sections)
+                    _refs(problems, at, getattr(leaf, "between", ()), "entity", sections)
+                    if isinstance(leaf, SupportAt) and leaf.group not in groups_of.get(
+                        leaf.nation, ()
+                    ):
+                        problems.append(f"{at}: {leaf.nation} has no group {leaf.group}")
+
+
 def _groups(world: WorldFile, ids: Mapping[str, str]) -> ev.GroupsDeclared:
     from revisionist.core.realism import groups
 
+    def bound(g: groups.Group) -> groups.Group:
+        if not g.prices:
+            return g
+        if Rule.OFFERS not in world.rules:
+            return g.model_copy(update={"prices": ()})
+        prices = tuple(
+            p.model_copy(update={"condition": _bind(p.condition, ids)}) for p in g.prices
+        )
+        return g.model_copy(update={"prices": prices})
+
     return ev.GroupsDeclared(
         nations=tuple(
-            groups.NationGroups(nation=EntityId(ids[d.nation]), groups=d.groups, themes=d.themes)
+            groups.NationGroups(
+                nation=EntityId(ids[d.nation]),
+                groups=tuple(bound(g) for g in d.groups),
+                themes=d.themes,
+            )
             for d in world.groups
+        ),
+        classes=world.happenings if Rule.CLASSES in world.rules else (),
+        places=tuple(
+            groups.Place(
+                territory=EntityId(ids[p.territory]), nation=EntityId(ids[p.nation]), moves=p.moves
+            )
+            for p in world.places
         )
+        if Rule.PLACES in world.rules
+        else (),
     )
 
 
@@ -1777,6 +1885,30 @@ _CONDITION_REFS = {
 }
 """Which section each reference field of a win condition names. An agreement's
 ``between`` names entities too."""
+
+
+def _check_posts(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """With ``posts`` on (PPP): a card's post is an office asset its person controls, and
+    no two cards name one post. With it off, a card's post is not read."""
+    if Rule.POSTS not in world.rules:
+        return
+    held = {d.key: d for d in world.assets}
+    named: set[str] = set()
+    for c in world.cards:
+        if c.post is None:
+            continue
+        where = f"card {c.person}"
+        _ref(problems, f"{where}: post", c.post, "asset", sections)
+        office = held.get(c.post)
+        if office is None:
+            continue
+        if office.kind is not AssetKind.OFFICE:
+            problems.append(f"{where}: post {c.post} is not an office")
+        elif office.controller != c.person:
+            problems.append(f"{where}: does not hold {c.post}")
+        if c.post in named:
+            problems.append(f"{where}: post {c.post} is another card's post")
+        named.add(c.post)
 
 
 def _check_command(world: WorldFile, problems: list[str]) -> None:
@@ -2677,7 +2809,8 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
         )
         for pl in world.pipelines
     )
-    cards = tuple(_card(c, ids, _aim_rules(world, c, ids)) for c in world.cards)
+    posts = Rule.POSTS in world.rules
+    cards = tuple(_card(c, ids, _aim_rules(world, c, ids), posts=posts) for c in world.cards)
     templates = tuple(_template(m, ids) for m in world.mandates)
     outlets = tuple(
         Outlet(
@@ -3007,13 +3140,19 @@ def compile_figure(
 
 
 def _card(
-    c: CardDecl, ids: Mapping[str, str], aim_rules: tuple[AimRule | None, ...] = ()
+    c: CardDecl,
+    ids: Mapping[str, str],
+    aim_rules: tuple[AimRule | None, ...] = (),
+    *,
+    posts: bool = False,
 ) -> SeatCard:
+    """The card, naming its post only with ``posts`` on (PPP)."""
     return SeatCard(
         person=EntityId(ids[c.person]),
         office=c.office,
         playable=c.playable,
         path=c.path,
+        post=_maybe(ids, c.post, AssetId) if posts else None,
         powers=c.powers,
         inner_circle=tuple(
             Contact(person=EntityId(ids[k.person]), channel=k.channel) for k in c.inner_circle

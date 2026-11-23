@@ -19,7 +19,8 @@ TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDec
 ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
 VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
-OrderAsked, AskAnswered, MatterChosen, AimPatternsDeclared, OwnAimSet``, and
+OrderAsked, AskAnswered, MatterChosen, AimPatternsDeclared, OwnAimSet, OfferMade,
+OfferSettled, LossesHeld, PostChanged``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -38,6 +39,7 @@ from revisionist.core.aim_patterns import AimPatterns, OwnAim
 from revisionist.core.delta import Delta
 from revisionist.core.goals import Goal, GoalKind, WinCondition
 from revisionist.core.ids import (
+    AssetId,
     CampaignId,
     ClockId,
     ContestId,
@@ -86,6 +88,7 @@ from revisionist.core.realism.card import (
     ChannelKind,
     Conflict,
     ParamValue,
+    PostCause,
     SeatCard,
     Topic,
 )
@@ -96,11 +99,12 @@ from revisionist.core.realism.economy import Amount, Pools
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.groups import Cause as GroupCause
-from revisionist.core.realism.groups import NationGroups, Proposal
+from revisionist.core.realism.groups import HeldLoss, KindClass, NationGroups, Place, Proposal
 from revisionist.core.realism.holders import Capture
 from revisionist.core.realism.kinds import PieceKind, Resource
 from revisionist.core.realism.laws import Law
 from revisionist.core.realism.locks import Asked, HeldEnd, HeldOrder, LockRow
+from revisionist.core.realism.offers import OfferStanding, PricedOffer
 from revisionist.core.realism.pipeline import (
     Order,
     OrderStatus,
@@ -789,10 +793,65 @@ class MatterChosen(Model):
     on: date
 
 
+class OfferMade(Model):
+    """A seat offers one price to one bloc of its own nation for one measure whose bill is
+    on its way (PRC). It waits for the next day's batch, which takes or refuses it by
+    content. Sealed to the seats of the bloc's nation."""
+
+    kind: Literal["offer_made"] = "offer_made"
+    offer: PricedOffer
+
+
+class OfferSettled(Model):
+    """Where an offer now stands (PRC): taken or refused by its day's batch, lapsed when
+    its measure did not pass, due once it passed, then kept or broken on its due day.
+    Sealed to the seats of the bloc's nation."""
+
+    kind: Literal["offer_settled"] = "offer_settled"
+    offer_id: Label
+    standing: OfferStanding
+    on: date
+    due: date | None = None
+    """The day the promise is read: on ``due``, ``kept`` and ``broken``."""
+
+    @model_validator(mode="after")
+    def _shape(self) -> "OfferSettled":
+        if self.standing is OfferStanding.FILED:
+            raise ValueError("an offer is filed only by offer_made")
+        owed = self.standing in (OfferStanding.DUE, OfferStanding.KEPT, OfferStanding.BROKEN)
+        if (self.due is not None) != owed:
+            raise ValueError("a due day goes with due, kept and broken only")
+        return self
+
+
+class PostChanged(Model):
+    """A post moved from one person to another, or to nobody (PPP), with the ``posts``
+    rule on. The office asset's controller changes and the post's part of the card goes
+    with it; every pipeline step and executor that named the old holder names the new
+    one. Public: a change of office is news to every seat. It never carries the post's
+    part."""
+
+    kind: Literal["post_changed"] = "post_changed"
+    post: AssetId
+    holder: EntityId | None
+    """Who held it before; None: nobody."""
+    to: EntityId | None
+    """Who holds it now; None: nobody, and its office is the nation's."""
+    on: date
+    cause: PostCause
+
+    @model_validator(mode="after")
+    def _moves(self) -> "PostChanged":
+        if self.holder == self.to:
+            raise ValueError("a post changes hands")
+        return self
+
+
 class PieceStepped(Model):
     """A piece entered an area: one step, by order, by the record, or forced. Sealed to the
     seats of the piece's own nation, who know it by its mark (``territory.mark_key``), not
-    its id. A record: the ``feature_set`` beside it moves the piece."""
+    its id. The ``feature_set`` beside it moves the piece; with ``places`` on, a step out
+    of a weighted place is kept as the day the nation's piece left it (PLW)."""
 
     kind: Literal["piece_stepped"] = "piece_stepped"
     mark: Label
@@ -985,6 +1044,14 @@ class GroupsDeclared(Model):
 
     kind: Literal["groups_declared"] = "groups_declared"
     nations: tuple[NationGroups, ...] = ()
+    classes: tuple[KindClass, ...] = ()
+    """With ``classes`` on, the class the world gives each kind of happening it classes
+    (HCL), in the world file's order."""
+    places: tuple[Place, ...] = ()
+    """With ``places`` on, the places with political weight (PLW), in the world file's
+    order."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"classes", "places"})
 
 
 class GroupMoved(Model):
@@ -1001,6 +1068,17 @@ class GroupMoved(Model):
     cause: GroupCause
     used: int = Field(default=0, ge=0)
     on: date
+
+
+class LossesHeld(Model):
+    """Battle losses held at home (LSS): each one day's losses of a nation in one battle as
+    they move one of its groups, added or replaced (the felt share halved, or the battle
+    ended). Entries whose battle has ended and whose felt share has landed by ``on`` are
+    dropped. Engine only: it carries the nation's steps lost by the points they move."""
+
+    kind: Literal["losses_held"] = "losses_held"
+    on: date
+    held: tuple[HeldLoss, ...] = Field(min_length=1)
 
 
 class GroupProposed(Model):
@@ -1499,6 +1577,9 @@ Payload = Annotated[
     | OrderAsked
     | AskAnswered
     | MatterChosen
+    | OfferMade
+    | OfferSettled
+    | PostChanged
     | PieceStepped
     | AreaHeld
     | CaptureCounted
@@ -1517,6 +1598,7 @@ Payload = Annotated[
     | GroupsDeclared
     | GroupMoved
     | GroupProposed
+    | LossesHeld
     | AgreementOffered
     | AgreementMade
     | ClauseJudged
@@ -1608,6 +1690,10 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "order_asked",
         "ask_answered",
         "matter_chosen",
+        "offer_made",
+        "offer_settled",
+        "post_changed",
+        "piece_stepped",
         "area_held",
         "capture_counted",
         "economy_set",
@@ -1624,6 +1710,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "groups_declared",
         "group_moved",
         "group_proposed",
+        "losses_held",
         "agreement_offered",
         "agreement_made",
         "clause_judged",

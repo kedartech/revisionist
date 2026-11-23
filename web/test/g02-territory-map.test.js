@@ -23,6 +23,7 @@ const SHAPES = JSON.parse(readFileSync(new URL('./fixtures/toy.map.json', import
 const CSS_TEXT = readFileSync(new URL('../css/c-map.css', import.meta.url), 'utf8');
 const TMAP = fixture.territory_map;
 const HASH = TMAP.file.sha256;
+const BY_HASH = `/maps/${HASH}.json`;
 const PHONE = { width: 366, height: 422 };
 const DESK = { width: 960, height: 740 };
 
@@ -35,12 +36,20 @@ const group = (el, label) => el.querySelectorAll('[role="group"]').find((g) => g
 const pressed = (g) => g.querySelectorAll('button').filter((b) => b.getAttribute('aria-pressed') === 'true').map(words);
 const draw = (map = TMAP, opts = {}) => territoryDrawing(map, SHAPES, { px: DESK, ...opts });
 
-/** A fake `fetch` answering the `map` action with `reply`, counting what is asked. */
-function serve(reply = { reply: '', refused: false, file: TMAP.file, map: SHAPES }) {
+/**
+ * A fake `fetch` answering the map object by its hash (a 404 with `byHash: false`) and the `map`
+ * action with `reply`, counting what is asked.
+ */
+function serve(reply = { reply: '', refused: false, file: TMAP.file, map: SHAPES }, { byHash = true } = {}) {
   const asked = [];
   const was = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
     asked.push(url);
+    if (url === BY_HASH) {
+      return byHash
+        ? { ok: true, status: 200, json: async () => structuredClone(SHAPES) }
+        : { ok: false, status: 404, json: async () => ({ error: 'Not found.' }) };
+    }
     return { ok: true, status: 200, json: async () => (url === '/api/realism/map' ? structuredClone(reply) : {}) };
   };
   return { asked, done: () => { globalThis.fetch = was; } };
@@ -64,7 +73,7 @@ async function drawn(r = seat(), u = ui(), more = {}) {
 
 test('a territory game fetches its map file once per hash, and never the coastline file', async () => {
   const { first, view, asked } = await drawn();
-  assert.deepEqual(asked, ['/api/realism/map'], 'one ask for the shapes, no coastline');
+  assert.deepEqual(asked, [BY_HASH], 'one ask for the shapes, by their hash, no coastline');
   assert.ok(first.querySelector('figure svg.rl-tm-svg'), 'the first board fills in when the shapes land');
   assert.ok(group(first, 'Region') && group(first, 'Zoom'), 'with its region picker and zoom');
   assert.ok(view.querySelector('svg.rl-tm-svg'));
@@ -83,13 +92,23 @@ test('boards drawn while the shapes are on their way ask for them once', async (
     board(seat()); board(seat()); board(seat(), ui({ frame: 'north' }));
     await new Promise((ok) => setTimeout(ok, 0));
     await new Promise((ok) => setTimeout(ok, 0));
-    assert.deepEqual(net.asked, ['/api/realism/map']);
+    assert.deepEqual(net.asked, [BY_HASH]);
+  } finally { net.done(); }
+});
+
+test('a map object the server does not give by its hash is asked of the map action', async () => {
+  forgetShapes();
+  const net = serve(undefined, { byHash: false });
+  try {
+    assert.equal(await loadShapes(TMAP.file), undefined);
+    assert.deepEqual(net.asked, [BY_HASH, '/api/realism/map']);
+    assert.deepEqual(shapesFor(TMAP.file), SHAPES);
   } finally { net.done(); }
 });
 
 test('a refused map action keeps no shapes and the board says it is drawing', async () => {
   forgetShapes();
-  const net = serve({ reply: 'This game\'s map is missing on the server.', refused: true, file: null, map: null });
+  const net = serve({ reply: 'This game\'s map is missing on the server.', refused: true, file: null, map: null }, { byHash: false });
   try {
     const view = board(seat());
     assert.match(words(view.querySelector('figure')), /Drawing the map/);
@@ -161,7 +180,7 @@ test('a game without territories draws as before: the coastline file, no map act
     await new Promise((ok) => setTimeout(ok, 0));
     assert.ok(!view.querySelector('svg.rl-tm-svg'));
     assert.ok(view.querySelector('.rl-theatre-area'), 'the theatre boxes stay');
-    assert.ok(!net.asked.includes('/api/realism/map'));
+    assert.ok(!net.asked.includes('/api/realism/map') && !net.asked.some((u) => u.startsWith('/maps/')));
   } finally { net.done(); }
 });
 

@@ -73,6 +73,7 @@ from revisionist.core.realism import geography as rg
 from revisionist.core.realism import groups as rgrp
 from revisionist.core.realism import holders as rh
 from revisionist.core.realism import kinds as rk
+from revisionist.core.realism import offers as roff
 from revisionist.core.realism import pipeline as rp
 from revisionist.core.realism import stance as rs
 from revisionist.core.realism import territory as tm
@@ -885,6 +886,38 @@ def nation_groups(draw: st.DrawFn) -> rgrp.NationGroups:
     return rgrp.NationGroups(nation=draw(entity_ids), groups=tuple(found), themes=tuple(themes))
 
 
+priced_offers = st.builds(
+    roff.PricedOffer,
+    offer_id=labels,
+    seat=seat_ids,
+    nation=entity_ids,
+    bloc=labels,
+    measure=labels,
+    price=labels,
+    bill=order_ids,
+    filed=in_world_dates,
+)
+"""An offer as made: filed, not yet moved."""
+
+
+def offer_settlements() -> st.SearchStrategy[ev.OfferSettled]:
+    """Where an offer goes, with a due day exactly when its measure passed."""
+    owed = [roff.OfferStanding.DUE, roff.OfferStanding.KEPT, roff.OfferStanding.BROKEN]
+    free = [roff.OfferStanding.TAKEN, roff.OfferStanding.REFUSED, roff.OfferStanding.LAPSED]
+    return st.one_of(
+        st.builds(
+            ev.OfferSettled,
+            offer_id=labels,
+            standing=st.sampled_from(owed),
+            on=in_world_dates,
+            due=in_world_dates,
+        ),
+        st.builds(
+            ev.OfferSettled, offer_id=labels, standing=st.sampled_from(free), on=in_world_dates
+        ),
+    )
+
+
 proposals = st.builds(
     rgrp.Proposal,
     seat=seat_ids,
@@ -893,6 +926,19 @@ proposals = st.builds(
     change=st.integers(-9, 9),
     text_hash=labels,
     on=in_world_dates,
+)
+
+
+held_losses = st.builds(
+    rgrp.HeldLoss,
+    polity=entity_ids,
+    group=labels,
+    area=entity_ids,
+    opened=in_world_dates,
+    on=in_world_dates,
+    reported=st.integers(-3, 3),
+    felt=st.integers(-3, 3),
+    ended=st.booleans(),
 )
 
 
@@ -1315,6 +1361,21 @@ realism_payloads = st.one_of(
         on=in_world_dates,
     ),
     st.builds(ev.GroupProposed, proposal=proposals),
+    st.builds(
+        ev.LossesHeld,
+        on=in_world_dates,
+        held=st.lists(held_losses, min_size=1, max_size=3).map(tuple),
+    ),
+    st.builds(ev.OfferMade, offer=priced_offers),
+    offer_settlements(),
+    st.builds(
+        ev.PostChanged,
+        post=asset_ids,
+        holder=entity_ids,
+        to=st.none(),
+        on=in_world_dates,
+        cause=st.sampled_from(list(rc.PostCause)),
+    ),
     st.builds(ev.AgreementOffered, offer=agreement_offers()),
     st.builds(ev.AgreementMade, agreement=agreements()),
     st.builds(

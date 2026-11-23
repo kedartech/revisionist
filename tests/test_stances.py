@@ -49,9 +49,10 @@ FIGURES = tuple(
 )
 """Everyone weighed when Churchill is played: the world's cards with an office to act from, the
 heads and the commanders the world gives a force."""
-OPPONENTS = ("hitler", "mussolini", "doenitz")
+OPPONENTS = ("hitler", "mussolini", "doenitz", "iachino")
 """Churchill's active opponents at the start: the heads of the two nations at war with Britain,
-and the U-boat arm's commander, who holds a force against it."""
+and the U-boat arm's and the Italian Battle Fleet's commanders, who hold forces against it.
+They fill ``opponents.CAP``, so a test that has a fifth join raises the cap first."""
 
 
 def begun(who: str = "churchill") -> tuple[EventStore, SeatId, dict[str, EntityId]]:
@@ -319,8 +320,11 @@ def test_the_stances_are_worked_out_at_the_begin_and_kept_through_a_tick() -> No
     assert load_state(store, CAMPAIGN).opponents == state.opponents
 
 
-def test_a_change_of_regard_between_wakes_is_settled_in_the_next_tick() -> None:
+def test_a_change_of_regard_between_wakes_is_settled_in_the_next_tick(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     store, seat, keys = begun()
+    monkeypatch.setattr(opponents, "CAP", len(OPPONENTS) + 1)
     state = load_state(store, CAMPAIGN)
     soured = regard(state, keys["stalin"], keys["churchill"], -4, seat)
     rel = next(iter(soured.relationships.values()))
@@ -394,7 +398,7 @@ def test_the_seat_is_shown_its_opponents_as_they_stood_at_the_start() -> None:
     store, seat, keys = begun()
     state = load_state(store, CAMPAIGN)
     got = shown(state, seat)
-    assert list(got) == ["Adolf Hitler", "Benito Mussolini", "Karl Dönitz"]
+    assert list(got) == ["Adolf Hitler", "Angelo Iachino", "Benito Mussolini", "Karl Dönitz"]
     hitler = got["Adolf Hitler"]
     assert hitler == {
         "person": keys["hitler"],
@@ -412,8 +416,11 @@ def test_the_seat_is_shown_its_opponents_as_they_stood_at_the_start() -> None:
     assert [t["name"] for t in block["threats"]] == list(got)
 
 
-def test_a_turn_the_seat_has_no_evidence_of_is_not_shown_until_evidence_comes() -> None:
+def test_a_turn_the_seat_has_no_evidence_of_is_not_shown_until_evidence_comes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     store, seat, keys = begun()
+    monkeypatch.setattr(opponents, "CAP", len(OPPONENTS) + 1)
     state = load_state(store, CAMPAIGN)
     stalin = keys["stalin"]
     soured = regard(state, stalin, keys["churchill"], -4, seat)

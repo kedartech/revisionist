@@ -345,13 +345,13 @@ def passed_by_groups(
     state: State, order: Order, key: str, measure: ProposeMeasure | None
 ) -> tuple[ev.GroupMoved, ...]:
     """With ``groups`` on, when the blocs pass measure ``key`` in every vote, the groups of
-    the issuer's nation that name a measure passed, moved once on the day the order
-    settled, whether or not the world keeps the count."""
+    the issuer's nation that name the kind of measure passed it is (``groups.passed``),
+    moved once on the day the order settled, whether or not the world keeps the count."""
     cast = _cast(state, order, key, measure)
     if cast is None or not all(y > n for _, y, n in cast[1]):
         return ()
     day = rs.settled_on(order)
-    return tuple(groups.happened(state, cast[0], groups.Happening.MEASURE_PASSED, day))
+    return tuple(groups.passed(state, cast[0], key, day))
 
 
 def _step_day(order: Order, step: int) -> date:

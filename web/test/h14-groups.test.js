@@ -95,11 +95,11 @@ test('each group opens one sheet named for it, with its parts as inner tabs; eve
   const { root } = await room();
   const inside = {
     papers: '.rl-tray', press: '.rl-pd-body', forms: '.rl-write', orders: '.rl-oc',
-    people: '.rl-people', court: '.rl-court', nations: '.rl-nations-body', home: '.rl-home-sheet', diplomacy: '.rl-dp-builder',
+    people: '.rl-people', court: '.rl-court', nations: '.rl-nations-body', standing: '.rl-sg', home: '.rl-home-sheet', diplomacy: '.rl-dp-builder',
   };
   const seen = [];
   for (const [g, label, parts] of [['inbox', 'Inbox', ['papers', 'press']], ['orders', 'Orders', ['forms', 'orders']],
-    ['people', 'People', ['people', 'court']], ['world', 'World', ['nations', 'home', 'diplomacy']]]) {
+    ['people', 'People', ['people', 'court']], ['world', 'World', ['nations', 'standing', 'home', 'diplomacy']]]) {
     groupTab(root, g).click();
     assert.equal(root.querySelectorAll('.rl-over').length, 1, `one sheet for ${g}`);
     assert.equal(words(over(root).querySelector('.rl-over-title')), label);
@@ -114,7 +114,7 @@ test('each group opens one sheet named for it, with its parts as inner tabs; eve
       seen.push(part);
     }
   }
-  assert.equal(seen.length, 9);
+  assert.equal(seen.length, 10);
 });
 
 test('the parts\' words are the group\'s own: Write and Sent, Roster and Court', async () => {
@@ -140,10 +140,10 @@ test('a group opens on the part last open in it', async () => {
   assert.equal(openPart(root), 'orders');
 });
 
-test('a part with nothing to hold is left off: no Diplomacy in a game with no agreements, Standing until it has a body', async () => {
+test('a part with nothing to hold is left off: no Diplomacy in a game with no agreements', async () => {
   const { root } = await room(seat((r) => { delete r.agreements; delete r.conferences; }));
   groupTab(root, 'world').click();
-  assert.deepEqual(partTabs(root).map((b) => b.getAttribute('data-sheet')), ['nations', 'home']);
+  assert.deepEqual(partTabs(root).map((b) => b.getAttribute('data-sheet')), ['nations', 'standing', 'home']);
 });
 
 test('Escape closes a group\'s sheet and focus goes back to the group\'s tab, after a part was picked', async () => {

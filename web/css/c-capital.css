@@ -9,6 +9,13 @@
 .rl-board-switch button + button { border-left: 1px solid var(--rule-strong); }
 .rl-board-switch button[aria-pressed="true"] { background: var(--accent-bg); color: var(--on-accent); }
 .rl-board-switch button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.rl-menu-board { display: none; }
+
+/* On a phone the map's top controls have room for two rows only: the switch moves to the Game menu. */
+@media (max-width: 767px) {
+  .rl-mapfirst-map[data-board="map"] .rl-board-switch { display: none; }
+  .rl-menu-board { display: block; margin: 0 0 var(--space-3); }
+}
 
 .rl-cap { flex: 1; min-height: 320px; contain: size; display: grid; grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) minmax(220px, 280px); grid-template-rows: auto minmax(0, 1fr); background: var(--bg); outline: none; }
 .rl-cap-head { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--rule-strong); background: var(--surface); }

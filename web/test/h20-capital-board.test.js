@@ -13,9 +13,12 @@
 // political seat, else the map; 9. with nothing to show the switch is not drawn. Amended:
 // 10. both chambers at a glance with the picked vote's line; 11. the people a question passes
 // through as portrait tokens opening their cards; 12. the seat's moves light what they would move;
-// 13. full screen with the map's control, F and Escape. Also: one person who decides and a council.
+// 13. full screen with the map's control, F and Escape; 14. on a phone the switch is not among the
+// map's controls, which keep to two rows, and the Game menu carries it. Also: one person who
+// decides and a council.
 // Mutants: a count worked out by the client; another nation's bloc drawn; a question row for data
-// the view did not send; the switch drawn with nothing to show.
+// the view did not send; the switch drawn with nothing to show; the switch back among the phone
+// map's controls; the surface smoke's phone line lowered.
 // Run: node --test web/test/
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -563,6 +566,60 @@ test('in the room the board goes full screen, and Escape gives the room back', (
   assert.ok(r.doc.activeElement?.classList?.contains('rl-cap-full'), 'the keyboard stays on the board, so Escape reaches the room');
   key(r.now(), 'Escape');
   assert.equal(r.now().classList.contains('rl-full'), false);
+});
+
+// rule 14: on a phone the switch leaves the map's controls for the Game menu
+
+/** The rules of `css` inside its `@media (max-width: 767px)` blocks, and those outside any block. */
+function phoneRules(css) {
+  const text = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const inside = [];
+  let outside = text;
+  for (const m of text.matchAll(/@media \(max-width: 767px\) \{([\s\S]*?)\n\}/g)) {
+    inside.push(m[1]);
+    outside = outside.replace(m[0], '');
+  }
+  return { phone: inside.join('\n'), wide: outside.replace(/@media[^{]*\{[\s\S]*?\n\}/g, '') };
+}
+
+const ruleOf = (css, sel) => css.split('\n').map((l) => l.trim()).find((l) => l.startsWith(`${sel} {`)) ?? '';
+
+test('on a phone the map\'s switch is hidden and the Game menu\'s shown; wider, the reverse', () => {
+  const { phone, wide } = phoneRules(read('css/c-capital.css'));
+  assert.match(ruleOf(phone, '.rl-mapfirst-map[data-board="map"] .rl-board-switch'), /display: none/, 'the map keeps its controls to two rows');
+  assert.match(ruleOf(phone, '.rl-menu-board'), /display: block/, 'the Game menu carries the switch');
+  assert.match(ruleOf(wide, '.rl-menu-board'), /display: none/, 'on a desk the menu does not');
+  assert.equal(ruleOf(wide, '.rl-mapfirst-map[data-board="map"] .rl-board-switch'), '', 'on a desk the map\'s switch stays');
+});
+
+test('the Game menu carries the Board switch, two taps from the map to the Capital', () => {
+  const r = room(seat());
+  const menu = r.root.querySelector('dialog.rl-menu');
+  const sw = menu.querySelector('.rl-menu-board .rl-board-switch');
+  assert.ok(sw, 'the switch is in the menu');
+  assert.equal(sw.getAttribute('aria-label'), 'Board');
+  assert.deepEqual(sw.querySelectorAll('button').map(words), ['Map', 'Capital']);
+  assert.equal(sw.querySelector('button[data-board="map"]').getAttribute('aria-pressed'), 'true');
+  r.root.querySelector('.rl-menu-btn').click();
+  assert.equal(menu.open, true, 'one tap opens the menu');
+  sw.querySelector('button[data-board="capital"]').click();
+  assert.equal(menu.open, false, 'the pick closes the menu');
+  const now = r.now();
+  assert.equal(now.querySelector('.rl-mapfirst-map').getAttribute('data-board'), 'capital', 'the second tap opens the Capital');
+  assert.equal(r.doc.activeElement?.getAttribute('data-board'), 'capital', 'the keyboard lands on the board\'s switch');
+  assert.equal(now.querySelector('dialog.rl-menu .rl-board-switch button[data-board="capital"]').getAttribute('aria-pressed'), 'true');
+  now.querySelector('dialog.rl-menu .rl-board-switch button[data-board="map"]').click();
+  assert.ok(r.now().querySelector('.rl-mapfirst-map .rl-tmap'), 'the menu gives the map back');
+  assert.ok(r.doc.activeElement?.classList?.contains('rl-menu-btn'), 'the keyboard goes back to the Game button');
+});
+
+test('the Game menu has no switch with nothing to show, nor in the Classic layout', () => {
+  assert.equal(room(bare()).root.querySelector('dialog.rl-menu .rl-board-switch'), null);
+  assert.equal(room(seat(), 'classic').root.querySelector('dialog.rl-menu .rl-board-switch'), null);
+});
+
+test('the surface smoke keeps the phone\'s line: the map clear of its controls for 55% of the viewport', () => {
+  assert.match(read('test/e2e/surface_smoke.py'), /^MAP_SHARE = 0\.55 if PHONE else 0\.65$/m);
 });
 
 // keeps: colour from the tokens, the stylesheet linked, every control a 44 px target

@@ -1584,9 +1584,25 @@ export function realismRoom(ctx) {
       needsBar(rv, lines, { open: name === 'needs', onToggle: toggleNeeds, onDone: done })];
   }
 
+  /**
+   * The switch again in the game menu, shown on a phone only (c-capital.css), where the map's
+   * controls have no room for it; the map has no focusable switch there, so Map gives the
+   * keyboard back to the Game button.
+   */
+  function menuBoard(close) {
+    if (!hasCapital(rv)) return null;
+    const pick = (key) => {
+      close();
+      setBoard(key);
+      if (key === 'map') root.querySelector('.rl-menu-btn')?.focus();
+    };
+    return h('div', { class: 'rl-menu-board' }, boardSwitch(shownBoard(openSheetOf(ui)), pick));
+  }
+
   /** The map-first room's game menu adds what the page header holds in today's room. */
   const menuExtra = ({ character, setting, bug }) => (close) => h('section', { class: 'rl-menu-game', 'aria-labelledby': 'rl-menu-game-h' },
     h('h3', { id: 'rl-menu-game-h' }, 'This game'),
+    menuBoard(close),
     h('div', { class: 'row' },
       h('button', { type: 'button', class: 'ghost', 'aria-haspopup': 'dialog', 'aria-label': `${game.name}: open the setting`, onclick: () => { close(); setting?.showModal(); } }, game.name),
       seatName ? h('button', { type: 'button', class: 'ghost', 'aria-haspopup': 'dialog', 'aria-label': `${seatName}: open the dossier`, onclick: () => { close(); character?.showModal(); } }, seatName) : null),

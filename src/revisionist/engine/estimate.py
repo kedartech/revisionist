@@ -53,7 +53,14 @@ from revisionist.core.realism.effect import (
 )
 from revisionist.core.realism.war import polity_of
 from revisionist.core.state import Rule, State, View
-from revisionist.engine.llm import Request, Transport, TransportError, cli_schema, prompt_text
+from revisionist.engine.llm import (
+    Request,
+    Transport,
+    TransportError,
+    cli_schema,
+    prompt_text,
+    quote_player,
+)
 
 ESTIMATOR_MODEL = "claude-sonnet-5-5"
 """[proposed] ``REVISIONIST_MODEL_ESTIMATOR`` overrides it per call."""
@@ -140,7 +147,8 @@ def _named(part: RoutedPart) -> list[EntityId]:
 
 
 def estimator_prompt(state: State, order_id: OrderId, part: int) -> str:
-    """Truth the referee needs, compact: the part, the cards involved, the world's objects."""
+    """Truth the referee needs, compact: the part, the cards involved, the world's objects.
+    The seat's own words for the part follow the truth, only as a quoted block."""
     order = state.routed[order_id]
     routed = order.parts[part]
     issuer = state.seats[order.issuer]
@@ -160,7 +168,6 @@ def estimator_prompt(state: State, order_id: OrderId, part: int) -> str:
             "issuer_entity": issuer.embodies,
             "filed": str(order.filed),
             "part": routed.view().model_dump(mode="json", exclude_none=True),
-            "asked": routed.ask,
             "reported_by": (
                 state.entities[reported_by].name
                 if reported_by != issuer.embodies
@@ -204,9 +211,11 @@ def estimator_prompt(state: State, order_id: OrderId, part: int) -> str:
             "max_effects": MAX_EFFECTS,
         },
     }
+    asked = f"\n\n## The seat's own words for the part\n{quote_player(routed.ask)}"
     return (
         "## World (truth) and the part to rule on\n"
         + json.dumps(world, separators=(",", ":"), default=str)
+        + (asked if routed.ask.strip() else "")
         + "\n\nReturn effects, a reason for the issuer and your rationale. Echo ids exactly."
     )
 
@@ -221,12 +230,12 @@ def group_prompt(view: View, words: str) -> str:
         "issuer": view.me.name,
         "nation": {"id": nation.entity_id, "name": nation.name} if nation is not None else None,
         "groups": [{"key": g.key, "name": g.name, "kind": g.kind} for g in own[1]] if own else [],
-        "words": words,
         "rules": {"group_cap": GROUP_DAY_CAP, "max_effects": groups.MAX_GROUP_EFFECTS},
     }
     return (
         "## The issuer's own view and its words\n"
         + json.dumps(asked, separators=(",", ":"), default=str)
+        + f"\n\n## The words\n{quote_player(words)}"
         + "\n\nReturn the group nudges these words earn, a reason for the issuer and your"
         " rationale. Echo group keys exactly."
     )
@@ -399,6 +408,7 @@ def read_groups(state: State, order: RoutedOrder, part: int, transport: Transpor
         system=prompt_text(GROUP_PROMPT),
         prompt=group_prompt(project(state, order.issuer), words),
         schema=cli_schema(GROUP_SCHEMA),
+        player_text=True,
     )
     try:
         reply = transport.call(request)
@@ -447,6 +457,7 @@ def estimate(
         system=prompt_text(PROMPT),
         prompt=estimator_prompt(state, order_id, part),
         schema=cli_schema(ESTIMATOR_SCHEMA),
+        player_text=True,
     )
     try:
         reply = transport.call(request)

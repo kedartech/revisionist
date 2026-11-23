@@ -15,7 +15,7 @@ merges.
 """
 
 import json
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -25,7 +25,7 @@ import pytest
 from revisionist.core import events as ev
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId, EntityId, EventId, OrderId, SeatId, derived_id
-from revisionist.core.realism import economy, holders, locks
+from revisionist.core.realism import economy, groups, holders, locks
 from revisionist.core.realism.card import ParamKind, ParamSpec, superiors
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.resolvers import (
@@ -176,7 +176,7 @@ class _World:
             state = _fold(state, [ev.DateAdvanced(to=day)])
             for on_day in ON_DAY.values():
                 state = _fold(state, apply_changes(state, on_day(state, day)))
-            for step in (movement.walk, holders.walk, economy.walk):
+            for step in (movement.walk, holders.walk, economy.walk, groups.batch):
                 state = _fold(state, step(state, day))
             unlocked = realism_tick._unlocked(state, day)
             state = _fold(state, unlocked)
@@ -243,7 +243,7 @@ def _opened(state: State, order: Order, when: locks.Condition) -> State:
     return _landed(_fold(state, [ev.OrderDrafted(order=setter)]), setter.order_id)
 
 
-def _fold(state: State, payloads: list[ev.Payload]) -> State:
+def _fold(state: State, payloads: Sequence[ev.Payload]) -> State:
     batch = [
         ev.Event(
             event_id=EventId(derived_id(CAMPAIGN, "efd", state.last_seq + 1 + n)),

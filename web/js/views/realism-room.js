@@ -47,7 +47,7 @@ import {
 import {
   GROUPS, chatButton, formSearch, formsTaking, groupOf, groupTabs, partFor, partTabs, personMoves,
 } from './realism-groups.js';
-import { openAim, stakesStrip } from './realism-stakes.js';
+import { openAim, ownAimOf, stakesStrip } from './realism-stakes.js';
 import { foldEconomy } from './realism-economy.js';
 import { nationRows, nationsPanel, standingGrid } from './realism-nations.js';
 import { foldOdds } from './realism-odds.js';
@@ -1333,7 +1333,7 @@ export function realismRoom(ctx) {
     }
     if (name === 'nations') return nationsBody();
     if (name === 'standing') return standingGrid(rv, { onOpen: cardFromGrid });
-    if (name === 'aims') return stakesStrip(rv.stakes) ?? h('p', { class: 'hint' }, 'You hold no aims in this game.');
+    if (name === 'aims') return stakesStrip(rv.stakes, ownAimHooks()) ?? h('p', { class: 'hint' }, 'You hold no aims in this game.');
     if (name === 'press') {
       const desk = pressDesk().querySelector('dialog.rl-pd');
       desk?.querySelector('.rl-pd-head')?.remove();
@@ -1523,9 +1523,14 @@ export function realismRoom(ctx) {
     root.querySelector('.rl-over-title')?.focus();
   }
 
+  /** The own aim's ladder (from the server) and what follows a set: the room is read again. */
+  function ownAimHooks() {
+    return { ownAim: rv.own_aim ?? null, onAimSet: () => refresh() };
+  }
+
   /** The first-day card's words with its Dismiss, for the list's first row; null when it is not due. */
   function firstWake() {
-    const words = firstWakeWords(rv.wake, { dismissed: ui.firstWakeOff, beginner: beginner() });
+    const words = firstWakeWords(rv.wake, { dismissed: ui.firstWakeOff, beginner: beginner(), own: ownAimOf(rv.stakes) });
     return words && { ...words, onDismiss: dismissFirstWake };
   }
 
@@ -1650,13 +1655,13 @@ export function realismRoom(ctx) {
     ];
     return [
       ...top,
-      stakesStrip(rv.stakes, { aims: ui.view !== 'board' }),
+      stakesStrip(rv.stakes, { aims: ui.view !== 'board', ...ownAimHooks() }),
       status,
-      firstWakeCard(rv.wake, { dismissed: ui.firstWakeOff, onDismiss: dismissFirstWake }),
+      firstWakeCard(rv.wake, { dismissed: ui.firstWakeOff, onDismiss: dismissFirstWake, own: ownAimOf(rv.stakes) }),
       viewSwitch(ui, pick),
       ...(ui.view === 'board' ? [
         newsBlock(whatChanged(rv.documents), (id) => readPress({ id })),
-        boardView(rv, ui, { pick, act: (m, a, b, t) => (a === 'lever-ask' ? fileAndAsk(b, t) : act(m, a, b, t)), write: writeBlock(), open }),
+        boardView(rv, ui, { pick, act: (m, a, b, t) => (a === 'lever-ask' ? fileAndAsk(b, t) : act(m, a, b, t)), write: writeBlock(), open, ...ownAimHooks() }),
       ] : [
         summaryTiles(rv, pick),
         newsBlock(whatChanged(rv.documents), (id) => readPress({ id })),

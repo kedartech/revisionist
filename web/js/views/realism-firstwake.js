@@ -35,22 +35,34 @@ export function firstWakeDue(wake, dismissed) {
   return !wake.you_committed && dismissed !== wake.wake;
 }
 
+/** The step that names the aim the seat wrote itself, `own` being that aim's line of the stakes [proposed]. */
+export function ownAimStep(own) {
+  return `Your aim ${own.aim} is your own: ${own.text}`;
+}
+
+function withOwn(words, own) {
+  if (!own) return words;
+  const [first, ...rest] = words.steps;
+  return { ...words, steps: [first, ownAimStep(own), ...rest] };
+}
+
 /**
  * The card's words for this wake, or null when it is not due: the map-first room draws them as
- * the first row of "What needs you". `beginner` words them for Beginner.
+ * the first row of "What needs you". `beginner` words them for Beginner; `own` is the seat's own
+ * aim, named once as a step of its own.
  */
-export function firstWakeWords(wake, { dismissed = null, beginner = false } = {}) {
+export function firstWakeWords(wake, { dismissed = null, beginner = false, own = null } = {}) {
   if (!firstWakeDue(wake, dismissed)) return null;
-  return beginner ? FIRST_WAKE_BEGINNER : FIRST_WAKE;
+  return withOwn(beginner ? FIRST_WAKE_BEGINNER : FIRST_WAKE, own);
 }
 
 /**
  * `firstWakeCard(wake, { dismissed, onDismiss })`: the card, or null when it is not due.
  * Dismiss, or Escape with focus in the card, calls `onDismiss()`. `beginner` words it for Beginner's map-first room.
  */
-export function firstWakeCard(wake, { dismissed, onDismiss, beginner = false }) {
+export function firstWakeCard(wake, { dismissed, onDismiss, beginner = false, own = null }) {
   if (!firstWakeDue(wake, dismissed)) return null;
-  const words = beginner ? FIRST_WAKE_BEGINNER : FIRST_WAKE;
+  const words = withOwn(beginner ? FIRST_WAKE_BEGINNER : FIRST_WAKE, own);
   return h('section', {
     class: 'rl-firstwake',
     role: 'region',

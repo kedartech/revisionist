@@ -44,8 +44,8 @@ BILLS = ("neutrality_revision", "draft_extension", "lend_lease_appropriation", "
 LOCKED_ON = "1f6bca189b402006b38271c4c194b2a4"
 """The locked-orders game's digest on the shipped 1941 world, the switches on. The game's state
 carries everything the world declares, Britain's, Germany's, Japan's, Italy's, the Soviet
-Union's and China's commanders, the Commons' blocs, its law, the Liaison Conference and the commanders' locks
-among them, so it is recorded for the world as it stands;
+Union's and China's commanders, the Commons' blocs, its law, the Liaison Conference and the
+commanders' locks among them, so it is recorded for the world as it stands;
 both locks land on the same days with the switches on and off."""
 
 CLAUSE = "war zones closed to American ships"

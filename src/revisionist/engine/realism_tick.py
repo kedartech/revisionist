@@ -24,12 +24,12 @@ refused or whose call fails keeps its body lines, and the tick still closes. Del
 """
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import date, timedelta
 from typing import Any
 
+from revisionist.core import aim_patterns, goals, history
 from revisionist.core import events as ev
-from revisionist.core import goals, history
 from revisionist.core._base import Model
 from revisionist.core.events import CallCost, Event, Versions
 from revisionist.core.fold import FoldError, replay, state_hash
@@ -740,6 +740,24 @@ def ask_order(
     return asked
 
 
+def set_own_aim(
+    store: EventStore,
+    campaign_id: CampaignId,
+    seat: SeatId,
+    key: str,
+    values: Mapping[str, aim_patterns.BlankValue],
+) -> aim_patterns.OwnAim | aim_patterns.Refused:
+    """The seat sets its person's own aim from the pattern ``key`` filled with ``values``
+    (OWC): checked as ``aim_patterns.fill`` checks it, from the state it is numbered from,
+    and logged sealed to the seat; or the reasons it cannot stand, logging nothing."""
+    state = load_state(store, campaign_id)
+    out = aim_patterns.own_aim_set(state, seat, key, values)
+    if isinstance(out, aim_patterns.Refused):
+        return out
+    _append_all(store, state, [(out, private_to(seat))], seat)
+    return out.own
+
+
 # --- what a human does between ticks ---------------------------------------------
 
 
@@ -1314,6 +1332,7 @@ __all__ = [
     "run_realism_tick",
     "seat_player",
     "set_flag",
+    "set_own_aim",
     "stepped_order",
     "take_step",
     "wake_line",

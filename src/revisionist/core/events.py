@@ -19,7 +19,7 @@ TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDec
 ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
 VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
-OrderAsked``, and
+OrderAsked, AimPatternsDeclared, OwnAimSet``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -34,6 +34,7 @@ from typing import Annotated, ClassVar, Literal
 from pydantic import ConfigDict, Field, model_validator
 
 from revisionist.core._base import Label, Model
+from revisionist.core.aim_patterns import AimPatterns, OwnAim
 from revisionist.core.delta import Delta
 from revisionist.core.goals import Goal, GoalKind, WinCondition
 from revisionist.core.ids import (
@@ -701,6 +702,22 @@ class LawsDeclared(Model):
 
     kind: Literal["laws_declared"] = "laws_declared"
     laws: tuple[Law, ...] = Field(min_length=1)
+
+
+class AimPatternsDeclared(Model):
+    """The world's aim patterns and each card's kind of post (OWC). World data; once, at
+    creation, with ``own_aim`` on. Public."""
+
+    kind: Literal["aim_patterns_declared"] = "aim_patterns_declared"
+    patterns: AimPatterns
+
+
+class OwnAimSet(Model):
+    """A player's own aim, filled from a pattern, stored for the person he holds in place
+    of the card's replaceable aim (OWC). Sealed to the seat holding the person."""
+
+    kind: Literal["own_aim_set"] = "own_aim_set"
+    own: OwnAim
 
 
 class OrderHeld(Model):
@@ -1447,6 +1464,8 @@ Payload = Annotated[
     | KindsDeclared
     | LocksDeclared
     | LawsDeclared
+    | AimPatternsDeclared
+    | OwnAimSet
     | OrderHeld
     | HeldOrderEnded
     | OrderAsked
@@ -1552,6 +1571,8 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "kinds_declared",
         "locks_declared",
         "laws_declared",
+        "aim_patterns_declared",
+        "own_aim_set",
         "order_held",
         "held_order_ended",
         "order_asked",

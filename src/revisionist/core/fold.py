@@ -16,12 +16,22 @@ import json
 from collections.abc import Iterable, Mapping
 from datetime import date, timedelta
 
-from pydantic import ValidationError
+from pydantic import JsonValue, ValidationError
 
 from revisionist.core import delta as d
 from revisionist.core import events as ev
+from revisionist.core.aim_patterns import AimPattern, OwnAim
 from revisionist.core.events import MUTATING_KINDS, Event
-from revisionist.core.goals import Goal, GoalKind, aim_rule, aims_on, season_winners
+from revisionist.core.goals import (
+    Goal,
+    GoalKind,
+    GoalSource,
+    aim_goal_id,
+    aim_rule,
+    aims_on,
+    goal_kind,
+    season_winners,
+)
 from revisionist.core.ids import CampaignId, EntityId, SeatId, derived_id
 from revisionist.core.ontology import (
     TRACK_MAX,
@@ -138,6 +148,92 @@ def _laws_declared(state: State, p: ev.LawsDeclared) -> State:
         _need(state.entities, law.nation, "entity")
         _need(state.quantities, law.passed, "quantity")
     return state.model_copy(update={"laws": p.laws})
+
+
+def _aim_patterns_declared(state: State, p: ev.AimPatternsDeclared) -> State:
+    """The world's aim patterns, once, with ``own_aim`` on; each key once, and each person a
+    kind of post is named for already in the world (OWC)."""
+    if Rule.OWN_AIM not in state.rules:
+        raise FoldError("aim_patterns_declared needs the own_aim rule")
+    if state.aim_patterns is not None:
+        raise FoldError("the aim patterns are declared once")
+    keys = [x.key for x in p.patterns.patterns]
+    if len(set(keys)) < len(keys):
+        raise FoldError("aim_patterns_declared: a pattern is named twice")
+    for person in p.patterns.posts:
+        _need(state.entities, person, "entity")
+    return state.model_copy(update={"aim_patterns": p.patterns})
+
+
+def _own_aim_set(state: State, p: ev.OwnAimSet) -> State:
+    """A player's own aim (OWC): own aims part of the game, a player holding the person,
+    none set for him yet, his window open, and the aim it replaces his card's replaceable
+    one. The goal made from that aim, if made, becomes the player's."""
+    from revisionist.core.aim_patterns import on, replaceable
+
+    own = p.own
+    if not on(state):
+        raise FoldError("own aims are not part of this game")
+    seat = seat_of_person(state, own.person)
+    if seat is None or seat.controller is not Controller.HUMAN:
+        raise FoldError(f"own aim: no player holds {own.person}")
+    if own.person in state.own_aims:
+        raise FoldError(f"own aim: {own.person} already has an own aim")
+    if own.person in state.aim_shut:
+        raise FoldError(f"own aim: {own.person}'s window has closed")
+    found = replaceable(state, own.person)
+    if found is None or found[0] != own.aim:
+        raise FoldError(f"own aim: aim {own.aim} is not the replaceable aim of {own.person}")
+    assert state.aim_patterns is not None
+    pattern = next((x for x in state.aim_patterns.patterns if x.key == own.key), None)
+    if pattern is None:
+        raise FoldError(f"own aim: no pattern {own.key}")
+    if _filled_condition(state, own, pattern) != own.rule.condition:
+        raise FoldError(f"own aim: the condition is not pattern {own.key}'s, filled")
+    state = state.model_copy(update={"own_aims": _put(state.own_aims, own.person, own)})
+    goal_id = aim_goal_id(state.campaign_id, own.person, own.aim)
+    made = state.goals.get(goal_id)
+    if made is None:
+        return state
+    goal = made.model_copy(
+        update={
+            "text": own.text,
+            "condition": own.rule.condition,
+            "kind": goal_kind(own.rule.condition),
+            "source": GoalSource.PLAYER,
+            "holding": False,
+            "met_tick": None,
+        }
+    )
+    return state.model_copy(update={"goals": _put(state.goals, goal_id, goal)})
+
+
+def _filled_condition(state: State, own: OwnAim, pattern: AimPattern) -> object:
+    """``pattern``'s condition filled with the aim's own values, or None if it makes none."""
+    from revisionist.core.aim_patterns import build
+    from revisionist.core.realism.war import polity_of
+
+    given: dict[str, JsonValue] = {
+        **own.values,
+        "nation": polity_of(state, own.person),
+        "person": own.person,
+    }
+    try:
+        return build(pattern.condition, given)
+    except ValidationError:
+        return None
+
+
+def _aim_shut(state: State) -> State:
+    """With own aims on, every person a player holds as a wake closes: his window shuts."""
+    from revisionist.core.aim_patterns import on
+
+    if not on(state):
+        return state
+    played = {s.embodies for s in state.seats.values() if s.controller is Controller.HUMAN}
+    if played <= state.aim_shut:
+        return state
+    return state.model_copy(update={"aim_shut": state.aim_shut | played})
 
 
 def _order_held(state: State, p: ev.OrderHeld) -> State:
@@ -669,6 +765,8 @@ def _mutate(state: State, event: Event) -> State:
             | ev.KindsDeclared()
             | ev.LocksDeclared()
             | ev.LawsDeclared()
+            | ev.AimPatternsDeclared()
+            | ev.OwnAimSet()
             | ev.OrderHeld()
             | ev.HeldOrderEnded()
             | ev.OrderAsked()
@@ -1097,6 +1195,10 @@ def _realism(state: State, p: ev.Payload) -> State:
             return _locks_declared(state, p)
         case ev.LawsDeclared():
             return _laws_declared(state, p)
+        case ev.AimPatternsDeclared():
+            return _aim_patterns_declared(state, p)
+        case ev.OwnAimSet():
+            return _own_aim_set(state, p)
         case ev.OrderHeld():
             return _order_held(state, p)
         case ev.HeldOrderEnded():
@@ -1439,7 +1541,7 @@ def _engine_v2(state: State, p: ev.Payload) -> State:
             w = _open_wake(state, p.wake)
             for seat in p.timed_out:
                 _need(state.seats, seat, "seat")
-            state = _hand_over(state)
+            state = _hand_over(_aim_shut(state))
             return state.model_copy(update={"wake": w.model_copy(update={"closed": True})})
         case ev.PlayStyleSet():
             _need(state.seats, p.seat_id, "seat")

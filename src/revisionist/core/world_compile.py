@@ -15,10 +15,22 @@ from datetime import timedelta
 from itertools import pairwise
 from typing import Any
 
-from pydantic import ValidationError
+from pydantic import JsonValue, TypeAdapter, ValidationError
 
 from revisionist.core import events as ev
 from revisionist.core import roster
+from revisionist.core.aim_patterns import (
+    BUILT_IN,
+    KIND_FIELDS,
+    AimBlank,
+    AimPattern,
+    AimPatterns,
+    exposure,
+    sentence_blanks,
+    slots,
+    substitute,
+)
+from revisionist.core.aim_patterns import SECTIONS as BLANK_SECTIONS
 from revisionist.core.events import Event, Versions
 from revisionist.core.fold import FoldError, replay
 from revisionist.core.goals import (
@@ -28,17 +40,9 @@ from revisionist.core.goals import (
     AimRule,
     AllOf,
     AnyOf,
-    AtWar,
-    ContestWon,
-    EntityIs,
     Exposure,
     Goal,
-    HoldsArea,
-    IncomeAt,
-    Leaf,
     Ordered,
-    QuantityAt,
-    RegardAt,
     SupportAt,
     WinCondition,
     depth,
@@ -515,6 +519,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "conferences",
             "locks",
             "laws",
+            "aim_patterns",
             "production",
         ):
             if getattr(world, name):
@@ -528,6 +533,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_groups(world, problems)
     _check_contest_moves(world, sections, problems)
     _check_aim_rules(world, sections, problems)
+    _check_aim_patterns(world, sections, problems)
     _check_command(world, problems)
     _check_laws(world, problems)
     _check_locks(world, sections, problems)
@@ -2074,32 +2080,24 @@ def _polity_key(world: WorldFile, key: str) -> str | None:
     return None
 
 
-def _exposure(world: WorldFile, person: str, leaf: Leaf) -> Exposure:
-    """Whether the seat holding ``person`` may see the fact ``leaf`` reads (AIM rule 5):
-    the board's holders, wars and war-economy figures are public; a group's support,
-    an agreement and regard are its own nation's when its nation is in them, and a
-    quantity or a contest by its declared scope; anything else is hidden."""
+def _sees(world: WorldFile, person: str, condition: WinCondition) -> tuple[Exposure, ...]:
+    """Whether the seat holding ``person`` may see the fact each leaf of ``condition``
+    reads (AIM rule 5), by the rule state uses too (``aim_patterns.exposure``)."""
+    quantities = {d.key: d for d in world.quantities}
+    contests = {d.key: d for d in world.contests}
+
+    def quantity(key: str) -> tuple[bool, str | None] | None:
+        q = quantities.get(key)
+        if q is None:
+            return None
+        return q.public, None if q.owner is None else _polity_key(world, q.owner)
+
+    def contest_public(key: str) -> bool:
+        k = contests.get(key)
+        return k is not None and k.scope == "public"
+
     own = _polity_key(world, person)
-    match leaf:
-        case HoldsArea() | IncomeAt() | AtWar() | EntityIs():
-            return Exposure.PUBLIC
-        case SupportAt():
-            return Exposure.OWN if leaf.nation == own else Exposure.HIDDEN
-        case AgreementInForce():
-            return Exposure.OWN if own in leaf.between else Exposure.HIDDEN
-        case RegardAt():
-            return Exposure.OWN if person in (leaf.a, leaf.b) else Exposure.HIDDEN
-        case QuantityAt():
-            q = next((d for d in world.quantities if d.key == leaf.quantity), None)
-            if q is not None and q.public:
-                return Exposure.PUBLIC
-            owner = None if q is None or q.owner is None else _polity_key(world, q.owner)
-            return Exposure.OWN if owner is not None and owner == own else Exposure.HIDDEN
-        case ContestWon():
-            k = next((d for d in world.contests if d.key == leaf.contest), None)
-            return Exposure.PUBLIC if k is not None and k.scope == "public" else Exposure.HIDDEN
-        case _:
-            return Exposure.HIDDEN
+    return tuple(exposure(x, person, own, quantity, contest_public) for x in leaves(condition))
 
 
 def _aim_rules(world: WorldFile, c: CardDecl, ids: Mapping[str, str]) -> tuple[AimRule | None, ...]:
@@ -2121,11 +2119,132 @@ def _aim_rules(world: WorldFile, c: CardDecl, ids: Mapping[str, str]) -> tuple[A
                 rule=r.rule,
                 opens=r.opens,
                 deadline=r.deadline,
-                sees=tuple(_exposure(world, c.person, x) for x in leaves(r.condition)),
+                sees=_sees(world, c.person, r.condition),
                 replaceable=r.replaceable,
             )
         )
     return tuple(out)
+
+
+def _check_aim_patterns(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """Each aim pattern (OWC): its key once; every blank the condition or the sentence
+    names declared, and every declared blank in both; a blank standing in one kind of
+    field, a kind only where it may stand, a closed list of what that field names; the
+    condition, filled, one the rules check, naming what the world declares. With the rule
+    off they are checked and left out of the game."""
+    group_keys = {g.key for d in world.groups for g in d.groups}
+    seen: set[str] = set()
+    for p in world.aim_patterns:
+        where = f"aim pattern {p.key}"
+        if p.key in seen:
+            problems.append(f"{where}: duplicate key")
+        seen.add(p.key)
+        used = slots(p.condition)
+        said = sentence_blanks(p.sentence)
+        declared = {b.name for b in p.blanks}
+        if len(declared) < len(p.blanks):
+            problems.append(f"{where}: a blank is named twice")
+        for name in sorted(set(used) - declared - set(BUILT_IN)):
+            problems.append(f"{where}: blank ${name} is not declared")
+        for name in sorted(said - declared - set(BUILT_IN)):
+            problems.append(f"{where}: the sentence names {{{name}}}, which is no blank")
+        samples: dict[str, JsonValue] = dict.fromkeys(BUILT_IN, "x")
+        for b in p.blanks:
+            at = f"{where}: blank {b.name}"
+            fields = used.get(b.name, set())
+            if not fields:
+                problems.append(f"{where}: blank {b.name} is not in the condition")
+            if b.name not in said:
+                problems.append(f"{where}: blank {b.name} is not in the sentence")
+            kinds = {BLANK_SECTIONS.get(f) for f in fields}
+            if None in kinds:
+                problems.append(f"{at} stands where no blank may")
+            elif len(kinds) > 1:
+                problems.append(f"{at} stands for two kinds of thing")
+            section = next(iter(kinds)) if len(kinds) == 1 else None
+            samples[b.name] = 0 if section == "number" else "x"
+            if b.kind is not None:
+                for f in sorted(fields - KIND_FIELDS[b.kind]):
+                    problems.append(f"{at}: a {b.kind.value} cannot stand for {f}")
+                continue
+            for v in b.values:
+                if section == "number":
+                    if not isinstance(v, int):
+                        problems.append(f"{at}: {v} is not a number")
+                elif isinstance(v, int):
+                    problems.append(f"{at}: {v} is not a key")
+                elif section == "group":
+                    if v not in group_keys:
+                        problems.append(f"{at}: no nation has a group {v}")
+                elif section is not None:
+                    _ref(problems, where, v, section, sections)
+            samples[b.name] = b.values[0]
+        _check_pattern_keys(p.condition, where, sections, problems)
+        try:
+            TypeAdapter(WinCondition).validate_python(substitute(p.condition, samples))
+        except ValidationError as exc:
+            problems.append(f"{where}: not a condition the rules check: {_first_error(exc)}")
+
+
+def _check_pattern_keys(
+    node: JsonValue, where: str, sections: Mapping[str, str], problems: list[str]
+) -> None:
+    """Every world key a pattern's condition names outside its blanks, declared."""
+    if isinstance(node, list):
+        for x in node:
+            _check_pattern_keys(x, where, sections, problems)
+        return
+    if not isinstance(node, dict):
+        return
+    for field, value in node.items():
+        section = _CONDITION_REFS.get(field, "entity" if field == "between" else None)
+        items = value if isinstance(value, list) else [value]
+        for x in items:
+            if section is not None and isinstance(x, str) and not x.startswith("$"):
+                _ref(problems, where, x, section, sections)
+            elif isinstance(x, dict | list):
+                _check_pattern_keys(x, where, sections, problems)
+
+
+def _bind_pattern(node: JsonValue, ids: Mapping[str, str], field: str | None = None) -> JsonValue:
+    """A pattern's condition with every world key outside its blanks replaced by its id."""
+    if isinstance(node, dict):
+        return {k: _bind_pattern(v, ids, k) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_bind_pattern(v, ids, field) for v in node]
+    refs = field in _CONDITION_REFS or field == "between"
+    if isinstance(node, str) and refs and not node.startswith("$"):
+        return ids[node]
+    return node
+
+
+def _aim_patterns(world: WorldFile, ids: Mapping[str, str]) -> ev.AimPatternsDeclared:
+    """The world's aim patterns in its own order, keys bound to ids, with each card's kind
+    of post by person (OWC)."""
+    out: list[AimPattern] = []
+    for p in world.aim_patterns:
+        used = slots(p.condition)
+        blanks: list[AimBlank] = []
+        for b in p.blanks:
+            sections = {BLANK_SECTIONS.get(f) for f in used.get(b.name, set())}
+            bound = not sections & {"group", "number", None}
+            values = tuple(ids[v] if bound and isinstance(v, str) else v for v in b.values)
+            blanks.append(AimBlank(name=b.name, values=values, kind=b.kind))
+        bound_condition = _bind_pattern(p.condition, ids)
+        assert isinstance(bound_condition, dict)
+        out.append(
+            AimPattern(
+                key=p.key,
+                posts=p.posts,
+                sentence=p.sentence,
+                condition=bound_condition,
+                blanks=tuple(blanks),
+                government=p.government,
+                deadline=p.deadline,
+            )
+        )
+    posts = {EntityId(ids[c.person]): c.post_kind for c in world.cards if c.post_kind}
+    return ev.AimPatternsDeclared(patterns=AimPatterns(patterns=tuple(out), posts=posts))
 
 
 def _check_goals(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
@@ -2575,6 +2694,9 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
     if Rule.LAWS in world.rules and world.laws:
         # Public: the laws a world declares are rules of the world.
         out.append((_laws(world, ids), PUBLIC))
+    if Rule.OWN_AIM in world.rules and world.aim_patterns:
+        # Public: the patterns a player may fill are rules of the world.
+        out.append((_aim_patterns(world, ids), PUBLIC))
     if Rule.LOCKS in world.rules and world.locks:
         # Public: which orders need whose decision is a rule of the world.
         out.append((_locks(world, ids), PUBLIC))

@@ -16,6 +16,7 @@ from typing import ClassVar, Literal
 from pydantic import Field
 
 from revisionist.core._base import Label, Model
+from revisionist.core.aim_patterns import AimPatterns, OwnAim
 from revisionist.core.goals import Goal
 from revisionist.core.ids import (
     AssetId,
@@ -204,6 +205,12 @@ class _World(Model):
     laws: tuple[Law, ...] = ()
     """With ``laws`` on, the laws the world declares, set once by ``laws_declared`` (LWC):
     public rules of the world, the same in every view. Read through ``laws.in_force``."""
+    aim_patterns: AimPatterns | None = None
+    """With ``own_aim`` on, the world's aim patterns and each card's kind of post, set once
+    by ``aim_patterns_declared`` (OWC): public rules of the world, the same in every view."""
+    own_aims: dict[EntityId, OwnAim] = Field(default_factory=dict)
+    """Each person's own aim, set by ``own_aim_set`` (OWC), kept by whoever holds him. A
+    view holds only the aim of the person a player holds through it."""
     holders: dict[EntityId, Holding] = Field(default_factory=dict)
     """With ``holders`` on, each territory that has changed hands: its holder now, by
     ``area_held``. A territory not here has the holder the board gives. Public (THL)."""
@@ -246,6 +253,8 @@ class _World(Model):
             "kinds",
             "locks",
             "laws",
+            "aim_patterns",
+            "own_aims",
             "holders",
             "economy",
         }
@@ -344,7 +353,11 @@ class State(_World):
     """With ``reports`` on, every order an aide filed for an absent seat
     (``wake_committed``), so the rules where an effect lands can hold the aide to its
     limits (IOR). Engine only: how a seat is run is never shown."""
+    aim_shut: frozenset[EntityId] = frozenset()
+    """With own aims on, each person a player held when a wake closed: his own aim may no
+    longer be set (OWC). Engine only."""
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
+        "aim_shut",
         "held",
         "asked",
         "rules",

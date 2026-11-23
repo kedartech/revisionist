@@ -75,7 +75,7 @@ STEP_KINDS: frozenset[str] = frozenset(
 HELD = "{reason}: {words}."  # [proposed]
 """A held order, as its seat was told when it was held, with its words."""
 LANDED = "Your held order went ahead: {words}."  # [proposed]
-FAILED = "Your held order failed: {reason}."  # [proposed]
+FAILED = "Your held order failed: {reason}: {words}."  # [proposed]
 REPLACED = "Your held order was replaced by a later one: {words}."  # [proposed]
 WITHDRAWN = "Your held order was withdrawn: {words}."  # [proposed]
 AN_ORDER = "an order"  # [proposed]
@@ -249,7 +249,7 @@ def _held(p: ev.OrderHeld | ev.HeldOrderEnded, on: str, names: _Names) -> Playba
             own = names.words(p.order_id)
             line = LANDED.format(words=own if own != AN_ORDER else names.words(p.by))
         case locks.HeldEnd.FAILED:
-            line = FAILED.format(reason=_plain(p.reason))
+            line = FAILED.format(reason=_plain(p.reason), words=names.words(p.order_id))
         case locks.HeldEnd.REPLACED:
             line = REPLACED.format(words=names.words(p.by))
         case locks.HeldEnd.WITHDRAWN:

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import io
 import json
-import threading
 import time
 from http import HTTPStatus
 from types import SimpleNamespace
@@ -13,6 +12,12 @@ from typing import Any
 import pytest
 
 from revisionist.engine.web import guard, limits, server
+
+CSP = (
+    "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
+    "font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; "
+    "form-action 'self'; manifest-src 'self'; worker-src 'self'"
+)
 
 
 class Recorder:
@@ -47,17 +52,26 @@ def server_handler(secure: bool = False) -> Any:
 def outcome(call: Any) -> Any:
     try:
         return ("ok", call())
-    except (server.ApiError, guard.RefusedError) as e:
+    except guard.RefusedError as e:
         return ("err", e.status, e.message)
 
 
 @pytest.mark.parametrize("status", [HTTPStatus.OK, HTTPStatus.NOT_FOUND])
 @pytest.mark.parametrize("kind", ["text/html; charset=utf-8", "application/json"])
 def test_headers_equal_the_servers(status: HTTPStatus, kind: str) -> None:
-    ours, theirs = Recorder(), server_handler()
+    ours = Recorder()
     guard.headers(ours, status, kind, 42)
-    theirs._headers(status, kind, 42)
-    assert ours.sent == theirs.rec.sent
+    assert ours.sent == [
+        ("status", status),
+        ("Content-Type", kind),
+        ("Content-Length", "42"),
+        ("Content-Security-Policy", CSP),
+        ("X-Content-Type-Options", "nosniff"),
+        ("Referrer-Policy", "no-referrer"),
+        ("Cross-Origin-Opener-Policy", "same-origin"),
+        ("Cross-Origin-Resource-Policy", "same-origin"),
+        ("Permissions-Policy", guard.PERMISSIONS),
+    ]
     names = [s[0] for s in ours.sent]
     assert "Content-Security-Policy" in names and "Cross-Origin-Opener-Policy" in names
 
@@ -106,78 +120,75 @@ def test_static_cache_equals_the_servers_static_reply(tmp_path: Any) -> None:
 @pytest.mark.parametrize("secure", [False, True])
 @pytest.mark.parametrize("token,age", [("t0k", 3600), ("", 0)])
 def test_cookie_equals_the_servers(secure: bool, token: str, age: int) -> None:
-    assert guard.cookie(token, age, secure) == server_handler(secure)._cookie(token, age)
+    tail = "; Secure" if secure else ""
+    want = f"rv_session={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={age}{tail}"
+    assert guard.cookie(token, age, secure) == want
 
 
-ORIGIN_CASES = [
-    {},
-    {"Content-Type": "text/plain"},
-    {"Content-Type": "application/json"},
-    {
-        "Content-Type": "application/json; charset=utf-8",
-        "Host": "a.test",
-        "Origin": "http://a.test",
-    },
-    {"Content-Type": "application/json", "Host": "a.test", "Origin": "http://b.test"},
-    {"Content-Type": "application/json", "Host": "a.test"},
-    {"Content-Type": "application/json", "Host": "", "Origin": "http://a.test"},
+SEND_JSON = ("err", HTTPStatus.UNSUPPORTED_MEDIA_TYPE, "Send JSON.")
+CROSS = ("err", HTTPStatus.FORBIDDEN, "Cross-origin request refused.")
+ORIGIN_CASES: list[tuple[dict[str, str], Any]] = [
+    ({}, SEND_JSON),
+    ({"Content-Type": "text/plain"}, SEND_JSON),
+    ({"Content-Type": "application/json"}, CROSS),
+    (
+        {
+            "Content-Type": "application/json; charset=utf-8",
+            "Host": "a.test",
+            "Origin": "http://a.test",
+        },
+        ("ok", None),
+    ),
+    ({"Content-Type": "application/json", "Host": "a.test", "Origin": "http://b.test"}, CROSS),
+    ({"Content-Type": "application/json", "Host": "a.test"}, CROSS),
+    ({"Content-Type": "application/json", "Host": "", "Origin": "http://a.test"}, CROSS),
 ]
 
 
-@pytest.mark.parametrize("hdrs", ORIGIN_CASES)
-def test_same_origin_equals_the_servers(hdrs: dict[str, str]) -> None:
-    theirs = server_handler()
-    theirs.headers = hdrs
-    want = outcome(theirs._same_origin)
-    got = outcome(lambda: guard.same_origin(hdrs))
-    assert got == want
+@pytest.mark.parametrize("hdrs,want", ORIGIN_CASES)
+def test_same_origin_equals_the_servers(hdrs: dict[str, str], want: Any) -> None:
+    assert outcome(lambda: guard.same_origin(hdrs)) == want
 
 
-BODIES = [
-    (b"", None),
-    (b"{}", None),
-    (b'{"a": 1}', None),
-    (b"[1]", None),
-    (b"nope", None),
-    (b"x" * (guard.BODY_MAX + 1), None),
-    (b"{}", str(guard.BODY_MAX + 1)),
-    (b"{}", "0"),
+TOO_LARGE = ("err", HTTPStatus.REQUEST_ENTITY_TOO_LARGE, "That request is too large.")
+BODIES: list[tuple[bytes, str | None, Any]] = [
+    (b"", None, ("ok", {})),
+    (b"{}", None, ("ok", {})),
+    (b'{"a": 1}', None, ("ok", {"a": 1})),
+    (b"[1]", None, ("err", HTTPStatus.BAD_REQUEST, "Send a JSON object.")),
+    (b"nope", None, ("err", HTTPStatus.BAD_REQUEST, "That request was not valid JSON.")),
+    (b"x" * (64 * 1024 + 1), None, TOO_LARGE),
+    (b"{}", str(64 * 1024 + 1), TOO_LARGE),
+    (b"{}", "0", ("ok", {})),
 ]
 
 
-@pytest.mark.parametrize("raw,length", BODIES)
-def test_body_equals_the_servers(raw: bytes, length: str | None) -> None:
+@pytest.mark.parametrize("raw,length,want", BODIES)
+def test_body_equals_the_servers(raw: bytes, length: str | None, want: Any) -> None:
     hdrs = {"Content-Length": length if length is not None else str(len(raw))}
-    theirs = server_handler()
-    theirs.headers, theirs.rfile = hdrs, io.BytesIO(raw)
-    want = outcome(theirs._body)
-    got = outcome(lambda: guard.body(hdrs, io.BytesIO(raw), guard.json_body))
-    assert got == want
+    assert outcome(lambda: guard.body(hdrs, io.BytesIO(raw), guard.json_body)) == want
 
 
 def test_body_limit_is_the_servers() -> None:
-    assert guard.BODY_MAX == server.BODY_MAX == 64 * 1024
-    assert guard.COOKIE == server.COOKIE
-    assert guard.CSP == server.CSP
+    assert guard.BODY_MAX == 64 * 1024
+    assert guard.COOKIE == server.COOKIE == "rv_session"
+    assert guard.CSP == CSP
 
 
 def test_signin_throttle_equals_the_servers(monkeypatch: pytest.MonkeyPatch) -> None:
     clock = [1000.0]
     monkeypatch.setattr(time, "monotonic", lambda: clock[0])
-    theirs = server.App.__new__(server.App)
-    theirs._lock, theirs._failures = threading.Lock(), {}
     ours = limits.SigninThrottle()
-    assert limits.SIGNIN_TRIES == server.SIGNIN_TRIES == 10
+    assert limits.SIGNIN_TRIES == 10
     for i in range(12):
-        assert ours.throttled(" Ann ") == theirs.throttled("ann") == (i >= 10)
+        assert ours.throttled(" Ann ") == (i >= 10)
         ours.failed(" Ann ")
-        theirs.failed("ANN")
         clock[0] += 1
-    assert ours.throttled("bob") is theirs.throttled("bob") is False
-    clock[0] += 899
-    assert ours.throttled("ann") == theirs.throttled("ann")
+    assert ours.throttled("bob") is False
+    clock[0] += 887
+    assert ours.throttled("ann") is True
     clock[0] += 20
-    assert ours.throttled("ann") is theirs.throttled("ann") is False
+    assert ours.throttled("ann") is False
 
 
 def test_signin_throttle_trips_at_exactly_ten() -> None:

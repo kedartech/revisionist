@@ -171,5 +171,147 @@
       "The electorate",
       "Congress"
     ]
+  },
+  "opening": {
+    "nations": [
+      {
+        "key": "TW9CGPR2ES96WZA2VT52YPJ0YM",
+        "name": "China",
+        "paths": [
+          {
+            "path": "political",
+            "persons": [
+              {
+                "name": "Chiang Kai-shek",
+                "office": "Chairman of the Military Affairs Commission",
+                "pitch": "Generalissimo holding China open on American aid.",
+                "taken": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "KAWSWX9VQWAWM9K5CQF2G5TE6N",
+        "name": "Germany",
+        "paths": [
+          {
+            "path": "political",
+            "persons": [
+              {
+                "name": "Adolf Hitler",
+                "office": "Fuehrer and Reich Chancellor",
+                "pitch": "Fuehrer at the height of his conquests, committed to the East.",
+                "taken": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "CV16Q4ZW7J8BT9MT05RC9KMMAN",
+        "name": "Italy",
+        "paths": [
+          {
+            "path": "political",
+            "persons": [
+              {
+                "name": "Benito Mussolini",
+                "office": "Duce and Prime Minister of Italy",
+                "pitch": "Duce tied to Germany and answerable to a King.",
+                "taken": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "0ZTK9CXSSH5HPZNFPCWZNR3PVT",
+        "name": "Japan",
+        "paths": [
+          {
+            "path": "political",
+            "persons": [
+              {
+                "name": "Fumimaro Konoe",
+                "office": "Prime Minister of Japan",
+                "pitch": "Prime Minister seeking a settlement with Washington before the Army moves.",
+                "taken": true
+              },
+              {
+                "name": "Hideki Tojo",
+                "office": "War Minister of Japan",
+                "pitch": "War Minister and serving general, the Army's voice in the cabinet.",
+                "taken": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "YWXYN1GVYHRW9FWWP32NN8T4HE",
+        "name": "Soviet Union",
+        "paths": [
+          {
+            "path": "political",
+            "persons": [
+              {
+                "name": "Joseph Stalin",
+                "office": "Chairman of the Council of People's Commissars",
+                "pitch": "Leader of a country invaded and begging for supplies.",
+                "taken": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "4A8N03RRE60EKDCRT751QXQSD1",
+        "name": "United Kingdom",
+        "paths": [
+          {
+            "path": "political",
+            "persons": [
+              {
+                "name": "Winston Churchill",
+                "office": "Prime Minister of the United Kingdom",
+                "pitch": "Prime Minister holding on until America comes in.",
+                "taken": false
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "key": "TRYNK7BA525A6JY5DZY3K0SJFV",
+        "name": "United States",
+        "paths": [
+          {
+            "path": "political",
+            "persons": [
+              {
+                "name": "Franklin D. Roosevelt",
+                "office": "President of the United States",
+                "pitch": "Third-term President steering a neutral nation toward the Allies.",
+                "taken": false
+              }
+            ]
+          },
+          {
+            "path": "military",
+            "persons": [
+              {
+                "name": "Ernest J. King",
+                "office": "Commander in Chief, Atlantic Fleet",
+                "pitch": "Admiral commanding the Atlantic Fleet in an undeclared war at sea.",
+                "taken": false
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "seats_left": 9,
+    "seats_max": 10
   }
 }

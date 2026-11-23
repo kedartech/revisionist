@@ -87,7 +87,7 @@ test('everything above the map in the map-first room is one bar', () => {
   assert.equal(root.querySelector('.rl-strip'), null, 'nor the status strip');
 });
 
-test('the bar holds the date, the clock with the players done, the aims, Nations, the tabs, Done and the menu', () => {
+test('the bar holds the date, the clock with the players done, the aims, the group tabs, the chat button, Done and the menu', () => {
   const { root } = room(seat());
   const bar = root.querySelector('.rl-roombar');
   assert.ok(words(bar.querySelector('.rl-bar-date')).includes('1941'), 'the date');
@@ -96,8 +96,9 @@ test('the bar holds the date, the clock with the players done, the aims, Nations
   assert.ok(clock.querySelector('.rl-countdown'), 'how long is left');
   assert.equal(clock.querySelector('.rl-done-bar').getAttribute('aria-label'), '1 of 3 players done');
   assert.equal(bar.querySelectorAll('.rl-aimmark').length, 3, 'three aim marks');
-  assert.equal(bar.querySelectorAll('.rl-nations-btn').length, 1, 'one Nations control');
+  assert.equal(bar.querySelectorAll('.rl-nations-btn').length, 0, 'no Nations control once the four groups are in: Nations is a part of World');
   assert.ok(bar.querySelector('.rl-sheettabs'), 'the sheet tabs');
+  assert.ok(bar.querySelector('.rl-chat-btn'), 'the chat button');
   assert.equal(buttons(bar, 'Done for today').length, 1, 'Done for today');
   assert.ok(bar.querySelector('.rl-menu-btn'), 'the game menu');
 });
@@ -124,7 +125,7 @@ test('what the page header held is reachable from the game menu', () => {
 
 // rule 2: nothing of the nations, the come-back line or the first-day card above the map
 
-test('the nations\' chips and bands are not above the map: the Nations control opens them in a sheet', () => {
+test('the nations\' figures and bands are not above the map: World opens them in its Nations part', () => {
   const { root, now } = room(seat());
   for (const el of aboveMap(root)) {
     assert.equal(el.querySelectorAll('.rl-eco-chip').length, 0, 'no war-economy chip above the map');
@@ -132,17 +133,21 @@ test('the nations\' chips and bands are not above the map: the Nations control o
     assert.equal(el.querySelectorAll('.rl-comeback').length, 0, 'no come-back line above the map');
     assert.equal(el.querySelectorAll('.rl-firstwake').length, 0, 'no first-day card above the map');
   }
-  root.querySelector('.rl-nations-btn').click();
+  const world = (el) => el.querySelectorAll('.rl-sheettabs button').find((b) => b.getAttribute('data-group') === 'world');
+  world(root).click();
   const sheet = now().querySelector('.rl-over');
   assert.equal(sheet.getAttribute('data-sheet'), 'nations');
-  assert.equal(sheet.querySelectorAll('.rl-eco-chip').length, NATIONS, 'every nation\'s chip');
-  assert.ok(sheet.querySelector('.rl-home-own'), 'the seat\'s band, which opens its home sheet');
-  assert.equal(now().querySelector('.rl-nations-btn').getAttribute('aria-expanded'), 'true');
+  assert.equal(sheet.querySelectorAll('button.rl-nb-row').length, 10, 'ten nations\' bars');
+  assert.equal(words(sheet.querySelector('button.rl-nb-all')), `All ${NATIONS} nations`, 'and the rest a press away');
+  sheet.querySelector('button.rl-nb-row.rl-nb-own').click();
+  assert.ok(now().querySelector('.rl-over .rl-nb-card button.rl-nb-home'), 'the seat\'s card, which opens its home sheet');
+  assert.equal(world(now()).getAttribute('aria-expanded'), 'true');
 });
 
-test('with neither an economy nor a reading at home there is no Nations control', () => {
-  const { root } = room(seat((rv) => { rv.economy = null; rv.home = null; }));
-  assert.equal(root.querySelector('.rl-nations-btn'), null);
+test('with neither an economy nor a reading at home World has no Nations part', () => {
+  const { root, now } = room(seat((rv) => { rv.economy = null; rv.home = null; }));
+  root.querySelectorAll('.rl-sheettabs button').find((b) => b.getAttribute('data-group') === 'world').click();
+  assert.deepEqual(now().querySelectorAll('.rl-over .rl-parts button').map((b) => b.getAttribute('data-sheet')), ['diplomacy']);
 });
 
 test('the come-back line heads What needs you', () => {

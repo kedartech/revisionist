@@ -424,10 +424,10 @@ export function theatreBoard(rv, ui, { pick, act, open, hooks = {} } = {}) {
     });
   }
   const drawing = territorial
-    ? () => (shapesFor(map.file) ? territoryDrawing(drawn, shapesFor(map.file), { ...opts, targets: targets(), route: route() }) : h('p', { class: 'muted rl-tm-wait' }, 'Drawing the map…'))
+    ? () => (shapesFor(map.file) ? territoryDrawing(drawn, shapesFor(map.file), { ...opts, coast, targets: targets(), route: route() }) : h('p', { class: 'muted rl-tm-wait' }, 'Drawing the map…'))
     : () => mapDrawing(map, coast, { ...opts, scope: theatre.scope ?? 'reports', targets: lit() });
   const view = territorial
-    ? territoryView(drawn, shapesFor(map.file), { ...opts, targets: targets(), route: route() })
+    ? territoryView(drawn, shapesFor(map.file), { ...opts, coast, targets: targets(), route: route() })
     : mapView(map, coast, { ...opts, targets: lit() });
   view.classList.add('rl-theatre');
   hooksOf.set(view, hooks);
@@ -460,13 +460,20 @@ export function theatreBoard(rv, ui, { pick, act, open, hooks = {} } = {}) {
     }
   };
   if (territorial) {
+    // land not in play: the coastline is fetched only for a map that has a backdrop to draw it under
+    const landless = (shapes) => shapes?.coords === 'lonlat' && (shapes.backdrop ?? []).length > 0 && !coast;
+    const landAfter = () => landless(shapesFor(map.file)) && loadLand()?.then(() => {
+      if (coast && view.isConnected) redraw();
+    });
+    landAfter();
     if (!shapesFor(map.file) && theatre.mode !== 'list') {
       loadShapes(map.file)?.then(() => {
         if (!shapesFor(map.file) || !view.isConnected) return;
-        const fresh = territoryView(drawn, shapesFor(map.file), { ...opts, targets: targets(), route: route() });
+        const fresh = territoryView(drawn, shapesFor(map.file), { ...opts, coast, targets: targets(), route: route() });
         view.replaceChildren(...fresh.childNodes);
         view.querySelector('figure.rl-map-figure')?.after(...below);
         showChip();
+        landAfter();
       });
     }
     return view;

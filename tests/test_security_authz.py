@@ -185,6 +185,7 @@ ROWS: tuple[Row, ...] = (
     Row("new", "style", ZERO, _fixed(style="guided")),
     Row("new", "invite", ZERO_HOST),
     Row("new", "begin", ZERO_HOST),
+    Row("new", "opening", PLAY),
     # /api/realism/<action>
     Row("realism", "catchup", PLAY),
     Row("realism", "map", PLAY),

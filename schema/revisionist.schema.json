@@ -3050,7 +3050,10 @@
           "drift",
           "offer_taken",
           "promise_kept",
-          "promise_broken"
+          "promise_broken",
+          "battle_losses",
+          "losses_felt",
+          "losses_halved"
         ],
         "title": "Cause",
         "type": "string"
@@ -7463,7 +7466,8 @@
           "agreement_broken",
           "measure_passed",
           "war_declared",
-          "daily_life_passed"
+          "daily_life_passed",
+          "battle_losses"
         ],
         "title": "Happening",
         "type": "string"
@@ -7516,6 +7520,59 @@
         ],
         "title": "HeldEnd",
         "type": "string"
+      },
+      "HeldLoss": {
+        "additionalProperties": false,
+        "description": "One day's losses of a nation in one battle as they move one of its groups (LSS):\nthe reported share, which landed that day, and the felt share, which lands over the\n``FELT_DAYS`` days after. ``ended``: the battle has ended, so no correction is still to\ncome. Engine only.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "ended": {
+            "default": false,
+            "title": "Ended",
+            "type": "boolean"
+          },
+          "felt": {
+            "title": "Felt",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "reported": {
+            "title": "Reported",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "polity",
+          "group",
+          "area",
+          "opened",
+          "on",
+          "reported",
+          "felt"
+        ],
+        "title": "HeldLoss",
+        "type": "object"
       },
       "HeldOrder": {
         "additionalProperties": false,
@@ -8632,6 +8689,37 @@
           "rows"
         ],
         "title": "LocksDeclared",
+        "type": "object"
+      },
+      "LossesHeld": {
+        "additionalProperties": false,
+        "description": "Battle losses held at home (LSS): each one day's losses of a nation in one battle as\nthey move one of its groups, added or replaced (the felt share halved, or the battle\nended). Entries whose battle has ended and whose felt share has landed by ``on`` are\ndropped. Engine only: it carries the nation's steps lost by the points they move.",
+        "properties": {
+          "held": {
+            "items": {
+              "$ref": "#/$defs/HeldLoss"
+            },
+            "minItems": 1,
+            "title": "Held",
+            "type": "array"
+          },
+          "kind": {
+            "const": "losses_held",
+            "default": "losses_held",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "held"
+        ],
+        "title": "LossesHeld",
         "type": "object"
       },
       "MakeStatement": {
@@ -15334,6 +15422,7 @@
             "kinds_declared": "#/$defs/KindsDeclared",
             "laws_declared": "#/$defs/LawsDeclared",
             "locks_declared": "#/$defs/LocksDeclared",
+            "losses_held": "#/$defs/LossesHeld",
             "mandate_issued": "#/$defs/MandateIssued",
             "mandate_settled": "#/$defs/MandateSettled",
             "map_declared": "#/$defs/MapDeclared",
@@ -15670,6 +15759,9 @@
           },
           {
             "$ref": "#/$defs/GroupProposed"
+          },
+          {
+            "$ref": "#/$defs/LossesHeld"
           },
           {
             "$ref": "#/$defs/AgreementOffered"
@@ -20399,6 +20491,14 @@
             "title": "Declared",
             "type": "object"
           },
+          "held": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/HeldLoss"
+            },
+            "title": "Held",
+            "type": "array"
+          },
           "proposed": {
             "default": [],
             "items": {
@@ -20464,7 +20564,8 @@
           "agreement_broken",
           "measure_passed",
           "war_declared",
-          "daily_life_passed"
+          "daily_life_passed",
+          "battle_losses"
         ],
         "title": "Happening",
         "type": "string"
@@ -20505,6 +20606,59 @@
           "action"
         ],
         "title": "HeldChoice",
+        "type": "object"
+      },
+      "HeldLoss": {
+        "additionalProperties": false,
+        "description": "One day's losses of a nation in one battle as they move one of its groups (LSS):\nthe reported share, which landed that day, and the felt share, which lands over the\n``FELT_DAYS`` days after. ``ended``: the battle has ended, so no correction is still to\ncome. Engine only.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "ended": {
+            "default": false,
+            "title": "Ended",
+            "type": "boolean"
+          },
+          "felt": {
+            "title": "Felt",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "reported": {
+            "title": "Reported",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "polity",
+          "group",
+          "area",
+          "opened",
+          "on",
+          "reported",
+          "felt"
+        ],
+        "title": "HeldLoss",
         "type": "object"
       },
       "HeldOrder": {
@@ -30207,6 +30361,14 @@
             "title": "Declared",
             "type": "object"
           },
+          "held": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/HeldLoss"
+            },
+            "title": "Held",
+            "type": "array"
+          },
           "proposed": {
             "default": [],
             "items": {
@@ -30272,7 +30434,8 @@
           "agreement_broken",
           "measure_passed",
           "war_declared",
-          "daily_life_passed"
+          "daily_life_passed",
+          "battle_losses"
         ],
         "title": "Happening",
         "type": "string"
@@ -30313,6 +30476,59 @@
           "action"
         ],
         "title": "HeldChoice",
+        "type": "object"
+      },
+      "HeldLoss": {
+        "additionalProperties": false,
+        "description": "One day's losses of a nation in one battle as they move one of its groups (LSS):\nthe reported share, which landed that day, and the felt share, which lands over the\n``FELT_DAYS`` days after. ``ended``: the battle has ended, so no correction is still to\ncome. Engine only.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "ended": {
+            "default": false,
+            "title": "Ended",
+            "type": "boolean"
+          },
+          "felt": {
+            "title": "Felt",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "reported": {
+            "title": "Reported",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "polity",
+          "group",
+          "area",
+          "opened",
+          "on",
+          "reported",
+          "felt"
+        ],
+        "title": "HeldLoss",
         "type": "object"
       },
       "HeldOrder": {

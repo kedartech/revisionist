@@ -223,8 +223,9 @@ class _World(Model):
     groups: Groups = Field(default_factory=Groups)
     """With ``groups`` on, each nation's groups at home as the world declares them
     (``groups_declared``), their support (``group_moved``) and the writing in waiting
-    (``group_proposed``) (GRP). True support: a view holds its own nation's groups only,
-    and never the writing in waiting."""
+    (``group_proposed``) (GRP); with ``losses`` on, the battle losses held
+    (``losses_held``) (LSS). True support: a view holds its own nation's groups only, and
+    never the writing in waiting or the losses held."""
     offers: tuple[PricedOffer, ...] = ()
     """With ``offers`` on, every offer of a price to a bloc and where it stands
     (``offer_made``, ``offer_settled``) (PRC). A view holds those to its own nation's

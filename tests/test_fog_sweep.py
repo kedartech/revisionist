@@ -90,7 +90,7 @@ def differences(pair: ft.Pair, a: ft.Side, b: ft.Side) -> list[str]:
                         print(pair.id, who, moment, ft.where(key, x.get(key, b""), y.get(key, b"")))
 
     def read(s: ft.Side, who: str) -> dict[str, bytes]:
-        return ft.reads(s, who, ft.READS[pair.world], seam=pair.seam)
+        return ft.reads(s, who, ft.READS[pair.world], seam=pair.seam, apart=pair.apart)
 
     compare("wake 0", read)
     for n in range(pair.wakes):

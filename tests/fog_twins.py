@@ -304,11 +304,14 @@ SALT_READS = (
 READS = {"toy": TOY_READS, "salt": SALT_READS}
 
 
-def reads(s: Side, who: str, probes: tuple[Probe, ...], seam: bool = False) -> dict[str, bytes]:
+def reads(
+    s: Side, who: str, probes: tuple[Probe, ...], seam: bool = False, apart: bool = False
+) -> dict[str, bytes]:
     """Every read ``who`` can make: the snapshot (every sheet's data is in it), each
     page it holds, the map, catch-up, the opening's list of people, the check and the
-    odds, and the wake notice. With ``seam``, also the catch-up seam itself and the
-    seat's own record of its asks."""
+    odds, the wake notice, the seat's view and the prompt a model is sent. With ``seam``,
+    also the catch-up seam itself and the seat's own record of its asks. With ``apart``,
+    the view and the prompt leave out who is seated (``_unseated``)."""
     out = {"me": _call(lambda: s.me(who)), "opening": opening(s, who)}
     me = json.loads(out["me"])
     realism = ((me.get("game") or {}).get("view") or {}).get("realism") or {}
@@ -329,9 +332,24 @@ def reads(s: Side, who: str, probes: tuple[Probe, ...], seam: bool = False) -> d
         out["seam"] = _bytes(s.run(partial(_fed, s.seat(who))))
         asked = project(state, s.seat(who)).asked.values()
         out["asked"] = _bytes(sorted((a.model_dump(mode="json") for a in asked), key=str))
-    out["view"] = project(state, s.seat(who)).model_dump_json().encode()
+    view = project(state, s.seat(who))
+    out["view"] = view.model_dump_json().encode()
     out["prompt"] = advice_prompt(s, who)
+    if apart:
+        out["view"], out["prompt"] = _unseated(view, out["view"], out["prompt"])
     return out
+
+
+def _unseated(view: Any, raw: bytes, prompt: bytes) -> tuple[bytes, bytes]:
+    """``raw`` (the view) and ``prompt`` with the roster's claims and the seat faces left
+    out: they tell any person a seat holds from one the code runs, the "person or code"
+    pair's finding, so a pair whose games seat different people reads past them."""
+    shown = json.loads(raw)
+    shown["roster"] = {k: {**c, "claimed_by": None} for k, c in shown["roster"].items()}
+    shown["seats"] = {}
+    faces = view.model_dump_json(include={"seats"}, exclude_none=True)[1:-1].encode()
+    assert faces in prompt, "the prompt no longer carries the seat faces as the view dumps them"
+    return _bytes(shown), prompt.replace(faces, b'"seats":{}')
 
 
 class _Asked:
@@ -440,6 +458,9 @@ class Pair:
     wakes: int = 1
     seam: bool = False
     """Also compare the catch-up seam and the seat's record of its asks (``reads``)."""
+    apart: bool = False
+    """The two games seat different people: the view and the prompt are read without who
+    is seated (``reads``), which the "person or code" pair holds as its own finding."""
 
     @property
     def id(self) -> str:
@@ -793,6 +814,7 @@ PAIRS: tuple[Pair, ...] = (
         host="olaf",
         wakes=2,
         seam=True,
+        apart=True,
     ),
     Pair("hidden law", "toy", ("kara", "tomas"), change=toy_law),
     Pair(

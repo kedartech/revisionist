@@ -10,7 +10,9 @@
 # are run by code from their cards. Every rule the 1941 world has is on (SSG), with yields,
 # a trade line, groups at home, intelligence, a pact, a conference, a contest and aims of
 # its own; and the commander's seat, locks, laws, deciders by kind of question, answers to
-# asks and the player's own aim (SSO). The three rules read by a live model (`writing`,
+# asks and the player's own aim (SSO); and prices on the Salt Assembly's blocs, classes for
+# happenings with one secret, the size of losses, and one weighted place a nation (SSH).
+# The three rules read by a live model (`writing`,
 # `clause_reader`, `written_orders`) stay off, as in every shipped world.
 # `worlds/salt-strait.yaml` and `worlds/salt-strait-duo.yaml` are separate worlds and are
 # not read here. Every name and number is invented. [proposed]
@@ -21,7 +23,7 @@ ruleset: realism
 start: "The Salt Strait, spring 1900"
 start_date: 1900-04-02
 
-rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, laws, ask_answers, deciders, own_aim]
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, laws, ask_answers, deciders, own_aim, offers, classes, losses, places]
 
 entities:
   # polities
@@ -198,7 +200,7 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, standing: 1}
-        moved_by: {battle_won: 2, battle_lost: -2, territory_lost: -3, capital_threatened: -3}
+        moved_by: {battle_won: 2, battle_lost: -2, territory_lost: -3, capital_threatened: -3, battle_losses: -1}
       # The Salt Assembly's two blocs, which pass Varda's laws (SSO). [proposed]
       - key: free_traders
         name: The Free Traders
@@ -210,6 +212,15 @@ groups:
         feeds: {votes: 1}
         vote_default: {salt_assembly: {voting: 50, yeas: 25}}
         stances: {power: 1, money: -1}
+        # What the bloc asks for its votes, read with `offers` on (SSH): each met by an act
+        # of the First Minister's within the days after the measure passes. [proposed]
+        prices:
+          - key: open_strait_word
+            sentence: "The First Minister speaks for the open strait within fourteen days of the act."
+            condition: {check: ordered, person: oren_vale, effect: statement}
+            days: 14
+            points: 3
+            loss: 4
       - key: old_families
         name: The Old Families
         kind: party
@@ -219,6 +230,13 @@ groups:
         seats: 40
         feeds: {votes: 1}
         stances: {limit: 2}
+        prices:
+          - key: galleys_home
+            sentence: "The First Minister sends the Varda Galleys to a port within ten days of the act."
+            condition: {check: ordered, person: oren_vale, effect: move_force}
+            days: 10
+            points: 2
+            loss: 5
     themes:
       - {key: the_open_strait, name: The open strait, moves: {salt_guilds: 2, downs_yeomanry: 1}}
       - {key: the_pass_held, name: Harrow Pass held, moves: {downs_yeomanry: 2, salt_guilds: -1}}
@@ -230,14 +248,14 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, standing: 2}
-        moved_by: {battle_won: 3, battle_lost: -3, territory_taken: 2, territory_lost: -2}
+        moved_by: {battle_won: 3, battle_lost: -3, territory_taken: 2, territory_lost: -2, battle_losses: -1}
       - key: kael_burghers
         name: The Kael burghers
         kind: townsmen
         start: 45
         baseline: 45
         feeds: {output: 1}
-        moved_by: {losses_at_sea: -2, war_declared: -2, agreement_broken: -1}
+        moved_by: {losses_at_sea: -2, war_declared: -2, agreement_broken: -1, battle_losses: -1}
     themes:
       - {key: the_march_south, name: The march south, moves: {marshals_staff: 2, kael_burghers: -1}}
       - {key: fodder_and_bread, name: Fodder and bread, moves: {kael_burghers: 2}}
@@ -256,7 +274,7 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, output: 1}
-        moved_by: {territory_lost: -2, battle_lost: -1}
+        moved_by: {territory_lost: -2, battle_lost: -1, battle_losses: -1}
     themes:
       - {key: the_pulpit_speaks, name: The pulpit speaks, moves: {temple_orders: 2, lowland_tithers: 1}}
   - nation: lune
@@ -267,7 +285,7 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, standing: 1}
-        moved_by: {battle_won: 2, battle_lost: -3, losses_at_sea: -2}
+        moved_by: {battle_won: 2, battle_lost: -3, losses_at_sea: -2, battle_losses: -1}
       - key: harbour_factors
         name: The harbour factors
         kind: traders
@@ -277,6 +295,25 @@ groups:
         moved_by: {losses_at_sea: -3, agreement_broken: -2}
     themes:
       - {key: free_waters, name: Free waters, moves: {isle_captains: 1, harbour_factors: 2}}
+
+# How each kind of happening reaches the groups, read with `classes` on (SSH): felt,
+# reported or secret; a kind not listed is reported. A broken agreement between courts is
+# kept from the street, so it moves no group. [proposed]
+happenings:
+  - {kind: capital_threatened, reach: felt}
+  - {kind: war_declared, reach: felt}
+  - {kind: battle_lost, reach: reported, felt: 0.4}
+  - {kind: battle_losses, reach: reported, felt: 0.5}
+  - {kind: agreement_broken, reach: secret}
+
+# One place per nation with political weight, read with `places` on (SSH): the territory,
+# the nation it matters to, and the points each of that nation's groups moves when it is
+# lost after a fight. Abandoning it costs twice that; retaking it moves them back. [proposed]
+places:
+  - {territory: varda_saltworks, nation: varda, moves: {salt_guilds: -4, free_traders: -2}}
+  - {territory: harrow_pass, nation: ostrel, moves: {marshals_staff: -4, kael_burghers: -1}}
+  - {territory: kesh_lowlands, nation: kesh, moves: {temple_orders: -5, lowland_tithers: -2}}
+  - {territory: lune_isles, nation: lune, moves: {isle_captains: -4, harbour_factors: -3}}
 
 # The figures the rules write or read (SSO): the Salt Convoy Act's vote and its passing,
 # and Ostrel's war chest, a figure of Ostrel's own. [proposed]

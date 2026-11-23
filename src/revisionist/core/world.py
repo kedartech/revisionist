@@ -1053,6 +1053,9 @@ class CardDecl(Model):
     post_kind: SkipJsonSchema[Key | None] = None
     """The kind of post the card holds, matched against an aim pattern's ``posts`` with
     ``own_aim`` on (OWC). Written by hand: not offered to a model."""
+    post: SkipJsonSchema[Key | None] = None
+    """The office asset the person holds, read with ``posts`` on (PPP): the part of the
+    card that goes with the office moves with it. Written by hand: not offered to a model."""
 
 
 class TopicDecl(Model):

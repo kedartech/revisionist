@@ -58,6 +58,7 @@ from revisionist.engine.web.realism_api import (
     OfferPrice,
     OfferPromise,
     OpenMeasure,
+    StandingVote,
 )
 
 Band = Literal["collapsing", "shaken", "steady", "firm", "united"]
@@ -264,16 +265,19 @@ def open_measures(state: State, view: View, own: EntityId) -> list[tuple[Order, 
     return out
 
 
-def _chambers(state: State, view: View, own: EntityId, then: Counts) -> list[FloorChamber]:
-    blocs = [g for g in groups.of(view, own) if g.chamber is not None and g.seats is not None]
-    chambers = list(dict.fromkeys(str(g.chamber) for g in blocs))
-    measures: dict[str, list[OpenMeasure]] = {key: [] for key in chambers}
-    for order, key, title in open_measures(state, view, own):
-        counted: dict[str, list[FloorVote]] = {}
-        for chamber, vote, parts in votes.floor_counts(state, own, order, key, order.measure):
-            yeas, nays = sum(y for _, y, _ in parts), sum(n for _, _, n in parts)
-            whole, by_bloc = then.get((order.order_id, vote), (None, {}))
-            counted.setdefault(chamber, []).append(
+def _floor_votes(
+    state: State, own: EntityId, order: Order, key: str, then: Counts | None = None
+) -> list[tuple[str, FloorVote]]:
+    """Each (chamber, vote) ``own``'s blocs cast on measure ``key`` for ``order``, counted
+    by bloc as the votes rule would tally it on ``state`` (``votes.floor_counts``), each
+    beside its count in ``then`` (``_then``) where it has one."""
+    out: list[tuple[str, FloorVote]] = []
+    for chamber, vote, parts in votes.floor_counts(state, own, order, key, order.measure):
+        yeas, nays = sum(y for _, y, _ in parts), sum(n for _, _, n in parts)
+        whole, by_bloc = (then or {}).get((order.order_id, vote), (None, {}))
+        out.append(
+            (
+                chamber,
                 FloorVote(
                     vote=vote,
                     yeas=yeas,
@@ -290,8 +294,20 @@ def _chambers(state: State, view: View, own: EntityId, then: Counts) -> list[Flo
                     ],
                     carries=carries(yeas + nays),
                     then=whole,
-                )
+                ),
             )
+        )
+    return out
+
+
+def _chambers(state: State, view: View, own: EntityId, then: Counts) -> list[FloorChamber]:
+    blocs = [g for g in groups.of(view, own) if g.chamber is not None and g.seats is not None]
+    chambers = list(dict.fromkeys(str(g.chamber) for g in blocs))
+    measures: dict[str, list[OpenMeasure]] = {key: [] for key in chambers}
+    for order, key, title in open_measures(state, view, own):
+        counted: dict[str, list[FloorVote]] = {}
+        for chamber, vote in _floor_votes(state, own, order, key, then):
+            counted.setdefault(chamber, []).append(vote)
         for chamber, found in counted.items():
             measures[chamber].append(
                 OpenMeasure(order_id=order.order_id, key=key, title=title, votes=found)
@@ -420,6 +436,28 @@ def offer_label(state: State, seat: SeatId, bloc: str, measure: str, key: str) -
     made = offers.offer(state, seat, bloc, measure, key, today).offer
     name, sentence = _told(state, made.nation, bloc, key)
     return OFFER_HELD.format(bloc=name, sentence=sentence)
+
+
+def would_stand(
+    state: State, seat: SeatId, bloc: str, measure: str, key: str
+) -> list[StandingVote]:
+    """Each vote of ``measure``'s bill counted as it would stand with the seat's offer of
+    price ``key`` to ``bloc`` landed: the floor count (``votes.floor_counts``) on the game
+    with that offer taken today, so the points are the rule's and never a sum of the
+    client's. Raises ``offers.OffersError`` as filing the offer would."""
+    today = state.in_world_date
+    if today is None:
+        raise offers.OffersError(offers.NOT_ON)
+    made = offers.offer(state, seat, bloc, measure, key, today).offer
+    order = offers.bill(state, measure)
+    if order is None:
+        raise offers.OffersError(offers.NO_BILL)
+    taken = made.model_copy(update={"standing": offers.OfferStanding.TAKEN, "on": today})
+    landed = state.model_copy(update={"offers": (*state.offers, taken)})
+    return [
+        StandingVote(chamber=chamber, **vote)
+        for chamber, vote in _floor_votes(landed, made.nation, order, measure)
+    ]
 
 
 def block(

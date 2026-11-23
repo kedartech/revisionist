@@ -206,6 +206,11 @@ def test_a_seat_of_another_nation_gets_no_price_list_offer_or_promise(tmp_path: 
 # --- rule 4: the check before sending equals what filing then does ------------------------
 
 
+def _verdict(checked: api.LockCheck) -> api.LockCheck:
+    """The check's answer without the count as it would stand: what filing is compared on."""
+    return api.LockCheck(check=checked["check"], who=checked["who"], reason=checked["reason"])
+
+
 def _store(g: Game) -> MemoryStore:
     store = MemoryStore()
     store.append_all(g.log)
@@ -238,7 +243,7 @@ def test_the_check_equals_what_filing_then_does(
     g = game(tmp_path)
     bill(g)
     checked = locks_api.check_offer(g.state, seat(person), bloc, measure, key)
-    assert checked == _filed(g, person, bloc, measure, key)
+    assert _verdict(checked) == _filed(g, person, bloc, measure, key)
     assert (checked["check"], checked["reason"]) == ("beyond" if reason else "allowed", reason)
 
 
@@ -268,8 +273,50 @@ def test_the_check_files_nothing(tmp_path: Path) -> None:
     g = game(tmp_path)
     bill(g)
     before = list(g.log)
-    assert locks_api.check_offer(g.state, seat(ILSE), "greens", MEASURE, DUES) == locks_api.ALLOWED
+    checked = locks_api.check_offer(g.state, seat(ILSE), "greens", MEASURE, DUES)
+    assert _verdict(checked) == locks_api.ALLOWED
     assert g.log == before and g.state.offers == ()
+
+
+# --- the count as it would stand (PRB rule 2): the rule's count with the offer landed -----
+
+
+def _stood(checked: api.LockCheck) -> list[tuple[str, str, int, int, int]]:
+    assert checked["check"] == "allowed", checked
+    found = api.OfferCheck(**checked)  # type: ignore[typeddict-item]
+    return [
+        (v["chamber"], b["group"], b["yeas"], b["nays"], v["carries"])
+        for v in found["stands"]
+        for b in v["blocs"]
+    ]
+
+
+def test_an_allowed_check_carries_the_count_as_it_would_stand(tmp_path: Path) -> None:
+    g = game(tmp_path)
+    bill(g)
+    dues = locks_api.check_offer(g.state, seat(ILSE), "greens", MEASURE, DUES)
+    guild = locks_api.check_offer(g.state, seat(KARA), "greens", MEASURE, GUILD)
+    today = _greens(g)
+    assert _stood(dues) == [("assembly", "greens", 26, 24, 26)]  # 2 points on 50 voting
+    assert _stood(guild)[0][2] >= 26 > today[0]  # 3 points: never fewer yeas than 2
+    assert _greens(g) == today and g.state.offers == ()
+
+
+def test_the_count_as_it_would_stand_is_the_floor_once_the_offer_lands(tmp_path: Path) -> None:
+    g = game(tmp_path)
+    bill(g)
+    stood = _stood(locks_api.check_offer(g.state, seat(ILSE), "greens", MEASURE, DUES))
+    offer(g, ILSE)
+    g.walk(day(1), day(1))
+    assert [(c, grp, y, n) for c, grp, y, n, _ in stood] == [("assembly", "greens", *_greens(g))]
+
+
+def test_a_refused_check_carries_no_count(tmp_path: Path) -> None:
+    g = game(tmp_path)
+    bill(g)
+    for person, bloc, key in ((TOMAS, "greens", DUES), (ILSE, "greens", "a_bridge")):
+        checked = locks_api.check_offer(g.state, seat(person), bloc, MEASURE, key)
+        assert "stands" not in checked and checked["check"] == "beyond"
 
 
 # --- rule 3: the action files one, held by a commit like any order ------------------------
@@ -319,7 +366,7 @@ def test_the_server_answers_the_check_and_the_offer_and_holds_it_after_a_commit(
     assert status == 200 and not out["refused"], out
     draft = {"bloc": "greens", "measure": MEASURE, "price": DUES}
     status, out = post(ilse, "check", **draft)
-    assert status == 200 and out == locks_api.ALLOWED, out
+    assert status == 200 and _verdict(out) == locks_api.ALLOWED and out["stands"], out
     assert realism_of(ilse)["home"]["promises"] == []  # the check filed nothing
     status, out = post(ilse, "offer", **draft)
     assert status == 200 and not out["refused"], out

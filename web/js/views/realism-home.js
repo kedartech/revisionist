@@ -347,6 +347,23 @@ export function floorMeasures(home) {
   return out;
 }
 
+/** The standings of an offer that make it a promise the seat has made: taken, then due, then judged. */
+const PROMISED = new Set(['taken', 'due', 'kept', 'broken']);
+
+/** The promises the seat's nation has made, as its own home block sends them; none for any other nation's block. */
+export function promisesMade(home) {
+  if (home?.nation?.relation !== 'own') return [];
+  return (home.promises ?? []).filter((p) => PROMISED.has(p.standing));
+}
+
+/** Where promise `p` stands, in words `[proposed]`. */
+export function promiseWords(p) {
+  if (p.standing === 'kept') return `Kept${p.due ? `, due ${worldDate(p.due)}` : ''}`;
+  if (p.standing === 'broken') return `Broken${p.due ? `, due ${worldDate(p.due)}` : ''}`;
+  if (p.standing === 'due') return p.due ? `Due ${worldDate(p.due)}` : 'Due';
+  return 'Taken: owed once it passes';
+}
+
 /** A nation's band from the home block's standings, by its key; undefined when the block has none for it. */
 export function bandOf(standings, key) {
   return (standings ?? []).find((s) => s.nation.key === key)?.band;

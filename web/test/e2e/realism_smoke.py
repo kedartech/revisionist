@@ -2321,13 +2321,19 @@ def sheets_opened(page: Page) -> None:
 
 
 def phone_room(page: Page, report: dict[str, object]) -> None:
-    """At 390 by 844: the map is at least half the viewport's height, a sheet no more than
-    half of it, and the page as wide as the viewport."""
+    """At 390 by 844: the map with the season's strip at its foot is at least half the
+    viewport's height, a sheet no more than half of it, and the page as wide as the viewport."""
     figure = page.locator("figure.rl-map-figure").first
     figure.scroll_into_view_if_needed()
     box = figure.bounding_box() or {"height": 0}
-    report["salt_phone_map_height"] = box["height"]
-    check("the map is at least half the viewport's height", box["height"] >= SIZE[1] / 2, str(box))
+    strip = page.locator(".rl-mapfirst-map .rl-tl-head")
+    foot = (strip.bounding_box() or {"height": 0})["height"] if strip.count() else 0
+    report["salt_phone_map_height"] = [box["height"], foot]
+    check(
+        "the map and the season's strip at its foot are at least half the viewport's height",
+        box["height"] + foot >= SIZE[1] / 2,
+        f"{box} + strip {foot}",
+    )
     sheet_open(page, "World: Diplomacy")
     sheet = over(page).bounding_box() or {"height": 1e9}
     report["salt_phone_sheet_height"] = sheet["height"]

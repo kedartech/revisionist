@@ -32,6 +32,7 @@ from revisionist.engine.web.realism_api import (
     HeldLine,
     LockCheck,
     LocksBlock,
+    OfferCheck,
 )
 
 ASK_DUE = "when you choose"  # [proposed]
@@ -170,16 +171,19 @@ def check_asks(state: State, seat: SeatId, asks: Sequence[Ask]) -> LockCheck:
 
 def check_offer(state: State, seat: SeatId, bloc: str, measure: str, key: str) -> LockCheck:
     """What filing the seat's draft offer of price ``key`` to ``bloc`` for ``measure``
-    would do now (PRR rule 4): allowed, or refused in the words filing gives. No lock
-    holds an offer. Logs nothing."""
+    would do now (PRR rule 4): allowed, with each vote of the measure counted as it would
+    stand with the offer landed (PRB rule 2), or refused in the words filing gives. No
+    lock holds an offer. Logs nothing."""
     today = state.in_world_date
     if today is None:
         return _beyond(offers.NOT_ON)
+    from revisionist.engine.web import home_api
+
     try:
-        offers.offer(state, seat, bloc, measure, key, today)
+        stands = home_api.would_stand(state, seat, bloc, measure, key)
     except offers.OffersError as exc:
         return _beyond(str(exc))
-    return ALLOWED
+    return OfferCheck(**ALLOWED, stands=stands)
 
 
 def ask_label(state: State, seat: SeatId, order_id: str) -> str:

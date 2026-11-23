@@ -40,7 +40,17 @@ THIRD_RUN = (
     "playable_rule",
 )
 READ = frozenset(
-    {"laws", "own_aim", "ask_answers", "deciders", "offers", "classes", "losses", "places"}
+    {
+        "laws",
+        "own_aim",
+        "ask_answers",
+        "deciders",
+        "offers",
+        "classes",
+        "losses",
+        "places",
+        "posts",
+    }
 )
 """The names whose reader has been built: a world that names one is no longer as with it off."""
 UNREAD = tuple(n for n in THIRD_RUN if n not in READ)

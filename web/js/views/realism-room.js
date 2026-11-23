@@ -1504,6 +1504,11 @@ export function realismRoom(ctx) {
     conference: () => toggleOver('diplomacy', { group: 'world' }),
     speak,
     full: (on) => { setFull(on); root.querySelector('.rl-cap button.rl-cap-full')?.focus(); },
+    offerCheck: (body) => api.realism('check', body),
+    offer: (body) => work('Making the offer…', async () => {
+      const r = await api.realism('offer', body);
+      ui.said = r.reply || null;
+    }),
   });
 
   /** The season's strip opens or closes, with the focus kept on its head. */

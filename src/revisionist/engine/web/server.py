@@ -81,6 +81,7 @@ from revisionist.engine.web import (
     snapshot,
     stakes,
     wake_api,
+    worker,
 )
 from revisionist.engine.web import (
     held as held_orders,
@@ -1685,6 +1686,8 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     raise ApiError(HTTPStatus.NOT_FOUND, "Not found.")
                 target = app.static / "index.html"
             data = target.read_bytes()
+            if path == "/sw.js":
+                data = worker.script(app.static, data)
             kind = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
             if kind.startswith("text/") or kind in ("application/javascript",):
                 kind += "; charset=utf-8"

@@ -325,7 +325,7 @@ const withEden = (channels = ['Letter'], keys = ['letter']) => seat((r) => {
 function edenCard(root) {
   groupTab(root, 'people').click();
   over(root).querySelectorAll('.rl-people .seg button').find((b) => words(b).startsWith('Your people')).click();
-  over(root).querySelectorAll('.rl-pp-row').find((b) => words(b).startsWith('Anthony Eden')).click();
+  over(root).querySelectorAll('.rl-pp-row').find((b) => words(b.querySelector('.rl-pp-name')) === 'Anthony Eden').click();
   return root.querySelector('dialog.rl-fc');
 }
 

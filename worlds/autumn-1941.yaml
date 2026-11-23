@@ -857,6 +857,10 @@ groups:
       - {key: an_appeal_to_america, name: an appeal to America, moves: {public: 1, press: 1}}
       - {key: malta_will_strike_the_libya_convoys, name: Malta will strike the Libya convoys, moves: {commons: 1, public: 1}}
       - {key: a_warning_to_japan_over_malaya, name: a warning to Japan over Malaya, moves: {dominions: 2, commons: 1}}
+      # The broadcast form's audiences, each a theme of its own. [proposed]
+      - {key: britain, name: a broadcast to Britain, moves: {public: 1, commons: 1}}
+      - {key: america, name: a broadcast to America, moves: {press: 1, dominions: 1}}
+      - {key: occupied_europe, name: a broadcast to occupied Europe, moves: {public: 1}}
   - nation: ussr
     groups:
       - key: party  # gap: true
@@ -971,6 +975,9 @@ groups:
       - {key: the_army_will_not_leave_china, name: the Army will not leave China, moves: {army: 2, court: -1}}
       - {key: the_deadline_for_the_talks_stands, name: the deadline for the talks stands, moves: {army: 1, navy: 1}}
       - {key: chungkings_appeals_abroad_will_not_save_it, name: "Chungking's appeals abroad will not save it", moves: {army: 1, public: 1}}
+      # The cabinet statement form's lines, each a theme of its own; saying nothing moves nobody. [proposed]
+      - {key: conciliatory, name: a conciliatory line, moves: {court: 1, army: -1}}
+      - {key: firm, name: a firm line, moves: {army: 1, court: -1}}
   - nation: italy
     groups:
       - key: fascist_party  # gap: true
@@ -1051,6 +1058,9 @@ groups:
     themes:
       - {key: china_will_not_be_sold_to_japan, name: China will not be sold to Japan, moves: {kuomintang: 1, communists: 1, public: 2}}
       - {key: no_peace_while_japan_holds_china, name: no peace while Japan holds China, moves: {central_army: 1, public: 1}}
+      # The appeal form's audiences, each a theme of its own. [proposed]
+      - {key: america, name: an appeal to America, moves: {kuomintang: 1, public: 1}}
+      - {key: britain, name: an appeal to Britain, moves: {kuomintang: 1}}
 
 # The wars in force on 1 September 1941. `a` began each.
 wars:

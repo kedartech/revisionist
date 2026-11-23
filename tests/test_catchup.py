@@ -113,6 +113,12 @@ def test_the_worlds_laws_are_fed_to_every_seat() -> None:
     assert "laws_declared" in catchup.FEED_KINDS
 
 
+def test_the_worlds_aim_patterns_and_a_seats_own_aim_are_fed() -> None:
+    # The aim patterns are public rules of the world; a player's own aim is sealed to the
+    # seat holding the person and kept only while that seat's view holds it (OWC).
+    assert {"aim_patterns_declared", "own_aim_set"} <= catchup.FEED_KINDS
+
+
 def test_a_pieces_steps_are_fed_and_feature_set_never_is() -> None:
     # Playback's source for a seat's own pieces: each step, sealed to the seats of the
     # piece's nation. The raw feature is never fed.

@@ -140,6 +140,7 @@ GREEN = {
     "node": "success",
     "pytest": "success",
     "browser": "success",
+    "audit": "success",
 }
 
 
@@ -164,6 +165,10 @@ GREEN = {
         (GREEN | {"browser": "failure", "python": "true", "web": "true"}, False),
         (GREEN | {"browser": "failure", "python": "true", "web": "false"}, False),
         (GREEN | {"browser": "cancelled", "python": "true", "web": "true"}, False),
+        (GREEN | {"audit": "failure", "python": "true", "web": "true"}, False),
+        (GREEN | {"audit": "skipped", "python": "false", "web": "false"}, False),
+        (GREEN | {"audit": "cancelled", "python": "true", "web": "true"}, False),
+        (GREEN | {"audit": "", "python": "true", "web": "true"}, False),
         (GREEN | {"browser": "", "python": "true", "web": "true"}, False),
         (
             {k: v for k, v in GREEN.items() if k != "browser"} | {"python": "true", "web": "true"},
@@ -189,6 +194,10 @@ GREEN = {
         "browser-failed",
         "browser-failed-no-web-change",
         "browser-cancelled",
+        "audit-failed",
+        "audit-skipped",
+        "audit-cancelled",
+        "audit-blank",
         "browser-blank",
         "browser-missing",
     ],
@@ -214,6 +223,11 @@ def test_gate_reads_the_environment_and_fails_with_reasons(
     monkeypatch.delenv("RESULT_BROWSER")
     assert m.main(["gate"]) == 1
     assert "not green: browser: missing" in capsys.readouterr().err
+    monkeypatch.setenv("RESULT_BROWSER", "success")
+    monkeypatch.setenv("RESULT_AUDIT", "failure")
+    assert m.main(["gate"]) == 1
+    assert "not green: audit: failure" in capsys.readouterr().err
+    monkeypatch.setenv("RESULT_AUDIT", "success")
     monkeypatch.setenv("RESULT_BROWSER", "skipped")
     monkeypatch.setenv("RESULT_WEB", "false")
     assert m.main(["gate"]) == 0
@@ -250,10 +264,10 @@ def test_the_browser_job_runs_the_canned_server_and_both_smoke_passes() -> None:
     assert "postgres" in job["services"]
     text = steps_text("browser")
     assert "web/test/e2e/serve_canned.py" in text
-    smokes = [ln for ln in text.splitlines() if "web/test/e2e/realism_smoke.py" in ln]
-    assert len(smokes) == 2
-    assert sum(ln.rstrip().endswith(" phone") for ln in smokes) == 1
-    assert all("playwright==1.49.*" in ln for ln in smokes)
+    runs = [s for s in job["steps"] if "_smoke.py" in str(s.get("run", ""))]
+    assert len(runs) == 2
+    assert sum(s["run"].rstrip().endswith(" phone") or "phone\n" in s["run"] for s in runs) == 1
+    assert all("playwright==1.49.*" in s["run"] for s in runs)
     assert "model" not in text.lower().replace("canned", "")
     uploads = [s for s in job["steps"] if "upload-artifact" in str(s.get("uses", ""))]
     assert uploads
@@ -267,3 +281,63 @@ def test_no_job_env_reads_a_context_the_runner_has_not_made_yet() -> None:
         for key, value in job.get("env", {}).items():
             assert "runner." not in str(value), f"{name}.env.{key}"
             assert "steps." not in str(value), f"{name}.env.{key}"
+
+
+def step(job: str, needle: str) -> dict[str, Any]:
+    found = [s for s in jobs()[job]["steps"] if needle in str(s.get("run", ""))]
+    assert len(found) == 1, (job, needle, found)
+    hit: dict[str, Any] = found[0]
+    return hit
+
+
+def test_gates_waits_for_the_audit_job_and_reads_its_result() -> None:
+    gates = jobs()["gates"]
+    assert "audit" in gates["needs"]
+    env = {k: v for s in gates["steps"] for k, v in s.get("env", {}).items()}
+    assert env["RESULT_AUDIT"] == "${{ needs.audit.result }}"
+
+
+def test_the_audit_job_fails_on_a_runtime_dependency() -> None:
+    assert "if" not in jobs()["audit"]
+    assert "uv export --frozen --no-dev" in steps_text("audit")
+    py = step("audit", "pip-audit --requirement runtime-requirements.txt")
+    assert "continue-on-error" not in py
+    assert "--no-deps" in py["run"] and "--disable-pip" in py["run"]
+    node = step("audit", "npm audit --omit=dev")
+    assert node["working-directory"] == "web"
+    assert "continue-on-error" not in node
+    assert "--package-lock-only" in steps_text("audit")
+
+
+def test_the_audit_job_reports_a_development_dependency_without_failing() -> None:
+    assert "uv export --frozen --only-dev" in steps_text("audit")
+    py = step("audit", "pip-audit --requirement dev-requirements.txt")
+    node = step("audit", "npm audit --include=dev")
+    assert py["continue-on-error"] is True
+    assert node["continue-on-error"] is True
+
+
+def test_the_audit_tool_is_not_a_project_dependency() -> None:
+    assert "--with pip-audit" in steps_text("audit")
+    assert "pip-audit" not in (ROOT / "pyproject.toml").read_text()
+    assert "pip-audit" not in (ROOT / "uv.lock").read_text()
+
+
+def test_dependabot_asks_weekly_for_the_lock_the_package_and_the_actions() -> None:
+    config = yaml.safe_load((ROOT / ".github" / "dependabot.yml").read_text())
+    assert config["version"] == 2
+    seen = {(u["package-ecosystem"], u["directory"]) for u in config["updates"]}
+    assert seen == {("uv", "/"), ("npm", "/web"), ("github-actions", "/")}
+    assert all(u["schedule"]["interval"] == "weekly" for u in config["updates"])
+
+
+def test_the_browser_job_runs_every_smoke_script_it_finds() -> None:
+    assert "web/test/e2e/realism_smoke.py" not in steps_text("browser")
+    assert sorted((ROOT / "web" / "test" / "e2e").glob("*_smoke.py"))
+    runs = [s for s in jobs()["browser"]["steps"] if "_smoke.py" in str(s.get("run", ""))]
+    assert [s["name"] for s in runs] == ["Smoke at desktop width", "Smoke at 390 by 844"]
+    tails = ('new "$SMOKE_OUT/desktop/$name"', 'new "$SMOKE_OUT/phone/$name" phone')
+    for s, tail in zip(runs, tails, strict=True):
+        assert "for smoke in web/test/e2e/*_smoke.py" in s["run"]
+        assert "playwright==1.49.*" in s["run"]
+        assert tail in s["run"]

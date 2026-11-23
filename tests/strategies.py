@@ -1368,6 +1368,14 @@ realism_payloads = st.one_of(
     ),
     st.builds(ev.OfferMade, offer=priced_offers),
     offer_settlements(),
+    st.builds(
+        ev.PostChanged,
+        post=asset_ids,
+        holder=entity_ids,
+        to=st.none(),
+        on=in_world_dates,
+        cause=st.sampled_from(list(rc.PostCause)),
+    ),
     st.builds(ev.AgreementOffered, offer=agreement_offers()),
     st.builds(ev.AgreementMade, agreement=agreements()),
     st.builds(

@@ -49,6 +49,9 @@ FIGURES = tuple(
 )
 """Everyone weighed when Churchill is played: the world's cards with an office to act from, the
 heads and the commanders the world gives a force."""
+OPPONENTS = ("hitler", "mussolini", "doenitz")
+"""Churchill's active opponents at the start: the heads of the two nations at war with Britain,
+and the U-boat arm's commander, who holds a force against it."""
 
 
 def begun(who: str = "churchill") -> tuple[EventStore, SeatId, dict[str, EntityId]]:
@@ -203,7 +206,7 @@ def test_the_first_settling_gives_every_figure_a_stance_and_a_later_one_only_cha
     assert {p.figure for p in changed} == {keys[k] for k in FIGURES}
     assert all(p.standing.cause is StanceCause.START and p.standing.on == day for p in changed)
     (ranked,) = [p for p in first if isinstance(p, ev.OpponentsRanked)]
-    assert set(ranked.active) == {keys["hitler"], keys["mussolini"]}
+    assert set(ranked.active) == {keys[k] for k in OPPONENTS}
     after = settled(state, day)
     assert now(after, seat, keys["stalin"]) is Stance.COOPERATIVE
     assert now(after, seat, keys["konoe"]) is Stance.NEUTRAL
@@ -307,7 +310,7 @@ def test_the_fold_refuses_a_stance_that_is_no_change() -> None:
 def test_the_stances_are_worked_out_at_the_begin_and_kept_through_a_tick() -> None:
     store, seat, keys = begun()
     state = load_state(store, CAMPAIGN)
-    assert set(state.opponents[seat]) == {keys["hitler"], keys["mussolini"]}
+    assert set(state.opponents[seat]) == {keys[k] for k in OPPONENTS}
     assert now(state, seat, keys["roosevelt"]) is Stance.COOPERATIVE
     before = len(list(store.read(CAMPAIGN)))
     realism_tick.run_realism_tick(store, CAMPAIGN, prose=TemplateProseWriter())
@@ -326,7 +329,10 @@ def test_a_change_of_regard_between_wakes_is_settled_in_the_next_tick() -> None:
     realism_tick.run_realism_tick(store, CAMPAIGN, prose=TemplateProseWriter())
     after = load_state(store, CAMPAIGN)
     assert now(after, seat, keys["stalin"]) is Stance.OBSTRUCTING
-    assert after.opponents[seat][-1] == keys["stalin"] and len(after.opponents[seat]) == 3
+    assert (
+        after.opponents[seat][-1] == keys["stalin"]
+        and len(after.opponents[seat]) == len(OPPONENTS) + 1
+    )
 
 
 def test_no_regard_lifts_a_person_with_an_irreducible_conflict_above_obstructing() -> None:
@@ -388,7 +394,7 @@ def test_the_seat_is_shown_its_opponents_as_they_stood_at_the_start() -> None:
     store, seat, keys = begun()
     state = load_state(store, CAMPAIGN)
     got = shown(state, seat)
-    assert list(got) == ["Adolf Hitler", "Benito Mussolini"]
+    assert list(got) == ["Adolf Hitler", "Benito Mussolini", "Karl Dönitz"]
     hitler = got["Adolf Hitler"]
     assert hitler == {
         "person": keys["hitler"],

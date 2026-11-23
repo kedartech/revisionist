@@ -52,7 +52,7 @@ heads and the commanders the world gives a force."""
 OPPONENTS = ("hitler", "mussolini", "doenitz", "iachino")
 """Churchill's active opponents at the start: the heads of the two nations at war with Britain,
 and the U-boat arm's and the Italian Battle Fleet's commanders, who hold forces against it.
-They fill ``opponents.CAP``, so a test that has a fifth join raises the cap first."""
+They fill ``opponents.CAP``, so a test that has another join warms one of them first."""
 
 
 def begun(who: str = "churchill") -> tuple[EventStore, SeatId, dict[str, EntityId]]:
@@ -320,23 +320,24 @@ def test_the_stances_are_worked_out_at_the_begin_and_kept_through_a_tick() -> No
     assert load_state(store, CAMPAIGN).opponents == state.opponents
 
 
-def test_a_change_of_regard_between_wakes_is_settled_in_the_next_tick(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_a_change_of_regard_between_wakes_is_settled_in_the_next_tick() -> None:
     store, seat, keys = begun()
-    monkeypatch.setattr(opponents, "CAP", len(OPPONENTS) + 1)
     state = load_state(store, CAMPAIGN)
-    soured = regard(state, keys["stalin"], keys["churchill"], -4, seat)
-    rel = next(iter(soured.relationships.values()))
+    warmed = regard(state, keys["iachino"], keys["churchill"], 5, seat)  # makes room
+    soured = regard(warmed, keys["stalin"], keys["churchill"], -4, seat)
     em = Emitter(store, state, cmp.versions())
-    em.commit([em.event(ev.RelationshipSet(relationship=rel), scope=rel.scope)])
+    em.commit(
+        [
+            em.event(ev.RelationshipSet(relationship=rel), scope=rel.scope)
+            for rel in soured.relationships.values()
+        ]
+    )
     realism_tick.run_realism_tick(store, CAMPAIGN, prose=TemplateProseWriter())
     after = load_state(store, CAMPAIGN)
     assert now(after, seat, keys["stalin"]) is Stance.OBSTRUCTING
-    assert (
-        after.opponents[seat][-1] == keys["stalin"]
-        and len(after.opponents[seat]) == len(OPPONENTS) + 1
-    )
+    assert keys["iachino"] not in after.opponents[seat]
+    assert after.opponents[seat][-1] == keys["stalin"]
+    assert len(after.opponents[seat]) == len(OPPONENTS)
 
 
 def test_no_regard_lifts_a_person_with_an_irreducible_conflict_above_obstructing() -> None:
@@ -416,16 +417,15 @@ def test_the_seat_is_shown_its_opponents_as_they_stood_at_the_start() -> None:
     assert [t["name"] for t in block["threats"]] == list(got)
 
 
-def test_a_turn_the_seat_has_no_evidence_of_is_not_shown_until_evidence_comes(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_a_turn_the_seat_has_no_evidence_of_is_not_shown_until_evidence_comes() -> None:
     store, seat, keys = begun()
-    monkeypatch.setattr(opponents, "CAP", len(OPPONENTS) + 1)
     state = load_state(store, CAMPAIGN)
     stalin = keys["stalin"]
-    soured = regard(state, stalin, keys["churchill"], -4, seat)
+    warmed = regard(state, keys["iachino"], keys["churchill"], 5, seat)  # makes room
+    soured = regard(warmed, stalin, keys["churchill"], -4, seat)
+    (rel,) = (r for r in soured.relationships.values() if r.a == stalin)
     theirs: list[ev.Payload] = [  # another seat's order did it
-        ev.RelationshipSet(relationship=next(iter(soured.relationships.values()))),
+        ev.RelationshipSet(relationship=rel),
         ev.EffectsApplied(
             order_id=OrderId(derived_id(CAMPAIGN, "order", "theirs")), part=0, on=date(1941, 9, 5)
         ),

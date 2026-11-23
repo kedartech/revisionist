@@ -32,6 +32,7 @@ from revisionist.core.ids import CampaignId, EntityId, FeatureId, SeatId, derive
 from revisionist.core.ontology import Phase
 from revisionist.core.realism import locks
 from revisionist.core.realism.pipeline import OrderStatus, StepAction
+from revisionist.core.settings import Settings
 from revisionist.core.state import Rule, State
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import compile_world, object_id
@@ -143,7 +144,23 @@ def written_orders_on(world: WorldFile) -> WorldFile:
     )
 
 
-def _open(name: str, without: tuple[Rule, ...] = ()) -> Opened:
+@functools.cache
+def tables(name: str) -> tuple[tuple[str, ...], ...]:
+    """The world's playable people with forms, in order, split into tables of no more
+    players than a game seats: each table is one opened game."""
+    world = cmp.load_world(cmp.world_path(WORLDS[name]))
+    people = sorted({c.person for c in world.cards if c.playable and c.levers})
+    most = Settings().max_human_seats
+    return tuple(tuple(people[n : n + most]) for n in range(0, len(people), most))
+
+
+def table_of(name: str, person: str | None) -> tuple[str, ...]:
+    """The table ``person`` sits at; with no person, the first."""
+    found = tables(name)
+    return next((t for t in found if person in t), found[0])
+
+
+def _open(name: str, without: tuple[Rule, ...], people: tuple[str, ...]) -> Opened:
     world = written_orders_on(cmp.load_world(cmp.world_path(WORLDS[name])))
     if without:
         kept = tuple(r for r in world.rules if r not in without)
@@ -154,23 +171,24 @@ def _open(name: str, without: tuple[Rule, ...] = ()) -> Opened:
         store = Kept()
         store.append_all(compile_world(world, CAMPAIGN, cmp.versions()))
         names = load_state(store, CAMPAIGN).entities
-        people = sorted({c.person for c in world.cards if c.playable and c.levers})
         for person in people:
             with ids.drawn_by("claim:" + person):
                 session_zero.claim(store, CAMPAIGN, seat(person), names[entity(person)].name)
         with ids.drawn_by("open"):
             realism_tick.open_play(store, CAMPAIGN)
-    return Opened(world, list(store.read(CAMPAIGN)), people)
+    return Opened(world, list(store.read(CAMPAIGN)), list(people))
 
 
-_OPENED: dict[tuple[str, tuple[Rule, ...]], Opened] = {}
+_OPENED: dict[tuple[str, tuple[Rule, ...], tuple[str, ...]], Opened] = {}
 
 
-def opened(name: str, without: tuple[Rule, ...] = ()) -> Opened:
-    """The world opened, with the rules in ``without`` off in the test's copy."""
-    if (name, without) not in _OPENED:
-        _OPENED[name, without] = _open(name, without)
-    return _OPENED[name, without]
+def opened(name: str, without: tuple[Rule, ...] = (), who: str | None = None) -> Opened:
+    """The world opened at the table ``who`` sits at (the first, with no one named), with
+    the rules in ``without`` off in the test's copy."""
+    people = table_of(name, who)
+    if (name, without, people) not in _OPENED:
+        _OPENED[name, without, people] = _open(name, without, people)
+    return _OPENED[name, without, people]
 
 
 def _no_hash(state: State) -> str:
@@ -327,7 +345,7 @@ class Twins:
 def play_twins(*cases: Case) -> Twins:
     """The cases' forms filed in one game and their sentences signed in a twin, both on
     the first wake, and both played to the season's close."""
-    base = opened(cases[0].world)
+    base = opened(cases[0].world, who=cases[0].person)
     notes: list[str] = []
     with pytest.MonkeyPatch.context() as mp:
         mp.setattr(cmp, "load_world", functools.cache(cmp.load_world))
@@ -346,9 +364,9 @@ def _pieces(case: Case) -> set[str]:
 
 
 def batches(cases: Sequence[Case]) -> list[tuple[Case, ...]]:
-    """The cases played together: one world and one fix to a batch, and at most one case
-    per person and per piece, so no order in a batch replaces or redirects another. A
-    batch's digests are equal when each of its orders lands as its form does; it costs one
+    """The cases played together: one world, one table and one fix to a batch, and at most
+    one case per person and per piece, so no order in a batch replaces or redirects another.
+    A batch's digests are equal when each of its orders lands as its form does; it costs one
     twin pair where a case alone costs one each."""
     out: list[list[Case]] = []
     for case in cases:
@@ -357,6 +375,7 @@ def batches(cases: Sequence[Case]) -> list[tuple[Case, ...]]:
                 b
                 for b in out
                 if (b[0].world, b[0].fix) == (case.world, case.fix)
+                and table_of(case.world, case.person) == table_of(b[0].world, b[0].person)
                 and all(c.person != case.person and not _pieces(c) & _pieces(case) for c in b)
             ),
             None,
@@ -394,7 +413,7 @@ def test_the_batches_hold_every_case_once_and_share_no_person_or_piece() -> None
     played = batches(CASES)
     assert sorted(c.name for b in played for c in b) == sorted(c.name for c in CASES)
     for batch in played:
-        assert len({(c.world, c.fix) for c in batch}) == 1
+        assert len({(c.world, c.fix, table_of(c.world, c.person)) for c in batch}) == 1
         assert len({c.person for c in batch}) == len(batch)
         pieces = [p for c in batch for p in _pieces(c)]
         assert len(set(pieces)) == len(pieces)
@@ -482,7 +501,7 @@ def test_a_lend_lease_finding_records_the_receipt_its_written_allocation_does(
     holds the finding's last step and passes it."""
     case = next(c for c in CASES if c.lever == "lend_lease_finding")
     monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
-    game = Game(opened(case.world), monkeypatch, Canned())
+    game = Game(opened(case.world, who=case.person), monkeypatch, Canned())
     assert game.form(case) == ""
     (finding,) = (o for o in game.state.orders.values() if o.lever == case.lever)
     for _ in range(6):
@@ -541,7 +560,7 @@ def test_a_locked_form_is_held_and_names_its_decider(
     case: Case, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
-    game = Game(opened(case.world), monkeypatch, Canned())
+    game = Game(opened(case.world, who=case.person), monkeypatch, Canned())
     assert game.form(case) == ""
     (held,) = _held(game)
     assert held[0] == game.state.in_world_date
@@ -554,8 +573,8 @@ def test_a_locked_written_order_is_held_as_its_form_is(
 ) -> None:
     """The same decider named in the same held words, on the same filing day."""
     monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
-    by_form = Game(opened(case.world), monkeypatch, Canned())
-    in_writing = Game(opened(case.world), monkeypatch, Canned())
+    by_form = Game(opened(case.world, who=case.person), monkeypatch, Canned())
+    in_writing = Game(opened(case.world, who=case.person), monkeypatch, Canned())
     assert by_form.form(case) == in_writing.written(case) == ""
     assert _held(in_writing) == _held(by_form)
 
@@ -580,7 +599,7 @@ def test_a_locked_written_order_lands_the_day_its_form_does(
     monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
     games = []
     for file in ("form", "written"):
-        game = Game(opened(case.world), monkeypatch, Canned())
+        game = Game(opened(case.world, who=case.person), monkeypatch, Canned())
         assert game.form(OPENS_ICELAND) == ""
         assert getattr(game, file)(case) == ""
         game.play()
@@ -596,7 +615,7 @@ def test_with_locks_off_a_locked_order_goes_through_as_an_ordinary_one(
     case: Case, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
-    base = opened(case.world, without=(Rule.LOCKS,))
+    base = opened(case.world, without=(Rule.LOCKS,), who=case.person)
     by_form = Game(base, monkeypatch, Canned())
     in_writing = Game(base, monkeypatch, Canned())
     assert by_form.form(case) == in_writing.written(case) == ""

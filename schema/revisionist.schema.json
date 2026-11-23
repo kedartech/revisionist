@@ -628,6 +628,163 @@
         "title": "AidFinding",
         "type": "object"
       },
+      "AimBlank": {
+        "additionalProperties": false,
+        "description": "One blank of a pattern: its name, and a closed list of values (ids, group keys or\nnumbers) or a kind resolved from the seat's view.",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BlankKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "values": {
+            "default": [],
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AimBlank",
+        "type": "object"
+      },
+      "AimPattern": {
+        "additionalProperties": false,
+        "description": "One pattern a player may fill (OWC rule 1). ``condition`` is an aim's condition with\nids bound and each blank written ``$name``.",
+        "properties": {
+          "blanks": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AimBlank"
+            },
+            "maxItems": 4,
+            "title": "Blanks",
+            "type": "array"
+          },
+          "condition": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "title": "Condition",
+            "type": "object"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deadline"
+          },
+          "government": {
+            "default": true,
+            "title": "Government",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "posts": {
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Posts",
+            "type": "array"
+          },
+          "sentence": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Sentence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "posts",
+          "sentence",
+          "condition"
+        ],
+        "title": "AimPattern",
+        "type": "object"
+      },
+      "AimPatterns": {
+        "additionalProperties": false,
+        "description": "The world's patterns, and the kind of post each card names, by person. Public.",
+        "properties": {
+          "patterns": {
+            "items": {
+              "$ref": "#/$defs/AimPattern"
+            },
+            "minItems": 1,
+            "title": "Patterns",
+            "type": "array"
+          },
+          "posts": {
+            "additionalProperties": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Posts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "patterns"
+        ],
+        "title": "AimPatterns",
+        "type": "object"
+      },
+      "AimPatternsDeclared": {
+        "additionalProperties": false,
+        "description": "The world's aim patterns and each card's kind of post (OWC). World data; once, at\ncreation, with ``own_aim`` on. Public.",
+        "properties": {
+          "kind": {
+            "const": "aim_patterns_declared",
+            "default": "aim_patterns_declared",
+            "title": "Kind",
+            "type": "string"
+          },
+          "patterns": {
+            "$ref": "#/$defs/AimPatterns"
+          }
+        },
+        "required": [
+          "patterns"
+        ],
+        "title": "AimPatternsDeclared",
+        "type": "object"
+      },
       "AimRule": {
         "additionalProperties": false,
         "description": "What makes a card's aim a goal (AIM): its condition, in plain words, over the\nperiod it is judged in. ``sees`` holds one exposure per leaf, in ``leaves`` order,\nset by the compiler from the world. Engine only, on the card.",
@@ -2402,6 +2559,17 @@
         },
         "title": "Bias",
         "type": "object"
+      },
+      "BlankKind": {
+        "description": "A blank whose values are resolved from the seat's view. ``[proposed]``",
+        "enum": [
+          "territory_not_held",
+          "territory_held",
+          "other_nation",
+          "own_group"
+        ],
+        "title": "BlankKind",
+        "type": "string"
       },
       "BlocVote": {
         "additionalProperties": false,
@@ -7877,6 +8045,7 @@
         "title": "Investigate",
         "type": "object"
       },
+      "JsonValue": {},
       "KindsDeclared": {
         "additionalProperties": false,
         "description": "The world's own piece kinds and resources, in the world file's order. Public; once,\nat creation, before any feature is set.",
@@ -9835,6 +10004,87 @@
           "voice"
         ],
         "title": "Outlet",
+        "type": "object"
+      },
+      "OwnAim": {
+        "additionalProperties": false,
+        "description": "The player's own aim, stored for the person (OWC rule 4): kept by whoever holds him.",
+        "properties": {
+          "aim": {
+            "maximum": 3,
+            "minimum": 1,
+            "title": "Aim",
+            "type": "integer"
+          },
+          "government": {
+            "title": "Government",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "rule": {
+            "$ref": "#/$defs/AimRule"
+          },
+          "text": {
+            "maxLength": 280,
+            "title": "Text",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "values",
+          "text",
+          "rule",
+          "government",
+          "aim",
+          "person"
+        ],
+        "title": "OwnAim",
+        "type": "object"
+      },
+      "OwnAimSet": {
+        "additionalProperties": false,
+        "description": "A player's own aim, filled from a pattern, stored for the person he holds in place\nof the card's replaceable aim (OWC). Sealed to the seat holding the person.",
+        "properties": {
+          "kind": {
+            "const": "own_aim_set",
+            "default": "own_aim_set",
+            "title": "Kind",
+            "type": "string"
+          },
+          "own": {
+            "$ref": "#/$defs/OwnAim"
+          }
+        },
+        "required": [
+          "own"
+        ],
+        "title": "OwnAimSet",
         "type": "object"
       },
       "ParamKind": {
@@ -14562,6 +14812,7 @@
             "agreement_made": "#/$defs/AgreementMade",
             "agreement_offered": "#/$defs/AgreementOffered",
             "agreement_published": "#/$defs/AgreementPublished",
+            "aim_patterns_declared": "#/$defs/AimPatternsDeclared",
             "answer_made": "#/$defs/AnswerMade",
             "answer_planned": "#/$defs/AnswerPlanned",
             "area_held": "#/$defs/AreaHeld",
@@ -14643,6 +14894,7 @@
             "order_routed": "#/$defs/OrderRouted",
             "order_settled": "#/$defs/OrderSettled",
             "order_step_taken": "#/$defs/OrderStepTaken",
+            "own_aim_set": "#/$defs/OwnAimSet",
             "piece_stepped": "#/$defs/PieceStepped",
             "play_style_set": "#/$defs/PlayStyleSet",
             "quantity_set": "#/$defs/QuantitySet",
@@ -14876,6 +15128,12 @@
           },
           {
             "$ref": "#/$defs/LawsDeclared"
+          },
+          {
+            "$ref": "#/$defs/AimPatternsDeclared"
+          },
+          {
+            "$ref": "#/$defs/OwnAimSet"
           },
           {
             "$ref": "#/$defs/OrderHeld"
@@ -15566,6 +15824,143 @@
           "draws_on"
         ],
         "title": "AidFinding",
+        "type": "object"
+      },
+      "AimBlank": {
+        "additionalProperties": false,
+        "description": "One blank of a pattern: its name, and a closed list of values (ids, group keys or\nnumbers) or a kind resolved from the seat's view.",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BlankKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "values": {
+            "default": [],
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AimBlank",
+        "type": "object"
+      },
+      "AimPattern": {
+        "additionalProperties": false,
+        "description": "One pattern a player may fill (OWC rule 1). ``condition`` is an aim's condition with\nids bound and each blank written ``$name``.",
+        "properties": {
+          "blanks": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AimBlank"
+            },
+            "maxItems": 4,
+            "title": "Blanks",
+            "type": "array"
+          },
+          "condition": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "title": "Condition",
+            "type": "object"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deadline"
+          },
+          "government": {
+            "default": true,
+            "title": "Government",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "posts": {
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Posts",
+            "type": "array"
+          },
+          "sentence": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Sentence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "posts",
+          "sentence",
+          "condition"
+        ],
+        "title": "AimPattern",
+        "type": "object"
+      },
+      "AimPatterns": {
+        "additionalProperties": false,
+        "description": "The world's patterns, and the kind of post each card names, by person. Public.",
+        "properties": {
+          "patterns": {
+            "items": {
+              "$ref": "#/$defs/AimPattern"
+            },
+            "minItems": 1,
+            "title": "Patterns",
+            "type": "array"
+          },
+          "posts": {
+            "additionalProperties": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Posts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "patterns"
+        ],
+        "title": "AimPatterns",
         "type": "object"
       },
       "AimRule": {
@@ -16853,6 +17248,17 @@
         },
         "title": "Bias",
         "type": "object"
+      },
+      "BlankKind": {
+        "description": "A blank whose values are resolved from the seat's view. ``[proposed]``",
+        "enum": [
+          "territory_not_held",
+          "territory_held",
+          "other_nation",
+          "own_group"
+        ],
+        "title": "BlankKind",
+        "type": "string"
       },
       "BlocVote": {
         "additionalProperties": false,
@@ -20012,6 +20418,7 @@
         "title": "Investigate",
         "type": "object"
       },
+      "JsonValue": {},
       "Kinds": {
         "additionalProperties": false,
         "description": "The world's piece kinds and resources, by key, in the world file's order.",
@@ -21213,6 +21620,67 @@
           "voice"
         ],
         "title": "Outlet",
+        "type": "object"
+      },
+      "OwnAim": {
+        "additionalProperties": false,
+        "description": "The player's own aim, stored for the person (OWC rule 4): kept by whoever holds him.",
+        "properties": {
+          "aim": {
+            "maximum": 3,
+            "minimum": 1,
+            "title": "Aim",
+            "type": "integer"
+          },
+          "government": {
+            "title": "Government",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "rule": {
+            "$ref": "#/$defs/AimRule"
+          },
+          "text": {
+            "maxLength": 280,
+            "title": "Text",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "values",
+          "text",
+          "rule",
+          "government",
+          "aim",
+          "person"
+        ],
+        "title": "OwnAim",
         "type": "object"
       },
       "ParamKind": {
@@ -24780,6 +25248,26 @@
         "type": "array",
         "uniqueItems": true
       },
+      "aim_patterns": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/AimPatterns"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "aim_shut": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "title": "Aim Shut",
+        "type": "array",
+        "uniqueItems": true
+      },
       "answers": {
         "additionalProperties": {
           "additionalProperties": {
@@ -25054,6 +25542,13 @@
           "$ref": "#/$defs/Outlet"
         },
         "title": "Outlets",
+        "type": "object"
+      },
+      "own_aims": {
+        "additionalProperties": {
+          "$ref": "#/$defs/OwnAim"
+        },
+        "title": "Own Aims",
         "type": "object"
       },
       "pending": {
@@ -25682,6 +26177,282 @@
         "title": "AidFinding",
         "type": "object"
       },
+      "AimBlank": {
+        "additionalProperties": false,
+        "description": "One blank of a pattern: its name, and a closed list of values (ids, group keys or\nnumbers) or a kind resolved from the seat's view.",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BlankKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "values": {
+            "default": [],
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AimBlank",
+        "type": "object"
+      },
+      "AimPattern": {
+        "additionalProperties": false,
+        "description": "One pattern a player may fill (OWC rule 1). ``condition`` is an aim's condition with\nids bound and each blank written ``$name``.",
+        "properties": {
+          "blanks": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AimBlank"
+            },
+            "maxItems": 4,
+            "title": "Blanks",
+            "type": "array"
+          },
+          "condition": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "title": "Condition",
+            "type": "object"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deadline"
+          },
+          "government": {
+            "default": true,
+            "title": "Government",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "posts": {
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Posts",
+            "type": "array"
+          },
+          "sentence": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Sentence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "posts",
+          "sentence",
+          "condition"
+        ],
+        "title": "AimPattern",
+        "type": "object"
+      },
+      "AimPatterns": {
+        "additionalProperties": false,
+        "description": "The world's patterns, and the kind of post each card names, by person. Public.",
+        "properties": {
+          "patterns": {
+            "items": {
+              "$ref": "#/$defs/AimPattern"
+            },
+            "minItems": 1,
+            "title": "Patterns",
+            "type": "array"
+          },
+          "posts": {
+            "additionalProperties": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Posts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "patterns"
+        ],
+        "title": "AimPatterns",
+        "type": "object"
+      },
+      "AimRule": {
+        "additionalProperties": false,
+        "description": "What makes a card's aim a goal (AIM): its condition, in plain words, over the\nperiod it is judged in. ``sees`` holds one exposure per leaf, in ``leaves`` order,\nset by the compiler from the world. Engine only, on the card.",
+        "properties": {
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
+                "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
+                "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deadline"
+          },
+          "opens": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Opens"
+          },
+          "replaceable": {
+            "default": false,
+            "title": "Replaceable",
+            "type": "boolean"
+          },
+          "rule": {
+            "maxLength": 280,
+            "minLength": 1,
+            "title": "Rule",
+            "type": "string"
+          },
+          "sees": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Exposure"
+            },
+            "title": "Sees",
+            "type": "array"
+          }
+        },
+        "required": [
+          "condition",
+          "rule"
+        ],
+        "title": "AimRule",
+        "type": "object"
+      },
       "AllOf": {
         "additionalProperties": false,
         "properties": {
@@ -26281,6 +27052,17 @@
           "cutthroat"
         ],
         "title": "Betrayal",
+        "type": "string"
+      },
+      "BlankKind": {
+        "description": "A blank whose values are resolved from the seat's view. ``[proposed]``",
+        "enum": [
+          "territory_not_held",
+          "territory_held",
+          "other_nation",
+          "own_group"
+        ],
+        "title": "BlankKind",
         "type": "string"
       },
       "BlocVote": {
@@ -28003,6 +28785,16 @@
         "title": "ExpectSure",
         "type": "string"
       },
+      "Exposure": {
+        "description": "Whether the seat may see the fact a leaf of its aim reads (AIM rule 5).",
+        "enum": [
+          "public",
+          "own",
+          "hidden"
+        ],
+        "title": "Exposure",
+        "type": "string"
+      },
       "Fact": {
         "additionalProperties": false,
         "description": "A structured truth with an ACL. Never prose.",
@@ -28979,6 +29771,7 @@
         "title": "Investigate",
         "type": "object"
       },
+      "JsonValue": {},
       "Kinds": {
         "additionalProperties": false,
         "description": "The world's piece kinds and resources, by key, in the world file's order.",
@@ -29927,6 +30720,67 @@
         ],
         "title": "Outcome",
         "type": "string"
+      },
+      "OwnAim": {
+        "additionalProperties": false,
+        "description": "The player's own aim, stored for the person (OWC rule 4): kept by whoever holds him.",
+        "properties": {
+          "aim": {
+            "maximum": 3,
+            "minimum": 1,
+            "title": "Aim",
+            "type": "integer"
+          },
+          "government": {
+            "title": "Government",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "rule": {
+            "$ref": "#/$defs/AimRule"
+          },
+          "text": {
+            "maxLength": 280,
+            "title": "Text",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "values",
+          "text",
+          "rule",
+          "government",
+          "aim",
+          "person"
+        ],
+        "title": "OwnAim",
+        "type": "object"
       },
       "ParamKind": {
         "enum": [
@@ -32738,6 +33592,17 @@
       "agreements": {
         "$ref": "#/$defs/Agreements"
       },
+      "aim_patterns": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/AimPatterns"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
       "asked": {
         "additionalProperties": {
           "$ref": "#/$defs/Asked"
@@ -32925,6 +33790,13 @@
           "$ref": "#/$defs/Order"
         },
         "title": "Orders",
+        "type": "object"
+      },
+      "own_aims": {
+        "additionalProperties": {
+          "$ref": "#/$defs/OwnAim"
+        },
+        "title": "Own Aims",
         "type": "object"
       },
       "own_pending": {

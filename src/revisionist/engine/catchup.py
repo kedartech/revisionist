@@ -62,6 +62,11 @@ FEED_KINDS: frozenset[str] = frozenset(
         "locks_declared",
         # The laws a world declares (LWC): public rules of the world.
         "laws_declared",
+        # The aim patterns a world declares (OWC): public rules of the world.
+        "aim_patterns_declared",
+        # A player's own aim (OWC): sealed to the seat holding the person, and kept only
+        # while that seat's view holds it.
+        "own_aim_set",
         # A seat's own nation's pieces, step by step (sealed to its seats): playback's source.
         "piece_stepped",
         # A step of its own nation's piece refused for want of fuel, with the reason (FUL).
@@ -244,6 +249,8 @@ def _named(p: ev.Payload, view: View) -> bool:
             return p.order_id in view.routed
         case ev.GoalProgressed() | ev.GoalMet() | ev.GoalUndone():
             return p.goal_id in view.goals
+        case ev.OwnAimSet():
+            return p.own.person in view.own_aims
         case ev.ContestMoved() | ev.ContestDecided():
             return p.contest_id in view.contests
         case ev.ScheduledEventFired():

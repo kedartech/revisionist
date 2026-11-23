@@ -26,13 +26,14 @@ and asks are not in a view before then, and a skipped one never is.
 from collections.abc import Mapping
 from typing import Protocol
 
+from revisionist.core.aim_patterns import OwnAim
 from revisionist.core.goals import sees_goal
-from revisionist.core.ids import DocumentId, ScheduledEventId, SeatId
-from revisionist.core.ontology import ScheduledEvent, ScheduleSource, Seat
+from revisionist.core.ids import DocumentId, EntityId, ScheduledEventId, SeatId
+from revisionist.core.ontology import Controller, ScheduledEvent, ScheduleSource, Seat
 from revisionist.core.realism import agreement, conference, detect, economy, groups
 from revisionist.core.realism.document import DocumentView
 from revisionist.core.realism.war import polity_of
-from revisionist.core.state import SeatFace, State, View
+from revisionist.core.state import SeatFace, State, View, seat_of_person
 from revisionist.core.visibility import Scope
 
 
@@ -70,6 +71,17 @@ def _arrived(state: State, seat: SeatId) -> dict[DocumentId, DocumentView]:
     }
 
 
+def _own_aims(state: State, seat: SeatId) -> dict[EntityId, OwnAim]:
+    """The own aim of the person a player holds through ``seat``, if set (OWC)."""
+    return {
+        person: own
+        for person, own in state.own_aims.items()
+        if (held := seat_of_person(state, person)) is not None
+        and held.seat_id == seat
+        and held.controller is Controller.HUMAN
+    }
+
+
 def project(state: State, seat: SeatId) -> View:
     if seat not in state.seats:
         raise KeyError(f"unknown seat {seat!r}")
@@ -95,6 +107,8 @@ def project(state: State, seat: SeatId) -> View:
         kinds=state.kinds,
         locks=state.locks,
         laws=state.laws,
+        aim_patterns=state.aim_patterns,
+        own_aims=_own_aims(state, seat),
         holders=dict(state.holders),
         economy=economy.seen_by(state, seat),
         groups=groups.seen_by(state, seat),

@@ -84,6 +84,11 @@
 .rl-target-note { fill: var(--fg-strong); font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; vector-effect: non-scaling-stroke; }
 .rl-map-target:hover .rl-target-ring { stroke-width: 3px; }
 .rl-map-target.chosen .rl-target-ring { fill: var(--accent-soft); fill-opacity: 0.9; stroke: var(--accent); stroke-width: 3px; }
+/* a piece carried to a lit area: it rides lifted under the finger, the lit area under it is marked */
+.rl-tm-mark[data-grab] { cursor: grab; }
+.rl-tm-lifted { pointer-events: none; cursor: grabbing; filter: drop-shadow(0 6px 4px var(--backdrop)); }
+.rl-map-target.under .rl-target-ring { fill: var(--accent-soft); fill-opacity: 0.9; stroke: var(--fg-strong); stroke-width: 3px; }
+.rl-area.rl-drop-over { stroke: var(--fg-strong); stroke-width: 3px; vector-effect: non-scaling-stroke; }
 .rl-map-target.refused { cursor: not-allowed; }
 .rl-map-target.refused .rl-target-ring { fill: none; stroke: var(--fg-muted); stroke-dasharray: 3 2; }
 .rl-map-target.refused .rl-target-note { fill: var(--fg-muted); }
@@ -91,8 +96,14 @@
 .rl-map-target:focus-visible .rl-target-ring { stroke: var(--focus); stroke-width: 3px; }
 .rl-map-sealeg { fill: none; stroke: var(--info); stroke-width: 1.5px; stroke-dasharray: 2 4; stroke-linecap: round; vector-effect: non-scaling-stroke; pointer-events: none; }
 /* the territory map: land filled, sea zones outlined, every border stroked; marks and labels keep their pixel size */
-.rl-tmap .rl-map-figure { background: var(--chart-sea); }
-.rl-tm-svg { width: 100%; height: calc(100vh - 220px); min-height: 320px; max-height: none; touch-action: none; }
+.rl-tmap .rl-map-figure { background: var(--chart-sea); position: relative; }
+.rl-tm-svg { width: 100%; height: calc(100vh - 220px); min-height: 320px; max-height: none; touch-action: none; will-change: transform; }
+.rl-tm-svg:focus { outline: none; }
+.rl-tm-svg:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+/* while the view moves: the land is one picture, moved whole, with the land past its box shown; the marks ride over it */
+.rl-tm-svg.rl-tm-moving { overflow: visible; }
+.rl-tm-live { position: absolute; pointer-events: none; overflow: hidden; font-family: var(--font-chrome); }
+.rl-tm-notland { fill: var(--chart-land); fill-rule: evenodd; opacity: 0.45; pointer-events: none; }
 .rl-tm-backdrop { fill: var(--chart-land); opacity: 0.45; }
 .rl-area { cursor: pointer; }
 .rl-area-land { fill: var(--chart-land); }

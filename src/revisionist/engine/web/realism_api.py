@@ -1688,6 +1688,38 @@ class FigureGroup(TypedDict):
     figures: list[Figure]
 
 
+class OpeningPerson(TypedDict):
+    """Someone a player may take, or one already taken; nothing says who plays him."""
+
+    name: str
+    """Posted back to ``pick``."""
+    office: str
+    pitch: str
+    taken: bool
+
+
+class OpeningPath(TypedDict):
+    path: str | None
+    """The ladder the office stands on (``political``, ``military``); None for no card."""
+    persons: list[OpeningPerson]
+
+
+class OpeningNation(TypedDict):
+    key: str | None
+    """None for the people the world places under no nation."""
+    name: str
+    paths: list[OpeningPath]
+
+
+class Opening(TypedDict):
+    """``/api/new/opening``: the nations with someone left to take, their open paths and
+    the persons on each, from ``roster.claimable``; and the game's human seats."""
+
+    nations: list[OpeningNation]
+    seats_left: int
+    seats_max: int
+
+
 class RevealRuling(TypedDict):
     """The estimator's ruling on one part, shown only once the game has ended."""
 
@@ -1997,6 +2029,10 @@ __all__ = [
     "OfferReading",
     "OfferTerms",
     "OpenMeasure",
+    "Opening",
+    "OpeningNation",
+    "OpeningPath",
+    "OpeningPerson",
     "OrderProposal",
     "OrderResult",
     "OrderTrack",

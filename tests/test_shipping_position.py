@@ -8,15 +8,21 @@ crosses the Gulf; the Isle Run crosses the Gulf and the Open Sea to a cove on th
 which Sudland holds. Norra's shipping is the lift pool the world names for Norra. The
 Sudland Galleys (strength 2) stand in the Gulf Roads, so each month they sink Norra's
 shipping on both routes; a tenth of what they sink comes off the pool.
+
+An escort's cut grows over the months it has sailed, on any board: it is checked on the toy
+world and on a copy of Salt Strait given a convoy run, a war and an escort form.
 """
 
 from collections.abc import Callable
 from datetime import date, timedelta
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from revisionist.core import events as ev
-from revisionist.core.ids import EntityId, FeatureId, OrderId, derived_id
+from revisionist.core.ids import EntityId, FeatureId, OrderId, PipelineId, derived_id
 from revisionist.core.realism import territory
 from revisionist.core.realism.economy import Pools
 from revisionist.core.realism.geography import Feature
@@ -30,10 +36,11 @@ from tests.test_adjacency_moves import START, Logged, entity, piece, seat, set_f
 from tests.test_realism_resolvers import POINTS, Rig, naval, rig
 from tests.test_supply import hub, no_port
 from tests.test_supply import toy as supply_toy
-from tests.test_territory_model import CAMPAIGN
+from tests.test_territory_model import CAMPAIGN, written
 
 NAVAL = [date(1941, 9, 3), date(1941, 9, 5)]
 OCT, NOV = date(1941, 10, 1), date(1941, 11, 1)
+STRAIT = Path(__file__).resolve().parents[1] / "worlds" / "salt-strait-realism.yaml"
 
 
 def send(r: Rig, fleet: str, to: str) -> None:
@@ -463,3 +470,101 @@ def test_the_territory_rules_leave_a_world_without_them_alone(tmp_path: Path) ->
     assert shipping.losses(g.state, APRIL) == {}
     assert shipping.resolve(g.state, enact(g, "ilse", "requisition", tonnage_class="army")) == ()
     assert territory.on(g.state) is False
+
+
+# ================================================== an escort's cut grows as it sails (OCT)
+
+
+def month_ends(first: date, n: int) -> list[date]:
+    """The last days of ``n`` months, from ``first``'s month on."""
+    out, day = [], first.replace(day=1)
+    for _ in range(n):
+        day = (day + timedelta(days=32)).replace(day=1)
+        out.append(day - timedelta(days=1))
+    return out
+
+
+def kept(plain: Logged, escorted: Logged, key: FeatureId, months: list[date]) -> list[float]:
+    """Month by month, the share of what route ``key`` loses unescorted that it loses
+    under escort. The two games share their campaign, so their friction is the same."""
+    return [lost(escorted, m)[key] / lost(plain, m)[key] for m in months]
+
+
+def grows_to_its_full_cut(shares: list[float], level: int) -> None:
+    full = max(shipping.ESCORT_FLOOR_PM, 1000 - shipping.ESCORT_LEVEL_PM * level) / 1000
+    ramp = shipping.ESCORT_RAMP_MONTHS
+    assert all(a > b for a, b in pairwise(shares[:ramp])), shares
+    assert all(abs(s - full) < 0.002 for s in shares[ramp - 1 :]), shares
+
+
+def test_an_escort_cuts_more_each_month_it_has_sailed_until_its_full_cut(tmp_path: Path) -> None:
+    plain, g = sea_game(tmp_path / "plain"), sea_game(tmp_path / "escorted")
+    enact(g, "ilse", "escort", order="shoot_on_sight", zone=GULF)
+    grows_to_its_full_cut(kept(plain, g, route(GULF_RUN), month_ends(START, 5)), level=2)
+
+
+def test_an_escort_counts_its_months_from_the_first_it_sailed(tmp_path: Path) -> None:
+    once, again = sea_game(tmp_path / "once"), sea_game(tmp_path / "again")
+    for g in (once, again):
+        enact(g, "ilse", "escort", order="escort_convoys", zone=GULF)
+    later = START + timedelta(days=40)
+    enact(again, "ilse", "escort", 2, on=later, order="escort_convoys", zone=GULF)
+    for last in month_ends(START, 4):
+        assert lost(again, last) == lost(once, last)
+
+
+def strait(tmp: Path) -> Logged:
+    """Salt Strait at war: Varda's convoys run from Esk Harbour on the Lune Sound to the
+    Saltworks on the Strait, the Ostrel Galleys lie at Kesh Quay on the Strait, and Varda's First
+    Minister may order an escort."""
+    world: World = yaml.safe_load(STRAIT.read_text())
+    world["wars"] = [{"a": "ostrel", "b": "varda", "since": "1900-03-01", "source": "salt_strait"}]
+    world["features"].append(
+        {
+            "key": "varda_run",
+            "kind": "route",
+            "name": "The Varda Run",
+            "side": "varda",
+            "places": ["esk_harbour", "saltworks"],
+            "source": "salt_strait",
+        }
+    )
+    for f in world["features"]:
+        if f["key"] == "ostrel_galleys":
+            f["places"] = ["kesh_quay"]
+    (minister,) = [c for c in world["cards"] if c["person"] == "oren_vale"]
+    minister["levers"].append(
+        {
+            "name": "escort",
+            "pipeline": "varda_order",
+            "resolver": "shipping",
+            "params": [
+                _enum("order", sorted(shipping.ESCORT_LEVEL)),
+                _enum("zone", ["the_strait"]),
+            ],
+        }
+    )
+    board = (STRAIT.parent / "maps" / str(world["map"]["file"])).read_bytes()
+    tmp.mkdir(parents=True, exist_ok=True)
+    return Logged(written(tmp, world, board), "oren_vale")
+
+
+def test_on_salt_strait_an_escort_s_cut_grows_as_it_sails(tmp_path: Path) -> None:
+    plain, g = strait(tmp_path / "plain"), strait(tmp_path / "escorted")
+    order = Order(
+        order_id=OrderId(derived_id(CAMPAIGN, "shp-order", "varda", 1)),
+        issuer=seat("oren_vale"),
+        lever="escort",
+        pipeline=PipelineId(object_id(CAMPAIGN, "pipeline", "varda_order")),
+        params={"order": "escort_convoys", "zone": "the_strait"},
+        filed=START,
+    )
+    g.add(
+        [
+            ev.OrderDrafted(order=order),
+            ev.OrderSettled(order_id=order.order_id, status=OrderStatus.ENACTED),
+        ]
+    )
+    run = route("varda_run")
+    assert lost(plain)[run] > 0
+    grows_to_its_full_cut(kept(plain, g, run, month_ends(START, 4)), level=1)

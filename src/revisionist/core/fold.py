@@ -287,6 +287,24 @@ def _order_asked(state: State, p: ev.OrderAsked) -> State:
     return state.model_copy(update={"asked": _put(state.asked, a.order_id, a)})
 
 
+def _ask_answered(state: State, p: ev.AskAnswered) -> State:
+    """The card's answer to an ask, once, with ``ask_answers`` on, for a person no seat
+    with a desk holds (AAK)."""
+    if Rule.ASK_ANSWERS not in state.rules or Rule.LOCKS not in state.rules:
+        raise FoldError("ask_answered needs the locks and ask_answers rules")
+    a = _need(state.asked, p.order_id, "ask")
+    if a.asker != p.asker:
+        raise FoldError(f"the ask for {p.order_id} is not that seat's")
+    if a.answered is not None:
+        raise FoldError(f"the ask for {p.order_id} is answered already")
+    if p.on < a.on:
+        raise FoldError(f"the ask for {p.order_id} is answered before it was made")
+    if any(s.embodies == a.to and s.kind is not SeatKind.FACTION for s in state.seats.values()):
+        raise FoldError(f"the ask for {p.order_id} went to a person a seat holds")
+    answered = a.model_copy(update={"answered": p.on, "granted": p.granted})
+    return state.model_copy(update={"asked": {**state.asked, p.order_id: answered}})
+
+
 def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
     if not groups.on(state):
         raise FoldError("groups_declared needs the groups rule")
@@ -770,6 +788,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.OrderHeld()
             | ev.HeldOrderEnded()
             | ev.OrderAsked()
+            | ev.AskAnswered()
             | ev.AreaHeld()
             | ev.CaptureCounted()
             | ev.EconomySet()
@@ -1205,6 +1224,8 @@ def _realism(state: State, p: ev.Payload) -> State:
             return _held_order_ended(state, p)
         case ev.OrderAsked():
             return _order_asked(state, p)
+        case ev.AskAnswered():
+            return _ask_answered(state, p)
         case ev.IntelligenceDeclared():
             if Rule.REPORTS not in state.rules:
                 raise FoldError("intelligence_declared needs the reports rule")

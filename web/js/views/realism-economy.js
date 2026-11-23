@@ -109,20 +109,25 @@ export function ownSheet(economy, map, { levers, act } = {}) {
     codebreakingBlock(levers, act));
 }
 
-/** Another nation's sheet: its figure, and that it is read from the map. */
-export function otherSheet(figure) {
+/**
+ * Another nation's sheet: its figure, and that it is read from the map; with `onOffer`, a
+ * "Make an offer" that calls `onOffer(nation)`.
+ */
+export function otherSheet(figure, { onOffer = null } = {}) {
   return h('section', { class: 'rl-eco-sheet rl-eco-other', 'aria-label': `${figure.nation.name}: war economy`, 'data-nation': figure.nation.key },
     h('h3', {}, figure.nation.name),
     h('p', { class: 'rl-eco-figure' }, `War-economy figure ${num(figure.figure)}`),
-    h('p', { class: 'muted' }, 'Read from the map: what it holds, at what the board prints. You see no more of it.'));
+    h('p', { class: 'muted' }, 'Read from the map: what it holds, at what the board prints. You see no more of it.'),
+    onOffer ? h('button', { type: 'button', class: 'rl-btn rl-eco-offer', onclick: () => onOffer(figure.nation) }, 'Make an offer') : null);
 }
 
 /**
  * The strip's chips and the sheet under them: `economyStrip(rv)`. One button per nation, the
- * seat's own marked; a tap opens that nation's sheet below, a second tap closes it. `null`
+ * seat's own marked; a tap opens that nation's sheet below, a second tap closes it; `onOffer`
+ * puts "Make an offer" on another nation's sheet. `null`
  * when the game keeps no economy.
  */
-export function economyStrip(rv, { act } = {}) {
+export function economyStrip(rv, { act, onOffer = null } = {}) {
   const economy = rv.economy;
   if (!economy?.figures?.length) return null;
   let open = null;
@@ -136,7 +141,7 @@ export function economyStrip(rv, { act } = {}) {
     ' ', h('span', { class: 'rl-eco-num' }, num(f.figure)))));
     const f = economy.figures.find((x) => x.nation.key === open);
     if (!f) sheet.replaceChildren();
-    else sheet.replaceChildren(rel(f.nation) === 'own' && economy.own ? ownSheet(economy, rv.map, { levers: rv.desk?.levers, act }) : otherSheet(f));
+    else sheet.replaceChildren(rel(f.nation) === 'own' && economy.own ? ownSheet(economy, rv.map, { levers: rv.desk?.levers, act }) : otherSheet(f, { onOffer }));
   };
   draw();
   return h('div', { class: 'rl-eco' }, chips, sheet);

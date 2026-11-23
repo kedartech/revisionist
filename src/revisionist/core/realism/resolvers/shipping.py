@@ -35,8 +35,10 @@ from is the one the world names for it (``lift_pool``).
 - Sea pieces sink shipping on the routes crossing the zone they stand in: those of a
   nation at war with theirs, or of one their nation's latest raid directive names; in
   the directive's waters they press harder. Escorts, and a law arming a nation's merchant
-  ships from the month after it passes, cut what a route loses. On the 1st, each nation's
-  pool loses ``LOSS_SHARE_PCT`` of what its routes lost in the month just ended.
+  ships from the month after it passes, cut what a route loses. An escort's cut grows
+  month by month from the month the route first had one, to its full cut in its
+  ``ESCORT_RAMP_MONTHS``th month. On the 1st, each nation's pool loses ``LOSS_SHARE_PCT``
+  of what its routes lost in the month just ended.
 """
 
 from collections.abc import Callable
@@ -176,6 +178,8 @@ def on_day(state: State, today: date) -> tuple[QuantityChange, ...]:
 ESCORT_RAISE = 1  # [proposed] plan, SHP Defaults: escort plus one level
 ESCORT_LEVEL_PM = ESCORT_STEP_PM
 """Per mille off a route's losses for each escort level on it."""
+ESCORT_RAMP_MONTHS = 3  # [proposed] sinkings fall from Oct (176,622) to Nov (120,541) on the record
+"""Months a route's escort takes to reach its full cut, counting the month it first sailed."""
 RAID_GRT_PER_TIER = 70_000  # [proposed] about Sep 1941's sinkings for a U-boat arm of strength 3
 REQUISITION_GRT = 50_000  # [proposed]
 """Tonnage one enacted requisition takes into the state's service, into its lift pool."""
@@ -336,6 +340,26 @@ def escort_level(state: State, route: Feature, day: date) -> int:
     return base + (ESCORT_RAISE if raised else 0)
 
 
+def _escort_pm(state: State, route: Feature, last: date) -> int:
+    """Per mille of its losses ``route`` keeps under escort in the month that ends ``last``.
+    An escort's cut grows by a share each month from the month the route first had an
+    escort level of 1 or more, and is full from its ``ESCORT_RAMP_MONTHS``th month."""
+    level = escort_level(state, route, last)
+    since = next(
+        (
+            rs.settled_on(o)
+            for o, _ in _enacted(state, last)
+            if escort_level(state, route, rs.settled_on(o)) >= 1
+        ),
+        None,
+    )
+    if not level or since is None:
+        return 1000
+    months = (last.year - since.year) * 12 + last.month - since.month + 1
+    ramp = min(months, ESCORT_RAMP_MONTHS)
+    return max(ESCORT_FLOOR_PM, 1000 - ESCORT_LEVEL_PM * level * ramp // ESCORT_RAMP_MONTHS)
+
+
 def cut(state: State, order: Order, day: date) -> bool:
     """Whether a supply convoy is cut on ``day``: an enemy of its nation holds a territory
     its route names, and the convoy's draw falls under ``CONVOY_CUT_PCT``."""
@@ -433,7 +457,7 @@ def losses(state: State, last: date) -> dict[FeatureId, int]:
         if r.feature_id not in raw:
             continue
         own = territory.nation(state, r.side)
-        escort_pm = max(ESCORT_FLOOR_PM, 1000 - ESCORT_LEVEL_PM * escort_level(state, r, last))
+        escort_pm = _escort_pm(state, r, last)
         arm_pm = (
             1000 - 10 * ARMING_CUT_PCT if own is not None and _armed(state, own, last) else 1000
         )

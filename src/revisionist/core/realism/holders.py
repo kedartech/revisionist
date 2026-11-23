@@ -130,9 +130,10 @@ def _land_nations(state: "State", area: EntityId) -> set[EntityId]:
 
 
 def takers(state: "State", area: EntityId) -> tuple[EntityId, ...]:
-    """The polities whose land pieces in ``area`` would take it: at war with its holder,
-    and with no land piece there of a polity at war with them. In id order."""
-    from revisionist.core.realism.war import at_war
+    """The polities whose land pieces in ``area`` would take it: at war with its holder
+    and no armistice between them (PEA), and with no land piece there of a polity at war
+    with them. In id order."""
+    from revisionist.core.realism.war import at_war, hostile
 
     held = holder(state, area)
     if held is None:
@@ -140,7 +141,9 @@ def takers(state: "State", area: EntityId) -> tuple[EntityId, ...]:
     here = _land_nations(state, area)
     return tuple(
         sorted(
-            n for n in here if at_war(state, n, held) and not any(at_war(state, n, m) for m in here)
+            n
+            for n in here
+            if hostile(state, n, held) and not any(at_war(state, n, m) for m in here)
         )
     )
 

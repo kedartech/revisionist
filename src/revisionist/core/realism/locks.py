@@ -35,7 +35,7 @@ view shows it, so two games that differ only in such a fact hold the order alike
 from collections.abc import Container, Iterable, Mapping, Sequence
 from datetime import date
 from enum import StrEnum
-from typing import TYPE_CHECKING, Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
 
 from pydantic import Field, model_validator
 
@@ -494,6 +494,21 @@ class Asked(Model):
     words: str = Field(min_length=1, max_length=300)
     """The order in plain words."""
     on: date
+    answered: date | None = None
+    """The day the card of a person no human seat holds answered it (AAK); None: not
+    answered, as an ask to a person a seat holds always is."""
+    granted: bool | None = None
+    """With ``answered``: whether the card granted it."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"answered", "granted"})
+
+    @model_validator(mode="after")
+    def _answer(self) -> "Asked":
+        if (self.answered is None) != (self.granted is None):
+            raise ValueError("an answered ask says whether it was granted, and only then")
+        if self.answered is not None and self.answered < self.on:
+            raise ValueError("an ask is answered on or after the day it was made")
+        return self
 
 
 def asked_of(decider: Decider) -> EntityId | None:

@@ -192,12 +192,12 @@ aim_patterns:
     blanks:
       - {name: foe, kind: other_nation}
     government: false
-  - key: hold_the_line
+  - key: army_peace
     posts: [army_commander]
-    sentence: Hold {place} with {nation}'s army.
-    condition: {check: holds_area, area: $place, holder: $nation}
+    sentence: Make peace with {foe} on the army's terms.
+    condition: {check: at_war, a: $nation, b: $foe, war: false}
     blanks:
-      - {name: place, values: [norra_hills, sudland_coast]}
+      - {name: foe, values: [norra, sudland]}
 
 cards:
   - person: ilse

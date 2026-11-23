@@ -193,11 +193,11 @@ def test_the_patterns_reach_state_once_by_a_public_event(played: Game) -> None:
     patterns = played.state.aim_patterns
     assert isinstance(patterns, AimPatterns)
     keys = [p.key for p in patterns.patterns]
-    assert keys == ["take_ground", "keep_support", "make_peace", "hold_the_line"]
-    hold = patterns.patterns[3]
-    (place,) = hold.blanks
-    assert place.values == (key_id("norra_hills"), key_id("sudland_coast"))  # bound to ids
-    assert hold.condition["area"] == "$place" and hold.condition["holder"] == "$nation"
+    assert keys == ["take_ground", "keep_support", "make_peace", "army_peace"]
+    army = patterns.patterns[3]
+    (foe,) = army.blanks
+    assert foe.values == (NORRA, SUDLAND)  # bound to ids
+    assert army.condition == {"check": "at_war", "a": "$nation", "b": "$foe", "war": False}
     assert patterns.posts == {ILSE: "head_of_government"}
     assert [p.government for p in patterns.patterns] == [True, False, False, True]
 
@@ -301,7 +301,7 @@ def test_a_missing_or_unknown_blank_and_an_unknown_pattern_are_refused(played: G
 
 
 def test_a_pattern_for_another_post_is_refused(played: Game) -> None:
-    assert reasons(played.state, "hold_the_line", place=COAST) == {aim_patterns.NOT_YOUR_POST}
+    assert reasons(played.state, "army_peace", foe=SUDLAND) == {aim_patterns.NOT_YOUR_POST}
 
 
 def test_an_aim_already_met_is_refused(played: Game) -> None:
@@ -350,7 +350,7 @@ def test_two_worlds_that_differ_in_a_hidden_fact_give_the_same_reasons(tmp_path:
 
 def test_every_reason_is_given_at_once(played: Game) -> None:
     state = played.state.model_copy(update={"aim_shut": frozenset({ILSE})})
-    assert reasons(state, "hold_the_line", place=COAST) == {
+    assert reasons(state, "army_peace", foe=SUDLAND) == {
         aim_patterns.NOT_YOUR_POST,
         aim_patterns.TOO_LATE,
     }

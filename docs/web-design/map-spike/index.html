@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Map spike: the 1941 map in four projections</title>
+<link rel="stylesheet" href="../../../web/css/tokens.css">
+<style>
+  html, body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.45 system-ui, sans-serif; }
+  main { max-width: 1400px; margin: 0 auto; padding: 16px 20px 40px; }
+  h1 { color: var(--fg-strong); font-size: 22px; margin: 0 0 6px; }
+  h2 { color: var(--fg-strong); font-size: 17px; margin: 22px 0 8px; }
+  p { margin: 0 0 8px; max-width: 72ch; color: var(--fg-read); }
+  code { color: var(--fg-strong); }
+  .cells { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: start; }
+  figure { margin: 0; background: var(--surface); border: 1px solid var(--rule); padding: 6px; }
+  figure svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: 13px; color: var(--fg-muted); margin-top: 4px; }
+  figcaption strong { color: var(--fg-strong); }
+  .sea { fill: var(--chart-sea); }
+  .grat { fill: none; stroke: var(--rule-strong); stroke-width: 0.6px; vector-effect: non-scaling-stroke; }
+  .backdrop { fill: var(--chart-land); fill-rule: evenodd; opacity: 0.45; }
+  .land { fill: var(--chart-land); fill-rule: evenodd; }
+  .b-land, .b-coast, .b-sea { fill: none; stroke: var(--chart-line); stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .b-land { stroke-width: 1.2px; }
+  .b-coast { stroke-width: 2px; }
+  .b-sea { stroke-width: 1px; stroke-dasharray: 4 4; }
+  .frame-box { fill: none; stroke: var(--fg-muted); stroke-width: 1.5px; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
+  .proof .cells figure svg .b-land { stroke-width: 0.6px; }
+  .proof .cells figure svg .b-coast { stroke-width: 0.8px; }
+  .proof .cells figure svg .b-sea { stroke-width: 0.5px; stroke-dasharray: 2 2; }
+  .mk { fill: var(--surface); stroke: var(--fg-strong); stroke-width: 1.5px; vector-effect: non-scaling-stroke; }
+  .lbl { fill: var(--fg); font-weight: 600; paint-order: stroke; stroke: var(--chart-sea); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+  .bench { position: fixed; inset: 0; overflow: hidden; }
+  .stage { position: absolute; inset: 0; width: 100vw; height: 100vh; display: block; }
+  .over { pointer-events: none; }
+  @media (max-width: 760px) {
+    main { padding: 12px; }
+    .cells { grid-template-columns: minmax(0, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div id="spike-bench-root"></div>
+<main class="proof">
+  <h1>Map spike: the 1941 map in four projections</h1>
+  <p>The built 1941 board (<code>worlds/maps/autumn-1941.json</code>, 360 degrees wide) drawn four ways, each at the
+    whole map and at two region frames. The three proper projections are centred on the map's middle longitude;
+    the first column is what the game draws today. Lines every 30 degrees of longitude and 15 of latitude show the
+    shape of each projection. The dashed boxes on the whole map are the two region frames below it.</p>
+  <p>Opens from the file system with no server. The timing bench is the same page with
+    <code>?bench=viewbox</code>, <code>?bench=transform</code> or <code>?bench=canvas</code>; see
+    <code>RESULTS.md</code> for the numbers and the command that made them.</p>
+  <div id="spike"></div>
+</main>
+<script src="map-data.js"></script>
+<script src="spike.js"></script>
+</body>
+</html>

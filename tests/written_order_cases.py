@@ -586,10 +586,25 @@ NINETEEN_41: tuple[Case, ...] = (
         "Send two of the fleet's divisions on to Tripoli.",
         move("italian_fleet", "tripoli"),
     ),
+    # Marshal Timoshenko: the moves no lock holds
+    f41(
+        "timoshenko",
+        "western_front_move",
+        {"force": "soviet_western_front", "to": "vyazma"},
+        "Move the Western Front up to Vyazma.",
+        move("soviet_western_front", "vyazma"),
+    ),
+    f41(
+        "timoshenko",
+        "western_front_detach",
+        {"force": "soviet_western_front", "to": "vyazma", "strength": "2"},
+        "Send two parts of the front's strength forward to Vyazma.",
+        move("soviet_western_front", "vyazma"),
+    ),
 )
 """Every form on every playable card of Autumn 1941; Admiral King's naval order once in
 each zone it names, the war zone included; Admiral Tovey's, Admiral Dönitz's, Admiral
-Yamamoto's and Admiral Iachino's two forms where no lock holds them."""
+Yamamoto's, Admiral Iachino's and Marshal Timoshenko's two forms where no lock holds them."""
 
 
 # --- Salt Strait -------------------------------------------------------------------------
@@ -773,6 +788,7 @@ FIXES: dict[str, str] = {
     "1941.doenitz.uboat_detach": DETACH,
     "1941.yamamoto.combined_fleet_detach": DETACH,
     "1941.iachino.battle_fleet_detach": DETACH,
+    "1941.timoshenko.western_front_detach": DETACH,
     "salt.oren_vale.move_force": TIMING,
     "salt.oren_vale.declare_war": WAR,
     "salt.oren_vale.galley_patrol": TIMING,

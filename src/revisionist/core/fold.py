@@ -101,7 +101,7 @@ from revisionist.core.realism.pipeline import (
     StepKind,
 )
 from revisionist.core.realism.territory import holder as territory_holder
-from revisionist.core.realism.war import at_war, polity_of
+from revisionist.core.realism.war import WarEnd, at_war, polity_of
 from revisionist.core.state import Rule, State, Wake, controller_after, seat_of_person
 from revisionist.core.visibility import PUBLIC, Scope
 
@@ -139,10 +139,11 @@ def _locks_declared(state: State, p: ev.LocksDeclared) -> State:
         raise FoldError("locks_declared: a row is named twice")
     for r in p.rows:
         posture = r.when.zone if isinstance(r.when, PostureNotSet) else None
-        for who in (r.decider.person, r.decider.nation, r.decider.head, r.order.zone, posture):
+        zone = r.order.zone if r.order is not None else None
+        for who in (r.decider.person, r.decider.nation, r.decider.head, zone, posture):
             if who is not None:
                 _need(state.entities, who, "entity")
-        if r.order.force is not None:
+        if r.order is not None and r.order.force is not None:
             _need(state.features, r.order.force, "feature")
     return state.model_copy(update={"locks": p.rows})
 
@@ -995,6 +996,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.QuantitySet()
             | ev.FeatureSet()
             | ev.WarDeclared()
+            | ev.WarEnded()
             | ev.MapDeclared()
             | ev.KindsDeclared()
             | ev.LocksDeclared()
@@ -1327,6 +1329,19 @@ def _realism(state: State, p: ev.Payload) -> State:
             if at_war(state, w.a, w.b):
                 raise FoldError(f"{w.a} and {w.b} are already at war")
             return state.model_copy(update={"wars": _put(state.wars, w.war_id, w)})
+        case ev.WarEnded():
+            if Rule.PEACE not in state.rules:
+                raise FoldError("war_ended needs the peace rule")
+            ended = state.wars.get(p.war_id)
+            if ended is None:
+                raise FoldError(f"{p.war_id}: not at war")
+            if p.on < ended.since:
+                raise FoldError(f"{p.war_id}: a war ends after it began")
+            wars = {k: v for k, v in state.wars.items() if k != p.war_id}
+            record = WarEnd(war=ended, on=p.on, agreement_id=p.agreement_id)
+            return state.model_copy(
+                update={"wars": wars, "ended_wars": (*state.ended_wars, record)}
+            )
         case ev.MapDeclared():
             if state.map is not None:
                 raise FoldError("the map is declared once")

@@ -3376,7 +3376,10 @@
           "form",
           "aid",
           "vote",
-          "unchecked"
+          "unchecked",
+          "armistice",
+          "end_war",
+          "no_separate_peace"
         ],
         "title": "ClauseType",
         "type": "string"
@@ -5809,7 +5812,8 @@
         "enum": [
           "won",
           "held",
-          "lull"
+          "lull",
+          "ceased"
         ],
         "title": "Ending",
         "type": "string"
@@ -8561,7 +8565,14 @@
             "type": "string"
           },
           "order": {
-            "$ref": "#/$defs/OrderMatch"
+            "anyOf": [
+              {
+                "$ref": "#/$defs/OrderMatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "question": {
             "anyOf": [
@@ -15004,6 +15015,47 @@
         "title": "WarDeclared",
         "type": "object"
       },
+      "WarEnded": {
+        "additionalProperties": false,
+        "description": "A war ends by an agreement's terms, with ``peace`` on (PEA): it leaves the wars in\nforce and is kept among the wars ended. Public, as a declaration is.",
+        "properties": {
+          "agreement_id": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Agreement Id"
+          },
+          "kind": {
+            "const": "war_ended",
+            "default": "war_ended",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "war_id": {
+            "maxLength": 60,
+            "title": "War Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "war_id",
+          "on"
+        ],
+        "title": "WarEnded",
+        "type": "object"
+      },
       "WarNeed": {
         "additionalProperties": false,
         "description": "What one choice of a form needs: its issuer's nation at war with ``nation``, a\npolity's world key (WRL). A seat whose nation is not is told \"<its nation> is not at war\nwith <nation>, \" and then ``refusal``.",
@@ -15559,6 +15611,7 @@
             "wake_committed": "#/$defs/WakeCommitted",
             "wake_opened": "#/$defs/WakeOpened",
             "war_declared": "#/$defs/WarDeclared",
+            "war_ended": "#/$defs/WarEnded",
             "yield_changed": "#/$defs/YieldChanged"
           },
           "propertyName": "kind"
@@ -15749,6 +15802,9 @@
           },
           {
             "$ref": "#/$defs/WarDeclared"
+          },
+          {
+            "$ref": "#/$defs/WarEnded"
           },
           {
             "$ref": "#/$defs/MapDeclared"
@@ -18227,7 +18283,10 @@
           "form",
           "aid",
           "vote",
-          "unchecked"
+          "unchecked",
+          "armistice",
+          "end_war",
+          "no_separate_peace"
         ],
         "title": "ClauseType",
         "type": "string"
@@ -21504,7 +21563,14 @@
             "type": "string"
           },
           "order": {
-            "$ref": "#/$defs/OrderMatch"
+            "anyOf": [
+              {
+                "$ref": "#/$defs/OrderMatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "question": {
             "anyOf": [
@@ -26027,6 +26093,39 @@
         "title": "War",
         "type": "object"
       },
+      "WarEnd": {
+        "additionalProperties": false,
+        "description": "A war that ended by an agreement's terms (PEA): the war as it stood, the day it\nended and the agreement that ended it.",
+        "properties": {
+          "agreement_id": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Agreement Id"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "war": {
+            "$ref": "#/$defs/War"
+          }
+        },
+        "required": [
+          "war",
+          "on"
+        ],
+        "title": "WarEnd",
+        "type": "object"
+      },
       "WarNeed": {
         "additionalProperties": false,
         "description": "What one choice of a form needs: its issuer's nation at war with ``nation``, a\npolity's world key (WRL). A seat whose nation is not is told \"<its nation> is not at war\nwith <nation>, \" and then ``refusal``.",
@@ -26509,6 +26608,14 @@
       },
       "economy": {
         "$ref": "#/$defs/Economy"
+      },
+      "ended_wars": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/WarEnd"
+        },
+        "title": "Ended Wars",
+        "type": "array"
       },
       "entities": {
         "additionalProperties": {
@@ -28556,7 +28663,10 @@
           "form",
           "aid",
           "vote",
-          "unchecked"
+          "unchecked",
+          "armistice",
+          "end_war",
+          "no_separate_peace"
         ],
         "title": "ClauseType",
         "type": "string"
@@ -31366,7 +31476,14 @@
             "type": "string"
           },
           "order": {
-            "$ref": "#/$defs/OrderMatch"
+            "anyOf": [
+              {
+                "$ref": "#/$defs/OrderMatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "question": {
             "anyOf": [
@@ -34783,6 +34900,39 @@
         "title": "War",
         "type": "object"
       },
+      "WarEnd": {
+        "additionalProperties": false,
+        "description": "A war that ended by an agreement's terms (PEA): the war as it stood, the day it\nended and the agreement that ended it.",
+        "properties": {
+          "agreement_id": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Agreement Id"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "war": {
+            "$ref": "#/$defs/War"
+          }
+        },
+        "required": [
+          "war",
+          "on"
+        ],
+        "title": "WarEnd",
+        "type": "object"
+      },
       "WarNeed": {
         "additionalProperties": false,
         "description": "What one choice of a form needs: its issuer's nation at war with ``nation``, a\npolity's world key (WRL). A seat whose nation is not is told \"<its nation> is not at war\nwith <nation>, \" and then ``refusal``.",
@@ -35224,6 +35374,14 @@
       },
       "economy": {
         "$ref": "#/$defs/Economy"
+      },
+      "ended_wars": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/WarEnd"
+        },
+        "title": "Ended Wars",
+        "type": "array"
       },
       "entities": {
         "additionalProperties": {

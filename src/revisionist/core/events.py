@@ -20,7 +20,7 @@ ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
 VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
 OrderAsked, AskAnswered, MatterChosen, AimPatternsDeclared, OwnAimSet, OfferMade,
-OfferSettled, PostChanged``, and
+OfferSettled, PostChanged, WarEnded``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -671,6 +671,16 @@ class WarDeclared(Model):
 
     kind: Literal["war_declared"] = "war_declared"
     war: War
+
+
+class WarEnded(Model):
+    """A war ends by an agreement's terms, with ``peace`` on (PEA): it leaves the wars in
+    force and is kept among the wars ended. Public, as a declaration is."""
+
+    kind: Literal["war_ended"] = "war_ended"
+    war_id: Label
+    on: date
+    agreement_id: Label | None = None
 
 
 class MapDeclared(Model):
@@ -1551,6 +1561,7 @@ Payload = Annotated[
     | QuantitySet
     | FeatureSet
     | WarDeclared
+    | WarEnded
     | MapDeclared
     | KindsDeclared
     | LocksDeclared
@@ -1663,6 +1674,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "quantity_set",
         "feature_set",
         "war_declared",
+        "war_ended",
         "map_declared",
         "kinds_declared",
         "locks_declared",

@@ -157,6 +157,7 @@ from revisionist.core.world import (
     GoalDecl,
     LeverDecl,
     LinkDecl,
+    LockOrderDecl,
     LockWhenDecl,
     MandateDecl,
     PactClauseDecl,
@@ -1902,14 +1903,22 @@ def _check_locks(world: WorldFile, sections: Mapping[str, str], problems: list[s
         if row.key in seen:
             problems.append(f"{where}: duplicate key")
         seen.add(row.key)
-        o, d = row.order, row.decider
+        d = row.decider
+        o = None if _no_order(row.order) else row.order
+        if o is None and (row.question != Question.PEACE.value or row.when is not None):
+            problems.append(f"{where}: only a row of the kind peace names no order")
+            continue
         try:
-            match = OrderMatch(
-                form=o.form,
-                params=o.params,
-                effect=o.effect,
-                zone=None if o.zone is None else EntityId(o.zone),
-                force=None if o.force is None else FeatureId(o.force),
+            match = (
+                None
+                if o is None
+                else OrderMatch(
+                    form=o.form,
+                    params=o.params,
+                    effect=o.effect,
+                    zone=None if o.zone is None else EntityId(o.zone),
+                    force=None if o.force is None else FeatureId(o.force),
+                )
             )
             council = d.council
             Decider(
@@ -1937,20 +1946,17 @@ def _check_locks(world: WorldFile, sections: Mapping[str, str], problems: list[s
                     problems.append(f"{where}: unknown person {sitter}")
                 elif sitter in d.council.members and sitter not in carded:
                     problems.append(f"{where}: council member {sitter} has no card")
-        if match.form is not None:
+        if match is not None and o is not None and match.form is not None:
             _check_lock_form(where, levers, match.form, o.params, sections, problems)
             carriers = {person for person, name in levers if name == match.form}
             if d.person is not None and d.person in carriers:
                 problems.append(
                     f"{where}: {d.person} carries the form and would decide an order of their own"
                 )
-        if (
-            o.zone is not None
-            and o.zone not in areas
-            and kinds.get(o.zone) is not EntityKind.LOCATION
-        ):
-            problems.append(f"{where}: unknown area or place {o.zone}")
-        _ref(problems, where, o.force, "feature", sections)
+        zone, force = (o.zone, o.force) if o is not None else (None, None)
+        if zone is not None and zone not in areas and kinds.get(zone) is not EntityKind.LOCATION:
+            problems.append(f"{where}: unknown area or place {zone}")
+        _ref(problems, where, force, "feature", sections)
         for who in (d.person, d.head):
             if who is not None and kinds.get(who) is not EntityKind.PERSON:
                 problems.append(f"{where}: unknown person {who}")
@@ -1964,6 +1970,11 @@ def _check_locks(world: WorldFile, sections: Mapping[str, str], problems: list[s
                     problems.append(f"{where}: {d.nation} has no chamber {ch}")
         if row.when is not None:
             _check_lock_when(world, where, row.when, levers, areas, kinds, sections, problems)
+
+
+def _no_order(o: LockOrderDecl) -> bool:
+    """Whether a lock row names no order: no form, no effect and nothing else (PEA)."""
+    return o == LockOrderDecl()
 
 
 def _first_error(exc: ValidationError) -> str:
@@ -2110,7 +2121,10 @@ def _locks(world: WorldFile, ids: Mapping[str, str]) -> ev.LocksDeclared:
     deciders = Rule.DECIDERS in world.rules
     rows: list[LockRow] = []
     for r in world.locks:
-        o, d, w = r.order, r.decider, r.when
+        d, w = r.decider, r.when
+        o = None if _no_order(r.order) else r.order
+        if o is None and not deciders:
+            continue  # a row of the kind peace decides nothing with deciders off
         council: Council | None = None
         person = entity(d.person)
         if d.council is not None and deciders:
@@ -2131,7 +2145,9 @@ def _locks(world: WorldFile, ids: Mapping[str, str]) -> ev.LocksDeclared:
         rows.append(
             LockRow(
                 key=r.key,
-                order=OrderMatch(
+                order=None
+                if o is None
+                else OrderMatch(
                     form=o.form,
                     params=o.params,
                     effect=o.effect,

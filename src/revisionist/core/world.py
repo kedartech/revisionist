@@ -731,7 +731,9 @@ class LockDecl(Model):
     needs which decision, from whom."""
 
     key: Key
-    order: LockOrderDecl
+    order: LockOrderDecl = Field(default_factory=LockOrderDecl)
+    """Left out (no form, no effect) only on a row of the kind peace, which holds no order
+    (PEA)."""
     when: LockWhenDecl | None = None
     decider: LockDeciderDecl
     question: str | None = Field(default=None, max_length=40)

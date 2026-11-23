@@ -7,7 +7,7 @@
 .rl-eco-chip[aria-expanded="true"] { border-color: var(--accent); }
 .rl-eco-own { border-left: 4px solid var(--ok); }
 .rl-eco-enemy { border-left: 4px solid var(--danger); }
-.rl-eco-ally { border-left: 4px solid var(--info); }
+.rl-eco-ally { border-left: 4px dashed var(--info); }
 .rl-eco-neutral { border-left: 4px solid var(--rule-strong); }
 .rl-eco-num { font-variant-numeric: tabular-nums; }
 .rl-eco-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

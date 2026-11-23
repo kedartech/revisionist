@@ -1643,6 +1643,20 @@ class LockCheck(TypedDict):
     """For ``locked``, what the seat would be told; for ``beyond``, today's refusal."""
 
 
+class StandingVote(FloorVote):
+    """One vote of a measure on its way, counted as it would stand, in its chamber."""
+
+    chamber: str
+
+
+class OfferCheck(LockCheck):
+    """The check of a draft offer to a bloc that filing would allow (PRB rule 2)."""
+
+    stands: list[StandingVote]
+    """Each vote of the measure's bill counted as the votes rule would tally it with the
+    offer landed, in the world's order: the count as it would stand."""
+
+
 class ForecastMove(TypedDict):
     """One move the staff expected a picked suggestion to make, and how it came out (FCK)."""
 
@@ -2156,6 +2170,7 @@ __all__ = [
     "OddsTerrain",
     "OfferAnswer",
     "OfferBloc",
+    "OfferCheck",
     "OfferLine",
     "OfferMeasure",
     "OfferPrice",
@@ -2215,6 +2230,7 @@ __all__ = [
     "StakeLean",
     "StakeMandate",
     "Stakes",
+    "StandingVote",
     "StepLine",
     "StrengthRange",
     "TermClause",

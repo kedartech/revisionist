@@ -9,7 +9,7 @@ import { h, svg } from '../dom.js';
 import { worldDate } from '../rules.js';
 import { boxOf, holderRelation, territoryProjection } from '../realism-rules.js';
 import { DONE_HINT, dayKey, dayWords, itemHeading } from './realism-wake.js';
-import { floorMeasures } from './realism-home.js';
+import { floorMeasures, promisesMade } from './realism-home.js';
 import { askLines, heldLines, lockTag } from './realism-locks.js';
 
 /** The list's heading and its empty line [proposed]. */
@@ -111,6 +111,15 @@ addNeedKind('held', (rv) => heldLines(rv).map((l) => ({
 addNeedKind('ask', (rv) => askLines(rv).map((a) => ({
   key: a.id, label: 'Asks your leave', what: a.words, from: a.by, due: null, arrived: a.asked || null,
   action: { word: 'Open', to: 'ask', id: a.id },
+})));
+
+// a promise the seat made a bloc for its votes (PRB), once its measure has passed and set its due
+// day: due on that day; once judged, kept or broken (one still waiting on its measure owes nothing yet)
+const JUDGED = { kept: 'Promise kept to', broken: 'Promise broken to' };
+addNeedKind('promise', (rv) => promisesMade(rv.home).filter((p) => p.standing !== 'taken').map((p) => ({
+  key: p.offer_id, label: 'Your promise', what: `${JUDGED[p.standing] ?? 'Promise to'} ${p.name}: ${p.sentence}`,
+  from: p.title, due: p.due ?? null, arrived: p.filed || null,
+  action: { word: 'Show the floor', to: 'sheet', sheet: 'home' },
 })));
 
 /** The papers that only acknowledge an order, and the papers an order's receipt names. */

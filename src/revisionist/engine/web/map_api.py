@@ -116,6 +116,13 @@ def protect_marks(out: SeatMap, view: View) -> None:
         report["key"] = mark_key(view.campaign_id, nation, report["key"])
 
 
+def report_keys(view: View, raw: Sequence[str]) -> tuple[str, ...]:
+    """The keys ``protect_marks`` gives the reports with core keys ``raw``, sorted: the
+    one key a seat knows a report by, in every reply that names one."""
+    nation = viewing_nation(view)
+    return tuple(sorted(mark_key(view.campaign_id, nation, k) for k in raw))
+
+
 def _areas(board: territory.WorldMap, held: Holdings) -> list[MapArea]:
     """Every area of the board, territories first, each with its neighbours' keys; a
     territory with its holder keys and printed yields."""
@@ -389,6 +396,7 @@ __all__ = [
     "mark_secret",
     "protect_marks",
     "references",
+    "report_keys",
     "seat_board",
     "step_key",
     "verify_objects",

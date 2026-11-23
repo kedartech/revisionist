@@ -341,3 +341,40 @@ def test_the_browser_job_runs_every_smoke_script_it_finds() -> None:
         assert "for smoke in web/test/e2e/*_smoke.py" in s["run"]
         assert "playwright==1.49.*" in s["run"]
         assert tail in s["run"]
+
+
+def audit_export_commands() -> list[str]:
+    workflow = yaml.safe_load(WORKFLOW.read_text())
+    commands: list[str] = []
+    for step in workflow["jobs"]["audit"]["steps"]:
+        commands.extend(
+            line.strip() for line in step.get("run", "").splitlines() if "uv export" in line
+        )
+    return commands
+
+
+def test_blocking_audit_exports_the_runtime_extras() -> None:
+    runtime = [c for c in audit_export_commands() if "--no-dev" in c]
+    assert len(runtime) == 1
+    assert "--frozen" in runtime[0]
+    assert "--all-extras" in runtime[0]
+
+
+def test_runtime_export_names_the_server_packages() -> None:
+    import shutil
+    import subprocess
+
+    uv = shutil.which("uv")
+    assert uv is not None
+    command = next(c for c in audit_export_commands() if "--no-dev" in c)
+    args = command.split()[1:]
+    args = [a for a in args if a not in ("-o", "runtime-requirements.txt")]
+    out = subprocess.run([uv, *args], cwd=ROOT, capture_output=True, text=True, check=True).stdout
+    names = {re.split(r"[=<>; ]", ln, maxsplit=1)[0].lower() for ln in out.splitlines()}
+    assert {"psycopg", "cryptography", "discord-py"} <= names
+
+
+def test_deploy_guide_installs_from_the_lock() -> None:
+    text = (ROOT / "docs" / "deploy.md").read_text()
+    assert "uv sync --frozen --extra postgres --extra discord --extra seal" in text
+    assert "uv tool install --editable '.[" not in text

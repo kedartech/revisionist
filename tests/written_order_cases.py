@@ -446,7 +446,7 @@ NINETEEN_41: tuple[Case, ...] = (
     f41(
         "mussolini",
         "libya_convoys",
-        {"route": "tripoli"},
+        {"route": "tripoli_route"},
         "Run the Libya convoys to Tripoli.",
         engage("tripoli", "escort"),
     ),

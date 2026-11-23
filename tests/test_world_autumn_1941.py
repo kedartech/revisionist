@@ -23,7 +23,11 @@ PLAYABLE = {
 
 # Unsourced values a plan Josh approved puts in the world as [proposed], each marked
 # gap: true until a source is named (sealift plan, section 3).
-PROPOSED_VALUES = {"uk_sealift_grt": 300_000, "japan_sealift_grt": 200_000}
+PROPOSED_VALUES = {
+    "uk_sealift_grt": 300_000,
+    "japan_sealift_grt": 200_000,
+    "italy_sealift_grt": 150_000,
+}
 
 # Every value in the Phase 0b source note (SOURCES.md); a quantity may hold only these.
 SOURCED_VALUES = {

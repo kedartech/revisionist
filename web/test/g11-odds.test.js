@@ -30,7 +30,7 @@ const BANDS = /\b(impossible|long shot|contested|likely|assured)\b/i;
 
 /** The report the fixture's spread was read from, as the seat's reports block gives it. */
 const REPORT = {
-  key: 'r1', kind: 'galley', kind_name: 'Sudland Levy', strength_low: 3, strength_high: 5,
+  key: fixture.spread.reports[0], kind: 'galley', kind_name: 'Sudland Levy', strength_low: 3, strength_high: 5,
   area: { key: 'sudland_coast', name: 'The Sudland Coast' }, bound_for: null, seen: '1900-04-13', source: 'air',
   person: 'Brann Hollis', confidence: 'B', document: 'd-r1', ring: ['sudland_coast'],
 };
@@ -150,7 +150,7 @@ test('the move chip has an Odds button that asks the odds action for the piece a
   await settle();
   assert.deepEqual(calls, [{ action: 'odds', body: { force: 'norra_levy', to: 'sudland_coast' } }]);
   assert.ok(panelOf(r.view), 'the panel opens with the reply');
-  assert.match(words(panelOf(r.view)), /84 in 100/);
+  assert.match(words(panelOf(r.view)), /77 in 100/);
 });
 
 test('the battle sheet has an Odds button that asks for the battle with the decision in force', async () => {
@@ -232,7 +232,7 @@ test('the first line says whose picture it is: each report used, with its source
 
 test('a report the reply used that the map no longer holds is named as such, not dropped', () => {
   const out = KNOWN();
-  out.odds.reports = ['r1', 'gone'];
+  out.odds.reports = [REPORT.key, 'gone'];
   const said = words(panel(out).querySelector('.rl-odds-whose'));
   assert.match(said, /2 reports/);
   assert.match(said, /a report no longer on your map/);
@@ -246,13 +246,13 @@ test('the outcome bar has the three shares, each with its word, and a text twin'
   assert.ok(bar);
   const segs = bar.querySelectorAll('.rl-odds-seg');
   assert.deepEqual(segs.map((s) => s.getAttribute('data-outcome')), ['win', 'loss'], 'a share of none draws no segment');
-  assert.match(words(bar), /win 84/);
-  assert.match(words(bar), /loss 16/);
+  assert.match(words(bar), /win 77/);
+  assert.match(words(bar), /loss 23/);
   const twin = words(p.querySelector('.rl-odds-twin'));
   assert.match(twin, /In 100 runs/);
-  assert.match(twin, /84 win/);
+  assert.match(twin, /77 win/);
   assert.match(twin, /0 end with neither side through/);
-  assert.match(twin, /16 lose/);
+  assert.match(twin, /23 lose/);
 });
 
 test('the loss range for each side, in steps', () => {
@@ -263,9 +263,9 @@ test('the loss range for each side, in steps', () => {
 
 test('the chance and the days to take the territory, and the risk of being forced back and where to', () => {
   const said = spaced(panel(KNOWN()).querySelector('.rl-odds-take'));
-  assert.match(said, /Chance 84 in 100/);
+  assert.match(said, /Chance 77 in 100/);
   assert.match(said, /When, if taken day 4 of the fighting, in half the runs that took it/);
-  assert.match(said, /Forced back 16 in 100, to The Norra Hills/);
+  assert.match(said, /Forced back 23 in 100, to The Norra Hills/);
 });
 
 test('a battle with no territory to take says so, and nowhere to fall back to says so', () => {
@@ -280,7 +280,7 @@ test('a table of the win share at each strength in the reported range', () => {
   const out = KNOWN();
   out.odds.by_strength.push({ strength: 6, win: null });
   const rows = panel(out).querySelectorAll('.rl-odds-table tbody tr').map(spaced);
-  assert.deepEqual(rows, ['3 100 in 100', '4 93 in 100', '5 53 in 100', '6 no run drew it']);
+  assert.deepEqual(rows, ['3 100 in 100', '4 91 in 100', '5 38 in 100', '6 no run drew it']);
 });
 
 test('the panel has no element marked as the answer: no verdict, no band word, no lone headline figure', () => {
@@ -329,7 +329,7 @@ test('a busy or refused reply shows its words and Ask again, and no figure', asy
   button(panelOf(b.host), 'Ask again').click();
   await settle();
   assert.equal(calls.length, 2);
-  assert.match(words(panelOf(b.host)), /84 in 100/);
+  assert.match(words(panelOf(b.host)), /77 in 100/);
 });
 
 // --- rule 5: closing changes nothing ------------------------------------------------------

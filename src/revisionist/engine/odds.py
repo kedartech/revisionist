@@ -12,6 +12,8 @@ The seat's own pieces go in exactly. The enemy goes in only from the reports in
 the truth about the enemy is never read, so swapping the enemy for one of another strength
 with the reports unchanged gives the same reply byte for byte. With no report for the area
 the reply says the enemy is unknown and gives the terrain facts and no figures.
+Each report the reply uses is named by the key the seat's map gives it, never the core key,
+which a seat could match to an enemy piece from public inputs.
 
 Each request runs ``battle.simulate`` ``ODDS_RUNS`` times over ``ODDS_DAYS`` days, seeded
 by the campaign, the wake, the seat and the request's inputs (never the clock), so asking
@@ -49,6 +51,7 @@ from revisionist.core.realism.geography import Feature, in_play
 from revisionist.core.realism.kinds import Domain
 from revisionist.core.state import Rule, State, View
 from revisionist.core.world_compile import object_id
+from revisionist.engine.web import map_api
 from revisionist.engine.web.realism_api import (
     ClosingOdds,
     OddsAtStrength,
@@ -67,6 +70,7 @@ PER_MINUTE = 30  # [proposed] plan, ODS Defaults: odds requests a minute per sea
 WORKERS = 2  # [proposed] simulation workers for the whole server, from rule 9's measurement
 QUEUE = 8  # [proposed] requests waiting beyond the workers before the server answers busy
 CACHE = 512  # [proposed] replies kept for the wake, least recently asked dropped first
+SEND_CLOSING = False  # [proposed] no client draws the closing odds: none computed or sent
 
 BUSY = "The odds desk is busy just now. Ask again in a moment."  # [proposed]
 LIMITED = "You have asked for odds too often this minute. Ask again shortly."  # [proposed]
@@ -122,7 +126,8 @@ class Picture(NamedTuple):
     back: str | None
     """The area key the seat's piece would be forced back to; None: nowhere."""
     reports: tuple[str, ...]
-    """Every report key used, fighters and air alike."""
+    """Every report used, fighters and air alike, by the key the seat's map gives it
+    (``map_api.report_keys``), never the core one."""
     terrain: OddsTerrain
 
 
@@ -268,7 +273,7 @@ def _toward(state: State, view: View, seat: SeatId, f: Feature, area: EntityId) 
         withdraw=False,
         takes=land and Rule.HOLDERS in state.rules,
         back=_back(view, f, area),
-        reports=used,
+        reports=map_api.report_keys(view, used),
         terrain=terrain,
     )
 
@@ -339,7 +344,7 @@ def _in_battle(
         withdraw=decision is Decision.WITHDRAW,
         takes=i == 0 and land and not b.meeting and Rule.HOLDERS in state.rules,
         back=_back(view, f, where),
-        reports=used,
+        reports=map_api.report_keys(view, used),
         terrain=terrain,
     )
 
@@ -657,7 +662,8 @@ class Ended(NamedTuple):
     """The battle as it opened (``battle_opened``)."""
     ended: date
     closing: ClosingOdds | None
-    """None: the odds desk was busy; the next refresh asks again."""
+    """None: the odds desk was busy, and the next refresh asks again; or closing odds are
+    not sent (``SEND_CLOSING``)."""
 
 
 def ended(service: Service, state: State, seat: SeatId, log: Sequence[Event]) -> list[Ended]:
@@ -665,7 +671,8 @@ def ended(service: Service, state: State, seat: SeatId, log: Sequence[Event]) ->
     (rule 7): the odds as they truly stood on its first day beside what the seat's own
     picture said. Computed on request from the log's ``battle_opened`` and the reports as
     they stood that day; kept in ``service``'s cache, never in the log. A battle still open
-    is not here."""
+    is not here. With ``SEND_CLOSING`` off each is listed with no closing odds, none
+    computed."""
     from revisionist.engine.web.battles_api import sides_of
 
     own_nation = _nation(state, seat)
@@ -695,7 +702,9 @@ def ended(service: Service, state: State, seat: SeatId, log: Sequence[Event]) ->
                     return None
 
             try:
-                found: ClosingOdds | None = service.ask(key, None, compute)
+                found: ClosingOdds | None = (
+                    service.ask(key, None, compute) if SEND_CLOSING else None
+                )
             except BusyError:
                 found = None
             out.append(Ended(o.battle, p.on, found))
@@ -728,6 +737,7 @@ __all__ = [
     "ODDS_RUNS",
     "PER_MINUTE",
     "QUEUE",
+    "SEND_CLOSING",
     "WORKERS",
     "BusyError",
     "Ended",

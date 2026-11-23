@@ -44,7 +44,7 @@ from revisionist.engine import campaign as cmp
 from revisionist.engine import realism_tick, session_zero
 from revisionist.engine.store import MemoryStore, load_state
 from revisionist.engine.wake_report import inert_forms
-from tests.locked_orders_script import Ids, autumn_1941
+from tests.locked_orders_script import Ids, autumn_1941, table
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 SALT = "salt-strait-realism"
@@ -90,14 +90,20 @@ def _seat(key: str) -> SeatId:
 class _World:
     """One world opened for play, and the walk of it with nothing filed."""
 
-    def __init__(self, world: WorldFile, tmp: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def __init__(
+        self,
+        world: WorldFile,
+        people: tuple[str, ...],
+        tmp: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
         self.world = world
         ids = Ids(CAMPAIGN)
         ids.install(monkeypatch)
         store = MemoryStore()
         store.append_all(compile_world(world, CAMPAIGN, cmp.versions()))
         names = load_state(store, CAMPAIGN).entities
-        self.people = sorted({c.person for c in world.cards if c.playable and c.levers})
+        self.people = list(people)
         for person in self.people:
             with ids.drawn_by("claim:" + person):
                 session_zero.claim(store, CAMPAIGN, _seat(person), names[_entity(person)].name)
@@ -284,15 +290,20 @@ def _cases(params: tuple[ParamSpec, ...]) -> Iterator[dict[str, str]]:
                 yield {**base, p.name: choice}
 
 
-_WORLDS: dict[str, _World] = {}
+_WORLDS: dict[tuple[str, tuple[str, ...]], _World] = {}
 _ACTS: dict[tuple[str, str, str], list[str] | None] = {}
+_LOADED: dict[str, WorldFile] = {}
 
 
-def _open(name: str, tmp: Path, monkeypatch: pytest.MonkeyPatch) -> _World:
-    if name not in _WORLDS:
-        world = autumn_1941(tmp) if name == "1941" else cmp.load_world(cmp.world_path(SALT))
-        _WORLDS[name] = _World(world, tmp, monkeypatch)
-    return _WORLDS[name]
+def _open(name: str, tmp: Path, monkeypatch: pytest.MonkeyPatch, who: str | None = None) -> _World:
+    """The world opened with the people ``who`` plays beside (``table``)."""
+    if name not in _LOADED:
+        _LOADED[name] = autumn_1941(tmp) if name == "1941" else cmp.load_world(cmp.world_path(SALT))
+    world = _LOADED[name]
+    people = table(world, who)
+    if (name, people) not in _WORLDS:
+        _WORLDS[name, people] = _World(world, people, tmp, monkeypatch)
+    return _WORLDS[name, people]
 
 
 def _acts(
@@ -301,7 +312,7 @@ def _acts(
     """What the walk finds for one form, walked once per test session."""
     if form not in _ACTS:
         name, person, lever = form
-        _ACTS[form] = _open(name, tmp, monkeypatch).acts(person, lever)
+        _ACTS[form] = _open(name, tmp, monkeypatch, person).acts(person, lever)
     return _ACTS[form]
 
 

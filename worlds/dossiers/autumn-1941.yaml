@@ -234,3 +234,36 @@ people:
     fact: He wore the wings of a naval aviator, earned at the age of forty-eight.
     portrait: null
     credit: null
+  tovey:
+    bio: Admiral Sir John Tovey has commanded the Home Fleet from Scapa Flow since the end of 1940. In
+      May 1941 his battleships brought the Bismarck to action and sank her. He is stubborn in argument
+      with the Admiralty and with the Prime Minister, and careful of his ships.
+    arena: Your arena is the Home Fleet. You decide where it bases, what you detach and how it fights,
+      but the balance between home waters and the Atlantic is the Prime Minister's, through the First
+      Sea Lord, and his order over the fleet stands over yours.
+    history:
+    - Commanded the destroyer Onslow at Jutland in 1916.
+    - Led the Home Fleet in the pursuit and sinking of the Bismarck in May 1941.
+    - From August 1941 his fleet covered the first convoys to northern Russia.
+    quote: null
+    source: null
+    fact: He was second in command of the Mediterranean Fleet before he took the Home Fleet.
+    portrait: null
+    credit: null
+  doenitz:
+    bio: Vice-Admiral Karl Dönitz has commanded the U-boats since 1939, from a villa at Kernevel by
+      Lorient since the fall of France. He reckons the war at sea in tonnage sunk, and presses the
+      Navy and the Fuehrer for more boats and a free hand against the convoys.
+    arena: Your arena is the U-boat arm. You decide where the boats go, what you detach and how
+      they fight, but whether they may attack American ships is the Fuehrer's, through the Navy's
+      commander in chief, and his order over the boats stands over yours. No cabinet, Reichstag or
+      council answers for it, and the Fuehrer decides alone.
+    history:
+    - Commanded the submarine UB-68 in the Mediterranean, and was captured when she sank in 1918.
+    - Built the U-boat arm again from 1935 and led it into the war in 1939.
+    - Took his headquarters to the Biscay coast in 1940 and turned his boats on the Atlantic convoys in packs.
+    quote: null
+    source: null
+    fact: He held that three hundred boats would decide the war at sea; in the autumn of 1941 he had about thirty in the Atlantic.
+    portrait: null
+    credit: null

@@ -526,9 +526,40 @@ NINETEEN_41: tuple[Case, ...] = (
         naval("king", "fleet_naval_order", "escort_convoys", zone, "us_atlantic_fleet")
         for zone in ("western_atlantic", "iceland_route", "war_zone")
     ),
+    # Admiral Tovey: the moves no lock holds
+    f41(
+        "tovey",
+        "home_fleet_move",
+        {"force": "home_fleet", "to": "liverpool"},
+        "Take the Home Fleet to Liverpool.",
+        move("home_fleet", "liverpool"),
+    ),
+    f41(
+        "tovey",
+        "home_fleet_detach",
+        {"force": "home_fleet", "to": "reykjavik", "strength": "2"},
+        "Send two of the fleet's squadrons on to Reykjavik.",
+        move("home_fleet", "reykjavik"),
+    ),
+    # Admiral Dönitz: the moves no lock holds
+    f41(
+        "doenitz",
+        "uboat_move",
+        {"force": "uboat_arm", "to": "lorient"},
+        "Bring the U-boats in to Lorient.",
+        move("uboat_arm", "lorient"),
+    ),
+    f41(
+        "doenitz",
+        "uboat_detach",
+        {"force": "uboat_arm", "to": "lorient", "strength": "2"},
+        "Send two of the U-boat flotillas in to Lorient.",
+        move("uboat_arm", "lorient"),
+    ),
 )
 """Every form on every playable card of Autumn 1941; Admiral King's naval order once in
-each zone it names, the war zone included."""
+each zone it names, the war zone included; Admiral Tovey's and Admiral Dönitz's two forms
+where no lock holds them."""
 
 
 # --- Salt Strait -------------------------------------------------------------------------
@@ -703,6 +734,8 @@ FIXES: dict[str, str] = {
     "1941.king.fleet_naval_order.western_atlantic": SHIPPING,
     "1941.king.fleet_naval_order.iceland_route": SHIPPING,
     "1941.king.fleet_naval_order.war_zone": SHIPPING,
+    "1941.tovey.home_fleet_detach": DETACH,
+    "1941.doenitz.uboat_detach": DETACH,
     "salt.oren_vale.move_force": TIMING,
     "salt.oren_vale.declare_war": WAR,
     "salt.oren_vale.galley_patrol": TIMING,

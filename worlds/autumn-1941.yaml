@@ -135,6 +135,7 @@ entities:
   - {key: halifax, kind: person, name: Lord Halifax, parent: uk}
   - {key: pound, kind: person, name: Sir Dudley Pound, parent: chiefs_of_staff}
   - {key: ismay, kind: person, name: Sir Hastings Ismay, parent: chiefs_of_staff}
+  - {key: tovey, kind: person, name: Sir John Tovey, parent: uk}
   - {key: menzies, kind: person, name: Sir Stewart Menzies, parent: uk}  # source: hinsley_1979
   - {key: dai_li, kind: person, name: Dai Li, parent: china}  # source: wakeman_2003
   - {key: uk_cipher_clerk, kind: person, name: Downing Street cipher clerk, parent: uk}
@@ -153,6 +154,7 @@ entities:
   - {key: goering, kind: person, name: Hermann Goering, parent: germany}
   - {key: ribbentrop, kind: person, name: Joachim von Ribbentrop, parent: germany}
   - {key: raeder, kind: person, name: Erich Raeder, parent: kriegsmarine}
+  - {key: doenitz, kind: person, name: Karl Dönitz, parent: kriegsmarine}  # source: doenitz_1941
   - {key: jodl, kind: person, name: Alfred Jodl, parent: okw}
   - {key: mussolini, kind: person, name: Benito Mussolini, parent: italy}
   - {key: victor_emmanuel, kind: person, name: King Victor Emmanuel III, parent: italy}
@@ -829,6 +831,49 @@ groups:
         baseline: 70
         feeds: {standing: 2}
         moved_by: {battle_won: 2, battle_lost: -3, territory_lost: -3}
+      # The Commons as a chamber (NUK): three blocs, with seats from the 1935 general election
+      # (Conservatives with their Liberal National, National Labour and National allies 429;
+      # Labour 154; the Liberals, the ILP, the Communist and independents 32), not corrected for
+      # the by-elections since. Every row, start and stance [proposed].
+      - key: commons_government  # gap: true
+        name: The government benches
+        kind: party bloc
+        start: 60
+        baseline: 60
+        chamber: commons
+        seats: 429
+        feeds: {votes: 1}
+        moved_by: {war_declared: 5}
+        votes:
+          national_service: {commons: {voting: 330, yeas: 328}}
+        vote_default: {commons: {voting: 330, yeas: 320}}
+        stances: {power: 1, limit: -1}
+      - key: commons_labour  # gap: true
+        name: The Labour benches
+        kind: party bloc
+        start: 55
+        baseline: 55
+        chamber: commons
+        seats: 154
+        feeds: {votes: 1}
+        moved_by: {war_declared: 5}
+        votes:
+          national_service: {commons: {voting: 120, yeas: 112}}
+        vote_default: {commons: {voting: 120, yeas: 100}}
+        stances: {power: 1, money: 1}
+      - key: commons_others  # gap: true
+        name: The Liberals and the other members
+        kind: party bloc
+        start: 45
+        baseline: 45
+        chamber: commons
+        seats: 32
+        feeds: {votes: 1}
+        moved_by: {war_declared: 5}
+        votes:
+          national_service: {commons: {voting: 22, yeas: 15}}
+        vote_default: {commons: {voting: 22, yeas: 14}}
+        stances: {power: -1, limit: 1}
       - key: dominions  # gap: true
         name: The Dominions
         kind: dominions
@@ -1144,6 +1189,10 @@ assets:
   - {key: chinese_chairmanship, kind: office, name: Chairman of the Military Affairs Commission, tier: 4, controller: chiang}
   # KCD: the ninth playable card's post. The tier is [proposed], as Tojo's and Mussolini's are.
   - {key: atlantic_fleet_command, kind: office, name: "Commander in Chief, Atlantic Fleet", tier: 3, controller: king}
+  # NUK: the Home Fleet's commander's post. The tier is [proposed], as King's is.
+  - {key: home_fleet_command, kind: office, name: "Commander in Chief, Home Fleet", tier: 3, controller: tovey}
+  # NGE: the U-boat arm's commander's post. The tier is [proposed], as Tovey's is.
+  - {key: uboat_command, kind: office, name: Commander of U-boats, tier: 3, controller: doenitz}
 
 sources:
   - key: voteview
@@ -1196,6 +1245,10 @@ sources:
   - {key: deakin_storry_1966, title: "F. W. Deakin and G. R. Storry, The Case of Richard Sorge (Chatto and Windus, 1966): Sorge's radio reports to Red Army intelligence until his arrest on 18 October 1941", note: "Named citation; not read. Confirm the date and pages before release."}
   - {key: wakeman_2003, title: "Frederic Wakeman Jr., Spymaster: Dai Li and the Chinese Secret Service (University of California Press, 2003)", note: "For Dai Li's Military Statistics Bureau running agents in occupied China and reporting to Chiang. Named citation; not read. Confirm before release."}
   - {key: glantz_house_1995, title: "David M. Glantz and Jonathan M. House, When Titans Clashed (University Press of Kansas, 1995): the fall of Kiev on 19 September and of Kalinin on 14 October 1941", note: "Named citation; not read. Confirm the pages before release."}
+  - {key: national_service_1941, title: "National Service (No. 2) Act 1941: men liable to the age of 51, unmarried women from 20 to 30", note: "Announced to the Commons by the Prime Minister on 2 December 1941; Royal Assent 18 December 1941. Named citation; the lane had no network and read no edition or division list. Confirm the dates and the divisions before release."}
+  - {key: tovey_1941, title: "Admiral Sir John Tovey, Commander in Chief, Home Fleet, from December 1940 to May 1943, at Scapa Flow", note: "Named citation; not read. Confirm the dates before release."}
+  - {key: doenitz_1941, title: "Karl Dönitz, Befehlshaber der Unterseeboote (Commander of U-boats) from 1939, Vizeadmiral from September 1940, with his headquarters at Kernevel by Lorient from November 1940", note: "Named citation; the lane had no network and read no edition. Confirm the rank and dates before release."}
+  - {key: fuehrer_naval_17_sep_1941, title: "Fuehrer Conferences on Naval Affairs, 17 September 1941: Hitler orders the U-boats to avoid incidents with American ships", note: "Raeder asked leave to attack American escorts; Hitler refused until the campaign in the East is decided. Named citation; not read. Confirm the date and the wording before release."}
   - {key: neutrality_act_1939, title: "Neutrality Act of 4 November 1939 (54 Stat. 4), section 3, Combat Areas; with Proclamation 2376 of the same day defining the combat area", note: "Read (presidency.ucsb.edu, Proclamation 2376, which quotes section 3). Section 3(a): once the President defines combat areas it is unlawful for any citizen of the United States or any American vessel to proceed into or through them. The area: the waters round the British Isles out to 20 W, from the north coast of Spain to Norway."}
   - {key: fdr_1941_09_11, title: "Roosevelt's fireside chat of 11 September 1941 on the Greer: the Navy's patrols of the Atlantic and the order to shoot on sight", note: "Named citation; not read. Confirm the text before release."}
   - {key: lane_choice, title: "The lane's own choice: no published measure", note: "Hubs and prestige ranks chosen by the lane for play; kept as gaps for Josh to mark."}
@@ -1250,6 +1303,10 @@ quantities:
   - {key: draft_extension_senate_yeas, owner: senate, name: "Senate yeas on draft extension", unit: votes, computed: true, public: true}
   - {key: draft_extension_senate_nays, owner: senate, name: "Senate nays on draft extension", unit: votes, computed: true, public: true}
   - {key: draft_extension_passed, owner: usa, name: "Whether draft extension became law (1 yes, 0 no)", unit: flag, computed: true, public: true}
+  # The Commons' vote on the National Service bill (NUK), tallied from its blocs.
+  - {key: national_service_commons_yeas, owner: commons, name: "Commons yeas on National Service", unit: votes, computed: true, public: true}
+  - {key: national_service_commons_nays, owner: commons, name: "Commons nays on National Service", unit: votes, computed: true, public: true}
+  - {key: national_service_passed, owner: uk, name: "Whether National Service became law (1 yes, 0 no)", unit: flag, computed: true, public: true}
   - {key: uboat_losses_oct, name: "Allied merchant losses to U-boats, Oct 1941", unit: GRT, computed: true}
   - {key: uboat_losses_nov, name: "Allied merchant losses to U-boats, Nov 1941", unit: GRT, computed: true}
   - {key: soviet_lend_lease_eligible, owner: usa, name: "Soviet Union eligible for Lend-Lease (1 yes, 0 no)", unit: flag, computed: true}
@@ -1386,6 +1443,19 @@ pipelines:
     gap: true
     steps:
       - {person: king, kind: clerical, days: 1, assumed: true}
+  # Tovey's own forms (NUK): through his own staff, with no step above him. The step is his.
+  - key: home_fleet_staff
+    name: Through the Home Fleet's staff
+    gap: true
+    steps:
+      - {person: tovey, kind: clerical, days: 1, assumed: true}
+  # Dönitz's own forms (NGE): through his own staff at Kernevel, with no step above him. The step
+  # is his.
+  - key: bdu_staff
+    name: Through the U-boat command's staff
+    gap: true
+    steps:
+      - {person: doenitz, kind: clerical, days: 1, assumed: true}
   - key: cable_to_churchill
     name: A cable to the Prime Minister
     gap: true
@@ -2818,6 +2888,118 @@ cards:
         effects: [move_force, engagement]
         forces: [us_atlantic_fleet]
         summary: "Command of the Atlantic Fleet: where it goes, what it detaches, how it fights."
+  # The tenth playable card (NUK): a military card, flagged playable by hand, under the First Sea
+  # Lord and so under the Prime Minister, whose own order over the Home Fleet stands. His own forms
+  # go through his own staff (home_fleet_staff), with no step above him. Aims 1 and 2 are the fleet
+  # commander's patterns filled in (hold_and_take, raise_group); aim 3 is the default an own aim
+  # replaces. source: tovey_1941 for the post; every other line gap: true, [proposed].
+  - person: tovey
+    post_kind: fleet_commander
+    office: Commander in Chief, Home Fleet
+    voice: "Blunt and stubborn; argues his case to the Admiralty in plain terms and will not be hurried."
+    addressed_as: "Admiral Tovey"
+    playable: true
+    path: military
+    principals: [pound]
+    powers: [command the Home Fleet, cover the convoys to Russia, watch the northern exits]
+    inner_circle:
+      - {person: pound, channel: cable}
+      - {person: churchill, channel: cable}
+    feeds: [admiralty_reports]
+    pipelines: [home_fleet_staff]
+    levers:
+      - name: home_fleet_move
+        pipeline: home_fleet_staff
+        resolver: movement
+        label: "Move the fleet"
+        summary: "Send the Home Fleet to another base. Your staff carries it out."
+        params:
+          - {name: force, kind: enum, choices: [home_fleet], label: "Which fleet", choice_labels: ["The Home Fleet"]}
+          - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool"]}
+      - name: home_fleet_detach
+        pipeline: home_fleet_staff
+        resolver: movement
+        label: "Detach part of the fleet"
+        summary: "Send part of the Home Fleet's strength to another base; the rest stays where it is."
+        params:
+          - {name: force, kind: enum, choices: [home_fleet], label: "Which fleet", choice_labels: ["The Home Fleet"]}
+          - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool"]}
+          - {name: strength, kind: int, lo: 1, hi: 4, label: "How much of its strength"}
+    loyalty: 0
+    competence: 4
+    wants: [naval_engagement, fleet_movements]
+    holds_to: [atlantic_escort]
+    reach: {rank: 2}
+    horizon_days: 7
+    aims:
+      - "Hold Iceland and take Norway."
+      - "Lift the British public to 80 or more."
+      - "Put the National Service bill into law."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Iceland stays British, and Norway is taken from Germany.", condition: {check: all_of, conditions: [{check: holds_area, area: iceland, holder: uk}, {check: holds_area, area: norway, holder: uk}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "The British public's support is at 80 or more.", condition: {check: support_at, nation: uk, group: public, op: ge, value: 80}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "The National Service bill becomes law.", condition: {check: quantity_at, quantity: national_service_passed, op: ge, value: 1}}
+    authority:
+      - name: home_fleet
+        effects: [move_force, engagement]
+        forces: [home_fleet]
+        summary: "Command of the Home Fleet: where it goes, what it detaches, how it fights."
+  # The eleventh playable card (NGE): a military card, flagged playable by hand, under the Navy's
+  # commander in chief and so under Hitler, whose own order over the U-boat arm stands. His own
+  # forms go through his own staff (bdu_staff), with no step above him. Aims 1 and 2 are the fleet
+  # commander's patterns filled in (hold_and_take, war_with); aim 3 is the default an own aim
+  # replaces. Germany has no body or council that decides: Hitler decides alone. source:
+  # doenitz_1941 for the post; every other line gap: true, [proposed].
+  - person: doenitz
+    post_kind: fleet_commander
+    office: Commander of U-boats
+    voice: "Clipped and exact; argues for more boats and a free hand in plain figures of tonnage sunk."
+    addressed_as: "Herr Vizeadmiral"
+    playable: true
+    path: military
+    principals: [raeder]
+    powers: [command the U-boat arm, dispose the boats against the convoys, report tonnage sunk]
+    inner_circle:
+      - {person: raeder, channel: cable}
+      - {person: hitler, channel: cable}
+    feeds: [german_naval_reports]
+    pipelines: [bdu_staff]
+    levers:
+      - name: uboat_move
+        pipeline: bdu_staff
+        resolver: movement
+        label: "Move the U-boats"
+        summary: "Send the U-boat arm to other waters. Your staff carries it out."
+        params:
+          - {name: force, kind: enum, choices: [uboat_arm], label: "Which boats", choice_labels: ["The U-boat arm"]}
+          - {name: to, kind: enum, choices: [lorient, north_atlantic, argentia], label: "To", choice_labels: ["Lorient", "The North Atlantic", "Off Argentia"]}
+      - name: uboat_detach
+        pipeline: bdu_staff
+        resolver: movement
+        label: "Detach part of the U-boats"
+        summary: "Send part of the U-boat arm to other waters; the rest stays where it is."
+        params:
+          - {name: force, kind: enum, choices: [uboat_arm], label: "Which boats", choice_labels: ["The U-boat arm"]}
+          - {name: to, kind: enum, choices: [lorient, north_atlantic, argentia], label: "To", choice_labels: ["Lorient", "The North Atlantic", "Off Argentia"]}
+          - {name: strength, kind: int, lo: 1, hi: 2, label: "How much of its strength"}
+    loyalty: 1
+    competence: 4
+    wants: [naval_engagement, fleet_movements]
+    reach: {rank: 2}
+    horizon_days: 7
+    aims:
+      - "Hold Occupied France and take Iceland."
+      - "Bring Germany into the war against the United States."
+      - "Sink 150,000 tons of Allied shipping in November."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Occupied France stays German, and Iceland is taken from Britain.", condition: {check: all_of, conditions: [{check: holds_area, area: occupied_france, holder: germany}, {check: holds_area, area: iceland, holder: germany}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "Germany is at war with the United States.", condition: {check: at_war, a: germany, b: usa}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "Allied merchant losses to U-boats in November reach 150,000 GRT or more.", condition: {check: quantity_at, quantity: uboat_losses_nov, op: ge, value: 150000}}
+    authority:
+      - name: uboat_arm
+        effects: [move_force, engagement]
+        forces: [uboat_arm]
+        summary: "Command of the U-boat arm: where the boats go, what is detached, how they fight."
   - person: kramer
     office: Navy communications intelligence translator
     voice: "Precise translator's register; marks the urgent passage and adds one short note of his own."
@@ -3282,6 +3464,28 @@ mandates:
     condition: {check: ordered, person: king, effect: engagement}
     days: 14
     text: "After the Greer, the Chief of Naval Operations wants the fleet escorting the HX convoys toward Iceland."
+  # NUK: the Home Fleet covered the convoys to northern Russia from the autumn (the PQ series, from
+  # 29 September). Tied here to the American finding that opens Lend-Lease to the Soviet Union.
+  # Named, not read: gap: true, [proposed].
+  - key: arctic_cover
+    kind: order
+    issuer: pound
+    trigger: {"on": history, history: soviet_lend_lease_finding}
+    to: [tovey]
+    condition: {check: ordered, person: tovey, effect: move_force}
+    days: 14
+    text: "The convoys to Russia are to run every ten days: the First Sea Lord wants the Home Fleet placed to cover them."
+  # NGE: after the Greer, Hitler ordered the U-boats to avoid incidents with American ships (17
+  # September), and the Naval Staff passed the order down. Named, not read: gap: true, [proposed].
+  # source: fuehrer_naval_17_sep_1941
+  - key: uboats_clear_of_americans
+    kind: order
+    issuer: raeder
+    trigger: {"on": history, history: greer_incident}
+    to: [doenitz]
+    condition: {check: ordered, person: doenitz, effect: move_force}
+    days: 14
+    text: "The Fuehrer wants no incident with American ships: the Naval Staff wants the boats disposed clear of the American escorts."
   # The Commons pressed for the Atlantic convoys through the autumn.
   - key: commons_convoys
     kind: order
@@ -3343,6 +3547,10 @@ mandates:
 
 seats: []
 
+# The roster's bounds (NUK) [proposed]: room for the people this run's nation items add, a
+# commander for each of six nations and Finland's two, beside the nine before them.
+roster_limit: [8, 24]
+
 roster:
   - entity: roosevelt
     pitch: Third-term President steering a neutral nation toward the Allies.
@@ -3391,6 +3599,16 @@ roster:
     reach: The Atlantic Fleet, what it may do under the President, and a cable to him.
     composite: false
     sides: [{contest: neutrality_revision, side: interventionists}]
+  - entity: tovey
+    pitch: Admiral commanding the Home Fleet at Scapa Flow, between the German heavy ships and the convoys.
+    reach: The Home Fleet, what it may do under the Admiralty, and a cable to the Prime Minister.
+    composite: false
+    sides: [{contest: atlantic_war, side: uk}]
+  - entity: doenitz
+    pitch: Admiral commanding the U-boats from Lorient, held back from American ships by Hitler's order.
+    reach: The U-boat arm, what it may do under the Navy's commander in chief, and a cable to Hitler.
+    composite: false
+    sides: [{contest: atlantic_war, side: germany}]
 
 # Starting regard [proposed] (SHT, 14 Nov sheet), -2 to 2: between Roosevelt and
 # each of his people, and between each pair of the eight leaders. Public, as the
@@ -3541,6 +3759,16 @@ laws:
       - {kind: power, subject: arm merchant ships}
     passed: arm_merchant_ships_passed
     does: {kind: arms_merchant_ships}
+  # NUK: the National Service bill, which the Commons passed in December 1941. Its clause and what
+  # it does are [proposed]: it adds 3 to Britain's manpower, as the draft does for the United States.
+  - key: national_service  # source: national_service_1941
+    title: National Service bill
+    nation: uk
+    clauses:
+      - {kind: power, subject: call up unmarried women and men to fifty-one}
+    passed: national_service_passed
+    does: {kind: adds_manpower, amount: 3}  # gap: true, [proposed]
+    daily_life: true  # [proposed]
 
 # Locks (KCD): which of King's orders need whose decision, and while what holds.
 locks:
@@ -3559,6 +3787,34 @@ locks:
     order: {form: fleet_naval_order, params: {order: escort_convoys, zone: war_zone}}
     when: {check: law_not_in_force, clause: "war zones closed to American ships"}
     decider: {nation: usa, chambers: [house, senate], head: roosevelt}
+  # NUK. Lending the Home Fleet's strength to the Western Approaches, at Liverpool: the balance
+  # between home waters and the Atlantic is the Prime Minister's, so the order is held until he
+  # has made the Atlantic the first priority for the HX convoys. gap: true, [proposed].
+  - key: home_fleet_to_the_atlantic
+    order: {form: home_fleet_detach, params: {to: liverpool}}
+    when: {check: posture_not_set, form: convoy_orders, where: {route: hx_route}, posture: {priority: atlantic}}
+    decider: {person: churchill}
+  # NUK. Basing the Home Fleet at Iceland for the season: held while the National Service bill is
+  # not law, and the Commons decides, with the Prime Minister answering for it. No Act of Parliament
+  # held a Home Fleet order in 1941; that this one waits on the men the bill calls up is the game's
+  # reading. gap: true, [proposed].
+  - key: home_fleet_based_at_iceland
+    order: {form: home_fleet_move, params: {to: reykjavik}}
+    when: {check: law_not_in_force, clause: call up unmarried women and men to fifty-one}
+    decider: {nation: uk, chambers: [commons], head: churchill}
+  # NGE. Attacking American ships in the western Atlantic: the U-boats sent off Argentia, where
+  # the American escorts took over the HX convoys, or a detachment sent there, are held until
+  # Hitler has set the U-boats' posture in the North Atlantic to attack American ships, and Hitler
+  # decides alone: Germany has no body or council that answers for it. His order of 17 September
+  # held the boats from American ships. source: fuehrer_naval_17_sep_1941; gap: true, [proposed].
+  - key: uboats_against_american_ships
+    order: {form: uboat_move, params: {to: argentia}}
+    when: {check: posture_not_set, form: uboat_directive, where: {theatre: north_atlantic}, posture: {posture: attack_us_shipping}}
+    decider: {person: hitler}
+  - key: uboat_detachment_against_american_ships
+    order: {form: uboat_detach, params: {to: argentia}}
+    when: {check: posture_not_set, form: uboat_directive, where: {theatre: north_atlantic}, posture: {posture: attack_us_shipping}}
+    decider: {person: hitler}
 
 # Pacts in force on 1 September 1941 (PCW). The clause chosen for each is [proposed]: the rules judge
 # what they can, and wording they cannot express is kept and marked unchecked.

@@ -702,15 +702,28 @@ class LockWhenDecl(Model):
     posture: dict[Label, ParamValue] = Field(default_factory=dict)
 
 
+class CouncilDecl(Model):
+    """A council that decides (QKD): ``members`` the person keys of who sits on it, each
+    with a card; ``needed`` how many must agree, no more than the members; ``head`` the
+    person key an ask goes to."""
+
+    members: tuple[Key, ...] = Field(min_length=1, max_length=24)
+    needed: int = Field(ge=1)
+    head: Key
+
+
 class LockDeciderDecl(Model):
     """Who can allow a held order (DCD): ``person`` a person key, or a body: ``nation`` a
     polity key, ``chambers`` the keys of its chambers that pass the law, and ``head`` the
-    person key of the head of its government, to whom an ask goes (ASK)."""
+    person key of the head of its government, to whom an ask goes (ASK); or, with
+    ``deciders`` on, a ``council`` (QKD). With ``deciders`` off a council's head decides
+    alone."""
 
     person: Key | None = None
     nation: Key | None = None
     chambers: tuple[Label, ...] = ()
     head: Key | None = None
+    council: CouncilDecl | None = None
 
 
 class LockDecl(Model):
@@ -721,6 +734,9 @@ class LockDecl(Model):
     order: LockOrderDecl
     when: LockWhenDecl | None = None
     decider: LockDeciderDecl
+    question: str | None = Field(default=None, max_length=40)
+    """With ``deciders`` on, the kind of question (``locks.Question``); absent: a question
+    of permission (QKD)."""
 
 
 class LawDoesDecl(Model):
@@ -1221,6 +1237,7 @@ __all__ = [
     "ContactDecl",
     "ContestDecl",
     "ContestMoveDecl",
+    "CouncilDecl",
     "DevelopmentDeck",
     "DevelopmentDecl",
     "DevelopmentEffectDecl",

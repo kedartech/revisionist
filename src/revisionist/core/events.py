@@ -19,7 +19,7 @@ TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDec
 ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
 VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
-OrderAsked, AskAnswered, AimPatternsDeclared, OwnAimSet``, and
+OrderAsked, AskAnswered, MatterChosen, AimPatternsDeclared, OwnAimSet``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -775,6 +775,20 @@ class AskAnswered(Model):
     granted: bool
 
 
+class MatterChosen(Model):
+    """A seat's sealed choice on a matter before it (QKD): to accept or decline the ask
+    for a held order, put to a council it sits on or to the person it holds. A later
+    choice before the due day replaces it. Sealed to the seat that chose: nobody else
+    learns of it, not even that it was made, and the due day counts it without saying
+    who agreed."""
+
+    kind: Literal["matter_chosen"] = "matter_chosen"
+    order_id: OrderId
+    seat_id: SeatId
+    accept: bool
+    on: date
+
+
 class PieceStepped(Model):
     """A piece entered an area: one step, by order, by the record, or forced. Sealed to the
     seats of the piece's own nation, who know it by its mark (``territory.mark_key``), not
@@ -1484,6 +1498,7 @@ Payload = Annotated[
     | HeldOrderEnded
     | OrderAsked
     | AskAnswered
+    | MatterChosen
     | PieceStepped
     | AreaHeld
     | CaptureCounted
@@ -1592,6 +1607,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "held_order_ended",
         "order_asked",
         "ask_answered",
+        "matter_chosen",
         "area_held",
         "capture_counted",
         "economy_set",

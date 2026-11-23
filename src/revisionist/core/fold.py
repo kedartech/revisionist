@@ -50,7 +50,7 @@ from revisionist.core.ontology import (
     SeatKind,
     SeatStatus,
 )
-from revisionist.core.realism import agreement, conference, detect, economy, groups, trade
+from revisionist.core.realism import agreement, conference, detect, economy, groups, locks, trade
 from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, PlayStyle, opening_id
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
@@ -264,6 +264,7 @@ def _held_order_ended(state: State, p: ev.HeldOrderEnded) -> State:
         update={
             "held": {k: v for k, v in state.held.items() if k != h.order_id},
             "asked": {k: v for k, v in state.asked.items() if k != h.order_id},
+            "chosen": {k: v for k, v in state.chosen.items() if k != h.order_id},
         }
     )
 
@@ -284,25 +285,52 @@ def _order_asked(state: State, p: ev.OrderAsked) -> State:
     _need(state.entities, a.to, "entity")
     if a.seat is not None and _need(state.seats, a.seat, "seat").embodies != a.to:
         raise FoldError(f"seat {a.seat} does not hold {a.to}")
+    members = h.decider.council.members if h.decider.council is not None else ()
+    for s in a.seats:
+        if _need(state.seats, s, "seat").embodies not in members:
+            raise FoldError(f"seat {s} holds no member of the council asked")
     return state.model_copy(update={"asked": _put(state.asked, a.order_id, a)})
 
 
 def _ask_answered(state: State, p: ev.AskAnswered) -> State:
     """The card's answer to an ask, once, with ``ask_answers`` on, for a person no seat
-    with a desk holds (AAK)."""
-    if Rule.ASK_ANSWERS not in state.rules or Rule.LOCKS not in state.rules:
-        raise FoldError("ask_answered needs the locks and ask_answers rules")
+    with a desk holds (AAK); or, with ``deciders`` on, a matter's answer on its due day
+    (QKD). The matter's kept choices go with it."""
     a = _need(state.asked, p.order_id, "ask")
+    h = state.held.get(a.order_id)
+    matter = h is not None and locks.is_matter(state, h, a)
+    if not matter and (Rule.ASK_ANSWERS not in state.rules or Rule.LOCKS not in state.rules):
+        raise FoldError("ask_answered needs the locks and ask_answers rules")
     if a.asker != p.asker:
         raise FoldError(f"the ask for {p.order_id} is not that seat's")
     if a.answered is not None:
         raise FoldError(f"the ask for {p.order_id} is answered already")
     if p.on < a.on:
         raise FoldError(f"the ask for {p.order_id} is answered before it was made")
-    if any(s.embodies == a.to and s.kind is not SeatKind.FACTION for s in state.seats.values()):
+    if not matter and any(
+        s.embodies == a.to and s.kind is not SeatKind.FACTION for s in state.seats.values()
+    ):
         raise FoldError(f"the ask for {p.order_id} went to a person a seat holds")
     answered = a.model_copy(update={"answered": p.on, "granted": p.granted})
-    return state.model_copy(update={"asked": {**state.asked, p.order_id: answered}})
+    chosen = {k: v for k, v in state.chosen.items() if k != p.order_id}
+    return state.model_copy(
+        update={"asked": {**state.asked, p.order_id: answered}, "chosen": chosen}
+    )
+
+
+def _matter_chosen(state: State, p: ev.MatterChosen) -> State:
+    """A seat's sealed choice on an open matter before it, with ``deciders`` on (QKD); a
+    later one replaces it."""
+    if Rule.DECIDERS not in state.rules or Rule.LOCKS not in state.rules:
+        raise FoldError("matter_chosen needs the locks and deciders rules")
+    try:
+        locks.may_choose(state, p.seat_id, p.order_id)
+    except ValueError as exc:
+        raise FoldError(f"matter_chosen: {p.seat_id} on {p.order_id}: {exc}") from exc
+    if p.on < state.asked[p.order_id].on:
+        raise FoldError(f"matter_chosen: {p.order_id} is chosen on before it was asked")
+    kept = _put(state.chosen.get(p.order_id, {}), p.seat_id, p.accept)
+    return state.model_copy(update={"chosen": _put(state.chosen, p.order_id, kept)})
 
 
 def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
@@ -789,6 +817,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.HeldOrderEnded()
             | ev.OrderAsked()
             | ev.AskAnswered()
+            | ev.MatterChosen()
             | ev.AreaHeld()
             | ev.CaptureCounted()
             | ev.EconomySet()
@@ -1226,6 +1255,8 @@ def _realism(state: State, p: ev.Payload) -> State:
             return _order_asked(state, p)
         case ev.AskAnswered():
             return _ask_answered(state, p)
+        case ev.MatterChosen():
+            return _matter_chosen(state, p)
         case ev.IntelligenceDeclared():
             if Rule.REPORTS not in state.rules:
                 raise FoldError("intelligence_declared needs the reports rule")

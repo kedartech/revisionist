@@ -301,6 +301,12 @@ class State(_World):
     asked: dict[OrderId, Asked] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """Each held order its seat has asked for, by its id, until it ends (ASK). The asker
     and the seat asked see it."""
+    chosen: dict[OrderId, dict[SeatId, bool]] = Field(
+        default_factory=dict, exclude_if=lambda v: not v
+    )
+    """With ``deciders`` on, each open matter's kept choices, by seat: whether that seat
+    accepts (``matter_chosen``), until the due day counts them (QKD). Engine only: a
+    choice is sealed to the seat that made it."""
     styles: dict[SeatId, PlayStyle] = Field(default_factory=dict)
     """Each seat's play style. Private to the seat; absent means free."""
     standing: dict[SeatId, frozenset[EffectKind]] = Field(default_factory=dict)
@@ -360,6 +366,7 @@ class State(_World):
         "aim_shut",
         "held",
         "asked",
+        "chosen",
         "rules",
         "intelligence",
         "reports",

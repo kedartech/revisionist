@@ -147,3 +147,11 @@
   .rl-cap-chamber { gap: var(--space-1); padding: 0 var(--space-2); }
   .rl-cap-full-in, .rl-full .rl-cap-full .rl-cap-full-out { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
+
+/* where the order stands on its path, and where a held order stops (the track is c-court.css) */
+.rl-cap-path, .rl-cap-held { display: grid; gap: var(--space-2); margin: var(--space-3) 0; overflow-x: auto; }
+.rl-cap-stepname { font-size: 12px; color: var(--fg-strong); overflow-wrap: anywhere; }
+.rl-cap-where { margin: 0; font-size: 13px; color: var(--fg-muted); }
+.rl-cap-held .rl-trk-marker.held { top: -8px; width: 14px; height: 16px; border-radius: var(--radius); background: var(--fg-muted); display: grid; place-items: center; }
+.rl-cap-held .rl-trk-lock { fill: none; stroke: var(--surface); stroke-width: 1.4; }
+.rl-cap-promise[data-came-due] { border-left-color: var(--warn); }

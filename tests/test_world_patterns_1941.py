@@ -53,6 +53,7 @@ POSTS = {
     "yamamoto": "fleet_commander",
     "iachino": "fleet_commander",
     "timoshenko": "army_commander",
+    "xue_yue": "army_commander",
 }
 """The kind of post each playable card names. [proposed]"""
 STATED = frozenset(
@@ -110,6 +111,7 @@ LISTED_FOR_JOSH = (
     "doenitz",
     "iachino",
     "timoshenko",
+    "xue_yue",
 )
 """The playable cards that carry no aim their own government would not issue (OWD rule 3):
 listed for Josh, not changed here."""

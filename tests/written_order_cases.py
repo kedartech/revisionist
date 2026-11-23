@@ -586,7 +586,7 @@ NINETEEN_41: tuple[Case, ...] = (
         "Send two of the fleet's divisions on to Tripoli.",
         move("italian_fleet", "tripoli"),
     ),
-    # Marshal Timoshenko: the move no lock holds
+    # Marshal Timoshenko: the move no lock holds, and the concealment
     f41(
         "timoshenko",
         "western_front_move",
@@ -594,10 +594,17 @@ NINETEEN_41: tuple[Case, ...] = (
         "Move the Western Front up to Vyazma.",
         move("soviet_western_front", "vyazma"),
     ),
+    f41(
+        "timoshenko",
+        "western_front_conceal",
+        {"intel": "conceal", "piece": "soviet_western_front", "concealed": "yes"},
+        "Hide the Western Front.",
+        hide("soviet_western_front"),
+    ),
 )
 """Every form on every playable card of Autumn 1941; Admiral King's naval order once in
 each zone it names, the war zone included; Admiral Tovey's, Admiral Dönitz's, Admiral
-Yamamoto's, Admiral Iachino's two forms and Marshal Timoshenko's move where no lock holds them."""
+Yamamoto's, Admiral Iachino's two forms and Marshal Timoshenko's two where no lock holds them."""
 
 
 # --- Salt Strait -------------------------------------------------------------------------

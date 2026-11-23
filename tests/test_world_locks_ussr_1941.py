@@ -1,14 +1,14 @@
 """1941: the Soviet Western Front's commander and his locks (NSU).
 
 Marshal Timoshenko, in command of the Western Front on 1 September 1941, is a military card
-the players may claim: his own form moves the Western Front through his own staff with no step
-above him (a side keeps no army detachment in play, so he has no detach form); he answers to the
-Chief of the General Staff, and so to Stalin, and telephones him; he has three aims with
-conditions, two filled from the army commander's patterns and one the default a player's own aim
-would replace. Stalin keeps his order over the front: his military operations name it, so with
-both acting on the front in one wake his order stands. The record changes this front's commander
-inside the season; the card is the man in post on the start date, and the change is left to the
-ladder of posts.
+the players may claim: his own forms move the Western Front and hide its moves, through his own
+staff with no step above him (a side keeps no army detachment in play, so he has no detach form);
+he answers to the Chief of the General Staff, and so to Stalin, and telephones him; he has three
+aims with conditions, two filled from the army commander's patterns and one the default a
+player's own aim would replace. Stalin keeps his order over the front: his military operations
+name it, so with both acting on the front in one wake his order stands. The record changes this
+front's commander inside the season; the card is the man in post on the start date, and the
+change is left to the ladder of posts.
 
 A lock holds a withdrawal of the front behind the Mozhaisk line: sending the front back to
 Moscow is Stalin's to permit. The row has no condition, so only his grant opens it. The Soviet
@@ -56,6 +56,7 @@ CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 FILED = date(1941, 10, 10)
 FRONT = "soviet_western_front"
 FORM = "western_front_move"
+CONCEAL = "western_front_conceal"
 ROW = "western_front_withdrawal"
 """The row Stalin decides: the front's move behind the Mozhaisk line."""
 BEHIND = "moscow"
@@ -115,19 +116,23 @@ def test_the_commander_with_no_force_does_not_compile() -> None:
         _compile(world.model_copy(update={"cards": cards}))
 
 
-def test_his_own_form_moves_the_front_through_a_pipeline_with_no_step_above_him() -> None:
+def test_his_own_forms_move_and_hide_the_front_through_a_pipeline_with_no_step_above_him() -> None:
     world = _world()
     levers = {lv.name: lv for lv in _card(world, "timoshenko").levers}
-    assert set(levers) == {FORM}
-    stalins = next(lv for lv in _card(world, "stalin").levers if lv.name == "move_army")
-    stalins_to = set(next(p for p in stalins.params if p.name == "to").choices)
+    assert set(levers) == {FORM, CONCEAL}
     for lv in levers.values():
         pipeline = next(p for p in world.pipelines if p.key == lv.pipeline)
         assert [s.person for s in pipeline.steps] == ["timoshenko"], lv.name
-        force = next(p for p in lv.params if p.name == "force")
-        assert force.choices == (FRONT,)
-        to = next(p for p in lv.params if p.name == "to")
-        assert set(to.choices) == stalins_to and BEHIND in to.choices
+    stalins = next(lv for lv in _card(world, "stalin").levers if lv.name == "move_army")
+    stalins_to = set(next(p for p in stalins.params if p.name == "to").choices)
+    move = levers[FORM]
+    assert next(p for p in move.params if p.name == "force").choices == (FRONT,)
+    to = next(p for p in move.params if p.name == "to")
+    assert set(to.choices) == stalins_to and BEHIND in to.choices
+    hide = levers[CONCEAL]
+    assert hide.resolver == "intel"
+    assert next(p for p in hide.params if p.name == "intel").choices == ("conceal",)
+    assert next(p for p in hide.params if p.name == "piece").choices == (FRONT,)
 
 
 def test_he_has_no_detach_form_while_a_side_keeps_no_army_detachment() -> None:

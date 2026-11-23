@@ -41,10 +41,13 @@ _PATHS = (CardPath.POLITICAL, CardPath.MILITARY, None)
 
 
 def timeline() -> list[TimelinePoint]:
-    """The war's dates, curated start points marked, from ``timeline``."""
+    """The start points the screen lists, from ``timeline``: each offered world at its own
+    name and date, then the turning dates."""
+    from revisionist.engine.web.server import OFFERED
+
     return [
         TimelinePoint(date=p.on.isoformat(), label=p.label, curated=True, world=p.world)
-        for p in tl.start_points()
+        for p in tl.start_points(OFFERED)
     ]
 
 

@@ -99,7 +99,7 @@ entities:
   - {key: bardia, kind: location, name: Bardia, at: [31.74, 25.07], theatre: Mediterranean, within: cyrenaica, port_on: eastern_mediterranean, base: {sides: [italy, germany], domains: [sea, land]}}
   - {key: tripoli, kind: location, name: Tripoli, at: [32.89, 13.19], theatre: Mediterranean, within: tripolitania, port_on: central_mediterranean, base: {sides: [italy], domains: [sea, land]}}
   - {key: taranto, kind: location, name: Taranto, at: [40.47, 17.24], theatre: Mediterranean, within: italy_south, port_on: central_mediterranean, base: {sides: [italy], domains: [sea]}}
-  - {key: piraeus, kind: location, name: Piraeus, at: [37.94, 23.64], theatre: Mediterranean, within: greece, port_on: aegean_sea}
+  - {key: piraeus, kind: location, name: Piraeus, at: [37.98, 23.72], theatre: Mediterranean, within: greece, port_on: aegean_sea}
   - {key: changsha, kind: location, name: Changsha, at: [28.2, 112.97], theatre: Asia-Pacific, within: hunan, base: {sides: [china], domains: [land]}}
   - {key: wuhan, kind: location, name: Wuhan, at: [30.58, 114.27], theatre: Asia-Pacific, within: wuhan_area, base: {sides: [japan], domains: [land]}}
   # United States

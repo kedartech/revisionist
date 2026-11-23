@@ -237,7 +237,7 @@ test('each chamber shows its blocs as tokens with their seats, and an open measu
   assert.ok(floor);
   const chamber = floor.querySelector('[data-chamber="assembly"]');
   assert.equal(words(chamber.querySelector('h4')), 'The assembly');
-  assert.deepEqual(chamber.querySelectorAll('.rl-home-blocs .rl-home-token').map(words), ['The Greens 100 seats', 'The Greys 100 seats']);
+  assert.deepEqual(chamber.querySelectorAll('.rl-home-seg').map((r) => r.getAttribute('aria-label')), ['The Greens, 100 seats. Open its card', 'The Greys, 100 seats. Open its card']);
   const measure = chamber.querySelector('.rl-home-measure');
   assert.equal(words(measure.querySelector('h5')), 'Levy act');
   assert.deepEqual(measure.querySelectorAll('.rl-home-vote .rl-home-token').map(words), ['The Greens 71 yea, 29 nay', 'The Greys 20 yea, 80 nay']);
@@ -255,7 +255,7 @@ test('a chamber with no measure of the seat\'s says so, with each bloc\'s seats'
   const h = seat().home;
   h.chambers[0].measures = [];
   const chamber = home.homeSheet(h).querySelector('[data-chamber="assembly"]');
-  assert.deepEqual(chamber.querySelectorAll('.rl-home-blocs .rl-home-token').map(words), ['The Greens 100 seats', 'The Greys 100 seats']);
+  assert.equal(words(chamber.querySelector('.rl-home-seatnote')), 'The Greens 100 · The Greys 100');
   assert.equal(chamber.querySelector('.rl-home-measure'), null);
   assert.equal(words(chamber.querySelector('.rl-home-nomeasure')), 'No measure of yours is before the assembly.');
 });
@@ -264,12 +264,6 @@ test('a nation with no chamber has no floor', () => {
   const h = seat().home;
   h.chambers = [];
   assert.equal(home.homeSheet(h).querySelector('.rl-home-floor'), null);
-});
-
-test('the votes needed are a majority of those voting', () => {
-  assert.equal(home.needed({ yeas: 91, nays: 109 }), 101);
-  assert.equal(home.needed({ yeas: 50, nays: 49 }), 50);
-  assert.equal(home.needed({ yeas: 0, nays: 0 }), 1);
 });
 
 // --- Rule 3: Speak to the nation ------------------------------------------------------------

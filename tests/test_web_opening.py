@@ -200,16 +200,19 @@ def test_two_seats_racing_for_one_person_cannot_both_land(
     assert counting.calls == []
 
 
-def test_the_same_answer_serves_a_leader_taken_over_in_play(web: Web) -> None:  # noqa: F811
+NOT_CHOOSING = "This game is not choosing its people."
+
+
+def test_the_opening_is_refused_once_the_game_is_in_play(web: Web) -> None:  # noqa: F811
     web.app.spawn = lambda run: None
     host, _ = hosted(web, AUTUMN)
     assert not new(host, "pick", name="Winston Churchill")["refused"]
-    before = new(host, "opening")["opening"]
+    assert new(host, "opening")["opening"]["seats_left"] == 9
     assert not new(host, "begin")["refused"]
     assert host.me()["game"]["phase"] == "play"
     transport = Counting()
     web.app.transport_factory = lambda: transport
-    assert new(host, "opening")["opening"] == before
+    assert host.call("/api/new/opening", {}) == (400, {"error": NOT_CHOOSING})
     status, listed = host.call("/api/game/handover-list", {})
     assert status == 200, listed
     stalin = next(x["key"] for x in listed["leaders"] if x["name"] == "Joseph Stalin")
@@ -217,10 +220,7 @@ def test_the_same_answer_serves_a_leader_taken_over_in_play(web: Web) -> None:  
     assert status == 200 and not out["refused"], out
     newcomer, _ = web.signed_up("bea")
     newcomer.seat("join", code=out["code"])
-    seen = new(newcomer, "opening")["opening"]
-    assert seen["nations"] == before["nations"]
-    assert people(seen)["Winston Churchill"]["taken"] is True
-    assert seen["seats_left"] == before["seats_left"] - 1
+    assert newcomer.call("/api/new/opening", {}) == (400, {"error": NOT_CHOOSING})
     assert transport.calls == []
 
 

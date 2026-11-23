@@ -917,7 +917,7 @@ class App:
                 raise ApiError(HTTPStatus.BAD_REQUEST, NOT_LINKED)
             if action == "opening":
                 state = load_state(store, link.campaign_id)
-                if state.ruleset != "realism":
+                if state.ruleset != "realism" or state.phase is not Phase.SESSION_ZERO:
                     raise ApiError(HTTPStatus.BAD_REQUEST, "This game is not choosing its people.")
                 world = dossiers.world_key(store.read(link.campaign_id))
                 return {

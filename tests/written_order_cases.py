@@ -656,14 +656,14 @@ FIXES: dict[str, str] = {
     "salt.oren_vale.fly_balloon": TIMING,
     "salt.oren_vale.galley_patrol": TIMING,
     "salt.oren_vale.place_a_spy": TIMING,
-    "salt.oren_vale.pay_the_cipher_clerks": INERT,
+    "salt.oren_vale.pay_the_cipher_clerks": TIMING,
     "salt.oren_vale.hide_a_force": TIMING,
     "salt.general_aske.move_force": TIMING,
     "salt.general_aske.declare_war": WAR,
     "salt.general_aske.fly_balloon": TIMING,
     "salt.general_aske.galley_patrol": TIMING,
     "salt.general_aske.place_a_spy": TIMING,
-    "salt.general_aske.pay_the_cipher_clerks": INERT,
+    "salt.general_aske.pay_the_cipher_clerks": TIMING,
     "salt.general_aske.hide_a_force": TIMING,
 }
 """Each case whose written order and form still differ, and the fix item that owns the

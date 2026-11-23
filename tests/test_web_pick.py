@@ -1,10 +1,16 @@
-"""Phase 4 unit C4: a seat may play someone the roster leaves out, if the record places
-them at the start. Fake transports answer; no model is called."""
+"""Phase 4 unit C4: in a game drafted from a pitch, a seat may play someone the roster
+leaves out, if the record places them at the start; a ready-made world offers only its
+roster. Fake transports answer; no model is called."""
 
 from typing import Any
 
+from revisionist.core.ids import SeatId
+from revisionist.engine import campaign as cmp
+from revisionist.engine.ids import new_id
 from revisionist.engine.llm import Reply, Request, TransportError
 from revisionist.engine.store import load_state
+from revisionist.engine.web.accounts import WebSeats
+from revisionist.engine.web.new_game_api import OFF_ROSTER, PITCHED
 from tests.cast_scenario import _clerical, _text_lever
 from tests.test_web import Client, Web, web  # noqa: F401
 
@@ -56,6 +62,9 @@ class Fake:
         self.calls.append(request.call_class)
         if request.call_class == "character_pick":
             return Reply(self.pick, request.model, 5, 5, 0, 0.0)
+        if request.call_class == "held_power":
+            held = [{"name": HULL, "title": "Secretary of State", "side": "USA", "power": "Office"}]
+            return Reply({"people": held}, request.model, 5, 5, 0, 0.0)
         if request.call_class == "build":
             out = self.builds.pop(0) if len(self.builds) > 1 else self.builds[0]
             if isinstance(out, Exception):
@@ -71,11 +80,33 @@ def new(client: Client, action: str, /, **body: Any) -> dict[str, Any]:
 
 
 def seated(web: Web, fake: Fake) -> Client:  # noqa: F811
+    """The host of a game drafted from a pitch: the slice's people under a cast's name."""
     web.app.transport_factory = lambda: fake
     web.app.spawn = lambda run: run()
     client, _ = web.signed_up("ada")
-    assert not new(client, "ready", world=SLICE)["refused"]
+    decl = cmp.load_world(cmp.world_path(SLICE))
+    store = web.app.open()
+    try:
+        cid = cmp.new_campaign(store, decl.model_copy(update={"world": f"{PITCHED}slice"}))
+        row = store.conn.execute(
+            "SELECT account_id FROM web_accounts WHERE handle = %s", ("ada",)
+        ).fetchone()
+        assert row is not None
+        WebSeats(store.conn).start(cid, SeatId(new_id()), row[0])
+    finally:
+        store.close()
     return client
+
+
+def test_a_ready_made_world_offers_only_its_roster(web: Web) -> None:  # noqa: F811
+    fake = Fake(PLACED)
+    web.app.transport_factory = lambda: fake
+    client, _ = web.signed_up("ada")
+    assert not new(client, "ready", world=SLICE)["refused"]
+    assert new(client, "pick", name=HULL) == {"reply": OFF_ROSTER, "refused": True}
+    assert fake.calls == []
+    assert new(client, "pick", name="Winston Churchill")["reply"] == "You are Winston Churchill."
+    assert fake.calls == []
 
 
 def test_a_roster_name_claims_without_a_pick_call(web: Web) -> None:  # noqa: F811
@@ -153,3 +184,14 @@ def test_begin_draws_up_a_missing_card(web: Web) -> None:  # noqa: F811
     finally:
         store.close()
     assert set(state.roster) <= set(state.cards)
+
+
+def test_a_pitched_game_still_lists_who_held_power(web: Web) -> None:  # noqa: F811
+    from revisionist.engine import timeline
+
+    timeline._held.clear()
+    fake = Fake(PLACED)
+    client = seated(web, fake)
+    out = new(client, "figures", date="1941-09-01")
+    assert not out["refused"] and out["figures"][0]["figures"][0]["name"] == HULL
+    assert fake.calls == ["held_power"]

@@ -432,9 +432,7 @@ class App:
                     order = realism_tick.file_order(
                         store, cid, seat, _text(body, "lever", 120), _params(body)
                     )
-                    first = state.pipelines[order.pipeline].steps[0]
-                    who = state.entities[first.person].name
-                    reply = f"Sent to {who}: {_lever_label(state, seat, order.lever)}."
+                    reply = _filed_reply(store, cid, state, seat, order)
                 elif action in ("directive", "sign"):
                     asked = directive.Proposal(
                         person=_contact(state, seat, _text(body, "to", 120)),
@@ -473,9 +471,7 @@ class App:
                             )
                         return snapshot.checked(state, seat, out)
                     order = directive.sign(store, cid, seat, asked)
-                    first = state.pipelines[order.pipeline].steps[0]
-                    who = state.entities[first.person].name
-                    reply = f"Sent to {who}: {_lever_label(state, seat, order.lever)}."
+                    reply = _filed_reply(store, cid, state, seat, order)
                 elif action == "aide":
                     kept = self._brief_for(cid, seat, state.tick)
                     if kept is not None and body.get("again") is not True:
@@ -844,8 +840,8 @@ class App:
     # --- a new game ------------------------------------------------------------
 
     def new_game(self, account: Account, action: str, body: dict[str, Any]) -> dict[str, Any]:
-        """One ``/api/new/<action>``: start a realism game, choose its people, invite
-        the others and begin. A refusal is a reply, not an error."""
+        """One ``/api/new/<action>``: start a realism game, read its opening, choose its
+        people, invite the others and begin. A refusal is a reply, not an error."""
         store = self.open()
         try:
             refused = self.limited(store, account, f"new/{action}")
@@ -856,7 +852,10 @@ class App:
                 return {"worlds": [{"key": k, "name": d.name, "start": d.start} for k, d in decls]}
             if action == "timeline":
                 return {"timeline": new_game_api.timeline()}
+            link = self.handlers.seat_of(store, account.account_id)
             if action == "figures":
+                if link is not None and new_game_api.ready_made(store, link.campaign_id):
+                    return {"reply": new_game_api.SET_BY_WORLD, "refused": True}
                 try:
                     found = new_game_api.figures(
                         _date(body),
@@ -866,7 +865,6 @@ class App:
                 except TransportError as exc:
                     return {"reply": model_down(exc), "refused": True}
                 return {"reply": "", "refused": False, "figures": found}
-            link = self.handlers.seat_of(store, account.account_id)
             if action in ("ready", "pitch", "cast", "start"):
                 if link is not None:
                     return {"reply": dh.ALREADY_SEATED, "refused": True}
@@ -885,6 +883,11 @@ class App:
                 return self._start(store, account, action, body)
             if link is None:
                 raise ApiError(HTTPStatus.BAD_REQUEST, NOT_LINKED)
+            if action == "opening":
+                state = load_state(store, link.campaign_id)
+                if state.ruleset != "realism":
+                    raise ApiError(HTTPStatus.BAD_REQUEST, "This game is not choosing its people.")
+                return {"reply": "", "refused": False, "opening": new_game_api.opening(state)}
             # The scheduler's per-game lock: no other choice, release or Begin lands between
             # Begin's check for waiting players and its last write, and no pass runs a tick
             # on a game half begun.
@@ -1003,13 +1006,16 @@ class App:
     def _pick(
         self, store: PostgresEventStore, state: State, seat: SeatId, name: str
     ) -> dict[str, Any]:
-        """Take a person from the cast, building their card first if no one has."""
+        """Take a person from the cast, building their card first if no one has. A game
+        made from a ready-made world takes only its roster's people and makes no model call."""
         if seat in state.seats:
             return {"reply": f"You already play {state.seats[seat].name}.", "refused": True}
         person = next(
             (c for c in state.roster if state.entities[c].name.casefold() == name.casefold()),
             None,
         )
+        if person is None and new_game_api.ready_made(store, state.campaign_id):
+            return {"reply": new_game_api.OFF_ROSTER, "refused": True}
         if person is None:
             # Not on the roster: the record may still place them. The pick adds them to the
             # world, but a realism claim waits for a card, so it refuses; the card is built
@@ -1086,7 +1092,7 @@ class App:
             store.close()
 
 
-NOT_OFFERED = "You cannot do that with this order."  # [proposed]
+NOT_OFFERED = held_orders.NOT_OFFERED
 """The refusal of a step action the seat was not offered, the same for every action."""
 
 
@@ -1117,6 +1123,19 @@ _STANDING: dict[OrderStatus, str] = {
     OrderStatus.LAPSED: "It has lapsed.",
     OrderStatus.WITHDRAWN: "It has been withdrawn.",
 }
+
+
+def _filed_reply(
+    store: PostgresEventStore, cid: CampaignId, state: State, seat: SeatId, order: Order
+) -> str:
+    """What the seat is told of a form order it filed: the reason a lock holds it, else
+    who it went to."""
+    hold = load_state(store, cid).held.get(order.order_id)
+    if hold is not None:
+        return hold.reason
+    first = state.pipelines[order.pipeline].steps[0]
+    who = state.entities[first.person].name
+    return f"Sent to {who}: {_lever_label(state, seat, order.lever)}."
 
 
 def _lever_label(state: State, seat: SeatId, name: str) -> str:

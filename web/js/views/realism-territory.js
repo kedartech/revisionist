@@ -5,7 +5,8 @@
 // under the finger, and the zoom buttons stop at 1, 2 and 4. Marks and tap targets keep a
 // minimum size in pixels whatever the zoom. Every area is focusable and has a row in the list.
 // One of the seat's own pieces can be carried by the finger to a lit area, as a tap picks it
-// and a tap on the lit area puts it down.
+// and a tap on the lit area puts it down. In the map-first room the controls sit over the map's
+// corners, and the map can take the whole viewport.
 
 import { h, svg } from '../dom.js';
 import {
@@ -15,7 +16,7 @@ import {
   whereLine, changedLine, fallingLine, frontLine, holderRelation, holderWords, isFront, yieldsLine,
 } from '../realism-rules.js';
 import { gestures } from '../map/gestures.js';
-import { clampZoom } from '../map/view.js';
+import { askedForFull, browserFull, clampZoom } from '../map/view.js';
 import { areaAt } from '../map/hit.js';
 import { trace } from '../map/projection.js';
 import { economyPips, hasYields } from './realism-economy.js';
@@ -39,6 +40,8 @@ const lastAt = new Map();
 
 /** Forget where every mark stood (tests). */
 export function forgetMarks() { lastAt.clear(); }
+
+export { forgetFull } from '../map/view.js';
 
 const reducedMotion = () => Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
 
@@ -682,16 +685,94 @@ const toggle = (value, word, current, on, extra = {}) => h('button', {
   type: 'button', class: 'rl-filter', 'aria-pressed': String(current === value), onclick: () => on?.(value), ...extra,
 }, word);
 
-/** The region picker: the whole map, the regions down to the frame, and the regions under it. */
-function regionPicker(map, frames, frame, onFrame) {
+/** A set of toggles folded into one control (a phone's): `items` as [value, word], `current` chosen. */
+const fold = (label, items, current, on, more = '') => h('select', { class: `rl-tm-fold${more}`, 'aria-label': label, onchange: (e) => on?.(e.target.value) },
+  items.map(([value, word]) => h('option', { value, selected: value === current }, word)));
+
+/** The regions the picker offers: the frame's key, the regions down to it, and the regions under it. */
+function regionsOf(map, frames, frame) {
   const trail = regionTrail(map.regions, frame);
   const here = trail.at(-1)?.key ?? '';
-  const under = regionChildren(map.regions, here).filter((r) => frames.has(r.key));
-  return h('div', { class: 'rl-filters rl-tm-regions', role: 'group', 'aria-label': 'Region' },
+  return { here, trail, under: regionChildren(map.regions, here).filter((r) => frames.has(r.key)) };
+}
+
+/** The region picker: the whole map, the regions down to the frame, and the regions under it. */
+function regionPicker(map, frames, frame, onFrame, wide = '') {
+  const { here, trail, under } = regionsOf(map, frames, frame);
+  return h('div', { class: `rl-filters rl-tm-regions${wide}`, role: 'group', 'aria-label': 'Region' },
     toggle('', 'Whole map', here, onFrame),
     trail.map((r) => toggle(r.key, r.name, here, onFrame)),
     under.length ? h('span', { class: 'rl-tm-under', 'aria-hidden': 'true' }, '›') : null,
     under.map((r) => toggle(r.key, r.name, here, onFrame)));
+}
+
+/** The region picker as one control. */
+function regionFold(map, frames, frame, onFrame) {
+  const { here, trail, under } = regionsOf(map, frames, frame);
+  return fold('Region', [['', 'Whole map'], ...[...trail, ...under].map((r) => [r.key, r.name])], here, onFrame, ' rl-tm-fold-region');
+}
+
+/** Whether the map is in the room's full screen: the room marks its root (`opts.onFull`). */
+const isFull = (el) => Boolean(el?.closest?.('.rl-full'));
+
+/** What takes the keyboard in the map the room draws next: 'full' (the control) or 'map' (the drawing). */
+let refocus = null;
+
+/** `fn()`, after which the next drawing of the map puts the keyboard on `what`. */
+function keepFocus(what, fn) {
+  refocus = what;
+  fn();
+  queueMicrotask(() => { refocus = null; });
+}
+
+/** Into the room's full screen from `el`'s map, or out of it; the browser's own is asked for as well. */
+function askFull(el, opts, what) {
+  const on = !isFull(el);
+  browserFull(on);
+  keepFocus(what, () => opts.onFull?.(on));
+}
+
+/** The Full screen control; in full screen it reads Leave full screen. */
+function fullControl(opts) {
+  const btn = h('button', { type: 'button', class: 'rl-filter rl-tm-full', onclick: () => askFull(btn, opts, 'full') },
+    svg('svg', { class: 'rl-tm-full-glyph', viewBox: '0 0 16 16', width: 16, height: 16, 'aria-hidden': 'true', focusable: 'false' },
+      svg('path', { d: 'M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4' })),
+    h('span', { class: 'rl-tm-full-in' }, 'Full screen'),
+    h('span', { class: 'rl-tm-full-out' }, 'Leave full screen'));
+  return btn;
+}
+
+/**
+ * The keys the map takes in the map-first room: F on the drawing goes into full screen or out of
+ * it; Escape with an area's or a report's sheet open closes that sheet, and full screen stays.
+ */
+function overlayKeys(section, opts, sheet) {
+  return (e) => {
+    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Escape' && sheet) {
+      e.preventDefault();
+      keepFocus('map', sheet === 'area' ? () => opts.onArea?.(null) : () => opts.onReport?.(null));
+    } else if ((e.key === 'f' || e.key === 'F') && e.target?.closest?.('figure.rl-map-figure')) {
+      e.preventDefault();
+      askFull(section, opts, 'map');
+    }
+  };
+}
+
+/**
+ * Once the map is in the page: the keyboard goes where the last step into or out of full screen
+ * left it, and a browser full screen the map asked for is given back when the room has drawn
+ * the map out of full screen itself (its Escape).
+ */
+function afterDrawn(section) {
+  const had = askedForFull();
+  const what = refocus;
+  queueMicrotask(() => {
+    if (section.isConnected === false) return;
+    if (had && !isFull(section)) browserFull(false);
+    const el = what === 'full' ? section.querySelector('button.rl-tm-full') : what === 'map' ? section.querySelector('svg.rl-tm-svg') : null;
+    el?.focus();
+  });
 }
 
 /** An area's holder, and what is said of it, as one cell. */
@@ -749,7 +830,8 @@ function markTable(map, onFind) {
 
 /**
  * The territory board: switches, then the drawing (`shapes` null: `opts.waiting` in its place)
- * or the list. `opts`: { mode, layer, frame, zoom, ...territoryDrawing's, onMode, onLayer, onFrame }.
+ * or the list. `opts`: { mode, layer, frame, zoom, ...territoryDrawing's, onMode, onLayer, onFrame,
+ * overlay (the map-first room: the switches over the map's corners), onFull(on) (the room's full screen) }.
  */
 export function territoryView(map, shapes, opts = {}) {
   const mode = opts.mode === 'list' ? 'list' : 'map';
@@ -762,31 +844,50 @@ export function territoryView(map, shapes, opts = {}) {
   const frame = frames?.has(opts.frame ?? '') ? opts.frame ?? '' : '';
   const zoom = clampZoom(opts.zoom ?? 1);
   const words = { military: 'Military', diplomatic: 'Diplomatic', economy: 'Economy' };
-  const bar = h('div', { class: 'rl-bar' },
-    offered.length > 1
-      ? h('div', { class: 'rl-filters', role: 'group', 'aria-label': 'Layer' }, offered.map((l) => toggle(l, words[l], layer, opts.onLayer)))
-      : null,
-    mode === 'map' && layer === 'military' ? threatsSwitch(map, opts.threats, opts.onThreats) : null,
-    h('div', { class: 'rl-filters', role: 'group', 'aria-label': 'Show as' },
-      toggle('map', 'Map', mode, opts.onMode), toggle('list', 'List', mode, opts.onMode)),
-    mode === 'map' && frames ? regionPicker(map, frames, frame, opts.onFrame) : null,
-    mode === 'map' && frames
-      ? h('div', { class: 'rl-filters rl-tm-zoom', role: 'group', 'aria-label': 'Zoom' },
-        ZOOMS.map((z) => toggle(z, `${z}×`, zoom, (v) => opts.onView?.({ zoom: v, centre: opts.centre ?? null }), { 'aria-label': `Zoom ${z} times` })))
-      : null);
+  const over = Boolean(opts.overlay);
+  const wide = over ? ' rl-tm-wide' : '';
+  const layers = offered.length > 1
+    ? [h('div', { class: `rl-filters${wide}`, role: 'group', 'aria-label': 'Layer' }, offered.map((l) => toggle(l, words[l], layer, opts.onLayer))),
+      over ? fold('Layer', offered.map((l) => [l, words[l]]), layer, opts.onLayer) : null]
+    : [];
+  const threats = mode === 'map' && layer === 'military' ? threatsSwitch(map, opts.threats, opts.onThreats) : null;
+  const showAs = h('div', { class: 'rl-filters', role: 'group', 'aria-label': 'Show as' },
+    toggle('map', 'Map', mode, opts.onMode), toggle('list', 'List', mode, opts.onMode));
+  const regions = mode === 'map' && frames
+    ? [regionPicker(map, frames, frame, opts.onFrame, wide), over ? regionFold(map, frames, frame, opts.onFrame) : null]
+    : [];
+  const zooms = mode === 'map' && frames
+    ? h('div', { class: 'rl-filters rl-tm-zoom', role: 'group', 'aria-label': 'Zoom' },
+      ZOOMS.map((z) => toggle(z, `${z}×`, zoom, (v) => opts.onView?.({ zoom: v, centre: opts.centre ?? null }), { 'aria-label': `Zoom ${z} times` })))
+    : null;
+  const full = over ? fullControl(opts) : null;
   const find = (name) => opts.onSelect?.(name, 'map');
+  const area = mode === 'map' && opts.area ? areaSheet(map, opts.area, opts.onArea, opts.standings) : null;
+  const report = mode === 'map' && layer === 'military' && opts.report ? reportSheet(map, opts.report, opts) : null;
+  const figure = mode === 'map' ? h('figure', { class: 'rl-map-figure' },
+    shapes ? territoryDrawing(map, shapes, { ...opts, layer, frame, zoom }) : h('p', { class: 'muted rl-tm-wait' }, opts.waiting ?? 'Drawing the map…')) : null;
   const body = mode === 'list'
     ? [areaTable(map), (map.marks ?? []).length ? markTable(map, find) : null, reportTables(map, opts), battleTable(opts.battles, opts.onBattle)]
-    : [h('figure', { class: 'rl-map-figure' },
-      shapes ? territoryDrawing(map, shapes, { ...opts, layer, frame, zoom }) : h('p', { class: 'muted rl-tm-wait' }, opts.waiting ?? 'Drawing the map…')),
-      opts.area ? areaSheet(map, opts.area, opts.onArea, opts.standings) : null,
-      layer === 'military' && opts.report ? reportSheet(map, opts.report, opts) : null];
+    : over
+      ? [h('div', { class: 'rl-tm-stage' },
+        h('div', { class: 'rl-tm-corner rl-tm-top' },
+          h('div', { class: 'rl-tm-tools rl-tm-tools-start' }, layers, threats, regions),
+          h('div', { class: 'rl-tm-tools rl-tm-tools-end' }, showAs, full)),
+        zooms ? h('div', { class: 'rl-tm-corner rl-tm-zoomcorner' }, zooms) : null,
+        figure, area, report)]
+      : [figure, area, report];
+  const bar = mode === 'map' && over ? null : h('div', { class: 'rl-bar' }, layers, threats, showAs, regions, zooms, full);
   // the Diplomatic layer's key (realism-diplomacy.js): nations, capitals, public pacts and envoys
   const key = layer === 'diplomatic' ? (typeof opts.diplomacy === 'function' ? opts.diplomacy() : opts.diplomacy) : null;
-  return h('section', { class: 'rl-map rl-tmap', 'aria-labelledby': 'rl-map-h' },
-    h('h2', { id: 'rl-map-h' }, 'Map'),
-    h('p', { class: 'muted' }, 'The board as the game\'s map draws it; your pieces and reports from your own papers.'),
+  const section = h('section', { class: `rl-map rl-tmap${over ? ' rl-tm-overlay' : ''}`, 'aria-labelledby': 'rl-map-h' },
+    h('h2', { id: 'rl-map-h', class: over ? 'sr-only' : null }, 'Map'),
+    over ? null : h('p', { class: 'muted' }, 'The board as the game\'s map draws it; your pieces and reports from your own papers.'),
     bar,
     body,
     key ?? null);
+  if (over) {
+    section.addEventListener('keydown', overlayKeys(section, opts, area ? 'area' : report ? 'report' : null));
+    afterDrawn(section);
+  }
+  return section;
 }

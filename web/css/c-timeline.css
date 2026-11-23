@@ -1,0 +1,56 @@
+/* The season on one timeline: a strip along the foot of the map in the map-first room. Closed,
+   one 44 px row: the caption, the line with a mark per dated thing and the chevron. Open, the
+   list lies over the map's foot, at most 40 percent of the map's drawing (--rl-tl-cap, measured
+   when it opens; until then a share of the map's section), and the map is told how far
+   (--rl-tl-h) so its status line and any control it floats over itself sit above it. A kind is
+   told by its shape (a square, a diamond, a dot, a bar); amber marks what is due on the seat. */
+
+.rl-mapfirst-map.rl-tl-on { --rl-tl-h: 44px; --rl-tl-cap: 100%; }
+.rl-mapfirst-map.rl-tl-open { --rl-tl-h: calc(44px + min(var(--rl-tl-cap, 100%), 0.4 * (100% - 2 * var(--space-2) - 44px))); }
+.rl-mapfirst-map.rl-tl-on > .rl-status { bottom: calc(var(--rl-tl-h) + var(--space-3)); }
+/* the strip's row is paid for by the map's own heading and line, kept for a screen reader only at
+   every width, as a phone already keeps them */
+.rl-mapfirst-map.rl-tl-on .rl-tmap > h2, .rl-mapfirst-map.rl-tl-on .rl-tmap > h2 + p.muted { position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.rl-tl { flex: none; background: var(--surface); border-top: 1px solid var(--rule-strong); }
+.rl-tl-head { display: flex; align-items: center; gap: var(--space-3); width: 100%; height: 44px; min-height: 44px; padding: 0 var(--space-3); background: transparent; border: 0; border-radius: 0; color: var(--fg-muted); font: 500 12px/1 var(--font-chrome); text-align: left; cursor: pointer; }
+.rl-tl-head:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.rl-tl-cap { flex: none; white-space: nowrap; }
+.rl-tl-chev { flex: none; }
+.rl-tl-axis { flex: 1; min-width: 0; height: 24px; margin: 0 var(--space-2); overflow: visible; }
+.rl-tl-rule { stroke: var(--rule-strong); stroke-width: 2; }
+.rl-tl-today rect { fill: var(--accent); }
+
+.rl-tl-mark { overflow: visible; }
+.rl-tl-mark > * { fill: var(--fg-strong); stroke: var(--surface); stroke-width: 2; }
+.rl-tl-mark.k-conf > * { fill: var(--fg); }
+.rl-tl-mark.k-contest > * { fill: var(--info); }
+.rl-tl-mark.k-end > * { fill: var(--fg-strong); }
+.rl-tl-mark.due > * { fill: var(--warn); }
+.rl-tl-mark.rl-lit > * { stroke: var(--focus); stroke-width: 3; }
+.rl-tm-mark.rl-lit { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.rl-tl-body { position: absolute; left: var(--space-2); right: var(--space-2); bottom: calc(var(--space-2) + 44px); z-index: 4; max-height: min(var(--rl-tl-cap, 100%), calc(0.4 * (100% - 2 * var(--space-2) - 44px))); overflow: auto; padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--rule-strong); border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; }
+.rl-tl-ticks { display: flex; justify-content: space-between; margin: 0 0 var(--space-2); color: var(--fg-muted); font: 400 11px/1 var(--font-chrome); }
+.rl-tl-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-1) var(--space-3); margin: 0; padding: 0; list-style: none; }
+.rl-tl-row { display: grid; grid-template-columns: 14px 56px 1fr auto; gap: var(--space-2); align-items: center; width: 100%; min-height: 44px; padding: 0 var(--space-2); background: var(--surface-2); border: 1px solid var(--rule); border-radius: var(--radius); color: var(--fg-strong); font: 500 13px/1.2 var(--font-read); text-align: left; cursor: pointer; }
+.rl-tl-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.rl-tl-when, .rl-tl-in { color: var(--fg-muted); font: 400 12px/1 var(--font-chrome); white-space: nowrap; }
+.rl-tl-what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (max-width: 1023px) {
+  .rl-tl-body { bottom: calc(44px + var(--space-5) + 44px); max-height: min(var(--rl-tl-cap, 100%), calc(0.4 * (100% - var(--space-2) - 44px - var(--space-5) - 44px))); }
+  .rl-mapfirst-map.rl-tl-open { --rl-tl-h: calc(44px + min(var(--rl-tl-cap, 100%), 0.4 * (100% - var(--space-2) - 44px - var(--space-5) - 44px))); }
+  .rl-mapfirst-map.rl-tl-on > .rl-status { bottom: calc(44px + var(--space-5) + var(--rl-tl-h)); }
+}
+
+@media (min-width: 1024px) {
+  /* a sheet at the side keeps its own width: the open list stops at its edge, as the map does */
+  .rl-mapfirst.sheeted .rl-tl-body { right: calc(440px + var(--space-5)); }
+}
+
+@media (max-width: 767px) {
+  .rl-tl-ticks { display: none; }
+  .rl-tl-list { grid-template-columns: 1fr; }
+  .rl-tl-cap.no-end { font-size: 11px; }
+}

@@ -47,7 +47,8 @@ import {
   GROUPS, chatButton, formSearch, formsTaking, groupOf, groupTabs, partFor, partTabs, personMoves,
 } from './realism-groups.js';
 import { openAim, stakesStrip } from './realism-stakes.js';
-import { economyStrip, foldEconomy } from './realism-economy.js';
+import { foldEconomy } from './realism-economy.js';
+import { nationRows, nationsPanel, standingGrid } from './realism-nations.js';
 import { foldOdds } from './realism-odds.js';
 import { loadShapes, shapesFor, theatreBoard } from './realism-theatre.js';
 import { aimMarks, roomBar, statusStrip, summaryTiles } from './realism-status.js';
@@ -55,6 +56,8 @@ import { sideSwitch, tabBar } from './realism-tabs.js';
 import { noticesSection } from './realism-notices.js';
 import { followThread, threadItems } from './realism-thread.js';
 import { threatsPanel } from './realism-threats.js';
+import { fitStrip, lightTogether, timelineStrip } from './realism-timeline.js';
+import { sentTracks } from './realism-tracks.js';
 import { trayView } from './realism-tray.js';
 import { RUNNING, comeBackLine, commitBusy, commitPanel, orderCard, stylePicker, wakeHeader } from './realism-wake.js';
 
@@ -65,7 +68,7 @@ const freshUi = (game) => ({
   happenedSeen: null, missed: null, missedAsked: false, refocusChat: false, brief: null, pending: null, drafts: {}, letters: [], playedTo: null, playing: null, missedPlay: null, offer: null, menuCall: false,
   tab: 'desk', side: 'papers', press: { open: false, tab: null }, pressPage: null, peopleTab: 'opponents',
   view: 'board', board: 'theatre', piece: null, theatre: { mode: 'map', scope: 'reports' },
-  firstWakeOff: null, sheet: null, sheetFrom: null, sheetForms: {}, matter: null, full: false,
+  firstWakeOff: null, sheet: null, sheetFrom: null, sheetForms: {}, matter: null, full: false, timeline: false,
 });
 let ui = freshUi(null);
 // the room last drawn: a re-read (the minute poll) keeps the values in its open sheet's forms
@@ -755,6 +758,15 @@ export function realismRoom(ctx) {
     ? peopleRoster(rv.people, { tab: ui.peopleTab, onTab: pickPeople, onOpen: openPerson })
     : threatsPanel(rv.threats));
   const yourOrders = () => orderCards(rv.record, rv.orders, (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v)), open);
+  /** The Sent part: the orders as tracks; a tap opens one in place, and the redraw keeps focus on it. */
+  const sentPart = () => sentTracks(rv.record, rv.orders, heldLines(rv), {
+    stepForm: (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v)), onOpen: open, opened: ui.sentOpen,
+    onToggle: (id) => {
+      ui.sentOpen = ui.sentOpen === id ? null : id;
+      rerender();
+      root.querySelector(`.rl-sent-order[data-order="${CSS.escape(id)}"] .rl-sent-head`)?.focus();
+    },
+  });
 
   function sideColumn() {
     return h('aside', { class: 'rl-col rl-side', 'data-tab': 'orders', 'aria-label': 'Your orders' },
@@ -1087,6 +1099,7 @@ export function realismRoom(ctx) {
     if (from?.home) return root.querySelector('.rl-strip .rl-home-own');
     if (from?.nations) return returnTarget(root, { group: 'world' });
     if (from?.aims) return root.querySelector('.rl-aimmark');
+    if (from?.timeline) return root.querySelector('.rl-tl-head');
     if (from?.battle) return [...root.querySelectorAll('.rl-mapfirst g.rl-bt-mark')].find((g) => g.getAttribute('data-area') === from.battle) ?? null;
     return returnTarget(root, from);
   }
@@ -1283,7 +1296,7 @@ export function realismRoom(ctx) {
   function sheetBody(name) {
     if (name === 'papers') return papers();
     // what waits on the seat is in the list; its matters open their own sheet
-    if (name === 'orders') return [ideasSlot, yourOrders(), commitPanel(rv.wake, { act })];
+    if (name === 'orders') return [ideasSlot, sentPart(), commitPanel(rv.wake, { act })];
     if (name === 'matter') {
       const found = matterOf(rv, ui.matter);
       if (!found) return null;
@@ -1316,6 +1329,7 @@ export function realismRoom(ctx) {
       return sheet;
     }
     if (name === 'nations') return nationsBody();
+    if (name === 'standing') return standingGrid(rv, { onOpen: cardFromGrid });
     if (name === 'aims') return stakesStrip(rv.stakes) ?? h('p', { class: 'hint' }, 'You hold no aims in this game.');
     if (name === 'press') {
       const desk = pressDesk().querySelector('dialog.rl-pd');
@@ -1369,21 +1383,37 @@ export function realismRoom(ctx) {
   const beginner = () => mapFirst() && rv.style === 'beginner';
   /** The parts Beginner leaves out of their group until a line in the list is in them. */
   const QUIET = ['court', 'home', 'diplomacy'];
-  /** Whether part `key` has a body in this game: the Standing part has none yet, and Nations, Home and Diplomacy need their blocks. */
-  const hasPart = (key) => (key === 'nations' ? Boolean(nationsBody()) : key === 'home' ? Boolean(rv.home)
-    : key === 'diplomacy' ? hasDiplomacy(rv) : key !== 'standing');
+  /** Whether part `key` has a body in this game: Nations and Standing need a nation to list, Home and Diplomacy their blocks. */
+  const hasPart = (key) => (key === 'nations' ? nationRows(rv).length > 0 : key === 'home' ? Boolean(rv.home)
+    : key === 'diplomacy' ? hasDiplomacy(rv) : key === 'standing' ? nationRows(rv).length > 0 : true);
   /** Every part the room has, by group, for the menu's quiet route on Beginner. */
   const everyPart = () => GROUPS.map((g) => ({ ...g, parts: g.parts.filter(([key]) => hasPart(key)) })).filter((g) => g.parts.length);
   /** The parts drawn in their groups: on Beginner a quiet part only while a line is in it or it is open. */
   const drawnParts = (open, marks) => GROUPS.flatMap((g) => g.parts.map(([key]) => key))
     .filter((key) => hasPart(key) && (!beginner() || !QUIET.includes(key) || marks[key] || key === open));
 
-  /** The nations' figures and their bands at home, as today's strip draws them, for the Nations part; null with neither. */
+  /** The Nations part: the nations as a bar chart, with a card each; null with neither an economy nor a home block. */
   function nationsBody() {
     const onOffer = mapFirst() && rv.agreements ? offerTo : null;
-    const body = withHome(h('div', { class: 'rl-nations-body' }, economyStrip(rv, { act, onOffer })), rv,
-      { open: openSheetOf(ui) === 'home', onOpen: toggleHome });
-    return body.children.length ? body : null;
+    ui.nations ??= {};
+    return nationsPanel(rv, { state: ui.nations, act, onOffer, onHome: homeFromCard });
+  }
+
+  /** A tile of the Standing grid: World opens at Nations with that nation's card open. */
+  function cardFromGrid(key) {
+    ui.nations ??= {};
+    ui.nations.open = key;
+    ui.nations.eco = false;
+    openSheet(ui, 'nations', { group: 'world' });
+    rerender();
+    root.querySelector('.rl-over .rl-nb-card-title')?.focus();
+  }
+
+  /** The seat's own card's At home: World opens at Home. */
+  function homeFromCard() {
+    openSheet(ui, 'home', { group: 'world' });
+    rerender();
+    root.querySelector('.rl-over-title')?.focus();
   }
 
   /** A nation's card's Make an offer: World opens at Diplomacy with the offer made out to that nation. */
@@ -1428,6 +1458,23 @@ export function realismRoom(ctx) {
   function setFull(on) {
     ui.full = Boolean(on);
     rerender();
+  }
+
+  /** The season's strip opens or closes, with the focus kept on its head. */
+  function toggleTimeline() {
+    ui.timeline = !ui.timeline;
+    rerender();
+    root.querySelector('.rl-tl-head')?.focus();
+  }
+
+  /** A row of the season's strip opens its item where it lives: the line's own action, the aims, a sheet or the piece. */
+  function openMark({ open: to }) {
+    ui.timeline = false;
+    if (to.to === 'need') return to.line.action ? needAction(to.line) : toggleNeeds();
+    if (to.to === 'piece') return pickOnMap({ piece: { kind: 'force', name: to.name } });
+    openSheet(ui, to.to === 'aims' ? 'aims' : to.sheet, { timeline: true });
+    rerender();
+    root.querySelector('.rl-over-title')?.focus();
   }
 
   /** The first-day card's words with its Dismiss, for the list's first row; null when it is not due. */
@@ -1478,9 +1525,13 @@ export function realismRoom(ctx) {
     });
     const tabs = [groupTabs(name, counts, (key) => toggleGroup(key, drawn), drawn), chatButton(name === 'messages', chatUnread(), toggleChat)];
     const aims = aimMarks(rv.stakes?.aims, { open: name === 'aims', onOpen: toggleAims });
+    const season = timelineStrip(rv, lines, { open: ui.timeline, onToggle: toggleTimeline, onOpen: openMark });
+    const at = season ? ` rl-tl-on${ui.timeline ? ' rl-tl-open' : ''}` : '';
+    const section = lightTogether(h('section', { class: `rl-mapfirst-map${at}`, 'aria-label': 'The map' }, map, season, status));
+    if (season && ui.timeline) globalThis.requestAnimationFrame?.(() => fitStrip(section));
     return [roomBar(rv, { tabs, menu: menuBtn, aims, act }),
       h('main', { class: `rl-mapfirst${sheet ? ' sheeted' : ''}`, 'aria-label': 'Map' },
-        listed, h('section', { class: 'rl-mapfirst-map', 'aria-label': 'The map' }, map, status), sheet),
+        listed, section, sheet),
       needsBar(rv, lines, { open: name === 'needs', onToggle: toggleNeeds, onDone: done })];
   }
 

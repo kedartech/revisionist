@@ -99,7 +99,7 @@ def _income(view: View, own: EntityId, day: date) -> list[EconomyIncome]:
     for t in board.territories if board is not None else ():
         if economy.holder(view, t.area) != own:
             continue
-        for key, amount in sorted(economy.yields_of(view, t.area).items()):
+        for key, amount in sorted(economy.working(view, t.area, day).items()):
             found = kinds.resources.get(key)
             if found is not None:
                 amounts[key] += amount * economy.factor(view, t.area, found.role, day)
@@ -145,7 +145,7 @@ def _territories(view: View, own: EntityId, day: date) -> list[EconomyTerritory]
         EconomyTerritory(
             area=t.key,
             name=t.name,
-            yields=economy.yields_of(view, t.area),
+            yields=economy.working(view, t.area, day),
             factors={role.value: economy.factor(view, t.area, role, day) for role in Role},
         )
         for t in sorted(held, key=lambda t: t.key)

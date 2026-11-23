@@ -470,7 +470,9 @@ def opening(page: Page, report: dict[str, object]) -> None:
         "a territory game opens in the map-first room", page.locator("main.rl-board").count() == 0
     )
     room_top(page, report)
+    season_timeline(page, report)
     groups_walk(page, report)
+    nations_chart(page, report, "1941")
     quiet_parts(page, report)
     forms_from(page, report)
     check("the map-first room offers Classic layout", set_layout(page, "Classic layout"))
@@ -552,6 +554,102 @@ def room_top(page: Page, report: dict[str, object]) -> None:
     page.set_viewport_size({"width": SIZE[0], "height": SIZE[1]})
     page.evaluate("() => window.scrollTo(0, 0)")
     page.wait_for_timeout(300)
+
+
+# The season on one timeline (STL): a strip at the map's foot, 44 px closed; open, a list over
+# at most 40 percent of the map with the map's controls above it; a row opens its item.
+TL_SHARE = 0.40  # [proposed]
+TL_MEASURE = """() => {
+  const box = (el) => {
+    const r = el.getBoundingClientRect();
+    return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, height: r.height };
+  };
+  const tl = document.querySelector('.rl-mapfirst-map .rl-tl');
+  const svg = document.querySelector('main.rl-mapfirst svg.rl-map-svg');
+  if (!tl || !svg) return null;
+  const body = tl.querySelector('.rl-tl-body');
+  const cover = body ? box(body) : null;
+  const shown = (el) => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden';
+  // the map's controls: every control in the map's section that is not the strip's own
+  const sel = '.rl-mapfirst-map button, .rl-mapfirst-map select, .rl-mapfirst-map input';
+  const controls = [...document.querySelectorAll(sel)]
+    .filter((c) => !c.closest('.rl-tl') && !c.closest('svg') && shown(c));
+  const hit = (r) => r.bottom > cover.top + 1 && r.top < cover.bottom - 1
+    && r.right > cover.left && r.left < cover.right;
+  const under = cover ? controls.filter((c) => hit(c.getBoundingClientRect()))
+    .map((c) => (c.getAttribute('aria-label') || c.textContent).trim().slice(0, 40)) : [];
+  const marks = tl.querySelectorAll('.rl-tl-axis .rl-tl-mark').length;
+  return { head: box(tl.querySelector('.rl-tl-head')), map: box(svg), cover, under, marks,
+    rows: tl.querySelectorAll('.rl-tl-row').length, width: document.documentElement.scrollWidth };
+}"""
+
+
+def tl_marks(page: Page) -> int:
+    return page.locator(".rl-mapfirst-map .rl-tl .rl-tl-axis .rl-tl-mark").count()
+
+
+def season_timeline(page: Page, report: dict[str, object]) -> None:
+    """The strip on the 1941 game: closed, open by Enter or a tap, and one row's item opened."""
+    try:
+        page.locator(".rl-mapfirst-map .rl-tl").wait_for(timeout=10_000)
+    except PlaywrightTimeout:
+        check("the season's strip is drawn at the map's foot", False)
+        return
+    closed = page.evaluate(TL_MEASURE)
+    report["stl_closed"] = closed
+    check(
+        "the season's strip is drawn at the map's foot",
+        bool(closed) and closed["marks"] > 0,
+        str(closed),
+    )
+    check(
+        "closed, the strip is 44 px tall",
+        abs(closed["head"]["height"] - 44) < 1,
+        str(closed["head"]),
+    )
+    check(
+        "closed, the strip is under the map, not over it",
+        closed["head"]["top"] >= closed["map"]["bottom"] - 1,
+        str(closed),
+    )
+    shoot(page, "60-stl-closed")
+    check("Enter or a tap opens the strip", press(page, ".rl-tl-head", "The season"))
+    try:
+        page.locator(".rl-tl.open .rl-tl-list").wait_for(timeout=10_000)
+    except PlaywrightTimeout:
+        check("the open strip lists the season", False)
+        return
+    page.wait_for_timeout(200)
+    got = page.evaluate(TL_MEASURE)
+    report["stl_open"] = got
+    check("open, a row for every mark", got["rows"] == got["marks"] > 0, str(got))
+    cover = got["cover"]
+    covered = max(
+        0.0, min(cover["bottom"], got["map"]["bottom"]) - max(cover["top"], got["map"]["top"])
+    )
+    check(
+        f"open, the strip covers at most {TL_SHARE:.0%} of the map",
+        covered <= TL_SHARE * got["map"]["height"] + 1,
+        f"{covered:.0f} of {got['map']['height']:.0f}",
+    )
+    check("open, the map's controls sit above the strip", got["under"] == [], str(got["under"]))
+    check(
+        "the open strip keeps the page as wide as the viewport", got["width"] == SIZE[0], str(got)
+    )
+    report["stl_rows"] = page.locator(".rl-tl-row").evaluate_all(
+        "(rs) => rs.map((r) => r.getAttribute('aria-label'))"
+    )
+    shoot(page, "61-stl-open")
+    row = "Season:" if page.locator(".rl-tl-row[data-kind=end]").count() else ""
+    check("a row of the strip can be pressed", press(page, ".rl-tl-row", row))
+    try:
+        over(page).wait_for(timeout=10_000)
+        check("a row opens its item where it lives", True)
+        shoot(page, "62-stl-row-opened")
+        page.locator(".rl-over .rl-over-close").first.click()
+        page.wait_for_timeout(300)
+    except PlaywrightTimeout:
+        check("a row opens its item where it lives", False)
 
 
 # The sheets in four groups (SHG): the bar's four group tabs and the chat button; each group a
@@ -648,6 +746,116 @@ def quiet_parts(page: Page, report: dict[str, object]) -> None:
         shoot(page, f"41-shg-{name.split(':')[0].lower()}-{key}")
         sheet_close(page, name)
     report["shg_quiet_parts"] = opened
+
+
+# The nations as a bar chart, with a card each (NBR): World's Nations part on the 1941 game and on
+# Salt Strait, by keyboard at 1440 and by tap at 390: the bars against the largest, ten before
+# "All nations" with the seat's own among them, the names beside the flags at 1440 only, a card
+# for the seat's own nation and for another, Escape closing a card with the focus back on its row,
+# and the page as wide as the viewport.
+ROW = ".rl-over button.rl-nb-row"
+SHOWN_NAMES = """() => [...document.querySelectorAll('.rl-over .rl-nb-name')]
+  .filter((e) => e.getClientRects().length).length"""
+
+
+def nation_card(page: Page, label: str, game: str, name: str) -> str:
+    """Open the card of the row named `label`, shoot it, close it by Escape: its words."""
+    if not press(page, ROW, label):
+        check(f"{game}: the row {label[:30]!r} is reached", False)
+        return ""
+    card = over(page).locator(".rl-nb-card")
+    try:
+        card.wait_for(timeout=10_000)
+    except PlaywrightTimeout:
+        check(f"{game}: a row opens its card", False, label)
+        return ""
+    words = said(card)
+    shoot(page, name)
+    key = card.get_attribute("data-nation")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(300)
+    back = page.evaluate("() => document.activeElement?.getAttribute('data-nation')")
+    check(
+        f"{game}: Escape closes the card, the chart stays and the focus is back on its row",
+        card.count() == 0 and over(page).get_attribute("data-sheet") == "nations" and back == key,
+        f"{back} {key}",
+    )
+    return words
+
+
+def nations_chart(page: Page, report: dict[str, object], game: str) -> None:
+    """Open World at Nations, read the chart and open two cards."""
+    page.wait_for_timeout(300)
+    if not check_open(page, press(page, ".rl-roombar .rl-sheettab", "World"), "World"):
+        return
+    if over(page).get_attribute("data-sheet") != "nations":
+        press(page, ".rl-over .rl-parts button", "Nations")
+        page.wait_for_timeout(300)
+    sheet = over(page)
+    rows = sheet.locator("button.rl-nb-row")
+    n = rows.count()
+    more = sheet.locator("button.rl-nb-all").count() > 0
+    widths = sheet.locator("rect.rl-nb-fill").evaluate_all(
+        "(rs) => rs.map((r) => Number(r.getAttribute('width')))"
+    )
+    flags = sheet.locator("button.rl-nb-row .flag").count()
+    names = page.evaluate(SHOWN_NAMES)
+    width = page.evaluate("document.documentElement.scrollWidth")
+    report[f"nbr_{game}"] = {
+        "rows": n,
+        "more": more,
+        "bars": widths,
+        "names": names,
+        "width": width,
+    }
+    check(
+        f"{game}: World's Nations part is the chart", sheet.locator(".rl-nb").count() == 1 and n > 0
+    )
+    check(f"{game}: ten rows before All nations", n == 10 if more else n <= 10, str(n))
+    check(f"{game}: the seat's own row is among them", rows.locator(".rl-nb-yours").count() == 1)
+    check(
+        f"{game}: the largest bar fills its track and none runs past it",
+        bool(widths) and max(widths) == 100 and all(0 <= w <= 100 for w in widths),
+        str(widths),
+    )
+    check(f"{game}: a flag on every row", flags == n, f"{flags} of {n}")
+    check(
+        f"{game}: the names beside the flags at 1440 only",
+        names == (0 if PHONE else n),
+        f"{names} of {n}",
+    )
+    check(f"{game}: the page is as wide as the viewport", width == SIZE[0], str(width))
+    shoot(page, f"50-nbr-{game}-chart")
+    if more:
+        check(
+            f"{game}: All nations opens the rest", press(page, ".rl-over button.rl-nb-all", "All")
+        )
+        page.wait_for_timeout(300)
+        check(f"{game}: every nation in place", rows.count() > n, str(rows.count()))
+        shoot(page, f"50-nbr-{game}-all")
+        press(page, ".rl-over button.rl-nb-all", "The first")
+        page.wait_for_timeout(300)
+    own = rows.filter(has=page.locator(".rl-nb-yours")).first.get_attribute("aria-label") or ""
+    other = (
+        rows.evaluate_all(
+            "(bs) => bs.map((b) => b.getAttribute('aria-label'))"
+            ".find((l) => !l.includes('(yours)'))"
+        )
+        or ""
+    )
+    mine = nation_card(page, own, game, f"51-nbr-{game}-own-card")
+    check(
+        f"{game}: the seat's own card has its ways on",
+        ("your war economy" in mine) == bool(widths) and "at home" in mine,
+        mine[:200],
+    )
+    theirs = nation_card(page, other, game, f"52-nbr-{game}-other-card")
+    check(
+        f"{game}: another nation's card says what its figure is, where it has one",
+        ("read from the map" in theirs) == bool(widths),
+        theirs[:200],
+    )
+    sheet_close(page, "World")
 
 
 def check_open(page: Page, found: bool, what: str) -> bool:
@@ -1895,8 +2103,23 @@ def salt_move(page: Page, report: dict[str, object]) -> None:
     )
     page.locator(".rl-pup-chip").wait_for(timeout=10_000)
     shoot(page, "22-salt-move")
+    marks = tl_marks(page)
     check("Send it files the move", press(page, ".rl-pup-chip button", "Send it"))
     settle(page, "Sent to", "the move is sent")
+    page.wait_for_timeout(500)
+    report["stl_move_marks"] = [marks, tl_marks(page)]
+    check(
+        "the move filed adds its mark to the season's strip",
+        tl_marks(page) == marks + 1,
+        str(report["stl_move_marks"]),
+    )
+    if page.locator(".rl-tl:not(.open) .rl-tl-head").count() and press(
+        page, ".rl-tl-head", "The season"
+    ):
+        page.wait_for_timeout(300)
+        shoot(page, "63-stl-after-move")
+        press(page, ".rl-tl-head", "The season")
+        page.wait_for_timeout(300)
     check(
         "the move raises no page error",
         len([p for p in problems if p.startswith("pageerror")]) == errors,
@@ -2098,13 +2321,19 @@ def sheets_opened(page: Page) -> None:
 
 
 def phone_room(page: Page, report: dict[str, object]) -> None:
-    """At 390 by 844: the map is at least half the viewport's height, a sheet no more than
-    half of it, and the page as wide as the viewport."""
+    """At 390 by 844: the map with the season's strip at its foot is at least half the
+    viewport's height, a sheet no more than half of it, and the page as wide as the viewport."""
     figure = page.locator("figure.rl-map-figure").first
     figure.scroll_into_view_if_needed()
     box = figure.bounding_box() or {"height": 0}
-    report["salt_phone_map_height"] = box["height"]
-    check("the map is at least half the viewport's height", box["height"] >= SIZE[1] / 2, str(box))
+    strip = page.locator(".rl-mapfirst-map .rl-tl-head")
+    foot = (strip.bounding_box() or {"height": 0})["height"] if strip.count() else 0
+    report["salt_phone_map_height"] = [box["height"], foot]
+    check(
+        "the map and the season's strip at its foot are at least half the viewport's height",
+        box["height"] + foot >= SIZE[1] / 2,
+        f"{box} + strip {foot}",
+    )
     sheet_open(page, "World: Diplomacy")
     sheet = over(page).bounding_box() or {"height": 1e9}
     report["salt_phone_sheet_height"] = sheet["height"]
@@ -2139,6 +2368,7 @@ def salt_strait(playwright: object, browser: object, report: dict[str, object]) 
         battle_day(page, play)
         battle_sheet(page, report)
         sheets_opened(page)
+        nations_chart(page, report, "salt")
         if PHONE:
             phone_room(page, report)
     except Exception:

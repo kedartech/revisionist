@@ -60,6 +60,9 @@ export function needed(vote) {
   return Math.floor((Number(vote.yeas) + Number(vote.nays)) / 2) + 1;
 }
 
+/** GPD's five public bands, lowest first (engine/web/home_api.py BANDS). */
+export const BANDS = Object.freeze(['collapsing', 'shaken', 'steady', 'firm', 'united']);
+
 /** The band in words: "steady at home"; a nation with no reading says so. */
 export const bandWords = (band) => (band ? `${band} at home` : 'no reading');
 

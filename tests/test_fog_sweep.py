@@ -40,10 +40,12 @@ KINDS = (
     "written order awaiting the close",
     "report author",
     "ask to a person with no seat",
+    "person or code answering an ask",
 )
 """The contract's eleven kinds of hidden fact, in its order, then the seat whose player
 has left in the open wake, which is the code's from the close, then which seat filed a
-player report the host reads, then whether a seat asked a person nobody plays."""
+player report the host reads, then whether a seat asked a person nobody plays, then
+whether a person or code answers an ask."""
 
 HUMANS = (
     "rules lane fix: the wake header's human count and the commit reply's 'waiting for N "
@@ -88,7 +90,7 @@ def differences(pair: ft.Pair, a: ft.Side, b: ft.Side) -> list[str]:
                         print(pair.id, who, moment, ft.where(key, x.get(key, b""), y.get(key, b"")))
 
     def read(s: ft.Side, who: str) -> dict[str, bytes]:
-        return ft.reads(s, who, ft.READS[pair.world])
+        return ft.reads(s, who, ft.READS[pair.world], seam=pair.seam, apart=pair.apart)
 
     compare("wake 0", read)
     for n in range(pair.wakes):

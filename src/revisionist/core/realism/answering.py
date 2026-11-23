@@ -17,7 +17,9 @@ With ``ask_answers`` on, the same people answer an ask (AAK): an ask for a held 
 to a person no seat with a desk holds falls due ``ANSWER_DAYS`` world days after it was
 made, and on that day the person's card grants or declines it from state, once. A grant
 opens nothing itself: the person files their own order through today's routing, and the
-lock opens from state once that order has taken effect.
+lock opens from state once that order has taken effect. A person a seat holds is never
+answered for, so the asker is told neither the card's answer (``told``) nor who holds
+the decider (``as_asked``): it learns only what the decider's own order does.
 """
 
 from collections.abc import Iterable, Iterator, Mapping
@@ -401,6 +403,24 @@ def askable(state: State) -> list[EntityId]:
     return sorted(p for p in could if p is not None and p in state.cards and not _played(state, p))
 
 
+def told(state: State, row: str | None) -> bool:
+    """Whether the answer to an ask on the lock row keyed ``row`` is told to the asker:
+    only on a row decided by its kind of question (``locks.by_kind``), which is answered
+    on its due day whoever holds the decider. On any other row a person a seat holds is
+    never answered for, so a card's answer told would say the decider is run by code."""
+    found = next((r for r in state.locks if r.key == row), None)
+    return found is not None and locks.by_kind(state, found)
+
+
+def as_asked(state: State, asked: locks.Asked, seat: SeatId) -> locks.Asked:
+    """``asked`` as ``seat`` holds it. With ``ask_answers`` on, the asker's own record
+    names no seat it went before and no answer, the same whether a person or code holds
+    the decider; a seat the ask was put before holds it whole."""
+    if not asks_on(state) or seat != asked.asker or seat in (asked.seat, *asked.seats):
+        return asked
+    return asked.model_copy(update={"seat": None, "seats": (), "answered": None, "granted": None})
+
+
 def _regard(state: State, one: EntityId, other: EntityId) -> int:
     return next(
         (r.disposition for r in state.relationships.values() if {r.a, r.b} == {one, other}),
@@ -575,6 +595,7 @@ __all__ = [
     "acts_on",
     "answer_ask",
     "answerers",
+    "as_asked",
     "ask_score",
     "askable",
     "asks_due",
@@ -583,4 +604,5 @@ __all__ = [
     "make",
     "matches",
     "plan",
+    "told",
 ]

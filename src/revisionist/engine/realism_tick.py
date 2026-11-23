@@ -576,7 +576,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         state = replay(batch, initial=state)
         out.extend(batch)
 
-    add(actors.unseated(state, answering.answerers(state)))
+    add(actors.unseated(state, [*answering.answerers(state), *answering.askable(state)]))
     begun: State | None = state  # moves the carried-in orders start begin on the first day
     wake_start = dict(state.opponents)
     walk_from, walk_mark = state, len(out)  # CON: each move reads from the last read on
@@ -660,7 +660,6 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(opponents.settle(state, day, [*landed, *planned], wake_start))
         while matter := _matter_answered(state, day):  # QKD: before a card answers an ask
             add(matter)
-        add(actors.unseated(state, answering.ask_deciders(state, day)))  # AAK: a seat to file from
         while answer := answering.answer_ask(state, day):
             add(answer)
         add(_unlocked(state, day))  # ASK: each held order once a day, after the day's acts

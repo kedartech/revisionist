@@ -106,7 +106,8 @@ def ready_made(store: EventStore, campaign_id: CampaignId) -> bool:
 def opening(state: State) -> Opening:
     """The game's people by nation, then path, then person, from ``roster.claimable``
     alone: everyone a player may take, and everyone already taken, marked. A nation or a
-    path with neither is not listed. The same for every caller, in any phase."""
+    path with neither is not listed. The same for every caller; the server serves it only
+    while the game chooses its people."""
     listed = [c for c in roster.claimable(state) if c.taken or c.reason is None]
     grouped: dict[EntityId | None, dict[CardPath | None, list[roster.Candidate]]] = {}
     for c in listed:

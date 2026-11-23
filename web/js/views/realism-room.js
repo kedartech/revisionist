@@ -47,7 +47,7 @@ import {
 import {
   GROUPS, chatButton, formSearch, formsTaking, groupOf, groupTabs, partFor, partTabs, personMoves,
 } from './realism-groups.js';
-import { openAim, stakesStrip } from './realism-stakes.js';
+import { openAim, ownAimOf, stakesStrip } from './realism-stakes.js';
 import { foldEconomy } from './realism-economy.js';
 import { nationRows, nationsPanel, standingGrid } from './realism-nations.js';
 import { foldOdds } from './realism-odds.js';
@@ -1333,7 +1333,7 @@ export function realismRoom(ctx) {
     }
     if (name === 'nations') return nationsBody();
     if (name === 'standing') return standingGrid(rv, { onOpen: cardFromGrid });
-    if (name === 'aims') return stakesStrip(rv.stakes) ?? h('p', { class: 'hint' }, 'You hold no aims in this game.');
+    if (name === 'aims') return stakesStrip(rv.stakes, ownAimHooks()) ?? h('p', { class: 'hint' }, 'You hold no aims in this game.');
     if (name === 'press') {
       const desk = pressDesk().querySelector('dialog.rl-pd');
       desk?.querySelector('.rl-pd-head')?.remove();
@@ -1523,9 +1523,14 @@ export function realismRoom(ctx) {
     root.querySelector('.rl-over-title')?.focus();
   }
 
+  /** The own aim's ladder (from the server) and what follows a set: the room is read again. */
+  function ownAimHooks() {
+    return { ownAim: rv.own_aim ?? null, onAimSet: () => refresh() };
+  }
+
   /** The first-day card's words with its Dismiss, for the list's first row; null when it is not due. */
   function firstWake() {
-    const words = firstWakeWords(rv.wake, { dismissed: ui.firstWakeOff, beginner: beginner() });
+    const words = firstWakeWords(rv.wake, { dismissed: ui.firstWakeOff, beginner: beginner(), own: ownAimOf(rv.stakes) });
     return words && { ...words, onDismiss: dismissFirstWake };
   }
 
@@ -1584,9 +1589,25 @@ export function realismRoom(ctx) {
       needsBar(rv, lines, { open: name === 'needs', onToggle: toggleNeeds, onDone: done })];
   }
 
+  /**
+   * The switch again in the game menu, shown on a phone only (c-capital.css), where the map's
+   * controls have no room for it; the map has no focusable switch there, so Map gives the
+   * keyboard back to the Game button.
+   */
+  function menuBoard(close) {
+    if (!hasCapital(rv)) return null;
+    const pick = (key) => {
+      close();
+      setBoard(key);
+      if (key === 'map') root.querySelector('.rl-menu-btn')?.focus();
+    };
+    return h('div', { class: 'rl-menu-board' }, boardSwitch(shownBoard(openSheetOf(ui)), pick));
+  }
+
   /** The map-first room's game menu adds what the page header holds in today's room. */
   const menuExtra = ({ character, setting, bug }) => (close) => h('section', { class: 'rl-menu-game', 'aria-labelledby': 'rl-menu-game-h' },
     h('h3', { id: 'rl-menu-game-h' }, 'This game'),
+    menuBoard(close),
     h('div', { class: 'row' },
       h('button', { type: 'button', class: 'ghost', 'aria-haspopup': 'dialog', 'aria-label': `${game.name}: open the setting`, onclick: () => { close(); setting?.showModal(); } }, game.name),
       seatName ? h('button', { type: 'button', class: 'ghost', 'aria-haspopup': 'dialog', 'aria-label': `${seatName}: open the dossier`, onclick: () => { close(); character?.showModal(); } }, seatName) : null),
@@ -1634,13 +1655,13 @@ export function realismRoom(ctx) {
     ];
     return [
       ...top,
-      stakesStrip(rv.stakes, { aims: ui.view !== 'board' }),
+      stakesStrip(rv.stakes, { aims: ui.view !== 'board', ...ownAimHooks() }),
       status,
-      firstWakeCard(rv.wake, { dismissed: ui.firstWakeOff, onDismiss: dismissFirstWake }),
+      firstWakeCard(rv.wake, { dismissed: ui.firstWakeOff, onDismiss: dismissFirstWake, own: ownAimOf(rv.stakes) }),
       viewSwitch(ui, pick),
       ...(ui.view === 'board' ? [
         newsBlock(whatChanged(rv.documents), (id) => readPress({ id })),
-        boardView(rv, ui, { pick, act: (m, a, b, t) => (a === 'lever-ask' ? fileAndAsk(b, t) : act(m, a, b, t)), write: writeBlock(), open }),
+        boardView(rv, ui, { pick, act: (m, a, b, t) => (a === 'lever-ask' ? fileAndAsk(b, t) : act(m, a, b, t)), write: writeBlock(), open, ...ownAimHooks() }),
       ] : [
         summaryTiles(rv, pick),
         newsBlock(whatChanged(rv.documents), (id) => readPress({ id })),

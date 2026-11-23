@@ -92,7 +92,7 @@ def test_web_serve_warns_once_and_passes_the_secure_setting(served: Any) -> None
 
 # --- 2. A write names this host --------------------------------------------------------
 
-JSON = {"Content-Type": "application/json", "Host": "a.test"}
+JSON = {"Content-Type": "application/json", "Host": "a.ts.net"}
 CROSS = ("err", HTTPStatus.FORBIDDEN, "Cross-origin request refused.")
 
 
@@ -100,11 +100,11 @@ CROSS = ("err", HTTPStatus.FORBIDDEN, "Cross-origin request refused.")
     "extra,want",
     [
         ({}, CROSS),
-        ({"Origin": "http://a.test"}, ("ok", None)),
-        ({"Referer": "http://a.test/play/room"}, ("ok", None)),
-        ({"Referer": "http://b.test/a.test"}, CROSS),
-        ({"Referer": "http://a.test.b.test/"}, CROSS),
-        ({"Origin": "http://b.test", "Referer": "http://a.test/"}, CROSS),
+        ({"Origin": "http://a.ts.net"}, ("ok", None)),
+        ({"Referer": "http://a.ts.net/play/room"}, ("ok", None)),
+        ({"Referer": "http://b.test/a.ts.net"}, CROSS),
+        ({"Referer": "http://a.ts.net.b.test/"}, CROSS),
+        ({"Origin": "http://b.test", "Referer": "http://a.ts.net/"}, CROSS),
         ({"Origin": "null"}, CROSS),
     ],
 )

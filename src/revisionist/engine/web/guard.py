@@ -19,6 +19,11 @@ GZIP_MIN = 1024
 MAP_CACHE = "private, max-age=31536000, immutable"
 """A map object is named by its hash, so a client keeps it a year. [proposed]"""
 ASSETLINKS_ENV = "REVISIONIST_ASSETLINKS_FILE"
+PUBLIC_NAMES_ENV = "REVISIONIST_PUBLIC_NAMES"
+"""The names the server is served under, comma separated, each a host or host:port."""
+MISDIRECTED = "This server does not answer to that name."
+LOCAL_SUFFIX = ".ts.net"
+"""[proposed] With no names set, a write must name an IP address, localhost or a tailnet name."""
 MANIFEST_TYPE = "application/manifest+json"
 IDLE_S = 30
 """[proposed] Seconds a connection may send nothing before it is closed."""
@@ -186,14 +191,73 @@ def start_warning(host: str, secure: bool) -> str | None:
     )
 
 
+def public_names() -> list[tuple[str, int | None]]:
+    """The names ``REVISIONIST_PUBLIC_NAMES`` lists, read afresh on every call."""
+    found = []
+    for entry in os.environ.get(PUBLIC_NAMES_ENV, "").split(","):
+        if entry.strip():
+            found.append(_split(entry.strip()))
+    return [name for name in found if name[0]]
+
+
+def _split(netloc: str) -> tuple[str, int | None]:
+    """A host header or netloc as its lower-case host and its port; no host when malformed."""
+    if "@" in netloc:
+        return "", None
+    try:
+        parts = urlsplit("//" + netloc)
+        return parts.hostname or "", parts.port
+    except ValueError:
+        return "", None
+
+
+def _listed(netloc: str, names: list[tuple[str, int | None]]) -> bool:
+    host, port = _split(netloc)
+    return bool(host) and any(host == name and want in (None, port) for name, want in names)
+
+
+def _local(netloc: str) -> bool:
+    host = _split(netloc)[0]
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return host == "localhost" or host.endswith(LOCAL_SUFFIX)
+    return True
+
+
+def _netloc(url: str) -> str:
+    try:
+        return urlsplit(url).netloc
+    except ValueError:
+        return ""
+
+
+def served(request_headers: Any) -> None:
+    """Any request, of any method: when names are set, its Host must be one of them."""
+    names = public_names()
+    if names and not _listed(request_headers.get("Host", ""), names):
+        raise RefusedError(HTTPStatus.MISDIRECTED_REQUEST, MISDIRECTED)
+
+
 def same_origin(request_headers: Any) -> None:
-    """Writes must come from this page: a JSON body whose Origin, or else Referer, is this host."""
+    """Writes must come from this page: a JSON body whose Origin, or else Referer, is a name
+    the server is served under; with no names set, this host, if it is not a borrowed name."""
+    served(request_headers)
     if not request_headers.get("Content-Type", "").startswith("application/json"):
         raise RefusedError(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, "Send JSON.")
     origin = request_headers.get("Origin")
     named = origin if origin is not None else request_headers.get("Referer")
     host = request_headers.get("Host", "")
-    if not host or named is None or urlsplit(named).netloc != host:
+    if not host or named is None:
+        raise RefusedError(HTTPStatus.FORBIDDEN, "Cross-origin request refused.")
+    names = public_names()
+    if names:
+        if not _listed(_netloc(named), names):
+            raise RefusedError(HTTPStatus.FORBIDDEN, "Cross-origin request refused.")
+        return
+    if not _local(host):
+        raise RefusedError(HTTPStatus.MISDIRECTED_REQUEST, MISDIRECTED)
+    if _netloc(named) != host:
         raise RefusedError(HTTPStatus.FORBIDDEN, "Cross-origin request refused.")
 
 

@@ -214,6 +214,18 @@ class Side:
             out: dict[str, Any] = self.app.state_for(self.accounts[who])
         return out
 
+    def new(self, who: str, action: str) -> dict[str, Any]:
+        """``/api/new/<action>`` as ``who``'s account sends it, through ``App``."""
+        with drawn_from(self.counts):
+            out: dict[str, Any] = self.app.new_game(self.accounts[who], action, {})
+        return out
+
+    def game(self, who: str, action: str) -> dict[str, Any]:
+        """``/api/game/<action>`` as ``who``'s account sends it, through ``App``."""
+        with drawn_from(self.counts):
+            out: dict[str, Any] = self.app.game(self.accounts[who], action, {})
+        return out
+
 
 def side(db: PgDb, tmp: Path, decl: WorldFile) -> Side:
     tmp.mkdir(parents=True, exist_ok=True)
@@ -286,8 +298,9 @@ READS = {"toy": TOY_READS, "salt": SALT_READS}
 
 def reads(s: Side, who: str, probes: tuple[Probe, ...]) -> dict[str, bytes]:
     """Every read ``who`` can make: the snapshot (every sheet's data is in it), each
-    page it holds, the map, catch-up, the check and the odds, and the wake notice."""
-    out = {"me": _call(lambda: s.me(who))}
+    page it holds, the map, catch-up, the opening's list of people, the check and the
+    odds, and the wake notice."""
+    out = {"me": _call(lambda: s.me(who)), "opening": opening(s, who)}
     me = json.loads(out["me"])
     realism = ((me.get("game") or {}).get("view") or {}).get("realism") or {}
     listing = realism.get("documents") or {}
@@ -304,6 +317,12 @@ def reads(s: Side, who: str, probes: tuple[Probe, ...]) -> dict[str, bytes]:
     except ValueError as exc:
         out["notice"] = _bytes({"error": str(exc)})
     return out
+
+
+def opening(s: Side, who: str) -> bytes:
+    """``/api/new/opening`` as ``who`` reads it: the people of the game, who is taken,
+    and the seats left."""
+    return _call(lambda: s.new(who, "opening"))
 
 
 def truth(s: Side) -> tuple[str, list[Any]]:
@@ -618,6 +637,17 @@ def salt_aims(w: World, hidden: bool) -> None:
         }
 
 
+def leaves(who: str) -> Act:
+    """``who``'s player leaves the game in the open wake, as the game menu's leave does:
+    the leader is the code's from the close."""
+
+    def act(s: Side, hidden: bool) -> None:
+        if hidden:
+            _done(s.game(who, "leave"))
+
+    return act
+
+
 SALT_PIECE_NAMES = (
     Probe("odds", {"force": "varda_levy", "to": "harrow_pass"}),
     Probe("odds", {"force": "varda_balloons", "to": "harrow_pass"}),
@@ -645,6 +675,7 @@ PAIRS: tuple[Pair, ...] = (
         wakes=0,
     ),
     Pair("person or code", "toy", ("ilse", "kara"), unseated="tomas"),
+    Pair("pending leave", "toy", ("ilse", "kara"), act=leaves("tomas")),
     Pair("hidden law", "toy", ("kara", "tomas"), change=toy_law),
     Pair(
         "written order awaiting the close",
@@ -677,6 +708,7 @@ PAIRS: tuple[Pair, ...] = (
         wakes=0,
     ),
     Pair("person or code", "salt", ("oren_vale",), unseated="general_aske"),
+    Pair("pending leave", "salt", ("oren_vale",), act=leaves("general_aske")),
     Pair(
         "written order awaiting the close",
         "salt",

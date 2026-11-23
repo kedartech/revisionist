@@ -1,9 +1,10 @@
 """What a caller may spend or repeat, counted in the store so a restart forgets nothing.
 
-The hourly lines on each player action that calls a model, the game's dollar ceiling a
-wake on those calls, and the sign-up, sign-in and recovery limits by address and by
-handle. A refusal is a value the caller sends as a reply with ``refused: true``. A
-wake's own calls never come through here, so nothing a wake does is refused.
+The hourly lines on each player action that calls a model, files a report or makes a
+game, the game's dollar ceiling a wake on those calls, and the sign-up, sign-in and
+recovery limits by address and by handle. A refusal is a value the caller sends as a
+reply with ``refused: true``. A wake the scheduler closes never comes through here, so
+nothing it does is counted or refused; only a player's own close, advance or commit is.
 """
 
 from __future__ import annotations
@@ -39,6 +40,9 @@ LINES: Mapping[str, int] = {
     "cast": 3,
     "pick": 10,
     "figures": 10,
+    "wake": 30,
+    "newgame": 10,
+    "report": 20,
 }
 """Tries an hour per account, by the kind of call [proposed]."""
 COUNTED: Mapping[str, str] = {
@@ -57,12 +61,25 @@ COUNTED: Mapping[str, str] = {
     "seat/pick": "pick",
     "seat/search": "pick",
     "new/figures": "figures",
+    "realism/close": "wake",
+    "realism/advance": "wake",
+    "realism/commit": "wake",
+    "new/ready": "newgame",
+    "new/start": "newgame",
+    "new/begin": "newgame",
+    "realism/report": "report",
+    "seat/bug": "report",
 }
-"""Each player action that calls a model, and the line it is counted against."""
+"""Each player action that calls a model, files a report or makes a game, and the line
+it is counted against."""
+GAME_OWN = frozenset({"wake", "newgame", "report"})
+"""Lines whose model calls are the game's own, not the caller's, once counted."""
 
 CEILING_USD = 5.0
 """What a game's player-triggered calls may cost in one wake [proposed]."""
-PLAYER_PURPOSES = frozenset({"aide", "directive", "counsel", "advise", "goal", "history_brief"})
+PLAYER_PURPOSES = frozenset(
+    {"aide", "directive", "counsel", "advise", "goal", "history_brief", "structure"}
+)
 """The logged costs a player's action makes; a wake's own (prose, options, rulings) are not."""
 TEMPLATED = frozenset({"realism/aide", "realism/help"})
 """Past the ceiling these answer from the aide's templates."""
@@ -150,12 +167,12 @@ def check(
     store: Any, account_id: Any, campaign_id: Any, action: str, now: Any
 ) -> Refusal | TemplateMode | None:
     """Count one try of ``action`` for the account, or say why not. ``action`` is
-    ``<family>/<action>``; one that calls no player model is never counted or refused."""
+    ``<family>/<action>``; one not in ``COUNTED`` is never counted or refused."""
     kind = COUNTED.get(action)
     if kind is None:
         openrouter.serve_as("")
         return None
-    openrouter.serve_as(str(account_id))
+    openrouter.serve_as("" if kind in GAME_OWN else str(account_id))
     if action in TEMPLATED or action in CEILINGED:
         game = campaign_id or _game(store, account_id, now)
         if game is not None and spent(store, game) >= CEILING_USD:

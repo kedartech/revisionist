@@ -1,0 +1,6 @@
+Revisionist preview room
+Built 2026-11-23 13:24: origin/main f7facba plus 1 unmerged branch(es).
+
+In:  The third run, every item landed so far (run3 at 8258bed): fix: tell an asker nothing of whether a person or code holds the decider
+
+Run: revisionist-gameplay-3. Refreshes every 5 minutes; held while someone posted in the last 5.

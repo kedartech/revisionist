@@ -32,13 +32,14 @@ import yaml
 from revisionist.core import events as ev
 from revisionist.core.fold import state_hash
 from revisionist.core.ids import DocumentId, EntityId, SeatId, derived_id
+from revisionist.core.project import project
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.document import BodyField, DocumentKind, DocumentTruth, DocumentView
 from revisionist.core.visibility import private_to
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
-from revisionist.engine import counsel, directive, emit, notice, realism_tick, session_zero
+from revisionist.engine import catchup, counsel, directive, emit, notice, realism_tick, session_zero
 from revisionist.engine import wake as wk
 from revisionist.engine.store import load_state
 from revisionist.engine.web import wake_api
@@ -46,6 +47,7 @@ from revisionist.engine.web.accounts import Account, WebSeats
 from revisionist.engine.web.server import ApiError
 from tests import test_realism_locks as toy_locks
 from tests.pg import Cluster, PgDb
+from tests.test_ask_answers import answers_on, hostile
 from tests.test_session_zero_steps import Table
 from tests.test_territory_model import CAMPAIGN, written
 from tests.test_web import Web
@@ -137,6 +139,8 @@ class Side:
     decl: WorldFile
     accounts: dict[str, Account] = field(default_factory=dict)
     counts: Counter[str] = field(default_factory=Counter)
+    hosting: str = ""
+    """Who hosts the game, once ``host`` has run."""
 
     @property
     def app(self) -> Any:
@@ -184,6 +188,7 @@ class Side:
 
     def host(self, who: str) -> None:
         account = self.accounts[who]
+        self.hosting = who
 
         def insert(store: Any) -> None:
             store.conn.execute(
@@ -284,9 +289,10 @@ SALT_READS = (
 READS = {"toy": TOY_READS, "salt": SALT_READS}
 
 
-def reads(s: Side, who: str, probes: tuple[Probe, ...]) -> dict[str, bytes]:
+def reads(s: Side, who: str, probes: tuple[Probe, ...], seam: bool = False) -> dict[str, bytes]:
     """Every read ``who`` can make: the snapshot (every sheet's data is in it), each
-    page it holds, the map, catch-up, the check and the odds, and the wake notice."""
+    page it holds, the map, catch-up, the check and the odds, and the wake notice. With
+    ``seam``, also the catch-up seam itself and the seat's own record of its asks."""
     out = {"me": _call(lambda: s.me(who))}
     me = json.loads(out["me"])
     realism = ((me.get("game") or {}).get("view") or {}).get("realism") or {}
@@ -303,7 +309,18 @@ def reads(s: Side, who: str, probes: tuple[Probe, ...]) -> dict[str, bytes]:
         out["notice"] = _bytes(notice.compose(state, s.seat(who), None, name))
     except ValueError as exc:
         out["notice"] = _bytes({"error": str(exc)})
+    if seam:
+        out["seam"] = _bytes(s.run(partial(_fed, s.seat(who))))
+        asked = project(state, s.seat(who)).asked.values()
+        out["asked"] = _bytes(sorted((a.model_dump(mode="json") for a in asked), key=str))
     return out
+
+
+def _fed(seat: SeatId, store: Any) -> list[Any]:
+    """Every event the catch-up seam feeds ``seat``, by wake, kind and payload: what any
+    feed built on it may draw, whether or not one draws it yet."""
+    fed = catchup.seat_events(store, CAMPAIGN, seat, 0, 999)
+    return [(f.wake, f.event.kind, f.event.payload.model_dump(mode="json")) for f in fed]
 
 
 def truth(s: Side) -> tuple[str, list[Any]]:
@@ -364,7 +381,13 @@ class Pair:
     names: Callable[[Side], tuple[Probe, ...]] = lambda s: ()
     unseated: str | None = None
     """A person seated by an account in the first game and left to code in the second."""
+    swapped: str | None = None
+    """A person left to code in the first game only, so both games seat as many people."""
+    host: str | None = None
+    """Who hosts both games; the world's usual host when None."""
     wakes: int = 1
+    seam: bool = False
+    """Also compare the catch-up seam and the seat's record of its asks (``reads``)."""
 
     @property
     def id(self) -> str:
@@ -372,7 +395,8 @@ class Pair:
 
     def seated(self, hidden: bool) -> tuple[str, ...]:
         every = TOY_SEATS if self.world == "toy" else SALT_SEATS
-        return tuple(p for p in every if not (hidden and p == self.unseated))
+        coded = self.unseated if hidden else self.swapped
+        return tuple(p for p in every if p != coded)
 
 
 def build(pair: Pair, db: PgDb, tmp: Path, hidden: bool) -> Side:
@@ -382,7 +406,7 @@ def build(pair: Pair, db: PgDb, tmp: Path, hidden: bool) -> Side:
     s = side(db, tmp / "game", decl)
     for who in pair.seated(hidden):
         s.claim(who)
-    s.host(HOSTS[pair.world])
+    s.host(pair.host or HOSTS[pair.world])
     s.begin()
     pair.act(s, hidden)
     return s
@@ -393,7 +417,7 @@ HOSTS = {"toy": "ilse", "salt": "oren_vale"}
 
 def close_wake(s: Side) -> None:
     """The host closes the open wake, as its "close the wake now" does."""
-    out = s.act(HOSTS[s_world(s)], "close")
+    out = s.act(s.hosting or HOSTS[s_world(s)], "close")
     assert not out.get("refused"), out
 
 
@@ -447,6 +471,19 @@ def toy_held_names(s: Side) -> tuple[Probe, ...]:
     return tuple(Probe(a, {"order_id": str(i)}) for i in ids for a in ("ask", "withdraw")) + tuple(
         Probe("step", {"order_id": str(i), "action": "pass"}) for i in ids
     )
+
+
+def toy_declined(w: World, hidden: bool) -> None:
+    """Asks answered, and Ilse cold to Kara and holding to the Isle, so her card declines."""
+    answers_on(w)
+    hostile(w)
+
+
+def toy_asked(s: Side, hidden: bool) -> None:
+    """Kara's march to the Isle, held for Ilse, and Kara's ask of her, in both games."""
+    _done(s.act("kara", "lever", lever="march", params={"force": "norra_levy", "to": "isle"}))
+    (held_id,) = list(s.state().held)
+    _done(s.act("kara", "ask", order_id=held_id))
 
 
 def toy_aims(w: World, hidden: bool) -> None:
@@ -645,6 +682,19 @@ PAIRS: tuple[Pair, ...] = (
         wakes=0,
     ),
     Pair("person or code", "toy", ("ilse", "kara"), unseated="tomas"),
+    Pair(
+        "person or code answering an ask",
+        "toy",
+        ("kara",),
+        change=toy_declined,
+        act=toy_asked,
+        names=toy_held_names,
+        unseated="ilse",
+        swapped="tomas",
+        host="olaf",
+        wakes=2,
+        seam=True,
+    ),
     Pair("hidden law", "toy", ("kara", "tomas"), change=toy_law),
     Pair(
         "written order awaiting the close",
@@ -694,6 +744,7 @@ NOT_BUILT: dict[str, str] = {
     "toy-sealed-vote": "the toy world has no conference or vote a seat files",
     "toy-private-agreement": "the toy world's two nations are at war and there is no third",
     "salt-held-order-and-ask": "Salt Strait declares no locks, so no order is ever held",
+    "salt-person-or-code-answering-an-ask": "Salt Strait declares no locks, so nothing is asked",
     "salt-hidden-law": "Salt Strait declares no law",
 }
 """Kinds that cannot be built in a world through its public entry points, left for the

@@ -179,7 +179,7 @@ class App:
         self.handlers = WebHandlers(
             dsn, transport_factory=transport_factory, clock=clock, briefings=briefings
         )
-        self.signin = limits.SigninThrottle()
+        self.signin = limits.SigninThrottle(self.open, self.clock)
         self._lock = threading.Lock()
         self._briefs: dict[tuple[CampaignId, SeatId], tuple[int, dict[str, Any]]] = {}
         """Each seat's aide brief and the wake (``state.tick``) it was read at: one model
@@ -211,7 +211,7 @@ class App:
         """The limits' refusal of one action, as the reply to send, or None. The game is not
         looked up yet, so no campaign is named."""
         refusal = limits.check(store, account.account_id, None, action, self.clock())
-        return None if refusal is None else refusal.reply()
+        return refusal.reply() if isinstance(refusal, limits.Refusal) else None
 
     # --- reads -----------------------------------------------------------------
 
@@ -312,9 +312,12 @@ class App:
         """One ``/api/realism/<action>``. A refusal is a reply, not an error."""
         store = self.open()
         try:
-            refused = self.limited(store, account, f"realism/{action}")
-            if refused is not None:
-                return refused
+            checked = limits.check(
+                store, account.account_id, None, f"realism/{action}", self.clock()
+            )
+            if isinstance(checked, limits.Refusal):
+                return checked.reply()
+            templated = isinstance(checked, limits.TemplateMode)
             link = self.handlers._game_of(store, account.account_id, "status")
             if isinstance(link, str):
                 raise ApiError(HTTPStatus.BAD_REQUEST, link)
@@ -428,7 +431,7 @@ class App:
                         return snapshot.checked(state, seat, out | {"brief": kept})
                     writer: aide.AideWriter = (
                         aide.TemplateAide()
-                        if self.offline_prose or self.template_aide
+                        if self.offline_prose or self.template_aide or templated
                         else aide.ClaudeAide(self.transport_factory())
                     )
                     try:
@@ -456,7 +459,7 @@ class App:
                     reply = f"{answered.person} has answered."
                 elif action == "help":
                     question = _text(body, "question", aide_help.QUESTION_MAX)
-                    thread = self._aide_explains(store, state, seat, question)
+                    thread = self._aide_explains(store, state, seat, question, templated=templated)
                     out = {"reply": "", "refused": False, "help": thread}
                     return snapshot.checked(state, seat, out)
                 elif action == "step":
@@ -668,12 +671,20 @@ class App:
             return list(kept)
 
     def _aide_explains(
-        self, store: PostgresEventStore, state: State, seat: SeatId, asked: str, failed: str = ""
+        self,
+        store: PostgresEventStore,
+        state: State,
+        seat: SeatId,
+        asked: str,
+        failed: str = "",
+        *,
+        templated: bool = False,
     ) -> list[dict[str, str]]:
-        """The aide answers a question, or explains what just failed; the thread."""
+        """The aide answers a question, or explains what just failed; the thread.
+        ``templated``: the game is past what a wake may spend, so the template answers."""
         helper: aide_help.Helper = (
             aide_help.TemplateHelper()
-            if self.offline_prose or self.template_aide
+            if self.offline_prose or self.template_aide or templated
             else aide_help.ClaudeHelper(self.transport_factory())
         )
         said = aide_help.answer(project(state, seat), asked, helper, failed)
@@ -1284,6 +1295,11 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
         server_version = "revisionist-web"
         sys_version = ""
         protocol_version = "HTTP/1.1"
+
+        @property
+        def throttle(self) -> limits.SigninThrottle:
+            """The sign-in and address counts, which ``limits.address`` reads."""
+            return app.signin
 
         def log_message(self, format: str, *args: Any) -> None:
             log.info("%s %s", self.address_string(), format % args)

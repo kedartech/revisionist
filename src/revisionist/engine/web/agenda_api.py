@@ -559,6 +559,27 @@ def _due_asks(state: State, seat: SeatId) -> list[DueMatter]:
     return [DueMatter("ask", a["id"], a["words"], a["by"], locks_api.ASK_DUE) for a in asks]
 
 
+PROMISE = "Your promise to {bloc}: {sentence}"  # [proposed]
+
+
+def _due_promises(state: State, seat: SeatId) -> list[DueMatter]:
+    """Each promise the seat made whose measure has passed, due on the day it is read
+    (PRR rule 5), from the seat's own view: only its own offers."""
+    from revisionist.engine.web import home_api
+
+    return [
+        DueMatter(
+            "promise",
+            p["offer_id"],
+            PROMISE.format(bloc=p["name"], sentence=p["sentence"].rstrip(".")),
+            None,
+            p["due"],
+        )
+        for p in home_api.promises(project(state, seat))
+        if p["standing"] == "due" and p["due"] is not None
+    ]
+
+
 DUE_KINDS: dict[str, DueKind] = {
     "request": _due_requests,
     "offer": _due_offers,
@@ -567,6 +588,7 @@ DUE_KINDS: dict[str, DueKind] = {
     "battle": _due_battles,
     "vote": _due_votes,
     "ask": _due_asks,
+    "promise": _due_promises,
 }
 """The registry of due kinds, in the order a notice lists them."""
 

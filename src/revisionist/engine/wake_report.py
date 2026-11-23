@@ -26,7 +26,9 @@ wake also counts, per seat, the aims of the person it holds that were met, at ri
 failed as the wake ended (SCD): counts only, never an aim's words or its condition.
 In a game where any order came from a suggested action, the report also counts the
 expected moves checked so far and how many held (FCK, ``forecast.judge``): counts only,
-never a seat, an order or a target.
+never a seat, an order or a target. In a game with ``offers`` on, each wake also counts
+the offers made to blocs and the promises judged kept and broken while it was the latest
+wake opened (PRR): counts only, never a bloc, a price or a seat.
 
 An operator command (``revisionist db wake-report``) that prints counts and public
 board facts, and no record's content. Nothing a seat reaches imports it.
@@ -44,7 +46,7 @@ from revisionist.core.fold import apply, replay
 from revisionist.core.goals import AimStatus, aim_status, aims_on, holder_seat
 from revisionist.core.ids import CampaignId, EntityId, OrderId, SeatId
 from revisionist.core.ontology import Controller, EntityKind
-from revisionist.core.realism import agreement, battle, detect, economy, holders, locks
+from revisionist.core.realism import agreement, battle, detect, economy, holders, locks, offers
 from revisionist.core.realism.agreement import ClauseStatus
 from revisionist.core.state import State
 from revisionist.core.world_compile import object_id
@@ -169,6 +171,17 @@ class Locked:
 
 
 @dataclass(frozen=True)
+class Offers:
+    number: int
+    made: int
+    """Offers filed to a bloc."""
+    kept: int
+    """Promises judged kept."""
+    broken: int
+    """Promises judged broken."""
+
+
+@dataclass(frozen=True)
 class Report:
     campaign_id: CampaignId | None
     wakes: tuple[WakeRow, ...]
@@ -192,6 +205,8 @@ class Report:
     inert: int | None = None
     """Forms on the cards that change nothing when enacted (``inert_forms``); None in a
     game whose cards have no forms."""
+    offers: tuple[Offers, ...] = ()
+    """One per wake opened, in a game with ``offers`` on; else empty."""
 
 
 @dataclass
@@ -268,6 +283,7 @@ def build(events: Sequence[Event]) -> Report:
         _locked(events, state),
         _forecasts(events, state),
         inert,
+        _offers(events, state),
     )
 
 
@@ -360,6 +376,28 @@ def _clauses(events: Sequence[Event], state: State) -> tuple[Clauses, ...]:
             elif p.status is ClauseStatus.BROKEN:
                 counts[number][1] += 1
     return tuple(Clauses(n, *c) for n, c in sorted(counts.items()))
+
+
+def _offers(events: Sequence[Event], state: State) -> tuple[Offers, ...]:
+    """Each wake's offers made and promises judged kept and broken, by the latest wake
+    opened when each landed; empty with ``offers`` off."""
+    if not offers.on(state):
+        return ()
+    counts: dict[int, list[int]] = {}
+    number: int | None = None
+    for e in events:
+        p = e.payload
+        if isinstance(p, ev.WakeOpened):
+            number = p.wake
+            counts.setdefault(number, [0, 0, 0])
+        elif number is not None and isinstance(p, ev.OfferMade):
+            counts[number][0] += 1
+        elif number is not None and isinstance(p, ev.OfferSettled):
+            if p.standing is offers.OfferStanding.KEPT:
+                counts[number][1] += 1
+            elif p.standing is offers.OfferStanding.BROKEN:
+                counts[number][2] += 1
+    return tuple(Offers(n, *c) for n, c in sorted(counts.items()))
 
 
 def _intelligence(events: Sequence[Event], state: State) -> tuple[Intelligence, ...]:
@@ -528,6 +566,7 @@ def render(report: Report) -> list[str]:
     judged = {c.number: c for c in report.clauses}
     aimed = {a.number: a for a in report.aims}
     locked = {x.number: x for x in report.locked}
+    offered = {o.number: o for o in report.offers}
     for w in report.wakes:
         lines.append(f"  wake {w.number}: {w.how}")
         if w.number in held:
@@ -547,6 +586,9 @@ def render(report: Report) -> list[str]:
             lines.append(_aimed(aimed[w.number]))
         if w.number in locked:
             lines.append(_locks_line(locked[w.number]))
+        if w.number in offered:
+            o = offered[w.number]
+            lines.append(f"    offers: {o.made} made; promises {o.kept} kept, {o.broken} broken")
     lines += [
         f"seat {s.name}: aide played {_plural(s.aide_wakes, 'wake')}; {_hours(s)}"
         for s in report.seats

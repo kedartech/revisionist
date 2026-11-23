@@ -5,7 +5,8 @@ by its own ``App``, built the same way through the engine's public entry points 
 world file, a claim, the wake's opening, the server's own actions) except for one hidden
 fact, which only the second game (``hidden=True``) carries. ``reads`` collects every
 read the viewing seat can make and ``refusals`` every refusal it can provoke by naming
-the hidden thing, each as the bytes the server would send. The sweep
+the hidden thing, each as the bytes the server would send, with the seat's view and its
+agent's prompt as a model is given them. The sweep
 (``tests/test_fog_sweep.py``) compares the two games' bytes; another item's test may
 import ``PAIRS``, ``Side``, ``reads`` and ``refusals`` and run them with its own rule on.
 
@@ -41,7 +42,9 @@ from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
 from revisionist.engine import catchup, counsel, directive, emit, notice, realism_tick, session_zero
 from revisionist.engine import wake as wk
-from revisionist.engine.store import load_state
+from revisionist.engine.advise import advise
+from revisionist.engine.llm import Reply, Request
+from revisionist.engine.store import MemoryStore, load_state
 from revisionist.engine.web import wake_api
 from revisionist.engine.web.accounts import Account, WebSeats
 from revisionist.engine.web.server import ApiError
@@ -219,6 +222,18 @@ class Side:
             out: dict[str, Any] = self.app.state_for(self.accounts[who])
         return out
 
+    def new(self, who: str, action: str) -> dict[str, Any]:
+        """``/api/new/<action>`` as ``who``'s account sends it, through ``App``."""
+        with drawn_from(self.counts):
+            out: dict[str, Any] = self.app.new_game(self.accounts[who], action, {})
+        return out
+
+    def game(self, who: str, action: str) -> dict[str, Any]:
+        """``/api/game/<action>`` as ``who``'s account sends it, through ``App``."""
+        with drawn_from(self.counts):
+            out: dict[str, Any] = self.app.game(self.accounts[who], action, {})
+        return out
+
 
 def side(db: PgDb, tmp: Path, decl: WorldFile) -> Side:
     tmp.mkdir(parents=True, exist_ok=True)
@@ -291,9 +306,10 @@ READS = {"toy": TOY_READS, "salt": SALT_READS}
 
 def reads(s: Side, who: str, probes: tuple[Probe, ...], seam: bool = False) -> dict[str, bytes]:
     """Every read ``who`` can make: the snapshot (every sheet's data is in it), each
-    page it holds, the map, catch-up, the check and the odds, and the wake notice. With
-    ``seam``, also the catch-up seam itself and the seat's own record of its asks."""
-    out = {"me": _call(lambda: s.me(who))}
+    page it holds, the map, catch-up, the opening's list of people, the check and the
+    odds, and the wake notice. With ``seam``, also the catch-up seam itself and the
+    seat's own record of its asks."""
+    out = {"me": _call(lambda: s.me(who)), "opening": opening(s, who)}
     me = json.loads(out["me"])
     realism = ((me.get("game") or {}).get("view") or {}).get("realism") or {}
     listing = realism.get("documents") or {}
@@ -313,7 +329,37 @@ def reads(s: Side, who: str, probes: tuple[Probe, ...], seam: bool = False) -> d
         out["seam"] = _bytes(s.run(partial(_fed, s.seat(who))))
         asked = project(state, s.seat(who)).asked.values()
         out["asked"] = _bytes(sorted((a.model_dump(mode="json") for a in asked), key=str))
+    out["view"] = project(state, s.seat(who)).model_dump_json().encode()
+    out["prompt"] = advice_prompt(s, who)
     return out
+
+
+class _Asked:
+    """A transport that keeps the request it is sent and answers nothing."""
+
+    def __init__(self) -> None:
+        self.requests: list[Request] = []
+
+    def call(self, request: Request) -> Reply:
+        self.requests.append(request)
+        return Reply({"text": ""}, request.model, 0, 0, 0, 0.0)
+
+
+def advice_prompt(s: Side, who: str) -> bytes:
+    """The prompt ``who``'s agent would be sent for a question: the seat's view as a
+    model reads it, and so as the adviser, the narrator and the agent are given it."""
+    t = _Asked()
+    copy = MemoryStore()  # the call logs its cost: on a copy, so the game is untouched
+    copy.append_all(s.run(lambda store: list(store.read(CAMPAIGN))))
+    advise(copy, CAMPAIGN, s.seat(who), "What now?", t)
+    (req,) = t.requests
+    return req.prompt.encode()
+
+
+def opening(s: Side, who: str) -> bytes:
+    """``/api/new/opening`` as ``who`` reads it: the people of the game, who is taken,
+    and the seats left."""
+    return _call(lambda: s.new(who, "opening"))
 
 
 def _fed(seat: SeatId, store: Any) -> list[Any]:
@@ -323,10 +369,10 @@ def _fed(seat: SeatId, store: Any) -> list[Any]:
     return [(f.wake, f.event.kind, f.event.payload.model_dump(mode="json")) for f in fed]
 
 
-def truth(s: Side) -> tuple[str, list[Any]]:
-    """What the game holds, whoever may see it: the state's hash and every order held
-    for the next wake. The two games of a pair must differ here, or the pair hides
-    nothing."""
+def truth(s: Side) -> tuple[str, list[Any], list[Any]]:
+    """What the game holds, whoever may see it: the state's hash, every order held for
+    the next wake and who filed each player report. The two games of a pair must differ
+    here, or the pair hides nothing."""
 
     def held(store: Any) -> list[Any]:
         rows = store.conn.execute(
@@ -334,7 +380,13 @@ def truth(s: Side) -> tuple[str, list[Any]]:
         ).fetchall()
         return [tuple(r) for r in rows]
 
-    return state_hash(s.state()), s.run(held)
+    def filed(store: Any) -> list[Any]:
+        rows = store.conn.execute(
+            "SELECT seat_id, kind FROM player_reports ORDER BY report_id"
+        ).fetchall()
+        return [tuple(r) for r in rows]
+
+    return state_hash(s.state()), s.run(held), s.run(filed)
 
 
 def where(key: str, x: bytes, y: bytes) -> str:
@@ -462,6 +514,23 @@ def toy_held(s: Side, hidden: bool) -> None:
     """Kara's march to the Isle, held for Ilse, and Kara's ask of her."""
     if hidden:
         _done(s.act("kara", "lever", lever="march", params={"force": "norra_levy", "to": "isle"}))
+        (held_id,) = list(s.state().held)
+        _done(s.act("kara", "ask", order_id=held_id))
+
+
+def toy_unplayed_decider(w: World, hidden: bool) -> None:
+    """Both games: asks are answered, and the march to the Isle is held for Sven Hald, a
+    councillor of Norra with a card, no written answers and no seat."""
+    w["rules"] = sorted({*w["rules"], "ask_answers"})
+    w["entities"].append({"key": "sven", "kind": "person", "name": "Sven Hald", "parent": "norra"})
+    w["cards"].append({"person": "sven", "office": "Councillor of Norra", "horizon_days": 14})
+    _find(w["locks"], "island_march")["decider"] = {"person": "sven"}
+
+
+def toy_ask_unplayed(s: Side, hidden: bool) -> None:
+    """Kara's march to the Isle, held for Sven, in both games; Kara asks him for it in one."""
+    _done(s.act("kara", "lever", lever="march", params={"force": "norra_levy", "to": "isle"}))
+    if hidden:
         (held_id,) = list(s.state().held)
         _done(s.act("kara", "ask", order_id=held_id))
 
@@ -655,6 +724,27 @@ def salt_aims(w: World, hidden: bool) -> None:
         }
 
 
+def leaves(who: str) -> Act:
+    """``who``'s player leaves the game in the open wake, as the game menu's leave does:
+    the leader is the code's from the close."""
+
+    def act(s: Side, hidden: bool) -> None:
+        if hidden:
+            _done(s.game(who, "leave"))
+
+    return act
+
+
+REPORT_WORDS = "The toll on my desk reads 9 and the map says 8."
+INBOX = (Probe("reports", {"inbox": True}),)
+
+
+def report_author(s: Side, hidden: bool) -> None:
+    """The same words filed as a report by Kara, or (hidden) by Tomas of the other side:
+    the host reads them in the inbox, and must not learn whose they are."""
+    _done(s.act("tomas" if hidden else "kara", "report", kind="bug", text=REPORT_WORDS))
+
+
 SALT_PIECE_NAMES = (
     Probe("odds", {"force": "varda_levy", "to": "harrow_pass"}),
     Probe("odds", {"force": "varda_balloons", "to": "harrow_pass"}),
@@ -674,6 +764,13 @@ PAIRS: tuple[Pair, ...] = (
     Pair("held order and ask", "toy", ("olaf", "tomas"), act=toy_held, names=toy_held_names),
     Pair("other aims", "toy", ("kara", "tomas"), change=toy_aims),
     Pair(
+        "ask to a person with no seat",
+        "toy",
+        ("olaf", "tomas"),
+        change=toy_unplayed_decider,
+        act=toy_ask_unplayed,
+    ),
+    Pair(
         "report not arrived",
         "toy",
         ("ilse",),
@@ -681,7 +778,9 @@ PAIRS: tuple[Pair, ...] = (
         names=unarrived_names,
         wakes=0,
     ),
+    Pair("report author", "toy", ("ilse",), act=report_author, names=lambda s: INBOX),
     Pair("person or code", "toy", ("ilse", "kara"), unseated="tomas"),
+    Pair("pending leave", "toy", ("ilse", "kara"), act=leaves("tomas")),
     Pair(
         "person or code answering an ask",
         "toy",
@@ -727,6 +826,7 @@ PAIRS: tuple[Pair, ...] = (
         wakes=0,
     ),
     Pair("person or code", "salt", ("oren_vale",), unseated="general_aske"),
+    Pair("pending leave", "salt", ("oren_vale",), act=leaves("general_aske")),
     Pair(
         "written order awaiting the close",
         "salt",
@@ -746,6 +846,8 @@ NOT_BUILT: dict[str, str] = {
     "salt-held-order-and-ask": "Salt Strait declares no locks, so no order is ever held",
     "salt-person-or-code-answering-an-ask": "Salt Strait declares no locks, so nothing is asked",
     "salt-hidden-law": "Salt Strait declares no law",
+    "salt-ask-to-a-person-with-no-seat": "Salt Strait declares no locks, so nothing is asked",
+    "salt-report-author": "Salt Strait seats one player besides the host, so no second author",
 }
 """Kinds that cannot be built in a world through its public entry points, left for the
 security review."""

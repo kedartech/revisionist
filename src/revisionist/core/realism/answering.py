@@ -40,7 +40,7 @@ from revisionist.core.realism.agenda import (
 )
 from revisionist.core.realism.answer import ENTITY_FIELDS, Answer, AnswerWhen
 from revisionist.core.realism.apply import shift
-from revisionist.core.realism.card import Lever, ParamKind, words
+from revisionist.core.realism.card import Lever, ParamKind, superiors, words
 from revisionist.core.realism.effect import (
     Deal,
     Effect,
@@ -389,6 +389,20 @@ def asks_due(state: State, day: date) -> list[locks.Asked]:
     )
 
 
+def askable(state: State) -> list[EntityId]:
+    """The unplayed people with a card whom an ask could go to, in id order: the person
+    each lock row's decider sends it to, and every card with authority up another card's
+    chain of principals (a derived decider). None with asks off. Read from the rows and
+    cards alone, never from an ask, so a seat made for one of them tells nobody that an
+    ask was made."""
+    if not asks_on(state):
+        return []
+    rows = {locks.asked_of(r.decider) for r in state.locks}
+    above = {up for p in state.cards for up in superiors(state.cards, p)}
+    could = rows | {p for p in above if p in state.cards and state.cards[p].authority}
+    return sorted(p for p in could if p is not None and p in state.cards and not _played(state, p))
+
+
 def told(state: State, row: str | None) -> bool:
     """Whether the answer to an ask on the lock row keyed ``row`` is told to the asker:
     only on a row decided by its kind of question (``locks.by_kind``), which is answered
@@ -405,11 +419,6 @@ def as_asked(state: State, asked: locks.Asked, seat: SeatId) -> locks.Asked:
     if not asks_on(state) or seat != asked.asker or seat in (asked.seat, *asked.seats):
         return asked
     return asked.model_copy(update={"seat": None, "seats": (), "answered": None, "granted": None})
-
-
-def ask_deciders(state: State, day: date) -> list[EntityId]:
-    """The people who answer an ask on ``day``, so each has a seat to file from."""
-    return sorted({a.to for a in asks_due(state, day)})
 
 
 def _regard(state: State, one: EntityId, other: EntityId) -> int:
@@ -587,8 +596,8 @@ __all__ = [
     "answer_ask",
     "answerers",
     "as_asked",
-    "ask_deciders",
     "ask_score",
+    "askable",
     "asks_due",
     "asks_on",
     "grants",

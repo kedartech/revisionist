@@ -542,6 +542,56 @@ class Stakes(TypedDict):
     """Days from the world date to the season's end; None when no contest decides it."""
 
 
+class AimValue(TypedDict):
+    """One value a blank may take as the seat's view allows (OWR)."""
+
+    value: str | int
+    """What the seat sends back for it."""
+    label: str
+    """Its name, as the aim would read it."""
+
+
+class AimBlankLine(TypedDict):
+    """One blank of a pattern, with the values the seat may fill it with (OWR)."""
+
+    name: str
+    values: list[AimValue]
+
+
+class AimPatternLine(TypedDict):
+    """One pattern on the seat's ladder (OWR)."""
+
+    key: str
+    sentence: str
+    """The aim in words, each blank written ``{name}``."""
+    blanks: list[AimBlankLine]
+    difficulty: int | None
+    """Its easiest fill's, on the aims' rubric; None when no fill stands now."""
+    government: bool
+    """Whether the person's own government would issue it."""
+
+
+class OwnAimBlock(TypedDict):
+    """The patterns the seat may fill to replace its card's replaceable aim, easiest first,
+    while it may still set one (OWR). Absent otherwise, and with ``own_aim`` off."""
+
+    aim: int
+    """Which of the card's aims it replaces, counting from 1."""
+    replaces: str
+    """That aim's words."""
+    patterns: list[AimPatternLine]
+
+
+class AimCheck(TypedDict):
+    """What a filled pattern makes (OWR): it stands, with the sentence as it reads; or the
+    reasons it cannot, in fixed words. Answered by ``aim-check`` and ``aim-set`` alike."""
+
+    stands: bool
+    text: str | None
+    """The aim as it reads (as stored, after a set); None when it does not stand."""
+    reasons: list[str]
+
+
 class CourtOrder(TypedDict):
     """One of the seat's own orders waiting at a step."""
 
@@ -1957,6 +2007,10 @@ __all__ = [
     "AgreementClauseLine",
     "AgreementLine",
     "AgreementsBlock",
+    "AimBlankLine",
+    "AimCheck",
+    "AimPatternLine",
+    "AimValue",
     "AskForm",
     "AskLine",
     "BattlePiece",
@@ -2041,6 +2095,7 @@ __all__ = [
     "OrderResult",
     "OrderTrack",
     "OrderTracker",
+    "OwnAimBlock",
     "People",
     "PeopleMeter",
     "PersonChannel",

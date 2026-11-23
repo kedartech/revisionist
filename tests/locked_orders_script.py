@@ -19,7 +19,10 @@ Ids drawn by ``new_id`` come from a counter per act (``Ids``), so a retried act 
 shift a later act's id and two runs of one script give one digest.
 
 The same script runs on the toy world (``tests/worlds/territory-toy.yaml``) through a
-second cast: Ilse Varg as the leader, Kara Lind as her general and Olaf Brun between them.
+second cast: Ilse Varg as the leader, Kara Lind as her general and Olaf Brun between them;
+and on Salt Strait (``worlds/salt-strait-realism.yaml``) as shipped, through a third:
+Oren Vale as the leader, Commodore Brask as his commander and Mira Toll between them, with
+the laws, deciders, answers to asks and own aims switched on.
 """
 
 import hashlib
@@ -126,18 +129,43 @@ class Cast:
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 
 
-def autumn_1941(tmp: Path, changes: tuple[Change, ...] = ()) -> WorldFile:
-    """The 1941 world as shipped, with ``changes`` made to its raw file; its map and its
+def shipped(name: str, changes: tuple[Change, ...] = ()) -> WorldFile:
+    """The shipped world ``name``, with ``changes`` made to its raw file; its map and its
     deck are the shipped ones."""
-    del tmp
-    shipped = cmp.load_world(cmp.world_path("autumn-1941"))
+    world = cmp.load_world(cmp.world_path(name))
     if not changes:
-        return shipped
-    raw: World = yaml.safe_load(cmp.world_path("autumn-1941").read_text())
+        return world
+    raw: World = yaml.safe_load(cmp.world_path(name).read_text())
     for change in changes:
         change(raw)
-    carried = {"map_data": shipped.map_data, "developments": shipped.developments}
+    carried = {"map_data": world.map_data, "developments": world.developments}
     return WorldFile.model_validate(raw).model_copy(update=carried)
+
+
+def autumn_1941(tmp: Path, changes: tuple[Change, ...] = ()) -> WorldFile:
+    """The 1941 world as shipped, with ``changes`` made to its raw file."""
+    del tmp
+    return shipped("autumn-1941", changes)
+
+
+def table(world: WorldFile, person: str | None = None) -> tuple[str, ...]:
+    """The playable people with forms who sit at one game with ``person`` (the first of them
+    when None): ``person``, the people above them on their cards' principals, then the rest in
+    order, no more than a game seats. A world with more playable cards than a game seats is
+    played at several such tables."""
+    cards = {c.person: c for c in world.cards}
+    people = sorted({c.person for c in world.cards if c.playable and c.levers})
+    who = person if person in people else people[0]
+    above: list[str] = []
+    stack = [who]
+    while stack:
+        for up in cards[stack.pop()].principals:
+            if up in cards and up not in above and up != who:
+                above.append(up)
+                stack.append(up)
+    first = [who, *(p for p in above if p in people)]
+    rest = [p for p in people if p not in first]
+    return tuple(sorted([*first, *rest][: world.settings.max_human_seats]))
 
 
 def _halved(key: str) -> Change:
@@ -341,7 +369,50 @@ TOY = Cast(
     meets=True,
     # Sudland's reserve: Sudland's own figure, out of Kara's view.
 )
-CASTS = (NINETEEN_41, TOY)
+
+# --- the Salt Strait cast ------------------------------------------------------------
+# Salt Strait as shipped (SSO): Oren Vale leads Varda; Commodore Brask, a military card,
+# commands the Varda Galleys under Mira Toll, who is under Oren. Oren's watch order crosses
+# Mira's step, then Brask's desk. Brask's watch order, his sailing and Oren's own move of
+# the galleys go through the galleys' staff, a clerical step. Oren's bill goes before the
+# Salt Assembly, where the Free Traders vote. Brask's guard on the strait is held until Oren
+# sets it himself; his escort in the sound is held until Varda's own law, the Salt Convoy
+# Act, is in force: a law no code table knows, read with ``laws`` on.
+
+
+def salt_strait(tmp: Path, changes: tuple[Change, ...] = ()) -> WorldFile:
+    """Salt Strait as shipped, with ``changes`` made to its raw file."""
+    del tmp
+    return shipped("salt-strait-realism", changes)
+
+
+WATCH = {"intel": "patrol", "piece": "varda_galleys"}
+"""The watch forms are the galleys' patrol: the parameters every watch order shares."""
+
+SALT_STRAIT = Cast(
+    name="salt-strait-realism",
+    world=salt_strait,
+    campaign=CAMPAIGN,
+    leader="oren_vale",
+    commander="brask",
+    middle="mira",
+    lock1=("galley_watch", {**WATCH, "order": "guard", "zone": "strait"}),
+    lock1_row="strait_guard",
+    lock2=("galley_watch", {**WATCH, "order": "escort", "zone": "sound"}),
+    lock2_row="sound_convoy_escort",
+    posture=("set_watch", {**WATCH, "order": "guard", "zone": "strait"}),
+    bill=("send_bill", {"bill": "salt_convoy_act", "urgency": "urgent"}),
+    passed="salt_convoy_act_passed",
+    votes=("salt_convoy_act_salt_assembly_yeas", "salt_convoy_act_salt_assembly_nays"),
+    leader_move=("move_galleys", {"force": "varda_galleys", "to": "saltworks"}),
+    commander_move=("sail", {"force": "varda_galleys", "to": "free_port"}),
+    force="varda_galleys",
+    leader_bound="the_strait",  # the Saltworks' port_on
+    hidden=_halved("ostrel_war_chest"),
+    meets=True,
+    # Ostrel's war chest: Ostrel's own figure, out of Brask's view.
+)
+CASTS = (NINETEEN_41, TOY, SALT_STRAIT)
 
 
 # --- the ids -------------------------------------------------------------------------
@@ -676,6 +747,7 @@ __all__ = [
     "CAMPAIGN",
     "CASTS",
     "NINETEEN_41",
+    "SALT_STRAIT",
     "T0",
     "TOY",
     "Cast",
@@ -689,6 +761,8 @@ __all__ = [
     "ends",
     "known",
     "landed_as",
+    "salt_strait",
+    "shipped",
     "steps_at",
     "toy",
 ]

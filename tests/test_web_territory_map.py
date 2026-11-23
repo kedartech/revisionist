@@ -5,7 +5,11 @@ and the moves lit on each own piece, computed from the seat's own view.
 The toy world (``tests/worlds/territory-toy.yaml``) is played with ``territories`` on.
 """
 
+import gzip
+import hashlib
 import json
+import urllib.error
+import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -18,7 +22,7 @@ from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.territory import Plan
 from revisionist.core.state import State
 from revisionist.engine import maps
-from revisionist.engine.web import map_api
+from revisionist.engine.web import guard, map_api
 from revisionist.engine.web import realism_api as api
 from revisionist.engine.web import realism_snapshot as rs
 from tests import test_adjacency_moves as adj
@@ -422,3 +426,165 @@ def test_without_territories_the_map_action_refuses(tmp_path: Path) -> None:
         "file": None,
         "map": None,
     }
+
+
+# --- The map object by its hash, and replies compressed (GZP) --------------------------
+
+Fetched = tuple[int, dict[str, str], bytes]
+
+
+def fetch(client: Client, path: str, *, signed: bool = True, **headers: str) -> Fetched:
+    req = urllib.request.Request(client.base + path)
+    if signed and client.cookie:
+        req.add_header("Cookie", f"rv_session={client.cookie}")
+    for key, value in headers.items():
+        req.add_header(key.replace("_", "-"), value)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            status, raw, got = resp.status, resp.read(), resp.headers
+    except urllib.error.HTTPError as exc:
+        status, raw, got = exc.code, exc.read(), exc.headers
+    return status, {k.lower(): v for k, v in got.items()}, raw
+
+
+def territory_seat(web: Web, tmp_path: Path, objects: Path) -> tuple[Client, State]:  # noqa: F811
+    state = stored(tmp_path, objects, adj.levers)
+    game = Realism(web, str(tmp_path / "world.yaml"))
+    ada = game.seat("ada", "ilse")
+    game.open_play()
+    return ada, state
+
+
+def test_a_map_object_is_served_by_its_hash_and_kept_a_year(
+    web: Web,  # noqa: F811
+    tmp_path: Path,
+    stores: tuple[Path, Path],
+) -> None:
+    ada, state = territory_seat(web, tmp_path, stores[0])
+    assert state.map is not None
+    status, got, raw = fetch(ada, f"/maps/{state.map.sha256}.json")
+    assert status == 200
+    assert raw == (tmp_path / state.map.file).read_bytes()
+    assert got["cache-control"] == "private, max-age=31536000, immutable"
+    assert got["content-type"].startswith("application/json")
+
+
+def test_a_map_object_needs_a_signed_in_account(
+    web: Web,  # noqa: F811
+    tmp_path: Path,
+    stores: tuple[Path, Path],
+) -> None:
+    ada, state = territory_seat(web, tmp_path, stores[0])
+    assert state.map is not None
+    status, _, _ = fetch(ada, f"/maps/{state.map.sha256}.json", signed=False)
+    assert status == 401
+
+
+def test_a_hash_the_seats_game_does_not_name_is_a_404(
+    web: Web,  # noqa: F811
+    tmp_path: Path,
+    stores: tuple[Path, Path],
+) -> None:
+    ada, state = territory_seat(web, tmp_path, stores[0])
+    assert state.map is not None
+    other = hashlib.sha256(b"another map").hexdigest()
+    (stores[0] / f"{other}.json").write_bytes(b"another map")
+    for name in (other, "not-a-hash", state.map.sha256.upper(), "../" + state.map.sha256):
+        status, got, _ = fetch(ada, f"/maps/{name}.json")
+        assert status == 404, name
+        assert "immutable" not in got.get("cache-control", "")
+
+
+def test_a_seat_of_another_game_is_refused_the_object(
+    web: Web,  # noqa: F811
+    tmp_path: Path,
+    stores: tuple[Path, Path],
+) -> None:
+    _, state = territory_seat(web, tmp_path, stores[0])
+    assert state.map is not None
+    other = Realism(web).seat("cyrus", "ada")
+    status, _, raw = fetch(other, f"/maps/{state.map.sha256}.json")
+    assert status == 404 and b"areas" not in raw
+
+
+def test_a_map_reply_without_shapes_when_the_client_holds_the_object(
+    web: Web,  # noqa: F811
+    tmp_path: Path,
+    stores: tuple[Path, Path],
+) -> None:
+    ada, state = territory_seat(web, tmp_path, stores[0])
+    assert state.map is not None
+    _, full = post(ada, "map")
+    status, bare = post(ada, "map", shapes=False)
+    assert status == 200 and bare["refused"] is False
+    assert bare["map"] is None
+    assert set(bare) == set(full)
+    assert bare["file"] == full["file"] == {"name": "toy.map.json", "sha256": state.map.sha256}
+    assert full["map"] is not None
+    assert post(ada, "map", shapes=True)[1] == full
+
+
+def test_a_json_reply_over_the_line_is_gzipped_when_accepted(
+    web: Web,  # noqa: F811
+    tmp_path: Path,
+    stores: tuple[Path, Path],
+) -> None:
+    ada, _ = territory_seat(web, tmp_path, stores[0])
+    status, got, raw = fetch(ada, "/api/me", Accept_Encoding="gzip")
+    assert status == 200
+    assert got["content-encoding"] == "gzip" and got["vary"] == "Accept-Encoding"
+    assert int(got["content-length"]) == len(raw)
+    assert got["cache-control"] == "no-store"
+    assert json.loads(gzip.decompress(raw)) == ada.me()
+    assert len(gzip.decompress(raw)) > guard.GZIP_MIN
+    _, plain, whole = fetch(ada, "/api/me")
+    assert "content-encoding" not in plain and json.loads(whole) == ada.me()
+
+
+def test_a_small_reply_or_a_client_that_does_not_accept_gzip_gets_plain_bytes(
+    web: Web,  # noqa: F811
+    tmp_path: Path,
+    stores: tuple[Path, Path],
+) -> None:
+    ada, _ = territory_seat(web, tmp_path, stores[0])
+    status, got, raw = fetch(ada, "/api/nope", Accept_Encoding="gzip")
+    assert status == 404 and "content-encoding" not in got
+    assert json.loads(raw) == {"error": "No such call."}
+    big = web.app.static / "big.js"
+    big.write_text("export const a = [" + ", ".join(["1"] * 600) + "];")
+    assert big.stat().st_size > guard.GZIP_MIN
+    status, got, raw = fetch(ada, "/big.js")
+    assert "content-encoding" not in got and raw == big.read_bytes()
+    status, got, raw = fetch(ada, "/big.js", Accept_Encoding="identity, gzip;q=0")
+    assert "content-encoding" not in got and raw == big.read_bytes()
+    status, got, raw = fetch(ada, "/big.js", Accept_Encoding="br, gzip")
+    assert got["content-encoding"] == "gzip" and got["vary"] == "Accept-Encoding"
+    assert int(got["content-length"]) == len(raw)
+    assert gzip.decompress(raw) == big.read_bytes()
+    assert got["cache-control"] == "no-cache"
+
+
+def test_the_server_serves_the_install_files(
+    web: Web,  # noqa: F811
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (web.app.static / "manifest.webmanifest").write_text('{"name": "x"}')
+    (web.app.static / "sw.js").write_text("self.addEventListener('fetch', () => {});")
+    client = web.client()
+    _, got, _ = fetch(client, "/manifest.webmanifest", signed=False)
+    assert got["content-type"].startswith("application/manifest+json")
+    _, got, _ = fetch(client, "/sw.js", signed=False)
+    assert got["service-worker-allowed"] == "/" and got["cache-control"] == "no-cache"
+    _, got, _ = fetch(client, "/app.js", signed=False)
+    assert "service-worker-allowed" not in got
+    monkeypatch.delenv("REVISIONIST_ASSETLINKS_FILE", raising=False)
+    assert fetch(client, "/.well-known/assetlinks.json", signed=False)[0] == 404
+    links = tmp_path / "links.json"
+    links.write_text('[{"relation": []}]')
+    monkeypatch.setenv("REVISIONIST_ASSETLINKS_FILE", str(links))
+    status, got, raw = fetch(client, "/.well-known/assetlinks.json", signed=False)
+    assert status == 200 and raw == links.read_bytes()
+    assert got["content-type"].startswith("application/json")
+    monkeypatch.setenv("REVISIONIST_ASSETLINKS_FILE", str(tmp_path / "gone.json"))
+    assert fetch(client, "/.well-known/assetlinks.json", signed=False)[0] == 404

@@ -33,6 +33,7 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Iterator, Mapping
+from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -64,6 +65,8 @@ LISTING_TTL_S = 3600.0
 UPSTREAM_STRIKES = 3
 UPSTREAM_REST_S = 600.0
 MINUTE_WAIT_S = 60.0
+TURN_S = 0.05
+"""How soon one waiting for its turn looks again while a slot is free."""
 PRICES = ("prompt", "completion", "request", "image", "web_search", "internal_reasoning")
 LABEL = re.compile(r"\[[A-Z][A-Z_]{2,}(?::[\w-]{1,40})?\]")
 """A guardrail's stand-in for redacted text: ``[ADDRESS]``, ``[EMAIL]``, ``[SECRET:<id>]``."""
@@ -162,8 +165,17 @@ def read_json(text: str) -> Any:
         return json.loads(t[a : b + 1]) if 0 <= a < b else None
 
 
+_ACCOUNT: ContextVar[str] = ContextVar("revisionist_openrouter_account", default="")
+
+
+def serve_as(account: str) -> None:
+    """Name the account whose calls this thread makes next; empty for the game's own."""
+    _ACCOUNT.set(account)
+
+
 class Bucket:
-    """At most ``per_min`` takes in any 60 seconds; a take past that waits."""
+    """At most ``per_min`` takes in any 60 seconds; a take past that waits. Those who wait
+    are served by account in turn, so one account's calls cannot starve another's."""
 
     def __init__(
         self, per_min: int, clock: Callable[[], float], sleep: Callable[[float], None]
@@ -171,17 +183,40 @@ class Bucket:
         self.per_min, self.clock, self.sleep = per_min, clock, sleep
         self.sent: list[float] = []
         self.lock = threading.Lock()
+        self.queue: dict[str, list[object]] = {}
+        """Each waiting account's tickets, oldest first; the first account is served next."""
 
-    def take(self) -> None:
-        while True:
+    def take(self, who: str = "") -> None:
+        ticket = object()
+        with self.lock:
+            self.queue.setdefault(who, []).append(ticket)
+        try:
+            while True:
+                with self.lock:
+                    now = self.clock()
+                    self.sent = [t for t in self.sent if now - t < 60.0]
+                    turn = next(iter(self.queue)) == who and self.queue[who][0] is ticket
+                    full = len(self.sent) >= self.per_min
+                    if turn and not full:
+                        self.sent.append(now)
+                        self._served(who)
+                        return
+                    wait = 60.0 - (now - self.sent[0]) + 0.05 if full else TURN_S
+                self.sleep(wait)
+        except BaseException:
             with self.lock:
-                now = self.clock()
-                self.sent = [t for t in self.sent if now - t < 60.0]
-                if len(self.sent) < self.per_min:
-                    self.sent.append(now)
-                    return
-                wait = 60.0 - (now - self.sent[0]) + 0.05
-            self.sleep(wait)
+                left = [t for t in self.queue.get(who, []) if t is not ticket]
+                if left:
+                    self.queue[who] = left
+                else:
+                    self.queue.pop(who, None)
+            raise
+
+    def _served(self, who: str) -> None:
+        """Drop the account's oldest ticket and send the account to the back of the turn."""
+        rest = self.queue.pop(who)[1:]
+        if rest:
+            self.queue[who] = rest
 
 
 class OpenRouterTransport:
@@ -346,7 +381,7 @@ class OpenRouterTransport:
         for attempt in (1, 2):
             self._open()
             self._spend_check()
-            self.bucket.take()
+            self.bucket.take(_ACCOUNT.get())
             free_id(body["model"])
             with self._lock:
                 self._since += 1
@@ -443,4 +478,5 @@ __all__ = [
     "free_id",
     "listed_free",
     "redaction_labels",
+    "serve_as",
 ]

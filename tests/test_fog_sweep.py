@@ -2,13 +2,16 @@
 
 For the toy world and Salt Strait, each pair in ``tests/fog_twins.py`` is two games that
 differ in exactly one fact the viewing seat may not know. Every read the seat can make
-(the snapshot with every sheet's data, each page, the map, catch-up, the check, the odds
-and the wake notice), before and after a wake closes, and every refusal it can provoke by
-naming the hidden thing, must be the same bytes in both games. A difference is a finding:
-its case is marked strict expected-to-fail, naming the fix in the lane that owns the file.
+(the snapshot with every sheet's data, each page, the map, catch-up, the opening's list
+of people, the check, the odds and the wake notice, and the seat's view and its agent's
+prompt as a model is given them), before and after a wake closes, and
+every refusal it can provoke by naming the hidden thing, must be the same bytes in both
+games. A difference is a finding: its case is marked strict expected-to-fail, naming the
+fix in the lane that owns the file.
 With ``FOG_SHOW=1`` each difference is printed where the two replies part.
 """
 
+import hashlib
 import json
 import os
 from collections.abc import Callable
@@ -32,12 +35,17 @@ KINDS = (
     "other aims",
     "report not arrived",
     "person or code",
+    "pending leave",
     "hidden law",
     "written order awaiting the close",
+    "report author",
+    "ask to a person with no seat",
     "person or code answering an ask",
 )
-"""The contract's eleven kinds of hidden fact, in its order, then the kinds the security
-review added."""
+"""The contract's eleven kinds of hidden fact, in its order, then the seat whose player
+has left in the open wake, which is the code's from the close, then which seat filed a
+player report the host reads, then whether a seat asked a person nobody plays, then
+whether a person or code answers an ask."""
 
 HUMANS = (
     "rules lane fix: the wake header's human count and the commit reply's 'waiting for N "
@@ -50,12 +58,22 @@ HELD = (
     "order waiting for the close (src/revisionist/engine/web/held.py, server.py _hold "
     "and _withdraw)"
 )
+LEFT = (
+    "rules lane fix: the wake header's committed count (the leaver's wake is sealed at "
+    "once) and, after the close, its human count tell that a seat's player has left "
+    "(src/revisionist/engine/web/wake_api.py, wake_header)"
+)
 FINDINGS: dict[str, str] = {
     "toy-person-or-code": HUMANS,
     "salt-person-or-code": HUMANS,
+    "toy-pending-leave": LEFT,
+    "salt-pending-leave": LEFT,
     "toy-written-order-awaiting-the-close": HELD,
 }
 """Pairs that differ today: the pair's id and the fix it waits on, in the owner's lane."""
+
+LEAVERS = ("person or code", "pending leave")
+"""The kinds whose second game hands a seat to the code."""
 
 
 def differences(pair: ft.Pair, a: ft.Side, b: ft.Side) -> list[str]:
@@ -101,6 +119,47 @@ def test_the_seat_reads_and_is_refused_the_same_in_both_games(
     assert not found, "\n".join(found)
 
 
+@pytest.mark.parametrize("pair", [pytest.param(p, id=p.id) for p in ft.PAIRS if p.kind in LEAVERS])
+def test_the_opening_reads_the_same_whether_a_seat_is_a_person_or_code(
+    pair: ft.Pair, pg_cluster: Cluster, tmp_path: Path
+) -> None:
+    """The pairs above wait on the wake header's fix; the opening must not differ
+    meanwhile, before or after the close."""
+    with ft.twins(pair, pg_cluster, tmp_path) as (a, b):
+        assert ft.truth(a) != ft.truth(b), "the hidden fact did not land"
+        for n in range(pair.wakes + 1):
+            for who in pair.viewers:
+                assert ft.opening(a, who) == ft.opening(b, who), (who, n)
+            ft.close_wake(a)
+            ft.close_wake(b)
+
+
+SESSION_ZERO_OPENING = "e5d3c477be2d35f50c040d152d4a611f389fa3e64890abd4719461504b515a49"
+"""The sha-256 of the toy world's opening as Kara reads it in Session Zero, with Ilse and
+Kara seated: the reply the room's cast screen is built from, byte for byte."""
+NOT_CHOOSING = {"status": 400, "error": "This game is not choosing its people."}
+
+
+def test_the_opening_is_served_in_session_zero_and_refused_in_play(
+    pg_cluster: Cluster, tmp_path: Path
+) -> None:
+    db = pg_cluster.fresh()
+    s = ft.side(db, tmp_path / "game", ft.WORLDS["toy"](tmp_path, lambda w: None))
+    try:
+        for who in ("ilse", "kara"):
+            s.claim(who)
+        s.host("ilse")
+        zero = ft.opening(s, "kara")
+        digest = hashlib.sha256(zero).hexdigest()
+        assert digest == SESSION_ZERO_OPENING, (digest, zero)
+        s.begin()
+        for who in ("ilse", "kara"):
+            assert json.loads(ft.opening(s, who)) == NOT_CHOOSING
+    finally:
+        s.web.close()
+        pg_cluster.drop(db)
+
+
 @pytest.mark.parametrize("world", ["toy", "salt"])
 def test_two_games_with_nothing_hidden_read_the_same_across_a_wake(
     world: str, pg_cluster: Cluster, tmp_path: Path
@@ -136,7 +195,8 @@ def test_the_reads_cover_every_read_the_seat_can_make(pg_cluster: Cluster, tmp_p
     with ft.twins(pair, pg_cluster, tmp_path) as (a, _):
         got = ft.reads(a, "oren_vale", ft.READS["salt"])
     heads = {key.split(" ", 1)[0] for key in got}
-    assert heads == {"me", "read", "map", "catchup", "check", "odds", "notice"}, heads
+    reads = {"me", "opening", "read", "map", "catchup", "check", "odds", "notice", "view", "prompt"}
+    assert heads == reads, heads
     assert json.loads(got["me"])["game"]["view"]["realism"]["home"] is not None
 
 

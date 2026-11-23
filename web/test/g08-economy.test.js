@@ -73,6 +73,39 @@ test('months of fuel are said under the fuel resource\'s own name when a stock i
   assert.equal(words(el.querySelector('.rl-eco-fuel')), 'Pitch lasts 3.5 months at this income');
 });
 
+test('the months of fuel are drawn as a bar against twelve months, beside the stock and the months it lasts', () => {
+  const v = rv();
+  v.economy.own.pools.fuel = 420;
+  v.economy.own.fuel_months = 3.5;
+  const el = strip(v);
+  fire(chip(el, NORRA), 'click');
+  const row = el.querySelector('.rl-eco-fuelrow');
+  assert.ok(row, 'the stock and the months sit in one row');
+  assert.equal(words(row.querySelector('.rl-eco-stock')), 'Pitch stock 420');
+  const bar = row.querySelector('.rl-mark-bar');
+  assert.equal(bar.getAttribute('aria-label'), 'Pitch lasts: 3.5 of 12 months');
+  assert.equal(bar.querySelector('.rl-mark-fill').getAttribute('data-share'), '29.17');
+  assert.equal(words(row.querySelector('.rl-eco-fuel')), 'Pitch lasts 3.5 months at this income');
+});
+
+test('a stock with no months sent draws no bar, and no stock sent draws none', () => {
+  const v = rv();
+  v.economy.own.pools.fuel = 90;
+  const el = strip(v);
+  fire(chip(el, NORRA), 'click');
+  assert.equal(words(el.querySelector('.rl-eco-stock')), 'Pitch stock 90');
+  assert.equal(el.querySelector('.rl-eco-fuelrow .rl-mark-bar'), null);
+  const none = strip(rv());
+  fire(chip(none, NORRA), 'click');
+  assert.equal(none.querySelectorAll('.rl-eco-stock').length, 0);
+});
+
+test('the sheet is drawn from tokens only and its fuel row wraps', () => {
+  const css = read('css/c-economy.css');
+  assert.equal(css.match(/#[0-9a-fA-F]{3,8}\b|rgba?\(|hsl/g), null);
+  assert.match(css, /\.rl-eco-fuelrow \{[^}]*flex-wrap: wrap/);
+});
+
 test('the sheet lists the territories that pay less than they print, and why', () => {
   const v = rv();
   const hills = v.map.areas.find((a) => a.key === 'norra_hills');

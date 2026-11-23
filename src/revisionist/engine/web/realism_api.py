@@ -396,6 +396,8 @@ class PersonLine(TypedDict):
     power: PeopleMeter | None
     """For a leader weighed against the seat: rank, a step higher once the seat's own
     pages place three forces of theirs. None for everyone else."""
+    portrait: str | None
+    """The file under ``/assets/portraits/`` their dossier names; None with none."""
     loyalty: NotRequired[PeopleMeter]
     """Only for the seat's own chain and inner circle; absent for anyone else."""
     competence: NotRequired[PeopleMeter]
@@ -427,6 +429,23 @@ class WorldDevelopment(TypedDict):
     headline: str
     asks: list[str]
     """The orders it suggests, in words; it never files one itself."""
+
+
+class WarNation(TypedDict):
+    """A nation at war, by the game's id for it and its name."""
+
+    key: str
+    name: str
+
+
+class PublicWar(TypedDict):
+    """A war as the public record has it: the same for every seat."""
+
+    a: WarNation
+    """The nation that declared it."""
+    b: WarNation
+    since: str
+    """The day it began, ISO."""
 
 
 class StakeLean(TypedDict):
@@ -521,6 +540,56 @@ class Stakes(TypedDict):
     """How far the world has drifted from history (public)."""
     season_days_left: int | None
     """Days from the world date to the season's end; None when no contest decides it."""
+
+
+class AimValue(TypedDict):
+    """One value a blank may take as the seat's view allows (OWR)."""
+
+    value: str | int
+    """What the seat sends back for it."""
+    label: str
+    """Its name, as the aim would read it."""
+
+
+class AimBlankLine(TypedDict):
+    """One blank of a pattern, with the values the seat may fill it with (OWR)."""
+
+    name: str
+    values: list[AimValue]
+
+
+class AimPatternLine(TypedDict):
+    """One pattern on the seat's ladder (OWR)."""
+
+    key: str
+    sentence: str
+    """The aim in words, each blank written ``{name}``."""
+    blanks: list[AimBlankLine]
+    difficulty: int | None
+    """Its easiest fill's, on the aims' rubric; None when no fill stands now."""
+    government: bool
+    """Whether the person's own government would issue it."""
+
+
+class OwnAimBlock(TypedDict):
+    """The patterns the seat may fill to replace its card's replaceable aim, easiest first,
+    while it may still set one (OWR). Absent otherwise, and with ``own_aim`` off."""
+
+    aim: int
+    """Which of the card's aims it replaces, counting from 1."""
+    replaces: str
+    """That aim's words."""
+    patterns: list[AimPatternLine]
+
+
+class AimCheck(TypedDict):
+    """What a filled pattern makes (OWR): it stands, with the sentence as it reads; or the
+    reasons it cannot, in fixed words. Answered by ``aim-check`` and ``aim-set`` alike."""
+
+    stands: bool
+    text: str | None
+    """The aim as it reads (as stored, after a set); None when it does not stand."""
+    reasons: list[str]
 
 
 class CourtOrder(TypedDict):
@@ -956,8 +1025,12 @@ class GroupMove(TypedDict):
         "agreement_broken",
         "measure_passed",
         "war_declared",
+        "daily_life_passed",
         "writing",
         "drift",
+        "offer_taken",
+        "promise_kept",
+        "promise_broken",
     ]
     change: int
     on: str
@@ -1005,6 +1078,9 @@ class FloorVote(TypedDict):
     nays: int
     blocs: list[BlocCount]
     """Each bloc with a row for the vote, in the world's order."""
+    carries: int
+    """The yeas that carry the vote: more yeas than nays among those voting, as the votes
+    rule decides it."""
 
 
 class OpenMeasure(TypedDict):
@@ -1666,6 +1742,38 @@ class FigureGroup(TypedDict):
     figures: list[Figure]
 
 
+class OpeningPerson(TypedDict):
+    """Someone a player may take, or one already taken; nothing says who plays him."""
+
+    name: str
+    """Posted back to ``pick``."""
+    office: str
+    pitch: str
+    taken: bool
+
+
+class OpeningPath(TypedDict):
+    path: str | None
+    """The ladder the office stands on (``political``, ``military``); None for no card."""
+    persons: list[OpeningPerson]
+
+
+class OpeningNation(TypedDict):
+    key: str | None
+    """None for the people the world places under no nation."""
+    name: str
+    paths: list[OpeningPath]
+
+
+class Opening(TypedDict):
+    """``/api/new/opening``: the nations with someone left to take, their open paths and
+    the persons on each, from ``roster.claimable``; and the game's human seats."""
+
+    nations: list[OpeningNation]
+    seats_left: int
+    seats_max: int
+
+
 class RevealRuling(TypedDict):
     """The estimator's ruling on one part, shown only once the game has ended."""
 
@@ -1899,6 +2007,10 @@ __all__ = [
     "AgreementClauseLine",
     "AgreementLine",
     "AgreementsBlock",
+    "AimBlankLine",
+    "AimCheck",
+    "AimPatternLine",
+    "AimValue",
     "AskForm",
     "AskLine",
     "BattlePiece",
@@ -1975,10 +2087,15 @@ __all__ = [
     "OfferReading",
     "OfferTerms",
     "OpenMeasure",
+    "Opening",
+    "OpeningNation",
+    "OpeningPath",
+    "OpeningPerson",
     "OrderProposal",
     "OrderResult",
     "OrderTrack",
     "OrderTracker",
+    "OwnAimBlock",
     "People",
     "PeopleMeter",
     "PersonChannel",
@@ -1999,6 +2116,7 @@ __all__ = [
     "PlaybackPaper",
     "PlaybackStake",
     "PlaybackStep",
+    "PublicWar",
     "ReachContact",
     "ReachGroups",
     "Receipt",
@@ -2027,4 +2145,5 @@ __all__ = [
     "Threat",
     "TimelinePoint",
     "WakeHeader",
+    "WarNation",
 ]

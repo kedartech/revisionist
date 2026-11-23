@@ -628,6 +628,163 @@
         "title": "AidFinding",
         "type": "object"
       },
+      "AimBlank": {
+        "additionalProperties": false,
+        "description": "One blank of a pattern: its name, and a closed list of values (ids, group keys or\nnumbers) or a kind resolved from the seat's view.",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BlankKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "values": {
+            "default": [],
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AimBlank",
+        "type": "object"
+      },
+      "AimPattern": {
+        "additionalProperties": false,
+        "description": "One pattern a player may fill (OWC rule 1). ``condition`` is an aim's condition with\nids bound and each blank written ``$name``.",
+        "properties": {
+          "blanks": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AimBlank"
+            },
+            "maxItems": 4,
+            "title": "Blanks",
+            "type": "array"
+          },
+          "condition": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "title": "Condition",
+            "type": "object"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deadline"
+          },
+          "government": {
+            "default": true,
+            "title": "Government",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "posts": {
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Posts",
+            "type": "array"
+          },
+          "sentence": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Sentence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "posts",
+          "sentence",
+          "condition"
+        ],
+        "title": "AimPattern",
+        "type": "object"
+      },
+      "AimPatterns": {
+        "additionalProperties": false,
+        "description": "The world's patterns, and the kind of post each card names, by person. Public.",
+        "properties": {
+          "patterns": {
+            "items": {
+              "$ref": "#/$defs/AimPattern"
+            },
+            "minItems": 1,
+            "title": "Patterns",
+            "type": "array"
+          },
+          "posts": {
+            "additionalProperties": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Posts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "patterns"
+        ],
+        "title": "AimPatterns",
+        "type": "object"
+      },
+      "AimPatternsDeclared": {
+        "additionalProperties": false,
+        "description": "The world's aim patterns and each card's kind of post (OWC). World data; once, at\ncreation, with ``own_aim`` on. Public.",
+        "properties": {
+          "kind": {
+            "const": "aim_patterns_declared",
+            "default": "aim_patterns_declared",
+            "title": "Kind",
+            "type": "string"
+          },
+          "patterns": {
+            "$ref": "#/$defs/AimPatterns"
+          }
+        },
+        "required": [
+          "patterns"
+        ],
+        "title": "AimPatternsDeclared",
+        "type": "object"
+      },
       "AimRule": {
         "additionalProperties": false,
         "description": "What makes a card's aim a goal (AIM): its condition, in plain words, over the\nperiod it is judged in. ``sees`` holds one exposure per leaf, in ``leaves`` order,\nset by the compiler from the world. Engine only, on the card.",
@@ -1532,10 +1689,60 @@
         "title": "Ask",
         "type": "object"
       },
+      "AskAnswered": {
+        "additionalProperties": false,
+        "description": "The card of a person no human seat holds answers an ask on its due day (AAK):\ngranted or declined, once, and final for that held order. Sealed to the asker's seat,\nwhich it tells in one paper. A grant opens nothing itself: the person's own order\ndoes, once it is enacted.",
+        "properties": {
+          "asker": {
+            "title": "Asker",
+            "type": "string"
+          },
+          "granted": {
+            "title": "Granted",
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "ask_answered",
+            "default": "ask_answered",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "asker",
+          "on",
+          "granted"
+        ],
+        "title": "AskAnswered",
+        "type": "object"
+      },
       "Asked": {
         "additionalProperties": false,
         "description": "A held order asked for, once, by its own seat (ASK): who asked, the person the ask\nwent to and the seat that holds that person, if any, and the order's plain words. It\ndecides nothing and opens nothing. The person asked learns only this.",
         "properties": {
+          "answered": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Answered"
+          },
           "asker": {
             "title": "Asker",
             "type": "string"
@@ -1543,6 +1750,18 @@
           "by": {
             "title": "By",
             "type": "string"
+          },
+          "granted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Granted"
           },
           "on": {
             "format": "date",
@@ -1564,6 +1783,14 @@
             ],
             "default": null,
             "title": "Seat"
+          },
+          "seats": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Seats",
+            "type": "array"
           },
           "to": {
             "title": "To",
@@ -2341,6 +2568,17 @@
         "title": "Bias",
         "type": "object"
       },
+      "BlankKind": {
+        "description": "A blank whose values are resolved from the seat's view. ``[proposed]``",
+        "enum": [
+          "territory_not_held",
+          "territory_held",
+          "other_nation",
+          "own_group"
+        ],
+        "title": "BlankKind",
+        "type": "string"
+      },
       "BlocVote": {
         "additionalProperties": false,
         "description": "A bloc's part of one chamber vote: its members voting and the yeas among them.",
@@ -2807,8 +3045,12 @@
           "agreement_broken",
           "measure_passed",
           "war_declared",
+          "daily_life_passed",
           "writing",
-          "drift"
+          "drift",
+          "offer_taken",
+          "promise_kept",
+          "promise_broken"
         ],
         "title": "Cause",
         "type": "string"
@@ -3020,6 +3262,16 @@
         ],
         "title": "ClarificationAsked",
         "type": "object"
+      },
+      "Class": {
+        "description": "How a kind of happening reaches the groups at home (HCL).",
+        "enum": [
+          "felt",
+          "reported",
+          "secret"
+        ],
+        "title": "Class",
+        "type": "string"
       },
       "Classification": {
         "enum": [
@@ -4415,6 +4667,37 @@
         "title": "CostLogged",
         "type": "object"
       },
+      "Council": {
+        "additionalProperties": false,
+        "description": "A council that decides (QKD): who sits on it, how many must agree, and the head an\nask goes to.",
+        "properties": {
+          "head": {
+            "title": "Head",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 24,
+            "minItems": 1,
+            "title": "Members",
+            "type": "array"
+          },
+          "needed": {
+            "minimum": 1,
+            "title": "Needed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "members",
+          "needed",
+          "head"
+        ],
+        "title": "Council",
+        "type": "object"
+      },
       "CounselHeld": {
         "additionalProperties": false,
         "description": "A seat consulted a person on its card. The words are prose and change nothing;\na record, sealed with the seat's key like an order's text.",
@@ -4521,7 +4804,7 @@
       },
       "Decider": {
         "additionalProperties": false,
-        "description": "Who can allow a held order: a person, or a nation's chamber or chambers, with the\nhead of that nation's government, to whom an ask goes (ASK).",
+        "description": "Who can allow a held order: a person, a nation's chamber or chambers, with the\nhead of that nation's government, to whom an ask goes (ASK), or a council (QKD).",
         "properties": {
           "chambers": {
             "default": [],
@@ -4531,6 +4814,17 @@
             },
             "title": "Chambers",
             "type": "array"
+          },
+          "council": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Council"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "head": {
             "anyOf": [
@@ -5302,6 +5596,15 @@
         ],
         "title": "DocumentWritten",
         "type": "object"
+      },
+      "Does": {
+        "description": "What a passed law does, from the closed set the rules know [proposed].",
+        "enum": [
+          "arms_merchant_ships",
+          "adds_manpower"
+        ],
+        "title": "Does",
+        "type": "string"
       },
       "EconomySet": {
         "additionalProperties": false,
@@ -6935,6 +7238,14 @@
             "title": "Name",
             "type": "string"
           },
+          "prices": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Price"
+            },
+            "title": "Prices",
+            "type": "array"
+          },
           "seats": {
             "anyOf": [
               {
@@ -7114,6 +7425,14 @@
         "additionalProperties": false,
         "description": "Each nation's groups at home as the world declares them (GRP), by nation, in the\nworld file's order. Engine only: a seat reads its own nation's groups from its own\ndata; once, at creation.",
         "properties": {
+          "classes": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/KindClass"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
           "kind": {
             "const": "groups_declared",
             "default": "groups_declared",
@@ -7143,7 +7462,8 @@
           "losses_at_sea",
           "agreement_broken",
           "measure_passed",
-          "war_declared"
+          "war_declared",
+          "daily_life_passed"
         ],
         "title": "Happening",
         "type": "string"
@@ -7806,6 +8126,32 @@
         "title": "Investigate",
         "type": "object"
       },
+      "JsonValue": {},
+      "KindClass": {
+        "additionalProperties": false,
+        "description": "The class the world gives a kind of happening (HCL), and the share of it that is\nfelt: 1 for a felt kind, 0 for a reported one unless the world gives a share, which\nmakes the kind mixed (that share felt, the rest reported). A secret kind has none.",
+        "properties": {
+          "felt": {
+            "default": 0.0,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Felt",
+            "type": "number"
+          },
+          "kind": {
+            "$ref": "#/$defs/Happening"
+          },
+          "reach": {
+            "$ref": "#/$defs/Class"
+          }
+        },
+        "required": [
+          "kind",
+          "reach"
+        ],
+        "title": "KindClass",
+        "type": "object"
+      },
       "KindsDeclared": {
         "additionalProperties": false,
         "description": "The world's own piece kinds and resources, in the world file's order. Public; once,\nat creation, before any feature is set.",
@@ -7882,6 +8228,91 @@
         "title": "KnowledgeGrant",
         "type": "object"
       },
+      "Law": {
+        "additionalProperties": false,
+        "description": "One law the world declares: public rules of the world.",
+        "properties": {
+          "clauses": {
+            "items": {
+              "$ref": "#/$defs/revisionist__core__realism__effect__Clause"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Clauses",
+            "type": "array"
+          },
+          "daily_life": {
+            "default": false,
+            "title": "Daily Life",
+            "type": "boolean"
+          },
+          "does": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LawEffect"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 60,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "nation",
+          "clauses",
+          "passed"
+        ],
+        "title": "Law",
+        "type": "object"
+      },
+      "LawEffect": {
+        "additionalProperties": false,
+        "description": "What a law does once passed: a kind, and for ``adds_manpower`` its amount.",
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Amount"
+          },
+          "kind": {
+            "$ref": "#/$defs/Does"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "LawEffect",
+        "type": "object"
+      },
       "LawNotInForce": {
         "additionalProperties": false,
         "description": "Holds while no passed law carrying ``clause`` is in force for the issuer's nation.",
@@ -7903,6 +8334,31 @@
           "clause"
         ],
         "title": "LawNotInForce",
+        "type": "object"
+      },
+      "LawsDeclared": {
+        "additionalProperties": false,
+        "description": "The world's laws (LWC): what each binds, its clauses, the quantity that says it has\npassed, and what it does, in the world file's order. World data; once, at creation,\nwith ``laws`` on.",
+        "properties": {
+          "kind": {
+            "const": "laws_declared",
+            "default": "laws_declared",
+            "title": "Kind",
+            "type": "string"
+          },
+          "laws": {
+            "items": {
+              "$ref": "#/$defs/Law"
+            },
+            "minItems": 1,
+            "title": "Laws",
+            "type": "array"
+          }
+        },
+        "required": [
+          "laws"
+        ],
+        "title": "LawsDeclared",
         "type": "object"
       },
       "Leg": {
@@ -7956,6 +8412,18 @@
         "additionalProperties": false,
         "description": "Something the person can set moving. Names a pipeline and a resolver, never a verb.",
         "properties": {
+          "escort_levels": {
+            "additionalProperties": {
+              "maximum": 2,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Escort Levels",
+            "type": "object"
+          },
           "label": {
             "default": "",
             "maxLength": 60,
@@ -8094,6 +8562,17 @@
           },
           "order": {
             "$ref": "#/$defs/OrderMatch"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Question"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "when": {
             "anyOf": [
@@ -8525,6 +9004,43 @@
           "map"
         ],
         "title": "MapDeclared",
+        "type": "object"
+      },
+      "MatterChosen": {
+        "additionalProperties": false,
+        "description": "A seat's sealed choice on a matter before it (QKD): to accept or decline the ask\nfor a held order, put to a council it sits on or to the person it holds. A later\nchoice before the due day replaces it. Sealed to the seat that chose: nobody else\nlearns of it, not even that it was made, and the due day counts it without saying\nwho agreed.",
+        "properties": {
+          "accept": {
+            "title": "Accept",
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "matter_chosen",
+            "default": "matter_chosen",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "seat_id": {
+            "title": "Seat Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "order_id",
+          "seat_id",
+          "accept",
+          "on"
+        ],
+        "title": "MatterChosen",
         "type": "object"
       },
       "Meter": {
@@ -8969,6 +9485,85 @@
         ],
         "title": "Offer",
         "type": "object"
+      },
+      "OfferMade": {
+        "additionalProperties": false,
+        "description": "A seat offers one price to one bloc of its own nation for one measure whose bill is\non its way (PRC). It waits for the next day's batch, which takes or refuses it by\ncontent. Sealed to the seats of the bloc's nation.",
+        "properties": {
+          "kind": {
+            "const": "offer_made",
+            "default": "offer_made",
+            "title": "Kind",
+            "type": "string"
+          },
+          "offer": {
+            "$ref": "#/$defs/PricedOffer"
+          }
+        },
+        "required": [
+          "offer"
+        ],
+        "title": "OfferMade",
+        "type": "object"
+      },
+      "OfferSettled": {
+        "additionalProperties": false,
+        "description": "Where an offer now stands (PRC): taken or refused by its day's batch, lapsed when\nits measure did not pass, due once it passed, then kept or broken on its due day.\nSealed to the seats of the bloc's nation.",
+        "properties": {
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due"
+          },
+          "kind": {
+            "const": "offer_settled",
+            "default": "offer_settled",
+            "title": "Kind",
+            "type": "string"
+          },
+          "offer_id": {
+            "maxLength": 60,
+            "title": "Offer Id",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "standing": {
+            "$ref": "#/$defs/OfferStanding"
+          }
+        },
+        "required": [
+          "offer_id",
+          "standing",
+          "on"
+        ],
+        "title": "OfferSettled",
+        "type": "object"
+      },
+      "OfferStanding": {
+        "description": "Where an offer stands.",
+        "enum": [
+          "filed",
+          "taken",
+          "refused",
+          "lapsed",
+          "due",
+          "kept",
+          "broken"
+        ],
+        "title": "OfferStanding",
+        "type": "string"
       },
       "OperationOpened": {
         "additionalProperties": false,
@@ -9644,6 +10239,87 @@
         "title": "Outlet",
         "type": "object"
       },
+      "OwnAim": {
+        "additionalProperties": false,
+        "description": "The player's own aim, stored for the person (OWC rule 4): kept by whoever holds him.",
+        "properties": {
+          "aim": {
+            "maximum": 3,
+            "minimum": 1,
+            "title": "Aim",
+            "type": "integer"
+          },
+          "government": {
+            "title": "Government",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "rule": {
+            "$ref": "#/$defs/AimRule"
+          },
+          "text": {
+            "maxLength": 280,
+            "title": "Text",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "values",
+          "text",
+          "rule",
+          "government",
+          "aim",
+          "person"
+        ],
+        "title": "OwnAim",
+        "type": "object"
+      },
+      "OwnAimSet": {
+        "additionalProperties": false,
+        "description": "A player's own aim, filled from a pattern, stored for the person he holds in place\nof the card's replaceable aim (OWC). Sealed to the seat holding the person.",
+        "properties": {
+          "kind": {
+            "const": "own_aim_set",
+            "default": "own_aim_set",
+            "title": "Kind",
+            "type": "string"
+          },
+          "own": {
+            "$ref": "#/$defs/OwnAim"
+          }
+        },
+        "required": [
+          "own"
+        ],
+        "title": "OwnAimSet",
+        "type": "object"
+      },
       "ParamKind": {
         "enum": [
           "int",
@@ -10142,6 +10818,218 @@
         "title": "PostureNotSet",
         "type": "object"
       },
+      "Price": {
+        "additionalProperties": false,
+        "description": "One thing a bloc will take for its votes on a measure (PRC rule 1).",
+        "properties": {
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
+                "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
+                "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "days": {
+            "maximum": 366,
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "loss": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Loss",
+            "type": "integer"
+          },
+          "points": {
+            "maximum": 20,
+            "minimum": 1,
+            "title": "Points",
+            "type": "integer"
+          },
+          "sentence": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Sentence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "sentence",
+          "condition",
+          "days",
+          "points",
+          "loss"
+        ],
+        "title": "Price",
+        "type": "object"
+      },
+      "PricedOffer": {
+        "additionalProperties": false,
+        "description": "One seat's offer of one price to one bloc for one measure.",
+        "properties": {
+          "bill": {
+            "title": "Bill",
+            "type": "string"
+          },
+          "bloc": {
+            "maxLength": 60,
+            "title": "Bloc",
+            "type": "string"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due"
+          },
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "measure": {
+            "maxLength": 60,
+            "title": "Measure",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "offer_id": {
+            "maxLength": 60,
+            "title": "Offer Id",
+            "type": "string"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "On"
+          },
+          "price": {
+            "maxLength": 60,
+            "title": "Price",
+            "type": "string"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "string"
+          },
+          "standing": {
+            "$ref": "#/$defs/OfferStanding",
+            "default": "filed"
+          }
+        },
+        "required": [
+          "offer_id",
+          "seat",
+          "nation",
+          "bloc",
+          "measure",
+          "price",
+          "bill",
+          "filed"
+        ],
+        "title": "PricedOffer",
+        "type": "object"
+      },
       "Production": {
         "additionalProperties": false,
         "description": "What the production rules read from the world (PRL). Absent from a board compiled\nbefore it: such a stored game keeps the rules' own names.",
@@ -10369,6 +11257,19 @@
         ],
         "title": "QuantitySet",
         "type": "object"
+      },
+      "Question": {
+        "description": "The kind of question a lock row puts (QKD) [proposed].",
+        "enum": [
+          "permission",
+          "war",
+          "peace",
+          "money",
+          "posts",
+          "office"
+        ],
+        "title": "Question",
+        "type": "string"
       },
       "Reach": {
         "additionalProperties": false,
@@ -11275,7 +12176,23 @@
           "clause_reader",
           "written_orders",
           "command",
-          "locks"
+          "locks",
+          "laws",
+          "ask_answers",
+          "deciders",
+          "own_aim",
+          "offers",
+          "classes",
+          "losses",
+          "places",
+          "posts",
+          "office",
+          "elections",
+          "defiance",
+          "aide_note",
+          "peace",
+          "post_view",
+          "playable_rule"
         ],
         "title": "Rule",
         "type": "string"
@@ -14353,9 +15270,11 @@
             "agreement_made": "#/$defs/AgreementMade",
             "agreement_offered": "#/$defs/AgreementOffered",
             "agreement_published": "#/$defs/AgreementPublished",
+            "aim_patterns_declared": "#/$defs/AimPatternsDeclared",
             "answer_made": "#/$defs/AnswerMade",
             "answer_planned": "#/$defs/AnswerPlanned",
             "area_held": "#/$defs/AreaHeld",
+            "ask_answered": "#/$defs/AskAnswered",
             "asset_created": "#/$defs/AssetCreated",
             "battle_decided": "#/$defs/BattleDecided",
             "battle_ended": "#/$defs/BattleEnded",
@@ -14413,13 +15332,17 @@
             "intent_filed": "#/$defs/IntentFiled",
             "intent_rejected": "#/$defs/IntentRejected",
             "kinds_declared": "#/$defs/KindsDeclared",
+            "laws_declared": "#/$defs/LawsDeclared",
             "locks_declared": "#/$defs/LocksDeclared",
             "mandate_issued": "#/$defs/MandateIssued",
             "mandate_settled": "#/$defs/MandateSettled",
             "map_declared": "#/$defs/MapDeclared",
+            "matter_chosen": "#/$defs/MatterChosen",
             "meter_created": "#/$defs/MeterCreated",
             "narration_written": "#/$defs/NarrationWritten",
             "news_reported": "#/$defs/NewsReported",
+            "offer_made": "#/$defs/OfferMade",
+            "offer_settled": "#/$defs/OfferSettled",
             "operation_opened": "#/$defs/OperationOpened",
             "operation_resolved": "#/$defs/OperationResolved",
             "opponents_ranked": "#/$defs/OpponentsRanked",
@@ -14432,6 +15355,7 @@
             "order_routed": "#/$defs/OrderRouted",
             "order_settled": "#/$defs/OrderSettled",
             "order_step_taken": "#/$defs/OrderStepTaken",
+            "own_aim_set": "#/$defs/OwnAimSet",
             "piece_stepped": "#/$defs/PieceStepped",
             "play_style_set": "#/$defs/PlayStyleSet",
             "quantity_set": "#/$defs/QuantitySet",
@@ -14664,6 +15588,15 @@
             "$ref": "#/$defs/LocksDeclared"
           },
           {
+            "$ref": "#/$defs/LawsDeclared"
+          },
+          {
+            "$ref": "#/$defs/AimPatternsDeclared"
+          },
+          {
+            "$ref": "#/$defs/OwnAimSet"
+          },
+          {
             "$ref": "#/$defs/OrderHeld"
           },
           {
@@ -14671,6 +15604,18 @@
           },
           {
             "$ref": "#/$defs/OrderAsked"
+          },
+          {
+            "$ref": "#/$defs/AskAnswered"
+          },
+          {
+            "$ref": "#/$defs/MatterChosen"
+          },
+          {
+            "$ref": "#/$defs/OfferMade"
+          },
+          {
+            "$ref": "#/$defs/OfferSettled"
           },
           {
             "$ref": "#/$defs/PieceStepped"
@@ -15349,6 +16294,143 @@
           "draws_on"
         ],
         "title": "AidFinding",
+        "type": "object"
+      },
+      "AimBlank": {
+        "additionalProperties": false,
+        "description": "One blank of a pattern: its name, and a closed list of values (ids, group keys or\nnumbers) or a kind resolved from the seat's view.",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BlankKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "values": {
+            "default": [],
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AimBlank",
+        "type": "object"
+      },
+      "AimPattern": {
+        "additionalProperties": false,
+        "description": "One pattern a player may fill (OWC rule 1). ``condition`` is an aim's condition with\nids bound and each blank written ``$name``.",
+        "properties": {
+          "blanks": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AimBlank"
+            },
+            "maxItems": 4,
+            "title": "Blanks",
+            "type": "array"
+          },
+          "condition": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "title": "Condition",
+            "type": "object"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deadline"
+          },
+          "government": {
+            "default": true,
+            "title": "Government",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "posts": {
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Posts",
+            "type": "array"
+          },
+          "sentence": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Sentence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "posts",
+          "sentence",
+          "condition"
+        ],
+        "title": "AimPattern",
+        "type": "object"
+      },
+      "AimPatterns": {
+        "additionalProperties": false,
+        "description": "The world's patterns, and the kind of post each card names, by person. Public.",
+        "properties": {
+          "patterns": {
+            "items": {
+              "$ref": "#/$defs/AimPattern"
+            },
+            "minItems": 1,
+            "title": "Patterns",
+            "type": "array"
+          },
+          "posts": {
+            "additionalProperties": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Posts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "patterns"
+        ],
+        "title": "AimPatterns",
         "type": "object"
       },
       "AimRule": {
@@ -16178,6 +17260,19 @@
         "additionalProperties": false,
         "description": "A held order asked for, once, by its own seat (ASK): who asked, the person the ask\nwent to and the seat that holds that person, if any, and the order's plain words. It\ndecides nothing and opens nothing. The person asked learns only this.",
         "properties": {
+          "answered": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Answered"
+          },
           "asker": {
             "title": "Asker",
             "type": "string"
@@ -16185,6 +17280,18 @@
           "by": {
             "title": "By",
             "type": "string"
+          },
+          "granted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Granted"
           },
           "on": {
             "format": "date",
@@ -16206,6 +17313,14 @@
             ],
             "default": null,
             "title": "Seat"
+          },
+          "seats": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Seats",
+            "type": "array"
           },
           "to": {
             "title": "To",
@@ -16612,6 +17727,17 @@
         "title": "Bias",
         "type": "object"
       },
+      "BlankKind": {
+        "description": "A blank whose values are resolved from the seat's view. ``[proposed]``",
+        "enum": [
+          "territory_not_held",
+          "territory_held",
+          "other_nation",
+          "own_group"
+        ],
+        "title": "BlankKind",
+        "type": "string"
+      },
       "BlocVote": {
         "additionalProperties": false,
         "description": "A bloc's part of one chamber vote: its members voting and the yeas among them.",
@@ -16881,6 +18007,16 @@
         ],
         "title": "CharacterSide",
         "type": "object"
+      },
+      "Class": {
+        "description": "How a kind of happening reaches the groups at home (HCL).",
+        "enum": [
+          "felt",
+          "reported",
+          "secret"
+        ],
+        "title": "Class",
+        "type": "string"
       },
       "Classification": {
         "enum": [
@@ -17661,6 +18797,37 @@
         "title": "ControlsAsset",
         "type": "object"
       },
+      "Council": {
+        "additionalProperties": false,
+        "description": "A council that decides (QKD): who sits on it, how many must agree, and the head an\nask goes to.",
+        "properties": {
+          "head": {
+            "title": "Head",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 24,
+            "minItems": 1,
+            "title": "Members",
+            "type": "array"
+          },
+          "needed": {
+            "minimum": 1,
+            "title": "Needed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "members",
+          "needed",
+          "head"
+        ],
+        "title": "Council",
+        "type": "object"
+      },
       "Deal": {
         "additionalProperties": false,
         "description": "Offer a deal, or accept one.",
@@ -17709,7 +18876,7 @@
       },
       "Decider": {
         "additionalProperties": false,
-        "description": "Who can allow a held order: a person, or a nation's chamber or chambers, with the\nhead of that nation's government, to whom an ask goes (ASK).",
+        "description": "Who can allow a held order: a person, a nation's chamber or chambers, with the\nhead of that nation's government, to whom an ask goes (ASK), or a council (QKD).",
         "properties": {
           "chambers": {
             "default": [],
@@ -17719,6 +18886,17 @@
             },
             "title": "Chambers",
             "type": "array"
+          },
+          "council": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Council"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "head": {
             "anyOf": [
@@ -18015,6 +19193,15 @@
         ],
         "title": "DocumentView",
         "type": "object"
+      },
+      "Does": {
+        "description": "What a passed law does, from the closed set the rules know [proposed].",
+        "enum": [
+          "arms_merchant_ships",
+          "adds_manpower"
+        ],
+        "title": "Does",
+        "type": "string"
       },
       "Economy": {
         "additionalProperties": false,
@@ -19080,6 +20267,14 @@
             "title": "Name",
             "type": "string"
           },
+          "prices": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Price"
+            },
+            "title": "Prices",
+            "type": "array"
+          },
           "seats": {
             "anyOf": [
               {
@@ -19184,6 +20379,16 @@
         "additionalProperties": false,
         "description": "Groups' truth. A seat sees its own nation's part only.",
         "properties": {
+          "classes": {
+            "additionalProperties": {
+              "$ref": "#/$defs/KindClass"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Happening"
+            },
+            "title": "Classes",
+            "type": "object"
+          },
           "declared": {
             "additionalProperties": {
               "items": {
@@ -19258,7 +20463,8 @@
           "losses_at_sea",
           "agreement_broken",
           "measure_passed",
-          "war_declared"
+          "war_declared",
+          "daily_life_passed"
         ],
         "title": "Happening",
         "type": "string"
@@ -19761,6 +20967,32 @@
         "title": "Investigate",
         "type": "object"
       },
+      "JsonValue": {},
+      "KindClass": {
+        "additionalProperties": false,
+        "description": "The class the world gives a kind of happening (HCL), and the share of it that is\nfelt: 1 for a felt kind, 0 for a reported one unless the world gives a share, which\nmakes the kind mixed (that share felt, the rest reported). A secret kind has none.",
+        "properties": {
+          "felt": {
+            "default": 0.0,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Felt",
+            "type": "number"
+          },
+          "kind": {
+            "$ref": "#/$defs/Happening"
+          },
+          "reach": {
+            "$ref": "#/$defs/Class"
+          }
+        },
+        "required": [
+          "kind",
+          "reach"
+        ],
+        "title": "KindClass",
+        "type": "object"
+      },
       "Kinds": {
         "additionalProperties": false,
         "description": "The world's piece kinds and resources, by key, in the world file's order.",
@@ -19787,6 +21019,91 @@
           }
         },
         "title": "Kinds",
+        "type": "object"
+      },
+      "Law": {
+        "additionalProperties": false,
+        "description": "One law the world declares: public rules of the world.",
+        "properties": {
+          "clauses": {
+            "items": {
+              "$ref": "#/$defs/revisionist__core__realism__effect__Clause"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Clauses",
+            "type": "array"
+          },
+          "daily_life": {
+            "default": false,
+            "title": "Daily Life",
+            "type": "boolean"
+          },
+          "does": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LawEffect"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 60,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "nation",
+          "clauses",
+          "passed"
+        ],
+        "title": "Law",
+        "type": "object"
+      },
+      "LawEffect": {
+        "additionalProperties": false,
+        "description": "What a law does once passed: a kind, and for ``adds_manpower`` its amount.",
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Amount"
+          },
+          "kind": {
+            "$ref": "#/$defs/Does"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "LawEffect",
         "type": "object"
       },
       "LawNotInForce": {
@@ -19863,6 +21180,18 @@
         "additionalProperties": false,
         "description": "Something the person can set moving. Names a pipeline and a resolver, never a verb.",
         "properties": {
+          "escort_levels": {
+            "additionalProperties": {
+              "maximum": 2,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Escort Levels",
+            "type": "object"
+          },
           "label": {
             "default": "",
             "maxLength": 60,
@@ -20001,6 +21330,17 @@
           },
           "order": {
             "$ref": "#/$defs/OrderMatch"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Question"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "when": {
             "anyOf": [
@@ -20611,6 +21951,20 @@
         "title": "NewsTopic",
         "type": "string"
       },
+      "OfferStanding": {
+        "description": "Where an offer stands.",
+        "enum": [
+          "filed",
+          "taken",
+          "refused",
+          "lapsed",
+          "due",
+          "kept",
+          "broken"
+        ],
+        "title": "OfferStanding",
+        "type": "string"
+      },
       "Order": {
         "additionalProperties": false,
         "properties": {
@@ -20865,6 +22219,67 @@
           "voice"
         ],
         "title": "Outlet",
+        "type": "object"
+      },
+      "OwnAim": {
+        "additionalProperties": false,
+        "description": "The player's own aim, stored for the person (OWC rule 4): kept by whoever holds him.",
+        "properties": {
+          "aim": {
+            "maximum": 3,
+            "minimum": 1,
+            "title": "Aim",
+            "type": "integer"
+          },
+          "government": {
+            "title": "Government",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "rule": {
+            "$ref": "#/$defs/AimRule"
+          },
+          "text": {
+            "maxLength": 280,
+            "title": "Text",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "values",
+          "text",
+          "rule",
+          "government",
+          "aim",
+          "person"
+        ],
+        "title": "OwnAim",
         "type": "object"
       },
       "ParamKind": {
@@ -21320,6 +22735,218 @@
         "title": "PostureNotSet",
         "type": "object"
       },
+      "Price": {
+        "additionalProperties": false,
+        "description": "One thing a bloc will take for its votes on a measure (PRC rule 1).",
+        "properties": {
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
+                "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
+                "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "days": {
+            "maximum": 366,
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "loss": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Loss",
+            "type": "integer"
+          },
+          "points": {
+            "maximum": 20,
+            "minimum": 1,
+            "title": "Points",
+            "type": "integer"
+          },
+          "sentence": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Sentence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "sentence",
+          "condition",
+          "days",
+          "points",
+          "loss"
+        ],
+        "title": "Price",
+        "type": "object"
+      },
+      "PricedOffer": {
+        "additionalProperties": false,
+        "description": "One seat's offer of one price to one bloc for one measure.",
+        "properties": {
+          "bill": {
+            "title": "Bill",
+            "type": "string"
+          },
+          "bloc": {
+            "maxLength": 60,
+            "title": "Bloc",
+            "type": "string"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due"
+          },
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "measure": {
+            "maxLength": 60,
+            "title": "Measure",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "offer_id": {
+            "maxLength": 60,
+            "title": "Offer Id",
+            "type": "string"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "On"
+          },
+          "price": {
+            "maxLength": 60,
+            "title": "Price",
+            "type": "string"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "string"
+          },
+          "standing": {
+            "$ref": "#/$defs/OfferStanding",
+            "default": "filed"
+          }
+        },
+        "required": [
+          "offer_id",
+          "seat",
+          "nation",
+          "bloc",
+          "measure",
+          "price",
+          "bill",
+          "filed"
+        ],
+        "title": "PricedOffer",
+        "type": "object"
+      },
       "Production": {
         "additionalProperties": false,
         "description": "What the production rules read from the world (PRL). Absent from a board compiled\nbefore it: such a stored game keeps the rules' own names.",
@@ -21527,6 +23154,19 @@
         ],
         "title": "QuantityAt",
         "type": "object"
+      },
+      "Question": {
+        "description": "The kind of question a lock row puts (QKD) [proposed].",
+        "enum": [
+          "permission",
+          "war",
+          "peace",
+          "money",
+          "posts",
+          "office"
+        ],
+        "title": "Question",
+        "type": "string"
       },
       "Reach": {
         "additionalProperties": false,
@@ -22248,7 +23888,23 @@
           "clause_reader",
           "written_orders",
           "command",
-          "locks"
+          "locks",
+          "laws",
+          "ask_answers",
+          "deciders",
+          "own_aim",
+          "offers",
+          "classes",
+          "losses",
+          "places",
+          "posts",
+          "office",
+          "elections",
+          "defiance",
+          "aide_note",
+          "peace",
+          "post_view",
+          "playable_rule"
         ],
         "title": "Rule",
         "type": "string"
@@ -24416,6 +26072,26 @@
         "type": "array",
         "uniqueItems": true
       },
+      "aim_patterns": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/AimPatterns"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
+      "aim_shut": {
+        "default": [],
+        "items": {
+          "type": "string"
+        },
+        "title": "Aim Shut",
+        "type": "array",
+        "uniqueItems": true
+      },
       "answers": {
         "additionalProperties": {
           "additionalProperties": {
@@ -24463,6 +26139,16 @@
           "$ref": "#/$defs/SeatCard"
         },
         "title": "Cards",
+        "type": "object"
+      },
+      "chosen": {
+        "additionalProperties": {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "type": "object"
+        },
+        "title": "Chosen",
         "type": "object"
       },
       "clocks": {
@@ -24617,6 +26303,14 @@
         "title": "Last Seq",
         "type": "integer"
       },
+      "laws": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/Law"
+        },
+        "title": "Laws",
+        "type": "array"
+      },
       "locks": {
         "default": [],
         "items": {
@@ -24660,6 +26354,14 @@
         "title": "News",
         "type": "object"
       },
+      "offers": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/PricedOffer"
+        },
+        "title": "Offers",
+        "type": "array"
+      },
       "opponents": {
         "additionalProperties": {
           "items": {
@@ -24682,6 +26384,13 @@
           "$ref": "#/$defs/Outlet"
         },
         "title": "Outlets",
+        "type": "object"
+      },
+      "own_aims": {
+        "additionalProperties": {
+          "$ref": "#/$defs/OwnAim"
+        },
+        "title": "Own Aims",
         "type": "object"
       },
       "pending": {
@@ -25310,6 +27019,282 @@
         "title": "AidFinding",
         "type": "object"
       },
+      "AimBlank": {
+        "additionalProperties": false,
+        "description": "One blank of a pattern: its name, and a closed list of values (ids, group keys or\nnumbers) or a kind resolved from the seat's view.",
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/BlankKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "name": {
+            "maxLength": 60,
+            "title": "Name",
+            "type": "string"
+          },
+          "values": {
+            "default": [],
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Values",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AimBlank",
+        "type": "object"
+      },
+      "AimPattern": {
+        "additionalProperties": false,
+        "description": "One pattern a player may fill (OWC rule 1). ``condition`` is an aim's condition with\nids bound and each blank written ``$name``.",
+        "properties": {
+          "blanks": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/AimBlank"
+            },
+            "maxItems": 4,
+            "title": "Blanks",
+            "type": "array"
+          },
+          "condition": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "title": "Condition",
+            "type": "object"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deadline"
+          },
+          "government": {
+            "default": true,
+            "title": "Government",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "posts": {
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Posts",
+            "type": "array"
+          },
+          "sentence": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Sentence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "posts",
+          "sentence",
+          "condition"
+        ],
+        "title": "AimPattern",
+        "type": "object"
+      },
+      "AimPatterns": {
+        "additionalProperties": false,
+        "description": "The world's patterns, and the kind of post each card names, by person. Public.",
+        "properties": {
+          "patterns": {
+            "items": {
+              "$ref": "#/$defs/AimPattern"
+            },
+            "minItems": 1,
+            "title": "Patterns",
+            "type": "array"
+          },
+          "posts": {
+            "additionalProperties": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Posts",
+            "type": "object"
+          }
+        },
+        "required": [
+          "patterns"
+        ],
+        "title": "AimPatterns",
+        "type": "object"
+      },
+      "AimRule": {
+        "additionalProperties": false,
+        "description": "What makes a card's aim a goal (AIM): its condition, in plain words, over the\nperiod it is judged in. ``sees`` holds one exposure per leaf, in ``leaves`` order,\nset by the compiler from the world. Engine only, on the card.",
+        "properties": {
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
+                "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
+                "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Deadline"
+          },
+          "opens": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Opens"
+          },
+          "replaceable": {
+            "default": false,
+            "title": "Replaceable",
+            "type": "boolean"
+          },
+          "rule": {
+            "maxLength": 280,
+            "minLength": 1,
+            "title": "Rule",
+            "type": "string"
+          },
+          "sees": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Exposure"
+            },
+            "title": "Sees",
+            "type": "array"
+          }
+        },
+        "required": [
+          "condition",
+          "rule"
+        ],
+        "title": "AimRule",
+        "type": "object"
+      },
       "AllOf": {
         "additionalProperties": false,
         "properties": {
@@ -25632,6 +27617,19 @@
         "additionalProperties": false,
         "description": "A held order asked for, once, by its own seat (ASK): who asked, the person the ask\nwent to and the seat that holds that person, if any, and the order's plain words. It\ndecides nothing and opens nothing. The person asked learns only this.",
         "properties": {
+          "answered": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Answered"
+          },
           "asker": {
             "title": "Asker",
             "type": "string"
@@ -25639,6 +27637,18 @@
           "by": {
             "title": "By",
             "type": "string"
+          },
+          "granted": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Granted"
           },
           "on": {
             "format": "date",
@@ -25660,6 +27670,14 @@
             ],
             "default": null,
             "title": "Seat"
+          },
+          "seats": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Seats",
+            "type": "array"
           },
           "to": {
             "title": "To",
@@ -25884,6 +27902,17 @@
           "cutthroat"
         ],
         "title": "Betrayal",
+        "type": "string"
+      },
+      "BlankKind": {
+        "description": "A blank whose values are resolved from the seat's view. ``[proposed]``",
+        "enum": [
+          "territory_not_held",
+          "territory_held",
+          "other_nation",
+          "own_group"
+        ],
+        "title": "BlankKind",
         "type": "string"
       },
       "BlocVote": {
@@ -26144,6 +28173,16 @@
         ],
         "title": "CharacterSide",
         "type": "object"
+      },
+      "Class": {
+        "description": "How a kind of happening reaches the groups at home (HCL).",
+        "enum": [
+          "felt",
+          "reported",
+          "secret"
+        ],
+        "title": "Class",
+        "type": "string"
       },
       "Classification": {
         "enum": [
@@ -26898,6 +28937,37 @@
         "title": "ControlsAsset",
         "type": "object"
       },
+      "Council": {
+        "additionalProperties": false,
+        "description": "A council that decides (QKD): who sits on it, how many must agree, and the head an\nask goes to.",
+        "properties": {
+          "head": {
+            "title": "Head",
+            "type": "string"
+          },
+          "members": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 24,
+            "minItems": 1,
+            "title": "Members",
+            "type": "array"
+          },
+          "needed": {
+            "minimum": 1,
+            "title": "Needed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "members",
+          "needed",
+          "head"
+        ],
+        "title": "Council",
+        "type": "object"
+      },
       "Deal": {
         "additionalProperties": false,
         "description": "Offer a deal, or accept one.",
@@ -26946,7 +29016,7 @@
       },
       "Decider": {
         "additionalProperties": false,
-        "description": "Who can allow a held order: a person, or a nation's chamber or chambers, with the\nhead of that nation's government, to whom an ask goes (ASK).",
+        "description": "Who can allow a held order: a person, a nation's chamber or chambers, with the\nhead of that nation's government, to whom an ask goes (ASK), or a council (QKD).",
         "properties": {
           "chambers": {
             "default": [],
@@ -26956,6 +29026,17 @@
             },
             "title": "Chambers",
             "type": "array"
+          },
+          "council": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Council"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "head": {
             "anyOf": [
@@ -27303,6 +29384,15 @@
         "title": "DocumentView",
         "type": "object"
       },
+      "Does": {
+        "description": "What a passed law does, from the closed set the rules know [proposed].",
+        "enum": [
+          "arms_merchant_ships",
+          "adds_manpower"
+        ],
+        "title": "Does",
+        "type": "string"
+      },
       "Economy": {
         "additionalProperties": false,
         "description": "The war economy's truth. A seat sees its own nation's part only.",
@@ -27595,6 +29685,16 @@
           "guess"
         ],
         "title": "ExpectSure",
+        "type": "string"
+      },
+      "Exposure": {
+        "description": "Whether the seat may see the fact a leaf of its aim reads (AIM rule 5).",
+        "enum": [
+          "public",
+          "own",
+          "hidden"
+        ],
+        "title": "Exposure",
         "type": "string"
       },
       "Fact": {
@@ -28009,6 +30109,14 @@
             "title": "Name",
             "type": "string"
           },
+          "prices": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Price"
+            },
+            "title": "Prices",
+            "type": "array"
+          },
           "seats": {
             "anyOf": [
               {
@@ -28079,6 +30187,16 @@
         "additionalProperties": false,
         "description": "Groups' truth. A seat sees its own nation's part only.",
         "properties": {
+          "classes": {
+            "additionalProperties": {
+              "$ref": "#/$defs/KindClass"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Happening"
+            },
+            "title": "Classes",
+            "type": "object"
+          },
           "declared": {
             "additionalProperties": {
               "items": {
@@ -28153,7 +30271,8 @@
           "losses_at_sea",
           "agreement_broken",
           "measure_passed",
-          "war_declared"
+          "war_declared",
+          "daily_life_passed"
         ],
         "title": "Happening",
         "type": "string"
@@ -28573,6 +30692,32 @@
         "title": "Investigate",
         "type": "object"
       },
+      "JsonValue": {},
+      "KindClass": {
+        "additionalProperties": false,
+        "description": "The class the world gives a kind of happening (HCL), and the share of it that is\nfelt: 1 for a felt kind, 0 for a reported one unless the world gives a share, which\nmakes the kind mixed (that share felt, the rest reported). A secret kind has none.",
+        "properties": {
+          "felt": {
+            "default": 0.0,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Felt",
+            "type": "number"
+          },
+          "kind": {
+            "$ref": "#/$defs/Happening"
+          },
+          "reach": {
+            "$ref": "#/$defs/Class"
+          }
+        },
+        "required": [
+          "kind",
+          "reach"
+        ],
+        "title": "KindClass",
+        "type": "object"
+      },
       "Kinds": {
         "additionalProperties": false,
         "description": "The world's piece kinds and resources, by key, in the world file's order.",
@@ -28599,6 +30744,91 @@
           }
         },
         "title": "Kinds",
+        "type": "object"
+      },
+      "Law": {
+        "additionalProperties": false,
+        "description": "One law the world declares: public rules of the world.",
+        "properties": {
+          "clauses": {
+            "items": {
+              "$ref": "#/$defs/revisionist__core__realism__effect__Clause"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Clauses",
+            "type": "array"
+          },
+          "daily_life": {
+            "default": false,
+            "title": "Daily Life",
+            "type": "boolean"
+          },
+          "does": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LawEffect"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 60,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "nation",
+          "clauses",
+          "passed"
+        ],
+        "title": "Law",
+        "type": "object"
+      },
+      "LawEffect": {
+        "additionalProperties": false,
+        "description": "What a law does once passed: a kind, and for ``adds_manpower`` its amount.",
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Amount"
+          },
+          "kind": {
+            "$ref": "#/$defs/Does"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "LawEffect",
         "type": "object"
       },
       "LawNotInForce": {
@@ -28637,6 +30867,18 @@
         "additionalProperties": false,
         "description": "Something the person can set moving. Names a pipeline and a resolver, never a verb.",
         "properties": {
+          "escort_levels": {
+            "additionalProperties": {
+              "maximum": 2,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Escort Levels",
+            "type": "object"
+          },
           "label": {
             "default": "",
             "maxLength": 60,
@@ -28775,6 +31017,17 @@
           },
           "order": {
             "$ref": "#/$defs/OrderMatch"
+          },
+          "question": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Question"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
           },
           "when": {
             "anyOf": [
@@ -29200,6 +31453,20 @@
         "title": "NationVote",
         "type": "object"
       },
+      "OfferStanding": {
+        "description": "Where an offer stands.",
+        "enum": [
+          "filed",
+          "taken",
+          "refused",
+          "lapsed",
+          "due",
+          "kept",
+          "broken"
+        ],
+        "title": "OfferStanding",
+        "type": "string"
+      },
       "Order": {
         "additionalProperties": false,
         "properties": {
@@ -29424,6 +31691,67 @@
         ],
         "title": "Outcome",
         "type": "string"
+      },
+      "OwnAim": {
+        "additionalProperties": false,
+        "description": "The player's own aim, stored for the person (OWC rule 4): kept by whoever holds him.",
+        "properties": {
+          "aim": {
+            "maximum": 3,
+            "minimum": 1,
+            "title": "Aim",
+            "type": "integer"
+          },
+          "government": {
+            "title": "Government",
+            "type": "boolean"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "rule": {
+            "$ref": "#/$defs/AimRule"
+          },
+          "text": {
+            "maxLength": 280,
+            "title": "Text",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "key",
+          "values",
+          "text",
+          "rule",
+          "government",
+          "aim",
+          "person"
+        ],
+        "title": "OwnAim",
+        "type": "object"
       },
       "ParamKind": {
         "enum": [
@@ -30017,6 +32345,218 @@
         "title": "PostureNotSet",
         "type": "object"
       },
+      "Price": {
+        "additionalProperties": false,
+        "description": "One thing a bloc will take for its votes on a measure (PRC rule 1).",
+        "properties": {
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
+                "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
+                "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "days": {
+            "maximum": 366,
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "loss": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Loss",
+            "type": "integer"
+          },
+          "points": {
+            "maximum": 20,
+            "minimum": 1,
+            "title": "Points",
+            "type": "integer"
+          },
+          "sentence": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Sentence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "sentence",
+          "condition",
+          "days",
+          "points",
+          "loss"
+        ],
+        "title": "Price",
+        "type": "object"
+      },
+      "PricedOffer": {
+        "additionalProperties": false,
+        "description": "One seat's offer of one price to one bloc for one measure.",
+        "properties": {
+          "bill": {
+            "title": "Bill",
+            "type": "string"
+          },
+          "bloc": {
+            "maxLength": 60,
+            "title": "Bloc",
+            "type": "string"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due"
+          },
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "measure": {
+            "maxLength": 60,
+            "title": "Measure",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "offer_id": {
+            "maxLength": 60,
+            "title": "Offer Id",
+            "type": "string"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "On"
+          },
+          "price": {
+            "maxLength": 60,
+            "title": "Price",
+            "type": "string"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "string"
+          },
+          "standing": {
+            "$ref": "#/$defs/OfferStanding",
+            "default": "filed"
+          }
+        },
+        "required": [
+          "offer_id",
+          "seat",
+          "nation",
+          "bloc",
+          "measure",
+          "price",
+          "bill",
+          "filed"
+        ],
+        "title": "PricedOffer",
+        "type": "object"
+      },
       "Production": {
         "additionalProperties": false,
         "description": "What the production rules read from the world (PRL). Absent from a board compiled\nbefore it: such a stored game keeps the rules' own names.",
@@ -30224,6 +32764,19 @@
         ],
         "title": "QuantityAt",
         "type": "object"
+      },
+      "Question": {
+        "description": "The kind of question a lock row puts (QKD) [proposed].",
+        "enum": [
+          "permission",
+          "war",
+          "peace",
+          "money",
+          "posts",
+          "office"
+        ],
+        "title": "Question",
+        "type": "string"
       },
       "Reach": {
         "additionalProperties": false,
@@ -32235,6 +34788,17 @@
       "agreements": {
         "$ref": "#/$defs/Agreements"
       },
+      "aim_patterns": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/AimPatterns"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
       "asked": {
         "additionalProperties": {
           "$ref": "#/$defs/Asked"
@@ -32373,6 +34937,14 @@
         ],
         "default": null
       },
+      "laws": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/Law"
+        },
+        "title": "Laws",
+        "type": "array"
+      },
       "locks": {
         "default": [],
         "items": {
@@ -32409,11 +34981,26 @@
         "title": "Meters",
         "type": "object"
       },
+      "offers": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/PricedOffer"
+        },
+        "title": "Offers",
+        "type": "array"
+      },
       "orders": {
         "additionalProperties": {
           "$ref": "#/$defs/Order"
         },
         "title": "Orders",
+        "type": "object"
+      },
+      "own_aims": {
+        "additionalProperties": {
+          "$ref": "#/$defs/OwnAim"
+        },
+        "title": "Own Aims",
         "type": "object"
       },
       "own_pending": {

@@ -12,6 +12,7 @@ import hashlib
 import re
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from datetime import date
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Literal
 
 from revisionist.core import events as ev
@@ -38,16 +39,19 @@ from revisionist.core.realism.pipelines import destination, place_named
 from revisionist.core.realism.resolvers import intel
 from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
+from revisionist.engine import campaign as cmp
 from revisionist.engine.aide import AideBrief
 from revisionist.engine.directive import Proposal, channels
 from revisionist.engine.web import (
     agreements_api,
     battles_api,
     conferences_api,
+    dossiers,
     economy_api,
     home_api,
     locks_api,
     map_api,
+    stakes,
 )
 from revisionist.engine.web.destinations import (
     FORCE,
@@ -86,12 +90,14 @@ from revisionist.engine.web.realism_api import (
     PieceArea,
     PieceCourse,
     PieceWait,
+    PublicWar,
     SeatMap,
     Situation,
     SituationFigure,
     SituationReading,
     SituationSource,
     StepLine,
+    WarNation,
     WorldDevelopment,
 )
 from revisionist.engine.web.threats import seat_threats
@@ -1113,6 +1119,37 @@ def world_news(view: View) -> list[WorldDevelopment]:
     ]
 
 
+def public_wars(view: View) -> list[PublicWar]:
+    """Every war as the public record has it, oldest first: the same for every seat."""
+
+    def side(polity: EntityId) -> WarNation:
+        e = view.entities.get(polity)
+        return WarNation(key=polity, name=e.name if e is not None else "")
+
+    return [
+        PublicWar(a=side(w.a), b=side(w.b), since=w.since.isoformat())
+        for w in sorted(view.wars.values(), key=lambda w: (w.since, w.war_id))
+    ]
+
+
+@lru_cache(maxsize=16)
+def _nation_keys(world: str) -> tuple[str, ...]:
+    decl = cmp.load_world(cmp.world_path(world))
+    return tuple(e.key for e in decl.entities if e.kind is EntityKind.POLITY)
+
+
+def nation_keys(state: State, world: str | None) -> dict[str, str]:
+    """Each nation's key in the world file ``world``, by the game's id for it; ``{}``
+    with no world or when its file is gone or no longer loads."""
+    if world is None:
+        return {}
+    try:
+        keys = _nation_keys(world)
+    except (OSError, ValueError):
+        return {}
+    return {object_id(state.campaign_id, "entity", k): k for k in keys}
+
+
 def seat_realism(
     state: State,
     seat: SeatId,
@@ -1126,8 +1163,9 @@ def seat_realism(
     events: Iterable[Event] = (),
 ) -> dict[str, Any]:
     """The ``view.realism`` block of ``/api/me``: tray, desk, situation, orders, clock, map,
-    threats, people, the world's developments, the war economy, the seat's battles, its
-    groups at home, its agreements and its conferences. ``place_keys``
+    threats, people, the world's developments, the world's key and its nations' keys, the
+    public wars, the war economy, the seat's battles, its groups at home, its agreements,
+    its conferences, and its own aim's ladder while it may set one. ``place_keys``
     (``destinations.place_keys``) opens movement forms to every place; ``withdrawable``
     (``withdraw.withdrawable``) are the orders the seat may take back; ``held_battles``
     the area keys of battles it has a decision held for the next wake; ``ended_battles``
@@ -1153,7 +1191,13 @@ def seat_realism(
     wake = next_wake(state, today)
     # the horizon is not a thing anyone is waiting on: the client says nothing is due
     waiting_on = None if wake.reason.what == "horizon" else wake.reason.label
-    people = seat_people(state, seat, view)
+    portraits = {
+        person: d["portrait"]
+        for person, d in dossiers.for_people(state, log).items()
+        if d["portrait"]
+    }
+    people = seat_people(state, seat, view, portraits)
+    world = dossiers.world_key(log)
     return {
         "documents": documents(view, read, flagged),
         "desk": _place_areas(state, desk(view, known)),
@@ -1166,12 +1210,16 @@ def seat_realism(
         "threats": seat_threats(state, seat, view),
         "people": people,
         "world": world_news(view),
+        "world_key": world,
+        "nation_keys": nation_keys(state, world),
+        "wars": public_wars(view),
         "economy": economy_api.block(state, view),
         "battles": battles_api.block(state, seat, view, forces, held_battles, ended_battles),
         "home": home_api.block(state, view, log),
         "agreements": agreements_api.block(state, seat, view, log),
         "conferences": conferences_api.block(state, seat, view),
         **_locks(state, seat),
+        **_own_aim(state, seat),
     }
 
 
@@ -1180,6 +1228,13 @@ def _locks(state: State, seat: SeatId) -> dict[str, Any]:
     without the rule is sent what it was before."""
     found = locks_api.block(state, seat)
     return {} if found is None else {"locks": found}
+
+
+def _own_aim(state: State, seat: SeatId) -> dict[str, Any]:
+    """The seat's ``own_aim`` block (OWR), while it may still set one; no key at all
+    otherwise, so a game without own aims is sent what it was before."""
+    found = stakes.own_aim_block(state, seat)
+    return {} if found is None else {"own_aim": found}
 
 
 __all__ = [
@@ -1191,8 +1246,10 @@ __all__ = [
     "documents",
     "flagged_ids",
     "lever_label",
+    "nation_keys",
     "orders",
     "proposal",
+    "public_wars",
     "read_ids",
     "seat_map",
     "seat_realism",

@@ -20,7 +20,7 @@ from revisionist.engine.store import EventStore, MemoryStore, StoreError, load_s
 from revisionist.engine.web import reveal
 from tests.test_session_zero_steps import A, Table, _florence
 from tests.test_web import Client, Web, web  # noqa: F401
-from tests.test_web_pick import HULL, PLACED, SLICE, Fake, new
+from tests.test_web_pick import HULL, PLACED, SLICE, Fake, new, seated
 
 CHURCHILL = "Winston Churchill"
 
@@ -81,7 +81,7 @@ def test_unpick_frees_the_seat_and_the_person(web: Web) -> None:  # noqa: F811
 
 def test_a_released_person_is_picked_again_with_no_model_call(web: Web) -> None:  # noqa: F811
     fake = Fake(PLACED)
-    client = _host(web, fake)
+    client = seated(web, fake)
     assert not new(client, "pick", name=HULL)["refused"]
     assert fake.calls == ["character_pick", "build"]
     assert not new(client, "unpick")["refused"]
@@ -90,7 +90,7 @@ def test_a_released_person_is_picked_again_with_no_model_call(web: Web) -> None:
 
 
 def test_a_released_seat_can_take_someone_else(web: Web) -> None:  # noqa: F811
-    client = _host(web, Fake(PLACED))
+    client = seated(web, Fake(PLACED))
     assert not new(client, "pick", name=CHURCHILL)["refused"]
     assert not new(client, "unpick")["refused"]
     assert new(client, "pick", name=HULL)["reply"] == f"You are {HULL}."
@@ -310,7 +310,7 @@ def test_a_release_racing_an_unrelated_write_asks_for_a_retry(
 
 
 def test_the_reveal_credits_no_style_from_a_released_pick(web: Web) -> None:  # noqa: F811
-    client = _host(web, Fake(PLACED))
+    client = seated(web, Fake(PLACED))
     assert not new(client, "pick", name=CHURCHILL)["refused"]
     assert not new(client, "style", style="guided")["refused"]
     assert not new(client, "unpick")["refused"]

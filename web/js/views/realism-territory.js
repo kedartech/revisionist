@@ -1,16 +1,24 @@
 // The territory map: in a game whose `map` block has `areas`, the board is drawn from the
 // game's map file (the `map` action's shapes): land territories filled, sea zones outlined,
 // every border stroked. The frame is a region's, worked out from its areas alone, and holds
-// still whatever lights or lands; zoom is 1, 2 or 4 times within it. Marks and tap targets keep
-// a minimum size in pixels whatever the zoom. Every area is focusable and has a row in the list.
+// still whatever lights or lands; the view pans and zooms from 1 to 8 times within it, live
+// under the finger, and the zoom buttons stop at 1, 2 and 4. Marks and tap targets keep a
+// minimum size in pixels whatever the zoom. Every area is focusable and has a row in the list.
+// One of the seat's own pieces can be carried by the finger to a lit area, as a tap picks it
+// and a tap on the lit area puts it down. In the map-first room the controls sit over the map's
+// corners, and the map can take the whole viewport.
 
 import { h, svg } from '../dom.js';
 import {
   LABEL_PX, MIN_MARK_PX, MIN_TAP_PX, SLIDE_MS, ZOOMS, borders, boxOf, certaintyWord, courseLine, frameRect, hiddenLabels,
-  markArea, markKey, pinchZoom, pipsOf, postureWord, regionChildren, regionFrames, regionTrail, shortDate, sideLine,
+  markArea, markKey, pipsOf, postureWord, regionChildren, regionFrames, regionTrail, shortDate, sideLine,
   sightedLine, slideFrom, sortMarks, stanceWords, capitalLine, territoryProjection, unitsPerPx, viewWindow, waitWords,
   whereLine, changedLine, fallingLine, frontLine, holderRelation, holderWords, isFront, yieldsLine,
 } from '../realism-rules.js';
+import { gestures } from '../map/gestures.js';
+import { askedForFull, browserFull, clampZoom } from '../map/view.js';
+import { areaAt } from '../map/hit.js';
+import { trace } from '../map/projection.js';
 import { economyPips, hasYields } from './realism-economy.js';
 import { capitalGlyph, forceGlyph, pipGlyph, stanceClass, warGlyph, whatWord } from './realism-map.js';
 import { reportMarks, reportSheet, reportTables, reportsOf, ringsAndThreats, threatsSwitch, tokenMark } from './realism-reports.js';
@@ -32,6 +40,8 @@ const lastAt = new Map();
 
 /** Forget where every mark stood (tests). */
 export function forgetMarks() { lastAt.clear(); }
+
+export { forgetFull } from '../map/view.js';
 
 const reducedMotion = () => Boolean(globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
 
@@ -80,8 +90,9 @@ function guessPx() {
   return { width: Math.max(w - 480, 320), height: Math.max(hgt - 160, 320) };
 }
 
-function ringsPath(vertices, rings, at) {
-  return rings.map((ring) => `M${ring.map((i) => at(vertices[i]).join(' ')).join('L')}Z`).join('');
+/** The SVG path of `rings` (vertex indices), each drawn by `line` (map coordinates to the drawing's points). */
+function ringsPath(vertices, rings, line) {
+  return rings.map((ring) => `M${line(ring.map((i) => vertices[i])).map((xy) => xy.join(' ')).join('L')}Z`).join('');
 }
 
 /** A group drawn at (x, y) in the drawing's units, its contents in pixels (`fit` scales it). */
@@ -107,69 +118,144 @@ const arrows = (step) => Object.fromEntries(Object.entries(NEXT).map(([k, dir]) 
 
 /**
  * Size every pixel-sized part of drawing `root` for `px` ({ width, height }, CSS pixels): marks
- * and labels keep their size whatever the window, and a label that would overlap one drawn
- * before it is hidden (shown again on a tap of its area).
+ * and labels keep their size whatever the window, and, when `labels` is true, a label that would
+ * overlap one drawn before it is hidden (shown again on a tap of its area).
  */
-export function fit(root, px) {
+export function fit(root, px, labels = true) {
   const [x, y, w, hgt] = root.getAttribute('viewBox').split(' ').map(Number);
   const k = unitsPerPx({ x, y, w, h: hgt }, px);
   root.setAttribute('data-k', String(k));
   for (const g of root.querySelectorAll('.rl-tm-px')) {
     g.setAttribute('transform', `translate(${g.getAttribute('data-x')} ${g.getAttribute('data-y')}) scale(${k})`);
   }
-  const labels = [...root.querySelectorAll('.rl-tm-label')];
-  const hide = hiddenLabels(labels.map((l) => ({
+  if (!labels) return k;
+  const all = [...root.querySelectorAll('.rl-tm-label')];
+  const hide = hiddenLabels(all.map((l) => ({
     key: l.getAttribute('data-area'), x: Number(l.getAttribute('data-x')), y: Number(l.getAttribute('data-y')), text: l.getAttribute('data-text'),
   })), k);
-  for (const l of labels) l.classList.toggle('hidden', hide.has(l.getAttribute('data-area')));
+  for (const l of all) l.classList.toggle('hidden', hide.has(l.getAttribute('data-area')));
   return k;
 }
 
 /**
- * Pinch and drag on drawing `root`: a pinch picks the zoom step nearest its spread, around its
- * middle; a drag at a zoom past 1 moves the window. Each is told once, when the gesture ends,
- * as `onView({ zoom, centre })`.
+ * A piece carried over drawing `root` (`gestures`' carry hooks): it is drawn lifted where the
+ * finger has taken it, and the lit area under the finger is marked. Dropped on a lit area it is
+ * that area's target, as a tap on it is (`opts.onTarget`); anywhere else it slides back. Picking
+ * it up is `opts.onSelect`, as a tap on it is. `over` holds the marks and lit areas (it rides
+ * over the land while the view moves), `litAt(units)` finds the lit area under a point.
  */
-function gestures(root, win, opts, px) {
-  const down = new Map();
-  let start = null;
-  const box = () => root.getBoundingClientRect?.() ?? { left: 0, top: 0, width: px.width, height: px.height };
-  const toUnits = (cx, cy) => {
-    const b = box();
-    const k = unitsPerPx(win, b);
-    const ox = (b.width - win.w / k) / 2; const oy = (b.height - win.h / k) / 2;
-    return [win.x + (cx - b.left - ox) * k, win.y + (cy - b.top - oy) * k];
+function carrying(root, over, litAt, opts) {
+  const all = (el, sel) => Array.from(el?.querySelectorAll(sel) ?? []);
+  const grabbed = (key) => all(over, '[data-grab]').find((g) => g.getAttribute('data-grab') === key) ?? null;
+  let shown = '';
+  const mark = (key) => {
+    for (const el of all(root, '.rl-area.rl-drop-over')) el.classList.remove('rl-drop-over');
+    for (const el of all(over, '.rl-map-target.under')) el.classList.remove('under');
+    if (key === null) return;
+    all(over, '.rl-map-target').find((t) => t.getAttribute('data-area') === key)?.classList.add('under');
+    all(root, '.rl-area').find((a) => a.getAttribute('data-area') === key)?.classList.add('rl-drop-over');
   };
-  const spread = () => {
-    const [a, b] = [...down.values()];
-    return { d: Math.hypot(a.x - b.x, a.y - b.y), mid: [(a.x + b.x) / 2, (a.y + b.y) / 2] };
+  return {
+    grab: (target) => target?.closest?.('[data-grab]')?.getAttribute('data-grab') ?? null,
+    carries: (key) => grabbed(key) !== null,
+    onLift: (key) => { if (opts.selected !== key) opts.onSelect?.(key); },
+    onCarry(key, [dx, dy], units) {
+      const g = grabbed(key);
+      if (!g) return;
+      g.classList.add('rl-tm-lifted');
+      // drawn over everything, the lit rings too, while it is held
+      if (g.parentNode?.parentNode === over && over.lastChild !== g.parentNode) over.append(g.parentNode);
+      shown = `translate(${r2(dx)}px, ${r2(dy)}px)`;
+      css(g.parentNode, { transform: shown });
+      mark(units ? litAt(units)?.area ?? null : null);
+    },
+    onDrop(key, units) {
+      const g = grabbed(key);
+      const lit = units ? litAt(units) : null;
+      mark(null);
+      if (g) {
+        g.classList.remove('rl-tm-lifted');
+        css(g.parentNode, { transform: null });
+        if (!lit && shown && !reducedMotion()) {
+          g.parentNode.animate?.([{ transform: shown }, { transform: 'translate(0px, 0px)' }], { duration: SLIDE_MS, easing: 'ease-out' });
+        }
+      }
+      shown = '';
+      if (lit) opts.onTarget?.(lit.value);
+    },
   };
-  const zoom = opts.zoom ?? 1;
-  const centre = opts.centre ?? [win.x + win.w / 2, win.y + win.h / 2];
-  root.addEventListener('pointerdown', (e) => {
-    down.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (down.size === 2) start = { kind: 'pinch', ...spread() };
-    else if (down.size === 1) start = { kind: 'drag', x: e.clientX, y: e.clientY };
-  });
-  root.addEventListener('pointermove', (e) => {
-    if (down.has(e.pointerId)) down.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (start?.kind === 'pinch' && down.size === 2) start.now = spread();
-  });
-  const end = (e) => {
-    const was = start;
-    const at = down.get(e.pointerId) ?? { x: e.clientX, y: e.clientY };
-    down.delete(e.pointerId);
-    if (!was || down.size) return;
-    start = null;
-    if (was.kind === 'pinch' && was.now && was.d > 0) {
-      opts.onView?.({ zoom: pinchZoom(zoom, was.now.d / was.d), centre: toUnits(...was.now.mid) });
-    } else if (was.kind === 'drag' && zoom > 1 && Math.hypot(at.x - was.x, at.y - was.y) > 8) {
-      const k = unitsPerPx(win, box());
-      opts.onView?.({ zoom, centre: [centre[0] - (at.x - was.x) * k, centre[1] - (at.y - was.y) * k] });
+}
+
+const viewBoxOf = (win) => `${r2(win.x)} ${r2(win.y)} ${r2(win.w)} ${r2(win.h)}`;
+
+/** Inline style through the CSS object model: the page's CSP refuses a `style` attribute. */
+function css(el, props) {
+  for (const [k, v] of Object.entries(props)) {
+    if (v === null) el.style?.removeProperty(k);
+    else el.style?.setProperty(k, v);
+  }
+}
+
+/**
+ * What a gesture on drawing `root` draws in each frame (`gestures`' `onLive`). The land keeps
+ * its drawing and is moved as one picture, by a transform the browser applies without drawing
+ * the land again; the marks and labels move into a layer of their own over it, drawn at the
+ * view as it now is and at their pixel size. When the gesture ends they go back and the drawing
+ * shows the new view. A drawing not on a page is drawn at the view itself in each frame.
+ */
+function liveLayer(root, px) {
+  let b = null;
+  let rest = null;
+  let layer = null;
+  let over = null;
+  let had = null;
+  return (win, { labels, end }) => {
+    if (end) {
+      if (layer) {
+        root.querySelector('g.rl-tm-frame')?.append(over);
+        layer.remove();
+      }
+      css(root, { transform: null, 'transform-origin': null });
+      root.classList.remove('rl-tm-moving');
+      root.setAttribute('viewBox', viewBoxOf(win));
+      fit(root, b ?? px, true);
+      had?.focus();
+      b = null; rest = null; layer = null; over = null; had = null;
+      return;
     }
+    if (!b) {
+      const m = root.getBoundingClientRect?.();
+      b = m?.width ? m : { left: 0, top: 0, width: px.width, height: px.height };
+      const [x, y, w, h] = root.getAttribute('viewBox').split(' ').map(Number);
+      rest = { x, y, w, h };
+      over = root.querySelector('g.rl-tm-over');
+      const parent = root.parentNode;
+      if (parent && over) {
+        const pb = parent.getBoundingClientRect?.() ?? { left: b.left, top: b.top };
+        const active = globalThis.document?.activeElement;
+        had = active?.closest?.('g.rl-tm-over') === over ? active : null;
+        layer = svg('svg', { class: 'rl-tm-live', 'aria-hidden': 'true', preserveAspectRatio: 'xMidYMid meet' }, over);
+        css(layer, { left: `${r2(b.left - pb.left)}px`, top: `${r2(b.top - pb.top)}px`, width: `${r2(b.width)}px`, height: `${r2(b.height)}px` });
+        root.after(layer);
+        root.classList.add('rl-tm-moving');
+      }
+    }
+    if (!layer) {
+      root.setAttribute('viewBox', viewBoxOf(win));
+      fit(root, b, labels);
+      return;
+    }
+    const k0 = unitsPerPx(rest, b);
+    const k = unitsPerPx(win, b);
+    const s = k0 / k;
+    const off = (r, kk) => [(b.width - r.w / kk) / 2, (b.height - r.h / kk) / 2];
+    const [o0, o] = [off(rest, k0), off(win, k)];
+    const tx = o[0] + (rest.x - win.x) / k - s * o0[0];
+    const ty = o[1] + (rest.y - win.y) / k - s * o0[1];
+    css(root, { transform: `translate(${r2(tx)}px, ${r2(ty)}px) scale(${Math.round(s * 1e4) / 1e4})`, 'transform-origin': '0 0' });
+    layer.setAttribute('viewBox', viewBoxOf(win));
+    fit(layer, b, labels);
   };
-  root.addEventListener('pointerup', end);
-  root.addEventListener('pointercancel', end);
 }
 
 /** What a mark is: an own piece's kind as the world names it, "Piece" for another side's piece (a page does not name its kind), else the mark's kind. */
@@ -239,6 +325,9 @@ function markBody(m, chosen) {
   ];
 }
 
+/** Whether the seat may carry mark `m` to a lit area: its own piece (one its forms name), not under way. */
+const carriable = (m) => m.side === 'own' && Boolean(m.piece) && !m.piece.under_way;
+
 const markLook = (m, chosen) => `rl-mk rl-mk-${m.kind} rl-side-${m.side} rl-c-${m.certainty} rl-tm-mark${chosen ? ' selected' : ''}`;
 
 /** One mark at `xy`, `dx` pixels from it (a fanned stack's place for it). */
@@ -249,6 +338,7 @@ function oneMark(m, xy, dx, from, opts, extra = {}) {
   const keys = chosen && opts.nav ? arrows((dir) => opts.nav.step(null, dir)) : {};
   const common = opts.still ? { class: markLook(m, chosen) } : {
     class: markLook(m, chosen), 'aria-label': words, 'aria-pressed': String(chosen), ...activate(() => opts.onSelect?.(m.name), keys), ...extra,
+    'data-grab': carriable(m) ? m.name : null,
   };
   return sliding(atPx({ ...common, 'data-key': markKey(m) }, xy[0], xy[1],
     svg('g', { transform: `translate(${dx} ${m.piece ? -MARK_LIFT : 0})` }, markBody(m, chosen),
@@ -458,10 +548,30 @@ function routeLayer(route, labelAt) {
 const daysWord = (n) => (n === 1 ? '1 day' : `${n} days`);
 
 /**
+ * The coastline's land inside the map's box, as one even-odd path drawn under the areas, for a
+ * longitude-latitude map that has a backdrop; null for any other map, or before the coastline is here.
+ * A ring is shifted a turn of longitude either way when that brings it into the box.
+ */
+function notInPlay(shapes, coast, box, line) {
+  if (shapes.coords !== 'lonlat' || !(shapes.backdrop ?? []).length || !Array.isArray(coast?.rings)) return null;
+  const d = [];
+  for (const ring of coast.rings) {
+    const lons = ring.map(([lon]) => lon);
+    const lats = ring.map(([, lat]) => lat);
+    if (Math.max(...lats) < box.south || Math.min(...lats) > box.north) continue;
+    for (const turn of [-360, 0, 360]) {
+      if (Math.max(...lons) + turn < box.west || Math.min(...lons) + turn > box.east) continue;
+      d.push(`M${line(ring.map(([lon, lat]) => [lon + turn, lat])).map((xy) => xy.join(' ')).join('L')}Z`);
+    }
+  }
+  return d.length ? svg('path', { d: d.join(''), class: 'rl-tm-notland', 'aria-hidden': 'true' }) : null;
+}
+
+/**
  * The drawing of a territory map `map` (the seat's `map` block) from `shapes` (its map file).
  * `opts`: { frame (a region's key, '' or null for the whole map), zoom, centre, px, layer,
  * selected, onSelect, fanned (the stack shown fanned out, by its area), onFan, targets, onTarget, openCapital,
- * onView, still, label, route (a move's path: `routeLayer`), today, report (the picked report's key), onReport,
+ * coast (the coastline file's rings: land not in play), onView, still, label, route (a move's path: `routeLayer`), today, report (the picked report's key), onReport,
  * threats (the threats switch), token ({ intel, at, label }: an intelligence token put down), battles (`battleMarksOf`),
  * battle (the open battle's area), onBattle(mark) }. Arrow keys on the picked piece or a
  * lit area move focus along the lit areas; Escape on a lit area goes back to the piece.
@@ -480,8 +590,10 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   const box = boxOf(map.box ?? shapes.box);
   const proj = territoryProjection(map.coords ?? shapes.coords, box);
   const frames = regionFrames(map, shapes);
-  const win = viewWindow(frameRect(frames.get(opts.frame ?? '') ?? frames.get(''), proj), opts.zoom ?? 1, opts.centre ?? null);
-  const at = ([x, y]) => [r2(proj.x(x)), r2(proj.y(y))];
+  const rect = frameRect(frames.get(opts.frame ?? '') ?? frames.get(''), proj);
+  const win = viewWindow(rect, opts.zoom ?? 1, opts.centre ?? null);
+  const at = (xy) => proj.point(xy).map(r2);
+  const line = (pts) => trace(proj, pts).map(([x, y]) => [r2(x), r2(y)]);
   const areas = (map.areas ?? []).filter((a) => shapes.areas?.[a.key]);
   const kinds = new Map(areas.map((a) => [a.key, a.kind]));
   const regions = new Map((map.regions ?? []).map((r) => [r.key, r.name]));
@@ -503,29 +615,36 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   const tag = `rl-hp-${clips}`;
   const byKey = new Map((map.areas ?? []).map((a) => [a.key, a]));
   const held = areas.filter((a) => a.kind === 'land' && a.holder && HOLD_PATTERNS[holderRelation(a)]);
-  const frameBox = { x: r2(win.x), y: r2(win.y), width: r2(win.w), height: r2(win.h) };
+  // the frame, not the window: land past the window shows while the view moves, none past the frame
+  const frameBox = { x: r2(rect.x), y: r2(rect.y), width: r2(rect.w), height: r2(rect.h) };
   root = svg('svg', {
-    class: 'rl-map-svg rl-tm-svg', viewBox: `${r2(win.x)} ${r2(win.y)} ${r2(win.w)} ${r2(win.h)}`, preserveAspectRatio: 'xMidYMid meet',
+    class: 'rl-map-svg rl-tm-svg', viewBox: viewBoxOf(win), preserveAspectRatio: 'xMidYMid meet',
     role: opts.still ? 'img' : 'group', 'aria-label': opts.label ?? 'Map of the board', 'data-frame': opts.frame ?? '',
+    tabindex: opts.still ? null : 0,
   },
   svg('defs', {}, svg('clipPath', { id: clip }, svg('rect', frameBox)), holdPatterns(new Set(held.map(holderRelation)), tag)),
   svg('g', { class: 'rl-tm-frame', 'clip-path': `url(#${clip})` },
-  svg('rect', { x: 0, y: 0, width: proj.width, height: proj.height, class: 'rl-map-sea' }),
-  (shapes.backdrop ?? []).map((ring) => svg('path', { d: ringsPath(shapes.vertices, [ring], at), class: 'rl-tm-backdrop' })),
+  proj.step
+    ? svg('path', { d: `M${line([[box.west, box.north], [box.east, box.north], [box.east, box.south], [box.west, box.south], [box.west, box.north]]).map((xy) => xy.join(' ')).join('L')}Z`, class: 'rl-map-sea' })
+    : svg('rect', { x: 0, y: 0, width: proj.width, height: proj.height, class: 'rl-map-sea' }),
+  notInPlay(shapes, opts.coast, box, line),
+  (shapes.backdrop ?? []).map((ring) => svg('path', { d: ringsPath(shapes.vertices, [ring], line), class: 'rl-tm-backdrop' })),
   areas.map((a) => svg('path', {
-    d: ringsPath(shapes.vertices, shapes.areas[a.key].rings, at), class: `rl-area rl-area-${a.kind === 'sea' ? 'sea' : 'land'}`,
+    d: ringsPath(shapes.vertices, shapes.areas[a.key].rings, line), class: `rl-area rl-area-${a.kind === 'sea' ? 'sea' : 'land'}`,
     'data-area': a.key, 'aria-label': `${a.name}: ${areaKindWord(a)}, ${regions.get(a.region) ?? a.region}${heldBy(a)}`,
     ...(opts.still ? {} : activate(() => { show(a.key); opts.onArea?.(a.key); })),
   })),
   held.map((a) => svg('path', {
-    d: ringsPath(shapes.vertices, shapes.areas[a.key].rings, at), class: `rl-hold rl-hold-${holderRelation(a)}`,
+    d: ringsPath(shapes.vertices, shapes.areas[a.key].rings, line), class: `rl-hold rl-hold-${holderRelation(a)}`,
     'data-area': a.key, fill: `url(#${tag}-${holderRelation(a)})`, 'aria-hidden': 'true',
   })),
   borders(shapes).filter(({ between }) => kinds.has(between[0])).map(({ between, edges }) => svg('path', {
-    d: edges.map(([p, q]) => `M${at(shapes.vertices[p]).join(' ')}L${at(shapes.vertices[q]).join(' ')}`).join(''),
+    d: edges.map(([p, q]) => `M${line([shapes.vertices[p], shapes.vertices[q]]).map((xy) => xy.join(' ')).join('L')}`).join(''),
     class: `rl-border rl-border-${borderKind(between)}${front(between) ? ' rl-border-front' : ''}`,
     'data-between': between.filter(Boolean).join(' '), 'data-front': front(between) ? 'true' : null,
   })),
+  // what a gesture draws over the moving land, at its pixel size: labels, marks and lit areas
+  svg('g', { class: 'rl-tm-over' },
   areas.map((a) => atPx({ class: 'rl-tm-label', 'data-area': a.key, 'data-text': a.name, 'aria-hidden': 'true' },
     ...labelAt.get(a.key), svg('text', { 'font-size': LABEL_PX, 'text-anchor': 'middle', dy: '0.35em' }, a.name))),
   holdMarks(areas, labelAt),
@@ -533,7 +652,7 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   diplomatic || economy ? null : ordersLayer(map, labelAt, new Map(areas.map((a) => [a.name, labelAt.get(a.key)])), at),
   diplomatic || economy ? null : routeLayer(opts.route, labelAt),
   diplomatic || economy ? null : ringsAndThreats({
-    map, shapes, at, opts, areaPath: (key) => ringsPath(shapes.vertices, shapes.areas[key].rings, at),
+    map, shapes, at, opts, areaPath: (key) => ringsPath(shapes.vertices, shapes.areas[key].rings, line),
   }),
   economy ? economyPips(areas, labelAt, (attrs, x, y) => atPx(attrs, x, y))
     : diplomatic ? [capitalsLayer(map, at, opts), marksLayer({ ...map, marks: envoyMarks(map) }, labelAt, at, opts)]
@@ -542,10 +661,20 @@ export function territoryDrawing(map, shapes, givenOpts = {}) {
   diplomatic || economy || !opts.token ? null : tokenMark(opts.token, labelAt.get(opts.token.at), atPx),
   diplomatic || economy ? null : battleLayer({ battles: opts.battles, labelAt, atPx, activate, opts }),
   // drawn last, over every mark: a lit area under a stack stays clickable
-  targetsLayer(targets, at, opts.onTarget, opts.nav)));
+  targetsLayer(targets, at, opts.onTarget, opts.nav))));
   const px = opts.px ?? guessPx();
   fit(root, px);
-  if (!opts.still) gestures(root, win, opts, px);
+  const onTap = (xy) => {
+    const key = areaAt(shapes, proj, xy, areas.map((a) => a.key));
+    if (key) { show(key); opts.onArea?.(key); }
+  };
+  // a piece is dropped on the lit area under the finger: the area the server lit, not its ring alone
+  const litAt = (xy) => {
+    const key = areaAt(shapes, proj, xy, targets.filter((t) => t.area && shapes.areas?.[t.area]).map((t) => t.area));
+    return key ? targets.find((t) => t.area === key) : null;
+  };
+  const carry = carrying(root, root.querySelector('g.rl-tm-over'), litAt, opts);
+  if (!opts.still) gestures(root, rect, { ...opts, ...carry, onTap, onLive: liveLayer(root, px), reduced: reducedMotion }, px);
   if (typeof globalThis.ResizeObserver === 'function') {
     new globalThis.ResizeObserver(([e]) => { if (e?.contentRect?.width) fit(root, e.contentRect); }).observe(root);
   }
@@ -556,16 +685,94 @@ const toggle = (value, word, current, on, extra = {}) => h('button', {
   type: 'button', class: 'rl-filter', 'aria-pressed': String(current === value), onclick: () => on?.(value), ...extra,
 }, word);
 
-/** The region picker: the whole map, the regions down to the frame, and the regions under it. */
-function regionPicker(map, frames, frame, onFrame) {
+/** A set of toggles folded into one control (a phone's): `items` as [value, word], `current` chosen. */
+const fold = (label, items, current, on, more = '') => h('select', { class: `rl-tm-fold${more}`, 'aria-label': label, onchange: (e) => on?.(e.target.value) },
+  items.map(([value, word]) => h('option', { value, selected: value === current }, word)));
+
+/** The regions the picker offers: the frame's key, the regions down to it, and the regions under it. */
+function regionsOf(map, frames, frame) {
   const trail = regionTrail(map.regions, frame);
   const here = trail.at(-1)?.key ?? '';
-  const under = regionChildren(map.regions, here).filter((r) => frames.has(r.key));
-  return h('div', { class: 'rl-filters rl-tm-regions', role: 'group', 'aria-label': 'Region' },
+  return { here, trail, under: regionChildren(map.regions, here).filter((r) => frames.has(r.key)) };
+}
+
+/** The region picker: the whole map, the regions down to the frame, and the regions under it. */
+function regionPicker(map, frames, frame, onFrame, wide = '') {
+  const { here, trail, under } = regionsOf(map, frames, frame);
+  return h('div', { class: `rl-filters rl-tm-regions${wide}`, role: 'group', 'aria-label': 'Region' },
     toggle('', 'Whole map', here, onFrame),
     trail.map((r) => toggle(r.key, r.name, here, onFrame)),
     under.length ? h('span', { class: 'rl-tm-under', 'aria-hidden': 'true' }, '›') : null,
     under.map((r) => toggle(r.key, r.name, here, onFrame)));
+}
+
+/** The region picker as one control. */
+function regionFold(map, frames, frame, onFrame) {
+  const { here, trail, under } = regionsOf(map, frames, frame);
+  return fold('Region', [['', 'Whole map'], ...[...trail, ...under].map((r) => [r.key, r.name])], here, onFrame, ' rl-tm-fold-region');
+}
+
+/** Whether the map is in the room's full screen: the room marks its root (`opts.onFull`). */
+const isFull = (el) => Boolean(el?.closest?.('.rl-full'));
+
+/** What takes the keyboard in the map the room draws next: 'full' (the control) or 'map' (the drawing). */
+let refocus = null;
+
+/** `fn()`, after which the next drawing of the map puts the keyboard on `what`. */
+function keepFocus(what, fn) {
+  refocus = what;
+  fn();
+  queueMicrotask(() => { refocus = null; });
+}
+
+/** Into the room's full screen from `el`'s map, or out of it; the browser's own is asked for as well. */
+function askFull(el, opts, what) {
+  const on = !isFull(el);
+  browserFull(on);
+  keepFocus(what, () => opts.onFull?.(on));
+}
+
+/** The Full screen control; in full screen it reads Leave full screen. */
+function fullControl(opts) {
+  const btn = h('button', { type: 'button', class: 'rl-filter rl-tm-full', onclick: () => askFull(btn, opts, 'full') },
+    svg('svg', { class: 'rl-tm-full-glyph', viewBox: '0 0 16 16', width: 16, height: 16, 'aria-hidden': 'true', focusable: 'false' },
+      svg('path', { d: 'M1 5V1h4M11 1h4v4M15 11v4h-4M5 15H1v-4' })),
+    h('span', { class: 'rl-tm-full-in' }, 'Full screen'),
+    h('span', { class: 'rl-tm-full-out' }, 'Leave full screen'));
+  return btn;
+}
+
+/**
+ * The keys the map takes in the map-first room: F on the drawing goes into full screen or out of
+ * it; Escape with an area's or a report's sheet open closes that sheet, and full screen stays.
+ */
+function overlayKeys(section, opts, sheet) {
+  return (e) => {
+    if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Escape' && sheet) {
+      e.preventDefault();
+      keepFocus('map', sheet === 'area' ? () => opts.onArea?.(null) : () => opts.onReport?.(null));
+    } else if ((e.key === 'f' || e.key === 'F') && e.target?.closest?.('figure.rl-map-figure')) {
+      e.preventDefault();
+      askFull(section, opts, 'map');
+    }
+  };
+}
+
+/**
+ * Once the map is in the page: the keyboard goes where the last step into or out of full screen
+ * left it, and a browser full screen the map asked for is given back when the room has drawn
+ * the map out of full screen itself (its Escape).
+ */
+function afterDrawn(section) {
+  const had = askedForFull();
+  const what = refocus;
+  queueMicrotask(() => {
+    if (section.isConnected === false) return;
+    if (had && !isFull(section)) browserFull(false);
+    const el = what === 'full' ? section.querySelector('button.rl-tm-full') : what === 'map' ? section.querySelector('svg.rl-tm-svg') : null;
+    el?.focus();
+  });
 }
 
 /** An area's holder, and what is said of it, as one cell. */
@@ -623,7 +830,8 @@ function markTable(map, onFind) {
 
 /**
  * The territory board: switches, then the drawing (`shapes` null: `opts.waiting` in its place)
- * or the list. `opts`: { mode, layer, frame, zoom, ...territoryDrawing's, onMode, onLayer, onFrame }.
+ * or the list. `opts`: { mode, layer, frame, zoom, ...territoryDrawing's, onMode, onLayer, onFrame,
+ * overlay (the map-first room: the switches over the map's corners), onFull(on) (the room's full screen) }.
  */
 export function territoryView(map, shapes, opts = {}) {
   const mode = opts.mode === 'list' ? 'list' : 'map';
@@ -634,33 +842,52 @@ export function territoryView(map, shapes, opts = {}) {
   const layer = offered.includes(opts.layer) ? opts.layer : first;
   const frames = shapes ? regionFrames(map, shapes) : null;
   const frame = frames?.has(opts.frame ?? '') ? opts.frame ?? '' : '';
-  const zoom = ZOOMS.includes(opts.zoom) ? opts.zoom : 1;
+  const zoom = clampZoom(opts.zoom ?? 1);
   const words = { military: 'Military', diplomatic: 'Diplomatic', economy: 'Economy' };
-  const bar = h('div', { class: 'rl-bar' },
-    offered.length > 1
-      ? h('div', { class: 'rl-filters', role: 'group', 'aria-label': 'Layer' }, offered.map((l) => toggle(l, words[l], layer, opts.onLayer)))
-      : null,
-    mode === 'map' && layer === 'military' ? threatsSwitch(map, opts.threats, opts.onThreats) : null,
-    h('div', { class: 'rl-filters', role: 'group', 'aria-label': 'Show as' },
-      toggle('map', 'Map', mode, opts.onMode), toggle('list', 'List', mode, opts.onMode)),
-    mode === 'map' && frames ? regionPicker(map, frames, frame, opts.onFrame) : null,
-    mode === 'map' && frames
-      ? h('div', { class: 'rl-filters rl-tm-zoom', role: 'group', 'aria-label': 'Zoom' },
-        ZOOMS.map((z) => toggle(z, `${z}×`, zoom, (v) => opts.onView?.({ zoom: v, centre: opts.centre ?? null }), { 'aria-label': `Zoom ${z} times` })))
-      : null);
+  const over = Boolean(opts.overlay);
+  const wide = over ? ' rl-tm-wide' : '';
+  const layers = offered.length > 1
+    ? [h('div', { class: `rl-filters${wide}`, role: 'group', 'aria-label': 'Layer' }, offered.map((l) => toggle(l, words[l], layer, opts.onLayer))),
+      over ? fold('Layer', offered.map((l) => [l, words[l]]), layer, opts.onLayer) : null]
+    : [];
+  const threats = mode === 'map' && layer === 'military' ? threatsSwitch(map, opts.threats, opts.onThreats) : null;
+  const showAs = h('div', { class: 'rl-filters', role: 'group', 'aria-label': 'Show as' },
+    toggle('map', 'Map', mode, opts.onMode), toggle('list', 'List', mode, opts.onMode));
+  const regions = mode === 'map' && frames
+    ? [regionPicker(map, frames, frame, opts.onFrame, wide), over ? regionFold(map, frames, frame, opts.onFrame) : null]
+    : [];
+  const zooms = mode === 'map' && frames
+    ? h('div', { class: 'rl-filters rl-tm-zoom', role: 'group', 'aria-label': 'Zoom' },
+      ZOOMS.map((z) => toggle(z, `${z}×`, zoom, (v) => opts.onView?.({ zoom: v, centre: opts.centre ?? null }), { 'aria-label': `Zoom ${z} times` })))
+    : null;
+  const full = over ? fullControl(opts) : null;
   const find = (name) => opts.onSelect?.(name, 'map');
+  const area = mode === 'map' && opts.area ? areaSheet(map, opts.area, opts.onArea, opts.standings) : null;
+  const report = mode === 'map' && layer === 'military' && opts.report ? reportSheet(map, opts.report, opts) : null;
+  const figure = mode === 'map' ? h('figure', { class: 'rl-map-figure' },
+    shapes ? territoryDrawing(map, shapes, { ...opts, layer, frame, zoom }) : h('p', { class: 'muted rl-tm-wait' }, opts.waiting ?? 'Drawing the map…')) : null;
   const body = mode === 'list'
     ? [areaTable(map), (map.marks ?? []).length ? markTable(map, find) : null, reportTables(map, opts), battleTable(opts.battles, opts.onBattle)]
-    : [h('figure', { class: 'rl-map-figure' },
-      shapes ? territoryDrawing(map, shapes, { ...opts, layer, frame, zoom }) : h('p', { class: 'muted rl-tm-wait' }, opts.waiting ?? 'Drawing the map…')),
-      opts.area ? areaSheet(map, opts.area, opts.onArea, opts.standings) : null,
-      layer === 'military' && opts.report ? reportSheet(map, opts.report, opts) : null];
+    : over
+      ? [h('div', { class: 'rl-tm-stage' },
+        h('div', { class: 'rl-tm-corner rl-tm-top' },
+          h('div', { class: 'rl-tm-tools rl-tm-tools-start' }, layers, threats, regions),
+          h('div', { class: 'rl-tm-tools rl-tm-tools-end' }, showAs, full)),
+        zooms ? h('div', { class: 'rl-tm-corner rl-tm-zoomcorner' }, zooms) : null,
+        figure, area, report)]
+      : [figure, area, report];
+  const bar = mode === 'map' && over ? null : h('div', { class: 'rl-bar' }, layers, threats, showAs, regions, zooms, full);
   // the Diplomatic layer's key (realism-diplomacy.js): nations, capitals, public pacts and envoys
   const key = layer === 'diplomatic' ? (typeof opts.diplomacy === 'function' ? opts.diplomacy() : opts.diplomacy) : null;
-  return h('section', { class: 'rl-map rl-tmap', 'aria-labelledby': 'rl-map-h' },
-    h('h2', { id: 'rl-map-h' }, 'Map'),
-    h('p', { class: 'muted' }, 'The board as the game\'s map draws it; your pieces and reports from your own papers.'),
+  const section = h('section', { class: `rl-map rl-tmap${over ? ' rl-tm-overlay' : ''}`, 'aria-labelledby': 'rl-map-h' },
+    h('h2', { id: 'rl-map-h', class: over ? 'sr-only' : null }, 'Map'),
+    over ? null : h('p', { class: 'muted' }, 'The board as the game\'s map draws it; your pieces and reports from your own papers.'),
     bar,
     body,
     key ?? null);
+  if (over) {
+    section.addEventListener('keydown', overlayKeys(section, opts, area ? 'area' : report ? 'report' : null));
+    afterDrawn(section);
+  }
+  return section;
 }

@@ -67,8 +67,8 @@ def _news(state: State, a: EntityId, b: EntityId, day: date) -> NewsEvent:
 
 
 def resolve(state: State, order: Order) -> tuple["rs.Change", ...]:
-    """Changes from one enacted declaration of war."""
-    if order.status is not OrderStatus.ENACTED or order.lever != "declare_war":
+    """Changes from one enacted order whose form the world marks as a declaration of war."""
+    if order.status is not OrderStatus.ENACTED or rs.resolver_for(state, order) != "war":
         return ()
     b = EntityId(object_id(state.campaign_id, "entity", str(order.params.get("target"))))
     target = state.entities.get(b)

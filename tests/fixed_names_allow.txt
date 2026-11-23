@@ -71,7 +71,6 @@ src/revisionist/core/realism/resolvers/votes.py | lend_lease_appropriation | sto
 src/revisionist/core/realism/resolvers/votes.py | neutrality_revision | stored games only
 src/revisionist/core/realism/resolvers/votes.py | senate | stored games only
 src/revisionist/core/realism/resolvers/votes.py | send_bill | stored games only
-src/revisionist/core/realism/resolvers/war.py | declare_war | stored games only
 src/revisionist/core/realism/resolvers/war.py | gallup_declare_war_germany | stored games only
 src/revisionist/core/realism/resolvers/war.py | gallup_help_britain | stored games only
 src/revisionist/core/realism/resolvers/war.py | usa | stored games only

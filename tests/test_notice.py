@@ -8,7 +8,7 @@ presence or aide play: the same text whether the others are at the table or away
 import json
 import logging
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -515,3 +515,45 @@ def test_zone_of_falls_back_on_a_bad_name() -> None:
     assert notice.zone_of(None).key == notice.DEFAULT_ZONE
     assert notice.zone_of("Europe/London").key == "Europe/London"
     assert datetime(2026, 7, 1, tzinfo=UTC).astimezone(notice.zone_of("Europe/London")).hour == 1
+
+
+# --- the report digest (RPS) --------------------------------------------------------
+
+DAY = date(2026, 11, 22)
+COUNTS = {"The slice": {"bug": 1, "idea": 2}, "Toy": {"confusing": 1}}
+
+
+def test_the_report_digest_counts_by_kind_and_game() -> None:
+    subject, text = notice.compose_digest(DAY, COUNTS)
+    assert subject == "Revisionist: 4 reports on Sunday 22 November 2026"
+    assert text.splitlines() == [
+        "Reports filed on Sunday 22 November 2026 (UTC): 1 bug, 2 ideas, 1 marked confusing.",
+        "",
+        "By game:",
+        "- The slice: 1 bug, 2 ideas.",
+        "- Toy: 1 marked confusing.",
+        "",
+        "Read them with: revisionist reports list",
+    ]
+
+
+def test_a_digest_goes_once_a_day_and_a_failed_send_is_not_marked(
+    web: Web,  # noqa: F811
+    outbox: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real = notice.Outbox.send
+
+    def down(self: notice.Outbox, n: notice.Notice) -> None:
+        raise OSError("disk full")
+
+    box = notice.Outbox(outbox)
+    with psycopg.connect(web.db.app_dsn, autocommit=True) as conn:
+        monkeypatch.setattr(notice.Outbox, "send", down)
+        assert notice.send_digest(conn, box, "op@example.test", DAY, COUNTS) is False
+        monkeypatch.setattr(notice.Outbox, "send", real)
+        assert notice.send_digest(conn, box, "op@example.test", DAY, COUNTS) is True
+        assert notice.send_digest(conn, box, "op@example.test", DAY, COUNTS) is False
+        assert notice.send_digest(conn, box, "op@example.test", DAY, {}) is False
+    (line,) = sent(outbox)
+    assert line["to"] == "op@example.test" and line["subject"].startswith("Revisionist: 4 reports")

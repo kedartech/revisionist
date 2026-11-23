@@ -5,7 +5,7 @@
 // the same whether any other seat is present or away; a routine receipt is never a line.
 // Nothing here touches the page on import.
 
-import { h } from '../dom.js';
+import { h, svg } from '../dom.js';
 import { worldDate } from '../rules.js';
 import { boxOf, holderRelation, territoryProjection } from '../realism-rules.js';
 import { DONE_HINT, dayKey, dayWords, itemHeading } from './realism-wake.js';
@@ -164,7 +164,7 @@ export function areaCentre(map, shapes, key) {
   const label = shapes?.areas?.[key]?.label;
   if (!label) return null;
   const proj = territoryProjection(map.coords ?? shapes.coords, boxOf(map.box ?? shapes.box));
-  return [proj.x(label[0]), proj.y(label[1])];
+  return proj.point(label);
 }
 
 const badge = (n) => (n > 0 ? h('span', { class: 'badge tone-warn rl-needs-count' }, String(n)) : null);
@@ -176,40 +176,104 @@ function doneControl(wake, onDone, cls) {
     : h('button', { type: 'button', class: `btn-1 ${cls}`, onclick: onDone }, 'Done for today');
 }
 
+/** Each kind's mark, drawn in a 16 px box: [shape, path]; a kind with none takes the page. */
+const KIND_MARKS = {
+  first: 'M4 2h6l3 3v9H4zM6 7h5M6 10h5',
+  agenda: 'M4 2h6l3 3v9H4zM6 7h5M6 10h5',
+  paper: 'M4 2h6l3 3v9H4zM6 7h5M6 10h5',
+  request: 'M2 3h12v8H7l-3 3v-3H2z',
+  ask: 'M2 3h12v8H7l-3 3v-3H2z',
+  decision: 'M8 2v5M8 7l-5 6M8 7l5 6',
+  order: 'M8 2v5M8 7l-5 6M8 7l5 6',
+  offer: 'M2 6h9l-3-3M14 10H5l3 3',
+  vote: 'M3 7h10v7H3zM6 7l2-4 4 2-1 2',
+  battle: 'M3 3l10 10M13 3L3 13M3 11v2h2M13 11v2h-2',
+  floor: 'M2 14h12M3 6h10M4 6v8M8 6v8M12 6v8M2 6l6-4 6 4',
+  held: 'M4 7h8v7H4zM6 7V5a2 2 0 0 1 4 0v2',
+};
+
+/** The mark for a line's kind: a small drawing, for the eye; the row's words name the kind. */
+function kindMark(kind) {
+  return h('span', { class: 'rl-need-mark', 'aria-hidden': 'true' },
+    svg('svg', { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', 'stroke-width': 1.5, focusable: 'false' },
+      svg('path', { d: KIND_MARKS[kind] ?? KIND_MARKS.agenda })));
+}
+
+// the rows opened in place, by kind and key: kept for the page's life so a redraw keeps them open
+const openRows = new Set();
+const rowId = (kind, key) => `rl-need-d-${kind}-${String(key).replace(/[^\w-]/g, '_')}`;
+
 /**
- * The list: its heading with one badge, a line per matter (what it is, from whom, by when, and
- * one action button calling `onAction(line)`), the empty line, and Done at its foot. With `top` set, only that many lines show and the rest sit behind "More". From 1024 px
- * it is a rail beside the map; below that it is a half sheet, shown while `open`, which Escape or
- * Close shuts through `onClose`.
+ * One row of the list: a button with the kind's mark, the title and the due words, which opens in
+ * place to `detail` (the nodes under it); `onKeydown` listens on the opened part.
  */
-export function needsList(rv, lines, { open = false, onAction, onDone, onClose, top = null } = {}) {
-  const today = rv.clock?.world_date;
-  const line = (l) => h('li', {
-    class: `rl-need${urgent(l, today) ? ' urgent' : ''}`, 'data-kind': l.kind, 'data-need': l.key,
+function needRow({ kind, key, what, due, urgent: hot = false, detail, onKeydown = null }) {
+  const id = rowId(kind, key);
+  const open = openRows.has(`${kind}:${key}`);
+  const body = h('div', { class: 'rl-need-detail', id, hidden: open ? null : true, onkeydown: onKeydown }, detail);
+  const head = h('button', {
+    type: 'button', class: 'rl-need-row', 'aria-expanded': String(open), 'aria-controls': id,
+    onclick: () => {
+      const on = !openRows.has(`${kind}:${key}`);
+      if (on) openRows.add(`${kind}:${key}`); else openRows.delete(`${kind}:${key}`);
+      head.setAttribute('aria-expanded', String(on));
+      body.toggleAttribute('hidden', !on);
+    },
   },
-  h('p', { class: 'rl-need-top' },
-    h('span', { class: 'rl-need-kind' }, l.label),
-    h('span', { class: 'rl-need-due' }, dueWords(l))),
-  h('p', { class: 'rl-need-what' }, l.what),
-  l.lock ? h('p', { class: 'rl-need-lock' }, lockTag(l.lock), l.status ? h('span', { class: `rl-need-status${l.status === 'Asked' ? ' asked' : ''}` }, l.status) : null) : null,
-  h('p', { class: 'rl-need-from' }, `From ${l.from}`),
-  l.action ? h('button', {
-    type: 'button', class: 'rl-btn rl-need-act', 'data-need': l.key, 'aria-label': `${l.action.word}: ${l.what}`,
-    onclick: () => onAction?.(l),
-  }, l.action.word) : null);
+  kindMark(kind),
+  h('span', { class: 'rl-need-what' }, what),
+  due ? h('span', { class: 'rl-need-due' }, due) : null);
+  return h('li', { class: `rl-need${hot ? ' urgent' : ''}`, 'data-kind': kind, 'data-need': key }, head, body);
+}
+
+/** The first-day card as the list's first row: its steps and Dismiss, which Escape also does. */
+function firstRow(first) {
+  return needRow({
+    kind: 'first', key: 'first-wake', what: first.heading, due: null,
+    onKeydown: (e) => { if (e.key === 'Escape') { e.preventDefault(); first.onDismiss?.(); } },
+    detail: [
+      h('ol', { class: 'rl-firstwake-steps' }, first.steps.map((step) => h('li', {}, step))),
+      h('button', { type: 'button', class: 'ghost rl-firstwake-dismiss', onclick: () => first.onDismiss?.() }, first.dismiss),
+    ],
+  });
+}
+
+/**
+ * The list: its heading with one badge, the come-back line (`comeBack`), the first-day card as its
+ * first row (`first`: the card's words with `onDismiss`), a row per matter (its kind's mark, what
+ * it is and by when, opening in place to who it is from and one action button calling
+ * `onAction(line)`), the empty line, and Done at its foot. With `top` set, only that many lines
+ * show and the rest sit behind "More". From 1024 px it is a rail beside the map; below that it is
+ * a half sheet, shown while `open`, which Escape or Close shuts through `onClose`.
+ */
+export function needsList(rv, lines, { open = false, onAction, onDone, onClose, top = null, comeBack = null, first = null } = {}) {
+  const today = rv.clock?.world_date;
+  const line = (l) => needRow({
+    kind: l.kind, key: l.key, what: l.what, due: dueWords(l), urgent: urgent(l, today),
+    detail: [
+      h('p', { class: 'rl-need-top' }, h('span', { class: 'rl-need-kind' }, l.label)),
+      l.lock ? h('p', { class: 'rl-need-lock' }, lockTag(l.lock), l.status ? h('span', { class: `rl-need-status${l.status === 'Asked' ? ' asked' : ''}` }, l.status) : null) : null,
+      h('p', { class: 'rl-need-from' }, `From ${l.from}`),
+      l.action ? h('button', {
+        type: 'button', class: 'rl-btn rl-need-act', 'data-need': l.key, 'aria-label': `${l.action.word}: ${l.what}`,
+        onclick: () => onAction?.(l),
+      }, l.action.word) : null,
+    ],
+  });
   const shown = top === null ? lines : lines.slice(0, top);
   const rest = top === null ? [] : lines.slice(top);
+  const rows = [first ? firstRow(first) : null, ...shown.map(line)].filter(Boolean);
   return h('section', {
     class: `rl-needs${open ? ' open' : ''}`, id: 'rl-needs', 'aria-labelledby': 'rl-needs-h',
-    onkeydown: (e) => { if (open && e.key === 'Escape') { e.preventDefault(); onClose?.(); } },
+    onkeydown: (e) => { if (open && e.key === 'Escape' && !e.defaultPrevented) { e.preventDefault(); onClose?.(); } },
   },
   h('div', { class: 'rl-needs-head' },
     h('h2', { id: 'rl-needs-h', tabindex: '-1' }, NEEDS_TITLE, lines.length ? [' ', badge(lines.length)] : null),
     h('span', { class: 'rl-needs-order' }, 'By due day'),
     h('button', { type: 'button', class: 'rl-btn rl-needs-close', onclick: () => onClose?.() }, 'Close')),
-  lines.length
-    ? h('ul', { class: 'rl-needs-lines', role: 'list' }, shown.map(line))
-    : h('p', { class: 'rl-needs-none' }, NEEDS_NONE),
+  comeBack ? h('p', { class: 'rl-comeback' }, comeBack) : null,
+  rows.length ? h('ul', { class: 'rl-needs-lines', role: 'list' }, rows) : null,
+  lines.length ? null : h('p', { class: 'rl-needs-none' }, NEEDS_NONE),
   rest.length
     ? h('details', { class: 'rl-needs-more' },
       h('summary', {}, `${MORE} (${rest.length})`),

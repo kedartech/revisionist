@@ -64,6 +64,12 @@ export function loadShapes(file, ask = api.map) {
 /** Forget every fetched shape (tests). */
 export function forgetShapes() { shapesBy.clear(); asking.clear(); }
 
+// the hooks each drawn theatre was handed by its room
+const hooksOf = new WeakMap();
+
+/** The room's hooks a drawn theatre view was given (`overlay`, `onFull`), or null for any other element. */
+export const hooksFor = (view) => (view ? hooksOf.get(view) ?? null : null);
+
 /**
  * What a pick on capital `c` opens: its leader's figure card from the People roster's line,
  * as the roster shows it; null when the roster holds no line for that leader.
@@ -281,8 +287,11 @@ function ghostList(waits, act) {
  * area being picked for a battle or a standing order (`theatre.battlePick`). A report's paper, and a
  * battle known only from the press, opens with `open({ id })`.
  * The piece's details are in the board's side panel, so the map view's own detail block is left out.
+ * `hooks` are the room's for the map, handed to the map's own options as they are: `overlay`
+ * (true in the map-first room: the map draws its controls over itself) and `onFull(on)` (the map
+ * asks the room for the whole viewport). `hooksFor(view)` reads them back from the drawn view.
  */
-export function theatreBoard(rv, ui, { pick, act, open } = {}) {
+export function theatreBoard(rv, ui, { pick, act, open, hooks = {} } = {}) {
   const map = rv.map;
   if (!map) {
     return h('section', { class: 'rl-map rl-theatre' },
@@ -304,6 +313,7 @@ export function theatreBoard(rv, ui, { pick, act, open } = {}) {
   const forms = theatre.layer === 'diplomatic' ? null : movingForms(rv, ui.piece, act, onPlaces);
   const opts = {
     ...theatre,
+    ...hooks,
     theatres: true,
     selected: ui.piece?.kind === 'force' ? ui.piece.name : null,
     openCapital: capitalOpener(rv.people),
@@ -414,12 +424,13 @@ export function theatreBoard(rv, ui, { pick, act, open } = {}) {
     });
   }
   const drawing = territorial
-    ? () => (shapesFor(map.file) ? territoryDrawing(drawn, shapesFor(map.file), { ...opts, targets: targets(), route: route() }) : h('p', { class: 'muted rl-tm-wait' }, 'Drawing the map…'))
+    ? () => (shapesFor(map.file) ? territoryDrawing(drawn, shapesFor(map.file), { ...opts, coast, targets: targets(), route: route() }) : h('p', { class: 'muted rl-tm-wait' }, 'Drawing the map…'))
     : () => mapDrawing(map, coast, { ...opts, scope: theatre.scope ?? 'reports', targets: lit() });
   const view = territorial
-    ? territoryView(drawn, shapesFor(map.file), { ...opts, targets: targets(), route: route() })
+    ? territoryView(drawn, shapesFor(map.file), { ...opts, coast, targets: targets(), route: route() })
     : mapView(map, coast, { ...opts, targets: lit() });
   view.classList.add('rl-theatre');
+  hooksOf.set(view, hooks);
   view.querySelector('.rl-map-detail')?.remove();
   const ghosts = ghostList(waits, act);
   const bar = tokenBar(tokens, token?.id ?? null, (id) => pick?.({ theatre: { ...theatre, token: id, tokenAt: null } }));
@@ -449,13 +460,20 @@ export function theatreBoard(rv, ui, { pick, act, open } = {}) {
     }
   };
   if (territorial) {
+    // land not in play: the coastline is fetched only for a map that has a backdrop to draw it under
+    const landless = (shapes) => shapes?.coords === 'lonlat' && (shapes.backdrop ?? []).length > 0 && !coast;
+    const landAfter = () => landless(shapesFor(map.file)) && loadLand()?.then(() => {
+      if (coast && view.isConnected) redraw();
+    });
+    landAfter();
     if (!shapesFor(map.file) && theatre.mode !== 'list') {
       loadShapes(map.file)?.then(() => {
         if (!shapesFor(map.file) || !view.isConnected) return;
-        const fresh = territoryView(drawn, shapesFor(map.file), { ...opts, targets: targets(), route: route() });
+        const fresh = territoryView(drawn, shapesFor(map.file), { ...opts, coast, targets: targets(), route: route() });
         view.replaceChildren(...fresh.childNodes);
         view.querySelector('figure.rl-map-figure')?.after(...below);
         showChip();
+        landAfter();
       });
     }
     return view;

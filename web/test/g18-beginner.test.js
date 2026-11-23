@@ -1,8 +1,8 @@
 // Beginner shows less (BGN), one test or more per plan rule: 1. on Beginner the map-first room shows
-// the board, the seat's three aims and one next step, the top line of "What needs you"; 2. the Court,
-// Home and Diplomacy sheets carry a mark when something in them is a line in the list, and with
-// nothing waiting stay reachable by the game menu's "All sheets", so every proactive composer opens
-// in a quiet wake; 3. the economy's components and the odds table's rows sit behind "More"; 4. the
+// the board, the seat's three aims (the bar's marks) and one next step, the top line of "What needs you"; 2. the Court,
+// Home and Diplomacy parts carry a mark when something in them is a line in the list, and with
+// nothing waiting leave their groups and stay reachable by the game menu's "All sheets", which
+// lists the groups and their parts (SHG), so every proactive composer opens in a quiet wake; 3. the economy's components and the odds table's rows sit behind "More"; 4. the
 // first-wake card's words match the new room. Keeps: no style sees more or better odds, so what
 // Beginner folds away still opens. Mutants: a sheet unreachable on Beginner; the court marked with
 // nothing in it.
@@ -25,7 +25,7 @@ const { ownSheet, foldEconomy } = await import('../js/views/realism-economy.js')
 const { oddsPanel, foldOdds } = await import('../js/views/realism-odds.js');
 
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/realism-seat.json', import.meta.url)));
-const SHEET_KEYS = ['papers', 'orders', 'forms', 'messages', 'court', 'people', 'press'];
+const SHEET_KEYS = ['papers', 'orders', 'forms', 'court', 'people', 'press'];
 
 /** The seat's view on the toy board with nothing waiting but Done; `change` edits it. */
 function seat(style, change = () => {}) {
@@ -59,8 +59,22 @@ function room(rv, id = `g-${Math.random()}`) {
   return root;
 }
 
-const tabKeys = (root) => root.querySelector('.rl-sheettabs').querySelectorAll('button').map((b) => b.getAttribute('data-sheet'));
-const tabOf = (root, key) => root.querySelector('.rl-sheettabs').querySelectorAll('button').find((b) => b.getAttribute('data-sheet') === key);
+const groupTabs = (root) => root.querySelector('.rl-sheettabs').querySelectorAll('button');
+/** Every part drawn in the four groups, in order, read by opening each group's sheet. */
+const tabKeys = (root) => groupTabs(root).flatMap((g) => {
+  g.click();
+  const keys = root.querySelectorAll('.rl-over .rl-parts button').map((b) => b.getAttribute('data-sheet'));
+  root.querySelector('.rl-over .rl-over-close').click();
+  return keys;
+});
+/** Part `key`'s tab in its group's sheet, opened for it, or undefined when the part is left out. */
+const tabOf = (root, key) => {
+  const group = { court: 'people', home: 'world', diplomacy: 'world' }[key];
+  const g = groupTabs(root).find((b) => b.getAttribute('data-group') === group);
+  if (g.getAttribute('aria-expanded') !== 'true') g.click();
+  return root.querySelectorAll('.rl-over .rl-parts button').find((b) => b.getAttribute('data-sheet') === key);
+};
+const groupOfTab = (root, group) => groupTabs(root).find((b) => b.getAttribute('data-group') === group);
 const menuKeys = (root) => root.querySelectorAll('.rl-allsheets button').map((b) => b.getAttribute('data-sheet'));
 const openName = (root) => root.querySelectorAll('.rl-over').map((s) => s.getAttribute('data-sheet'));
 const openMenu = (root) => root.querySelector('.rl-menu-btn').click();
@@ -81,9 +95,9 @@ test('Beginner shows the seat\'s three aims and the top line of the list; the re
   const rv = seat('beginner', withLines);
   assert.equal(needLines(rv).length, 2);
   const root = room(rv);
-  const aims = root.querySelector('.rl-beginner-board');
-  assert.ok(aims, 'the aims above the map');
-  assert.equal(aims.querySelectorAll('.rl-aim').length, 3);
+  const aims = root.querySelector('.rl-roombar .rl-aimmarks');
+  assert.ok(aims, 'the aims on the bar above the map');
+  assert.equal(aims.querySelectorAll('.rl-aimmark').length, 3);
   assert.ok(root.querySelector('.rl-mapfirst .rl-theatre'), 'the board');
   const shown = root.querySelectorAll('.rl-needs-lines').find((u) => u.parentNode.getAttribute('id') === 'rl-needs').querySelectorAll('.rl-need');
   assert.equal(shown.length, 1, 'one next step');
@@ -94,32 +108,34 @@ test('Beginner shows the seat\'s three aims and the top line of the list; the re
   assert.ok(root.querySelector('.rl-needs-commit'), 'Done is still at the foot');
 });
 
-test('Free shows every line and no aims block', () => {
+test('Free shows every line, and the same aim marks', () => {
   const root = room(seat('free', withLines));
   assert.equal(waiting(root).length, 2);
   assert.equal(root.querySelector('.rl-needs-more'), null);
-  assert.equal(root.querySelector('.rl-beginner-board'), null);
+  assert.equal(root.querySelectorAll('.rl-roombar .rl-aimmark').length, 3);
 });
 
 // rule 2: marks, and the quiet route
 
-test('with nothing waiting the Court, Home and Diplomacy leave the tab bar and carry no mark', () => {
+test('with nothing waiting the Court, Home and Diplomacy leave their groups and carry no mark', () => {
   const rv = seat('beginner');
   assert.deepEqual(needLines(rv), []);
   const root = room(rv);
-  assert.deepEqual(tabKeys(root), ['papers', 'orders', 'forms', 'messages', 'people', 'press']);
-  assert.equal(root.querySelectorAll('.rl-sheettab .rl-tab-count').filter((c) => ['Court', 'Home', 'Diplomacy'].some((n) => words(c.parentNode).startsWith(n))).length, 0);
+  assert.deepEqual(tabKeys(root), ['papers', 'press', 'forms', 'orders', 'people', 'nations', 'standing']);
+  assert.equal(groupOfTab(root, 'people').querySelectorAll('.rl-tab-count').length, 0);
+  assert.equal(groupOfTab(root, 'world').querySelectorAll('.rl-tab-count').length, 0);
 });
 
-test('a line that opens the Home sheet or the Diplomacy sheet puts that sheet on the tab bar with a mark', () => {
+test('a line that opens the Home part or the Diplomacy part puts that part in World with a mark', () => {
   const rv = seat('beginner', (r) => {
     r.agenda = { ...r.agenda, items: [{ id: 'V1', kind: 'Vote', text: 'Vote on the text.', issuer: 'The chair', issued: '1941-10-01', deadline: '1941-10-20', options: [] }] };
   });
   const root = room(rv);
   assert.ok(tabOf(root, 'diplomacy'));
   assert.equal(tabOf(root, 'diplomacy').querySelectorAll('.rl-tab-count').length, 1);
-  assert.equal(tabOf(root, 'court'), undefined, 'the court holds nothing and stays off');
+  assert.equal(groupOfTab(root, 'world').querySelectorAll('.rl-tab-count').length, 1, 'the group carries the mark');
   assert.equal(tabOf(root, 'home'), undefined);
+  assert.equal(tabOf(root, 'court'), undefined, 'the court holds nothing and stays off');
 });
 
 test('a line in the Court marks the Court; with none, the Court carries no mark on Free either', () => {
@@ -132,14 +148,27 @@ test('a line in the Court marks the Court; with none, the Court carries no mark 
   assert.equal(tabOf(room(seat('free')), 'court').querySelectorAll('.rl-tab-count').length, 0);
 });
 
-test('every sheet Free draws is reachable on Beginner: a tab, or All sheets in the game menu', () => {
+test('every part Free draws is reachable on Beginner: in its group, or All sheets in the game menu', () => {
   const free = room(seat('free'));
-  const drawn = [...new Set([...tabKeys(free), 'home'])];
+  const drawn = tabKeys(free);
+  assert.deepEqual(drawn, ['papers', 'press', 'forms', 'orders', 'people', 'court', 'nations', 'standing', 'home', 'diplomacy']);
   const root = room(seat('beginner'));
+  const reach = new Set(tabKeys(root));
   openMenu(root);
-  const reach = new Set([...tabKeys(root), ...menuKeys(root)]);
+  for (const key of menuKeys(root)) reach.add(key);
   for (const key of drawn) assert.ok(reach.has(key), `${key} is reachable on Beginner`);
   for (const key of SHEET_KEYS) assert.ok(reach.has(key), key);
+  assert.ok(root.querySelector('.rl-roombar .rl-chat-btn'), 'the messenger, by the chat button');
+});
+
+test('All sheets lists the groups by name, each with its parts', () => {
+  const root = room(seat('beginner'));
+  openMenu(root);
+  const groups = root.querySelectorAll('.rl-allsheets .rl-allsheets-group');
+  assert.deepEqual(groups.map((g) => words(g.querySelector('h4'))), ['Inbox', 'Orders', 'People', 'World']);
+  assert.deepEqual(groups.map((g) => g.querySelectorAll('button').map(words)),
+    [['Papers', 'Press'], ['Write', 'Sent'], ['Roster', 'Court'], ['Nations', 'Standing', 'Home', 'Diplomacy']]);
+  assert.equal(allSheets(root, 'forms').getAttribute('aria-label'), 'Orders: Write');
 });
 
 test('every proactive composer opens from All sheets in a quiet wake with only Done waiting', () => {
@@ -201,13 +230,14 @@ test('the odds table\'s rows sit behind More on Beginner and in view on Free', (
 
 // rule 4: the first-wake card
 
-test('the first-wake card on Beginner\'s map-first room names the aims above the map and the list', () => {
+test('the first-wake card on Beginner\'s map-first room names the aim marks and the list', () => {
   const wake0 = { wake: 0, deadline: '1941-09-01T21:00:00+00:00', committed: 0, humans: 1, you_committed: false, is_host: true, can_close: true };
-  const root = room(seat('beginner', (r) => { r.wake = wake0; }));
-  const card = root.querySelector('.rl-firstwake');
-  assert.ok(card);
+  const firstRow = (root) => root.querySelectorAll('.rl-needs .rl-need').find((r) => r.getAttribute('data-kind') === 'first');
+  const card = firstRow(room(seat('beginner', (r) => { r.wake = wake0; })));
+  assert.ok(card, 'the first row of What needs you');
   assert.deepEqual(card.querySelectorAll('li').map(words), [...FIRST_WAKE_BEGINNER.steps]);
   assert.ok(!words(card).includes('pinned on the Board'));
-  const free = room(seat('free', (r) => { r.wake = wake0; }));
-  assert.deepEqual(free.querySelector('.rl-firstwake').querySelectorAll('li').map(words), [...FIRST_WAKE.steps]);
+  assert.ok(words(card).includes('the marks at the top'));
+  const free = firstRow(room(seat('free', (r) => { r.wake = wake0; })));
+  assert.deepEqual(free.querySelectorAll('li').map(words), [...FIRST_WAKE.steps]);
 });

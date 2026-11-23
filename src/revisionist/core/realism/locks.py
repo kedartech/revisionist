@@ -10,16 +10,26 @@ form order; an effect row matches a written order's typed effect. Its condition 
 closed check over state, or none, when the order always needs the decision:
 
 - ``law_not_in_force``: no passed law carrying the named clause is in force for the
-  issuer's nation (``votes.in_force``, read only).
+  issuer's nation (``laws.in_force``: the world's declared laws with ``laws`` on).
 - ``posture_not_set``: no superior of the issuer has set the named posture for the zone.
   The form path and the written path name a zone differently (a form's own parameter
   values, against a written order's ``SetEngagement.zone``), so the check carries both
   namings, and the posture counts as set when either path has set it.
 
-Its decider is a person (the superior whose post the order belongs to) or a body (a
-nation's chamber or chambers that pass the law). A written order outside the issuer's
-domains that no row holds has a derived decider: the nearest card up the issuer's chain
-of ``principals`` with a domain that covers the order's effect.
+Its decider is a person (the superior whose post the order belongs to), a body (a
+nation's chamber or chambers that pass the law), or, with ``deciders`` on, a council: the
+people who sit on it, how many must agree, and the head an ask goes to (QKD). With
+``deciders`` on a row may also name its kind of question (``Question``). A row that names a
+question or a council is decided by its kind; one that names neither behaves as before. On
+a row decided by its kind, an ask put to a council, or to a decider a seat holds, is a
+matter: each member a seat holds may choose, sealed, until the due day; then each member
+with no choice kept is decided by his card, and the ask is granted when enough agree. The
+grant of a matter opens the lock itself, as does any grant of such a row with no
+condition.
+
+A written order outside the issuer's domains that no row holds has a derived decider: the
+nearest card up the issuer's chain of ``principals`` with a domain that covers the order's
+effect.
 
 ``lock_for`` is a pure function of state. Nothing here names a place, a nation, a
 person, a bill or a form: every one comes from the world file.
@@ -33,14 +43,15 @@ view shows it, so two games that differ only in such a fact hold the order alike
 """
 
 from collections.abc import Container, Iterable, Mapping, Sequence
-from datetime import date
+from datetime import date, timedelta
 from enum import StrEnum
-from typing import TYPE_CHECKING, Annotated, Literal
+from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
 
 from pydantic import Field, model_validator
 
 from revisionist.core._base import Label, Model
 from revisionist.core.ids import EntityId, FeatureId, OrderId, SeatId
+from revisionist.core.realism import laws
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.answer import ParamValue
 from revisionist.core.realism.card import Desk, Domain, superiors
@@ -127,9 +138,37 @@ class PostureNotSet(Model):
 Condition = Annotated[LawNotInForce | PostureNotSet, Field(discriminator="check")]
 
 
+class Question(StrEnum):
+    """The kind of question a lock row puts (QKD) [proposed]."""
+
+    PERMISSION = "permission"
+    WAR = "war"
+    PEACE = "peace"
+    MONEY = "money"
+    POSTS = "posts"
+    OFFICE = "office"
+
+
+class Council(Model):
+    """A council that decides (QKD): who sits on it, how many must agree, and the head an
+    ask goes to."""
+
+    members: tuple[EntityId, ...] = Field(min_length=1, max_length=24)
+    needed: int = Field(ge=1)
+    head: EntityId
+
+    @model_validator(mode="after")
+    def _shape(self) -> "Council":
+        if len(set(self.members)) != len(self.members):
+            raise ValueError("a council names a member twice")
+        if self.needed > len(self.members):
+            raise ValueError(f"a council needs {self.needed} of {len(self.members)}")
+        return self
+
+
 class Decider(Model):
-    """Who can allow a held order: a person, or a nation's chamber or chambers, with the
-    head of that nation's government, to whom an ask goes (ASK)."""
+    """Who can allow a held order: a person, a nation's chamber or chambers, with the
+    head of that nation's government, to whom an ask goes (ASK), or a council (QKD)."""
 
     person: EntityId | None = None
     nation: EntityId | None = None
@@ -137,12 +176,15 @@ class Decider(Model):
     head: EntityId | None = None
     """With a body: the head of the nation's government, named by the row (the compiler
     requires it). An ask for an order the body decides goes to this person (ASK)."""
+    council: Council | None = Field(default=None, exclude_if=lambda v: v is None)
+    """With ``deciders`` on: a council, whose head an ask goes to (QKD). Left out of the
+    dump while absent, so a stored row hashes as before."""
 
     @model_validator(mode="after")
     def _shape(self) -> "Decider":
         body = self.nation is not None or bool(self.chambers)
-        if (self.person is None) == (not body):
-            raise ValueError("a decider is a person or a body, not both")
+        if (self.person is not None) + body + (self.council is not None) != 1:
+            raise ValueError("a decider is a person, a body or a council, one of them")
         if body and (self.nation is None or not self.chambers):
             raise ValueError("a body names its nation and its chambers")
         if self.head is not None and not body:
@@ -161,6 +203,10 @@ class LockRow(Model):
     when: Condition | None = None
     """None: the order always needs the decision."""
     decider: Decider
+    question: Question | None = Field(default=None, exclude_if=lambda v: v is None)
+    """With ``deciders`` on, the kind of question the row puts (QKD); None: the row names
+    none, reads as a question of permission and behaves as it did before deciders. Left out
+    of the dump while None, so a stored row hashes as before."""
 
 
 class Lock(Model):
@@ -226,16 +272,21 @@ def on(state: "State") -> bool:
     return Rule.LOCKS in state.rules
 
 
-def lock_for(state: "State", seat: SeatId, order: Order | Ask) -> Lock | None:
+def lock_for(
+    state: "State", seat: SeatId, order: Order | Ask, opened: Container[str] = ()
+) -> Lock | None:
     """The lock that holds ``order``, filed by ``seat``, or None. A form order is held by
     the first form row it matches whose condition holds; a written order by the first
     effect row, else, outside the issuer's domains, by the derived decider. A row never
-    holds its own decider's order. Nothing with ``locks`` off. A pure function of state."""
+    holds its own decider's order, nor a row keyed in ``opened`` (opened by a grant).
+    Nothing with ``locks`` off. A pure function of state."""
     if not on(state) or seat not in state.seats:
         return None
     issuer = state.seats[seat].embodies
     for row in state.locks:
-        if row.decider.person == issuer or not _matches(state, row.order, order):
+        if row.key in opened or row.decider.person == issuer:
+            continue
+        if not _matches(state, row.order, order):
             continue
         if row.when is None or _holds(state, issuer, row.when):
             return Lock(row=row, decider=row.decider)
@@ -301,11 +352,10 @@ def zone_of(state: "State", zone: str) -> EntityId | None:
 
 def _holds(state: "State", issuer: EntityId, when: LawNotInForce | PostureNotSet) -> bool:
     if isinstance(when, LawNotInForce):
-        from revisionist.core.realism.resolvers.votes import in_force
         from revisionist.core.realism.war import polity_of
 
         nation = polity_of(state, issuer)
-        return nation is None or nation not in in_force(state, when.clause)
+        return nation is None or nation not in laws.in_force(state, when.clause)
     return not posture_set(state, issuer, when)
 
 
@@ -374,15 +424,8 @@ def _hidden(state: "State", seat: SeatId, when: Condition | None) -> bool:
     superiors, whose orders come down its chain, so the seat knows it."""  # [proposed]
     if not isinstance(when, LawNotInForce):
         return False
-    from revisionist.core.realism.resolvers import qid
-    from revisionist.core.realism.resolvers.votes import HISTORICAL
-
-    read = [
-        state.quantities.get(qid(state, f"{bill}_passed"))
-        for bill, measure in sorted(HISTORICAL.items())
-        if when.clause in {c.subject for c in measure.clauses}
-    ]
-    return any(q.scope is None or not q.scope.visible_to(seat) for q in read if q is not None)
+    read = laws.flags(state, when.clause)
+    return any(q.scope is None or not q.scope.visible_to(seat) for q in read)
 
 
 def reason(view: "View", lock: Lock) -> str:
@@ -391,6 +434,8 @@ def reason(view: "View", lock: Lock) -> str:
     decider = lock.decider
     if decider.person is not None:
         who = _name(view, decider.person)
+    elif decider.council is not None:
+        who = f"the council under {_name(view, decider.council.head)}"  # [proposed]
     else:
         assert decider.nation is not None
         chambers = " and ".join(c.replace("_", " ") for c in decider.chambers)
@@ -501,11 +546,31 @@ class Asked(Model):
     words: str = Field(min_length=1, max_length=300)
     """The order in plain words."""
     on: date
+    seats: tuple[SeatId, ...] = ()
+    """With a council (QKD): the seats holding its members when the ask was made, each of
+    which the matter is put before."""
+    answered: date | None = None
+    """The day the card of a person no human seat holds answered it (AAK); None: not
+    answered, as an ask to a person a seat holds always is."""
+    granted: bool | None = None
+    """With ``answered``: whether the card granted it."""
+
+    late_fields: ClassVar[frozenset[str]] = frozenset({"answered", "granted", "seats"})
+
+    @model_validator(mode="after")
+    def _answer(self) -> "Asked":
+        if (self.answered is None) != (self.granted is None):
+            raise ValueError("an answered ask says whether it was granted, and only then")
+        if self.answered is not None and self.answered < self.on:
+            raise ValueError("an ask is answered on or after the day it was made")
+        return self
 
 
 def asked_of(decider: Decider) -> EntityId | None:
-    """The person an ask goes to: the decider, or the head of the body's government;
-    None for a body whose row named no head."""
+    """The person an ask goes to: the decider, the council's head, or the head of the
+    body's government; None for a body whose row named no head."""
+    if decider.council is not None:
+        return decider.council.head
     return decider.person if decider.person is not None else decider.head
 
 
@@ -528,6 +593,8 @@ def ask(state: "State", seat: SeatId, order_id: OrderId, day: date) -> Asked:
     if to is None:
         raise ValueError(NOBODY_TO_ASK)
     at = next((s for s, x in sorted(state.seats.items()) if x.embodies == to), None)
+    council = held.decider.council if deciders_on(state) else None
+    members = set(council.members) if council is not None else set()
     return Asked(
         order_id=order_id,
         asker=seat,
@@ -536,6 +603,7 @@ def ask(state: "State", seat: SeatId, order_id: OrderId, day: date) -> Asked:
         seat=at,
         words=held_words(state, held),
         on=day,
+        seats=tuple(s for s, x in sorted(state.seats.items()) if x.embodies in members),
     )
 
 
@@ -548,11 +616,14 @@ def held_words(state: "State", held: HeldOrder) -> str:
 
 
 def open_now(state: "State", held: HeldOrder) -> bool:
-    """Whether the held order's lock is open: its row's condition, read from state, no
-    longer holds. A row with no condition, a derived decider, or a row the state no longer
-    carries never opens from state. Nothing with ``locks`` off."""
+    """Whether the held order's lock is open: with ``deciders`` on, a grant opened it
+    (``opened_by_grant``); else its row's condition, read from state, no longer holds. A
+    row with no condition, a derived decider, or a row the state no longer carries never
+    opens from state. Nothing with ``locks`` off."""
     if not on(state) or held.row is None:
         return False
+    if opened_by_grant(state, held):
+        return True
     row = next((r for r in state.locks if r.key == held.row), None)
     if row is None or row.when is None:
         return False
@@ -560,13 +631,164 @@ def open_now(state: "State", held: HeldOrder) -> bool:
     return not _holds(state, issuer, row.when)
 
 
+# --- Deciders by kind of question, and the council (QKD) -------------------------------
+
+
+def deciders_on(state: "State") -> bool:
+    from revisionist.core.state import Rule
+
+    return Rule.DECIDERS in state.rules and on(state)
+
+
+def nation_of(state: "State", decider: Decider) -> EntityId | None:
+    """The nation a decider belongs to: the body's, or that of the person or the
+    council's head."""
+    from revisionist.core.realism.war import polity_of
+
+    if decider.nation is not None:
+        return decider.nation
+    who = asked_of(decider)
+    return polity_of(state, who) if who is not None else None
+
+
+def rows_on(state: "State", nation: EntityId, question: Question) -> list[LockRow]:
+    """The rows that put ``question`` to a decider of ``nation``, in the world's order.
+    None with ``deciders`` off: a missing decider gives nobody an authority."""
+    if not deciders_on(state):
+        return []
+    return [
+        r
+        for r in state.locks
+        if (r.question or Question.PERMISSION) is question and nation_of(state, r.decider) == nation
+    ]
+
+
+def by_kind(state: "State", row: LockRow) -> bool:
+    """With ``deciders`` on, whether the row is decided by its kind of question: it names
+    a question or a council. A row that names neither behaves as it did before."""
+    return deciders_on(state) and (row.question is not None or row.decider.council is not None)
+
+
+def _row(state: "State", held: HeldOrder) -> LockRow | None:
+    return next((r for r in state.locks if r.key == held.row), None)
+
+
+def opened_by_grant(state: "State", held: HeldOrder) -> bool:
+    """With ``deciders`` on and the held order's row decided by its kind, whether a grant
+    of its ask opened its lock: any grant of a matter (a council, or a decider a seat
+    holds), or of a row with no condition."""
+    row = _row(state, held)
+    asked = state.asked.get(held.order_id)
+    if row is None or asked is None or not asked.granted or not by_kind(state, row):
+        return False
+    return row.when is None or is_matter(state, held, asked)
+
+
+def is_matter(state: "State", held: HeldOrder, asked: Asked) -> bool:
+    """With ``deciders`` on and a row decided by its kind, whether the ask is a matter: put
+    to a council, or to a person a seat with a desk holds when it was made."""
+    row = _row(state, held)
+    if row is None or not by_kind(state, row):
+        return False
+    single = asked.seat is not None and _played(state, asked.seat)
+    return held.decider.council is not None or single
+
+
+def _played(state: "State", seat: SeatId) -> bool:
+    from revisionist.core.realism import actors
+
+    return seat in actors.readers(state)
+
+
+NOT_A_MEMBER = "That matter is not before you."  # [proposed]
+
+
+def choosers(state: "State", asked: Asked) -> frozenset[SeatId]:
+    """The seats that may choose on a matter: each seat that still holds a council member
+    it held when asked, or the seat holding the single decider."""
+    held = state.held.get(asked.order_id)
+    if held is None:
+        return frozenset()
+    council = held.decider.council
+    if council is not None:
+        return frozenset(
+            s
+            for s in asked.seats
+            if s in state.seats and state.seats[s].embodies in council.members
+        )
+    seat = asked.seat
+    return (
+        frozenset({seat})
+        if seat is not None and state.seats[seat].embodies == asked.to
+        else frozenset()
+    )
+
+
+def may_choose(state: "State", seat: SeatId, order_id: OrderId) -> None:
+    """Raises ``ValueError`` with the seat's words unless the matter on ``order_id`` is
+    open and before ``seat``."""
+    asked = state.asked.get(order_id)
+    held = state.held.get(order_id)
+    if (
+        asked is None
+        or held is None
+        or asked.answered is not None
+        or not is_matter(state, held, asked)
+        or seat not in choosers(state, asked)
+    ):
+        raise ValueError(NOT_A_MEMBER)
+
+
+def matters_due(state: "State", day: date) -> list[Asked]:
+    """The matters due by ``day`` and not yet answered, oldest first: each falls due
+    ``ANSWER_DAYS`` world days after its ask was made."""
+    from revisionist.core.realism.process import ANSWER_DAYS
+
+    if not deciders_on(state):
+        return []
+    return sorted(
+        (
+            a
+            for a in state.asked.values()
+            if a.answered is None
+            and a.order_id in state.held
+            and a.on + timedelta(days=ANSWER_DAYS) <= day
+            and is_matter(state, state.held[a.order_id], a)
+        ),
+        key=lambda a: (a.on, a.order_id),
+    )
+
+
+def matter_granted(state: "State", asked: Asked) -> bool:
+    """The matter's answer on its due day: for a council, whether the members agreeing
+    reach the number needed; for a single decider, his own choice. A member's kept choice
+    counts as made; every other member is decided by his card (``answering.grants``)."""
+    from revisionist.core.realism import answering
+
+    held = state.held[asked.order_id]
+    kept = state.chosen.get(asked.order_id, {})
+    by_person = {state.seats[s].embodies: kept[s] for s in choosers(state, asked) if s in kept}
+
+    def agrees(person: EntityId) -> bool:
+        if person in by_person:
+            return by_person[person]
+        return answering.grants(state, asked.model_copy(update=dict(to=person)))
+
+    council = held.decider.council
+    if council is None:
+        return agrees(asked.to)
+    return sum(agrees(m) for m in council.members) >= council.needed
+
+
 __all__ = [
     "ASKED_ALREADY",
     "NOBODY_TO_ASK",
+    "NOT_A_MEMBER",
     "NOT_HELD",
     "Aim",
     "Asked",
     "Condition",
+    "Council",
     "Decider",
     "HeldEnd",
     "HeldOrder",
@@ -575,19 +797,30 @@ __all__ = [
     "LockRow",
     "OrderMatch",
     "PostureNotSet",
+    "Question",
     "aims",
     "ask",
     "asked_of",
+    "by_kind",
+    "choosers",
     "covering",
     "decider_for",
+    "deciders_on",
     "held_words",
+    "is_matter",
     "lock_for",
+    "matter_granted",
+    "matters_due",
+    "may_choose",
+    "nation_of",
     "on",
     "open_now",
+    "opened_by_grant",
     "posture_set",
     "reason",
     "replaced",
     "retried",
+    "rows_on",
     "same_filing",
     "seen_lock",
     "zone_of",

@@ -31,8 +31,9 @@ from datetime import date
 
 from revisionist.core import events as ev
 from revisionist.core.events import Event
-from revisionist.core.ids import CampaignId, DocumentId, SeatId
+from revisionist.core.ids import CampaignId, DocumentId, OrderId, SeatId
 from revisionist.core.project import project
+from revisionist.core.realism import answering
 from revisionist.core.realism.document import DocumentTruth
 from revisionist.core.realism.effect import RoutedOrder
 from revisionist.core.sealing import scopes_in
@@ -60,6 +61,13 @@ FEED_KINDS: frozenset[str] = frozenset(
         "kinds_declared",
         # Which orders need whose decision (DCD): public rules of the world.
         "locks_declared",
+        # The laws a world declares (LWC): public rules of the world.
+        "laws_declared",
+        # The aim patterns a world declares (OWC): public rules of the world.
+        "aim_patterns_declared",
+        # A player's own aim (OWC): sealed to the seat holding the person, and kept only
+        # while that seat's view holds it.
+        "own_aim_set",
         # A seat's own nation's pieces, step by step (sealed to its seats): playback's source.
         "piece_stepped",
         # A step of its own nation's piece refused for want of fuel, with the reason (FUL).
@@ -92,6 +100,13 @@ FEED_KINDS: frozenset[str] = frozenset(
         "held_order_ended",
         # An ask for a held order (ASK): sealed to the asker and the seat asked.
         "order_asked",
+        # The answer to an ask (AAK, QKD): sealed to the asker's seat alone, and fed only on
+        # a row answered on its due day whoever holds the decider (``answering.told``).
+        "ask_answered",
+        # An offer of a price to a bloc and where it stands (PRC): sealed to the seats of
+        # the bloc's nation, and kept only while the offer is in the seat's view.
+        "offer_made",
+        "offer_settled",
         "influence_decided",
         "effects_applied",
         # Offers and agreements (AGR): sealed to the parties' seats, public once published,
@@ -119,6 +134,9 @@ NEVER: frozenset[str] = frozenset(
         "request_answered",
         # A seat's sealed vote is its own until the tally counts its nation (CNF).
         "vote_sealed",
+        # A seat's choice on a matter is its own until the due day counts it, and the
+        # asker reads only the answer (QKD).
+        "matter_chosen",
         # A holder's choice at a step on another seat's order is theirs until the
         # step's held due day takes it (SHS).
         "step_chosen",
@@ -233,11 +251,19 @@ def _named(p: ev.Payload, view: View) -> bool:
         case ev.HeldOrderEnded():
             return p.issuer == view.viewer
         case ev.OrderAsked():
-            return view.viewer in (p.asked.asker, p.asked.seat)
+            return view.viewer in (p.asked.asker, p.asked.seat, *p.asked.seats)
+        case ev.AskAnswered():
+            return p.asker == view.viewer
+        case ev.OfferMade():
+            return any(o.offer_id == p.offer.offer_id for o in view.offers)
+        case ev.OfferSettled():
+            return any(o.offer_id == p.offer_id for o in view.offers)
         case ev.OrderExecuted() | ev.EffectsApplied() | ev.InfluenceDecided():
             return p.order_id in view.routed
         case ev.GoalProgressed() | ev.GoalMet() | ev.GoalUndone():
             return p.goal_id in view.goals
+        case ev.OwnAimSet():
+            return p.own.person in view.own_aims
         case ev.ContestMoved() | ev.ContestDecided():
             return p.contest_id in view.contests
         case ev.ScheduledEventFired():
@@ -289,6 +315,11 @@ def _routed_view(event: Event, payload: ev.OrderRouted) -> Event:
     return event.model_copy(update={"payload": payload.model_copy(update={"order": order})})
 
 
+def _as_asked(state: State, event: Event, payload: ev.OrderAsked, seat: SeatId) -> Event:
+    asked = answering.as_asked(state, payload.asked, seat)
+    return event.model_copy(update={"payload": payload.model_copy(update={"asked": asked})})
+
+
 def feed(
     state: State, events: Iterable[Event], seat: SeatId, first: int, last: int
 ) -> tuple[SeatEvent, ...]:
@@ -296,12 +327,15 @@ def feed(
     view = project(state, seat)
     log = list(events)
     opened: list[tuple[int, date]] = []
+    rows: dict[OrderId, str | None] = {}
     today: date | None = None
     for e in log:
         if isinstance(e.payload, ev.DateAdvanced):
             today = e.payload.to
         elif isinstance(e.payload, ev.WakeOpened) and today is not None:
             opened.append((e.payload.wake, today))
+        elif isinstance(e.payload, ev.OrderHeld):
+            rows[e.payload.held.order_id] = e.payload.held.row
     final = state.in_world_date
 
     out: list[SeatEvent] = []
@@ -316,6 +350,8 @@ def feed(
             current = p.wake
         if e.kind not in FEED_KINDS or not _visible(e, view):
             continue
+        if isinstance(p, ev.AskAnswered) and not answering.told(state, rows.get(p.order_id)):
+            continue
         if isinstance(p, ev.DocumentIssued):
             if final is None or p.document.arrives > final:
                 continue
@@ -323,6 +359,9 @@ def feed(
             e = _view_only(e, p)
         elif isinstance(p, ev.OrderRouted):
             e = _routed_view(e, p)
+            wake = max(current, _wake_of_day(opened, today))
+        elif isinstance(p, ev.OrderAsked):
+            e = _as_asked(state, e, p, seat)
             wake = max(current, _wake_of_day(opened, today))
         elif isinstance(p, ev.DocumentWritten):
             if p.doc_id not in arrived:

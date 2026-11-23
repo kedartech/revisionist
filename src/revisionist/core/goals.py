@@ -22,6 +22,7 @@ and otherwise at risk (``aim_status``).
 
 from __future__ import annotations
 
+import math
 from datetime import date
 from enum import StrEnum
 from typing import TYPE_CHECKING, Annotated, ClassVar, Literal
@@ -312,7 +313,7 @@ class GoalSource(StrEnum):
     POST = "post"
     """The card's own aim: what the person was set on at the start."""
     PLAYER = "player"
-    """The player's own aim. Declared; no rule makes one yet."""
+    """The player's own aim, filled from a world's pattern (OWC)."""
     REPLACEMENT = "replacement"
     """An aim given in place of one the person can no longer pursue. Declared; unused."""
 
@@ -628,10 +629,14 @@ def aims_on(state: State | View) -> bool:
 
 
 def aim_rule(state: State, goal: Goal) -> AimRule | None:
-    """The rule on the card of ``goal``'s person that it was made from; None for a
-    legacy goal or a card that has lost it."""
+    """The rule on the card of ``goal``'s person that it was made from, or for the
+    player's own aim the rule stored for the person (OWC); None for a legacy goal or a
+    card that has lost it."""
     if goal.person is None or goal.aim is None:
         return None
+    if goal.source is GoalSource.PLAYER:
+        own = state.own_aims.get(goal.person)
+        return own.rule if own is not None and own.aim == goal.aim else None
     card = state.cards.get(goal.person)
     if card is None or goal.aim > len(card.aim_rules):
         return None
@@ -650,7 +655,7 @@ def judged(state: State, goal: Goal) -> bool:
     return rule.deadline is None or today <= rule.deadline
 
 
-def _settled(world: State, c: WinCondition) -> bool:
+def _settled(world: State | View, c: WinCondition) -> bool:
     """Whether ``c``, not holding, can no longer come to hold: a contest decided for
     another side, a person dead or a body dissolved when the check wants otherwise."""
     match c:
@@ -743,21 +748,24 @@ def aim_goals(state: State) -> list[GoalSet]:
         if card is None:
             continue
         has.add(person)
+        own = state.own_aims.get(person)
         for i, rule in enumerate(card.aim_rules, start=1):
             if rule is None or i > len(card.aims):
                 continue
+            mine = own is not None and own.aim == i
+            condition = own.rule.condition if own is not None and mine else rule.condition
             out.append(
                 GoalSet(
                     goal=Goal(
                         goal_id=aim_goal_id(state.campaign_id, person, i),
                         seat_id=seat.seat_id,
-                        text=card.aims[i - 1],
-                        condition=rule.condition,
-                        kind=goal_kind(rule.condition),
+                        text=own.text if own is not None and mine else card.aims[i - 1],
+                        condition=condition,
+                        kind=goal_kind(condition),
                         clock_id=None,
                         scope=private_to(seat.seat_id),
                         person=person,
-                        source=GoalSource.POST,
+                        source=GoalSource.PLAYER if mine else GoalSource.POST,
                         aim=i,
                     )
                 )
@@ -870,12 +878,25 @@ def power(state: State, seat: SeatId) -> int:
     return tiers + ties
 
 
-def _rival_held(state: State, seat: SeatId, holder: EntityId) -> bool:
+def _rival_held(state: State | View, seat: SeatId, holder: EntityId) -> bool:
     return any(s.embodies == holder and s.seat_id != seat for s in state.seats.values())
 
 
-def difficulty(state: State, seat: SeatId, c: WinCondition) -> int:
-    """How far the goal is from holding now, from the same state for everyone."""
+TAKE = 4
+"""The difficulty of a territory check not yet holding that turns on the board or another
+nation: a holder to change, an agreement to make, a contest to win, a war to start or end.
+``[proposed]``"""
+
+
+def _gap(now: float | None, line: int) -> int:
+    """2, plus one for every 10 points (or part) between ``now`` and the line. ``[proposed]``"""
+    gap = 0 if now is None else math.ceil(abs(now - line))
+    return 2 + -(-gap // 10)
+
+
+def difficulty(state: State | View, seat: SeatId, c: WinCondition) -> int:
+    """How far the goal is from holding now, from the world given (the truth for everyone
+    at Session Zero, a seat's view for its own aim's ladder)."""
     match c:
         case AllOf():
             return sum(difficulty(state, seat, x) for x in c.conditions)
@@ -900,10 +921,18 @@ def difficulty(state: State, seat: SeatId, c: WinCondition) -> int:
             return 2 + (abs(rel.disposition - c.value) if rel is not None else 0)
         case CommitmentInForce() | ActOf() | Ordered() | QuantityAt():
             return 2
-        case HoldsArea() | IncomeAt() | SupportAt() | AgreementInForce():
-            return 2
-        case ContestWon() | AtWar() | RegardAt():
-            return 2
+        case HoldsArea() | AgreementInForce() | ContestWon() | AtWar():
+            return TAKE
+        case IncomeAt():
+            from revisionist.core.realism import economy
+
+            return _gap(economy.figure(state, c.nation), c.value)
+        case SupportAt():
+            from revisionist.core.realism import groups
+
+            return _gap(groups.support(state, c.nation, c.group), c.value)
+        case RegardAt():
+            return 2 + abs(_regard(state, c.a, c.b) - c.value)
 
 
 def balance(state: State, seat: SeatId, c: WinCondition) -> Balance:

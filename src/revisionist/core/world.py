@@ -26,6 +26,7 @@ from typing import Annotated, Literal
 from pydantic import (
     Field,
     GetJsonSchemaHandler,
+    JsonValue,
     StringConstraints,
     TypeAdapter,
     WithJsonSchema,
@@ -35,6 +36,7 @@ from pydantic.json_schema import JsonSchemaValue, SkipJsonSchema
 from pydantic_core import CoreSchema
 
 from revisionist.core._base import Label, Model
+from revisionist.core.aim_patterns import BlankKind
 from revisionist.core.goals import WinCondition
 from revisionist.core.intent import Verb
 from revisionist.core.ontology import (
@@ -58,12 +60,13 @@ from revisionist.core.realism.effect import (
     DISPOSITION_CAP,
     FIGURE_CAP,
     MAX_PARTIES,
+    Clause,
     ClauseType,
     EffectKind,
     Engagement,
 )
 from revisionist.core.realism.geography import FeatureKind
-from revisionist.core.realism.groups import Group, Theme
+from revisionist.core.realism.groups import Group, KindClass, Theme
 from revisionist.core.realism.kinds import MAX_STRENGTH, Domain, Role
 from revisionist.core.realism.pipeline import StepAction, StepKind
 from revisionist.core.realism.quantity import ResolverKey
@@ -78,6 +81,8 @@ Key = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]*$", max_length=
 
 Latitude = Annotated[float, Field(ge=-90, le=90)]
 Longitude = Annotated[float, Field(ge=-180, le=180)]
+RosterSize = Annotated[int, Field(ge=2, le=40)]
+"""How many people a world's roster may hold, at either end of its bound. [proposed]"""
 
 _LAT_LON = TypeAdapter(tuple[Latitude, Longitude] | None)
 At = Annotated[tuple[float, float] | None, WithJsonSchema(_LAT_LON.json_schema())]
@@ -697,15 +702,28 @@ class LockWhenDecl(Model):
     posture: dict[Label, ParamValue] = Field(default_factory=dict)
 
 
+class CouncilDecl(Model):
+    """A council that decides (QKD): ``members`` the person keys of who sits on it, each
+    with a card; ``needed`` how many must agree, no more than the members; ``head`` the
+    person key an ask goes to."""
+
+    members: tuple[Key, ...] = Field(min_length=1, max_length=24)
+    needed: int = Field(ge=1)
+    head: Key
+
+
 class LockDeciderDecl(Model):
     """Who can allow a held order (DCD): ``person`` a person key, or a body: ``nation`` a
     polity key, ``chambers`` the keys of its chambers that pass the law, and ``head`` the
-    person key of the head of its government, to whom an ask goes (ASK)."""
+    person key of the head of its government, to whom an ask goes (ASK); or, with
+    ``deciders`` on, a ``council`` (QKD). With ``deciders`` off a council's head decides
+    alone."""
 
     person: Key | None = None
     nation: Key | None = None
     chambers: tuple[Label, ...] = ()
     head: Key | None = None
+    council: CouncilDecl | None = None
 
 
 class LockDecl(Model):
@@ -716,6 +734,30 @@ class LockDecl(Model):
     order: LockOrderDecl
     when: LockWhenDecl | None = None
     decider: LockDeciderDecl
+    question: str | None = Field(default=None, max_length=40)
+    """With ``deciders`` on, the kind of question (``locks.Question``); absent: a question
+    of permission (QKD)."""
+
+
+class LawDoesDecl(Model):
+    """What a passed law does (LWC): ``kind`` one of the effects the rules know
+    (``laws.Does``), and for ``adds_manpower`` its ``amount``."""
+
+    kind: str = Field(min_length=1, max_length=40)
+    amount: int | None = None
+
+
+class LawDecl(Model):
+    """One law (LWC), read with ``laws`` on: ``nation`` the polity key it binds,
+    ``passed`` the key of the quantity that reads 1 once it has passed."""
+
+    key: Key
+    title: Label
+    nation: Key
+    clauses: tuple[Clause, ...] = Field(min_length=1, max_length=12)
+    passed: Key
+    does: LawDoesDecl | None = None
+    daily_life: bool = False
 
 
 class PactClauseDecl(Model):
@@ -877,6 +919,10 @@ class LeverDecl(Model):
     needs_war: SkipJsonSchema[dict[Label, dict[Label, WarNeed]]] = Field(default_factory=dict)
     """The choices a seat's nation may take only at war with a nation, by parameter and
     choice, each naming the nation's key and the words of the refusal (WRL)."""
+    escort_level: SkipJsonSchema[dict[Label, dict[Label, int]]] = Field(default_factory=dict)
+    """The escort level each choice of one parameter stands for, by parameter and choice
+    (ESC): 0 none, 1 escort, 2 shoot on sight. The compiler checks the range and that every
+    choice of the parameter is marked."""
 
 
 class ContactDecl(Model):
@@ -922,6 +968,37 @@ class AimRuleDecl(Model):
     replaceable: bool = False
 
 
+class AimBlankDecl(Model):
+    """One blank of an aim pattern (OWC): ``values`` a closed list (world keys, group keys
+    or numbers), or ``kind`` resolved from the seat's view; one of the two."""
+
+    name: Key
+    values: tuple[Key | int, ...] = ()
+    kind: BlankKind | None = None
+
+    @model_validator(mode="after")
+    def _one(self) -> "AimBlankDecl":
+        if bool(self.values) == (self.kind is not None):
+            raise ValueError("a blank has a list of values or a kind, not both")
+        return self
+
+
+class AimPatternDecl(Model):
+    """One aim pattern (OWC), read with ``own_aim`` on: ``posts`` the kinds of post it
+    suits (a card's ``post_kind``, or its path), ``sentence`` the aim in words with each
+    blank as ``{name}``, ``condition`` an aim's condition in world keys with each blank as
+    ``$name`` (``$nation`` and ``$person`` stand for the person's own nation and the person),
+    and ``government`` whether the person's own government would issue it."""
+
+    key: Key
+    posts: tuple[Key, ...] = Field(min_length=1, max_length=8)
+    sentence: str = Field(min_length=1, max_length=200)
+    condition: dict[str, JsonValue]
+    blanks: tuple[AimBlankDecl, ...] = Field(default=(), max_length=4)
+    government: bool = True
+    deadline: date | None = None
+
+
 class CardDecl(Model):
     """A person's seat card. ``person`` is a person key; the card has no key of its own."""
 
@@ -962,6 +1039,9 @@ class CardDecl(Model):
     path: SkipJsonSchema[CardPath] = CardPath.POLITICAL
     """Political or military (CMD), read with the ``command`` rule on. Written by hand:
     not offered to a model."""
+    post_kind: SkipJsonSchema[Key | None] = None
+    """The kind of post the card holds, matched against an aim pattern's ``posts`` with
+    ``own_aim`` on (OWC). Written by hand: not offered to a model."""
 
 
 class TopicDecl(Model):
@@ -1039,6 +1119,9 @@ class WorldFile(Model):
     start: str = Field(default="", max_length=80)
     """A point in history, "Florence, April 1478". Set, it opens Session Zero."""
     roster: tuple[CharacterDecl, ...] = ()
+    roster_limit: SkipJsonSchema[tuple[RosterSize, RosterSize] | None] = None
+    """The least and most people the roster holds, in place of 8 and 12. Written by hand:
+    not offered to a model, so a drafted world keeps 8 to 12."""
     notes: tuple[Annotated[str, StringConstraints(max_length=200)], ...] = ()
     """Readings the GM chose where the record is disputed or silent (spec §5)."""
     start_date: date | None = None
@@ -1096,6 +1179,11 @@ class WorldFile(Model):
     """Each nation's groups at home, with ``groups`` on: support, baseline, what each
     feeds and what moves it. A world with none is unchanged. Written by hand: not offered
     to a model."""
+    happenings: SkipJsonSchema[tuple[KindClass, ...]] = ()
+    """The class of each kind of happening the world classes, with ``classes`` on (HCL):
+    felt, reported or secret, and for a mixed kind the share felt. A kind not listed is
+    reported. With the rule off they are checked and left out of the game. Written by
+    hand: not offered to a model."""
     pacts: SkipJsonSchema[tuple[PactDecl, ...]] = ()
     """The pacts in force on the start date, with ``agreements`` on (PCT). Written by
     hand: not offered to a model."""
@@ -1105,6 +1193,14 @@ class WorldFile(Model):
     locks: SkipJsonSchema[tuple[LockDecl, ...]] = ()
     """Which orders need whose decision, and when, with ``locks`` on (DCD). A world with
     none is unchanged. Written by hand: not offered to a model."""
+    aim_patterns: SkipJsonSchema[tuple[AimPatternDecl, ...]] = ()
+    """The patterns a player may fill for his own aim, with ``own_aim`` on (OWC). With the
+    rule off they are checked and left out of the game. Written by hand: not offered to a
+    model."""
+    laws: SkipJsonSchema[tuple[LawDecl, ...]] = ()
+    """The laws the world declares, with ``laws`` on (LWC): what each binds, its clauses,
+    the quantity that says it has passed, and what it does. With the rule off they are
+    checked and left out of the game. Written by hand: not offered to a model."""
     production: SkipJsonSchema[ProductionDecl | None] = None
     """The aid finding and the production priority the production rules read (PRL), with a
     map. A world with none runs no finding and grows no lift pool by a priority. Written by
@@ -1112,6 +1208,12 @@ class WorldFile(Model):
     map_data: SkipJsonSchema[bytes | None] = Field(default=None, exclude=True)
     """The bytes of the map file ``map`` names, read by the world loader from beside
     the world file, not from the world file itself. None when no file was found."""
+
+    @model_validator(mode="after")
+    def _roster_limit_in_order(self) -> "WorldFile":
+        if self.roster_limit is not None and self.roster_limit[0] > self.roster_limit[1]:
+            raise ValueError(f"roster_limit: {list(self.roster_limit)} is not least, most")
+        return self
 
     @model_validator(mode="after")
     def _places_on_the_globe(self) -> "WorldFile":
@@ -1126,6 +1228,8 @@ class WorldFile(Model):
 __all__ = [
     "AdjacencyDecl",
     "AgentDecl",
+    "AimBlankDecl",
+    "AimPatternDecl",
     "AssetDecl",
     "CardDecl",
     "CharacterDecl",
@@ -1138,6 +1242,7 @@ __all__ = [
     "ContactDecl",
     "ContestDecl",
     "ContestMoveDecl",
+    "CouncilDecl",
     "DevelopmentDeck",
     "DevelopmentDecl",
     "DevelopmentEffectDecl",
@@ -1154,6 +1259,8 @@ __all__ = [
     "IntelSourceDecl",
     "IntelligenceDecl",
     "Key",
+    "LawDecl",
+    "LawDoesDecl",
     "LegDecl",
     "LeverDecl",
     "LinkDecl",

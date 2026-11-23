@@ -2034,7 +2034,8 @@
           "word": "Overwhelming",
           "as_of": "1941-10-18",
           "confidence": "firm"
-        }
+        },
+        "portrait": "hitler.jpg"
       },
       {
         "person": "C1GF7K677JE0H66EVTR4GCXE7D",
@@ -2088,7 +2089,8 @@
           "word": "Overwhelming",
           "as_of": null,
           "confidence": null
-        }
+        },
+        "portrait": "stalin.jpg"
       }
     ],
     "yours": [
@@ -2154,7 +2156,8 @@
           "confidence": null
         },
         "wants": [],
-        "holds_to": []
+        "holds_to": [],
+        "portrait": null
       },
       {
         "person": "63A3RZNQ0CYKDN5BVGECWKQT4P",
@@ -2227,7 +2230,8 @@
           "confidence": null
         },
         "wants": [],
-        "holds_to": []
+        "holds_to": [],
+        "portrait": null
       }
     ],
     "others": [
@@ -2270,7 +2274,8 @@
         },
         "bloc": "Department of State",
         "channel": null,
-        "power": null
+        "power": null,
+        "portrait": null
       }
     ]
   },
@@ -2290,6 +2295,24 @@
       "category": "Espionage",
       "headline": "Thirty-three accused German agents on trial",
       "asks": []
+    }
+  ],
+  "world_key": "territory-toy",
+  "nation_keys": {
+    "6G3FWX2XAZN1W0GBGGRVZ8P0HJ": "norra",
+    "TZHP5CPZR27M6255484EX48TQ6": "sudland"
+  },
+  "wars": [
+    {
+      "a": {
+        "key": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+        "name": "Norra"
+      },
+      "b": {
+        "key": "TZHP5CPZR27M6255484EX48TQ6",
+        "name": "Sudland"
+      },
+      "since": "1900-03-01"
     }
   ],
   "stakes": {
@@ -4292,9 +4315,9 @@
     "runs": 300,
     "days": 14,
     "shares": {
-      "win": 83.7,
+      "win": 76.7,
       "stalemate": 0.0,
-      "loss": 16.3
+      "loss": 23.3
     },
     "own_lost": {
       "low": 0,
@@ -4304,9 +4327,9 @@
       "low": 1,
       "high": 3
     },
-    "taken": 83.7,
+    "taken": 76.7,
     "taken_days": 4,
-    "forced_back": 16.3,
+    "forced_back": 23.3,
     "back_to": "norra_hills",
     "by_strength": [
       {
@@ -4315,15 +4338,15 @@
       },
       {
         "strength": 4,
-        "win": 93.1
+        "win": 90.5
       },
       {
         "strength": 5,
-        "win": 53.3
+        "win": 38.1
       }
     ],
     "reports": [
-      "r1"
+      "m2c47c5e8cd51826b6faf79d35e29b2db"
     ]
   },
   "home": {
@@ -4424,7 +4447,8 @@
                     "yeas": 20,
                     "nays": 80
                   }
-                ]
+                ],
+                "carries": 101
               }
             ]
           }
@@ -4710,5 +4734,100 @@
       "who": null,
       "reason": "march takes exactly: force, to"
     }
-  ]
+  ],
+  "own_aim": {
+    "aim": 3,
+    "replaces": "Hold the plain.",
+    "patterns": [
+      {
+        "key": "keep_support",
+        "sentence": "Keep {group} at {line} or more.",
+        "blanks": [
+          {
+            "name": "group",
+            "values": [
+              {
+                "value": "smiths",
+                "label": "The Smiths' Guild"
+              },
+              {
+                "value": "greens",
+                "label": "The Greens"
+              },
+              {
+                "value": "greys",
+                "label": "The Greys"
+              },
+              {
+                "value": "public",
+                "label": "The Norra Public"
+              }
+            ]
+          },
+          {
+            "name": "line",
+            "values": [
+              {
+                "value": 55,
+                "label": "55"
+              },
+              {
+                "value": 65,
+                "label": "65"
+              },
+              {
+                "value": 75,
+                "label": "75"
+              }
+            ]
+          }
+        ],
+        "difficulty": 3,
+        "government": false
+      },
+      {
+        "key": "make_peace",
+        "sentence": "Make peace with {foe}.",
+        "blanks": [
+          {
+            "name": "foe",
+            "values": [
+              {
+                "value": "TZHP5CPZR27M6255484EX48TQ6",
+                "label": "Sudland"
+              }
+            ]
+          }
+        ],
+        "difficulty": 4,
+        "government": false
+      },
+      {
+        "key": "take_ground",
+        "sentence": "Take {place} for {nation}.",
+        "blanks": [
+          {
+            "name": "place",
+            "values": [
+              {
+                "value": "CDXQ7JQD821DB2N9ZT74ZX7Q73",
+                "label": "The Sudland Coast"
+              },
+              {
+                "value": "8G8AZ9CP6FGAQ40JKEY4K0V9BS",
+                "label": "The Isle"
+              }
+            ]
+          }
+        ],
+        "difficulty": 4,
+        "government": true
+      }
+    ]
+  },
+  "aim_check": {
+    "stands": true,
+    "text": "Take The Isle for Norra.",
+    "reasons": []
+  }
 }

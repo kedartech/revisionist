@@ -10,15 +10,26 @@
 .rl-needs-order { font: 500 11px/1.3 var(--font-code); text-transform: uppercase; letter-spacing: .08em; color: var(--fg-muted); }
 .rl-needs-close { min-height: 44px; min-width: 44px; }
 .rl-needs-lines { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
-.rl-need { display: grid; gap: var(--space-1); padding: var(--space-3); border-bottom: 1px solid var(--rule); border-left: 3px solid transparent; }
+.rl-need { border-bottom: 1px solid var(--rule); border-left: 3px solid transparent; }
 .rl-need.urgent { border-left-color: var(--warn); }
+/* a line is one row: its kind's mark, its title and its due day; it opens in place */
+.rl-need-row { width: 100%; min-height: 44px; display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: start; gap: 2px var(--space-2); padding: var(--space-2) var(--space-3); background: transparent; border: 0; border-radius: 0; color: var(--fg-strong); font: inherit; text-align: left; cursor: pointer; }
+.rl-need-row:hover { background: var(--surface-2); }
+.rl-need-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.rl-need-mark { display: inline-flex; padding-top: 2px; color: var(--fg-muted); }
+.rl-need-row .rl-need-due { grid-column: 2; text-align: left; }
+.rl-need-detail { display: grid; gap: var(--space-1); padding: 0 var(--space-3) var(--space-3) calc(var(--space-3) + 16px + var(--space-2)); }
+.rl-need-detail[hidden] { display: none; }
+.rl-need-detail .rl-firstwake-steps { margin: 0; padding-left: var(--space-4); }
+.rl-need-detail .rl-firstwake-dismiss { justify-self: start; min-height: 44px; }
+.rl-needs .rl-comeback { flex: none; margin: 0; padding: var(--space-3); border-bottom: 1px solid var(--rule); font-size: 13px; color: var(--fg-muted); }
 .rl-need-top { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); margin: 0; }
 .rl-need-kind { padding: 0 var(--space-1); border: 1px solid var(--rule-strong); border-radius: var(--radius); font: 600 11px/1.6 var(--font-code); text-transform: uppercase; letter-spacing: .08em; color: var(--fg-muted); }
 .rl-need.urgent .rl-need-kind, .rl-need.urgent .rl-need-due { color: var(--warn); }
 .rl-need-due { font: 500 12px/1.3 var(--font-code); color: var(--fg-muted); text-align: right; }
 .rl-need-what { margin: 0; font-weight: 600; color: var(--fg-strong); }
 .rl-need-from { margin: 0; font-size: 13px; color: var(--fg-muted); }
-.rl-need-act { justify-self: start; min-height: 36px; }
+.rl-need-act { justify-self: start; min-height: 44px; }
 .rl-need-act:focus-visible, .rl-needs-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .rl-needs-none { margin: 0; padding: var(--space-4) var(--space-3); color: var(--fg-muted); }
 .rl-needs-done { display: grid; gap: var(--space-2); padding: var(--space-3); border-top: 1px solid var(--rule); background: var(--surface-2); }
@@ -32,8 +43,6 @@
 
 @media (max-width: 1023px) {
   .rl-needs.open { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 48; max-height: 50vh; border: 1px solid var(--rule-strong); border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; box-shadow: 0 -8px 30px var(--backdrop); }
-  /* Done for today sits in the bottom bar on a phone; the strip keeps the day and the count */
-  .rl-layout-map .rl-strip .btn-1 { display: none; }
   .rl-mapfirst .rl-mapfirst-map { padding-bottom: calc(44px + var(--space-5)); }
   .rl-needs-done .hint { display: none; }
 }
@@ -44,7 +53,5 @@
   .rl-needsbar { display: none; }
 }
 
-/* Beginner's map-first room: the three aims above the map, and what folds behind More. */
-.rl-beginner-board { padding: 0.5rem 0.75rem; }
-.rl-beginner-board > h2 { margin: 0 0 0.4rem; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; }
+/* Beginner: what folds behind More. */
 .rl-eco-more > summary, .rl-odds-more > summary { cursor: pointer; margin: 0.4rem 0; }

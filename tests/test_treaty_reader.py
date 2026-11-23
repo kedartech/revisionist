@@ -17,7 +17,7 @@ from revisionist.core.ids import EntityId
 from revisionist.core.realism import agreement
 from revisionist.core.realism.effect import Deal
 from revisionist.engine import orders_reader as orr
-from revisionist.engine.llm import Reply, Request, TransportError, prompt_text
+from revisionist.engine.llm import PLAYER_TEXT_RULE, Reply, Request, TransportError, prompt_text
 from revisionist.engine.store import MemoryStore, load_state
 from tests.test_adjacency_moves import Logged, entity
 from tests.test_agreements import ILSE, NORRA, SUDLAND, TOMAS, game
@@ -295,7 +295,7 @@ def test_with_written_orders_off_the_request_is_the_one_it_always_was(tmp_path: 
     canned = Canned({"asks": [], "reason": ""})
     read(g, canned, text="Hold the line.")
     (request,) = canned.requests
-    assert request.system == prompt_text(orr.PROMPT)
+    assert request.system == prompt_text(orr.PROMPT) + PLAYER_TEXT_RULE
     assert "treaty" not in request.schema["properties"]
     on = Canned(treaty())
     (tmp_path / "on").mkdir()

@@ -22,6 +22,10 @@ measure and vote, or its default row; its yes share moves one point for every
 urgent measure, by ``URGENT_BLOC_POINTS`` where it backs executive power. The fraction of a
 vote this leaves is settled by the order's seed, so with every bloc at its baseline the tally
 is the world's row exactly. The tables stay for stored games and worlds without groups.
+
+With ``laws`` on (LAW), a law is the world's declaration (``laws``), never a table here: a
+law in force is ``laws.in_force``, and a passed law does what its ``does`` says, found by
+the flag the tally wrote. No rule reads a clause's wording to decide what a law does.
 """
 
 import re
@@ -29,7 +33,7 @@ from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, OrderId, derived_id
-from revisionist.core.realism import economy, groups
+from revisionist.core.realism import economy, groups, laws, offers
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.economy import Pools
@@ -219,8 +223,9 @@ def bloc_counts(
     """Each bloc's part of one vote on a measure in a nation's chamber, in the world's
     order: each bloc with a row for the vote (the measure's own, else its default) starts
     from that row, and its yes share moves a point for every ``VOTE_POINTS`` of support away
-    from its baseline, by its stance on each of ``clauses``, and with ``urgent`` by
-    ``URGENT_BLOC_POINTS`` if it backs power. The fraction of a vote left over is drawn from
+    from its baseline, by its stance on each of ``clauses``, with ``urgent`` by
+    ``URGENT_BLOC_POINTS`` if it backs power, and by the points of an offer taken on the
+    measure (``offers.points``, PRC). The fraction of a vote left over is drawn from
     ``seed``. No order is read."""
     out: list[BlocCount] = []
     for bloc in groups.of(state, nation):
@@ -229,6 +234,7 @@ def bloc_counts(
             continue
         points = (groups.support(state, nation, bloc.key) or 0) - bloc.baseline
         stance = sum(bloc.stances.get(c.kind, 0) for c in clauses)
+        stance += offers.points(state, nation, bloc.key, measure)
         if urgent and bloc.stances.get(ClauseKind.POWER, 0) > 0:
             stance += URGENT_BLOC_POINTS
         whole, part = divmod(row.voting * (points + VOTE_POINTS * stance), SHARE_PARTS)
@@ -343,13 +349,13 @@ def passed_by_groups(
     state: State, order: Order, key: str, measure: ProposeMeasure | None
 ) -> tuple[ev.GroupMoved, ...]:
     """With ``groups`` on, when the blocs pass measure ``key`` in every vote, the groups of
-    the issuer's nation that name a measure passed, moved once on the day the order
-    settled, whether or not the world keeps the count."""
+    the issuer's nation that name the kind of measure passed it is (``groups.passed``),
+    moved once on the day the order settled, whether or not the world keeps the count."""
     cast = _cast(state, order, key, measure)
     if cast is None or not all(y > n for _, y, n in cast[1]):
         return ()
     day = rs.settled_on(order)
-    return tuple(groups.happened(state, cast[0], groups.Happening.MEASURE_PASSED, day))
+    return tuple(groups.passed(state, cast[0], key, day))
 
 
 def _step_day(order: Order, step: int) -> date:
@@ -398,7 +404,10 @@ def _nation(state: State, entity: EntityId) -> EntityId:
 
 def in_force(state: State, subject: str) -> dict[EntityId, date]:
     """Each nation with a passed law carrying the clause ``subject``, and the day its flag
-    (``<bill>_passed``) says it passed; a flag with no owner names no nation."""
+    (``<bill>_passed``) says it passed; a flag with no owner names no nation. With ``laws``
+    on, the world's declared laws (``laws.in_force``)."""
+    if laws.on(state):
+        return laws.in_force(state, subject)
     out: dict[EntityId, date] = {}
     for bill, measure in sorted(HISTORICAL.items()):
         if subject not in {c.subject for c in measure.clauses}:
@@ -411,14 +420,49 @@ def in_force(state: State, subject: str) -> dict[EntityId, date]:
     return out
 
 
+def doing(state: State, does: laws.Does) -> dict[EntityId, date]:
+    """Each nation bound by a passed law that does ``does``, and the first day its flag read
+    1: with ``laws`` on, the world's declared laws by their ``does``; with it off, the laws
+    carrying the clause that does it today (``ARMING``, ``DRAFT``)."""
+    if not laws.on(state):
+        return in_force(state, ARMING if does is laws.Does.ARMS_MERCHANT_SHIPS else DRAFT)
+    out: dict[EntityId, date] = {}
+    for law in state.laws:
+        q = state.quantities.get(law.passed)
+        if law.does is None or law.does.kind is not does or q is None or q.value != 1:
+            continue
+        out[law.nation] = min(out.get(law.nation, q.as_of), q.as_of)
+    return out
+
+
+def _declared_effects(state: State, passed: QuantityChange) -> tuple[ev.EconomySet, ...]:
+    """With ``laws`` on, what each declared law whose flag is ``passed`` adds to its
+    nation's manpower, by its own amount."""
+    out: list[ev.EconomySet] = []
+    for law in state.laws:
+        effect = law.does
+        if law.passed != passed.quantity_id or effect is None or effect.amount is None:
+            continue
+        if effect.kind is not laws.Does.ADDS_MANPOWER:
+            continue
+        pools = state.economy.pools.get(law.nation, Pools())
+        more = pools.model_copy(update={"manpower": pools.manpower + effect.amount})
+        out.append(ev.EconomySet(polity=law.nation, pools=more, on=passed.as_of))
+    return tuple(out)
+
+
 def law_effects(
-    state: State, measure: ProposeMeasure, passed: QuantityChange | None
+    state: State, measure: ProposeMeasure | None, passed: QuantityChange | None
 ) -> tuple[ev.EconomySet, ...]:
-    """What a law does to the economy the day its flag says it passed: a draft law adds
-    ``DRAFT_MANPOWER`` to the flag's nation's pool, with ``economy`` on."""
+    """What a law does to the economy the day its flag says it passed, with ``economy`` on:
+    with ``laws`` on, each declared law whose flag it is adds its own manpower and
+    ``measure`` is not read; with it off, a draft law adds ``DRAFT_MANPOWER`` to the
+    flag's nation's pool."""
     if passed is None or passed.value != 1 or not economy.on(state):
         return ()
-    if DRAFT not in {c.subject for c in measure.clauses}:
+    if laws.on(state):
+        return _declared_effects(state, passed)
+    if measure is None or DRAFT not in {c.subject for c in measure.clauses}:
         return ()
     owner = state.quantities[passed.quantity_id].owner
     if owner is None:

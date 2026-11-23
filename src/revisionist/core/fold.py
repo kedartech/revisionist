@@ -16,12 +16,22 @@ import json
 from collections.abc import Iterable, Mapping
 from datetime import date, timedelta
 
-from pydantic import ValidationError
+from pydantic import JsonValue, ValidationError
 
 from revisionist.core import delta as d
 from revisionist.core import events as ev
+from revisionist.core.aim_patterns import AimPattern, OwnAim
 from revisionist.core.events import MUTATING_KINDS, Event
-from revisionist.core.goals import Goal, GoalKind, aim_rule, aims_on, season_winners
+from revisionist.core.goals import (
+    Goal,
+    GoalKind,
+    GoalSource,
+    aim_goal_id,
+    aim_rule,
+    aims_on,
+    goal_kind,
+    season_winners,
+)
 from revisionist.core.ids import CampaignId, EntityId, SeatId, derived_id
 from revisionist.core.ontology import (
     TRACK_MAX,
@@ -40,7 +50,16 @@ from revisionist.core.ontology import (
     SeatKind,
     SeatStatus,
 )
-from revisionist.core.realism import agreement, conference, detect, economy, groups, trade
+from revisionist.core.realism import (
+    agreement,
+    conference,
+    detect,
+    economy,
+    groups,
+    locks,
+    offers,
+    trade,
+)
 from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, PlayStyle, opening_id
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
@@ -79,7 +98,7 @@ from revisionist.core.realism.pipeline import (
     StepKind,
 )
 from revisionist.core.realism.territory import holder as territory_holder
-from revisionist.core.realism.war import at_war
+from revisionist.core.realism.war import at_war, polity_of
 from revisionist.core.state import Rule, State, Wake, controller_after, seat_of_person
 from revisionist.core.visibility import PUBLIC, Scope
 
@@ -125,6 +144,107 @@ def _locks_declared(state: State, p: ev.LocksDeclared) -> State:
     return state.model_copy(update={"locks": p.rows})
 
 
+def _laws_declared(state: State, p: ev.LawsDeclared) -> State:
+    """The world's laws, once, with ``laws`` on; each key once, and the nation each binds
+    and the quantity that says it has passed already in the world (LWC)."""
+    if Rule.LAWS not in state.rules:
+        raise FoldError("laws_declared needs the laws rule")
+    if state.laws:
+        raise FoldError("the laws are declared once")
+    if len({law.key for law in p.laws}) < len(p.laws):
+        raise FoldError("laws_declared: a law is named twice")
+    for law in p.laws:
+        _need(state.entities, law.nation, "entity")
+        _need(state.quantities, law.passed, "quantity")
+    return state.model_copy(update={"laws": p.laws})
+
+
+def _aim_patterns_declared(state: State, p: ev.AimPatternsDeclared) -> State:
+    """The world's aim patterns, once, with ``own_aim`` on; each key once, and each person a
+    kind of post is named for already in the world (OWC)."""
+    if Rule.OWN_AIM not in state.rules:
+        raise FoldError("aim_patterns_declared needs the own_aim rule")
+    if state.aim_patterns is not None:
+        raise FoldError("the aim patterns are declared once")
+    keys = [x.key for x in p.patterns.patterns]
+    if len(set(keys)) < len(keys):
+        raise FoldError("aim_patterns_declared: a pattern is named twice")
+    for person in p.patterns.posts:
+        _need(state.entities, person, "entity")
+    return state.model_copy(update={"aim_patterns": p.patterns})
+
+
+def _own_aim_set(state: State, p: ev.OwnAimSet) -> State:
+    """A player's own aim (OWC): own aims part of the game, a player holding the person,
+    none set for him yet, his window open, and the aim it replaces his card's replaceable
+    one. The goal made from that aim, if made, becomes the player's."""
+    from revisionist.core.aim_patterns import on, replaceable
+
+    own = p.own
+    if not on(state):
+        raise FoldError("own aims are not part of this game")
+    seat = seat_of_person(state, own.person)
+    if seat is None or seat.controller is not Controller.HUMAN:
+        raise FoldError(f"own aim: no player holds {own.person}")
+    if own.person in state.own_aims:
+        raise FoldError(f"own aim: {own.person} already has an own aim")
+    if own.person in state.aim_shut:
+        raise FoldError(f"own aim: {own.person}'s window has closed")
+    found = replaceable(state, own.person)
+    if found is None or found[0] != own.aim:
+        raise FoldError(f"own aim: aim {own.aim} is not the replaceable aim of {own.person}")
+    assert state.aim_patterns is not None
+    pattern = next((x for x in state.aim_patterns.patterns if x.key == own.key), None)
+    if pattern is None:
+        raise FoldError(f"own aim: no pattern {own.key}")
+    if _filled_condition(state, own, pattern) != own.rule.condition:
+        raise FoldError(f"own aim: the condition is not pattern {own.key}'s, filled")
+    state = state.model_copy(update={"own_aims": _put(state.own_aims, own.person, own)})
+    goal_id = aim_goal_id(state.campaign_id, own.person, own.aim)
+    made = state.goals.get(goal_id)
+    if made is None:
+        return state
+    goal = made.model_copy(
+        update={
+            "text": own.text,
+            "condition": own.rule.condition,
+            "kind": goal_kind(own.rule.condition),
+            "source": GoalSource.PLAYER,
+            "holding": False,
+            "met_tick": None,
+        }
+    )
+    return state.model_copy(update={"goals": _put(state.goals, goal_id, goal)})
+
+
+def _filled_condition(state: State, own: OwnAim, pattern: AimPattern) -> object:
+    """``pattern``'s condition filled with the aim's own values, or None if it makes none."""
+    from revisionist.core.aim_patterns import build
+    from revisionist.core.realism.war import polity_of
+
+    given: dict[str, JsonValue] = {
+        **own.values,
+        "nation": polity_of(state, own.person),
+        "person": own.person,
+    }
+    try:
+        return build(pattern.condition, given)
+    except ValidationError:
+        return None
+
+
+def _aim_shut(state: State) -> State:
+    """With own aims on, every person a player holds as a wake closes: his window shuts."""
+    from revisionist.core.aim_patterns import on
+
+    if not on(state):
+        return state
+    played = {s.embodies for s in state.seats.values() if s.controller is Controller.HUMAN}
+    if played <= state.aim_shut:
+        return state
+    return state.model_copy(update={"aim_shut": state.aim_shut | played})
+
+
 def _order_held(state: State, p: ev.OrderHeld) -> State:
     """A held order, with ``locks`` on: its id new to every order table, its seat and, for
     a form, its pipeline known (LCK)."""
@@ -153,6 +273,7 @@ def _held_order_ended(state: State, p: ev.HeldOrderEnded) -> State:
         update={
             "held": {k: v for k, v in state.held.items() if k != h.order_id},
             "asked": {k: v for k, v in state.asked.items() if k != h.order_id},
+            "chosen": {k: v for k, v in state.chosen.items() if k != h.order_id},
         }
     )
 
@@ -173,7 +294,52 @@ def _order_asked(state: State, p: ev.OrderAsked) -> State:
     _need(state.entities, a.to, "entity")
     if a.seat is not None and _need(state.seats, a.seat, "seat").embodies != a.to:
         raise FoldError(f"seat {a.seat} does not hold {a.to}")
+    members = h.decider.council.members if h.decider.council is not None else ()
+    for s in a.seats:
+        if _need(state.seats, s, "seat").embodies not in members:
+            raise FoldError(f"seat {s} holds no member of the council asked")
     return state.model_copy(update={"asked": _put(state.asked, a.order_id, a)})
+
+
+def _ask_answered(state: State, p: ev.AskAnswered) -> State:
+    """The card's answer to an ask, once, with ``ask_answers`` on, for a person no seat
+    with a desk holds (AAK); or, with ``deciders`` on, a matter's answer on its due day
+    (QKD). The matter's kept choices go with it."""
+    a = _need(state.asked, p.order_id, "ask")
+    h = state.held.get(a.order_id)
+    matter = h is not None and locks.is_matter(state, h, a)
+    if not matter and (Rule.ASK_ANSWERS not in state.rules or Rule.LOCKS not in state.rules):
+        raise FoldError("ask_answered needs the locks and ask_answers rules")
+    if a.asker != p.asker:
+        raise FoldError(f"the ask for {p.order_id} is not that seat's")
+    if a.answered is not None:
+        raise FoldError(f"the ask for {p.order_id} is answered already")
+    if p.on < a.on:
+        raise FoldError(f"the ask for {p.order_id} is answered before it was made")
+    if not matter and any(
+        s.embodies == a.to and s.kind is not SeatKind.FACTION for s in state.seats.values()
+    ):
+        raise FoldError(f"the ask for {p.order_id} went to a person a seat holds")
+    answered = a.model_copy(update={"answered": p.on, "granted": p.granted})
+    chosen = {k: v for k, v in state.chosen.items() if k != p.order_id}
+    return state.model_copy(
+        update={"asked": {**state.asked, p.order_id: answered}, "chosen": chosen}
+    )
+
+
+def _matter_chosen(state: State, p: ev.MatterChosen) -> State:
+    """A seat's sealed choice on an open matter before it, with ``deciders`` on (QKD); a
+    later one replaces it."""
+    if Rule.DECIDERS not in state.rules or Rule.LOCKS not in state.rules:
+        raise FoldError("matter_chosen needs the locks and deciders rules")
+    try:
+        locks.may_choose(state, p.seat_id, p.order_id)
+    except ValueError as exc:
+        raise FoldError(f"matter_chosen: {p.seat_id} on {p.order_id}: {exc}") from exc
+    if p.on < state.asked[p.order_id].on:
+        raise FoldError(f"matter_chosen: {p.order_id} is chosen on before it was asked")
+    kept = _put(state.chosen.get(p.order_id, {}), p.seat_id, p.accept)
+    return state.model_copy(update={"chosen": _put(state.chosen, p.order_id, kept)})
 
 
 def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
@@ -190,7 +356,11 @@ def _groups_declared(state: State, p: ev.GroupsDeclared) -> State:
         found[nation.nation] = nation.groups
         if nation.themes:
             themes[nation.nation] = nation.themes
-    g = state.groups.model_copy(update={"declared": found, "themes": themes})
+    classes: dict[groups.Happening, groups.KindClass] = {}
+    for c in p.classes:
+        _fresh(classes, c.kind, "class of happening")
+        classes[c.kind] = c
+    g = state.groups.model_copy(update={"declared": found, "themes": themes, "classes": classes})
     return state.model_copy(update={"groups": g})
 
 
@@ -222,6 +392,51 @@ def _group_moved(state: State, p: ev.GroupMoved) -> State:
     elif p.used:
         raise FoldError("group_moved: only writing spends points")
     return state.model_copy(update={"groups": g.model_copy(update=update)})
+
+
+def _offer_made(state: State, p: ev.OfferMade) -> State:
+    """A seat's offer of a price to a bloc of its own nation for a measure the world
+    declares, waiting for its batch, with ``offers`` on (PRC)."""
+    o = p.offer
+    if not offers.on(state):
+        raise FoldError("offer_made needs the offers rule")
+    if o.standing is not offers.OfferStanding.FILED:
+        raise FoldError("offer_made: an offer is made filed")
+    _need(state.seats, o.seat, "seat")
+    if polity_of(state, state.seats[o.seat].embodies) != o.nation:
+        raise FoldError(f"offer_made: {o.seat} is not a seat of {o.nation}")
+    if offers.price(state, o.nation, o.bloc, o.price) is None:
+        raise FoldError(f"offer_made: {o.nation} {o.bloc} has no price {o.price}")
+    if offers.law(state, o.nation, o.measure) is None:
+        raise FoldError(f"offer_made: {o.nation} has no law {o.measure}")
+    if any(x.offer_id == o.offer_id for x in state.offers):
+        raise FoldError(f"offer_made: {o.offer_id} is made twice")
+    return state.model_copy(update={"offers": (*state.offers, o)})
+
+
+def _offer_settled(state: State, p: ev.OfferSettled) -> State:
+    """An offer moves on from where it stands, once a day at most and never back; one
+    offer at most holds a bloc on a measure (PRC)."""
+    if not offers.on(state):
+        raise FoldError("offer_settled needs the offers rule")
+    found = next((o for o in state.offers if o.offer_id == p.offer_id), None)
+    if found is None:
+        raise FoldError(f"offer_settled: no offer {p.offer_id}")
+    if p.standing not in offers.NEXT.get(found.standing, frozenset()):
+        raise FoldError(
+            f"offer_settled: {p.offer_id} cannot go from {found.standing} to {p.standing}"
+        )
+    if p.on < (found.on or found.filed):
+        raise FoldError(f"offer_settled: {p.offer_id} moves before it last moved")
+    if found.due is not None and (p.due != found.due or p.on < found.due):
+        raise FoldError(f"offer_settled: {p.offer_id} is judged only on or after its due day")
+    if p.standing in offers.LIVE_STANDINGS and found.standing not in offers.LIVE_STANDINGS:
+        held = offers.live(state, found.nation, found.bloc, found.measure)
+        if held is not None:
+            raise FoldError(f"offer_settled: {found.bloc} is held on {found.measure} already")
+    moved = found.model_copy(update={"standing": p.standing, "on": p.on, "due": p.due})
+    out = tuple(moved if o.offer_id == p.offer_id else o for o in state.offers)
+    return state.model_copy(update={"offers": out})
 
 
 def _agreement_event(state: State, p: ev.Payload) -> State:
@@ -653,9 +868,16 @@ def _mutate(state: State, event: Event) -> State:
             | ev.MapDeclared()
             | ev.KindsDeclared()
             | ev.LocksDeclared()
+            | ev.LawsDeclared()
+            | ev.AimPatternsDeclared()
+            | ev.OwnAimSet()
             | ev.OrderHeld()
             | ev.HeldOrderEnded()
             | ev.OrderAsked()
+            | ev.AskAnswered()
+            | ev.MatterChosen()
+            | ev.OfferMade()
+            | ev.OfferSettled()
             | ev.AreaHeld()
             | ev.CaptureCounted()
             | ev.EconomySet()
@@ -1079,12 +1301,26 @@ def _realism(state: State, p: ev.Payload) -> State:
             return state.model_copy(update={"kinds": kinds})
         case ev.LocksDeclared():
             return _locks_declared(state, p)
+        case ev.LawsDeclared():
+            return _laws_declared(state, p)
+        case ev.AimPatternsDeclared():
+            return _aim_patterns_declared(state, p)
+        case ev.OwnAimSet():
+            return _own_aim_set(state, p)
         case ev.OrderHeld():
             return _order_held(state, p)
         case ev.HeldOrderEnded():
             return _held_order_ended(state, p)
         case ev.OrderAsked():
             return _order_asked(state, p)
+        case ev.AskAnswered():
+            return _ask_answered(state, p)
+        case ev.MatterChosen():
+            return _matter_chosen(state, p)
+        case ev.OfferMade():
+            return _offer_made(state, p)
+        case ev.OfferSettled():
+            return _offer_settled(state, p)
         case ev.IntelligenceDeclared():
             if Rule.REPORTS not in state.rules:
                 raise FoldError("intelligence_declared needs the reports rule")
@@ -1421,7 +1657,7 @@ def _engine_v2(state: State, p: ev.Payload) -> State:
             w = _open_wake(state, p.wake)
             for seat in p.timed_out:
                 _need(state.seats, seat, "seat")
-            state = _hand_over(state)
+            state = _hand_over(_aim_shut(state))
             return state.model_copy(update={"wake": w.model_copy(update={"closed": True})})
         case ev.PlayStyleSet():
             _need(state.seats, p.seat_id, "seat")

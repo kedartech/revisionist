@@ -151,37 +151,17 @@ def _last_full(state: State, feed: Feed) -> DocumentView | None:
     )
 
 
-def _truth(state: State, feed: Feed, on: date) -> tuple[int | None, ...]:
-    """The true figure of each quantity the feed reports, as the page of ``on`` held it."""
-    page = next(
-        (
-            d.truth
-            for d in state.documents.values()
-            if d.truth.feed == feed.feed_id and d.view.issued == on
-        ),
-        None,
-    )
-    return tuple(r.value for r in page.truth_refs) if page is not None else ()
-
-
-def _repeats(
-    state: State,
-    feed: Feed,
-    body: tuple[BodyField, ...],
-    today: date,
-    truth: tuple[int | None, ...] = (),
-) -> date | None:
+def _repeats(state: State, feed: Feed, body: tuple[BodyField, ...], today: date) -> date | None:
     """The day of the feed's last full page when today's page would say it again word for
     word, sightings included, and that page is under ``RESTATE_DAYS`` old; else None. A page
-    with no lines (a cable the prose writes from its title) is never a repeat, and neither is
-    one whose true figures have moved since that page: the world changed, so the feed never
-    says it did not (RPT)."""
+    with no lines (a cable the prose writes from its title) is never a repeat. Only the
+    pages' claims are compared, never the true figures behind them: a page that repeats its
+    claim reads no change whether or not a hidden figure moved, so the page tells its
+    reader nothing the claims do not."""
     if not body:
         return None
     last = _last_full(state, feed)
     if last is None or last.body != body or (today - last.issued).days >= RESTATE_DAYS:
-        return None
-    if _truth(state, feed, last.issued) != truth:
         return None
     return last.issued
 
@@ -211,7 +191,7 @@ def issue(state: State, feed: Feed, today: date, seed: str) -> ev.DocumentIssued
     if body and all(line.value is None for line in body):
         return None
     title = f"{feed.name}, {today.isoformat()}"
-    since = _repeats(state, feed, tuple(body), today, tuple(r.value for r in refs))
+    since = _repeats(state, feed, tuple(body), today)
     if since is not None:
         body, seen = [BodyField(label=NO_CHANGE, value=f"{since.day} {since:%B %Y}")], []
         tail = f", {today.isoformat()}: no change"

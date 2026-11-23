@@ -16,6 +16,7 @@ from typing import ClassVar, Literal
 from pydantic import Field
 
 from revisionist.core._base import Label, Model
+from revisionist.core.aim_patterns import AimPatterns, OwnAim
 from revisionist.core.goals import Goal
 from revisionist.core.ids import (
     AssetId,
@@ -70,7 +71,9 @@ from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.groups import Groups
 from revisionist.core.realism.holders import Capture, Holding
 from revisionist.core.realism.kinds import Kinds
+from revisionist.core.realism.laws import Law
 from revisionist.core.realism.locks import Asked, HeldOrder, LockRow
+from revisionist.core.realism.offers import PricedOffer
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
@@ -109,6 +112,38 @@ class Rule(StrEnum):
     superior's order that may only pass or stall (CMD)."""
     LOCKS = "locks"
     """Orders held until the person or body that can allow them does (DCD onward)."""
+    LAWS = "laws"
+    """Laws declared by the world, read by locks, votes and shipping (LWC, LAW)."""
+    ASK_ANSWERS = "ask_answers"
+    """An ask to a decider nobody plays is answered by its card on a due day (AAK)."""
+    DECIDERS = "deciders"
+    """Locks decided by the kind of question, and by a council (QKD)."""
+    OWN_AIM = "own_aim"
+    """The player's own aim, filled from the world's patterns and scored (OWC)."""
+    OFFERS = "offers"
+    """A priced offer to a bloc, with a promise that comes due (PRC)."""
+    CLASSES = "classes"
+    """Every happening has a class: felt, reported or secret (HCL)."""
+    LOSSES = "losses"
+    """The size of losses moves the mood at home (LSS)."""
+    PLACES = "places"
+    """Places with political weight: lost, abandoned or retaken (PLW)."""
+    POSTS = "posts"
+    """Player, person and post kept apart, and the ladder of posts (PPP, LDR)."""
+    OFFICE = "office"
+    """The office question as a formal sitting, and blocs turning on the leader (OFQ, TUR)."""
+    ELECTIONS = "elections"
+    """Elections redraw a chamber (ELE)."""
+    DEFIANCE = "defiance"
+    """Acting without permission, and refusing an order from above (DFY)."""
+    AIDE_NOTE = "aide_note"
+    """The aide's note of what waits for the seat (ABN)."""
+    PEACE = "peace"
+    """Peace: an armistice and its terms end a war (PEA)."""
+    POST_VIEW = "post_view"
+    """A commander's view limited to his post (PVW)."""
+    PLAYABLE_RULE = "playable_rule"
+    """Who can be played comes from a rule over the cards (PBR)."""
 
 
 MODEL_READ_RULES = frozenset({Rule.WRITING, Rule.CLAUSE_READER, Rule.WRITTEN_ORDERS})
@@ -168,6 +203,15 @@ class _World(Model):
     """With ``locks`` on, the world's rows saying which order, under which condition,
     needs which decision, from whom, set once by ``locks_declared`` (DCD): public rules of
     the world, the same in every view. Read through ``locks.lock_for``."""
+    laws: tuple[Law, ...] = ()
+    """With ``laws`` on, the laws the world declares, set once by ``laws_declared`` (LWC):
+    public rules of the world, the same in every view. Read through ``laws.in_force``."""
+    aim_patterns: AimPatterns | None = None
+    """With ``own_aim`` on, the world's aim patterns and each card's kind of post, set once
+    by ``aim_patterns_declared`` (OWC): public rules of the world, the same in every view."""
+    own_aims: dict[EntityId, OwnAim] = Field(default_factory=dict)
+    """Each person's own aim, set by ``own_aim_set`` (OWC), kept by whoever holds him. A
+    view holds only the aim of the person a player holds through it."""
     holders: dict[EntityId, Holding] = Field(default_factory=dict)
     """With ``holders`` on, each territory that has changed hands: its holder now, by
     ``area_held``. A territory not here has the holder the board gives. Public (THL)."""
@@ -181,6 +225,10 @@ class _World(Model):
     (``groups_declared``), their support (``group_moved``) and the writing in waiting
     (``group_proposed``) (GRP). True support: a view holds its own nation's groups only,
     and never the writing in waiting."""
+    offers: tuple[PricedOffer, ...] = ()
+    """With ``offers`` on, every offer of a price to a bloc and where it stands
+    (``offer_made``, ``offer_settled``) (PRC). A view holds those to its own nation's
+    blocs only."""
     agreements: Agreements = Field(default_factory=Agreements)
     """With ``agreements`` on, the offers (``agreement_offered``) and the agreements in
     force (``agreement_made``), with each clause's status (``clause_judged``) (AGR). A view
@@ -194,6 +242,7 @@ class _World(Model):
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
             "groups",
+            "offers",
             "agreements",
             "conferences",
             "goals",
@@ -209,6 +258,9 @@ class _World(Model):
             "map",
             "kinds",
             "locks",
+            "laws",
+            "aim_patterns",
+            "own_aims",
             "holders",
             "economy",
         }
@@ -255,6 +307,12 @@ class State(_World):
     asked: dict[OrderId, Asked] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """Each held order its seat has asked for, by its id, until it ends (ASK). The asker
     and the seat asked see it."""
+    chosen: dict[OrderId, dict[SeatId, bool]] = Field(
+        default_factory=dict, exclude_if=lambda v: not v
+    )
+    """With ``deciders`` on, each open matter's kept choices, by seat: whether that seat
+    accepts (``matter_chosen``), until the due day counts them (QKD). Engine only: a
+    choice is sealed to the seat that made it."""
     styles: dict[SeatId, PlayStyle] = Field(default_factory=dict)
     """Each seat's play style. Private to the seat; absent means free."""
     standing: dict[SeatId, frozenset[EffectKind]] = Field(default_factory=dict)
@@ -307,9 +365,14 @@ class State(_World):
     """With ``reports`` on, every order an aide filed for an absent seat
     (``wake_committed``), so the rules where an effect lands can hold the aide to its
     limits (IOR). Engine only: how a seat is run is never shown."""
+    aim_shut: frozenset[EntityId] = frozenset()
+    """With own aims on, each person a player held when a wake closed: his own aim may no
+    longer be set (OWC). Engine only."""
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
+        "aim_shut",
         "held",
         "asked",
+        "chosen",
         "rules",
         "intelligence",
         "reports",

@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 
 from revisionist.engine import session_zero as sz
-from revisionist.engine.llm import Reply, Request, TransportError, cli_schema
+from revisionist.engine.llm import Reply, Request, TransportError, cli_schema, quote_player
 from revisionist.engine.store import MemoryStore, load_state
 from tests.test_session_zero import FLORENCE
 from tests.test_session_zero_steps import Table, _florence, _section
@@ -107,7 +107,7 @@ def test_the_record_prompt_carries_the_start_and_only_the_roster() -> None:
     sz.search(store, c, None, "a poet at court", table)
     [prompt] = table.record_prompts
     assert "## Start\n" + FLORENCE + "\n\n" in prompt
-    assert "## What the player wants to play\na poet at court" in prompt
+    assert "## What the player wants to play\n" + quote_player("a poet at court") in prompt
     roster = _section(prompt, "Already on the roster")
     state = load_state(store, c)
     assert roster == sorted(state.entities[e].name for e in state.roster)

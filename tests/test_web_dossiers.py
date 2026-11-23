@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 import yaml
 
+from revisionist.core.realism.card import CardPath
 from revisionist.core.state import State
 from revisionist.core.world_compile import object_id
 from revisionist.engine import campaign as cmp
@@ -20,8 +21,13 @@ from tests.handwritten import CAST
 from tests.test_web import Client, Web, web  # noqa: F401
 
 READY = ["autumn-1941", "engine-v2-slice-1941"]
-AWAITING_PORTRAIT = {"autumn-1941": ["king"]}
-"""Playable people whose portrait waits on a licence-cleared file: the client draws a monogram."""
+
+
+def awaiting_portrait(world: str) -> list[str]:
+    """Playable people whose portrait waits on a licence-cleared file, read from the world file:
+    the military cards flagged playable by hand. The client draws a monogram."""
+    decl = cmp.load_world(cmp.world_path(world))
+    return sorted(c.person for c in decl.cards if c.playable and c.path is CardPath.MILITARY)
 
 
 def sidecar(tmp: Path, people: dict[str, Any] | None = None, **setting: Any) -> Path:
@@ -213,9 +219,7 @@ def test_every_portrait_named_in_a_ready_sidecar_is_in_the_repo(world: str) -> N
 @pytest.mark.parametrize("world", READY)
 def test_every_playable_person_in_a_ready_sidecar_has_a_portrait(world: str) -> None:
     people, _ = dossiers.load(world)
-    assert [key for key, d in people.items() if not d["portrait"]] == AWAITING_PORTRAIT.get(
-        world, []
-    )
+    assert sorted(key for key, d in people.items() if not d["portrait"]) == awaiting_portrait(world)
 
 
 def test_every_portrait_file_is_a_small_jpeg_with_its_source_recorded() -> None:

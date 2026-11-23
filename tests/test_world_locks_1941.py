@@ -36,10 +36,10 @@ from revisionist.engine import campaign as cmp
 from tests import test_realism_bands as bands
 from tests.test_realism_resolvers import Rig
 
-BEFORE = "9f79ef33c61e55ef8970852b7f64aa79"
+BEFORE = "45f00e1d6cb09e84245f4a7affb44692"
 """The scripted run's digest with ``command`` and ``locks`` taken out of the rules, with the
 receipt an enacted Lend-Lease finding records (a fact, as a written allocation records one)."""
-AFTER = "9f79ef33c61e55ef8970852b7f64aa79"
+AFTER = "45f00e1d6cb09e84245f4a7affb44692"
 """The scripted run's digest with ``command`` and ``locks`` on, recorded once by this item.
 It equals ``BEFORE``: the script seats the President alone and files no order a lock holds,
 and his naval order passes King's step on the day the record gives."""
@@ -214,7 +214,7 @@ def test_iceland_stays_british() -> None:
 
 def test_two_locks_on_his_naval_order_one_naming_the_president_one_congress() -> None:
     world = _world()
-    rows = {r.key: r for r in world.locks}
+    rows = {r.key: r for r in world.locks if r.order.form == "fleet_naval_order"}
     assert set(rows) == {"iceland_shoot_on_sight", "war_zone_escort"}
     shoot, escort = rows["iceland_shoot_on_sight"], rows["war_zone_escort"]
     assert shoot.order.form == escort.order.form == "fleet_naval_order"

@@ -1,16 +1,41 @@
-/* The map-first room (realism-sheets.js): the map fills the screen under the sheet tabs, and the
-   open sheet sits over it: a half sheet from the bottom below 1024 px, at the right side from
-   1024 px. Tokens only. */
+/* The map-first room (realism-sheets.js): one bar, then the map filling the rest, and the open
+   sheet over it: a half sheet from the bottom below 1024 px, at the right side from 1024 px. The
+   map never has less than 320 px of height: a viewport too short for that scrolls the room as a
+   page, bar and all. Tokens only. */
+.screen.war-screen.realism-screen.rl-layout-map { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(320px, 1fr); height: auto; min-height: 100vh; min-height: 100dvh; }
+.rl-layout-map .rl-roombar { grid-row: 1; }
+.rl-layout-map .rl-mapfirst { grid-row: 2; min-height: 320px; }
+/* full screen: the bar goes; What needs you, an open sheet and Done stay with the map */
+.rl-full .rl-roombar { display: none; }
 .rl-sheettabs { display: flex; gap: var(--space-1); padding: var(--space-1) var(--space-3); background: var(--surface-2); border-bottom: 1px solid var(--rule); overflow-x: auto; }
 .rl-sheettab { flex: none; min-height: 36px; padding: var(--space-1) var(--space-3); display: inline-flex; align-items: center; gap: var(--space-1); background: transparent; color: var(--fg-muted); border: 0; border-radius: var(--radius); font: 500 13px/1.3 var(--font-chrome); cursor: pointer; }
 .rl-sheettab:hover { color: var(--fg-strong); background: var(--surface-3); }
 .rl-sheettab[aria-expanded="true"] { color: var(--fg-strong); background: var(--surface-3); box-shadow: inset 0 -2px 0 var(--accent); }
 .rl-sheettab:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+/* the four groups' sheets (realism-groups.js): the parts as inner tabs under the sheet's head,
+   and Messages as the chat button on the bar, its unread count on its badge */
+.rl-roombar .rl-chat-btn { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); }
+.rl-roombar .rl-chat-btn[aria-expanded="true"] { border-color: var(--fg-strong); color: var(--fg-strong); }
+.rl-over > .rl-parts { flex: none; margin: var(--space-2) var(--space-3) 0; }
+.rl-over > .rl-parts > button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); }
+.rl-write-hint { margin: 0; padding: var(--space-2) var(--space-3); border: 1px dashed var(--rule-strong); border-radius: var(--radius); }
+.rl-formfind { display: grid; gap: var(--space-2); }
+.rl-formfind h3, .rl-piece-forms h3 { margin: 0; font: 600 11px/1.3 var(--font-code); letter-spacing: .08em; text-transform: uppercase; color: var(--fg-muted); }
+.rl-formfind-field { min-height: 44px; width: 100%; box-sizing: border-box; }
+.rl-formfind-none { margin: 0; }
+.rl-person-moves { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-right: auto; }
+.rl-person-moves p { margin: 0; }
+.rl-person-moves button, .rl-eco-offer { min-height: 44px; }
+.rl-allsheets-group h4 { margin: var(--space-2) 0 var(--space-1); font: 600 11px/1.3 var(--font-code); letter-spacing: .08em; text-transform: uppercase; color: var(--fg-muted); }
 
 .rl-mapfirst { flex: 1; min-height: 0; position: relative; display: flex; background: var(--chart-sea); }
-.rl-mapfirst-map { flex: 1; min-width: 0; min-height: 0; overflow: auto; padding: var(--space-2); }
-.rl-mapfirst-map .rl-theatre { height: 100%; }
+.rl-mapfirst-map { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: auto; padding: var(--space-2); display: flex; flex-direction: column; }
+.rl-mapfirst-map .rl-theatre { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.rl-mapfirst-map .rl-theatre > .rl-map-figure { flex: 1; min-height: 0; margin: 0; }
 .rl-mapfirst-map .rl-map-svg { width: 100%; }
+.rl-mapfirst-map .rl-tm-svg { height: 100%; min-height: 0; }
+/* the room's status line, over the map's foot while it has something to say; it takes no row */
+.rl-mapfirst-map > .rl-status { position: absolute; left: var(--space-3); right: var(--space-3); bottom: var(--space-3); z-index: 5; border: 1px solid var(--rule-strong); border-radius: var(--radius); box-shadow: 0 6px 20px var(--backdrop); }
 
 .rl-over { position: fixed; left: 0; right: 0; bottom: 0; z-index: 48; max-height: 50vh; display: flex; flex-direction: column; background: var(--surface); color: var(--fg-strong); border: 1px solid var(--rule-strong); border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; box-shadow: 0 -8px 30px var(--backdrop); }
 .rl-over-head { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--surface-2); border-bottom: 1px solid var(--rule); }
@@ -29,6 +54,7 @@
 
 @media (max-width: 1023px) {
   .rl-mapfirst.sheeted .rl-mapfirst-map { padding-bottom: 50vh; }
+  .rl-mapfirst-map > .rl-status { bottom: calc(44px + var(--space-5)); }
 }
 
 @media (min-width: 1024px) {
@@ -36,15 +62,32 @@
   .rl-mapfirst.sheeted .rl-mapfirst-map { padding-right: calc(440px + var(--space-5)); }
 }
 
+@media (max-width: 767px) {
+  /* on a phone the map's own heading and line are kept for a screen reader only, and its
+     controls scroll on one line, so the drawing keeps the screen */
+  .rl-mapfirst-map .rl-tmap > h2, .rl-mapfirst-map .rl-tmap > h2 + p.muted { position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .rl-mapfirst-map .rl-tmap > .rl-bar { flex-wrap: nowrap; justify-content: flex-start; gap: var(--space-2); margin-bottom: var(--space-2); overflow-x: auto; }
+  .rl-mapfirst-map .rl-tmap > .rl-bar > * { flex: none; margin-left: 0; }
+  .rl-mapfirst-map .rl-tmap > .rl-bar .rl-filters { flex-wrap: nowrap; }
+  /* the four group tabs take the second row with the chat button, at their own width */
+  .rl-layout-map .rl-roombar .rl-sheettabs { flex: 1 0 auto; }
+  .rl-roombar .rl-chat-btn { order: 5; }
+}
+
 @media (max-width: 600px) {
-  /* the map keeps at least half the phone: the header keeps the seat, the wake and its controls */
-  .rl-layout-map .frame-head { row-gap: var(--space-1); padding-top: var(--space-1); padding-bottom: var(--space-1); }
-  .rl-layout-map .frame-head .eyebrow, .rl-layout-map .frame-head .office, .rl-layout-map .frame-head .answers-to,
-  .rl-layout-map .frame-head .divider, .rl-layout-map .frame-head .rl-clock, .rl-layout-map .frame-head .brand-mark,
-  .rl-layout-map .frame-head .icon-btn, .rl-layout-map .rl-comeback { display: none; }
-  .rl-layout-map .frame-head .identity { padding-left: 0; border-left: 0; }
-  .rl-layout-map .rl-strip { padding-top: var(--space-1); padding-bottom: var(--space-1); }
-  .rl-sheettabs { padding: var(--space-1) var(--space-2); }
-  .rl-sheettab { min-height: 44px; padding: var(--space-1) var(--space-2); }
   .rl-over-body { padding: var(--space-3); }
+}
+
+/* full screen (the map's Full screen control): the map takes the viewport from edge to edge;
+   What needs you, Done and an open sheet stay over it, and the map's own foot keeps clear of them */
+.rl-full .rl-mapfirst .rl-mapfirst-map, .rl-full .rl-mapfirst.sheeted .rl-mapfirst-map { padding: 0; }
+.rl-full .rl-mapfirst-map .rl-tmap { --tm-foot: calc(44px + var(--space-5)); }
+.rl-full .rl-mapfirst.sheeted .rl-mapfirst-map .rl-tmap { --tm-foot: 50vh; }
+.rl-full .rl-mapfirst-map > .rl-status { bottom: calc(44px + var(--space-5)); }
+@media (min-width: 1024px) {
+  .rl-full .rl-needs { display: none; }
+  .rl-full .rl-needs.open { display: flex; position: fixed; left: var(--space-3); top: var(--space-3); bottom: calc(44px + var(--space-6)); width: 300px; z-index: 48; border: 1px solid var(--rule-strong); border-radius: var(--radius); box-shadow: 0 10px 40px var(--backdrop); }
+  .rl-full .rl-needs-close { display: inline-flex; }
+  .rl-full .rl-needsbar { display: flex; right: auto; left: var(--space-3); bottom: var(--space-3); padding: 0; background: transparent; border: 0; }
+  .rl-full .rl-mapfirst.sheeted .rl-mapfirst-map .rl-tmap { --tm-foot: calc(44px + var(--space-5)); --tm-side: calc(440px + var(--space-5)); }
 }

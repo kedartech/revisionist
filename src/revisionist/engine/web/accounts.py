@@ -8,11 +8,13 @@ no one sign in. Nothing here asks for or stores anything personal.
 import base64
 import hashlib
 import hmac
+import logging
 import re
 import secrets
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from revisionist.core.ids import CampaignId, SeatId
 from revisionist.engine.discord.tables import LinkError, code_hash
@@ -26,11 +28,15 @@ PASSWORD_MIN = 12
 PASSWORD_MAX = 256
 CODES = 10
 SESSION_DAYS = 30
+SWEEP_EVERY_S = 86400
+"""Expired sessions are deleted at start and then once a day."""
 WEB_PREFIX = "web:"
 """How a web account appears where Discord user IDs do: invites' ``used_by``, the
 leak scan's people. Discord IDs are digits, so the two can never collide."""
 
 _N, _R, _P = 2**14, 8, 1
+
+log = logging.getLogger("revisionist.web")
 
 
 class AccountError(ValueError):
@@ -166,9 +172,7 @@ class Accounts:
                 "UPDATE web_accounts SET password_hash = %s WHERE account_id = %s",
                 (hash_password(password), account.account_id),
             )
-            self.conn.execute(
-                "DELETE FROM web_sessions WHERE account_id = %s", (account.account_id,)
-            )
+            self.close_all(account.account_id)
             codes = self._new_codes(account.account_id)
         return account, codes
 
@@ -204,6 +208,40 @@ class Accounts:
 
     def close_all(self, account_id: str) -> None:
         self.conn.execute("DELETE FROM web_sessions WHERE account_id = %s", (account_id,))
+
+    def sweep(self, now: datetime) -> int:
+        """Delete every session that has expired; ``session`` already refuses them."""
+        cur = self.conn.execute("DELETE FROM web_sessions WHERE expires_at <= %s", (now,))
+        return int(cur.rowcount)
+
+
+class _Store(Protocol):
+    conn: Any
+
+    def close(self) -> None: ...
+
+
+class _Stop(Protocol):
+    def wait(self, timeout: float) -> bool: ...
+
+
+def sweep_daily(
+    open_store: Callable[[], _Store], clock: Callable[[], datetime], stop: _Stop
+) -> None:
+    """Sweep now, then every ``SWEEP_EVERY_S`` until ``stop`` is set. A failed sweep is logged
+    and the next one still runs."""
+    while True:
+        try:
+            store = open_store()
+            try:
+                swept = Accounts(store.conn).sweep(clock())
+            finally:
+                store.close()
+            log.info("expired web sessions deleted: %d", swept)
+        except Exception:
+            log.exception("expired web sessions not swept")
+        if stop.wait(SWEEP_EVERY_S):
+            return
 
 
 @dataclass(frozen=True)
@@ -328,4 +366,5 @@ __all__ = [
     "hash_password",
     "new_recovery_code",
     "person",
+    "sweep_daily",
 ]

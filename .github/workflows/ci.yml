@@ -51,6 +51,37 @@ jobs:
         run: node --test test/*.test.js
         working-directory: web
 
+  # The dependency audit. The tools run inside this job only (as Playwright does below), so
+  # pyproject.toml, uv.lock and web/package.json are untouched. A known vulnerability in a
+  # runtime dependency fails the job and so `gates`; one in a development dependency is
+  # printed and does not. web/ has no lockfile, so the job resolves one for the audit alone.
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv python install 3.12
+      - name: Export the locked dependencies
+        run: |
+          uv export --frozen --no-dev --all-extras --no-emit-project --no-hashes -o runtime-requirements.txt
+          uv export --frozen --only-dev --no-emit-project --no-hashes -o dev-requirements.txt
+      - name: Audit the runtime Python dependencies
+        run: uvx --with pip-audit pip-audit --requirement runtime-requirements.txt --no-deps --disable-pip
+      - name: Report the development Python dependencies
+        continue-on-error: true
+        run: uvx --with pip-audit pip-audit --requirement dev-requirements.txt --no-deps --disable-pip
+      - name: Resolve the web package's lockfile for the audit
+        run: npm install --package-lock-only --ignore-scripts
+        working-directory: web
+      - name: Audit the runtime web dependencies
+        run: npm audit --omit=dev
+        working-directory: web
+      - name: Report the development web dependencies
+        continue-on-error: true
+        run: npm audit --include=dev
+        working-directory: web
+
   pytest:
     needs: changes
     if: needs.changes.outputs.python == 'true'
@@ -160,9 +191,17 @@ jobs:
           cat "$SMOKE_OUT/server.log"
           exit 1
       - name: Smoke at desktop width
-        run: uv run --frozen --with 'playwright==1.49.*' python web/test/e2e/realism_smoke.py http://127.0.0.1:8794 new "$SMOKE_OUT/desktop"
+        run: |
+          for smoke in web/test/e2e/*_smoke.py; do
+            name=$(basename "$smoke" .py)
+            uv run --frozen --with 'playwright==1.49.*' python "$smoke" http://127.0.0.1:8794 new "$SMOKE_OUT/desktop/$name"
+          done
       - name: Smoke at 390 by 844
-        run: uv run --frozen --with 'playwright==1.49.*' python web/test/e2e/realism_smoke.py http://127.0.0.1:8794 new "$SMOKE_OUT/phone" phone
+        run: |
+          for smoke in web/test/e2e/*_smoke.py; do
+            name=$(basename "$smoke" .py)
+            uv run --frozen --with 'playwright==1.49.*' python "$smoke" http://127.0.0.1:8794 new "$SMOKE_OUT/phone/$name" phone
+          done
       - name: Keep the screenshots and the server log
         if: always()
         uses: actions/upload-artifact@v4
@@ -204,7 +243,7 @@ jobs:
 
   gates:
     if: always()
-    needs: [changes, lint, node, pytest, browser]
+    needs: [changes, lint, node, audit, pytest, browser]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -214,6 +253,7 @@ jobs:
           RESULT_CHANGES: ${{ needs.changes.result }}
           RESULT_LINT: ${{ needs.lint.result }}
           RESULT_NODE: ${{ needs.node.result }}
+          RESULT_AUDIT: ${{ needs.audit.result }}
           RESULT_PYTEST: ${{ needs.pytest.result }}
           RESULT_PYTHON: ${{ needs.changes.outputs.python }}
           RESULT_BROWSER: ${{ needs.browser.result }}

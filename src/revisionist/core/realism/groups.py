@@ -32,6 +32,14 @@ holds (rule 6); ``bloc_support`` gives each bloc of a chamber its support (rule 
 A nation's groups are seen by its own seats only (``seen_by``). A world with no groups,
 or with the rule off, is unchanged (rule 8).
 
+Classes (HCL). With ``classes`` on, a world may give each kind of happening a class:
+felt, reported or secret, and for a mixed kind the share of it that is felt. The classes
+ride the groups' declaration and are read only through ``cls``; a kind the world does not
+class, and every kind with the rule off, is reported. A secret kind moves no group. A
+measure passed is ``daily_life_passed`` when the nation's law under the measure's key
+touches daily life, else ``measure_passed`` (``passed``), so a group may weigh the two
+apart.
+
 Free writing (FWG). A world may list ``themes`` for a nation: a theme and the points it
 moves each of that nation's groups by. Writing that names a theme takes the moves from
 that table, in code (``named_theme``, ``theme_nudges``). Writing that names none may be
@@ -112,6 +120,52 @@ class Happening(StrEnum):
     MEASURE_PASSED = "measure_passed"
     """Declared here, applied by the votes rule (``happened``)."""
     WAR_DECLARED = "war_declared"
+    DAILY_LIFE_PASSED = "daily_life_passed"
+    """With ``classes`` on, a measure passed that the world marks as touching daily life
+    (HCL); with it off such a measure is a ``measure_passed``."""
+
+
+class Class(StrEnum):
+    """How a kind of happening reaches the groups at home (HCL)."""
+
+    FELT = "felt"
+    """Lived at home: the families feel it."""
+    REPORTED = "reported"
+    """Known at home by report."""
+    SECRET = "secret"
+    """Not known at home: it moves no group."""
+
+
+class KindClass(Model):
+    """The class the world gives a kind of happening (HCL), and the share of it that is
+    felt: 1 for a felt kind, 0 for a reported one unless the world gives a share, which
+    makes the kind mixed (that share felt, the rest reported). A secret kind has none."""
+
+    kind: Happening
+    reach: Class
+    felt: float = Field(default=0.0, ge=0, le=1)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _share(cls, data: object) -> object:
+        if not isinstance(data, dict) or "reach" not in data:
+            return data
+        reach = Class(data["reach"])
+        if "felt" not in data:
+            return {**data, "felt": 1.0 if reach is Class.FELT else 0.0}
+        felt = data["felt"]
+        if reach is Class.SECRET:
+            raise ValueError("a secret kind has no felt share")
+        if reach is Class.FELT and felt != 1:
+            raise ValueError("a felt kind is felt whole: a mixed kind is reported with a share")
+        if reach is Class.REPORTED and felt == 1:
+            raise ValueError("a kind felt whole is felt, not reported")
+        return data
+
+    @property
+    def mixed(self) -> bool:
+        """Part felt, the rest reported."""
+        return 0 < self.felt < 1
 
 
 class Cause(StrEnum):
@@ -126,6 +180,7 @@ class Cause(StrEnum):
     AGREEMENT_BROKEN = "agreement_broken"
     MEASURE_PASSED = "measure_passed"
     WAR_DECLARED = "war_declared"
+    DAILY_LIFE_PASSED = "daily_life_passed"
     WRITING = "writing"
     DRIFT = "drift"
     OFFER_TAKEN = "offer_taken"
@@ -263,8 +318,11 @@ class Groups(Model):
     """Writing not yet settled (``group_proposed``). Engine only."""
     themes: dict[EntityId, tuple[Theme, ...]] = Field(default_factory=dict)
     """Each nation's themes, in the world file's order (``groups_declared``)."""
+    classes: dict[Happening, KindClass] = Field(default_factory=dict)
+    """With ``classes`` on, the class of each kind the world classes (``groups_declared``):
+    public rules of the world. Read through ``cls``."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"themes"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"themes", "classes"})
 
 
 # --- reading ------------------------------------------------------------------------
@@ -279,6 +337,27 @@ def on(state: "_World") -> bool:
 
 
 _rule_on = on  # for ``propose``, whose day parameter is named ``on``
+
+
+def classes_on(state: "_World") -> bool:
+    """Whether happenings have classes in this game: the ``classes`` rule on."""
+    from revisionist.core.state import Rule
+
+    rules: frozenset[Rule] = getattr(state, "rules", frozenset())
+    return Rule.CLASSES in rules
+
+
+def cls(state: "State | View", happening: Happening) -> KindClass:
+    """The class of a kind of happening: the one place a rule reads it (HCL rule 4). With
+    ``classes`` on, the world's class; a kind the world does not class, and every kind
+    with the rule off, is reported, felt by none."""
+    found = state.groups.classes.get(happening) if classes_on(state) else None
+    return found or KindClass(kind=happening, reach=Class.REPORTED)
+
+
+def _heard(state: "State | View", happening: Happening) -> bool:
+    """Whether a happening reaches the groups at all: any but a secret kind (rule 2)."""
+    return cls(state, happening).reach is not Class.SECRET
 
 
 def of(state: "State | View", polity: EntityId) -> tuple[Group, ...]:
@@ -352,7 +431,8 @@ def bloc_support(state: "State | View", polity: EntityId, chamber: str) -> dict[
 
 def seen_by(state: "State", seat: SeatId) -> Groups:
     """What ``seat`` sees of the groups: its own nation's groups, support and spent
-    points; no writing in waiting. Nothing for a seat of no nation."""
+    points, and the classes of happenings; no writing in waiting. Nothing for a seat of
+    no nation."""
     from revisionist.core.realism.war import polity_of
 
     me = state.seats.get(seat)
@@ -365,6 +445,7 @@ def seen_by(state: "State", seat: SeatId) -> Groups:
         support={k: v for k, v in g.support.items() if k == own},
         spent={k: v for k, v in g.spent.items() if k == own},
         themes={k: v for k, v in g.themes.items() if k == own},
+        classes=g.classes,
     )
 
 
@@ -446,12 +527,26 @@ def happened(
 ) -> list["GroupMoved"]:
     """A happening to a nation moves each of its groups that names it, once, in the
     world's order (rule 3). For the happenings another rule decides: an agreement broken
-    (AGR) and a measure passed (the votes rule)."""
+    (AGR) and a measure passed (the votes rule). A secret kind moves none."""
+    if not _heard(state, happening):
+        return []
     return [
         shift(state, polity, g.key, g.moved_by[happening], Cause(happening.value), on)
         for g in of(state, polity)
         if g.moved_by.get(happening)
     ]
+
+
+def passed(state: "State", polity: EntityId, measure: str, on: date) -> list["GroupMoved"]:
+    """A nation's measure ``measure`` passed (rule 3): with ``classes`` on, a law of that
+    nation the world declares under the measure's key and marks as touching daily life
+    raises ``daily_life_passed``; any other measure, and every measure with the rule off,
+    ``measure_passed``."""
+    daily = classes_on(state) and any(
+        law.daily_life for law in state.laws if law.key == measure and law.nation == polity
+    )
+    kind = Happening.DAILY_LIFE_PASSED if daily else Happening.MEASURE_PASSED
+    return happened(state, polity, kind, on)
 
 
 def propose(
@@ -612,7 +707,8 @@ def react(
         found += _sea_losses(sea, day)
     counts: dict[tuple[EntityId, Happening], int] = {}
     for one in found:
-        counts[one] = counts.get(one, 0) + 1
+        if _heard(state, one[1]):
+            counts[one] = counts.get(one, 0) + 1
     order = list(Happening)
     now: dict[tuple[EntityId, str], int] = {}
     out: list[GroupMoved] = []
@@ -658,17 +754,21 @@ __all__ = [
     "WEEK_DAYS",
     "BlocVote",
     "Cause",
+    "Class",
     "Feeds",
     "Group",
     "Groups",
     "GroupsError",
     "Happening",
+    "KindClass",
     "NationGroups",
     "Proposal",
     "Spent",
     "Theme",
     "batch",
     "bloc_support",
+    "classes_on",
+    "cls",
     "drift",
     "group",
     "happened",
@@ -679,6 +779,7 @@ __all__ = [
     "of",
     "on",
     "output_factor",
+    "passed",
     "propose",
     "react",
     "seen_by",

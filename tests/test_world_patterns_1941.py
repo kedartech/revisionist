@@ -15,7 +15,7 @@ not issue; the cards that carry none are listed for Josh and are not changed her
 import copy
 import re
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from itertools import product
 from typing import Any
@@ -26,6 +26,7 @@ import yaml
 from revisionist.core import aim_patterns
 from revisionist.core.aim_patterns import Filled, Refused
 from revisionist.core.ids import EntityId, SeatId, derived_id
+from revisionist.core.settings import Settings
 from revisionist.core.state import Rule, State
 from revisionist.core.world import AimPatternDecl, CardDecl, WorldFile
 from revisionist.core.world_compile import compile_world, resolve_keys
@@ -49,6 +50,7 @@ POSTS = {
     "chiang": "head_of_government",
     "king": "fleet_commander",
     "tovey": "fleet_commander",
+    "doenitz": "fleet_commander",
 }
 """The kind of post each playable card names. [proposed]"""
 STATED = frozenset(
@@ -97,6 +99,7 @@ LISTED_FOR_JOSH = (
     "chiang",
     "king",
     "tovey",
+    "doenitz",
 )
 """The playable cards that carry no aim their own government would not issue (OWD rule 3):
 listed for Josh, not changed here."""
@@ -126,19 +129,27 @@ def decl(doc: dict[str, Any]) -> WorldFile:
     )
 
 
-def day_one(doc: dict[str, Any]) -> tuple[State, dict[str, SeatId]]:
-    """The game on its first day with every playable card held by a player."""
+def day_one(doc: dict[str, Any], people: Sequence[str]) -> tuple[State, dict[str, SeatId]]:
+    """The game on its first day with each of ``people`` held by a player."""
     world = decl(doc)
     ids = resolve_keys(world, CAMPAIGN)
     store = MemoryStore()
     store.append_all(compile_world(world, CAMPAIGN, cmp.versions()))
     seats: dict[str, SeatId] = {}
-    for person in playable(doc):
+    for person in people:
         pid = EntityId(ids[person])
         seats[person] = SeatId(derived_id(CAMPAIGN, "seat", pid))
         name = load_state(store, CAMPAIGN).entities[pid].name
         session_zero.claim(store, CAMPAIGN, seats[person], name)
     return load_state(store, CAMPAIGN), seats
+
+
+def days_one(doc: dict[str, Any]) -> list[tuple[State, dict[str, SeatId]]]:
+    """The first day of as many games as it takes to hold every playable card, each with no
+    more players than a game seats."""
+    people = playable(doc)
+    most = Settings().max_human_seats
+    return [day_one(doc, people[n : n + most]) for n in range(0, len(people), most)]
 
 
 # --- the sweep ----------------------------------------------------------------------------
@@ -170,7 +181,13 @@ def _combos(names: list[str], allowed: list[tuple[Any, ...]]) -> Iterator[dict[s
 def sweep(doc: dict[str, Any], only: str | None = None) -> list[Fill]:
     """Every pattern (or ``only``), filled from each playable card's view on the first day
     with each value its view allows, by the check a player's fill goes through."""
-    state, seats = day_one(doc)
+    out: list[Fill] = []
+    for state, seats in days_one(doc):
+        out += _sweep_game(state, seats, only)
+    return out
+
+
+def _sweep_game(state: State, seats: dict[str, SeatId], only: str | None) -> list[Fill]:
     assert state.aim_patterns is not None
     out: list[Fill] = []
     for person, seat in seats.items():
@@ -264,7 +281,7 @@ def place_problems(doc: dict[str, Any]) -> list[str]:
 def test_the_world_switches_on_own_aim_and_its_patterns_reach_state() -> None:
     w = cmp.load_world(WORLD)
     assert Rule.OWN_AIM in w.rules
-    state, _ = day_one(raw())
+    state, _ = day_one(raw(), ())
     assert aim_patterns.on(state)
     assert state.aim_patterns is not None
     ids = resolve_keys(w, CAMPAIGN)

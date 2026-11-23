@@ -36,6 +36,7 @@ from revisionist.core.ids import CampaignId, EntityId, SeatId, derived_id
 from revisionist.core.ontology import (
     TRACK_MAX,
     Asset,
+    AssetKind,
     Clock,
     ClockKind,
     ClockStatus,
@@ -43,6 +44,7 @@ from revisionist.core.ontology import (
     CommitmentStatus,
     Controller,
     EntityKind,
+    EntityStatus,
     Fact,
     Phase,
     ScheduledEvent,
@@ -58,12 +60,13 @@ from revisionist.core.realism import (
     groups,
     locks,
     offers,
+    posts,
     trade,
 )
 from revisionist.core.realism.agenda import MANDATE_CAP, MandateStatus, PlayStyle, opening_id
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
-from revisionist.core.realism.card import SeatCard
+from revisionist.core.realism.card import Domain, Post, PostPart, SeatCard, post_part, with_part
 from revisionist.core.realism.document import Document
 from revisionist.core.realism.effect import (
     IRREVERSIBLE,
@@ -437,6 +440,133 @@ def _offer_settled(state: State, p: ev.OfferSettled) -> State:
     moved = found.model_copy(update={"standing": p.standing, "on": p.on, "due": p.due})
     out = tuple(moved if o.offer_id == p.offer_id else o for o in state.offers)
     return state.model_copy(update={"offers": out})
+
+
+def _card_post(state: State, cards: Mapping[EntityId, SeatCard], c: SeatCard) -> None:
+    """A card's post is an office its person holds, no other card's, with ``posts`` on."""
+    if Rule.POSTS not in state.rules:
+        raise FoldError(f"card {c.person}: a post needs the posts rule")
+    assert c.post is not None
+    office = _need(state.assets, c.post, "asset")
+    if office.kind is not AssetKind.OFFICE or office.controller != c.person:
+        raise FoldError(f"card {c.person}: {c.post} is not an office the person holds")
+    if any(other.post == c.post for other in cards.values()):
+        raise FoldError(f"card {c.person}: {c.post} is another card's post")
+
+
+def _post_changed(state: State, p: ev.PostChanged) -> State:
+    """The post moves (PPP): the old holder's card is left with his own, the new holder's
+    takes the post's part over his own, and every step, executor and command part not yet
+    carried out that named the old holder names the new one."""
+    if Rule.POSTS not in state.rules:
+        raise FoldError("post_changed needs the posts rule")
+    asset = _need(state.assets, p.post, "asset")
+    if asset.kind is not AssetKind.OFFICE:
+        raise FoldError(f"post_changed: {p.post} is not an office")
+    current = posts.holder(state, p.post)
+    if p.holder != current:
+        raise FoldError(f"post_changed: {p.post} is held by {current}, not {p.holder}")
+    kept = state.posts.get(p.post)
+    cards = dict(state.cards)
+    if kept is not None:
+        part = kept.part
+    elif current is not None:
+        part = post_part(cards[current])
+    else:
+        raise FoldError(f"post_changed: {p.post} is no card's post")
+    if current is not None:
+        card = cards[current]
+        cards[current] = with_part(card, card.own or PostPart(), None)
+    new = cards.get(p.to) if p.to is not None else None
+    if p.to is not None:
+        if new is None:
+            raise FoldError(f"post_changed: {p.to} has no card")
+        if new.post is not None:
+            raise FoldError(f"post_changed: {p.to} holds another post")
+        if state.entities[p.to].status is EntityStatus.DEAD:
+            raise FoldError(f"post_changed: {p.to} is dead")
+    old = current if current is not None else kept.last if kept is not None else None
+    pipelines, routed, held = state.pipelines, state.routed, dict(state.posts)
+    if p.to is not None and old is not None:
+        to = p.to
+        part = _part_renamed(part, old, to, to)
+        cards = {k: _card_renamed(c, old, to) for k, c in cards.items()}
+        held = {
+            k: v.model_copy(update={"part": _part_renamed(v.part, old, to, v.holder)})
+            for k, v in held.items()
+        }
+        pipelines = {
+            k: pl.model_copy(
+                update={
+                    "steps": tuple(
+                        st.model_copy(update={"person": to}) if st.person == old else st
+                        for st in pl.steps
+                    )
+                }
+            )
+            for k, pl in pipelines.items()
+        }
+        routed = {k: _routed_renamed(o, old, to) for k, o in routed.items()}
+    if p.to is not None:
+        cards[p.to] = with_part(cards[p.to], part, p.post)
+    if p.to is not None:
+        controller = p.to
+    else:
+        assert current is not None
+        controller = state.entities[current].parent or asset.controller
+    held[p.post] = Post(holder=p.to, part=part, last=current if p.to is None else None)
+    return state.model_copy(
+        update={
+            "cards": cards,
+            "pipelines": pipelines,
+            "routed": routed,
+            "posts": held,
+            "assets": _put(
+                state.assets, p.post, asset.model_copy(update={"controller": controller})
+            ),
+        }
+    )
+
+
+def _domains_renamed(
+    domains: tuple[Domain, ...], old: EntityId, new: EntityId, owner: EntityId | None
+) -> tuple[Domain, ...]:
+    """Each domain carried out by ``old`` carried out by ``new``; by nobody (the holder
+    acts himself) where that is ``owner``, the person whose card holds it."""
+    out: list[Domain] = []
+    for dm in domains:
+        executor = new if dm.executor == old else dm.executor
+        if executor is not None and executor == owner:
+            executor = None
+        out.append(dm if executor == dm.executor else dm.model_copy(update={"executor": executor}))
+    return tuple(out)
+
+
+def _part_renamed(part: PostPart, old: EntityId, new: EntityId, owner: EntityId | None) -> PostPart:
+    return part.model_copy(update={"authority": _domains_renamed(part.authority, old, new, owner)})
+
+
+def _card_renamed(card: SeatCard, old: EntityId, new: EntityId) -> SeatCard:
+    update: dict[str, object] = {
+        "authority": _domains_renamed(card.authority, old, new, card.person)
+    }
+    if card.own is not None:
+        update["own"] = _part_renamed(card.own, old, new, card.person)
+    return card.model_copy(update=update)
+
+
+def _routed_renamed(order: RoutedOrder, old: EntityId, new: EntityId) -> RoutedOrder:
+    """The command parts ``old`` was to carry out and has not, to be carried out by ``new``."""
+    parts = tuple(
+        part.model_copy(update={"executor": new})
+        if part.route is Route.COMMAND
+        and part.executor == old
+        and part.fidelity is None
+        and not part.refusal
+        else part
+        for part in order.parts
+    )
+    return order if parts == order.parts else order.model_copy(update={"parts": parts})
 
 
 def _agreement_event(state: State, p: ev.Payload) -> State:
@@ -878,6 +1008,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.MatterChosen()
             | ev.OfferMade()
             | ev.OfferSettled()
+            | ev.PostChanged()
             | ev.AreaHeld()
             | ev.CaptureCounted()
             | ev.EconomySet()
@@ -1053,6 +1184,8 @@ def _realism(state: State, p: ev.Payload) -> State:
                         raise FoldError(
                             f"card {c.person}: lever {lever.name} names another pipeline"
                         )
+                if c.post is not None:
+                    _card_post(state, cards, c)
                 cards[c.person] = c
             templates = dict(state.templates)
             for t in p.templates:
@@ -1321,6 +1454,8 @@ def _realism(state: State, p: ev.Payload) -> State:
             return _offer_made(state, p)
         case ev.OfferSettled():
             return _offer_settled(state, p)
+        case ev.PostChanged():
+            return _post_changed(state, p)
         case ev.IntelligenceDeclared():
             if Rule.REPORTS not in state.rules:
                 raise FoldError("intelligence_declared needs the reports rule")

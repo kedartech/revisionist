@@ -105,6 +105,8 @@ FEED_KINDS: frozenset[str] = frozenset(
         # the bloc's nation, and kept only while the offer is in the seat's view.
         "offer_made",
         "offer_settled",
+        # A post changing hands (PPP): public, as an appointment is news; never its part.
+        "post_changed",
         "influence_decided",
         "effects_applied",
         # Offers and agreements (AGR): sealed to the parties' seats, public once published,
@@ -262,6 +264,8 @@ def _named(p: ev.Payload, view: View) -> bool:
             return p.goal_id in view.goals
         case ev.OwnAimSet():
             return p.own.person in view.own_aims
+        case ev.PostChanged():
+            return p.post in view.assets
         case ev.ContestMoved() | ev.ContestDecided():
             return p.contest_id in view.contests
         case ev.ScheduledEventFired():

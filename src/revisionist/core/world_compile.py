@@ -540,6 +540,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_aim_rules(world, sections, problems)
     _check_aim_patterns(world, sections, problems)
     _check_command(world, problems)
+    _check_posts(world, sections, problems)
     _check_laws(world, problems)
     _check_locks(world, sections, problems)
     for seat in world.seats:
@@ -1835,6 +1836,30 @@ _CONDITION_REFS = {
 ``between`` names entities too."""
 
 
+def _check_posts(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """With ``posts`` on (PPP): a card's post is an office asset its person controls, and
+    no two cards name one post. With it off, a card's post is not read."""
+    if Rule.POSTS not in world.rules:
+        return
+    held = {d.key: d for d in world.assets}
+    named: set[str] = set()
+    for c in world.cards:
+        if c.post is None:
+            continue
+        where = f"card {c.person}"
+        _ref(problems, f"{where}: post", c.post, "asset", sections)
+        office = held.get(c.post)
+        if office is None:
+            continue
+        if office.kind is not AssetKind.OFFICE:
+            problems.append(f"{where}: post {c.post} is not an office")
+        elif office.controller != c.person:
+            problems.append(f"{where}: does not hold {c.post}")
+        if c.post in named:
+            problems.append(f"{where}: post {c.post} is another card's post")
+        named.add(c.post)
+
+
 def _check_command(world: WorldFile, problems: list[str]) -> None:
     """With ``command`` on (CMD): a playable military card has a domain naming a force,
     and no force is named by two military cards. With it off, a card's path is not read."""
@@ -2733,7 +2758,8 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
         )
         for pl in world.pipelines
     )
-    cards = tuple(_card(c, ids, _aim_rules(world, c, ids)) for c in world.cards)
+    posts = Rule.POSTS in world.rules
+    cards = tuple(_card(c, ids, _aim_rules(world, c, ids), posts=posts) for c in world.cards)
     templates = tuple(_template(m, ids) for m in world.mandates)
     outlets = tuple(
         Outlet(
@@ -3063,13 +3089,19 @@ def compile_figure(
 
 
 def _card(
-    c: CardDecl, ids: Mapping[str, str], aim_rules: tuple[AimRule | None, ...] = ()
+    c: CardDecl,
+    ids: Mapping[str, str],
+    aim_rules: tuple[AimRule | None, ...] = (),
+    *,
+    posts: bool = False,
 ) -> SeatCard:
+    """The card, naming its post only with ``posts`` on (PPP)."""
     return SeatCard(
         person=EntityId(ids[c.person]),
         office=c.office,
         playable=c.playable,
         path=c.path,
+        post=_maybe(ids, c.post, AssetId) if posts else None,
         powers=c.powers,
         inner_circle=tuple(
             Contact(person=EntityId(ids[k.person]), channel=k.channel) for k in c.inner_circle

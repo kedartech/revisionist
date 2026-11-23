@@ -10721,6 +10721,154 @@
         "title": "Port",
         "type": "object"
       },
+      "PostCause": {
+        "description": "Why a post changed hands (PPP).",
+        "enum": [
+          "appointed",
+          "succeeded",
+          "vacated"
+        ],
+        "title": "PostCause",
+        "type": "string"
+      },
+      "PostChanged": {
+        "additionalProperties": false,
+        "description": "A post moved from one person to another, or to nobody (PPP), with the ``posts``\nrule on. The office asset's controller changes and the post's part of the card goes\nwith it; every pipeline step and executor that named the old holder names the new\none. Public: a change of office is news to every seat. It never carries the post's\npart.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/PostCause"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder"
+          },
+          "kind": {
+            "const": "post_changed",
+            "default": "post_changed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          }
+        },
+        "required": [
+          "post",
+          "holder",
+          "to",
+          "on",
+          "cause"
+        ],
+        "title": "PostChanged",
+        "type": "object"
+      },
+      "PostPart": {
+        "additionalProperties": false,
+        "description": "The part of a card that goes with its post (PPP): the office's name, its powers,\nauthority, forms, pipelines and feeds, the bodies that answer its summons, whom it\nanswers to and its designated successor. The rest of the card is the person's own.\n[proposed]",
+        "properties": {
+          "authority": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/revisionist__core__realism__card__Domain"
+            },
+            "title": "Authority",
+            "type": "array"
+          },
+          "chain": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Chain",
+            "type": "array"
+          },
+          "feeds": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Feeds",
+            "type": "array"
+          },
+          "levers": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Lever"
+            },
+            "title": "Levers",
+            "type": "array"
+          },
+          "office": {
+            "default": "Without office",
+            "maxLength": 60,
+            "title": "Office",
+            "type": "string"
+          },
+          "pipelines": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Pipelines",
+            "type": "array"
+          },
+          "powers": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Powers",
+            "type": "array"
+          },
+          "principals": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Principals",
+            "type": "array"
+          },
+          "successor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Successor"
+          }
+        },
+        "title": "PostPart",
+        "type": "object"
+      },
       "Posture": {
         "enum": [
           "patrol",
@@ -12959,6 +13107,17 @@
             "title": "Opposes",
             "type": "array"
           },
+          "own": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PostPart"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "path": {
             "$ref": "#/$defs/CardPath",
             "default": "political"
@@ -12988,6 +13147,18 @@
             "default": false,
             "title": "Playable",
             "type": "boolean"
+          },
+          "post": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Post"
           },
           "powers": {
             "default": [],
@@ -15358,6 +15529,7 @@
             "own_aim_set": "#/$defs/OwnAimSet",
             "piece_stepped": "#/$defs/PieceStepped",
             "play_style_set": "#/$defs/PlayStyleSet",
+            "post_changed": "#/$defs/PostChanged",
             "quantity_set": "#/$defs/QuantitySet",
             "relationship_set": "#/$defs/RelationshipSet",
             "report_made": "#/$defs/ReportMade",
@@ -15616,6 +15788,9 @@
           },
           {
             "$ref": "#/$defs/OfferSettled"
+          },
+          {
+            "$ref": "#/$defs/PostChanged"
           },
           {
             "$ref": "#/$defs/PieceStepped"
@@ -22638,6 +22813,127 @@
         "title": "Port",
         "type": "object"
       },
+      "Post": {
+        "additionalProperties": false,
+        "description": "A post that has changed hands, as the fold keeps it (PPP). Engine only.",
+        "properties": {
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last"
+          },
+          "part": {
+            "$ref": "#/$defs/PostPart"
+          }
+        },
+        "required": [
+          "holder",
+          "part"
+        ],
+        "title": "Post",
+        "type": "object"
+      },
+      "PostPart": {
+        "additionalProperties": false,
+        "description": "The part of a card that goes with its post (PPP): the office's name, its powers,\nauthority, forms, pipelines and feeds, the bodies that answer its summons, whom it\nanswers to and its designated successor. The rest of the card is the person's own.\n[proposed]",
+        "properties": {
+          "authority": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/revisionist__core__realism__card__Domain"
+            },
+            "title": "Authority",
+            "type": "array"
+          },
+          "chain": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Chain",
+            "type": "array"
+          },
+          "feeds": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Feeds",
+            "type": "array"
+          },
+          "levers": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Lever"
+            },
+            "title": "Levers",
+            "type": "array"
+          },
+          "office": {
+            "default": "Without office",
+            "maxLength": 60,
+            "title": "Office",
+            "type": "string"
+          },
+          "pipelines": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Pipelines",
+            "type": "array"
+          },
+          "powers": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Powers",
+            "type": "array"
+          },
+          "principals": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Principals",
+            "type": "array"
+          },
+          "successor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Successor"
+          }
+        },
+        "title": "PostPart",
+        "type": "object"
+      },
       "Posture": {
         "enum": [
           "patrol",
@@ -24489,6 +24785,17 @@
             "title": "Opposes",
             "type": "array"
           },
+          "own": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PostPart"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "path": {
             "$ref": "#/$defs/CardPath",
             "default": "political"
@@ -24518,6 +24825,18 @@
             "default": false,
             "title": "Playable",
             "type": "boolean"
+          },
+          "post": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Post"
           },
           "powers": {
             "default": [],
@@ -26411,6 +26730,13 @@
         "title": "Pipelines",
         "type": "object"
       },
+      "posts": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Post"
+        },
+        "title": "Posts",
+        "type": "object"
+      },
       "quantities": {
         "additionalProperties": {
           "$ref": "#/$defs/Quantity"
@@ -28043,6 +28369,18 @@
             "title": "Playable",
             "type": "boolean"
           },
+          "post": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Post"
+          },
           "powers": {
             "default": [],
             "items": {
@@ -29174,6 +29512,18 @@
             "default": false,
             "title": "Playable",
             "type": "boolean"
+          },
+          "post": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Post"
           },
           "powers": {
             "default": [],

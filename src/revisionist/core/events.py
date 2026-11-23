@@ -20,7 +20,7 @@ ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
 VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
 OrderAsked, AskAnswered, MatterChosen, AimPatternsDeclared, OwnAimSet, OfferMade,
-OfferSettled``, and
+OfferSettled, PostChanged``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -39,6 +39,7 @@ from revisionist.core.aim_patterns import AimPatterns, OwnAim
 from revisionist.core.delta import Delta
 from revisionist.core.goals import Goal, GoalKind, WinCondition
 from revisionist.core.ids import (
+    AssetId,
     CampaignId,
     ClockId,
     ContestId,
@@ -87,6 +88,7 @@ from revisionist.core.realism.card import (
     ChannelKind,
     Conflict,
     ParamValue,
+    PostCause,
     SeatCard,
     Topic,
 )
@@ -822,6 +824,29 @@ class OfferSettled(Model):
         return self
 
 
+class PostChanged(Model):
+    """A post moved from one person to another, or to nobody (PPP), with the ``posts``
+    rule on. The office asset's controller changes and the post's part of the card goes
+    with it; every pipeline step and executor that named the old holder names the new
+    one. Public: a change of office is news to every seat. It never carries the post's
+    part."""
+
+    kind: Literal["post_changed"] = "post_changed"
+    post: AssetId
+    holder: EntityId | None
+    """Who held it before; None: nobody."""
+    to: EntityId | None
+    """Who holds it now; None: nobody, and its office is the nation's."""
+    on: date
+    cause: PostCause
+
+    @model_validator(mode="after")
+    def _moves(self) -> "PostChanged":
+        if self.holder == self.to:
+            raise ValueError("a post changes hands")
+        return self
+
+
 class PieceStepped(Model):
     """A piece entered an area: one step, by order, by the record, or forced. Sealed to the
     seats of the piece's own nation, who know it by its mark (``territory.mark_key``), not
@@ -1539,6 +1564,7 @@ Payload = Annotated[
     | MatterChosen
     | OfferMade
     | OfferSettled
+    | PostChanged
     | PieceStepped
     | AreaHeld
     | CaptureCounted
@@ -1650,6 +1676,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "matter_chosen",
         "offer_made",
         "offer_settled",
+        "post_changed",
         "area_held",
         "capture_counted",
         "economy_set",

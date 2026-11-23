@@ -34,6 +34,7 @@ from revisionist.core._base import Model
 from revisionist.core.events import CallCost, Event, Versions
 from revisionist.core.fold import FoldError, replay, state_hash
 from revisionist.core.ids import (
+    AssetId,
     CampaignId,
     DocumentId,
     EntityId,
@@ -61,12 +62,13 @@ from revisionist.core.realism import (
     mandates,
     offers,
     opponents,
+    posts,
     process,
 )
 from revisionist.core.realism.advance import Wake, next_wake
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.arrivals import arrivals
-from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, ParamValue
+from revisionist.core.realism.card import Lever, ParamKind, ParamSpec, ParamValue, PostCause
 from revisionist.core.realism.document import DocumentView, Feed
 from revisionist.core.realism.effect import (
     Deal,
@@ -601,6 +603,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         day += timedelta(days=1)
         start, begun = begun or state, None
         day_from, day_mark = state, len(out)  # GRP: the day's happenings are read from here
+        add(posts.walk(state, day))  # PPP: a vacant post to its successor, before any step
         add(offers.batch(state, day))  # PRC: the wake's offers, settled before a vote
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))
         add(steps)
@@ -797,6 +800,40 @@ def make_offer(
     made = offers.offer(state, seat, bloc, measure, price, today)
     _append_all(store, state, [(made, _nation_scope(state, made.offer.nation))], seat)
     return made.offer
+
+
+def change_post(
+    store: EventStore,
+    campaign_id: CampaignId,
+    post: AssetId,
+    to: EntityId | None,
+    cause: PostCause,
+) -> list[ev.PostChanged]:
+    """Give ``post`` to ``to``, or to nobody, today (PPP), as ``posts.change`` words it, in
+    one batch checked by the fold first. Nothing with ``posts`` off."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    if today is None:
+        raise ValueError("a post changes hands only in a game under way")
+    made = posts.change(state, post, to, today, cause)
+    if made:
+        versions = cmp.versions()
+        batch = [
+            Event(
+                event_id=EventId(new_id()),
+                campaign_id=campaign_id,
+                seq=state.last_seq + i,
+                tick=state.tick,
+                actor=None,
+                scope=PUBLIC,
+                payload=p,
+                versions=versions,
+            )
+            for i, p in enumerate(made, start=1)
+        ]
+        replay(batch, initial=state)
+        store.append_all(batch)
+    return made
 
 
 def set_own_aim(

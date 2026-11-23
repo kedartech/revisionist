@@ -5,7 +5,8 @@ by its own ``App``, built the same way through the engine's public entry points 
 world file, a claim, the wake's opening, the server's own actions) except for one hidden
 fact, which only the second game (``hidden=True``) carries. ``reads`` collects every
 read the viewing seat can make and ``refusals`` every refusal it can provoke by naming
-the hidden thing, each as the bytes the server would send. The sweep
+the hidden thing, each as the bytes the server would send, with the seat's view and its
+agent's prompt as a model is given them. The sweep
 (``tests/test_fog_sweep.py``) compares the two games' bytes; another item's test may
 import ``PAIRS``, ``Side``, ``reads`` and ``refusals`` and run them with its own rule on.
 
@@ -32,6 +33,7 @@ import yaml
 from revisionist.core import events as ev
 from revisionist.core.fold import state_hash
 from revisionist.core.ids import DocumentId, EntityId, SeatId, derived_id
+from revisionist.core.project import project
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.document import BodyField, DocumentKind, DocumentTruth, DocumentView
 from revisionist.core.visibility import private_to
@@ -40,7 +42,9 @@ from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
 from revisionist.engine import counsel, directive, emit, notice, realism_tick, session_zero
 from revisionist.engine import wake as wk
-from revisionist.engine.store import load_state
+from revisionist.engine.advise import advise
+from revisionist.engine.llm import Reply, Request
+from revisionist.engine.store import MemoryStore, load_state
 from revisionist.engine.web import wake_api
 from revisionist.engine.web.accounts import Account, WebSeats
 from revisionist.engine.web.server import ApiError
@@ -316,7 +320,31 @@ def reads(s: Side, who: str, probes: tuple[Probe, ...]) -> dict[str, bytes]:
         out["notice"] = _bytes(notice.compose(state, s.seat(who), None, name))
     except ValueError as exc:
         out["notice"] = _bytes({"error": str(exc)})
+    out["view"] = project(state, s.seat(who)).model_dump_json().encode()
+    out["prompt"] = advice_prompt(s, who)
     return out
+
+
+class _Asked:
+    """A transport that keeps the request it is sent and answers nothing."""
+
+    def __init__(self) -> None:
+        self.requests: list[Request] = []
+
+    def call(self, request: Request) -> Reply:
+        self.requests.append(request)
+        return Reply({"text": ""}, request.model, 0, 0, 0, 0.0)
+
+
+def advice_prompt(s: Side, who: str) -> bytes:
+    """The prompt ``who``'s agent would be sent for a question: the seat's view as a
+    model reads it, and so as the adviser, the narrator and the agent are given it."""
+    t = _Asked()
+    copy = MemoryStore()  # the call logs its cost: on a copy, so the game is untouched
+    copy.append_all(s.run(lambda store: list(store.read(CAMPAIGN))))
+    advise(copy, CAMPAIGN, s.seat(who), "What now?", t)
+    (req,) = t.requests
+    return req.prompt.encode()
 
 
 def opening(s: Side, who: str) -> bytes:
@@ -463,6 +491,23 @@ def toy_held(s: Side, hidden: bool) -> None:
     """Kara's march to the Isle, held for Ilse, and Kara's ask of her."""
     if hidden:
         _done(s.act("kara", "lever", lever="march", params={"force": "norra_levy", "to": "isle"}))
+        (held_id,) = list(s.state().held)
+        _done(s.act("kara", "ask", order_id=held_id))
+
+
+def toy_unplayed_decider(w: World, hidden: bool) -> None:
+    """Both games: asks are answered, and the march to the Isle is held for Sven Hald, a
+    councillor of Norra with a card, no written answers and no seat."""
+    w["rules"] = sorted({*w["rules"], "ask_answers"})
+    w["entities"].append({"key": "sven", "kind": "person", "name": "Sven Hald", "parent": "norra"})
+    w["cards"].append({"person": "sven", "office": "Councillor of Norra", "horizon_days": 14})
+    _find(w["locks"], "island_march")["decider"] = {"person": "sven"}
+
+
+def toy_ask_unplayed(s: Side, hidden: bool) -> None:
+    """Kara's march to the Isle, held for Sven, in both games; Kara asks him for it in one."""
+    _done(s.act("kara", "lever", lever="march", params={"force": "norra_levy", "to": "isle"}))
+    if hidden:
         (held_id,) = list(s.state().held)
         _done(s.act("kara", "ask", order_id=held_id))
 
@@ -683,6 +728,13 @@ PAIRS: tuple[Pair, ...] = (
     Pair("held order and ask", "toy", ("olaf", "tomas"), act=toy_held, names=toy_held_names),
     Pair("other aims", "toy", ("kara", "tomas"), change=toy_aims),
     Pair(
+        "ask to a person with no seat",
+        "toy",
+        ("olaf", "tomas"),
+        change=toy_unplayed_decider,
+        act=toy_ask_unplayed,
+    ),
+    Pair(
         "report not arrived",
         "toy",
         ("ilse",),
@@ -744,6 +796,7 @@ NOT_BUILT: dict[str, str] = {
     "toy-private-agreement": "the toy world's two nations are at war and there is no third",
     "salt-held-order-and-ask": "Salt Strait declares no locks, so no order is ever held",
     "salt-hidden-law": "Salt Strait declares no law",
+    "salt-ask-to-a-person-with-no-seat": "Salt Strait declares no locks, so nothing is asked",
     "salt-report-author": "Salt Strait seats one player besides the host, so no second author",
 }
 """Kinds that cannot be built in a world through its public entry points, left for the

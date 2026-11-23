@@ -42,9 +42,11 @@ declare yet."""
 BILLS = ("neutrality_revision", "draft_extension", "lend_lease_appropriation", "arm_merchant_ships")
 """The four bills the votes rule's code table holds, as the send-bill form names them."""
 
-LOCKED_ON = "f3ee9a7ceb87012787da19181ce273dc"
-"""The locked-orders game's digest on the shipped 1941 world, the switches on, recorded once
-by this item."""
+LOCKED_ON = "8641c8d7a4a9c4a7eb7c23580ea290f1"
+"""The locked-orders game's digest on the shipped 1941 world, the switches on. The game's state
+carries everything the world declares, Britain's and Germany's commanders, the Commons' blocs,
+its law and the commanders' locks among them, so it is recorded for the world as it stands;
+both locks land on the same days with the switches on and off."""
 
 CLAUSE = "war zones closed to American ships"
 """The clause the commander's second lock names."""
@@ -55,8 +57,22 @@ def _world() -> WorldFile:
 
 
 def without_switches(world: WorldFile) -> WorldFile:
-    """A copy of ``world`` with the item's switches taken out of its rules."""
-    return world.model_copy(update={"rules": tuple(r for r in world.rules if r not in SWITCHES)})
+    """A copy of ``world`` with the item's switches taken out of its rules, and the lock rows
+    that read a law only the world declares: with ``laws`` off no such law is in the game, and
+    the compiler refuses a row whose clause it cannot find."""
+    tabled = {c.subject for m in votes.HISTORICAL.values() for c in m.clauses}
+    rows = tuple(
+        r
+        for r in world.locks
+        if r.when is None or r.when.check != "law_not_in_force" or r.when.clause in tabled
+    )
+    rules = tuple(r for r in world.rules if r not in SWITCHES)
+    return world.model_copy(update={"rules": rules, "locks": rows})
+
+
+def american(world: WorldFile) -> list[Any]:
+    """The laws the world declares for the United States: the four bills of the code table."""
+    return [law for law in world.laws if law.nation == "usa"]
 
 
 def _law(world: WorldFile, key: str) -> Any:
@@ -89,8 +105,8 @@ def test_the_world_check_requires_nothing_the_world_lacks() -> None:
 
 def test_the_four_bills_of_the_code_table_are_declared_as_laws() -> None:
     world = _world()
-    assert sorted(law.key for law in world.laws) == sorted(BILLS) == sorted(votes.HISTORICAL)
-    for law in world.laws:
+    assert sorted(law.key for law in american(world)) == sorted(BILLS) == sorted(votes.HISTORICAL)
+    for law in american(world):
         measure = votes.HISTORICAL[law.key]
         assert law.title == measure.title
         assert law.clauses == measure.clauses
@@ -102,7 +118,7 @@ def test_each_law_says_what_it_does() -> None:
     world = _world()
     does = {
         law.key: None if law.does is None else (law.does.kind, law.does.amount)
-        for law in world.laws
+        for law in american(world)
     }
     assert does == {
         "neutrality_revision": ("arms_merchant_ships", None),
@@ -114,7 +130,9 @@ def test_each_law_says_what_it_does() -> None:
 
 def test_the_laws_that_arm_merchant_ships_are_the_ones_whose_clause_did() -> None:
     world = _world()
-    arming = {law.key for law in world.laws if law.does and law.does.kind == "arms_merchant_ships"}
+    arming = {
+        law.key for law in american(world) if law.does and law.does.kind == "arms_merchant_ships"
+    }
     assert arming == {
         k for k, m in votes.HISTORICAL.items() if votes.ARMING in {c.subject for c in m.clauses}
     }
@@ -122,7 +140,7 @@ def test_the_laws_that_arm_merchant_ships_are_the_ones_whose_clause_did() -> Non
 
 def test_each_laws_key_is_the_key_its_blocs_rows_and_the_bill_form_name() -> None:
     world = _world()
-    keys = {law.key for law in world.laws}
+    keys = {law.key for law in american(world)}
     (usa,) = [g for g in world.groups if g.nation == "usa"]
     voting = [b for b in usa.groups if b.votes]
     assert voting

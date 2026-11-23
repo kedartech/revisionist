@@ -92,7 +92,7 @@ as well.
 |---|---|---|---|---|---|---|
 | The world's file name and its title | `world`, `name` | a slug of lowercase letters, digits, `_` and `-`; free wording | - | the loader refuses the file | always | on main |
 | Which ruleset the world plays | `ruleset` | `legacy`, `realism` | - | the older ruleset | - | on main |
-| Which rules are switched on | `rules` | `territories`, `holders`, `economy`, `supply`, `fuel`, `battles`, `reports`, `groups`, `agreements`, `conference`, `contests`, `aims`, `aid`, `writing`, `clause_reader`, `written_orders`, `command`, `locks`; `holders` needs `territories`, `economy` needs `holders`, `fuel` needs `economy` | - | none of the territory game's rules is on | - | on main |
+| Which rules are switched on | `rules` | `territories`, `holders`, `economy`, `supply`, `fuel`, `battles`, `reports`, `groups`, `agreements`, `conference`, `contests`, `aims`, `aid`, `writing`, `clause_reader`, `written_orders`, `command`, `locks`, `laws`, `ask_answers`, `deciders`, `own_aim`; `holders` needs `territories`, `economy` needs `holders`, `fuel` needs `economy` | - | none of the territory game's rules is on | - | on main |
 | Where and when the game opens | `start`, `start_date` | free wording; a date | - | no opening in history: Session Zero is not offered and no contest is needed | - | on main |
 | The season: the day it ends and its length in real days | `settings.{end_date, real_days}` | a date; 1 to 365 days | - | a fixed number of turns | - | on main |
 | How long a turn and a shared wake last | `settings.{tick_hours, world_days_per_tick, wake_hours}` | 1 to 168 hours; world days of one or more | - | a 24-hour turn of 7 world days, and a 12-hour wake | - | on main |

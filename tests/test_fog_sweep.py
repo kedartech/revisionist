@@ -37,9 +37,11 @@ KINDS = (
     "pending leave",
     "hidden law",
     "written order awaiting the close",
+    "report author",
 )
 """The contract's eleven kinds of hidden fact, in its order, then the seat whose player
-has left in the open wake, which is the code's from the close."""
+has left in the open wake, which is the code's from the close, then which seat filed a
+player report the host reads."""
 
 HUMANS = (
     "rules lane fix: the wake header's human count and the commit reply's 'waiting for N "

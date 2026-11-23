@@ -21,7 +21,12 @@ starts the ready-made 1941 game as its host and plays Franklin D. Roosevelt. The
   itself as a tab or as the app;
 - the map is panned and pinched for ten seconds with the processor slowed four times, and the
   time between frames is read: on the phone run the 95th percentile must be at or under 33.4 ms,
-  two frame intervals (a frame's time comes in steps of 16.7 ms).
+  two frame intervals (a frame's time comes in steps of 16.7 ms);
+- the offline shell, in a context of its own with the same session: the room loads once and its
+  service worker takes control; the worker's stores hold the page and the map object by its hash
+  and nothing under `/api/`; with the network cut a reload opens the shell with its one offline
+  line and a write does not get through; a new worker is offered as a new version, nothing
+  changes until Reload is pressed, and then the new worker controls the reloaded page.
 
 Screenshots, a ten-second recording of the same pan and pinch (not slowed) and `report.json` go to
 OUT_DIR. With a fourth argument `phone` it runs at 390x844 with touch, else at 1440x900. Fails on
@@ -182,6 +187,14 @@ def start(page: Page) -> None:
         page.get_by_role("link", name="Start a new game").click()
         page.get_by_role("button", name="Start Autumn 1941").click()
         page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
+        # the ready-made game opens on its nation, path and person steps; the flat cast waits
+        # behind Show everyone
+        everyone = page.get_by_role("button", name="Show everyone")
+        try:
+            everyone.wait_for(timeout=15_000)
+            everyone.click()
+        except Exception:
+            pass
         rs.play_from_dossier(page, {}, "Franklin D. Roosevelt")
         page.get_by_role("button", name="Begin the game").wait_for(timeout=60_000)
         rs.begin_with_crawl(page, {})
@@ -783,6 +796,130 @@ def install_files(page: Page, report: dict) -> None:
     report["shell"] = {"manifest": href, "icons": [i["src"] for i in icons], "mark": mark}
 
 
+STORES_JS = """async () => {
+  const out = [];
+  for (const name of await caches.keys()) {
+    const store = await caches.open(name);
+    for (const req of await store.keys()) out.push([name, new URL(req.url).pathname]);
+  }
+  return out;
+}"""
+
+WRITE_JS = """async () => {
+  try {
+    const r = await fetch('/api/realism/commit', { method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    return `answered ${r.status}`;
+  } catch (e) { return 'refused'; }
+}"""
+
+SCRIPT_JS = "() => navigator.serviceWorker.controller?.scriptURL ?? ''"
+
+READY_JS = """() => Promise.race([
+  navigator.serviceWorker.ready.then(() => true),
+  new Promise((done) => setTimeout(() => done(false), 30000)),
+])"""
+
+
+def offline_shell(browser: object, state: dict, url: str, report: dict) -> None:
+    """Loads once, takes the worker, cuts the network and reloads, then offers a new version."""
+    ctx = browser.new_context(  # type: ignore[attr-defined]
+        viewport={"width": SIZE[0], "height": SIZE[1]},
+        has_touch=PHONE,
+        is_mobile=PHONE,
+        storage_state=state,
+        service_workers="allow",
+    )
+    page = ctx.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+    page.goto(url)
+    page.locator(MAP).first.wait_for(timeout=60_000)
+    ready = page.evaluate(READY_JS)
+    rs.check("the worker is ready after one load", ready)
+    if not ready:
+        ctx.close()
+        return
+    page.reload()
+    page.locator(MAP).first.wait_for(timeout=60_000)
+    script = page.evaluate(SCRIPT_JS)
+    rs.check("the worker controls the page after one load", script.endswith("/sw.js"), script)
+    stores: list[list[str]] = []
+    for _ in range(40):
+        stores = page.evaluate(STORES_JS)
+        if any(path.startswith("/maps/") for _, path in stores):
+            break
+        page.wait_for_timeout(250)
+    paths = [path for _, path in stores]
+    api = [path for path in paths if path.startswith("/api/")]
+    rs.check("no key in the worker's stores is under /api/", not api, str(api))
+    rs.check("the worker keeps the page", "/index.html" in paths)
+    rs.check(
+        "the worker keeps the scripts and styles",
+        "/js/app.js" in paths and "/css/tokens.css" in paths,
+    )
+    maps = [path for path in paths if path.startswith("/maps/")]
+    rs.check("the worker keeps the map object by its hash", len(maps) == 1, str(maps))
+    worker: dict[str, object] = {
+        "keys": len(paths),
+        "stores": sorted({n for n, _ in stores}),
+        "maps": maps,
+    }
+
+    ctx.set_offline(True)
+    page.reload()
+    line = page.locator(".shell-line.shell-offline")
+    line.wait_for(timeout=15_000)
+    said = line.inner_text()
+    rs.check("offline, the shell opens with its one line", "orders cannot be sent" in said, said)
+    rs.check(
+        "offline, the page is the app's",
+        page.title() == "Revisionist" and page.locator("#app").count() == 1,
+    )
+    wrote = page.evaluate(WRITE_JS)
+    rs.check("offline, a write does not get through", wrote == "refused", wrote)
+    rs.shoot(page, "swk-offline")
+    ctx.set_offline(False)
+    page.reload()
+    page.locator(MAP).first.wait_for(timeout=60_000)
+    rs.check("online again, the offline line is gone", page.locator(".shell-offline").count() == 0)
+
+    # A worker at another address in the same scope is a new version to the browser, bytes alike:
+    # it installs beside the one in control and waits, as a deploy's changed worker does.
+    first = page.evaluate(SCRIPT_JS)
+    page.evaluate(
+        "async () => { await navigator.serviceWorker.register('/sw.js?next=1', { scope: '/' }); }"
+    )
+    offer = page.locator(".shell-line.shell-update")
+    offered = True
+    try:
+        offer.wait_for(timeout=20_000)
+    except Exception:
+        offered = False
+    rs.check("a new version is offered", offered)
+    if offered:
+        said = offer.inner_text()
+        rs.check("the offer says a new version is ready", "A new version is ready." in said, said)
+        rs.shoot(page, "swk-update")
+        page.evaluate("() => { window.swkMark = 1; }")
+        page.wait_for_timeout(1500)
+        held = page.evaluate("() => window.swkMark === 1") and page.evaluate(SCRIPT_JS) == first
+        rs.check("nothing changes before the player's word", held)
+        with page.expect_navigation(timeout=20_000):
+            offer.get_by_role("button", name="Reload").click()
+        page.locator(MAP).first.wait_for(timeout=60_000)
+        now = page.evaluate(SCRIPT_JS)
+        rs.check(
+            "Reload reloads the page under the new version",
+            page.evaluate("() => window.swkMark === undefined") and now.endswith("/sw.js?next=1"),
+            now,
+        )
+        worker["script"] = [first, now]
+    rs.check("the offline shell raised no page error", not errors, "; ".join(errors))
+    report["worker"] = worker
+    ctx.close()
+
+
 def record(browser: object, state: dict, url: str) -> None:
     """The same ten seconds of pan and pinch, not slowed, as a recording."""
     ctx = browser.new_context(  # type: ignore[attr-defined]
@@ -845,6 +982,10 @@ def main() -> int:
         url = page.url
         state = ctx.storage_state()
         ctx.close()
+        try:
+            offline_shell(browser, state, url, report)  # type: ignore[arg-type]
+        except Exception as exc:
+            rs.problems.append(f"the offline shell: {exc}")
         record(browser, state, url)  # type: ignore[arg-type]
         browser.close()
     report["checks"] = rs.checks

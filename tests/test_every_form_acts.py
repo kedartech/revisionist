@@ -155,10 +155,11 @@ class _World:
         landing, _ = realism_tick.form_filing(start, order.issuer, order)
         lock = locks.lock_for(start, order.issuer, order)
         if lock is not None:
-            assert lock.row is not None and lock.row.when is not None
+            assert lock.row is not None
             key = lock.row.key
-            start = _opened(start, order, lock.row.when)
-            assert locks.lock_for(start, order.issuer, order) is None
+            if lock.row.when is not None:
+                start = _opened(start, order, lock.row.when)
+                assert locks.lock_for(start, order.issuer, order) is None
             if key not in self._controls:
                 self._controls[key] = {}
                 self._walk(start, None, key)
@@ -166,6 +167,8 @@ class _World:
         if lock is None:
             return self._walk(_landed(state, order.order_id), order, key)
         assert order.order_id in state.held
+        if lock.row is not None and lock.row.when is None:
+            state = _granted(state, order)
         diff = self._walk(state, order, key)
         return None if order.order_id in self.last.held else diff
 
@@ -247,6 +250,16 @@ def _opened(state: State, order: Order, when: locks.Condition) -> State:
     }
     setter = realism_tick.draft_order(state, seat, when.form, given)
     return _landed(_fold(state, [ev.OrderDrafted(order=setter)]), setter.order_id)
+
+
+def _granted(state: State, order: Order) -> State:
+    """``state`` with the held ``order``'s ask made and granted: a row with no condition
+    opens only on a grant (QKD), which the walk lands as the engine does."""
+    day = state.in_world_date
+    assert day is not None
+    asked = locks.ask(state, order.issuer, order.order_id, day)
+    answer = ev.AskAnswered(order_id=order.order_id, asker=order.issuer, on=day, granted=True)
+    return _fold(state, [ev.OrderAsked(asked=asked), answer])
 
 
 def _fold(state: State, payloads: Sequence[ev.Payload]) -> State:

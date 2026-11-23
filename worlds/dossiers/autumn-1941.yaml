@@ -267,3 +267,21 @@ people:
     fact: He held that three hundred boats would decide the war at sea; in the autumn of 1941 he had about thirty in the Atlantic.
     portrait: null
     credit: null
+  yamamoto:
+    bio: Admiral Isoroku Yamamoto has commanded the Combined Fleet since 1939. He studied at Harvard
+      and served as naval attache in Washington, and he argued against the alliance with Germany and
+      against a war with the United States that Japan could not sustain. Ordered to plan for one, he
+      planned to open it with a blow at the American fleet in Pearl Harbor.
+    arena: Your arena is the Combined Fleet. You decide where it goes, what you detach and how it
+      fights, under the Chief of the Navy General Staff, who must allow the fleet's gathering at
+      Hitokappu Bay. Opening hostilities is for the Liaison Conference to decide, the Prime Minister,
+      the War Minister and the two Chiefs of Staff, and all of them must agree.
+    history:
+    - Lost two fingers of his left hand at Tsushima in 1905.
+    - Studied at Harvard and was naval attache in Washington in the 1920s.
+    - Pressed the Hawaii operation on the Navy General Staff in October 1941, and threatened to resign to carry it.
+    quote: null
+    source: null
+    fact: He told the Prime Minister in 1940 that he could run wild for six months or a year, but had no confidence for the second or third year.
+    portrait: null
+    credit: null

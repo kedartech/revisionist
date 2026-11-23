@@ -185,7 +185,8 @@ Seats:
 
 Goals and mandates:
 - `src/revisionist/engine/session_zero.py:800` `propose_goals()` (routes: history, could_have, own), `src/revisionist/engine/session_zero.py:908` `confirm_goal()`, `src/revisionist/engine/session_zero.py:987` `history_brief()`, `src/revisionist/engine/session_zero.py:1024` `design_agent()`.
-- `src/revisionist/core/goals.py:584` `check()` (progress, met, undone), `src/revisionist/core/goals.py:768` `season_winners()` (with `aims` on, the seats whose person has two aims holding; `aim_goals()` `src/revisionist/core/goals.py:726` makes a person's aims into goals once, `aim_status()` `src/revisionist/core/goals.py:671` reads met, at risk or failed from state), `src/revisionist/core/goals.py:909` `balance()` (flags goals too strong for a seat's power).
+- `src/revisionist/core/goals.py:585` `check()` (progress, met, undone), `src/revisionist/core/goals.py:776` `season_winners()` (with `aims` on, the seats whose person has two aims holding; `aim_goals()` `src/revisionist/core/goals.py:731` makes a person's aims into goals once, `aim_status()` `src/revisionist/core/goals.py:676` reads met, at risk or failed from state), `src/revisionist/core/goals.py:938` `balance()` (flags goals too strong for a seat's power).
+- The player's own aim (`own_aim`): `src/revisionist/core/aim_patterns.py:550` `fill()` checks a pattern filled from the seat's view, `src/revisionist/core/aim_patterns.py:601` `ladder()` lists the patterns a seat's post may use, easiest first, `src/revisionist/core/aim_patterns.py:579` `own_aim_set()` makes the event, and `src/revisionist/engine/realism_tick.py:743` `set_own_aim()` logs it.
 - Mandates: `MandateKind` and the mandate triggers are in `src/revisionist/core/realism/agenda.py` (imported by `src/revisionist/core/world.py`). The seat's own mandates are projected in `src/revisionist/core/project.py`. The web agenda shows them (section 5). Goals are the separate secret-goal system above.
 
 Leak scan:
@@ -305,7 +306,7 @@ The third run declares sixteen more names, each read by a later item; until its 
 - `laws`: laws declared by the world (`laws.py`, `laws.in_force()`), read by locks; votes and shipping read them once the rules lane's half is built.
 - `ask_answers`: an ask to a decider nobody plays is answered by its card on a due day.
 - `deciders`: locks decided by the kind of question, and by a council.
-- `own_aim`: the player's own aim, filled from the world's patterns and scored.
+- `own_aim`: the player's own aim, filled from the world's patterns and scored (`aim_patterns.py`, `aim_patterns.fill()`, `aim_patterns.ladder()`).
 - `offers`: a priced offer to a bloc, with a promise that comes due.
 - `classes`: every happening has a class: felt, reported or secret.
 - `losses`: the size of losses moves the mood at home.
@@ -462,7 +463,7 @@ Frontend (static, no build):
   - `0012_web_notices.sql`: `web_notice_addresses` (an account's notice address and IANA zone) and `web_notices_sent` (one row per seat and wake once its notice has gone). Read as empty until migrated (`src/revisionist/engine/notice.py`).
   - `0013_web_held_orders.sql`: `web_held_orders` (an order a seat gave after committing, kept until the next wake opens; `filed_in` and `dropped` record what became of it). Read as empty until migrated (`src/revisionist/engine/web/held.py`).
 - Event log: `src/revisionist/core/events.py` (event models). `src/revisionist/core/fold.py:107` `apply()`, `src/revisionist/core/fold.py:119` `replay()`. `src/revisionist/engine/store.py:103` `load_state()`. The Postgres store reads from a snapshot plus the tail (`src/revisionist/engine/pg_store.py`).
-- Schema export: `src/revisionist/schema_export.py:33` writes `schema/revisionist.schema.json`, which is committed. `tests/test_schema.py:85` checks it is current. `src/revisionist/core/__init__.py:23` `SCHEMA_VERSION = "68"`.
+- Schema export: `src/revisionist/schema_export.py:33` writes `schema/revisionist.schema.json`, which is committed. `tests/test_schema.py:85` checks it is current. `src/revisionist/core/__init__.py:23` `SCHEMA_VERSION = "69"`.
 - Worlds: `worlds/autumn-1941.yaml`, `worlds/engine-v2-slice-1941.yaml`, `worlds/realism-slice-1941.yaml`, `worlds/realism-toy.yaml`, `worlds/salt-strait.yaml`, `worlds/salt-strait-duo.yaml`. Resolved from `src/revisionist/engine/campaign.py:33` `WORLDS_DIR` by `world_path()` (`src/revisionist/engine/campaign.py:85`). Sidecar text for two of them: `worlds/dossiers/autumn-1941.yaml` and `worlds/dossiers/engine-v2-slice-1941.yaml`. Drafts `tests/drafts/florence-1478.yaml` and `washington-1962.yaml` are fixtures.
 - Briefings: `src/revisionist/engine/campaign.py:226-235` `briefings_dir()`: `REVISIONIST_BRIEFINGS_DIR`, else `<db>-briefings` beside a SQLite file, else `./revisionist-briefings`. Files `t<tick>-<seat>.md` from `FileDeliverer` (`src/revisionist/engine/campaign.py:208-223`).
 - Setting card waiting for `establish confirm`: `src/revisionist/cli.py:231-234` `_card_file()`, `revisionist-card.json` beside briefings.

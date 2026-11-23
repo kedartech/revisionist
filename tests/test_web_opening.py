@@ -131,7 +131,7 @@ def test_a_taken_person_is_marked_for_every_player_and_a_joiner(
     assert seen == new(host, "opening")["opening"] == new(guest, "opening")["opening"]
     japan = next(n for n in seen["nations"] if n["name"] == "Japan")
     marks = {p["name"]: p["taken"] for path in japan["paths"] for p in path["persons"]}
-    assert marks == {"Fumimaro Konoe": True, "Hideki Tojo": False}
+    assert marks == {"Fumimaro Konoe": True, "Hideki Tojo": False, "Isoroku Yamamoto": False}
     assert people(seen)["Adolf Hitler"]["taken"] is True
     assert sum(p["taken"] for p in people(seen).values()) == 2
     assert seen["seats_left"] == 8

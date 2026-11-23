@@ -42,11 +42,11 @@ declare yet."""
 BILLS = ("neutrality_revision", "draft_extension", "lend_lease_appropriation", "arm_merchant_ships")
 """The four bills the votes rule's code table holds, as the send-bill form names them."""
 
-LOCKED_ON = "0b1d6f533cc5c0f779c60bb86538f6be"
+LOCKED_ON = "8641c8d7a4a9c4a7eb7c23580ea290f1"
 """The locked-orders game's digest on the shipped 1941 world, the switches on. The game's state
-carries everything the world declares, Britain's commander, the Commons' blocs, its law and his
-two locks among them, so it is recorded for the world as it stands; both locks land on the same
-days with the switches on and off."""
+carries everything the world declares, Britain's and Germany's commanders, the Commons' blocs,
+its law and the commanders' locks among them, so it is recorded for the world as it stands;
+both locks land on the same days with the switches on and off."""
 
 CLAUSE = "war zones closed to American ships"
 """The clause the commander's second lock names."""

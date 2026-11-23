@@ -32,7 +32,6 @@ from revisionist.core.ids import CampaignId, EntityId, FeatureId, SeatId, derive
 from revisionist.core.ontology import Phase
 from revisionist.core.realism import locks
 from revisionist.core.realism.pipeline import OrderStatus, StepAction
-from revisionist.core.settings import Settings
 from revisionist.core.state import Rule, State
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import compile_world, object_id
@@ -43,7 +42,7 @@ from revisionist.engine.prose import TemplateProseWriter
 from revisionist.engine.realism_tick import run_realism_tick
 from revisionist.engine.store import MemoryStore, load_state
 from revisionist.engine.web.server import MODEL_DOWN, model_down
-from tests.locked_orders_script import Ids
+from tests.locked_orders_script import Ids, table
 from tests.written_order_cases import CASES, ENTITY_FIELDS, FEATURE_FIELDS, FIXES, Case, naval
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
@@ -145,19 +144,9 @@ def written_orders_on(world: WorldFile) -> WorldFile:
 
 
 @functools.cache
-def tables(name: str) -> tuple[tuple[str, ...], ...]:
-    """The world's playable people with forms, in order, split into tables of no more
-    players than a game seats: each table is one opened game."""
-    world = cmp.load_world(cmp.world_path(WORLDS[name]))
-    people = sorted({c.person for c in world.cards if c.playable and c.levers})
-    most = Settings().max_human_seats
-    return tuple(tuple(people[n : n + most]) for n in range(0, len(people), most))
-
-
 def table_of(name: str, person: str | None) -> tuple[str, ...]:
-    """The table ``person`` sits at; with no person, the first."""
-    found = tables(name)
-    return next((t for t in found if person in t), found[0])
+    """The people seated in the game ``person`` plays (``locked_orders_script.table``)."""
+    return table(cmp.load_world(cmp.world_path(WORLDS[name])), person)
 
 
 def _open(name: str, without: tuple[Rule, ...], people: tuple[str, ...]) -> Opened:
@@ -183,8 +172,8 @@ _OPENED: dict[tuple[str, tuple[Rule, ...], tuple[str, ...]], Opened] = {}
 
 
 def opened(name: str, without: tuple[Rule, ...] = (), who: str | None = None) -> Opened:
-    """The world opened at the table ``who`` sits at (the first, with no one named), with
-    the rules in ``without`` off in the test's copy."""
+    """The world opened with the people ``who`` plays beside (``table``), with the rules in
+    ``without`` off in the test's copy."""
     people = table_of(name, who)
     if (name, without, people) not in _OPENED:
         _OPENED[name, without, people] = _open(name, without, people)

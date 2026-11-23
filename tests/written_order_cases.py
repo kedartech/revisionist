@@ -576,9 +576,56 @@ def _salt(
     )
 
 
+def fsalt(person: str, lever: str, params: dict[str, str], sentence: str, *reading: Effect) -> Case:
+    return Case("salt", person, lever, params, sentence, tuple(reading))
+
+
+SALT_WATCH = {"intel": "patrol", "piece": "varda_galleys", "order": "guard", "zone": "strait"}
+SALT_CONVOY_ACT: Effect = {
+    "kind": "measure",
+    "title": "Salt Convoy Act",
+    "clauses": [{"kind": "power", "subject": "arm the salt convoys", "amount": None}],
+}
+"""Varda's own law as a written bill: its title's words are the key the form's bill names."""
+
 SALT_STRAIT: tuple[Case, ...] = (
     *_salt("oren_vale", "varda", "ostrel", "harrow_pass", "kesh_shore", "varda_saltworks"),
     *_salt("general_aske", "ostrel", "varda", "harrow_pass", "kesh_shore", "harrow_pass"),
+    fsalt(
+        "oren_vale",
+        "set_watch",
+        SALT_WATCH,
+        "Put the galleys on watch on the strait.",
+        patrol("varda_galleys"),
+    ),
+    fsalt(
+        "oren_vale",
+        "send_bill",
+        {"bill": "salt_convoy_act", "urgency": "ordinary"},
+        "Send the Salt Convoy Act to the Salt Assembly.",
+        SALT_CONVOY_ACT,
+    ),
+    fsalt(
+        "oren_vale",
+        "move_galleys",
+        {"force": "varda_galleys", "to": "saltworks"},
+        "Send the galleys to the Saltworks.",
+        move("varda_galleys", "saltworks"),
+    ),
+    fsalt(
+        "brask",
+        "galley_watch",
+        SALT_WATCH,
+        "Put the galleys on watch on the strait.",
+        patrol("varda_galleys"),
+    ),
+    fsalt(
+        "brask",
+        "sail",
+        {"force": "varda_galleys", "to": "free_port"},
+        "Sail the galleys to the Free Port.",
+        move("varda_galleys", "free_port"),
+    ),
 )
 """Every form on every playable card of Salt Strait."""
 
@@ -658,18 +705,14 @@ FIXES: dict[str, str] = {
     "1941.king.fleet_naval_order.war_zone": SHIPPING,
     "salt.oren_vale.move_force": TIMING,
     "salt.oren_vale.declare_war": WAR,
-    "salt.oren_vale.fly_balloon": TIMING,
     "salt.oren_vale.galley_patrol": TIMING,
-    "salt.oren_vale.place_a_spy": TIMING,
-    "salt.oren_vale.pay_the_cipher_clerks": TIMING,
+    "salt.oren_vale.set_watch": TIMING,
     "salt.oren_vale.hide_a_force": TIMING,
     "salt.general_aske.move_force": TIMING,
     "salt.general_aske.declare_war": WAR,
-    "salt.general_aske.fly_balloon": TIMING,
     "salt.general_aske.galley_patrol": TIMING,
-    "salt.general_aske.place_a_spy": TIMING,
-    "salt.general_aske.pay_the_cipher_clerks": TIMING,
     "salt.general_aske.hide_a_force": TIMING,
+    "salt.brask.galley_watch": TIMING,
 }
 """Each case whose written order and form still differ, and the fix item that owns the
 difference: the first one found, where a case has more than one."""

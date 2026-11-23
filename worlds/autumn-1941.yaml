@@ -21,7 +21,7 @@ start_date: 1941-09-01
 # laws and ask_answers (LWD): the four American bills are the laws declared under `laws`; an ask to
 # a person no player holds is answered on its due day. deciders stays off until the world names a
 # council and the kinds of question its posts decide, which the world check requires with it on.
-rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, own_aim, laws, ask_answers]
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, own_aim, laws, ask_answers, deciders]
 
 entities:
   # A polity's capital (PCW): a place in its own territory; a neutral's or an occupied nation's is its
@@ -148,6 +148,7 @@ entities:
   - {key: kurusu, kind: person, name: Saburo Kurusu, parent: japan}
   - {key: sugiyama, kind: person, name: Hajime Sugiyama, parent: japan}
   - {key: nagano, kind: person, name: Osami Nagano, parent: japan}
+  - {key: yamamoto, kind: person, name: Isoroku Yamamoto, parent: japan}  # source: yamamoto_1941
   - {key: cabinet_clerk, kind: person, name: Cabinet Secretariat clerk, parent: japan}
   # Germany, Italy
   - {key: hitler, kind: person, name: Adolf Hitler, parent: germany}
@@ -1193,6 +1194,8 @@ assets:
   - {key: home_fleet_command, kind: office, name: "Commander in Chief, Home Fleet", tier: 3, controller: tovey}
   # NGE: the U-boat arm's commander's post. The tier is [proposed], as Tovey's is.
   - {key: uboat_command, kind: office, name: Commander of U-boats, tier: 3, controller: doenitz}
+  # NJP: the Combined Fleet's commander's post. The tier is [proposed], as Tovey's is.
+  - {key: combined_fleet_command, kind: office, name: "Commander in Chief, Combined Fleet", tier: 3, controller: yamamoto}
 
 sources:
   - key: voteview
@@ -1248,6 +1251,8 @@ sources:
   - {key: national_service_1941, title: "National Service (No. 2) Act 1941: men liable to the age of 51, unmarried women from 20 to 30", note: "Announced to the Commons by the Prime Minister on 2 December 1941; Royal Assent 18 December 1941. Named citation; the lane had no network and read no edition or division list. Confirm the dates and the divisions before release."}
   - {key: tovey_1941, title: "Admiral Sir John Tovey, Commander in Chief, Home Fleet, from December 1940 to May 1943, at Scapa Flow", note: "Named citation; not read. Confirm the dates before release."}
   - {key: doenitz_1941, title: "Karl Dönitz, Befehlshaber der Unterseeboote (Commander of U-boats) from 1939, Vizeadmiral from September 1940, with his headquarters at Kernevel by Lorient from November 1940", note: "Named citation; the lane had no network and read no edition. Confirm the rank and dates before release."}
+  - {key: yamamoto_1941, title: "Admiral Isoroku Yamamoto, Commander in Chief of the Combined Fleet from August 1939, with his flagship in the Inland Sea by Kure", note: "Named citation; the lane had no network and read no edition. Confirm the rank and dates before release."}
+  - {key: liaison_conference_1941, title: "The Liaison Conference of 1941: the Prime Minister, the Foreign, Army and Navy Ministers and the two Chiefs of Staff, deciding by consensus", note: "Named citation; not read. Confirm the membership and the rule of consensus before release."}
   - {key: fuehrer_naval_17_sep_1941, title: "Fuehrer Conferences on Naval Affairs, 17 September 1941: Hitler orders the U-boats to avoid incidents with American ships", note: "Raeder asked leave to attack American escorts; Hitler refused until the campaign in the East is decided. Named citation; not read. Confirm the date and the wording before release."}
   - {key: neutrality_act_1939, title: "Neutrality Act of 4 November 1939 (54 Stat. 4), section 3, Combat Areas; with Proclamation 2376 of the same day defining the combat area", note: "Read (presidency.ucsb.edu, Proclamation 2376, which quotes section 3). Section 3(a): once the President defines combat areas it is unlawful for any citizen of the United States or any American vessel to proceed into or through them. The area: the waters round the British Isles out to 20 W, from the north coast of Spain to Norway."}
   - {key: fdr_1941_09_11, title: "Roosevelt's fireside chat of 11 September 1941 on the Greer: the Navy's patrols of the Atlantic and the order to shoot on sight", note: "Named citation; not read. Confirm the text before release."}
@@ -1456,6 +1461,13 @@ pipelines:
     gap: true
     steps:
       - {person: doenitz, kind: clerical, days: 1, assumed: true}
+  # Yamamoto's own forms (NJP): through the Combined Fleet's staff in his flagship, with no step
+  # above him. The step is his.
+  - key: combined_fleet_staff
+    name: Through the Combined Fleet's staff
+    gap: true
+    steps:
+      - {person: yamamoto, kind: clerical, days: 1, assumed: true}
   - key: cable_to_churchill
     name: A cable to the Prime Minister
     gap: true
@@ -3000,6 +3012,64 @@ cards:
         effects: [move_force, engagement]
         forces: [uboat_arm]
         summary: "Command of the U-boat arm: where the boats go, what is detached, how they fight."
+  # The twelfth playable card (NJP): a military card, flagged playable by hand, under the Chief
+  # of the Navy General Staff and so under the Emperor. His own forms go through his own staff
+  # (combined_fleet_staff), with no step above him. Aims 1 and 2 are the fleet commander's
+  # patterns filled in (hold_and_take, raise_group); aim 3 is the default an own aim replaces.
+  # Opening hostilities is the Liaison Conference's to decide, as a council; gathering the fleet
+  # is the Navy chief's. source: yamamoto_1941 for the post, prange_1981 for his quarrel with the
+  # Navy General Staff over the Hawaii operation; every other line gap: true, [proposed].
+  - person: yamamoto
+    post_kind: fleet_commander
+    office: Commander in Chief, Combined Fleet
+    voice: "Laconic and wry, with a gambler's candour; warns that he can run wild for six months and no longer."
+    addressed_as: "Admiral Yamamoto"
+    playable: true
+    path: military
+    principals: [nagano]
+    opposes:
+      - {against: nagano, over: "the Hawaii operation the Naval General Staff opposed"}
+    powers: [command the Combined Fleet, plan the fleet's operations, sail the strike force]
+    inner_circle:
+      - {person: nagano, channel: cable}
+    feeds: []
+    pipelines: [combined_fleet_staff]
+    levers:
+      - name: combined_fleet_move
+        pipeline: combined_fleet_staff
+        resolver: movement
+        label: "Move the fleet"
+        summary: "Send the Combined Fleet to other waters. Your staff carries it out."
+        params:
+          - {name: force, kind: enum, choices: [combined_fleet], label: "Which fleet", choice_labels: ["The Combined Fleet"]}
+          - {name: to, kind: enum, choices: [kure, hitokappu_bay, pearl_harbor_base], label: "To", choice_labels: ["Kure", "Hitokappu Bay", "Pearl Harbor"]}
+      - name: combined_fleet_detach
+        pipeline: combined_fleet_staff
+        resolver: movement
+        label: "Detach part of the fleet"
+        summary: "Send part of the Combined Fleet's strength to other waters; the rest stays where it is."
+        params:
+          - {name: force, kind: enum, choices: [combined_fleet], label: "Which fleet", choice_labels: ["The Combined Fleet"]}
+          - {name: to, kind: enum, choices: [kure, hitokappu_bay, pearl_harbor_base], label: "To", choice_labels: ["Kure", "Hitokappu Bay", "Pearl Harbor"]}
+          - {name: strength, kind: int, lo: 1, hi: 4, label: "How much of its strength"}
+    loyalty: 0
+    competence: 4
+    wants: [naval_engagement, fleet_movements]
+    reach: {rank: 2}
+    horizon_days: 7
+    aims:
+      - "Hold Japan West and take Hawaii."
+      - "Lift the Navy to 80 or more."
+      - "Take Malaya and British Borneo in the southern operation."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Japan West stays Japanese, and Hawaii is taken from the United States.", condition: {check: all_of, conditions: [{check: holds_area, area: japan_west, holder: japan}, {check: holds_area, area: hawaii, holder: japan}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "The Navy's support in Japan is at 80 or more.", condition: {check: support_at, nation: japan, group: navy, op: ge, value: 80}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "Japan holds Malaya and British Borneo.", condition: {check: holds_area, area: malaya, holder: japan}}
+    authority:
+      - name: combined_fleet
+        effects: [move_force, engagement]
+        forces: [combined_fleet]
+        summary: "Command of the Combined Fleet: where it goes, what it detaches, how it fights."
   - person: kramer
     office: Navy communications intelligence translator
     voice: "Precise translator's register; marks the urgent passage and adds one short note of his own."
@@ -3486,6 +3556,17 @@ mandates:
     condition: {check: ordered, person: doenitz, effect: move_force}
     days: 14
     text: "The Fuehrer wants no incident with American ships: the Naval Staff wants the boats disposed clear of the American escorts."
+  # NJP: the Imperial Conference of 5 November set early December for war if the talks failed,
+  # and the Navy General Staff ordered the Combined Fleet to make ready. Named, not read:
+  # gap: true, [proposed]. source: prange_1981
+  - key: combined_fleet_ready
+    kind: order
+    issuer: nagano
+    trigger: {"on": history, history: tojo_cabinet}
+    to: [yamamoto]
+    condition: {check: ordered, person: yamamoto, effect: move_force}
+    days: 21
+    text: "The new Cabinet holds to early December if the talks fail: the Navy General Staff wants the Combined Fleet made ready."
   # The Commons pressed for the Atlantic convoys through the autumn.
   - key: commons_convoys
     kind: order
@@ -3609,6 +3690,11 @@ roster:
     reach: The U-boat arm, what it may do under the Navy's commander in chief, and a cable to Hitler.
     composite: false
     sides: [{contest: atlantic_war, side: germany}]
+  - entity: yamamoto
+    pitch: Admiral commanding the Combined Fleet, who planned the blow at Pearl Harbor against a war he did not want.
+    reach: The Combined Fleet, what it may do under the Navy General Staff, and a cable to its Chief.
+    composite: false
+    sides: [{contest: us_japan_talks, side: japan}]
 
 # Starting regard [proposed] (SHT, 14 Nov sheet), -2 to 2: between Roosevelt and
 # each of his people, and between each pair of the eight leaders. Public, as the
@@ -3815,6 +3901,32 @@ locks:
     order: {form: uboat_detach, params: {to: argentia}}
     when: {check: posture_not_set, form: uboat_directive, where: {theatre: north_atlantic}, posture: {posture: attack_us_shipping}}
     decider: {person: hitler}
+  # NJP. Opening hostilities against the United States: the Combined Fleet sent against Pearl
+  # Harbor, or part of it, is a question of war for the Liaison Conference, a council of the
+  # cards that sat on it (the Prime Minister, the War Minister and the two Chiefs of Staff; the
+  # Foreign and Navy Ministers have no card), all of whom must agree, as the conference decided
+  # by consensus. The Prime Minister is the head an ask goes to. No condition: only the
+  # conference's grant opens it. source: liaison_conference_1941; members and count [proposed],
+  # gap: true.
+  - key: pearl_harbor_strike
+    question: war
+    order: {form: combined_fleet_move, params: {to: pearl_harbor_base}}
+    decider: {council: {members: [konoe, tojo, sugiyama, nagano], needed: 4, head: konoe}}
+  - key: pearl_harbor_detachment
+    question: war
+    order: {form: combined_fleet_detach, params: {to: pearl_harbor_base}}
+    decider: {council: {members: [konoe, tojo, sugiyama, nagano], needed: 4, head: konoe}}
+  # NJP. Gathering the fleet, or part of it, at Hitokappu Bay, where the strike force assembled
+  # in November, waits on the permission of the Chief of the Navy General Staff, whose staff
+  # ordered the fleet's operations. source: prange_1981; gap: true, [proposed].
+  - key: hitokappu_bay_gathering
+    question: permission
+    order: {form: combined_fleet_move, params: {to: hitokappu_bay}}
+    decider: {person: nagano}
+  - key: hitokappu_bay_detachment
+    question: permission
+    order: {form: combined_fleet_detach, params: {to: hitokappu_bay}}
+    decider: {person: nagano}
 
 # Pacts in force on 1 September 1941 (PCW). The clause chosen for each is [proposed]: the rules judge
 # what they can, and wording they cannot express is kept and marked unchecked.

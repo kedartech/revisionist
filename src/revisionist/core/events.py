@@ -97,7 +97,7 @@ from revisionist.core.realism.economy import Amount, Pools
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.groups import Cause as GroupCause
-from revisionist.core.realism.groups import HeldLoss, KindClass, NationGroups, Proposal
+from revisionist.core.realism.groups import HeldLoss, KindClass, NationGroups, Place, Proposal
 from revisionist.core.realism.holders import Capture
 from revisionist.core.realism.kinds import PieceKind, Resource
 from revisionist.core.realism.laws import Law
@@ -825,7 +825,8 @@ class OfferSettled(Model):
 class PieceStepped(Model):
     """A piece entered an area: one step, by order, by the record, or forced. Sealed to the
     seats of the piece's own nation, who know it by its mark (``territory.mark_key``), not
-    its id. A record: the ``feature_set`` beside it moves the piece."""
+    its id. The ``feature_set`` beside it moves the piece; with ``places`` on, a step out
+    of a weighted place is kept as the day the nation's piece left it (PLW)."""
 
     kind: Literal["piece_stepped"] = "piece_stepped"
     mark: Label
@@ -1021,8 +1022,11 @@ class GroupsDeclared(Model):
     classes: tuple[KindClass, ...] = ()
     """With ``classes`` on, the class the world gives each kind of happening it classes
     (HCL), in the world file's order."""
+    places: tuple[Place, ...] = ()
+    """With ``places`` on, the places with political weight (PLW), in the world file's
+    order."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"classes"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"classes", "places"})
 
 
 class GroupMoved(Model):
@@ -1662,6 +1666,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "matter_chosen",
         "offer_made",
         "offer_settled",
+        "piece_stepped",
         "area_held",
         "capture_counted",
         "economy_set",

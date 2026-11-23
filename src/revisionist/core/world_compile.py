@@ -518,6 +518,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "intelligence",
             "groups",
             "happenings",
+            "places",
             "pacts",
             "conferences",
             "locks",
@@ -535,6 +536,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_intelligence(world, sections, problems)
     _check_groups(world, problems)
     _check_happenings(world, problems)
+    _check_places(world, problems)
     _check_prices(world, sections, problems)
     _check_contest_moves(world, sections, problems)
     _check_aim_rules(world, sections, problems)
@@ -1400,6 +1402,47 @@ def _check_happenings(world: WorldFile, problems: list[str]) -> None:
         seen.add(c.kind)
 
 
+def _check_places(world: WorldFile, problems: list[str]) -> None:
+    """Each place with political weight (PLW): a territory weighed once for a polity, moving
+    only that polity's own groups; a group's ``moved_by`` names no place kind, whose
+    amounts the places give. ``places`` needs groups and holders. With the rule off they
+    are checked and left out of the game."""
+    from revisionist.core.realism.groups import Happening
+
+    if Rule.PLACES in world.rules:
+        problems += [
+            f"rules: places needs {r.value}"
+            for r in (Rule.GROUPS, Rule.HOLDERS)
+            if r not in world.rules
+        ]
+    kinds = {d.key: d.kind for d in world.entities}
+    land = {t.key for t in world.territories}
+    groups_of = {d.nation: {g.key for g in d.groups} for d in world.groups}
+    seen: set[tuple[str, str]] = set()
+    for place in world.places:
+        where = f"places {place.territory}"
+        if place.territory not in land:
+            problems.append(f"{where}: not a territory")
+        if kinds.get(place.nation) is not EntityKind.POLITY:
+            problems.append(f"{where}: {place.nation} is not a polity")
+        if (place.territory, place.nation) in seen:
+            problems.append(f"{where}: weighted twice for {place.nation}")
+        seen.add((place.territory, place.nation))
+        problems += [
+            f"{where}: {k} is not a group of {place.nation}"
+            for k in place.moves
+            if k not in groups_of.get(place.nation, ())
+        ]
+    placed = {Happening.PLACE_LOST, Happening.PLACE_ABANDONED, Happening.PLACE_RETAKEN}
+    for decl in world.groups:
+        for g in decl.groups:
+            problems += [
+                f"groups {decl.nation} {g.key}: {k} is moved by places, not moved_by"
+                for k in g.moved_by
+                if k in placed
+            ]
+
+
 def _check_prices(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
     """Each bloc's prices (PRC): a key once per bloc; a condition of bounded size that
     names what the world declares, a group by its nation's own key, and holds at least one
@@ -1451,6 +1494,14 @@ def _groups(world: WorldFile, ids: Mapping[str, str]) -> ev.GroupsDeclared:
             for d in world.groups
         ),
         classes=world.happenings if Rule.CLASSES in world.rules else (),
+        places=tuple(
+            groups.Place(
+                territory=EntityId(ids[p.territory]), nation=EntityId(ids[p.nation]), moves=p.moves
+            )
+            for p in world.places
+        )
+        if Rule.PLACES in world.rules
+        else (),
     )
 
 

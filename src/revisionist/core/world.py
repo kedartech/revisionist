@@ -675,6 +675,17 @@ class GroupsDecl(Model):
     nation's groups by (FWG). Writing that names one moves the groups by this table."""
 
 
+class PlaceDecl(Model):
+    """A place with political weight (PLW), with ``places`` on: a territory, the nation it
+    matters to, and the points each of that nation's groups moves when it is lost in a
+    fight, signed. Abandoning it costs more; retaking it moves them back."""
+
+    territory: Key
+    nation: Key
+    """A polity key."""
+    moves: dict[Label, int] = Field(min_length=1)
+
+
 class LockOrderDecl(Model):
     """Which order a lock holds (DCD), in world-file keys: ``form`` a lever's name with
     some of its parameter values as the form takes them, or ``effect`` an effect kind
@@ -1184,6 +1195,10 @@ class WorldFile(Model):
     felt, reported or secret, and for a mixed kind the share felt. A kind not listed is
     reported. With the rule off they are checked and left out of the game. Written by
     hand: not offered to a model."""
+    places: SkipJsonSchema[tuple[PlaceDecl, ...]] = ()
+    """The places with political weight, with ``places`` on (PLW): a handful a nation. A
+    world with none weighs no place. With the rule off they are checked and left out of
+    the game. Written by hand: not offered to a model."""
     pacts: SkipJsonSchema[tuple[PactDecl, ...]] = ()
     """The pacts in force on the start date, with ``agreements`` on (PCT). Written by
     hand: not offered to a model."""

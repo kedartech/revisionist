@@ -22,6 +22,7 @@ and the forces the seat's own pages place under them (approved; first-run change
 The staff read on an order mirrors the pipeline policy without its draw.
 """
 
+from collections.abc import Mapping
 from datetime import date
 from typing import Literal
 
@@ -310,6 +311,7 @@ def _line(
     person: EntityId,
     today: date,
     group: Literal["opponents", "yours", "others"],
+    portrait: str | None = None,
 ) -> PersonLine:
     me = view.me.embodies
     history = state.stances.get(view.viewer, {}).get(person, ())
@@ -350,6 +352,7 @@ def _line(
         bloc=body.name if body is not None else None,
         channel=_channel(view, person),
         power=_power(state, view, person, rank, today) if group == "opponents" else None,
+        portrait=portrait,
     )
     if group == "yours":
         out["standing"] = _flat(max(1, rank), STANDING)
@@ -359,9 +362,12 @@ def _line(
     return out
 
 
-def seat_people(state: State, seat: SeatId, view: View) -> People:
+def seat_people(
+    state: State, seat: SeatId, view: View, portraits: Mapping[EntityId, str] | None = None
+) -> People:
     """Every living person with a card face but the seat's own, each in one group,
-    the most hostile opponent first and the rest by name."""
+    the most hostile opponent first and the rest by name. ``portraits`` are the portrait
+    files the world's dossiers name, by person (public text)."""
     today = view.in_world_date
     out: People = {"opponents": [], "yours": [], "others": []}
     if today is None:
@@ -384,7 +390,8 @@ def seat_people(state: State, seat: SeatId, view: View) -> People:
             if tie(state, me, person) in (Tie.INNER, Tie.CHAIN)
             else "others"
         )
-        out[group].append(_line(state, view, person, today, group))
+        portrait = (portraits or {}).get(person)
+        out[group].append(_line(state, view, person, today, group, portrait))
     out["opponents"].sort(key=lambda p: (p["stance"]["step"] if p["stance"] else 6, p["name"]))
     out["yours"].sort(key=lambda p: p["name"])
     out["others"].sort(key=lambda p: p["name"])

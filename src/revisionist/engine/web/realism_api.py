@@ -396,6 +396,8 @@ class PersonLine(TypedDict):
     power: PeopleMeter | None
     """For a leader weighed against the seat: rank, a step higher once the seat's own
     pages place three forces of theirs. None for everyone else."""
+    portrait: str | None
+    """The file under ``/assets/portraits/`` their dossier names; None with none."""
     loyalty: NotRequired[PeopleMeter]
     """Only for the seat's own chain and inner circle; absent for anyone else."""
     competence: NotRequired[PeopleMeter]
@@ -427,6 +429,23 @@ class WorldDevelopment(TypedDict):
     headline: str
     asks: list[str]
     """The orders it suggests, in words; it never files one itself."""
+
+
+class WarNation(TypedDict):
+    """A nation at war, by the game's id for it and its name."""
+
+    key: str
+    name: str
+
+
+class PublicWar(TypedDict):
+    """A war as the public record has it: the same for every seat."""
+
+    a: WarNation
+    """The nation that declared it."""
+    b: WarNation
+    since: str
+    """The day it began, ISO."""
 
 
 class StakeLean(TypedDict):
@@ -1005,6 +1024,9 @@ class FloorVote(TypedDict):
     nays: int
     blocs: list[BlocCount]
     """Each bloc with a row for the vote, in the world's order."""
+    carries: int
+    """The yeas that carry the vote: more yeas than nays among those voting, as the votes
+    rule decides it."""
 
 
 class OpenMeasure(TypedDict):
@@ -1999,6 +2021,7 @@ __all__ = [
     "PlaybackPaper",
     "PlaybackStake",
     "PlaybackStep",
+    "PublicWar",
     "ReachContact",
     "ReachGroups",
     "Receipt",
@@ -2027,4 +2050,5 @@ __all__ = [
     "Threat",
     "TimelinePoint",
     "WakeHeader",
+    "WarNation",
 ]

@@ -4,10 +4,11 @@
 at home with its support, what last moved it and when, and what it feeds; each chamber its
 blocs sit in, with their seats and, for each measure the seat has on its way, the count by
 bloc as the votes rule would tally it today (``votes.floor_counts``, never a count of its
-own); the nation's themes and its standing at home as a figure. For every nation: its
-standing as one of five public bands. The groups, chambers and themes are read from the
-seat's ``View``, which holds its own nation's groups and no other's, so no other nation's
-group can reach the payload; the bands are read from the truth and sent as bands only.
+own) and the yeas that carry each vote; the nation's themes and its standing at home as a
+figure. For every nation: its standing as one of five public bands. The groups, chambers
+and themes are read from the seat's ``View``, which holds its own nation's groups and no
+other's, so no other nation's group can reach the payload; the bands are read from the
+truth and sent as bands only.
 """
 
 from collections.abc import Iterable
@@ -54,6 +55,12 @@ def standing_band(figure: float) -> Band:
     return next(band for low, band in BANDS if figure >= low)
 
 
+def carries(voting: int) -> int:
+    """The yeas that carry a vote of ``voting`` members: the votes rule passes a vote on
+    more yeas than nays among those voting (``votes.by_groups``)."""
+    return voting // 2 + 1
+
+
 def _last_moved(events: Iterable[Event], own: EntityId) -> dict[str, GroupMove]:
     """What last moved each of ``own``'s groups, by group key: a move the clamp held to
     nothing moved nothing."""
@@ -86,12 +93,14 @@ def _chambers(state: State, view: View, own: EntityId) -> list[FloorChamber]:
     for order, key, title in _open_measures(state, view, own):
         counted: dict[str, list[FloorVote]] = {}
         for chamber, vote, parts in votes.floor_counts(state, own, order, key, order.measure):
+            yeas, nays = sum(y for _, y, _ in parts), sum(n for _, _, n in parts)
             counted.setdefault(chamber, []).append(
                 FloorVote(
                     vote=vote,
-                    yeas=sum(y for _, y, _ in parts),
-                    nays=sum(n for _, _, n in parts),
+                    yeas=yeas,
+                    nays=nays,
                     blocs=[BlocCount(group=g, yeas=y, nays=n) for g, y, n in parts],
+                    carries=carries(yeas + nays),
                 )
             )
         for chamber, found in counted.items():

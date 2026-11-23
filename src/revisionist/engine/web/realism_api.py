@@ -542,6 +542,56 @@ class Stakes(TypedDict):
     """Days from the world date to the season's end; None when no contest decides it."""
 
 
+class AimValue(TypedDict):
+    """One value a blank may take as the seat's view allows (OWR)."""
+
+    value: str | int
+    """What the seat sends back for it."""
+    label: str
+    """Its name, as the aim would read it."""
+
+
+class AimBlankLine(TypedDict):
+    """One blank of a pattern, with the values the seat may fill it with (OWR)."""
+
+    name: str
+    values: list[AimValue]
+
+
+class AimPatternLine(TypedDict):
+    """One pattern on the seat's ladder (OWR)."""
+
+    key: str
+    sentence: str
+    """The aim in words, each blank written ``{name}``."""
+    blanks: list[AimBlankLine]
+    difficulty: int | None
+    """Its easiest fill's, on the aims' rubric; None when no fill stands now."""
+    government: bool
+    """Whether the person's own government would issue it."""
+
+
+class OwnAimBlock(TypedDict):
+    """The patterns the seat may fill to replace its card's replaceable aim, easiest first,
+    while it may still set one (OWR). Absent otherwise, and with ``own_aim`` off."""
+
+    aim: int
+    """Which of the card's aims it replaces, counting from 1."""
+    replaces: str
+    """That aim's words."""
+    patterns: list[AimPatternLine]
+
+
+class AimCheck(TypedDict):
+    """What a filled pattern makes (OWR): it stands, with the sentence as it reads; or the
+    reasons it cannot, in fixed words. Answered by ``aim-check`` and ``aim-set`` alike."""
+
+    stands: bool
+    text: str | None
+    """The aim as it reads (as stored, after a set); None when it does not stand."""
+    reasons: list[str]
+
+
 class CourtOrder(TypedDict):
     """One of the seat's own orders waiting at a step."""
 
@@ -981,6 +1031,9 @@ class GroupMove(TypedDict):
         "offer_taken",
         "promise_kept",
         "promise_broken",
+        "battle_losses",
+        "losses_felt",
+        "losses_halved",
     ]
     change: int
     on: str
@@ -1069,10 +1122,71 @@ class NationStanding(TypedDict):
     """None for a nation with no group that feeds standing."""
 
 
+class OfferPrice(TypedDict):
+    """One thing a bloc would take for its votes (PRR rule 2)."""
+
+    key: str
+    sentence: str
+    """What is promised, as the seat reads it."""
+    points: int
+    """Points the offer moves the bloc's yes share by on the measure."""
+    days: int
+    """World days after the measure passes on which the promise is read."""
+    loss: int
+    """Support the bloc loses when the promise is broken."""
+
+
+class LiveOffer(TypedDict):
+    """The offer that holds a bloc on a measure."""
+
+    price: str
+    points: int
+    mine: bool
+    """Whether the seat itself made it."""
+
+
+class OfferBloc(TypedDict):
+    """One bloc of a chamber, for a measure on its way: what it would take, and the offer
+    that holds it if one does."""
+
+    group: str
+    name: str
+    prices: list[OfferPrice]
+    """In the world's order; empty for a bloc that names no price."""
+    live: LiveOffer | None
+
+
+class OfferMeasure(TypedDict):
+    """A law of the seat's own nation whose bill is on its way, with each bloc that votes
+    on it."""
+
+    key: str
+    title: str
+    blocs: list[OfferBloc]
+    """In the world's order."""
+
+
+class OfferPromise(TypedDict):
+    """One offer the seat itself made, and where it stands (PRR rule 2)."""
+
+    offer_id: str
+    group: str
+    name: str
+    measure: str
+    title: str
+    price: str
+    sentence: str
+    standing: Literal["filed", "taken", "refused", "lapsed", "due", "kept", "broken"]
+    filed: str
+    due: str | None
+    """The world day the promise is read; None until the measure has passed."""
+
+
 class HomeBlock(TypedDict):
     """Groups at home and the floor as the seat sees them, with ``groups`` on (GPD). Only
     the seat's own nation's groups, chambers and themes are sent; another nation shows
-    only its band."""
+    only its band. With ``offers`` on, also each measure on its way with the prices its
+    blocs would take, and the promises the seat has made (PRR)."""
 
     day: str
     nation: MapNation
@@ -1085,6 +1199,10 @@ class HomeBlock(TypedDict):
     """The seat's own nation's standing at home, 0 to 100; None when no group feeds it."""
     standings: list[NationStanding]
     """Every nation's band, by name."""
+    offers: NotRequired[list[OfferMeasure]]
+    """With ``offers`` on: each law of the nation whose bill is on its way, by law key."""
+    promises: NotRequired[list[OfferPromise]]
+    """With ``offers`` on: the offers the seat itself made, by filing day and id."""
 
 
 class BattleRoundLine(TypedDict):
@@ -1957,6 +2075,10 @@ __all__ = [
     "AgreementClauseLine",
     "AgreementLine",
     "AgreementsBlock",
+    "AimBlankLine",
+    "AimCheck",
+    "AimPatternLine",
+    "AimValue",
     "AskForm",
     "AskLine",
     "BattlePiece",
@@ -2006,6 +2128,7 @@ __all__ = [
     "LeverChoice",
     "LeverLine",
     "LeverParam",
+    "LiveOffer",
     "LockCheck",
     "LocksBlock",
     "MapArea",
@@ -2029,7 +2152,11 @@ __all__ = [
     "OddsShares",
     "OddsTerrain",
     "OfferAnswer",
+    "OfferBloc",
     "OfferLine",
+    "OfferMeasure",
+    "OfferPrice",
+    "OfferPromise",
     "OfferReading",
     "OfferTerms",
     "OpenMeasure",
@@ -2041,6 +2168,7 @@ __all__ = [
     "OrderResult",
     "OrderTrack",
     "OrderTracker",
+    "OwnAimBlock",
     "People",
     "PeopleMeter",
     "PersonChannel",

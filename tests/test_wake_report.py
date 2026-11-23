@@ -760,6 +760,70 @@ def test_the_report_counts_the_forms_that_change_nothing(tmp_path: Path) -> None
     events = compile_world(autumn_1941(tmp_path), CAMPAIGN, cmp.versions())
     report = wake_report.build(events)
     here = {c.person for c in autumn_1941(tmp_path).cards}
-    assert report.inert == len([f for f in wake_report.inert_forms() if f[0] in here]) > 0
-    assert f"forms that change nothing: {report.inert}" in wake_report.render(report)
+    assert report.inert == len([f for f in wake_report.inert_forms() if f[0] in here]) == 0
+    assert "forms that change nothing: 0" in wake_report.render(report)
     assert wake_report.build([]).inert is None
+
+
+# --- PRR rule 6: per wake, the offers made and the promises kept and broken --------------
+
+
+def offers_log(tmp: Path, keep: bool) -> list[Event]:
+    """The priced move's toy (``tests/test_offers.py``). Wake 0: Ilse and Kara each offer
+    the Greens a price for the Barge Act, and the day's batch takes one. Wake 1: the act
+    passes and the promise falls due, kept when ``keep`` sets the guild's seat. Wake 2 is
+    open."""
+    from tests import test_offers as to
+
+    g = to.game(tmp)
+    at = T0
+    g.add([ev.WakeOpened(wake=0, deadline=at + 12 * HOUR, opened_at=at)])
+    to.bill(g)
+    to.offer(g, to.ILSE, to.DUES)
+    to.offer(g, to.KARA, to.GUILD)
+    g.walk(to.day(1), to.day(1))
+    for n in (0, 1):
+        at += 12 * HOUR
+        g.add(
+            [
+                ev.WakeClosed(wake=n, how="deadline"),
+                ev.WakeOpened(wake=n + 1, deadline=at + 12 * HOUR, opened_at=at),
+            ]
+        )
+        if n == 0:
+            if keep:
+                to.flag(g, to.GUILD_FLAG, 1, to.day(2))
+            g.walk(to.day(2), to.DUE)
+    return g.log
+
+
+def test_each_wake_counts_the_offers_made_and_the_promises_kept_and_broken(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "broken").mkdir()
+    (tmp_path / "kept").mkdir()
+    broken = wake_report.build(offers_log(tmp_path / "broken", keep=False))
+    assert [(o.number, o.made, o.kept, o.broken) for o in broken.offers] == [
+        (0, 2, 0, 0),
+        (1, 0, 0, 1),
+        (2, 0, 0, 0),
+    ]
+    kept = wake_report.build(offers_log(tmp_path / "kept", keep=True))
+    assert [(o.number, o.made, o.kept, o.broken) for o in kept.offers] == [
+        (0, 2, 0, 0),
+        (1, 0, 1, 0),
+        (2, 0, 0, 0),
+    ]
+    out = wake_report.render(broken)
+    assert (
+        out[out.index("  wake 0: deadline") + 1] == "    offers: 2 made; promises 0 kept, 0 broken"
+    )
+    assert (
+        out[out.index("  wake 1: deadline") + 1] == "    offers: 0 made; promises 0 kept, 1 broken"
+    )
+
+
+def test_a_game_without_offers_prints_no_offer_lines(tmp_path: Path) -> None:
+    report = wake_report.build(territory_log(tmp_path))
+    assert report.offers == ()
+    assert not any(x.strip().startswith("offers:") for x in wake_report.render(report))

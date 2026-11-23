@@ -929,6 +929,19 @@ proposals = st.builds(
 )
 
 
+held_losses = st.builds(
+    rgrp.HeldLoss,
+    polity=entity_ids,
+    group=labels,
+    area=entity_ids,
+    opened=in_world_dates,
+    on=in_world_dates,
+    reported=st.integers(-3, 3),
+    felt=st.integers(-3, 3),
+    ended=st.booleans(),
+)
+
+
 @st.composite
 def agreement_clauses(draw: st.DrawFn) -> rx.AgreementClause:
     """A clause of an agreement (AGR), with the fields its type needs."""
@@ -1348,6 +1361,11 @@ realism_payloads = st.one_of(
         on=in_world_dates,
     ),
     st.builds(ev.GroupProposed, proposal=proposals),
+    st.builds(
+        ev.LossesHeld,
+        on=in_world_dates,
+        held=st.lists(held_losses, min_size=1, max_size=3).map(tuple),
+    ),
     st.builds(ev.OfferMade, offer=priced_offers),
     offer_settlements(),
     st.builds(

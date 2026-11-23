@@ -5,6 +5,8 @@
 
 import { h } from '../dom.js';
 import { mapDrawing } from './realism-map.js';
+import { loadShapes, shapesFor } from './realism-theatre.js';
+import { territoryDrawing } from './realism-territory.js';
 
 /** Three fixed, period-neutral lines for a world with no setting text. */
 export const QUIET_LINES = Object.freeze([
@@ -81,14 +83,43 @@ function loadLand() {
   return landing;
 }
 
+const LABEL = 'Your own forces, and your orders under way';
+
+/** A territory game's own marks and orders under way, on the game's own map; null if none. */
+function ownTerritory(map) {
+  const marks = map.marks?.filter((m) => m.side === 'own') ?? [];
+  const orders = (map.orders ?? []).filter((o) => o.status === 'under_way');
+  return marks.length || orders.length ? { ...map, marks, orders } : null;
+}
+
+/** The land of a map with a backdrop is not in play: the coastline is drawn under it. */
+const landless = (shapes) => shapes?.coords === 'lonlat' && (shapes.backdrop ?? []).length > 0;
+
 /** The seat's own marks and its orders under way; the first `MAP_MOVES` orders march. */
 function drawn(map) {
-  const pic = mapDrawing(map, land, { still: true, compact: true, label: 'Your own forces, and your orders under way' });
+  const pic = map.areas?.length
+    ? territoryDrawing(map, shapesFor(map.file), { still: true, compact: true, label: LABEL, coast: land })
+    : mapDrawing(map, land, { still: true, compact: true, label: LABEL });
   [...pic.querySelectorAll('g.rl-mk-order')].slice(0, MAP_MOVES).forEach((g, i) => g.classList.add('rl-ovl-go', `rl-ovl-go-${i + 1}`));
   return pic;
 }
 
+function territoryFigure(map) {
+  const fig = h('figure', { class: 'rl-ovl-map' });
+  const draw = () => {
+    if (fig.isConnected || !fig.childNodes.length) fig.replaceChildren(drawn(map));
+    if (landless(shapesFor(map.file)) && !land) loadLand()?.then(() => { if (land && fig.isConnected) fig.replaceChildren(drawn(map)); });
+  };
+  if (shapesFor(map.file)) draw();
+  else loadShapes(map.file)?.then(() => { if (shapesFor(map.file) && fig.isConnected) draw(); });
+  return fig;
+}
+
 function mapFigure(seatMap) {
+  if (seatMap?.areas?.length) {
+    const own = ownTerritory(seatMap);
+    return own ? territoryFigure(own) : null;
+  }
   const map = ownMap(seatMap);
   if (!map) return null;
   const fig = h('figure', { class: 'rl-ovl-map' }, drawn(map));

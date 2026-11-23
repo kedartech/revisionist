@@ -25,7 +25,7 @@ from revisionist.core import goals
 from revisionist.core.goals import Goal, GoalSource
 from revisionist.core.ids import CampaignId, EntityId, ScheduledEventId, derived_id
 from revisionist.core.ontology import Contest
-from revisionist.core.realism import battle, contests, groups, holders
+from revisionist.core.realism import battle, contests, groups, holders, territory
 from revisionist.core.realism.pipeline import Order, StepAction, StepOutcome
 from revisionist.core.realism.resolvers import (
     ON_DAY,
@@ -151,7 +151,7 @@ def play(seed: CampaignId) -> Run:
             key = resolver_for(r.state, order)
             r.fold_changes(ON_ORDER[key](r.state, order))
         if day.day == 1 and day > START:
-            sunk.append(sum(shipping.losses(r.state, day - timedelta(days=1)).values()))
+            sunk.append(_allied_sunk(r, day - timedelta(days=1)))
         before = r.state
         for fn in ON_DAY.values():
             r.fold_changes(fn(r.state, day))
@@ -183,6 +183,16 @@ def play(seed: CampaignId) -> Run:
             key: (k.track, "none" if k.winner is None else _key(r, k.winner))
             for key, k in _contests(r).items()
         },
+    )
+
+
+def _allied_sunk(r: Rig, last: date) -> int:
+    """What Britain's routes lost in the month that ends ``last``: band 4 quotes the
+    Atlantic record of Allied losses, not what the Axis convoys lose."""
+    uk = EntityId(r.ids["uk"])
+    lost = shipping.losses(r.state, last)
+    return sum(
+        n for f, n in lost.items() if territory.nation(r.state, r.state.features[f].side) == uk
     )
 
 

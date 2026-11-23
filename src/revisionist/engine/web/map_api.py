@@ -265,17 +265,18 @@ def lit(
     return out
 
 
-def map_reply(state: State) -> MapReply:
-    """The ``map`` action's answer: the same for every seat."""
+def map_reply(state: State, shapes: bool = True) -> MapReply:
+    """The ``map`` action's answer: the same for every seat. Without ``shapes`` the reply
+    carries the file and its hash and no map object."""
     board = state.map
     if board is None or not territory.on(state):
         return MapReply(reply=NO_MAP, refused=True, file=None, map=None)
     data = maps.map_object(board.sha256, board.file)
     if data is None:
         return MapReply(reply=MISSING, refused=True, file=None, map=None)
-    shapes: dict[str, object] = json.loads(data)
+    kept: dict[str, object] | None = json.loads(data) if shapes else None
     return MapReply(
-        reply="", refused=False, file=MapFile(name=board.file, sha256=board.sha256), map=shapes
+        reply="", refused=False, file=MapFile(name=board.file, sha256=board.sha256), map=kept
     )
 
 
@@ -287,14 +288,22 @@ class MapRef(NamedTuple):
     sha256: str
 
 
-def references(store: EventStore, campaign_ids: Sequence[CampaignId]) -> list[MapRef]:
-    """Every map the campaigns name; a campaign without a map names none."""
+def references(
+    store: EventStore, campaign_ids: Sequence[CampaignId]
+) -> tuple[list[MapRef], list[str]]:
+    """Every map the campaigns name, and a ``FAIL`` line for each campaign that cannot be
+    read; a campaign without a map names none."""
     out: list[MapRef] = []
+    unread: list[str] = []
     for campaign in campaign_ids:
-        board = load_state(store, campaign).map
+        try:
+            board = load_state(store, campaign).map
+        except ValueError:
+            unread.append(f"FAIL {campaign}: cannot be read")
+            continue
         if board is not None:
             out.append(MapRef(campaign, board.file, board.sha256))
-    return out
+    return out, unread
 
 
 def _kept(directory: Path, sha256: str) -> bytes | None:
@@ -308,9 +317,9 @@ def verify_objects(store: EventStore, campaign_ids: Sequence[CampaignId]) -> tup
     """One line per campaign that names a map: ``ok``, or ``FAIL`` when its object is not
     in the map-objects directory. Only that directory counts, never a world-named file."""
     here = maps.objects_dir()
-    lines: list[str] = []
-    ok = True
-    for ref in references(store, campaign_ids):
+    refs, lines = references(store, campaign_ids)
+    ok = not lines
+    for ref in refs:
         if _kept(here, ref.sha256) is None:
             lines.append(
                 f"FAIL {ref.campaign}: map object {ref.sha256} ({ref.file}) is not in {here}"
@@ -341,10 +350,10 @@ def copy_objects(
     """Copy each referenced object into ``to`` and read it back against its hash. Nothing
     is written for a missing object, and no source file is changed."""
     here = maps.objects_dir()
-    lines: list[str] = []
-    ok = True
+    refs, lines = references(store, campaign_ids)
+    ok = not lines
     done: set[str] = set()
-    for ref in references(store, campaign_ids):
+    for ref in refs:
         data = _kept(here, ref.sha256)
         if data is None:
             lines.append(
@@ -365,7 +374,8 @@ def copy_objects(
 
 def copy_all_objects(to: Path) -> tuple[list[str], bool]:
     """Copy every object in the map-objects directory into ``to``, each read back against
-    its hash; needs no database. A file whose bytes do not hash to its name fails."""
+    its hash; needs no database. A file whose bytes do not hash to its name fails, and so
+    does a directory with no object to copy."""
     here = maps.objects_dir()
     lines: list[str] = []
     ok = True
@@ -378,6 +388,8 @@ def copy_all_objects(to: Path) -> tuple[list[str], bool]:
             problem = _put(to, sha256, path.read_bytes())
             ok = ok and problem is None
             lines.append(f"FAIL {problem}" if problem else f"copied {sha256} to {to}")
+    if not lines:
+        return [f"FAIL no map object in {here}"], False
     return lines, ok
 
 

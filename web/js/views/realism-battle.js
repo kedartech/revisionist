@@ -1,7 +1,8 @@
 // Battles on the map, and the battle sheet (BTC). Draws only the seat's `battles` block and the
 // press papers it holds: a battle mark on each area with a battle the seat's nation is in, and a
 // mark for a battle it knows only from the press, which opens that paper. The battle sheet holds
-// each day's round (the seat's losses and the enemy's as reported), the seat's strength as pips
+// each day's round (the seat's losses and the enemy's as reported, as a pair of bars and as a
+// table), the seat's strength as pips
 // and the enemy's as a range, the decision in force, the four decisions and the order on its way;
 // a piece's sheet holds the contingency picker. A fall-back area is picked on the map among the lit
 // adjacent areas (`theatre.battlePick`). Nothing here reads whether another seat is present.
@@ -13,6 +14,7 @@ import {
   contingencyWord, decisionInForce, decisionWord, fallBackAreas, newsBattles, pieceForm, pipsOf, shortDate, stepsWord,
 } from '../realism-rules.js';
 import { pipGlyph } from './realism-map.js';
+import { bar } from './realism-marks.js';
 import { oddsAsker } from './realism-odds.js';
 import { orderChip, orderLines } from './realism-orders.js';
 import { chip } from './ui-kit.js';
@@ -120,6 +122,27 @@ function nowWords(b, may) {
   return `At this wake's close: ${word}${may ? ' unless you change it' : ''}`;
 }
 
+/**
+ * Day by day as a chart: for each round a pair of bars, the seat's losses and the enemy's as
+ * reported, each against the largest loss in the rounds shown. Null with no round yet.
+ */
+function roundsChart(b) {
+  const rounds = b.rounds ?? [];
+  if (!rounds.length) return null;
+  const lost = (n) => Math.max(0, Number(n) || 0);
+  const top = Math.max(1, ...rounds.flatMap((r) => [lost(r.own_lost), lost(r.enemy_lost)]));
+  const unit = top === 1 ? 'step' : 'steps';
+  return h('div', { class: 'rl-bt-rounds', role: 'group', 'aria-label': `Losses by day at ${b.name}` },
+    rounds.map((r) => {
+      const day = shortDate(r.on);
+      return h('div', { class: 'rl-bt-round' },
+        h('div', { class: 'rl-bt-round-pair' },
+          bar({ value: lost(r.own_lost), limit: top, name: `${day}, your losses`, unit, column: true, tone: 'own' }),
+          bar({ value: lost(r.enemy_lost), limit: top, name: `${day}, theirs as reported`, unit, column: true, tone: 'hostile' })),
+        h('span', { class: 'rl-bt-round-day', 'aria-hidden': 'true' }, day));
+    }));
+}
+
 /** Day by day: each round's losses, the seat's and the enemy's as reported, and the close to come. */
 function daysTable(b, may) {
   return h('table', { class: 'rl-bt-days' },
@@ -181,6 +204,7 @@ export function battleSheet(rv, key, { today, act, pick, theatre = {}, onClose }
     h('h3', { id: 'rl-bt-sheet-h' }, battleTitle(b, today ?? rv.clock?.world_date)),
     sidesBlock(b),
     h('h4', {}, 'Day by day'),
+    roundsChart(b),
     daysTable(b, may),
     h('h4', {}, 'Your decision'),
     may

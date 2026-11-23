@@ -20,7 +20,7 @@ ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
 VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
 OrderAsked, AskAnswered, MatterChosen, AimPatternsDeclared, OwnAimSet, OfferMade,
-OfferSettled, PostChanged``, and
+OfferSettled, LossesHeld, PostChanged``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -99,7 +99,7 @@ from revisionist.core.realism.economy import Amount, Pools
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.groups import Cause as GroupCause
-from revisionist.core.realism.groups import KindClass, NationGroups, Proposal
+from revisionist.core.realism.groups import HeldLoss, KindClass, NationGroups, Proposal
 from revisionist.core.realism.holders import Capture
 from revisionist.core.realism.kinds import PieceKind, Resource
 from revisionist.core.realism.laws import Law
@@ -1066,6 +1066,17 @@ class GroupMoved(Model):
     on: date
 
 
+class LossesHeld(Model):
+    """Battle losses held at home (LSS): each one day's losses of a nation in one battle as
+    they move one of its groups, added or replaced (the felt share halved, or the battle
+    ended). Entries whose battle has ended and whose felt share has landed by ``on`` are
+    dropped. Engine only: it carries the nation's steps lost by the points they move."""
+
+    kind: Literal["losses_held"] = "losses_held"
+    on: date
+    held: tuple[HeldLoss, ...] = Field(min_length=1)
+
+
 class GroupProposed(Model):
     """Writing by a seat proposing to move a group, waiting for its day's batch (GRP).
     Engine only: the batch, not the filing, decides what moves."""
@@ -1583,6 +1594,7 @@ Payload = Annotated[
     | GroupsDeclared
     | GroupMoved
     | GroupProposed
+    | LossesHeld
     | AgreementOffered
     | AgreementMade
     | ClauseJudged
@@ -1693,6 +1705,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "groups_declared",
         "group_moved",
         "group_proposed",
+        "losses_held",
         "agreement_offered",
         "agreement_made",
         "clause_judged",

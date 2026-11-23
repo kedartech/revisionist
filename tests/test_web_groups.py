@@ -319,7 +319,8 @@ def shape(examples: list[Any], kind: Any) -> None:
 
 def test_the_seat_fixture_carries_the_home_block_in_the_snapshot_shape(tmp_path: Path) -> None:
     fixture = json.loads((FIXTURES / "realism-seat.json").read_text())["home"]
-    assert fixture == home(fixture_game(tmp_path))
+    priced = {"offers", "promises"}  # with offers on: tests/test_web_offers.py, its own game
+    assert {k: v for k, v in fixture.items() if k not in priced} == home(fixture_game(tmp_path))
     shape([fixture], api.HomeBlock)
     shape(fixture["groups"], api.HomeGroup)
     shape([g["last_moved"] for g in fixture["groups"] if g["last_moved"]], api.GroupMove)

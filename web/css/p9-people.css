@@ -1,16 +1,20 @@
 /* p9-people.css: the People roster in the orders column, and its person dossier. Tokens only (web/css/tokens.css). */
 .rl-people { display: grid; gap: var(--space-2); min-width: 0; font: 14px/1.5 var(--font-chrome); color: var(--fg); }
 .rl-people .seg { flex-wrap: wrap; }
-.rl-pp-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); }
-.rl-pp-row { width: 100%; display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); box-sizing: border-box; text-align: left; background: var(--field); color: var(--fg); border: 1px solid var(--rule); border-radius: var(--radius); font: inherit; cursor: pointer; }
+.rl-pp-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: var(--space-2); }
+.rl-pp-row { width: 100%; height: 100%; display: grid; align-content: start; gap: var(--space-1); padding: var(--space-2); box-sizing: border-box; text-align: left; background: var(--field); color: var(--fg); border: 1px solid var(--rule); border-radius: var(--radius); font: inherit; cursor: pointer; }
+.rl-pp-tile { min-height: 44px; }
 .rl-pp-row:hover { border-color: var(--rule-strong); }
 .rl-pp-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.rl-pp-who { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--space-2); min-width: 0; }
-.rl-pp-name { font-weight: 600; color: var(--fg-strong); }
+.rl-pp-face { display: block; aspect-ratio: 4 / 5; overflow: hidden; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--rule); }
+.rl-pp-portrait { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; filter: grayscale(1) contrast(1.08) brightness(.95); }
+.rl-pp-mono { display: grid; place-items: center; width: 100%; height: 100%; font: 600 20px var(--font-chrome); color: var(--fg-muted); }
+.rl-pp-who { display: grid; gap: 0; min-width: 0; }
+.rl-pp-name { font-weight: 600; color: var(--fg-strong); overflow-wrap: anywhere; }
 .rl-pp-office { font-size: 13px; color: var(--fg-muted); overflow-wrap: anywhere; }
-.rl-pp-meters { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
+.rl-pp-meters { display: grid; gap: var(--space-1); }
 
-.rl-pp-meter { display: inline-flex; align-items: center; gap: var(--space-1); font-size: 13px; white-space: nowrap; }
+.rl-pp-meter { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-1); font-size: 13px; }
 .rl-pp-label { color: var(--fg-muted); }
 .rl-pp-word { color: var(--fg-strong); }
 .rl-pp-meter.none .rl-pp-word { font-style: italic; color: var(--fg-muted); }
@@ -27,6 +31,6 @@
 .rl-pp-item { display: grid; gap: 2px; }
 .rl-pp-when { font: 12px/1.4 var(--font-chrome); color: var(--fg-muted); }
 
-@media (pointer: coarse) {
-  .rl-pp-row { min-height: 44px; }
+@media (max-width: 599px) {
+  .rl-pp-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

@@ -2,7 +2,8 @@
 
 Sixteen names join the rules a world may switch on, each read by a later item of the run.
 Until its reader exists a name does nothing: a world that names one compiles and plays as
-with it off. No shipped world names one, and none leans on a live model's reading.
+with it off. A shipped world names one only once its own lane has switched it on, and
+none leans on a live model's reading.
 """
 
 import ast
@@ -38,11 +39,18 @@ THIRD_RUN = (
     "post_view",
     "playable_rule",
 )
-READ = frozenset({"laws", "own_aim", "classes", "posts"})
+READ = frozenset({"laws", "own_aim", "ask_answers", "deciders", "classes", "posts"})
 """The names whose reader has been built: a world that names one is no longer as with it off."""
 UNREAD = tuple(n for n in THIRD_RUN if n not in READ)
 
-BASELINE_1941 = "f37494a26892a185fffd001d399b14b7"
+SHIPPED_ON: dict[str, frozenset[str]] = {
+    "autumn-1941": frozenset({"own_aim", "laws", "ask_answers", "deciders"}),
+    "salt-strait-realism": frozenset({"laws", "ask_answers", "deciders", "own_aim"}),
+}
+"""The names a shipped world's own lane has switched on, by world; each one whose reader
+has been built."""
+
+BASELINE_1941 = "45f00e1d6cb09e84245f4a7affb44692"
 """The 1941 scripted run's digest (``run_digest``) with every third-run switch off."""
 
 
@@ -122,10 +130,12 @@ def test_the_toy_world_with_the_unread_names_on_plays_as_with_them_off(
     assert on == off
 
 
-# --- rule 4: no shipped world switches one on ---------------------------------------------
+# --- rule 4: a shipped world switches one on only by its own lane ------------------------
 
 
 @pytest.mark.parametrize("path", sorted((ROOT / "worlds").glob("*.yaml")), ids=lambda p: p.stem)
-def test_no_shipped_world_names_a_third_run_rule(path: Path) -> None:
+def test_a_shipped_world_names_only_the_third_run_rules_its_lane_switched_on(path: Path) -> None:
     raw = yaml.safe_load(path.read_text())
-    assert not set(raw.get("rules") or ()) & set(THIRD_RUN)
+    named = set(raw.get("rules") or ()) & set(THIRD_RUN)
+    assert named == SHIPPED_ON.get(path.stem, frozenset())
+    assert named <= READ

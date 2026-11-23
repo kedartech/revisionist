@@ -436,8 +436,8 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
     if isinstance(payload, ev.OfferSettled):
         settled = next(o for o in state.offers if o.offer_id == payload.offer_id)
         return _nation_scope(state, settled.nation)
-    if isinstance(payload, ev.GroupProposed):
-        # Engine only: the writing in waiting; the batch, not the filing, moves a group.
+    if isinstance(payload, ev.GroupProposed | ev.LossesHeld):
+        # Engine only: the writing in waiting, the battle losses held (LSS).
         held = SeatId(derived_id(state.campaign_id, "engine-only", "groups"))
         return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
     if isinstance(payload, ev.ContestMoved | ev.ContestDecided):
@@ -584,7 +584,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         state = replay(batch, initial=state)
         out.extend(batch)
 
-    add(actors.unseated(state, answering.answerers(state)))
+    add(actors.unseated(state, [*answering.answerers(state), *answering.askable(state)]))
     begun: State | None = state  # moves the carried-in orders start begin on the first day
     wake_start = dict(state.opponents)
     walk_from, walk_mark = state, len(out)  # CON: each move reads from the last read on
@@ -643,6 +643,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         today = [e.payload for e in out[day_mark:]]
         add(agreement.judge(state, day, today))  # AGR: each clause on its day, from the state
         add(groups.react(state, day_from, today, day, sea=before_on_day))
+        add(groups.losses(state, day_from, today, day))  # LSS: the day's losses, by size
         add(groups.batch(state, day))  # GRP: the day's writing, settled in one batch
         add(groups.drift(state, day))  # GRP: on a Monday, toward the baseline
         add(offers.walk(state, day))  # PRC: a measure decided, a promise on its due day
@@ -671,7 +672,6 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(opponents.settle(state, day, [*landed, *planned], wake_start))
         while matter := _matter_answered(state, day):  # QKD: before a card answers an ask
             add(matter)
-        add(actors.unseated(state, answering.ask_deciders(state, day)))  # AAK: a seat to file from
         while answer := answering.answer_ask(state, day):
             add(answer)
         add(_unlocked(state, day))  # ASK: each held order once a day, after the day's acts

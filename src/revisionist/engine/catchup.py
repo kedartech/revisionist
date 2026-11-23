@@ -31,8 +31,9 @@ from datetime import date
 
 from revisionist.core import events as ev
 from revisionist.core.events import Event
-from revisionist.core.ids import CampaignId, DocumentId, SeatId
+from revisionist.core.ids import CampaignId, DocumentId, OrderId, SeatId
 from revisionist.core.project import project
+from revisionist.core.realism import answering
 from revisionist.core.realism.document import DocumentTruth
 from revisionist.core.realism.effect import RoutedOrder
 from revisionist.core.sealing import scopes_in
@@ -99,7 +100,8 @@ FEED_KINDS: frozenset[str] = frozenset(
         "held_order_ended",
         # An ask for a held order (ASK): sealed to the asker and the seat asked.
         "order_asked",
-        # The card's answer to an ask (AAK): sealed to the asker's seat alone.
+        # The answer to an ask (AAK, QKD): sealed to the asker's seat alone, and fed only on
+        # a row answered on its due day whoever holds the decider (``answering.told``).
         "ask_answered",
         # An offer of a price to a bloc and where it stands (PRC): sealed to the seats of
         # the bloc's nation, and kept only while the offer is in the seat's view.
@@ -188,11 +190,12 @@ NEVER: frozenset[str] = frozenset(
         "agent_set",
         "codebreaking_set",
         # Groups at home (GRP): true support. A seat reads its own nation's groups from its
-        # own data and others' from the press; the declaration and the writing in waiting
-        # are engine only.
+        # own data and others' from the press; the declaration, the writing in waiting and
+        # the battle losses held (LSS) are engine only.
         "groups_declared",
         "group_moved",
         "group_proposed",
+        "losses_held",
         "scheduled_event_created",
         "scheduled_event_skipped",
         # Costs, ticks and admin.
@@ -317,6 +320,11 @@ def _routed_view(event: Event, payload: ev.OrderRouted) -> Event:
     return event.model_copy(update={"payload": payload.model_copy(update={"order": order})})
 
 
+def _as_asked(state: State, event: Event, payload: ev.OrderAsked, seat: SeatId) -> Event:
+    asked = answering.as_asked(state, payload.asked, seat)
+    return event.model_copy(update={"payload": payload.model_copy(update={"asked": asked})})
+
+
 def feed(
     state: State, events: Iterable[Event], seat: SeatId, first: int, last: int
 ) -> tuple[SeatEvent, ...]:
@@ -324,12 +332,15 @@ def feed(
     view = project(state, seat)
     log = list(events)
     opened: list[tuple[int, date]] = []
+    rows: dict[OrderId, str | None] = {}
     today: date | None = None
     for e in log:
         if isinstance(e.payload, ev.DateAdvanced):
             today = e.payload.to
         elif isinstance(e.payload, ev.WakeOpened) and today is not None:
             opened.append((e.payload.wake, today))
+        elif isinstance(e.payload, ev.OrderHeld):
+            rows[e.payload.held.order_id] = e.payload.held.row
     final = state.in_world_date
 
     out: list[SeatEvent] = []
@@ -344,6 +355,8 @@ def feed(
             current = p.wake
         if e.kind not in FEED_KINDS or not _visible(e, view):
             continue
+        if isinstance(p, ev.AskAnswered) and not answering.told(state, rows.get(p.order_id)):
+            continue
         if isinstance(p, ev.DocumentIssued):
             if final is None or p.document.arrives > final:
                 continue
@@ -351,6 +364,9 @@ def feed(
             e = _view_only(e, p)
         elif isinstance(p, ev.OrderRouted):
             e = _routed_view(e, p)
+            wake = max(current, _wake_of_day(opened, today))
+        elif isinstance(p, ev.OrderAsked):
+            e = _as_asked(state, e, p, seat)
             wake = max(current, _wake_of_day(opened, today))
         elif isinstance(p, ev.DocumentWritten):
             if p.doc_id not in arrived:

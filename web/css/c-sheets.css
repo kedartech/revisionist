@@ -77,3 +77,17 @@
 @media (max-width: 600px) {
   .rl-over-body { padding: var(--space-3); }
 }
+
+/* full screen (the map's Full screen control): the map takes the viewport from edge to edge;
+   What needs you, Done and an open sheet stay over it, and the map's own foot keeps clear of them */
+.rl-full .rl-mapfirst .rl-mapfirst-map, .rl-full .rl-mapfirst.sheeted .rl-mapfirst-map { padding: 0; }
+.rl-full .rl-mapfirst-map .rl-tmap { --tm-foot: calc(44px + var(--space-5)); }
+.rl-full .rl-mapfirst.sheeted .rl-mapfirst-map .rl-tmap { --tm-foot: 50vh; }
+.rl-full .rl-mapfirst-map > .rl-status { bottom: calc(44px + var(--space-5)); }
+@media (min-width: 1024px) {
+  .rl-full .rl-needs { display: none; }
+  .rl-full .rl-needs.open { display: flex; position: fixed; left: var(--space-3); top: var(--space-3); bottom: calc(44px + var(--space-6)); width: 300px; z-index: 48; border: 1px solid var(--rule-strong); border-radius: var(--radius); box-shadow: 0 10px 40px var(--backdrop); }
+  .rl-full .rl-needs-close { display: inline-flex; }
+  .rl-full .rl-needsbar { display: flex; right: auto; left: var(--space-3); bottom: var(--space-3); padding: 0; background: transparent; border: 0; }
+  .rl-full .rl-mapfirst.sheeted .rl-mapfirst-map .rl-tmap { --tm-foot: calc(44px + var(--space-5)); --tm-side: calc(440px + var(--space-5)); }
+}

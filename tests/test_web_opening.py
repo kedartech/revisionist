@@ -131,7 +131,7 @@ def test_a_taken_person_is_marked_for_every_player_and_a_joiner(
     assert seen == new(host, "opening")["opening"] == new(guest, "opening")["opening"]
     japan = next(n for n in seen["nations"] if n["name"] == "Japan")
     marks = {p["name"]: p["taken"] for path in japan["paths"] for p in path["persons"]}
-    assert marks == {"Fumimaro Konoe": True, "Hideki Tojo": False}
+    assert marks == {"Fumimaro Konoe": True, "Hideki Tojo": False, "Isoroku Yamamoto": False}
     assert people(seen)["Adolf Hitler"]["taken"] is True
     assert sum(p["taken"] for p in people(seen).values()) == 2
     assert seen["seats_left"] == 8
@@ -200,16 +200,19 @@ def test_two_seats_racing_for_one_person_cannot_both_land(
     assert counting.calls == []
 
 
-def test_the_same_answer_serves_a_leader_taken_over_in_play(web: Web) -> None:  # noqa: F811
+NOT_CHOOSING = "This game is not choosing its people."
+
+
+def test_the_opening_is_refused_once_the_game_is_in_play(web: Web) -> None:  # noqa: F811
     web.app.spawn = lambda run: None
     host, _ = hosted(web, AUTUMN)
     assert not new(host, "pick", name="Winston Churchill")["refused"]
-    before = new(host, "opening")["opening"]
+    assert new(host, "opening")["opening"]["seats_left"] == 9
     assert not new(host, "begin")["refused"]
     assert host.me()["game"]["phase"] == "play"
     transport = Counting()
     web.app.transport_factory = lambda: transport
-    assert new(host, "opening")["opening"] == before
+    assert host.call("/api/new/opening", {}) == (400, {"error": NOT_CHOOSING})
     status, listed = host.call("/api/game/handover-list", {})
     assert status == 200, listed
     stalin = next(x["key"] for x in listed["leaders"] if x["name"] == "Joseph Stalin")
@@ -217,10 +220,7 @@ def test_the_same_answer_serves_a_leader_taken_over_in_play(web: Web) -> None:  
     assert status == 200 and not out["refused"], out
     newcomer, _ = web.signed_up("bea")
     newcomer.seat("join", code=out["code"])
-    seen = new(newcomer, "opening")["opening"]
-    assert seen["nations"] == before["nations"]
-    assert people(seen)["Winston Churchill"]["taken"] is True
-    assert seen["seats_left"] == before["seats_left"] - 1
+    assert newcomer.call("/api/new/opening", {}) == (400, {"error": NOT_CHOOSING})
     assert transport.calls == []
 
 
@@ -244,3 +244,36 @@ def test_a_nation_with_nobody_playable_is_not_listed() -> None:
 
 def test_the_cast_fixture_carries_the_opening_shape() -> None:
     _same_shape(json.loads(FIXTURE.read_text())["opening"], api.Opening)
+
+
+@pytest.mark.parametrize(("world", "nation"), [(AUTUMN, "United States"), (SALT, None)])
+def test_the_opening_says_a_ready_made_game_and_names_each_nation_by_its_world_key(
+    web: Web,  # noqa: F811
+    counting: Counting,
+    world: str,
+    nation: str | None,
+) -> None:
+    client, _ = hosted(web, world)
+    out = new(client, "opening")
+    assert out["ready_made"] is True
+    assert out["world"] == world
+    decl = cmp.load_world(cmp.world_path(world))
+    polities = {e.key for e in decl.entities if e.kind.value == "polity"}
+    listed = [n["key"] for n in out["opening"]["nations"] if n["key"] is not None]
+    assert listed and set(listed) <= set(out["nation_keys"])
+    assert set(out["nation_keys"].values()) <= polities
+    if nation is not None:
+        usa = next(n["key"] for n in out["opening"]["nations"] if n["name"] == nation)
+        assert out["nation_keys"][usa] == "usa"
+    assert counting.calls == []
+
+
+def test_the_opening_says_a_pitched_game_is_not_ready_made(web: Web) -> None:  # noqa: F811
+    from tests.test_web_pick import PLACED, Fake, seated
+
+    fake = Fake(PLACED)
+    client = seated(web, fake)
+    out = new(client, "opening")
+    assert out["refused"] is False
+    assert out["ready_made"] is False
+    assert fake.calls == []

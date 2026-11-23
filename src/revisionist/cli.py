@@ -1135,6 +1135,144 @@ def _openrouter_factory() -> Callable[[], Transport]:
     return lambda: shared
 
 
+# --- revisionist reports ---------------------------------------------------------------
+
+reports_app = typer.Typer(
+    no_args_is_help=True, help="Operator: the players' reports, a bug, an idea or confusing."
+)
+app.add_typer(reports_app, name="reports")
+
+
+def _report_store() -> "PostgresEventStore":
+    from revisionist.engine.pg_store import PostgresEventStore
+
+    store = cmp.open_store()
+    if not isinstance(store, PostgresEventStore):
+        raise _fail("reports live in Postgres: set REVISIONIST_DB to a postgresql:// URL")
+    return store
+
+
+@reports_app.command("list")
+def reports_list(
+    campaign: CampaignOpt = None,
+    status: Annotated[str | None, typer.Option(help="new, seen or acted")] = None,
+) -> None:
+    """One line per report, oldest first: number, kind, status, game, wake, office and the
+    start of its words."""
+    from revisionist.engine.web import reports
+
+    store = _report_store()
+    names: dict[str, str] = {}
+    for r in reports.listing(store, CampaignId(campaign) if campaign else None, status):
+        game = names.setdefault(r.campaign_id, sch.campaign_name(store, r.campaign_id))
+        first = r.words.splitlines()[0] if r.words else ""
+        cut = first if len(first) <= 60 else first[:59] + "…"
+        typer.echo(f"{r.report_id} {r.kind} {r.status} {game} wake {r.wake}: {cut}")
+
+
+@reports_app.command("show")
+def reports_show(number: Annotated[int, typer.Argument(help="The report's number")]) -> None:
+    """One report in full: where it was filed, its words, its status and reply."""
+    from revisionist.engine.web import reports
+
+    store = _report_store()
+    r = reports.get(store, number)
+    if r is None:
+        raise _fail(f"no report {number}")
+    state = load_state(store, r.campaign_id)
+    office = reports.office(state, r.seat_id) if r.seat_id in state.seats else r.seat_id
+    typer.echo(f"Report {r.report_id}: {r.kind}, {r.status}")
+    typer.echo(f"Game: {sch.campaign_name(store, r.campaign_id)} ({r.campaign_id})")
+    typer.echo(f"Office: {office}")
+    typer.echo(f"Wake: {r.wake}  Log position: {r.seq}  State hash: {r.state_hash}")
+    typer.echo(f"Filed: {r.filed_at.astimezone(UTC).isoformat()}")
+    typer.echo("")
+    typer.echo(r.words)
+    if r.reply:
+        typer.echo("")
+        typer.echo(f"Reply: {r.reply}")
+
+
+@reports_app.command("export")
+def reports_export(
+    campaign: CampaignOpt = None,
+    out: Annotated[
+        Path | None, typer.Option("--out", help="A new file (mode 600); default: stdout")
+    ] = None,
+) -> None:
+    """Every report as one JSON line each, words in plain."""
+    import json
+
+    from revisionist.engine.web import reports
+
+    store = _report_store()
+    names: dict[str, str] = {}
+    lines = []
+    for r in reports.listing(store, CampaignId(campaign) if campaign else None):
+        game = names.setdefault(r.campaign_id, sch.campaign_name(store, r.campaign_id))
+        lines.append(json.dumps(reports.record(r, game), ensure_ascii=False))
+    if out is None:
+        for line in lines:
+            typer.echo(line)
+        return
+    try:
+        fd = os.open(out, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError as exc:
+        raise _fail(f"{out} exists: give a new file") from exc
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write("".join(f"{line}\n" for line in lines))
+    typer.echo(f"{len(lines)} reports written to {out}")
+
+
+@reports_app.command("mark")
+def reports_mark(
+    number: Annotated[int, typer.Argument(help="The report's number")],
+    status: Annotated[str, typer.Option(help="new, seen or acted")],
+    reply: Annotated[
+        str | None, typer.Option(help="One line back to the player, at most 200 characters")
+    ] = None,
+) -> None:
+    """Set a report's status and, if given, the reply its author reads."""
+    from revisionist.engine.web import reports
+
+    store = _report_store()
+    try:
+        reports.mark(store, number, status, reply, clock())
+    except reports.RefusedError as exc:
+        raise _fail(str(exc)) from exc
+    typer.echo(f"report {number}: {status}")
+
+
+@reports_app.command("digest")
+def reports_digest(
+    day: Annotated[str | None, typer.Option(help="YYYY-MM-DD in UTC (default: yesterday)")] = None,
+) -> None:
+    """Send one day's digest, a count of the reports by kind and game with none of their
+    words, to $REVISIONIST_REPORTS_DIGEST_TO through the notice sender. Once a day: a day
+    already sent, or with no reports, sends nothing. Run it daily from a timer."""
+    from datetime import date
+
+    from revisionist.engine import notice
+    from revisionist.engine.web import reports
+
+    try:
+        on = date.fromisoformat(day) if day else (clock() - timedelta(days=1)).date()
+    except ValueError as exc:
+        raise _fail(f"not a date: {day}") from exc
+    to = os.environ.get(notice.DIGEST_TO_ENV)
+    sender = notice.sender_from_env()
+    if not to or sender is None:
+        typer.echo(
+            f"no digest: set {notice.DIGEST_TO_ENV}, and {notice.SMTP_ENV} or {notice.OUTBOX_ENV}"
+        )
+        return
+    store = _report_store()
+    if reports.send_digest(store, on, sender, to):
+        typer.echo(f"digest for {on} sent to {to}")
+    else:
+        typer.echo(f"no digest for {on}: already sent, not sent, or no reports that day")
+
+
 # --- revisionist scheduler -------------------------------------------------------------
 
 scheduler_app = typer.Typer(
@@ -1486,6 +1624,13 @@ def web_serve(
             "$REVISIONIST_OPENROUTER_KEY, the aide from templates.",
         ),
     ] = WebTransport.CLAUDE,
+    secure_cookie: Annotated[
+        bool,
+        typer.Option(
+            "--secure-cookie",
+            help="HTTPS sits in front: mark the cookie Secure and send Strict-Transport-Security.",
+        ),
+    ] = False,
 ) -> None:
     """The web client and its JSON API, in the foreground. Plain HTTP: bind it to
     a private address such as the tailnet, never a public one."""
@@ -1496,6 +1641,7 @@ def web_serve(
     ):
         raise _fail("refusing to start:\n" + "\n".join(problems), EXIT_REFUSED)
     _pg_store("the web client", "").close()
+    from revisionist.engine.web import guard
     from revisionist.engine.web.server import App, serve
 
     root = static or WEB_STATIC
@@ -1513,7 +1659,10 @@ def web_serve(
         briefings=cmp.briefings_dir(),
         offline_prose=offline_prose,
         template_aide=transport is WebTransport.OPENROUTER,
+        secure_cookie=secure_cookie,
     )
+    if warning := guard.start_warning(host, secure_cookie):
+        typer.echo(warning, err=True)
     typer.echo(f"web client on http://{host}:{port}/", err=True)
     serve(app_, host, port)
 

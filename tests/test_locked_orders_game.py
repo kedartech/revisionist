@@ -1,4 +1,5 @@
-"""The locked-orders game (LKG): the scripted proof of the slice, on 1941 and on the toy.
+"""The locked-orders game (LKG): the scripted proof of the slice, on 1941, on the toy and
+on Salt Strait (SSO).
 
 The script (``tests/locked_orders_script.py``) plays a whole season with the leader and his
 commander both seated, through the engine's own entry points and offline. Each test reads
@@ -36,6 +37,7 @@ from revisionist.engine.web.stakes import seat_stakes
 from tests.locked_orders_script import (
     CASTS,
     NINETEEN_41,
+    SALT_STRAIT,
     TOY,
     Cast,
     Game,
@@ -62,12 +64,14 @@ log."""
 PINNED: dict[str, tuple[StepAction, int]] = {
     NINETEEN_41.name: (StepAction.EXPEDITE, 2),
     TOY.name: (StepAction.PASS, 2),
+    SALT_STRAIT.name: (StepAction.PASS, 2),
 }
 """The middle step on the leader's naval order, as the seed decides it: the action taken
 and the days after filing it was taken. The middle person is code-held, so his card's
 policy decides from the campaign's seed (``Cast.campaign``, fixed) and the day; the run
 pins it by playing that seed, and this states the outcome. 1941: the Chief of Naval
-Operations expedites it; toy: the marshal passes it. Either way it advances."""
+Operations expedites it; toy: the marshal passes it; Salt Strait: the First Minister's
+chief of staff passes it. Either way it advances."""
 
 
 @pytest.fixture(scope="module")

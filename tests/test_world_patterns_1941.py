@@ -48,6 +48,7 @@ POSTS = {
     "mussolini": "head_of_government",
     "chiang": "head_of_government",
     "king": "fleet_commander",
+    "tovey": "fleet_commander",
 }
 """The kind of post each playable card names. [proposed]"""
 STATED = frozenset(
@@ -87,7 +88,16 @@ NOT_ISSUED: dict[str, tuple[int, str, str]] = {
 """For each playable card that carries one, an aim its own government would not issue: the
 aim's number, the member of the same government the card is set against over it, and why.
 COD3's reading of the cards' own lines. [proposed]"""
-LISTED_FOR_JOSH = ("roosevelt", "churchill", "stalin", "hitler", "mussolini", "chiang", "king")
+LISTED_FOR_JOSH = (
+    "roosevelt",
+    "churchill",
+    "stalin",
+    "hitler",
+    "mussolini",
+    "chiang",
+    "king",
+    "tovey",
+)
 """The playable cards that carry no aim their own government would not issue (OWD rule 3):
 listed for Josh, not changed here."""
 

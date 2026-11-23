@@ -4,9 +4,11 @@
 // form whose path the court does not carry gets no strip.
 // The staff read on a suggested action: what the staff expect it to move (`expects`) and the
 // three risk levels (`risks`), from the agenda, and the forecast checked against what happened
-// (`agenda.forecast`). Nothing here touches the page on import.
+// (`agenda.forecast`), the seat's record drawn as a bar beside its words. Nothing here touches
+// the page on import.
 
 import { h } from '../dom.js';
+import { bar } from './realism-marks.js';
 
 /** The court path a form travels: the one whose id is the form's pipeline; else null. */
 function pathFor(lever, court) {
@@ -200,5 +202,6 @@ export function forecastRecord(forecast) {
   return h('div', { class: 'rl-fc' },
     h('h3', { id: 'rl-fc-h' }, 'Your staff\'s forecasts'),
     record ? h('p', { class: 'rl-fc-record' }, record) : h('p', { class: 'rl-fc-record' }, 'None has settled yet'),
+    record ? bar({ value: forecast.held, limit: forecast.checked, name: 'Your staff were right', num: false, extra: 'rl-fc-bar' }) : null,
     h('ul', { class: 'rl-fc-orders', role: 'list', 'aria-labelledby': 'rl-fc-h' }, orders.map(forecastOrder)));
 }

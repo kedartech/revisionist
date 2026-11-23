@@ -1,0 +1,28 @@
+/* The room's four marks (realism-marks.js): a bar, a column, a meter, a track and pips. Each draws
+   its number on itself in the chrome face. Tones: own (the seat's own, white), due (amber), hostile
+   (red, and hatched by its own pattern, so it never rests on colour), neutral by default. A fill
+   that carries a pattern keeps it: the colour rules apply only to a fill with no attribute. Tokens only. */
+.rl-mark { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; font: 600 12px/1.2 var(--font-chrome); font-variant-numeric: tabular-nums; color: var(--fg-strong); vertical-align: middle; }
+.rl-mark-num { flex: 0 0 auto; }
+.rl-mark-draw { display: block; flex: 1 1 6rem; min-width: 3rem; height: 10px; }
+.rl-mark-track { fill: var(--surface-3); stroke: var(--rule-strong); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.rl-mark-fill:not([fill]) { fill: var(--fg-muted); }
+.rl-mark-own .rl-mark-fill:not([fill]) { fill: var(--accent); }
+.rl-mark-due .rl-mark-fill:not([fill]) { fill: var(--warn); }
+.rl-mark-hostile .rl-mark-fill { stroke: var(--danger); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+.rl-mark-hatch-bg { fill: var(--danger); }
+.rl-mark-hatch { stroke: var(--danger-soft); stroke-width: 1.2px; }
+
+/* a column stands upright, its number over it */
+.rl-mark-col { flex-direction: column-reverse; justify-content: flex-start; gap: var(--space-1); }
+.rl-mark-col .rl-mark-draw { flex: 0 0 auto; width: 18px; height: 72px; min-width: 0; }
+
+/* the meter's five steps and the pips */
+.rl-mark-steps, .rl-mark-dots { display: inline-flex; gap: 2px; }
+.rl-mark-step { width: 12px; height: 8px; border: 1px solid var(--rule-strong); border-radius: 1px; background: var(--surface-3); }
+.rl-mark-step.on { background: var(--fg-muted); border-color: var(--fg-muted); }
+.rl-mark-pip { width: 8px; height: 8px; border: 1px solid var(--fg-muted); border-radius: 50%; background: var(--surface); }
+.rl-mark-pip.on { background: var(--fg-muted); }
+.rl-mark-own .rl-mark-step.on, .rl-mark-own .rl-mark-pip.on { background: var(--accent); border-color: var(--accent); }
+.rl-mark-due .rl-mark-step.on, .rl-mark-due .rl-mark-pip.on { background: var(--warn); border-color: var(--warn); }
+.rl-mark-hostile .rl-mark-step.on, .rl-mark-hostile .rl-mark-pip.on { background: repeating-linear-gradient(45deg, var(--danger) 0 2px, var(--danger-soft) 2px 4px); border-color: var(--danger); }

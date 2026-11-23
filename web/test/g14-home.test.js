@@ -79,6 +79,11 @@ const strip = (rv, { home: opts } = {}) => home.withHome(statusStrip(rv, {}, { a
 const ownChip = (el) => el.querySelector('button.rl-home-own');
 const groupItem = (sheet, key) => sheet.querySelectorAll('.rl-home-group').find((li) => li.getAttribute('data-group') === key);
 const sheetOf = (root) => root.querySelector('.rl-over');
+/** The seat's band in the map-first room: on the Nations sheet, which the bar's Nations control opens. */
+const nationsChip = (root) => {
+  fire(root.querySelector('.rl-nations-btn'), 'click');
+  return ownChip(document.body.firstElementChild);
+};
 
 // --- Rule 1: the band in the top strip opens the home sheet ---------------------------------
 
@@ -193,21 +198,20 @@ test('another nation\'s groups are never drawn: its band only', () => {
   assert.equal(words(sud), 'Sudland: shaken at home');
 });
 
-test('in the map-first room the band opens the home sheet over the map, the minute poll keeps it, and Escape returns focus to the band', async () => {
+test('in the map-first room the band on the Nations sheet opens the home sheet over the map, the minute poll keeps it, and Escape returns focus to the Nations control', async () => {
   const { root, ctx, doc } = await room();
-  fire(ownChip(root()), 'click');
+  fire(nationsChip(root()), 'click');
   const sheet = sheetOf(root());
   assert.ok(sheet, 'a sheet is open');
   assert.equal(sheet.getAttribute('data-sheet'), 'home');
   assert.equal(words(sheet.querySelector('.rl-over-title')), 'At home');
   assert.equal(doc.activeElement, sheet.querySelector('.rl-over-title'));
-  assert.equal(ownChip(root()).getAttribute('aria-expanded'), 'true');
   await ctx.refresh();
   await settle();
   assert.equal(sheetOf(root())?.getAttribute('data-sheet'), 'home', 'the poll keeps it open');
   sheetOf(root()).dispatchEvent({ type: 'keydown', key: 'Escape', target: null, defaultPrevented: false, preventDefault() {}, stopPropagation() {} });
   assert.equal(sheetOf(root()), null);
-  assert.equal(doc.activeElement, ownChip(root()));
+  assert.equal(doc.activeElement, root().querySelector('.rl-nations-btn'), 'focus goes back to the Nations control');
 });
 
 test('in today\'s room the band opens the home sheet under the strip, and a second tap closes it', async () => {
@@ -287,7 +291,7 @@ test('the speech note lists each theme with the groups it moves, and states the 
 
 test('in the map-first room "Speak to the nation" opens the Forms sheet\'s free-writing form under the themes and the cap, with focus in its words', async () => {
   const { root, doc } = await room();
-  fire(ownChip(root()), 'click');
+  fire(nationsChip(root()), 'click');
   fire(buttons(sheetOf(root()), 'Speak to the nation')[0], 'click');
   const sheet = sheetOf(root());
   assert.equal(sheet.getAttribute('data-sheet'), 'forms');
@@ -373,7 +377,7 @@ test('the room gives the home sheet the days the last close walked', async () =>
   rv.home.day = '1900-04-04';
   rv.record.wake.days_passed = 2;
   const { root } = await room(rv);
-  fire(ownChip(root()), 'click');
+  fire(nationsChip(root()), 'click');
   assert.deepEqual(sheetOf(root()).querySelectorAll('.rl-home-close li').map((li) => li.getAttribute('data-group')), ['public']);
 });
 

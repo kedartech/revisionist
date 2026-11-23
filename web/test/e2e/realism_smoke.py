@@ -151,8 +151,8 @@ def advance(page: Page, name: str, button: str = "Done for today") -> None:
 
 
 def world_day(page: Page) -> str:
-    """The world date the status strip shows (the room names no wake number)."""
-    return page.locator(".rl-strip .rl-date").first.inner_text()
+    """The world date the status strip (or the map-first room's bar) shows; no wake number."""
+    return page.locator(".rl-strip .rl-date, .rl-roombar .rl-date").first.inner_text()
 
 
 def fill(form: Locator) -> None:
@@ -469,8 +469,94 @@ def opening(page: Page, report: dict[str, object]) -> None:
     check(
         "a territory game opens in the map-first room", page.locator("main.rl-board").count() == 0
     )
+    room_top(page, report)
     check("the map-first room offers Classic layout", set_layout(page, "Classic layout"))
     page.locator("main.rl-board").wait_for(timeout=10_000)
+    shoot(page, "01d-rmt-classic")
+
+
+# The map-first room gives the map the screen (RMT): one bar of at most 56 px at 1440 wide and
+# 96 px at 390 [proposed], and the map clear of what lies over it at least 70 and 60 percent of
+# the viewport's height [proposed], on the ready-made 1941 game with no sheet open.
+BAR_MAX = 96 if PHONE else 56
+MAP_SHARE = 0.60 if PHONE else 0.70
+MAP_FLOOR = 320
+MEASURE = """() => {
+  const vh = innerHeight;
+  const svg = document.querySelector('main.rl-mapfirst svg.rl-map-svg');
+  const bar = document.querySelector('.rl-roombar');
+  if (!svg || !bar) return { share: 0, bar: 1e9, vh };
+  const r = svg.getBoundingClientRect();
+  let top = Math.max(r.top, 0);
+  let bottom = Math.min(r.bottom, vh);
+  // what lies over the map's foot: the phone's bottom bar, the status line
+  for (const el of document.querySelectorAll('.rl-needsbar, .rl-mapfirst-map > .rl-status')) {
+    const b = el.getBoundingClientRect();
+    if (!b.height || getComputedStyle(el).display === 'none') continue;
+    if (b.top < bottom && b.bottom > top) bottom = Math.min(bottom, b.top);
+  }
+  const above = [...document.querySelector('.realism-screen').children]
+    .filter((c) => c.tagName !== 'DIALOG' && getComputedStyle(c).display !== 'none')
+    .filter((c) => c.getBoundingClientRect().bottom <= r.top + 1)
+    .filter((c) => !c.matches('main.rl-mapfirst, .rl-needsbar'))
+    .map((c) => c.className);
+  return { share: Math.max(0, bottom - top) / vh, top, bottom, vh,
+    bar: bar.getBoundingClientRect().height, svg: r.height,
+    map: document.querySelector('main.rl-mapfirst').getBoundingClientRect().height,
+    above, width: document.documentElement.scrollWidth };
+}"""
+
+
+def room_top(page: Page, report: dict[str, object]) -> None:
+    """Measure the bar and the map on the 1941 game, open a sheet over it, and check that a
+    viewport too short for the map's floor scrolls the room instead of squeezing the map."""
+    page.locator("main.rl-mapfirst svg.rl-map-svg").first.wait_for(timeout=30_000)
+    page.wait_for_timeout(500)
+    got = page.evaluate(MEASURE)
+    report["rmt_room_top"] = got
+    check(f"the room's one bar is at most {BAR_MAX} px tall", got["bar"] <= BAR_MAX, str(got))
+    check("nothing but the bar is above the map", got["above"] == ["rl-roombar"], str(got))
+    check(
+        f"the map is clear for at least {MAP_SHARE:.0%} of the viewport's height",
+        got["share"] >= MAP_SHARE,
+        str(got),
+    )
+    check("the room is as wide as the viewport", got["width"] == SIZE[0], str(got))
+    shoot(page, "01a-rmt-first-wake")
+    page.locator(".rl-roombar .rl-sheettab", has_text="Papers").first.click()
+    over(page).wait_for(timeout=10_000)
+    shoot(page, "01b-rmt-sheet-open")
+    page.locator(".rl-over .rl-over-close").first.click()
+    page.wait_for_timeout(300)
+    nations = page.locator(".rl-roombar .rl-nations-btn")
+    if nations.count():
+        nations.click()
+        over(page).wait_for(timeout=10_000)
+        report["rmt_nations_chips"] = over(page).locator(".rl-eco-chip").count()
+        shoot(page, "01c-rmt-nations")
+        page.locator(".rl-over .rl-over-close").first.click()
+        page.wait_for_timeout(300)
+    marks = page.locator(".rl-roombar .rl-aimmark")
+    report["rmt_aim_marks"] = marks.count()
+    if marks.count():
+        marks.first.click()
+        over(page).wait_for(timeout=10_000)
+        shoot(page, "01e-rmt-aims")
+        page.locator(".rl-over .rl-over-close").first.click()
+        page.wait_for_timeout(300)
+    page.set_viewport_size({"width": SIZE[0], "height": 360})  # shorter than the bar and the floor
+    page.wait_for_timeout(400)
+    short = page.evaluate(MEASURE)
+    scrolls = page.evaluate("() => document.documentElement.scrollHeight > innerHeight")
+    report["rmt_short_viewport"] = {**short, "scrolls": scrolls}
+    check(
+        f"in a short viewport the map keeps {MAP_FLOOR} px and the room scrolls",
+        short["map"] >= MAP_FLOOR and scrolls,
+        str(report["rmt_short_viewport"]),
+    )
+    page.set_viewport_size({"width": SIZE[0], "height": SIZE[1]})
+    page.evaluate("() => window.scrollTo(0, 0)")
+    page.wait_for_timeout(300)
 
 
 def locked_order(page: Page, report: dict[str, object]) -> None:
@@ -537,13 +623,15 @@ def locked_order(page: Page, report: dict[str, object]) -> None:
         if more.count():  # Beginner shows one next step; the rest is behind More (BGN)
             more.first.click()
         line = needs.locator("li.rl-need[data-kind=held]")
+        if line.count():  # a line opens in place to who can allow it and its action
+            line.first.locator(".rl-need-row").click()
         report["lock_needs_line"] = line.first.inner_text() if line.count() else ""
         check(
             "the held order is in what needs you, marked asked, with who can allow it",
             line.count() == 1
             and line.first.locator(".rl-need-status").inner_text().strip() == "Asked"
             and line.first.locator(".rl-lock-who").inner_text().strip() == LOCK_WHO
-            and line.first.locator("button").count() == 0,
+            and line.first.locator(".rl-need-act").count() == 0,
             str(report["lock_needs_line"]),
         )
         if line.count():
@@ -1327,11 +1415,33 @@ def reach(page: Page, sel: str, text: str = "") -> bool:
         f"const a = {found}; a?.setAttribute('data-smk-reach', ''); return !!a; }}"
     ):
         return False
+    target = page.locator("[data-smk-reach]")
     try:
-        page.locator("[data-smk-reach]").tap(timeout=10_000)
+        target.scroll_into_view_if_needed(timeout=10_000)
+        # a mark at the edge of the map's window is drawn in part: tap a point of it that shows
+        target.tap(timeout=10_000, position=page.evaluate(SHOWN_POINT))
     except PlaywrightTimeout:
         return False
     return True
+
+
+SHOWN_POINT = """() => {
+  const a = document.querySelector('[data-smk-reach]');
+  const r = a.getBoundingClientRect();
+  for (const fy of [0.5, 0.65, 0.8, 0.35, 0.2, 0.9]) {
+    for (const fx of [0.5, 0.3, 0.7]) {
+      const x = r.left + r.width * fx;
+      const y = r.top + r.height * fy;
+      // on top here and 3 px around, so a tap rounded to a whole pixel still lands on it
+      const near = [[0, 0], [0, -3], [0, 3], [-3, 0], [3, 0]].every(([dx, dy]) => {
+        const e = document.elementFromPoint(x + dx, y + dy);
+        return e && (e === a || a.contains(e));
+      });
+      if (near) return { x: r.width * fx, y: r.height * fy };
+    }
+  }
+  return null;
+}"""
 
 
 def press(page: Page, sel: str, text: str = "", key: str = "Enter") -> bool:
@@ -1503,12 +1613,28 @@ def needs_list_closed(page: Page) -> None:
     check("What needs you folds away", page.locator(".rl-needs.open").count() == 0)
 
 
+def open_row(page: Page, text: str) -> bool:
+    """Open in place the line of What needs you whose words hold `text`, by the width's way."""
+    found = page.evaluate(
+        "(t) => { document.querySelector('[data-smk-row]')?.removeAttribute('data-smk-row');"
+        " const b = [...document.querySelectorAll('.rl-needs .rl-need-row')]"
+        ".find((x) => x.getClientRects().length && x.textContent.toLowerCase().includes(t));"
+        " if (!b) return false; b.setAttribute('data-smk-row', '');"
+        " return b.getAttribute('aria-expanded') !== 'true'; }",
+        text.lower(),
+    )
+    if not found:
+        return page.locator("[data-smk-row]").count() > 0
+    return press(page, "[data-smk-row]")
+
+
 def needs_opened(page: Page, report: dict[str, object]) -> None:
     """\"What needs you\" opens from the keyboard (a tap on a phone), and its one matter opens."""
     if PHONE:
         needs_list_opened(page)
     listed = page.locator(".rl-needs").first
     check("What needs you lists the matter waiting", "make your position public" in said(listed))
+    check("the matter's line opens in place", open_row(page, "position public"))
     check("Tab reaches a matter's Answer button", press(page, ".rl-needs button", "Answer"))
     over(page).wait_for(timeout=10_000)
     page.wait_for_timeout(500)
@@ -1687,6 +1813,7 @@ def battle_sheet(page: Page, report: dict[str, object]) -> None:
             "What needs you lists the battle",
             "the battle at" in said(page.locator(".rl-needs").first),
         )
+        check("the battle's line opens in place", open_row(page, "the battle at"))
         check("the battle's Decide button can be tapped", press(page, ".rl-needs button", "Decide"))
     else:
         check("Tab reaches the battle's mark", press(page, "[aria-label]", "Battle at"))

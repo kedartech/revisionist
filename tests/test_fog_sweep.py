@@ -3,7 +3,8 @@
 For the toy world and Salt Strait, each pair in ``tests/fog_twins.py`` is two games that
 differ in exactly one fact the viewing seat may not know. Every read the seat can make
 (the snapshot with every sheet's data, each page, the map, catch-up, the opening's list
-of people, the check, the odds and the wake notice), before and after a wake closes, and
+of people, the check, the odds and the wake notice, and the seat's view and its agent's
+prompt as a model is given them), before and after a wake closes, and
 every refusal it can provoke by naming the hidden thing, must be the same bytes in both
 games. A difference is a finding: its case is marked strict expected-to-fail, naming the
 fix in the lane that owns the file.
@@ -38,10 +39,13 @@ KINDS = (
     "hidden law",
     "written order awaiting the close",
     "report author",
+    "ask to a person with no seat",
+    "person or code answering an ask",
 )
 """The contract's eleven kinds of hidden fact, in its order, then the seat whose player
 has left in the open wake, which is the code's from the close, then which seat filed a
-player report the host reads."""
+player report the host reads, then whether a seat asked a person nobody plays, then
+whether a person or code answers an ask."""
 
 HUMANS = (
     "rules lane fix: the wake header's human count and the commit reply's 'waiting for N "
@@ -86,7 +90,7 @@ def differences(pair: ft.Pair, a: ft.Side, b: ft.Side) -> list[str]:
                         print(pair.id, who, moment, ft.where(key, x.get(key, b""), y.get(key, b"")))
 
     def read(s: ft.Side, who: str) -> dict[str, bytes]:
-        return ft.reads(s, who, ft.READS[pair.world])
+        return ft.reads(s, who, ft.READS[pair.world], seam=pair.seam, apart=pair.apart)
 
     compare("wake 0", read)
     for n in range(pair.wakes):
@@ -191,7 +195,8 @@ def test_the_reads_cover_every_read_the_seat_can_make(pg_cluster: Cluster, tmp_p
     with ft.twins(pair, pg_cluster, tmp_path) as (a, _):
         got = ft.reads(a, "oren_vale", ft.READS["salt"])
     heads = {key.split(" ", 1)[0] for key in got}
-    assert heads == {"me", "opening", "read", "map", "catchup", "check", "odds", "notice"}, heads
+    reads = {"me", "opening", "read", "map", "catchup", "check", "odds", "notice", "view", "prompt"}
+    assert heads == reads, heads
     assert json.loads(got["me"])["game"]["view"]["realism"]["home"] is not None
 
 

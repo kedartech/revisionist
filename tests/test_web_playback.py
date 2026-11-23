@@ -50,7 +50,7 @@ from tests.test_web_wake import begin, log_of, seat_of, state_of
 FIXTURES = Path(__file__).parents[1] / "web" / "test" / "fixtures"
 CLOSED = ("wake_committed", "wake_closed", "seat_handover", "by_aide", "timed_out", "aide")
 CAUSES = ("scripted", "ordered", "forced", "cause")
-KINDS = ("order", "move", "halt", "paper", "holder", "stake", "held")
+KINDS = ("order", "move", "halt", "paper", "holder", "stake", "held", "group", "count")
 World = dict[str, Any]
 
 
@@ -369,10 +369,21 @@ def held(state: State, events: list[ev.Event], seat: SeatId) -> dict[str, set[st
         "stake": {c.name for c in view.contests.values()}
         | {m.text for m in view.mandates.values()}
         | {g.text for g in view.goals.values()},
+        # HFR: only its own nation's groups, and the votes on its own orders.
+        "group": {g.key for own in view.groups.declared.values() for g in own},
+        "count": {str(o) for o in view.orders},
     }
 
 
-POINTS = {"paper": "paper", "order": "order", "move": "piece", "halt": "piece", "stake": "name"}
+POINTS = {
+    "paper": "paper",
+    "order": "order",
+    "move": "piece",
+    "halt": "piece",
+    "stake": "name",
+    "group": "group",
+    "count": "order_id",
+}
 
 
 def assert_fogged(state: State, events: list[ev.Event], seat: SeatId, last: int) -> int:

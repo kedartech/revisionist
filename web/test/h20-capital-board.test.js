@@ -382,9 +382,11 @@ test('the conference\'s form is the Diplomacy sheet the room has today', () => {
 
 // rule 7: what the seat holds and owes
 
-test('the right column always says what is held and owed: nothing until offers are sent', () => {
+// changed rule (PRB rule 3): the promises made are what the seat holds and owes, so nothing is
+// owed only when the seat has made none
+test('the right column always says what is held and owed: nothing when no promise is made', () => {
   for (const q of [undefined, 'conf:charter', 'mandate:0']) {
-    const { el } = board(seat(), { q });
+    const { el } = board(seat(3, (v) => { v.home.promises = []; }), { q });
     assert.equal(words(el.querySelector('.rl-cap-side .rl-cap-owed')), cap.OWED_NONE);
   }
 });

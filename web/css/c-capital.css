@@ -76,6 +76,29 @@
 .rl-cap-piece { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); flex: 1 1 120px; min-height: 44px; min-width: 120px; padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); color: var(--fg); text-align: left; cursor: pointer; }
 .rl-cap-piece[aria-pressed="true"] { border-color: var(--fg-strong); }
 .rl-cap-piece.lit { border-style: dashed; border-color: var(--fg-strong); }
+.rl-cap-piece.offered { border-width: 2px; border-color: var(--accent); }
+.rl-cap-offered { padding: 0 var(--space-1); background: var(--accent-soft); border-radius: var(--radius); color: var(--fg-strong); font: 600 11px/1.4 var(--font-chrome); }
+
+.rl-cap-prices { margin-top: var(--space-3); }
+.rl-cap-pricelist { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.rl-cap-price { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); width: 100%; min-height: 44px; padding: var(--space-2) var(--space-3); background: var(--surface); border: 1px dashed var(--rule-strong); border-radius: var(--radius); color: var(--fg); text-align: left; cursor: pointer; }
+.rl-cap-price[aria-pressed="true"] { border-style: solid; border-color: var(--fg-strong); }
+.rl-cap-price:focus-visible, .rl-cap-confirm:focus-visible, .rl-cap-cancel:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-cap-pips { display: inline-flex; gap: 2px; vertical-align: middle; }
+.rl-cap-pip { width: 8px; height: 8px; background: var(--fg-strong); border-radius: 50%; }
+.rl-cap-chipbox { margin-top: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--accent-soft); border-radius: var(--radius); }
+.rl-cap-would { margin: 0; color: var(--fg-strong); font-weight: 600; }
+.rl-cap-chip { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.rl-cap-confirm, .rl-cap-cancel { min-height: 44px; }
+.rl-cap-refused { margin: var(--space-2) 0 0; color: var(--danger); }
+.rl-cap-trackbox.would { border-left: 3px solid var(--accent); padding-left: var(--space-2); }
+.rl-cap-trackname { margin: 0; }
+.rl-cap-promises { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.rl-cap-promise { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-3); border-left: 3px solid var(--rule-strong); }
+.rl-cap-promise.due { border-left-color: var(--warn); }
+.rl-cap-promise.kept { border-left-color: var(--ok); }
+.rl-cap-promise.broken { border-left-color: var(--danger); }
+.rl-cap-pstand { font: 600 12px/1.4 var(--font-chrome); }
 .rl-cap-piece.g1 { flex-grow: 1; } .rl-cap-piece.g2 { flex-grow: 2; } .rl-cap-piece.g3 { flex-grow: 3; }
 .rl-cap-piece.g4 { flex-grow: 4; } .rl-cap-piece.g5 { flex-grow: 5; } .rl-cap-piece.g6 { flex-grow: 6; }
 .rl-cap-piece.g7 { flex-grow: 7; } .rl-cap-piece.g8 { flex-grow: 8; } .rl-cap-piece.g9 { flex-grow: 9; }
@@ -124,3 +147,14 @@
   .rl-cap-chamber { gap: var(--space-1); padding: 0 var(--space-2); }
   .rl-cap-full-in, .rl-full .rl-cap-full .rl-cap-full-out { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
+
+/* where the order stands on its path, and where a held order stops (the track is c-court.css) */
+.rl-cap-path, .rl-cap-held { display: grid; gap: var(--space-2); margin: var(--space-3) 0; overflow-x: auto; }
+.rl-cap-path .rl-trk-seg { flex-basis: 80px; }
+.rl-cap-held .rl-trk-seg, .rl-cap-held .rl-trk-seg.unstated { flex: 1 1 0; }
+.rl-cap-held .rl-trk .rl-trk-seg .rl-trk-bar { margin: 8px 0 12px; }
+.rl-cap-stepname { font-size: 12px; color: var(--fg-strong); overflow-wrap: break-word; }
+.rl-cap-where { margin: 0; font-size: 13px; color: var(--fg-muted); }
+.rl-cap-held .rl-trk-marker.locked { top: -8px; width: 14px; height: 16px; border-radius: var(--radius); background: var(--fg-muted); display: grid; place-items: center; }
+.rl-cap-held .rl-trk-lock { fill: none; stroke: var(--surface); stroke-width: 1.4; }
+.rl-cap-promise[data-came-due] { border-left-color: var(--warn); }

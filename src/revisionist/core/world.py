@@ -66,7 +66,7 @@ from revisionist.core.realism.effect import (
     Engagement,
 )
 from revisionist.core.realism.geography import FeatureKind
-from revisionist.core.realism.groups import Group, Theme
+from revisionist.core.realism.groups import Group, KindClass, Theme
 from revisionist.core.realism.kinds import MAX_STRENGTH, Domain, Role
 from revisionist.core.realism.pipeline import StepAction, StepKind
 from revisionist.core.realism.quantity import ResolverKey
@@ -145,6 +145,13 @@ class AssetDecl(Model):
     location: Key | None = None
     loyalty: int = Field(default=0, ge=-5, le=5)
     scope: ScopeSpec = "public"
+    ladder: SkipJsonSchema[tuple[Key, ...]] = Field(default=(), max_length=8)
+    """For an office, read with ``posts`` on (LDR): the lesser offices its holder falls to
+    when dismissed, first free one first. Written by hand: not offered to a model."""
+    moved_by: SkipJsonSchema[tuple[Key, ...]] = Field(default=(), max_length=8)
+    """For an office, read with ``posts`` on (LDR): the offices whose holders may appoint
+    to it or dismiss from it on their own order. None named: the old rule, an order from
+    one of its holder's principals. Written by hand: not offered to a model."""
 
 
 class RelationshipDecl(Model):
@@ -675,6 +682,17 @@ class GroupsDecl(Model):
     nation's groups by (FWG). Writing that names one moves the groups by this table."""
 
 
+class PlaceDecl(Model):
+    """A place with political weight (PLW), with ``places`` on: a territory, the nation it
+    matters to, and the points each of that nation's groups moves when it is lost in a
+    fight, signed. Abandoning it costs more; retaking it moves them back."""
+
+    territory: Key
+    nation: Key
+    """A polity key."""
+    moves: dict[Label, int] = Field(min_length=1)
+
+
 class LockOrderDecl(Model):
     """Which order a lock holds (DCD), in world-file keys: ``form`` a lever's name with
     some of its parameter values as the form takes them, or ``effect`` an effect kind
@@ -1042,6 +1060,9 @@ class CardDecl(Model):
     post_kind: SkipJsonSchema[Key | None] = None
     """The kind of post the card holds, matched against an aim pattern's ``posts`` with
     ``own_aim`` on (OWC). Written by hand: not offered to a model."""
+    post: SkipJsonSchema[Key | None] = None
+    """The office asset the person holds, read with ``posts`` on (PPP): the part of the
+    card that goes with the office moves with it. Written by hand: not offered to a model."""
 
 
 class TopicDecl(Model):
@@ -1179,6 +1200,15 @@ class WorldFile(Model):
     """Each nation's groups at home, with ``groups`` on: support, baseline, what each
     feeds and what moves it. A world with none is unchanged. Written by hand: not offered
     to a model."""
+    happenings: SkipJsonSchema[tuple[KindClass, ...]] = ()
+    """The class of each kind of happening the world classes, with ``classes`` on (HCL):
+    felt, reported or secret, and for a mixed kind the share felt. A kind not listed is
+    reported. With the rule off they are checked and left out of the game. Written by
+    hand: not offered to a model."""
+    places: SkipJsonSchema[tuple[PlaceDecl, ...]] = ()
+    """The places with political weight, with ``places`` on (PLW): a handful a nation. A
+    world with none weighs no place. With the rule off they are checked and left out of
+    the game. Written by hand: not offered to a model."""
     pacts: SkipJsonSchema[tuple[PactDecl, ...]] = ()
     """The pacts in force on the start date, with ``agreements`` on (PCT). Written by
     hand: not offered to a model."""

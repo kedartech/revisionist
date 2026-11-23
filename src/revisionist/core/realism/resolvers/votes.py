@@ -33,7 +33,7 @@ from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, OrderId, derived_id
-from revisionist.core.realism import economy, groups, laws
+from revisionist.core.realism import economy, groups, laws, offers
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.economy import Pools
@@ -223,8 +223,9 @@ def bloc_counts(
     """Each bloc's part of one vote on a measure in a nation's chamber, in the world's
     order: each bloc with a row for the vote (the measure's own, else its default) starts
     from that row, and its yes share moves a point for every ``VOTE_POINTS`` of support away
-    from its baseline, by its stance on each of ``clauses``, and with ``urgent`` by
-    ``URGENT_BLOC_POINTS`` if it backs power. The fraction of a vote left over is drawn from
+    from its baseline, by its stance on each of ``clauses``, with ``urgent`` by
+    ``URGENT_BLOC_POINTS`` if it backs power, and by the points of an offer taken on the
+    measure (``offers.points``, PRC). The fraction of a vote left over is drawn from
     ``seed``. No order is read."""
     out: list[BlocCount] = []
     for bloc in groups.of(state, nation):
@@ -233,6 +234,7 @@ def bloc_counts(
             continue
         points = (groups.support(state, nation, bloc.key) or 0) - bloc.baseline
         stance = sum(bloc.stances.get(c.kind, 0) for c in clauses)
+        stance += offers.points(state, nation, bloc.key, measure)
         if urgent and bloc.stances.get(ClauseKind.POWER, 0) > 0:
             stance += URGENT_BLOC_POINTS
         whole, part = divmod(row.voting * (points + VOTE_POINTS * stance), SHARE_PARTS)
@@ -347,13 +349,13 @@ def passed_by_groups(
     state: State, order: Order, key: str, measure: ProposeMeasure | None
 ) -> tuple[ev.GroupMoved, ...]:
     """With ``groups`` on, when the blocs pass measure ``key`` in every vote, the groups of
-    the issuer's nation that name a measure passed, moved once on the day the order
-    settled, whether or not the world keeps the count."""
+    the issuer's nation that name the kind of measure passed it is (``groups.passed``),
+    moved once on the day the order settled, whether or not the world keeps the count."""
     cast = _cast(state, order, key, measure)
     if cast is None or not all(y > n for _, y, n in cast[1]):
         return ()
     day = rs.settled_on(order)
-    return tuple(groups.happened(state, cast[0], groups.Happening.MEASURE_PASSED, day))
+    return tuple(groups.passed(state, cast[0], key, day))
 
 
 def _step_day(order: Order, step: int) -> date:

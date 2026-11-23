@@ -1198,15 +1198,14 @@ def seat_realism(
     }
     people = seat_people(state, seat, view, portraits)
     world = dossiers.world_key(log)
+    shown = seat_map(view, forces, state.pipelines, people, state, place_keys or {}, withdrawable)
     return {
         "documents": documents(view, read, flagged),
         "desk": _place_areas(state, desk(view, known)),
         "situation": situation(view),
         "orders": orders(view, state.pipelines),
         "clock": clock(view, next_wake_at, waiting_on, 0, wake.to.isoformat()),
-        "map": seat_map(
-            view, forces, state.pipelines, people, state, place_keys or {}, withdrawable
-        ),
+        "map": shown,
         "threats": seat_threats(state, seat, view),
         "people": people,
         "world": world_news(view),
@@ -1215,7 +1214,7 @@ def seat_realism(
         "wars": public_wars(view),
         "economy": economy_api.block(state, view),
         "battles": battles_api.block(state, seat, view, forces, held_battles, ended_battles),
-        "home": home_api.block(state, view, log),
+        "home": home_api.block(state, view, log, shown.get("areas", ()) if shown else ()),
         "agreements": agreements_api.block(state, seat, view, log),
         "conferences": conferences_api.block(state, seat, view),
         **_locks(state, seat),

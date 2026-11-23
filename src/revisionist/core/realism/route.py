@@ -11,7 +11,7 @@ from datetime import date, timedelta
 
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, SeatId
-from revisionist.core.realism import locks
+from revisionist.core.realism import ladder, locks
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import Domain, SeatCard
 from revisionist.core.realism.effect import (
@@ -179,6 +179,10 @@ def outside_the_law(state: State, order: RoutedOrder, part: int) -> str:
     routed = order.parts[part]
     issuer = state.seats[order.issuer].embodies
     if isinstance(routed.effect, Appointment):
+        post = ladder.post_named(state, routed.effect.office)
+        allowed = ladder.may_move(state, issuer, post) if post is not None else None
+        if allowed is not None:  # LDR: the world names who may move this post
+            return "" if allowed else "outside the law: your office cannot move that post"
         card = state.cards.get(routed.effect.person)
         if card is None or issuer not in card.principals:
             return "outside the law: that person does not answer to your office"

@@ -1025,11 +1025,56 @@ class GroupMove(TypedDict):
         "agreement_broken",
         "measure_passed",
         "war_declared",
+        "daily_life_passed",
         "writing",
         "drift",
+        "offer_taken",
+        "promise_kept",
+        "promise_broken",
+        "battle_losses",
+        "losses_felt",
+        "losses_halved",
+        "place_lost",
+        "place_abandoned",
+        "place_retaken",
     ]
     change: int
     on: str
+
+
+class HomeMove(TypedDict):
+    """A move of a group since the seat's last wake (HFR): the cause, by how much after
+    the clamp, the day and the cause in plain words."""
+
+    cause: str
+    """A ``GroupMove`` cause."""
+    change: int
+    on: str
+    why: str
+    """The cause in plain words (``home_api.WHY``)."""
+    reach: Literal["felt", "reported"]
+    """How it reached the public (``home_api.reach``)."""
+
+
+class HomeMoved(TypedDict):
+    """One line of what moved at home since the seat's last wake: a group, its net
+    change and the line the seat reads (HFR)."""
+
+    group: str
+    name: str
+    change: int
+    line: str
+
+
+class HomePlace(TypedDict):
+    """A place of political weight of the seat's nation, as its map shows it (HFR)."""
+
+    key: str
+    """The territory's key in the map file."""
+    name: str
+    holder: MapNation | None
+    threatened: bool
+    """Its area on the seat's map is marked to fall or named by a report (``MapArea``)."""
 
 
 class HomeGroup(TypedDict):
@@ -1043,6 +1088,8 @@ class HomeGroup(TypedDict):
     """0 to 100, now."""
     last_moved: GroupMove | None
     """None while nothing has moved it."""
+    since: list[HomeMove]
+    """Every move since the seat's last wake, in the order they happened."""
     feeds: dict[str, float]
     """What its support feeds (``votes``, ``standing``, ``manpower``, ``output``,
     ``opinion``), each with its weight."""
@@ -1063,6 +1110,11 @@ class BlocCount(TypedDict):
     group: str
     yeas: int
     nays: int
+    then: list[int] | None
+    """Its yeas and nays at the seat's last wake; None when the measure was not then on
+    its way, or the seat has had no wake."""
+    moved: bool
+    """Its count differs from ``then``."""
 
 
 class FloorVote(TypedDict):
@@ -1077,6 +1129,8 @@ class FloorVote(TypedDict):
     carries: int
     """The yeas that carry the vote: more yeas than nays among those voting, as the votes
     rule decides it."""
+    then: list[int] | None
+    """The vote's yeas and nays at the seat's last wake, as ``BlocCount.then``."""
 
 
 class OpenMeasure(TypedDict):
@@ -1115,10 +1169,71 @@ class NationStanding(TypedDict):
     """None for a nation with no group that feeds standing."""
 
 
+class OfferPrice(TypedDict):
+    """One thing a bloc would take for its votes (PRR rule 2)."""
+
+    key: str
+    sentence: str
+    """What is promised, as the seat reads it."""
+    points: int
+    """Points the offer moves the bloc's yes share by on the measure."""
+    days: int
+    """World days after the measure passes on which the promise is read."""
+    loss: int
+    """Support the bloc loses when the promise is broken."""
+
+
+class LiveOffer(TypedDict):
+    """The offer that holds a bloc on a measure."""
+
+    price: str
+    points: int
+    mine: bool
+    """Whether the seat itself made it."""
+
+
+class OfferBloc(TypedDict):
+    """One bloc of a chamber, for a measure on its way: what it would take, and the offer
+    that holds it if one does."""
+
+    group: str
+    name: str
+    prices: list[OfferPrice]
+    """In the world's order; empty for a bloc that names no price."""
+    live: LiveOffer | None
+
+
+class OfferMeasure(TypedDict):
+    """A law of the seat's own nation whose bill is on its way, with each bloc that votes
+    on it."""
+
+    key: str
+    title: str
+    blocs: list[OfferBloc]
+    """In the world's order."""
+
+
+class OfferPromise(TypedDict):
+    """One offer the seat itself made, and where it stands (PRR rule 2)."""
+
+    offer_id: str
+    group: str
+    name: str
+    measure: str
+    title: str
+    price: str
+    sentence: str
+    standing: Literal["filed", "taken", "refused", "lapsed", "due", "kept", "broken"]
+    filed: str
+    due: str | None
+    """The world day the promise is read; None until the measure has passed."""
+
+
 class HomeBlock(TypedDict):
     """Groups at home and the floor as the seat sees them, with ``groups`` on (GPD). Only
     the seat's own nation's groups, chambers and themes are sent; another nation shows
-    only its band."""
+    only its band. With ``offers`` on, also each measure on its way with the prices its
+    blocs would take, and the promises the seat has made (PRR)."""
 
     day: str
     nation: MapNation
@@ -1131,6 +1246,14 @@ class HomeBlock(TypedDict):
     """The seat's own nation's standing at home, 0 to 100; None when no group feeds it."""
     standings: list[NationStanding]
     """Every nation's band, by name."""
+    moved: list[HomeMoved]
+    """Each group that moved since the seat's last wake, heaviest net change first (HFR)."""
+    places: list[HomePlace]
+    """Each place of political weight of the nation, in the world file's order (HFR)."""
+    offers: NotRequired[list[OfferMeasure]]
+    """With ``offers`` on: each law of the nation whose bill is on its way, by law key."""
+    promises: NotRequired[list[OfferPromise]]
+    """With ``offers`` on: the offers the seat itself made, by filing day and id."""
 
 
 class BattleRoundLine(TypedDict):
@@ -1568,6 +1691,20 @@ class LockCheck(TypedDict):
     """For ``locked``, what the seat would be told; for ``beyond``, today's refusal."""
 
 
+class StandingVote(FloorVote):
+    """One vote of a measure on its way, counted as it would stand, in its chamber."""
+
+    chamber: str
+
+
+class OfferCheck(LockCheck):
+    """The check of a draft offer to a bloc that filing would allow (PRB rule 2)."""
+
+    stands: list[StandingVote]
+    """Each vote of the measure's bill counted as the votes rule would tally it with the
+    offer landed, in the world's order: the count as it would stand."""
+
+
 class ForecastMove(TypedDict):
     """One move the staff expected a picked suggestion to make, and how it came out (FCK)."""
 
@@ -1938,6 +2075,37 @@ class PlaybackHeld(TypedDict):
     order's words."""
 
 
+class PlaybackGroup(TypedDict):
+    """One of the seat's own nation's groups moved (HFR): as ``HomeMove`` words it, with
+    the support it moved to. Only its own nation's seats are given it."""
+
+    kind: Literal["group"]
+    on: str
+    group: str
+    name: str
+    change: int
+    support: int
+    why: str
+    reach: Literal["felt", "reported"]
+
+
+class PlaybackCount(TypedDict):
+    """The count of a vote on one of the seat's measures on its way changed with a group's
+    move (HFR): the votes rule's count after the move beside the one before it."""
+
+    kind: Literal["count"]
+    on: str
+    order_id: str
+    """``OpenMeasure.order_id``."""
+    key: str
+    title: str
+    vote: str
+    yeas: int
+    nays: int
+    was: list[int]
+    """Its yeas and nays before the move."""
+
+
 PlaybackStep = (
     PlaybackOrder
     | PlaybackMove
@@ -1946,6 +2114,8 @@ PlaybackStep = (
     | PlaybackHolder
     | PlaybackStake
     | PlaybackHeld
+    | PlaybackGroup
+    | PlaybackCount
 )
 """One step of a missed wake's playback, in the order it happened (``on`` is ISO)."""
 
@@ -2052,10 +2222,14 @@ __all__ = [
     "HeldLine",
     "HomeBlock",
     "HomeGroup",
+    "HomeMove",
+    "HomeMoved",
+    "HomePlace",
     "HomeTheme",
     "LeverChoice",
     "LeverLine",
     "LeverParam",
+    "LiveOffer",
     "LockCheck",
     "LocksBlock",
     "MapArea",
@@ -2079,7 +2253,12 @@ __all__ = [
     "OddsShares",
     "OddsTerrain",
     "OfferAnswer",
+    "OfferBloc",
+    "OfferCheck",
     "OfferLine",
+    "OfferMeasure",
+    "OfferPrice",
+    "OfferPromise",
     "OfferReading",
     "OfferTerms",
     "OpenMeasure",
@@ -2104,6 +2283,8 @@ __all__ = [
     "PlaceChoice",
     "PlaceLift",
     "PlaceReach",
+    "PlaybackCount",
+    "PlaybackGroup",
     "PlaybackHalt",
     "PlaybackHeld",
     "PlaybackHolder",
@@ -2135,6 +2316,7 @@ __all__ = [
     "StakeLean",
     "StakeMandate",
     "Stakes",
+    "StandingVote",
     "StepLine",
     "StrengthRange",
     "TermClause",

@@ -61,7 +61,7 @@ from revisionist.core.realism.agenda import Mandate, MandateTemplate, PlayStyle
 from revisionist.core.realism.agreement import Agreements
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
-from revisionist.core.realism.card import CardFace, Desk, SeatCard, Topic
+from revisionist.core.realism.card import CardFace, Desk, Post, SeatCard, Topic
 from revisionist.core.realism.conference import Conferences
 from revisionist.core.realism.detect import Intelligence, Picture, Report
 from revisionist.core.realism.document import Document, DocumentView, Feed
@@ -73,6 +73,7 @@ from revisionist.core.realism.holders import Capture, Holding
 from revisionist.core.realism.kinds import Kinds
 from revisionist.core.realism.laws import Law
 from revisionist.core.realism.locks import Asked, HeldOrder, LockRow
+from revisionist.core.realism.offers import PricedOffer
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
@@ -158,6 +159,38 @@ class Wake(Model):
     closed: bool = False
 
 
+class Ladder(Model):
+    """A post's ladder (LDR), with ``posts`` on: the lesser posts its holder can fall to,
+    in order, and the posts whose holders may move him on their own order. Public: world
+    data, set once by ``ladders_declared``."""
+
+    post: AssetId
+    ladder: tuple[AssetId, ...] = Field(default=(), max_length=8)
+    moved_by: tuple[AssetId, ...] = Field(default=(), max_length=8)
+
+
+class PostMove(Model):
+    """A change of post ordered and waiting to land (LDR): the pending change. ``appoint``
+    puts ``person`` in ``post``; a dismissal takes him off it. It lands at the close of the
+    wake after ``wake``, the one it was ordered in. ``question``: it would take a seat's
+    last authority, so it is not done on order; it stands as the office question's cause
+    (OFQ) and never lands by itself. Engine side: sealed to the seat of the person moved."""
+
+    move_id: str = Field(min_length=1, max_length=80)
+    person: EntityId
+    seat: SeatId | None = None
+    """The seat that plays the person moved, when the move was ordered: the one seat that
+    reads it."""
+    by: EntityId
+    """Who ordered it."""
+    post: AssetId
+    appoint: bool = True
+    ordered: date
+    wake: int = Field(ge=-1)
+    """The wake it was ordered in; -1 before the first wake opens."""
+    question: bool = False
+
+
 class _World(Model):
     """Fields common to truth and view."""
 
@@ -222,8 +255,13 @@ class _World(Model):
     groups: Groups = Field(default_factory=Groups)
     """With ``groups`` on, each nation's groups at home as the world declares them
     (``groups_declared``), their support (``group_moved``) and the writing in waiting
-    (``group_proposed``) (GRP). True support: a view holds its own nation's groups only,
-    and never the writing in waiting."""
+    (``group_proposed``) (GRP); with ``losses`` on, the battle losses held
+    (``losses_held``) (LSS). True support: a view holds its own nation's groups only, and
+    never the writing in waiting or the losses held."""
+    offers: tuple[PricedOffer, ...] = ()
+    """With ``offers`` on, every offer of a price to a bloc and where it stands
+    (``offer_made``, ``offer_settled``) (PRC). A view holds those to its own nation's
+    blocs only."""
     agreements: Agreements = Field(default_factory=Agreements)
     """With ``agreements`` on, the offers (``agreement_offered``) and the agreements in
     force (``agreement_made``), with each clause's status (``clause_judged``) (AGR). A view
@@ -237,6 +275,7 @@ class _World(Model):
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
             "groups",
+            "offers",
             "agreements",
             "conferences",
             "goals",
@@ -301,6 +340,17 @@ class State(_World):
     asked: dict[OrderId, Asked] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """Each held order its seat has asked for, by its id, until it ends (ASK). The asker
     and the seat asked see it."""
+    posts: dict[AssetId, Post] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``posts`` on, every post that has changed hands, by its office asset
+    (``post_changed``): who holds it and its part of the card (PPP). Engine only; a post
+    that never moved is read from its holder's card."""
+    ladders: dict[AssetId, Ladder] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``posts`` on, each post's ladder and who may move its holder, by its office
+    asset (``ladders_declared``, LDR). World data, the same in every view."""
+    post_moves: dict[str, PostMove] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``posts`` on, each change of post ordered and not yet settled, by its id
+    (``post_move_ordered``, until ``post_move_settled``), LDR. Engine only: the seat of
+    the person moved reads it from its paper and its feed."""
     chosen: dict[OrderId, dict[SeatId, bool]] = Field(
         default_factory=dict, exclude_if=lambda v: not v
     )
@@ -364,6 +414,7 @@ class State(_World):
     longer be set (OWC). Engine only."""
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "aim_shut",
+        "posts",
         "held",
         "asked",
         "chosen",

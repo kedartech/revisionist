@@ -268,6 +268,8 @@ ROWS: tuple[Row, ...] = (
         lambda ids: {"id": ids.report, "status": "seen"},
         lambda ids: [{"id": ids.report, "status": "seen"}],
     ),
+    Row("realism", "aim-check", PLAY, _fixed(key="take_ground", values={"place": "isle"})),
+    Row("realism", "aim-set", PLAY, _fixed(key="take_ground", values={"place": "isle"})),
 )
 
 

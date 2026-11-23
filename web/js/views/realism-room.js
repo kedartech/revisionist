@@ -57,6 +57,7 @@ import { noticesSection } from './realism-notices.js';
 import { followThread, threadItems } from './realism-thread.js';
 import { threatsPanel } from './realism-threats.js';
 import { fitStrip, lightTogether, timelineStrip } from './realism-timeline.js';
+import { sentTracks } from './realism-tracks.js';
 import { trayView } from './realism-tray.js';
 import { RUNNING, comeBackLine, commitBusy, commitPanel, orderCard, stylePicker, wakeHeader } from './realism-wake.js';
 
@@ -757,6 +758,15 @@ export function realismRoom(ctx) {
     ? peopleRoster(rv.people, { tab: ui.peopleTab, onTab: pickPeople, onOpen: openPerson })
     : threatsPanel(rv.threats));
   const yourOrders = () => orderCards(rv.record, rv.orders, (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v)), open);
+  /** The Sent part: the orders as tracks; a tap opens one in place, and the redraw keeps focus on it. */
+  const sentPart = () => sentTracks(rv.record, rv.orders, heldLines(rv), {
+    stepForm: (o) => stepForm(o, (v) => act('Recording your decision…', 'step', v)), onOpen: open, opened: ui.sentOpen,
+    onToggle: (id) => {
+      ui.sentOpen = ui.sentOpen === id ? null : id;
+      rerender();
+      root.querySelector(`.rl-sent-order[data-order="${CSS.escape(id)}"] .rl-sent-head`)?.focus();
+    },
+  });
 
   function sideColumn() {
     return h('aside', { class: 'rl-col rl-side', 'data-tab': 'orders', 'aria-label': 'Your orders' },
@@ -1286,7 +1296,7 @@ export function realismRoom(ctx) {
   function sheetBody(name) {
     if (name === 'papers') return papers();
     // what waits on the seat is in the list; its matters open their own sheet
-    if (name === 'orders') return [ideasSlot, yourOrders(), commitPanel(rv.wake, { act })];
+    if (name === 'orders') return [ideasSlot, sentPart(), commitPanel(rv.wake, { act })];
     if (name === 'matter') {
       const found = matterOf(rv, ui.matter);
       if (!found) return null;

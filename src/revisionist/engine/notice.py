@@ -11,6 +11,10 @@ Where it goes: ``$REVISIONIST_NOTICE_SMTP`` (``smtp://`` with STARTTLS or ``smtp
 login). Otherwise ``$REVISIONIST_NOTICE_OUTBOX`` is a dry run: one JSON line per
 message, appended to that file. With neither set nothing is sent and no table is read.
 
+The same senders carry the operator's report digest (``send_digest``): one message a
+day to ``$REVISIONIST_REPORTS_DIGEST_TO`` counting the players' reports by kind and game,
+never their words; ``player_report_digests`` (migration 0015) holds one row per day sent.
+
 Addresses live on the web account (``web_notice_addresses``); ``web_notices_sent``
 holds one row per seat and wake, so a wake that opens again in a resumed run sends
 nothing twice. Both tables come from migration 0012; a room that has not run it reads
@@ -23,7 +27,7 @@ import os
 import re
 import smtplib
 import ssl
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass
 from datetime import date
 from email.message import EmailMessage
@@ -47,6 +51,7 @@ log = logging.getLogger(__name__)
 OUTBOX_ENV = "REVISIONIST_NOTICE_OUTBOX"
 SMTP_ENV = "REVISIONIST_NOTICE_SMTP"
 FROM_ENV = "REVISIONIST_NOTICE_FROM"
+DIGEST_TO_ENV = "REVISIONIST_REPORTS_DIGEST_TO"
 DEFAULT_ZONE = "America/New_York"
 """[proposed] The zone a notice's close time is given in when the account set none."""
 AIDE_CLAUSE = "If you have not pressed Done by then, your aide plays your seat."
@@ -343,6 +348,69 @@ def for_store(store: EventStore) -> Notifier | None:
     return WebNotifier(store.conn, sender)
 
 
+# --- the report digest --------------------------------------------------------------
+
+_KIND_WORDS: dict[str, tuple[str, str]] = {
+    "bug": ("bug", "bugs"),
+    "idea": ("idea", "ideas"),
+    "confusing": ("marked confusing", "marked confusing"),
+}
+"""The kinds of player report, in the digest's order, and how a count of each reads."""
+
+
+def _counted(counts: Mapping[str, int]) -> str:
+    said = []
+    for kind, (one, many) in _KIND_WORDS.items():
+        n = counts.get(kind, 0)
+        if n:
+            said.append(f"{n} {one if n == 1 else many}")
+    return ", ".join(said)
+
+
+def compose_digest(day: date, counts: Mapping[str, Mapping[str, int]]) -> tuple[str, str]:
+    """The subject and text of ``day``'s report digest, from a count per game and kind.
+    It is built from numbers and game names only, so no report's words can reach it."""
+    total: dict[str, int] = {}
+    for by_kind in counts.values():
+        for kind, n in by_kind.items():
+            total[kind] = total.get(kind, 0) + int(n)
+    whole = sum(total.values())
+    on = _day(day)
+    lines = [f"Reports filed on {on} (UTC): {_counted(total)}.", "", "By game:"]
+    lines += [f"- {game}: {_counted(counts[game])}." for game in sorted(counts)]
+    lines += ["", "Read them with: revisionist reports list"]
+    noun = "report" if whole == 1 else "reports"
+    return f"Revisionist: {whole} {noun} on {on}", "\n".join(lines)
+
+
+def send_digest(
+    conn: "Connection[Any]",
+    sender: Sender,
+    to: str,
+    day: date,
+    counts: Mapping[str, Mapping[str, int]],
+) -> bool:
+    """Send ``day``'s digest once (``player_report_digests``); True if it went now. A day
+    with no reports sends nothing, and a send that fails is not marked, so a later try
+    sends it."""
+    if not any(n for by_kind in counts.values() for n in by_kind.values()):
+        return False
+    subject, text = compose_digest(day, counts)
+    claimed = conn.execute(
+        "INSERT INTO player_report_digests (day) VALUES (%s) ON CONFLICT DO NOTHING RETURNING 1",
+        (day,),
+    ).fetchone()
+    if claimed is None:
+        return False
+    try:
+        sender.send(Notice(CampaignId(""), SeatId(""), 0, to, subject, text))
+    except Exception:
+        log.exception("the report digest for %s did not go", day)
+        conn.execute("DELETE FROM player_report_digests WHERE day = %s", (day,))
+        return False
+    return True
+
+
 # --- the game action ----------------------------------------------------------------
 
 _NOT_SET_UP = "Notices are not set up on this server yet."
@@ -391,6 +459,7 @@ def address_action(
 __all__ = [
     "AIDE_CLAUSE",
     "DEFAULT_ZONE",
+    "DIGEST_TO_ENV",
     "FROM_ENV",
     "OUTBOX_ENV",
     "SMTP_ENV",
@@ -403,9 +472,11 @@ __all__ = [
     "WebNotifier",
     "address_action",
     "compose",
+    "compose_digest",
     "for_store",
     "forget_missing",
     "read_address",
+    "send_digest",
     "sender_from_env",
     "zone_of",
 ]

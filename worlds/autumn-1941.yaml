@@ -24,10 +24,10 @@ entities:
   # A polity's capital (PCW): a place in its own territory; a neutral's or an occupied nation's is its
   # territory itself where the map has no place for it, and Portugal, with no territory, has none.
   - {key: usa, kind: polity, name: United States, capital: washington}
-  - {key: uk, kind: polity, name: United Kingdom, capital: london}
-  - {key: japan, kind: polity, name: Japan, capital: tokyo}
+  - {key: uk, kind: polity, name: United Kingdom, capital: london, lift_pool: uk_sealift_grt}
+  - {key: japan, kind: polity, name: Japan, capital: tokyo, lift_pool: japan_sealift_grt}
   - {key: germany, kind: polity, name: Germany, capital: berlin}
-  - {key: italy, kind: polity, name: Italy, capital: rome}
+  - {key: italy, kind: polity, name: Italy, capital: rome, lift_pool: italy_sealift_grt}
   - {key: ussr, kind: polity, name: Soviet Union, capital: moscow}
   - {key: china, kind: polity, name: China, capital: chungking}
   # Holders with no seat: neutrals and co-belligerents the five wars leave out.
@@ -99,6 +99,7 @@ entities:
   - {key: bardia, kind: location, name: Bardia, at: [31.74, 25.07], theatre: Mediterranean, within: cyrenaica, port_on: eastern_mediterranean, base: {sides: [italy, germany], domains: [sea, land]}}
   - {key: tripoli, kind: location, name: Tripoli, at: [32.89, 13.19], theatre: Mediterranean, within: tripolitania, port_on: central_mediterranean, base: {sides: [italy], domains: [sea, land]}}
   - {key: taranto, kind: location, name: Taranto, at: [40.47, 17.24], theatre: Mediterranean, within: italy_south, port_on: central_mediterranean, base: {sides: [italy], domains: [sea]}}
+  - {key: piraeus, kind: location, name: Piraeus, at: [37.98, 23.72], theatre: Mediterranean, within: greece, port_on: aegean_sea}
   - {key: changsha, kind: location, name: Changsha, at: [28.2, 112.97], theatre: Asia-Pacific, within: hunan, base: {sides: [china], domains: [land]}}
   - {key: wuhan, kind: location, name: Wuhan, at: [30.58, 114.27], theatre: Asia-Pacific, within: wuhan_area, base: {sides: [japan], domains: [land]}}
   # United States
@@ -857,6 +858,10 @@ groups:
       - {key: an_appeal_to_america, name: an appeal to America, moves: {public: 1, press: 1}}
       - {key: malta_will_strike_the_libya_convoys, name: Malta will strike the Libya convoys, moves: {commons: 1, public: 1}}
       - {key: a_warning_to_japan_over_malaya, name: a warning to Japan over Malaya, moves: {dominions: 2, commons: 1}}
+      # The broadcast form's audiences, each a theme of its own. [proposed]
+      - {key: britain, name: a broadcast to Britain, moves: {public: 1, commons: 1}}
+      - {key: america, name: a broadcast to America, moves: {press: 1, dominions: 1}}
+      - {key: occupied_europe, name: a broadcast to occupied Europe, moves: {public: 1}}
   - nation: ussr
     groups:
       - key: party  # gap: true
@@ -971,6 +976,9 @@ groups:
       - {key: the_army_will_not_leave_china, name: the Army will not leave China, moves: {army: 2, court: -1}}
       - {key: the_deadline_for_the_talks_stands, name: the deadline for the talks stands, moves: {army: 1, navy: 1}}
       - {key: chungkings_appeals_abroad_will_not_save_it, name: "Chungking's appeals abroad will not save it", moves: {army: 1, public: 1}}
+      # The cabinet statement form's lines, each a theme of its own; saying nothing moves nobody. [proposed]
+      - {key: conciliatory, name: a conciliatory line, moves: {court: 1, army: -1}}
+      - {key: firm, name: a firm line, moves: {army: 1, court: -1}}
   - nation: italy
     groups:
       - key: fascist_party  # gap: true
@@ -1051,6 +1059,9 @@ groups:
     themes:
       - {key: china_will_not_be_sold_to_japan, name: China will not be sold to Japan, moves: {kuomintang: 1, communists: 1, public: 2}}
       - {key: no_peace_while_japan_holds_china, name: no peace while Japan holds China, moves: {central_army: 1, public: 1}}
+      # The appeal form's audiences, each a theme of its own. [proposed]
+      - {key: america, name: an appeal to America, moves: {kuomintang: 1, public: 1}}
+      - {key: britain, name: an appeal to Britain, moves: {kuomintang: 1}}
 
 # The wars in force on 1 September 1941. `a` began each.
 wars:
@@ -1250,6 +1261,8 @@ quantities:
   - {key: uk_sealift_grt, owner: uk, name: British shipping free for troop lift, value: 300000, unit: GRT, gap: true}
   # [proposed] 200,000 GRT of Japanese shipping free for troop lift; unsourced.
   - {key: japan_sealift_grt, owner: japan, name: Japanese shipping free for troop lift, value: 200000, unit: GRT, gap: true}
+  # [proposed] 150,000 GRT of Italian shipping free for troop lift; unsourced.
+  - {key: italy_sealift_grt, owner: italy, name: Italian shipping free for troop lift, value: 150000, unit: GRT, gap: true}
 
 # The map. Positions and dates are approximate and unsourced (gap: true): a
 # force's legs are where the record has it if nobody orders it elsewhere.
@@ -1283,6 +1296,11 @@ features:
   - {key: hx_route, kind: route, name: HX convoys, side: uk, places: [halifax_port, north_atlantic, liverpool], gap: true}
   - {key: sc_route, kind: route, name: SC convoys, side: uk, places: [sydney_cb, north_atlantic, liverpool], gap: true}
   - {key: arctic_route, kind: route, name: Arctic convoys, side: uk, places: [reykjavik, archangel], gap: true}
+  # The Libya convoy form's routes. The map has no place at Benghazi: the Cyrenaica run ends at
+  # Bardia. [proposed], unsourced.
+  - {key: tripoli_route, kind: route, name: Convoys to Tripoli, side: italy, places: [taranto, tripoli], gap: true}
+  - {key: benghazi_route, kind: route, name: Convoys to Cyrenaica, side: italy, places: [taranto, bardia], gap: true}
+  - {key: greece_route, kind: route, name: Convoys to Greece, side: italy, places: [taranto, piraeus], gap: true}
   # Each stands at the base of its side and kind nearest where the record has it (the base
   # table in core/realism/bases.py). Strengths are tiers, not counts.
   - {key: hawaiian_department, kind: piece, piece: army, name: Hawaiian Department, side: usa, tier: 3, places: [pearl_harbor_base], gap: true}
@@ -2385,7 +2403,7 @@ cards:
         label: "Run convoys to Libya"
         summary: "Send supply convoys across the Mediterranean by a chosen route."
         params:
-          - {name: route, kind: enum, choices: [tripoli, benghazi, greece], label: "Which route", choice_labels: ["To Tripoli", "To Benghazi", "To Greece"]}
+          - {name: route, kind: enum, choices: [tripoli_route, benghazi_route, greece_route], label: "Which route", choice_labels: ["To Tripoli", "To Benghazi", "To Greece"]}
       - name: production_priority
         pipeline: comando_supremo_order
         resolver: production
@@ -3407,8 +3425,9 @@ contests:
 # Production keys (PRL): what the production rules read instead of names of their own. The
 # finding is Roosevelt's Lend-Lease form: it draws on the second appropriation, writes each
 # recipient's share, and a finding naming the Soviet Union makes it eligible. The priority is
-# the production-priority form; merchant ships grow a nation's lift pool on each 1st (a nation
-# with no lift_pool, as every nation here, grows none). The values are the rules' own before PRL.
+# the production-priority form; merchant ships grow a nation's lift pool on each 1st (Britain's
+# and Japan's are named on their entities; a nation with no lift_pool grows none). The values are
+# the rules' own before PRL.
 production:
   findings:
     - form: lend_lease_finding

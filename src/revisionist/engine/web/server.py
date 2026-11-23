@@ -38,6 +38,7 @@ from revisionist.engine import (
     cast,
     counsel,
     directive,
+    maps,
     notice,
     odds,
     orders_reader,
@@ -49,13 +50,14 @@ from revisionist.engine import campaign as cmp
 from revisionist.engine import scheduler as sch
 from revisionist.engine import wake as wk
 from revisionist.engine.discord import handlers as dh
-from revisionist.engine.discord.tables import Invites, SeatLinks
+from revisionist.engine.discord.tables import Invites, Link, SeatLinks
 from revisionist.engine.ids import new_id
 from revisionist.engine.llm import Transport, TransportError
 from revisionist.engine.pg_store import PostgresEventStore
 from revisionist.engine.pitch import PITCH_MAX, PendingCard, PitchError, read_pitch
 from revisionist.engine.store import load_state
 from revisionist.engine.tick import NotInPlayError
+from revisionist.engine.web import accounts as web_accounts
 from revisionist.engine.web import (
     agenda_api,
     agreements_api,
@@ -73,6 +75,7 @@ from revisionist.engine.web import (
     reach_groups,
     realism_snapshot,
     record_api,
+    reports,
     results,
     reveal,
     snapshot,
@@ -129,6 +132,61 @@ HOST_ONLY: dict[str, dict[str, Any]] = {
     "handover": {"code": None, "from_wake": None},
 }
 """The rest of a host-only action's reply shape, when someone else asks."""
+GAME_OPEN = ("reveal", "notice-address")
+"""Game-menu actions for any signed-in account, with a seat in a game in play or not."""
+NEW_GAME_ACTIONS = (
+    "worlds",
+    "timeline",
+    "figures",
+    "ready",
+    "pitch",
+    "cast",
+    "start",
+    "pick",
+    "unpick",
+    "style",
+    "invite",
+    "begin",
+    "opening",
+)
+"""Every ``/api/new/<action>``: ``App.new_game`` answers any other as no such call."""
+REALISM_ACTIONS = (
+    "catchup",
+    "map",
+    "check",
+    "odds",
+    "read",
+    "flag",
+    "lever",
+    "directive",
+    "sign",
+    "aide",
+    "consult",
+    "help",
+    "step",
+    "advance",
+    "commit",
+    "close",
+    "style",
+    "option",
+    "answer",
+    "order",
+    "agreement-offer",
+    "file",
+    "withdraw",
+    "ask",
+    "battle",
+    "contingency",
+    "agreement-publish",
+    "conference-call",
+    "conference-vote",
+    "report",
+    "reports",
+    "report-mark",
+    "aim-check",
+    "aim-set",
+)
+"""Every ``/api/realism/<action>``: ``App.realism`` answers any other as no such call."""
 
 
 def model_down(exc: TransportError) -> str:
@@ -179,7 +237,7 @@ class App:
         self.handlers = WebHandlers(
             dsn, transport_factory=transport_factory, clock=clock, briefings=briefings
         )
-        self.signin = limits.SigninThrottle()
+        self.signin = limits.SigninThrottle(self.open, self.clock)
         self._lock = threading.Lock()
         self._briefs: dict[tuple[CampaignId, SeatId], tuple[int, dict[str, Any]]] = {}
         """Each seat's aide brief and the wake (``state.tick``) it was read at: one model
@@ -211,7 +269,7 @@ class App:
         """The limits' refusal of one action, as the reply to send, or None. The game is not
         looked up yet, so no campaign is named."""
         refusal = limits.check(store, account.account_id, None, action, self.clock())
-        return None if refusal is None else refusal.reply()
+        return refusal.reply() if isinstance(refusal, limits.Refusal) else None
 
     # --- reads -----------------------------------------------------------------
 
@@ -312,9 +370,12 @@ class App:
         """One ``/api/realism/<action>``. A refusal is a reply, not an error."""
         store = self.open()
         try:
-            refused = self.limited(store, account, f"realism/{action}")
-            if refused is not None:
-                return refused
+            checked = limits.check(
+                store, account.account_id, None, f"realism/{action}", self.clock()
+            )
+            if isinstance(checked, limits.Refusal):
+                return checked.reply()
+            templated = isinstance(checked, limits.TemplateMode)
             link = self.handlers._game_of(store, account.account_id, "status")
             if isinstance(link, str):
                 raise ApiError(HTTPStatus.BAD_REQUEST, link)
@@ -334,11 +395,19 @@ class App:
                     or wk.joining(state, seat)
                 )
             )
+            if action not in REALISM_ACTIONS:
+                raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
             try:
                 if later:
                     return snapshot.checked(
                         state, seat, self._hold(store, state, seat, action, body)
                     )
+                if action in ("report", "reports", "report-mark"):
+                    host = WebSeats(store.conn).host(cid) == account.account_id
+                    filed = reports.action(
+                        store, state, seat, account.account_id, host, action, body, self.clock()
+                    )
+                    return snapshot.checked(state, seat, filed)
                 if action == "catchup":
                     pages = catchup_api.reply(
                         state,
@@ -349,9 +418,20 @@ class App:
                     )
                     return snapshot.checked(state, seat, pages)
                 if action == "map":
-                    return snapshot.checked(state, seat, dict(map_api.map_reply(state)))
+                    return snapshot.checked(
+                        state, seat, dict(map_api.map_reply(state, body.get("shapes") is not False))
+                    )
                 if action == "check":  # files nothing, so never held by a commit (LKD)
                     return snapshot.checked(state, seat, dict(self._check(state, seat, body)))
+                if action in ("aim-check", "aim-set"):  # no order: never held by a commit
+                    key, values = stakes.aim_args(body)
+                    found = (
+                        stakes.aim_check(state, seat, key, values)
+                        if action == "aim-check"
+                        else stakes.aim_set(store, cid, seat, key, values)
+                    )
+                    out = stakes.aim_reply(found, setting=action == "aim-set")
+                    return snapshot.checked(state, seat, out)
                 if action == "odds":  # files nothing, so never held by a commit (ODS)
                     return snapshot.checked(state, seat, odds.reply(self.odds, state, seat, body))
                 if action == "read":
@@ -377,9 +457,7 @@ class App:
                     order = realism_tick.file_order(
                         store, cid, seat, _text(body, "lever", 120), _params(body)
                     )
-                    first = state.pipelines[order.pipeline].steps[0]
-                    who = state.entities[first.person].name
-                    reply = f"Sent to {who}: {_lever_label(state, seat, order.lever)}."
+                    reply = _filed_reply(store, cid, state, seat, order)
                 elif action in ("directive", "sign"):
                     asked = directive.Proposal(
                         person=_contact(state, seat, _text(body, "to", 120)),
@@ -418,9 +496,7 @@ class App:
                             )
                         return snapshot.checked(state, seat, out)
                     order = directive.sign(store, cid, seat, asked)
-                    first = state.pipelines[order.pipeline].steps[0]
-                    who = state.entities[first.person].name
-                    reply = f"Sent to {who}: {_lever_label(state, seat, order.lever)}."
+                    reply = _filed_reply(store, cid, state, seat, order)
                 elif action == "aide":
                     kept = self._brief_for(cid, seat, state.tick)
                     if kept is not None and body.get("again") is not True:
@@ -428,7 +504,7 @@ class App:
                         return snapshot.checked(state, seat, out | {"brief": kept})
                     writer: aide.AideWriter = (
                         aide.TemplateAide()
-                        if self.offline_prose or self.template_aide
+                        if self.offline_prose or self.template_aide or templated
                         else aide.ClaudeAide(self.transport_factory())
                     )
                     try:
@@ -456,7 +532,14 @@ class App:
                     reply = f"{answered.person} has answered."
                 elif action == "help":
                     question = _text(body, "question", aide_help.QUESTION_MAX)
-                    thread = self._aide_explains(store, state, seat, question)
+                    filed_as = reports.from_question(
+                        store, state, seat, account.account_id, question, self.clock()
+                    )
+                    thread = (
+                        self._aide_explains(store, state, seat, question, templated=templated)
+                        if filed_as is None
+                        else self._aide_note(state, seat, filed_as, question)
+                    )
                     out = {"reply": "", "refused": False, "help": thread}
                     return snapshot.checked(state, seat, out)
                 elif action == "step":
@@ -668,12 +751,20 @@ class App:
             return list(kept)
 
     def _aide_explains(
-        self, store: PostgresEventStore, state: State, seat: SeatId, asked: str, failed: str = ""
+        self,
+        store: PostgresEventStore,
+        state: State,
+        seat: SeatId,
+        asked: str,
+        failed: str = "",
+        *,
+        templated: bool = False,
     ) -> list[dict[str, str]]:
-        """The aide answers a question, or explains what just failed; the thread."""
+        """The aide answers a question, or explains what just failed; the thread.
+        ``templated``: the game is past what a wake may spend, so the template answers."""
         helper: aide_help.Helper = (
             aide_help.TemplateHelper()
-            if self.offline_prose or self.template_aide
+            if self.offline_prose or self.template_aide or templated
             else aide_help.ClaudeHelper(self.transport_factory())
         )
         said = aide_help.answer(project(state, seat), asked, helper, failed)
@@ -828,7 +919,15 @@ class App:
                 state = load_state(store, link.campaign_id)
                 if state.ruleset != "realism":
                     raise ApiError(HTTPStatus.BAD_REQUEST, "This game is not choosing its people.")
-                return {"reply": "", "refused": False, "opening": new_game_api.opening(state)}
+                world = dossiers.world_key(store.read(link.campaign_id))
+                return {
+                    "reply": "",
+                    "refused": False,
+                    "opening": new_game_api.opening(state),
+                    "ready_made": new_game_api.ready_made(store, link.campaign_id),
+                    "world": world,
+                    "nation_keys": realism_snapshot.nation_keys(state, world),
+                }
             # The scheduler's per-game lock: no other choice, release or Begin lands between
             # Begin's check for waiting players and its last write, and no pass runs a tick
             # on a game half begun.
@@ -864,7 +963,7 @@ class App:
             return self._unpick(store, state, account, seat, named)
         if action == "style":
             return dict(agenda_api.set_style(store, cid, seat, _text(body, "style", 20)))
-        if action not in ("invite", "begin"):
+        if action not in NEW_GAME_ACTIONS:
             raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
         if WebSeats(store.conn).host(cid) != account.account_id:
             return {"reply": "Only the host can do that.", "refused": True}
@@ -1033,7 +1132,7 @@ class App:
             store.close()
 
 
-NOT_OFFERED = "You cannot do that with this order."  # [proposed]
+NOT_OFFERED = held_orders.NOT_OFFERED
 """The refusal of a step action the seat was not offered, the same for every action."""
 
 
@@ -1064,6 +1163,19 @@ _STANDING: dict[OrderStatus, str] = {
     OrderStatus.LAPSED: "It has lapsed.",
     OrderStatus.WITHDRAWN: "It has been withdrawn.",
 }
+
+
+def _filed_reply(
+    store: PostgresEventStore, cid: CampaignId, state: State, seat: SeatId, order: Order
+) -> str:
+    """What the seat is told of a form order it filed: the reason a lock holds it, else
+    who it went to."""
+    hold = load_state(store, cid).held.get(order.order_id)
+    if hold is not None:
+        return hold.reason
+    first = state.pipelines[order.pipeline].steps[0]
+    who = state.entities[first.person].name
+    return f"Sent to {who}: {_lever_label(state, seat, order.lever)}."
 
 
 def _lever_label(state: State, seat: SeatId, name: str) -> str:
@@ -1172,6 +1284,16 @@ def _text(body: dict[str, Any], key: str, limit: int, *, required: bool = True) 
     return value
 
 
+def _bug(h: WebHandlers, account_id: str, notes: str) -> str:
+    """The seat action ``bug``, filed as a player report of the kind bug."""
+
+    def work(store: PostgresEventStore, link: Link) -> str:
+        state = load_state(store, link.campaign_id)
+        return reports.seat_bug(store, state, link.seat_id, account_id, notes, h.clock())
+
+    return h._as_seat(account_id, "bug", work)
+
+
 SEAT_ACTIONS: dict[str, Callable[[WebHandlers, str, dict[str, Any]], str]] = {
     "join": lambda h, a, b: h.join(a, _text(b, "code", 40)),
     "roster": lambda h, a, b: h.character(a, "roster"),
@@ -1204,7 +1326,7 @@ SEAT_ACTIONS: dict[str, Callable[[WebHandlers, str, dict[str, Any]], str]] = {
     "dispatch": lambda h, a, b: h.dispatch(a),
     "status": lambda h, a, b: h.status(a),
     "report": lambda h, a, b: h.report(a),
-    "bug": lambda h, a, b: h.bug(a, _text(b, "notes", 4000)),
+    "bug": lambda h, a, b: _bug(h, a, _text(b, "notes", reports.WORDS_MAX)),
 }
 
 
@@ -1294,6 +1416,13 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
         server_version = "revisionist-web"
         sys_version = ""
         protocol_version = "HTTP/1.1"
+        timeout = guard.IDLE_S
+        secure = app.secure_cookie
+
+        @property
+        def throttle(self) -> limits.SigninThrottle:
+            """The sign-in and address counts, which ``limits.address`` reads."""
+            return app.signin
 
         def log_message(self, format: str, *args: Any) -> None:
             log.info("%s %s", self.address_string(), format % args)
@@ -1301,8 +1430,8 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
         # --- plumbing ----------------------------------------------------------
 
         def _send_json(self, status: HTTPStatus, payload: Any, cookie: str | None = None) -> None:
-            body = json.dumps(payload, ensure_ascii=False).encode()
-            guard.json_headers(self, status, len(body), cookie)
+            body, zipped = guard.compress(self, json.dumps(payload, ensure_ascii=False).encode())
+            guard.json_headers(self, status, len(body), cookie, zipped)
             self.end_headers()
             self.wfile.write(body)
 
@@ -1354,6 +1483,12 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                         return
                     self._send_json(HTTPStatus.OK, app.state_for(account))
                     return
+                if path.startswith("/maps/"):
+                    self._map_object(path.removeprefix("/maps/"))
+                    return
+                if path == "/.well-known/assetlinks.json":
+                    self._assetlinks()
+                    return
                 if path.startswith("/api/"):
                     raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
                 self._static(path)
@@ -1379,6 +1514,8 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     self._recover(body)
                 elif path == "/api/signout":
                     self._signout()
+                elif path == "/api/signout-all":
+                    self._signout_all()
                 elif path.startswith("/api/seat/"):
                     action = path.removeprefix("/api/seat/")
                     run = SEAT_ACTIONS.get(action)
@@ -1410,6 +1547,7 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                 else:
                     raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
             except (ApiError, guard.RefusedError) as exc:
+                guard.closing(self, exc)
                 self._send_json(exc.status, {"error": exc.message})
             except snapshot.WithheldError:
                 log.warning("realism reply withheld: canary hit")
@@ -1505,6 +1643,48 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     store.close()
             self._send_json(HTTPStatus.OK, {"ok": True}, cookie=self._cookie("", 0))
 
+        # --- map objects and install files -------------------------------------
+
+        def _map_object(self, name: str) -> None:
+            """The map object a signed-in account's game names, by its hash."""
+            account = self._need_account()
+            sha256 = name.removesuffix(".json") if name.endswith(".json") else ""
+            store = app.open()
+            try:
+                link = app.handlers._game_of(store, account.account_id, "status")
+                board = None if isinstance(link, str) else load_state(store, link.campaign_id).map
+            finally:
+                store.close()
+            data = None
+            if board is not None and board.sha256 == sha256:
+                data = maps.map_object(sha256, board.file)
+            if data is None:
+                raise ApiError(HTTPStatus.NOT_FOUND, "Not found.")
+            body, zipped = guard.compress(self, data)
+            guard.map_headers(self, len(body), zipped)
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _assetlinks(self) -> None:
+            data = guard.assetlinks()
+            if data is None:
+                raise ApiError(HTTPStatus.NOT_FOUND, "Not found.")
+            body, zipped = guard.compress(self, data)
+            guard.static_headers(
+                self, HTTPStatus.OK, "application/json; charset=utf-8", len(body), ".json", zipped
+            )
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _signout_all(self) -> None:
+            account = self._need_account()
+            store = app.open()
+            try:
+                Accounts(store.conn).close_all(account.account_id)
+            finally:
+                store.close()
+            self._send_json(HTTPStatus.OK, {"ok": True}, cookie=self._cookie("", 0))
+
         # --- static ------------------------------------------------------------
 
         def _static(self, path: str) -> None:
@@ -1521,7 +1701,18 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                 kind += "; charset=utf-8"
             if target.suffix == ".js":
                 kind = "text/javascript; charset=utf-8"
-            guard.static_headers(self, HTTPStatus.OK, kind, len(data), target.suffix)
+            if target.suffix == ".webmanifest":
+                kind = guard.MANIFEST_TYPE
+            data, zipped = guard.compress(self, data)
+            guard.static_headers(
+                self,
+                HTTPStatus.OK,
+                kind,
+                len(data),
+                target.suffix,
+                zipped,
+                worker=path == "/sw.js",
+            )
             self.end_headers()
             self.wfile.write(data)
 
@@ -1534,10 +1725,15 @@ def serve(app: App, host: str, port: int) -> None:
     mimetypes.add_type("application/manifest+json", ".webmanifest")
     server = ThreadingHTTPServer((host, port), make_handler(app))
     server.daemon_threads = True
+    stop = threading.Event()
+    threading.Thread(
+        target=web_accounts.sweep_daily, args=(app.open, app.clock, stop), daemon=True
+    ).start()
     log.info("web client on http://%s:%d/", host, port)
     try:
         server.serve_forever()
     finally:
+        stop.set()
         server.server_close()
 
 

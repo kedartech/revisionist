@@ -117,7 +117,7 @@ test('what the page header held is reachable from the game menu', () => {
   const names = menu.querySelectorAll('button').map(words);
   assert.ok(names.includes('Autumn 1941'), 'the campaign\'s name opens the setting');
   assert.ok(names.includes('Franklin D. Roosevelt'), 'the seat\'s name opens the dossier');
-  assert.ok(names.includes('Report a bug'));
+  assert.ok(names.includes('Report'));
   assert.ok(names.includes('Sign out'));
   assert.ok(words(menu).includes('Signed in as josh'));
   assert.ok(menu.querySelector('.rl-wake'), 'the wake\'s own line, with Run the day now for the host');
@@ -125,7 +125,7 @@ test('what the page header held is reachable from the game menu', () => {
 
 // rule 2: nothing of the nations, the come-back line or the first-day card above the map
 
-test('the nations\' chips and bands are not above the map: World opens them in its Nations part', () => {
+test('the nations\' figures and bands are not above the map: World opens them in its Nations part', () => {
   const { root, now } = room(seat());
   for (const el of aboveMap(root)) {
     assert.equal(el.querySelectorAll('.rl-eco-chip').length, 0, 'no war-economy chip above the map');
@@ -137,8 +137,10 @@ test('the nations\' chips and bands are not above the map: World opens them in i
   world(root).click();
   const sheet = now().querySelector('.rl-over');
   assert.equal(sheet.getAttribute('data-sheet'), 'nations');
-  assert.equal(sheet.querySelectorAll('.rl-eco-chip').length, NATIONS, 'every nation\'s chip');
-  assert.ok(sheet.querySelector('.rl-home-own'), 'the seat\'s band, which opens its home sheet');
+  assert.equal(sheet.querySelectorAll('button.rl-nb-row').length, 10, 'ten nations\' bars');
+  assert.equal(words(sheet.querySelector('button.rl-nb-all')), `All ${NATIONS} nations`, 'and the rest a press away');
+  sheet.querySelector('button.rl-nb-row.rl-nb-own').click();
+  assert.ok(now().querySelector('.rl-over .rl-nb-card button.rl-nb-home'), 'the seat\'s card, which opens its home sheet');
   assert.equal(world(now()).getAttribute('aria-expanded'), 'true');
 });
 

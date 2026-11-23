@@ -20,6 +20,13 @@ up to its kind's maximum. A short pool, a piece out of supply that day, a piece 
 strength or one that is not the nation's own adds and spends nothing. A form that names a
 world figure (``adds_to``) adds ``ADDS_PER_STEP`` to it instead, at the same cost. Either
 way the issuing seat gets one report that day saying what was built or why nothing was.
+A form whose rule name is ``production`` and that is not an aid finding or an aid order
+acts the same way when it names a force or a figure; one whose pipeline has a decision by
+a person of another nation is a request that nation granted, and ``AID_LEAD_DAYS`` later
+sends ``REQUEST_SHARE_PCT`` of that nation's aid fund to the asker (``_requested``); one
+naming none of these mobilises: ``LEAD_DAYS`` later its nation spends ``STEP_MANPOWER``
+manpower for ``MOBILISE_OUTPUT`` output (``_mobilised``). A ``production`` form that would
+build on a day its nation holds less output than a step costs mobilises instead.
 Each enacted order counts once: it is read only on its due day. The due orders of a day
 are taken by settling day, then by what they name, then by id, so an earlier order spends
 first; pools are read before the same day's first-of-the-month payment (``economy.walk``
@@ -82,6 +89,10 @@ AID_USD_PER_POINT = 100_000_000  # [proposed] plan, AID Defaults
 AID_LEAD_DAYS = 45  # [proposed] plan, AID Defaults
 AID_ANSWER_DAYS = 14  # [proposed]
 AID_UNIT = "USD"  # [proposed] the unit of a figure aid is drawn from
+MOBILISE_OUTPUT = 5  # [proposed]
+"""Output one mobilisation raises, for ``STEP_MANPOWER`` manpower."""
+REQUEST_SHARE_PCT = 10  # [proposed]
+"""The share of the giver's aid fund a request it decided sends, in per cent."""
 
 
 def _matter(state: State, lever: str) -> str:
@@ -213,8 +224,62 @@ def economy_order(state: State, order: Order) -> tuple["rs.Change", ...]:
     return ()
 
 
+def _builds(state: State, order: Order) -> bool:
+    """Whether a ``production`` order builds as the economy rule's forms do: it names a
+    force or a figure, and is neither an aid finding nor an aid order."""
+    if FORCE not in order.params and ADDS_TO not in order.params:
+        return False
+    return _aid(state, order) is None and not _finding(state, order)
+
+
+def _finding(state: State, order: Order) -> bool:
+    keys = _keys(state)
+    if keys is None:
+        return order.lever == stored.FINDING
+    return any(f.form == order.lever for f in keys.findings)
+
+
+def _giver(state: State, order: Order) -> EntityId | None:
+    """The other nation whose person decides a step of the order's pipeline: the first in
+    the pipeline's order; None when only the issuer's own nation decides it."""
+    asker = polity_of(state, state.seats[order.issuer].embodies)
+    pipeline = state.pipelines.get(order.pipeline)
+    for step in pipeline.steps if pipeline is not None else ():
+        nation = polity_of(state, step.person)
+        if step.kind is StepKind.DECISION and nation is not None and nation != asker:
+            return nation
+    return None
+
+
+def _requested(state: State, order: Order) -> "_Aid | None":
+    """The aid a ``production`` request sends once the other nation deciding it has let it
+    through: ``REQUEST_SHARE_PCT`` of that nation's fund to the asker. None for an order
+    that builds, sends aid itself, is a finding, or that no other nation decides."""
+    if FORCE in order.params or ADDS_TO in order.params or _finding(state, order):
+        return None
+    if _aid(state, order) is not None:
+        return None
+    asker = polity_of(state, state.seats[order.issuer].embodies)
+    giver = _giver(state, order)
+    if asker is None or giver is None:
+        return None
+    return _Aid(giver, asker, None, REQUEST_SHARE_PCT)
+
+
+def _mobilises(state: State, order: Order) -> bool:
+    """Whether a ``production`` order names nothing it builds, sends or asks for."""
+    return (
+        FORCE not in order.params
+        and ADDS_TO not in order.params
+        and not _finding(state, order)
+        and _aid(state, order) is None
+        and _giver(state, order) is None
+    )
+
+
 def _due(state: State, today: date) -> list[Order]:
-    """The enacted ``economy`` orders whose step falls due ``today``, earliest first."""
+    """The enacted ``economy`` orders whose step falls due ``today``, and the
+    ``production`` orders that build or mobilise, earliest first."""
     due = []
     for o in state.orders.values():
         if o.status is not OrderStatus.ENACTED or rs.settled_on(o) + timedelta(LEAD_DAYS) != today:
@@ -222,11 +287,13 @@ def _due(state: State, today: date) -> list[Order]:
         if evacuation.is_evacuation(o):
             continue
         try:
-            if rs.resolver_for(state, o) != "economy":
-                continue
+            resolver = rs.resolver_for(state, o)
         except KeyError:
             continue
-        due.append(o)
+        if resolver == "economy" or (
+            resolver == "production" and (_builds(state, o) or _mobilises(state, o))
+        ):
+            due.append(o)
     return sorted(
         due,
         key=lambda o: (
@@ -356,7 +423,12 @@ def economy_day(state: State, today: date) -> tuple["rs.Change", ...]:
         return ()
     out: list[rs.Change] = []
     for order in _due(state, today):
-        changes = _build(state, order, today)
+        if rs.resolver_for(state, order) == "production" and (
+            _mobilises(state, order) or _output_short(state, order)
+        ):
+            changes = _mobilised(state, order, today)
+        else:
+            changes = _build(state, order, today)
         out += changes
         state = _after(state, changes)
     for order in _aid_due(state, today):
@@ -364,6 +436,43 @@ def economy_day(state: State, today: date) -> tuple["rs.Change", ...]:
         out += changes
         state = _after(state, changes)
     return (*out, *evacuation.on_day(state, today))
+
+
+def _output_short(state: State, order: Order) -> bool:
+    """Whether the issuer's nation holds less output than a step costs: a ``production``
+    form that would build then mobilises instead."""
+    nation = polity_of(state, state.seats[order.issuer].embodies)
+    pools = state.economy.pools.get(nation, Pools()) if nation is not None else Pools()
+    return pools.output < STEP_COST
+
+
+def _mobilised(state: State, order: Order, today: date) -> list["rs.Change"]:
+    """What one due mobilisation raises today: ``STEP_MANPOWER`` manpower spent for
+    ``MOBILISE_OUTPUT`` output, and the report; only the report when the manpower pool is
+    short."""
+    nation = polity_of(state, state.seats[order.issuer].embodies)
+    if nation is None:
+        return []
+    pools = state.economy.pools.get(nation, Pools())
+    name = state.entities[nation].name
+    if pools.manpower < STEP_MANPOWER:
+        why = f"The manpower pool is short: {pools.manpower:g} of {STEP_MANPOWER}"
+        rows = [BodyField(label="For", value=_clip(name)), BodyField(label="Why", value=_clip(why))]
+        paper = _report(state, order, nation, today, "Production: nothing raised", rows)
+        return [paper] if paper is not None else []
+    raised = pools.model_copy(
+        update={
+            "output": pools.output + MOBILISE_OUTPUT,
+            "manpower": pools.manpower - STEP_MANPOWER,
+        }
+    )
+    rows = [
+        BodyField(label="For", value=_clip(name)),
+        BodyField(label="Raised", value=f"{MOBILISE_OUTPUT} output for {STEP_MANPOWER} manpower"),
+    ]
+    paper = _report(state, order, nation, today, "Production: output raised", rows)
+    out: list[rs.Change] = [ev.EconomySet(polity=nation, pools=raised, on=today)]
+    return out + ([paper] if paper is not None else [])
 
 
 def _after(state: State, changes: list["rs.Change"]) -> State:
@@ -433,7 +542,8 @@ def _aid(state: State, order: Order) -> _Aid | None:
 
 
 def _aid_due(state: State, today: date) -> list[Order]:
-    """The enacted ``production`` orders that send aid and arrive ``today``, in id order."""
+    """The enacted ``production`` orders that send aid, or a request's, and arrive
+    ``today``, in id order."""
     due = []
     for o in state.orders.values():
         if o.status is not OrderStatus.ENACTED:
@@ -445,7 +555,7 @@ def _aid_due(state: State, today: date) -> list[Order]:
                 continue
         except KeyError:
             continue
-        if _aid(state, o) is not None:
+        if _aid(state, o) is not None or _requested(state, o) is not None:
             due.append(o)
     return sorted(due, key=lambda o: o.order_id)
 
@@ -515,7 +625,7 @@ def _deliver(state: State, order: Order, today: date) -> list["rs.Change"]:
     """The aid ``order`` sends arriving ``today``: the recipient's output pool grows by the
     share's dollars at ``AID_USD_PER_POINT`` a point, less the route's loss share; the
     issuing seat gets one report."""
-    aid = _aid(state, order)
+    aid = _aid(state, order) or _requested(state, order)
     assert aid is not None
     lost = _lost(state, aid, today)
     points = _fund(state, aid.giver) * aid.share_pct / 100 / AID_USD_PER_POINT * (1 - lost)

@@ -12,19 +12,23 @@ With ``groups`` on (GVR), none of that is read. The figure a nation publishes is
 support of the groups the world says feed opinion, weighted, rounded to a whole point
 (``figure``); each Monday it is published as news when it differs from the last one
 published, or, before the first, from where those groups started. An address moves groups
-through the writing rules, not a target here.
+through the writing rules, not a target here: an enacted form whose parameter names one of
+the issuer's nation's themes (``groups.named_theme``) proposes that theme's moves for the
+issuer's seat on the day it settles, as writing naming the theme does, and the day's batch
+moves the groups (``heard``).
 """
 
+import hashlib
 from datetime import date, timedelta
 
+from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, derived_id
 from revisionist.core.realism import groups
 from revisionist.core.realism import resolvers as rs
 from revisionist.core.realism.document import BodyField
 from revisionist.core.realism.pipeline import Order, OrderStatus
-from revisionist.core.realism.quantity import QuantityChange
 from revisionist.core.realism.resolvers.votes import put
-from revisionist.core.realism.war import NewsEvent, NewsTopic
+from revisionist.core.realism.war import NewsEvent, NewsTopic, polity_of
 from revisionist.core.state import State
 from revisionist.core.visibility import Visibility
 from revisionist.core.world_compile import object_id
@@ -40,11 +44,11 @@ def _clamp(n: int) -> int:
     return max(0, min(100, n))
 
 
-def resolve(state: State, order: Order) -> tuple[QuantityChange, ...]:
+def resolve(state: State, order: Order) -> tuple["rs.Change", ...]:
     """Changes from one order enacted through its pipeline."""
     points = THEME_POINTS.get(str(order.params.get("theme")))
     if groups.on(state):
-        return ()
+        return heard(state, order)
     if order.status is not OrderStatus.ENACTED or order.lever != "public_address" or points is None:
         return ()
     base = rs.value(state, "opinion_target")
@@ -53,6 +57,39 @@ def resolve(state: State, order: Order) -> tuple[QuantityChange, ...]:
         return ()
     change = put(state, "opinion_target", _clamp(base + points), rs.settled_on(order))
     return () if change is None else (change,)
+
+
+def heard(state: State, order: Order) -> tuple[ev.GroupProposed, ...]:
+    """With ``groups`` on, the enacted form's theme proposed to the day's batch: the
+    first parameter value, by name, that names a theme of the issuer's nation gives that
+    theme's moves, each a proposal of the issuer's seat dated the day the order settled.
+    Nothing when no value names one, or for a group the nation does not have."""
+    nation = polity_of(state, state.seats[order.issuer].embodies)
+    if order.status is not OrderStatus.ENACTED or nation is None:
+        return ()
+    theme = next(
+        (
+            found
+            for _, value in sorted(order.params.items())
+            if isinstance(value, str) and (found := groups.named_theme(state, nation, value))
+        ),
+        None,
+    )
+    if theme is None:
+        return ()
+    written = hashlib.sha256(f"{theme.key}\0{order.order_id}".encode()).hexdigest()[:16]
+    on = rs.settled_on(order)
+    out: list[ev.GroupProposed] = []
+    for nudge in groups.theme_nudges(nation, theme):
+        try:
+            out.append(
+                groups.propose(
+                    state, order.issuer, nudge.nation, nudge.group, nudge.change, written, on
+                )
+            )
+        except groups.GroupsError:
+            continue
+    return tuple(out)
 
 
 def _incidents_last_week(state: State, today: date) -> int:

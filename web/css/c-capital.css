@@ -150,8 +150,11 @@
 
 /* where the order stands on its path, and where a held order stops (the track is c-court.css) */
 .rl-cap-path, .rl-cap-held { display: grid; gap: var(--space-2); margin: var(--space-3) 0; overflow-x: auto; }
-.rl-cap-stepname { font-size: 12px; color: var(--fg-strong); overflow-wrap: anywhere; }
+.rl-cap-path .rl-trk-seg { flex-basis: 80px; }
+.rl-cap-held .rl-trk-seg, .rl-cap-held .rl-trk-seg.unstated { flex: 1 1 0; }
+.rl-cap-held .rl-trk .rl-trk-seg .rl-trk-bar { margin: 8px 0 12px; }
+.rl-cap-stepname { font-size: 12px; color: var(--fg-strong); overflow-wrap: break-word; }
 .rl-cap-where { margin: 0; font-size: 13px; color: var(--fg-muted); }
-.rl-cap-held .rl-trk-marker.held { top: -8px; width: 14px; height: 16px; border-radius: var(--radius); background: var(--fg-muted); display: grid; place-items: center; }
+.rl-cap-held .rl-trk-marker.locked { top: -8px; width: 14px; height: 16px; border-radius: var(--radius); background: var(--fg-muted); display: grid; place-items: center; }
 .rl-cap-held .rl-trk-lock { fill: none; stroke: var(--surface); stroke-width: 1.4; }
 .rl-cap-promise[data-came-due] { border-left-color: var(--warn); }

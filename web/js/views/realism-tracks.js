@@ -41,7 +41,7 @@ export function along(heldDays, stepDays) {
 }
 
 function marker(m) {
-  const el = h('span', { class: `rl-trk-marker${m.held ? ' held' : ''}`, 'data-order': m.id }, m.held ? lock() : null);
+  const el = h('span', { class: `rl-trk-marker${m.held ? ' locked' : ''}`, 'data-order': m.id }, m.held ? lock() : null);
   el.style?.setProperty('--rl-trk-at', `${Math.round(m.at * 100)}%`);
   return el;
 }

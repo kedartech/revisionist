@@ -186,7 +186,7 @@ test('a held order stops at the one who holds it, with its lock shown, and goes 
   const el = board(seat((rv) => { withHeld(rv); rv.clock.world_date = '1900-04-12'; }), state);
   const m = el.querySelector('.rl-cap-held .rl-trk-marker[data-order="h-levy"]');
   assert.ok(m, 'the held order is a marker on its track');
-  assert.ok(m.classList.contains('held'));
+  assert.ok(m.classList.contains('locked'));
   assert.ok(m.querySelector('.rl-trk-lock'), 'its lock is shown');
   assert.equal(segOf(m).getAttribute('data-name'), 'Ilse Varg');
   assert.equal(m.style.getPropertyValue('--rl-trk-at'), '0%');

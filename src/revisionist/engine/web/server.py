@@ -836,7 +836,15 @@ class App:
                 state = load_state(store, link.campaign_id)
                 if state.ruleset != "realism":
                     raise ApiError(HTTPStatus.BAD_REQUEST, "This game is not choosing its people.")
-                return {"reply": "", "refused": False, "opening": new_game_api.opening(state)}
+                world = dossiers.world_key(store.read(link.campaign_id))
+                return {
+                    "reply": "",
+                    "refused": False,
+                    "opening": new_game_api.opening(state),
+                    "ready_made": new_game_api.ready_made(store, link.campaign_id),
+                    "world": world,
+                    "nation_keys": realism_snapshot.nation_keys(state, world),
+                }
             # The scheduler's per-game lock: no other choice, release or Begin lands between
             # Begin's check for waiting players and its last write, and no pass runs a tick
             # on a game half begun.

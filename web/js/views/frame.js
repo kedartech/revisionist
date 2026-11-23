@@ -45,7 +45,8 @@ export function header({ me, game, role, extra = [], refresh, signOut, identity 
     bugDialog);
 }
 
-function bugReport() {
+/** The "Report a bug" dialog: the header's bug button opens it, and so does the map-first room's game menu. */
+export function bugReport() {
   const out = h('div', { role: 'status' });
   const notes = h('textarea', { id: 'bug-notes', rows: 5, maxlength: 4000, required: true });
   const dialog = h('dialog', { class: 'sheet', 'aria-labelledby': 'bug-title' });

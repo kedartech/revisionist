@@ -268,7 +268,7 @@ test('each held order is a line in what needs you, asked or not asked; only the 
   const openRow = rows.find((li) => li.getAttribute('data-need') === open.key);
   assert.match(words(askedRow), /Asked/);
   assert.ok(askedRow.querySelector('.rl-lock'), 'the lock mark with who can allow it');
-  assert.equal(askedRow.querySelectorAll('button').length, 0, 'an asked order has nothing to press');
+  assert.equal(askedRow.querySelectorAll('.rl-need-act').length, 0, 'an asked order has nothing to press');
   assert.match(words(openRow), /Not asked/);
   openRow.querySelector('button.rl-need-act').click();
   assert.deepEqual(seen, [open.key]);

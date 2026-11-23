@@ -184,10 +184,11 @@ test('a flat map and a lonlat map both draw, each framed by its own box', () => 
     ],
   };
   const pic = territoryDrawing(map, lonlat, { px: DESK });
-  const k = Math.cos((55 * Math.PI) / 180);
+  const proj = rules.territoryProjection('lonlat', rules.boxOf(lonlat.box));
   const [x, y, w, hgt] = viewBox(pic);
-  assert.deepEqual([x, y, hgt], [0, 0, 10]);
-  assert.ok(Math.abs(w - 20 * k) < 0.01, 'today\'s squeezed projection for lonlat');
+  assert.deepEqual([x, y], [0, 0]);
+  assert.ok(Math.abs(w - proj.width) < 0.01 && Math.abs(hgt - proj.height) < 0.01, 'the map\'s projection for lonlat, framed by its box');
+  assert.ok(Math.abs(w - 20 * Math.cos((55 * Math.PI) / 180)) > 0.1, 'not one cosine for the whole map');
   assert.equal(pic.querySelectorAll('path.rl-area').length, 2);
 });
 

@@ -449,3 +449,73 @@ def test_a_map_that_fails_the_check_is_not_written(
     with pytest.raises(mb.BuildError, match=r"skerry: its area"):
         build(env)
     assert not (env["out"] / "fixture.json").exists()
+
+
+# ---------------------------------------------------------------- rule 10: river zones
+
+BROOK = {
+    "key": "brook",
+    "name": "The Brook",
+    "region": "fixland",
+    "terrain": "river",
+    "width": 0.2,
+    "borders": [["FX-W2", "FX-C"]],
+}
+
+
+def _river(env: dict[str, Path], **changes: Any) -> Path:
+    return _recipe(env, rivers=[{**BROOK, **changes}])
+
+
+def test_a_river_zone_follows_the_shared_border_of_its_provinces(env: dict[str, Path]) -> None:
+    raw = _map(build(env, [_river(env)]))
+    assert mc.area(raw, "brook") == pytest.approx(0.2, abs=0.001)
+    assert _where(raw, 2.0, 0.5) == ["brook"]
+    assert _where(raw, 1.95, 0.5) == ["brook"]
+    assert _where(raw, 2.05, 0.5) == ["brook"]
+    assert _where(raw, 2.15, 0.5) == ["middle"]
+
+
+def test_a_river_zone_is_carved_from_the_land_on_both_banks(env: dict[str, Path]) -> None:
+    raw = _map(build(env, [_river(env)]))
+    assert mc.area(raw, "west") == pytest.approx(2.0 - 0.1, abs=0.01)
+    assert mc.area(raw, "middle") == pytest.approx(0.75 - 0.1, abs=0.001)
+    assert not mc.adjacent(raw, "west", "middle")
+    assert mc.adjacent(raw, "brook", "west")
+    assert mc.adjacent(raw, "brook", "middle")
+
+
+def test_a_river_zone_is_listed_with_the_sea_zones(env: dict[str, Path]) -> None:
+    built = build(env, [_river(env)])
+    zones = _world(built)["sea_zones"]
+    assert zones[-1] == {
+        "key": "brook",
+        "name": "The Brook",
+        "region": "fixland",
+        "terrain": "river",
+    }
+    assert mc.check_world(built.world_path).problems == []
+
+
+def test_a_river_zones_polygon_limits_the_stretch_it_follows(env: dict[str, Path]) -> None:
+    clip = [[1.5, -1], [2.5, -1], [2.5, 0.5], [1.5, 0.5]]
+    raw = _map(build(env, [_river(env, polygon=clip)]))
+    assert mc.area(raw, "brook") == pytest.approx(0.1, abs=0.001)
+    assert mc.locate(raw, 2.0, 0.75) == ([], ["middle", "west"])  # the border, past the stretch
+    assert mc.adjacent(raw, "west", "middle")
+
+
+def test_a_river_between_provinces_that_share_no_border_is_refused(env: dict[str, Path]) -> None:
+    with pytest.raises(mb.BuildError, match=r"brook: FX-W1 and FX-C share no border"):
+        build(env, [_river(env, borders=[["FX-W1", "FX-C"]])])
+
+
+def test_a_river_with_no_width_is_refused(env: dict[str, Path]) -> None:
+    with pytest.raises(mb.BuildError, match=r"brook: a river zone needs a width"):
+        build(env, [_river(env, width=0)])
+
+
+def test_two_river_zones_over_the_same_land_are_named(env: dict[str, Path]) -> None:
+    twin = {**BROOK, "key": "creek", "name": "The Creek"}
+    with pytest.raises(mb.BuildError, match=r"creek: the river zone covers land brook already"):
+        build(env, [_recipe(env, rivers=[BROOK, twin])])

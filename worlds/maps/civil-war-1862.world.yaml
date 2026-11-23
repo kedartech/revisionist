@@ -1,0 +1,340 @@
+# Built by scripts/map_build.py from the recipe civil-war-1862; simplify coverage, tolerance 0.05.
+# Do not edit by hand: change the recipe and build again.
+map: {coords: lonlat, file: civil-war-1862.json, sha256: 1b4d10c926637a30fbda1128b03c5319265fa4509afdec7c21a903724ef73d73, box: [-180, -60, 180, 84]}
+regions:
+  - {key: eastern_theatre, name: The Eastern Theatre}
+  - {key: western_theatre, name: The Western Theatre}
+  - {key: the_coast, name: The Coast and the River}
+  - {key: the_world, name: The World Beyond}
+territories:
+  - {key: new_england, name: New England, region: eastern_theatre, terrain: forest}
+  - {key: new_york, name: New York, region: eastern_theatre, terrain: forest}
+  - {key: new_jersey, name: New Jersey, region: eastern_theatre, terrain: plain}
+  - {key: pennsylvania, name: Pennsylvania, region: eastern_theatre, terrain: mountain}
+  - {key: maryland, name: 'Maryland, Delaware and Washington', region: eastern_theatre, terrain: plain, sites: [washington]}
+  - {key: virginia, name: Virginia, region: eastern_theatre, terrain: forest, sites: [richmond]}
+  - {key: north_carolina, name: North Carolina, region: eastern_theatre, terrain: forest}
+  - {key: south_carolina, name: South Carolina, region: eastern_theatre, terrain: marsh}
+  - {key: ohio, name: Ohio, region: western_theatre, terrain: plain}
+  - {key: indiana, name: Indiana, region: western_theatre, terrain: plain}
+  - {key: illinois, name: Illinois, region: western_theatre, terrain: plain}
+  - {key: upper_lakes, name: 'Michigan, Wisconsin and Minnesota', region: western_theatre, terrain: forest}
+  - {key: kentucky, name: Kentucky, region: western_theatre, terrain: forest}
+  - {key: tennessee, name: Tennessee, region: western_theatre, terrain: forest}
+  - {key: georgia, name: Georgia, region: western_theatre, terrain: forest}
+  - {key: florida, name: Florida, region: western_theatre, terrain: marsh}
+  - {key: alabama, name: Alabama, region: western_theatre, terrain: forest}
+  - {key: mississippi, name: Mississippi, region: western_theatre, terrain: forest}
+  - {key: louisiana, name: Louisiana, region: western_theatre, terrain: marsh}
+  - {key: missouri, name: Missouri, region: western_theatre, terrain: forest}
+  - {key: arkansas, name: Arkansas, region: western_theatre, terrain: forest}
+  - {key: texas, name: Texas, region: western_theatre, terrain: plain}
+  - {key: plains, name: 'Iowa, Nebraska and Kansas', region: western_theatre, terrain: plain}
+  - {key: indian_territory, name: The Indian Territory, region: western_theatre, terrain: plain}
+  - {key: new_mexico, name: New Mexico and Arizona, region: western_theatre, terrain: mountain}
+  - {key: pacific_states, name: 'California, Oregon and Washington', region: western_theatre, terrain: mountain}
+  - {key: western_territories, name: 'Utah, Colorado and Dakota', region: western_theatre, terrain: mountain}
+  - {key: british_north_america, name: British North America, region: the_world, terrain: forest}
+  - {key: russian_america, name: Russian America, region: the_world, terrain: forest}
+  - {key: greenland_iceland, name: 'Greenland, Iceland and the Faroes', region: the_world, terrain: mountain}
+  - {key: mexico, name: Mexico, region: the_world, terrain: mountain}
+  - {key: central_america, name: Central America, region: the_world, terrain: forest}
+  - {key: caribbean, name: The West Indies and Bermuda, region: the_world, terrain: forest}
+  - {key: new_granada, name: 'New Granada, Venezuela and Ecuador', region: the_world, terrain: mountain}
+  - {key: brazil_guianas, name: Brazil and the Guianas, region: the_world, terrain: forest}
+  - {key: andes, name: 'Peru, Bolivia and Chile', region: the_world, terrain: mountain}
+  - {key: la_plata, name: The River Plate and Patagonia, region: the_world, terrain: plain}
+  - {key: british_isles, name: The British Isles, region: the_world, terrain: plain}
+  - {key: france, name: France, region: the_world, terrain: plain}
+  - {key: iberia, name: Spain and Portugal, region: the_world, terrain: mountain}
+  - {key: german_states, name: The German States and the Low Countries, region: the_world, terrain: plain}
+  - {key: scandinavia, name: Scandinavia, region: the_world, terrain: forest}
+  - {key: austria, name: The Austrian Empire, region: the_world, terrain: mountain}
+  - {key: italy, name: Italy, region: the_world, terrain: mountain}
+  - {key: european_russia, name: European Russia, region: the_world, terrain: forest}
+  - {key: balkans, name: The Balkans, region: the_world, terrain: mountain}
+  - {key: ottoman_asia, name: The Ottoman East, region: the_world, terrain: mountain}
+  - {key: arabia_persia, name: Arabia and Persia, region: the_world, terrain: mountain}
+  - {key: central_asia, name: Central Asia, region: the_world, terrain: plain}
+  - {key: north_africa, name: North Africa, region: the_world, terrain: plain}
+  - {key: west_central_africa, name: West and Central Africa, region: the_world, terrain: forest}
+  - {key: east_africa, name: East Africa, region: the_world, terrain: mountain}
+  - {key: southern_africa, name: Southern Africa, region: the_world, terrain: plain}
+  - {key: siberia, name: Siberia, region: the_world, terrain: forest}
+  - {key: india, name: India, region: the_world, terrain: plain}
+  - {key: china, name: 'China, Korea and Mongolia', region: the_world, terrain: mountain}
+  - {key: japan, name: Japan, region: the_world, terrain: mountain}
+  - {key: southeast_asia, name: Southeast Asia and the Indies, region: the_world, terrain: forest}
+  - {key: australasia, name: Australasia, region: the_world, terrain: plain}
+  - {key: pacific_islands, name: Hawaii and the Pacific Islands, region: the_world, terrain: forest}
+sea_zones:
+  - {key: northern_waters, name: The Northern Waters, region: the_coast, terrain: sea}
+  - {key: chesapeake, name: The Chesapeake and Hampton Roads, region: the_coast, terrain: sea}
+  - {key: carolina_sounds, name: The Carolina Sounds, region: the_coast, terrain: sea}
+  - {key: south_atlantic_coast, name: The South Atlantic Coast, region: the_coast, terrain: sea}
+  - {key: florida_straits, name: The Florida Straits, region: the_coast, terrain: sea}
+  - {key: eastern_gulf, name: The Eastern Gulf, region: the_coast, terrain: sea}
+  - {key: western_gulf, name: The Western Gulf, region: the_coast, terrain: sea}
+  - {key: arctic_ocean, name: The Arctic Ocean, region: the_world, terrain: sea}
+  - {key: north_atlantic, name: The North Atlantic, region: the_world, terrain: sea}
+  - {key: central_atlantic, name: The Central Atlantic and the Caribbean, region: the_world, terrain: sea}
+  - {key: south_atlantic, name: The South Atlantic, region: the_world, terrain: sea}
+  - {key: northern_seas, name: The North Sea and the Baltic, region: the_world, terrain: sea}
+  - {key: mediterranean, name: The Mediterranean, region: the_world, terrain: sea}
+  - {key: black_sea_caspian, name: The Black Sea and the Caspian, region: the_world, terrain: sea}
+  - {key: indian_west, name: The Western Indian Ocean, region: the_world, terrain: sea}
+  - {key: indian_east, name: The Eastern Indian Ocean, region: the_world, terrain: sea}
+  - {key: north_pacific_west, name: The Western North Pacific, region: the_world, terrain: sea}
+  - {key: north_pacific_east, name: The Eastern North Pacific, region: the_world, terrain: sea}
+  - {key: south_pacific_west, name: The Western South Pacific, region: the_world, terrain: sea}
+  - {key: south_pacific_east, name: The Eastern South Pacific, region: the_world, terrain: sea}
+  - {key: mississippi_river, name: The Mississippi, region: the_coast, terrain: river}
+adjacency:
+  - [alabama, eastern_gulf]
+  - [alabama, florida]
+  - [alabama, georgia]
+  - [alabama, mississippi]
+  - [alabama, tennessee]
+  - [andes, brazil_guianas]
+  - [andes, la_plata]
+  - [andes, new_granada]
+  - [andes, south_atlantic]
+  - [andes, south_pacific_east]
+  - [arabia_persia, black_sea_caspian]
+  - [arabia_persia, central_asia]
+  - [arabia_persia, european_russia]
+  - [arabia_persia, india]
+  - [arabia_persia, indian_west]
+  - [arabia_persia, ottoman_asia]
+  - [arctic_ocean, british_north_america]
+  - [arctic_ocean, european_russia]
+  - [arctic_ocean, greenland_iceland]
+  - [arctic_ocean, north_atlantic]
+  - [arctic_ocean, north_pacific_east]
+  - [arctic_ocean, northern_seas]
+  - [arctic_ocean, russian_america]
+  - [arctic_ocean, scandinavia]
+  - [arctic_ocean, siberia]
+  - [arkansas, indian_territory]
+  - [arkansas, louisiana]
+  - [arkansas, mississippi_river]
+  - [arkansas, missouri]
+  - [arkansas, texas]
+  - [australasia, indian_east]
+  - [australasia, south_pacific_east]
+  - [australasia, south_pacific_west]
+  - [australasia, southeast_asia]
+  - [austria, balkans]
+  - [austria, european_russia]
+  - [austria, german_states]
+  - [austria, italy]
+  - [austria, mediterranean]
+  - [balkans, black_sea_caspian]
+  - [balkans, european_russia]
+  - [balkans, mediterranean]
+  - [balkans, ottoman_asia]
+  - [black_sea_caspian, central_asia]
+  - [black_sea_caspian, european_russia]
+  - [black_sea_caspian, mediterranean]
+  - [black_sea_caspian, ottoman_asia]
+  - [brazil_guianas, central_atlantic]
+  - [brazil_guianas, la_plata]
+  - [brazil_guianas, new_granada]
+  - [brazil_guianas, south_atlantic]
+  - [british_isles, north_atlantic]
+  - [british_isles, northern_seas]
+  - [british_north_america, new_england]
+  - [british_north_america, new_york]
+  - [british_north_america, north_atlantic]
+  - [british_north_america, north_pacific_east]
+  - [british_north_america, northern_waters]
+  - [british_north_america, ohio]
+  - [british_north_america, pacific_states]
+  - [british_north_america, pennsylvania]
+  - [british_north_america, russian_america]
+  - [british_north_america, upper_lakes]
+  - [british_north_america, western_territories]
+  - [caribbean, central_atlantic]
+  - [caribbean, florida_straits]
+  - [carolina_sounds, central_atlantic]
+  - [carolina_sounds, north_carolina]
+  - [carolina_sounds, northern_waters]
+  - [carolina_sounds, south_atlantic_coast]
+  - [carolina_sounds, south_carolina]
+  - [carolina_sounds, virginia]
+  - [central_america, central_atlantic]
+  - [central_america, mexico]
+  - [central_america, new_granada]
+  - [central_america, north_pacific_east]
+  - [central_asia, china]
+  - [central_asia, european_russia]
+  - [central_asia, india]
+  - [central_asia, siberia]
+  - [central_atlantic, eastern_gulf]
+  - [central_atlantic, florida_straits]
+  - [central_atlantic, iberia]
+  - [central_atlantic, mediterranean]
+  - [central_atlantic, mexico]
+  - [central_atlantic, new_granada]
+  - [central_atlantic, north_africa]
+  - [central_atlantic, north_atlantic]
+  - [central_atlantic, north_pacific_east]
+  - [central_atlantic, northern_waters]
+  - [central_atlantic, south_atlantic]
+  - [central_atlantic, south_atlantic_coast]
+  - [central_atlantic, west_central_africa]
+  - [chesapeake, maryland]
+  - [chesapeake, northern_waters]
+  - [chesapeake, virginia]
+  - [china, india]
+  - [china, north_pacific_west]
+  - [china, siberia]
+  - [china, southeast_asia]
+  - [east_africa, indian_west]
+  - [east_africa, north_africa]
+  - [east_africa, southern_africa]
+  - [east_africa, west_central_africa]
+  - [eastern_gulf, florida]
+  - [eastern_gulf, florida_straits]
+  - [eastern_gulf, mexico]
+  - [eastern_gulf, mississippi]
+  - [eastern_gulf, western_gulf]
+  - [european_russia, german_states]
+  - [european_russia, northern_seas]
+  - [european_russia, ottoman_asia]
+  - [european_russia, scandinavia]
+  - [european_russia, siberia]
+  - [florida, florida_straits]
+  - [florida, georgia]
+  - [florida, south_atlantic_coast]
+  - [florida_straits, south_atlantic_coast]
+  - [france, german_states]
+  - [france, iberia]
+  - [france, italy]
+  - [france, mediterranean]
+  - [france, north_atlantic]
+  - [france, northern_seas]
+  - [georgia, north_carolina]
+  - [georgia, south_atlantic_coast]
+  - [georgia, south_carolina]
+  - [georgia, tennessee]
+  - [german_states, italy]
+  - [german_states, northern_seas]
+  - [german_states, scandinavia]
+  - [greenland_iceland, north_atlantic]
+  - [iberia, mediterranean]
+  - [iberia, north_africa]
+  - [iberia, north_atlantic]
+  - [illinois, indiana]
+  - [illinois, kentucky]
+  - [illinois, mississippi_river]
+  - [illinois, plains]
+  - [illinois, upper_lakes]
+  - [india, indian_east]
+  - [india, indian_west]
+  - [india, southeast_asia]
+  - [indian_east, indian_west]
+  - [indian_east, north_pacific_west]
+  - [indian_east, south_pacific_west]
+  - [indian_east, southeast_asia]
+  - [indian_east, southern_africa]
+  - [indian_territory, missouri]
+  - [indian_territory, new_mexico]
+  - [indian_territory, plains]
+  - [indian_territory, texas]
+  - [indian_territory, western_territories]
+  - [indian_west, north_africa]
+  - [indian_west, ottoman_asia]
+  - [indian_west, south_atlantic]
+  - [indian_west, southern_africa]
+  - [indiana, kentucky]
+  - [indiana, ohio]
+  - [indiana, upper_lakes]
+  - [italy, mediterranean]
+  - [japan, north_pacific_west]
+  - [kentucky, mississippi_river]
+  - [kentucky, ohio]
+  - [kentucky, tennessee]
+  - [kentucky, virginia]
+  - [la_plata, south_atlantic]
+  - [la_plata, south_pacific_east]
+  - [louisiana, mississippi]
+  - [louisiana, mississippi_river]
+  - [louisiana, texas]
+  - [louisiana, western_gulf]
+  - [maryland, northern_waters]
+  - [maryland, pennsylvania]
+  - [maryland, virginia]
+  - [mediterranean, north_africa]
+  - [mediterranean, ottoman_asia]
+  - [mexico, new_mexico]
+  - [mexico, north_pacific_east]
+  - [mexico, pacific_states]
+  - [mexico, texas]
+  - [mexico, western_gulf]
+  - [mississippi, mississippi_river]
+  - [mississippi, tennessee]
+  - [mississippi, western_gulf]
+  - [mississippi_river, missouri]
+  - [mississippi_river, tennessee]
+  - [missouri, plains]
+  - [new_england, new_york]
+  - [new_england, northern_waters]
+  - [new_granada, north_pacific_east]
+  - [new_granada, south_pacific_east]
+  - [new_jersey, new_york]
+  - [new_jersey, northern_waters]
+  - [new_jersey, pennsylvania]
+  - [new_mexico, pacific_states]
+  - [new_mexico, texas]
+  - [new_mexico, western_territories]
+  - [new_york, northern_waters]
+  - [new_york, pennsylvania]
+  - [north_africa, ottoman_asia]
+  - [north_africa, west_central_africa]
+  - [north_atlantic, northern_seas]
+  - [north_atlantic, northern_waters]
+  - [north_carolina, south_carolina]
+  - [north_carolina, tennessee]
+  - [north_carolina, virginia]
+  - [north_pacific_east, pacific_islands]
+  - [north_pacific_east, pacific_states]
+  - [north_pacific_east, russian_america]
+  - [north_pacific_east, siberia]
+  - [north_pacific_east, south_pacific_east]
+  - [north_pacific_west, pacific_islands]
+  - [north_pacific_west, russian_america]
+  - [north_pacific_west, siberia]
+  - [north_pacific_west, south_pacific_west]
+  - [north_pacific_west, southeast_asia]
+  - [northern_seas, scandinavia]
+  - [northern_seas, siberia]
+  - [northern_waters, pennsylvania]
+  - [northern_waters, virginia]
+  - [ohio, pennsylvania]
+  - [ohio, upper_lakes]
+  - [ohio, virginia]
+  - [pacific_islands, south_pacific_east]
+  - [pacific_islands, south_pacific_west]
+  - [pacific_states, western_territories]
+  - [pennsylvania, virginia]
+  - [plains, upper_lakes]
+  - [plains, western_territories]
+  - [scandinavia, south_atlantic]
+  - [south_atlantic, south_pacific_east]
+  - [south_atlantic, southern_africa]
+  - [south_atlantic, west_central_africa]
+  - [south_atlantic_coast, south_carolina]
+  - [south_pacific_west, southeast_asia]
+  - [southern_africa, west_central_africa]
+  - [tennessee, virginia]
+  - [texas, western_gulf]
+  - [upper_lakes, western_territories]
+  - {a: arkansas, b: mississippi, crossing: across the Mississippi}
+  - {a: arkansas, b: tennessee, crossing: across the Mississippi}
+  - {a: illinois, b: missouri, crossing: across the Mississippi}
+  - {a: kentucky, b: missouri, crossing: across the Mississippi}
+  - {a: mississippi_river, b: western_gulf, crossing: the lower river past New Orleans}
+  - {a: missouri, b: tennessee, crossing: across the Mississippi}
+  - {a: north_pacific_east, b: north_pacific_west, crossing: across the date line}
+  - {a: south_pacific_east, b: south_pacific_west, crossing: across the date line}

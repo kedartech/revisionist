@@ -5,7 +5,8 @@ import { pinchZoom, unitsPerPx } from './view.js';
 /**
  * Pinch and drag on drawing `root`: a pinch picks the zoom step nearest its spread, around its
  * middle; a drag at a zoom past 1 moves the window. Each is told once, when the gesture ends,
- * as `onView({ zoom, centre })`.
+ * as `onView({ zoom, centre })`. A tap on no control of the drawing is told as `onTap([x, y])`,
+ * in the drawing's units.
  */
 export function gestures(root, win, opts, px) {
   const down = new Map();
@@ -43,6 +44,9 @@ export function gestures(root, win, opts, px) {
     } else if (was.kind === 'drag' && zoom > 1 && Math.hypot(at.x - was.x, at.y - was.y) > 8) {
       const k = unitsPerPx(win, box());
       opts.onView?.({ zoom, centre: [centre[0] - (at.x - was.x) * k, centre[1] - (at.y - was.y) * k] });
+    } else if (was.kind === 'drag' && Math.hypot(at.x - was.x, at.y - was.y) <= 8 && !e.target?.closest?.('[role="button"]')) {
+      // a tap that no control of the drawing took: the drawing finds what lies under it
+      opts.onTap?.(toUnits(at.x, at.y));
     }
   };
   root.addEventListener('pointerup', end);

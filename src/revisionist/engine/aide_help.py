@@ -17,7 +17,7 @@ from revisionist.core.events import CallCost
 from revisionist.core.realism.card import Lever, ParamKind, words
 from revisionist.core.state import View
 from revisionist.engine.aide import AIDE_MODEL
-from revisionist.engine.llm import Request, Transport, TransportError, prompt_text
+from revisionist.engine.llm import Request, Transport, TransportError, prompt_text, quote_player
 
 QUESTION_MAX = 600
 TEXT_MAX = 900
@@ -98,7 +98,7 @@ def help_prompt(view: View, question: str, failed: str = "") -> str:
     )
     if failed:
         out += f"## What just did not go through\n{failed}\n\n"
-    return out + f"## They ask\n{question}"
+    return out + f"## They ask\n{quote_player(question)}"
 
 
 class Helper(Protocol):
@@ -120,6 +120,7 @@ class ClaudeHelper:
             prompt=help_prompt(view, question, failed),
             schema=HELP_SCHEMA,
             max_usd=self.max_usd,
+            player_text=True,
         )
         self.requests.append(req)
         reply = self.transport.call(req)

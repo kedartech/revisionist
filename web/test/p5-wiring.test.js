@@ -53,7 +53,7 @@ test('the room calls each unit with the data the server sends', () => {
 test('the room wires the console strip, tiles and panel switches once, for every unit', () => {
   const room = read('js/views/realism-room.js');
   for (const call of [
-    /import \{ statusStrip, summaryTiles \} from '\.\/realism-status\.js';/,
+    /import \{ (?:\w+, )*statusStrip, summaryTiles \} from '\.\/realism-status\.js';/,
     /import \{ sideSwitch, tabBar \} from '\.\/realism-tabs\.js';/,
     /statusStrip\(rv, ui, \{ act \}\)/,
     /summaryTiles\(rv, pick\)/,

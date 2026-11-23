@@ -49,6 +49,11 @@ function mandateTile(m) {
 const STATUS_WORD = { met: 'Met', at_risk: 'At risk', failed: 'Failed' };
 const openAims = new Set();
 
+/** Open aim `aim`'s drill-down, as a press on its line would: a mark on the bar opens its aim this way. */
+export function openAim(aim) {
+  openAims.add(String(aim.aim ?? aim.text));
+}
+
 function periodLine(aim) {
   if (aim.opens && aim.deadline) return `${worldDate(aim.opens)} to ${worldDate(aim.deadline)}`;
   if (aim.deadline) return `By ${worldDate(aim.deadline)}`;

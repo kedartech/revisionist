@@ -23,9 +23,10 @@ import pytest
 
 from revisionist.core import events as ev
 from revisionist.core.ids import DocumentId, SeatId
-from revisionist.core.realism import battle
+from revisionist.core.realism import battle, detect, kinds
 from revisionist.core.realism.battle import Decision
 from revisionist.core.realism.card import ChannelKind
+from revisionist.core.realism.detect import Confidence, Report, Source
 from revisionist.core.realism.document import (
     BodyField,
     DocumentKind,
@@ -40,7 +41,7 @@ from revisionist.core.realism.effect import (
     SetEngagement,
 )
 from revisionist.core.realism.geography import FeatureKind, Sight
-from revisionist.core.state import State, Wake
+from revisionist.core.state import Rule, State, Wake
 from revisionist.core.visibility import private_to
 from revisionist.engine import notice, realism_tick, wake
 from revisionist.engine.store import MemoryStore, load_state
@@ -232,6 +233,99 @@ def test_the_enemy_range_comes_from_the_seats_own_papers(tmp_path: Path) -> None
     sighting(g, 2)
     assert one(at_wake(g, 1))["enemy_strength"] == {"low": 2, "high": 2}
     assert one(at_wake(g, 1), TOMAS)["enemy_strength"] is None
+
+
+def report(
+    key: str,
+    strength: tuple[int, int] | None,
+    area: str = COAST,
+    kind: str | None = None,
+    seen: date = OPENS,
+) -> Report:
+    return Report(
+        key=key,
+        kind=kind,
+        strength=strength,
+        area=entity(area),
+        seen=seen,
+        source=Source.CONTACT,
+        rank=0,
+        confidence=Confidence.B,
+        arrives=seen,
+    )
+
+
+def reporting(state: State, *reports: Report) -> State:
+    """``state`` with reports on and Norra's picture holding ``reports``."""
+    picture = detect.Picture(delivered={r.key: r for r in reports})
+    return state.model_copy(
+        update={
+            "rules": state.rules | {Rule.REPORTS},
+            "reports": {**state.reports, entity("norra"): picture},
+        }
+    )
+
+
+def test_with_reports_on_the_enemy_range_comes_from_the_seats_reports(tmp_path: Path) -> None:
+    g = game(tmp_path)
+    state = reporting(at_wake(g, 1), report("r1", (2, 3)))
+    assert one(state)["enemy_strength"] == {"low": 2, "high": 3}
+    assert one(state, TOMAS)["enemy_strength"] is None
+
+
+def test_with_reports_on_the_papers_sightings_are_not_read(tmp_path: Path) -> None:
+    g = game(tmp_path)
+    sighting(g, 2)
+    assert one(at_wake(g, 1))["enemy_strength"] == {"low": 2, "high": 2}
+    assert one(reporting(at_wake(g, 1)))["enemy_strength"] is None
+    assert one(reporting(at_wake(g, 1), report("r1", (3, 4))))["enemy_strength"] == {
+        "low": 3,
+        "high": 4,
+    }
+
+
+def test_the_reported_range_sums_the_reports_in_the_area_and_its_domain(
+    tmp_path: Path,
+) -> None:
+    g = game(tmp_path)
+    state = at_wake(g, 1)
+    most = kinds.MAX_STRENGTH
+    sheet = reporting(
+        state,
+        report("r1", (2, 3)),
+        report("r2", None),
+        report("r3", (4, 4), area="norra_plain"),
+        report("r4", (1, 2), kind="galley"),
+    )
+    assert one(sheet)["enemy_strength"] == {"low": 3, "high": 3 + most}
+
+
+def test_a_report_gone_stale_leaves_the_sheet_without_a_range(tmp_path: Path) -> None:
+    g = game(tmp_path)
+    state = at_wake(g, 1)
+    today = walked(g)
+    old = today - timedelta(days=detect.STALE_DAYS + 1)
+    assert one(reporting(state, report("r1", (2, 3), seen=old)))["enemy_strength"] is None
+
+
+def test_with_reports_on_the_range_reads_no_truth(tmp_path: Path) -> None:
+    g = game(tmp_path)
+    state = reporting(at_wake(g, 1), report("r1", (2, 3)))
+    b = fight(g)
+    truer = b.model_copy(
+        update={"defender": b.defender.model_copy(update={"brought": b.defender.brought + 3})}
+    )
+    levy = piece(state, "sudland_levy")
+    changed = state.model_copy(
+        update={
+            "battles": {**state.battles, entity(COAST): truer},
+            "features": {
+                **state.features,
+                levy.feature_id: levy.model_copy(update={"tier": 5 if levy.tier != 5 else 1}),
+            },
+        }
+    )
+    assert one(changed)["enemy_strength"] == one(state)["enemy_strength"] == {"low": 2, "high": 3}
 
 
 def test_the_decision_in_force_is_the_sides_stored_decision(tmp_path: Path) -> None:

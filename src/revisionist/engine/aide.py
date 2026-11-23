@@ -24,7 +24,7 @@ from revisionist.core.realism.pipeline import OrderStatus, Pipeline, StepKind
 from revisionist.core.realism.prose import invented_numbers
 from revisionist.core.state import View
 from revisionist.engine import campaign as cmp
-from revisionist.engine.llm import Request, Transport, prompt_text
+from revisionist.engine.llm import Request, Transport, prompt_text, quote_player
 from revisionist.engine.store import EventStore, load_state
 
 AIDE_MODEL = "claude-haiku-5-5"
@@ -214,7 +214,7 @@ def aide_prompt(view: View, pages: Sequence[DocumentView], due: Sequence[Decisio
         f"## Their levers\n{json.dumps(levers, ensure_ascii=False)}\n\n"
         f"## Today\n{view.in_world_date.isoformat() if view.in_world_date else ''}\n\n"
         f"## Waiting on them\n{json.dumps(waiting)}\n\n"
-        f"## Unread papers\n{json.dumps(papers, ensure_ascii=False)}\n\nBrief them."
+        f"## Unread papers\n{quote_player(json.dumps(papers, ensure_ascii=False))}\n\nBrief them."
     )
 
 
@@ -241,6 +241,7 @@ class ClaudeAide:
             prompt=aide_prompt(view, pages, due),
             schema=AIDE_SCHEMA,
             max_usd=self.max_usd,
+            player_text=bool(pages),
         )
         self.requests.append(req)
         reply = self.transport.call(req)

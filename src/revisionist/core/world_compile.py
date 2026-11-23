@@ -108,6 +108,7 @@ from revisionist.core.realism.card import (
     Reach,
     SeatCard,
     Topic,
+    escort_level_problems,
     war_need_problems,
 )
 from revisionist.core.realism.document import Feed
@@ -600,6 +601,10 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             if lv.resolver == "movement":
                 _check_movement(world, f"{where}: lever {lv.name}", lv, problems)
             _check_war_needs(world, f"{where}: lever {lv.name}", lv, problems)
+            problems += [
+                f"{where}: lever {lv.name}: {p}"
+                for p in escort_level_problems(lv.params, lv.escort_level)
+            ]
     _check_answers(world, sections, problems)
     _check_topics(world, problems)
     _check_wars(world, sections, problems)
@@ -2868,6 +2873,9 @@ def _card(
                 label=lv.label,
                 summary=lv.summary,
                 needs_war=lv.needs_war,
+                escort_levels={
+                    c: v for marks in lv.escort_level.values() for c, v in marks.items()
+                },
             )
             for lv in c.levers
         ),

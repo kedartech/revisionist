@@ -1042,6 +1042,41 @@ class GroupMove(TypedDict):
     on: str
 
 
+class HomeMove(TypedDict):
+    """A move of a group since the seat's last wake (HFR): the cause, by how much after
+    the clamp, the day and the cause in plain words."""
+
+    cause: str
+    """A ``GroupMove`` cause."""
+    change: int
+    on: str
+    why: str
+    """The cause in plain words (``home_api.WHY``)."""
+    reach: Literal["felt", "reported"]
+    """How it reached the public (``home_api.reach``)."""
+
+
+class HomeMoved(TypedDict):
+    """One line of what moved at home since the seat's last wake: a group, its net
+    change and the line the seat reads (HFR)."""
+
+    group: str
+    name: str
+    change: int
+    line: str
+
+
+class HomePlace(TypedDict):
+    """A place of political weight of the seat's nation, as its map shows it (HFR)."""
+
+    key: str
+    """The territory's key in the map file."""
+    name: str
+    holder: MapNation | None
+    threatened: bool
+    """Its area on the seat's map is marked to fall or named by a report (``MapArea``)."""
+
+
 class HomeGroup(TypedDict):
     """One of the seat's own nation's groups at home (GPD)."""
 
@@ -1053,6 +1088,8 @@ class HomeGroup(TypedDict):
     """0 to 100, now."""
     last_moved: GroupMove | None
     """None while nothing has moved it."""
+    since: list[HomeMove]
+    """Every move since the seat's last wake, in the order they happened."""
     feeds: dict[str, float]
     """What its support feeds (``votes``, ``standing``, ``manpower``, ``output``,
     ``opinion``), each with its weight."""
@@ -1073,6 +1110,11 @@ class BlocCount(TypedDict):
     group: str
     yeas: int
     nays: int
+    then: list[int] | None
+    """Its yeas and nays at the seat's last wake; None when the measure was not then on
+    its way, or the seat has had no wake."""
+    moved: bool
+    """Its count differs from ``then``."""
 
 
 class FloorVote(TypedDict):
@@ -1087,6 +1129,8 @@ class FloorVote(TypedDict):
     carries: int
     """The yeas that carry the vote: more yeas than nays among those voting, as the votes
     rule decides it."""
+    then: list[int] | None
+    """The vote's yeas and nays at the seat's last wake, as ``BlocCount.then``."""
 
 
 class OpenMeasure(TypedDict):
@@ -1202,6 +1246,10 @@ class HomeBlock(TypedDict):
     """The seat's own nation's standing at home, 0 to 100; None when no group feeds it."""
     standings: list[NationStanding]
     """Every nation's band, by name."""
+    moved: list[HomeMoved]
+    """Each group that moved since the seat's last wake, heaviest net change first (HFR)."""
+    places: list[HomePlace]
+    """Each place of political weight of the nation, in the world file's order (HFR)."""
     offers: NotRequired[list[OfferMeasure]]
     """With ``offers`` on: each law of the nation whose bill is on its way, by law key."""
     promises: NotRequired[list[OfferPromise]]
@@ -2027,6 +2075,37 @@ class PlaybackHeld(TypedDict):
     order's words."""
 
 
+class PlaybackGroup(TypedDict):
+    """One of the seat's own nation's groups moved (HFR): as ``HomeMove`` words it, with
+    the support it moved to. Only its own nation's seats are given it."""
+
+    kind: Literal["group"]
+    on: str
+    group: str
+    name: str
+    change: int
+    support: int
+    why: str
+    reach: Literal["felt", "reported"]
+
+
+class PlaybackCount(TypedDict):
+    """The count of a vote on one of the seat's measures on its way changed with a group's
+    move (HFR): the votes rule's count after the move beside the one before it."""
+
+    kind: Literal["count"]
+    on: str
+    order_id: str
+    """``OpenMeasure.order_id``."""
+    key: str
+    title: str
+    vote: str
+    yeas: int
+    nays: int
+    was: list[int]
+    """Its yeas and nays before the move."""
+
+
 PlaybackStep = (
     PlaybackOrder
     | PlaybackMove
@@ -2035,6 +2114,8 @@ PlaybackStep = (
     | PlaybackHolder
     | PlaybackStake
     | PlaybackHeld
+    | PlaybackGroup
+    | PlaybackCount
 )
 """One step of a missed wake's playback, in the order it happened (``on`` is ISO)."""
 
@@ -2141,6 +2222,9 @@ __all__ = [
     "HeldLine",
     "HomeBlock",
     "HomeGroup",
+    "HomeMove",
+    "HomeMoved",
+    "HomePlace",
     "HomeTheme",
     "LeverChoice",
     "LeverLine",
@@ -2199,6 +2283,8 @@ __all__ = [
     "PlaceChoice",
     "PlaceLift",
     "PlaceReach",
+    "PlaybackCount",
+    "PlaybackGroup",
     "PlaybackHalt",
     "PlaybackHeld",
     "PlaybackHolder",

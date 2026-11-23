@@ -200,8 +200,8 @@ def test_an_open_measure_is_counted_by_bloc_as_the_votes_rule_tallies_it_today(
     (vote,) = measure["votes"]
     # The Greens five points over their baseline: one point of yes share on a hundred.
     assert vote["blocs"] == [
-        {"group": "greens", "yeas": 71, "nays": 29},
-        {"group": "greys", "yeas": 20, "nays": 80},
+        {"group": "greens", "yeas": 71, "nays": 29, "then": None, "moved": False},
+        {"group": "greys", "yeas": 20, "nays": 80, "then": None, "moved": False},
     ]
     assert (vote["vote"], vote["yeas"], vote["nays"]) == (ASSEMBLY, 91, 109)
     tallied = votes.bloc_tally(g.state, NORRA, ASSEMBLY, "levy_act", ASSEMBLY, order_id)
@@ -318,9 +318,15 @@ def shape(examples: list[Any], kind: Any) -> None:
 
 
 def test_the_seat_fixture_carries_the_home_block_in_the_snapshot_shape(tmp_path: Path) -> None:
+    from tests.test_places_weight import game as places_game
+
     fixture = json.loads((FIXTURES / "realism-seat.json").read_text())["home"]
     priced = {"offers", "promises"}  # with offers on: tests/test_web_offers.py, its own game
-    assert {k: v for k, v in fixture.items() if k not in priced} == home(fixture_game(tmp_path))
+    weighed = {"places"}  # with places of weight: tests/test_places_weight.py, its own game
+    ours = {k: v for k, v in fixture.items() if k not in priced | weighed}
+    assert ours == {k: v for k, v in home(fixture_game(tmp_path)).items() if k not in weighed}
+    (tmp_path / "places").mkdir()
+    assert fixture["places"] == home(places_game(tmp_path / "places"))["places"] != []
     shape([fixture], api.HomeBlock)
     shape(fixture["groups"], api.HomeGroup)
     shape([g["last_moved"] for g in fixture["groups"] if g["last_moved"]], api.GroupMove)
@@ -331,3 +337,6 @@ def test_the_seat_fixture_carries_the_home_block_in_the_snapshot_shape(tmp_path:
     shape(fixture["chambers"][0]["measures"][0]["votes"][0]["blocs"], api.BlocCount)
     shape(fixture["themes"], api.HomeTheme)
     shape(fixture["standings"], api.NationStanding)
+    shape(fixture["moved"], api.HomeMoved)
+    shape(fixture["places"], api.HomePlace)
+    shape([m for g in fixture["groups"] for m in g["since"]], api.HomeMove)

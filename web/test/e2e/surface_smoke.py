@@ -26,7 +26,11 @@ starts the ready-made 1941 game as its host and plays Franklin D. Roosevelt. The
   service worker takes control; the worker's stores hold the page and the map object by its hash
   and nothing under `/api/`; with the network cut a reload opens the shell with its one offline
   line and a write does not get through; a new worker is offered as a new version, nothing
-  changes until Reload is pressed, and then the new worker controls the reloaded page.
+  changes until Reload is pressed, and then the new worker controls the reloaded page;
+- what the Android wrapper needs of the web side (`deploy/android/README.md`): the manifest the
+  page links, the worker in control, the 512 px icon, and the asset-links address, which answers
+  with a list naming an Android app when `REVISIONIST_ASSETLINKS_FILE` is set in the smoke's
+  environment (the same value the server was started with) and is a 404 when it is not.
 
 Screenshots, a ten-second recording of the same pan and pinch (not slowed) and `report.json` go to
 OUT_DIR. With a fourth argument `phone` it runs at 390x844 with touch, else at 1440x900. Fails on
@@ -39,6 +43,7 @@ For a run with no model calls, serve with web/test/e2e/serve_canned.py.
 """
 
 import json
+import os
 import sys
 import time
 
@@ -837,6 +842,7 @@ def offline_shell(browser: object, state: dict, url: str, report: dict) -> None:
     page.locator(MAP).first.wait_for(timeout=60_000)
     script = page.evaluate(SCRIPT_JS)
     rs.check("the worker controls the page after one load", script.endswith("/sw.js"), script)
+    wrapper_needs(page, report)
     stores: list[list[str]] = []
     for _ in range(40):
         stores = page.evaluate(STORES_JS)
@@ -911,6 +917,51 @@ def offline_shell(browser: object, state: dict, url: str, report: dict) -> None:
     rs.check("the offline shell raised no page error", not errors, "; ".join(errors))
     report["worker"] = worker
     ctx.close()
+
+
+ASSETLINKS = "/.well-known/assetlinks.json"
+
+
+def wrapper_needs(page: Page, report: dict) -> None:
+    """What the Android wrapper reads: the linked manifest, the worker in control, the 512 icon,
+    and the asset-links address."""
+    href = page.evaluate("document.querySelector('link[rel=manifest]')?.getAttribute('href') ?? ''")
+    rs.check("wrapper: the page links a manifest", bool(href), href)
+    manifest = {}
+    if href:
+        got = page.request.get(BASE + "/" + href.lstrip("/"))
+        manifest = got.json() if got.ok else {}
+    rs.check("wrapper: the manifest opens standalone at /", manifest.get("display") == "standalone")
+    rs.check("wrapper: the manifest starts at /", manifest.get("start_url") == "/")
+    script = page.evaluate(SCRIPT_JS)
+    rs.check("wrapper: the worker is in control", script.endswith("/sw.js"), script)
+    big = [i for i in manifest.get("icons", []) if i.get("sizes") == "512x512"]
+    rs.check("wrapper: the manifest lists a 512 px icon", bool(big))
+    body = b""
+    for icon in big:
+        res = page.request.get(BASE + icon["src"])
+        body = res.body() if res.ok else b""
+        if body[:8] == b"\x89PNG\r\n\x1a\n" and body[16:24] == (512).to_bytes(4, "big") * 2:
+            break
+        body = b""
+    rs.check("wrapper: a 512 px icon answers as a 512 by 512 PNG", bool(body))
+    res = page.request.get(BASE + ASSETLINKS)
+    if os.environ.get("REVISIONIST_ASSETLINKS_FILE"):
+        try:
+            links = res.json() if res.ok else []
+        except ValueError:
+            links = []
+        named = [
+            x
+            for x in links
+            if isinstance(x, dict) and x.get("target", {}).get("namespace") == "android_app"
+        ]
+        rs.check(
+            "wrapper: the asset-links address names an Android app", bool(named), str(res.status)
+        )
+    else:
+        rs.check("wrapper: with no asset-links file set, its address is a 404", res.status == 404)
+    report["wrapper"] = {"manifest": href, "assetlinks": res.status}
 
 
 def record(browser: object, state: dict, url: str) -> None:

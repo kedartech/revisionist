@@ -1,7 +1,7 @@
 """The shipping resolver (plan, Phase 2 unit B3).
 
-Atlantic losses from U-boat strength and escort level. Churchill's
-``convoy_orders`` and Mussolini's ``libya_convoys`` change nothing in this wave.
+Atlantic losses from U-boat strength and escort level. Outside a territory game
+Churchill's ``convoy_orders`` and Mussolini's ``libya_convoys`` change nothing.
 Once the escort level has reached 1 the escort factor counts from that month, even
 if a later order holds the ships in port.
 

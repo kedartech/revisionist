@@ -82,10 +82,15 @@ RULES = {
     Rule.ASK_ANSWERS,
     Rule.DECIDERS,
     Rule.OWN_AIM,
+    Rule.OFFERS,
+    Rule.CLASSES,
+    Rule.LOSSES,
+    Rule.PLACES,
 }
 """Every rule name the engine had when Salt Strait reached parity (SSG), less the three read
-by a live model, which stay off in a shipped world; and the commander's seat, locks, laws,
-answers to asks, deciders and the player's own aim (SSO)."""
+by a live model, which stay off in a shipped world; the commander's seat, locks, laws,
+answers to asks, deciders and the player's own aim (SSO); and a bloc's prices, the classes
+of happenings, the size of losses and places with political weight (SSH)."""
 
 
 def _map_check() -> ModuleType:
@@ -734,10 +739,6 @@ ABSENT_ON_PURPOSE = {
     "clocks": "the older ruleset only",
     "facts": "the older ruleset only",
     "commitments": "the older ruleset only",
-    "groups.groups.prices": "no bloc is offered a price: offers stay off",
-    "happenings": "classes stay off: every kind of happening is reported",
-    "happenings.felt": "classes stay off: no kind is part felt",
-    "places": "no place carries political weight: losing ground moves groups only by territory",
 }
 """The questions on main that Salt Strait leaves unanswered, each on purpose, by the first
 key of its row in ``worlds/TEMPLATE.md``, with why (SSO rule 4)."""
@@ -754,3 +755,69 @@ def test_the_world_check_reports_every_question_built_so_far_answered_or_absent_
     answered = {k for x in built if x.status == "answered" for k in x.row.keys}
     assert {"laws", "locks.question", "locks.decider.council", "aim_patterns"} <= answered
     assert {"groups.groups.chamber", "cards.path", "locks.decider.person"} <= answered
+    assert {"groups.groups.prices", "happenings", "happenings.felt", "places"} <= answered
+
+
+# --- Stage 3 parity: prices, classes, losses and weighted places (SSH) --------------------
+
+BLOCS = ("free_traders", "old_families")
+"""The Salt Assembly's two blocs."""
+ACTED = {"ordered", "quantity_at", "holds_office", "agreement_in_force"}
+"""The checks an act changes, one of which a price's condition must hold."""
+
+
+def _checks(condition: Any) -> Iterator[str]:
+    """Every check a condition holds, its own and its parts'."""
+    dumped = condition if isinstance(condition, dict) else condition.model_dump()
+    yield str(dumped["check"])
+    for part in dumped.get("conditions") or ():
+        yield from _checks(part)
+
+
+def test_each_salt_assembly_bloc_carries_a_price_list_an_act_can_meet() -> None:
+    state = compiled()
+    varda = entity("varda")
+    for key in BLOCS:
+        bloc = groups.group(state, varda, key)
+        assert bloc is not None and bloc.chamber is not None, key
+        assert bloc.prices, key
+        for price in bloc.prices:
+            assert 1 <= price.days <= 366 and 1 <= price.points <= 20, price.key
+            assert set(_checks(price.condition)) & ACTED, price.key
+
+
+def test_every_happening_named_is_classed_once_and_exactly_one_is_secret() -> None:
+    state = compiled()
+    classes = state.groups.classes
+    assert len(classes) == len(world().happenings) >= 3
+    reaches = [c.reach.value for c in classes.values()]
+    assert reaches.count("secret") == 1
+    assert {"felt", "reported"} <= set(reaches)
+    assert any(c.reach.value == "reported" and c.felt > 0 for c in classes.values())
+
+
+def test_each_nation_has_a_group_that_the_size_of_losses_moves() -> None:
+    state = compiled()
+    assert groups.losses_on(state)
+    for nation in POLITIES:
+        moved = [
+            g.key
+            for d in world().groups
+            if d.nation == nation
+            for g in d.groups
+            if g.moved_by.get(groups.Happening.BATTLE_LOSSES, 0) < 0
+        ]
+        assert moved, nation
+
+
+def test_one_place_per_nation_carries_political_weight_over_its_own_ground() -> None:
+    state = compiled()
+    holder = {t.key: t.holder for t in world().territories}
+    places = world().places
+    assert sorted(p.nation for p in places) == sorted(POLITIES)
+    for p in places:
+        assert holder[p.territory] == p.nation, p.territory
+        assert p.moves and all(v < 0 for v in p.moves.values()), p.territory
+    assert {(pl.territory, pl.nation) for pl in state.groups.places} == {
+        (entity(p.territory), entity(p.nation)) for p in places
+    }

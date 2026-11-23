@@ -130,6 +130,56 @@ HOST_ONLY: dict[str, dict[str, Any]] = {
     "handover": {"code": None, "from_wake": None},
 }
 """The rest of a host-only action's reply shape, when someone else asks."""
+GAME_OPEN = ("reveal", "notice-address")
+"""Game-menu actions for any signed-in account, with a seat in a game in play or not."""
+NEW_GAME_ACTIONS = (
+    "worlds",
+    "timeline",
+    "figures",
+    "ready",
+    "pitch",
+    "cast",
+    "start",
+    "pick",
+    "unpick",
+    "style",
+    "invite",
+    "begin",
+    "opening",
+)
+"""Every ``/api/new/<action>``: ``App.new_game`` answers any other as no such call."""
+REALISM_ACTIONS = (
+    "catchup",
+    "map",
+    "check",
+    "odds",
+    "read",
+    "flag",
+    "lever",
+    "directive",
+    "sign",
+    "aide",
+    "consult",
+    "help",
+    "step",
+    "advance",
+    "commit",
+    "close",
+    "style",
+    "option",
+    "answer",
+    "order",
+    "agreement-offer",
+    "file",
+    "withdraw",
+    "ask",
+    "battle",
+    "contingency",
+    "agreement-publish",
+    "conference-call",
+    "conference-vote",
+)
+"""Every ``/api/realism/<action>``: ``App.realism`` answers any other as no such call."""
 
 
 def model_down(exc: TransportError) -> str:
@@ -338,6 +388,8 @@ class App:
                     or wk.joining(state, seat)
                 )
             )
+            if action not in REALISM_ACTIONS:
+                raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
             try:
                 if later:
                     return snapshot.checked(
@@ -872,7 +924,7 @@ class App:
             return self._unpick(store, state, account, seat, named)
         if action == "style":
             return dict(agenda_api.set_style(store, cid, seat, _text(body, "style", 20)))
-        if action not in ("invite", "begin"):
+        if action not in NEW_GAME_ACTIONS:
             raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
         if WebSeats(store.conn).host(cid) != account.account_id:
             return {"reply": "Only the host can do that.", "refused": True}

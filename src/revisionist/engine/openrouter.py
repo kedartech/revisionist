@@ -229,6 +229,13 @@ class OpenRouterTransport:
             models |= _table(given)
         return cls(environ.get(KEY_ENV, "").strip(), models, **kw)
 
+    @staticmethod
+    def key_problem(environ: Mapping[str, str]) -> str | None:
+        """Why the free transport cannot start for want of a key, naming the setting."""
+        if environ.get(KEY_ENV, "").strip():
+            return None
+        return f"{KEY_ENV}: the free transport needs a key and none is set"
+
     def __repr__(self) -> str:
         return f"OpenRouterTransport(base={self.base!r}, kinds={sorted(self.models)})"
 

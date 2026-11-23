@@ -6,10 +6,11 @@ Everything the CLI needs that touches the file system or a model lives here, so
 
 import getpass
 import os
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import parse_qs, urlsplit
 
 import yaml
 
@@ -42,6 +43,35 @@ def db_target() -> str:
     """``$REVISIONIST_DB``: a ``postgresql://`` URL or a SQLite file path
     (default ``./revisionist.db``)."""
     return os.environ.get("REVISIONIST_DB", "revisionist.db")
+
+
+LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def _db_problem(target: str) -> str | None:
+    if not is_postgres(target):
+        return None
+    parts = urlsplit(target)
+    query = parse_qs(parts.query)
+    host = (query.get("host") or [parts.hostname or ""])[0]
+    password = (query.get("password") or [parts.password or ""])[0]
+    if password or host in LOCAL_HOSTS or host.startswith("/") or not host:
+        return None
+    return "REVISIONIST_DB: the database address has an empty password and is not on this host"
+
+
+def secret_problems(environ: Mapping[str, str], *, free_transport: bool) -> list[str]:
+    """What the server refuses to start on, each naming a setting and never its value:
+    a master key file others can read, a database password left empty off localhost,
+    the free transport chosen with no key. The mark secret checks itself."""
+    from revisionist.engine import openrouter, seal
+
+    found = [
+        seal.master_key_problem(environ),
+        _db_problem(environ.get("REVISIONIST_DB", "")),
+        openrouter.OpenRouterTransport.key_problem(environ) if free_transport else None,
+    ]
+    return [p for p in found if p]
 
 
 def is_postgres(target: str) -> bool:
@@ -267,6 +297,7 @@ __all__ = [
     "new_campaign",
     "open_store",
     "resolve_seat",
+    "secret_problems",
     "versions",
     "world_path",
 ]

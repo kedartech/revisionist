@@ -18,7 +18,8 @@ CardAmended, AnswerPlanned, AnswerMade, AreaHeld, CaptureCounted, EconomySet, Yi
 TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDeclared,
 ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
-VoteSealed, ConferenceTallied, LocksDeclared, OrderHeld, HeldOrderEnded, OrderAsked``, and
+VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
+OrderAsked``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -97,6 +98,7 @@ from revisionist.core.realism.groups import Cause as GroupCause
 from revisionist.core.realism.groups import NationGroups, Proposal
 from revisionist.core.realism.holders import Capture
 from revisionist.core.realism.kinds import PieceKind, Resource
+from revisionist.core.realism.laws import Law
 from revisionist.core.realism.locks import Asked, HeldEnd, HeldOrder, LockRow
 from revisionist.core.realism.pipeline import (
     Order,
@@ -690,6 +692,15 @@ class LocksDeclared(Model):
 
     kind: Literal["locks_declared"] = "locks_declared"
     rows: tuple[LockRow, ...] = Field(min_length=1)
+
+
+class LawsDeclared(Model):
+    """The world's laws (LWC): what each binds, its clauses, the quantity that says it has
+    passed, and what it does, in the world file's order. World data; once, at creation,
+    with ``laws`` on."""
+
+    kind: Literal["laws_declared"] = "laws_declared"
+    laws: tuple[Law, ...] = Field(min_length=1)
 
 
 class OrderHeld(Model):
@@ -1435,6 +1446,7 @@ Payload = Annotated[
     | MapDeclared
     | KindsDeclared
     | LocksDeclared
+    | LawsDeclared
     | OrderHeld
     | HeldOrderEnded
     | OrderAsked
@@ -1539,6 +1551,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "map_declared",
         "kinds_declared",
         "locks_declared",
+        "laws_declared",
         "order_held",
         "held_order_ended",
         "order_asked",

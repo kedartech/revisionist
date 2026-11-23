@@ -5303,6 +5303,15 @@
         "title": "DocumentWritten",
         "type": "object"
       },
+      "Does": {
+        "description": "What a passed law does, from the closed set the rules know [proposed].",
+        "enum": [
+          "arms_merchant_ships",
+          "adds_manpower"
+        ],
+        "title": "Does",
+        "type": "string"
+      },
       "EconomySet": {
         "additionalProperties": false,
         "description": "A nation's pools after the first-of-the-month payment (YLD). Sealed to the nation's\nseats: true figures.",
@@ -7882,6 +7891,91 @@
         "title": "KnowledgeGrant",
         "type": "object"
       },
+      "Law": {
+        "additionalProperties": false,
+        "description": "One law the world declares: public rules of the world.",
+        "properties": {
+          "clauses": {
+            "items": {
+              "$ref": "#/$defs/revisionist__core__realism__effect__Clause"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Clauses",
+            "type": "array"
+          },
+          "daily_life": {
+            "default": false,
+            "title": "Daily Life",
+            "type": "boolean"
+          },
+          "does": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LawEffect"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 60,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "nation",
+          "clauses",
+          "passed"
+        ],
+        "title": "Law",
+        "type": "object"
+      },
+      "LawEffect": {
+        "additionalProperties": false,
+        "description": "What a law does once passed: a kind, and for ``adds_manpower`` its amount.",
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Amount"
+          },
+          "kind": {
+            "$ref": "#/$defs/Does"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "LawEffect",
+        "type": "object"
+      },
       "LawNotInForce": {
         "additionalProperties": false,
         "description": "Holds while no passed law carrying ``clause`` is in force for the issuer's nation.",
@@ -7903,6 +7997,31 @@
           "clause"
         ],
         "title": "LawNotInForce",
+        "type": "object"
+      },
+      "LawsDeclared": {
+        "additionalProperties": false,
+        "description": "The world's laws (LWC): what each binds, its clauses, the quantity that says it has\npassed, and what it does, in the world file's order. World data; once, at creation,\nwith ``laws`` on.",
+        "properties": {
+          "kind": {
+            "const": "laws_declared",
+            "default": "laws_declared",
+            "title": "Kind",
+            "type": "string"
+          },
+          "laws": {
+            "items": {
+              "$ref": "#/$defs/Law"
+            },
+            "minItems": 1,
+            "title": "Laws",
+            "type": "array"
+          }
+        },
+        "required": [
+          "laws"
+        ],
+        "title": "LawsDeclared",
         "type": "object"
       },
       "Leg": {
@@ -14429,6 +14548,7 @@
             "intent_filed": "#/$defs/IntentFiled",
             "intent_rejected": "#/$defs/IntentRejected",
             "kinds_declared": "#/$defs/KindsDeclared",
+            "laws_declared": "#/$defs/LawsDeclared",
             "locks_declared": "#/$defs/LocksDeclared",
             "mandate_issued": "#/$defs/MandateIssued",
             "mandate_settled": "#/$defs/MandateSettled",
@@ -14678,6 +14798,9 @@
           },
           {
             "$ref": "#/$defs/LocksDeclared"
+          },
+          {
+            "$ref": "#/$defs/LawsDeclared"
           },
           {
             "$ref": "#/$defs/OrderHeld"
@@ -18032,6 +18155,15 @@
         "title": "DocumentView",
         "type": "object"
       },
+      "Does": {
+        "description": "What a passed law does, from the closed set the rules know [proposed].",
+        "enum": [
+          "arms_merchant_ships",
+          "adds_manpower"
+        ],
+        "title": "Does",
+        "type": "string"
+      },
       "Economy": {
         "additionalProperties": false,
         "description": "The war economy's truth. A seat sees its own nation's part only.",
@@ -19803,6 +19935,91 @@
           }
         },
         "title": "Kinds",
+        "type": "object"
+      },
+      "Law": {
+        "additionalProperties": false,
+        "description": "One law the world declares: public rules of the world.",
+        "properties": {
+          "clauses": {
+            "items": {
+              "$ref": "#/$defs/revisionist__core__realism__effect__Clause"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Clauses",
+            "type": "array"
+          },
+          "daily_life": {
+            "default": false,
+            "title": "Daily Life",
+            "type": "boolean"
+          },
+          "does": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LawEffect"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 60,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "nation",
+          "clauses",
+          "passed"
+        ],
+        "title": "Law",
+        "type": "object"
+      },
+      "LawEffect": {
+        "additionalProperties": false,
+        "description": "What a law does once passed: a kind, and for ``adds_manpower`` its amount.",
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Amount"
+          },
+          "kind": {
+            "$ref": "#/$defs/Does"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "LawEffect",
         "type": "object"
       },
       "LawNotInForce": {
@@ -24649,6 +24866,14 @@
         "title": "Last Seq",
         "type": "integer"
       },
+      "laws": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/Law"
+        },
+        "title": "Laws",
+        "type": "array"
+      },
       "locks": {
         "default": [],
         "items": {
@@ -27335,6 +27560,15 @@
         "title": "DocumentView",
         "type": "object"
       },
+      "Does": {
+        "description": "What a passed law does, from the closed set the rules know [proposed].",
+        "enum": [
+          "arms_merchant_ships",
+          "adds_manpower"
+        ],
+        "title": "Does",
+        "type": "string"
+      },
       "Economy": {
         "additionalProperties": false,
         "description": "The war economy's truth. A seat sees its own nation's part only.",
@@ -28631,6 +28865,91 @@
           }
         },
         "title": "Kinds",
+        "type": "object"
+      },
+      "Law": {
+        "additionalProperties": false,
+        "description": "One law the world declares: public rules of the world.",
+        "properties": {
+          "clauses": {
+            "items": {
+              "$ref": "#/$defs/revisionist__core__realism__effect__Clause"
+            },
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Clauses",
+            "type": "array"
+          },
+          "daily_life": {
+            "default": false,
+            "title": "Daily Life",
+            "type": "boolean"
+          },
+          "does": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/LawEffect"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 60,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "title",
+          "nation",
+          "clauses",
+          "passed"
+        ],
+        "title": "Law",
+        "type": "object"
+      },
+      "LawEffect": {
+        "additionalProperties": false,
+        "description": "What a law does once passed: a kind, and for ``adds_manpower`` its amount.",
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Amount"
+          },
+          "kind": {
+            "$ref": "#/$defs/Does"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "LawEffect",
         "type": "object"
       },
       "LawNotInForce": {
@@ -32404,6 +32723,14 @@
           }
         ],
         "default": null
+      },
+      "laws": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/Law"
+        },
+        "title": "Laws",
+        "type": "array"
       },
       "locks": {
         "default": [],

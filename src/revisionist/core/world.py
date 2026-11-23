@@ -58,6 +58,7 @@ from revisionist.core.realism.effect import (
     DISPOSITION_CAP,
     FIGURE_CAP,
     MAX_PARTIES,
+    Clause,
     ClauseType,
     EffectKind,
     Engagement,
@@ -720,6 +721,27 @@ class LockDecl(Model):
     decider: LockDeciderDecl
 
 
+class LawDoesDecl(Model):
+    """What a passed law does (LWC): ``kind`` one of the effects the rules know
+    (``laws.Does``), and for ``adds_manpower`` its ``amount``."""
+
+    kind: str = Field(min_length=1, max_length=40)
+    amount: int | None = None
+
+
+class LawDecl(Model):
+    """One law (LWC), read with ``laws`` on: ``nation`` the polity key it binds,
+    ``passed`` the key of the quantity that reads 1 once it has passed."""
+
+    key: Key
+    title: Label
+    nation: Key
+    clauses: tuple[Clause, ...] = Field(min_length=1, max_length=12)
+    passed: Key
+    does: LawDoesDecl | None = None
+    daily_life: bool = False
+
+
 class PactClauseDecl(Model):
     """One clause of a pact (PCT), as AGR's typed list has it, in world-file keys:
     ``binds``, ``nation`` polity keys; ``force`` a feature key; ``area`` a territory or sea
@@ -1110,6 +1132,10 @@ class WorldFile(Model):
     locks: SkipJsonSchema[tuple[LockDecl, ...]] = ()
     """Which orders need whose decision, and when, with ``locks`` on (DCD). A world with
     none is unchanged. Written by hand: not offered to a model."""
+    laws: SkipJsonSchema[tuple[LawDecl, ...]] = ()
+    """The laws the world declares, with ``laws`` on (LWC): what each binds, its clauses,
+    the quantity that says it has passed, and what it does. With the rule off they are
+    checked and left out of the game. Written by hand: not offered to a model."""
     production: SkipJsonSchema[ProductionDecl | None] = None
     """The aid finding and the production priority the production rules read (PRL), with a
     map. A world with none runs no finding and grows no lift pool by a priority. Written by
@@ -1165,6 +1191,8 @@ __all__ = [
     "IntelSourceDecl",
     "IntelligenceDecl",
     "Key",
+    "LawDecl",
+    "LawDoesDecl",
     "LegDecl",
     "LeverDecl",
     "LinkDecl",

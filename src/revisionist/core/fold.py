@@ -125,6 +125,21 @@ def _locks_declared(state: State, p: ev.LocksDeclared) -> State:
     return state.model_copy(update={"locks": p.rows})
 
 
+def _laws_declared(state: State, p: ev.LawsDeclared) -> State:
+    """The world's laws, once, with ``laws`` on; each key once, and the nation each binds
+    and the quantity that says it has passed already in the world (LWC)."""
+    if Rule.LAWS not in state.rules:
+        raise FoldError("laws_declared needs the laws rule")
+    if state.laws:
+        raise FoldError("the laws are declared once")
+    if len({law.key for law in p.laws}) < len(p.laws):
+        raise FoldError("laws_declared: a law is named twice")
+    for law in p.laws:
+        _need(state.entities, law.nation, "entity")
+        _need(state.quantities, law.passed, "quantity")
+    return state.model_copy(update={"laws": p.laws})
+
+
 def _order_held(state: State, p: ev.OrderHeld) -> State:
     """A held order, with ``locks`` on: its id new to every order table, its seat and, for
     a form, its pipeline known (LCK)."""
@@ -653,6 +668,7 @@ def _mutate(state: State, event: Event) -> State:
             | ev.MapDeclared()
             | ev.KindsDeclared()
             | ev.LocksDeclared()
+            | ev.LawsDeclared()
             | ev.OrderHeld()
             | ev.HeldOrderEnded()
             | ev.OrderAsked()
@@ -1079,6 +1095,8 @@ def _realism(state: State, p: ev.Payload) -> State:
             return state.model_copy(update={"kinds": kinds})
         case ev.LocksDeclared():
             return _locks_declared(state, p)
+        case ev.LawsDeclared():
+            return _laws_declared(state, p)
         case ev.OrderHeld():
             return _order_held(state, p)
         case ev.HeldOrderEnded():

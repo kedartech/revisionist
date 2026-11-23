@@ -218,9 +218,9 @@ def test_no_decider_row_is_left_optional_under_its_switch() -> None:
 
 def test_a_question_not_built_yet_is_absent_and_says_so() -> None:
     got = lines_for(TOY)
-    laws = next(line for q, line in got.items() if q.lower().startswith("the laws"))
-    assert laws.status == "absent"
-    assert "not built yet" in laws.text()
+    kinds = next(line for q, line in got.items() if q.lower().startswith("who decides each kind"))
+    assert kinds.status == "absent"
+    assert "not built yet" in kinds.text()
 
 
 def test_the_check_reads_only_the_standard_library_and_the_world_loader() -> None:

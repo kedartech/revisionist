@@ -62,6 +62,7 @@ from revisionist.core.realism import (
     locks,
     mandates,
     offers,
+    office,
     opponents,
     posts,
     process,
@@ -106,7 +107,7 @@ from revisionist.core.realism.route import NOBODY, due_executions, held, route
 from revisionist.core.realism.war import polity_of
 from revisionist.core.realism.war_rules import contacts, order_refusal
 from revisionist.core.resolution import TickStage
-from revisionist.core.state import State
+from revisionist.core.state import QuestionCause, State
 from revisionist.core.visibility import PUBLIC, Scope, Visibility, private_to
 from revisionist.core.world_compile import card_policy, object_id
 from revisionist.engine import campaign as cmp
@@ -407,6 +408,10 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return ladder.scope_of(state, payload.move.seat)  # LDR: the person moved's seat
     if isinstance(payload, ev.PostMoveSettled):
         return ladder.scope_of(state, payload.seat)
+    if isinstance(payload, ev.OfficeQuestionOpened):
+        return office.scope_of(state, payload.question)  # OFQ: the holder's nation's seats
+    if isinstance(payload, ev.OfficeChoiceFiled):
+        return office.choice_scope(payload.seat_id)  # OFQ: sealed to the seat that chose
     if isinstance(payload, ev.DocumentIssued):
         return payload.document.scope
     if isinstance(payload, ev.OrderExecuted | ev.EffectsApplied | ev.InfluenceDecided):
@@ -610,6 +615,9 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         day_from, day_mark = state, len(out)  # GRP: the day's happenings are read from here
         for move_id in ladder.due(state):  # LDR: changes ordered a wake ago land
             add(ladder.land(state, move_id, day))
+        for question_id in office.due(state, day):  # OFQ: a sitting on its day decides
+            add(office.sit(state, question_id, day))
+        add(office.arising(state, day))  # OFQ: an order's or a term's question opens
         add(posts.walk(state, day))  # PPP: a vacant post to its successor, before any step
         add(offers.batch(state, day))  # PRC: the wake's offers, settled before a vote
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))
@@ -794,6 +802,52 @@ def choose_matter(
     locks.may_choose(state, seat, order_id)
     chosen = ev.MatterChosen(order_id=order_id, seat_id=seat, accept=accept, on=today)
     _append_all(store, state, [(chosen, private_to(seat))], seat)
+
+
+def choose_office(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, question_id: str, remove: bool
+) -> None:
+    """The seat's sealed choice on an office question before its sitting (OFQ): True to
+    remove the holder, dated today; a later choice replaces it. Raises ``ValueError`` with
+    the seat's words."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    if today is None:
+        raise ValueError(office.NOT_OPEN)
+    chosen = office.choose(state, seat, question_id, remove, today)
+    _append_all(store, state, [(chosen, office.choice_scope(seat))], seat)
+
+
+def open_office_question(
+    store: EventStore, campaign_id: CampaignId, post: AssetId, cause: QuestionCause
+) -> ev.OfficeQuestionOpened:
+    """Open an office question on ``post`` today for ``cause`` (OFQ), told to every seat of
+    its holder's nation, in one batch checked by the fold first. Raises ``ValueError``
+    with the reason one may not open."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    if today is None:
+        raise ValueError(office.NOT_ON)
+    made = office.open_question(state, post, cause, today)
+    versions = cmp.versions()
+    batch = [
+        Event(
+            event_id=EventId(new_id()),
+            campaign_id=campaign_id,
+            seq=state.last_seq + i,
+            tick=state.tick,
+            actor=None,
+            scope=_scope_of(state, p),
+            payload=p,
+            versions=versions,
+        )
+        for i, p in enumerate(made, start=1)
+    ]
+    replay(batch, initial=state)
+    store.append_all(batch)
+    opened = made[0]
+    assert isinstance(opened, ev.OfficeQuestionOpened)
+    return opened
 
 
 def make_offer(

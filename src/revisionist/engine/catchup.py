@@ -114,6 +114,10 @@ FEED_KINDS: frozenset[str] = frozenset(
         # The pending change of post (LDR): sealed to the seat of the person moved alone.
         "post_move_ordered",
         "post_move_settled",
+        # An office question (OFQ): its opening sealed to every seat of the holder's
+        # nation, whoever plays it; its decision public, as news.
+        "office_question_opened",
+        "office_question_decided",
         "influence_decided",
         "effects_applied",
         # Offers and agreements (AGR): sealed to the parties' seats, public once published,
@@ -144,6 +148,9 @@ NEVER: frozenset[str] = frozenset(
         # A seat's choice on a matter is its own until the due day counts it, and the
         # asker reads only the answer (QKD).
         "matter_chosen",
+        # A member's sealed choice on an office question is his until the sitting counts
+        # it, and nobody reads who chose what (OFQ).
+        "office_choice_filed",
         # A holder's choice at a step on another seat's order is theirs until the
         # step's held due day takes it (SHS).
         "step_chosen",

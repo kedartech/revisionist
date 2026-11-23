@@ -159,6 +159,40 @@ class Wake(Model):
     closed: bool = False
 
 
+class RemovalWay(StrEnum):
+    """How a post's holder is removed at the office question's sitting (OFQ)."""
+
+    VOTE = "vote"
+    """A body's vote: its blocs' default rows on the chamber's vote."""
+    COUNCIL = "council"
+    """A council: removed when as many members as it needs choose so."""
+    PERSON = "person"
+    """One person's choice."""
+    TERM = "term"
+    """At the end of a term, and only then."""
+    NEVER = "never"
+    """Not at all: the post faces no question."""
+
+
+class Removal(Model):
+    """How a post's holder is removed (OFQ): the way, and what it names. Public: world
+    data."""
+
+    way: RemovalWay
+    chamber: str | None = Field(default=None, min_length=1, max_length=40)
+    """``vote``: the chamber whose blocs vote."""
+    vote: str | None = Field(default=None, min_length=1, max_length=40)
+    """``vote``: the vote's key in the blocs' rows."""
+    members: tuple[EntityId, ...] = Field(default=(), max_length=24)
+    """``council``: who sits on it."""
+    needed: int = Field(default=0, ge=0)
+    """``council``: how many must choose removal."""
+    person: EntityId | None = None
+    """``person``: who decides."""
+    ends: date | None = None
+    """``term``: the day the term ends."""
+
+
 class Ladder(Model):
     """A post's ladder (LDR), with ``posts`` on: the lesser posts its holder can fall to,
     in order, and the posts whose holders may move him on their own order. Public: world
@@ -167,6 +201,40 @@ class Ladder(Model):
     post: AssetId
     ladder: tuple[AssetId, ...] = Field(default=(), max_length=8)
     moved_by: tuple[AssetId, ...] = Field(default=(), max_length=8)
+    rests_on: tuple[str, ...] = Field(default=(), max_length=2, exclude_if=lambda v: not v)
+    """With ``office`` on (OFQ): the one or two groups or bodies of its nation the post
+    rests on, by key. TUR reads it."""
+    removed_by: Removal | None = Field(default=None, exclude_if=lambda v: v is None)
+    """With ``office`` on (OFQ): how its holder is removed. None: he faces no question."""
+
+
+class QuestionCause(StrEnum):
+    """Why an office question opened (OFQ)."""
+
+    BASE = "base"
+    """The base the post rests on turned on its holder (TUR)."""
+    INCIDENT = "incident"
+    ORDER = "order"
+    """An order would take the holder's last authority (LDR's question move)."""
+    TERM = "term"
+    """The holder's term ended."""
+
+
+class OfficeQuestion(Model):
+    """An office question open on a post (OFQ): its cause, the day it opened and its
+    sitting, dated ahead. It sits on ``sits`` or the first day after it in the walk of the
+    second wake the seats told can act in. Told to every seat of the holder's nation."""
+
+    question_id: str = Field(min_length=1, max_length=80)
+    post: AssetId
+    holder: EntityId
+    cause: QuestionCause
+    move_id: str | None = Field(default=None, max_length=80)
+    """``order``: the pending change of post that stands as its cause."""
+    opened: date
+    tick: int = Field(ge=0)
+    """The first wake (tick) the seats told can act in."""
+    sits: date
 
 
 class PostMove(Model):
@@ -351,6 +419,20 @@ class State(_World):
     """With ``posts`` on, each change of post ordered and not yet settled, by its id
     (``post_move_ordered``, until ``post_move_settled``), LDR. Engine only: the seat of
     the person moved reads it from its paper and its feed."""
+    office_questions: dict[str, OfficeQuestion] = Field(
+        default_factory=dict, exclude_if=lambda v: not v
+    )
+    """With ``office`` on, each office question open, by its id (``office_question_opened``,
+    until ``office_question_decided``), OFQ. Engine only: the seats told read it from their
+    paper and their feed."""
+    office_choices: dict[str, dict[SeatId, bool]] = Field(
+        default_factory=dict, exclude_if=lambda v: not v
+    )
+    """Each open question's sealed choices, by question and seat: True to remove
+    (``office_choice_filed``, OFQ). Engine only: no seat learns another's."""
+    office_rests: dict[AssetId, date] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """Each post whose holder was kept at a sitting, and the day before which no question
+    on it opens again (OFQ)."""
     chosen: dict[OrderId, dict[SeatId, bool]] = Field(
         default_factory=dict, exclude_if=lambda v: not v
     )

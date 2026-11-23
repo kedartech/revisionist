@@ -117,6 +117,8 @@ def test_the_ladders_and_a_pending_change_of_post_are_fed() -> None:
     # Who may move a post and where its holder falls are public rules of the world; the
     # pending change and its settling are sealed to the seat of the person moved (LDR).
     assert {"ladders_declared", "post_move_ordered", "post_move_settled"} <= catchup.FEED_KINDS
+    assert {"office_question_opened", "office_question_decided"} <= catchup.FEED_KINDS
+    assert "office_choice_filed" in catchup.NEVER
 
 
 def test_the_worlds_aim_patterns_and_a_seats_own_aim_are_fed() -> None:

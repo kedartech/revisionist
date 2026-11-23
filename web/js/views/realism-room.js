@@ -56,6 +56,7 @@ import { sideSwitch, tabBar } from './realism-tabs.js';
 import { noticesSection } from './realism-notices.js';
 import { followThread, threadItems } from './realism-thread.js';
 import { threatsPanel } from './realism-threats.js';
+import { fitStrip, lightTogether, timelineStrip } from './realism-timeline.js';
 import { trayView } from './realism-tray.js';
 import { RUNNING, comeBackLine, commitBusy, commitPanel, orderCard, stylePicker, wakeHeader } from './realism-wake.js';
 
@@ -66,7 +67,7 @@ const freshUi = (game) => ({
   happenedSeen: null, missed: null, missedAsked: false, refocusChat: false, brief: null, pending: null, drafts: {}, letters: [], playedTo: null, playing: null, missedPlay: null, offer: null, menuCall: false,
   tab: 'desk', side: 'papers', press: { open: false, tab: null }, pressPage: null, peopleTab: 'opponents',
   view: 'board', board: 'theatre', piece: null, theatre: { mode: 'map', scope: 'reports' },
-  firstWakeOff: null, sheet: null, sheetFrom: null, sheetForms: {}, matter: null, full: false,
+  firstWakeOff: null, sheet: null, sheetFrom: null, sheetForms: {}, matter: null, full: false, timeline: false,
 });
 let ui = freshUi(null);
 // the room last drawn: a re-read (the minute poll) keeps the values in its open sheet's forms
@@ -1088,6 +1089,7 @@ export function realismRoom(ctx) {
     if (from?.home) return root.querySelector('.rl-strip .rl-home-own');
     if (from?.nations) return returnTarget(root, { group: 'world' });
     if (from?.aims) return root.querySelector('.rl-aimmark');
+    if (from?.timeline) return root.querySelector('.rl-tl-head');
     if (from?.battle) return [...root.querySelectorAll('.rl-mapfirst g.rl-bt-mark')].find((g) => g.getAttribute('data-area') === from.battle) ?? null;
     return returnTarget(root, from);
   }
@@ -1437,6 +1439,23 @@ export function realismRoom(ctx) {
     rerender();
   }
 
+  /** The season's strip opens or closes, with the focus kept on its head. */
+  function toggleTimeline() {
+    ui.timeline = !ui.timeline;
+    rerender();
+    root.querySelector('.rl-tl-head')?.focus();
+  }
+
+  /** A row of the season's strip opens its item where it lives: the line's own action, the aims, a sheet or the piece. */
+  function openMark({ open: to }) {
+    ui.timeline = false;
+    if (to.to === 'need') return to.line.action ? needAction(to.line) : toggleNeeds();
+    if (to.to === 'piece') return pickOnMap({ piece: { kind: 'force', name: to.name } });
+    openSheet(ui, to.to === 'aims' ? 'aims' : to.sheet, { timeline: true });
+    rerender();
+    root.querySelector('.rl-over-title')?.focus();
+  }
+
   /** The first-day card's words with its Dismiss, for the list's first row; null when it is not due. */
   function firstWake() {
     const words = firstWakeWords(rv.wake, { dismissed: ui.firstWakeOff, beginner: beginner() });
@@ -1485,9 +1504,13 @@ export function realismRoom(ctx) {
     });
     const tabs = [groupTabs(name, counts, (key) => toggleGroup(key, drawn), drawn), chatButton(name === 'messages', chatUnread(), toggleChat)];
     const aims = aimMarks(rv.stakes?.aims, { open: name === 'aims', onOpen: toggleAims });
+    const season = timelineStrip(rv, lines, { open: ui.timeline, onToggle: toggleTimeline, onOpen: openMark });
+    const at = season ? ` rl-tl-on${ui.timeline ? ' rl-tl-open' : ''}` : '';
+    const section = lightTogether(h('section', { class: `rl-mapfirst-map${at}`, 'aria-label': 'The map' }, map, season, status));
+    if (season && ui.timeline) globalThis.requestAnimationFrame?.(() => fitStrip(section));
     return [roomBar(rv, { tabs, menu: menuBtn, aims, act }),
       h('main', { class: `rl-mapfirst${sheet ? ' sheeted' : ''}`, 'aria-label': 'Map' },
-        listed, h('section', { class: 'rl-mapfirst-map', 'aria-label': 'The map' }, map, status), sheet),
+        listed, section, sheet),
       needsBar(rv, lines, { open: name === 'needs', onToggle: toggleNeeds, onDone: done })];
   }
 

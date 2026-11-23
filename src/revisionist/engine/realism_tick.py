@@ -643,6 +643,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         today = [e.payload for e in out[day_mark:]]
         add(agreement.judge(state, day, today))  # AGR: each clause on its day, from the state
         add(groups.react(state, day_from, today, day, sea=before_on_day))
+        add(groups.places(state, day_from, today, day))  # PLW: weighted places changed hands
         add(groups.losses(state, day_from, today, day))  # LSS: the day's losses, by size
         add(groups.batch(state, day))  # GRP: the day's writing, settled in one batch
         add(groups.drift(state, day))  # GRP: on a Monday, toward the baseline
@@ -679,6 +680,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
     add(holders.close(state, until))  # the wake's close: a capital marked before falls
     closing = [e.payload for e in out[close_mark:]]
     add(groups.react(state, close_from, closing, until))  # GRP: the close's happenings
+    add(groups.places(state, close_from, closing, until))  # PLW: a capital that fell
     add(contests.moves(state, walk_from, [e.payload for e in out[walk_mark:]], until, until))
     return out
 

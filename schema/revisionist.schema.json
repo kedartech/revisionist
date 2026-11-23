@@ -3053,7 +3053,10 @@
           "promise_broken",
           "battle_losses",
           "losses_felt",
-          "losses_halved"
+          "losses_halved",
+          "place_lost",
+          "place_abandoned",
+          "place_retaken"
         ],
         "title": "Cause",
         "type": "string"
@@ -7449,6 +7452,14 @@
             },
             "title": "Nations",
             "type": "array"
+          },
+          "places": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Place"
+            },
+            "title": "Places",
+            "type": "array"
           }
         },
         "title": "GroupsDeclared",
@@ -7467,7 +7478,10 @@
           "measure_passed",
           "war_declared",
           "daily_life_passed",
-          "battle_losses"
+          "battle_losses",
+          "place_lost",
+          "place_abandoned",
+          "place_retaken"
         ],
         "title": "Happening",
         "type": "string"
@@ -10631,7 +10645,7 @@
       },
       "PieceStepped": {
         "additionalProperties": false,
-        "description": "A piece entered an area: one step, by order, by the record, or forced. Sealed to the\nseats of the piece's own nation, who know it by its mark (``territory.mark_key``), not\nits id. A record: the ``feature_set`` beside it moves the piece.",
+        "description": "A piece entered an area: one step, by order, by the record, or forced. Sealed to the\nseats of the piece's own nation, who know it by its mark (``territory.mark_key``), not\nits id. The ``feature_set`` beside it moves the piece; with ``places`` on, a step out\nof a weighted place is kept as the day the nation's piece left it (PLW).",
         "properties": {
           "cause": {
             "$ref": "#/$defs/StepCause"
@@ -10704,6 +10718,38 @@
           "steps"
         ],
         "title": "Pipeline",
+        "type": "object"
+      },
+      "Place": {
+        "additionalProperties": false,
+        "description": "A place with political weight (PLW): a territory, the nation it matters to, and the\npoints each of that nation's groups moves when it is lost in a fight, signed.",
+        "properties": {
+          "moves": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Moves",
+            "type": "object"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "territory": {
+            "title": "Territory",
+            "type": "string"
+          }
+        },
+        "required": [
+          "territory",
+          "nation",
+          "moves"
+        ],
+        "title": "Place",
         "type": "object"
       },
       "Plausibility": {
@@ -20674,6 +20720,25 @@
             "title": "Held",
             "type": "array"
           },
+          "left": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "format": "date",
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Left",
+            "type": "object"
+          },
+          "places": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Place"
+            },
+            "title": "Places",
+            "type": "array"
+          },
           "proposed": {
             "default": [],
             "items": {
@@ -20740,7 +20805,10 @@
           "measure_passed",
           "war_declared",
           "daily_life_passed",
-          "battle_losses"
+          "battle_losses",
+          "place_lost",
+          "place_abandoned",
+          "place_retaken"
         ],
         "title": "Happening",
         "type": "string"
@@ -22896,6 +22964,38 @@
           "steps"
         ],
         "title": "Pipeline",
+        "type": "object"
+      },
+      "Place": {
+        "additionalProperties": false,
+        "description": "A place with political weight (PLW): a territory, the nation it matters to, and the\npoints each of that nation's groups moves when it is lost in a fight, signed.",
+        "properties": {
+          "moves": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Moves",
+            "type": "object"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "territory": {
+            "title": "Territory",
+            "type": "string"
+          }
+        },
+        "required": [
+          "territory",
+          "nation",
+          "moves"
+        ],
+        "title": "Place",
         "type": "object"
       },
       "Plausibility": {
@@ -30719,6 +30819,25 @@
             "title": "Held",
             "type": "array"
           },
+          "left": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "format": "date",
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Left",
+            "type": "object"
+          },
+          "places": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Place"
+            },
+            "title": "Places",
+            "type": "array"
+          },
           "proposed": {
             "default": [],
             "items": {
@@ -30785,7 +30904,10 @@
           "measure_passed",
           "war_declared",
           "daily_life_passed",
-          "battle_losses"
+          "battle_losses",
+          "place_lost",
+          "place_abandoned",
+          "place_retaken"
         ],
         "title": "Happening",
         "type": "string"
@@ -32743,6 +32865,38 @@
           "days_per_step"
         ],
         "title": "PieceKind",
+        "type": "object"
+      },
+      "Place": {
+        "additionalProperties": false,
+        "description": "A place with political weight (PLW): a territory, the nation it matters to, and the\npoints each of that nation's groups moves when it is lost in a fight, signed.",
+        "properties": {
+          "moves": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Moves",
+            "type": "object"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "territory": {
+            "title": "Territory",
+            "type": "string"
+          }
+        },
+        "required": [
+          "territory",
+          "nation",
+          "moves"
+        ],
+        "title": "Place",
         "type": "object"
       },
       "Plausibility": {

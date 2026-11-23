@@ -1034,6 +1034,9 @@ class GroupMove(TypedDict):
         "battle_losses",
         "losses_felt",
         "losses_halved",
+        "place_lost",
+        "place_abandoned",
+        "place_retaken",
     ]
     change: int
     on: str

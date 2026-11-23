@@ -4,66 +4,67 @@
    meaning alone: a word or an icon goes with it. */
 :root {
   /* Grounds */
-  --bg: #0b0f14;
-  --surface: #10161d;
-  --surface-2: #151c25;
-  --surface-3: #1b2430;
-  --field: #0b0f14;
-  --cover: #151c25;                /* a closed in-tray folder */
-  --cover-open: #1b2430;           /* a read one */
-  --cover-edge: #34475c;           /* decorative edge only */
-  --backdrop: rgb(0 0 0 / .7);
+  --bg: #0b0c0e;
+  --surface: #131517;
+  --surface-2: #181a1d;
+  --surface-3: #202326;
+  --field: #0f0f0f;
+  --cover: #1b1b1b;                /* a closed in-tray folder */
+  --cover-open: #232323;           /* a read one */
+  --cover-edge: #454545;           /* decorative edge only */
+  --backdrop: rgb(0 0 0 / .72);
 
   /* Text */
-  --fg: #c5d0db;
-  --fg-strong: #eef3f8;
-  --fg-read: #d6dee6;              /* long prose */
-  --fg-muted: #8a9bad;             /* 5.5 on surface-3 */
+  --fg: #c6cacf;
+  --fg-strong: #f2f4f6;
+  --fg-read: #d8dbdf;              /* long prose */
+  --fg-muted: #90969d;             /* 5.3 on surface-3 */
 
   /* Lines. --rule and --rule-strong are decoration only; a field border and a focus ring use their own tokens */
-  --rule: #243040;
-  --rule-strong: #34475c;
-  --field-border: #60768e;
-  --focus: #4cc9f0;
+  --rule: #26292d;
+  --rule-strong: #3a3e43;
+  --field-border: #6b7077;
+  --focus: #f2f4f6;
 
-  /* A selected or primary control: green is the action colour */
-  --accent: #3ddc84;
-  --accent-bg: #2fc774;
-  --accent-hover: #5fe69c;
-  --on-accent: #04140b;
+  /* A selected or primary control: white on charcoal. Amber is for what is due or live, red for
+     what is hostile, failing or lost; everything else is neutral */
+  --accent: #eceef0;
+  --accent-bg: #e6e8eb;
+  --accent-hover: #ffffff;
+  --on-accent: #0b0c0e;
 
   /* Status and intelligence: always with an icon or a word beside it */
-  --ok: #3ddc84;
-  --info: #4cc9f0;
-  --warn: #ffb547;
-  --danger: #ff6b6b;
-  --intel: #b8a4ff;
+  --ok: #c2c2c2;
+  --info: #b4bac2;
+  --warn: #ffb224;
+  --danger: #f07363;
+  --intel: #c9ced4;
 
-  /* A soft ground under each accent (12% of it over --surface) */
-  --accent-soft: #152e29;
-  --ok-soft: #152e29;
-  --info-soft: #172b36;
-  --warn-soft: #2d2922;
-  --danger-soft: #2d2026;
-  --intel-soft: #242738;
+  /* A soft ground under each accent, a few steps over --surface */
+  --accent-soft: #1d1f22;
+  --ok-soft: #2a2a2a;
+  --info-soft: #1b1d20;
+  --warn-soft: #2a2418;
+  --danger-soft: #2e2020;
+  --intel-soft: #282828;
 
   /* The header frame */
-  --chrome-bg: #10161d;
-  --chrome-fg: #d6dee6;
-  --chrome-fg-muted: #8a9bad;
-  --chrome-accent: #3ddc84;
-  --chrome-accent-strong: #6ee6a4;
-  --chrome-field-border: #60768e;
-  --chrome-rule: #243040;
+  --chrome-bg: #151515;
+  --chrome-fg: #dddddd;
+  --chrome-fg-muted: #999999;
+  --chrome-accent: #c2c2c2;
+  --chrome-accent-strong: #cfcfcf;
+  --chrome-field-border: #747474;
+  --chrome-rule: #2f2f2f;
 
   /* Chart colours */
-  --chart-sea: #0c1622;
-  --chart-land: #1b2430;
-  --chart-line: #60768e;
+  --chart-sea: #0f1012;
+  --chart-land: #202326;
+  --chart-line: #6b7077;
 
-  /* Portraits: a phosphor duotone, shadows to --duo-dark and highlights to --duo-light */
-  --duo-dark: #06180d;
-  --duo-light: #8dffb4;
+  /* Portraits: plain greyscale, shadows to --duo-dark and highlights to --duo-light */
+  --duo-dark: #141414;
+  --duo-light: #e8e8e8;
   --scanline: rgb(0 0 0 / .28);
 
   --radius: 6px;

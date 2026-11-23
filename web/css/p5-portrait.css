@@ -1,6 +1,6 @@
-/* Portraits: a phosphor duotone from two tokens, so every photograph reads as one set.
+/* Portraits: plain greyscale from two neutral tokens, so every photograph reads as one set.
    The grey image multiplies onto a frame filled with the light tone; ::after lightens the
-   blacks up to the dark tone; ::before draws the scanlines. The blend sits on the img itself:
+   blacks up to the dark tone, with no tint; ::before draws the scanlines. The blend sits on the img itself:
    a blending pseudo-element over a filtered img renders plain grey in Chrome. Tokens only,
    no JS, inside the CSP. The monogram is not styled here. */
 .portrait-frame {

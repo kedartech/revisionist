@@ -166,7 +166,7 @@ as well.
 | Whether a group hears another nation's writing | `groups.groups.abroad` | true or false | `writing` | it hears only its own nation's | - | on main |
 | The themes a nation's writing may name, and how far each moves each group | `groups.themes`, `groups.themes.{key, name, moves}` | by group key, signed points within the day's cap | `writing` | writing names no theme | - | on main |
 | The size of losses as a happening, and how far it moves each group | `groups.groups.losses` | points a step lost, capped by the day | `losses` | losses move no group except at sea | - | this run: the size of losses moves the mood at home |
-| A bloc's price list | `groups.groups.prices` | a sentence, a condition, days, points of yes share, and the support lost if unmet | `offers` | no bloc can be offered a price | - | this run: the priced move |
+| A bloc's price list | `groups.groups.prices`, `groups.groups.prices.{key, sentence, condition, days, points, loss}` | a key, once in the bloc; free wording; a condition built from the checks aims use, holding at least one check an act changes (`ordered`, `quantity_at`, `holds_office`, `agreement_in_force`); days from 1 to 366 after the measure passes; points of yes share from 1 to 20; the support lost if unmet, 0 to 100. Only a chamber's bloc has prices, and a measure is a law of the bloc's nation (`laws`) | `offers`, with `groups` and `laws` | no bloc can be offered a price | - | on main |
 | Whether a group is a service of the armed forces, and which posts see it | `groups.groups.service` | yes, with the posts; no | - | every group is seen by its nation | - | parked |
 
 ## 5. Offices and posts

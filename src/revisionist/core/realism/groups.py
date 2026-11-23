@@ -52,6 +52,7 @@ from pydantic import Field, model_validator
 from revisionist.core._base import Label, Model
 from revisionist.core.ids import EntityId, SeatId
 from revisionist.core.realism.effect import GROUP_DAY_CAP, ClauseKind, GroupNudge
+from revisionist.core.realism.offers import Price
 
 if TYPE_CHECKING:
     from revisionist.core.events import GroupMoved, GroupProposed, Payload
@@ -127,6 +128,12 @@ class Cause(StrEnum):
     WAR_DECLARED = "war_declared"
     WRITING = "writing"
     DRIFT = "drift"
+    OFFER_TAKEN = "offer_taken"
+    """An offer of a price taken by a bloc (PRC)."""
+    PROMISE_KEPT = "promise_kept"
+    """A promise made to a bloc kept on its due day (PRC)."""
+    PROMISE_BROKEN = "promise_broken"
+    """A promise made to a bloc unmet on its due day (PRC)."""
 
 
 class BlocVote(Model):
@@ -167,8 +174,11 @@ class Group(Model):
     abroad: bool = False
     """The group hears another nation's writing: a nudge from abroad may move it by up to
     ``ABROAD_CAP`` (FWG)."""
+    prices: tuple[Price, ...] = ()
+    """What a chamber's bloc will take for its votes on a measure, in the world's order
+    (PRC): read with ``offers`` on."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"abroad"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"abroad", "prices"})
 
     @model_validator(mode="after")
     def _bloc(self) -> "Group":
@@ -176,6 +186,8 @@ class Group(Model):
             raise ValueError("a bloc names its chamber and its seats together")
         if self.chamber is None and (self.votes or self.vote_default or self.stances):
             raise ValueError("only a chamber's bloc has votes and stances")
+        if self.chamber is None and self.prices:
+            raise ValueError("only a chamber's bloc has prices")
         return self
 
 

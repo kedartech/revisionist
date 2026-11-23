@@ -773,3 +773,31 @@ def test_a_cards_answer_to_an_ask_is_fed_to_the_asker_only() -> None:
         return catchup._named(answer, typing.cast(View, SimpleNamespace(viewer=SeatId(viewer))))
 
     assert seen("mine") and not seen("hers") and not seen("other")
+
+
+def test_an_offer_to_a_bloc_and_where_it_stands_are_fed_to_the_seats_that_see_it() -> None:
+    # PRC: sealed to the seats of the bloc's nation, and kept only while the offer is in
+    # the seat's view; a seat of another nation never reads it, whatever the envelope says.
+    from revisionist.core.realism.offers import OfferStanding, PricedOffer
+
+    assert {"offer_made", "offer_settled"} <= catchup.FEED_KINDS
+    made = PricedOffer(
+        offer_id="an-offer",
+        seat=SeatId("mine"),
+        nation=EntityId("norra"),
+        bloc="greens",
+        measure="barge_act",
+        price="harbour_dues",
+        bill=OrderId("bill"),
+        filed=date(1900, 4, 2),
+    )
+    settled = ev.OfferSettled(
+        offer_id="an-offer", standing=OfferStanding.TAKEN, on=date(1900, 4, 3)
+    )
+
+    def seen(payload: ev.Payload, offers: tuple[PricedOffer, ...]) -> bool:
+        view = SimpleNamespace(viewer=SeatId("mine"), offers=offers)
+        return catchup._named(payload, typing.cast(View, view))
+
+    for payload in (ev.OfferMade(offer=made), settled):
+        assert seen(payload, (made,)) and not seen(payload, ())

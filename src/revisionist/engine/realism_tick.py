@@ -59,6 +59,7 @@ from revisionist.core.realism import (
     holders,
     locks,
     mandates,
+    offers,
     opponents,
     process,
 )
@@ -428,6 +429,11 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return _nation_scope(state, payload.polity)
     if isinstance(payload, ev.GroupMoved):
         return _nation_scope(state, payload.polity)  # true support: the nation's seats (GRP)
+    if isinstance(payload, ev.OfferMade):
+        return _nation_scope(state, payload.offer.nation)  # PRC: the bloc's nation's seats
+    if isinstance(payload, ev.OfferSettled):
+        settled = next(o for o in state.offers if o.offer_id == payload.offer_id)
+        return _nation_scope(state, settled.nation)
     if isinstance(payload, ev.GroupProposed):
         # Engine only: the writing in waiting; the batch, not the filing, moves a group.
         held = SeatId(derived_id(state.campaign_id, "engine-only", "groups"))
@@ -595,6 +601,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         day += timedelta(days=1)
         start, begun = begun or state, None
         day_from, day_mark = state, len(out)  # GRP: the day's happenings are read from here
+        add(offers.batch(state, day))  # PRC: the wake's offers, settled before a vote
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))
         add(steps)
         settled = history.settle(state, day)
@@ -635,6 +642,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(groups.react(state, day_from, today, day, sea=before_on_day))
         add(groups.batch(state, day))  # GRP: the day's writing, settled in one batch
         add(groups.drift(state, day))  # GRP: on a Monday, toward the baseline
+        add(offers.walk(state, day))  # PRC: a measure decided, a promise on its due day
         read = [e.payload for e in out[walk_mark:]]
         add(contests.moves(state, walk_from, read, day - timedelta(days=1), day))  # CON
         walk_from, walk_mark = state, len(out)
@@ -773,6 +781,21 @@ def choose_matter(
     locks.may_choose(state, seat, order_id)
     chosen = ev.MatterChosen(order_id=order_id, seat_id=seat, accept=accept, on=today)
     _append_all(store, state, [(chosen, private_to(seat))], seat)
+
+
+def make_offer(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, bloc: str, measure: str, price: str
+) -> offers.PricedOffer:
+    """The seat offers ``price`` to ``bloc`` of its own nation for ``measure`` (PRC), dated
+    today and sealed to the seats of that nation; the next day's batch takes or refuses it.
+    Raises ``ValueError`` with the seat's words."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    if today is None:
+        raise ValueError(offers.NOT_ON)
+    made = offers.offer(state, seat, bloc, measure, price, today)
+    _append_all(store, state, [(made, _nation_scope(state, made.offer.nation))], seat)
+    return made.offer
 
 
 def set_own_aim(

@@ -327,7 +327,9 @@ def _build(state: State, order: Order, today: date) -> list["rs.Change"]:
             ],
         )
         return [paper] if paper is not None else []
-    spent = Pools(output=pools.output - STEP_COST, manpower=pools.manpower - STEP_MANPOWER)
+    spent = pools.model_copy(
+        update={"output": pools.output - STEP_COST, "manpower": pools.manpower - STEP_MANPOWER}
+    )
     paper = _report(
         state,
         order,

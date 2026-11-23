@@ -161,6 +161,21 @@ def test_a_step_lands_after_the_lead_time_and_is_paid_from_both_pools(tmp_path: 
     assert "The Norra Levy" in said(paper)
 
 
+def with_fuel(w: World) -> None:
+    w["rules"] = [*{*w["rules"], "fuel"}]
+
+
+def test_a_built_step_keeps_the_fuel_stock(tmp_path: Path) -> None:
+    stock = Pools(output=50, manpower=5, fuel=40)
+    g = game(tmp_path, with_fuel, pools={NORRA: stock})
+    enact(g, "ilse", force=LEVY)
+    walk_days(g, 1, LEAD_DAYS)
+    assert tier(g, LEVY) == 3
+    assert pools(g, NORRA) == Pools(
+        output=stock.output - STEP_COST, manpower=stock.manpower - STEP_MANPOWER, fuel=40
+    )
+
+
 def test_the_defaults() -> None:
     assert (STEP_COST, STEP_MANPOWER, LEAD_DAYS) == (10, 1, 30)
 

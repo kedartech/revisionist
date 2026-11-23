@@ -33,6 +33,7 @@ from revisionist.core.visibility import PUBLIC
 from revisionist.core.world_compile import resolve_keys
 from revisionist.engine import campaign as cmp
 from revisionist.engine import counsel, realism_tick, session_zero
+from revisionist.engine.llm import quote_player
 from revisionist.engine.store import load_state
 from revisionist.engine.web.accounts import WebSeats
 from tests.test_web import Client, Web, _florence, web  # noqa: F401
@@ -809,7 +810,7 @@ def test_the_aide_answers_how_to_and_keeps_the_thread(solo: tuple[Realism, Clien
     assert said["from"] == "aide" and said["lever"] == "propose_levy"
     assert said["label"] == "Propose a levy" and "Standard forms" in said["text"]
     (prompt,) = reader.prompts
-    assert prompt.endswith("How do I raise money for the harbour?")
+    assert prompt.endswith(quote_player("How do I raise money for the harbour?"))
     assert realism_of(ada)["help"] == out["help"]
     # a form the desk does not hold is not offered
     aide(game, {"text": "Use the other form.", "lever": "nonesuch"})

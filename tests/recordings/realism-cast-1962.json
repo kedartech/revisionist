@@ -513,12 +513,12 @@
    "usd": 0.008012
   }
  },
- "7bc6112027851d13be7e66cc": {
+ "92de5211d04750f76e7c1e5c": {
   "call_class": "pitch",
   "hand_written": true,
   "model": "claude-haiku-5-5",
   "note": "hand-written for tests; not a model reply",
-  "prompt_head": "## Pitch\nThe Cuban missile crisis, from the first photographs",
+  "prompt_head": "## Pitch\n<<<player text uwftuhzqriepluqr>>>\nThe Cuban missile crisis, from the first photographs\n<<<end player text uwft",
   "reply": {
    "cached_tokens": 428,
    "input_tokens": 443,

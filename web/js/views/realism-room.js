@@ -47,7 +47,8 @@ import {
   GROUPS, chatButton, formSearch, formsTaking, groupOf, groupTabs, partFor, partTabs, personMoves,
 } from './realism-groups.js';
 import { openAim, stakesStrip } from './realism-stakes.js';
-import { economyStrip, foldEconomy } from './realism-economy.js';
+import { foldEconomy } from './realism-economy.js';
+import { nationRows, nationsPanel } from './realism-nations.js';
 import { foldOdds } from './realism-odds.js';
 import { loadShapes, shapesFor, theatreBoard } from './realism-theatre.js';
 import { aimMarks, roomBar, statusStrip, summaryTiles } from './realism-status.js';
@@ -1370,7 +1371,7 @@ export function realismRoom(ctx) {
   /** The parts Beginner leaves out of their group until a line in the list is in them. */
   const QUIET = ['court', 'home', 'diplomacy'];
   /** Whether part `key` has a body in this game: the Standing part has none yet, and Nations, Home and Diplomacy need their blocks. */
-  const hasPart = (key) => (key === 'nations' ? Boolean(nationsBody()) : key === 'home' ? Boolean(rv.home)
+  const hasPart = (key) => (key === 'nations' ? nationRows(rv).length > 0 : key === 'home' ? Boolean(rv.home)
     : key === 'diplomacy' ? hasDiplomacy(rv) : key !== 'standing');
   /** Every part the room has, by group, for the menu's quiet route on Beginner. */
   const everyPart = () => GROUPS.map((g) => ({ ...g, parts: g.parts.filter(([key]) => hasPart(key)) })).filter((g) => g.parts.length);
@@ -1378,12 +1379,18 @@ export function realismRoom(ctx) {
   const drawnParts = (open, marks) => GROUPS.flatMap((g) => g.parts.map(([key]) => key))
     .filter((key) => hasPart(key) && (!beginner() || !QUIET.includes(key) || marks[key] || key === open));
 
-  /** The nations' figures and their bands at home, as today's strip draws them, for the Nations part; null with neither. */
+  /** The Nations part: the nations as a bar chart, with a card each; null with neither an economy nor a home block. */
   function nationsBody() {
     const onOffer = mapFirst() && rv.agreements ? offerTo : null;
-    const body = withHome(h('div', { class: 'rl-nations-body' }, economyStrip(rv, { act, onOffer })), rv,
-      { open: openSheetOf(ui) === 'home', onOpen: toggleHome });
-    return body.children.length ? body : null;
+    ui.nations ??= {};
+    return nationsPanel(rv, { state: ui.nations, act, onOffer, onHome: homeFromCard });
+  }
+
+  /** The seat's own card's At home: World opens at Home. */
+  function homeFromCard() {
+    openSheet(ui, 'home', { group: 'world' });
+    rerender();
+    root.querySelector('.rl-over-title')?.focus();
   }
 
   /** A nation's card's Make an offer: World opens at Diplomacy with the offer made out to that nation. */

@@ -1,0 +1,57 @@
+/* The nations as a bar chart, with a card each (realism-nations.js), in World's Nations part.
+   A row is the flag, the name (from 1024 px; under it the flag labels the row), the relation's mark,
+   the bar and the figure. The seat's own bar is the strong neutral, an enemy's is red, every other
+   neutral; the relation is also a shape, so no difference rests on colour. Tokens only; a row is a
+   44 px target. */
+.rl-nb { display: grid; gap: var(--space-3); min-width: 0; }
+.rl-nb-hint { margin: 0; color: var(--fg-muted); font: 13px/1.45 var(--font-read); }
+.rl-nb-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.rl-nb-row { width: 100%; min-height: 44px; display: grid; grid-template-columns: auto minmax(7rem, 11rem) 12px minmax(3rem, 1fr) 3.5rem; align-items: center; gap: var(--space-2); padding: 0 var(--space-2); background: transparent; color: var(--fg); border: 1px solid transparent; border-radius: var(--radius); font: 13px/1.3 var(--font-read); text-align: left; cursor: pointer; }
+.rl-nb[data-mode="list"] .rl-nb-row { grid-template-columns: auto minmax(7rem, 1fr) 12px auto; }
+.rl-nb-row:hover { background: var(--surface-2); }
+.rl-nb-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-nb-own { color: var(--fg-strong); font-weight: 600; }
+.rl-nb-yours { font: 500 11px/1 var(--font-chrome); color: var(--fg-muted); }
+.rl-nb-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rl-nb-rel { width: 12px; height: 12px; fill: none; stroke: var(--fg-muted); stroke-width: 2; stroke-linecap: round; }
+.rl-nb-rel[data-relation="own"] { fill: var(--fg-strong); stroke: var(--fg-strong); stroke-width: 1; }
+.rl-nb-rel[data-relation="enemy"] { stroke: var(--danger); }
+.rl-nb-bar { display: block; width: 100%; height: 10px; }
+.rl-nb-track { fill: var(--surface-3); }
+.rl-nb-fill { fill: var(--fg-muted); }
+.rl-nb-row[data-relation="own"] .rl-nb-fill, .rl-nb-card[data-relation="own"] .rl-nb-fill { fill: var(--fg-strong); }
+.rl-nb-row[data-relation="enemy"] .rl-nb-fill, .rl-nb-card[data-relation="enemy"] .rl-nb-fill { fill: var(--danger); }
+.rl-nb-num { text-align: right; font: 12px/1 var(--font-chrome); font-variant-numeric: tabular-nums; color: var(--fg-muted); }
+.rl-nb-own .rl-nb-num { color: var(--fg-strong); }
+.rl-nb-band { font: 12px/1 var(--font-chrome); color: var(--fg-muted); }
+.rl-nb-all { min-height: 44px; width: 100%; }
+
+.rl-nb-card { display: grid; gap: var(--space-3); min-width: 0; overflow-wrap: anywhere; }
+.rl-nb-back { justify-self: start; min-height: 44px; }
+.rl-nb-cardhead { display: flex; align-items: center; gap: var(--space-3); }
+.rl-nb-card-title { margin: 0; font: 600 20px/1.25 var(--font-head); color: var(--fg-strong); }
+.rl-nb-card-title:focus { outline: none; }
+.rl-nb-card-title:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-nb-relation { margin: var(--space-1) 0 0; display: flex; align-items: center; gap: var(--space-1); color: var(--fg-muted); font: 13px/1.3 var(--font-read); }
+.rl-nb-fact { display: grid; gap: var(--space-1); }
+.rl-nb-fact h4 { margin: 0; font: 600 12px/1.3 var(--font-chrome); text-transform: uppercase; letter-spacing: .06em; color: var(--fg-muted); }
+.rl-nb-fact p { margin: 0; }
+.rl-nb-figure { font: 600 16px/1.2 var(--font-chrome); font-variant-numeric: tabular-nums; color: var(--fg-strong); }
+.rl-nb-meter { display: inline-flex; gap: 3px; }
+.rl-nb-step { width: 18px; height: 8px; border: 1px solid var(--fg-muted); border-radius: 2px; }
+.rl-nb-step.on { background: var(--fg-strong); border-color: var(--fg-strong); }
+.rl-nb-ways { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.rl-nb-ways .rl-btn { min-height: 44px; }
+
+@media (forced-colors: active) {
+  .rl-nb-fill, .rl-nb-rel[data-relation="own"] { fill: CanvasText; }
+  .rl-nb-rel { stroke: CanvasText; }
+  .rl-nb-step.on { background: CanvasText; }
+}
+
+/* under 1024 px the panel is a half sheet: the flag labels the row and the name is on the card */
+@media (max-width: 1023px) {
+  .rl-nb-name { display: none; }
+  .rl-nb-row { grid-template-columns: auto 12px minmax(3rem, 1fr) 3.5rem; }
+  .rl-nb[data-mode="list"] .rl-nb-row { grid-template-columns: auto 12px 1fr; }
+}

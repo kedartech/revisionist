@@ -1,7 +1,8 @@
 """Browser smoke run of the realism room against a live `revisionist web serve`.
 
 Signs up a fresh account and either joins a realism game with an invite code or, with
-the code `new`, starts the ready-made game as its host and plays Franklin D. Roosevelt.
+the code `new`, starts the ready-made game as its host and plays Franklin D. Roosevelt, chosen by
+nation, path and person (by keyboard alone at desktop width, by taps at 390).
 With the code `v2` it starts the engine-v2 slice from the timeline instead and checks
 the timeline, who held power and the play style first.
 Checks the room: the header names the player and its two names open the setting and the
@@ -237,7 +238,7 @@ def main() -> int:
             page.get_by_role("link", name="Start a new game").click()
             page.get_by_role("button", name="Start Autumn 1941").click()
             page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
-            play_from_dossier(page, report, "Franklin D. Roosevelt")
+            opening_steps(page, report, "Franklin D. Roosevelt")
             release_and_repick(page, report, "Franklin D. Roosevelt")
             page.get_by_role("button", name="Begin the game").wait_for(timeout=60_000)
             begin_with_crawl(page, report)
@@ -254,10 +255,12 @@ def main() -> int:
             if PHONE:
                 phone_board(page, report)
                 locked_order(page, report)
+                capital_board(page, report)
             else:
                 keyboard_move(page, report)
                 withdraw_move(page, report)
                 locked_order(page, report)
+                capital_board(page, report)
                 page.get_by_role("group", name="View").get_by_role("button", name="Desk").click()
                 page.locator("main.rl-room").wait_for(timeout=10_000)
                 header_and_menu(page, report, host)
@@ -279,6 +282,10 @@ def main() -> int:
         if host and not PHONE:
             end_game(page, report, v2)
         if host and not v2:
+            # the first game's checks are kept even when the Salt Strait walk stops short
+            (OUT / "report.json").write_text(
+                json.dumps({**report, "checks": checks, "problems": problems}, indent=2)
+            )
             salt_strait(p, browser, report)
         browser.close()
     report["checks"] = checks
@@ -1159,6 +1166,104 @@ def held_on_piece(page: Page, report: dict[str, object]) -> None:
         page.wait_for_timeout(200)
 
 
+def capital_board(page: Page, report: dict[str, object]) -> None:
+    """The Capital board (CBD), in the map-first room after the held order is filed: the switch
+    at the map's top left opens the Capital in the map's place, with the bar and the season's
+    strip kept; a chamber's bar opens its blocs and one is picked; the held order's chain opens the
+    map with its piece's sheet, whose lock line opens the question again; F and Escape go into
+    full screen and out; the page is as wide as the viewport. Back to the Classic layout after."""
+    errors = len([p for p in problems if p.startswith("pageerror")])
+    if not set_layout(page, "Map first"):
+        return
+    switch = page.locator(".rl-board-switch")
+    try:
+        switch.first.wait_for(timeout=10_000)
+    except PlaywrightTimeout:
+        check("the Capital switch is drawn with a held order to show", False)
+        set_layout(page, "Classic layout")
+        return
+    corner = page.evaluate(
+        "() => !!document.querySelector('.rl-tm-tools-start > .rl-board-switch:first-child')"
+    )
+    check("the Map and Capital switch sits at the map's top left", corner)
+    switch.get_by_role("button", name="Capital").click()
+    board = page.locator(".rl-cap")
+    board.wait_for(timeout=10_000)
+    kept = page.evaluate(
+        """() => ({ bar: !!document.querySelector('.rl-roombar'),
+          strip: !!document.querySelector('.rl-mapfirst-map .rl-tl'),
+          map: !!document.querySelector('.rl-mapfirst-map .rl-tmap') })"""
+    )
+    report["capital_kept"] = kept
+    check(
+        "the Capital takes the map's place, the bar and the season's strip kept",
+        kept["bar"] and kept["strip"] and not kept["map"],
+        str(kept),
+    )
+    rows = [t.strip() for t in board.locator("button.rl-cap-q").all_inner_texts()]
+    report["capital_rows"] = rows
+    check(  # the kind line is drawn in capitals
+        "the Capital lists the held order as a question",
+        any(LOCK_WHO.upper() in r.upper() for r in rows),
+        str(rows),
+    )
+    width = page.evaluate("document.documentElement.scrollWidth")
+    check("the Capital fits the viewport", width <= SIZE[0], str(width))
+    chamber = board.locator("button.rl-cap-chamber")
+    if chamber.count():
+        chamber.first.click()
+        piece = board.locator(".rl-cap-blocs button.rl-cap-piece")
+        piece.first.wait_for(timeout=10_000)
+        piece.first.click()
+        card = board.locator(".rl-cap-side .rl-cap-card")
+        card.wait_for(timeout=10_000)
+        report["capital_bloc"] = card.inner_text()
+        check("picking a bloc shows its card in the right column", card.count() == 1)
+        shoot(page, "40-capital-bloc")
+    else:
+        report["capital_bloc"] = "no chamber in this seat's view"
+    held = board.locator("button.rl-cap-q.k-held")
+    held.first.click()
+    chain = board.locator(".rl-cap-chain")
+    chain.wait_for(timeout=10_000)
+    report["capital_chain"] = chain.inner_text()
+    check("the held order's chain names who holds it", LOCK_WHO in chain.inner_text())
+    shoot(page, "41-capital-held-chain")
+    to_map = board.locator("button.rl-cap-tomap")
+    if to_map.count():
+        to_map.click()
+        sheet = page.locator(".rl-over[data-sheet=piece]")
+        sheet.wait_for(timeout=10_000)
+        check(
+            "the held order opens the map with its piece's sheet", LOCK_PIECE in sheet.inner_text()
+        )
+        back = sheet.locator("button.rl-held-capital")
+        back.first.click()
+        page.locator(".rl-cap button.rl-cap-q.k-held[aria-pressed=true]").wait_for(timeout=10_000)
+        check("the lock's line in the piece's sheet opens the question again", True)
+    else:
+        check("the held order's piece is on the map", False, str(report["capital_chain"]))
+    board.locator("button.rl-cap-q.k-held").first.focus()
+    page.keyboard.press("f")
+    page.locator(".rl-full .rl-cap").wait_for(timeout=10_000)
+    check("F takes the Capital into full screen", True)
+    shoot(page, "42-capital-full")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(300)
+    check(
+        "Escape gives the room back",
+        page.locator(".rl-full").count() == 0 and page.locator(".rl-cap").count() == 1,
+    )
+    page.locator(".rl-board-switch").get_by_role("button", name="Map").click()
+    page.locator(".rl-mapfirst-map .rl-tmap").wait_for(timeout=10_000)
+    check("one tap gives the map back", True)
+    check(
+        "the Capital raises no page error",
+        len([p for p in problems if p.startswith("pageerror")]) == errors,
+    )
+    set_layout(page, "Classic layout")
+
+
 def phone_board(page: Page, report: dict[str, object]) -> None:
     """At 390 wide: the map shows, one lit place is tapped, the page is as wide as the viewport."""
     figure = page.locator("figure.rl-map-figure")
@@ -1235,6 +1340,77 @@ def phone_board(page: Page, report: dict[str, object]) -> None:
     page.screenshot(path=str(OUT / f"00c-phone-board-{SIZE[0]}x{SIZE[1]}.png"), full_page=True)
 
 
+STEPS_SHOWN = ".rl-op-everyone, .rl-cast-flat:not([hidden])"
+
+
+def show_everyone(page: Page) -> None:
+    """Open the flat cast under the opening's steps, once the screen has read the opening."""
+    page.locator(STEPS_SHOWN).first.wait_for(timeout=30_000)
+    toggle = page.locator("button.rl-op-everyone")
+    if toggle.count() and toggle.get_attribute("aria-expanded") == "false":
+        toggle.click()
+
+
+def step_texts(page: Page) -> list[str]:
+    return [t.strip() for t in page.locator(".rl-op-step").all_inner_texts()]
+
+
+def opening_steps(page: Page, report: dict, name: str) -> None:
+    """A ready-made game opens on a nation, a path and a person: walked by keyboard alone at
+    desktop width and by taps at 390, with a nation of one path on the way."""
+    page.locator(".rl-op").wait_for(timeout=30_000)
+    nations = page.locator("button.rl-op-nation").count()
+    report["opening_nations"] = nations
+    check("the opening opens on the nation step", nations >= 2, str(nations))
+    check(
+        "the opening draws the seats left as a meter",
+        page.locator(".rl-op-seats[role=meter] .rl-op-seat").count() > 0,
+    )
+    check(
+        "the flat cast waits behind Show everyone",
+        page.locator(".rl-cast-flat[hidden]").count() == 1,
+    )
+    shoot(page, "00o-opening-nation")
+    one = page.evaluate(
+        """async () => {
+          const r = await fetch('/api/new/opening', { method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' }, body: '{}' });
+          const o = (await r.json()).opening;
+          return o.nations.find((n) => n.paths.length === 1 && n.key !== null)?.name ?? null;
+        }"""
+    )
+    check("a nation is reached and chosen", press(page, "button.rl-op-nation", one), str(one))
+    page.locator(".rl-op-person").first.wait_for(timeout=10_000)
+    steps = step_texts(page)
+    report["opening_one_path_steps"] = steps
+    check(
+        "a nation with one path passes the path step and shows it chosen",
+        page.locator("button.rl-op-path").count() == 0
+        and steps[1].endswith("(the only one)")
+        and page.locator("span.rl-op-step.fixed").count() == 1,
+        str(steps),
+    )
+    shoot(page, "00p-opening-one-path")
+    check("Back to the nations is reached", press(page, "button.rl-op-back", "\u2039 Nations"))
+    check(
+        "the United States is reached and chosen",
+        press(page, "button.rl-op-nation", "United States"),
+    )
+    page.locator("button.rl-op-path").first.wait_for(timeout=10_000)
+    check("the paths are the nation's two", page.locator("button.rl-op-path").count() == 2)
+    shoot(page, "00q-opening-path")
+    check("the political path is reached and chosen", press(page, "button.rl-op-path", "Political"))
+    card = page.locator(".rl-op-person", has_text=name)
+    card.wait_for(timeout=10_000)
+    check("the person card shows the office", card.locator(".rl-op-office").count() == 1)
+    shoot(page, "00r-opening-person")
+    axe(page, "the opening")
+    width = page.evaluate("document.documentElement.scrollWidth")
+    check("the opening is as wide as the viewport", width <= SIZE[0], str(width))
+    check("Take this seat is reached", press(page, "button.rl-op-take", f"Take this seat: {name}"))
+    page.get_by_role("heading", name=f"You are {name}").wait_for(timeout=60_000)
+
+
 def play_from_dossier(page: Page, report: dict, name: str) -> None:
     """Open a cast card's dossier, check it reads as a dossier, and play that person."""
     page.get_by_role("button", name=f"{name}: open the dossier").click()
@@ -1268,6 +1444,7 @@ def release_and_repick(page: Page, report: dict, name: str) -> None:
     shoot(page, "00c-release-confirm")
     page.get_by_role("button", name="Yes, choose again").click()
     page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
+    show_everyone(page)
     check(
         "a released person is free on the cast again",
         page.get_by_role("button", name=f"{name}: open the dossier").count() == 1,
@@ -1959,6 +2136,7 @@ def salt_start(page: Page, report: dict[str, object], play: object) -> None:
     page.get_by_role("link", name="Start a new game").click()
     page.get_by_role("button", name=f"Start {SALT}").click()
     page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
+    show_everyone(page)
     page.get_by_role("button", name="General Aske: open the dossier").click()
     dossier = page.locator("dialog.rl-cd[open]")
     dossier.wait_for(timeout=10_000)

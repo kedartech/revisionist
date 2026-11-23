@@ -16,6 +16,9 @@ starts the ready-made 1941 game as its host and plays Franklin D. Roosevelt. The
   Full screen (pointer) and F (keyboard) give the map the whole viewport and keep its view, a
   piece is carried to a lit area there, a piece's sheet opens over it and Escape closes the sheet
   before it leaves full screen, and the view is the same when it has left;
+- the app shell is installable: the page's manifest names the app, starts at `/`, opens standalone
+  and lists three icons, each of which answers as a PNG of its stated size, and the page marks
+  itself as a tab or as the app;
 - the map is panned and pinched for ten seconds with the processor slowed four times, and the
   time between frames is read: on the phone run the 95th percentile must be at or under 33.4 ms,
   two frame intervals (a frame's time comes in steps of 16.7 ms).
@@ -755,6 +758,29 @@ def frame_times(page: Page, cdp: CDPSession, report: dict) -> None:
         rs.check("frames were drawn while the map moved", len(frames) > RUN_MS / 200)
 
 
+def install_files(page: Page, report: dict) -> None:
+    """The manifest the page links and each icon it lists answer, and the shell marks the page."""
+    href = page.evaluate("document.querySelector('link[rel=manifest]')?.getAttribute('href') ?? ''")
+    rs.check("the page links a manifest", bool(href), href)
+    got = page.request.get(BASE + "/" + href.lstrip("/"))
+    rs.check("the manifest answers", got.ok, str(got.status))
+    manifest = got.json()
+    rs.check("the manifest opens standalone at /", manifest.get("display") == "standalone")
+    rs.check(
+        "the manifest starts at /", manifest.get("start_url") == "/", str(manifest.get("start_url"))
+    )
+    icons = manifest.get("icons", [])
+    rs.check("the manifest lists three icons", len(icons) == 3, str(len(icons)))
+    for icon in icons:
+        res = page.request.get(BASE + icon["src"])
+        body = res.body() if res.ok else b""
+        size = f"{int.from_bytes(body[16:20], 'big')}x{int.from_bytes(body[20:24], 'big')}"
+        ok = res.ok and body[:8] == b"\x89PNG\r\n\x1a\n" and size == icon["sizes"]
+        rs.check(f"icon {icon['src']} answers as a {icon['sizes']} PNG", ok, f"{res.status} {size}")
+    mark = page.evaluate("document.documentElement.getAttribute('data-shell')")
+    report["shell"] = {"manifest": href, "icons": [i["src"] for i in icons], "mark": mark}
+
+
 def record(browser: object, state: dict, url: str) -> None:
     """The same ten seconds of pan and pinch, not slowed, as a recording."""
     ctx = browser.new_context(  # type: ignore[attr-defined]
@@ -808,6 +834,7 @@ def main() -> int:
             by_keyboard(page, report)
             full_screen(page, cdp, report, filed)
             frame_times(page, cdp, report)
+            install_files(page, report)
             width = page.evaluate("document.documentElement.scrollWidth")
             rs.check("the page is as wide as the viewport", width == SIZE[0], str(width))
         except Exception:

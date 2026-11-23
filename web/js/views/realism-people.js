@@ -54,6 +54,21 @@ function face(line) {
     : h('span', { class: 'rl-pp-mono', 'aria-hidden': 'true' }, monogram(line.name));
 }
 
+/**
+ * A person as a token on the Capital board: the portrait or the initials, the name and `note`
+ * (the office by default), as one button that opens the figure card (`onOpen(line, tab)`).
+ */
+export function personToken(line, tab, { onOpen, note = line.office } = {}) {
+  return h('button', {
+    type: 'button', class: 'rl-pp-token', 'data-person': line.person,
+    'aria-label': `${line.name}, ${note}. Open the card`, onclick: () => onOpen?.(line, tab),
+  },
+  h('span', { class: 'rl-pp-face' }, face(line)),
+  h('span', { class: 'rl-pp-who' },
+    h('span', { class: 'rl-pp-name' }, line.name),
+    h('span', { class: 'rl-pp-office' }, note)));
+}
+
 function tile(line, tab, onOpen) {
   return h('li', {},
     h('button', { type: 'button', class: 'rl-pp-row rl-pp-tile', onclick: () => onOpen?.(line, tab) },

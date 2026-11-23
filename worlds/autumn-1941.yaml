@@ -27,7 +27,7 @@ entities:
   - {key: uk, kind: polity, name: United Kingdom, capital: london, lift_pool: uk_sealift_grt}
   - {key: japan, kind: polity, name: Japan, capital: tokyo, lift_pool: japan_sealift_grt}
   - {key: germany, kind: polity, name: Germany, capital: berlin}
-  - {key: italy, kind: polity, name: Italy, capital: rome}
+  - {key: italy, kind: polity, name: Italy, capital: rome, lift_pool: italy_sealift_grt}
   - {key: ussr, kind: polity, name: Soviet Union, capital: moscow}
   - {key: china, kind: polity, name: China, capital: chungking}
   # Holders with no seat: neutrals and co-belligerents the five wars leave out.
@@ -99,6 +99,7 @@ entities:
   - {key: bardia, kind: location, name: Bardia, at: [31.74, 25.07], theatre: Mediterranean, within: cyrenaica, port_on: eastern_mediterranean, base: {sides: [italy, germany], domains: [sea, land]}}
   - {key: tripoli, kind: location, name: Tripoli, at: [32.89, 13.19], theatre: Mediterranean, within: tripolitania, port_on: central_mediterranean, base: {sides: [italy], domains: [sea, land]}}
   - {key: taranto, kind: location, name: Taranto, at: [40.47, 17.24], theatre: Mediterranean, within: italy_south, port_on: central_mediterranean, base: {sides: [italy], domains: [sea]}}
+  - {key: piraeus, kind: location, name: Piraeus, at: [37.94, 23.64], theatre: Mediterranean, within: greece, port_on: aegean_sea}
   - {key: changsha, kind: location, name: Changsha, at: [28.2, 112.97], theatre: Asia-Pacific, within: hunan, base: {sides: [china], domains: [land]}}
   - {key: wuhan, kind: location, name: Wuhan, at: [30.58, 114.27], theatre: Asia-Pacific, within: wuhan_area, base: {sides: [japan], domains: [land]}}
   # United States
@@ -1260,6 +1261,8 @@ quantities:
   - {key: uk_sealift_grt, owner: uk, name: British shipping free for troop lift, value: 300000, unit: GRT, gap: true}
   # [proposed] 200,000 GRT of Japanese shipping free for troop lift; unsourced.
   - {key: japan_sealift_grt, owner: japan, name: Japanese shipping free for troop lift, value: 200000, unit: GRT, gap: true}
+  # [proposed] 150,000 GRT of Italian shipping free for troop lift; unsourced.
+  - {key: italy_sealift_grt, owner: italy, name: Italian shipping free for troop lift, value: 150000, unit: GRT, gap: true}
 
 # The map. Positions and dates are approximate and unsourced (gap: true): a
 # force's legs are where the record has it if nobody orders it elsewhere.
@@ -1293,6 +1296,11 @@ features:
   - {key: hx_route, kind: route, name: HX convoys, side: uk, places: [halifax_port, north_atlantic, liverpool], gap: true}
   - {key: sc_route, kind: route, name: SC convoys, side: uk, places: [sydney_cb, north_atlantic, liverpool], gap: true}
   - {key: arctic_route, kind: route, name: Arctic convoys, side: uk, places: [reykjavik, archangel], gap: true}
+  # The Libya convoy form's routes. The map has no place at Benghazi: the Cyrenaica run ends at
+  # Bardia. [proposed], unsourced.
+  - {key: tripoli_route, kind: route, name: Convoys to Tripoli, side: italy, places: [taranto, tripoli], gap: true}
+  - {key: benghazi_route, kind: route, name: Convoys to Cyrenaica, side: italy, places: [taranto, bardia], gap: true}
+  - {key: greece_route, kind: route, name: Convoys to Greece, side: italy, places: [taranto, piraeus], gap: true}
   # Each stands at the base of its side and kind nearest where the record has it (the base
   # table in core/realism/bases.py). Strengths are tiers, not counts.
   - {key: hawaiian_department, kind: piece, piece: army, name: Hawaiian Department, side: usa, tier: 3, places: [pearl_harbor_base], gap: true}
@@ -2395,7 +2403,7 @@ cards:
         label: "Run convoys to Libya"
         summary: "Send supply convoys across the Mediterranean by a chosen route."
         params:
-          - {name: route, kind: enum, choices: [tripoli, benghazi, greece], label: "Which route", choice_labels: ["To Tripoli", "To Benghazi", "To Greece"]}
+          - {name: route, kind: enum, choices: [tripoli_route, benghazi_route, greece_route], label: "Which route", choice_labels: ["To Tripoli", "To Benghazi", "To Greece"]}
       - name: production_priority
         pipeline: comando_supremo_order
         resolver: production

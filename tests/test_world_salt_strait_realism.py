@@ -718,6 +718,7 @@ ABSENT_ON_PURPOSE = {
     "groups.groups.abroad": "writing is read by a live model and stays off",
     "cards.successor": "nobody is named to succeed in one season",
     "cards.post": "posts stay off: each card is its person's alone",
+    "assets.ladder": "posts stay off: no office has a ladder or movers",
     "features.legs": "the season opens on its first day: no force has moved yet",
     "cards.reach": "every person keeps rank 0 and no chain",
     "cards.allies": "nobody stands with or against anyone but by the contest",

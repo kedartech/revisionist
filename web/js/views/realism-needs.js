@@ -122,6 +122,17 @@ addNeedKind('promise', (rv) => promisesMade(rv.home).filter((p) => p.standing !=
   action: { word: 'Show the floor', to: 'sheet', sheet: 'home' },
 })));
 
+// a place of political weight of the seat's nation its map shows threatened, as the home block
+// sends it; shown on the map, and left to the paper's line where a paper already warns of it
+addNeedKind('place', (rv) => {
+  const papered = new Set((KINDS.get('paper')?.(rv) ?? []).map((l) => l.action.area));
+  return (rv.home?.places ?? []).filter((p) => p.threatened && !papered.has(p.key)).map((p) => ({
+    key: p.key, label: 'Place under threat', what: `${p.name} is threatened`,
+    from: p.holder?.name ? `Held by ${p.holder.name}` : 'Held by no one', due: null, arrived: null,
+    action: { word: 'Show on map', to: 'map', area: p.key },
+  }));
+});
+
 /** The papers that only acknowledge an order, and the papers an order's receipt names. */
 function receipts(rv) {
   const out = new Set((rv.documents?.documents ?? []).filter((d) => d.ack).map((d) => d.id));
@@ -198,6 +209,7 @@ const KIND_MARKS = {
   vote: 'M3 7h10v7H3zM6 7l2-4 4 2-1 2',
   battle: 'M3 3l10 10M13 3L3 13M3 11v2h2M13 11v2h-2',
   floor: 'M2 14h12M3 6h10M4 6v8M8 6v8M12 6v8M2 6l6-4 6 4',
+  place: 'M8 14s-5-4.5-5-8a5 5 0 0 1 10 0c0 3.5-5 8-5 8zM8 4v3M8 9v.5',
   held: 'M4 7h8v7H4zM6 7V5a2 2 0 0 1 4 0v2',
 };
 

@@ -15,6 +15,7 @@ from typing import Any, Protocol
 
 from revisionist.core import events as ev
 from revisionist.core._base import Model
+from revisionist.core.canary import scan_text
 from revisionist.core.events import CallCost, Event
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId, EntityId, EventId, SeatId
@@ -28,7 +29,7 @@ from revisionist.core.state import State
 from revisionist.core.visibility import private_to
 from revisionist.engine import campaign as cmp
 from revisionist.engine.ids import new_id
-from revisionist.engine.llm import Request, Transport, prompt_text, prompt_version
+from revisionist.engine.llm import Request, Transport, prompt_text, prompt_version, quote_player
 from revisionist.engine.store import EventStore, load_state
 
 COUNSEL_MODEL = "claude-sonnet-5-5"
@@ -115,7 +116,7 @@ def counsel_prompt(person: PersonView, asker: Asker, channel: ChannelKind, quest
     who = asker.name + (f", {asker.office}" if asker.office else "")
     return (
         f"{head}{voice}\n\n## Today\n{person.today.isoformat()}\n\n{blocks}"
-        f"## {who} asks you, by {channel.value.replace('_', ' ')}\n{question}"
+        f"## {who} asks you, by {channel.value.replace('_', ' ')}\n{quote_player(question)}"
     )
 
 
@@ -136,6 +137,7 @@ class ClaudeCounsellor:
             prompt=counsel_prompt(person, asker, channel, question),
             schema=COUNSEL_SCHEMA,
             max_usd=self.max_usd,
+            player_text=True,
         )
         self.requests.append(req)
         reply = self.transport.call(req)
@@ -179,7 +181,8 @@ def consult(
     another human plays is never voiced, and no roll is spent on them. Raises
     ``CounselRefusedError`` for a person another human plays, anyone the seat cannot
     reach, a seat that has put ``COUNSEL_PER_TICK`` questions this tick, an outsider who
-    declines, or an empty question; ``TransportError`` propagates and nothing is written."""
+    declines, an empty question, or a reply that states a canary the seat may not know;
+    ``TransportError`` propagates and nothing is written."""
     state = load_state(store, campaign_id)
     if state.ruleset != "realism":
         raise CounselRefusedError("counsel is for realism campaigns")
@@ -208,7 +211,7 @@ def consult(
     asker = Asker(name=state.entities[me.embodies].name, office=card.office)
     seen = project_person(state, person, seat)
     spoken = counsellor.speak(seen, asker, channel, question)
-    if not spoken.text:
+    if not spoken.text or scan_text(state, seat, spoken.text):
         raise CounselRefusedError(f"{state.entities[person].name} had nothing to say")
     text = f"You asked: {question}\n\n{spoken.text}"[:8000]
     versions = cmp.versions()

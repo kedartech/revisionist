@@ -470,6 +470,9 @@ def opening(page: Page, report: dict[str, object]) -> None:
         "a territory game opens in the map-first room", page.locator("main.rl-board").count() == 0
     )
     room_top(page, report)
+    groups_walk(page, report)
+    quiet_parts(page, report)
+    forms_from(page, report)
     check("the map-first room offers Classic layout", set_layout(page, "Classic layout"))
     page.locator("main.rl-board").wait_for(timeout=10_000)
     shoot(page, "01d-rmt-classic")
@@ -523,19 +526,11 @@ def room_top(page: Page, report: dict[str, object]) -> None:
     )
     check("the room is as wide as the viewport", got["width"] == SIZE[0], str(got))
     shoot(page, "01a-rmt-first-wake")
-    page.locator(".rl-roombar .rl-sheettab", has_text="Papers").first.click()
+    page.locator(".rl-roombar .rl-sheettab", has_text="Inbox").first.click()
     over(page).wait_for(timeout=10_000)
     shoot(page, "01b-rmt-sheet-open")
     page.locator(".rl-over .rl-over-close").first.click()
     page.wait_for_timeout(300)
-    nations = page.locator(".rl-roombar .rl-nations-btn")
-    if nations.count():
-        nations.click()
-        over(page).wait_for(timeout=10_000)
-        report["rmt_nations_chips"] = over(page).locator(".rl-eco-chip").count()
-        shoot(page, "01c-rmt-nations")
-        page.locator(".rl-over .rl-over-close").first.click()
-        page.wait_for_timeout(300)
     marks = page.locator(".rl-roombar .rl-aimmark")
     report["rmt_aim_marks"] = marks.count()
     if marks.count():
@@ -557,6 +552,248 @@ def room_top(page: Page, report: dict[str, object]) -> None:
     page.set_viewport_size({"width": SIZE[0], "height": SIZE[1]})
     page.evaluate("() => window.scrollTo(0, 0)")
     page.wait_for_timeout(300)
+
+
+# The sheets in four groups (SHG): the bar's four group tabs and the chat button; each group a
+# sheet with its parts as inner tabs, every part reached by keyboard at 1440 and by tap at 390;
+# and a form opened from the search, from a person's card and from a piece.
+GROUP_WORDS = ("Inbox", "Orders", "People", "World")
+
+
+def part_keys(page: Page) -> list[str]:
+    """The open group's parts, by their sheet keys, in order."""
+    keys: list[str] = page.locator(".rl-over .rl-parts button").evaluate_all(
+        "(bs) => bs.map((b) => b.getAttribute('data-sheet'))"
+    )
+    return keys
+
+
+def groups_walk(page: Page, report: dict[str, object]) -> None:
+    """Open each group from the bar and each of its parts from the sheet's inner tabs."""
+    bar = page.locator(".rl-roombar")
+    words = bar.locator(".rl-sheettab").evaluate_all(
+        "(bs) => bs.map((b) => b.getAttribute('data-group'))"
+    )
+    report["shg_groups"] = words
+    check(
+        "the bar's sheet tabs are the four groups",
+        words == ["inbox", "orders", "people", "world"],
+        str(words),
+    )
+    check("the bar has the chat button", bar.locator(".rl-chat-btn").count() == 1)
+    check("the bar has no Nations control", bar.locator(".rl-nations-btn").count() == 0)
+    shoot(page, "40-shg-bar")
+    seen: dict[str, list[str]] = {}
+    drawn: dict[str, list[str]] = {}
+    for word in GROUP_WORDS:
+        page.wait_for_timeout(200)
+        if not check_open(page, press(page, ".rl-roombar .rl-sheettab", word), f"the {word} group"):
+            continue
+        parts = part_keys(page)
+        seen[word] = []
+        for key in parts:
+            label = (
+                over(page)
+                .locator(f".rl-parts button[data-sheet='{key}']")
+                .inner_text()
+                .split("\n")[0]
+                .strip()
+            )
+            got = press(page, ".rl-over .rl-parts button", label)
+            page.wait_for_timeout(300)
+            on = over(page).get_attribute("data-sheet") == key
+            check(f"{word}: the {label} part is reached and opens", got and on, f"{got} {on}")
+            if on:
+                seen[word].append(key)
+                shoot(page, f"41-shg-{word.lower()}-{key}")
+        drawn[word] = parts
+        sheet_close(page, word)
+    report["shg_parts"] = seen
+    report["shg_drawn"] = drawn
+    # on Beginner a quiet part (the Court, Home, Diplomacy) is left out of its group while
+    # nothing in it waits; the game menu's All sheets reaches it
+    check(
+        "every part drawn in the four groups was reached",
+        len(seen) == 4 and seen == drawn,
+        f"{seen} of {drawn}",
+    )
+    if check_open(
+        page, press(page, ".rl-roombar .rl-chat-btn", "Messages"), "the chat button's messenger"
+    ):
+        check(
+            "the chat button opens the messenger",
+            over(page).get_attribute("data-sheet") == "messages",
+        )
+        shoot(page, "42-shg-chat")
+        sheet_close(page, "Messages")
+
+
+def quiet_parts(page: Page, report: dict[str, object]) -> None:
+    """A part left out of its group on Beginner (the Court, Home, Diplomacy) opens from the game
+    menu's All sheets, which names it by its group."""
+    opened = []
+    for name in ("People: Court", "World: Home", "World: Diplomacy"):
+        page.wait_for_timeout(300)
+        press(page, "button", "Game")
+        menu = page.locator("dialog.rl-menu[open]")
+        menu.wait_for(timeout=10_000)
+        if menu.get_by_role("button", name=name).count() == 0:
+            page.keyboard.press("Escape")
+            continue
+        check(f"All sheets opens {name}", press(page, "dialog.rl-menu button", name))
+        over(page).wait_for(timeout=10_000)
+        page.wait_for_timeout(300)
+        key = over(page).get_attribute("data-sheet") or ""
+        opened.append(key)
+        shoot(page, f"41-shg-{name.split(':')[0].lower()}-{key}")
+        sheet_close(page, name)
+    report["shg_quiet_parts"] = opened
+
+
+def check_open(page: Page, found: bool, what: str) -> bool:
+    """`found` says the control for `what` was pressed: check a sheet is over the map."""
+    if found:
+        try:
+            over(page).wait_for(timeout=10_000)
+        except PlaywrightTimeout:
+            found = False
+    check(f"{what} opens as a sheet", found)
+    return found
+
+
+def forms_from(page: Page, report: dict[str, object]) -> None:
+    """A form from the Write part's search, from a person's card and from a piece."""
+    press(page, ".rl-roombar .rl-sheettab", "Orders")
+    over(page).wait_for(timeout=10_000)
+    press(page, ".rl-over .rl-parts button", "Write")
+    page.wait_for_timeout(300)
+    check("the Write part has the search", write(page, "input[type=search]", "Find a form", "lend"))
+    page.wait_for_timeout(300)
+    shown = (
+        over(page)
+        .locator(".rl-instrument:not([hidden]) .rl-instrument-head")
+        .evaluate_all("(hs) => hs.map((h) => h.textContent.trim())")
+    )
+    report["shg_search_lend"] = shown
+    check(
+        "the search keeps the forms named for it",
+        bool(shown) and all("lend" in t.lower() for t in shown),
+        str(shown),
+    )
+    opened = press(
+        page, ".rl-over .rl-instrument:not([hidden]) .rl-instrument-head [aria-expanded]"
+    )
+    page.wait_for_timeout(300)
+    check(
+        "a form picked from the search opens as it does today",
+        opened
+        and over(page).locator(".rl-instrument:not([hidden]) [aria-expanded='true']").count() > 0,
+    )
+    shoot(page, "43-shg-search")
+    over(page).locator("input[type=search]").fill("")
+    sheet_close(page, "Orders")
+    person_form(page, report)
+    piece_form(page, report)
+
+
+def person_form(page: Page, report: dict[str, object]) -> None:
+    """People, Roster: the first of the seat's people with Write an order on their card."""
+    press(page, ".rl-roombar .rl-sheettab", "People")
+    over(page).wait_for(timeout=10_000)
+    press(page, ".rl-over .rl-parts button", "Roster")
+    page.wait_for_timeout(300)
+    yours = over(page).locator(".rl-people .seg button", has_text="Your people")
+    if yours.count():
+        yours.first.click()
+        page.wait_for_timeout(300)
+    rows = over(page).locator(".rl-pp-row")
+    card = page.locator("dialog.rl-fc[open]")
+    who = None
+    for i in range(min(rows.count(), 10)):
+        rows.nth(i).click()
+        card.wait_for(timeout=10_000)
+        if card.get_by_role("button", name="Write an order").count():
+            who = (card.locator("h2").first.text_content() or "").strip()
+            break
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(200)
+    report["shg_person"] = who
+    check("a person's card has Write an order", who is not None)
+    if who is None:
+        sheet_close(page, "People")
+        return
+    shoot(page, "44-shg-person-card")
+    check(
+        "Write an order on the card is pressed",
+        press(page, "dialog.rl-fc button", "Write an order"),
+    )
+    page.wait_for_timeout(500)
+    to = over(page).locator(".rl-write input[type=radio]:checked")
+    check(
+        "it opens Orders at Write, addressed to them",
+        over(page).get_attribute("data-sheet") == "forms"
+        and to.count() == 1
+        and to.first.get_attribute("value") == who,
+        f"{who} {over(page).get_attribute('data-sheet')}",
+    )
+    shoot(page, "45-shg-person-write")
+    sheet_close(page, "Orders")
+    # the roster opens on Opponents again, as the classic room's walk expects
+    press(page, ".rl-roombar .rl-sheettab", "People")
+    over(page).wait_for(timeout=10_000)
+    over(page).locator(".rl-people .seg button", has_text="Opponents").first.click()
+    page.wait_for_timeout(300)
+    sheet_close(page, "People")
+
+
+OWN_ON_TOP = """() => {
+  for (const m of document.querySelectorAll('.rl-mapfirst .rl-mk.rl-side-own')) {
+    m.scrollIntoView({ block: 'center' });
+    const r = m.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    const on = document.elementFromPoint(x, y);
+    if (on && m.contains(on)) return { x, y, label: m.getAttribute('aria-label') };
+  }
+  return null;
+}"""
+
+
+def piece_form(page: Page, report: dict[str, object]) -> None:
+    """One of the seat's own pieces: its sheet lists the forms that take it, filled in."""
+    if (
+        PHONE
+    ):  # a tap lands on whatever is on top at the mark's centre: take the first own mark on top
+        hit = page.evaluate(OWN_ON_TOP)
+        report["shg_piece_tap"] = hit
+        found = hit is not None
+        if found:
+            page.touchscreen.tap(hit["x"], hit["y"])
+    else:
+        found = press(page, ".rl-mapfirst .rl-mk.rl-side-own")
+    try:
+        page.locator(".rl-over[data-sheet='piece']").wait_for(timeout=10_000)
+    except PlaywrightTimeout:
+        found = False
+    check("one of the seat's own pieces opens its sheet", found)
+    if not found:
+        return
+    filled = (
+        over(page)
+        .locator(".rl-instrument")
+        .evaluate_all(
+            "(items) => items.map((i) => [i.getAttribute('data-lever'),"
+            " i.querySelector('select[name=force], select[name=piece]')?.value ?? null])"
+        )
+    )
+    report["shg_piece_forms"] = filled
+    check(
+        "the piece's forms open with the piece filled in",
+        bool(filled) and all(v for _, v in filled),
+        str(filled),
+    )
+    shoot(page, "46-shg-piece-forms")
+    sheet_close(page, "piece")
 
 
 def locked_order(page: Page, report: dict[str, object]) -> None:
@@ -1685,7 +1922,7 @@ def statement(page: Page, first: bool = False) -> None:
     the first day, answers the opening matter (make your position public), so the next wake
     is quiet; the second is rule 2's, in that quiet wake."""
     tag = "the opening statement" if first else "the statement"
-    sheet_open(page, "At home")
+    sheet_open(page, "World: Home")
     check(
         f"{tag}: the Home sheet offers Speak to the nation",
         press(page, "button", "Speak to the nation"),
@@ -1712,7 +1949,7 @@ def statement(page: Page, first: bool = False) -> None:
 
 
 def diplomacy_open(page: Page) -> None:
-    sheet_open(page, "Diplomacy")
+    sheet_open(page, "World: Diplomacy")
     check(
         "the Diplomacy sheet carries agreements and conferences",
         all(w in said(over(page)) for w in ("agreements", "conferences")),
@@ -1851,7 +2088,7 @@ def battle_sheet(page: Page, report: dict[str, object]) -> None:
 
 def sheets_opened(page: Page) -> None:
     """The Home and Diplomacy sheets open, hold what they should and close."""
-    sheet_open(page, "At home")
+    sheet_open(page, "World: Home")
     check("the Home sheet shows the nation's groups", "groups" in said(over(page)))
     shoot(page, "30-salt-home")
     sheet_close(page, "At home")
@@ -1868,7 +2105,7 @@ def phone_room(page: Page, report: dict[str, object]) -> None:
     box = figure.bounding_box() or {"height": 0}
     report["salt_phone_map_height"] = box["height"]
     check("the map is at least half the viewport's height", box["height"] >= SIZE[1] / 2, str(box))
-    sheet_open(page, "Diplomacy")
+    sheet_open(page, "World: Diplomacy")
     sheet = over(page).bounding_box() or {"height": 1e9}
     report["salt_phone_sheet_height"] = sheet["height"]
     check("a sheet is a half sheet", sheet["height"] <= SIZE[1] / 2 + 1, str(sheet))

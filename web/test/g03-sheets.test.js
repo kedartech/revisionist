@@ -1,6 +1,7 @@
 // The map-first room: a second layout, chosen from the game menu, where the map fills the
-// screen and Papers, Orders, Forms, Messages, the Court, People and Press each open as a sheet
-// over it, one at a time; the minute poll and a layer change keep the open sheet and its form.
+// screen and each part of the four groups (Papers and Press in Inbox, Write and Sent in Orders,
+// Roster and Court in People) and the messenger open as a sheet over it, one at a time; the
+// minute poll and a layer change keep the open sheet and its form.
 // Run: node --test web/test/
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -25,7 +26,12 @@ const fixture = JSON.parse(readFileSync(new URL('./fixtures/realism-seat.json', 
 const SHAPES = JSON.parse(readFileSync(new URL('./fixtures/toy.map.json', import.meta.url)));
 const settle = () => new Promise((r) => setTimeout(r, 0));
 const read = (f) => readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
-const SHEET_NAMES = ['Papers', 'Orders', 'Forms', 'Messages', 'Court', 'People', 'Press'];
+/** Each of the seven sheets of the map-first room's first build: its key, its group, and its part's label. */
+const SHEET_PARTS = {
+  Papers: ['papers', 'inbox', 'Inbox'], Orders: ['orders', 'orders', 'Orders'], Forms: ['forms', 'orders', 'Orders'], Messages: ['messages', null, 'Messages'],
+  Court: ['court', 'people', 'People'], People: ['people', 'people', 'People'], Press: ['press', 'inbox', 'Inbox'],
+};
+const SHEET_NAMES = Object.keys(SHEET_PARTS);
 
 /** The seat's view, each form pointing at the court path that lists its label, so it has a cost strip. */
 function view() {
@@ -62,7 +68,16 @@ const key = (el, k) => el.dispatchEvent({
   type: 'keydown', key: k, target: null, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, stopPropagation() {},
 });
 const tabs = (root) => root.querySelector('.rl-sheettabs');
-const tab = (root, name) => tabs(root).querySelectorAll('button').find((b) => words(b).startsWith(name));
+const groupTab = (root, group) => tabs(root).querySelectorAll('button').find((b) => b.getAttribute('data-group') === group);
+/** What opens sheet `name`: the chat button for Messages, else its group's tab. */
+const tab = (root, name) => (SHEET_PARTS[name][1] ? groupTab(root, SHEET_PARTS[name][1]) : root.querySelector('.rl-roombar .rl-chat-btn'));
+/** Open sheet `name` as a player would: the chat button, or its group's tab and then its part. */
+const show = (root, name) => {
+  const [key, group] = SHEET_PARTS[name];
+  if (!group) return tab(root, name).click();
+  if (groupTab(root, group).getAttribute('aria-expanded') !== 'true') groupTab(root, group).click();
+  root.querySelector('.rl-over .rl-parts').querySelectorAll('button').find((b) => b.getAttribute('data-sheet') === key).click();
+};
 const sheets = (root) => root.querySelectorAll('.rl-over');
 const openSheet = (root) => sheets(root).map((s) => s.getAttribute('data-sheet'));
 const Element = Object.getPrototypeOf(installDom().createElement('div')).constructor;
@@ -113,16 +128,17 @@ test('the layout chosen holds for the page: another game\'s room opens in it', a
 
 // rule 2: the map fills the screen; each of the seven opens as a sheet over it
 
-test('the sheet tabs name the seven sheets, and each opens over the map', async () => {
+test('the bar holds the four groups and the chat button, and each of the seven opens over the map', async () => {
   const { root } = await room();
-  // DPL: a game with agreements or conferences adds the Diplomacy sheet after the seven
-  assert.deepEqual(tabs(root).querySelectorAll('button').map((b) => words(b).split(' ')[0]), [...SHEET_NAMES, 'Diplomacy']);
+  // SHG: the seven are parts of the four groups, and Messages is the chat button
+  assert.deepEqual(tabs(root).querySelectorAll('button').map((b) => words(b).split(' ')[0]), ['Inbox', 'Orders', 'People', 'World']);
   assert.deepEqual(openSheet(root), [], 'the bare map');
-  for (const name of [...SHEET_NAMES, 'Diplomacy']) {
-    tab(root, name).click();
+  for (const name of SHEET_NAMES) {
+    show(root, name);
     const [sheet] = sheets(root);
     assert.ok(sheet, name);
-    assert.equal(words(sheet.querySelector('.rl-over-title')), name);
+    assert.equal(sheet.getAttribute('data-sheet'), SHEET_PARTS[name][0]);
+    assert.equal(words(sheet.querySelector('.rl-over-title')), SHEET_PARTS[name][2]);
     assert.equal(sheet.getAttribute('role'), 'dialog');
     assert.ok(root.querySelector('.rl-mapfirst .rl-theatre'), `the map stays under ${name}`);
     assert.equal(tab(root, name).getAttribute('aria-expanded'), 'true');
@@ -133,7 +149,7 @@ test('each sheet holds its panel: the papers, the orders, the forms, the messeng
   const { root } = await room();
   const inside = { Papers: '.rl-tray', Orders: '.rl-oc', Forms: '.rl-instrument', Messages: '.rl-msgr-panel', Court: '.rl-court', People: '.rl-people', Press: '.rl-pd-body' };
   for (const [name, sel] of Object.entries(inside)) {
-    tab(root, name).click();
+    show(root, name);
     assert.ok(sheets(root)[0].querySelector(sel), `${name} holds ${sel}`);
   }
 });
@@ -159,13 +175,14 @@ test('c-sheets.css: at the side from 1024 px, a half sheet from the bottom below
 
 test('one sheet at a time: opening another replaces the first', async () => {
   const { root } = await room();
-  tab(root, 'Papers').click();
-  tab(root, 'Orders').click();
+  show(root, 'Papers');
+  show(root, 'Orders');
   assert.deepEqual(openSheet(root), ['orders']);
   for (const [name, key] of [['Press', 'press'], ['Messages', 'messages'], ['Papers', 'papers'], ['Press', 'press'], ['Forms', 'forms']]) {
-    tab(root, name).click();
+    show(root, name);
     assert.deepEqual(openSheet(root), [key], `after ${name}`);
-    assert.deepEqual(tabs(root).querySelectorAll('button[aria-expanded="true"]').map((b) => b.getAttribute('data-sheet')), [key]);
+    const expanded = root.querySelectorAll('.rl-roombar button[aria-expanded="true"]');
+    assert.deepEqual(expanded, [tab(root, name)], 'one tab expanded, the sheet\'s own');
   }
   tab(root, 'Forms').click();
   assert.deepEqual(openSheet(root), [], 'its own tab closes it');
@@ -175,7 +192,7 @@ test('Escape closes the sheet and focus goes back to the tab that opened it', as
   const { root } = await room();
   const opener = tab(root, 'People');
   opener.focus();
-  opener.click();
+  show(root, 'People');
   assert.ok(sheets(root)[0].contains?.(document.activeElement) ?? document.activeElement.closest('.rl-over'), 'focus is in the sheet');
   key(sheets(root)[0], 'Escape');
   assert.deepEqual(openSheet(root), []);
@@ -185,17 +202,17 @@ test('Escape closes the sheet and focus goes back to the tab that opened it', as
 test('the sheet\'s Close does the same as Escape', async () => {
   const { root } = await room();
   tab(root, 'Court').focus();
-  tab(root, 'Court').click();
+  show(root, 'Court');
   buttons(sheets(root)[0].querySelector('.rl-over-head'), 'Close')[0].click();
   assert.deepEqual(openSheet(root), []);
-  assert.equal(document.activeElement, tab(root, 'Court'));
+  assert.equal(document.activeElement, tab(root, 'Court'), 'its group\'s tab');
 });
 
 // rule 4: every standard form opens in a sheet with its cost strip
 
 test('in the Forms sheet every standard form that has a court path shows its cost strip when opened', async () => {
   const { root } = await room();
-  tab(root, 'Forms').click();
+  show(root, 'Forms');
   const items = sheets(root)[0].querySelectorAll('.rl-instrument');
   assert.equal(items.length, view().desk.levers.length);
   const linked = view().desk.levers.filter((l) => fixture.court.paths.some((p) => p.id === l.pipeline));
@@ -211,7 +228,7 @@ test('in the Forms sheet every standard form that has a court path shows its cos
 
 test('the Forms sheet keeps a form open and its values over a redraw', async () => {
   const { root } = await room();
-  tab(root, 'Forms').click();
+  show(root, 'Forms');
   const item = () => sheets(root)[0].querySelector('.rl-instrument[data-lever="lend_lease_finding"]');
   item().querySelector('[aria-expanded]').click();
   item().querySelector('select[name="recipient"]').value = item().querySelectorAll('select[name="recipient"] option')[1].getAttribute('value');
@@ -228,7 +245,7 @@ test('a form filed from a sheet is sent once and comes back empty, not refilled 
   const { root, now } = await room();
   const sent = [];
   api.realism = async (action, body) => { sent.push([action, body]); return { reply: 'Filed.' }; };
-  tab(root, 'Forms').click();
+  show(root, 'Forms');
   const item = () => sheets(root)[0].querySelector('.rl-instrument[data-lever="lend_lease_finding"]');
   item().querySelector('[aria-expanded]').click();
   const pick = item().querySelectorAll('select[name="recipient"] option')[1].getAttribute('value');
@@ -260,7 +277,7 @@ test('choosing a force on the map opens its sheet, named for it', async () => {
 test('opening the Court clears the pick', async () => {
   const { root, id } = await room();
   mark(root, 'The Norra Levy').click();
-  tab(root, 'Court').click();
+  show(root, 'Court');
   assert.equal(uiFor(id).piece, null);
   assert.equal(root.querySelector('.rl-mapfirst .rl-mk[aria-pressed="true"]'), null, 'no mark is marked picked');
 });
@@ -311,7 +328,7 @@ test('on a wide screen Write them an order keeps the card beside the form', asyn
 
 test('in the map-first room, Write them an order on the Court sheet opens the Forms sheet at the order', async () => {
   const { root } = await room();
-  tab(root, 'Court').click();
+  show(root, 'Court');
   const sq = sheets(root)[0].querySelectorAll('.rl-court-sq, .rl-court-chip')
     .find((el) => { el.click(); return buttons(sheets(root)[0], 'Write them an order').length; });
   assert.ok(sq);

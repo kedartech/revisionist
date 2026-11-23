@@ -79,9 +79,11 @@ const strip = (rv, { home: opts } = {}) => home.withHome(statusStrip(rv, {}, { a
 const ownChip = (el) => el.querySelector('button.rl-home-own');
 const groupItem = (sheet, key) => sheet.querySelectorAll('.rl-home-group').find((li) => li.getAttribute('data-group') === key);
 const sheetOf = (root) => root.querySelector('.rl-over');
-/** The seat's band in the map-first room: on the Nations sheet, which the bar's Nations control opens. */
+/** The World group's tab on the map-first room's bar. */
+const worldTab = (root) => root.querySelectorAll('.rl-sheettabs button').find((b) => b.getAttribute('data-group') === 'world');
+/** The seat's band in the map-first room: on the Nations part of World, which the bar's World tab opens. */
 const nationsChip = (root) => {
-  fire(root.querySelector('.rl-nations-btn'), 'click');
+  fire(worldTab(root), 'click');
   return ownChip(document.body.firstElementChild);
 };
 
@@ -198,20 +200,20 @@ test('another nation\'s groups are never drawn: its band only', () => {
   assert.equal(words(sud), 'Sudland: shaken at home');
 });
 
-test('in the map-first room the band on the Nations sheet opens the home sheet over the map, the minute poll keeps it, and Escape returns focus to the Nations control', async () => {
+test('in the map-first room the band on the Nations part opens the Home part over the map, the minute poll keeps it, and Escape returns focus to the World tab', async () => {
   const { root, ctx, doc } = await room();
   fire(nationsChip(root()), 'click');
   const sheet = sheetOf(root());
   assert.ok(sheet, 'a sheet is open');
   assert.equal(sheet.getAttribute('data-sheet'), 'home');
-  assert.equal(words(sheet.querySelector('.rl-over-title')), 'At home');
+  assert.equal(words(sheet.querySelector('.rl-over-title')), 'World');
   assert.equal(doc.activeElement, sheet.querySelector('.rl-over-title'));
   await ctx.refresh();
   await settle();
   assert.equal(sheetOf(root())?.getAttribute('data-sheet'), 'home', 'the poll keeps it open');
   sheetOf(root()).dispatchEvent({ type: 'keydown', key: 'Escape', target: null, defaultPrevented: false, preventDefault() {}, stopPropagation() {} });
   assert.equal(sheetOf(root()), null);
-  assert.equal(doc.activeElement, root().querySelector('.rl-nations-btn'), 'focus goes back to the Nations control');
+  assert.equal(doc.activeElement, worldTab(root()), 'focus goes back to the World tab');
 });
 
 test('in today\'s room the band opens the home sheet under the strip, and a second tap closes it', async () => {

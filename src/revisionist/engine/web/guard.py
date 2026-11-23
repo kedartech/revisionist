@@ -48,6 +48,11 @@ def static_cache(suffix: str) -> str:
     return "no-cache" if suffix in (".html", ".js", ".css") else "max-age=86400"
 
 
+def static_headers(handler: Any, status: HTTPStatus, kind: str, length: int, suffix: str) -> None:
+    headers(handler, status, kind, length)
+    handler.send_header("Cache-Control", static_cache(suffix))
+
+
 def cookie(token: str, max_age: int, secure_cookie: bool) -> str:
     secure = "; Secure" if secure_cookie else ""
     return f"{COOKIE}={token}; Path=/; HttpOnly; SameSite=Strict; Max-Age={max_age}{secure}"

@@ -47,6 +47,6 @@ export const api = {
   game: (action, body = {}) => call('POST', `/api/game/${action}`, body),
   /** An ended game this account held a seat in; resolves to its reveal, or { reply, refused }. */
   reveal: (game) => call('POST', '/api/game/reveal', { game }),
-  /** A new realism game: worlds, timeline, figures with { date, search }, ready, pitch, cast, start with { date }, pick, style with { style }, invite, begin; resolves to { reply, refused } and more. */
+  /** A new realism game: worlds, timeline, figures with { date, search }, ready, pitch, cast, start with { date }, opening (to { opening, ready_made, world, nation_keys }), pick, style with { style }, invite, begin; resolves to { reply, refused } and more. */
   newGame: (action, body = {}) => call('POST', `/api/new/${action}`, body),
 };

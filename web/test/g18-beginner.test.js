@@ -121,7 +121,7 @@ test('with nothing waiting the Court, Home and Diplomacy leave their groups and 
   const rv = seat('beginner');
   assert.deepEqual(needLines(rv), []);
   const root = room(rv);
-  assert.deepEqual(tabKeys(root), ['papers', 'press', 'forms', 'orders', 'people', 'nations']);
+  assert.deepEqual(tabKeys(root), ['papers', 'press', 'forms', 'orders', 'people', 'nations', 'standing']);
   assert.equal(groupOfTab(root, 'people').querySelectorAll('.rl-tab-count').length, 0);
   assert.equal(groupOfTab(root, 'world').querySelectorAll('.rl-tab-count').length, 0);
 });
@@ -151,7 +151,7 @@ test('a line in the Court marks the Court; with none, the Court carries no mark 
 test('every part Free draws is reachable on Beginner: in its group, or All sheets in the game menu', () => {
   const free = room(seat('free'));
   const drawn = tabKeys(free);
-  assert.deepEqual(drawn, ['papers', 'press', 'forms', 'orders', 'people', 'court', 'nations', 'home', 'diplomacy']);
+  assert.deepEqual(drawn, ['papers', 'press', 'forms', 'orders', 'people', 'court', 'nations', 'standing', 'home', 'diplomacy']);
   const root = room(seat('beginner'));
   const reach = new Set(tabKeys(root));
   openMenu(root);
@@ -167,7 +167,7 @@ test('All sheets lists the groups by name, each with its parts', () => {
   const groups = root.querySelectorAll('.rl-allsheets .rl-allsheets-group');
   assert.deepEqual(groups.map((g) => words(g.querySelector('h4'))), ['Inbox', 'Orders', 'People', 'World']);
   assert.deepEqual(groups.map((g) => g.querySelectorAll('button').map(words)),
-    [['Papers', 'Press'], ['Write', 'Sent'], ['Roster', 'Court'], ['Nations', 'Home', 'Diplomacy']]);
+    [['Papers', 'Press'], ['Write', 'Sent'], ['Roster', 'Court'], ['Nations', 'Standing', 'Home', 'Diplomacy']]);
   assert.equal(allSheets(root, 'forms').getAttribute('aria-label'), 'Orders: Write');
 });
 

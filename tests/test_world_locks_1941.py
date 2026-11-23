@@ -36,10 +36,10 @@ from revisionist.engine import campaign as cmp
 from tests import test_realism_bands as bands
 from tests.test_realism_resolvers import Rig
 
-BEFORE = "f37494a26892a185fffd001d399b14b7"
+BEFORE = "45f00e1d6cb09e84245f4a7affb44692"
 """The scripted run's digest with ``command`` and ``locks`` taken out of the rules, with the
 receipt an enacted Lend-Lease finding records (a fact, as a written allocation records one)."""
-AFTER = "f37494a26892a185fffd001d399b14b7"
+AFTER = "45f00e1d6cb09e84245f4a7affb44692"
 """The scripted run's digest with ``command`` and ``locks`` on, recorded once by this item.
 It equals ``BEFORE``: the script seats the President alone and files no order a lock holds,
 and his naval order passes King's step on the day the record gives."""

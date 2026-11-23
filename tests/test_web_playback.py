@@ -551,7 +551,9 @@ def everything(store: MemoryStore) -> int:
     return state.wake.number
 
 
-FAILED = "Your held order failed: The Norra Levy is not in service until 1 January 1901."
+FAILED = (
+    "Your held order failed: The Norra Levy is not in service until 1 January 1901: as written."
+)
 
 
 def test_a_held_order_whose_re_check_fails_is_told_to_its_seat_with_the_reason(

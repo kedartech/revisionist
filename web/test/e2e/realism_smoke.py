@@ -1415,11 +1415,33 @@ def reach(page: Page, sel: str, text: str = "") -> bool:
         f"const a = {found}; a?.setAttribute('data-smk-reach', ''); return !!a; }}"
     ):
         return False
+    target = page.locator("[data-smk-reach]")
     try:
-        page.locator("[data-smk-reach]").tap(timeout=10_000)
+        target.scroll_into_view_if_needed(timeout=10_000)
+        # a mark at the edge of the map's window is drawn in part: tap a point of it that shows
+        target.tap(timeout=10_000, position=page.evaluate(SHOWN_POINT))
     except PlaywrightTimeout:
         return False
     return True
+
+
+SHOWN_POINT = """() => {
+  const a = document.querySelector('[data-smk-reach]');
+  const r = a.getBoundingClientRect();
+  for (const fy of [0.5, 0.65, 0.8, 0.35, 0.2, 0.9]) {
+    for (const fx of [0.5, 0.3, 0.7]) {
+      const x = r.left + r.width * fx;
+      const y = r.top + r.height * fy;
+      // on top here and 3 px around, so a tap rounded to a whole pixel still lands on it
+      const near = [[0, 0], [0, -3], [0, 3], [-3, 0], [3, 0]].every(([dx, dy]) => {
+        const e = document.elementFromPoint(x + dx, y + dy);
+        return e && (e === a || a.contains(e));
+      });
+      if (near) return { x: r.width * fx, y: r.height * fy };
+    }
+  }
+  return null;
+}"""
 
 
 def press(page: Page, sel: str, text: str = "", key: str = "Enter") -> bool:

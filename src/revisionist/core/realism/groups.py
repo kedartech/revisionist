@@ -194,7 +194,7 @@ class KindClass(Model):
         if "felt" not in data:
             return {**data, "felt": 1.0 if reach is Class.FELT else 0.0}
         felt = data["felt"]
-        if reach is Class.SECRET:
+        if reach is Class.SECRET and felt != 0:
             raise ValueError("a secret kind has no felt share")
         if reach is Class.FELT and felt != 1:
             raise ValueError("a felt kind is felt whole: a mixed kind is reported with a share")

@@ -113,6 +113,7 @@ def project(state: State, seat: SeatId) -> View:
         goals={k: g for k, g in state.goals.items() if sees_goal(state, g, seat)},
         mandates=_visible(state.mandates, seat),
         wars=dict(state.wars),
+        ended_wars=state.ended_wars,
         map=state.map,
         kinds=state.kinds,
         locks=state.locks,

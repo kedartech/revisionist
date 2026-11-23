@@ -1,17 +1,18 @@
 """1941: the Soviet Western Front's commander and his locks (NSU).
 
 Marshal Timoshenko, in command of the Western Front on 1 September 1941, is a military card
-the players may claim: his own forms move and detach the Western Front through his own staff
-with no step above him; he answers to the Chief of the General Staff, and so to Stalin, and
-telephones him; he has three aims with conditions, two filled from the army commander's
-patterns and one the default a player's own aim would replace. Stalin keeps his order over
-the front: his military operations name it, so with both acting on the front in one wake his
-order stands. The record changes this front's commander inside the season; the card is the
-man in post on the start date, and the change is left to the ladder of posts.
+the players may claim: his own form moves the Western Front through his own staff with no step
+above him (a side keeps no army detachment in play, so he has no detach form); he answers to the
+Chief of the General Staff, and so to Stalin, and telephones him; he has three aims with
+conditions, two filled from the army commander's patterns and one the default a player's own aim
+would replace. Stalin keeps his order over the front: his military operations name it, so with
+both acting on the front in one wake his order stands. The record changes this front's commander
+inside the season; the card is the man in post on the start date, and the change is left to the
+ladder of posts.
 
-Two locks hold a withdrawal of the front behind the Mozhaisk line: sending the front, or part
-of it, back to Moscow is Stalin's to permit. Neither row has a condition, so only his grant
-opens it. The Soviet Union has no body and no council that decides.
+A lock holds a withdrawal of the front behind the Mozhaisk line: sending the front back to
+Moscow is Stalin's to permit. The row has no condition, so only his grant opens it. The Soviet
+Union has no body and no council that decides.
 
 The record's move of the front on 24 October (``Feature.legs``) still runs with the third-run
 switches out. With a player in the seat, history steps aside as the rule already has it: an
@@ -33,6 +34,8 @@ from revisionist.core.aim_patterns import build
 from revisionist.core.ids import CampaignId, EntityId, FeatureId, OrderId, PipelineId, derived_id
 from revisionist.core.realism import locks
 from revisionist.core.realism.card import CardPath, superiors
+from revisionist.core.realism.detachments import DETACHMENTS_PER_SIDE
+from revisionist.core.realism.geography import FeatureKind
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.resolvers import movement
 from revisionist.core.world import WorldFile
@@ -52,9 +55,9 @@ German, Japanese and Italian items recorded it: the Western Front's card leaves 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 FILED = date(1941, 10, 10)
 FRONT = "soviet_western_front"
-FORMS = ("western_front_move", "western_front_detach")
-ROWS = ("western_front_withdrawal", "western_front_detachment_withdrawal")
-"""The rows Stalin decides: the move and the detachment behind the Mozhaisk line."""
+FORM = "western_front_move"
+ROW = "western_front_withdrawal"
+"""The row Stalin decides: the front's move behind the Mozhaisk line."""
 BEHIND = "moscow"
 """The place behind the Mozhaisk line the front's forms reach. [proposed]"""
 FILLED: dict[int, tuple[str, dict[str, JsonValue]]] = {
@@ -112,10 +115,10 @@ def test_the_commander_with_no_force_does_not_compile() -> None:
         _compile(world.model_copy(update={"cards": cards}))
 
 
-def test_his_own_forms_move_and_detach_through_a_pipeline_with_no_step_above_him() -> None:
+def test_his_own_form_moves_the_front_through_a_pipeline_with_no_step_above_him() -> None:
     world = _world()
     levers = {lv.name: lv for lv in _card(world, "timoshenko").levers}
-    assert set(levers) == set(FORMS)
+    assert set(levers) == {FORM}
     stalins = next(lv for lv in _card(world, "stalin").levers if lv.name == "move_army")
     stalins_to = set(next(p for p in stalins.params if p.name == "to").choices)
     for lv in levers.values():
@@ -127,12 +130,10 @@ def test_his_own_forms_move_and_detach_through_a_pipeline_with_no_step_above_him
         assert set(to.choices) == stalins_to and BEHIND in to.choices
 
 
-def test_his_detachment_offers_only_a_strength_the_front_can_spare() -> None:
-    world = _world()
-    detach = next(lv for lv in _card(world, "timoshenko").levers if lv.name == FORMS[1])
-    strength = next(p for p in detach.params if p.name == "strength")
-    front = next(f for f in world.features if f.key == FRONT)
-    assert strength.lo == 1 and strength.hi == front.tier - 1
+def test_he_has_no_detach_form_while_a_side_keeps_no_army_detachment() -> None:
+    assert DETACHMENTS_PER_SIDE[FeatureKind.ARMY] == 0
+    levers = _card(_world(), "timoshenko").levers
+    assert not [lv.name for lv in levers if "strength" in {p.name for p in lv.params}]
 
 
 def test_he_telephones_the_chief_of_the_general_staff() -> None:
@@ -187,24 +188,23 @@ def test_a_mandate_reaches_him() -> None:
 
 
 def _rows(world: WorldFile) -> dict[str, Any]:
-    return {r.key: r for r in world.locks if r.order.form in set(FORMS)}
+    return {r.key: r for r in world.locks if r.order.form == FORM}
 
 
-def test_two_locks_on_a_withdrawal_behind_the_mozhaisk_line_each_for_stalin() -> None:
+def test_a_lock_on_a_withdrawal_behind_the_mozhaisk_line_for_stalin() -> None:
     rows = _rows(_world())
-    assert set(rows) == set(ROWS)
-    for key, form in zip(ROWS, FORMS, strict=True):
-        row = rows[key]
-        assert row.order.form == form and row.order.params == {"to": BEHIND}, key
-        assert row.decider.person == "stalin", key
-        assert row.question == "permission" and row.when is None, key
+    assert set(rows) == {ROW}
+    row = rows[ROW]
+    assert row.order.form == FORM and row.order.params == {"to": BEHIND}
+    assert row.decider.person == "stalin"
+    assert row.question == "permission" and row.when is None
 
 
 def test_a_row_whose_decider_is_the_issuer_does_not_compile() -> None:
     world = _world()
     rows = tuple(
         r.model_copy(update={"decider": r.decider.model_copy(update={"person": "timoshenko"})})
-        if r.key == ROWS[0]
+        if r.key == ROW
         else r
         for r in world.locks
     )
@@ -216,9 +216,7 @@ def test_a_row_naming_a_missing_chamber_does_not_compile() -> None:
     world = _world()
     body = {"person": None, "nation": "ussr", "chambers": ("soviet",), "head": "stalin"}
     rows = tuple(
-        r.model_copy(update={"decider": r.decider.model_copy(update=body)})
-        if r.key == ROWS[0]
-        else r
+        r.model_copy(update={"decider": r.decider.model_copy(update=body)}) if r.key == ROW else r
         for r in world.locks
     )
     with pytest.raises(WorldError, match="ussr has no chamber soviet"):
@@ -244,17 +242,14 @@ def _order(r: Rig, lever: str, **params: str | int) -> Order:
     )
 
 
-@pytest.mark.parametrize(("lever", "extra"), [(FORMS[0], {}), (FORMS[1], {"strength": 2})])
-def test_a_withdrawal_behind_the_mozhaisk_line_is_held_for_stalin(
-    lever: str, extra: dict[str, int]
-) -> None:
+def test_a_withdrawal_behind_the_mozhaisk_line_is_held_for_stalin() -> None:
     r = _rig("timoshenko")
-    order = _order(r, lever, force=FRONT, to=BEHIND, **extra)
+    order = _order(r, FORM, force=FRONT, to=BEHIND)
     lock = locks.lock_for(r.state, r.seats["timoshenko"], order)
     assert lock is not None and lock.decider.person == EntityId(r.ids["stalin"])
     assert lock.row is not None and locks.by_kind(r.state, lock.row)
     for free_to in ("mozhaisk", "vyazma"):
-        free = _order(r, lever, force=FRONT, to=free_to, **extra)
+        free = _order(r, FORM, force=FRONT, to=free_to)
         assert locks.lock_for(r.state, r.seats["timoshenko"], free) is None, free_to
 
 
@@ -280,7 +275,7 @@ def _held_and_asked(r: Rig, order: Order) -> locks.Asked:
 @pytest.mark.parametrize("granted", [True, False])
 def test_only_stalins_grant_opens_the_withdrawal(granted: bool) -> None:
     r = _rig("timoshenko")
-    asked = _held_and_asked(r, _order(r, FORMS[0], force=FRONT, to=BEHIND))
+    asked = _held_and_asked(r, _order(r, FORM, force=FRONT, to=BEHIND))
     assert asked.to == EntityId(r.ids["stalin"])
     held = r.state.held[asked.order_id]
     assert not locks.open_now(r.state, held)
@@ -331,7 +326,7 @@ def test_the_fronts_move_to_moscow_on_24_october_runs_with_the_switches_out(
 def test_with_a_player_in_his_seat_the_records_move_stays_until_he_sends_the_front() -> None:
     r = _rig("timoshenko")
     assert [leg.since for leg in _front(r).legs] == [date(1941, 10, 24)]
-    order = _order(r, FORMS[0], force=FRONT, to="vyazma").model_copy(
+    order = _order(r, FORM, force=FRONT, to="vyazma").model_copy(
         update={"status": OrderStatus.ENACTED}
     )
     r.fold_changes(movement.order_changes(r.state, order))
@@ -340,7 +335,7 @@ def test_with_a_player_in_his_seat_the_records_move_stays_until_he_sends_the_fro
 
 def test_with_the_third_run_switches_out_his_locks_stay() -> None:
     kept = {r.key for r in without_third_run(_world()).locks}
-    assert set(ROWS) <= kept
+    assert ROW in kept
 
 
 # --- rule 4: the scripted run -------------------------------------------------------------

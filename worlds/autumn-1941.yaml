@@ -1485,8 +1485,9 @@ pipelines:
     gap: true
     steps:
       - {person: iachino, kind: clerical, days: 1, assumed: true}
-  # Timoshenko's own forms (NSU): through the Western Front's staff at his headquarters, with no
-  # step above him. The step is his.
+  # Timoshenko's own form (NSU): through the Western Front's staff at his headquarters, with no
+  # step above him. The step is his. He has no detach form: a side may keep no army detachment in
+  # play (detachments.DETACHMENTS_PER_SIDE), so a split of the front would change nothing.
   - key: western_front_staff
     name: Through the Western Front's staff
     gap: true
@@ -3153,7 +3154,7 @@ cards:
         summary: "Command of the Italian Battle Fleet: where it goes, what it detaches, how it fights."
   # The fourteenth playable card (NSU): a military card, flagged playable by hand, under the
   # Chief of the General Staff and so under Stalin, whose own order over the front stands (his
-  # military_operations name it). His own forms go through his own staff (western_front_staff),
+  # military_operations name it). His own form, a move, goes through his own staff (western_front_staff),
   # with no step above him, to the places Stalin's own form reaches. Aims 1 and 2 are the army
   # commander's patterns filled in (hold_and_take, take_ground); aim 3 is the default an own aim
   # replaces. A withdrawal behind the Mozhaisk line is Stalin's to permit; the Soviet Union has
@@ -3183,15 +3184,6 @@ cards:
         params:
           - {name: force, kind: enum, choices: [soviet_western_front], label: "Which front", choice_labels: ["The Western Front"]}
           - {name: to, kind: enum, choices: [vyazma, mozhaisk, moscow], label: "To", choice_labels: ["Vyazma", "Mozhaisk", "Moscow"]}
-      - name: western_front_detach
-        pipeline: western_front_staff
-        resolver: movement
-        label: "Detach part of the front"
-        summary: "Send part of the Western Front's strength to another line; the rest stays where it is."
-        params:
-          - {name: force, kind: enum, choices: [soviet_western_front], label: "Which front", choice_labels: ["The Western Front"]}
-          - {name: to, kind: enum, choices: [vyazma, mozhaisk, moscow], label: "To", choice_labels: ["Vyazma", "Mozhaisk", "Moscow"]}
-          - {name: strength, kind: int, lo: 1, hi: 3, label: "How much of its strength"}
     loyalty: 2
     competence: 3
     wants: [aid_soviet, europe_first]
@@ -3209,7 +3201,7 @@ cards:
       - name: western_front
         effects: [move_force, engagement]
         forces: [soviet_western_front]
-        summary: "Command of the Western Front: where it stands, what it detaches, how it fights."
+        summary: "Command of the Western Front: where it stands and how it fights."
   - person: kramer
     office: Navy communications intelligence translator
     voice: "Precise translator's register; marks the urgent passage and adds one short note of his own."
@@ -4112,17 +4104,13 @@ locks:
     order: {form: battle_fleet_detach, params: {to: bardia}}
     decider: {person: mussolini}
   # NSU. A withdrawal of the Western Front behind the Mozhaisk line: the front sent back to
-  # Moscow, or part of it, waits on Stalin's permission. Through 1941 he held the fronts to their
+  # Moscow waits on Stalin's permission. Through 1941 he held the fronts to their
   # lines and gave leave to fall back late or not at all. No condition: only his grant opens it.
   # The Soviet Union has no body or council that decides. source: erickson_1975; the line, gap:
   # true, [proposed].
   - key: western_front_withdrawal
     question: permission
     order: {form: western_front_move, params: {to: moscow}}
-    decider: {person: stalin}
-  - key: western_front_detachment_withdrawal
-    question: permission
-    order: {form: western_front_detach, params: {to: moscow}}
     decider: {person: stalin}
 
 # Pacts in force on 1 September 1941 (PCW). The clause chosen for each is [proposed]: the rules judge

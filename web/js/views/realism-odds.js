@@ -12,6 +12,7 @@ import { h, svg } from '../dom.js';
 import {
   confidenceWord, decisionWord, rangeWords, reportAge, reportAgoWords, reportWhat, reportWho, shortDate,
 } from '../realism-rules.js';
+import { bar, markNum } from './realism-marks.js';
 import { reportByKey } from './realism-reports.js';
 
 // The replies asked for on this page, by request, and the one panel open, by request. A reply
@@ -97,18 +98,23 @@ function losses(odds) {
     lossRow('Theirs', 'rl-odds-enemy', odds.enemy_lost, top));
 }
 
-/** Taking the territory: the chance, the day if taken, and the risk of being forced back. */
+/** A share of the runs as a bar of 100, named for the outcome it counts; its words sit beside it. */
+const runsBar = (name, pct, tone) => bar({ value: pct, limit: 100, name, words: `${name}: ${markNum(pct)} in 100 runs`, tone, num: false });
+
+/** Taking the territory: the chance, the day if taken, and the risk of being forced back, each share a bar. */
 function taking(rv, odds) {
   const names = new Map((rv.map?.areas ?? []).map((a) => [a.key, a.name]));
-  const row = (dt, dd) => [h('dt', {}, dt), h('dd', {}, dd)];
+  const row = (dt, ...dd) => [h('dt', {}, dt), h('dd', {}, ...dd)];
   const none = (v) => v === null || v === undefined;
   const when = none(odds.taken_days) ? 'no run took it' : `day ${odds.taken_days} of the fighting, in half the runs that took it`;
   const back = odds.back_to ? `, to ${names.get(odds.back_to) ?? odds.back_to}` : ', with nowhere to fall back to';
+  const forced = odds.forced_back ?? 0;
   return h('section', { class: 'rl-odds-take' },
     h('h4', {}, 'Taking the territory'),
     h('dl', {},
-      none(odds.taken) ? row('Chance', 'A win here takes no territory') : [row('Chance', in100(odds.taken)), row('When, if taken', when)],
-      row('Forced back', `${in100(odds.forced_back ?? 0)}${back}`)));
+      none(odds.taken) ? row('Chance', 'A win here takes no territory')
+        : [row('Chance', runsBar('Taken', odds.taken, 'own'), h('span', {}, in100(odds.taken))), row('When, if taken', when)],
+      row('Forced back', runsBar('Forced back', forced, 'hostile'), h('span', {}, `${in100(forced)}${back}`))));
 }
 
 let folded = false;
@@ -116,12 +122,35 @@ let folded = false;
 /** Whether the table of win shares by strength sits behind "More" (Beginner's room); set at each draw of the room. */
 export function foldOdds(on) { folded = Boolean(on); }
 
-/** The win share at each strength the reports allow. */
+/**
+ * The win share at each strength the reports allow, as a column each over its strength, a bracket
+ * under them naming the reported range the columns span; the table under them is their twin.
+ */
+function columns(odds, area) {
+  const first = odds.by_strength[0].strength;
+  const last = odds.by_strength.at(-1).strength;
+  const said = (s) => `You win at ${area} if their strength is ${s.strength}`;
+  return h('div', { class: 'rl-odds-cols', role: 'group', 'aria-label': `You win at ${area}, by their strength` },
+    h('div', { class: 'rl-odds-col-row' }, odds.by_strength.map((s) => {
+      const drawn = s.win !== null && s.win !== undefined;
+      return h('div', { class: 'rl-odds-col' },
+        bar({
+          value: drawn ? s.win : 0, limit: 100, name: said(s), column: true, tone: 'own',
+          words: drawn ? `${said(s)}: ${markNum(s.win)} in 100 runs` : `${said(s)}: no run drew it`,
+          label: drawn ? String(Math.round(s.win)) : '–',
+        }),
+        h('span', { class: 'rl-odds-col-s', 'aria-hidden': 'true' }, String(s.strength)));
+    })),
+    h('p', { class: 'rl-odds-col-range' }, first === last ? `Your reports: strength ${first}` : `Your reports: strength ${first} to ${last}`));
+}
+
+/** The win share at each strength the reports allow: the columns, and the table behind More on Beginner. */
 function byStrength(odds, area) {
   if (!odds.by_strength?.length) return null;
   const table = (...rows) => (folded ? h('details', { class: 'rl-odds-more' }, h('summary', {}, 'More'), rows) : rows);
   return h('section', { class: 'rl-odds-strengths' },
     h('h4', {}, 'If the report is wrong'),
+    columns(odds, area),
     table(h('table', { class: 'rl-odds-table' },
       h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, 'Their strength'), h('th', { scope: 'col' }, `You win at ${area}`))),
       h('tbody', {}, odds.by_strength.map((s) => h('tr', {},

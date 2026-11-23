@@ -1486,6 +1486,13 @@ def web_serve(
             "$REVISIONIST_OPENROUTER_KEY, the aide from templates.",
         ),
     ] = WebTransport.CLAUDE,
+    secure_cookie: Annotated[
+        bool,
+        typer.Option(
+            "--secure-cookie",
+            help="HTTPS sits in front: mark the cookie Secure and send Strict-Transport-Security.",
+        ),
+    ] = False,
 ) -> None:
     """The web client and its JSON API, in the foreground. Plain HTTP: bind it to
     a private address such as the tailnet, never a public one."""
@@ -1496,6 +1503,7 @@ def web_serve(
     ):
         raise _fail("refusing to start:\n" + "\n".join(problems), EXIT_REFUSED)
     _pg_store("the web client", "").close()
+    from revisionist.engine.web import guard
     from revisionist.engine.web.server import App, serve
 
     root = static or WEB_STATIC
@@ -1513,7 +1521,10 @@ def web_serve(
         briefings=cmp.briefings_dir(),
         offline_prose=offline_prose,
         template_aide=transport is WebTransport.OPENROUTER,
+        secure_cookie=secure_cookie,
     )
+    if warning := guard.start_warning(host, secure_cookie):
+        typer.echo(warning, err=True)
     typer.echo(f"web client on http://{host}:{port}/", err=True)
     serve(app_, host, port)
 

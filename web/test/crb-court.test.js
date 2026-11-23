@@ -1,6 +1,6 @@
-// The court board: one row per path the seat's forms travel, a square per decision step in
-// order and a small mark for a clerical step; each order in flight a token on its holder's
-// square; the circle and chain on no path grouped by bloc; each chamber's seats by party with
+// The court board: one row per path the seat's forms travel, drawn as a track: a square per
+// decision step in order and a small mark for a clerical step, each with its days under it; each
+// order in flight a marker on its holder's step, named under the track; the circle and chain on no path grouped by bloc; each chamber's seats by party with
 // the line that carries a vote and its public votes. A picked square or chip shows the
 // person's figure card with the two moves the seat has on them.
 // Run: node --test web/test/
@@ -95,40 +95,41 @@ test('one row per path: its name, the forms that travel it, a square per decisio
   assert.deepEqual(squares(all[3]).map(sqName), ['Harry L. Hopkins', 'Edward R. Stettinius Jr.', 'You']);
   const barkley = square(all[0], 'Alben W. Barkley');
   assert.equal(words(barkley.querySelector('.rl-court-office')), 'Senate Majority Leader');
-  assert.equal(words(barkley.querySelector('.rl-court-days')), '20 days');
+  assert.equal(words(barkley.closest('.rl-trk-seg').querySelector('.rl-trk-days')), '20 days');
   assert.equal(words(square(all[0], 'You').querySelector('.rl-court-office')), 'President of the United States');
 });
 
 test('a clerical step is a small mark between the squares, not a square', () => {
   const view = board(wide());
   const [bill, , cable, , address] = rows(view);
-  const steps = bill.querySelectorAll('.rl-court-line li').filter((li) => li.parentNode.classList.contains('rl-court-line'));
-  assert.deepEqual(steps.map((li) => li.className), ['rl-court-step', 'rl-court-step clerk', 'rl-court-step', 'rl-court-step']);
+  const steps = bill.querySelectorAll('.rl-trk li').filter((li) => li.parentNode.classList.contains('rl-trk'));
+  assert.deepEqual(steps.map((li) => li.className), ['rl-trk-seg stop', 'rl-trk-seg mark', 'rl-trk-seg stop', 'rl-trk-seg stop']);
   const clerk = bill.querySelector('.rl-court-clerk');
-  assert.equal(words(clerk), 'House committee clerk, 1 day');
+  assert.equal(words(clerk), 'House committee clerk');
+  assert.equal(words(clerk.closest('.rl-trk-seg').querySelector('.rl-trk-days')), '1 day');
   assert.equal(clerk.tagName, 'SPAN', 'a mark, not a button');
   assert.deepEqual(squares(cable).map(sqName), ['Winston Churchill']);
   assert.equal(squares(address).length, 0, 'a path of clerks alone has no square');
-  assert.equal(words(address.querySelector('.rl-court-clerk')), 'Stephen T. Early, 1 day');
+  assert.equal(words(address.querySelector('.rl-court-clerk')), 'Stephen T. Early');
 });
 
-test('each order in flight is a token on its holder\'s square, with the day it is on and the days stated', () => {
+test('each order in flight is a marker on its holder\'s step, named under the track with the day it is on and the days stated', () => {
   const view = board(wide());
   const tokens = view.querySelectorAll('.rl-court-tok');
   assert.equal(tokens.length, 2, 'two orders in flight');
   const rayburn = square(view, 'Sam Rayburn');
-  assert.equal(words(rayburn.querySelector('.rl-court-tok')), 'Send a bill to Congress: day 9 of about 8');
+  assert.ok(rayburn.closest('.rl-trk-seg').querySelector('.rl-trk-marker'));
+  assert.deepEqual(tokens.map(words), ['Send a bill to Congress, with Sam Rayburn: day 9 of about 8', 'Give a naval order, with Harold R. Stark: day 2 of about 2']);
   assert.ok(rayburn.classList.contains('holds'));
-  assert.equal(words(square(view, 'Harold R. Stark').querySelector('.rl-court-tok')), 'Give a naval order: day 2 of about 2');
-  assert.equal(square(view, 'Alben W. Barkley').querySelector('.rl-court-tok'), null);
+  assert.equal(square(view, 'Alben W. Barkley').closest('.rl-trk-seg').querySelector('.rl-trk-marker'), null);
   assert.ok(!square(view, 'Alben W. Barkley').classList.contains('holds'));
 });
 
-test('a step with no stated time says so, on the square and on its token', () => {
+test('a step with no stated time says so, under its step and on its token', () => {
   const view = board(thin());
   const sq = square(view, 'Hajime Sugiyama');
-  assert.equal(words(sq.querySelector('.rl-court-days')), 'no time stated');
-  assert.equal(words(sq.querySelector('.rl-court-tok')), 'Move an army: day 1; no time stated');
+  assert.equal(words(sq.closest('.rl-trk-seg').querySelector('.rl-trk-days')), 'no time stated');
+  assert.equal(words(view.querySelector('.rl-court-tok')), 'Move an army, with Hajime Sugiyama: day 1; no time stated');
 });
 
 test('the ring: circle and chain on no path, grouped by bloc, each with the channel', () => {

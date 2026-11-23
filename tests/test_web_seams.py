@@ -19,7 +19,7 @@ from typing import Any
 
 import pytest
 
-from revisionist.engine.web import limits
+from revisionist.engine.web import guard, limits
 from revisionist.engine.web.server import App, make_handler
 from tests.pg import PgDb
 
@@ -28,7 +28,7 @@ Reply = tuple[int, list[tuple[str, str]], bytes]
 CSP = (
     "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; "
     "font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; "
-    "form-action 'self'"
+    "form-action 'self'; manifest-src 'self'; worker-src 'self'"
 )
 
 
@@ -202,8 +202,12 @@ def _expected(row: tuple[int, str, str, str | None, int, str]) -> tuple[Any, ...
         ("X-Content-Type-Options", "nosniff"),
         ("Referrer-Policy", "no-referrer"),
         ("Cross-Origin-Opener-Policy", "same-origin"),
-        ("Cache-Control", cache),
+        ("Cross-Origin-Resource-Policy", "same-origin"),
+        ("Permissions-Policy", guard.PERMISSIONS),
     ]
+    if status == 413:
+        headers.append(("Connection", "close"))
+    headers.append(("Cache-Control", cache))
     if cookie is not None:
         headers.append(("Set-Cookie", cookie))
     return status, tuple(headers), body

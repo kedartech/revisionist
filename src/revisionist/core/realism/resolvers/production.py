@@ -134,10 +134,13 @@ def _set(state: State, figure: QuantityId, value: int, as_of: date) -> QuantityC
     return QuantityChange(quantity_id=figure, value=value, as_of=as_of)
 
 
-def _receipt(state: State, order: Order, taker: EntityId, share: int, as_of: date) -> Fact:
+def _receipt(state: State, order: Order, taker: EntityId, share: int, as_of: date) -> Fact | None:
+    """The recipient's receipt, or None when the game holds it already: the written
+    allocation for the same share landed that day files the same fact."""
     issuer = state.seats[order.issuer].embodies
     what = _matter(state, order.lever)
-    return allocate.receipt(state, taker, issuer, order.issuer, what, share, as_of)
+    fact = allocate.receipt(state, taker, issuer, order.issuer, what, share, as_of)
+    return None if fact.fact_id in state.facts else fact
 
 
 def _stored_finding(state: State, order: Order) -> tuple["rs.Change", ...]:

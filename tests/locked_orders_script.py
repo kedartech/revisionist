@@ -148,6 +148,26 @@ def autumn_1941(tmp: Path, changes: tuple[Change, ...] = ()) -> WorldFile:
     return shipped("autumn-1941", changes)
 
 
+def table(world: WorldFile, person: str | None = None) -> tuple[str, ...]:
+    """The playable people with forms who sit at one game with ``person`` (the first of them
+    when None): ``person``, the people above them on their cards' principals, then the rest in
+    order, no more than a game seats. A world with more playable cards than a game seats is
+    played at several such tables."""
+    cards = {c.person: c for c in world.cards}
+    people = sorted({c.person for c in world.cards if c.playable and c.levers})
+    who = person if person in people else people[0]
+    above: list[str] = []
+    stack = [who]
+    while stack:
+        for up in cards[stack.pop()].principals:
+            if up in cards and up not in above and up != who:
+                above.append(up)
+                stack.append(up)
+    first = [who, *(p for p in above if p in people)]
+    rest = [p for p in people if p not in first]
+    return tuple(sorted([*first, *rest][: world.settings.max_human_seats]))
+
+
 def _halved(key: str) -> Change:
     def change(w: World) -> None:
         q = next(q for q in w["quantities"] if q["key"] == key)

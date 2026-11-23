@@ -471,6 +471,7 @@ def opening(page: Page, report: dict[str, object]) -> None:
     )
     room_top(page, report)
     groups_walk(page, report)
+    nations_chart(page, report, "1941")
     quiet_parts(page, report)
     forms_from(page, report)
     check("the map-first room offers Classic layout", set_layout(page, "Classic layout"))
@@ -648,6 +649,116 @@ def quiet_parts(page: Page, report: dict[str, object]) -> None:
         shoot(page, f"41-shg-{name.split(':')[0].lower()}-{key}")
         sheet_close(page, name)
     report["shg_quiet_parts"] = opened
+
+
+# The nations as a bar chart, with a card each (NBR): World's Nations part on the 1941 game and on
+# Salt Strait, by keyboard at 1440 and by tap at 390: the bars against the largest, ten before
+# "All nations" with the seat's own among them, the names beside the flags at 1440 only, a card
+# for the seat's own nation and for another, Escape closing a card with the focus back on its row,
+# and the page as wide as the viewport.
+ROW = ".rl-over button.rl-nb-row"
+SHOWN_NAMES = """() => [...document.querySelectorAll('.rl-over .rl-nb-name')]
+  .filter((e) => e.getClientRects().length).length"""
+
+
+def nation_card(page: Page, label: str, game: str, name: str) -> str:
+    """Open the card of the row named `label`, shoot it, close it by Escape: its words."""
+    if not press(page, ROW, label):
+        check(f"{game}: the row {label[:30]!r} is reached", False)
+        return ""
+    card = over(page).locator(".rl-nb-card")
+    try:
+        card.wait_for(timeout=10_000)
+    except PlaywrightTimeout:
+        check(f"{game}: a row opens its card", False, label)
+        return ""
+    words = said(card)
+    shoot(page, name)
+    key = card.get_attribute("data-nation")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(300)
+    back = page.evaluate("() => document.activeElement?.getAttribute('data-nation')")
+    check(
+        f"{game}: Escape closes the card, the chart stays and the focus is back on its row",
+        card.count() == 0 and over(page).get_attribute("data-sheet") == "nations" and back == key,
+        f"{back} {key}",
+    )
+    return words
+
+
+def nations_chart(page: Page, report: dict[str, object], game: str) -> None:
+    """Open World at Nations, read the chart and open two cards."""
+    page.wait_for_timeout(300)
+    if not check_open(page, press(page, ".rl-roombar .rl-sheettab", "World"), "World"):
+        return
+    if over(page).get_attribute("data-sheet") != "nations":
+        press(page, ".rl-over .rl-parts button", "Nations")
+        page.wait_for_timeout(300)
+    sheet = over(page)
+    rows = sheet.locator("button.rl-nb-row")
+    n = rows.count()
+    more = sheet.locator("button.rl-nb-all").count() > 0
+    widths = sheet.locator("rect.rl-nb-fill").evaluate_all(
+        "(rs) => rs.map((r) => Number(r.getAttribute('width')))"
+    )
+    flags = sheet.locator("button.rl-nb-row .flag").count()
+    names = page.evaluate(SHOWN_NAMES)
+    width = page.evaluate("document.documentElement.scrollWidth")
+    report[f"nbr_{game}"] = {
+        "rows": n,
+        "more": more,
+        "bars": widths,
+        "names": names,
+        "width": width,
+    }
+    check(
+        f"{game}: World's Nations part is the chart", sheet.locator(".rl-nb").count() == 1 and n > 0
+    )
+    check(f"{game}: ten rows before All nations", n == 10 if more else n <= 10, str(n))
+    check(f"{game}: the seat's own row is among them", rows.locator(".rl-nb-yours").count() == 1)
+    check(
+        f"{game}: the largest bar fills its track and none runs past it",
+        bool(widths) and max(widths) == 100 and all(0 <= w <= 100 for w in widths),
+        str(widths),
+    )
+    check(f"{game}: a flag on every row", flags == n, f"{flags} of {n}")
+    check(
+        f"{game}: the names beside the flags at 1440 only",
+        names == (0 if PHONE else n),
+        f"{names} of {n}",
+    )
+    check(f"{game}: the page is as wide as the viewport", width == SIZE[0], str(width))
+    shoot(page, f"50-nbr-{game}-chart")
+    if more:
+        check(
+            f"{game}: All nations opens the rest", press(page, ".rl-over button.rl-nb-all", "All")
+        )
+        page.wait_for_timeout(300)
+        check(f"{game}: every nation in place", rows.count() > n, str(rows.count()))
+        shoot(page, f"50-nbr-{game}-all")
+        press(page, ".rl-over button.rl-nb-all", "The first")
+        page.wait_for_timeout(300)
+    own = rows.filter(has=page.locator(".rl-nb-yours")).first.get_attribute("aria-label") or ""
+    other = (
+        rows.evaluate_all(
+            "(bs) => bs.map((b) => b.getAttribute('aria-label'))"
+            ".find((l) => !l.includes('(yours)'))"
+        )
+        or ""
+    )
+    mine = nation_card(page, own, game, f"51-nbr-{game}-own-card")
+    check(
+        f"{game}: the seat's own card has its ways on",
+        ("your war economy" in mine) == bool(widths) and "at home" in mine,
+        mine[:200],
+    )
+    theirs = nation_card(page, other, game, f"52-nbr-{game}-other-card")
+    check(
+        f"{game}: another nation's card says what its figure is, where it has one",
+        ("read from the map" in theirs) == bool(widths),
+        theirs[:200],
+    )
+    sheet_close(page, "World")
 
 
 def check_open(page: Page, found: bool, what: str) -> bool:
@@ -2139,6 +2250,7 @@ def salt_strait(playwright: object, browser: object, report: dict[str, object]) 
         battle_day(page, play)
         battle_sheet(page, report)
         sheets_opened(page)
+        nations_chart(page, report, "salt")
         if PHONE:
             phone_room(page, report)
     except Exception:

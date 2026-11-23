@@ -364,12 +364,12 @@ test('a person the seat cannot reach has neither, and says so', async () => {
   assert.ok(words(card.querySelector('.rl-person-moves')).includes('You cannot reach them from here.'));
 });
 
-/** World, Nations, then another nation's card from its chip. */
+/** World, Nations, then another nation's card from its row in the chart. */
 function sudlandCard(root) {
   groupTab(root, 'world').click();
   partTab(root, 'nations').click();
-  over(root).querySelectorAll('.rl-eco-chips button').find((b) => words(b).startsWith('Sudland')).click();
-  return over(root).querySelector('.rl-eco-other');
+  over(root).querySelectorAll('button.rl-nb-row').find((b) => b.getAttribute('aria-label').startsWith('Sudland')).click();
+  return over(root).querySelector('.rl-nb-card');
 }
 
 test('a nation\'s card has Make an offer, which opens World at Diplomacy with that nation filled in', async () => {

@@ -81,10 +81,12 @@ const groupItem = (sheet, key) => sheet.querySelectorAll('.rl-home-group').find(
 const sheetOf = (root) => root.querySelector('.rl-over');
 /** The World group's tab on the map-first room's bar. */
 const worldTab = (root) => root.querySelectorAll('.rl-sheettabs button').find((b) => b.getAttribute('data-group') === 'world');
-/** The seat's band in the map-first room: on the Nations part of World, which the bar's World tab opens. */
+/** The way to the home sheet in the map-first room: At home on the seat's own card, in World's Nations part. */
 const nationsChip = (root) => {
   fire(worldTab(root), 'click');
-  return ownChip(document.body.firstElementChild);
+  const own = document.body.firstElementChild.querySelector('button.rl-nb-row.rl-nb-own');
+  fire(own, 'click');
+  return document.body.firstElementChild.querySelector('.rl-nb-card button.rl-nb-home');
 };
 
 // --- Rule 1: the band in the top strip opens the home sheet ---------------------------------
@@ -200,7 +202,7 @@ test('another nation\'s groups are never drawn: its band only', () => {
   assert.equal(words(sud), 'Sudland: shaken at home');
 });
 
-test('in the map-first room the band on the Nations part opens the Home part over the map, the minute poll keeps it, and Escape returns focus to the World tab', async () => {
+test('in the map-first room At home on the seat\'s own card opens the Home part over the map, the minute poll keeps it, and Escape returns focus to the World tab', async () => {
   const { root, ctx, doc } = await room();
   fire(nationsChip(root()), 'click');
   const sheet = sheetOf(root());

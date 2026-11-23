@@ -379,7 +379,7 @@ def test_the_moves_are_planned_on_a_board_holding_only_the_seats_own_pieces(
         )
 
     state = adj.play(tmp_path, adj.levers, gold)
-    assert len(state.quantities) == 2
+    assert len(state.quantities) == 3
     seen: list[tuple[set[str], set[str]]] = []
     real = territory.plans
 
@@ -392,7 +392,8 @@ def test_the_moves_are_planned_on_a_board_holding_only_the_seats_own_pieces(
     block(state, "ilse")
     assert seen, "the moves are planned with territory.plans"
     own = {"The Norra Levy", "The Norra Kites", "The Norra Herald"}
-    assert all(names <= own and pools <= {"Norra's shipping"} for names, pools in seen)
+    pools_own = {"Norra's shipping", "Barge Act passed"}
+    assert all(names <= own and pools <= pools_own for names, pools in seen)
 
 
 # --- Rule 5: a game without territories sends none of the new keys --------------------

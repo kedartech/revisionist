@@ -9,7 +9,7 @@ too. Three locks, one of each decider kind and one for each path:
 - ``island_march``: Kara's march to the Isle needs Ilse (a person) while she has not set a
   watch on the Gulf, by her own form or by a written engagement.
 - ``coast_march``: Kara's march to the Sudland Coast needs Norra's assembly (a body)
-  while no law arming merchant ships is in force for Norra.
+  while the toy world's own law, the Barge Act, is not in force for Norra (``laws`` on).
 - ``gulf_fire``: a written engagement in the Gulf always needs Ilse.
 
 The shared toy world is left as it is, so every other test that reads it is unchanged.
@@ -60,9 +60,9 @@ from tests.test_territory_model import CAMPAIGN, created, refused, variant
 World = dict[str, Any]
 ROOT = Path(__file__).resolve().parents[1]
 DAY = date(1900, 4, 2)
-LAW = "arm merchant ships"
-"""A clause a law the rules know carries (``votes.in_force``, read only)."""
-FLAG = "arm_merchant_ships_passed"
+LAW = "arm the gulf barges"
+"""The clause of the toy world's own law, which no code table knows."""
+FLAG = "barge_act_passed"
 
 
 def key_id(key: str) -> EntityId:
@@ -138,16 +138,6 @@ def forms(w: World) -> None:
             ],
         }
     ]
-    w["quantities"].append(
-        {
-            "key": FLAG,
-            "owner": "norra",
-            "name": "Arming law passed",
-            "value": 0,
-            "unit": "flag",
-            "source": "toy",
-        }
-    )
 
 
 ROWS: list[World] = [
@@ -179,7 +169,7 @@ ROWS: list[World] = [
 
 
 def locked(w: World) -> None:
-    w["rules"] = sorted({*w["rules"], "locks"})
+    w["rules"] = sorted({*w["rules"], "locks", "laws"})
     w["locks"] = [dict(r) for r in ROWS]
 
 
@@ -259,6 +249,7 @@ def test_with_locks_off_the_rows_are_checked_and_left_out(tmp_path: Path) -> Non
     def unlocked(w: World) -> None:
         for c in (general, aide, forms):
             c(w)
+        w["rules"] = sorted({*w["rules"], "laws"})
 
     plain, _ = created(variant(tmp_path, unlocked))
     assert [e.payload for e in events] == [e.payload for e in plain]

@@ -70,6 +70,7 @@ from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.groups import Groups
 from revisionist.core.realism.holders import Capture, Holding
 from revisionist.core.realism.kinds import Kinds
+from revisionist.core.realism.laws import Law
 from revisionist.core.realism.locks import Asked, HeldOrder, LockRow
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
@@ -200,6 +201,9 @@ class _World(Model):
     """With ``locks`` on, the world's rows saying which order, under which condition,
     needs which decision, from whom, set once by ``locks_declared`` (DCD): public rules of
     the world, the same in every view. Read through ``locks.lock_for``."""
+    laws: tuple[Law, ...] = ()
+    """With ``laws`` on, the laws the world declares, set once by ``laws_declared`` (LWC):
+    public rules of the world, the same in every view. Read through ``laws.in_force``."""
     holders: dict[EntityId, Holding] = Field(default_factory=dict)
     """With ``holders`` on, each territory that has changed hands: its holder now, by
     ``area_held``. A territory not here has the holder the board gives. Public (THL)."""
@@ -241,6 +245,7 @@ class _World(Model):
             "map",
             "kinds",
             "locks",
+            "laws",
             "holders",
             "economy",
         }

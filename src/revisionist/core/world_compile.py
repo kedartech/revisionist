@@ -124,6 +124,7 @@ from revisionist.core.realism.effect import (
 from revisionist.core.realism.geography import AT_ONE_PLACE, FORCES, Feature, FeatureKind, Leg
 from revisionist.core.realism.kinds import Domain as PieceDomain
 from revisionist.core.realism.kinds import PieceKind, Resource, Role
+from revisionist.core.realism.laws import Does, Law, LawEffect
 from revisionist.core.realism.locks import (
     Decider,
     LawNotInForce,
@@ -512,6 +513,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "pacts",
             "conferences",
             "locks",
+            "laws",
             "production",
         ):
             if getattr(world, name):
@@ -526,6 +528,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_contest_moves(world, sections, problems)
     _check_aim_rules(world, sections, problems)
     _check_command(world, problems)
+    _check_laws(world, problems)
     _check_locks(world, sections, problems)
     for seat in world.seats:
         if seat.controller is Controller.HUMAN:
@@ -1922,9 +1925,59 @@ def _check_lock_when(
         )
 
 
+def _check_laws(world: WorldFile, problems: list[str]) -> None:
+    """Each law (LWC): its key once; a nation that is a polity the world declares; a passed
+    quantity the world declares; a ``does`` the rules know, with an amount where it takes
+    one. With the rule off they are checked and left out of the game."""
+    polities = {d.key for d in world.entities if d.kind is EntityKind.POLITY}
+    quantities = {q.key for q in world.quantities}
+    seen: set[str] = set()
+    for law in world.laws:
+        where = f"law {law.key}"
+        if law.key in seen:
+            problems.append(f"{where}: duplicate key")
+        seen.add(law.key)
+        if law.nation not in polities:
+            problems.append(f"{where}: unknown nation {law.nation}")
+        if law.passed not in quantities:
+            problems.append(f"{where}: unknown quantity {law.passed}")
+        if law.does is None:
+            continue
+        if law.does.kind not in set(Does):
+            problems.append(f"{where}: does {law.does.kind!r} is not an effect the rules know")
+            continue
+        try:
+            LawEffect(kind=Does(law.does.kind), amount=law.does.amount)
+        except ValidationError as exc:
+            problems.append(f"{where}: {_first_error(exc)}")
+
+
+def _laws(world: WorldFile, ids: Mapping[str, str]) -> ev.LawsDeclared:
+    """The world's laws in its own order, keys bound to ids (LWC)."""
+    return ev.LawsDeclared(
+        laws=tuple(
+            Law(
+                key=law.key,
+                title=law.title,
+                nation=EntityId(ids[law.nation]),
+                clauses=law.clauses,
+                passed=QuantityId(ids[law.passed]),
+                does=None
+                if law.does is None
+                else LawEffect(kind=Does(law.does.kind), amount=law.does.amount),
+                daily_life=law.daily_life,
+            )
+            for law in world.laws
+        )
+    )
+
+
 def _law_clauses(world: WorldFile) -> set[str]:
-    """The clause subjects of every law whose passed flag the world declares: the laws
-    ``votes.in_force`` can find in force (rules lane, read only)."""
+    """The clause subjects of every law a lock's condition may name: with ``laws`` on, the
+    laws the world declares; with it off, those whose passed flag the world declares among
+    the laws ``votes.in_force`` can find in force (rules lane, read only)."""
+    if Rule.LAWS in world.rules:
+        return {c.subject for law in world.laws for c in law.clauses}
     from revisionist.core.realism.resolvers.votes import HISTORICAL
 
     flags = {q.key for q in world.quantities}
@@ -2514,6 +2567,9 @@ def _emit_realism(world: WorldFile, ids: Mapping[str, str]) -> list[tuple[ev.Pay
     if Rule.GROUPS in world.rules and world.groups:
         # Engine only: true support. A seat reads its own nation's groups from its view.
         out.append((_groups(world, ids), _engine_only(ids, "groups")))
+    if Rule.LAWS in world.rules and world.laws:
+        # Public: the laws a world declares are rules of the world.
+        out.append((_laws(world, ids), PUBLIC))
     if Rule.LOCKS in world.rules and world.locks:
         # Public: which orders need whose decision is a rule of the world.
         out.append((_locks(world, ids), PUBLIC))

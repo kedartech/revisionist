@@ -65,6 +65,18 @@ adjacency:
 # Norra's shipping, from which a levy's lift across the water is drawn.
 quantities:
   - {key: norra_shipping, owner: norra, name: Norra's shipping, value: 100000, unit: tons, source: toy}
+  - {key: barge_act_passed, owner: norra, name: Barge Act passed, value: 0, unit: flag, source: toy}
+
+# The world's own law, read with the laws rule on: no code table knows its key, its
+# clause or its flag.
+laws:
+  - key: barge_act
+    title: The Barge Act
+    nation: norra
+    clauses:
+      - {kind: power, subject: arm the gulf barges}
+    passed: barge_act_passed
+    does: {kind: arms_merchant_ships}
 
 # What the land yields. Two resources share the output role; none has supply or
 # prestige.

@@ -38,6 +38,7 @@ from revisionist.engine import (
     cast,
     counsel,
     directive,
+    maps,
     notice,
     odds,
     orders_reader,
@@ -405,7 +406,9 @@ class App:
                     )
                     return snapshot.checked(state, seat, pages)
                 if action == "map":
-                    return snapshot.checked(state, seat, dict(map_api.map_reply(state)))
+                    return snapshot.checked(
+                        state, seat, dict(map_api.map_reply(state, body.get("shapes") is not False))
+                    )
                 if action == "check":  # files nothing, so never held by a commit (LKD)
                     return snapshot.checked(state, seat, dict(self._check(state, seat, body)))
                 if action == "odds":  # files nothing, so never held by a commit (ODS)
@@ -1381,8 +1384,8 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
         # --- plumbing ----------------------------------------------------------
 
         def _send_json(self, status: HTTPStatus, payload: Any, cookie: str | None = None) -> None:
-            body = json.dumps(payload, ensure_ascii=False).encode()
-            guard.json_headers(self, status, len(body), cookie)
+            body, zipped = guard.compress(self, json.dumps(payload, ensure_ascii=False).encode())
+            guard.json_headers(self, status, len(body), cookie, zipped)
             self.end_headers()
             self.wfile.write(body)
 
@@ -1433,6 +1436,12 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                         self._send_json(HTTPStatus.OK, {"account": None})
                         return
                     self._send_json(HTTPStatus.OK, app.state_for(account))
+                    return
+                if path.startswith("/maps/"):
+                    self._map_object(path.removeprefix("/maps/"))
+                    return
+                if path == "/.well-known/assetlinks.json":
+                    self._assetlinks()
                     return
                 if path.startswith("/api/"):
                     raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
@@ -1588,6 +1597,39 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     store.close()
             self._send_json(HTTPStatus.OK, {"ok": True}, cookie=self._cookie("", 0))
 
+        # --- map objects and install files -------------------------------------
+
+        def _map_object(self, name: str) -> None:
+            """The map object a signed-in account's game names, by its hash."""
+            account = self._need_account()
+            sha256 = name.removesuffix(".json") if name.endswith(".json") else ""
+            store = app.open()
+            try:
+                link = app.handlers._game_of(store, account.account_id, "status")
+                board = None if isinstance(link, str) else load_state(store, link.campaign_id).map
+            finally:
+                store.close()
+            data = None
+            if board is not None and board.sha256 == sha256:
+                data = maps.map_object(sha256, board.file)
+            if data is None:
+                raise ApiError(HTTPStatus.NOT_FOUND, "Not found.")
+            body, zipped = guard.compress(self, data)
+            guard.map_headers(self, len(body), zipped)
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _assetlinks(self) -> None:
+            data = guard.assetlinks()
+            if data is None:
+                raise ApiError(HTTPStatus.NOT_FOUND, "Not found.")
+            body, zipped = guard.compress(self, data)
+            guard.static_headers(
+                self, HTTPStatus.OK, "application/json; charset=utf-8", len(body), ".json", zipped
+            )
+            self.end_headers()
+            self.wfile.write(body)
+
         def _signout_all(self) -> None:
             account = self._need_account()
             store = app.open()
@@ -1613,7 +1655,18 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                 kind += "; charset=utf-8"
             if target.suffix == ".js":
                 kind = "text/javascript; charset=utf-8"
-            guard.static_headers(self, HTTPStatus.OK, kind, len(data), target.suffix)
+            if target.suffix == ".webmanifest":
+                kind = guard.MANIFEST_TYPE
+            data, zipped = guard.compress(self, data)
+            guard.static_headers(
+                self,
+                HTTPStatus.OK,
+                kind,
+                len(data),
+                target.suffix,
+                zipped,
+                worker=path == "/sw.js",
+            )
             self.end_headers()
             self.wfile.write(data)
 

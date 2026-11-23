@@ -8,6 +8,9 @@
 .rl-mapfirst-map.rl-tl-on { --rl-tl-h: 44px; --rl-tl-cap: 100%; }
 .rl-mapfirst-map.rl-tl-open { --rl-tl-h: calc(44px + min(var(--rl-tl-cap, 100%), 0.4 * (100% - 2 * var(--space-2) - 44px))); }
 .rl-mapfirst-map.rl-tl-on > .rl-status { bottom: calc(var(--rl-tl-h) + var(--space-3)); }
+/* the open list lies over the map's foot by at most the cap, a share of the drawing: the map's
+   zoom is told how far (a share of the stage its corner is placed in) */
+.rl-mapfirst-map.rl-tl-open .rl-tmap { --tm-cover: min(var(--rl-tl-cap), 40%); }
 /* the strip's row is paid for by the map's own heading and line, kept for a screen reader only at
    every width, as a phone already keeps them */
 .rl-mapfirst-map.rl-tl-on .rl-tmap > h2, .rl-mapfirst-map.rl-tl-on .rl-tmap > h2 + p.muted { position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

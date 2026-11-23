@@ -154,7 +154,7 @@
 /* the map full screen, with its controls on the map (MFS): in the map-first room the map's
    controls sit over its corners, a sheet or the chip floats over its foot, and the room can give
    it the whole viewport. A corner lets a press through to the map between its controls. */
-.rl-tmap { --tm-foot: 0px; --tm-side: 0px; }
+.rl-tmap { --tm-foot: 0px; --tm-side: 0px; --tm-cover: 0px; }
 /* the stage takes the room it is given and never grows with what floats in it (contain) */
 .rl-tm-stage { position: relative; flex: 1; min-height: 320px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: var(--space-2); padding: 112px calc(var(--tm-side) + 44px + var(--space-4)) calc(var(--tm-foot) + var(--space-3)); box-sizing: border-box; contain: size; overflow: hidden; }
 .rl-tm-stage > .rl-map-figure { position: absolute; inset: 0; border: 0; border-radius: 0; }
@@ -169,7 +169,7 @@
 .rl-tm-top { top: var(--space-2); left: var(--space-2); right: calc(var(--tm-side) + var(--space-2)); justify-content: space-between; align-items: flex-start; }
 .rl-tm-tools-start { flex: 1 1 auto; min-width: 0; }
 .rl-tm-tools-end { flex: none; justify-content: flex-end; }
-.rl-tm-zoomcorner { right: calc(var(--tm-side) + var(--space-2)); bottom: calc(var(--tm-foot) + var(--space-2)); }
+.rl-tm-zoomcorner { right: calc(var(--tm-side) + var(--space-2)); bottom: calc(max(var(--tm-foot), var(--tm-cover)) + var(--space-2)); }
 .rl-tm-zoomcorner .rl-tm-zoom { flex-direction: column; }
 .rl-tm-overlay .rl-filters { flex-wrap: wrap; }
 .rl-tm-overlay .rl-filter, .rl-tm-fold { background: var(--surface); box-shadow: 0 2px 10px var(--backdrop); }

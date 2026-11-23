@@ -486,8 +486,9 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
 
 
 def _asked_scope(asked: locks.Asked) -> Scope:
-    """An ask is sealed to the asker and the seat asked, if a seat holds that person."""
-    seats = {asked.asker} | ({asked.seat} if asked.seat is not None else set())
+    """An ask is sealed to the asker and the seat asked, if a seat holds that person, and
+    the seats holding a council's members (QKD)."""
+    seats = {asked.asker, *asked.seats} | ({asked.seat} if asked.seat is not None else set())
     return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset(seats))
 
 
@@ -657,6 +658,8 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         while made := answering.make(state, day):
             add(made)
         add(opponents.settle(state, day, [*landed, *planned], wake_start))
+        while matter := _matter_answered(state, day):  # QKD: before a card answers an ask
+            add(matter)
         add(actors.unseated(state, answering.ask_deciders(state, day)))  # AAK: a seat to file from
         while answer := answering.answer_ask(state, day):
             add(answer)
@@ -689,11 +692,24 @@ def _unlocked(state: State, day: date) -> list[ev.Payload]:
     return out
 
 
+def _matter_answered(state: State, day: date) -> list[ev.Payload]:
+    """The oldest matter due by ``day``, answered (QKD): granted or declined, told to the
+    asker alone. Call again on the state after it until it returns nothing."""
+    due = locks.matters_due(state, day)
+    if not due:
+        return []
+    asked = due[0]
+    granted = locks.matter_granted(state, asked)
+    return [ev.AskAnswered(order_id=asked.order_id, asker=asked.asker, on=day, granted=granted)]
+
+
 def _locked_still(state: State, h: locks.HeldOrder, day: date) -> bool:
     """Whether another lock holds the order now that its own has opened."""
+    opened = {h.row} if h.row is not None and locks.opened_by_grant(state, h) else set()
     if h.form is not None:
-        return locks.lock_for(state, h.issuer, h.form) is not None
-    return any(held(state, h.issuer, ask, day) is not None for ask in h.asks)
+        return locks.lock_for(state, h.issuer, h.form, opened) is not None
+    found = [held(state, h.issuer, ask, day) for ask in h.asks]
+    return any(f is not None and (f.row is None or f.row.key not in opened) for f in found)
 
 
 def _relanded(
@@ -743,6 +759,21 @@ def ask_order(
     asked = locks.ask(state, seat, order_id, today)
     _append_all(store, state, [(ev.OrderAsked(asked=asked), _asked_scope(asked))], seat)
     return asked
+
+
+def choose_matter(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, order_id: OrderId, accept: bool
+) -> None:
+    """The seat's sealed choice on the matter before it (QKD): to accept or decline the
+    ask for the held order ``order_id``, dated today; a later choice before the due day
+    replaces it. Raises ``ValueError`` with the seat's words."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    if today is None:
+        raise ValueError(locks.NOT_A_MEMBER)
+    locks.may_choose(state, seat, order_id)
+    chosen = ev.MatterChosen(order_id=order_id, seat_id=seat, accept=accept, on=today)
+    _append_all(store, state, [(chosen, private_to(seat))], seat)
 
 
 def set_own_aim(

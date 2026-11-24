@@ -99,7 +99,7 @@ def test_the_seat_data_carries_its_held_orders(tmp_path: Path) -> None:
     assert isinstance(shot, locks.HeldOrder)
     ask(store, order.order_id)
     shown = realism(store, KARA)["locks"]
-    assert set(shown) == set(api.LocksBlock.__annotations__)
+    assert set(shown) == api.LocksBlock.__required_keys__
     by_id = {h["id"]: h for h in shown["held"]}
     assert set(by_id) == {order.order_id, shot.order_id}
     assert by_id[order.order_id] == api.HeldLine(
@@ -293,7 +293,7 @@ def test_the_check_is_what_filing_then_does(tmp_path: Path, case: int) -> None:
     assert said == filed(store, person, draft)
     if expected is not None:
         assert said == expected
-    assert set(said) == set(api.LockCheck.__annotations__)
+    assert set(said) == api.LockCheck.__required_keys__
 
 
 def test_the_check_of_a_refused_order_gives_todays_refusal_words(tmp_path: Path) -> None:
@@ -404,3 +404,329 @@ def test_ask_is_sealed_by_a_commit_and_check_is_not() -> None:
     from revisionist.engine.web.server import SEALED_BY_COMMIT
 
     assert "ask" in SEALED_BY_COMMIT and "check" not in SEALED_BY_COMMIT
+
+
+# --- Sending it anyway (DFR): the price in the check, and the incident ---------------
+#
+# The defiance world of ``tests/test_defiance.py``: ``posts`` and ``defiance`` on, Norra at
+# peace with Sudland, Kara's command a post whose list of acts each case sets, and a
+# written march to the Isle held for Ilse by the ``isle_move`` row.
+
+
+def _to_isle() -> Ask:
+    return written(MoveForce(force=LEVY, to=ISLE))
+
+
+def _sent(store: MemoryStore, order_id: OrderId) -> bool:
+    try:
+        realism_tick.send_anyway(store, CAMPAIGN, seat(KARA), order_id)
+    except ValueError:
+        return False
+    return True
+
+
+ANYWAY_CASES = [("border", True), ("", False), ("fire_first", False)]
+
+
+@pytest.mark.parametrize(("acts", "may"), ANYWAY_CASES)
+def test_the_check_of_a_held_order_names_the_price_exactly_when_sending_it_anyway_goes(
+    tmp_path: Path, acts: str, may: bool
+) -> None:
+    from tests.test_defiance import defiant
+
+    store = played(tmp_path, isle_move, defiant(*filter(None, [acts])))
+    before = list(store.read(CAMPAIGN))
+    said = check(store, KARA, (_to_isle(),))
+    assert list(store.read(CAMPAIGN)) == before  # the check files nothing
+    assert said["check"] == "locked" and said["who"] == "Ilse Varg"
+    filed = commit(store, KARA, _to_isle())
+    assert isinstance(filed, locks.HeldOrder)
+    (line,) = block(store, KARA)["held"]
+    assert line.get("price") == said.get("price")
+    assert ("price" in said) is may
+    assert _sent(store, filed.order_id) is may
+    if may:
+        assert said["price"] == locks_api.PRICE.format(who="Ilse Varg")
+        assert "incident" in said["price"] and "back or disown" in said["price"]
+        assert "relieved" in said["price"]
+
+
+def test_with_defiance_off_the_check_and_the_held_line_are_as_today(tmp_path: Path) -> None:
+    store = played(tmp_path, isle_move)
+    said = check(store, KARA, (_to_isle(),))
+    assert set(said) == api.LockCheck.__required_keys__
+    commit(store, KARA, _to_isle())
+    shown = block(store, KARA)
+    assert set(shown) == api.LocksBlock.__required_keys__
+    assert all(set(h) == api.HeldLine.__required_keys__ for h in shown["held"])
+
+
+def test_a_form_order_has_no_act_so_it_never_checks_with_a_price(tmp_path: Path) -> None:
+    from tests.test_defiance import defiant
+
+    store = played(tmp_path, defiant("border", "fire_first"))
+    said = check(store, KARA, ("march", TO_ISLE))
+    assert said == locked_by("Ilse Varg", HELD_FOR_ILSE)
+    order = file(store, "isle")
+    assert "price" not in block(store, KARA)["held"][0]
+    assert not _sent(store, order.order_id)
+
+
+def test_the_price_is_read_from_the_seats_own_view(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mutant: a price that named the superior from the true state would not follow the
+    seat's view."""
+    from tests.test_defiance import defiant
+
+    store = played(tmp_path, isle_move, defiant("border"))
+    from revisionist.core.project import project as real
+
+    def seen(state: State, at: Any) -> Any:
+        view = real(state, at)
+        ilse = view.entities[ILSE].model_copy(update={"name": "the Chancellor"})
+        return view.model_copy(update={"entities": {**view.entities, ILSE: ilse}})
+
+    monkeypatch.setattr(locks_api, "project", seen)
+    said = check(store, KARA, (_to_isle(),))
+    assert said["price"] == locks_api.PRICE.format(who="the Chancellor")
+
+
+def test_twin_worlds_differing_in_a_hidden_fact_price_the_same(tmp_path: Path) -> None:
+    from tests.test_defiance import defiant
+
+    a = played(tmp_path / "a", isle_move, defiant("border"))
+    b = played(tmp_path / "b", isle_move, defiant("border"), law_passed)
+    assert check(a, KARA, (_to_isle(),)) == check(b, KARA, (_to_isle(),))
+    for store in (a, b):
+        commit(store, KARA, _to_isle())
+    assert no_ids(block(a, KARA)["held"]) == no_ids(block(b, KARA)["held"])
+    assert [h.get("price") for h in block(a, KARA)["held"]] == [
+        h.get("price") for h in block(b, KARA)["held"]
+    ]
+
+
+def test_another_seat_is_never_offered_ones_held_order_to_send_anyway(tmp_path: Path) -> None:
+    from tests.test_defiance import defiant
+
+    store = played(tmp_path, isle_move, defiant("border"))
+    filed = commit(store, KARA, _to_isle())
+    assert isinstance(filed, locks.HeldOrder)
+    for person in (ILSE, OLAF):
+        assert block(store, person)["held"] == []
+        assert filed.order_id not in json.dumps(realism(store, person))
+
+
+# --- The incident: the superior's list, the commander's list, the answer -------------
+
+
+def _incident(tmp: Path, *more: Callable[[World], None]) -> tuple[MemoryStore, Any]:
+    from tests.test_defiance import defiant
+
+    store = played(tmp, isle_move, defiant("border"), *more)
+    filed = commit(store, KARA, _to_isle())
+    assert isinstance(filed, locks.HeldOrder)
+    realism_tick.send_anyway(store, CAMPAIGN, seat(KARA), filed.order_id)
+    state = tick_until(store, lambda s: bool(s.incidents))
+    (incident,) = state.incidents.values()
+    return store, incident
+
+
+def _incidents(store: MemoryStore, person: EntityId) -> list[api.IncidentLine]:
+    return block(store, person)["incidents"]
+
+
+def test_the_incident_is_before_the_superior_with_three_answers_and_in_his_notice(
+    tmp_path: Path,
+) -> None:
+    from revisionist.engine import notice
+
+    store, incident = _incident(tmp_path)
+    state = state_of(store)
+    (line,) = _incidents(store, ILSE)
+    assert line["id"] == incident.incident_id
+    assert line["answers"] == ["backed", "disowned", "dismissed"]
+    assert line["verdict"] is None and line["due"] == incident.due.isoformat()
+    assert "Kara Lind" in line["words"]
+    (due,) = [m for m in agenda_api.due_matters(state, seat(ILSE)) if m.kind == "incident"]
+    assert due == agenda_api.DueMatter(
+        "incident",
+        incident.incident_id,
+        locks_api.SENT_WITHOUT_LEAVE,
+        "Kara Lind",
+        incident.due.isoformat(),
+    )
+    line_ = f"- Kara Lind: {locks_api.SENT_WITHOUT_LEAVE}. Due {incident.due.isoformat()}."
+    assert line_ in notice._waiting(state, seat(ILSE))
+    assert line_ not in notice._waiting(state, seat(KARA))
+    for person in (KARA, OLAF):
+        kinds = {m.kind for m in agenda_api.due_matters(state, seat(person))}
+        assert "incident" not in kinds
+
+
+def test_the_commanders_seat_sees_the_incident_and_then_its_answer(tmp_path: Path) -> None:
+    from revisionist.core.realism import defiance
+
+    store, incident = _incident(tmp_path)
+    (line,) = _incidents(store, KARA)
+    view = project(state_of(store), seat(KARA))
+    assert line["words"] == defiance.told(view, view.incidents[incident.incident_id])
+    assert line["answers"] == [] and line["verdict"] is None
+    done = agenda_api.answer_incident(store, CAMPAIGN, seat(ILSE), incident.incident_id, "backed")
+    assert done == {"reply": "You have backed Kara Lind.", "refused": False}
+    (line,) = _incidents(store, KARA)
+    assert line["verdict"] == "backed" and "Ilse Varg has backed you" in line["words"]
+    (theirs,) = _incidents(store, ILSE)
+    assert theirs["verdict"] == "backed" and theirs["answers"] == []
+    assert not [
+        m for m in agenda_api.due_matters(state_of(store), seat(ILSE)) if m.kind == "incident"
+    ]
+
+
+def test_only_the_superiors_seat_answers_the_incident_and_with_one_of_three(
+    tmp_path: Path,
+) -> None:
+    from revisionist.core.realism import defiance
+
+    store, incident = _incident(tmp_path)
+    for person in (KARA, OLAF):
+        done = agenda_api.answer_incident(
+            store, CAMPAIGN, seat(person), incident.incident_id, "backed"
+        )
+        assert done == {"reply": defiance.NOT_YOURS, "refused": True}
+    done = agenda_api.answer_incident(store, CAMPAIGN, seat(ILSE), incident.incident_id, "maybe")
+    assert done["refused"] and "backed, disowned, dismissed" in done["reply"]
+    assert state_of(store).incidents[incident.incident_id].verdict is None
+
+
+def test_the_incident_is_absent_from_every_other_seats_data(tmp_path: Path) -> None:
+    store, incident = _incident(tmp_path)
+    for person in (ILSE, KARA, OLAF):
+        data = json.dumps(realism(store, person))
+        assert (incident.incident_id in data) is (person in (ILSE, KARA))
+    assert _incidents(store, OLAF) == []
+
+
+def test_unanswered_by_its_day_the_superiors_card_answers_and_both_lists_show_it(
+    tmp_path: Path,
+) -> None:
+    store, incident = _incident(tmp_path)
+    tick_until(store, lambda s: s.incidents[incident.incident_id].verdict is not None)
+    (kara,) = _incidents(store, KARA)
+    (ilse,) = _incidents(store, ILSE)
+    assert kara["verdict"] is not None and kara["verdict"] == ilse["verdict"]
+    assert ilse["answers"] == []
+
+
+def test_with_defiance_off_no_incident_kind_is_due(tmp_path: Path) -> None:
+    store = played(tmp_path)
+    for person in (ILSE, KARA, OLAF):
+        kinds = {m.kind for m in agenda_api.due_matters(state_of(store), seat(person))}
+        assert "incident" not in kinds
+        assert "incidents" not in block(store, person)
+
+
+# --- The actions through the server ---------------------------------------------------
+
+
+@pytest.fixture
+def defiers(web: Web, tmp_path: Path) -> Iterator[tuple[Realism, Client, Client, Client]]:  # noqa: F811
+    from tests.test_defiance import defiant
+
+    world(tmp_path, isle_move, defiant("border"))
+    game_ = Realism(web, str(tmp_path / "world.yaml"))
+    ada = game_.seat("ada", "kara")
+    bea = game_.seat("bea", "ilse")
+    cyd = game_.seat("cyd", "olaf")
+    make_host(game_, ada)
+    begin(game_)
+    yield game_, ada, bea, cyd
+
+
+def _web_held(game_: Realism) -> locks.HeldOrder:
+    from revisionist.core.ids import SeatId, derived_id
+
+    store = game_.web.app.open()
+    try:
+        kara = SeatId(derived_id(game_.campaign, "seat", EntityId(game_.ids["kara"])))
+        asks = (written(MoveForce(force=game_.ids["norra_levy"], to=game_.ids["isle"])),)
+        filed = realism_tick.commit_order(store, game_.campaign, kara, asks)
+    finally:
+        store.close()
+    assert isinstance(filed, locks.HeldOrder)
+    return filed
+
+
+def test_the_send_anyway_action_sends_the_held_order(
+    defiers: tuple[Realism, Client, Client, Client],
+) -> None:
+    from revisionist.core.realism import defiance
+
+    game_, ada, _, cyd = defiers
+    filed = _web_held(game_)
+    (line,) = realism_of(ada)["locks"]["held"]
+    assert line["id"] == filed.order_id and line["price"] == locks_api.PRICE.format(who="Ilse Varg")
+    status, out = post(cyd, "send-anyway", order_id=filed.order_id)
+    assert status == 200 and out == {"reply": locks.NOT_HELD, "refused": True}, out
+    status, out = post(ada, "send-anyway", order_id=filed.order_id)
+    assert status == 200 and not out["refused"], out
+    assert out["reply"] == locks_api.SENT_ANYWAY.format(words=line["words"])
+    assert realism_of(ada)["locks"]["held"] == []
+    status, out = post(ada, "send-anyway", order_id=filed.order_id)
+    assert status == 200 and out == {"reply": locks.NOT_HELD, "refused": True}, out
+    assert defiance.NOT_WITHOUT_LEAVE  # the refusal words when the post gives no leave
+
+
+def test_send_anyway_after_the_commit_is_held_for_the_next_wake(
+    defiers: tuple[Realism, Client, Client, Client],
+) -> None:
+    game_, ada, _, _ = defiers
+    filed = _web_held(game_)
+    status, out = post(ada, "commit")
+    assert status == 200 and not out["refused"], out
+    status, out = post(ada, "send-anyway", order_id=filed.order_id)
+    assert status == 200 and not out["refused"] and "held" in out, out
+    status, out = post(ada, "send-anyway", order_id="nothing-held")
+    assert status == 200 and out["refused"], out
+
+
+def test_send_anyway_is_sealed_by_a_commit() -> None:
+    from revisionist.engine.web.server import REALISM_ACTIONS, SEALED_BY_COMMIT
+
+    assert "send-anyway" in REALISM_ACTIONS and "send-anyway" in SEALED_BY_COMMIT
+
+
+def test_a_held_send_anyway_is_sent_when_the_next_wake_opens(tmp_path: Path) -> None:
+    from tests.test_defiance import defiant
+
+    store = played(tmp_path, isle_move, defiant("border"))
+    filed = commit(store, KARA, _to_isle())
+    assert isinstance(filed, locks.HeldOrder)
+    args = {"order_id": filed.order_id}
+    assert held.file_one(store, CAMPAIGN, seat(KARA), "send-anyway", args) is None
+    assert [d.order_id for d in state_of(store).defied.values()] == [filed.order_id]
+    again = held.file_one(store, CAMPAIGN, seat(KARA), "send-anyway", args)
+    assert again == locks.NOT_HELD
+
+
+def test_a_held_send_anyway_the_post_gives_no_leave_for_is_dropped_in_fixed_words(
+    tmp_path: Path,
+) -> None:
+    from revisionist.core.realism import defiance
+    from tests.test_defiance import defiant
+
+    store = played(tmp_path, isle_move, defiant("fire_first"))
+    filed = commit(store, KARA, _to_isle())
+    assert isinstance(filed, locks.HeldOrder)
+    args = {"order_id": filed.order_id}
+    said = held.file_one(store, CAMPAIGN, seat(KARA), "send-anyway", args)
+    assert said == defiance.NOT_WITHOUT_LEAVE
+    assert state_of(store).defied == {}
+
+
+def test_the_answer_action_carries_the_verdict_for_an_incident(tmp_path: Path) -> None:
+    store, incident = _incident(tmp_path)
+    args = {"item": incident.incident_id, "verdict": "disowned"}
+    assert held.file_one(store, CAMPAIGN, seat(ILSE), "answer", args) is None
+    verdict = state_of(store).incidents[incident.incident_id].verdict
+    assert verdict is not None and verdict.value == "disowned"

@@ -236,9 +236,11 @@ def main() -> int:
             begin_with_crawl(page, report)
         elif host:
             page.get_by_role("link", name="Start a new game").click()
+            keep_one_path_nation(page, report)
             page.get_by_role("button", name="Start Autumn 1941").click()
             page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
             opening_steps(page, report, "Franklin D. Roosevelt")
+            page.unroute("**/api/new/opening")
             release_and_repick(page, report, "Franklin D. Roosevelt")
             page.get_by_role("button", name="Begin the game").wait_for(timeout=60_000)
             begin_with_crawl(page, report)
@@ -1366,6 +1368,31 @@ def show_everyone(page: Page) -> None:
 
 def step_texts(page: Page) -> list[str]:
     return [t.strip() for t in page.locator(".rl-op-step").all_inner_texts()]
+
+
+def keep_one_path_nation(page: Page, report: dict) -> None:
+    """Make sure the opening offers a nation with a single path to walk. A world whose every
+    nation has two paths gives the screen no such case to meet, so the opening's answer is
+    read through and, only then, one nation other than the United States is cut to its first
+    path. The client code under test is the same; when the world has such a nation the answer
+    passes untouched."""
+
+    def handle(route) -> None:
+        resp = route.fetch()
+        body = resp.json()
+        nations = body["opening"]["nations"]
+        if not any(len(n["paths"]) == 1 and n["key"] is not None for n in nations):
+            cut = next(
+                n
+                for n in nations
+                if n["key"] is not None and n["name"] != "United States" and len(n["paths"]) > 1
+            )
+            cut["paths"] = cut["paths"][:1]
+            report["opening_one_path_cut"] = cut["name"]
+        headers = {k: v for k, v in resp.headers.items() if k.lower() != "content-length"}
+        route.fulfill(status=resp.status, headers=headers, body=json.dumps(body))
+
+    page.route("**/api/new/opening", handle)
 
 
 def opening_steps(page: Page, report: dict, name: str) -> None:

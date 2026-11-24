@@ -57,6 +57,7 @@ FEED_KINDS: frozenset[str] = frozenset(
         "divergence_changed",
         "date_advanced",
         "war_declared",
+        "war_ended",
         "map_declared",
         "kinds_declared",
         # Which orders need whose decision (DCD): public rules of the world.

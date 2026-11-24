@@ -235,7 +235,8 @@ def test_the_locks_reach_state_once_through_one_public_declaration(tmp_path: Pat
     assert row(state, "coast_march").decider == Decider(
         nation=NORRA, chambers=("assembly",), head=ILSE
     )
-    assert row(state, "gulf_fire").order.zone == GULF
+    gulf = row(state, "gulf_fire").order
+    assert gulf is not None and gulf.zone == GULF
 
 
 def test_with_locks_off_the_rows_are_checked_and_left_out(tmp_path: Path) -> None:

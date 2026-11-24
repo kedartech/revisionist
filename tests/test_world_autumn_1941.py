@@ -20,9 +20,11 @@ LEADERS = {
     "tojo",
     "mussolini",
     "chiang",
+    "ryti",
 }
-"""The eight leaders. The commanders the nation items add are read from the world file: each
-playable card beside these is a military card flagged playable by hand."""
+"""The eight leaders, and Finland's President (NFI), a political card beside them. The
+commanders the nation items add are read from the world file: each playable card beside
+these is a military card flagged playable by hand."""
 
 # Unsourced values a plan Josh approved puts in the world as [proposed], each marked
 # gap: true until a source is named (sealift plan, section 3).

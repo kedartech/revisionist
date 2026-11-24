@@ -713,6 +713,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
             add(matter)
         while answer := answering.answer_ask(state, day):
             add(answer)
+        add(agreement.peace_due(state, day))  # PEA: a held peace, allowed or declined
         add(_unlocked(state, day))  # ASK: each held order once a day, after the day's acts
     close_from, close_mark = state, len(out)
     add(holders.close(state, until))  # the wake's close: a capital marked before falls
@@ -730,6 +731,8 @@ def _unlocked(state: State, day: date) -> list[ev.Payload]:
     An ask plays no part."""
     out: list[ev.Payload] = []
     for h in sorted(state.held.values(), key=lambda h: h.order_id):
+        if agreement.is_peace_hold(state, h):
+            continue  # PEA: a held acceptance of peace ends with its offer, never lands
         if not locks.open_now(state, h) or _locked_still(state, h, day):
             continue
         landed_id = OrderId(derived_id(state.campaign_id, "landed", h.order_id))
@@ -812,6 +815,20 @@ def ask_order(
     return asked
 
 
+def sendable(
+    state: State, seat: SeatId, h: locks.HeldOrder, today: date
+) -> tuple[tuple[defiance.Act, ...], ev.OrderDrafted | ev.OrderRouted]:
+    """Whether the seat's held order ``h`` may be sent anyway today, as ``send_anyway``
+    rules it: its acts and the landing. Raises ``ValueError`` with the seat's words. The
+    check before sending reads the same rule, so the price it names and the send agree."""
+    acts = defiance.may_send(state, seat, h)
+    landed_id = OrderId(derived_id(state.campaign_id, "defied", h.order_id))
+    landing, refusal = _relanded(state, h, landed_id, today)
+    if landing is None:
+        raise ValueError(refusal[:300] or NOBODY)
+    return acts, landing
+
+
 def send_anyway(
     store: EventStore, campaign_id: CampaignId, seat: SeatId, order_id: OrderId
 ) -> ev.OrderDefied:
@@ -825,11 +842,8 @@ def send_anyway(
         raise ValueError(locks.NOT_HELD)
     if order_id in state.aide_orders:
         raise ValueError(defiance.BY_AIDE)
-    acts = defiance.may_send(state, seat, h)
+    acts, landing = sendable(state, seat, h, today)
     landed_id = OrderId(derived_id(state.campaign_id, "defied", order_id))
-    landing, refusal = _relanded(state, h, landed_id, today)
-    if landing is None:
-        raise ValueError(refusal[:300] or NOBODY)
     sent = ev.OrderDefied(
         defied=defiance.Defied(
             order_id=order_id,

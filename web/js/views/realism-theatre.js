@@ -119,7 +119,7 @@ function movingForms(rv, piece, act, onPlaces) {
   const items = forms.map(({ lever, force }, n) => {
     const item = standardForm(lever, {
       force, onSubmit: (v) => act?.('Sending it…', 'lever', v), entities: [], onPlaces: (s) => onPlaces(n, s),
-      check: formCheck(rv), onAsk: (v) => act?.(ASKING, 'lever-ask', v),
+      check: formCheck(rv), onAsk: (v) => act?.(ASKING, 'lever-ask', v), onAnyway: (v) => act?.(ANYWAY_BUSY, 'lever-anyway', v),
     });
     item.querySelector('.rl-instrument-head [aria-expanded="false"]')?.click();
     return item;
@@ -156,6 +156,7 @@ function litPlaces(map, s, from) {
 
 /** The busy line while a locked order is filed and asked for. */
 const ASKING = 'Filing it and asking…';
+const ANYWAY_BUSY = 'Sending it anyway…';
 
 /** The order a picked piece's move files: the form, the force and the move's destination. */
 export const moveOrder = (p, mv) => ({ lever: p.lever.name, params: { force: p.force, to: mv.to.value } });
@@ -228,9 +229,11 @@ function thereBlock(p, enemies) {
 /**
  * The confirm chip for picked piece `p` sent to `mv`: the days, the arrival day, the first
  * carrier and their load, the lift; a reported enemy there beside the seat's own piece. Send it
- * files the order; Odds opens the odds panel, which files nothing; Back (or Escape) closes it.
+ * files the order; a move the check locks offers file it to be held (`send`), ask (`ask`) and,
+ * where the check prices it, send it anyway (`anyway`); Odds opens the odds panel, which files
+ * nothing; Back (or Escape) closes it.
  */
-function confirmChip(rv, p, mv, shapes, { send, ask, back }) {
+function confirmChip(rv, p, mv, shapes, { send, ask, anyway = null, back }) {
   const path = rv.court?.paths?.find((c) => c.id === p.lever.pipeline) ?? null;
   const due = arrival(rv.clock.world_date, path?.steps ?? null, mv.days);
   const esc = { onkeyup: (e) => { if (e.key === 'Escape') { e.preventDefault(); back(); } } };
@@ -247,7 +250,7 @@ function confirmChip(rv, p, mv, shapes, { send, ask, back }) {
     h('p', { class: 'rl-pup-lift' }, mv.lift ? liftWords(mv.lift) : 'No lift needed'),
     thereBlock(p, reportedEnemies(rv.map, shapes, mv.area.key, standings(rv))),
     // a move the server's check locks: file it to be held, or ask, in place of Send it (LKM)
-    locked ? lockedChoice(locked, { file: send, ask, esc }) : null,
+    locked ? lockedChoice(locked, { file: send, ask, send: anyway, esc }) : null,
     h('div', { class: 'rl-pup-acts' },
       locked ? null : h('button', { type: 'button', class: 'primary', onclick: send, ...esc }, 'Send it'),
       odds.button,
@@ -398,6 +401,7 @@ export function theatreBoard(rv, ui, { pick, act, open, hooks = {} } = {}) {
     chipBox.replaceChildren(mv && shapes ? confirmChip(rv, piece, mv, shapes, {
       send: () => act?.('Sending it…', 'lever', moveOrder(piece, mv), sent),
       ask: () => act?.(ASKING, 'lever-ask', moveOrder(piece, mv), sent),
+      anyway: () => act?.(ANYWAY_BUSY, 'lever-anyway', moveOrder(piece, mv), sent),
       back: () => setGoal(null, mv.area.key),
     }) : '');
   };

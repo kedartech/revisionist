@@ -356,9 +356,12 @@ def _decided(state: "State", found: PricedOffer, day: date) -> "OfferSettled | N
     return _settled(found, OfferStanding.DUE, day, due=flag.as_of + timedelta(days=held.days))
 
 
-def _judged(state: "State", found: PricedOffer, day: date) -> list["OfferSettled | GroupMoved"]:
+def _judged(
+    state: "State", found: PricedOffer, day: date, now: dict[tuple[EntityId, str], int]
+) -> list["OfferSettled | GroupMoved"]:
     """A promise on its due day, read from state (rule 4): kept, and the bloc gains
-    ``KEPT_POINTS``; else broken, and it loses the price's loss."""
+    ``KEPT_POINTS``; else broken, and it loses the price's loss. The bloc moves from its
+    support in ``now`` when an earlier promise moved it that day, and ``now`` is updated."""
     from revisionist.core.goals import goal_met
     from revisionist.core.realism import groups
 
@@ -371,26 +374,32 @@ def _judged(state: "State", found: PricedOffer, day: date) -> list["OfferSettled
     ]
     change = KEPT_POINTS if kept else -held.loss
     cause = groups.Cause.PROMISE_KEPT if kept else groups.Cause.PROMISE_BROKEN
-    if change and groups.support(state, found.nation, found.bloc) is not None:
-        out.append(groups.shift(state, found.nation, found.bloc, change, cause, day))
+    bloc = (found.nation, found.bloc)
+    was = now.get(bloc, groups.support(state, *bloc))
+    if change and was is not None:
+        moved = groups._moved(was, found.nation, found.bloc, change, cause, day)
+        now[bloc] = moved.support
+        out.append(moved)
     return out
 
 
 def walk(state: "State", day: date) -> list["OfferSettled | GroupMoved"]:
     """On world day ``day``, in offer id order: each taken offer whose bill has settled
-    comes due or lapses, and each promise whose due day has come is judged."""
+    comes due or lapses, and each promise whose due day has come is judged, each bloc's
+    support carried from one promise to the next."""
     if not on(state):
         return []
     out: list[OfferSettled | GroupMoved] = []
+    now: dict[tuple[EntityId, str], int] = {}
     for found in sorted(state.offers, key=lambda o: o.offer_id):
         if found.standing is OfferStanding.TAKEN:
             decided = _decided(state, found, day)
             if decided is not None:
                 out.append(decided)
             if decided is not None and decided.due is not None and decided.due <= day:
-                out += _judged(state, found.model_copy(update={"due": decided.due}), day)
+                out += _judged(state, found.model_copy(update={"due": decided.due}), day, now)
         elif found.standing is OfferStanding.DUE and found.due is not None and found.due <= day:
-            out += _judged(state, found, day)
+            out += _judged(state, found, day, now)
     return out
 
 

@@ -110,6 +110,11 @@ entities:
   - {key: ethiopia_state, kind: polity, name: Ethiopia}
   - {key: saudi_arabia, kind: polity, name: Saudi Arabia}
   - {key: liberia_state, kind: polity, name: Liberia}
+  # India, Central Asia and Siberia's new holders: Afghanistan, Tibet (Nepal and Bhutan folded in) and
+  # Mongolia (Tannu Tuva folded in). [proposed]
+  - {key: afghanistan_state, kind: polity, name: Afghanistan}
+  - {key: tibet, kind: polity, name: Tibet}
+  - {key: mongolia_state, kind: polity, name: Mongolia}
 
   # Rule 4: every place of today's world, restated with the area it lies in; a port names its sea zone
   # and a base its sides and domains (the code table in core/realism/bases.py: F sea, A land, R air).
@@ -230,6 +235,37 @@ entities:
   - {key: santa_isabel, kind: location, name: Santa Isabel, at: [3.75, 8.78], theatre: Africa, within: spanish_guinea, base: {sides: [spain], domains: [land]}}
   - {key: ponta_delgada, kind: location, name: Ponta Delgada, at: [37.74, -25.67], theatre: Africa, within: azores_madeira, base: {sides: [portugal], domains: [land]}}
   - {key: lajes, kind: location, name: Lajes, at: [38.76, -27.09], theatre: Africa, within: azores_madeira, base: {sides: [portugal], domains: [land]}}
+  # India, Central Asia and Siberia's places, each a land base of the area's holder on 1 September
+  # 1941. [proposed]
+  - {key: kuibyshev, kind: location, name: Kuibyshev, at: [53.2, 50.14], theatre: Inner Asia, within: middle_volga, base: {sides: [ussr], domains: [land]}}
+  - {key: kazan, kind: location, name: Kazan, at: [55.8, 49.11], theatre: Inner Asia, within: middle_volga, base: {sides: [ussr], domains: [land]}}
+  - {key: astrakhan, kind: location, name: Astrakhan, at: [46.35, 48.03], theatre: Inner Asia, within: middle_volga, base: {sides: [ussr], domains: [land]}}
+  - {key: sverdlovsk, kind: location, name: Sverdlovsk, at: [56.84, 60.61], theatre: Inner Asia, within: urals, base: {sides: [ussr], domains: [land]}}
+  - {key: magnitogorsk, kind: location, name: Magnitogorsk, at: [53.38, 59.03], theatre: Inner Asia, within: urals, base: {sides: [ussr], domains: [land]}}
+  - {key: novosibirsk, kind: location, name: Novosibirsk, at: [55.05, 82.95], theatre: Inner Asia, within: western_siberia, base: {sides: [ussr], domains: [land]}}
+  - {key: stalinsk, kind: location, name: Stalinsk, at: [53.77, 87.13], theatre: Inner Asia, within: western_siberia, base: {sides: [ussr], domains: [land]}}
+  - {key: alma_ata, kind: location, name: Alma-Ata, at: [43.23, 76.95], theatre: Inner Asia, within: kazakhstan, base: {sides: [ussr], domains: [land]}}
+  - {key: karaganda, kind: location, name: Karaganda, at: [49.8, 73.11], theatre: Inner Asia, within: kazakhstan, base: {sides: [ussr], domains: [land]}}
+  - {key: krasnoyarsk, kind: location, name: Krasnoyarsk, at: [56.01, 92.87], theatre: Inner Asia, within: eastern_siberia, base: {sides: [ussr], domains: [land]}}
+  - {key: irkutsk, kind: location, name: Irkutsk, at: [52.29, 104.28], theatre: Inner Asia, within: eastern_siberia, base: {sides: [ussr], domains: [land]}}
+  - {key: tashkent, kind: location, name: Tashkent, at: [41.31, 69.28], theatre: Inner Asia, within: turkestan, base: {sides: [ussr], domains: [land]}}
+  - {key: krasnovodsk, kind: location, name: Krasnovodsk, at: [40.02, 52.97], theatre: Inner Asia, within: turkestan, base: {sides: [ussr], domains: [land]}}
+  - {key: kabul, kind: location, name: Kabul, at: [34.53, 69.18], theatre: Inner Asia, within: afghanistan, base: {sides: [afghanistan_state], domains: [land]}}
+  - {key: karachi, kind: location, name: Karachi, at: [24.86, 67.01], theatre: Inner Asia, within: indus_northwest, base: {sides: [uk], domains: [land]}}
+  - {key: lahore, kind: location, name: Lahore, at: [31.55, 74.34], theatre: Inner Asia, within: indus_northwest, base: {sides: [uk], domains: [land]}}
+  - {key: rawalpindi, kind: location, name: Rawalpindi, at: [33.6, 73.03], theatre: Inner Asia, within: indus_northwest, base: {sides: [uk], domains: [land]}}
+  - {key: new_delhi, kind: location, name: New Delhi, at: [28.61, 77.21], theatre: Inner Asia, within: ganges_bengal, base: {sides: [uk], domains: [land]}}
+  - {key: calcutta, kind: location, name: Calcutta, at: [22.57, 88.37], theatre: Inner Asia, within: ganges_bengal, base: {sides: [uk], domains: [land]}}
+  - {key: bombay, kind: location, name: Bombay, at: [19.08, 72.88], theatre: Inner Asia, within: southern_india, base: {sides: [uk], domains: [land]}}
+  - {key: madras, kind: location, name: Madras, at: [13.08, 80.28], theatre: Inner Asia, within: southern_india, base: {sides: [uk], domains: [land]}}
+  - {key: trincomalee, kind: location, name: Trincomalee, at: [8.57, 81.23], theatre: Inner Asia, within: southern_india, base: {sides: [uk], domains: [land]}}
+  - {key: colombo, kind: location, name: Colombo, at: [6.93, 79.9], theatre: Inner Asia, within: southern_india, base: {sides: [uk], domains: [land]}}
+  - {key: nova_goa, kind: location, name: Nova Goa, at: [15.5, 73.83], theatre: Inner Asia, within: portuguese_india, base: {sides: [portugal], domains: [land]}}
+  - {key: lhasa, kind: location, name: Lhasa, at: [29.65, 91.12], theatre: Inner Asia, within: tibet_nepal, base: {sides: [tibet], domains: [land]}}
+  - {key: urumchi, kind: location, name: Urumchi, at: [43.82, 87.61], theatre: Inner Asia, within: sinkiang, base: {sides: [china], domains: [land]}}
+  - {key: hami, kind: location, name: Hami, at: [42.82, 93.52], theatre: Inner Asia, within: sinkiang, base: {sides: [china], domains: [land]}}
+  - {key: ulan_bator, kind: location, name: Ulan Bator, at: [47.92, 106.92], theatre: Inner Asia, within: mongolia, base: {sides: [mongolia_state], domains: [land]}}
+  - {key: kyzyl, kind: location, name: Kyzyl, at: [51.72, 94.45], theatre: Inner Asia, within: mongolia, base: {sides: [mongolia_state], domains: [land]}}
 
 # Rule 2: every land territory's holder on 1 September 1941. All gaps (no evidence record).
 holders:
@@ -372,6 +408,26 @@ holders:
   - {territory: portuguese_guinea, holder: portugal, gap: true}
   - {territory: spanish_guinea, holder: spain, gap: true}
   - {territory: azores_madeira, holder: portugal, gap: true}
+  # India, Central Asia and Siberia, each holder as the regions draft gives it (its sources named there;
+  # no evidence record): the Soviet lands east of the Volga the Soviet Union's; British India with the
+  # princely states and Ceylon the United Kingdom's; Goa Portugal's; Afghanistan neutral; Tibet
+  # independent in fact, with Nepal (at war at Britain's side) and Bhutan folded in, a gap; Sinkiang
+  # nominally China's under Sheng Shicai, Soviet-aligned until July 1942, a gap; Mongolia a Soviet
+  # satellite, with Tannu Tuva (a separate state until 1944) folded in, a gap.
+  - {territory: middle_volga, holder: ussr, gap: true}
+  - {territory: urals, holder: ussr, gap: true}
+  - {territory: western_siberia, holder: ussr, gap: true}
+  - {territory: kazakhstan, holder: ussr, gap: true}
+  - {territory: eastern_siberia, holder: ussr, gap: true}
+  - {territory: turkestan, holder: ussr, gap: true}
+  - {territory: afghanistan, holder: afghanistan_state, gap: true}
+  - {territory: indus_northwest, holder: uk, gap: true}
+  - {territory: ganges_bengal, holder: uk, gap: true}
+  - {territory: southern_india, holder: uk, gap: true}
+  - {territory: portuguese_india, holder: portugal, gap: true}
+  - {territory: tibet_nepal, holder: tibet, gap: true}
+  - {territory: sinkiang, holder: china, gap: true}
+  - {territory: mongolia, holder: mongolia_state, gap: true}
 
 # Rule 6: the new forces. Strengths are tiers [proposed]; each opens at a base of its side.
 features:

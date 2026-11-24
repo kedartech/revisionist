@@ -1,6 +1,6 @@
 # Built by scripts/map_build.py from the recipe autumn-1941-globe; simplify coverage, tolerance 0.05.
 # Do not edit by hand: change the recipe and build again.
-map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 62adb291937ba2f3aec6f20a292f35ef3b5b2f1b0058c5cfc79356a16e599346, box: [-126, -60, 234, 84]}
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: afcd257ffb932123481e0908773bc33cc5da12305d9493506fe59fcd69e1b9df, box: [-126, -60, 234, 84]}
 regions:
   - {key: eastern_front, name: The Eastern Front}
   - {key: europe, name: Europe}
@@ -9,6 +9,7 @@ regions:
   - {key: pacific, name: China}
   - {key: americas, name: The Americas}
   - {key: africa, name: Africa and Arabia}
+  - {key: inner_asia, name: India}
 territories:
   - {key: the_north, name: The North, region: eastern_front, terrain: forest, sites: [archangel]}
   - {key: leningrad_area, name: Leningrad, region: eastern_front, terrain: forest, sites: [leningrad]}
@@ -127,6 +128,20 @@ territories:
   - {key: portuguese_guinea, name: Portuguese Guinea and Cape Verde, region: africa, terrain: forest, sites: [bissau, mindelo]}
   - {key: spanish_guinea, name: Spanish Guinea, region: africa, terrain: forest, sites: [santa_isabel]}
   - {key: azores_madeira, name: The Azores and Madeira, region: africa, terrain: mountain, sites: [ponta_delgada, lajes]}
+  - {key: middle_volga, name: The Middle Volga, region: inner_asia, terrain: plain, sites: [kuibyshev, kazan, astrakhan]}
+  - {key: urals, name: The Urals, region: inner_asia, terrain: mountain, sites: [sverdlovsk, magnitogorsk]}
+  - {key: western_siberia, name: Western Siberia, region: inner_asia, terrain: marsh, sites: [novosibirsk, stalinsk]}
+  - {key: kazakhstan, name: Kazakhstan, region: inner_asia, terrain: plain, sites: [alma_ata, karaganda]}
+  - {key: eastern_siberia, name: Eastern Siberia, region: inner_asia, terrain: forest, sites: [krasnoyarsk, irkutsk]}
+  - {key: turkestan, name: Turkestan, region: inner_asia, terrain: mountain, sites: [tashkent, krasnovodsk]}
+  - {key: afghanistan, name: Afghanistan, region: inner_asia, terrain: mountain, sites: [kabul]}
+  - {key: indus_northwest, name: The Indus and the North-West, region: inner_asia, terrain: plain, sites: [karachi, lahore, rawalpindi]}
+  - {key: ganges_bengal, name: The Ganges Plain and Bengal, region: inner_asia, terrain: plain, sites: [new_delhi, calcutta]}
+  - {key: southern_india, name: Southern India and Ceylon, region: inner_asia, terrain: plain, sites: [bombay, madras, trincomalee, colombo]}
+  - {key: portuguese_india, name: Goa, region: inner_asia, terrain: plain, sites: [nova_goa]}
+  - {key: tibet_nepal, name: 'Tibet, Nepal and Bhutan', region: inner_asia, terrain: mountain, sites: [lhasa]}
+  - {key: sinkiang, name: Sinkiang, region: inner_asia, terrain: mountain, sites: [urumchi, hami]}
+  - {key: mongolia, name: Mongolia and Tannu Tuva, region: inner_asia, terrain: plain, sites: [ulan_bator, kyzyl]}
 sea_zones:
   - {key: baltic_sea, name: The Baltic Sea, region: eastern_front, terrain: sea}
   - {key: black_sea, name: The Black Sea, region: eastern_front, terrain: sea}
@@ -165,6 +180,10 @@ adjacency:
   - [aegean_sea, eastern_mediterranean]
   - [aegean_sea, greece]
   - [aegean_sea, turkey]
+  - [afghanistan, indus_northwest]
+  - [afghanistan, iran]
+  - [afghanistan, sinkiang]
+  - [afghanistan, turkestan]
   - [alaska, eastern_pacific]
   - [alaska, north_pacific]
   - [alaska, western_canada]
@@ -254,9 +273,11 @@ adjacency:
   - [british_west_africa, french_equatorial_africa]
   - [british_west_africa, french_west_africa]
   - [british_west_africa, liberia]
+  - [burma, ganges_bengal]
   - [burma, indochina]
   - [burma, szechwan]
   - [burma, thailand]
+  - [burma, tibet_nepal]
   - [caribbean, caribbean_sea]
   - [caribbean_sea, central_america]
   - [caribbean_sea, colombia_venezuela]
@@ -267,6 +288,7 @@ adjacency:
   - [caribbean_sea, western_atlantic]
   - [caucasus, donbas]
   - [caucasus, iran]
+  - [caucasus, middle_volga]
   - [caucasus, turkey]
   - [central_america, colombia_venezuela]
   - [central_america, mexico]
@@ -303,6 +325,7 @@ adjacency:
   - [denmark_strait, mid_ocean_gap]
   - [dodecanese, eastern_mediterranean]
   - [donbas, kharkov_area]
+  - [donbas, middle_volga]
   - [donbas, odessa_area]
   - [donbas, stalingrad]
   - [donbas, voronezh]
@@ -336,6 +359,10 @@ adjacency:
   - [eastern_mediterranean, turkey]
   - [eastern_pacific, north_pacific]
   - [eastern_pacific, western_canada]
+  - [eastern_siberia, mongolia]
+  - [eastern_siberia, north_pacific]
+  - [eastern_siberia, soviet_far_east]
+  - [eastern_siberia, western_siberia]
   - [egypt, levant]
   - [egypt, sudan]
   - [english_channel, mid_ocean_gap]
@@ -368,6 +395,9 @@ adjacency:
   - [french_west_africa, portuguese_guinea]
   - [french_west_africa, spanish_sahara]
   - [french_west_africa, tripolitania]
+  - [ganges_bengal, indus_northwest]
+  - [ganges_bengal, southern_india]
+  - [ganges_bengal, tibet_nepal]
   - [germany_east, germany_south]
   - [germany_east, germany_west]
   - [germany_east, hungary_slovakia]
@@ -402,7 +432,12 @@ adjacency:
   - [indochina, south_china_sea]
   - [indochina, szechwan]
   - [indochina, thailand]
+  - [indus_northwest, iran]
+  - [indus_northwest, sinkiang]
+  - [indus_northwest, southern_india]
+  - [indus_northwest, tibet_nepal]
   - [iran, iraq]
+  - [iran, turkestan]
   - [iran, turkey]
   - [iraq, levant]
   - [iraq, syria]
@@ -429,6 +464,12 @@ adjacency:
   - [kalinin_area, smolensk_area]
   - [kalinin_area, the_north]
   - [kalinin_area, upper_volga]
+  - [kazakhstan, middle_volga]
+  - [kazakhstan, sinkiang]
+  - [kazakhstan, stalingrad]
+  - [kazakhstan, turkestan]
+  - [kazakhstan, urals]
+  - [kazakhstan, western_siberia]
   - [kharkov_area, kiev_area]
   - [kharkov_area, odessa_area]
   - [kharkov_area, smolensk_area]
@@ -451,12 +492,22 @@ adjacency:
   - [malaya, philippine_sea]
   - [malaya, south_china_sea]
   - [malaya, thailand]
+  - [manchuria, mongolia]
   - [manchuria, north_china]
   - [manchuria, soviet_far_east]
   - [mexico, us_central]
   - [mexico, us_west]
   - [mid_ocean_gap, western_approaches_area]
   - [mid_ocean_gap, western_atlantic]
+  - [middle_volga, stalingrad]
+  - [middle_volga, the_north]
+  - [middle_volga, upper_volga]
+  - [middle_volga, urals]
+  - [mongolia, north_china]
+  - [mongolia, northwest_china]
+  - [mongolia, sinkiang]
+  - [mongolia, soviet_far_east]
+  - [mongolia, western_siberia]
   - [moscow_area, smolensk_area]
   - [moscow_area, upper_volga]
   - [moscow_area, voronezh]
@@ -473,7 +524,9 @@ adjacency:
   - [north_sea, occupied_france]
   - [north_sea, sweden_area]
   - [north_sea, western_approaches_area]
+  - [northwest_china, sinkiang]
   - [northwest_china, szechwan]
+  - [northwest_china, tibet_nepal]
   - [northwest_china, wuhan_area]
   - [norway, sweden_area]
   - [norway, white_sea]
@@ -485,9 +538,13 @@ adjacency:
   - [philippine_sea, philippines]
   - [philippine_sea, south_china_sea]
   - [philippines, south_china_sea]
+  - [portuguese_india, southern_india]
   - [rhodesias, south_africa]
   - [romania, western_ukraine]
   - [sea_of_japan, soviet_far_east]
+  - [sinkiang, tibet_nepal]
+  - [sinkiang, turkestan]
+  - [sinkiang, western_siberia]
   - [smolensk_area, voronezh]
   - [south_china, south_china_coast]
   - [south_china, south_china_sea]
@@ -499,12 +556,16 @@ adjacency:
   - [stalingrad, voronezh]
   - [switzerland_area, vichy_france]
   - [syria, turkey]
+  - [szechwan, tibet_nepal]
   - [szechwan, wuhan_area]
   - [the_north, upper_volga]
+  - [the_north, urals]
   - [the_north, white_sea]
   - [tripolitania, tunisia]
   - [tunisia, western_mediterranean]
   - [upper_volga, voronezh]
+  - [urals, western_siberia]
+  - [urals, white_sea]
   - [us_central, us_east]
   - [us_central, us_west]
   - [us_central, western_canada]

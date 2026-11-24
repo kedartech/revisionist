@@ -1,13 +1,14 @@
-"""The whole-globe 1941 map: the Americas and Africa regions, read from the committed files only.
+"""The whole-globe 1941 map: the Americas, Africa and inner Asia regions, read from the committed
+files only.
 
-Pins that the Americas recipe claims its thirteen territories and the Africa recipe its twenty-two
-whole and leave the earlier regions' keys alone, that each region's sites lie in the territory that
-names them, that the cut lines of the earlier regions still give each side to the territory they
-name, that the map passes the scoped check against the newest staging world (which extends the
-earlier ones), that the Gondar cut gives each side to the territory it names, and that the start
-and yields files give each new territory a holder and a row. It reads the committed map, its
-recipes, staging worlds and objects; it needs neither the geometry tool nor the border data, so it
-runs in CI.
+Pins that the Americas recipe claims its thirteen territories, the Africa recipe its twenty-two and
+the inner Asia recipe its fourteen whole and leave the earlier regions' keys alone, that each
+region's sites lie in the territory that names them, that the cut lines of the earlier regions still
+give each side to the territory they name, that the map passes the scoped check against the newest
+staging world (which extends the earlier ones), that the Gondar cut gives each side to the territory
+it names, and that the start and yields files give each new territory a holder and a row. It reads
+the committed map, its recipes, staging worlds and objects; it needs neither the geometry tool nor
+the border data, so it runs in CI.
 """
 
 import hashlib
@@ -32,8 +33,11 @@ AMERICAS_PLACES = SRC / "americas.places.yaml"
 AFRICA = SRC / "africa.yaml"
 AFRICA_STAGING = SRC / "africa.world.yaml"
 AFRICA_PLACES = SRC / "africa.places.yaml"
+INNER_ASIA = SRC / "inner-asia.yaml"
+INNER_ASIA_STAGING = SRC / "inner-asia.world.yaml"
+INNER_ASIA_PLACES = SRC / "inner-asia.places.yaml"
 # The newest region's staging world: the scoped check runs on it, and it extends the earlier ones.
-NEWEST = AFRICA_STAGING
+NEWEST = INNER_ASIA_STAGING
 PACIFIC_STAGING = SRC / "pacific.world.yaml"
 PACIFIC_PLACES = SRC / "pacific.places.yaml"
 START = SRC / "start.yaml"
@@ -42,7 +46,7 @@ EARLIER = tuple(
     SRC / f"{name}.yaml"
     for name in ("eastern-front", "europe", "atlantic", "mediterranean", "pacific")
 )
-RECIPES = (*EARLIER, AMERICAS, AFRICA)
+RECIPES = (*EARLIER, AMERICAS, AFRICA, INNER_ASIA)
 STAGINGS = tuple(p.with_suffix(".world.yaml") for p in RECIPES)
 
 # The regions draft's thirteen territories, in the recipe's order.
@@ -246,6 +250,91 @@ AFRICA_POLITIES = (
     "liberia_state",
 )
 
+# The regions draft's thirteen inner Asia territories and its small Goa, in the recipe's order.
+INNER_ASIA_TERRITORIES = (
+    "middle_volga",
+    "urals",
+    "western_siberia",
+    "kazakhstan",
+    "eastern_siberia",
+    "turkestan",
+    "afghanistan",
+    "indus_northwest",
+    "ganges_bengal",
+    "southern_india",
+    "portuguese_india",
+    "tibet_nepal",
+    "sinkiang",
+    "mongolia",
+)
+
+# Each present-day country inner Asia takes whole, by the code prefix of its units, and how many
+# units the data gives it; Russia, India and China only in part.
+INNER_ASIA_WHOLE_COUNTRIES = {
+    "KAZ": 16, "KAB": 1, "UZB": 14, "TKM": 5, "TJK": 5, "KGZ": 8, "AFG": 34, "PAK": 8, "KAS": 1,
+    "BGD": 7, "LKA": 25, "NPL": 14, "BTN": 20, "MNG": 22,
+}  # fmt: skip
+# The Russian units the earlier regions left, by the territory that takes them.
+INNER_ASIA_RUSSIA = {
+    "middle_volga": {f"RUS-{n}" for n in (2390, 2388, 2392, 2395, 2394, 2385, 2384, 2387)},
+    "urals": {f"RUS-{n}" for n in (2383, 2381, 3200, 2378, 2391, 2386, 2379, 2380)},
+    "western_siberia": {"RUS+99?"}
+    | {f"RUS-{n}" for n in (2398, 2396, 2382, 2397, 2403, 2167, 2401, 2399, 2400)},
+    "eastern_siberia": {f"RUS-{n}" for n in (2603, 2402, 2602, 2606, 2612, 2615, 2321, 3468)},
+    "mongolia": {"RUS-2605"},
+}  # fmt: skip
+# The Andaman and Nicobar Islands, left unclaimed until the Andaman Sea zone's edge is moved.
+ANDAMANS = "IND-2474"
+INNER_ASIA_PART_UNITS = {
+    **INNER_ASIA_RUSSIA,
+    "indus_northwest": {"IND-2431", "IND-20012", "IND-3249", "IND-3250", "IND-3264"},
+    "ganges_bengal": {"IND-2428", "IND-3253", "IND-3257", "IND-2477", "IND-3299"},
+    "southern_india": {"IND-2447", "IND-3263", "IND-2443"},
+    "portuguese_india": {"IND-3265"},
+    "tibet_nepal": {"CHN-1662"},
+    "sinkiang": {"CHN-1756"},
+}
+
+# The region's sites: (lat, lon) as the places file gives them, and the territory each lies in.
+INNER_ASIA_SITES = {
+    "kuibyshev": ((53.2, 50.14), "middle_volga"),
+    "kazan": ((55.8, 49.11), "middle_volga"),
+    "astrakhan": ((46.35, 48.03), "middle_volga"),
+    "sverdlovsk": ((56.84, 60.61), "urals"),
+    "magnitogorsk": ((53.38, 59.03), "urals"),
+    "novosibirsk": ((55.05, 82.95), "western_siberia"),
+    "stalinsk": ((53.77, 87.13), "western_siberia"),
+    "alma_ata": ((43.23, 76.95), "kazakhstan"),
+    "karaganda": ((49.8, 73.11), "kazakhstan"),
+    "krasnoyarsk": ((56.01, 92.87), "eastern_siberia"),
+    "irkutsk": ((52.29, 104.28), "eastern_siberia"),
+    "tashkent": ((41.31, 69.28), "turkestan"),
+    "krasnovodsk": ((40.02, 52.97), "turkestan"),
+    "kabul": ((34.53, 69.18), "afghanistan"),
+    "karachi": ((24.86, 67.01), "indus_northwest"),
+    "lahore": ((31.55, 74.34), "indus_northwest"),
+    "rawalpindi": ((33.6, 73.03), "indus_northwest"),
+    "new_delhi": ((28.61, 77.21), "ganges_bengal"),
+    "calcutta": ((22.57, 88.37), "ganges_bengal"),
+    "bombay": ((19.08, 72.88), "southern_india"),
+    "madras": ((13.08, 80.28), "southern_india"),
+    "trincomalee": ((8.57, 81.23), "southern_india"),
+    "colombo": ((6.93, 79.9), "southern_india"),
+    "nova_goa": ((15.5, 73.83), "portuguese_india"),
+    "lhasa": ((29.65, 91.12), "tibet_nepal"),
+    "urumchi": ((43.82, 87.61), "sinkiang"),
+    "hami": ((42.82, 93.52), "sinkiang"),
+    "ulan_bator": ((47.92, 106.92), "mongolia"),
+    "kyzyl": ((51.72, 94.45), "mongolia"),
+}
+
+# The new holders with no seat that start.yaml adds for the region.
+INNER_ASIA_POLITIES = (
+    "afghanistan_state",
+    "tibet",
+    "mongolia_state",
+)
+
 
 def _load() -> ModuleType:
     spec = importlib.util.spec_from_file_location("map_check", ROOT / "scripts" / "map_check.py")
@@ -317,7 +406,7 @@ def test_the_americas_region_has_its_territories() -> None:
         assert bool(t.get("terrain_source")) != bool(t.get("terrain_gap")), t["key"]
 
 
-def test_the_map_is_the_seven_regions_areas_and_no_others() -> None:
+def test_the_map_is_the_eight_regions_areas_and_no_others() -> None:
     keys = {
         str(a["key"])
         for recipe in RECIPES
@@ -339,7 +428,7 @@ def test_the_americas_take_the_units_left_of_a_shared_country(territory: str) ->
     assert PART_UNITS[territory] <= {str(c) for c in rows[territory]["provinces"]}
 
 
-def test_no_province_is_claimed_twice_across_the_seven_recipes() -> None:
+def test_no_province_is_claimed_twice_across_the_eight_recipes() -> None:
     claims = [c for recipe in RECIPES for c in _claims(recipe)]
     assert len(claims) == len(set(claims))
 
@@ -551,9 +640,8 @@ def test_the_africa_staging_blocks_are_the_built_fragments() -> None:
     assert staged["adjacency"] == [e for e in fragment["adjacency"] if own & set(pair(e))]
 
 
-def test_the_africa_staging_world_is_the_newest() -> None:
-    assert NEWEST == AFRICA_STAGING
-    report = mc.check_region(AFRICA_STAGING)
+def test_the_scoped_check_passes_on_the_newest_staging_world_with_africa_in_scope() -> None:
+    report = mc.check_region(NEWEST)
     assert [str(p) for p in report.problems] == []
     assert not set(AFRICA_SITES) & set(report.out_of_scope)
 
@@ -591,6 +679,141 @@ def test_each_africa_territory_has_a_yields_row() -> None:
     sources = {str(s["key"]) for s in doc["sources"]}
     resources = [str(r["key"]) for r in _yaml(START)["resources"]]
     for t in AFRICA_TERRITORIES:
+        row = rows[t]
+        assert set(row) == {"key", *resources}, t
+        for r in resources:
+            entry = row[r]
+            assert entry.get("gap") is True, (t, r)
+            assert entry["named_source"] in sources, (t, r)
+            assert str(entry.get("basis") or "").strip(), (t, r)
+        assert row["supply"]["amount"] == len(row["supply"].get("hubs") or []), t
+
+
+# ---------------------------------------------------------------- India, Central Asia and Siberia
+
+
+def test_the_inner_asia_region_has_its_territories() -> None:
+    staged = _yaml(INNER_ASIA_STAGING)
+    assert [t["key"] for t in staged["territories"]] == list(INNER_ASIA_TERRITORIES)
+    assert {t["region"] for t in staged["territories"]} == {"inner_asia"}
+    assert not staged.get("sea_zones")
+    assert set(INNER_ASIA_TERRITORIES) <= set(_raw()["areas"])
+    recipe = _yaml(INNER_ASIA)
+    assert recipe["cuts"] == []
+    for t in recipe["territories"]:
+        assert t.get("provinces"), t["key"]
+        assert t.get("terrain"), t["key"]
+        assert bool(t.get("terrain_source")) != bool(t.get("terrain_gap")), t["key"]
+
+
+@pytest.mark.parametrize("country", sorted(INNER_ASIA_WHOLE_COUNTRIES))
+def test_inner_asia_takes_each_country_whole(country: str) -> None:
+    claimed = [c for c in _claims(INNER_ASIA) if c.startswith(country)]
+    assert len(claimed) == INNER_ASIA_WHOLE_COUNTRIES[country], country
+
+
+@pytest.mark.parametrize("territory", sorted(INNER_ASIA_PART_UNITS))
+def test_inner_asia_takes_the_units_of_a_shared_country(territory: str) -> None:
+    rows = {str(t["key"]): t for t in _yaml(INNER_ASIA)["territories"]}
+    assert INNER_ASIA_PART_UNITS[territory] <= {str(c) for c in rows[territory]["provinces"]}
+
+
+def test_russia_is_wholly_claimed_and_india_all_but_the_andamans() -> None:
+    claims = {c for recipe in RECIPES for c in _claims(recipe)}
+    cut = {str(c["province"]) for recipe in RECIPES for c in _yaml(recipe).get("cuts") or []}
+    russia = {c for t in INNER_ASIA_RUSSIA.values() for c in t}
+    assert russia <= claims
+    assert len({c for c in claims | cut if c.startswith("RUS")}) == 86
+    assert len({c for c in _claims(INNER_ASIA) if c.startswith("IND")}) == 35
+    assert ANDAMANS not in claims
+
+
+def test_the_inner_asia_staging_world_lists_the_sites_of_each_territory() -> None:
+    sites = {
+        str(s): str(t["key"])
+        for t in _yaml(INNER_ASIA_STAGING)["territories"]
+        for s in t.get("sites") or []
+    }
+    assert sites == {k: home for k, (_, home) in INNER_ASIA_SITES.items()}
+
+
+@pytest.mark.parametrize("site", sorted(INNER_ASIA_SITES))
+def test_each_inner_asia_site_lies_in_its_territory(site: str) -> None:
+    (lat, lon), home = INNER_ASIA_SITES[site]
+    inside, border = mc.locate(_raw(), float(lon), float(lat))
+    assert not border, site
+    assert inside == [home], site
+
+
+def test_the_inner_asia_places_file_extends_the_africa_one() -> None:
+    assert _yaml(INNER_ASIA_STAGING)["places_of"] == INNER_ASIA_PLACES.name
+    here = _yaml(INNER_ASIA_PLACES)["entities"]
+    earlier = _yaml(AFRICA_PLACES)["entities"]
+    assert here[: len(earlier)] == earlier
+    new = {str(e["key"]): e for e in here[len(earlier) :]}
+    assert {k: tuple(e["at"]) for k, e in new.items()} == {
+        k: at for k, (at, _) in INNER_ASIA_SITES.items()
+    }
+
+
+def test_the_inner_asia_staging_world_extends_africa() -> None:
+    parent = (INNER_ASIA_STAGING.parent / _yaml(INNER_ASIA_STAGING)["extends"]).resolve()
+    assert parent == AFRICA_STAGING.resolve()
+
+
+def test_the_inner_asia_staging_blocks_are_the_built_fragments() -> None:
+    fragment, staged = _yaml(FRAGMENT), _yaml(INNER_ASIA_STAGING)
+    assert staged["territories"] == [
+        a for a in fragment["territories"] if a["region"] == "inner_asia"
+    ]
+    own = {str(a["key"]) for a in staged["territories"]}
+
+    def pair(e: Any) -> tuple[str, str]:
+        return (e["a"], e["b"]) if isinstance(e, dict) else (e[0], e[1])
+
+    assert staged["adjacency"] == [e for e in fragment["adjacency"] if own & set(pair(e))]
+
+
+def test_the_inner_asia_staging_world_is_the_newest() -> None:
+    assert NEWEST == INNER_ASIA_STAGING
+    report = mc.check_region(INNER_ASIA_STAGING)
+    assert [str(p) for p in report.problems] == []
+    assert not set(INNER_ASIA_SITES) & set(report.out_of_scope)
+
+
+def test_each_inner_asia_territory_has_a_holder_with_a_gap_or_a_source() -> None:
+    start = _yaml(START)
+    holders = {str(h["territory"]): h for h in start["holders"]}
+    keys = {str(e["key"]): e for e in start["entities"]}
+    seats = {"usa", "uk", "germany", "ussr", "japan", "italy", "china"}
+    for t in INNER_ASIA_TERRITORIES:
+        h = holders[t]
+        assert h.get("gap") is True or h.get("source"), t
+        assert h["holder"] in seats or keys[h["holder"]]["kind"] == "polity", t
+
+
+def test_the_inner_asia_holders_are_polities() -> None:
+    keys = {str(e["key"]): e for e in _yaml(START)["entities"]}
+    for p in INNER_ASIA_POLITIES:
+        assert keys[p]["kind"] == "polity", p
+    assert not set(INNER_ASIA_POLITIES) & set(INNER_ASIA_TERRITORIES)
+
+
+def test_each_inner_asia_site_is_a_place_of_the_start_within_its_territory() -> None:
+    keys = {str(e["key"]): e for e in _yaml(START)["entities"]}
+    for site, (at, home) in INNER_ASIA_SITES.items():
+        e = keys[site]
+        assert e["kind"] == "location", site
+        assert tuple(e["at"]) == at, site
+        assert e["within"] == home, site
+
+
+def test_each_inner_asia_territory_has_a_yields_row() -> None:
+    doc = _yaml(YIELDS)
+    rows = {str(r["key"]): r for r in doc["territories"]}
+    sources = {str(s["key"]) for s in doc["sources"]}
+    resources = [str(r["key"]) for r in _yaml(START)["resources"]]
+    for t in INNER_ASIA_TERRITORIES:
         row = rows[t]
         assert set(row) == {"key", *resources}, t
         for r in resources:

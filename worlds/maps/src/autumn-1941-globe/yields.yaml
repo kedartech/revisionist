@@ -662,6 +662,90 @@ territories:
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
     supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Ponta Delgada, Lajes]}
     prestige: {amount: 2, gap: true, named_source: lane_choice, basis: the mid-Atlantic islands}
+  - key: middle_volga
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the Kuibyshev and Kazan works, counted in the rear works of the Upper Volga and Stalingrad rows'}
+    manpower: {amount: 10.0, gap: true, named_source: census_ussr_1939, basis: 'about 10.0 million people: the Kuibyshev, Kirov and Astrakhan lands, Tataria, Udmurtia, the Mari and Kalmyk republics'}
+    oil: {amount: 0.1, gap: true, named_source: lon_yearbook_1941, basis: the Syzran field}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Kuibyshev, Kazan, Astrakhan]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a rear province}
+  - key: urals
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the Sverdlovsk, Chelyabinsk and Magnitogorsk works, counted in the rear works of the Upper Volga and Stalingrad rows'}
+    manpower: {amount: 12.5, gap: true, named_source: census_ussr_1939, basis: 'about 12.5 million people: the Sverdlovsk, Chelyabinsk, Molotov and Chkalov lands, Bashkiria and the Komi republic'}
+    oil: {amount: 0.5, gap: true, named_source: lon_yearbook_1941, basis: the Ishimbay field of the Second Baku}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Sverdlovsk, Chelyabinsk, Magnitogorsk]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: a rear province}
+  - key: western_siberia
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the Kuznetsk basin works, counted in the rear works of the Upper Volga and Stalingrad rows'}
+    manpower: {amount: 9.0, gap: true, named_source: census_ussr_1939, basis: 'about 9.0 million people: the Omsk, Novosibirsk and Altai lands'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Novosibirsk, Omsk]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a rear province}
+  - key: kazakhstan
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the Karaganda mines, counted in the rear works of the Upper Volga and Stalingrad rows'}
+    manpower: {amount: 6.1, gap: true, named_source: census_ussr_1939, basis: 'about 6.1 million people: the Kazakh republic'}
+    oil: {amount: 0.2, gap: true, named_source: lon_yearbook_1941, basis: the Emba field}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Alma-Ata, Karaganda]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a Soviet republic}
+  - key: eastern_siberia
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the Krasnoyarsk and Irkutsk works, counted in the rear works of the Upper Volga and Stalingrad rows'}
+    manpower: {amount: 4.3, gap: true, named_source: census_ussr_1939, basis: 'about 4.3 million people: the Krasnoyarsk and Irkutsk lands, Buryatia, Yakutia and the Kolyma'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Krasnoyarsk, Irkutsk]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a rear province}
+  - key: turkestan
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the Tashkent works, counted in the rear works of the Upper Volga and Stalingrad rows'}
+    manpower: {amount: 10.5, gap: true, named_source: census_ussr_1939, basis: 'about 10.5 million people: the Uzbek, Turkmen, Tajik and Kirghiz republics'}
+    oil: {amount: 0.4, gap: true, named_source: lon_yearbook_1941, basis: the Turkmen and Fergana fields}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Tashkent, Krasnovodsk]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: four Soviet republics}
+  - key: afghanistan
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 10.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 10.0 million people: Afghanistan, an estimate with no census'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Kabul]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: a neutral kingdom}
+  - key: indus_northwest
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the Punjab and Bombay works, counted in Britain''s share'}
+    manpower: {amount: 70.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 70.0 million people: the Punjab, Sind, the Frontier, Baluchistan, Kashmir, Rajputana and Gujarat'}
+    oil: {amount: 0.03, gap: true, named_source: lon_yearbook_1941, basis: the Attock field}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Karachi, Lahore, Rawalpindi]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: 'the Raj''s frontier'}
+  - key: ganges_bengal
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the Calcutta and Jamshedpur works, counted in Britain''s share'}
+    manpower: {amount: 200.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 200.0 million people: the United Provinces, Bihar, Bengal, Orissa, Assam, the Central Provinces and Delhi'}
+    oil: {amount: 0.1, gap: true, named_source: lon_yearbook_1941, basis: the Digboi field}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [New Delhi, Calcutta]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: 'the Raj''s seat'}
+  - key: southern_india
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the Bombay and Madras works, counted in Britain''s share'}
+    manpower: {amount: 120.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 120.0 million people: the Bombay and Madras presidencies, Hyderabad, Mysore, Travancore and Ceylon'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 4, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Bombay, Madras, Trincomalee, Colombo]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: 'the Raj''s ports'}
+  - key: portuguese_india
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'Goa''s works, counted with Portugal''s own share'}
+    manpower: {amount: 0.6, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.6 million people: Goa'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Nova Goa]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: 'a colony''s seat'}
+  - key: tibet_nepal
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 7.6, gap: true, named_source: lon_yearbook_1941, basis: 'about 7.6 million people: Tibet, Nepal and Bhutan'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Lhasa]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: a mountain kingdom}
+  - key: sinkiang
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'no works of note, counted in China''s share'}
+    manpower: {amount: 3.7, gap: true, named_source: lon_yearbook_1941, basis: 'about 3.7 million people: Sinkiang'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Urumchi, Hami]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: 'a warlord''s province'}
+  - key: mongolia
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 0.8, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.8 million people: Mongolia and Tannu Tuva'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Ulan Bator]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: a Soviet satellite}
   - key: french_north_africa
     industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: Algerian and Moroccan works}
     manpower: {amount: 14.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 14.0 million people: French Morocco and Algeria'}

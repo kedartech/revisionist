@@ -424,7 +424,9 @@ def test_lonlat_places_read_latitude_first(tmp_path: Path) -> None:
     ]
     path = tmp_path / "w.yaml"
     path.write_text(yaml.safe_dump(w))
-    assert mc.check_world(path).problems == []
+    assert codes(mc.check_world(path).problems) == {
+        ("whole", "map")
+    }  # the place lies where it should
     w["entities"][0]["at"] = [7.5, 2.5]
     path.write_text(yaml.safe_dump(w))
     assert ("place", "fort") in codes(mc.check_world(path).problems)
@@ -463,7 +465,9 @@ def test_a_lonlat_place_west_of_a_box_that_runs_past_180_is_read_a_turn_east(
     ]
     path = tmp_path / "w.yaml"
     path.write_text(yaml.safe_dump(w))
-    assert mc.check_world(path).problems == []
+    assert codes(mc.check_world(path).problems) == {
+        ("whole", "map")
+    }  # the place lies where it should
 
 
 def test_a_flat_place_is_never_moved_a_turn() -> None:
@@ -553,3 +557,105 @@ def test_the_readme_names_the_format_the_commands_and_the_licence_rule() -> None
         assert f"map_check.py {command}" in text, command
     for word in ("CShapes", "historical-basemaps", "Natural Earth"):
         assert word in text, word
+
+
+# Whole maps: a map that says `cover: whole` leaves nothing to the backdrop.
+
+
+def whole(m: dict[str, Any] | None = None) -> dict[str, Any]:
+    m = m or three()
+    m["cover"] = "whole"
+    return m
+
+
+def _cove(m: dict[str, Any]) -> dict[str, Any]:
+    m["areas"]["cove"] = {"rings": m.pop("backdrop"), "label": [25, 75]}
+    return m
+
+
+def globe() -> dict[str, Any]:
+    """The four-area whole map stretched over the full turn of longitude, 60 S to 84 N."""
+    m = whole(_cove(three()))
+    m["coords"] = "lonlat"
+    m["vertices"] = [[-126 + x * 3.6, -60 + y * 1.44] for x, y in m["vertices"]]
+    m["box"] = [-126, -60, 234, 84]
+    for a in m["areas"].values():
+        a["label"] = [-126 + a["label"][0] * 3.6, -60 + a["label"][1] * 1.44]
+    return m
+
+
+def test_a_whole_map_with_one_backdrop_face_fails() -> None:
+    assert ("whole", "backdrop 1") in codes(mc.check(whole()))
+
+
+def test_the_same_map_with_the_face_made_a_sea_zone_passes() -> None:
+    assert mc.check(whole(_cove(three()))) == []
+
+
+def test_a_map_without_the_mark_keeps_its_backdrop() -> None:
+    assert mc.check(three()) == []
+
+
+def test_a_cover_other_than_whole_is_refused() -> None:
+    m = three()
+    m["cover"] = "territories"
+    assert ("format", "map") in codes(mc.check(m))
+
+
+def test_a_whole_map_on_real_coordinates_runs_the_full_turn_from_60_s_to_84_n() -> None:
+    assert mc.check(globe()) == []
+    for box in ([-126, -60, 200, 84], [-126, -11.5, 234, 84], [-126, -60, 234, 71.5]):
+        m = globe()
+        m["box"] = box
+        m["vertices"] = [
+            [min(max(x, box[0]), box[2]), min(max(y, box[1]), box[3])] for x, y in m["vertices"]
+        ]
+        assert ("whole", "box") in codes(mc.check(m)), box
+
+
+def _globe_world(tmp_path: Path, raw: dict[str, Any], name: str = "w.yaml") -> Path:
+    (tmp_path / "maps").mkdir(exist_ok=True)
+    (tmp_path / "maps" / "m.json").write_text(json.dumps(raw))
+    w = world()
+    w["map"] = {
+        "coords": "lonlat",
+        "file": "m.json",
+        "sha256": mc.load(tmp_path / "maps" / "m.json")[1],
+        "box": raw["box"],
+    }
+    if "cove" in raw["areas"]:
+        w["sea_zones"].append(
+            {"key": "cove", "name": "The Cove", "region": "lowlands", "terrain": "sea"}
+        )
+        w["adjacency"] += [["cove", "marsh"], ["bay", "cove"]]
+    w["entities"] = []
+    path = tmp_path / name
+    path.write_text(yaml.safe_dump(w))
+    return path
+
+
+def test_a_world_on_real_coordinates_must_use_a_whole_map(tmp_path: Path) -> None:
+    assert mc.check_world(_globe_world(tmp_path, globe())).problems == []
+    part = globe()
+    del part["cover"]
+    problems = mc.check_world(_globe_world(tmp_path, part)).problems
+    assert ("whole", "map") in codes(problems), [str(p) for p in problems]
+
+
+def test_a_world_not_yet_converted_is_let_through_by_name(tmp_path: Path) -> None:
+    part = globe()
+    del part["cover"]
+    assert mc.check_world(_globe_world(tmp_path, part, "autumn-1941.yaml")).problems == []
+    assert mc.check_region(_globe_world(tmp_path, part)).problems == []
+
+
+def test_the_worlds_not_yet_converted_start_with_the_1941_world() -> None:
+    assert mc.NOT_WHOLE_YET[0] == "autumn-1941"
+    on_disk = {p.stem for p in (ROOT / "worlds").glob("*.yaml")}
+    assert set(mc.NOT_WHOLE_YET) <= on_disk
+
+
+def test_a_flat_world_is_not_held_to_the_whole_map_rule() -> None:
+    assert ("whole", "map") not in codes(
+        mc.check_world(ROOT / "worlds" / "salt-strait-realism.yaml").problems
+    )

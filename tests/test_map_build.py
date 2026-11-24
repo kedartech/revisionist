@@ -356,7 +356,8 @@ def test_the_world_fragment_lists_the_areas_and_names_the_map(env: dict[str, Pat
     assert world["sea_zones"] == [
         {"key": "strait", "name": "The Strait", "region": "fixland", "terrain": "sea"}
     ]
-    assert mc.check_world(built.world_path).problems == []
+    problems = mc.check_world(built.world_path).problems
+    assert [(p.code, p.face) for p in problems] == [("whole", "map")]
 
 
 # ---------------------------------------------------------------- rule 7: same bytes, kept objects
@@ -494,7 +495,8 @@ def test_a_river_zone_is_listed_with_the_sea_zones(env: dict[str, Path]) -> None
         "region": "fixland",
         "terrain": "river",
     }
-    assert mc.check_world(built.world_path).problems == []
+    problems = mc.check_world(built.world_path).problems
+    assert [(p.code, p.face) for p in problems] == [("whole", "map")]
 
 
 def test_a_river_zones_polygon_limits_the_stretch_it_follows(env: dict[str, Path]) -> None:
@@ -519,3 +521,92 @@ def test_two_river_zones_over_the_same_land_are_named(env: dict[str, Path]) -> N
     twin = {**BROOK, "key": "creek", "name": "The Creek"}
     with pytest.raises(mb.BuildError, match=r"creek: the river zone covers land brook already"):
         build(env, [_recipe(env, rivers=[BROOK, twin])])
+
+
+# ---------------------------------------------------------------- the whole map
+
+GLOBE = [-180, -60, 180, 84]
+
+
+def _whole(env: dict[str, Path], **changes: Any) -> Path:
+    """The fixture recipe over the whole globe: every province claimed, one ocean over the box."""
+    doc = yaml.safe_load(RECIPE.read_text())
+    doc["map"] = {"box": GLOBE, "cover": "whole"}
+    doc["territories"] += [
+        {
+            "key": "uplands",
+            "name": "The Uplands",
+            "region": "fixland",
+            "terrain": "hills",
+            "provinces": ["FX-N2"],
+        },
+        {
+            "key": "dateline",
+            "name": "The Date Line",
+            "region": "fixland",
+            "terrain": "plain",
+            "provinces": ["FX-E", "FX-F"],
+        },
+    ]
+    w, s, e, n = GLOBE
+    doc["sea_zones"] = [
+        {
+            "key": "ocean",
+            "name": "The Ocean",
+            "region": "fixland",
+            "terrain": "sea",
+            "polygon": [[w, s], [e, s], [e, n], [w, n]],
+        }
+    ]
+    doc.update(changes)
+    path = env["tmp"] / "whole.yaml"
+    path.write_text(yaml.safe_dump(doc, sort_keys=False))
+    return path
+
+
+def test_a_whole_map_of_60_s_to_84_n_builds_with_no_backdrop(env: dict[str, Path]) -> None:
+    raw = _map(build(env, [_whole(env)]))
+    assert raw["box"] == GLOBE
+    assert raw["cover"] == "whole"
+    assert raw["backdrop"] == []
+    assert mc.check(raw) == []
+
+
+def test_a_map_without_the_mark_is_written_as_before(env: dict[str, Path]) -> None:
+    assert "cover" not in _map(build(env))
+
+
+def test_land_no_recipe_claims_is_reported_by_its_unit_and_fails(env: dict[str, Path]) -> None:
+    doc = yaml.safe_load(_whole(env).read_text())
+    doc["territories"] = [t for t in doc["territories"] if t["key"] != "uplands"]
+    path = env["tmp"] / "short.yaml"
+    path.write_text(yaml.safe_dump(doc, sort_keys=False))
+    with pytest.raises(mb.BuildError, match=r"no recipe claims[\s\S]*FX-N2 \(North Two\)"):
+        build(env, [path])
+
+
+def test_water_no_sea_zone_takes_fails_a_whole_map(env: dict[str, Path]) -> None:
+    strait = yaml.safe_load(RECIPE.read_text())["sea_zones"]
+    with pytest.raises(mb.BuildError, match=r"backdrop"):
+        build(env, [_whole(env, sea_zones=strait)])
+
+
+def test_an_island_no_unit_holds_goes_to_the_territory_nearest_it(env: dict[str, Path]) -> None:
+    raw = _map(build(env, [_whole(env)]))
+    assert _where(raw, 3.25, 1.75) == ["uplands"]
+
+
+def test_an_island_under_the_least_size_is_dropped_as_water(env: dict[str, Path]) -> None:
+    (env["data"] / mb.LAND).write_text(
+        json.dumps({"type": "FeatureCollection", "features": [_square(3.2, 1.7, 3.25, 1.75)]})
+    )
+    _sources(env["sources"], env["data"])
+    raw = _map(build(env, [_whole(env)]))
+    assert _where(raw, 3.225, 1.725) == ["ocean"]
+
+
+def test_a_cover_other_than_whole_is_refused(env: dict[str, Path]) -> None:
+    other = env["tmp"] / "other.yaml"
+    other.write_text("map: {box: [0, 0, 4, 3], cover: territories}\n")
+    with pytest.raises(mb.BuildError, match=r"other\.yaml: map\.cover"):
+        build(env, [RECIPE, other])

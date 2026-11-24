@@ -41,15 +41,16 @@ which gives 1941 its first council."""
 BILLS = ("neutrality_revision", "draft_extension", "lend_lease_appropriation", "arm_merchant_ships")
 """The four bills the votes rule's code table holds, as the send-bill form names them."""
 
-LOCKED_ON = "09f5910697bc4faea226bd3511763d3b"
+LOCKED_ON = "8fe71a2ce441a5c6b736cf8dfc2f3e42"
 """The locked-orders game's digest on the shipped 1941 world, the switches on. The game's state
 carries everything the world declares, Britain's, Germany's, Japan's, Italy's, the Soviet
 Union's, China's and Finland's commanders, Finland's President, the Commons' blocs, every bloc's
 prices, its law and the Prime Minister's bill form for it, the Liaison Conference, the
 commanders' locks, the seats of everyone an ask could go to (the Chief of the Navy General Staff
-among them), the classes and weighted places, and each card's post with what each office rests
-on and who removes or moves its holder, so it is recorded for the world as it stands; both locks
-land on the same days with the switches on and off."""
+among them), the classes and weighted places, each card's post with what each office rests on
+and who removes or moves its holder, and who may accept a peace for each nation with a seat, so
+it is recorded for the world as it stands; both locks land on the same days with the switches on
+and off."""
 
 CLAUSE = "war zones closed to American ships"
 """The clause the commander's second lock names."""

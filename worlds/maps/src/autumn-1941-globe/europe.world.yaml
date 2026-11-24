@@ -1,0 +1,111 @@
+# The scoped check's staging world for the 1941 map's second region (Europe and the rest of the
+# Eastern Front):
+#   python scripts/map_check.py check --region worlds/maps/src/autumn-1941-globe/europe.world.yaml
+# It extends the pilot's staging world, so the check reads both: the map block here is the newest,
+# the territories, sea zones, adjacency and sites in scope are the two files' lists joined. Its
+# blocks are the build's world fragment (worlds/maps/autumn-1941-globe.world.yaml) as built, the Europe
+# region's areas and every adjacency pair that names one of them; the pilot's file keeps the pairs
+# inside its own region. The sites in scope are the three places today's world file has in the
+# region, their coordinates copied from it (that file is not edited here). Rebuild the map, then copy
+# the fragment's blocks into both staging worlds; the test pins the hash.
+extends: eastern-front.world.yaml
+places_of: ../../../autumn-1941.yaml
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 0edc786f13276e0d61175d88781dc02fa5769350fc58a9f576b2c14ede4fc745, box: [-126, -60, 234, 84]}
+regions:
+  - {key: europe, name: Europe}
+territories:
+  - {key: germany_east, name: Berlin and the East, region: europe, terrain: plain, sites: [berlin]}
+  - {key: germany_west, name: The Ruhr and the West, region: europe, terrain: plain}
+  - {key: germany_south, name: 'Bavaria, Austria and Bohemia', region: europe, terrain: forest}
+  - {key: east_prussia, name: East Prussia, region: europe, terrain: plain}
+  - {key: occupied_poland, name: The General Government, region: europe, terrain: plain}
+  - {key: denmark, name: Denmark, region: europe, terrain: plain}
+  - {key: low_countries, name: The Low Countries, region: europe, terrain: plain}
+  - {key: occupied_france, name: Occupied France, region: europe, terrain: plain}
+  - {key: vichy_france, name: Vichy France, region: europe, terrain: mountain}
+  - {key: norway, name: Norway, region: europe, terrain: mountain}
+  - {key: sweden_area, name: Sweden, region: europe, terrain: forest}
+  - {key: finland, name: Finland, region: europe, terrain: forest}
+  - {key: hungary_slovakia, name: Hungary and Slovakia, region: europe, terrain: plain}
+  - {key: romania, name: Romania and Ploesti, region: europe, terrain: plain}
+  - {key: balkans, name: The Balkans, region: europe, terrain: mountain}
+  - {key: italy_north, name: Northern Italy, region: europe, terrain: plain}
+  - {key: italy_south, name: Rome and the South, region: europe, terrain: mountain, sites: [rome, taranto]}
+  - {key: iberia, name: Spain and Portugal, region: europe, terrain: mountain}
+  - {key: switzerland_area, name: Switzerland, region: europe, terrain: mountain}
+sea_zones:
+  - {key: north_sea, name: The North Sea, region: europe, terrain: sea}
+  - {key: danish_straits, name: The Kattegat and the Western Baltic, region: europe, terrain: sea}
+  - {key: gulf_of_bothnia, name: The Gulf of Bothnia, region: europe, terrain: sea}
+  - {key: bay_of_biscay, name: The Bay of Biscay, region: europe, terrain: sea}
+adjacency:
+  - [balkans, black_sea]
+  - [balkans, germany_south]
+  - [balkans, hungary_slovakia]
+  - [balkans, italy_north]
+  - [balkans, romania]
+  - [baltic_sea, danish_straits]
+  - [baltic_sea, east_prussia]
+  - [baltic_sea, finland]
+  - [baltic_sea, germany_east]
+  - [baltic_sea, gulf_of_bothnia]
+  - [baltic_sea, sweden_area]
+  - [baltic_states, east_prussia]
+  - [bay_of_biscay, iberia]
+  - [bay_of_biscay, occupied_france]
+  - [belorussia, east_prussia]
+  - [belorussia, occupied_poland]
+  - [black_sea, romania]
+  - [danish_straits, denmark]
+  - [danish_straits, germany_east]
+  - [danish_straits, germany_west]
+  - [danish_straits, north_sea]
+  - [danish_straits, sweden_area]
+  - [denmark, germany_west]
+  - [denmark, north_sea]
+  - [east_prussia, germany_east]
+  - [east_prussia, occupied_poland]
+  - [finland, gulf_of_bothnia]
+  - [finland, leningrad_area]
+  - [finland, norway]
+  - [finland, sweden_area]
+  - [finland, the_north]
+  - [finland, white_sea]
+  - [germany_east, germany_south]
+  - [germany_east, germany_west]
+  - [germany_east, hungary_slovakia]
+  - [germany_east, occupied_poland]
+  - [germany_south, germany_west]
+  - [germany_south, hungary_slovakia]
+  - [germany_south, italy_north]
+  - [germany_south, switzerland_area]
+  - [germany_west, low_countries]
+  - [germany_west, north_sea]
+  - [germany_west, occupied_france]
+  - [germany_west, switzerland_area]
+  - [gulf_of_bothnia, sweden_area]
+  - [hungary_slovakia, occupied_poland]
+  - [hungary_slovakia, romania]
+  - [hungary_slovakia, western_ukraine]
+  - [iberia, occupied_france]
+  - [iberia, vichy_france]
+  - [italy_north, italy_south]
+  - [italy_north, switzerland_area]
+  - [italy_north, vichy_france]
+  - [low_countries, north_sea]
+  - [low_countries, occupied_france]
+  - [north_sea, norway]
+  - [north_sea, occupied_france]
+  - [north_sea, sweden_area]
+  - [norway, sweden_area]
+  - [norway, white_sea]
+  - [occupied_france, switzerland_area]
+  - [occupied_france, vichy_france]
+  - [occupied_poland, western_ukraine]
+  - [odessa_area, romania]
+  - [romania, western_ukraine]
+  - [switzerland_area, vichy_france]
+entities:
+  - {key: berlin, kind: location, name: Berlin, at: [52.5, 13.4]}
+  - {key: rome, kind: location, name: Rome, at: [41.9, 12.5]}
+  - {key: lorient, kind: location, name: Lorient, at: [47.7, -3.4]}

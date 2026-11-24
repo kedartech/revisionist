@@ -27,7 +27,7 @@ start_date: 1941-09-01
 # posts, office and defiance (OFD): each card names its post; what each head's post rests on and
 # how its holder is removed, who may move each commander, his ladder and his acts without leave
 # are on the office assets under `assets`, from Ava's sourcing note or marked a gap.
-rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, own_aim, laws, ask_answers, deciders, offers, classes, losses, places, posts, office, defiance]
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, own_aim, laws, ask_answers, deciders, offers, classes, losses, places, posts, office, defiance, peace]
 
 entities:
   # A polity's capital (PCW): a place in its own territory; a neutral's or an occupied nation's is its
@@ -4760,6 +4760,50 @@ locks:
     question: permission
     order: {form: finnish_army_move, params: {to: leningrad}}
     decider: {person: ryti}
+  # Peace (PED): who allows each nation with a seat to accept an armistice or an end to a war.
+  # A row of the kind peace holds no order and has no condition. No sheet sources who may make
+  # peace for any of the eight, so every row is gap: true, [proposed]; each comment names the
+  # record the row is drawn from, to be read before release.
+  # The President, who negotiates and signs. A treaty of peace also needs two thirds of the
+  # Senate present (Constitution, Art. II s.2), which no peace row carries. gap: true, [proposed].
+  - key: usa_peace
+    question: peace
+    decider: {person: roosevelt}
+  # The Prime Minister: peace is made under the Crown's prerogative on ministers' advice, and the
+  # War Cabinet sat under him. gap: true, [proposed].
+  - key: uk_peace
+    question: peace
+    decider: {person: churchill}
+  # Stalin. Formally the Presidium of the Supreme Soviet ratifies treaties (1936 Constitution,
+  # Art. 49), which is not in the world. gap: true, [proposed].
+  - key: ussr_peace
+    question: peace
+    decider: {person: stalin}
+  # Hitler, as head of state and of government; the Reichstag was not asked. gap: true,
+  # [proposed].
+  - key: germany_peace
+    question: peace
+    decider: {person: hitler}
+  # The Emperor, who makes peace and concludes treaties (Meiji Constitution, Art. 13), on the
+  # advice of the cabinet and the Imperial Conference. gap: true, [proposed].
+  - key: japan_peace
+    question: peace
+    decider: {person: hirohito}
+  # The King, who makes treaties of peace (Statuto, Art. 5), not the Duce. gap: true,
+  # [proposed].
+  - key: italy_peace
+    question: peace
+    decider: {person: victor_emmanuel}
+  # Chiang, as Chairman of the Military Affairs Commission; China has no body that decides it.
+  # gap: true, [proposed].
+  - key: china_peace
+    question: peace
+    decider: {person: chiang}
+  # The President, who decides on peace with the consent of Parliament (1919 Form of Government,
+  # s.33); Parliament is not in the world. gap: true, [proposed].
+  - key: finland_peace
+    question: peace
+    decider: {person: ryti}
 
 # Pacts in force on 1 September 1941 (PCW). The clause chosen for each is [proposed]: the rules judge
 # what they can, and wording they cannot express is kept and marked unchecked.
@@ -4783,9 +4827,11 @@ pacts:
     public: true
     wording: Neither government will negotiate or conclude an armistice or treaty of peace with Germany except by mutual agreement.
     source: anglo_soviet_1941
+    # Each party is barred a separate peace with Germany (PED): the clause rests on the pact's
+    # named citation, which no lane has read. gap: true, [proposed].
     clauses:
-      - {type: unchecked, binds: uk, text: "Negotiate or conclude no armistice or peace with Germany except by mutual agreement."}
-      - {type: unchecked, binds: ussr, text: "Negotiate or conclude no armistice or peace with Germany except by mutual agreement."}
+      - {type: no_separate_peace, binds: uk, nation: germany}
+      - {type: no_separate_peace, binds: ussr, nation: germany}
   - key: soviet_japanese_neutrality
     name: The Soviet-Japanese Neutrality Pact
     parties: [ussr, japan]

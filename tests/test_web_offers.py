@@ -15,6 +15,7 @@ nation's seat, and with ``offers`` off the block is as it was.
 """
 
 import json
+from collections.abc import Callable
 from datetime import timedelta
 from pathlib import Path
 
@@ -384,6 +385,91 @@ def test_the_server_answers_the_check_and_the_offer_and_holds_it_after_a_commit(
     assert realism_of(kara)["home"]["promises"] == []  # held for the next wake
     status, out = post(kara, "offer", **(draft | {"price": "a_bridge"}))
     assert out == {"reply": offers.NO_PRICE, "refused": True}, out
+
+
+# --- a commander held to his post (PVW): every draft refused as no such bloc ---------------
+
+
+def at_post(w: World) -> None:
+    w["rules"] = sorted({*w["rules"], "post_view"})
+
+
+def _twin(tmp: Path, standing: bool, *changes: Callable[[World], None]) -> Game:
+    """Ilse's bill on its way, and a day later, with her offer of the harbour dues to the
+    Greens standing on it or not."""
+    tmp.mkdir(parents=True, exist_ok=True)
+    g = game(tmp, *changes)
+    bill(g)
+    if standing:
+        offer(g, ILSE)
+    g.walk(day(1), day(1))
+    return g
+
+
+DRAFTS: tuple[tuple[str, str, str], ...] = (
+    ("greens", MEASURE, GUILD),
+    ("greens", MEASURE, DUES),
+    ("greens", "levy_act", GUILD),
+    ("greens", MEASURE, "a_bridge"),
+    ("smiths", MEASURE, GUILD),
+)
+
+
+def _replies(g: Game, person: EntityId) -> list[tuple[api.LockCheck, str]]:
+    """What the check and the held offer's label answer ``person`` for each draft."""
+    out: list[tuple[api.LockCheck, str]] = []
+    for draft in DRAFTS:
+        checked = locks_api.check_offer(g.state, seat(person), *draft)
+        try:
+            label = home_api.offer_label(g.state, seat(person), *draft)
+        except ValueError as exc:
+            label = f"refused: {exc}"
+        out.append((checked, label))
+    return out
+
+
+def test_the_commander_held_to_his_post_is_told_no_such_bloc_standing_offer_or_not(
+    tmp_path: Path,
+) -> None:
+    standing = _replies(_twin(tmp_path / "standing", True, at_post), KARA)
+    none = _replies(_twin(tmp_path / "none", False, at_post), KARA)
+    refused = api.LockCheck(check="beyond", who=None, reason=offers.NO_BLOC)
+    assert standing == none == [(refused, f"refused: {offers.NO_BLOC}")] * len(DRAFTS)
+
+
+def test_with_post_view_off_or_for_a_political_seat_the_standing_offer_reads_apart(
+    tmp_path: Path,
+) -> None:
+    plain = [_replies(_twin(tmp_path / f"off{n}", n == 0), KARA) for n in (0, 1)]
+    assert plain[0][0][0]["reason"] == offers.LIVE and plain[1][0][0]["check"] == "allowed"
+    held = [_replies(_twin(tmp_path / f"on{n}", n == 0, at_post), ILSE) for n in (0, 1)]
+    assert held[0] != held[1]
+
+
+def test_the_server_refuses_the_held_commanders_check_and_offer_as_no_such_bloc(
+    web: Web,  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    to.world(tmp_path, at_post)
+    played = Realism(web, world=str(tmp_path / "world.yaml"))
+    ilse: Client = played.seat("ilse", "ilse")
+    kara: Client = played.seat("kara", "kara")
+    make_host(played, ilse)
+    begin(played)
+    status, out = post(ilse, "lever", lever="propose", params={"bill": MEASURE})
+    assert status == 200 and not out["refused"], out
+    draft = {"bloc": "greens", "measure": MEASURE, "price": GUILD}
+    status, out = post(kara, "check", **draft)
+    assert out == {"check": "beyond", "who": None, "reason": offers.NO_BLOC}, out
+    status, out = post(kara, "offer", **draft)
+    assert out == {"reply": offers.NO_BLOC, "refused": True}, out
+    status, out = post(kara, "commit")
+    assert status == 200, out
+    status, out = post(kara, "offer", **draft)
+    assert out == {"reply": offers.NO_BLOC, "refused": True}, out
+    assert realism_of(ilse)["home"]["promises"] == []
+    status, out = post(ilse, "offer", **(draft | {"price": DUES}))
+    assert status == 200 and not out["refused"], out
 
 
 # --- rule 5: a promise's due day in the wake notice and in what waits on the seat ---------

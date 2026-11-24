@@ -17,7 +17,7 @@ import { briefBlock, directiveForm, paceHeader } from './realism.js';
 import { battleAt, battleSheet, battleTitle } from './realism-battle.js';
 import { boardView, piecePanel, viewSwitch, withBoard } from './realism-board.js';
 import { courtBoard } from './realism-court.js';
-import { BOARD_KEY, boardSwitch, capitalBoard, hasCapital, startBoard } from './realism-capital.js';
+import { BOARD_KEY, boardSwitch, capitalBoard, capitalSheet, hasCapital, startBoard } from './realism-capital.js';
 import { header, reportDialog, reportInbox } from './frame.js';
 import { homeSheet, speakNote, themeRead, withHome } from './realism-home.js';
 import { needsAnswer } from './realism-answer.js';
@@ -1338,6 +1338,7 @@ export function realismRoom(ctx) {
       sheet?.removeAttribute('aria-labelledby');
       return sheet;
     }
+    if (name === 'capital') return capitalOpen() ? capitalSheet(capitalOpen()) : null;
     if (name === 'nations') return nationsBody();
     if (name === 'standing') return standingGrid(rv, { onOpen: cardFromGrid });
     if (name === 'aims') return stakesStrip(rv.stakes, ownAimHooks()) ?? h('p', { class: 'hint' }, 'You hold no aims in this game.');
@@ -1501,6 +1502,25 @@ export function realismRoom(ctx) {
     root.querySelector(`.rl-cap button[data-key="${q}"]`)?.focus();
   }
 
+  /**
+   * A capital picked on the map: the seat's own opens the Capital board, another nation's its
+   * public lines as a sheet over the map.
+   */
+  function openCapitalLine(line) {
+    if (line.nation.relation === 'own') {
+      if (openSheetOf(ui)) closeSheet(ui);
+      ui.cap = {};
+      return setBoard('capital');
+    }
+    ui.capital = line.nation.name;
+    openSheet(ui, 'capital', { tab: 'capital' });
+    rerender();
+    root.querySelector('.rl-over-title')?.focus();
+  }
+
+  /** The server's capital line for the nation whose sheet is open; null once it is gone. */
+  const capitalOpen = () => (rv.capitals ?? []).find((c) => c.nation.name === ui.capital && c.nation.relation !== 'own') ?? null;
+
   /** What the Capital board's controls open in the room. */
   const capitalHandlers = () => ({
     board: setBoard,
@@ -1554,7 +1574,7 @@ export function realismRoom(ctx) {
   function mapFirstRoom({ menuBtn, status }) {
     let name = openSheetOf(ui);
     const board = shownBoard(name);
-    const map = board === 'map' ? theatreBoard(rv, ui, { pick, act: boardAct, open, hooks: { overlay: true, onFull: setFull } }) : null;
+    const map = board === 'map' ? theatreBoard(rv, ui, { pick, act: boardAct, open, onCapital: openCapitalLine, hooks: { overlay: true, onFull: setFull } }) : null;
     const forms = map?.querySelector('.rl-theatre-forms') ?? null;
     forms?.remove();
     if (map && hasCapital(rv)) (map.querySelector('.rl-tm-tools-start') ?? map.querySelector('.rl-bar') ?? map).prepend(boardSwitch('map', setBoard));
@@ -1575,10 +1595,14 @@ export function realismRoom(ctx) {
       closeSheet(ui);
       name = null;
     }
+    if (name === 'capital' && !capitalOpen()) { // the nation is out of the seat's view
+      closeSheet(ui);
+      name = null;
+    }
     const piece = name === 'piece' ? ui.piece.name : null;
     const title = piece ?? (name === 'matter' ? matterOf(rv, ui.matter).title
       : name === 'ask' ? ASK_TITLE : name === 'battle' ? battleTitle(battleAt(rv, ui.battle), rv.clock?.world_date)
-        : name === 'aims' ? AIMS_TITLE : undefined);
+        : name === 'aims' ? AIMS_TITLE : name === 'capital' ? capitalOpen().nation.name : undefined);
     const lines = needLines(rv);
     const marks = Object.fromEntries(QUIET.map((key) => [key, sheetMarks(lines)[key] ?? 0]));
     const counts = beginner() ? { ...sheetCounts(), ...marks } : sheetCounts();

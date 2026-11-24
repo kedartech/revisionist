@@ -5097,6 +5097,12 @@
         "name": "Norra",
         "relation": "own"
       },
+      "place": {
+        "name": "Washington",
+        "lat": 38.9,
+        "lon": -77.0,
+        "theatre": "North America"
+      },
       "questions": [
         {
           "kind": "measure",
@@ -5207,6 +5213,12 @@
         "key": "TZHP5CPZR27M6255484EX48TQ6",
         "name": "Sudland",
         "relation": "enemy"
+      },
+      "place": {
+        "name": "Berlin",
+        "lat": 52.5,
+        "lon": 13.4,
+        "theatre": "Europe"
       },
       "questions": [
         {

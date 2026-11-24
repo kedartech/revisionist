@@ -53,6 +53,7 @@ READ = frozenset(
         "office",
         "elections",
         "defiance",
+        "peace",
     }
 )
 """The names whose reader has been built: a world that names one is no longer as with it off."""
@@ -72,6 +73,7 @@ SHIPPED_ON: dict[str, frozenset[str]] = {
             "posts",
             "office",
             "defiance",
+            "peace",
         }
     ),
     "salt-strait-realism": frozenset(

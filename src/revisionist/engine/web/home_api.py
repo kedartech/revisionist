@@ -70,6 +70,7 @@ from revisionist.engine.web.realism_api import (
     HomeTheme,
     LiveOffer,
     MapArea,
+    MapPlace,
     NationStanding,
     OfferBloc,
     OfferMeasure,
@@ -454,9 +455,17 @@ def offered(state: State, made: offers.PricedOffer) -> str:
     return OFFERED.format(bloc=name, measure=title, sentence=sentence)
 
 
+def refuse_at_post(state: State, seat: SeatId) -> None:
+    """Raises ``offers.OffersError(offers.NO_BLOC)`` for a commander held to his post (PVW):
+    his view holds no bloc, offer or price, so every draft of his is refused alike."""
+    if at_post(state, seat):
+        raise offers.OffersError(offers.NO_BLOC)
+
+
 def offer_label(state: State, seat: SeatId, bloc: str, measure: str, key: str) -> str:
     """The label of an offer held for the next wake. Raises ``ValueError`` with the seat's
     words as filing it now would."""
+    refuse_at_post(state, seat)
     today = state.in_world_date
     if today is None:
         raise ValueError(offers.NOT_ON)
@@ -472,6 +481,7 @@ def would_stand(
     price ``key`` to ``bloc`` landed: the floor count (``votes.floor_counts``) on the game
     with that offer taken today, so the points are the rule's and never a sum of the
     client's. Raises ``offers.OffersError`` as filing the offer would."""
+    refuse_at_post(state, seat)
     today = state.in_world_date
     if today is None:
         raise offers.OffersError(offers.NOT_ON)
@@ -735,8 +745,19 @@ def capitals(
         polity = keys[n["key"]]
         found = _own_questions(state, view, sent) if polity == own else []
         found += _public_questions(state, sent, log, polity, n["name"])
-        out.append(CapitalLine(nation=n, questions=found))
+        out.append(
+            CapitalLine(nation=n, place=_capital_place(state, view, polity), questions=found)
+        )
     return out
+
+
+def _capital_place(state: State, view: View, polity: EntityId) -> MapPlace | None:
+    """``polity``'s capital as the map draws it; None for none, or for one with no position."""
+    site = state.map.capitals.get(polity) if state.map is not None else None
+    place = view.entities.get(site) if site is not None else None
+    if place is None or place.at is None:
+        return None
+    return MapPlace(name=place.name, lat=place.at[0], lon=place.at[1], theatre=place.theatre)
 
 
 def _decider(shape: CapitalShape, who: str, members: Sequence[str]) -> CapitalDecider:

@@ -1,0 +1,316 @@
+# The 1941 map, fourth region: the Mediterranean, North Africa and the Middle East. Built by
+# scripts/map_build.py together with the earlier regions (see worlds/maps/README.md); the provinces are
+# Natural Earth 1:10m admin-1 codes (worlds/maps/SOURCES.md). Every value here is [proposed]: the
+# territory list and names, which provinces make each territory, every cut line, every terrain and every
+# sea zone line.
+#
+# Build it with the earlier regions, naming the recipe files:
+#   python scripts/map_build.py build worlds/maps/src/autumn-1941-globe/eastern-front.yaml \
+#     worlds/maps/src/autumn-1941-globe/europe.yaml worlds/maps/src/autumn-1941-globe/atlantic.yaml \
+#     worlds/maps/src/autumn-1941-globe/mediterranean.yaml --slug autumn-1941-globe
+#
+# The box is the map's (the Pacific file gives its reason). Land and water in the box that no recipe
+# claims (Western Sahara and the Sahel, Arabia, the Gulf, the Red Sea and Italian East Africa, Cape Verde
+# and the Canaries) stay the backdrop.
+#
+# The Caucasus. Georgia, Armenia and Azerbaijan, with the Soviet North Caucasus (Krasnodar, Adygea,
+# Stavropol and the republics from Karachay-Cherkessia to Dagestan: Maikop, Grozny and the road to Baku).
+# Astrakhan and Kalmykia are left to the backdrop, and no recipe claims them.
+#
+# Libya. Libya's districts make three territories: Tripolitania and the Fezzan (the north-west, the
+# Jefara, Sirte and the Saharan south, 1941 Italian Tripolitania and the Southern Territory), Cyrenaica
+# (Ajdabiya and the Jebel Akhdar to Derna, the Marmarica plateau to Bardia, and the oasis of Kufra) and
+# the Tobruk enclave. The district of Al Butnan holds Tobruk and Bardia; it is cut so that the enclave,
+# the perimeter the Eighth Army's garrison held from April to December 1941, is a territory of its own and
+# Bardia, outside it, is in Cyrenaica. The line is a half-circle of 0.25 degrees (about 27 km) round the
+# town that runs from the sea west of Tobruk to the sea east of it, drawn for play; its points are the
+# lane's interpretation with no evidence record, so it is `gap: true`. The enclave is 0.11 square degrees,
+# above the checker's minimum of 0.05.
+#
+# The Dodecanese. The Italian islands (Rhodes, Kos, Leros and the rest) are in the Greek region of
+# Notio Aigaio together with the Cyclades, which were Greek (and under German-Italian occupation from
+# 1941). The province is cut by a north-south line at 26.15 E between Amorgos (Cyclades) and Astypalaia
+# (Dodecanese), and the east side is the Dodecanese territory. Gap: the line is the lane's reading of the
+# archipelago's division, with no evidence record. The islands north of it (Ikaria, Samos, Chios, Lesbos)
+# are in Voreio Aigaio, Greek in 1941 until April-May 1941 and then occupied; the whole of Greece is one
+# territory (the holder is a later item's).
+#
+# Malta and Cyprus. Malta is carried by the data (68 local councils, 0.0325 square degrees) but is smaller
+# than the checker's minimum area of 0.05 square degrees, so it cannot be a territory of its own. The
+# default taken: Malta is joined to Cyprus, also a British island and 0.56 square degrees, in one
+# territory of two parts (the same way Scotland and Ulster are one territory of two parts). Listed for
+# Josh: a holder holds both, and a later item may lower the checker's minimum, or give Malta a sea-zone
+# site, to part them.
+#
+# 1941 borders that follow present-day province lines, so no cut is needed:
+# - Libya and Egypt: the present border follows the wire of 1941 (25 E, Sollum).
+# - Hatay (Alexandretta) went to Turkey in 1939: it is Turkish whole.
+# - Lebanon and Syria, Palestine and Transjordan: the mandates of 1941 follow the present borders; Syria and
+#   Lebanon are one territory, as are Palestine (Israel, the West Bank and Gaza) and Transjordan.
+# - Kars and Ardahan went to Turkey in 1921; the present border is the 1941 one.
+# Where a 1941 border runs inside a present-day province and this file carries no cut (listed for Josh):
+# - The Spanish zone of Morocco and the Tangier zone are in French North Africa; Ceuta and Melilla are in
+#   the Iberian territory of the Europe file.
+# - The Aouzou strip, the Libyan-Algerian line in the Sahara and the Fezzan's southern edge.
+# - Iraq, Iran and the Gulf: the Anglo-Soviet occupation of Iran in August 1941 is a later item's.
+# - Kastellorizo (Italian since 1921) is too small to survive the simplification and is not in the map.
+#
+# Sea zones. Five, drawn for play and not sourced: the Western Mediterranean, the Central Mediterranean
+# (the Sicily Narrows, the Tyrrhenian and Ionian seas, the Adriatic and the Gulf of Sirte), the Eastern
+# Mediterranean (Crete and the Levant to Egypt, Cyprus, Tobruk and Alexandria), the Aegean, and the
+# Gibraltar Approaches (the Atlantic coast of Morocco, Portugal and Spain south of the Bay of Biscay), which
+# the plan's four did not name and without which the Mediterranean would not join the Atlantic. The
+# Strait of Gibraltar and the Turkish Straits are declared crossings, because the water that joins them is
+# narrower than the checker's shared-border minimum or is not water in the data. The Black Sea, the Bay of
+# Biscay and the Mid-Ocean Gap are the earlier regions' zones the new ones join.
+#
+# Places. Six, new to the map, each a site of the territory it lies in: Alexandria (Egypt), Malta (Malta and
+# Cyprus), Tobruk (the Tobruk enclave), Bardia (Cyrenaica), Tripoli (Tripolitania) and Taranto, which
+# lies in the Europe file's Rome and the South territory (ITA-5408); the Europe recipe and its staging
+# world list it there as a site (a deviation line records that edit). The town centre of Bardia is on the
+# data's coast (31.756 N, 25.087 E), so the place is set 0.02 degrees inland, on the escarpment above the
+# harbour; Tobruk and Bardia then lie in different territories. The coordinates are the towns' published
+# centres to 0.01 degrees, entered without a network and not yet confirmed against GeoNames: listed for
+# COD3 and Josh to confirm.
+map:
+  box: [-126, -60, 234, 84]
+regions:
+  - {key: mediterranean, name: The Mediterranean and the Middle East}
+territories:
+  - key: french_north_africa
+    name: French North Africa
+    region: mediterranean
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Atlas and the Sahara edge; no source cited"
+    provinces: [
+      MAR-3457, MAR-3456, MAR-3469, MAR-1445, MAR-1454, MAR-1452, MAR-1455, MAR-1447, MAR-1448,
+      MAR-1451, MAR-1449, MAR-1450, MAR-1457, MAR-1456, MAR-1446, MAR-1453, DZA-2143, DZA-2189,
+      DZA-2150, DZA-2148, DZA-2164, DZA-2191, DZA-2223, DZA-2222, DZA-2194, DZA-2188, DZA-2149,
+      DZA-2147, DZA-2163, DZA-2166, DZA-2165, DZA-2208, DZA-2197, DZA-2196, DZA-2195, DZA-2198,
+      DZA-2200, DZA-2202, DZA-2145, DZA-2144, DZA-2215, DZA-2207, DZA-2210, DZA-2209, DZA-2206,
+      DZA-2199, DZA-2203, DZA-2190, DZA-2204, DZA-2146, DZA-2201, DZA-2192, DZA-2193, DZA-2213,
+      DZA-2205, DZA-2214, DZA-2216, DZA-2219, DZA-2218, DZA-2217, DZA-2220, DZA-2221, DZA-2211,
+      DZA-2212
+    ]
+  - key: tunisia
+    name: Tunisia
+    region: mediterranean
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Tunisian steppe and the Sahel coast; no source cited"
+    provinces: [
+      TUN-98, TUN-96, TUN-106, TUN-97, TUN-101, TUN-112, TUN-110, TUN-109, TUN-111, TUN-114,
+      TUN-116, TUN-117, TUN-119, TUN-107, TUN-104, TUN-108, TUN-102, TUN-105, TUN-103, TUN-115,
+      TUN-113, TUN-118, TUN-120
+    ]
+  - key: tripolitania
+    name: Tripolitania and the Fezzan
+    region: mediterranean
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Jefara plain, the Nafusa hills and the Saharan south; no source cited"
+    sites: [tripoli]
+    provinces: [
+      LBY-2882, LBY-2974, LBY-2969, LBY-2967, LBY-2968, LBY-2985, LBY-2970, LBY-2966, LBY-2978,
+      LBY-2975, LBY-2973, LBY-2976, LBY-2964, LBY-2971, LBY-5488
+    ]
+  - key: cyrenaica
+    name: Cyrenaica
+    region: mediterranean
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Jebel Akhdar and the desert plateau to Bardia and the Egyptian wire; no source cited"
+    sites: [bardia]
+    provinces: [
+      LBY-2965, LBY-2983, LBY-2986, LBY-2982, LBY-2981, LBY-2984
+    ]
+  - key: tobruk_area
+    name: The Tobruk enclave
+    region: mediterranean
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the escarpment and the coastal plain inside the perimeter; no source cited"
+    sites: [tobruk]
+  - key: egypt
+    name: Egypt
+    region: mediterranean
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Nile valley and delta, the Western Desert and Sinai; no source cited"
+    sites: [alexandria]
+    provinces: [
+      EGY-1558, EGY-1548, EGY-1556, EGY-1540, EGY-1550, EGY-1536, EGY-1557, EGY-1538, EGY-1537,
+      EGY-1535, EGY-1531, EGY-1539, EGY-1547, EGY-1541, EGY-1543, EGY-1533, EGY-1544, EGY-1545,
+      EGY-1542, EGY-1546, EGY-1532, EGY-1534, EGY-1530, EGY-1552, EGY-1551, EGY-1549, EGY-5494
+    ]
+  - key: levant
+    name: Palestine and Transjordan
+    region: mediterranean
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the coastal plain, the Judean hills and the Jordan rift; no source cited"
+    provinces: [
+      ISR-3053, ISR-3056, ISR-3054, ISR-3055, ISR-3058, ISR-3057, "GAZ+00?", "WEB+00?", JOR-854,
+      JOR-858, JOR-859, JOR-852, JOR-849, JOR-857, JOR-850, JOR-853, JOR-851, JOR-860, JOR-855,
+      JOR-856
+    ]
+  - key: syria
+    name: Syria and Lebanon
+    region: mediterranean
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the steppe, the Orontes valley and the Lebanese range; no source cited"
+    provinces: [
+      SYR-5261, SYR-139, SYR-135, SYR-144, SYR-141, SYR-136, SYR-137, SYR-140, SYR-134, SYR-143,
+      SYR-146, SYR-142, SYR-145, SYR-138, SYR-4843, LBN-3059, LBN-3060, LBN-3022, LBN-3023,
+      LBN-3025, LBN-3024
+    ]
+  - key: iraq
+    name: Iraq
+    region: mediterranean
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Tigris and Euphrates alluvium and the western desert; no source cited"
+    provinces: [
+      IRQ-3046, IRQ-3050, IRQ-3222, IRQ-3223, IRQ-3242, IRQ-3243, IRQ-3227, IRQ-3226, IRQ-3471,
+      IRQ-3061, IRQ-3051, IRQ-3052, IRQ-3049, IRQ-3063, IRQ-3472, IRQ-3224, IRQ-3225, IRQ-3062
+    ]
+  - key: iran
+    name: Iran
+    region: mediterranean
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Zagros, the Elburz and the central plateau; no source cited"
+    provinces: [
+      IRN-3237, IRN-3238, IRN-3230, IRN-3240, IRN-3241, IRN-3239, IRN-3221, IRN-3219, IRN-3246,
+      IRN-3213, IRN-3245, IRN-3244, IRN-3247, IRN-3210, IRN-3228, IRN-3214, IRN-3215, IRN-3234,
+      IRN-3235, IRN-3231, IRN-3211, IRN-3218, IRN-3209, IRN-3212, IRN-3248, IRN-3233, IRN-3220,
+      IRN-3217, IRN-3232, IRN-3216, IRN-5490
+    ]
+  - key: turkey
+    name: Turkey
+    region: mediterranean
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Anatolian plateau and the Taurus; no source cited"
+    provinces: [
+      TUR-4839, TUR-2298, TUR-3044, TUR-3047, TUR-4840, TUR-2307, TUR-3048, TUR-2241, TUR-2240,
+      TUR-3040, TUR-3041, TUR-3017, TUR-4841, TUR-3016, TUR-2289, TUR-2265, TUR-2242, TUR-2239,
+      TUR-2301, TUR-2302, TUR-2292, TUR-2293, TUR-2296, TUR-2294, TUR-2270, TUR-5521, TUR-3010,
+      TUR-5519, TUR-2267, TUR-2266, TUR-5518, TUR-2264, TUR-2238, TUR-2230, TUR-2229, TUR-2278,
+      TUR-2271, TUR-2285, TUR-3018, TUR-2268, TUR-3008, TUR-2263, TUR-2269, TUR-3009, TUR-5520,
+      TUR-2297, TUR-2295, TUR-2291, TUR-2290, TUR-2276, TUR-3011, TUR-3012, TUR-3020, TUR-2287,
+      TUR-2275, TUR-2277, TUR-2274, TUR-2273, TUR-3021, TUR-2288, TUR-3026, TUR-2286, TUR-3014,
+      TUR-2300, TUR-3045, TUR-2272, TUR-3019, TUR-2283, TUR-2310, TUR-2299, TUR-2284, TUR-2282,
+      TUR-2311, TUR-2308, TUR-4842, TUR-2281, TUR-2309, TUR-3042, TUR-3043, TUR-3032, TUR-3031
+    ]
+  - key: caucasus
+    name: The Caucasus
+    region: mediterranean
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Caucasus range, the Kuban and Terek plains and the Kura valley to Baku; no source cited"
+    provinces: [
+      GEO-3015, GEO-3029, GEO-3039, GEO-3035, GEO-3034, GEO-3033, GEO-3038, GEO-3027, GEO-3037,
+      GEO-3028, GEO-3036, GEO-3030, ARM-1670, ARM-1674, ARM-1555, ARM-1672, ARM-1733, ARM-1732,
+      ARM-1671, ARM-1553, ARM-1554, ARM-1673, ARM-1675, AZE-1684, AZE-1676, AZE-1687, AZE-1678,
+      AZE-1677, AZE-1682, AZE-1735, AZE-1736, AZE-1740, AZE-2419, AZE-2415, AZE-5567, AZE-2420,
+      AZE-2423, AZE-2421, AZE-2418, AZE-1723, AZE-1731, AZE-1730, AZE-1729, AZE-1725, AZE-1727,
+      AZE-1726, AZE-1724, AZE-1686, AZE-1704, AZE-1698, AZE-1700, AZE-1720, AZE-1709, AZE-1699,
+      AZE-1702, AZE-1697, AZE-1695, AZE-1701, AZE-1712, AZE-1719, AZE-1717, AZE-1689, AZE-1715,
+      AZE-1710, AZE-1707, AZE-1708, AZE-5562, AZE-2422, AZE-1737, AZE-1739, AZE-5565, AZE-1691,
+      AZE-1738, AZE-1681, AZE-1734, AZE-1694, AZE-1690, AZE-1680, AZE-1706, AZE-1721, AZE-1714,
+      AZE-5563, AZE-1713, AZE-1696, AZE-1685, AZE-1693, AZE-1716, AZE-1728, AZE-1718, AZE-1711,
+      AZE-1705, AZE-1688, AZE-1679, AZE-1683, AZE-1703, AZE-1692, AZE-1722, AZE-4838, AZE-5566,
+      AZE-5561, AZE-5564,
+      RUS-2371, RUS-2279, RUS-2306, RUS-2280, RUS-2304, RUS-2305, RUS-2303, RUS-2416, RUS-2417
+    ]
+  - key: greece
+    name: Greece and Crete
+    region: mediterranean
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Pindus, the Peloponnese and Crete; no source cited"
+    provinces: [
+      GRC-2892, GRC-2949, GRC-2991, GRC-3001, GRC-2992, GRC-2900, GRC-2989, GRC-2884, GRC-2885,
+      GRC-2886, GRC-2990, GRC-2988, GRC-2883
+    ]
+  - key: dodecanese
+    name: The Dodecanese
+    region: mediterranean
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "Rhodes and the Italian islands; no source cited"
+  - key: british_islands
+    name: Malta and Cyprus
+    region: mediterranean
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the two British island garrisons; no source cited"
+    sites: [malta]
+    provinces: [
+      MLT-5950, MLT-5949, MLT-5936, MLT-5935, MLT-5934, MLT-5928, MLT-5926, MLT-5925, MLT-5924,
+      MLT-5923, MLT-5947, MLT-5948, MLT-5972, MLT-5973, MLT-5968, MLT-5963, MLT-5962, MLT-5956,
+      MLT-5952, MLT-5974, MLT-5981, MLT-5984, MLT-5985, MLT-5987, MLT-5980, MLT-5979, MLT-5978,
+      MLT-5977, MLT-5976, MLT-5975, MLT-5982, MLT-5983, MLT-5986, MLT-5927, MLT-5929, MLT-5920,
+      MLT-5922, MLT-5921, MLT-5946, MLT-5945, MLT-5933, MLT-5932, MLT-5937, MLT-5931, MLT-5939,
+      MLT-5930, MLT-5943, MLT-5944, MLT-5957, MLT-5964, MLT-5969, MLT-5970, MLT-5971, MLT-5967,
+      MLT-5961, MLT-5959, MLT-5960, MLT-5965, MLT-5966, MLT-5958, MLT-5938, MLT-5954, MLT-5941,
+      MLT-5953, MLT-5955, MLT-5942, MLT-5940, MLT-5951, CYP-3463, CYP-3466, CYP-3464, CYP-3489,
+      CYP-3465
+    ]
+cuts:
+  # Walking a line from its first point, `left` takes what lies left of it and `right` what lies right.
+  - name: the Tobruk perimeter of September 1941
+    province: LBY-2987
+    line: [[23.72, 32.30], [23.73, 32.05], [23.78, 31.90], [23.88, 31.82], [23.98, 31.80],
+           [24.10, 31.82], [24.20, 31.90], [24.26, 32.00], [24.30, 32.15]]
+    left: tobruk_area
+    right: cyrenaica
+    gap: true
+    named_source: >-
+      the perimeter held by the Tobruk garrison, 10 Apr to 10 Dec 1941; points interpreted as a half-circle
+      of 0.25 degrees round the town, no evidence record
+  - name: the Italian Dodecanese
+    province: GRC-3013
+    line: [[26.15, 38.30], [26.15, 35.10]]
+    left: dodecanese
+    right: greece
+    gap: true
+    named_source: >-
+      the Dodecanese under Italy since the treaty of Lausanne of 24 Jul 1923, against the Cyclades; line at
+      26.15 E between Amorgos and Astypalaia, no evidence record
+sea_zones:
+  - key: gibraltar_approaches
+    name: The Gibraltar Approaches
+    region: mediterranean
+    terrain: sea
+    polygon: [[-20, 30], [-5.6, 30], [-5.6, 43.0], [-20, 43.0]]
+  - key: western_mediterranean
+    name: The Western Mediterranean
+    region: mediterranean
+    terrain: sea
+    polygon: [[-5.6, 34.0], [11.3, 34.0], [11.3, 38.0], [10.0, 38.8], [10.0, 44.6], [0.0, 44.6],
+              [0.0, 43.0], [-5.6, 43.0]]
+  - key: central_mediterranean
+    name: The Central Mediterranean
+    region: mediterranean
+    terrain: sea
+    polygon: [[11.3, 30.0], [23.0, 30.0], [23.0, 36.0], [23.0, 37.9], [22.0, 38.6], [22.0, 46.0],
+              [10.0, 46.0], [10.0, 38.8], [11.3, 38.0]]
+  - key: eastern_mediterranean
+    name: The Eastern Mediterranean
+    region: mediterranean
+    terrain: sea
+    polygon: [[23.0, 30.4], [36.5, 30.4], [36.5, 37.2], [29.0, 37.2], [29.0, 37.0], [26.0, 35.1],
+              [24.5, 35.2], [23.0, 36.0]]
+  - key: aegean_sea
+    name: The Aegean Sea
+    region: mediterranean
+    terrain: sea
+    polygon: [[23.0, 36.0], [24.5, 35.2], [26.0, 35.1], [29.0, 37.0], [26.1, 40.0], [26.1, 41.0],
+              [22.0, 41.0], [22.0, 38.6], [23.0, 37.9]]
+crossings:
+  - {a: gibraltar_approaches, b: western_mediterranean, name: the Strait of Gibraltar, source: "sea-zone line chosen for play, not sourced"}
+  - {a: aegean_sea, b: black_sea, name: the Turkish Straits, source: "sea-zone line chosen for play, not sourced"}

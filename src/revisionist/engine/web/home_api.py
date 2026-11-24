@@ -455,9 +455,17 @@ def offered(state: State, made: offers.PricedOffer) -> str:
     return OFFERED.format(bloc=name, measure=title, sentence=sentence)
 
 
+def refuse_at_post(state: State, seat: SeatId) -> None:
+    """Raises ``offers.OffersError(offers.NO_BLOC)`` for a commander held to his post (PVW):
+    his view holds no bloc, offer or price, so every draft of his is refused alike."""
+    if at_post(state, seat):
+        raise offers.OffersError(offers.NO_BLOC)
+
+
 def offer_label(state: State, seat: SeatId, bloc: str, measure: str, key: str) -> str:
     """The label of an offer held for the next wake. Raises ``ValueError`` with the seat's
     words as filing it now would."""
+    refuse_at_post(state, seat)
     today = state.in_world_date
     if today is None:
         raise ValueError(offers.NOT_ON)
@@ -473,6 +481,7 @@ def would_stand(
     price ``key`` to ``bloc`` landed: the floor count (``votes.floor_counts``) on the game
     with that offer taken today, so the points are the rule's and never a sum of the
     client's. Raises ``offers.OffersError`` as filing the offer would."""
+    refuse_at_post(state, seat)
     today = state.in_world_date
     if today is None:
         raise offers.OffersError(offers.NOT_ON)

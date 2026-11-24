@@ -255,6 +255,7 @@ Sealing:
 - `laws.py`: Laws as world data (LWC).
 - `ladder.py`: The ladder of posts: moved, relieved, restored (LDR).
 - `office.py`: The office question as a formal sitting (OFQ).
+- `elections.py`: Elections redraw a chamber (ELE).
 - `locks.py`: Deciders and what locks an order (DCD).
 - `mandates.py`: The agenda (engine v2, spec §8.5).
 - `opponents.py`: Who stands where toward each seat, and who is actively opposing it.
@@ -323,7 +324,7 @@ The third run declares sixteen more names, each read by a later item; until its 
 - `places`: places with political weight: lost, abandoned or retaken.
 - `posts`: player, person and post kept apart: a card's `post` names the office asset it holds, and `post_changed` moves the office and the post's part of the card to another person or to nobody, a vacant post going to its successor at the wake (`posts.py`, `posts.holder()`, `posts.change()`, `posts.walk()`; a change is given by `realism_tick.change_post()`); and the ladder of posts: an office's `ladder` and `moved_by` let its movers appoint or dismiss, each a pending change that lands at the close of the next wake (`ladder.py`).
 - `office`: the office question as a formal sitting (`office.py`; opened by `realism_tick.open_office_question()` or by an order taking a last authority, chosen by `realism_tick.choose_office()`), and blocs turning on the leader.
-- `elections`: elections redraw a chamber.
+- `elections`: elections redraw a chamber: on a listed day each bloc's seats move by its support and are scaled back to the chamber's total, its vote rows with them (`seats_redrawn`, public); a named post is put to the office question sitting that day (`elections.py`, `elections.walk()`).
 - `defiance`: acting without permission, and refusing an order from above.
 - `aide_note`: the aide's note of what waits for the seat.
 - `peace`: an armistice and its terms end a war.
@@ -478,7 +479,7 @@ Frontend (static, no build):
   - `0013_web_held_orders.sql`: `web_held_orders` (an order a seat gave after committing, kept until the next wake opens; `filed_in` and `dropped` record what became of it). Read as empty until migrated (`src/revisionist/engine/web/held.py`).
   - `0015_player_reports.sql`: `player_reports` (one row per report: game, seat, account, kind, wake, log position, state hash, the words sealed to the seat, status, reply, when filed and marked) and `player_report_digests` (one row per day whose digest has gone). Rows in `discord_bugs` stay where they are; the Discord `/bug` still files there. Run by hand on each served database before a restart (`revisionist db migrate`); until then the report actions answer `Reports are not set up on this server yet.`
 - Event log: `src/revisionist/core/events.py` (event models). `src/revisionist/core/fold.py:107` `apply()`, `src/revisionist/core/fold.py:119` `replay()`. `src/revisionist/engine/store.py:103` `load_state()`. The Postgres store reads from a snapshot plus the tail (`src/revisionist/engine/pg_store.py`).
-- Schema export: `src/revisionist/schema_export.py:33` writes `schema/revisionist.schema.json`, which is committed. `tests/test_schema.py:85` checks it is current. `src/revisionist/core/__init__.py:23` `SCHEMA_VERSION = "78"`.
+- Schema export: `src/revisionist/schema_export.py:33` writes `schema/revisionist.schema.json`, which is committed. `tests/test_schema.py:85` checks it is current. `src/revisionist/core/__init__.py:23` `SCHEMA_VERSION = "79"`.
 - Worlds: `worlds/autumn-1941.yaml`, `worlds/engine-v2-slice-1941.yaml`, `worlds/realism-slice-1941.yaml`, `worlds/realism-toy.yaml`, `worlds/salt-strait.yaml`, `worlds/salt-strait-duo.yaml`. Resolved from `src/revisionist/engine/campaign.py:33` `WORLDS_DIR` by `world_path()` (`src/revisionist/engine/campaign.py:85`). Sidecar text for two of them: `worlds/dossiers/autumn-1941.yaml` and `worlds/dossiers/engine-v2-slice-1941.yaml`. Drafts `tests/drafts/florence-1478.yaml` and `washington-1962.yaml` are fixtures.
 - Briefings: `src/revisionist/engine/campaign.py:226-235` `briefings_dir()`: `REVISIONIST_BRIEFINGS_DIR`, else `<db>-briefings` beside a SQLite file, else `./revisionist-briefings`. Files `t<tick>-<seat>.md` from `FileDeliverer` (`src/revisionist/engine/campaign.py:208-223`).
 - Setting card waiting for `establish confirm`: `src/revisionist/cli.py:231-234` `_card_file()`, `revisionist-card.json` beside briefings.

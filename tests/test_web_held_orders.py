@@ -27,6 +27,7 @@ from revisionist.engine import wake as wk
 from revisionist.engine.store import EventStore
 from revisionist.engine.web import held, server
 from revisionist.engine.web.realism_api import OrderProposal
+from tests.pg import Cluster
 from tests.test_web import Client, Web, web  # noqa: F401
 from tests.test_web_realism import Realism, make_host, post, realism_of
 from tests.test_web_wake import begin, log_of, seat_of, state_of
@@ -146,6 +147,27 @@ def test_a_held_order_arriving_while_the_close_lock_is_held_is_not_lost(
     both_commit(ada, bea)
     (filed,) = bills(game)
     assert filed > position(game, ev.WakeOpened, wake=1)
+    assert held_of(ada) == []
+
+
+def test_a_close_of_the_same_campaign_in_another_database_is_not_this_games_close(
+    duo: tuple[Realism, Client, Client],
+    pg_cluster: Cluster,
+) -> None:
+    game, ada, _bea = duo
+    elsewhere = pg_cluster.fresh()
+    try:
+        with psycopg.connect(elsewhere.admin_dsn, autocommit=True) as other:
+            mark_closing(other, game.campaign)
+            store = game.web.app.open()
+            try:
+                assert not held.closing(store, game.campaign)
+            finally:
+                store.close()
+            _, out = post(ada, "lever", **BILL)
+    finally:
+        pg_cluster.drop(elsewhere)
+    assert out["reply"] != held.HELD and out["refused"] is False, out
     assert held_of(ada) == []
 
 

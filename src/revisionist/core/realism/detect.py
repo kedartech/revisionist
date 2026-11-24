@@ -56,7 +56,7 @@ from typing import TYPE_CHECKING, Annotated, ClassVar, NamedTuple
 from pydantic import Field, model_validator
 
 from revisionist.core._base import Label, Model
-from revisionist.core.ids import DocumentId, EntityId, FeatureId, derived_id
+from revisionist.core.ids import DocumentId, EntityId, FeatureId, SeatId, derived_id
 from revisionist.core.realism.card import ChannelKind
 
 if TYPE_CHECKING:
@@ -230,22 +230,63 @@ def made(picture: Picture, report: Report) -> Picture:
 # --- what a seat sees -----------------------------------------------------------
 
 
-def seen_by(state: "State", nation: EntityId | None) -> dict[Label, Report]:
-    """The reports that have reached ``nation``'s seats by the game's date, by key."""
+POST_STEPS = 3
+"""How far from a force he commands a commander held to his post reads reports (PVW,
+proposed): steps by the force's own domain, so a fleet's are the sea zones it reaches."""
+
+
+def _nation_of(state: "State", seat: SeatId) -> EntityId | None:
+    from revisionist.core.realism.war import polity_of
+
+    me = state.seats.get(seat)
+    return polity_of(state, me.embodies) if me is not None else None
+
+
+def post_reach(state: "State", seat: SeatId) -> frozenset[EntityId]:
+    """The areas within ``POST_STEPS`` of a force ``seat`` commands, each by that force's
+    domain; none without a board or a force."""
+    from revisionist.core.realism import kinds, territory
+    from revisionist.core.realism.geography import in_play
+    from revisionist.core.realism.war_rules import commanders
+
+    board = state.map
+    if board is None:
+        return frozenset()
+    out: set[EntityId] = set()
+    for f in sorted(state.features.values(), key=lambda x: x.feature_id):
+        kind = kinds.of(state, f)
+        if kind is None or not in_play(f):
+            continue
+        if seat not in {s for s, _ in commanders(state, f.feature_id)}:
+            continue
+        steps = territory.steps_from(board, kind.domain.value, [f.places[0]])
+        out.update(a for a, n in steps.items() if n <= POST_STEPS)
+    return frozenset(out)
+
+
+def seen_by(state: "State", seat: SeatId, *, post: bool = False) -> dict[Label, Report]:
+    """The reports that have reached the seat's nation by the game's date, by key. Held
+    to his post (PVW), only those on an area within his reach (``post_reach``)."""
+    nation = _nation_of(state, seat)
     today = state.in_world_date
     picture = state.reports.get(nation) if nation is not None else None
     if picture is None or today is None:
         return {}
-    return dict(sorted(received(picture, today).delivered.items()))
+    delivered = received(picture, today).delivered
+    if post:
+        reach = post_reach(state, seat)
+        delivered = {k: r for k, r in delivered.items() if r.area in reach}
+    return dict(sorted(delivered.items()))
 
 
-def envoys(state: "State", nation: EntityId | None) -> dict[Label, Report]:
+def envoys(state: "State", seat: SeatId) -> dict[Label, Report]:
     """With ``territories`` on, every other nation's envoy in play, as an exact report of
     today: an envoy is an accredited mission, public to every seat, and no roll is made
     on it (ENV). Made at projection only, never stored."""
     from revisionist.core.realism import kinds, territory
     from revisionist.core.realism.geography import in_play
 
+    nation = _nation_of(state, seat)
     today = state.in_world_date
     if today is None or not territory.on(state) or state.map is None:
         return {}

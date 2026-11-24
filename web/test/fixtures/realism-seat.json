@@ -4756,6 +4756,75 @@
         "expires": "1900-04-06",
         "answers": [],
         "item": "4CB1HQP7RTP4J38MKTKDBK08VF"
+      },
+      {
+        "by": "Sudland",
+        "terms": {
+          "parties": [
+            "Sudland",
+            "Norra"
+          ],
+          "clauses": [
+            {
+              "text": "Sudland: an armistice with Norra for 10 days.",
+              "checked": true,
+              "interpretation": false
+            }
+          ],
+          "wording": "A truce for the harvest.",
+          "text": "Parties: Sudland, Norra. Clause 1: Sudland: an armistice with Norra for 10 days."
+        },
+        "filed": "1900-04-02",
+        "expires": "1900-04-06",
+        "answers": [],
+        "item": "4CB1HQP7RTP4J38MKTKDBK08VG",
+        "accept": {
+          "check": "locked",
+          "who": "the council under Ilse Varg",
+          "reason": "Held until the council under Ilse Varg allows it."
+        }
+      }
+    ],
+    "peace": [
+      {
+        "type": "armistice",
+        "label": "Armistice with a nation",
+        "nations": [
+          {
+            "key": "sudland",
+            "name": "Sudland"
+          }
+        ]
+      },
+      {
+        "type": "end_war",
+        "label": "End the war with a nation",
+        "nations": [
+          {
+            "key": "sudland",
+            "name": "Sudland"
+          }
+        ]
+      },
+      {
+        "type": "no_separate_peace",
+        "label": "No separate peace with a nation",
+        "nations": [
+          {
+            "key": "sudland",
+            "name": "Sudland"
+          }
+        ]
+      }
+    ],
+    "armistices": [
+      {
+        "agreement": "agr-1",
+        "nations": [
+          "Norra",
+          "Ostmark"
+        ],
+        "last_day": "1900-04-12"
       }
     ]
   },

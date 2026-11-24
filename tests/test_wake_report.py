@@ -586,6 +586,60 @@ def test_a_game_without_agreements_prints_no_clause_lines(tmp_path: Path) -> Non
     assert not any("clauses:" in line for line in wake_report.render(report))
 
 
+# --- PER rule 5: per wake, the armistices agreed and the wars ended -------------------
+
+
+def peace_log(tmp: Path, rules: Any = None) -> list[Event]:
+    """PEA's toy (``tests/test_peace.py``). Wake 0 agrees a ten-day armistice between Norra
+    and Sudland; wake 1 ends their war by terms (with ``peace`` on: the fold refuses a war
+    ended without it); wake 2 is open."""
+    from revisionist.core.realism.war import war_id_for
+    from tests import test_agreements as ta_
+    from tests import test_peace as tp
+
+    on = rules is None
+    g = tp.game(tmp) if on else tp.game(tmp, rules=rules)
+    at = T0
+    g.add([ev.WakeOpened(wake=0, deadline=at + 12 * HOUR, opened_at=at)])
+    tp.put_in_force(g, tp.armistice(10))
+    for n in (0, 1):
+        at += 12 * HOUR
+        g.add(
+            [
+                ev.WakeClosed(wake=n, how="deadline"),
+                ev.WakeOpened(wake=n + 1, deadline=at + 12 * HOUR, opened_at=at),
+            ]
+        )
+        if n == 0 and on:
+            x = tp.put_in_force(g, tp.ends_war(), tp.ends_war(ta_.SUDLAND, ta_.NORRA))
+            war = war_id_for(ta_.NORRA, ta_.SUDLAND)
+            g.add([ev.WarEnded(war_id=war, on=adj.START, agreement_id=x.agreement_id)])
+    return g.log
+
+
+def test_each_wake_counts_the_armistices_agreed_and_the_wars_ended(tmp_path: Path) -> None:
+    log = peace_log(tmp_path)
+    report = wake_report.build(log)
+    assert [(x.number, x.armistices, x.ended) for x in report.peace] == [
+        (0, 1, 0),
+        (1, 0, 1),
+        (2, 0, 0),
+    ]
+    out = wake_report.render(report)
+    at = out.index("  wake 0: deadline")
+    assert "    peace: 1 armistice agreed, 0 wars ended" in out[at : at + 6]
+    at = out.index("  wake 1: deadline")
+    assert "    peace: 0 armistices agreed, 1 war ended" in out[at : at + 6]
+
+
+def test_a_game_without_peace_prints_no_peace_lines(tmp_path: Path) -> None:
+    from tests import test_peace as tp
+
+    report = wake_report.build(peace_log(tmp_path, rules=tp.RULES[:-1]))
+    assert report.peace == ()
+    assert not any("peace:" in line for line in wake_report.render(report))
+
+
 # --- aims met, at risk and failed (SCD) -----------------------------------------------
 
 

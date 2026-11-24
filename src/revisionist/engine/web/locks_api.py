@@ -10,7 +10,8 @@ game as it stands and logs nothing, so the check and the filing cannot differ. T
 the filing reads is ``locks.seen_lock``: a lock whose condition turns on a fact the seat
 cannot see holds nothing, so such an order checks as allowed. A draft offer to a bloc
 (PRR) is checked by the filing's own rule (``offers.offer``): allowed, or its refusal.
-Nothing here makes a model call.
+With ``peace`` on, an ask to allow a nation's acceptance of an offer of peace carries the
+offer's terms in full (PER). Nothing here makes a model call.
 """
 
 from collections.abc import Sequence
@@ -18,7 +19,7 @@ from collections.abc import Sequence
 from revisionist.core import events as ev
 from revisionist.core.ids import CampaignId, EntityId, FeatureId, OrderId, SeatId, derived_id
 from revisionist.core.project import project
-from revisionist.core.realism import defiance, ladder, locks, offers, territory
+from revisionist.core.realism import agreement, defiance, ladder, locks, offers, territory
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import words
 from revisionist.core.realism.effect import Appointment, RoutedOrder
@@ -67,6 +68,8 @@ def who(view: View, decider: locks.Decider) -> str:
     names them."""
     if decider.person is not None:
         return _name(view, decider.person)
+    if decider.council is not None:
+        return f"the council under {_name(view, decider.council.head)}"
     assert decider.nation is not None
     chambers = " and ".join(c.replace("_", " ") for c in decider.chambers)
     return f"{_name(view, decider.nation)}'s {chambers}"
@@ -101,12 +104,17 @@ def block(state: State, seat: SeatId) -> LocksBlock | None:
         for h in sorted(view.held.values(), key=lambda h: (h.filed, h.order_id))
     ]
     asks = [
-        AskLine(
-            id=ask_id(state.campaign_id, a.order_id),
-            by=_name(view, a.by),
-            words=a.words,
-            asked=a.on.isoformat(),
-            forms=_forms(state, view, a),
+        _terms(
+            state,
+            view,
+            a.order_id,
+            AskLine(
+                id=ask_id(state.campaign_id, a.order_id),
+                by=_name(view, a.by),
+                words=a.words,
+                asked=a.on.isoformat(),
+                forms=_forms(state, view, a),
+            ),
         )
         for a in sorted(view.asked.values(), key=lambda a: (a.on, a.order_id))
         if a.seat == seat
@@ -114,6 +122,18 @@ def block(state: State, seat: SeatId) -> LocksBlock | None:
     if not defiance.on(state):
         return LocksBlock(held=held, asks=asks)
     return LocksBlock(held=held, asks=asks, incidents=incidents(view))
+
+
+def _terms(state: State, view: View, order_id: OrderId, line: AskLine) -> AskLine:
+    """An ask to allow a nation's acceptance of an offer of peace carries the offer's
+    terms in full, so whoever decides reads every clause before allowing it (PER)."""
+    from revisionist.engine.web import agreements_api
+
+    if agreement.peace_on(state):
+        found = agreements_api.peace_terms(state, view, order_id)
+        if found is not None:
+            line["terms"] = found
+    return line
 
 
 def _priced(state: State, seat: SeatId, view: View, h: locks.HeldOrder, line: HeldLine) -> HeldLine:

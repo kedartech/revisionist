@@ -46,6 +46,7 @@ DEFIANT_LOYALTY = 0  # [proposed] an executor at or below this loyalty may refus
 NOT_ON = "Nothing may be sent without leave in this game."  # [proposed]
 NOT_WITHOUT_LEAVE = "Your post gives no leave to send that order without permission."  # [proposed]
 NOT_YOURS = "No incident of yours is open to answer."  # [proposed]
+NOT_LANDED = "That answer could not be given; nothing has changed."  # [proposed]
 BY_AIDE = "The aide never sends an order anyway."
 
 INCIDENT_DAYS = 2  # [proposed] world days the person who could have allowed it has to answer
@@ -382,7 +383,10 @@ def answer(
         card = state.cards.get(c)
         post = card.post if card is not None else None
         moved = ladder.order(state, c, post, False, s, day) if post is not None else None
-        out += moved or []
+        first = moved[0] if moved else None
+        # A dismissal already ordered this day for another incident is the same step down.
+        if isinstance(first, ev.PostMoveOrdered) and first.move.move_id not in state.post_moves:
+            out += moved or []
     return out
 
 
@@ -465,6 +469,7 @@ __all__ = [
     "DISMISS_AT",
     "INCIDENT_DAYS",
     "INCIDENT_REGARD",
+    "NOT_LANDED",
     "NOT_ON",
     "NOT_WITHOUT_LEAVE",
     "NOT_YOURS",

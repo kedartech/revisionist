@@ -226,9 +226,11 @@ def land(state: State, move_id: str, day: date) -> list[ev.Payload]:
         # The world moved under it: it would now take a seat's last authority, so it is
         # not done on order but stands, a fresh pending change, as the question's cause.
         wake = state.wake.number if state.wake is not None else -1
+        seat = seat_of_person(state, m.person)
         stand = m.model_copy(
             update={
                 "move_id": derived_id(state.campaign_id, "move-stands", m.move_id),
+                "seat": seat.seat_id if seat is not None else None,
                 "ordered": day,
                 "wake": wake,
                 "question": True,

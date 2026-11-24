@@ -886,7 +886,11 @@ def answer_incident(
     except ValueError:
         raise ValueError(f"answer one of: {', '.join(v.value for v in defiance.Verdict)}") from None
     landed = defiance.answer(state, found, chosen, max(today, found.opened), by_card=False)
-    _append_all(store, state, [(p, _scope_of(state, p)) for p in landed], seat)
+    try:
+        _append_all(store, state, [(p, _scope_of(state, p)) for p in landed], seat)
+    except FoldError as exc:
+        log.warning("incident %s not answered: %s", incident_id, exc)
+        raise ValueError(defiance.NOT_LANDED) from None
     first = landed[0]
     assert isinstance(first, ev.IncidentAnswered)
     return first

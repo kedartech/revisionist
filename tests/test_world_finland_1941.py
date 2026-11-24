@@ -324,7 +324,8 @@ def test_one_lock_on_crossing_the_border_for_ryti() -> None:
     world = _world()
     rows = _rows(world)
     assert set(rows) == {ROW}
-    assert [r.key for r in world.locks if r.decider.person == "ryti"] == [ROW]
+    ryti = [r.key for r in world.locks if r.decider.person == "ryti" and r.question != "peace"]
+    assert ryti == [ROW]
     row = rows[ROW]
     assert row.order.params == {"to": BEYOND}
     assert row.decider.person == "ryti"

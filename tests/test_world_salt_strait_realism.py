@@ -391,7 +391,8 @@ def test_the_rules_are_every_rule_but_the_three_a_model_reads() -> None:
     assert RULES <= set(Rule)
     assert not rules & MODEL_READ_RULES
     autumn = cmp.load_world(ROOT / "worlds" / "autumn-1941.yaml")
-    assert set(autumn.rules) <= rules
+    # Peace is on in 1941 (PED); Salt Strait has no one who may accept a peace yet.
+    assert set(autumn.rules) - {Rule.PEACE} <= rules
     assert compiled().rules == frozenset(RULES)
 
 

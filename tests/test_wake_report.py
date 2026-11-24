@@ -897,3 +897,106 @@ def test_a_game_without_office_prints_no_office_lines(tmp_path: Path) -> None:
     report = wake_report.build(territory_log(tmp_path))
     assert report.questions == ()
     assert not any(x.strip().startswith("office:") for x in wake_report.render(report))
+
+
+# --- DFR rule 5: per wake, the orders sent anyway, refusals and incident answers -------
+
+
+def defiance_log(tmp: Path) -> list[Event]:
+    """The defiance world of ``tests/test_defiance.py``. Wake 0: Kara's march to the Isle
+    is held and she sends it anyway. Wake 1: it is carried out, the incident opens, and
+    Ilse disowns it; a refusal of an order from above opens a second incident. Wake 2 is
+    open."""
+    from revisionist.core.realism import defiance
+    from revisionist.core.visibility import PUBLIC
+    from revisionist.engine import campaign as cmp
+    from revisionist.engine import realism_tick
+    from revisionist.engine.emit import Emitter
+    from revisionist.engine.store import load_state
+    from tests.test_defiance import defiant, held_march, send
+    from tests.test_realism_locks import ILSE, isle_move, played, seat, tick_until
+    from tests.test_territory_model import CAMPAIGN
+
+    store = played(tmp, isle_move, defiant("border"))
+    at = T0
+
+    def emit(*made: Any) -> None:
+        em = Emitter(store, load_state(store, CAMPAIGN), cmp.versions())
+        em.commit([em.event(m, scope=PUBLIC) for m in made])
+
+    def wakes(n: int) -> None:
+        nonlocal at
+        made: list[Any] = [ev.WakeClosed(wake=n - 1, how="deadline")] if n else []
+        made.append(ev.WakeOpened(wake=n, deadline=at + 12 * HOUR, opened_at=at))
+        emit(*made)
+        at += 12 * HOUR
+
+    wakes(0)
+    send(store, held_march(store))
+    wakes(1)
+    state = tick_until(store, lambda s: bool(s.incidents))
+    (incident,) = state.incidents.values()
+    realism_tick.answer_incident(store, CAMPAIGN, seat(ILSE), incident.incident_id, "disowned")
+    refused = incident.model_copy(
+        update={"incident_id": "refusal", "order_id": "refused", "cause": defiance.Cause.REFUSED}
+    )
+    emit(ev.IncidentOpened(incident=refused))
+    wakes(2)
+    return list(store.read(CAMPAIGN))
+
+
+def test_each_wake_counts_orders_sent_anyway_refusals_and_how_each_incident_was_answered(
+    tmp_path: Path,
+) -> None:
+    report = wake_report.build(defiance_log(tmp_path))
+    assert [
+        (d.number, d.sent, d.refused, d.backed, d.disowned, d.dismissed, d.by_card)
+        for d in report.defiance
+    ] == [(0, 1, 0, 0, 0, 0, 0), (1, 0, 1, 0, 1, 0, 0), (2, 0, 0, 0, 0, 0, 0)]
+    out = wake_report.render(report)
+    first, second = out.index("  wake 0: deadline"), out.index("  wake 1: deadline")
+    line = (
+        "    defiance: 1 sent anyway, 0 refused; incidents 0 backed, 0 disowned, 0 dismissed,"
+        " 0 by card"
+    )
+    assert line in out[first:second]  # [proposed]
+    assert (
+        "    defiance: 0 sent anyway, 1 refused; incidents 0 backed, 1 disowned, 0 dismissed,"
+        " 0 by card" in out[second:]
+    )
+
+
+def test_the_card_answer_is_counted_by_card(tmp_path: Path) -> None:
+    from revisionist.engine.store import load_state
+    from tests.test_defiance import defiant, held_march, send
+    from tests.test_realism_locks import isle_move, played, tick_until
+    from tests.test_territory_model import CAMPAIGN
+
+    store = played(tmp_path, isle_move, defiant("border"))
+    from revisionist.core.visibility import PUBLIC
+    from revisionist.engine import campaign as cmp
+    from revisionist.engine.emit import Emitter
+
+    em = Emitter(store, load_state(store, CAMPAIGN), cmp.versions())
+    em.commit(
+        [em.event(ev.WakeOpened(wake=0, deadline=T0 + 12 * HOUR, opened_at=T0), scope=PUBLIC)]
+    )
+    send(store, held_march(store))
+    tick_until(store, lambda s: any(i.verdict is not None for i in s.incidents.values()), ticks=10)
+    (row,) = wake_report.build(list(store.read(CAMPAIGN))).defiance
+    assert row.sent == 1 and row.by_card == 1
+    assert row.backed + row.disowned + row.dismissed == 1
+
+
+def test_the_report_names_no_order_commander_or_superior(tmp_path: Path) -> None:
+    out = wake_report.render(wake_report.build(defiance_log(tmp_path)))
+    told = "\n".join(x for x in out if x.strip().startswith("defiance:"))
+    assert told
+    for name in ("Kara", "Ilse", "Isle", "General of the Norra Levy", "Olav", "refusal"):
+        assert name not in told
+
+
+def test_a_game_without_defiance_prints_no_defiance_lines(tmp_path: Path) -> None:
+    report = wake_report.build(territory_log(tmp_path))
+    assert report.defiance == ()
+    assert not any(x.strip().startswith("defiance:") for x in wake_report.render(report))

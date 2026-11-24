@@ -1728,6 +1728,10 @@ class HeldLine(TypedDict):
     piece: str | None
     """The map key of the seat's own piece the held form order moves, as the seat's map
     keys that piece; None for a written order or a form that moves no piece."""
+    price: NotRequired[str]
+    """With ``defiance`` on, for an order its seat may send anyway (the ``send-anyway``
+    action), the price in plain words: the incident, who will be asked to back or disown
+    it, and that he may be relieved. Absent otherwise (DFR)."""
 
 
 class AskForm(TypedDict):
@@ -1759,6 +1763,27 @@ class LocksBlock(TypedDict):
 
     held: list[HeldLine]
     asks: list[AskLine]
+    incidents: NotRequired[list["IncidentLine"]]
+    """With ``defiance`` on, each incident the seat is party to, as commander or as the
+    superior who answers it (DFR). Absent with the rule off."""
+
+
+class IncidentLine(TypedDict):
+    """An incident in the seat's list (DFR), read from its own view: before the superior,
+    a matter with three answers until it is answered; to the commander, what he is told
+    of it and then its answer."""
+
+    id: str
+    """The incident's id, which the ``answer`` action takes as ``item``."""
+    words: str
+    """The incident in plain words, from the seat's own view."""
+    due: str
+    """The world day it is to be answered by; the superior's card answers after it."""
+    verdict: str | None
+    """``backed``, ``disowned`` or ``dismissed`` once answered; None while open."""
+    answers: list[str]
+    """The answers the seat may file now: the three for the superior while it is open;
+    empty otherwise."""
 
 
 class LockCheck(TypedDict):
@@ -1773,6 +1798,9 @@ class LockCheck(TypedDict):
     reason: str
     """For ``locked`` and ``question``, what the seat would be told; for ``beyond``,
     today's refusal."""
+    price: NotRequired[str]
+    """With ``defiance`` on, for a ``locked`` order its seat could then send anyway, the
+    price in plain words, as the held line will give it (DFR). Absent otherwise."""
 
 
 class PostName(TypedDict):

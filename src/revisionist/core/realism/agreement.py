@@ -1310,19 +1310,16 @@ def _verdict(
     return out
 
 
-def _regard(state: "State", breaker: EntityId, wronged: EntityId) -> "Payload | None":
+def _regard(state: "State", breaker: EntityId, wronged: EntityId) -> "list[Payload]":
     from revisionist.core import events as ev
     from revisionist.core.ids import RelationshipId
     from revisionist.core.ontology import Relationship
 
     a, b = speaker(state, wronged), speaker(state, breaker)
     if a is None or b is None or a == b:
-        return None
-    found = next(
-        (r for r in state.relationships.values() if {r.a, r.b} == {a, b}),
-        None,
-    )
-    if found is None:
+        return []
+    found = [r for r in state.relationships.values() if {r.a, r.b} == {a, b}]
+    if not found:
         rel = Relationship(
             relationship_id=RelationshipId(derived_id(state.campaign_id, "rel", a, b)),
             a=a,
@@ -1330,10 +1327,17 @@ def _regard(state: "State", breaker: EntityId, wronged: EntityId) -> "Payload | 
             disposition=max(REGARD_FLOOR, BREAK_REGARD),
             scope=parties_scope(state, (wronged, breaker)),
         )
-    else:
-        moved = max(REGARD_FLOOR, min(REGARD_TOP, found.disposition + BREAK_REGARD))
-        rel = found.model_copy(update={"disposition": moved})
-    return ev.RelationshipSet(relationship=rel)
+        return [ev.RelationshipSet(relationship=rel)]
+    return [
+        ev.RelationshipSet(
+            relationship=r.model_copy(
+                update={
+                    "disposition": max(REGARD_FLOOR, min(REGARD_TOP, r.disposition + BREAK_REGARD))
+                }
+            )
+        )
+        for r in found
+    ]
 
 
 def broken_costs(state: "State", x: Agreement, n: int, day: date) -> list["Payload"]:
@@ -1347,9 +1351,7 @@ def broken_costs(state: "State", x: Agreement, n: int, day: date) -> list["Paylo
     for party in x.parties:
         if party == breaker:
             continue
-        moved = _regard(state, breaker, party)
-        if moved is not None:
-            out.append(moved)
+        out += _regard(state, breaker, party)
     if x.public and groups.on(state):
         out += groups.happened(state, breaker, Happening.AGREEMENT_BROKEN, day)
     return out

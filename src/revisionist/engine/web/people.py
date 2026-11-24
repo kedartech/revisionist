@@ -32,7 +32,7 @@ from datetime import date
 from typing import Literal
 
 from revisionist.core.ids import AssetId, EntityId, SeatId
-from revisionist.core.ontology import EntityKind, EntityStatus, Relationship
+from revisionist.core.ontology import EntityKind, EntityStatus, Relationship, regard_held
 from revisionist.core.project import project
 from revisionist.core.realism import ladder, opponents, posts
 from revisionist.core.realism.card import SeatCard, Tie, words
@@ -330,7 +330,7 @@ def _line(
 ) -> PersonLine:
     me = view.me.embodies
     history = state.stances.get(view.viewer, {}).get(person, ())
-    rel = next((r for r in view.relationships.values() if {r.a, r.b} == {person, me}), None)
+    rel = regard_held(view.relationships, person, me, either=True)
     seen: date | None = None
     if history or rel is not None:
         seen = _evidence(state, view, person, history[0].on if history else date.min)

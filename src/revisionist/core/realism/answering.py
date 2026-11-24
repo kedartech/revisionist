@@ -29,6 +29,7 @@ from typing import NamedTuple
 from revisionist.core import events as ev
 from revisionist.core.goals import Ordered
 from revisionist.core.ids import EntityId, MandateId, OrderId, SeatId, derived_id
+from revisionist.core.ontology import regard_held
 from revisionist.core.realism import actors, laws, locks, opponents
 from revisionist.core.realism.agenda import (
     MANDATE_CAP,
@@ -422,10 +423,8 @@ def as_asked(state: State, asked: locks.Asked, seat: SeatId) -> locks.Asked:
 
 
 def _regard(state: State, one: EntityId, other: EntityId) -> int:
-    return next(
-        (r.disposition for r in state.relationships.values() if {r.a, r.b} == {one, other}),
-        0,
-    )
+    found = regard_held(state.relationships, one, other, either=True)
+    return 0 if found is None else found.disposition
 
 
 def _words(*texts: object) -> set[str]:

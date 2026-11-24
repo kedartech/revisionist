@@ -507,6 +507,22 @@ def test_an_office_vote_from_a_seat_that_does_not_decide_is_refused(
     assert _choices(game_) == []
 
 
+def test_a_refused_office_vote_reads_the_same_whether_the_question_is_open_or_not(
+    trio: tuple[Realism, Client, Client, Client],
+) -> None:
+    """A seat naming a question it does not decide is told what it is told of one that does
+    not exist, so it cannot learn whether another nation has a question open."""
+    game_, ada, bea, cy = trio
+    q = _question(game_)
+    for client in (bea, cy):
+        open_, none = (post(client, "office-vote", question=n, remove=True)[1] for n in (q, "x"))
+        assert open_["refused"] and open_ == none, (open_, none)
+    _, none = post(ada, "office-vote", question="x", remove=True)
+    _, abroad = post(cy, "office-vote", question=q, remove=True)
+    assert none["reply"] == abroad["reply"] == office.NOT_YOURS
+    assert _choices(game_) == []
+
+
 @pytest.mark.parametrize(
     "body",
     [{"question": "no-such-question", "remove": True}, {"remove": True}, {"question": "x"}],

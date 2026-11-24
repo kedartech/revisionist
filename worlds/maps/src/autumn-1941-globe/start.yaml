@@ -1,0 +1,313 @@
+# The 1941 start for the territory world of autumn 1941: the wars in force on 1 September 1941, each
+# land territory's holder on that day, the terrain, resources and piece kinds, the bases and ports as
+# sites, and every force as a piece in an area. A staging file: the item that converts the world (FLP)
+# assembles these blocks into worlds/autumn-1941.yaml, so the game plays as today until then. The
+# tests (tests/test_world_start_1941.py) read it against the map's world fragment
+# (worlds/maps/autumn-1941-globe.world.yaml), the map file and today's world file.
+#
+# Blocks shaped as the world file has them: `sources`, `wars`, `terrain`, `resources`, `piece_kinds`,
+# `entities` (new polities, and every place restated with `within`, a port's `port_on` and a base's
+# `base`), `features` (the eight new forces). Blocks of this file's own, for FLP to fold in:
+# - `holders`: each land territory's holder on 1 September 1941 (the territory's `holder`), with a
+#   source or `gap: true`. Every holder here is a gap: the lane had no network and no evidence record.
+# - `forces`: every force, today's and the new, with its piece kind, its side, the area it stands in at
+#   the start and its scripted legs as areas (the leg's place read the way a piece of its domain
+#   stands there: a ship at a port in the port's sea zone, anything else in the area the place lies in).
+#
+# Every value here is [proposed]: the holders, the bases and ports added for the new forces, the new
+# forces' strengths (tiers), and the days per step (the plan's Values section). Defaults taken from the
+# plan until sourced: the two Italian declarations of war, the Eleventh Army's legs (to Changsha on
+# 17 September, back to Wuhan on 6 October), and Bardia as the Axis frontier place.
+#
+# The world file indexes places, polities, features and areas as one set of keys. An area whose name
+# is also a place's, a polity's or a force's carries the suffix `_area` (moscow_area, tobruk_area,
+# sweden_area, western_approaches_area), so every place and force keeps its key.
+#
+# For FLP and the values sheet. With `holders` on, a base serves a side only on ground held by that side
+# or an ally (`holders.serves`), and a polity is an ally only while at war with a common enemy
+# (`territory.allied`): so Vyazma's base does not serve the Soviet Western Front while Germany holds
+# Smolensk, Reykjavik's does not serve the United States (at war with nobody), and Argentia's air base
+# has no area (Argentia lies in the Western Atlantic). Finland, Romania and Hungary hold their own
+# territories and are at war with nobody here: the plan's five wars leave them out, so a piece of any
+# seated nation is barred from their ground until a later item gives them their wars or pacts.
+
+sources:
+  - key: hansard_1939_09_03
+    title: "House of Commons debates, 3 September 1939: the Prime Minister's statement that Britain is at war with Germany"
+    note: "Named citation; the lane had no network and read no edition or column. Confirm the locator before release."
+  - key: dgfp_d_xii
+    title: "Documents on German Foreign Policy, Series D, vol. XII: Germany's note to the Soviet Union of 22 June 1941"
+    note: "Named citation; the lane had no network and read no document number. Confirm the locator before release."
+  - key: frus_japan_1931_1941
+    title: "Foreign Relations of the United States, Japan 1931-1941, vol. I: the Marco Polo Bridge incident, 7 July 1937"
+    note: "Named citation for the start of the undeclared war; the lane had no network and read no page. Confirm before release."
+
+# Rule 1: five wars. `a` began each. The two Italian declarations are gaps until sourced (the plan's
+# default).
+wars:
+  - {a: uk, b: germany, since: 1939-09-03, source: hansard_1939_09_03}
+  - {a: italy, b: uk, since: 1940-06-10, gap: true}
+  - {a: germany, b: ussr, since: 1941-06-22, source: dgfp_d_xii}
+  - {a: italy, b: ussr, since: 1941-06-22, gap: true}
+  - {a: japan, b: china, since: 1937-07-07, declared: false, source: frus_japan_1931_1941}
+
+# Rule 3: the map's terrain. No defence values: the battle items set them.
+terrain:
+  - {key: plain, kind: land}
+  - {key: forest, kind: land}
+  - {key: marsh, kind: land}
+  - {key: mountain, kind: land}
+  - {key: sea, kind: sea}
+
+# The five yields a territory has (the yields item writes the numbers).
+resources:
+  - {key: industry, name: Industry, unit: points, role: output}
+  - {key: manpower, name: Manpower, unit: points, role: manpower}
+  - {key: oil, name: Oil, unit: points, role: fuel}
+  - {key: supply, name: Rail and ports, unit: hubs, role: supply}
+  - {key: prestige, name: Prestige, unit: points, role: prestige}
+
+# Days per step from the plan's Values section: an army 5 over plain, 7 through forest or marsh, 10
+# through mountain; a fleet 3 a sea zone; an envoy 2 a step. An air group rebases 2 steps a day in the
+# plan; a step takes whole days, so it takes 1, the least there is. Its range is 2 steps.
+piece_kinds:
+  - {key: army, name: Army, domain: land, days_per_step: {plain: 5, forest: 7, marsh: 7, mountain: 10}}
+  - {key: fleet, name: Fleet, domain: sea, days_per_step: {sea: 3}, carries: [army]}
+  - key: air_group
+    name: Air group
+    domain: air
+    days_per_step: {plain: 1, forest: 1, marsh: 1, mountain: 1, sea: 1}
+    range_steps: 2
+  - {key: envoy, name: Envoy, domain: envoy, days_per_step: {plain: 2, forest: 2, marsh: 2, mountain: 2, sea: 2}}
+
+entities:
+  # Rule 2: the holders with no seat. Neutrals and the co-belligerents the five wars leave out.
+  - {key: french_state, kind: polity, name: The French State}
+  - {key: sweden, kind: polity, name: Sweden}
+  - {key: spain, kind: polity, name: Spain}
+  - {key: portugal, kind: polity, name: Portugal}
+  - {key: ireland_state, kind: polity, name: Ireland}
+  - {key: finland_state, kind: polity, name: Finland}
+  - {key: hungary, kind: polity, name: Hungary}
+  - {key: romania_state, kind: polity, name: Romania}
+  - {key: turkey_state, kind: polity, name: Turkey}
+  - {key: iran_state, kind: polity, name: Iran}
+  - {key: thailand_state, kind: polity, name: Thailand}
+  - {key: netherlands, kind: polity, name: The Netherlands}
+  - {key: cuba, kind: polity, name: Cuba}
+
+  # Rule 4: every place of today's world, restated with the area it lies in; a port names its sea zone
+  # and a base its sides and domains (the code table in core/realism/bases.py: F sea, A land, R air).
+  - {key: washington, kind: location, name: Washington, at: [38.9, -77.0], theatre: North America, within: us_east, base: {sides: [usa], domains: [land, air]}}
+  - {key: london, kind: location, name: London, at: [51.5, -0.1], theatre: Europe, within: britain_south, base: {sides: [uk], domains: [land, air]}}
+  - {key: tokyo, kind: location, name: Tokyo, at: [35.7, 139.7], theatre: Asia-Pacific, within: japan_east, base: {sides: [japan], domains: [land, air]}}
+  - {key: berlin, kind: location, name: Berlin, at: [52.5, 13.4], theatre: Europe, within: germany_east, base: {sides: [germany], domains: [land, air]}}
+  - {key: moscow, kind: location, name: Moscow, at: [55.8, 37.6], theatre: Moscow front, within: moscow_area, base: {sides: [ussr], domains: [land, air]}}
+  - {key: rome, kind: location, name: Rome, at: [41.9, 12.5], theatre: Europe, within: italy_south, base: {sides: [italy], domains: [land, air]}}
+  - {key: chungking, kind: location, name: Chungking, at: [29.6, 106.6], theatre: Asia-Pacific, within: szechwan, base: {sides: [china], domains: [land, air]}}
+  - {key: north_atlantic, kind: location, name: North Atlantic, at: [55.0, -30.0], theatre: North Atlantic, within: mid_ocean_gap}
+  - {key: norfolk, kind: location, name: Norfolk, at: [36.9, -76.3], theatre: North America, within: us_east, port_on: western_atlantic, base: {sides: [usa], domains: [sea, land, air]}}
+  # Argentia lies in the Western Atlantic on the map, so its air base has no area (see the top).
+  - {key: argentia, kind: location, name: Argentia, at: [47.3, -54.0], theatre: North America, within: western_atlantic, base: {sides: [usa], domains: [sea, air]}}
+  - {key: halifax_port, kind: location, name: Halifax, at: [44.6, -63.6], theatre: North America, within: eastern_canada, port_on: western_atlantic, base: {sides: [uk], domains: [sea]}}
+  - {key: sydney_cb, kind: location, name: "Sydney, Cape Breton", at: [46.1, -60.2], theatre: North America, within: eastern_canada, port_on: western_atlantic, base: {sides: [uk], domains: [sea]}}
+  - {key: reykjavik, kind: location, name: Reykjavik, at: [64.1, -21.9], theatre: North Atlantic, within: iceland, port_on: arctic_route_area, base: {sides: [uk, usa], domains: [sea, air]}}
+  - {key: liverpool, kind: location, name: Liverpool, at: [53.4, -3.0], theatre: North Atlantic, within: western_approaches_area, base: {sides: [uk], domains: [sea]}}
+  - {key: scapa_flow, kind: location, name: Scapa Flow, at: [58.9, -3.1], theatre: North Atlantic, within: north_sea, base: {sides: [uk], domains: [sea]}}
+  - {key: lorient, kind: location, name: Lorient, at: [47.7, -3.4], theatre: North Atlantic, within: bay_of_biscay, base: {sides: [germany], domains: [sea]}}
+  - {key: archangel, kind: location, name: Archangel, at: [64.5, 40.5], theatre: Northern front, within: the_north, port_on: white_sea, base: {sides: [ussr], domains: [sea]}}
+  - {key: leningrad, kind: location, name: Leningrad, at: [59.9, 30.3], theatre: Northern front, within: leningrad_area, port_on: baltic_sea, base: {sides: [ussr], domains: [sea, land, air]}}
+  # Smolensk and Vyazma are bases so that the two armies of the Moscow front open at one of their side.
+  - {key: smolensk, kind: location, name: Smolensk, at: [54.8, 32.0], theatre: Moscow front, within: smolensk_area, base: {sides: [germany], domains: [land]}}
+  - {key: vyazma, kind: location, name: Vyazma, at: [55.2, 34.3], theatre: Moscow front, within: smolensk_area, base: {sides: [ussr], domains: [land]}}
+  - {key: kalinin, kind: location, name: Kalinin, at: [56.9, 35.9], theatre: Moscow front, within: kalinin_area}
+  - {key: mozhaisk, kind: location, name: Mozhaisk, at: [55.5, 36.0], theatre: Moscow front, within: moscow_area}
+  - {key: kiev, kind: location, name: Kiev, at: [50.5, 30.5], theatre: Southern front, within: kiev_area}
+  - {key: poltava, kind: location, name: Poltava, at: [49.6, 34.6], theatre: Southern front, within: kharkov_area}
+  - {key: kharkov, kind: location, name: Kharkov, at: [50.0, 36.2], theatre: Southern front, within: kharkov_area}
+  - {key: odessa, kind: location, name: Odessa, at: [46.5, 30.7], theatre: Southern front, within: odessa_area}
+  - {key: taganrog, kind: location, name: Taganrog, at: [47.2, 38.9], theatre: Southern front, within: donbas}
+  - {key: pearl_harbor_base, kind: location, name: Pearl Harbor, at: [21.4, -158.0], theatre: Asia-Pacific, within: hawaii, port_on: central_pacific, base: {sides: [usa], domains: [sea, land, air]}}
+  - {key: kure, kind: location, name: Kure, at: [34.2, 132.6], theatre: Asia-Pacific, within: japan_west, port_on: philippine_sea, base: {sides: [japan], domains: [sea, land, air]}}
+  # A port, not a base: the Combined Fleet's leg there stands in the North Pacific.
+  - {key: hitokappu_bay, kind: location, name: Hitokappu Bay, at: [44.9, 147.6], theatre: Asia-Pacific, within: japan_east, port_on: north_pacific}
+
+  # The places the Mediterranean and Pacific regions added (coordinates as their staging worlds give
+  # them). Rule 7: Tobruk's port is a British base and Bardia an Italian one; Bardia serves Germany too,
+  # so the Afrika Korps opens at a base of its side.
+  - {key: alexandria, kind: location, name: Alexandria, at: [31.2, 29.92], within: egypt, port_on: eastern_mediterranean, base: {sides: [uk], domains: [sea, land]}}
+  - {key: malta, kind: location, name: Malta, at: [35.9, 14.51], within: british_islands, port_on: central_mediterranean}
+  - {key: tobruk, kind: location, name: Tobruk, at: [32.08, 23.98], within: tobruk_area, port_on: eastern_mediterranean, base: {sides: [uk], domains: [sea, land]}}
+  - {key: bardia, kind: location, name: Bardia, at: [31.74, 25.07], within: cyrenaica, port_on: eastern_mediterranean, base: {sides: [italy, germany], domains: [sea, land]}}
+  - {key: tripoli, kind: location, name: Tripoli, at: [32.89, 13.19], within: tripolitania, port_on: central_mediterranean, base: {sides: [italy], domains: [sea, land]}}
+  - {key: taranto, kind: location, name: Taranto, at: [40.47, 17.24], within: italy_south, port_on: central_mediterranean, base: {sides: [italy], domains: [sea]}}
+  - {key: changsha, kind: location, name: Changsha, at: [28.2, 112.97], within: hunan, base: {sides: [china], domains: [land]}}
+  # NFI: Mikkeli, the Finnish Commander-in-Chief's headquarters, a land base for the Finnish Army. [proposed]
+  - {key: mikkeli, kind: location, name: Mikkeli, at: [61.7, 27.3], theatre: Northern front, within: finland, base: {sides: [finland_state], domains: [land]}}
+  - {key: wuhan, kind: location, name: Wuhan, at: [30.58, 114.27], within: wuhan_area, base: {sides: [japan], domains: [land]}}
+
+# Rule 2: every land territory's holder on 1 September 1941. All gaps (no evidence record).
+holders:
+  # The Eastern Front: Smolensk had fallen in July, Tallinn on 28 August; Kiev held until 19 September,
+  # Odessa (under siege, with Bessarabia retaken by Romania) until 16 October.
+  - {territory: the_north, holder: ussr, gap: true}
+  - {territory: leningrad_area, holder: ussr, gap: true}
+  - {territory: baltic_states, holder: germany, gap: true}
+  - {territory: belorussia, holder: germany, gap: true}
+  - {territory: kalinin_area, holder: ussr, gap: true}
+  - {territory: smolensk_area, holder: germany, gap: true}
+  - {territory: moscow_area, holder: ussr, gap: true}
+  - {territory: upper_volga, holder: ussr, gap: true}
+  - {territory: western_ukraine, holder: germany, gap: true}
+  - {territory: kiev_area, holder: ussr, gap: true}
+  - {territory: odessa_area, holder: ussr, gap: true}
+  - {territory: kharkov_area, holder: ussr, gap: true}
+  - {territory: donbas, holder: ussr, gap: true}
+  - {territory: crimea, holder: ussr, gap: true}
+  - {territory: voronezh, holder: ussr, gap: true}
+  - {territory: stalingrad, holder: ussr, gap: true}
+  # Europe: the occupied west and north held by Germany; the Balkans and Greece, occupied with Italy,
+  # Bulgaria and Hungary, by Germany; Hungary holds Slovakia's ground with its own.
+  - {territory: germany_east, holder: germany, gap: true}
+  - {territory: germany_west, holder: germany, gap: true}
+  - {territory: germany_south, holder: germany, gap: true}
+  - {territory: east_prussia, holder: germany, gap: true}
+  - {territory: occupied_poland, holder: germany, gap: true}
+  - {territory: denmark, holder: germany, gap: true}
+  - {territory: low_countries, holder: germany, gap: true}
+  - {territory: occupied_france, holder: germany, gap: true}
+  - {territory: vichy_france, holder: french_state, gap: true}
+  - {territory: norway, holder: germany, gap: true}
+  - {territory: sweden_area, holder: sweden, gap: true}
+  - {territory: finland, holder: finland_state, gap: true}
+  - {territory: hungary_slovakia, holder: hungary, gap: true}
+  - {territory: romania, holder: romania_state, gap: true}
+  - {territory: balkans, holder: germany, gap: true}
+  - {territory: italy_north, holder: italy, gap: true}
+  - {territory: italy_south, holder: italy, gap: true}
+  - {territory: iberia, holder: spain, gap: true}
+  - {territory: switzerland_area, holder: switzerland, gap: true}
+  # The Atlantic: Iceland under British occupation (with American forces from July 1941), Greenland under
+  # American protection from April 1941, Canada and Newfoundland on Britain's side, the Caribbean's
+  # largest state Cuba.
+  - {territory: britain_south, holder: uk, gap: true}
+  - {territory: britain_north, holder: uk, gap: true}
+  - {territory: ireland, holder: ireland_state, gap: true}
+  - {territory: iceland, holder: uk, gap: true}
+  - {territory: greenland, holder: usa, gap: true}
+  - {territory: newfoundland, holder: uk, gap: true}
+  - {territory: eastern_canada, holder: uk, gap: true}
+  - {territory: us_east, holder: usa, gap: true}
+  - {territory: us_central, holder: usa, gap: true}
+  - {territory: us_west, holder: usa, gap: true}
+  - {territory: caribbean, holder: cuba, gap: true}
+  # The Mediterranean and the Middle East: French North Africa and Tunisia under Vichy; Syria and Iraq
+  # in British hands after the campaigns of May to July 1941; Iran's own government after the
+  # Anglo-Soviet invasion of 25 August.
+  - {territory: french_north_africa, holder: french_state, gap: true}
+  - {territory: tunisia, holder: french_state, gap: true}
+  - {territory: tripolitania, holder: italy, gap: true}
+  - {territory: cyrenaica, holder: italy, gap: true}
+  - {territory: tobruk_area, holder: uk, gap: true}
+  - {territory: egypt, holder: uk, gap: true}
+  - {territory: levant, holder: uk, gap: true}
+  - {territory: syria, holder: uk, gap: true}
+  - {territory: iraq, holder: uk, gap: true}
+  - {territory: iran, holder: iran_state, gap: true}
+  - {territory: turkey, holder: turkey_state, gap: true}
+  - {territory: caucasus, holder: ussr, gap: true}
+  - {territory: greece, holder: germany, gap: true}
+  - {territory: dodecanese, holder: italy, gap: true}
+  - {territory: british_islands, holder: uk, gap: true}
+  # China, Japan and the Pacific: Manchuria (Manchukuo) and occupied China held by Japan; French
+  # Indochina under Japanese occupation (the north from September 1940, the south from July 1941).
+  - {territory: japan_east, holder: japan, gap: true}
+  - {territory: japan_west, holder: japan, gap: true}
+  - {territory: formosa, holder: japan, gap: true}
+  - {territory: korea, holder: japan, gap: true}
+  - {territory: manchuria, holder: japan, gap: true}
+  - {territory: north_china, holder: japan, gap: true}
+  - {territory: wuhan_area, holder: japan, gap: true}
+  - {territory: hunan, holder: china, gap: true}
+  - {territory: szechwan, holder: china, gap: true}
+  - {territory: northwest_china, holder: china, gap: true}
+  - {territory: south_china, holder: china, gap: true}
+  - {territory: south_china_coast, holder: japan, gap: true}
+  - {territory: hong_kong, holder: uk, gap: true}
+  - {territory: indochina, holder: japan, gap: true}
+  - {territory: thailand, holder: thailand_state, gap: true}
+  - {territory: malaya, holder: uk, gap: true}
+  - {territory: burma, holder: uk, gap: true}
+  - {territory: dutch_east_indies, holder: netherlands, gap: true}
+  - {territory: philippines, holder: usa, gap: true}
+  - {territory: hawaii, holder: usa, gap: true}
+  - {territory: soviet_far_east, holder: ussr, gap: true}
+
+# Rule 6: the new forces. Strengths are tiers [proposed]; each opens at a base of its side.
+features:
+  - {key: mediterranean_fleet, kind: piece, piece: fleet, name: Mediterranean Fleet, side: uk, tier: 4, places: [alexandria], gap: true}
+  - {key: western_desert_force, kind: piece, piece: army, name: Western Desert Force, side: uk, tier: 3, places: [alexandria], gap: true}
+  - {key: italian_fleet, kind: piece, piece: fleet, name: Italian Battle Fleet, side: italy, tier: 4, places: [taranto], gap: true}
+  - {key: italian_army_libya, kind: piece, piece: army, name: Italian Army in Libya, side: italy, tier: 3, places: [tripoli], gap: true}
+  - {key: afrika_korps, kind: piece, piece: army, name: Afrika Korps, side: germany, tier: 3, places: [bardia], gap: true}
+  - {key: ninth_war_area, kind: piece, piece: army, name: Ninth War Area, side: china, tier: 3, places: [changsha], gap: true}
+  - {key: finnish_army, kind: piece, piece: army, name: Finnish Army, side: finland_state, tier: 3, places: [mikkeli], gap: true}
+  - key: eleventh_army
+    kind: piece
+    piece: army
+    name: Eleventh Army
+    side: japan
+    tier: 4
+    places: [wuhan]
+    legs: [{since: 1941-09-17, places: [changsha]}, {since: 1941-10-06, places: [wuhan]}]
+    gap: true
+
+# Rules 5 and 6: every force as a piece in an area, with its scripted legs as areas.
+forces:
+  - {key: us_atlantic_fleet, piece: fleet, side: usa, area: western_atlantic}
+  - {key: us_pacific_fleet, piece: fleet, side: usa, area: central_pacific}
+  - {key: home_fleet, piece: fleet, side: uk, area: north_sea}
+  - {key: uboat_arm, piece: fleet, side: germany, area: bay_of_biscay}
+  - key: combined_fleet
+    piece: fleet
+    side: japan
+    area: philippine_sea
+    legs: [{since: 1941-11-22, area: north_pacific}]
+  - key: army_group_centre
+    piece: army
+    side: germany
+    area: smolensk_area
+    legs: [{since: 1941-10-07, area: smolensk_area}, {since: 1941-10-24, area: moscow_area}]
+  - key: soviet_western_front
+    piece: army
+    side: ussr
+    area: smolensk_area
+    legs: [{since: 1941-10-12, area: moscow_area}, {since: 1941-10-24, area: moscow_area}]
+  - {key: hawaiian_department, piece: army, side: usa, area: hawaii}
+  - {key: hawaiian_air_force, piece: air_group, side: usa, area: hawaii}
+  - {key: western_approaches, piece: fleet, side: uk, area: western_approaches_area}
+  - {key: home_forces, piece: army, side: uk, area: britain_south}
+  - {key: bomber_command, piece: air_group, side: uk, area: britain_south}
+  - {key: replacement_army, piece: army, side: germany, area: germany_east}
+  - {key: luftwaffe_centre, piece: air_group, side: germany, area: germany_east}
+  - {key: general_defence_command, piece: army, side: japan, area: japan_east}
+  - {key: southern_army, piece: army, side: japan, area: japan_east}
+  - {key: eleventh_air_fleet, piece: air_group, side: japan, area: japan_west}
+  - {key: baltic_fleet, piece: fleet, side: ussr, area: baltic_sea}
+  - {key: northern_fleet, piece: fleet, side: ussr, area: white_sea}
+  - {key: leningrad_front, piece: army, side: ussr, area: leningrad_area}
+  # NFI: the Finnish Army, at Mikkeli in Finland. [proposed]
+  - {key: finnish_army, piece: army, side: finland_state, area: finland}
+  - {key: italian_army, piece: army, side: italy, area: italy_south}
+  - {key: chinese_army, piece: army, side: china, area: szechwan}
+  - {key: mediterranean_fleet, piece: fleet, side: uk, area: eastern_mediterranean}
+  - {key: western_desert_force, piece: army, side: uk, area: egypt}
+  - {key: italian_fleet, piece: fleet, side: italy, area: central_mediterranean}
+  - {key: italian_army_libya, piece: army, side: italy, area: tripolitania}
+  - {key: afrika_korps, piece: army, side: germany, area: cyrenaica}
+  - {key: ninth_war_area, piece: army, side: china, area: hunan}
+  - key: eleventh_army
+    piece: army
+    side: japan
+    area: wuhan_area
+    legs: [{since: 1941-09-17, area: hunan}, {since: 1941-10-06, area: wuhan_area}]

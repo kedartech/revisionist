@@ -1,0 +1,115 @@
+# The scoped check's staging world for the 1941 map's fourth region (the Mediterranean, North Africa and
+# the Middle East):
+#   python scripts/map_check.py check --region worlds/maps/src/autumn-1941-globe/mediterranean.world.yaml
+# It extends the Atlantic region's staging world, which extends Europe's, which extends the pilot's, so the
+# check reads all four: the map block here is the newest, the territories, sea zones, adjacency and sites
+# in scope are the four files' lists joined. Its blocks are the build's world fragment
+# (worlds/maps/autumn-1941-globe.world.yaml) as built, this region's areas and every adjacency pair that names
+# one of them (a declared crossing included); the earlier files keep the pairs inside their own regions.
+# The sites in scope are six new places: the world file has none in the region, so each is entered here
+# with its coordinates and in mediterranean.places.yaml, which `places_of` names in place of the world
+# file (the world file is not edited by this item). Rebuild the map, then copy the
+# fragment's blocks into the four staging worlds; the test pins the hash.
+#
+# `ports` (read by the test, not by the checker) names, for each port of the region, the territory that
+# holds it and the sea zone it opens on; all six lie on land in the data.
+extends: atlantic.world.yaml
+places_of: mediterranean.places.yaml
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: a14b82214f8a80d86ed7e9fe2ffb5e264969dfb656ae6095cd7ac96941269efb, box: [-126, -60, 234, 84]}
+regions:
+  - {key: mediterranean, name: The Mediterranean and the Middle East}
+territories:
+  - {key: french_north_africa, name: French North Africa, region: mediterranean, terrain: mountain}
+  - {key: tunisia, name: Tunisia, region: mediterranean, terrain: plain}
+  - {key: tripolitania, name: Tripolitania and the Fezzan, region: mediterranean, terrain: plain, sites: [tripoli]}
+  - {key: cyrenaica, name: Cyrenaica, region: mediterranean, terrain: mountain, sites: [bardia]}
+  - {key: tobruk_area, name: The Tobruk enclave, region: mediterranean, terrain: plain, sites: [tobruk]}
+  - {key: egypt, name: Egypt, region: mediterranean, terrain: plain, sites: [alexandria]}
+  - {key: levant, name: Palestine and Transjordan, region: mediterranean, terrain: plain}
+  - {key: syria, name: Syria and Lebanon, region: mediterranean, terrain: plain}
+  - {key: iraq, name: Iraq, region: mediterranean, terrain: plain}
+  - {key: iran, name: Iran, region: mediterranean, terrain: mountain}
+  - {key: turkey, name: Turkey, region: mediterranean, terrain: mountain}
+  - {key: caucasus, name: The Caucasus, region: mediterranean, terrain: mountain}
+  - {key: greece, name: Greece and Crete, region: mediterranean, terrain: mountain}
+  - {key: dodecanese, name: The Dodecanese, region: mediterranean, terrain: mountain}
+  - {key: british_islands, name: Malta and Cyprus, region: mediterranean, terrain: plain, sites: [malta]}
+sea_zones:
+  - {key: gibraltar_approaches, name: The Gibraltar Approaches, region: mediterranean, terrain: sea}
+  - {key: western_mediterranean, name: The Western Mediterranean, region: mediterranean, terrain: sea}
+  - {key: central_mediterranean, name: The Central Mediterranean, region: mediterranean, terrain: sea}
+  - {key: eastern_mediterranean, name: The Eastern Mediterranean, region: mediterranean, terrain: sea}
+  - {key: aegean_sea, name: The Aegean Sea, region: mediterranean, terrain: sea}
+adjacency:
+  - [aegean_sea, central_mediterranean]
+  - [aegean_sea, dodecanese]
+  - [aegean_sea, eastern_mediterranean]
+  - [aegean_sea, greece]
+  - [aegean_sea, turkey]
+  - [balkans, central_mediterranean]
+  - [balkans, greece]
+  - [balkans, turkey]
+  - [bay_of_biscay, gibraltar_approaches]
+  - [black_sea, caucasus]
+  - [black_sea, turkey]
+  - [british_islands, central_mediterranean]
+  - [british_islands, eastern_mediterranean]
+  - [caucasus, donbas]
+  - [caucasus, iran]
+  - [caucasus, turkey]
+  - [central_mediterranean, cyrenaica]
+  - [central_mediterranean, eastern_mediterranean]
+  - [central_mediterranean, greece]
+  - [central_mediterranean, italy_north]
+  - [central_mediterranean, italy_south]
+  - [central_mediterranean, tripolitania]
+  - [central_mediterranean, tunisia]
+  - [central_mediterranean, western_mediterranean]
+  - [cyrenaica, eastern_mediterranean]
+  - [cyrenaica, egypt]
+  - [cyrenaica, tobruk_area]
+  - [cyrenaica, tripolitania]
+  - [dodecanese, eastern_mediterranean]
+  - [eastern_mediterranean, egypt]
+  - [eastern_mediterranean, greece]
+  - [eastern_mediterranean, levant]
+  - [eastern_mediterranean, syria]
+  - [eastern_mediterranean, tobruk_area]
+  - [eastern_mediterranean, turkey]
+  - [egypt, levant]
+  - [french_north_africa, gibraltar_approaches]
+  - [french_north_africa, tripolitania]
+  - [french_north_africa, tunisia]
+  - [french_north_africa, western_mediterranean]
+  - [gibraltar_approaches, iberia]
+  - [gibraltar_approaches, mid_ocean_gap]
+  - [greece, turkey]
+  - [iberia, western_mediterranean]
+  - [iran, iraq]
+  - [iran, turkey]
+  - [iraq, levant]
+  - [iraq, syria]
+  - [iraq, turkey]
+  - [italy_north, western_mediterranean]
+  - [italy_south, western_mediterranean]
+  - [levant, syria]
+  - [syria, turkey]
+  - [tripolitania, tunisia]
+  - [tunisia, western_mediterranean]
+  - [vichy_france, western_mediterranean]
+  - {a: aegean_sea, b: black_sea, crossing: the Turkish Straits}
+  - {a: gibraltar_approaches, b: western_mediterranean, crossing: the Strait of Gibraltar}
+ports:
+  - {port: alexandria, territory: egypt, sea_zone: eastern_mediterranean}
+  - {port: tobruk, territory: tobruk_area, sea_zone: eastern_mediterranean}
+  - {port: bardia, territory: cyrenaica, sea_zone: eastern_mediterranean}
+  - {port: tripoli, territory: tripolitania, sea_zone: central_mediterranean}
+  - {port: taranto, territory: italy_south, sea_zone: central_mediterranean}
+  - {port: malta, territory: british_islands, sea_zone: central_mediterranean}
+entities:
+  - {key: alexandria, kind: location, name: Alexandria, at: [31.2, 29.92]}
+  - {key: malta, kind: location, name: Malta, at: [35.9, 14.51]}
+  - {key: tobruk, kind: location, name: Tobruk, at: [32.08, 23.98]}
+  - {key: bardia, kind: location, name: Bardia, at: [31.74, 25.07]}
+  - {key: tripoli, kind: location, name: Tripoli, at: [32.89, 13.19]}
+  - {key: taranto, kind: location, name: Taranto, at: [40.47, 17.24]}

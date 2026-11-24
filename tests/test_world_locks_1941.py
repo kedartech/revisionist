@@ -60,8 +60,9 @@ def _card(world: WorldFile, person: str) -> Any:
 
 
 def without_switches(world: WorldFile) -> WorldFile:
-    """A copy of ``world`` with ``command`` and ``locks`` taken out of its rules."""
-    off = {Rule.COMMAND.value, Rule.LOCKS.value}
+    """A copy of ``world`` with ``command`` and ``locks`` taken out of its rules, and
+    ``defiance`` with them, which needs ``locks`` (OFD switched it on in the 1941 world)."""
+    off = {Rule.COMMAND.value, Rule.LOCKS.value, Rule.DEFIANCE.value}
     return world.model_copy(update={"rules": tuple(r for r in world.rules if r not in off)})
 
 

@@ -39,7 +39,7 @@ from revisionist.core.events import Event
 from revisionist.core.fold import replay
 from revisionist.core.ids import EntityId, OrderId, SeatId
 from revisionist.core.ontology import Controller, EntityKind
-from revisionist.core.project import project
+from revisionist.core.project import at_post, project
 from revisionist.core.realism import elections, groups, locks, offers, office, posts
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.resolvers import resolver_for, votes
@@ -650,12 +650,14 @@ def block(
     questions open in its own nation and the posts it holds whose base has turned; with
     ``elections`` on, its nation's elections ahead. The groups, chambers, themes
     and offers are read from the seat's ``View``, which holds its own nation's and no
-    other's. ``areas`` are the seat's map areas, which mark a threatened place. None with
-    the rule off and for a seat of no nation."""
+    other's. ``areas`` are the seat's map areas, which mark a threatened place. A
+    commander held to his post gets his nation's public band and places only. None
+    with the rule off and for a seat of no nation."""
     own = economy_api.own_nation(view)
     today = view.in_world_date
     if not groups.on(state) or own is None or today is None:
         return None
+    post = at_post(state, view.viewer)
     log = list(events)
     moved = _last_moved(log, own)
     wake = last_wake(log, view.viewer, view.me.embodies)
@@ -675,17 +677,19 @@ def block(
             )
             for g in groups.of(view, own)
         ],
-        chambers=_chambers(state, view, own, _then(log, wake, view.viewer, own)),
+        chambers=[] if post else _chambers(state, view, own, _then(log, wake, view.viewer, own)),
         themes=[
             HomeTheme(key=t.key, name=t.name, moves=dict(t.moves))
             for t in view.groups.themes.get(own, ())
         ],
         # read from state: a view holds no rules, and home_standing reads the economy rule
-        standing=groups.home_standing(state, own),
+        standing=None if post else groups.home_standing(state, own),
         standings=_standings(state, own),
         moved=_moved(view, own, since),
         places=_places(state, view, own, areas) if groups.places_on(state) else [],
     )
+    if post:
+        return out
     if offers.on(state):
         out["offers"] = _on_offer(state, view, own)
         out["promises"] = promises(view)

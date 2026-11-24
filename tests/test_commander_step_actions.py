@@ -2,7 +2,8 @@
 
 In 1941 the President's naval order crosses Admiral King's desk at a step whose own set is
 pass, expedite, stall and refuse. King answers to the President, and with ``command`` on he
-may only pass or stall it (``pipelines.step_allowed``). What needs him lists exactly those;
+may only pass or stall it (``pipelines.step_allowed``); with ``defiance`` on, as the 1941 world
+has it since the offices item, he may also refuse it. What needs him lists exactly those;
 his aide is given the same set; an action he was not offered is refused in one plain
 sentence that names no step, action or id. With ``command`` off the step keeps its own set.
 """
@@ -56,9 +57,9 @@ def test_the_step_itself_allows_expedite_and_refuse() -> None:
     assert {StepAction.EXPEDITE, StepAction.REFUSE} <= step.allowed
 
 
-def test_what_needs_king_offers_pass_and_stall_only() -> None:
+def test_what_needs_king_offers_pass_stall_and_refuse_only() -> None:
     r, _ = _at_king()
-    assert _king_actions(r.state, r.seats["king"]) == [["stall", "pass"]]
+    assert _king_actions(r.state, r.seats["king"]) == [["stall", "refuse", "pass"]]
 
 
 def test_with_command_off_king_is_offered_the_steps_own_set_without_amend() -> None:
@@ -126,13 +127,13 @@ def _decision(game: Realism, roosevelt: Client, king: Client) -> dict[str, Any]:
     raise AssertionError("the naval order never reached King's step")
 
 
-def test_king_sees_pass_and_stall_and_is_refused_the_rest_in_plain_words(
+def test_king_sees_pass_stall_and_refuse_and_is_refused_the_rest_in_plain_words(
     room: tuple[Realism, Client, Client],
 ) -> None:
     game, roosevelt, king = room
     item = _decision(game, roosevelt, king)
-    assert item["actions"] == ["stall", "pass"]
-    for action in ("refuse", "expedite", "amend", "leak"):
+    assert item["actions"] == ["stall", "refuse", "pass"]
+    for action in ("expedite", "amend", "leak"):
         status, out = post(king, "step", order_id=item["id"], action=action)
         assert status == 200 and out["refused"], out
         assert out["reply"] == NOT_OFFERED
@@ -147,6 +148,6 @@ def test_once_king_has_committed_the_held_queue_refuses_the_same_way(
     item = _decision(game, roosevelt, king)
     status, out = post(king, "commit")
     assert status == 200 and not out["refused"], out
-    status, out = post(king, "step", order_id=item["id"], action="refuse")
+    status, out = post(king, "step", order_id=item["id"], action="expedite")
     assert status == 200 and out["refused"], out
     assert out["reply"] == NOT_OFFERED

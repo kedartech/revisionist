@@ -27,7 +27,7 @@ from typing import Any, Literal
 from revisionist.core import events as ev
 from revisionist.core.events import Event
 from revisionist.core.ids import EntityId, FeatureId, OrderId, SeatId
-from revisionist.core.project import project
+from revisionist.core.project import at_post, project
 from revisionist.core.realism import advance, agreement, locks, process
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.agreement import Agreement, AgreementOffer, ClauseStatus
@@ -234,11 +234,15 @@ def offer_reading(state: State, seat: SeatId, body: Mapping[str, Any]) -> orders
 def publish_asks(state: State, seat: SeatId, body: Mapping[str, Any]) -> tuple[list[Ask], str]:
     """The ``agreement-publish`` action: the order that makes the agreement ``body``
     names (its id, from the ``agreements`` block) public, and its label. Raises
-    ``ValueError`` when the seat may not publish it."""
+    ``ValueError`` when the seat may not publish it. A commander held to his post is
+    judged on the agreements his view holds, so he is refused one he cannot see as one
+    that does not exist."""
     key = body.get("agreement")
     if not isinstance(key, str) or not key.strip():
         raise ValueError("agreement is empty.")
     key = key.strip()
+    if at_post(state, seat):
+        state = state.model_copy(update={"agreements": project(state, seat).agreements})
     own = polity_of(state, state.seats[seat].embodies)
     found = state.agreements.made.get(key)
     other = next((p for p in found.parties if p != own), None) if found is not None else None

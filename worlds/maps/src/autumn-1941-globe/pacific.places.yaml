@@ -1,0 +1,46 @@
+# The places the scoped check reads for the Pacific region (pacific.world.yaml names this file in
+# `places_of`). The checker reads each in-scope site's coordinates from one world file, and
+# worlds/autumn-1941.yaml lacks the new places and is not edited by the map item. This file is the
+# Mediterranean places file's entries copied unchanged (the world's places in scope and that region's six
+# new places), the world's five places in this region copied unchanged (a test pins each to the world),
+# and the two new places of the region at the end (Changsha and Wuhan). When the world file gains the new
+# places, the staging worlds name the world file again and this file goes.
+entities:
+  - {key: leningrad, kind: location, name: Leningrad, at: [59.9, 30.3]}
+  - {key: kalinin, kind: location, name: Kalinin, at: [56.9, 35.9]}
+  - {key: smolensk, kind: location, name: Smolensk, at: [54.8, 32.0]}
+  - {key: vyazma, kind: location, name: Vyazma, at: [55.2, 34.3]}
+  - {key: mozhaisk, kind: location, name: Mozhaisk, at: [55.5, 36.0]}
+  - {key: moscow, kind: location, name: Moscow, at: [55.8, 37.6]}
+  - {key: kiev, kind: location, name: Kiev, at: [50.5, 30.5]}
+  - {key: poltava, kind: location, name: Poltava, at: [49.6, 34.6]}
+  - {key: kharkov, kind: location, name: Kharkov, at: [50.0, 36.2]}
+  - {key: odessa, kind: location, name: Odessa, at: [46.5, 30.7]}
+  - {key: taganrog, kind: location, name: Taganrog, at: [47.2, 38.9]}
+  - {key: archangel, kind: location, name: Archangel, at: [64.5, 40.5]}
+  - {key: berlin, kind: location, name: Berlin, at: [52.5, 13.4]}
+  - {key: rome, kind: location, name: Rome, at: [41.9, 12.5]}
+  - {key: lorient, kind: location, name: Lorient, at: [47.7, -3.4]}
+  - {key: washington, kind: location, name: Washington, at: [38.9, -77.0]}
+  - {key: london, kind: location, name: London, at: [51.5, -0.1]}
+  - {key: norfolk, kind: location, name: Norfolk, at: [36.9, -76.3]}
+  - {key: argentia, kind: location, name: Argentia, at: [47.3, -54.0]}
+  - {key: halifax_port, kind: location, name: Halifax, at: [44.6, -63.6]}
+  - {key: sydney_cb, kind: location, name: "Sydney, Cape Breton", at: [46.1, -60.2]}
+  - {key: reykjavik, kind: location, name: Reykjavik, at: [64.1, -21.9]}
+  - {key: liverpool, kind: location, name: Liverpool, at: [53.4, -3.0]}
+  - {key: scapa_flow, kind: location, name: Scapa Flow, at: [58.9, -3.1]}
+  - {key: north_atlantic, kind: location, name: North Atlantic, at: [55.0, -30.0]}
+  - {key: alexandria, kind: location, name: Alexandria, at: [31.2, 29.92]}
+  - {key: malta, kind: location, name: Malta, at: [35.9, 14.51]}
+  - {key: tobruk, kind: location, name: Tobruk, at: [32.08, 23.98]}
+  - {key: bardia, kind: location, name: Bardia, at: [31.74, 25.07]}
+  - {key: tripoli, kind: location, name: Tripoli, at: [32.89, 13.19]}
+  - {key: taranto, kind: location, name: Taranto, at: [40.47, 17.24]}
+  - {key: tokyo, kind: location, name: Tokyo, at: [35.7, 139.7]}
+  - {key: kure, kind: location, name: Kure, at: [34.2, 132.6]}
+  - {key: hitokappu_bay, kind: location, name: Hitokappu Bay, at: [44.9, 147.6]}
+  - {key: pearl_harbor_base, kind: location, name: Pearl Harbor, at: [21.4, -158.0]}
+  - {key: chungking, kind: location, name: Chungking, at: [29.6, 106.6]}
+  - {key: changsha, kind: location, name: Changsha, at: [28.2, 112.97]}
+  - {key: wuhan, kind: location, name: Wuhan, at: [30.58, 114.27]}

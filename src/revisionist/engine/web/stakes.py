@@ -41,7 +41,7 @@ from revisionist.core.ontology import (
     Controller,
     Phase,
 )
-from revisionist.core.project import project
+from revisionist.core.project import at_post, project
 from revisionist.core.realism import economy, groups, holders
 from revisionist.core.realism.agenda import MandateStatus
 from revisionist.core.realism.agreement import ClauseStatus
@@ -132,13 +132,18 @@ def own_goals(state: State, seat: SeatId) -> list[Goal]:
 def _hidden(state: State, goal: Goal, rule: AimRule | None) -> list[bool]:
     """For each check of ``goal``'s condition, whether it reads a fact hidden from the
     seat: as the card's rule says, every check when the rule is lost, none once the
-    season is over and everything has been revealed."""
+    season is over and everything has been revealed. A commander held to his post does
+    not see his own nation's facts (``goals.post_sees``)."""
     count = len(gl.leaves(goal.condition))
     if state.phase is Phase.SEASON_OVER:
         return [False] * count
     if rule is None or len(rule.sees) != count:
         return [True] * count
-    return [s is Exposure.HIDDEN for s in rule.sees]
+    sees = rule.sees
+    seat = gl.holder_seat(state, goal)
+    if seat is not None and at_post(state, seat):
+        sees = gl.post_sees(goal.condition, sees)
+    return [s is Exposure.HIDDEN for s in sees]
 
 
 def _truth(state: State, c: WinCondition, hidden: list[bool], at: list[int]) -> _Truth:

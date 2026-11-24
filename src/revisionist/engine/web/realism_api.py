@@ -980,8 +980,9 @@ class EconomyTerritory(TypedDict):
 
 
 class EconomyPools(TypedDict):
-    output: float
-    manpower: float
+    output: NotRequired[float]
+    manpower: NotRequired[float]
+    """Output and manpower: not sent to a commander held to his post."""
     fuel: NotRequired[float]
     """The fuel stock; sent only in a game with ``fuel`` on."""
 

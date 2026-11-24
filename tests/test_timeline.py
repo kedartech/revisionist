@@ -5,10 +5,14 @@ from typing import Any
 
 import pytest
 
+from revisionist.engine import campaign as cmp
 from revisionist.engine import timeline as tl
 from revisionist.engine.llm import Reply, Request
-from revisionist.engine.web import new_game_api
+from revisionist.engine.web import new_game_api, server
 from revisionist.engine.web.server import ApiError
+
+SALT = "salt-strait-realism"
+CIVIL_WAR = date(1862, 4, 6)
 
 
 class Fake:
@@ -89,7 +93,55 @@ def test_the_timeline_marks_the_curated_worlds() -> None:
     points = new_game_api.timeline()
     assert [p["date"] for p in points] == sorted(p["date"] for p in points)
     worlds = {p["world"] for p in points if p["world"]}
-    assert worlds == {"autumn-1941", "engine-v2-slice-1941"}
+    assert worlds == set(server.OFFERED)
     autumn = next(p for p in points if p["world"] == "autumn-1941")
     assert autumn["date"] == "1941-09-01" and autumn["curated"]
     assert any(p["world"] is None for p in points)
+
+
+@pytest.fixture
+def world_of_1862(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Salt Strait, ready and offered, dated 1862."""
+    real = cmp.load_world
+
+    def load(path: Any) -> Any:
+        world = real(path)
+        return (
+            world.model_copy(update={"start_date": CIVIL_WAR})
+            if world.name == "Salt Strait"
+            else world
+        )
+
+    monkeypatch.setattr(cmp, "load_world", load)
+    monkeypatch.setattr(server, "READY", (*server.READY, SALT))
+    monkeypatch.setattr(server, "OFFERED", (*server.OFFERED, SALT))
+
+
+def test_the_list_offers_each_world_at_its_own_name_and_date(world_of_1862: None) -> None:
+    points = new_game_api.timeline()
+    salt = next(p for p in points if p["world"] == SALT)
+    assert (salt["date"], salt["label"], salt["curated"]) == ("1862-04-06", "Salt Strait", True)
+    assert [p["date"] for p in points] == sorted(p["date"] for p in points)
+
+
+def test_the_list_holds_only_the_offered_worlds(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert {p["world"] for p in new_game_api.timeline() if p["world"]} == {"autumn-1941"}
+    monkeypatch.setattr(server, "OFFERED", ())
+    assert not any(p["world"] for p in new_game_api.timeline())
+    assert {p.world for p in tl.start_points() if p.world} == set(server.READY)
+
+
+def test_a_world_outside_the_war_opens_without_the_call_or_the_refusal(
+    world_of_1862: None,
+) -> None:
+    fake = Fake([person("Halder")])
+    assert tl.held_power(CIVIL_WAR, fake) == ()
+    assert new_game_api.figures(CIVIL_WAR, "", fake) == []
+    assert not fake.requests
+
+
+def test_a_date_no_world_starts_on_is_still_refused(world_of_1862: None) -> None:
+    fake = Fake([person("Halder")])
+    with pytest.raises(tl.OutsideWarError, match="inside it"):
+        tl.held_power(date(1862, 4, 7), fake)
+    assert not fake.requests

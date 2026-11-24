@@ -239,9 +239,11 @@ def without_board(w: dict[str, Any]) -> None:
     for key in BOARD_KEYS:
         w.pop(key, None)
     w["entities"] = [e for e in w["entities"] if e["kind"] != "location"]
-    # The pieces stand at the places just removed, and their kinds need a board.
+    # The pieces stand at the places just removed, and their kinds need a board; the
+    # weighted places are territories.
     w.pop("features", None)
     w.pop("piece_kinds", None)
+    w.pop("places", None)
 
 
 def test_a_world_with_no_map_has_no_board(tmp_path: Path) -> None:

@@ -31,8 +31,9 @@ from datetime import date
 
 from revisionist.core import events as ev
 from revisionist.core.events import Event
-from revisionist.core.ids import CampaignId, DocumentId, SeatId
+from revisionist.core.ids import CampaignId, DocumentId, OrderId, SeatId
 from revisionist.core.project import project
+from revisionist.core.realism import answering
 from revisionist.core.realism.document import DocumentTruth
 from revisionist.core.realism.effect import RoutedOrder
 from revisionist.core.sealing import scopes_in
@@ -70,6 +71,9 @@ FEED_KINDS: frozenset[str] = frozenset(
         "own_aim_set",
         # A seat's own nation's pieces, step by step (sealed to its seats): playback's source.
         "piece_stepped",
+        # A move of its own nation's group (sealed to its seats, HFR): its home block shows
+        # it already; playback's source for the home front.
+        "group_moved",
         # A step of its own nation's piece refused for want of fuel, with the reason (FUL).
         "step_refused",
         # Who holds each territory, as it changes (THL): public.
@@ -100,14 +104,31 @@ FEED_KINDS: frozenset[str] = frozenset(
         "held_order_ended",
         # An ask for a held order (ASK): sealed to the asker and the seat asked.
         "order_asked",
-        # The card's answer to an ask (AAK): sealed to the asker's seat alone.
+        # The answer to an ask (AAK, QKD): sealed to the asker's seat alone, and fed only on
+        # a row answered on its due day whoever holds the decider (``answering.told``).
         "ask_answered",
+        # An order sent anyway (DFY): sealed to the issuer's seat alone.
+        "order_defied",
+        # An incident and its answer (DFY): sealed to the commander's seat and the
+        # superior's, and fed to both.
+        "incident_opened",
+        "incident_answered",
         # An offer of a price to a bloc and where it stands (PRC): sealed to the seats of
         # the bloc's nation, and kept only while the offer is in the seat's view.
         "offer_made",
         "offer_settled",
         # A post changing hands (PPP): public, as an appointment is news; never its part.
         "post_changed",
+        # Who may move a post and where its holder falls (LDR): public rules of the world.
+        "ladders_declared",
+        # The pending change of post (LDR): sealed to the seat of the person moved alone.
+        "post_move_ordered",
+        "post_move_settled",
+        # An office question (OFQ): its opening sealed to every seat of the holder's
+        # nation, whoever plays it; its decision public, as news.
+        "office_question_opened",
+        "office_question_decided",
+        "seats_redrawn",
         "influence_decided",
         "effects_applied",
         # Offers and agreements (AGR): sealed to the parties' seats, public once published,
@@ -138,6 +159,9 @@ NEVER: frozenset[str] = frozenset(
         # A seat's choice on a matter is its own until the due day counts it, and the
         # asker reads only the answer (QKD).
         "matter_chosen",
+        # A member's sealed choice on an office question is his until the sitting counts
+        # it, and nobody reads who chose what (OFQ).
+        "office_choice_filed",
         # A holder's choice at a step on another seat's order is theirs until the
         # step's held due day takes it (SHS).
         "step_chosen",
@@ -189,11 +213,11 @@ NEVER: frozenset[str] = frozenset(
         "agent_set",
         "codebreaking_set",
         # Groups at home (GRP): true support. A seat reads its own nation's groups from its
-        # own data and others' from the press; the declaration and the writing in waiting
-        # are engine only.
+        # own data and others' from the press; the declaration, the writing in waiting and
+        # the battle losses held (LSS) are engine only. A move is fed (HFR).
         "groups_declared",
-        "group_moved",
         "group_proposed",
+        "losses_held",
         "scheduled_event_created",
         "scheduled_event_skipped",
         # Costs, ticks and admin.
@@ -253,6 +277,12 @@ def _named(p: ev.Payload, view: View) -> bool:
             return p.issuer == view.viewer
         case ev.OrderAsked():
             return view.viewer in (p.asked.asker, p.asked.seat, *p.asked.seats)
+        case ev.OrderDefied():
+            return p.defied.issuer == view.viewer
+        case ev.IncidentOpened():
+            return view.viewer in p.incident.seats
+        case ev.IncidentAnswered():
+            return view.viewer in p.seats
         case ev.AskAnswered():
             return p.asker == view.viewer
         case ev.OfferMade():
@@ -287,6 +317,8 @@ def _named(p: ev.Payload, view: View) -> bool:
             return p.conference.key in view.conferences.held
         case ev.ConferenceTallied():
             return p.conference in view.conferences.held
+        case ev.GroupMoved():
+            return p.polity in view.groups.declared  # a view holds its own nation's only
     return True
 
 
@@ -318,6 +350,11 @@ def _routed_view(event: Event, payload: ev.OrderRouted) -> Event:
     return event.model_copy(update={"payload": payload.model_copy(update={"order": order})})
 
 
+def _as_asked(state: State, event: Event, payload: ev.OrderAsked, seat: SeatId) -> Event:
+    asked = answering.as_asked(state, payload.asked, seat)
+    return event.model_copy(update={"payload": payload.model_copy(update={"asked": asked})})
+
+
 def feed(
     state: State, events: Iterable[Event], seat: SeatId, first: int, last: int
 ) -> tuple[SeatEvent, ...]:
@@ -325,12 +362,15 @@ def feed(
     view = project(state, seat)
     log = list(events)
     opened: list[tuple[int, date]] = []
+    rows: dict[OrderId, str | None] = {}
     today: date | None = None
     for e in log:
         if isinstance(e.payload, ev.DateAdvanced):
             today = e.payload.to
         elif isinstance(e.payload, ev.WakeOpened) and today is not None:
             opened.append((e.payload.wake, today))
+        elif isinstance(e.payload, ev.OrderHeld):
+            rows[e.payload.held.order_id] = e.payload.held.row
     final = state.in_world_date
 
     out: list[SeatEvent] = []
@@ -345,6 +385,8 @@ def feed(
             current = p.wake
         if e.kind not in FEED_KINDS or not _visible(e, view):
             continue
+        if isinstance(p, ev.AskAnswered) and not answering.told(state, rows.get(p.order_id)):
+            continue
         if isinstance(p, ev.DocumentIssued):
             if final is None or p.document.arrives > final:
                 continue
@@ -352,6 +394,9 @@ def feed(
             e = _view_only(e, p)
         elif isinstance(p, ev.OrderRouted):
             e = _routed_view(e, p)
+            wake = max(current, _wake_of_day(opened, today))
+        elif isinstance(p, ev.OrderAsked):
+            e = _as_asked(state, e, p, seat)
             wake = max(current, _wake_of_day(opened, today))
         elif isinstance(p, ev.DocumentWritten):
             if p.doc_id not in arrived:

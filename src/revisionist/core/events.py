@@ -19,8 +19,10 @@ TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDec
 ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
 VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
-OrderAsked, AskAnswered, MatterChosen, AimPatternsDeclared, OwnAimSet, OfferMade,
-OfferSettled, PostChanged, WarEnded``, and
+OrderAsked, AskAnswered, OrderDefied, IncidentOpened, IncidentAnswered, MatterChosen,
+AimPatternsDeclared, OwnAimSet, OfferMade, OfferSettled, LossesHeld, PostChanged,
+OfficeQuestionOpened, OfficeChoiceFiled, OfficeQuestionDecided, SeatsRedrawn,
+WarEnded``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -93,13 +95,21 @@ from revisionist.core.realism.card import (
     Topic,
 )
 from revisionist.core.realism.conference import Conference, Tally, Vote
+from revisionist.core.realism.defiance import Defied, Incident, Verdict
 from revisionist.core.realism.detect import Agent, Intelligence, Report, Shift
 from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
 from revisionist.core.realism.economy import Amount, Pools
 from revisionist.core.realism.effect import EffectKind, EstimatedEffect, Fidelity, RoutedOrder
 from revisionist.core.realism.geography import Feature
 from revisionist.core.realism.groups import Cause as GroupCause
-from revisionist.core.realism.groups import KindClass, NationGroups, Proposal
+from revisionist.core.realism.groups import (
+    Election,
+    HeldLoss,
+    KindClass,
+    NationGroups,
+    Place,
+    Proposal,
+)
 from revisionist.core.realism.holders import Capture
 from revisionist.core.realism.kinds import PieceKind, Resource
 from revisionist.core.realism.laws import Law
@@ -119,7 +129,7 @@ from revisionist.core.realism.trade import TradeLine
 from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.resolution import FeasibilityBand, OutcomeTier, RejectionReason, TickStage
 from revisionist.core.settings import Settings
-from revisionist.core.state import Rule, Ruleset
+from revisionist.core.state import Ladder, OfficeQuestion, PostMove, Rule, Ruleset
 from revisionist.core.visibility import Scope
 
 
@@ -775,6 +785,34 @@ class OrderAsked(Model):
     asked: Asked
 
 
+class OrderDefied(Model):
+    """A seat sends its held order anyway (DFY): it lands as an ordinary order, marked
+    defiant. Sealed to the issuer's seat."""
+
+    kind: Literal["order_defied"] = "order_defied"
+    defied: Defied
+
+
+class IncidentOpened(Model):
+    """An order sent anyway was carried out, or a step on an order from above refused
+    (DFY): a question on the commander before his superior. Sealed to their seats."""
+
+    kind: Literal["incident_opened"] = "incident_opened"
+    incident: Incident
+
+
+class IncidentAnswered(Model):
+    """The superior's answer to an incident, by his seat or his card, once (DFY). Sealed
+    to the commander's seat and the superior's."""
+
+    kind: Literal["incident_answered"] = "incident_answered"
+    incident_id: Label
+    verdict: Verdict
+    on: date
+    by_card: bool = False
+    seats: tuple[SeatId, ...] = Field(default=(), max_length=2)
+
+
 class AskAnswered(Model):
     """The card of a person no human seat holds answers an ask on its due day (AAK):
     granted or declined, once, and final for that held order. Sealed to the asker's seat,
@@ -857,10 +895,76 @@ class PostChanged(Model):
         return self
 
 
+class LaddersDeclared(Model):
+    """Each post's ladder and the posts whose holders may move it (LDR), in the world
+    file's order. World data; once, at creation, with ``posts`` on and a ladder or a
+    ``moved_by`` declared."""
+
+    kind: Literal["ladders_declared"] = "ladders_declared"
+    ladders: tuple[Ladder, ...] = Field(min_length=1)
+
+
+class PostMoveOrdered(Model):
+    """A change of post ordered (LDR): the pending change, landing at the close of the
+    wake after the one it was ordered in, or the office question's cause when it would
+    take a seat's last authority. Sealed to the seat of the person moved."""
+
+    kind: Literal["post_move_ordered"] = "post_move_ordered"
+    move: PostMove
+
+
+class PostMoveSettled(Model):
+    """A pending change of post settled (LDR): ``landed`` when its post changes landed
+    with it, else void (the person or the post was no longer as it was ordered). Sealed
+    to the seat of the person moved."""
+
+    kind: Literal["post_move_settled"] = "post_move_settled"
+    move_id: str = Field(min_length=1, max_length=80)
+    seat: SeatId | None = None
+    on: date
+    landed: bool
+
+
+class OfficeQuestionOpened(Model):
+    """An office question opens on a post (OFQ): its cause, and its sitting dated ahead.
+    Sealed to every seat of the holder's nation, whoever plays it, with one paper saying
+    so: a person, the aide or code is told the same day the same thing."""
+
+    kind: Literal["office_question_opened"] = "office_question_opened"
+    question: OfficeQuestion
+
+
+class OfficeChoiceFiled(Model):
+    """A member's sealed choice on an office question before its sitting (OFQ): True to
+    remove the holder. A later choice replaces it. Sealed to the seat that chose; never
+    fed, and the sitting counts it without saying who chose what."""
+
+    kind: Literal["office_choice_filed"] = "office_choice_filed"
+    question_id: str = Field(min_length=1, max_length=80)
+    seat_id: SeatId
+    remove: bool
+    on: date
+
+
+class OfficeQuestionDecided(Model):
+    """The office question decided at its sitting (OFQ): the holder removed, his post
+    going on by ``post_changed``, or kept, and then no question on that post opens before
+    ``rests_until``. Public: it is news."""
+
+    kind: Literal["office_question_decided"] = "office_question_decided"
+    question_id: str = Field(min_length=1, max_length=80)
+    post: AssetId
+    holder: EntityId
+    on: date
+    removed: bool
+    rests_until: date | None = None
+
+
 class PieceStepped(Model):
     """A piece entered an area: one step, by order, by the record, or forced. Sealed to the
     seats of the piece's own nation, who know it by its mark (``territory.mark_key``), not
-    its id. A record: the ``feature_set`` beside it moves the piece."""
+    its id. The ``feature_set`` beside it moves the piece; with ``places`` on, a step out
+    of a weighted place is kept as the day the nation's piece left it (PLW)."""
 
     kind: Literal["piece_stepped"] = "piece_stepped"
     mark: Label
@@ -1056,8 +1160,26 @@ class GroupsDeclared(Model):
     classes: tuple[KindClass, ...] = ()
     """With ``classes`` on, the class the world gives each kind of happening it classes
     (HCL), in the world file's order."""
+    places: tuple[Place, ...] = ()
+    """With ``places`` on, the places with political weight (PLW), in the world file's
+    order."""
+    elections: tuple[Election, ...] = ()
+    """With ``elections`` on, the elections the world lists (ELE), in the world file's
+    order."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"classes"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"classes", "places", "elections"})
+
+
+class SeatsRedrawn(Model):
+    """An election redrew a nation's chamber (ELE): each of its blocs' seats after it, by
+    group key, the chamber's total kept; each row of a bloc's votes is scaled by its new
+    seats over its old. Public: the seats of a chamber are known to all."""
+
+    kind: Literal["seats_redrawn"] = "seats_redrawn"
+    polity: EntityId
+    chamber: Label
+    seats: dict[Label, Annotated[int, Field(ge=1)]] = Field(min_length=1)
+    on: date
 
 
 class GroupMoved(Model):
@@ -1074,6 +1196,17 @@ class GroupMoved(Model):
     cause: GroupCause
     used: int = Field(default=0, ge=0)
     on: date
+
+
+class LossesHeld(Model):
+    """Battle losses held at home (LSS): each one day's losses of a nation in one battle as
+    they move one of its groups, added or replaced (the felt share halved, or the battle
+    ended). Entries whose battle has ended and whose felt share has landed by ``on`` are
+    dropped. Engine only: it carries the nation's steps lost by the points they move."""
+
+    kind: Literal["losses_held"] = "losses_held"
+    on: date
+    held: tuple[HeldLoss, ...] = Field(min_length=1)
 
 
 class GroupProposed(Model):
@@ -1453,11 +1586,15 @@ class SeatHandover(Model):
     """A leader changes hands at the next wake boundary: ``HUMAN`` when a new player
     takes up a leader nobody plays, ``AI`` when the leader's player leaves. The fold holds
     the change in ``State.handovers`` and applies it when the open wake closes. Sealed to
-    the seat that changes hands: how a seat is run is never shown."""
+    the seat that changes hands: how a seat is run is never shown.
+
+    ``replaces`` names the person a player can no longer play whom ``entity_id`` takes
+    the place of (RPL): his own hand-over to the code lands first, in the same step."""
 
     kind: Literal["seat_handover"] = "seat_handover"
     entity_id: EntityId
     controller: Controller
+    replaces: EntityId | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 class OptionsOffered(Model):
@@ -1572,10 +1709,20 @@ Payload = Annotated[
     | HeldOrderEnded
     | OrderAsked
     | AskAnswered
+    | OrderDefied
+    | IncidentOpened
+    | IncidentAnswered
     | MatterChosen
     | OfferMade
     | OfferSettled
     | PostChanged
+    | LaddersDeclared
+    | PostMoveOrdered
+    | PostMoveSettled
+    | OfficeQuestionOpened
+    | OfficeChoiceFiled
+    | OfficeQuestionDecided
+    | SeatsRedrawn
     | PieceStepped
     | AreaHeld
     | CaptureCounted
@@ -1594,6 +1741,7 @@ Payload = Annotated[
     | GroupsDeclared
     | GroupMoved
     | GroupProposed
+    | LossesHeld
     | AgreementOffered
     | AgreementMade
     | ClauseJudged
@@ -1685,10 +1833,21 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "held_order_ended",
         "order_asked",
         "ask_answered",
+        "order_defied",
+        "incident_opened",
+        "incident_answered",
         "matter_chosen",
         "offer_made",
         "offer_settled",
         "post_changed",
+        "ladders_declared",
+        "post_move_ordered",
+        "post_move_settled",
+        "office_question_opened",
+        "office_choice_filed",
+        "office_question_decided",
+        "seats_redrawn",
+        "piece_stepped",
         "area_held",
         "capture_counted",
         "economy_set",
@@ -1705,6 +1864,7 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "groups_declared",
         "group_moved",
         "group_proposed",
+        "losses_held",
         "agreement_offered",
         "agreement_made",
         "clause_judged",

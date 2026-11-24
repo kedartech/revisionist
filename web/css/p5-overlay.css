@@ -85,6 +85,12 @@
   max-height: 32vh;
 }
 
+.rl-ovl-map .rl-tm-svg {
+  width: 100%;
+  height: 32vh;
+  min-height: 0;
+}
+
 .rl-ovl-map .rl-mk { cursor: default; }
 
 /* only the first MAP_MOVES orders move: the dash marches toward where it was sent */

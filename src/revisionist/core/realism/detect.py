@@ -40,7 +40,8 @@ next day's roll at ``RECON_CHANCE`` less each target's ``conceal``; a patrol is 
 posture on a sea piece; placing an agent (``place_agent``) puts one in an area after
 ``AGENT_DAYS``, up to ``AGENTS_MAX``, and a placed agent is exposed and lost at
 ``EXPOSE_CHANCE`` a day, its area's holder told by a paper; funding codebreaking
-(``fund_codebreaking``) spends ``CODE_COST`` output and raises the level by one after
+(``fund_codebreaking``) spends ``CODE_COST`` output, or a month of the nation's output
+income where that is less (``code_cost``), and raises the level by one after
 ``CODE_DAYS``; concealment (``set_concealed``) adds ``CONCEAL_BONUS`` to a piece's
 ``conceal`` and a day to each of its steps until lifted. The aide files a patrol or a
 flight at most (``aide_may``).
@@ -729,10 +730,20 @@ def place_agent(
     return (ev.AgentSet(nation=polity, index=index, agent=agent),)
 
 
+def code_cost(state: "State", polity: EntityId, on: date) -> float:
+    """What funding codebreaking costs ``polity`` on ``on``: ``CODE_COST`` output, or a
+    month of its output income where that is less, never under 1 point."""
+    from revisionist.core.realism import economy
+    from revisionist.core.realism.kinds import Role
+
+    month = round(economy.income(state, polity, Role.OUTPUT, on), 6)
+    return float(max(1.0, min(float(CODE_COST), month)))
+
+
 def fund_codebreaking(
     state: "State", polity: EntityId, on: date
 ) -> tuple["ev.EconomySet", "ev.CodebreakingSet"]:
-    """``CODE_COST`` spent from the output pool, and the codebreaking level one higher from
+    """``code_cost`` spent from the output pool, and the codebreaking level one higher from
     ``CODE_DAYS`` after ``on``, to at most ``MAX_LEVEL`` counting rises still to come.
     Raises ``IntelError`` when the rules refuse it."""
     from revisionist.core import events as ev
@@ -747,10 +758,11 @@ def fund_codebreaking(
     reached = intel.codebreaking + len(intel.raised)
     if reached >= MAX_LEVEL:
         raise IntelError(f"Codebreaking is at level {MAX_LEVEL} already, or will be.")
+    cost = code_cost(state, polity, on)
     pools = state.economy.pools.get(polity)
-    if pools is None or pools.output < CODE_COST:
-        raise IntelError(f"Funding codebreaking needs {CODE_COST} points of output.")
-    spent = pools.model_copy(update={"output": round(pools.output - CODE_COST, 6)})
+    if pools is None or pools.output < cost:
+        raise IntelError(f"Funding codebreaking needs {cost:g} points of output.")
+    spent = pools.model_copy(update={"output": round(pools.output - cost, 6)})
     return (
         ev.EconomySet(polity=polity, pools=spent, on=on),
         ev.CodebreakingSet(nation=polity, level=reached + 1, on=on + timedelta(days=CODE_DAYS)),
@@ -892,6 +904,7 @@ __all__ = [
     "Sighting",
     "Source",
     "aide_may",
+    "code_cost",
     "conceal",
     "concealed",
     "exposed",

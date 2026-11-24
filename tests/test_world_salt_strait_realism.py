@@ -1,5 +1,10 @@
-"""Salt Strait as a second world: a flat hand-written map and a playable cast (SSM), and
-at parity with 1941: yields, a trade line, groups, a pact, intelligence and aims (SSG).
+"""Salt Strait as a second world: a flat hand-written map and a playable cast (SSM), at
+parity with 1941: yields, a trade line, groups, a pact, intelligence and aims (SSG), and
+keeping parity with the third run's world data: a law of its own and the body that passes
+it, a council that decides one question and a person who decides another, aim patterns
+for its posts, and a second military card under Varda's head of government (SSO); and
+an office for each head that says what it rests on and how its holder is removed, a ladder
+and the acts each military post may attempt, and an election for a chamber (SSF).
 
 ``worlds/salt-strait-realism.yaml`` plays the four polities of Salt Strait under the
 current ruleset, on a flat map written by hand straight into the committed format
@@ -10,6 +15,7 @@ runs with no prose writer and no estimator.
 """
 
 import importlib.util
+import itertools
 from collections.abc import Iterator
 from datetime import date, timedelta
 from pathlib import Path
@@ -19,9 +25,11 @@ from typing import Any
 import pytest
 import yaml
 
+from revisionist.core import aim_patterns
 from revisionist.core import events as ev
 from revisionist.core.fold import replay
 from revisionist.core.ids import (
+    AssetId,
     CampaignId,
     EntityId,
     EventId,
@@ -30,12 +38,12 @@ from revisionist.core.ids import (
     SeatId,
     derived_id,
 )
-from revisionist.core.realism import economy, groups
+from revisionist.core.realism import economy, groups, laws, locks, office, posts
 from revisionist.core.realism.kinds import Domain, Role
 from revisionist.core.realism.pipeline import Order, OrderStatus
-from revisionist.core.realism.resolvers import apply_changes, intel, movement
+from revisionist.core.realism.resolvers import apply_changes, intel, movement, qid, votes
 from revisionist.core.realism.territory import StepCause
-from revisionist.core.state import MODEL_READ_RULES, Rule, State
+from revisionist.core.state import MODEL_READ_RULES, QuestionCause, RemovalWay, Rule, State
 from revisionist.core.visibility import PUBLIC
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import compile_world, resolve_keys
@@ -49,10 +57,13 @@ ROOT = Path(__file__).resolve().parents[1]
 WORLD = ROOT / "worlds" / "salt-strait-realism.yaml"
 MAP = ROOT / "worlds" / "maps" / "salt-strait-realism.json"
 PROOF = ROOT / "worlds" / "maps" / "proof" / "salt-strait-realism.svg"
+TEMPLATE = ROOT / "worlds" / "TEMPLATE.md"
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 START = date(1900, 4, 2)
 POLITIES = {"varda": "Varda", "ostrel": "Ostrel", "kesh": "Kesh", "lune": "Lune Isles"}
 PLAYED = {"varda": "oren_vale", "ostrel": "general_aske"}
+COMMODORE = "brask"
+"""Varda's second playable card: a military card under the First Minister (SSO)."""
 RUN_BY_CODE = {"kesh": "abbess_ren", "lune": "admiral_quell"}
 RULES = {
     Rule.TERRITORIES,
@@ -68,13 +79,40 @@ RULES = {
     Rule.GROUPS,
     Rule.CONTESTS,
     Rule.AIMS,
+    Rule.COMMAND,
+    Rule.LOCKS,
+    Rule.LAWS,
+    Rule.ASK_ANSWERS,
+    Rule.DECIDERS,
+    Rule.OWN_AIM,
+    Rule.OFFERS,
+    Rule.CLASSES,
+    Rule.LOSSES,
+    Rule.PLACES,
+    Rule.POSTS,
+    Rule.OFFICE,
+    Rule.ELECTIONS,
+    Rule.DEFIANCE,
 }
 """Every rule name the engine had when Salt Strait reached parity (SSG), less the three read
-by a live model, which stay off in a shipped world."""
+by a live model, which stay off in a shipped world; the commander's seat, locks, laws,
+answers to asks, deciders and the player's own aim (SSO); a bloc's prices, the classes
+of happenings, the size of losses and places with political weight (SSH); and posts, the
+office question, elections and acting without leave (SSF)."""
 
 
 def _map_check() -> ModuleType:
     spec = importlib.util.spec_from_file_location("map_check", ROOT / "scripts" / "map_check.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _world_check() -> ModuleType:
+    spec = importlib.util.spec_from_file_location(
+        "world_check", ROOT / "scripts" / "world_check.py"
+    )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -208,23 +246,27 @@ def test_no_key_is_borrowed_from_the_1941_world() -> None:
 # --- The cast ---------------------------------------------------------------------------
 
 
-def test_two_leaders_are_playable_and_two_are_run_by_code() -> None:
+def test_two_leaders_and_a_commodore_are_playable_and_two_are_run_by_code() -> None:
     w = world()
     cards = {c.person: c for c in w.cards}
-    assert {p for p, c in cards.items() if c.playable} == set(PLAYED.values())
+    playable = {*PLAYED.values(), COMMODORE}
+    assert {p for p, c in cards.items() if c.playable} == playable
     assert set(RUN_BY_CODE.values()) <= set(cards)
     assert not any(cards[p].playable for p in RUN_BY_CODE.values())
-    assert {r.entity for r in w.roster} == set(PLAYED.values())
+    assert {r.entity for r in w.roster} == playable
     for polity, person in {**PLAYED, **RUN_BY_CODE}.items():
         assert cards[person].principals == (polity,)
 
 
 @pytest.mark.parametrize("person", [*PLAYED.values(), *RUN_BY_CODE.values()])
-def test_each_leader_has_one_pipeline_one_feed_and_a_move_form(person: str) -> None:
+def test_each_leader_has_one_feed_and_a_move_form_through_his_first_pipeline(
+    person: str,
+) -> None:
     w = world()
     (card,) = [c for c in w.cards if c.person == person]
-    assert len(card.pipelines) == 1 and len(card.feeds) == 1
-    (form,) = [lv for lv in card.levers if lv.resolver == "movement"]
+    assert card.pipelines and len(card.feeds) == 1
+    (form,) = [lv for lv in card.levers if lv.name == "move_force"]
+    assert form.resolver == "movement"
     assert form.pipeline == card.pipelines[0]
     side = card.principals[0]
     own = {f.key for f in w.features if f.side == side}
@@ -237,10 +279,12 @@ def test_each_leader_has_one_pipeline_one_feed_and_a_move_form(person: str) -> N
 # --- A game opens, and pieces move --------------------------------------------------------
 
 
-def opened() -> MemoryStore:
+def opened(commodore: bool = False) -> MemoryStore:
     store = MemoryStore()
     store.append_all(compile_world(world(), CAMPAIGN, cmp.versions()))
     session_zero.claim(store, CAMPAIGN, seat("general_aske"), "General Aske")
+    if commodore:
+        session_zero.claim(store, CAMPAIGN, seat(COMMODORE), "Commodore Brask")
     realism_tick.seat_player(store, CAMPAIGN, entity("oren_vale"))
     return store
 
@@ -347,7 +391,7 @@ def test_the_rules_are_every_rule_but_the_three_a_model_reads() -> None:
     assert RULES <= set(Rule)
     assert not rules & MODEL_READ_RULES
     autumn = cmp.load_world(ROOT / "worlds" / "autumn-1941.yaml")
-    assert set(autumn.rules) - {Rule.COMMAND, Rule.LOCKS} <= rules
+    assert set(autumn.rules) <= rules
     assert compiled().rules == frozenset(RULES)
 
 
@@ -416,7 +460,7 @@ def test_each_playable_leader_has_every_intelligence_form(person: str) -> None:
     for lv in decl.levers:
         if lv.resolver != "intel":
             continue
-        assert lv.pipeline == decl.pipelines[0]
+        assert lv.pipeline in decl.pipelines
         params = {p.name: p.choices for p in lv.params}
         for piece in params.get("piece", ()):
             assert piece in own, (lv.name, piece)
@@ -524,3 +568,388 @@ def test_the_odds_desk_takes_a_leaders_own_force_and_refuses_the_others(
     assert odds._piece(state, seat(person), FORCES[person][0]).name
     with pytest.raises(ValueError, match="not yours to order"):
         odds._piece(state, seat(person), FORCES[other][0])
+
+
+# --- Laws, deciders, aim patterns and a second military seat (SSO) -----------------------
+
+
+def _row(key: str) -> locks.LockRow:
+    (row,) = [r for r in compiled().locks if r.key == key]
+    return row
+
+
+def test_varda_declares_a_law_of_its_own_that_no_code_table_knows() -> None:
+    w = world()
+    (law,) = w.laws
+    assert law.nation == "varda"
+    tabled = set(votes.HISTORICAL) | set(votes.TALLIES)
+    assert law.key not in tabled
+    assert law.passed not in {f"{bill}_passed" for bill in tabled}
+    subjects = {c.subject for c in law.clauses}
+    assert not subjects & {c.subject for m in votes.HISTORICAL.values() for c in m.clauses}
+    assert law.passed in {q.key for q in w.quantities}
+    (oren,) = [c for c in w.cards if c.person == "oren_vale"]
+    (bill,) = [lv for lv in oren.levers if lv.resolver == "votes"]
+    assert {p.name: p.choices for p in bill.params}["bill"] == (law.key,)
+    (row,) = [r for r in w.locks if r.when is not None and r.when.check == "law_not_in_force"]
+    assert row.when is not None and row.when.clause in subjects
+
+
+def test_the_law_is_in_force_once_its_own_flag_reads_one() -> None:
+    state = compiled()
+    (law,) = state.laws
+    (clause,) = law.clauses
+    assert laws.in_force(state, clause.subject) == {}
+    flag = state.quantities[qid(state, "salt_convoy_act_passed")]
+    passed = _fold(
+        state, [ev.QuantitySet(quantity=flag.model_copy(update={"value": 1, "as_of": START}))]
+    )
+    assert laws.in_force(passed, clause.subject) == {entity("varda"): START}
+
+
+def test_the_salt_assembly_is_the_body_that_passes_the_law() -> None:
+    row = _row("sound_convoy_escort")
+    blocs = [g for g in compiled().groups.declared[entity("varda")] if g.chamber is not None]
+    assert {g.chamber for g in blocs} == {"salt_assembly"}
+    assert row.decider.nation == entity("varda")
+    assert row.decider.chambers == ("salt_assembly",)
+    assert row.decider.head == entity("oren_vale")
+
+
+def test_a_council_decides_one_question_and_a_person_another() -> None:
+    council, person = _row("outer_sea_sortie"), _row("kesh_quay_call")
+    assert council.decider.council is not None
+    assert set(council.decider.council.members) == {
+        entity("oren_vale"),
+        entity("mira"),
+        entity("warden_pell"),
+    }
+    assert council.decider.council.needed == 2
+    assert council.decider.council.head == entity("oren_vale")
+    assert person.decider.person == entity("abbess_ren")
+    assert council.question is not None and person.question is not None
+    assert council.question is not person.question
+    cards = compiled().cards
+    assert all(m in cards for m in council.decider.council.members)
+
+
+def test_the_commodore_is_a_military_card_under_the_head_of_government() -> None:
+    state = compiled()
+    card = state.cards[entity(COMMODORE)]
+    assert card.path.value == "military"
+    chain, who = [], entity(COMMODORE)
+    for _ in range(4):
+        if state.cards.get(who) is None or not state.cards[who].principals:
+            break
+        who = state.cards[who].principals[0]
+        chain.append(who)
+    assert chain[:2] == [entity("mira"), entity("oren_vale")]
+    w = world()
+    (decl,) = [c for c in w.cards if c.person == COMMODORE]
+    assert {f for d in decl.authority for f in d.forces} == {"varda_galleys"}
+    assert sum(r.replaceable for r in decl.aim_rules) == 1
+
+
+def _filed_and_asked(form: dict[str, str]) -> tuple[MemoryStore, OrderId]:
+    store = opened(commodore=True)
+    run_realism_tick(store, CAMPAIGN)
+    order = realism_tick.file_order(store, CAMPAIGN, seat(COMMODORE), "sail", form)
+    realism_tick.ask_order(store, CAMPAIGN, seat(COMMODORE), order.order_id)
+    return store, order.order_id
+
+
+def _logged(store: MemoryStore, kind: type[Any], order_id: OrderId) -> list[Any]:
+    found = (e.payload for e in store.read(CAMPAIGN))
+    return [p for p in found if isinstance(p, kind) and p.order_id == order_id]
+
+
+def _answered(store: MemoryStore, order_id: OrderId) -> bool:
+    """Tick until the ask on ``order_id`` is answered, and a tick past it; its answer."""
+    for _ in range(12):
+        run_realism_tick(store, CAMPAIGN)
+        (answer,) = _logged(store, ev.AskAnswered, order_id) or [None]
+        if answer is not None:
+            run_realism_tick(store, CAMPAIGN)
+            return bool(answer.granted)
+    raise AssertionError("the ask was never answered")
+
+
+@pytest.mark.parametrize(
+    ("to", "row", "asked_of"),
+    [
+        ("the_outer_sea", "outer_sea_sortie", "oren_vale"),
+        ("kesh_quay", "kesh_quay_call", "abbess_ren"),
+    ],
+)
+def test_a_sailing_the_world_locks_is_held_asked_and_answered_by_its_decider(
+    to: str, row: str, asked_of: str
+) -> None:
+    store, order_id = _filed_and_asked({"force": "varda_galleys", "to": to})
+    state = load_state(store, CAMPAIGN)
+    assert state.held[order_id].row == row
+    assert state.asked[order_id].to == entity(asked_of)
+    granted = _answered(store, order_id)
+    landed = [e.end for e in _logged(store, ev.HeldOrderEnded, order_id)]
+    assert landed == ([locks.HeldEnd.LANDED] if granted else [])
+    assert (order_id in load_state(store, CAMPAIGN).held) is not granted
+
+
+def test_the_councils_matter_is_before_the_first_minister_and_not_the_marshal() -> None:
+    store, order_id = _filed_and_asked({"force": "varda_galleys", "to": "the_outer_sea"})
+    state = load_state(store, CAMPAIGN)
+    locks.may_choose(state, seat("oren_vale"), order_id)
+    with pytest.raises(ValueError, match=locks.NOT_A_MEMBER):
+        locks.may_choose(state, seat("general_aske"), order_id)
+
+
+@pytest.mark.parametrize("person", [*PLAYED.values(), COMMODORE])
+def test_each_playable_card_has_aim_patterns_for_its_post(person: str) -> None:
+    store = opened(commodore=True)
+    state = load_state(store, CAMPAIGN)
+    rungs = aim_patterns.ladder(state, seat(person))
+    assert rungs
+    stands = [r for r in rungs if r.difficulty is not None]
+    assert stands, person
+    rung = stands[0]
+    fills = (
+        aim_patterns.fill(state, seat(person), rung.key, dict(zip(names, values, strict=True)))
+        for names in [[b.name for b in rung.blanks]]
+        for values in itertools.product(*(b.values for b in rung.blanks))
+    )
+    assert any(isinstance(f, aim_patterns.Filled) for f in fills), rung.key
+
+
+ABSENT_ON_PURPOSE = {
+    "settings.end_date": "the season ends when the contest's countdown runs out",
+    "settings.tick_hours": "the rules' own turn and wake suit an invented world",
+    "settings": "the table's default limits and tone",
+    "notes": "an invented world has no record to dispute",
+    "fuel_stocks": "each nation starts with the rules' stock of its fodder income",
+    "entities.lift_pool": "no land piece crosses the water",
+    "production": "no aid finding is run in the strait",
+    "wars": "the season opens at peace; a war is declared in play",
+    "groups.groups.abroad": "writing is read by a live model and stays off",
+    "cards.successor": "nobody is named to succeed in one season",
+    "features.legs": "the season opens on its first day: no force has moved yet",
+    "cards.reach": "every person keeps rank 0 and no chain",
+    "cards.allies": "nobody stands with or against anyone but by the contest",
+    "relationships": "regard starts at 0 between any two",
+    "cards.wants": "nobody wants or holds to a topic",
+    "mandates": "no mandate is issued",
+    "schedule": "an invented world has no history to keep",
+    "developments": "no development falls",
+    "outlets": "no press: word reaches each audience with no slant",
+    "cards.levers.escort_level": "no shipping form: the galleys' watch is a patrol",
+    "cards.answers": "Kesh and the Lune Isles do nothing back unless asked",
+    "goals": "the older ruleset only",
+    "meters": "the older ruleset only",
+    "clocks": "the older ruleset only",
+    "facts": "the older ruleset only",
+    "commitments": "the older ruleset only",
+}
+"""The questions on main that Salt Strait leaves unanswered, each on purpose, by the first
+key of its row in ``worlds/TEMPLATE.md``, with why (SSO rule 4)."""
+
+
+def test_the_world_check_reports_every_question_built_so_far_answered_or_absent_on_purpose() -> (
+    None
+):
+    lines = _world_check().check(world(), _world_check().parse_template(TEMPLATE.read_text()))
+    assert [x.row.question for x in lines if x.status == "required"] == []
+    built = [x for x in lines if x.row.standing == "on main"]
+    absent = {x.row.keys[0] for x in built if x.status == "absent"}
+    assert absent == set(ABSENT_ON_PURPOSE)
+    answered = {k for x in built if x.status == "answered" for k in x.row.keys}
+    assert {"laws", "locks.question", "locks.decider.council", "aim_patterns"} <= answered
+    assert {"groups.groups.chamber", "cards.path", "locks.decider.person"} <= answered
+    assert {"groups.groups.prices", "happenings", "happenings.felt", "places"} <= answered
+
+
+# --- Stage 3 parity: prices, classes, losses and weighted places (SSH) --------------------
+
+BLOCS = ("free_traders", "old_families")
+"""The Salt Assembly's two blocs."""
+ACTED = {"ordered", "quantity_at", "holds_office", "agreement_in_force"}
+"""The checks an act changes, one of which a price's condition must hold."""
+
+
+def _checks(condition: Any) -> Iterator[str]:
+    """Every check a condition holds, its own and its parts'."""
+    dumped = condition if isinstance(condition, dict) else condition.model_dump()
+    yield str(dumped["check"])
+    for part in dumped.get("conditions") or ():
+        yield from _checks(part)
+
+
+def test_each_salt_assembly_bloc_carries_a_price_list_an_act_can_meet() -> None:
+    state = compiled()
+    varda = entity("varda")
+    for key in BLOCS:
+        bloc = groups.group(state, varda, key)
+        assert bloc is not None and bloc.chamber is not None, key
+        assert bloc.prices, key
+        for price in bloc.prices:
+            assert 1 <= price.days <= 366 and 1 <= price.points <= 20, price.key
+            assert set(_checks(price.condition)) & ACTED, price.key
+
+
+def test_every_happening_named_is_classed_once_and_exactly_one_is_secret() -> None:
+    state = compiled()
+    classes = state.groups.classes
+    assert len(classes) == len(world().happenings) >= 3
+    reaches = [c.reach.value for c in classes.values()]
+    assert reaches.count("secret") == 1
+    assert {"felt", "reported"} <= set(reaches)
+    assert any(c.reach.value == "reported" and c.felt > 0 for c in classes.values())
+
+
+def test_each_nation_has_a_group_that_the_size_of_losses_moves() -> None:
+    state = compiled()
+    assert groups.losses_on(state)
+    for nation in POLITIES:
+        moved = [
+            g.key
+            for d in world().groups
+            if d.nation == nation
+            for g in d.groups
+            if g.moved_by.get(groups.Happening.BATTLE_LOSSES, 0) < 0
+        ]
+        assert moved, nation
+
+
+def test_one_place_per_nation_carries_political_weight_over_its_own_ground() -> None:
+    state = compiled()
+    holder = {t.key: t.holder for t in world().territories}
+    places = world().places
+    assert sorted(p.nation for p in places) == sorted(POLITIES)
+    for p in places:
+        assert holder[p.territory] == p.nation, p.territory
+        assert p.moves and all(v < 0 for v in p.moves.values()), p.territory
+    assert {(pl.territory, pl.nation) for pl in state.groups.places} == {
+        (entity(p.territory), entity(p.nation)) for p in places
+    }
+
+
+# --- Stage 4 parity: offices, a ladder, an election (SSF) --------------------------------
+
+HEADS = {
+    "varda": ("oren_vale", "varda_first_ministry"),
+    "ostrel": ("general_aske", "ostrel_marshalcy"),
+    "kesh": ("abbess_ren", "kesh_high_pulpit"),
+    "lune": ("admiral_quell", "lune_admiralty"),
+}
+"""Each nation's head and the office that is his post."""
+WAYS = {
+    "varda": RemovalWay.VOTE,
+    "ostrel": RemovalWay.NEVER,
+    "kesh": RemovalWay.PERSON,
+    "lune": RemovalWay.TERM,
+}
+"""How each head is removed: four of the five ways, one a nation; a council is left out."""
+MILITARY = {
+    "varda_galley_command": "varda_harbour_watch",
+    "ostrel_marshalcy": "kael_garrison",
+    "lune_admiralty": "free_port_watch",
+}
+"""The posts that command forces in the field, each with the lesser post it falls to."""
+ELECTION_DAY = date(1900, 6, 25)
+"""The Isle Moot's election, and the day the Admiral's term ends."""
+SEASON_END = date(1900, 7, 31)
+"""The last day of the season: the deadline of every aim."""
+STAGE_4_KEYS = {
+    "cards.post": "answered",
+    "assets.rests_on": "answered",
+    "assets.ladder": "answered",
+    "assets.without_leave": "answered",
+    "elections": "answered",
+    "cards.post.turn_below": "absent",
+    "cards.post.decides": "absent",
+    "cards.post.attempts": "absent",
+}
+"""The stage-4 questions by the first key of their row: answered, or absent on purpose
+(the line's default stands: the 30, 14 and 21 days; a post decides only through the lock
+rows; what a commander may do is his office's list of acts)."""
+
+
+def _decl(key: str) -> Any:
+    return next(a for a in world().assets if a.key == key)
+
+
+def _post(key: str) -> AssetId:
+    return AssetId(ids()[key])
+
+
+@pytest.mark.parametrize("nation", list(HEADS))
+def test_each_head_holds_his_office_as_his_post(nation: str) -> None:
+    person, key = HEADS[nation]
+    state = compiled()
+    assert _decl(key).kind.value == "office" and _decl(key).controller == person
+    assert posts.holder(state, _post(key)) == entity(person)
+
+
+@pytest.mark.parametrize("nation", list(HEADS))
+def test_each_heads_post_rests_on_groups_of_its_own_nation(nation: str) -> None:
+    _, key = HEADS[nation]
+    held = compiled().ladders[_post(key)]
+    own = {g.key for d in world().groups if d.nation == nation for g in d.groups}
+    assert 1 <= len(held.rests_on) <= 2
+    assert set(held.rests_on) <= own
+
+
+def test_four_ways_remove_the_four_heads_and_a_council_is_left_out() -> None:
+    state = compiled()
+    got = {}
+    for nation, (_, key) in HEADS.items():
+        removal = state.ladders[_post(key)].removed_by
+        assert removal is not None
+        got[nation] = removal
+    assert {n: r.way for n, r in got.items()} == WAYS
+    assert len(set(WAYS.values())) == 4 and RemovalWay.COUNCIL not in WAYS.values()
+    assert got["varda"].chamber == "salt_assembly"
+    assert got["kesh"].person == entity("tam_orrin")
+    assert got["lune"].ends == ELECTION_DAY
+
+
+@pytest.mark.parametrize("key", list(MILITARY))
+def test_each_military_post_names_a_ladder_and_the_acts_it_may_attempt(key: str) -> None:
+    state = compiled()
+    held = state.ladders[_post(key)]
+    assert held.ladder == (_post(MILITARY[key]),)
+    assert posts.holder(state, _post(MILITARY[key])) is None
+    assert held.without_leave and {a.value for a in held.without_leave} <= {"border", "fire_first"}
+
+
+def test_the_first_minister_moves_the_commodore_and_nobody_moves_a_head_by_order() -> None:
+    state = compiled()
+    assert state.ladders[_post("varda_galley_command")].moved_by == (_post("varda_first_ministry"),)
+    for _, key in HEADS.values():
+        held = state.ladders.get(_post(key))
+        assert held is None or held.moved_by == ()
+
+
+def test_the_lune_isles_elect_their_moot_inside_the_season() -> None:
+    state = compiled()
+    lune = entity("lune")
+    seated = {g.key: g.seats for d in world().groups if d.nation == "lune" for g in d.groups}
+    chambers = {g.chamber for d in world().groups if d.nation == "lune" for g in d.groups}
+    assert chambers == {"isle_moot"} and all(seated.values())
+    (election,) = state.groups.elections
+    assert election.nation == lune and election.chambers == ("isle_moot",)
+    assert START < election.day == ELECTION_DAY <= SEASON_END
+    assert election.post == _post("lune_admiralty")
+
+
+def test_the_election_puts_the_admirals_post_to_a_sitting_on_its_day() -> None:
+    store = opened()
+    run_realism_tick(store, CAMPAIGN)
+    state = load_state(store, CAMPAIGN)
+    q = office.open_on(state, _post("lune_admiralty"))
+    assert q is not None and q.cause is QuestionCause.ELECTION
+    assert q.sits == ELECTION_DAY and q.holder == entity("admiral_quell")
+
+
+def test_the_world_check_answers_every_stage_4_question_or_leaves_it_on_purpose() -> None:
+    check = _world_check()
+    lines = check.check(world(), check.parse_template(TEMPLATE.read_text()))
+    got = {x.row.keys[0]: x.status for x in lines if x.row.keys[0] in STAGE_4_KEYS}
+    assert got == STAGE_4_KEYS

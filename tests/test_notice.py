@@ -8,7 +8,7 @@ presence or aide play: the same text whether the others are at the table or away
 import json
 import logging
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -515,3 +515,98 @@ def test_zone_of_falls_back_on_a_bad_name() -> None:
     assert notice.zone_of(None).key == notice.DEFAULT_ZONE
     assert notice.zone_of("Europe/London").key == "Europe/London"
     assert datetime(2026, 7, 1, tzinfo=UTC).astimezone(notice.zone_of("Europe/London")).hour == 1
+
+
+# --- the report digest (RPS) --------------------------------------------------------
+
+DAY = date(2026, 11, 22)
+COUNTS = {"The slice": {"bug": 1, "idea": 2}, "Toy": {"confusing": 1}}
+
+
+def test_the_report_digest_counts_by_kind_and_game() -> None:
+    subject, text = notice.compose_digest(DAY, COUNTS)
+    assert subject == "Revisionist: 4 reports on Sunday 22 November 2026"
+    assert text.splitlines() == [
+        "Reports filed on Sunday 22 November 2026 (UTC): 1 bug, 2 ideas, 1 marked confusing.",
+        "",
+        "By game:",
+        "- The slice: 1 bug, 2 ideas.",
+        "- Toy: 1 marked confusing.",
+        "",
+        "Read them with: revisionist reports list",
+    ]
+
+
+def test_a_digest_goes_once_a_day_and_a_failed_send_is_not_marked(
+    web: Web,  # noqa: F811
+    outbox: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real = notice.Outbox.send
+
+    def down(self: notice.Outbox, n: notice.Notice) -> None:
+        raise OSError("disk full")
+
+    box = notice.Outbox(outbox)
+    with psycopg.connect(web.db.app_dsn, autocommit=True) as conn:
+        monkeypatch.setattr(notice.Outbox, "send", down)
+        assert notice.send_digest(conn, box, "op@example.test", DAY, COUNTS) is False
+        monkeypatch.setattr(notice.Outbox, "send", real)
+        assert notice.send_digest(conn, box, "op@example.test", DAY, COUNTS) is True
+        assert notice.send_digest(conn, box, "op@example.test", DAY, COUNTS) is False
+        assert notice.send_digest(conn, box, "op@example.test", DAY, {}) is False
+    (line,) = sent(outbox)
+    assert line["to"] == "op@example.test" and line["subject"].startswith("Revisionist: 4 reports")
+
+
+# --- OFR rule 4: the office question in the notice -------------------------------------
+
+
+BY_ILSE = {"by": "person", "person": "ilse"}
+"""Ilse decides; Kara, the holder, is the one put to the question."""
+
+
+def _office_text(g: Any, who: Any) -> str:
+    from tests.test_due_matters import opened
+    from tests.test_office_question import seat_of
+
+    return notice.compose(opened(g.state), seat_of(g.state, who), None, GAME)[1]
+
+
+def test_the_notice_tells_the_holder_and_each_member_that_the_question_is_open() -> None:
+    """[proposed] wording: the holder is told her place is put to the question, each member
+    that he is to choose whether the holder stays."""
+    import tempfile
+
+    from tests.test_office_question import office_on, sitting
+    from tests.test_posts import ILSE, KARA, TOMAS
+
+    with tempfile.TemporaryDirectory() as tmp:
+        g = sitting(Path(tmp), office_on(BY_ILSE))
+        before = {w: _office_text(g, w) for w in (KARA, ILSE, TOMAS)}
+        g.ask()
+        post = "General of the Norra Levy"
+        assert f"Your place as {post} is put to the office question" in _office_text(g, KARA)
+        assert f"You are to choose, at the office question on {post}, whether" in _office_text(
+            g, ILSE
+        )
+        assert _office_text(g, TOMAS) == before[TOMAS]  # another nation's seat: no line
+
+
+def test_the_notice_says_when_the_sitting_is_near_and_never_the_choice_filed() -> None:
+    import tempfile
+
+    from tests.test_office_question import office_on, sitting
+    from tests.test_posts import ILSE, KARA, TOMAS
+
+    with tempfile.TemporaryDirectory() as tmp:
+        g = sitting(Path(tmp), office_on(BY_ILSE))
+        g.ask()
+        g.tick()  # the sitting, ten days on, is now inside the next wake
+        near = "The office question on General of the Norra Levy may sit when this wake closes"
+        for who in (KARA, ILSE):
+            assert near in _office_text(g, who)
+        assert near not in _office_text(g, TOMAS)
+        before = {w: _office_text(g, w) for w in (KARA, ILSE)}
+        g.choose(ILSE, True)
+        assert {w: _office_text(g, w) for w in (KARA, ILSE)} == before

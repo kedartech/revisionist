@@ -234,3 +234,104 @@ people:
     fact: He wore the wings of a naval aviator, earned at the age of forty-eight.
     portrait: null
     credit: null
+  tovey:
+    bio: Admiral Sir John Tovey has commanded the Home Fleet from Scapa Flow since the end of 1940. In
+      May 1941 his battleships brought the Bismarck to action and sank her. He is stubborn in argument
+      with the Admiralty and with the Prime Minister, and careful of his ships.
+    arena: Your arena is the Home Fleet. You decide where it bases, what you detach and how it fights,
+      but the balance between home waters and the Atlantic is the Prime Minister's, through the First
+      Sea Lord, and his order over the fleet stands over yours.
+    history:
+    - Commanded the destroyer Onslow at Jutland in 1916.
+    - Led the Home Fleet in the pursuit and sinking of the Bismarck in May 1941.
+    - From August 1941 his fleet covered the first convoys to northern Russia.
+    quote: null
+    source: null
+    fact: He was second in command of the Mediterranean Fleet before he took the Home Fleet.
+    portrait: null
+    credit: null
+  doenitz:
+    bio: Vice-Admiral Karl Dönitz has commanded the U-boats since 1939, from a villa at Kernevel by
+      Lorient since the fall of France. He reckons the war at sea in tonnage sunk, and presses the
+      Navy and the Fuehrer for more boats and a free hand against the convoys.
+    arena: Your arena is the U-boat arm. You decide where the boats go, what you detach and how
+      they fight, but whether they may attack American ships is the Fuehrer's, through the Navy's
+      commander in chief, and his order over the boats stands over yours. No cabinet, Reichstag or
+      council answers for it, and the Fuehrer decides alone.
+    history:
+    - Commanded the submarine UB-68 in the Mediterranean, and was captured when she sank in 1918.
+    - Built the U-boat arm again from 1935 and led it into the war in 1939.
+    - Took his headquarters to the Biscay coast in 1940 and turned his boats on the Atlantic convoys in packs.
+    quote: null
+    source: null
+    fact: He held that three hundred boats would decide the war at sea; in the autumn of 1941 he had about thirty in the Atlantic.
+    portrait: null
+    credit: null
+  yamamoto:
+    bio: Admiral Isoroku Yamamoto has commanded the Combined Fleet since 1939. He studied at Harvard
+      and served as naval attache in Washington, and he argued against the alliance with Germany and
+      against a war with the United States that Japan could not sustain. Ordered to plan for one, he
+      planned to open it with a blow at the American fleet in Pearl Harbor.
+    arena: Your arena is the Combined Fleet. You decide where it goes, what you detach and how it
+      fights, under the Chief of the Navy General Staff, who must allow the fleet's gathering at
+      Hitokappu Bay. Opening hostilities is for the Liaison Conference to decide, the Prime Minister,
+      the War Minister and the two Chiefs of Staff, and all of them must agree.
+    history:
+    - Lost two fingers of his left hand at Tsushima in 1905.
+    - Studied at Harvard and was naval attache in Washington in the 1920s.
+    - Pressed the Hawaii operation on the Navy General Staff in October 1941, and threatened to resign to carry it.
+    quote: null
+    source: null
+    fact: He told the Prime Minister in 1940 that he could run wild for six months or a year, but had no confidence for the second or third year.
+    portrait: null
+    credit: null
+  iachino:
+    bio: Admiral Angelo Iachino has commanded the Italian Battle Fleet since December 1940, from his
+      flagship at Taranto. He lost three cruisers at Cape Matapan in March 1941, and he takes the
+      fleet to sea short of fuel and of air cover, on orders from Rome.
+    arena: Your arena is the Italian Battle Fleet. You decide where it goes, what you detach and how
+      it fights, under the Chief of the Comando Supremo, and the Duce's own order over the fleet
+      stands over yours. A sortie east of the Sicilian narrows is the Duce's to permit; no chamber or
+      council answers for it.
+    history:
+    - Was naval attache in Tokyo and commanded cruisers in the Spanish war.
+    - Took command of the battle fleet after the British raid on Taranto in November 1940.
+    - Led the fleet at Cape Matapan in March 1941, where it lost three heavy cruisers in a night action.
+    quote: null
+    source: null
+    fact: The fleet's battleships needed oil Italy did not have; by the autumn of 1941 each sortie was weighed against the fuel it burnt.
+    portrait: null
+    credit: null
+  timoshenko:
+    bio: Marshal Semyon Timoshenko has held the Western Front since July, astride the road from
+      Smolensk to Moscow. He was People's Commissar of Defence when the Germans invaded, and since
+      the fall of Smolensk he has thrown the front into counter-attacks at Yelnya and Dukhovshchina.
+    arena: Your arena is the Western Front. You decide where it stands and how it fights, under the
+      Chief of the General Staff, and Stalin's own order over the front stands over yours. Leave to
+      fall back behind the Mozhaisk line is Stalin's to give; no chamber or council answers for it.
+    history:
+    - Commanded the Kiev Special Military District and took the Mannerheim Line in February 1940.
+    - Became People's Commissar of Defence in May 1940 and was the first chairman of the Stavka in June 1941.
+    - Took the Western Front in July 1941 and fought the battle of Smolensk through the summer.
+    quote: null
+    source: null
+    fact: The front he holds on 1 September passes to Konev within the month and to Zhukov in October.
+    portrait: null
+    credit: null
+  xue_yue:
+    bio: General Xue Yue has held the Ninth War Area since 1939, from his headquarters at Changsha
+      in Hunan. He threw back the Japanese Eleventh Army from the city in the autumn of 1939, and in
+      September 1941 it is coming south again from Yochow across the Hsinchiang.
+    arena: Your arena is the Ninth War Area. You decide where its armies stand and how they fight,
+      under the Chief of the General Staff, and Chiang's own order over the area stands over yours.
+      Leave to give up Changsha without a fight is Chiang's to give; no chamber or council answers
+      for it.
+    history:
+    - Fought in the Northern Expedition and pursued the Communist armies on the Long March.
+    - Commanded at Wanjialing in the Wuhan campaign of 1938.
+    - Took the Ninth War Area in 1939 and held Changsha against the first Japanese attack that September.
+    quote: null
+    source: null
+    fact: His defence drew the attackers into the hills round Changsha and struck their flanks, a tactic he called the heavenly furnace.
+    portrait: null
+    credit: null

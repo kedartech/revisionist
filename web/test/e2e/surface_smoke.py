@@ -11,9 +11,26 @@ starts the ready-made 1941 game as its host and plays Franklin D. Roosevelt. The
   it is picked up, its moves light, the map holds still, the lit area under it is marked, the drop
   opens the confirm chip and nothing is filed until Send it; carried to an area that is not lit it
   goes back and nothing is drafted; and the same move is made from the keyboard alone;
+- the map's controls sit over it, a press on one does not pan the map, and the map is clear of
+  them for at least 65 percent of the viewport's height at 1440 by 900 and 55 at 390 by 844;
+  Full screen (pointer) and F (keyboard) give the map the whole viewport and keep its view, a
+  piece is carried to a lit area there, a piece's sheet opens over it and Escape closes the sheet
+  before it leaves full screen, and the view is the same when it has left;
+- the app shell is installable: the page's manifest names the app, starts at `/`, opens standalone
+  and lists three icons, each of which answers as a PNG of its stated size, and the page marks
+  itself as a tab or as the app;
 - the map is panned and pinched for ten seconds with the processor slowed four times, and the
   time between frames is read: on the phone run the 95th percentile must be at or under 33.4 ms,
-  two frame intervals (a frame's time comes in steps of 16.7 ms).
+  two frame intervals (a frame's time comes in steps of 16.7 ms);
+- the offline shell, in a context of its own with the same session: the room loads once and its
+  service worker takes control; the worker's stores hold the page and the map object by its hash
+  and nothing under `/api/`; with the network cut a reload opens the shell with its one offline
+  line and a write does not get through; a new worker is offered as a new version, nothing
+  changes until Reload is pressed, and then the new worker controls the reloaded page;
+- what the Android wrapper needs of the web side (`deploy/android/README.md`): the manifest the
+  page links, the worker in control, the 512 px icon, and the asset-links address, which answers
+  with a list naming an Android app when `REVISIONIST_ASSETLINKS_FILE` is set in the smoke's
+  environment (the same value the server was started with) and is a 404 when it is not.
 
 Screenshots, a ten-second recording of the same pan and pinch (not slowed) and `report.json` go to
 OUT_DIR. With a fourth argument `phone` it runs at 390x844 with touch, else at 1440x900. Fails on
@@ -26,6 +43,7 @@ For a run with no model calls, serve with web/test/e2e/serve_canned.py.
 """
 
 import json
+import os
 import sys
 import time
 
@@ -174,6 +192,7 @@ def start(page: Page) -> None:
         page.get_by_role("link", name="Start a new game").click()
         page.get_by_role("button", name="Start Autumn 1941").click()
         page.get_by_role("heading", name="Choose who you will play").wait_for(timeout=30_000)
+        rs.show_everyone(page)
         rs.play_from_dossier(page, {}, "Franklin D. Roosevelt")
         page.get_by_role("button", name="Begin the game").wait_for(timeout=60_000)
         rs.begin_with_crawl(page, {})
@@ -423,6 +442,9 @@ def pick_up(page: Page, cdp: CDPSession, what: str) -> dict | None:
     move(page, cdp, (own["x"], own["y"]), (own["x"] + 12, own["y"]), 3)
     page.locator(".rl-map-target").first.wait_for(timeout=10_000)
     page.wait_for_timeout(100)
+    # the finger keeps moving: a drawing the room made meanwhile shows the lift on the next move
+    move(page, cdp, (own["x"] + 12, own["y"]), (own["x"] + 14, own["y"]), 1)
+    page.wait_for_timeout(50)
     held = page.evaluate(HELD_JS)
     after = view(page)
     rs.check(
@@ -435,12 +457,14 @@ def pick_up(page: Page, cdp: CDPSession, what: str) -> dict | None:
         (before["x"], before["y"], before["w"]) == (after["x"], after["y"], after["w"]),
         f"{before} {after}",
     )
-    return {**own, "at": (own["x"] + 12, own["y"])}
+    return {**own, "at": (own["x"] + 14, own["y"])}
 
 
-def drag_to_lit(page: Page, cdp: CDPSession, report: dict, filed: list[str]) -> None:
+def drag_to_lit(
+    page: Page, cdp: CDPSession, report: dict, filed: list[str], tag: str = "drg"
+) -> None:
     """Carry a piece to a lit area, drop it, and confirm the chip."""
-    own = pick_up(page, cdp, "drop on a lit area")
+    own = pick_up(page, cdp, "drop on a lit area" if tag == "drg" else f"{tag}: drop on a lit area")
     if own is None:
         return
     spot = page.evaluate(LIT_JS)
@@ -448,7 +472,8 @@ def drag_to_lit(page: Page, cdp: CDPSession, report: dict, filed: list[str]) -> 
     if spot is None:
         release(page, cdp)
         return
-    report["dragged"] = {"piece": own["name"], "to": spot["label"]}
+    key = "dragged" if tag == "drg" else f"{tag}_dragged"
+    report[key] = {"piece": own["name"], "to": spot["label"]}
     move(page, cdp, own["at"], (spot["x"], spot["y"]), 12)
     page.wait_for_timeout(150)
     held = page.evaluate(HELD_JS)
@@ -462,8 +487,8 @@ def drag_to_lit(page: Page, cdp: CDPSession, report: dict, filed: list[str]) -> 
         held["shift"].startswith("translate("),
         json.dumps(held),
     )
-    rs.shoot(page, "drg-01-held-over-lit")
-    detail(page, "drg-01-held-over-lit-detail", spot["x"], spot["y"])
+    rs.shoot(page, f"{tag}-01-held-over-lit")
+    detail(page, f"{tag}-01-held-over-lit-detail", spot["x"], spot["y"])
     before = len(filed)
     release(page, cdp)
     page.locator(".rl-pup-chip").first.wait_for(timeout=10_000)
@@ -475,8 +500,8 @@ def drag_to_lit(page: Page, cdp: CDPSession, report: dict, filed: list[str]) -> 
         json.dumps(held),
     )
     rs.check("the piece is back in its place on the board", held["lifted"] == 0, json.dumps(held))
-    rs.shoot(page, "drg-02-chip-after-drop")
-    detail(page, "drg-02-chip-after-drop-detail", spot["x"], spot["y"])
+    rs.shoot(page, f"{tag}-02-chip-after-drop")
+    detail(page, f"{tag}-02-chip-after-drop-detail", spot["x"], spot["y"])
     rs.check("nothing is filed by the drop", len(filed) == before, str(filed))
     send = page.locator(".rl-pup-chip").get_by_role("button", name="Send it")
     if send.count():
@@ -484,7 +509,7 @@ def drag_to_lit(page: Page, cdp: CDPSession, report: dict, filed: list[str]) -> 
         page.wait_for_timeout(1500)
         rs.check("Send it files the move", len(filed) == before + 1, str(filed))
     else:
-        report["dragged"]["locked"] = True
+        report[key]["locked"] = True
         rs.check(
             "a locked move offers its choices in the chip",
             page.locator(".rl-pup-chip .rl-lock-file").count() > 0,
@@ -548,6 +573,175 @@ def by_keyboard(page: Page, report: dict) -> None:
     page.keyboard.press("Escape")
 
 
+MAP_SHARE = 0.55 if PHONE else 0.65
+"""The viewport's height the map is clear of its controls for, the room's line. [proposed] The
+season strip's 44 px row (5 percent of the viewport) lies under every map since the season
+timeline landed, so it is taken off the 70 and 60 the line first named."""
+
+ROOM_JS = """() => {
+  const box = (el) => {
+    const b = el.getBoundingClientRect();
+    return { x: b.left, y: b.top, w: b.width, h: b.height, r: b.right, b: b.bottom };
+  };
+  const shown = (el) => el && getComputedStyle(el).display !== 'none'
+    && el.getBoundingClientRect().height > 0;
+  const svg = document.querySelector('main.rl-mapfirst svg.rl-tm-svg');
+  const map = box(svg);
+  const top = [...document.querySelectorAll('.rl-tm-top .rl-tm-tools > *')].filter(shown).map(box);
+  const zoom = [...document.querySelectorAll('.rl-tm-zoomcorner .rl-filter')]
+    .filter(shown).map(box);
+  // the map's height clear of what lies over it: its controls along the top, the phone's bottom bar
+  let lo = Math.max(map.y, 0, ...top.map((t) => t.b));
+  let hi = Math.min(map.b, innerHeight);
+  for (const el of document.querySelectorAll('.rl-needsbar, .rl-mapfirst-map > .rl-status')) {
+    if (!shown(el)) continue;
+    const b = box(el);
+    if (b.y < hi && b.b > lo) hi = Math.min(hi, b.y);
+  }
+  const h2 = document.querySelector('#rl-map-h');
+  return { vw: innerWidth, vh: innerHeight, map, controls: [...top, ...zoom],
+    clear: Math.max(0, hi - lo) / innerHeight, full: !!document.querySelector('.rl-full'),
+    browser: !!document.fullscreenElement, title: h2 ? box(h2) : null,
+    line: !!document.querySelector('.rl-tmap > p.muted'), view: svg.getAttribute('viewBox'),
+    sheet: !!document.querySelector('.rl-over'), focus: document.activeElement?.tagName ?? '' };
+}"""
+
+
+def room_map(page: Page) -> dict:
+    page.wait_for_timeout(300)
+    page.locator(MAP).first.wait_for(timeout=10_000)
+    return page.evaluate(ROOM_JS)
+
+
+def fills(got: dict) -> bool:
+    m = got["map"]
+    near = [abs(m["x"]), abs(m["y"]), abs(m["w"] - got["vw"]), abs(m["h"] - got["vh"])]
+    return max(near) <= 1
+
+
+def controls_over(page: Page, cdp: CDPSession, report: dict) -> dict:
+    """The map's controls over its corners, and a press on one that does not pan the map."""
+    clear(page)
+    page.get_by_role("button", name="Zoom 1 times").first.click()
+    settle(page, 500)
+    got = room_map(page)
+    report["mfs_room"] = got
+    rs.check(
+        "the map's title is for a screen reader only",
+        (got["title"] or {}).get("w", 9) <= 1,
+        str(got["title"]),
+    )
+    rs.check("the map's line of explanation is not drawn", not got["line"])
+    m = got["map"]
+    inside = all(
+        c["x"] >= m["x"] - 1
+        and c["r"] <= m["r"] + 1
+        and c["y"] >= m["y"] - 1
+        and c["b"] <= m["b"] + 1
+        for c in got["controls"]
+    )
+    rs.check(
+        "the map's controls sit over the map",
+        bool(got["controls"]) and inside,
+        json.dumps(got["controls"]),
+    )
+    rs.check(
+        f"the map is clear of its controls for at least {MAP_SHARE:.0%} of the viewport's height",
+        got["clear"] >= MAP_SHARE,
+        str(got["clear"]),
+    )
+    rs.shoot(page, "mfs-01-controls-over-map")
+    zoom = page.get_by_role("button", name="Zoom 1 times").first.bounding_box()
+    before = view(page)
+    if zoom:
+        x, y = zoom["x"] + zoom["width"] / 2, zoom["y"] + zoom["height"] / 2
+        press(page, cdp, x, y)
+        move(page, cdp, (x, y), (x - 90, y - 60), 8)
+        release(page, cdp)
+    after = settle(page, 800)
+    rs.check(
+        "a press on the zoom control and a drag from it do not pan the map",
+        zoom is not None
+        and (before["x"], before["y"], before["w"]) == (after["x"], after["y"], after["w"]),
+        f"{before} {after}",
+    )
+    return got
+
+
+def full_screen(page: Page, cdp: CDPSession, report: dict, filed: list[str]) -> None:
+    """Full screen by pointer, a piece carried there, a piece's sheet over it, out by Escape;
+    then in by F and out by Escape from the keyboard alone."""
+    out = controls_over(page, cdp, report)
+    page.get_by_role("button", name="Full screen", exact=True).first.click()
+    got = room_map(page)
+    report["mfs_full"] = got
+    rs.check(
+        "by pointer: the map's box is the viewport",
+        got["full"] and fills(got),
+        json.dumps(got["map"]),
+    )
+    rs.check(
+        "going into full screen keeps the view",
+        got["view"] == out["view"],
+        f"{out['view']} {got['view']}",
+    )
+    report["mfs_browser_full"] = got["browser"]
+    rs.shoot(page, "mfs-02-full-screen")
+    drag_to_lit(page, cdp, report, filed, tag="mfs")
+    got = room_map(page)
+    rs.check(
+        "full screen stays on through a move", got["full"] and fills(got), json.dumps(got["map"])
+    )
+    clear(page)
+    name = page.evaluate(FOCUS_JS, None)
+    page.keyboard.press("Enter")
+    page.locator(".rl-over").first.wait_for(timeout=10_000)
+    got = room_map(page)
+    rs.check(
+        "a piece's sheet opens over the map in full screen",
+        bool(name) and got["sheet"] and got["full"] and fills(got),
+        json.dumps(got),
+    )
+    rs.shoot(page, "mfs-03-full-screen-piece-sheet")
+    page.locator(".rl-over .rl-over-close").first.focus()
+    page.keyboard.press("Escape")
+    got = room_map(page)
+    rs.check(
+        "Escape closes the sheet first, and full screen stays",
+        not got["sheet"] and got["full"],
+        json.dumps(got),
+    )
+    page.locator(MAP).first.focus()
+    page.keyboard.press("Escape")
+    got = room_map(page)
+    rs.check(
+        "a second Escape leaves full screen",
+        not got["full"] and not got["browser"],
+        json.dumps(got),
+    )
+    rs.check("the map is back in its place", got["map"] == out["map"], f"{out['map']} {got['map']}")
+    rs.check(
+        "leaving full screen keeps the view",
+        got["view"] == out["view"],
+        f"{out['view']} {got['view']}",
+    )
+    page.locator(MAP).first.focus()
+    page.keyboard.press("f")
+    got = room_map(page)
+    rs.check(
+        "by keyboard: F on the map gives it the viewport, and the map keeps the focus",
+        got["full"] and fills(got) and got["focus"].lower() == "svg",
+        json.dumps(got),
+    )
+    page.keyboard.press("Escape")
+    got = room_map(page)
+    rs.check(
+        "by keyboard: Escape leaves full screen",
+        not got["full"] and got["map"] == out["map"],
+        json.dumps(got),
+    )
+
+
 def frame_times(page: Page, cdp: CDPSession, report: dict) -> None:
     page.get_by_role("button", name="Zoom 1 times").first.click()
     settle(page, 500)
@@ -575,6 +769,199 @@ def frame_times(page: Page, cdp: CDPSession, report: dict) -> None:
         )
     else:
         rs.check("frames were drawn while the map moved", len(frames) > RUN_MS / 200)
+
+
+def install_files(page: Page, report: dict) -> None:
+    """The manifest the page links and each icon it lists answer, and the shell marks the page."""
+    href = page.evaluate("document.querySelector('link[rel=manifest]')?.getAttribute('href') ?? ''")
+    rs.check("the page links a manifest", bool(href), href)
+    got = page.request.get(BASE + "/" + href.lstrip("/"))
+    rs.check("the manifest answers", got.ok, str(got.status))
+    manifest = got.json()
+    rs.check("the manifest opens standalone at /", manifest.get("display") == "standalone")
+    rs.check(
+        "the manifest starts at /", manifest.get("start_url") == "/", str(manifest.get("start_url"))
+    )
+    icons = manifest.get("icons", [])
+    rs.check("the manifest lists three icons", len(icons) == 3, str(len(icons)))
+    for icon in icons:
+        res = page.request.get(BASE + icon["src"])
+        body = res.body() if res.ok else b""
+        size = f"{int.from_bytes(body[16:20], 'big')}x{int.from_bytes(body[20:24], 'big')}"
+        ok = res.ok and body[:8] == b"\x89PNG\r\n\x1a\n" and size == icon["sizes"]
+        rs.check(f"icon {icon['src']} answers as a {icon['sizes']} PNG", ok, f"{res.status} {size}")
+    mark = page.evaluate("document.documentElement.getAttribute('data-shell')")
+    report["shell"] = {"manifest": href, "icons": [i["src"] for i in icons], "mark": mark}
+
+
+STORES_JS = """async () => {
+  const out = [];
+  for (const name of await caches.keys()) {
+    const store = await caches.open(name);
+    for (const req of await store.keys()) out.push([name, new URL(req.url).pathname]);
+  }
+  return out;
+}"""
+
+WRITE_JS = """async () => {
+  try {
+    const r = await fetch('/api/realism/commit', { method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    return `answered ${r.status}`;
+  } catch (e) { return 'refused'; }
+}"""
+
+SCRIPT_JS = "() => navigator.serviceWorker.controller?.scriptURL ?? ''"
+
+READY_JS = """() => Promise.race([
+  navigator.serviceWorker.ready.then(() => true),
+  new Promise((done) => setTimeout(() => done(false), 30000)),
+])"""
+
+
+def offline_shell(browser: object, state: dict, url: str, report: dict) -> None:
+    """Loads once, takes the worker, cuts the network and reloads, then offers a new version."""
+    ctx = browser.new_context(  # type: ignore[attr-defined]
+        viewport={"width": SIZE[0], "height": SIZE[1]},
+        has_touch=PHONE,
+        is_mobile=PHONE,
+        storage_state=state,
+        service_workers="allow",
+    )
+    page = ctx.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
+    page.goto(url)
+    page.locator(MAP).first.wait_for(timeout=60_000)
+    ready = page.evaluate(READY_JS)
+    rs.check("the worker is ready after one load", ready)
+    if not ready:
+        ctx.close()
+        return
+    page.reload()
+    page.locator(MAP).first.wait_for(timeout=60_000)
+    script = page.evaluate(SCRIPT_JS)
+    rs.check("the worker controls the page after one load", script.endswith("/sw.js"), script)
+    wrapper_needs(page, report)
+    stores: list[list[str]] = []
+    for _ in range(40):
+        stores = page.evaluate(STORES_JS)
+        if any(path.startswith("/maps/") for _, path in stores):
+            break
+        page.wait_for_timeout(250)
+    paths = [path for _, path in stores]
+    api = [path for path in paths if path.startswith("/api/")]
+    rs.check("no key in the worker's stores is under /api/", not api, str(api))
+    rs.check("the worker keeps the page", "/index.html" in paths)
+    rs.check(
+        "the worker keeps the scripts and styles",
+        "/js/app.js" in paths and "/css/tokens.css" in paths,
+    )
+    maps = [path for path in paths if path.startswith("/maps/")]
+    rs.check("the worker keeps the map object by its hash", len(maps) == 1, str(maps))
+    worker: dict[str, object] = {
+        "keys": len(paths),
+        "stores": sorted({n for n, _ in stores}),
+        "maps": maps,
+    }
+
+    ctx.set_offline(True)
+    page.reload()
+    line = page.locator(".shell-line.shell-offline")
+    line.wait_for(timeout=15_000)
+    said = line.inner_text()
+    rs.check("offline, the shell opens with its one line", "orders cannot be sent" in said, said)
+    rs.check(
+        "offline, the page is the app's",
+        page.title() == "Revisionist" and page.locator("#app").count() == 1,
+    )
+    wrote = page.evaluate(WRITE_JS)
+    rs.check("offline, a write does not get through", wrote == "refused", wrote)
+    rs.shoot(page, "swk-offline")
+    ctx.set_offline(False)
+    page.reload()
+    page.locator(MAP).first.wait_for(timeout=60_000)
+    rs.check("online again, the offline line is gone", page.locator(".shell-offline").count() == 0)
+
+    # A worker at another address in the same scope is a new version to the browser, bytes alike:
+    # it installs beside the one in control and waits, as a deploy's changed worker does.
+    first = page.evaluate(SCRIPT_JS)
+    page.evaluate(
+        "async () => { await navigator.serviceWorker.register('/sw.js?next=1', { scope: '/' }); }"
+    )
+    offer = page.locator(".shell-line.shell-update")
+    offered = True
+    try:
+        offer.wait_for(timeout=20_000)
+    except Exception:
+        offered = False
+    rs.check("a new version is offered", offered)
+    if offered:
+        said = offer.inner_text()
+        rs.check("the offer says a new version is ready", "A new version is ready." in said, said)
+        rs.shoot(page, "swk-update")
+        page.evaluate("() => { window.swkMark = 1; }")
+        page.wait_for_timeout(1500)
+        held = page.evaluate("() => window.swkMark === 1") and page.evaluate(SCRIPT_JS) == first
+        rs.check("nothing changes before the player's word", held)
+        with page.expect_navigation(timeout=20_000):
+            offer.get_by_role("button", name="Reload").click()
+        page.locator(MAP).first.wait_for(timeout=60_000)
+        now = page.evaluate(SCRIPT_JS)
+        rs.check(
+            "Reload reloads the page under the new version",
+            page.evaluate("() => window.swkMark === undefined") and now.endswith("/sw.js?next=1"),
+            now,
+        )
+        worker["script"] = [first, now]
+    rs.check("the offline shell raised no page error", not errors, "; ".join(errors))
+    report["worker"] = worker
+    ctx.close()
+
+
+ASSETLINKS = "/.well-known/assetlinks.json"
+
+
+def wrapper_needs(page: Page, report: dict) -> None:
+    """What the Android wrapper reads: the linked manifest, the worker in control, the 512 icon,
+    and the asset-links address."""
+    href = page.evaluate("document.querySelector('link[rel=manifest]')?.getAttribute('href') ?? ''")
+    rs.check("wrapper: the page links a manifest", bool(href), href)
+    manifest = {}
+    if href:
+        got = page.request.get(BASE + "/" + href.lstrip("/"))
+        manifest = got.json() if got.ok else {}
+    rs.check("wrapper: the manifest opens standalone at /", manifest.get("display") == "standalone")
+    rs.check("wrapper: the manifest starts at /", manifest.get("start_url") == "/")
+    script = page.evaluate(SCRIPT_JS)
+    rs.check("wrapper: the worker is in control", script.endswith("/sw.js"), script)
+    big = [i for i in manifest.get("icons", []) if i.get("sizes") == "512x512"]
+    rs.check("wrapper: the manifest lists a 512 px icon", bool(big))
+    body = b""
+    for icon in big:
+        res = page.request.get(BASE + icon["src"])
+        body = res.body() if res.ok else b""
+        if body[:8] == b"\x89PNG\r\n\x1a\n" and body[16:24] == (512).to_bytes(4, "big") * 2:
+            break
+        body = b""
+    rs.check("wrapper: a 512 px icon answers as a 512 by 512 PNG", bool(body))
+    res = page.request.get(BASE + ASSETLINKS)
+    if os.environ.get("REVISIONIST_ASSETLINKS_FILE"):
+        try:
+            links = res.json() if res.ok else []
+        except ValueError:
+            links = []
+        named = [
+            x
+            for x in links
+            if isinstance(x, dict) and x.get("target", {}).get("namespace") == "android_app"
+        ]
+        rs.check(
+            "wrapper: the asset-links address names an Android app", bool(named), str(res.status)
+        )
+    else:
+        rs.check("wrapper: with no asset-links file set, its address is a 404", res.status == 404)
+    report["wrapper"] = {"manifest": href, "assetlinks": res.status}
 
 
 def record(browser: object, state: dict, url: str) -> None:
@@ -628,7 +1015,9 @@ def main() -> int:
             drag_to_lit(page, cdp, report, filed)
             drag_to_unlit(page, cdp, report, filed)
             by_keyboard(page, report)
+            full_screen(page, cdp, report, filed)
             frame_times(page, cdp, report)
+            install_files(page, report)
             width = page.evaluate("document.documentElement.scrollWidth")
             rs.check("the page is as wide as the viewport", width == SIZE[0], str(width))
         except Exception:
@@ -637,6 +1026,10 @@ def main() -> int:
         url = page.url
         state = ctx.storage_state()
         ctx.close()
+        try:
+            offline_shell(browser, state, url, report)  # type: ignore[arg-type]
+        except Exception as exc:
+            rs.problems.append(f"the offline shell: {exc}")
         record(browser, state, url)  # type: ignore[arg-type]
         browser.close()
     report["checks"] = rs.checks

@@ -542,6 +542,56 @@ class Stakes(TypedDict):
     """Days from the world date to the season's end; None when no contest decides it."""
 
 
+class AimValue(TypedDict):
+    """One value a blank may take as the seat's view allows (OWR)."""
+
+    value: str | int
+    """What the seat sends back for it."""
+    label: str
+    """Its name, as the aim would read it."""
+
+
+class AimBlankLine(TypedDict):
+    """One blank of a pattern, with the values the seat may fill it with (OWR)."""
+
+    name: str
+    values: list[AimValue]
+
+
+class AimPatternLine(TypedDict):
+    """One pattern on the seat's ladder (OWR)."""
+
+    key: str
+    sentence: str
+    """The aim in words, each blank written ``{name}``."""
+    blanks: list[AimBlankLine]
+    difficulty: int | None
+    """Its easiest fill's, on the aims' rubric; None when no fill stands now."""
+    government: bool
+    """Whether the person's own government would issue it."""
+
+
+class OwnAimBlock(TypedDict):
+    """The patterns the seat may fill to replace its card's replaceable aim, easiest first,
+    while it may still set one (OWR). Absent otherwise, and with ``own_aim`` off."""
+
+    aim: int
+    """Which of the card's aims it replaces, counting from 1."""
+    replaces: str
+    """That aim's words."""
+    patterns: list[AimPatternLine]
+
+
+class AimCheck(TypedDict):
+    """What a filled pattern makes (OWR): it stands, with the sentence as it reads; or the
+    reasons it cannot, in fixed words. Answered by ``aim-check`` and ``aim-set`` alike."""
+
+    stands: bool
+    text: str | None
+    """The aim as it reads (as stored, after a set); None when it does not stand."""
+    reasons: list[str]
+
+
 class CourtOrder(TypedDict):
     """One of the seat's own orders waiting at a step."""
 
@@ -981,9 +1031,50 @@ class GroupMove(TypedDict):
         "offer_taken",
         "promise_kept",
         "promise_broken",
+        "battle_losses",
+        "losses_felt",
+        "losses_halved",
+        "place_lost",
+        "place_abandoned",
+        "place_retaken",
     ]
     change: int
     on: str
+
+
+class HomeMove(TypedDict):
+    """A move of a group since the seat's last wake (HFR): the cause, by how much after
+    the clamp, the day and the cause in plain words."""
+
+    cause: str
+    """A ``GroupMove`` cause."""
+    change: int
+    on: str
+    why: str
+    """The cause in plain words (``home_api.WHY``)."""
+    reach: Literal["felt", "reported"]
+    """How it reached the public (``home_api.reach``)."""
+
+
+class HomeMoved(TypedDict):
+    """One line of what moved at home since the seat's last wake: a group, its net
+    change and the line the seat reads (HFR)."""
+
+    group: str
+    name: str
+    change: int
+    line: str
+
+
+class HomePlace(TypedDict):
+    """A place of political weight of the seat's nation, as its map shows it (HFR)."""
+
+    key: str
+    """The territory's key in the map file."""
+    name: str
+    holder: MapNation | None
+    threatened: bool
+    """Its area on the seat's map is marked to fall or named by a report (``MapArea``)."""
 
 
 class HomeGroup(TypedDict):
@@ -997,6 +1088,8 @@ class HomeGroup(TypedDict):
     """0 to 100, now."""
     last_moved: GroupMove | None
     """None while nothing has moved it."""
+    since: list[HomeMove]
+    """Every move since the seat's last wake, in the order they happened."""
     feeds: dict[str, float]
     """What its support feeds (``votes``, ``standing``, ``manpower``, ``output``,
     ``opinion``), each with its weight."""
@@ -1017,6 +1110,11 @@ class BlocCount(TypedDict):
     group: str
     yeas: int
     nays: int
+    then: list[int] | None
+    """Its yeas and nays at the seat's last wake; None when the measure was not then on
+    its way, or the seat has had no wake."""
+    moved: bool
+    """Its count differs from ``then``."""
 
 
 class FloorVote(TypedDict):
@@ -1031,6 +1129,8 @@ class FloorVote(TypedDict):
     carries: int
     """The yeas that carry the vote: more yeas than nays among those voting, as the votes
     rule decides it."""
+    then: list[int] | None
+    """The vote's yeas and nays at the seat's last wake, as ``BlocCount.then``."""
 
 
 class OpenMeasure(TypedDict):
@@ -1069,10 +1169,146 @@ class NationStanding(TypedDict):
     """None for a nation with no group that feeds standing."""
 
 
+class OfferPrice(TypedDict):
+    """One thing a bloc would take for its votes (PRR rule 2)."""
+
+    key: str
+    sentence: str
+    """What is promised, as the seat reads it."""
+    points: int
+    """Points the offer moves the bloc's yes share by on the measure."""
+    days: int
+    """World days after the measure passes on which the promise is read."""
+    loss: int
+    """Support the bloc loses when the promise is broken."""
+
+
+class LiveOffer(TypedDict):
+    """The offer that holds a bloc on a measure."""
+
+    price: str
+    points: int
+    mine: bool
+    """Whether the seat itself made it."""
+
+
+class OfferBloc(TypedDict):
+    """One bloc of a chamber, for a measure on its way: what it would take, and the offer
+    that holds it if one does."""
+
+    group: str
+    name: str
+    prices: list[OfferPrice]
+    """In the world's order; empty for a bloc that names no price."""
+    live: LiveOffer | None
+
+
+class OfferMeasure(TypedDict):
+    """A law of the seat's own nation whose bill is on its way, with each bloc that votes
+    on it."""
+
+    key: str
+    title: str
+    blocs: list[OfferBloc]
+    """In the world's order."""
+
+
+class OfferPromise(TypedDict):
+    """One offer the seat itself made, and where it stands (PRR rule 2)."""
+
+    offer_id: str
+    group: str
+    name: str
+    measure: str
+    title: str
+    price: str
+    sentence: str
+    standing: Literal["filed", "taken", "refused", "lapsed", "due", "kept", "broken"]
+    filed: str
+    due: str | None
+    """The world day the promise is read; None until the measure has passed."""
+
+
+class OfficeCount(TypedDict):
+    """A body's count on an office question as it would fall today."""
+
+    yeas: int
+    nays: int
+
+
+OfficeWay = Literal["vote", "council", "person", "term", "election"]
+"""Who decides an office question: a post that may never be removed has none."""
+
+
+class OfficeQuestionLine(TypedDict):
+    """An office question open on a post of the seat's own nation: sent to every seat of
+    that nation and to no other."""
+
+    question_id: str
+    office: str
+    holder: str
+    cause: str
+    sits: str
+    """The world day it sits."""
+    way: OfficeWay
+    """Who decides it: a body's vote, a council, one person, the end of a term, or, for a
+    question an election opened, the base of the post on the day."""
+    chamber: str | None
+    """The body that votes, for a question decided by ``vote``."""
+    deciders: list[str]
+    """The names of those who choose, for a council or one person; else empty."""
+    mine: bool
+    """Whether the seat's person is one of them."""
+    choice: bool | None
+    """The seat's own sealed choice, True to remove; None if none, or if it is not its to make."""
+    count: OfficeCount | None
+    """For a body's vote, the count as it would fall today; else None."""
+
+
+class BaseUnder(TypedDict):
+    """A post of the seat's person whose base stands under its line, before any question
+    opens on it."""
+
+    office: str
+    groups: list[str]
+    support: float
+    """The mean support of the groups it rests on."""
+    line: int
+    under: float
+    """How far under the line it stands."""
+    days: int
+    """World days running, today included."""
+    opens: str
+    """The day the question would open, if it stays under."""
+
+
+class ElectionBloc(TypedDict):
+    group: str
+    name: str
+    seats: int
+    would: int
+    """Its seats were the chamber redrawn today."""
+
+
+class ElectionChamber(TypedDict):
+    key: str
+    blocs: list[ElectionBloc]
+
+
+class ElectionAhead(TypedDict):
+    """An election of the seat's own nation that has not yet been held."""
+
+    day: str
+    office: str | None
+    """The post whose term ends that day, if any."""
+    chambers: list[ElectionChamber]
+
+
 class HomeBlock(TypedDict):
     """Groups at home and the floor as the seat sees them, with ``groups`` on (GPD). Only
     the seat's own nation's groups, chambers and themes are sent; another nation shows
-    only its band."""
+    only its band. With ``offers`` on, also each measure on its way with the prices its
+    blocs would take, and the promises the seat has made (PRR)."""
 
     day: str
     nation: MapNation
@@ -1085,6 +1321,20 @@ class HomeBlock(TypedDict):
     """The seat's own nation's standing at home, 0 to 100; None when no group feeds it."""
     standings: list[NationStanding]
     """Every nation's band, by name."""
+    moved: list[HomeMoved]
+    """Each group that moved since the seat's last wake, heaviest net change first (HFR)."""
+    places: list[HomePlace]
+    """Each place of political weight of the nation, in the world file's order (HFR)."""
+    offers: NotRequired[list[OfferMeasure]]
+    """With ``offers`` on: each law of the nation whose bill is on its way, by law key."""
+    promises: NotRequired[list[OfferPromise]]
+    """With ``offers`` on: the offers the seat itself made, by filing day and id."""
+    office: NotRequired[list[OfficeQuestionLine]]
+    """With ``office`` on: each question open on a post of the seat's nation, by sitting day."""
+    turning: NotRequired[list[BaseUnder]]
+    """With ``office`` on: each post of the seat's person whose base stands under its line."""
+    elections: NotRequired[list[ElectionAhead]]
+    """With ``elections`` on: each election of the seat's nation ahead, by day."""
 
 
 class BattleRoundLine(TypedDict):
@@ -1514,12 +1764,111 @@ class LocksBlock(TypedDict):
 class LockCheck(TypedDict):
     """The check before sending (LKD rule 2): what filing the draft would do now."""
 
-    check: Literal["allowed", "locked", "beyond"]
-    """``allowed``: it goes out; ``locked``: a lock holds it; ``beyond``: it is refused."""
+    check: Literal["allowed", "locked", "beyond", "question"]
+    """``allowed``: it goes out; ``locked``: a lock holds it; ``beyond``: it is refused;
+    ``question``: with ``posts`` on, a move of post that would take a seat's last
+    authority, so it goes out and waits for the office question's sitting (PPR)."""
     who: str | None
     """For ``locked``, who can allow it; None otherwise."""
     reason: str
-    """For ``locked``, what the seat would be told; for ``beyond``, today's refusal."""
+    """For ``locked`` and ``question``, what the seat would be told; for ``beyond``,
+    today's refusal."""
+
+
+class PostName(TypedDict):
+    """A post: the office asset's id and name."""
+
+    id: str
+    name: str
+
+
+class LadderRung(TypedDict):
+    """One rung of the seat's own ladder, in order; ``free`` when nobody holds it."""
+
+    id: str
+    name: str
+    free: bool
+
+
+class PendingPost(TypedDict):
+    """A change of post pending on the seat (LDR), sealed to it until it lands."""
+
+    id: str
+    """The notice the seat was sent, a document it holds."""
+    post: str
+    move: Literal["appoint", "relieve"]
+    lands: str
+    """When it lands, in words."""
+    wake: int | None
+    """The wake at whose close it lands; None when it waits for the office question."""
+    rung: str | None
+    """The post the seat lands on; None for none or while it waits for the question."""
+
+
+class PostMoveLine(TypedDict):
+    """A move the seat may make on another person: appoint, relieve or restore, with the
+    rung the person it puts down lands on."""
+
+    person: str
+    name: str
+    post: str
+    office: str
+    move: Literal["appoint", "relieve", "restore"]
+    down: str | None
+    """Who the move puts down, by name; None for no one."""
+    rung: str | None
+    """The post that person lands on; None for none."""
+    question: bool
+    """It would take a seat's last authority: it waits for the office question."""
+
+
+class Through(TypedDict):
+    """Someone in the seat's inner circle whose card holds an authority."""
+
+    person: str
+    name: str
+    authority: list[str]
+
+
+class Letter(TypedDict):
+    id: str
+    title: str
+
+
+class PostRoom(TypedDict):
+    """What a seat with no post may still do."""
+
+    inner_circle: list[str]
+    letters: list[Letter]
+    aims: list[str]
+    through: list[Through]
+
+
+class PostsBlock(TypedDict):
+    """The seat's post as it sees it, with ``posts`` on (PPR): its post and ladder, who
+    may move it, each change pending on it, the moves it may make on others, and with no
+    post, the room it still has. Absent with the rule off."""
+
+    post: PostName | None
+    ladder: list[LadderRung]
+    moved_by: list[str]
+    pending: list[PendingPost]
+    moves: list[PostMoveLine]
+    room: NotRequired[PostRoom]
+
+
+class StandingVote(FloorVote):
+    """One vote of a measure on its way, counted as it would stand, in its chamber."""
+
+    chamber: str
+
+
+class OfferCheck(LockCheck):
+    """The check of a draft offer to a bloc that filing would allow (PRB rule 2)."""
+
+    stands: list[StandingVote]
+    """Each vote of the measure's bill counted as the votes rule would tally it with the
+    offer landed, in the world's order: the count as it would stand."""
 
 
 class ForecastMove(TypedDict):
@@ -1892,6 +2241,37 @@ class PlaybackHeld(TypedDict):
     order's words."""
 
 
+class PlaybackGroup(TypedDict):
+    """One of the seat's own nation's groups moved (HFR): as ``HomeMove`` words it, with
+    the support it moved to. Only its own nation's seats are given it."""
+
+    kind: Literal["group"]
+    on: str
+    group: str
+    name: str
+    change: int
+    support: int
+    why: str
+    reach: Literal["felt", "reported"]
+
+
+class PlaybackCount(TypedDict):
+    """The count of a vote on one of the seat's measures on its way changed with a group's
+    move (HFR): the votes rule's count after the move beside the one before it."""
+
+    kind: Literal["count"]
+    on: str
+    order_id: str
+    """``OpenMeasure.order_id``."""
+    key: str
+    title: str
+    vote: str
+    yeas: int
+    nays: int
+    was: list[int]
+    """Its yeas and nays before the move."""
+
+
 PlaybackStep = (
     PlaybackOrder
     | PlaybackMove
@@ -1900,6 +2280,8 @@ PlaybackStep = (
     | PlaybackHolder
     | PlaybackStake
     | PlaybackHeld
+    | PlaybackGroup
+    | PlaybackCount
 )
 """One step of a missed wake's playback, in the order it happened (``on`` is ISO)."""
 
@@ -1957,6 +2339,10 @@ __all__ = [
     "AgreementClauseLine",
     "AgreementLine",
     "AgreementsBlock",
+    "AimBlankLine",
+    "AimCheck",
+    "AimPatternLine",
+    "AimValue",
     "AskForm",
     "AskLine",
     "BattlePiece",
@@ -2002,10 +2388,16 @@ __all__ = [
     "HeldLine",
     "HomeBlock",
     "HomeGroup",
+    "HomeMove",
+    "HomeMoved",
+    "HomePlace",
     "HomeTheme",
+    "LadderRung",
+    "Letter",
     "LeverChoice",
     "LeverLine",
     "LeverParam",
+    "LiveOffer",
     "LockCheck",
     "LocksBlock",
     "MapArea",
@@ -2029,7 +2421,12 @@ __all__ = [
     "OddsShares",
     "OddsTerrain",
     "OfferAnswer",
+    "OfferBloc",
+    "OfferCheck",
     "OfferLine",
+    "OfferMeasure",
+    "OfferPrice",
+    "OfferPromise",
     "OfferReading",
     "OfferTerms",
     "OpenMeasure",
@@ -2041,6 +2438,8 @@ __all__ = [
     "OrderResult",
     "OrderTrack",
     "OrderTracker",
+    "OwnAimBlock",
+    "PendingPost",
     "People",
     "PeopleMeter",
     "PersonChannel",
@@ -2053,6 +2452,8 @@ __all__ = [
     "PlaceChoice",
     "PlaceLift",
     "PlaceReach",
+    "PlaybackCount",
+    "PlaybackGroup",
     "PlaybackHalt",
     "PlaybackHeld",
     "PlaybackHolder",
@@ -2061,6 +2462,10 @@ __all__ = [
     "PlaybackPaper",
     "PlaybackStake",
     "PlaybackStep",
+    "PostMoveLine",
+    "PostName",
+    "PostRoom",
+    "PostsBlock",
     "PublicWar",
     "ReachContact",
     "ReachGroups",
@@ -2084,10 +2489,12 @@ __all__ = [
     "StakeLean",
     "StakeMandate",
     "Stakes",
+    "StandingVote",
     "StepLine",
     "StrengthRange",
     "TermClause",
     "Threat",
+    "Through",
     "TimelinePoint",
     "WakeHeader",
     "WarNation",

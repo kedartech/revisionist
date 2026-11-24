@@ -1,4 +1,5 @@
-"""The locked-orders game (LKG): the scripted proof of the slice, on 1941 and on the toy.
+"""The locked-orders game (LKG): the scripted proof of the slice, on 1941, on the toy and
+on Salt Strait (SSO).
 
 The script (``tests/locked_orders_script.py``) plays a whole season with the leader and his
 commander both seated, through the engine's own entry points and offline. Each test reads
@@ -31,11 +32,13 @@ from revisionist.core.realism import locks, process
 from revisionist.core.realism.pipeline import ADVANCES, OrderStatus, StepAction
 from revisionist.core.realism.pipelines import REPLACED
 from revisionist.core.realism.resolvers import qid
+from revisionist.core.state import Rule
 from revisionist.core.world_compile import object_id
 from revisionist.engine.web.stakes import seat_stakes
 from tests.locked_orders_script import (
     CASTS,
     NINETEEN_41,
+    SALT_STRAIT,
     TOY,
     Cast,
     Game,
@@ -62,12 +65,14 @@ log."""
 PINNED: dict[str, tuple[StepAction, int]] = {
     NINETEEN_41.name: (StepAction.EXPEDITE, 2),
     TOY.name: (StepAction.PASS, 2),
+    SALT_STRAIT.name: (StepAction.PASS, 2),
 }
 """The middle step on the leader's naval order, as the seed decides it: the action taken
 and the days after filing it was taken. The middle person is code-held, so his card's
 policy decides from the campaign's seed (``Cast.campaign``, fixed) and the day; the run
 pins it by playing that seed, and this states the outcome. 1941: the Chief of Naval
-Operations expedites it; toy: the marshal passes it. Either way it advances."""
+Operations expedites it; toy: the marshal passes it; Salt Strait: the First Minister's
+chief of staff passes it. Either way it advances."""
 
 
 @pytest.fixture(scope="module")
@@ -121,9 +126,13 @@ def test_lock_1_the_naval_order_crosses_the_middle_step_then_the_commanders_desk
     assert middle.action in ADVANCES and middle.on == order.filed + timedelta(days=days)
     assert desk.person == cast.entity(cast.commander) and desk.action is StepAction.PASS
     # The commander kept his choice in the wake the order reached his desk. He tried to
-    # refuse it first: an order from up his chain may only be passed or stalled.
+    # refuse it first: an order from up his chain may only be passed or stalled, unless
+    # his world lets a post refuse one (defiance), and his pass that wake stands over it.
     assert p.desk_taken == middle.on
-    assert len(p.refusals) == 1 and p.refusals[0] != ""
+    if Rule.DEFIANCE in g.state.rules:
+        assert p.refusals == [""]
+    else:
+        assert len(p.refusals) == 1 and p.refusals[0] != ""
 
 
 @each_cast

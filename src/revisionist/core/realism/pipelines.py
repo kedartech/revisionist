@@ -100,11 +100,19 @@ def under_issuer(state: State, order: Order) -> bool:
     return state.seats[order.issuer].embodies in superiors(state.cards, holder)
 
 
+DEFIANT: frozenset[StepAction] = SUBORDINATE | {StepAction.REFUSE}
+"""With ``defiance`` on, what a seat may do at such a step: refuse it as well (DFY). A
+refusal opens an incident."""
+
+
 def step_allowed(state: State, order: Order) -> frozenset[StepAction]:
     """What a human may do at the step the order waits at: the step's own set, cut to
-    pass and stall on an order from up the holder's chain (CMD)."""
+    pass and stall on an order from up the holder's chain (CMD), and refuse as well
+    with ``defiance`` on (DFY). The card at such a step only passes (``_held``)."""
     allowed = state.pipelines[order.pipeline].steps[order.step].allowed
-    return allowed & SUBORDINATE if under_issuer(state, order) else allowed
+    if not under_issuer(state, order):
+        return allowed
+    return allowed & (DEFIANT if Rule.DEFIANCE in state.rules else SUBORDINATE)
 
 
 def _arrived(order: Order) -> date:
@@ -714,6 +722,7 @@ def checked_step(
 
 
 __all__ = [
+    "DEFIANT",
     "DESTINATION",
     "MAY_UNDER",
     "REPLACED",

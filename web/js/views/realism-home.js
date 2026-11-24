@@ -1,8 +1,12 @@
 // The home sheet and the floor (GRC): the nation's band in the top strip opens the home sheet;
 // each of the seat's own groups as a token with its name, a five-step bar (the number on tap)
-// and an arrow for its last move with the cause; each chamber's blocs as tokens with their
-// seats, and each of the seat's open measures counted by bloc with the line that carries it;
-// what moved at the last close; and "Speak to the nation", which the room answers by opening
+// and an arrow for its last move with the cause; each chamber as a seat bar split by bloc
+// with the line that carries its vote, and each open measure as a bar of yeas, seats not yet counted and nays;
+// what moved at the last close; what moved since the seat's last wake, one line a group as the
+// server words it, heaviest first, each opening every move behind it with how it reached the
+// public; each measure's count at the last wake beside its count now, the blocs that moved
+// marked; each place of political weight with its holder, a threatened one marked; and
+// "Speak to the nation", which the room answers by opening
 // the free-writing form under `speakNote` (the themes and the cap). Once the aide has read a
 // statement or a measure, `themeRead` shows which groups the theme it names speaks to, as the
 // staff's read and not a promise.
@@ -10,7 +14,7 @@
 // nation's groups, chambers and themes, and every other nation's band, so another nation's
 // groups are never drawn. Nothing here touches the page on import.
 
-import { h } from '../dom.js';
+import { h, svg } from '../dom.js';
 import { worldDate } from '../rules.js';
 
 /** The home sheet's title in the map-first room. */
@@ -55,10 +59,8 @@ export function supportStep(support) {
   return 1 + [20, 40, 60, 80].filter((low) => support >= low).length;
 }
 
-/** The yeas that carry a vote: more yeas than nays among those voting (the votes rule's `yeas > nays`). */
-export function needed(vote) {
-  return Math.floor((Number(vote.yeas) + Number(vote.nays)) / 2) + 1;
-}
+/** GPD's five public bands, lowest first (engine/web/home_api.py BANDS). */
+export const BANDS = Object.freeze(['collapsing', 'shaken', 'steady', 'firm', 'united']);
 
 /** The band in words: "steady at home"; a nation with no reading says so. */
 export const bandWords = (band) => (band ? `${band} at home` : 'no reading');
@@ -95,7 +97,7 @@ export function withHome(strip, rv, opts) {
 }
 
 /** The themes that move group `key`: "The Levy Act (up 1)". */
-function themesFor(home, key) {
+export function themesFor(home, key) {
   return (home.themes ?? []).filter((t) => t.moves?.[key]).map((t) => `${t.name} (${signed(t.moves[key])})`);
 }
 
@@ -124,12 +126,79 @@ function supportBar(g) {
   return h('div', { class: 'rl-home-support' }, bar, num);
 }
 
+/** A last move in words: "Up 5 on 2 April 1900: a battle won"; null when nothing has moved it. */
+export const moveWords = (moved) => (moved ? `${capital(signed(moved.change))} on ${worldDate(moved.on)}: ${causeWords(moved.cause)}` : null);
+
+/** How a move reached the public, in words `[proposed]`. */
+const REACH = { felt: 'felt at home', reported: 'by report' };
+
+/** One move since the last wake in words: "Down 2 on 4 April 1900: territory lost, by report". */
+export const sinceWords = (m) => `${capital(signed(m.change))} on ${worldDate(m.on)}: ${m.why}${REACH[m.reach] ? `, ${REACH[m.reach]}` : ''}`;
+
+/**
+ * The server's lines of what moved since the seat's last wake, each with the moves of its group
+ * behind it: `[{ ...line, moves }]`. Only the lines the block sends; null when it sends none.
+ */
+export function movedSince(home) {
+  if (!Array.isArray(home?.moved)) return null;
+  const groups = new Map((home.groups ?? []).map((g) => [g.key, g]));
+  return home.moved.map((m) => ({ ...m, moves: groups.get(m.group)?.since ?? [] }));
+}
+
+/** One line of what moved since the last wake: its arrow, its words and a bar of its size against the heaviest, which opens its moves. */
+function sinceRow(m, heaviest) {
+  const way = m.change < 0 ? 'down' : 'up';
+  const list = h('ul', { class: 'rl-home-since-moves', hidden: true },
+    m.moves.map((x) => h('li', { class: x.change < 0 ? 'down' : 'up' }, sinceWords(x))));
+  const btn = h('button', {
+    type: 'button', class: 'rl-home-since-btn', 'aria-expanded': 'false',
+    'aria-label': `${m.line}. Show each move`,
+    onclick: () => {
+      const show = btn.getAttribute('aria-expanded') !== 'true';
+      btn.setAttribute('aria-expanded', String(show));
+      list.toggleAttribute('hidden', !show);
+    },
+  },
+  h('span', { class: 'rl-home-arrow', 'aria-hidden': 'true' }, m.change < 0 ? '↓' : '↑'),
+  h('span', { class: 'rl-home-since-line' }, m.line),
+  svg('svg', { class: 'rl-home-since-bar', viewBox: '0 0 100 6', preserveAspectRatio: 'none', 'aria-hidden': 'true', focusable: 'false' },
+    svg('rect', { class: 'rl-home-since-fill', x: 0, y: 0, width: share(Math.abs(m.change), heaviest), height: 6 })));
+  return h('li', { class: `rl-home-since-row ${way}`, 'data-group': m.group }, btn, list);
+}
+
+/** What moved since the seat's last wake, heaviest first, as the server sent it; null when the block sends no list. */
+function sinceSection(home) {
+  const lines = movedSince(home);
+  if (!lines) return null;
+  const heaviest = Math.max(1, ...lines.map((m) => Math.abs(m.change)));
+  return h('section', { class: 'rl-home-since', 'aria-label': 'Since your last wake' },
+    h('h4', {}, 'Since your last wake'),
+    lines.length
+      ? h('ul', { role: 'list' }, lines.map((m) => sinceRow(m, heaviest)))
+      : h('p', { class: 'muted' }, 'Nothing at home has moved since your last wake.'));
+}
+
+/** Who holds a place, in words. */
+const holderWords = (holder) => `Held by ${holder?.name ?? 'no one'}`;
+
+/** Each place of political weight with its holder, a threatened one marked; null with none. */
+function placesSection(home) {
+  const places = home.places ?? [];
+  if (!places.length) return null;
+  return h('section', { class: 'rl-home-places', 'aria-label': 'Places of weight' },
+    h('h4', {}, 'Places of weight'),
+    h('ul', { role: 'list' }, places.map((p) => h('li', { class: `rl-home-place${p.threatened ? ' threatened' : ''}`, 'data-area': p.key },
+      h('strong', {}, p.name), ' ',
+      h('span', { class: 'rl-home-holder' }, holderWords(p.holder)),
+      p.threatened ? [' ', h('span', { class: 'rl-home-threat' }, 'Threatened')] : null))));
+}
+
 /** A last move as an arrow and its words: "↑ Up 5 on 2 April 1900: a battle won". */
 function moveLine(moved) {
   if (!moved) return h('p', { class: 'rl-home-moved' }, 'Not moved yet');
   return h('p', { class: `rl-home-moved ${moved.change < 0 ? 'down' : 'up'}` },
     h('span', { class: 'rl-home-arrow', 'aria-hidden': 'true' }, moved.change < 0 ? '↓' : '↑'), ' ',
-    `${capital(signed(moved.change))} on ${worldDate(moved.on)}: ${causeWords(moved.cause)}`);
+    moveWords(moved));
 }
 
 function groupToken(home, g) {
@@ -144,30 +213,128 @@ function groupToken(home, g) {
     bloc ? h('p', { class: 'rl-home-seats' }, `${bloc.seats} seats in ${chamberName(bloc.chamber)}`) : null);
 }
 
-/** One vote on a measure: each bloc's count as a token, then the line that carries it. */
-function voteBlock(m, v, names) {
-  const need = needed(v);
-  const short = need - v.yeas;
-  return h('div', { class: 'rl-home-vote', 'data-vote': v.vote },
-    m.votes.length > 1 ? h('p', { class: 'rl-home-votename' }, `The ${v.vote} vote`) : null,
-    h('ul', { class: 'rl-home-tokens' }, v.blocs.map((b) => h('li', { class: 'rl-home-token', 'data-group': b.group },
-      h('strong', {}, names.get(b.group) ?? b.group), ` ${b.yeas} yea, ${b.nays} nay`))),
-    h('p', { class: 'rl-home-line' },
-      `${need} yeas carry it. Counted today: ${v.yeas} yea, ${v.nays} nay: `,
-      h('strong', {}, short > 0 ? `short by ${short}` : 'it carries')));
+/** A bar's segment width on the 100-wide box: `n` of `total`, nothing below nought. */
+const share = (n, total) => (total > 0 ? Math.max(0, Math.min(100, (100 * Number(n)) / total)) : 0);
+
+/** A segment narrower than this share of its bar has no room for its number: it carries it in its name only. */
+export const NARROW = 8;
+
+/** The line that carries a vote, drawn on a bar of `total` seats; absent when the server sent no count. */
+const carryLine = (carries, total) => (Number.isFinite(carries)
+  ? svg('line', { class: 'rl-home-carry', x1: share(carries, total), x2: share(carries, total), y1: 0, y2: 10 }) : null);
+
+/** The count that carries a chamber's open vote: the first measure's first vote, as the server sent it; null with none. */
+function chamberCarries(chamber) {
+  const vote = (chamber.measures ?? []).flatMap((m) => m.votes ?? []).find((v) => Number.isFinite(v.carries));
+  return vote ? vote.carries : null;
 }
 
-/** One chamber of the floor: its blocs as tokens with their seats, then each open measure counted by bloc. */
-function chamberBlock(chamber) {
+/** A group's card, opened from its segment: the group's own token, in the chamber it sits in. */
+const blocCard = (home, key) => {
+  const g = (home.groups ?? []).find((x) => x.key === key);
+  return g ? groupToken(home, g) : null;
+};
+
+/** A count's yeas, seats not yet counted and nays as segments on a bar of `total` seats. */
+const countSegs = (yeas, nays, total) => {
+  const open = Math.max(0, total - yeas - nays);
+  return [['yeas', yeas, 0], ['open', open, yeas], ['nays', nays, yeas + open]]
+    .map(([kind, n, from]) => svg('rect', { class: `rl-home-vseg ${kind}`, 'data-kind': kind, x: share(from, total), y: 0, width: share(n, total), height: 10 }));
+};
+
+/**
+ * A vote's count at the seat's last wake beside its count now, as a bar and in words, with the
+ * blocs whose count moved since; null when the server sent no count then.
+ */
+function thenBlock(v, names, total) {
+  if (!Array.isArray(v.then)) return null;
+  const [yeas, nays] = v.then;
+  const moved = (v.blocs ?? []).filter((b) => b.moved && Array.isArray(b.then));
+  return h('div', { class: 'rl-home-then' },
+    svg('svg', {
+      class: 'rl-home-bar-box rl-home-thenbar', viewBox: '0 0 100 10', preserveAspectRatio: 'none', role: 'img', focusable: 'false',
+      'aria-label': `At your last wake: ${yeas} yea, ${nays} nay`,
+    }, countSegs(yeas, nays, total), carryLine(v.carries, total)),
+    h('p', { class: 'rl-home-thenline' }, `At your last wake: ${yeas} yea, ${nays} nay. Now: ${v.yeas} yea, ${v.nays} nay.`),
+    moved.length
+      ? h('p', { class: 'rl-home-thenmoved' }, `Moved since: ${moved.map((b) => `${names.get(b.group) ?? b.group}, ${b.then[0]} yea and ${b.then[1]} nay then`).join('; ')}`)
+      : null);
+}
+
+/** One vote on a measure: the yeas, the seats not yet counted and the nays as a bar with the line that carries it; a tap shows each bloc's count. */
+function voteBlock(m, v, names, total) {
+  const uncounted = Math.max(0, total - v.yeas - v.nays);
+  const hasLine = Number.isFinite(v.carries);
+  const short = hasLine ? v.carries - v.yeas : null;
+  const label = `${v.yeas} yea, ${uncounted} not yet counted, ${v.nays} nay${hasLine ? `; ${v.carries} yeas carry it` : ''}. Show each bloc's count`;
+  const tokens = h('ul', { class: 'rl-home-tokens', hidden: true }, v.blocs.map((b) => h('li', { class: `rl-home-token${b.moved ? ' moved' : ''}`, 'data-group': b.group },
+    h('strong', {}, names.get(b.group) ?? b.group), ` ${b.yeas} yea, ${b.nays} nay`,
+    b.moved && b.then ? h('span', { class: 'rl-home-was' }, `; ${b.then[0]} yea, ${b.then[1]} nay at your last wake`) : null)));
+  const bar = h('button', {
+    type: 'button', class: 'rl-home-votebar', 'aria-expanded': 'false', 'aria-label': label,
+    onclick: () => {
+      const show = bar.getAttribute('aria-expanded') !== 'true';
+      bar.setAttribute('aria-expanded', String(show));
+      tokens.toggleAttribute('hidden', !show);
+    },
+  }, svg('svg', { class: 'rl-home-bar-box', viewBox: '0 0 100 10', preserveAspectRatio: 'none', 'aria-hidden': 'true', focusable: 'false' },
+    countSegs(v.yeas, v.nays, total),
+    carryLine(v.carries, total)));
+  return h('div', { class: 'rl-home-vote', 'data-vote': v.vote },
+    m.votes.length > 1 ? h('p', { class: 'rl-home-votename' }, `The ${v.vote} vote`) : null,
+    bar,
+    tokens,
+    thenBlock(v, names, total),
+    h('p', { class: 'rl-home-line' },
+      hasLine ? `${v.carries} yeas carry it. ` : '', `Counted today: ${v.yeas} yea, ${v.nays} nay`,
+      hasLine ? [': ', h('strong', {}, short > 0 ? `short by ${short}` : 'it carries')] : null));
+}
+
+/** A chamber's seats as one bar split by bloc, each segment a button for its bloc's card, with the line that carries its open vote. */
+function seatBar(home, chamber, total) {
+  const card = h('div', { class: 'rl-home-bloccard', hidden: true });
+  let open = null;
+  let at = 0;
+  const segs = chamber.blocs.map((b, i) => {
+    const w = share(b.seats, total);
+    const x = at;
+    at += w;
+    const narrow = w < NARROW;
+    const pick = () => {
+      const same = open === b.group;
+      open = same ? null : b.group;
+      card.replaceChildren(...(same ? [] : [blocCard(home, b.group)].filter(Boolean)));
+      card.toggleAttribute('hidden', same || !card.firstChild);
+      for (const r of segEls) r.setAttribute('aria-pressed', String(r.getAttribute('data-group') === open));
+    };
+    return svg('rect', {
+      class: `rl-home-seg b${i % 7}`, 'data-group': b.group, 'data-narrow': narrow ? 'true' : null, x, y: 0, width: w, height: 10,
+      role: 'button', tabindex: '0', 'aria-pressed': 'false', 'aria-label': `${b.name}, ${b.seats} seats. Open its card`,
+      onclick: pick, onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } },
+    });
+  });
+  const segEls = segs;
+  const carries = chamberCarries(chamber);
+  const box = svg('svg', { class: 'rl-home-bar-box rl-home-seatbox', viewBox: '0 0 100 10', preserveAspectRatio: 'none', focusable: 'false' },
+    segs, carryLine(carries, total));
+  const legend = chamber.blocs.map((b) => (share(b.seats, total) < NARROW ? b.name : `${b.name} ${b.seats}`)).join(' · ');
+  return h('div', { class: 'rl-home-seatbar', 'data-total': String(total) },
+    box,
+    h('p', { class: 'rl-home-seatnote' }, legend, carries === null ? null : ` · ${carries} carry the vote`),
+    card);
+}
+
+/** One chamber of the floor: its seats as a bar split by bloc, then each open measure as a bar. */
+function chamberBlock(home, chamber) {
   const name = chamberName(chamber.key);
   const names = new Map(chamber.blocs.map((b) => [b.group, b.name]));
+  const total = chamber.blocs.reduce((n, b) => n + b.seats, 0);
   return h('section', { class: 'rl-home-chamber', 'data-chamber': chamber.key, 'aria-label': capital(name) },
     h('h4', {}, capital(name)),
-    h('ul', { class: 'rl-home-tokens rl-home-blocs' }, chamber.blocs.map((b) => h('li', { class: 'rl-home-token', 'data-group': b.group },
-      h('strong', {}, b.name), ` ${b.seats} seats`))),
+    seatBar(home, chamber, total),
     chamber.measures.length
       ? chamber.measures.map((m) => h('section', { class: 'rl-home-measure', 'data-order': m.order_id, 'aria-label': m.title },
-        h('h5', {}, m.title), m.votes.map((v) => voteBlock(m, v, names))))
+        h('h5', {}, m.title), m.votes.map((v) => voteBlock(m, v, names, total))))
       : h('p', { class: 'rl-home-nomeasure muted' }, `No measure of yours is before ${name}.`));
 }
 
@@ -200,6 +367,7 @@ export function homeSheet(home, { onSpeak, days = null } = {}) {
   return h('section', { class: 'rl-home-sheet', 'aria-label': `${home.nation.name} at home`, 'data-nation': home.nation.key },
     h('h3', {}, `${home.nation.name} at home`),
     h('p', { class: 'muted' }, `Counted for ${worldDate(home.day)}.`),
+    sinceSection(home),
     home.standing === null || home.standing === undefined ? null
       : h('p', { class: 'rl-home-standing' }, `Standing at home ${home.standing}${own?.band ? `: ${own.band}` : ''}`),
     h('button', { type: 'button', class: 'rl-btn rl-home-speak-btn', onclick: () => onSpeak?.() }, 'Speak to the nation'),
@@ -208,10 +376,11 @@ export function homeSheet(home, { onSpeak, days = null } = {}) {
       moved.length
         ? h('ul', {}, moved.map((g) => h('li', { 'data-group': g.key }, h('strong', {}, g.name), ' ', moveLine(g.last_moved))))
         : h('p', { class: 'muted' }, 'Nothing moved at the last close.')) : null,
+    placesSection(home),
     h('h4', {}, 'Groups'),
     h('ul', { class: 'rl-home-groups' }, (home.groups ?? []).map((g) => groupToken(home, g))),
     chambers.length
-      ? h('section', { class: 'rl-home-floor', 'aria-label': 'The floor' }, h('h4', {}, 'The floor'), chambers.map(chamberBlock))
+      ? h('section', { class: 'rl-home-floor', 'aria-label': 'The floor' }, h('h4', {}, 'The floor'), chambers.map((c) => chamberBlock(home, c)))
       : null);
 }
 
@@ -268,11 +437,28 @@ export function floorMeasures(home) {
   const out = [];
   for (const c of home?.chambers ?? []) {
     for (const m of c.measures ?? []) {
-      const counts = m.votes.map((v) => `${v.yeas} yea of the ${needed(v)} needed in ${m.votes.length > 1 ? `the ${v.vote} vote of ` : ''}${chamberName(c.key)}`);
+      const counts = m.votes.map((v) => `${v.yeas} yea${Number.isFinite(v.carries) ? ` of the ${v.carries} needed` : ''} in ${m.votes.length > 1 ? `the ${v.vote} vote of ` : ''}${chamberName(c.key)}`);
       out.push({ key: `${c.key}:${m.order_id}`, what: `${m.title}: ${counts.join('; ')}`, chamber: c.key });
     }
   }
   return out;
+}
+
+/** The standings of an offer that make it a promise the seat has made: taken, then due, then judged. */
+const PROMISED = new Set(['taken', 'due', 'kept', 'broken']);
+
+/** The promises the seat's nation has made, as its own home block sends them; none for any other nation's block. */
+export function promisesMade(home) {
+  if (home?.nation?.relation !== 'own') return [];
+  return (home.promises ?? []).filter((p) => PROMISED.has(p.standing));
+}
+
+/** Where promise `p` stands, in words `[proposed]`. */
+export function promiseWords(p) {
+  if (p.standing === 'kept') return `Kept${p.due ? `, due ${worldDate(p.due)}` : ''}`;
+  if (p.standing === 'broken') return `Broken${p.due ? `, due ${worldDate(p.due)}` : ''}`;
+  if (p.standing === 'due') return p.due ? `Due ${worldDate(p.due)}` : 'Due';
+  return 'Taken: owed once it passes';
 }
 
 /** A nation's band from the home block's standings, by its key; undefined when the block has none for it. */

@@ -12,7 +12,7 @@
 # into the nine staging worlds; the test pins the hash.
 extends: inner-asia.world.yaml
 places_of: australasia.places.yaml
-map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 4cec6c8f44764ce8152e4bce84b8a599e1927a71e18055e7378e9d567190f3f9, box: [-126, -60, 234, 84]}
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 07142a76288bad221c021cf8e43c0b38ca56fc21d50b7a2089d1ef72532bb86d, box: [-126, -60, 234, 84]}
 regions:
   - {key: australasia, name: Australasia and the Pacific Islands}
 territories:
@@ -25,11 +25,24 @@ territories:
   - {key: new_caledonia, name: New Caledonia and the New Hebrides, region: australasia, terrain: mountain, sites: [noumea, espiritu_santo]}
 adjacency:
   - [australia_east, australia_west]
+  - [australia_east, coral_sea]
+  - [australia_east, eastern_indian_ocean]
+  - [australia_east, south_pacific_west]
+  - [australia_east, tasman_sea]
+  - [australia_west, eastern_indian_ocean]
   - [central_pacific, japanese_mandate]
   - [central_pacific, south_pacific]
+  - [coral_sea, new_caledonia]
+  - [coral_sea, new_guinea]
   - [dutch_east_indies, new_guinea]
   - [japanese_mandate, philippine_sea]
+  - [new_caledonia, south_pacific_west]
   - [new_guinea, philippine_sea]
+  - [new_guinea, south_pacific_west]
+  - [new_zealand, south_pacific_west]
+  - [new_zealand, tasman_sea]
+  - [south_pacific, south_pacific_central]
+  - [south_pacific, south_pacific_west]
 entities:
   - {key: darwin, kind: location, name: Darwin, at: [-12.42, 130.88]}
   - {key: perth, kind: location, name: Perth, at: [-31.95, 115.86]}

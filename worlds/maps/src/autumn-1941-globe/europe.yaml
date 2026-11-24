@@ -177,7 +177,7 @@ territories:
     terrain_note: "fjords and mountains; no source cited"
     provinces: [
       NOR-900, NOR-75, NOR-925, NOR-911, NOR-919, NOR-917, NOR-924, NOR-1062, NOR-921, NOR-918,
-      NOR-923, NOR-922, NOR-912, NOR-916, NOR-914, NOR-913, NOR-915, NOR-910, NOR-920
+      NOR-923, NOR-922, NOR-912, NOR-916, NOR-914, NOR-913, NOR-915, NOR-910, NOR-920, NOR-901
     ]
   - key: sweden_area
     name: Sweden
@@ -320,7 +320,8 @@ territories:
       ESP-5830, ESP-5845, ESP-5810, ESP-5806, ESP-5839, ESP-5816, ESP-5817, ESP-5822, ESP-5826,
       ESP-5833, ESP-5843, ESP-5850, PRT-744, PRT-747, PRT-741, PRT-751, PRT-753, PRT-750, PRT-756,
       PRT-749, PRT-745, PRT-743, PRT-5498, PRT-746, PRT-748, PRT-740, PRT-752, PRT-739, PRT-754,
-      PRT-755, AND-4878, AND-4879, AND-4880, AND-4877, AND-4882, AND-4881, AND-4876
+      PRT-755, AND-4878, AND-4879, AND-4880, AND-4877, AND-4882, AND-4881, AND-4876, ESP-5815,
+      ESP-5835
     ]
   - key: switzerland_area
     name: Switzerland

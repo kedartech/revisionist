@@ -1308,3 +1308,148 @@ def test_the_pacific_proof_sheet_draws_the_region_and_its_cuts() -> None:
         assert name in sheet, name
     for c in _yaml(PACIFIC)["cuts"]:
         assert str(c["name"]) in sheet, c["name"]
+
+
+# ---------------------------------------------------------------- the whole globe
+
+GLOBE = ROOT / "worlds" / "maps" / "autumn-1941-globe.json"
+GLOBE_FRAGMENT = ROOT / "worlds" / "maps" / "autumn-1941-globe.world.yaml"
+GLOBE_SRC = ROOT / "worlds" / "maps" / "src" / "autumn-1941-globe"
+SOUTHERN = GLOBE_SRC / "southern-seas.yaml"
+SOUTHERN_STAGING = GLOBE_SRC / "southern-seas.world.yaml"
+OBJECTS = ROOT / "worlds" / "maps" / "objects"
+GLOBE_RECIPES = tuple(
+    GLOBE_SRC / f"{name}.yaml"
+    for name in (
+        "eastern-front",
+        "europe",
+        "atlantic",
+        "mediterranean",
+        "pacific",
+        "americas",
+        "africa",
+        "inner-asia",
+        "australasia",
+        "southern-seas",
+    )
+)
+# The 29 sea zones the globe map had before the southern seas; they keep their keys.
+EARLIER_SEA_ZONES = 29
+# The sea routes the record gives, as steps from zone to zone.
+SEA_ROUTES = {
+    "round the Cape": (
+        "gulf_of_guinea",
+        "south_atlantic_east",
+        "cape_waters",
+        "western_indian_ocean",
+    ),
+    "through the Red Sea to Suez": ("arabian_sea", "red_sea", "eastern_mediterranean"),
+    "across the Indian Ocean to Australia": (
+        "western_indian_ocean",
+        "eastern_indian_ocean",
+        "australia_west",
+    ),
+    "round Cape Horn": ("south_atlantic_west", "chile_peru_waters", "american_pacific"),
+}
+# The canals, each a plain step between its two zones, and the territory each lies in.
+CANALS = {
+    "the Suez Canal": (("eastern_mediterranean", "red_sea"), (32.3, 30.6), "egypt"),
+    "the Panama Canal": (("american_pacific", "caribbean_sea"), (-79.7, 9.1), "central_america"),
+}
+
+
+def _globe() -> Any:
+    return json.loads(GLOBE.read_text())
+
+
+def _globe_pairs() -> list[frozenset[str]]:
+    return [
+        frozenset((e["a"], e["b"]) if isinstance(e, dict) else (e[0], e[1]))
+        for e in _yaml(GLOBE_FRAGMENT)["adjacency"]
+    ]
+
+
+def test_the_globe_map_says_whole_and_leaves_nothing_to_the_backdrop() -> None:
+    raw = _globe()
+    assert raw["cover"] == "whole"
+    assert raw["backdrop"] == []
+    assert raw["box"] == [-126, -60, 234, 84]
+    assert _yaml(SOUTHERN)["map"]["cover"] == "whole"
+
+
+def test_the_globe_map_passes_the_map_check() -> None:
+    assert [str(p) for p in mc.check(_globe())] == []
+
+
+def test_the_globe_map_is_the_ten_recipes_areas_and_no_others() -> None:
+    keys = {
+        str(a["key"])
+        for recipe in GLOBE_RECIPES
+        for block in ("territories", "sea_zones", "rivers")
+        for a in _yaml(recipe).get(block) or []
+    }
+    assert set(_globe()["areas"]) == keys
+
+
+def test_the_southern_seas_add_sea_zones_and_the_earlier_zones_keep_their_keys() -> None:
+    new = [str(z["key"]) for z in _yaml(SOUTHERN)["sea_zones"]]
+    assert len(new) >= 16
+    assert not _yaml(SOUTHERN).get("territories")
+    fragment = _yaml(GLOBE_FRAGMENT)
+    seas = [str(z["key"]) for z in fragment["sea_zones"]]
+    assert len(seas) == EARLIER_SEA_ZONES + len(new)
+    assert set(new) <= set(seas)
+    for z in _yaml(SOUTHERN)["sea_zones"]:
+        assert z["region"] == "southern_seas", z["key"]
+        assert z["terrain"] == "sea", z["key"]
+
+
+@pytest.mark.parametrize("route", sorted(SEA_ROUTES))
+def test_each_sea_route_of_the_record_is_a_chain_of_steps(route: str) -> None:
+    pairs = set(_globe_pairs())
+    for a, b in itertools.pairwise(SEA_ROUTES[route]):
+        assert frozenset((a, b)) in pairs, (route, a, b)
+
+
+def test_each_step_is_listed_once() -> None:
+    pairs = _globe_pairs()
+    assert len(pairs) == len(set(pairs))
+    assert all(len(p) == 2 for p in pairs)
+
+
+@pytest.mark.parametrize("canal", sorted(CANALS))
+def test_each_canal_is_a_plain_step_in_the_territory_it_crosses(canal: str) -> None:
+    (a, b), (x, y), territory = CANALS[canal]
+    crossings = [e for e in _yaml(GLOBE_FRAGMENT)["adjacency"] if isinstance(e, dict)]
+    assert {"a": a, "b": b, "crossing": canal} in crossings
+    assert not mc.adjacent(_globe(), a, b), canal
+    inside, border = mc.locate(_globe(), x, y)
+    assert inside == [territory] and not border, canal
+    holders = {str(h["territory"]): h for h in _yaml(GLOBE_SRC / "start.yaml")["holders"]}
+    assert holders[territory].get("gap") is True or holders[territory].get("source"), canal
+
+
+def test_the_pacific_meets_the_atlantic_only_at_panama_and_round_the_horn() -> None:
+    pacific = {"american_pacific", "chile_peru_waters", "eastern_pacific", "south_pacific_east"}
+    atlantic = {"caribbean_sea", "western_atlantic", "central_atlantic", "south_atlantic_west"}
+    links = {tuple(sorted(p)) for p in _globe_pairs() if p & pacific and p & atlantic}
+    assert links == {
+        ("american_pacific", "caribbean_sea"),
+        ("chile_peru_waters", "south_atlantic_west"),
+    }
+
+
+def test_the_southern_seas_staging_world_names_the_committed_map_and_is_checked() -> None:
+    sha = hashlib.sha256(GLOBE.read_bytes()).hexdigest()
+    assert _yaml(SOUTHERN_STAGING)["map"]["sha256"] == sha
+    assert _yaml(GLOBE_FRAGMENT)["map"]["sha256"] == sha
+    assert (OBJECTS / f"{sha}.json").read_bytes() == GLOBE.read_bytes()
+    assert sha in (OBJECTS / "MANIFEST").read_text().split()
+    report = mc.check_region(SOUTHERN_STAGING)
+    assert [str(p) for p in report.problems] == []
+
+
+def test_the_whole_map_proof_sheet_draws_the_new_zones() -> None:
+    sheet = (ROOT / "worlds" / "maps" / "proof" / "autumn-1941-whole.svg").read_text()
+    for z in _yaml(SOUTHERN)["sea_zones"]:
+        assert str(z["name"]) in sheet, z["key"]

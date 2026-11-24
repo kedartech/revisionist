@@ -249,5 +249,5 @@ sea_zones:
     name: The White Sea and the Barents
     region: eastern_front
     terrain: sea
-    polygon: [[28.0, 69.6], [32.0, 64.0], [45.0, 64.0], [52.0, 66.5], [52.0, 71.0], [28.0, 71.0]]
+    polygon: [[28.0, 69.6], [32.0, 63.5], [45.0, 63.5], [52.0, 66.5], [52.0, 71.0], [28.0, 71.0]]
 crossings: []

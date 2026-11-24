@@ -84,31 +84,71 @@ function conferences(rv) {
     && (me ? (c.invited ?? []).includes(me) : (c.can_vote || Boolean(c.vote))));
 }
 
+/** The seat's own nation's capital line, as the server sends it; null for none. */
+export const ownCapital = (rv) => (rv?.capitals ?? []).find((c) => c.nation.relation === 'own') ?? null;
+
+/** The capital line of the nation whose capital stands at `place`, matched by its name; null for none. */
+export const capitalAt = (rv, place) => (place ? (rv?.capitals ?? []).find((c) => c.place?.name === place.name) ?? null : null);
+
+/** What each kind of question the server lists is called on its row. */
+export const KIND_WORDS = Object.freeze({
+  measure: 'A vote', offer: 'Offers to the blocs', office: 'An office question', election: 'An election',
+  held: 'A held order', ask: 'Asked of you', peace: 'A peace to answer', agreement: 'An agreement',
+  vote: 'A public vote', result: 'A sitting decided',
+});
+
 /**
- * The nation's live questions, in the left column's order: each `{ key, kind, kindWords, title,
- * decides, count, days }` and the block it came from. `count` is `{ yeas, carries, total }` for a
- * vote whose line the server sent, else null; `days` is the days left the view gives, else null.
+ * Question `s` of the seat's capital line as a row, with the block it points at; null when that
+ * block does not hold the line it names, so a row stands only for data the view sent.
  */
-export function capitalQuestions(rv) {
-  const out = [];
-  const home = ownHome(rv);
-  for (const { m, chamber } of measures(home)) {
+function serverRow(rv, home, s, today) {
+  const days = s.day && today ? daysBetween(today, s.day) : null;
+  const base = { key: `${s.kind}:${s.ref}`, kind: s.kind, kindWords: KIND_WORDS[s.kind] ?? s.kind, title: s.title, decides: s.decider.who, decider: s.decider, count: null, days: days !== null && days >= 0 ? days : null, server: s };
+  if (s.at === 'home.chambers') {
+    const found = measures(home).find((x) => x.m.order_id === s.ref);
+    if (!found) return null;
+    const { m, chamber } = found;
     const v = m.votes?.[0] ?? null;
     const total = v ? seatsIn(home, v.vote) || seatsIn(home, chamber.key) : 0;
-    out.push({
-      key: `vote:${m.order_id}`, kind: 'vote', kindWords: 'A vote', title: m.title,
+    return {
+      ...base, key: `vote:${m.order_id}`, kind: 'vote', kindWords: KIND_WORDS.measure, title: m.title,
       decides: capital((m.votes ?? []).map((x) => chamberName(x.vote)).join(', then ') || chamberName(chamber.key)),
       count: v && Number.isFinite(v.carries) ? { yeas: v.yeas, carries: v.carries, total } : null,
       days: null, measure: m, chamber,
-    });
+    };
   }
-  for (const l of rv?.locks?.held ?? []) {
-    out.push({ key: `held:${l.id}`, kind: 'held', kindWords: 'A held order', title: l.words, decides: l.who, count: null, days: null, held: l });
+  if (s.at === 'locks.held') {
+    const l = (rv?.locks?.held ?? []).find((x) => x.id === s.ref);
+    return l ? { ...base, key: `held:${l.id}`, title: l.words, held: l } : null;
   }
-  for (const a of rv?.locks?.asks ?? []) {
-    out.push({ key: `ask:${a.id}`, kind: 'ask', kindWords: 'Asked of you', title: a.words, decides: 'You', count: null, days: null, ask: a });
+  if (s.at === 'locks.asks') {
+    const a = (rv?.locks?.asks ?? []).find((x) => x.id === s.ref);
+    return a ? { ...base, key: `ask:${a.id}`, title: a.words, decides: 'You', ask: a } : null;
   }
+  if (s.at === 'home.office') {
+    const entry = officeQuestions(home).find((x) => x.q?.question_id === s.ref);
+    if (!entry) return null;
+    const { q, result } = entry;
+    return {
+      ...base, key: `office:${s.ref}`, title: q.office, decides: result ? 'Decided' : officeDeciders(q),
+      days: !result && today && q.sits ? daysBetween(today, q.sits) : null, office: entry,
+    };
+  }
+  return base;
+}
+
+/**
+ * The nation's live questions, in the left column's order: first the server's list for the
+ * seat's own capital, each `{ key, kind, kindWords, title, decides, count, days }` with the block
+ * it points at, then what the seat itself carries (the conferences it is invited to, its contests
+ * and mandates, a decided office question's result, and its posts with no question open). `count`
+ * is `{ yeas, carries, total }` for a vote whose line the server sent, else null; `days` is the
+ * days left the view gives, else null.
+ */
+export function capitalQuestions(rv) {
+  const home = ownHome(rv);
   const today = rv?.clock?.world_date ?? null;
+  const out = (ownCapital(rv)?.questions ?? []).map((s) => serverRow(rv, home, s, today)).filter(Boolean);
   for (const c of conferences(rv)) {
     const days = today && c.voting_day ? daysBetween(today, c.voting_day) : null;
     out.push({ key: `conf:${c.key}`, kind: 'conference', kindWords: 'A conference', title: c.text, decides: (c.invited ?? []).join(', '), count: null, days, conference: c });
@@ -119,21 +159,31 @@ export function capitalQuestions(rv) {
   (rv?.stakes?.mandates ?? []).forEach((s, i) => {
     out.push({ key: `mandate:${i}`, kind: 'mandate', kindWords: 'Your mandate', title: s.text, decides: 'You', count: null, days: s.days_left ?? null, mandate: s });
   });
-  // the office questions of the seat's nation, each drawn by who decides it, then the holder's own
-  // posts with none open on them, so his office always stands in the list
-  for (const entry of officeQuestions(home)) {
-    const { q, result } = entry;
-    const id = (q ?? result).question_id;
-    out.push({
-      key: `office:${id}`, kind: 'office', kindWords: 'An office question', title: (q ?? result).office,
-      decides: result ? 'Decided' : officeDeciders(q), count: null,
-      days: !result && today && q.sits ? daysBetween(today, q.sits) : null, office: entry,
-    });
+  for (const entry of officeQuestions(home).filter((x) => !x.q)) {
+    const id = entry.result.question_id;
+    out.push({ key: `office:${id}`, kind: 'office', kindWords: KIND_WORDS.office, title: entry.result.office, decides: 'Decided', count: null, days: null, office: entry });
   }
+  // the holder's own posts with none open on them, so his office always stands in the list
   for (const f of footingOf(home).filter((x) => !x.question)) {
     out.push({ key: `footing:${f.office}`, kind: 'footing', kindWords: 'Your office', title: f.office, decides: 'no one yet: no question is open on it', count: null, days: null, footing: f });
   }
   return out;
+}
+
+/**
+ * Another nation's capital as a sheet over the map: the public lines of its capital line, each
+ * with its kind, who decided it and its day; nothing else of that nation's is drawn.
+ */
+export function capitalSheet(line) {
+  const name = line.nation.name;
+  return h('section', { class: 'rl-cap-sheet', 'data-nation': name, 'aria-label': `${name}: its public record` },
+    line.place ? h('p', { class: 'rl-cap-note' }, `Its capital: ${line.place.name}`) : null,
+    line.questions.length
+      ? h('ul', { class: 'rl-cap-public', role: 'list' }, line.questions.map((q) => h('li', { class: `rl-cap-pub k-${q.kind}`, 'data-key': `${q.kind}:${q.ref}` },
+        h('span', { class: 'rl-cap-qkind' }, KIND_WORDS[q.kind] ?? q.kind, ' · ', q.decider.who),
+        h('span', { class: 'rl-cap-qtitle' }, q.title),
+        q.day ? h('span', { class: 'rl-cap-qline' }, `${capital(DAY_WORDS[q.kind] ?? 'on')} ${worldDate(q.day)}`) : null)))
+      : h('p', { class: 'rl-cap-note' }, `Nothing of ${name}'s is public yet.`));
 }
 
 /** Who decides an office question, by the shape the server sends. */
@@ -469,22 +519,42 @@ const markFor = (rv, key) => (key ? (rv?.map?.marks ?? []).find((m) => m.piece?.
 /** The words between two links of a chain. */
 const link = (word) => h('p', { class: 'rl-cap-link' }, word);
 
-/** Who decides a held order, as its shape: one person and those with access, or a council at its table, or the chambers above. */
-function deciderShape(rv, l, onPerson) {
-  const one = rosterLine(rv, l.who);
-  if (one) {
-    const access = (rv?.people?.yours ?? []).filter((p) => p.name !== l.who).map((line) => ({ line, tab: 'yours' }));
+/**
+ * Who decides a question, in the shape the server sends: one person and those with access to
+ * him, a council at its table with its members, or a body (the chambers above, when in view).
+ */
+function deciderShape(rv, d, onPerson) {
+  if (d.shape === 'person') {
+    const one = rosterLine(rv, d.who);
+    const access = (rv?.people?.yours ?? []).filter((p) => p.name !== d.who).map((line) => ({ line, tab: 'yours' }));
     return h('section', { class: 'rl-cap-one', 'aria-label': 'One person decides' },
       h('h4', { class: 'rl-cap-h' }, 'One person decides'),
-      h('ul', { class: 'rl-cap-tokens', role: 'list' }, h('li', {}, personToken(one.line, one.tab, { onOpen: onPerson }))),
+      h('ul', { class: 'rl-cap-tokens', role: 'list' }, h('li', {}, one ? personToken(one.line, one.tab, { onOpen: onPerson }) : stepName(d.who))),
       tokens(access, onPerson, 'Those with access', 'rl-cap-people rl-cap-access'));
   }
-  if (ownHome(rv)?.chambers?.length) return null; // the chambers are in the head
-  return h('section', { class: 'rl-cap-council', 'aria-label': 'A council decides' },
-    h('h4', { class: 'rl-cap-h' }, 'A council decides'),
-    h('div', { class: 'rl-cap-table' }, h('p', { class: 'rl-cap-tablename' }, l.who)),
-    h('p', { class: 'rl-cap-note' }, 'Who sits on it is not in your view.'));
+  if (d.shape === 'body' && ownHome(rv)?.chambers?.length) return null; // the chambers are in the head
+  const members = d.members ?? [];
+  return h('section', { class: 'rl-cap-council', 'aria-label': d.shape === 'council' ? 'A council decides' : 'A body decides' },
+    h('h4', { class: 'rl-cap-h' }, d.shape === 'council' ? 'A council decides' : 'A body decides'),
+    h('div', { class: 'rl-cap-table' }, h('p', { class: 'rl-cap-tablename' }, d.who)),
+    members.length
+      ? h('table', { class: 'rl-cap-members' },
+        h('caption', {}, `Who sits on ${d.who}`),
+        h('tbody', {}, members.map((name) => {
+          const line = rosterLine(rv, name);
+          return h('tr', { 'data-member': name }, h('td', {}, line ? personToken(line.line, line.tab, { onOpen: onPerson }) : name));
+        })))
+      : h('p', { class: 'rl-cap-note' }, 'Who sits on it is not in your view.'));
 }
+
+/** A question of a kind the board draws no chain for: its day and who decides it. */
+function serverMiddle(rv, q, on) {
+  const day = q.server.day ? h('p', { class: 'rl-cap-note' }, `${capital(DAY_WORDS[q.server.kind] ?? 'on')} ${worldDate(q.server.day)}`) : null;
+  return [day, deciderShape(rv, q.decider, on.person)];
+}
+
+/** What a question's day is, by its kind. */
+const DAY_WORDS = Object.freeze({ peace: 'lapses', election: 'held', agreement: 'published', vote: 'counted', result: 'decided' });
 
 function heldMiddle(rv, q, on) {
   const l = q.held;
@@ -513,7 +583,7 @@ function heldMiddle(rv, q, on) {
           ? h('p', { class: 'rl-cap-qtitle' }, `You have asked ${l.who} for leave`)
           : [h('p', { class: 'rl-cap-qtitle' }, `Whether ${l.who} gives leave`),
             h('button', { type: 'button', class: 'primary rl-cap-ask', 'data-key': 'ask', onclick: () => on.ask(l) }, `Ask ${l.who}`)])),
-    deciderShape(rv, l, on.person),
+    deciderShape(rv, q.decider, on.person),
   ];
 }
 
@@ -770,7 +840,8 @@ export function capitalBoard(rv, state, on = {}) {
               : q.kind === 'conference' ? conferenceMiddle(rv, q, ctx)
                 : q.kind === 'office' ? officePanel(q.office, ctx)
                   : q.kind === 'footing' ? footingMiddle(q)
-                    : stakeMiddle(q);
+                    : q.server ? serverMiddle(rv, q, ctx)
+                      : stakeMiddle(q);
     return [
       head,
       footingStrip(home, { onQuestion: (key) => set({ q: key, vote: 0, pick: null, offer: null }, key) }),

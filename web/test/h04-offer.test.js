@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
+import { capitalLines } from './capital-line.js';
 import { installDom, words } from './dom-fake.js';
 
 installDom();
@@ -58,6 +59,7 @@ function seat(change = () => {}) {
     promises: [],
   };
   change(rv);
+  rv.capitals = capitalLines(rv);
   return rv;
 }
 

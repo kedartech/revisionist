@@ -19,6 +19,7 @@ import { intelTokens, tokenBar, tokenChip, tokenOrder, tokenTargets } from './re
 import { territoryDrawing, territoryView } from './realism-territory.js';
 import { formCheck, heldOn, isLocked, keptCheck, lockCheck, lockedChoice, locksOn } from './realism-locks.js';
 import { diplomacyKey } from './realism-diplomacy.js';
+import { capitalAt, ownCapital } from './realism-capital.js';
 
 const LAND_URL = '/assets/land-110m.json';
 let coast = null;
@@ -295,21 +296,51 @@ function ghostList(waits, act) {
       }, 'Withdraw')))));
 }
 
+/** What the seat's own capital is called on its pin `[proposed]`. */
+export const OWN_CAPITAL_WORD = 'Your capital';
+
 /**
- * `theatreBoard(rv, ui, { pick, act, open })`: the map for the board's main area. A mark picked on
+ * The map with the seat's own capital among the leaders' capitals, where the server places it,
+ * so the seat can pick it; the map as it came when the server places none or the map holds no
+ * leader's capital.
+ */
+export function withOwnCapital(rv, map) {
+  const own = ownCapital(rv);
+  // it joins the leaders' capitals on the Diplomatic layer; with none of theirs there is no such layer to join
+  if (!own?.place || !(map.capitals ?? []).length || map.capitals.some((c) => c.place.name === own.place.name)) return map;
+  return { ...map, capitals: [...(map.capitals ?? []), { place: own.place, name: own.nation.name, stance: { word: OWN_CAPITAL_WORD }, at_war: false }] };
+}
+
+/**
+ * What picking a capital does: the nation the server names at that place opens, through
+ * `onCapital(line)` (the seat's own its Capital board, another nation's its public lines); a
+ * capital the server names no nation for opens its leader's card.
+ */
+function capitalPick(rv, onCapital) {
+  const card = capitalOpener(rv.people);
+  return (c) => {
+    const line = onCapital ? capitalAt(rv, c.place) : null;
+    return line ? () => onCapital(line) : card(c);
+  };
+}
+
+/**
+ * `theatreBoard(rv, ui, { pick, act, open, onCapital })`: the map for the board's main area. A mark picked on
  * the map or found from the list is `pick({ piece: { kind: 'force', name } })`; the Map or
  * List, the scope and the layer switches are `pick({ theatre })`, and so are a picked report
  * (`theatre.report`), the threats switch (`theatre.threats`) and an intelligence token picked up
  * and put down (`theatre.token`, `theatre.tokenAt`), an open battle (`theatre.battle`) and a fall-back
  * area being picked for a battle or a standing order (`theatre.battlePick`). A report's paper, and a
- * battle known only from the press, opens with `open({ id })`.
+ * battle known only from the press, opens with `open({ id })`. Given `onCapital`, the
+ * seat's own capital joins the leaders' and a capital picked is `onCapital(line)` with the
+ * server's line for its nation.
  * The piece's details are in the board's side panel, so the map view's own detail block is left out.
  * `hooks` are the room's for the map, handed to the map's own options as they are: `overlay`
  * (true in the map-first room: the map draws its controls over itself) and `onFull(on)` (the map
  * asks the room for the whole viewport). `hooksFor(view)` reads them back from the drawn view.
  */
-export function theatreBoard(rv, ui, { pick, act, open, hooks = {} } = {}) {
-  const map = rv.map;
+export function theatreBoard(rv, ui, { pick, act, open, onCapital, hooks = {} } = {}) {
+  const map = rv.map && onCapital ? withOwnCapital(rv, rv.map) : rv.map;
   if (!map) {
     return h('section', { class: 'rl-map rl-theatre' },
       h('h2', {}, 'Map'), h('p', { class: 'muted' }, 'No page has placed anything yet.'));
@@ -333,7 +364,7 @@ export function theatreBoard(rv, ui, { pick, act, open, hooks = {} } = {}) {
     ...hooks,
     theatres: true,
     selected: ui.piece?.kind === 'force' ? ui.piece.name : null,
-    openCapital: capitalOpener(rv.people),
+    openCapital: capitalPick(rv, onCapital),
     standings: rv.home?.standings ?? null, // a held territory's sheet shows its holder's band at home
     diplomacy: () => diplomacyKey(rv), // the Diplomatic layer's key, drawn under the map on that layer
     held: locksOn(rv) ? (m) => heldOn(rv, m) : null, // the seat's held orders on each of its pieces, as the server names them (LKM)

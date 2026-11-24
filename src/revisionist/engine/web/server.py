@@ -123,6 +123,7 @@ SEALED_BY_COMMIT = frozenset(
         "conference-vote",
         "ask",
         "offer",
+        "move",
     }
 )
 """Actions that file or change an order, or answer another seat's request: held for the
@@ -181,6 +182,7 @@ REALISM_ACTIONS = (
     "battle",
     "contingency",
     "agreement-publish",
+    "move",
     "conference-call",
     "conference-vote",
     "report",
@@ -650,6 +652,11 @@ class App:
                     asks, label = _battle_asks(state, seat, action, body)
                     realism_tick.commit_order(store, cid, seat, asks)
                     reply = f"Sent: {label}."  # [proposed]
+                elif action == "move":  # a move of post (PPR)
+                    ask = locks_api.move_ask(state, seat, *_move_args(body))
+                    check = locks_api.check_asks(state, seat, (ask,))
+                    realism_tick.commit_order(store, cid, seat, (ask,))
+                    reply = check["reason"] if check["check"] != "allowed" else f"Sent: {ask.ask}."
                 elif action == "agreement-publish":
                     asks, label = agreements_api.publish_asks(state, seat, body)
                     realism_tick.commit_order(store, cid, seat, asks)
@@ -684,6 +691,8 @@ class App:
             return locks_api.check_form(state, seat, _text(body, "lever", 120), _params(body))
         if "price" in body:  # a draft offer to a bloc (PRR)
             return locks_api.check_offer(state, seat, *_offer_args(body))
+        if "move" in body:  # a move of post (PPR)
+            return locks_api.check_move(state, seat, *_move_args(body))
         with self._lock:
             reading = self._readings.get((state.campaign_id, seat))
         if reading is not None and reading.vote is not None:
@@ -729,7 +738,8 @@ class App:
             with self._lock:
                 reading = self._readings.get((cid, seat))
         args, label = _held_args(store, state, seat, action, body, reading)
-        held_id = held_orders.hold(store, cid, seat, wake.number, action, args, label)
+        kept = "file" if action == "move" else action  # a move of post is a written order
+        held_id = held_orders.hold(store, cid, seat, wake.number, kept, args, label)
         if held_id is None:
             return {"reply": SEALED, "refused": True}
         if action == "file":
@@ -1241,6 +1251,9 @@ def _held_args(
     if action == "agreement-publish":
         asks, label = agreements_api.publish_asks(state, seat, body)
         return {"asks": [a.model_dump(mode="json") for a in asks]}, label
+    if action == "move":
+        ask = locks_api.move_ask(state, seat, *_move_args(body))
+        return {"asks": [ask.model_dump(mode="json")]}, ask.ask
     if action == "conference-call":
         return conferences_api.call_args(state, seat, body)
     if action == "conference-vote":
@@ -1278,6 +1291,11 @@ def _battle_asks(
 def _offer_args(body: dict[str, Any]) -> tuple[str, str, str]:
     """The bloc, the measure and the price of an ``offer`` or a draft offer's check."""
     return _text(body, "bloc", 64), _text(body, "measure", 64), _text(body, "price", 64)
+
+
+def _move_args(body: dict[str, Any]) -> tuple[str, str, str]:
+    """The person, the post and the move of a ``move`` or a move's check (PPR)."""
+    return _text(body, "person", 64), _text(body, "post", 64), _text(body, "move", 20)
 
 
 def _refused_note(reason: str) -> str:

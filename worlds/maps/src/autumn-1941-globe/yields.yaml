@@ -530,6 +530,138 @@ territories:
     oil: {amount: 1.0, gap: true, named_source: lon_yearbook_1941, basis: 'Trinidad''s fields, about 3 million tonnes'}
     supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Port of Spain, Fort-de-France]}
     prestige: {amount: 2, gap: true, named_source: lane_choice, basis: 'a colony''s seat'}
+  - key: french_west_africa
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the federation''s works, counted with the French State''s own share'}
+    manpower: {amount: 15.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 15.0 million people: French West Africa with French Togo'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Dakar, Bamako]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: 'a federation''s seat'}
+  - key: british_west_africa
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the colonies'' works, counted in Britain''s share'}
+    manpower: {amount: 25.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 25.0 million people: Nigeria, the Gold Coast with British Togoland, Sierra Leone and the Gambia'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Freetown, Lagos, Takoradi]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: 'a colony''s seat'}
+  - key: french_equatorial_africa
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the federation''s works, counted with Free France''s own share'}
+    manpower: {amount: 6.5, gap: true, named_source: lon_yearbook_1941, basis: 'about 6.5 million people: French Equatorial Africa and the French and British Cameroons'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Brazzaville, Fort-Lamy]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: 'Free France''s seat in Africa'}
+  - key: belgian_congo
+    industry: {amount: 0.05, gap: true, named_source: kennedy_1987, basis: the Katanga copper mines and smelters}
+    manpower: {amount: 14.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 14.0 million people: the Belgian Congo with Ruanda-Urundi'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Leopoldville, Elisabethville]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: 'the government in London''s colony'}
+  - key: sudan
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the Sudan''s works, counted in Britain''s share'}
+    manpower: {amount: 6.3, gap: true, named_source: lon_yearbook_1941, basis: 'about 6.3 million people: the Anglo-Egyptian Sudan'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Khartoum, Port Sudan]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: 'a condominium''s seat'}
+  - key: ethiopia
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 9.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 9.0 million people: Ethiopia less the Gondar pocket'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Addis Ababa, Dessie]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: 'an empire''s restored capital'}
+  - key: gondar
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the garrison''s works, counted in Italy''s share'}
+    manpower: {amount: 0.5, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.5 million people: the Gondar pocket north of Lake Tana'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Gondar]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: the last Italian garrison}
+  - key: horn_of_africa
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the colonies'' works, counted in Britain''s share'}
+    manpower: {amount: 2.7, gap: true, named_source: lon_yearbook_1941, basis: 'about 2.7 million people: Eritrea, Italian and British Somaliland'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Massawa, Mogadishu, Berbera]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: the conquered colonies}
+  - key: french_somaliland
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 0.05, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.05 million people: French Somaliland'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Djibouti]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: a colonial port}
+  - key: british_east_africa
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the colonies'' works, counted in Britain''s share'}
+    manpower: {amount: 13.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 13.0 million people: Kenya, Uganda, Tanganyika with Zanzibar, the Seychelles and Mauritius'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Mombasa, Dar es Salaam]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: 'a colony''s seat'}
+  - key: angola
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 3.8, gap: true, named_source: lon_yearbook_1941, basis: 'about 3.8 million people: Angola with Sao Tome and Principe'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Luanda, Lobito]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: 'a colony''s seat'}
+  - key: mozambique
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 5.1, gap: true, named_source: lon_yearbook_1941, basis: 'about 5.1 million people: Mozambique'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Lourenco Marques, Beira]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: 'a colony''s seat'}
+  - key: rhodesias
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the copper belt''s works, counted in Britain''s share'}
+    manpower: {amount: 4.5, gap: true, named_source: lon_yearbook_1941, basis: 'about 4.5 million people: Southern and Northern Rhodesia and Nyasaland'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Salisbury, Broken Hill]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: 'a colony''s seat'}
+  - key: south_africa
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the Union''s works, counted in Britain''s share'}
+    manpower: {amount: 11.9, gap: true, named_source: lon_yearbook_1941, basis: 'about 11.9 million people: the Union, South West Africa, Bechuanaland, Basutoland and Swaziland'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Cape Town, Durban]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: 'a dominion''s capital'}
+  - key: madagascar
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 4.5, gap: true, named_source: lon_yearbook_1941, basis: 'about 4.5 million people: Madagascar, the Comoros, Mayotte and Reunion'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Diego-Suarez, Tananarive]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: 'a colony''s seat and the Diego-Suarez base'}
+  - key: arabia
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 6.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 6.0 million people: Saudi Arabia and the Kingdom of Yemen'}
+    oil: {amount: 0.2, gap: true, named_source: minerals_yearbook, basis: 'the Dhahran field, about 0.6 million tonnes'}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Riyadh, Jeddah, Dhahran]}
+    prestige: {amount: 3, gap: true, named_source: lane_choice, basis: 'a kingdom''s capital and the holy cities'}
+  - key: aden_gulf
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'Aden''s works, counted in Britain''s share'}
+    manpower: {amount: 1.4, gap: true, named_source: lon_yearbook_1941, basis: 'about 1.4 million people: the Aden colony and protectorates, Muscat and Oman, the Trucial States, Qatar, Bahrain and Kuwait'}
+    oil: {amount: 0.3, gap: true, named_source: minerals_yearbook, basis: 'the Bahrain field, about 1 million tonnes'}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Aden, Manama, Kuwait]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: 'a colony''s seat and the Gulf''s oil'}
+  - key: spanish_sahara
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 0.7, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.7 million people: the Canaries and Spanish Sahara'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Las Palmas]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: colonial islands}
+  - key: liberia
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 1.5, gap: true, named_source: lon_yearbook_1941, basis: 'about 1.5 million people: Liberia'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Monrovia]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: a small republic}
+  - key: portuguese_guinea
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 0.7, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.7 million people: Portuguese Guinea and Cape Verde'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Bissau, Mindelo]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: 'a colony''s seat'}
+  - key: spanish_guinea
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 0.17, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.17 million people: Rio Muni and Fernando Po'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Santa Isabel]}
+    prestige: {amount: 1, gap: true, named_source: lane_choice, basis: 'a colony''s seat'}
+  - key: azores_madeira
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: 'the islands'' works, counted with Portugal''s own share'}
+    manpower: {amount: 0.5, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.5 million people: the Azores and Madeira'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Ponta Delgada, Lajes]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: the mid-Atlantic islands}
   - key: french_north_africa
     industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: Algerian and Moroccan works}
     manpower: {amount: 14.0, gap: true, named_source: lon_yearbook_1941, basis: 'about 14.0 million people: French Morocco and Algeria'}

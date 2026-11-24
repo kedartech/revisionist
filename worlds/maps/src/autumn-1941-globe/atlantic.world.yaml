@@ -16,7 +16,7 @@
 # the others are sites on land. London and Washington are inland and have no port entry.
 extends: europe.world.yaml
 places_of: ../../../autumn-1941.yaml
-map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 0edc786f13276e0d61175d88781dc02fa5769350fc58a9f576b2c14ede4fc745, box: [-126, -60, 234, 84]}
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 62adb291937ba2f3aec6f20a292f35ef3b5b2f1b0058c5cfc79356a16e599346, box: [-126, -60, 234, 84]}
 regions:
   - {key: atlantic, name: The Atlantic}
 territories:

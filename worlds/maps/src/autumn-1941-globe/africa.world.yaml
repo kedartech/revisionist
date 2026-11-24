@@ -1,0 +1,131 @@
+# The scoped check's staging world for the 1941 map's seventh region (Africa and Arabia):
+#   python scripts/map_check.py check --region worlds/maps/src/autumn-1941-globe/africa.world.yaml
+# It extends the Americas region's staging world, which extends the Pacific's, the Mediterranean's,
+# the Atlantic's, Europe's and the pilot's, so the check reads all seven: the map block here is the
+# newest, the territories, sea zones, adjacency and sites in scope are the seven files' lists joined.
+# Its blocks are the build's world fragment (worlds/maps/autumn-1941-globe.world.yaml) as built, this
+# region's territories and every adjacency pair that names one of them; the region adds no sea zone.
+# The sites in scope are the region's 43 new places, entered here and in africa.places.yaml,
+# which `places_of` names in place of the world file (the world file is not edited by this item).
+# Rebuild the map, then copy the fragment's blocks into the seven staging worlds; the test pins the
+# hash.
+#
+# The islands with no neighbour until the sea zones of the South Atlantic and the Indian Ocean are
+# drawn: the Azores and Madeira, Cape Verde (with Portuguese Guinea, so the area has its mainland
+# neighbours), the Canaries (with Spanish Sahara) and Madagascar.
+extends: americas.world.yaml
+places_of: africa.places.yaml
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 62adb291937ba2f3aec6f20a292f35ef3b5b2f1b0058c5cfc79356a16e599346, box: [-126, -60, 234, 84]}
+regions:
+  - {key: africa, name: Africa and Arabia}
+territories:
+  - {key: french_west_africa, name: French West Africa, region: africa, terrain: plain, sites: [dakar, bamako]}
+  - {key: british_west_africa, name: British West Africa, region: africa, terrain: forest, sites: [freetown, lagos, takoradi]}
+  - {key: french_equatorial_africa, name: French Equatorial Africa and the Cameroons, region: africa, terrain: plain, sites: [brazzaville, fort_lamy]}
+  - {key: belgian_congo, name: The Belgian Congo, region: africa, terrain: forest, sites: [leopoldville, elisabethville]}
+  - {key: sudan, name: The Sudan, region: africa, terrain: plain, sites: [khartoum, port_sudan]}
+  - {key: ethiopia, name: Ethiopia, region: africa, terrain: mountain, sites: [addis_ababa, dessie]}
+  - {key: gondar, name: Gondar, region: africa, terrain: mountain, sites: [gondar_town]}
+  - {key: horn_of_africa, name: Eritrea and the Somalilands, region: africa, terrain: plain, sites: [massawa, mogadishu, berbera]}
+  - {key: french_somaliland, name: French Somaliland, region: africa, terrain: plain, sites: [djibouti]}
+  - {key: british_east_africa, name: British East Africa, region: africa, terrain: plain, sites: [mombasa, dar_es_salaam]}
+  - {key: angola, name: Angola, region: africa, terrain: plain, sites: [luanda, lobito]}
+  - {key: mozambique, name: Mozambique, region: africa, terrain: forest, sites: [lourenco_marques, beira]}
+  - {key: rhodesias, name: The Rhodesias and Nyasaland, region: africa, terrain: plain, sites: [salisbury, broken_hill]}
+  - {key: south_africa, name: South Africa, region: africa, terrain: plain, sites: [cape_town, durban]}
+  - {key: madagascar, name: Madagascar, region: africa, terrain: forest, sites: [diego_suarez, tananarive]}
+  - {key: arabia, name: Arabia, region: africa, terrain: plain, sites: [riyadh, jeddah, dhahran]}
+  - {key: aden_gulf, name: Aden and the Gulf coast, region: africa, terrain: plain, sites: [aden, manama, kuwait_town]}
+  - {key: spanish_sahara, name: Spanish Sahara and the Canaries, region: africa, terrain: plain, sites: [las_palmas]}
+  - {key: liberia, name: Liberia, region: africa, terrain: forest, sites: [monrovia]}
+  - {key: portuguese_guinea, name: Portuguese Guinea and Cape Verde, region: africa, terrain: forest, sites: [bissau, mindelo]}
+  - {key: spanish_guinea, name: Spanish Guinea, region: africa, terrain: forest, sites: [santa_isabel]}
+  - {key: azores_madeira, name: The Azores and Madeira, region: africa, terrain: mountain, sites: [ponta_delgada, lajes]}
+adjacency:
+  - [aden_gulf, arabia]
+  - [aden_gulf, iraq]
+  - [angola, belgian_congo]
+  - [angola, french_equatorial_africa]
+  - [angola, rhodesias]
+  - [angola, south_africa]
+  - [arabia, iraq]
+  - [arabia, levant]
+  - [azores_madeira, gibraltar_approaches]
+  - [belgian_congo, british_east_africa]
+  - [belgian_congo, french_equatorial_africa]
+  - [belgian_congo, rhodesias]
+  - [belgian_congo, sudan]
+  - [british_east_africa, ethiopia]
+  - [british_east_africa, horn_of_africa]
+  - [british_east_africa, mozambique]
+  - [british_east_africa, rhodesias]
+  - [british_east_africa, sudan]
+  - [british_west_africa, french_equatorial_africa]
+  - [british_west_africa, french_west_africa]
+  - [british_west_africa, liberia]
+  - [cyrenaica, french_equatorial_africa]
+  - [cyrenaica, sudan]
+  - [egypt, sudan]
+  - [ethiopia, french_somaliland]
+  - [ethiopia, gondar]
+  - [ethiopia, horn_of_africa]
+  - [ethiopia, sudan]
+  - [french_equatorial_africa, french_west_africa]
+  - [french_equatorial_africa, spanish_guinea]
+  - [french_equatorial_africa, sudan]
+  - [french_equatorial_africa, tripolitania]
+  - [french_north_africa, french_west_africa]
+  - [french_north_africa, spanish_sahara]
+  - [french_somaliland, horn_of_africa]
+  - [french_west_africa, liberia]
+  - [french_west_africa, portuguese_guinea]
+  - [french_west_africa, spanish_sahara]
+  - [french_west_africa, tripolitania]
+  - [horn_of_africa, sudan]
+  - [mozambique, rhodesias]
+  - [mozambique, south_africa]
+  - [rhodesias, south_africa]
+entities:
+  - {key: dakar, kind: location, name: Dakar, at: [14.69, -17.44]}
+  - {key: bamako, kind: location, name: Bamako, at: [12.64, -8.0]}
+  - {key: freetown, kind: location, name: Freetown, at: [8.48, -13.23]}
+  - {key: lagos, kind: location, name: Lagos, at: [6.44, 3.37]}
+  - {key: takoradi, kind: location, name: Takoradi, at: [4.89, -1.75]}
+  - {key: brazzaville, kind: location, name: Brazzaville, at: [-4.27, 15.28]}
+  - {key: fort_lamy, kind: location, name: Fort-Lamy, at: [12.11, 15.04]}
+  - {key: leopoldville, kind: location, name: Leopoldville, at: [-4.32, 15.31]}
+  - {key: elisabethville, kind: location, name: Elisabethville, at: [-11.66, 27.48]}
+  - {key: khartoum, kind: location, name: Khartoum, at: [15.59, 32.53]}
+  - {key: port_sudan, kind: location, name: Port Sudan, at: [19.62, 37.22]}
+  - {key: addis_ababa, kind: location, name: Addis Ababa, at: [9.03, 38.74]}
+  - {key: dessie, kind: location, name: Dessie, at: [11.13, 39.63]}
+  - {key: gondar_town, kind: location, name: Gondar, at: [12.61, 37.47]}
+  - {key: massawa, kind: location, name: Massawa, at: [15.63, 39.42]}
+  - {key: mogadishu, kind: location, name: Mogadishu, at: [2.05, 45.32]}
+  - {key: berbera, kind: location, name: Berbera, at: [10.44, 45.01]}
+  - {key: djibouti, kind: location, name: Djibouti, at: [11.55, 43.12]}
+  - {key: mombasa, kind: location, name: Mombasa, at: [-4.0, 39.69]}
+  - {key: dar_es_salaam, kind: location, name: Dar es Salaam, at: [-6.79, 39.21]}
+  - {key: luanda, kind: location, name: Luanda, at: [-8.84, 13.23]}
+  - {key: lobito, kind: location, name: Lobito, at: [-12.35, 13.55]}
+  - {key: lourenco_marques, kind: location, name: Lourenco Marques, at: [-25.95, 32.54]}
+  - {key: beira, kind: location, name: Beira, at: [-19.82, 34.87]}
+  - {key: salisbury, kind: location, name: Salisbury, at: [-17.83, 31.05]}
+  - {key: broken_hill, kind: location, name: Broken Hill, at: [-14.45, 28.45]}
+  - {key: cape_town, kind: location, name: Cape Town, at: [-33.92, 18.42]}
+  - {key: durban, kind: location, name: Durban, at: [-29.86, 31.02]}
+  - {key: diego_suarez, kind: location, name: Diego-Suarez, at: [-12.28, 49.29]}
+  - {key: tananarive, kind: location, name: Tananarive, at: [-18.91, 47.54]}
+  - {key: riyadh, kind: location, name: Riyadh, at: [24.71, 46.68]}
+  - {key: jeddah, kind: location, name: Jeddah, at: [21.49, 39.19]}
+  - {key: dhahran, kind: location, name: Dhahran, at: [26.29, 50.11]}
+  - {key: aden, kind: location, name: Aden, at: [12.85, 45.03]}
+  - {key: manama, kind: location, name: Manama, at: [26.23, 50.59]}
+  - {key: kuwait_town, kind: location, name: Kuwait, at: [29.37, 47.98]}
+  - {key: las_palmas, kind: location, name: Las Palmas, at: [28.12, -15.43]}
+  - {key: monrovia, kind: location, name: Monrovia, at: [6.31, -10.76]}
+  - {key: bissau, kind: location, name: Bissau, at: [11.86, -15.6]}
+  - {key: mindelo, kind: location, name: Mindelo, at: [16.89, -24.98]}
+  - {key: santa_isabel, kind: location, name: Santa Isabel, at: [3.75, 8.78]}
+  - {key: ponta_delgada, kind: location, name: Ponta Delgada, at: [37.74, -25.67]}
+  - {key: lajes, kind: location, name: Lajes, at: [38.76, -27.09]}

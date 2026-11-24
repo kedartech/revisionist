@@ -1,6 +1,6 @@
 # Built by scripts/map_build.py from the recipe autumn-1941-globe; simplify coverage, tolerance 0.05.
 # Do not edit by hand: change the recipe and build again.
-map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 0edc786f13276e0d61175d88781dc02fa5769350fc58a9f576b2c14ede4fc745, box: [-126, -60, 234, 84]}
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 62adb291937ba2f3aec6f20a292f35ef3b5b2f1b0058c5cfc79356a16e599346, box: [-126, -60, 234, 84]}
 regions:
   - {key: eastern_front, name: The Eastern Front}
   - {key: europe, name: Europe}
@@ -8,6 +8,7 @@ regions:
   - {key: mediterranean, name: The Mediterranean and the Middle East}
   - {key: pacific, name: China}
   - {key: americas, name: The Americas}
+  - {key: africa, name: Africa and Arabia}
 territories:
   - {key: the_north, name: The North, region: eastern_front, terrain: forest, sites: [archangel]}
   - {key: leningrad_area, name: Leningrad, region: eastern_front, terrain: forest, sites: [leningrad]}
@@ -104,6 +105,28 @@ territories:
   - {key: chile, name: Chile, region: americas, terrain: mountain, sites: [valparaiso, punta_arenas]}
   - {key: falklands, name: The Falkland Islands, region: americas, terrain: plain, sites: [port_stanley]}
   - {key: lesser_antilles, name: The Lesser Antilles and Trinidad, region: americas, terrain: mountain, sites: [port_of_spain, fort_de_france]}
+  - {key: french_west_africa, name: French West Africa, region: africa, terrain: plain, sites: [dakar, bamako]}
+  - {key: british_west_africa, name: British West Africa, region: africa, terrain: forest, sites: [freetown, lagos, takoradi]}
+  - {key: french_equatorial_africa, name: French Equatorial Africa and the Cameroons, region: africa, terrain: plain, sites: [brazzaville, fort_lamy]}
+  - {key: belgian_congo, name: The Belgian Congo, region: africa, terrain: forest, sites: [leopoldville, elisabethville]}
+  - {key: sudan, name: The Sudan, region: africa, terrain: plain, sites: [khartoum, port_sudan]}
+  - {key: ethiopia, name: Ethiopia, region: africa, terrain: mountain, sites: [addis_ababa, dessie]}
+  - {key: gondar, name: Gondar, region: africa, terrain: mountain, sites: [gondar_town]}
+  - {key: horn_of_africa, name: Eritrea and the Somalilands, region: africa, terrain: plain, sites: [massawa, mogadishu, berbera]}
+  - {key: french_somaliland, name: French Somaliland, region: africa, terrain: plain, sites: [djibouti]}
+  - {key: british_east_africa, name: British East Africa, region: africa, terrain: plain, sites: [mombasa, dar_es_salaam]}
+  - {key: angola, name: Angola, region: africa, terrain: plain, sites: [luanda, lobito]}
+  - {key: mozambique, name: Mozambique, region: africa, terrain: forest, sites: [lourenco_marques, beira]}
+  - {key: rhodesias, name: The Rhodesias and Nyasaland, region: africa, terrain: plain, sites: [salisbury, broken_hill]}
+  - {key: south_africa, name: South Africa, region: africa, terrain: plain, sites: [cape_town, durban]}
+  - {key: madagascar, name: Madagascar, region: africa, terrain: forest, sites: [diego_suarez, tananarive]}
+  - {key: arabia, name: Arabia, region: africa, terrain: plain, sites: [riyadh, jeddah, dhahran]}
+  - {key: aden_gulf, name: Aden and the Gulf coast, region: africa, terrain: plain, sites: [aden, manama, kuwait_town]}
+  - {key: spanish_sahara, name: Spanish Sahara and the Canaries, region: africa, terrain: plain, sites: [las_palmas]}
+  - {key: liberia, name: Liberia, region: africa, terrain: forest, sites: [monrovia]}
+  - {key: portuguese_guinea, name: Portuguese Guinea and Cape Verde, region: africa, terrain: forest, sites: [bissau, mindelo]}
+  - {key: spanish_guinea, name: Spanish Guinea, region: africa, terrain: forest, sites: [santa_isabel]}
+  - {key: azores_madeira, name: The Azores and Madeira, region: africa, terrain: mountain, sites: [ponta_delgada, lajes]}
 sea_zones:
   - {key: baltic_sea, name: The Baltic Sea, region: eastern_front, terrain: sea}
   - {key: black_sea, name: The Black Sea, region: eastern_front, terrain: sea}
@@ -135,6 +158,8 @@ sea_zones:
   - {key: central_pacific, name: The Central Pacific, region: pacific, terrain: sea}
   - {key: eastern_pacific, name: The Eastern Pacific, region: pacific, terrain: sea}
 adjacency:
+  - [aden_gulf, arabia]
+  - [aden_gulf, iraq]
   - [aegean_sea, central_mediterranean]
   - [aegean_sea, dodecanese]
   - [aegean_sea, eastern_mediterranean]
@@ -153,6 +178,12 @@ adjacency:
   - [andes, chile]
   - [andes, colombia_venezuela]
   - [andes, river_plate]
+  - [angola, belgian_congo]
+  - [angola, french_equatorial_africa]
+  - [angola, rhodesias]
+  - [angola, south_africa]
+  - [arabia, iraq]
+  - [arabia, levant]
   - [arctic_route_area, denmark_strait]
   - [arctic_route_area, greenland]
   - [arctic_route_area, iceland]
@@ -161,6 +192,7 @@ adjacency:
   - [arctic_route_area, norway]
   - [arctic_route_area, western_approaches_area]
   - [arctic_route_area, white_sea]
+  - [azores_madeira, gibraltar_approaches]
   - [balkans, black_sea]
   - [balkans, central_mediterranean]
   - [balkans, germany_south]
@@ -185,6 +217,10 @@ adjacency:
   - [bay_of_biscay, iberia]
   - [bay_of_biscay, mid_ocean_gap]
   - [bay_of_biscay, occupied_france]
+  - [belgian_congo, british_east_africa]
+  - [belgian_congo, french_equatorial_africa]
+  - [belgian_congo, rhodesias]
+  - [belgian_congo, sudan]
   - [belorussia, east_prussia]
   - [belorussia, kiev_area]
   - [belorussia, leningrad_area]
@@ -208,8 +244,16 @@ adjacency:
   - [britain_south, english_channel]
   - [britain_south, north_sea]
   - [britain_south, western_approaches_area]
+  - [british_east_africa, ethiopia]
+  - [british_east_africa, horn_of_africa]
+  - [british_east_africa, mozambique]
+  - [british_east_africa, rhodesias]
+  - [british_east_africa, sudan]
   - [british_islands, central_mediterranean]
   - [british_islands, eastern_mediterranean]
+  - [british_west_africa, french_equatorial_africa]
+  - [british_west_africa, french_west_africa]
+  - [british_west_africa, liberia]
   - [burma, indochina]
   - [burma, szechwan]
   - [burma, thailand]
@@ -244,6 +288,8 @@ adjacency:
   - [crimea, odessa_area]
   - [cyrenaica, eastern_mediterranean]
   - [cyrenaica, egypt]
+  - [cyrenaica, french_equatorial_africa]
+  - [cyrenaica, sudan]
   - [cyrenaica, tobruk_area]
   - [cyrenaica, tripolitania]
   - [danish_straits, denmark]
@@ -291,9 +337,14 @@ adjacency:
   - [eastern_pacific, north_pacific]
   - [eastern_pacific, western_canada]
   - [egypt, levant]
+  - [egypt, sudan]
   - [english_channel, mid_ocean_gap]
   - [english_channel, occupied_france]
   - [english_channel, western_approaches_area]
+  - [ethiopia, french_somaliland]
+  - [ethiopia, gondar]
+  - [ethiopia, horn_of_africa]
+  - [ethiopia, sudan]
   - [finland, gulf_of_bothnia]
   - [finland, leningrad_area]
   - [finland, norway]
@@ -302,10 +353,21 @@ adjacency:
   - [finland, white_sea]
   - [formosa, philippine_sea]
   - [formosa, south_china_sea]
+  - [french_equatorial_africa, french_west_africa]
+  - [french_equatorial_africa, spanish_guinea]
+  - [french_equatorial_africa, sudan]
+  - [french_equatorial_africa, tripolitania]
+  - [french_north_africa, french_west_africa]
   - [french_north_africa, gibraltar_approaches]
+  - [french_north_africa, spanish_sahara]
   - [french_north_africa, tripolitania]
   - [french_north_africa, tunisia]
   - [french_north_africa, western_mediterranean]
+  - [french_somaliland, horn_of_africa]
+  - [french_west_africa, liberia]
+  - [french_west_africa, portuguese_guinea]
+  - [french_west_africa, spanish_sahara]
+  - [french_west_africa, tripolitania]
   - [germany_east, germany_south]
   - [germany_east, germany_west]
   - [germany_east, hungary_slovakia]
@@ -326,6 +388,7 @@ adjacency:
   - [gulf_of_bothnia, sweden_area]
   - [hong_kong, south_china_coast]
   - [hong_kong, south_china_sea]
+  - [horn_of_africa, sudan]
   - [hunan, south_china]
   - [hunan, szechwan]
   - [hunan, wuhan_area]
@@ -397,6 +460,8 @@ adjacency:
   - [moscow_area, smolensk_area]
   - [moscow_area, upper_volga]
   - [moscow_area, voronezh]
+  - [mozambique, rhodesias]
+  - [mozambique, south_africa]
   - [newfoundland, western_atlantic]
   - [newfoundland, western_canada]
   - [north_china, northwest_china]
@@ -420,6 +485,7 @@ adjacency:
   - [philippine_sea, philippines]
   - [philippine_sea, south_china_sea]
   - [philippines, south_china_sea]
+  - [rhodesias, south_africa]
   - [romania, western_ukraine]
   - [sea_of_japan, soviet_far_east]
   - [smolensk_area, voronezh]

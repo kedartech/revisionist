@@ -1427,6 +1427,9 @@ class CapitalLine(TypedDict):
     only what another nation's public record gives."""
 
     nation: MapNation
+    place: MapPlace | None
+    """The nation's capital as the map draws it; None for a nation with none, or one
+    with no position (an area)."""
     questions: list[CapitalQuestion]
 
 

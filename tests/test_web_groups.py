@@ -419,6 +419,14 @@ def test_the_seats_own_capital_comes_first_and_lists_a_measure_before_its_chambe
     points_home(sent, g.log)
 
 
+def test_a_capital_line_names_its_capital_where_the_map_draws_it(tmp_path: Path) -> None:
+    from tests.test_holders import capital as sited
+
+    own, other = realism(game(tmp_path, sited("sudland", "sudby")))["capitals"]
+    assert own["place"] is None
+    assert other["place"] == {"name": "Sudby", "lat": 40.0, "lon": 60.0, "theatre": None}
+
+
 def test_another_nations_measure_is_not_in_its_capital(tmp_path: Path) -> None:
     g = fixture_game(tmp_path)
     assert capital(realism(g, "tomas"), "Norra") == []

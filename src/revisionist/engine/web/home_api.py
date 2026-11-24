@@ -70,6 +70,7 @@ from revisionist.engine.web.realism_api import (
     HomeTheme,
     LiveOffer,
     MapArea,
+    MapPlace,
     NationStanding,
     OfferBloc,
     OfferMeasure,
@@ -731,8 +732,19 @@ def capitals(
         polity = keys[n["key"]]
         found = _own_questions(state, view, sent) if polity == own else []
         found += _public_questions(state, sent, log, polity, n["name"])
-        out.append(CapitalLine(nation=n, questions=found))
+        out.append(
+            CapitalLine(nation=n, place=_capital_place(state, view, polity), questions=found)
+        )
     return out
+
+
+def _capital_place(state: State, view: View, polity: EntityId) -> MapPlace | None:
+    """``polity``'s capital as the map draws it; None for none, or for one with no position."""
+    site = state.map.capitals.get(polity) if state.map is not None else None
+    place = view.entities.get(site) if site is not None else None
+    if place is None or place.at is None:
+        return None
+    return MapPlace(name=place.name, lat=place.at[0], lon=place.at[1], theatre=place.theatre)
 
 
 def _decider(shape: CapitalShape, who: str, members: Sequence[str]) -> CapitalDecider:

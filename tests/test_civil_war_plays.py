@@ -17,10 +17,14 @@ import pytest
 from revisionist.core import events as ev
 from revisionist.core.ids import SeatId
 from revisionist.core.ontology import Phase
-from revisionist.core.realism import territory
+from revisionist.core.realism import locks, territory
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import PostCause
-from revisionist.core.realism.effect import Appointment
+from revisionist.core.realism.effect import Appointment, MakeStatement
+from revisionist.core.realism.offers import OfferStanding
+from revisionist.core.realism.pipeline import OrderStatus
+from revisionist.core.realism.resolvers import qid
+from revisionist.engine import realism_tick
 from tests import test_salt_strait_plays as ssp
 from tests.async_table import answer_days, digest, papers
 from tests.commanders_script import Game, Nation, Script
@@ -95,6 +99,115 @@ def test_aims_are_scored_at_the_seasons_end(union: Game) -> None:
     assert union.logged(ev.GoalMet)
 
 
+# --- a lock opened by a vote -----------------------------------------------------------
+
+CONFEDERACY = Nation(
+    key="csa",
+    commander="bragg",
+    head="davis",
+    order=("invade", {"force": "army_of_mississippi", "to": "lexington_ky"}),
+    row="kentucky_invasion",
+    allow=(("send_bill", {"bill": "cs_draft_law", "urgency": "ordinary"}),),
+)
+"""The Confederate cast: Bragg files the invasion of Kentucky the draft-law lock holds;
+Davis sends the draft law, and the Confederate Congress's vote opens the lock."""
+
+
+def chattanooga_a_base(w: World) -> None:
+    """Chattanooga a Confederate base for armies, as it was Bragg's for the Kentucky
+    campaign. The shipped world names no base there, so the invasion its own lock holds is
+    beyond the army's reach and cannot be filed."""
+    for e in w["entities"]:
+        if e.get("key") == "chattanooga":
+            e["base"] = {"sides": ["csa"], "domains": ["land"]}
+
+
+@pytest.fixture(scope="module")
+def confederacy(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Game]:
+    with pytest.MonkeyPatch.context() as m:
+        world = shipped(WORLD, (chattanooga_a_base,))
+        g = Game(CONFEDERACY, tmp_path_factory.mktemp("csa"), m, world=world)
+        g.play(Script(to_season_end=True))
+        yield g
+
+
+def test_the_locked_order_is_opened_by_the_congress_vote(confederacy: Game) -> None:
+    g = confederacy
+    (held,) = g.logged(ev.OrderHeld)
+    (asked,) = g.logged(ev.OrderAsked)
+    assert asked.asked.order_id == held.held.order_id
+    (bill,) = [g.state.orders[o] for o in g.played.allowed]
+    assert bill.status is OrderStatus.ENACTED
+    assert g.state.quantities[qid(g.state, "cs_draft_law_passed")].value == 1
+    (end,) = g.ends()
+    assert end.end is locks.HeldEnd.LANDED
+    assert g.landed() in g.state.orders
+
+
+# --- an offer to a bloc whose promise comes due ----------------------------------------
+
+BLOC, MEASURE, PRICE = "democrats", "us_emancipation_measure", "presidents_word"
+
+
+def democrats_priced(w: World) -> None:
+    """The House Democrats take a price for the emancipation measure: the President's
+    word for the Union within fourteen days of the act. No bloc of the shipped world names
+    a price, so no offer could be made to one."""
+    price = {
+        "key": PRICE,
+        "sentence": "The President speaks to the country for the Union within fourteen days"
+        " of the act.",
+        "condition": {"check": "ordered", "person": "lincoln", "effect": "statement"},
+        "days": 14,
+        "points": 1,
+        "loss": 3,
+    }
+    for d in w["groups"]:
+        for g in d["groups"]:
+            if d["nation"] == "usa" and g["key"] == BLOC:
+                g.setdefault("prices", []).append(price)
+
+
+class Priced(Game):
+    """The Union season with the head pricing his bill to the House Democrats on the day he
+    sends it, and keeping the price once the act is law."""
+
+    offer_id: str | None = None
+    kept: str | None = None
+
+    def _steps(self) -> None:
+        super()._steps()
+        assert self.head is not None
+        if self.played.allowed and self.offer_id is None:
+            with self.ids.drawn_by("head:offer"):
+                made = realism_tick.make_offer(
+                    self.store, self.campaign, self.head, BLOC, MEASURE, PRICE
+                )
+            self.offer_id = made.offer_id
+        passed = self.state.quantities[qid(self.state, f"{MEASURE}_passed")]
+        if self.kept is None and passed.value == 1:
+            word = Ask(ask="Speak for the Union", effect=MakeStatement(theme="the_union"))
+            with self.ids.drawn_by("head:keep"):
+                order = realism_tick.commit_order(self.store, self.campaign, self.head, [word])
+            self.kept = order.order_id
+
+
+@pytest.fixture(scope="module")
+def priced(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Priced]:
+    with pytest.MonkeyPatch.context() as m:
+        world = shipped(WORLD, (democrats_priced,))
+        g = Priced(UNION, tmp_path_factory.mktemp("priced"), m, world=world)
+        g.play(Script(to_season_end=True))
+        yield g
+
+
+def test_an_offer_is_made_to_a_bloc_and_its_promise_comes_due(priced: Priced) -> None:
+    g = priced
+    assert g.offer_id is not None and g.kept is not None
+    standings = [e.standing for e in g.logged(ev.OfferSettled) if e.offer_id == g.offer_id]
+    assert standings == [OfferStanding.TAKEN, OfferStanding.DUE, OfferStanding.KEPT]
+
+
 # --- the head relieves the general, who plays on ---------------------------------------
 
 POTOMAC = "potomac_command"
@@ -117,7 +230,7 @@ def lincoln_appoints(w: World) -> None:
 
 
 class UnionFall(Fall):
-    people = ("mcclellan", "halleck", "lincoln")
+    people = ("mcclellan", "halleck", "stanton", "lincoln")
 
 
 def appointment(g: Fall, appoint: bool) -> Ask:
@@ -289,7 +402,8 @@ def test_3_presence_buys_nothing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     the same outcome digest. The control files one form fewer and differs."""
     digests: dict[str, str] = {}
     filed: dict[str, int] = {}
-    for name, script in {**PRESENCE, "control": [held_back]}.items():
+    scripts: dict[str, list[Step]] = {**PRESENCE, "control": [held_back]}
+    for name, script in scripts.items():
         with monkeypatch.context() as m:
             g = ssp.run_wakes(ssp.Game(CAST, tmp_path / name.replace(" ", "-"), m), script)
             filed[name] = len([o for o in g.state.orders.values() if o.issuer == g.attacker])

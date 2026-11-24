@@ -218,6 +218,8 @@ class QuestionCause(StrEnum):
     """An order would take the holder's last authority (LDR's question move)."""
     TERM = "term"
     """The holder's term ended."""
+    ELECTION = "election"
+    """An election names the post (ELE)."""
 
 
 class OfficeQuestion(Model):

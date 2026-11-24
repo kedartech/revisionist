@@ -8,10 +8,11 @@ notice and the same sitting apply to every seat, whether a person, the aide or c
 it.
 
 What a post rests on (``rests_on``) and how its holder is removed (``removed_by``) are world
-data on its ``Ladder``, read only with ``office`` on. A question opens for one of four
+data on its ``Ladder``, read only with ``office`` on. A question opens for one of five
 causes: its base turned (TUR), an incident, an order that would take the holder's last
-authority (LDR's question move), or the end of a term. While it runs the holder plays on
-and keeps every move. At the sitting it is decided by the post's way of removal:
+authority (LDR's question move), the end of a term, or an election naming the post
+(ELE). While it runs the holder plays on and keeps every move. At the sitting it is
+decided by the post's way of removal:
 
 - ``vote``: the chamber's blocs, each from its row for the vote on ``MEASURE`` (its
   default row when the world lists none), as a bill's vote is counted;
@@ -19,6 +20,10 @@ and keeps every move. At the sitting it is decided by the post's way of removal:
   member who filed none, his card's choice on the day (``card_choice``); the aide never
   files one;
 - ``term``: removed.
+
+A question an election opened is decided by the election instead: the holder is removed
+when the mean support of what the post rests on stands under ``ELECTION_LINE``; it needs no
+way of removal.
 
 Removed: the post goes on by ``post_changed`` (to the order's appointee, else to nobody,
 and the day's succession walk gives it to its successor). Kept: no question on that post
@@ -64,6 +69,9 @@ WARN_DAYS = 14
 """Under the line this many world days running: the holder's seat is warned. [proposed]"""
 TURN_DAYS = 21
 """Under the line this many world days running: the office question opens. [proposed]"""
+ELECTION_LINE = 50
+"""An election naming a post removes its holder while the mean support of what the post
+rests on stands under this line on its day. [proposed]"""
 MEASURE = "office_question"
 """The measure a chamber's blocs vote on at a sitting: their row for it, else their
 default row for the vote."""
@@ -128,19 +136,19 @@ def questions(state: State, of: EntityId) -> tuple[OfficeQuestion, ...]:
     return tuple(sorted(found, key=lambda q: (q.sits, q.question_id)))
 
 
-def refusal(state: State, post: AssetId, today: date) -> str:
-    """Why no office question may open on ``post`` today; empty when one may."""
+def refusal(state: State, post: AssetId, today: date, cause: QuestionCause | None = None) -> str:
+    """Why no office question may open on ``post`` today, for ``cause``; empty when one may."""
     if not on(state):
         return NOT_ON
     office = state.assets[post].name if post in state.assets else post
-    if removal(state, post) is None:
+    if cause is not QuestionCause.ELECTION and removal(state, post) is None:
         return f"nobody can put the holder of {office} out of it"
     if posts.holder(state, post) is None:
         return f"{office} has no holder"
     if open_on(state, post) is not None:
         return f"a question on {office} is open already"
     rests = state.office_rests.get(post)
-    if rests is not None and today < rests:
+    if rests is not None and today < rests and cause is not QuestionCause.ELECTION:
         return f"the holder of {office} was kept; no question on it before {rests.isoformat()}"
     return ""
 
@@ -157,12 +165,14 @@ def open_question(
     move_id: str | None = None,
     *,
     in_walk: bool = False,
+    sits: date | None = None,
 ) -> list[ev.Payload]:
     """The events that open an office question on ``post`` today: the question, and one
     paper the same day to every seat of the holder's nation. ``in_walk``: opened in a day
-    walk, after the wake's orders are in. Raises ``ValueError`` with the reason one may not
+    walk, after the wake's orders are in. ``sits``: the day it sits, when later than
+    ``SITTING_DAYS`` ahead. Raises ``ValueError`` with the reason one may not
     open (``refusal``)."""
-    why = refusal(state, post, today)
+    why = refusal(state, post, today, cause)
     if why:
         raise ValueError(why)
     holder = posts.holder(state, post)
@@ -177,7 +187,7 @@ def open_question(
         move_id=move_id,
         opened=today,
         tick=first_wake(state, in_walk),
-        sits=today + timedelta(days=SITTING_DAYS),
+        sits=max(today + timedelta(days=SITTING_DAYS), sits or today),
     )
     return [ev.OfficeQuestionOpened(question=question), _notice(state, question)]
 
@@ -211,9 +221,10 @@ def _notice(state: State, q: OfficeQuestion) -> ev.DocumentIssued:
 
 
 def deciders(state: State, q: OfficeQuestion) -> tuple[EntityId, ...]:
-    """Who decides the question by a choice: a council's members, or the one person."""
+    """Who decides the question by a choice: a council's members, or the one person; none
+    for a question an election opened."""
     way = removal(state, q.post)
-    if way is None:
+    if way is None or q.cause is QuestionCause.ELECTION:
         return ()
     if way.way is RemovalWay.COUNCIL:
         return way.members
@@ -265,7 +276,11 @@ def _choice(state: State, q: OfficeQuestion, member: EntityId) -> bool:
 
 
 def removed(state: State, q: OfficeQuestion) -> bool:
-    """Whether the sitting removes the holder, by the post's way of removal."""
+    """Whether the sitting removes the holder, by the post's way of removal, or, for a
+    question an election opened, by its base on the day."""
+    if q.cause is QuestionCause.ELECTION:
+        mean = base_support(state, q.post)
+        return mean is not None and mean < ELECTION_LINE
     way = removal(state, q.post)
     if way is None:
         return False
@@ -456,6 +471,7 @@ def turning(state: State, today: date) -> list[ev.Payload]:
 
 
 __all__ = [
+    "ELECTION_LINE",
     "MEASURE",
     "NOT_A_MEMBER",
     "NOT_ON",

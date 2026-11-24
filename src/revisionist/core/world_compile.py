@@ -520,6 +520,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
             "groups",
             "happenings",
             "places",
+            "elections",
             "pacts",
             "conferences",
             "locks",
@@ -538,6 +539,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_groups(world, problems)
     _check_happenings(world, problems)
     _check_places(world, problems)
+    _check_elections(world, problems)
     _check_prices(world, sections, problems)
     _check_contest_moves(world, sections, problems)
     _check_aim_rules(world, sections, problems)
@@ -1446,6 +1448,37 @@ def _check_places(world: WorldFile, problems: list[str]) -> None:
             ]
 
 
+def _check_elections(world: WorldFile, problems: list[str]) -> None:
+    """Each election (ELE): a polity's chambers that have blocs with seats, a day after the
+    start, and a post that is an office (resting on nothing, its holder is never removed);
+    the chambers are read with the rule on, as a world with it off may list no groups.
+    ``elections`` needs groups. With the rule off they are checked and left out of the
+    game."""
+    if Rule.ELECTIONS in world.rules and Rule.GROUPS not in world.rules:
+        problems.append("rules: elections needs groups")
+    kinds = {d.key: d.kind for d in world.entities}
+    offices = {a.key: a for a in world.assets if a.kind is AssetKind.OFFICE}
+    chambers = {d.nation: {g.chamber for g in d.groups if g.seats} for d in world.groups}
+    for e in world.elections:
+        where = f"elections {e.nation} {e.day.isoformat()}"
+        if kinds.get(e.nation) is not EntityKind.POLITY:
+            problems.append(f"{where}: {e.nation} is not a polity")
+        problems += [
+            f"{where}: {e.nation} has no chamber {c}"
+            for c in e.chambers
+            if Rule.ELECTIONS in world.rules and c not in chambers.get(e.nation, ())
+        ]
+        if world.start_date is not None and e.day <= world.start_date:
+            problems.append(f"{where}: the day is not after the start date")
+        if e.post is None:
+            continue
+        post = offices.get(e.post)
+        if post is None:
+            problems.append(f"{where}: {e.post} is not an office")
+        if Rule.ELECTIONS in world.rules and Rule.OFFICE not in world.rules:
+            problems.append(f"{where}: a post needs the office rule")
+
+
 def _check_prices(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
     """Each bloc's prices (PRC): a key once per bloc; a condition of bounded size that
     names what the world declares, a group by its nation's own key, and holds at least one
@@ -1504,6 +1537,17 @@ def _groups(world: WorldFile, ids: Mapping[str, str]) -> ev.GroupsDeclared:
             for p in world.places
         )
         if Rule.PLACES in world.rules
+        else (),
+        elections=tuple(
+            groups.Election(
+                nation=EntityId(ids[e.nation]),
+                chambers=e.chambers,
+                day=e.day,
+                post=AssetId(ids[e.post]) if e.post is not None else None,
+            )
+            for e in world.elections
+        )
+        if Rule.ELECTIONS in world.rules
         else (),
     )
 

@@ -1430,6 +1430,13 @@ realism_payloads = st.one_of(
         removed=st.booleans(),
         rests_until=st.none() | in_world_dates,
     ),
+    st.builds(
+        ev.SeatsRedrawn,
+        polity=entity_ids,
+        chamber=labels,
+        seats=st.dictionaries(labels, st.integers(1, 600), min_size=1, max_size=4),
+        on=in_world_dates,
+    ),
     st.builds(ev.AgreementOffered, offer=agreement_offers()),
     st.builds(ev.AgreementMade, agreement=agreements()),
     st.builds(

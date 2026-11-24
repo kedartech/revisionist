@@ -48,6 +48,7 @@ from revisionist.engine.web.realism_api import (
     FloorBloc,
     FloorChamber,
     FloorVote,
+    FootingLine,
     GroupMove,
     HomeBlock,
     HomeGroup,
@@ -64,6 +65,7 @@ from revisionist.engine.web.realism_api import (
     OfferPromise,
     OfficeCount,
     OfficeQuestionLine,
+    OfficeResult,
     OfficeWay,
     OpenMeasure,
     StandingVote,
@@ -81,6 +83,11 @@ BANDS: tuple[tuple[float, Band], ...] = (
 )
 """[proposed] plan, GPD Defaults: the five public bands of a nation's standing at home,
 each from its lower bound."""
+
+
+RESULT_DAYS = office.REST_DAYS
+"""[proposed] World days an office question's result stays in the home block after its
+sitting, so the seats of the nation read it in place of the question."""
 
 
 OFFERED = "Offered to {bloc} for {measure}: {sentence}"  # [proposed]
@@ -535,6 +542,58 @@ def _turning(state: State, view: View, today: date) -> list[BaseUnder]:
     return out
 
 
+def _footing(state: State, view: View, today: date) -> list[FootingLine]:
+    """Each post the seat's person holds that may be put to an office question and rests
+    on groups: its base today against its line, the days it has stood under, and the
+    question open on it, if any."""
+    out: list[FootingLine] = []
+    for post in sorted(state.ladders):
+        mean = office.base_support(state, post)
+        if (
+            mean is None
+            or posts.holder(state, post) != view.me.embodies
+            or office.removal(state, post) is None
+        ):
+            continue
+        open_ = office.open_on(state, post)
+        out.append(
+            FootingLine(
+                office=state.assets[post].name,
+                groups=[g.name for g in office.base(state, post)],
+                support=round(mean, 1),
+                line=office.TURN_LINE,
+                days=office.days_under(state, post, today) if mean < office.TURN_LINE else 0,
+                question=open_.question_id if open_ is not None else None,
+            )
+        )
+    return out
+
+
+def _results(state: State, log: Sequence[Event], own: EntityId, today: date) -> list[OfficeResult]:
+    """Each office question on a post of ``own``'s nation decided in the last
+    ``RESULT_DAYS`` world days, by day: public news, read from the log."""
+    out: list[OfficeResult] = []
+    for e in log:
+        p = e.payload
+        if (
+            not isinstance(p, ev.OfficeQuestionDecided)
+            or office.nation(state, p.post) != own
+            or not 0 <= (today - p.on).days < RESULT_DAYS
+        ):
+            continue
+        out.append(
+            OfficeResult(
+                question_id=p.question_id,
+                office=state.assets[p.post].name,
+                holder=state.entities[p.holder].name,
+                on=p.on.isoformat(),
+                removed=p.removed,
+                rests_until=p.rests_until.isoformat() if p.rests_until is not None else None,
+            )
+        )
+    return sorted(out, key=lambda r: r["on"])
+
+
 def _elections(state: State, own: EntityId, today: date) -> list[ElectionAhead]:
     """Each election of ``own``'s nation not yet held, by day, with each chamber's seats
     as they would be redrawn today."""
@@ -620,6 +679,8 @@ def block(
     if office.on(state):
         out["office"] = _office(state, view, own)
         out["turning"] = _turning(state, view, today)
+        out["footing"] = _footing(state, view, today)
+        out["results"] = _results(state, log, own, today)
     if elections.on(state):
         out["elections"] = _elections(state, own, today)
     return out

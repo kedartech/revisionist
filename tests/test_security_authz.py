@@ -260,6 +260,7 @@ ROWS: tuple[Row, ...] = (
     Row("realism", "conference-call", PLAY, _fixed(conference="strait")),
     Row("realism", "conference-vote", PLAY, _fixed(conference="strait", vote="for")),
     Row("realism", "office-vote", PLAY, _fixed(question="q", remove=True)),
+    Row("realism", "send-anyway", PLAY, _fixed(order_id="o")),
     Row("realism", "report", PLAY, _fixed(kind="bug", text="The map is blank.")),
     Row("realism", "reports", PLAY, _fixed(inbox=True)),
     Row(

@@ -797,6 +797,7 @@ def _held_happenings(
     happened to; ``start`` is the state before them."""
     from revisionist.core import events as ev
     from revisionist.core.realism import holders
+    from revisionist.core.realism.battle import Ending
 
     out: list[tuple[EntityId, Happening]] = []
     opened = dict(start.battles)
@@ -806,7 +807,7 @@ def _held_happenings(
             out += [(p.war.a, Happening.WAR_DECLARED), (p.war.b, Happening.WAR_DECLARED)]
         elif isinstance(p, ev.BattleOpened):
             opened[p.battle.area] = p.battle
-        elif isinstance(p, ev.BattleEnded):
+        elif isinstance(p, ev.BattleEnded) and p.ending is not Ending.CEASED:
             out.append((p.winner, Happening.BATTLE_WON))
             fought = opened.get(p.area)
             if fought is not None:

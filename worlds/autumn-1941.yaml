@@ -24,7 +24,7 @@ start_date: 1941-09-01
 # classes, losses and places (HFD): the class of each kind of happening under `happenings`, the
 # groups the size of a day's battle losses moves (`battle_losses` in their `moved_by`), and the
 # places with political weight under `places`.
-rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, own_aim, laws, ask_answers, deciders, classes, losses, places]
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, own_aim, laws, ask_answers, deciders, offers, classes, losses, places]
 
 entities:
   # A polity's capital (PCW): a place in its own territory; a neutral's or an occupied nation's is its
@@ -732,6 +732,25 @@ groups:
           arm_merchant_ships: {house: {voting: 239, yeas: 218}}
         vote_default: {house: {voting: 239, yeas: 218}, concur: {voting: 241, yeas: 188}}
         stances: {power: 1, limit: -1, money: 1}
+        prices:
+          - key: lend_lease_money  # gap: true (points, days and loss [proposed])
+            sentence: "The Lend-Lease money is law within thirty days of the act."
+            condition: {check: quantity_at, quantity: lend_lease_appropriation_passed, op: ge, value: 1}
+            days: 30
+            points: 3
+            loss: 5
+          - key: britain_supplied  # gap: true (points, days and loss [proposed])
+            sentence: "Britain is allotted Lend-Lease goods within thirty days of the act."
+            condition: {check: quantity_at, quantity: lend_lease_share_uk, op: ge, value: 1}
+            days: 30
+            points: 2
+            loss: 4
+          - key: presidents_word  # gap: true (points, days and loss [proposed])
+            sentence: "The President speaks to the country for the act within fourteen days."
+            condition: {check: ordered, person: roosevelt, effect: statement}
+            days: 14
+            points: 1
+            loss: 3
       - key: house_republicans  # source: congress_77th (seats); the rows: voteview
         name: House Republicans
         kind: party bloc
@@ -748,6 +767,19 @@ groups:
           arm_merchant_ships: {house: {voting: 152, yeas: 39}}
         vote_default: {house: {voting: 152, yeas: 39}, concur: {voting: 159, yeas: 22}}
         stances: {power: -1, limit: 1, money: -1}
+        prices:
+          - key: no_shooting_war  # gap: true (points, days and loss [proposed])
+            sentence: "The Atlantic escort is still short of shooting on sight thirty days after the act."
+            condition: {check: quantity_at, quantity: us_atlantic_escort, op: le, value: 1}
+            days: 30
+            points: 3
+            loss: 6
+          - key: nothing_for_moscow  # gap: true (points, days and loss [proposed])
+            sentence: "No Lend-Lease goods are allotted to the Soviet Union thirty days after the act."
+            condition: {check: quantity_at, quantity: lend_lease_share_ussr, op: le, value: 0}
+            days: 30
+            points: 2
+            loss: 5
       - key: house_other  # source: voteview (six other members voting; the division counts five)
         name: House other members
         kind: party bloc
@@ -763,6 +795,19 @@ groups:
           lend_lease_appropriation: {house: {voting: 6, yeas: 3}}
           arm_merchant_ships: {house: {voting: 6, yeas: 2}}
         vote_default: {house: {voting: 6, yeas: 2}, concur: {voting: 6, yeas: 2}}
+        prices:
+          - key: aid_for_russia  # gap: true (points, days and loss [proposed])
+            sentence: "The Soviet Union is allotted Lend-Lease goods within thirty days of the act."
+            condition: {check: quantity_at, quantity: lend_lease_share_ussr, op: ge, value: 1}
+            days: 30
+            points: 2
+            loss: 4
+          - key: presidents_word  # gap: true (points, days and loss [proposed])
+            sentence: "The President speaks to the country for the act within fourteen days."
+            condition: {check: ordered, person: roosevelt, effect: statement}
+            days: 14
+            points: 1
+            loss: 3
       - key: senate_democrats  # source: congress_77th (seats); the rows: voteview
         name: Senate Democrats
         kind: party bloc
@@ -779,6 +824,25 @@ groups:
           arm_merchant_ships: {senate: {voting: 58, yeas: 43}}
         vote_default: {senate: {voting: 58, yeas: 43}}
         stances: {power: 1, limit: -1, money: 1}
+        prices:
+          - key: britain_supplied  # gap: true (points, days and loss [proposed])
+            sentence: "Britain is allotted Lend-Lease goods within thirty days of the act."
+            condition: {check: quantity_at, quantity: lend_lease_share_uk, op: ge, value: 1}
+            days: 30
+            points: 2
+            loss: 4
+          - key: terms_with_britain  # gap: true (points, days and loss [proposed])
+            sentence: "An agreement with Britain is in force sixty days after the act."
+            condition: {check: agreement_in_force, between: [usa, uk]}
+            days: 60
+            points: 2
+            loss: 4
+          - key: king_kept  # gap: true (points, days and loss [proposed])
+            sentence: "Admiral King still commands the Atlantic Fleet thirty days after the act."
+            condition: {check: holds_office, holder: king, office: atlantic_fleet_command}
+            days: 30
+            points: 1
+            loss: 2
       - key: senate_republicans  # source: congress_77th (seats); the rows: voteview
         name: Senate Republicans
         kind: party bloc
@@ -795,6 +859,19 @@ groups:
           arm_merchant_ships: {senate: {voting: 27, yeas: 6}}
         vote_default: {senate: {voting: 27, yeas: 6}}
         stances: {power: -1, limit: 1, money: -1}
+        prices:
+          - key: no_shooting_war  # gap: true (points, days and loss [proposed])
+            sentence: "The Atlantic escort is still short of shooting on sight thirty days after the act."
+            condition: {check: quantity_at, quantity: us_atlantic_escort, op: le, value: 1}
+            days: 30
+            points: 3
+            loss: 6
+          - key: nothing_for_moscow  # gap: true (points, days and loss [proposed])
+            sentence: "No Lend-Lease goods are allotted to the Soviet Union thirty days after the act."
+            condition: {check: quantity_at, quantity: lend_lease_share_ussr, op: le, value: 0}
+            days: 30
+            points: 2
+            loss: 5
       - key: senate_other  # source: congress_77th (seats); the rows: voteview
         name: Senate other members
         kind: party bloc
@@ -810,6 +887,19 @@ groups:
           lend_lease_appropriation: {senate: {voting: 2, yeas: 1}}
           arm_merchant_ships: {senate: {voting: 2, yeas: 1}}
         vote_default: {senate: {voting: 2, yeas: 1}}
+        prices:
+          - key: presidents_word  # gap: true (points, days and loss [proposed])
+            sentence: "The President speaks to the country for the act within fourteen days."
+            condition: {check: ordered, person: roosevelt, effect: statement}
+            days: 14
+            points: 1
+            loss: 3
+          - key: no_shooting_war  # gap: true (points, days and loss [proposed])
+            sentence: "The Atlantic escort is still short of shooting on sight thirty days after the act."
+            condition: {check: quantity_at, quantity: us_atlantic_escort, op: le, value: 1}
+            days: 30
+            points: 1
+            loss: 3
       - key: public  # source: gallup_1941 (the start: Roosevelt's course "about right")
         name: The American public
         kind: public
@@ -870,6 +960,25 @@ groups:
           national_service: {commons: {voting: 330, yeas: 328}}
         vote_default: {commons: {voting: 330, yeas: 320}}
         stances: {power: 1, limit: -1}
+        prices:
+          - key: prime_minister_kept  # gap: true (points, days and loss [proposed])
+            sentence: "Mr Churchill is still Prime Minister sixty days after the act."
+            condition: {check: holds_office, holder: churchill, office: uk_premiership}
+            days: 60
+            points: 2
+            loss: 4
+          - key: terms_with_america  # gap: true (points, days and loss [proposed])
+            sentence: "An agreement with the United States is in force sixty days after the act."
+            condition: {check: agreement_in_force, between: [uk, usa]}
+            days: 60
+            points: 2
+            loss: 4
+          - key: tovey_kept  # gap: true (points, days and loss [proposed])
+            sentence: "Admiral Tovey still commands the Home Fleet thirty days after the act."
+            condition: {check: holds_office, holder: tovey, office: home_fleet_command}
+            days: 30
+            points: 1
+            loss: 2
       - key: commons_labour  # gap: true
         name: The Labour benches
         kind: party bloc
@@ -883,6 +992,25 @@ groups:
           national_service: {commons: {voting: 120, yeas: 112}}
         vote_default: {commons: {voting: 120, yeas: 100}}
         stances: {power: 1, money: 1}
+        prices:
+          - key: supplies_for_russia  # gap: true (points, days and loss [proposed])
+            sentence: "Britain, the United States and the Soviet Union have a supply agreement in force sixty days after the act."
+            condition: {check: agreement_in_force, between: [ussr, uk, usa]}
+            days: 60
+            points: 3
+            loss: 5
+          - key: prime_ministers_word  # gap: true (points, days and loss [proposed])
+            sentence: "The Prime Minister speaks to the country for the act within fourteen days."
+            condition: {check: ordered, person: churchill, effect: statement}
+            days: 14
+            points: 1
+            loss: 3
+          - key: prime_minister_kept  # gap: true (points, days and loss [proposed])
+            sentence: "Mr Churchill is still Prime Minister sixty days after the act."
+            condition: {check: holds_office, holder: churchill, office: uk_premiership}
+            days: 60
+            points: 1
+            loss: 2
       - key: commons_others  # gap: true
         name: The Liberals and the other members
         kind: party bloc
@@ -896,6 +1024,19 @@ groups:
           national_service: {commons: {voting: 22, yeas: 15}}
         vote_default: {commons: {voting: 22, yeas: 14}}
         stances: {power: -1, limit: 1}
+        prices:
+          - key: the_house_told  # gap: true (points, days and loss [proposed])
+            sentence: "The government tells the House what it has done under the act within thirty days."
+            condition: {check: ordered, person: churchill, effect: disclosure}
+            days: 30
+            points: 2
+            loss: 4
+          - key: prime_ministers_word  # gap: true (points, days and loss [proposed])
+            sentence: "The Prime Minister speaks to the country for the act within fourteen days."
+            condition: {check: ordered, person: churchill, effect: statement}
+            days: 14
+            points: 1
+            loss: 3
       - key: dominions  # gap: true
         name: The Dominions
         kind: dominions

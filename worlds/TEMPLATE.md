@@ -144,9 +144,9 @@ as well.
 | Who is above each person: the superior who prevails, and who decides an order outside his domains | `cards.principals` | person keys | `command`, `locks` | nobody is above him: no superior prevails, and an order outside his domains has no one to allow it | with `command`, `locks` | on main |
 | Who decides each kind of question: war, peace, money, posts, the office | `locks.question` | `permission`, `war`, `peace`, `money`, `posts`, `office`; with `deciders` off every row is a question of permission | `deciders` | every lock is a question of permission | with `deciders` | on main |
 | Who sits on a council that decides, and how many must agree | `locks.decider.council`, `locks.decider.council.{members, needed, head}` | `members`: person keys, each with a card; `needed`: a count from 1 to the membership; `head`: the person key an ask goes to. With `deciders` off the head decides alone | `deciders` | no council: a lock's decider is one person or a body | with `deciders` | on main |
-| Who decides to accept an armistice or an end to a war | `locks.question` | the lock row of kind `peace` | `peace` | the nation cannot accept a peace | with `peace` | this run: peace: an armistice and terms |
+| Who decides to accept an armistice or an end to a war | `locks.question` | a lock row of kind `peace`, with no `order` and no `when`: its decider allows the nation's acceptance | `peace` | the nation cannot accept a peace | with `peace` | on main |
 | The laws each nation has, what each binds and what it does | `laws`, `laws.{key, title, nation, clauses, passed, does, daily_life}`, `laws.does.{kind, amount}` | a key; free wording; a polity key; clauses each a `kind` (`money`, `power`, `limit`), a `subject` and, for money, an `amount`; the key of the quantity that reads 1 once the law has passed; `does.kind`: `arms_merchant_ships`, or `adds_manpower` with a whole `amount`; `daily_life`: true or false | `laws` | the locks read the rules' own table of laws; votes and shipping read that table until they read the world's laws | - | on main |
-| The pacts in force on the start date | `pacts`, `pacts.{key, name, parties, wording, clauses, public}`, `pacts.clauses.{type, binds, on, force, area, region, present, nation, days, form, share, text}` | polity keys; `type`: `place`, `keep_out`, `no_war`, `no_attack`, `defend`, `form`, `aid`, `vote`, `unchecked` | `agreements` | no agreement in force on the first day | - | on main |
+| The pacts in force on the start date | `pacts`, `pacts.{key, name, parties, wording, clauses, public}`, `pacts.clauses.{type, binds, on, force, area, region, present, nation, days, form, share, text}` | polity keys; `type`: `place`, `keep_out`, `no_war`, `no_attack`, `defend`, `form`, `aid`, `vote`, `unchecked`, and with `peace` on `no_separate_peace` | `agreements` | no agreement in force on the first day | - | on main |
 | The conferences the world schedules | `conferences`, `conferences.{key, caller, invited, wording, clauses, opens, voting_day, public, unanimous}`, `conferences.clauses.{type, binds, on, force, area, region, present, nation, days, form, share, text}` | polity keys, the caller among the invited; clauses as a pact's | `conference` | no conference opens unless a seat calls one | - | on main |
 | Election dates inside or near the season, which chamber each redraws, and whose term ends | `elections`, `elections.{nation, chambers, day, post}` | a polity key; one to four of its chambers that have blocs with seats; a day after the start date; an office asset key. On the day each bloc gains or loses 1% of the chamber's seats per 5 points of support off its baseline, scaled back to the total, and its vote rows by new seats over old; the post is put to the office question sitting that day, its holder removed when what it rests on is under 50; written by hand, never offered to a model | `elections`, with `groups`; a post with `office` | no chamber is redrawn | - | on main |
 | Whether an armed body holds a veto over the government | `armed_bodies.veto` | yes, and which body; no | - | no veto | - | parked |
@@ -271,3 +271,26 @@ above:
 4. **A holder that is a person or a faction** (part 3): parked. Today a territory's holder must
    be a polity: the compiler refuses any other kind of entity
    (`src/revisionist/core/world_compile.py`, the check of each territory's holder).
+
+## The second scenario's filling, written in
+
+The second scenario's world, a civil war joined a year and more before its start date, was
+filled from the rows above with no rule change. What it could not say with the keys that exist:
+
+1. **Occupation inside a territory.** One side's armies held cities and districts inside
+   territories the other side held. A territory has one holder (part 2), so each keeps its holder
+   of the start date and the occupying forces are left out.
+2. **A territory that joins the lands of several holders.** A coarse map territory far from the
+   fighting can cover several nations of the start date. It stands with no holder; a holder per
+   part of a territory is not a row.
+3. **Forces raised by the states.** Part 6, "who raised each force", is parked: every force is
+   the centre's.
+4. **A nation that broke in two.** Part 3, "what the nation may break into", is parked: the
+   world states the two nations as they stood on the start date, the break already made.
+5. **Ports on a coarse coastline.** A port at its true coordinates can fall in the sea or river
+   zone of a coarse map. The world moves it inland until it lies in its territory and says so in
+   a comment; no row says how far a place may be moved.
+
+The three lines the paper test said this world cannot stress (armies paid by their commander, a
+world with no press, a seat that moves with a person) are absent from it on purpose: the check
+prints each as absent.

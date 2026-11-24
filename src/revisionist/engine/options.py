@@ -661,16 +661,20 @@ def _forecast(option: Option) -> Forecast | None:
 
 
 def _aide_may(state: State, option: Option, allowed: frozenset[EffectKind]) -> tuple[Ask, ...]:
-    """The option's asks the aide may file: no deal, no irreversible ask the seat has not
-    put in a standing order, and in a battle game no press, withdrawal or contingency."""
+    """The option's asks the aide may file: nothing on the aide's bar, no deal of its
+    own, no irreversible ask the seat has not put in a standing order, and in a battle
+    game no press, withdrawal or contingency."""
     return tuple(
         a
         for a in _battle_safe(state, option.asks)
-        if not isinstance(a.effect, Deal)
-        and (
-            a.effect is None
-            or EffectKind(a.effect.kind) not in IRREVERSIBLE
-            or EffectKind(a.effect.kind) in allowed
+        if a.effect is None
+        or (
+            detect.barred(a.effect, allowed) is None
+            and not (isinstance(a.effect, Deal) and not a.effect.accept)
+            and (
+                EffectKind(a.effect.kind) not in IRREVERSIBLE - detect.BAR_RULES
+                or EffectKind(a.effect.kind) in allowed
+            )
         )
     )
 
@@ -684,10 +688,10 @@ def _held(state: State, seat: SeatId, asks: Sequence[Ask]) -> bool:
 
 def aide_asks(state: State, seat: SeatId, transport: Transport | None) -> list[AideOrder]:
     """The orders an aide files for an absent seat, one per live mandate: its first
-    beginner option a lock would not hold, less any irreversible ask the seat has not put
-    in a standing order, less any deal, and in a battle game less any press, withdrawal or
-    contingency. A mandate a deal would meet is skipped, so the opening lapses. Each order
-    carries the chosen option's forecast."""
+    beginner option a lock would not hold, less any act on the aide's bar, any
+    irreversible ask the seat has not put in a standing order and any deal, and in a
+    battle game less any press, withdrawal or contingency. A mandate a deal would meet is
+    skipped, so the opening lapses. Each order carries the chosen option's forecast."""
     global last_cost
     last_cost = None
     if seat not in state.seats:

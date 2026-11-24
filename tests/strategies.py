@@ -973,6 +973,10 @@ def agreement_clauses(draw: st.DrawFn) -> rx.AgreementClause:
         fields["share"] = draw(st.integers(1, 100))
     if kind in (rx.ClauseType.VOTE, rx.ClauseType.UNCHECKED):
         fields["text"] = draw(st.text(min_size=1, max_size=300))
+    if kind in (*rx.PEACE_CLAUSES, rx.ClauseType.NO_SEPARATE_PEACE):
+        fields["nation"] = draw(entity_ids.filter(lambda n: n != fields["binds"]))
+    if kind is rx.ClauseType.ARMISTICE:
+        fields["days"] = draw(st.integers(1, 60))
     return rx.AgreementClause(**fields)
 
 
@@ -981,7 +985,11 @@ def agreement_deals(draw: st.DrawFn) -> rx.Deal:
     """An offer of an agreement (AGR): parties, wording and clauses binding the parties."""
     parties = tuple(draw(st.lists(entity_ids, min_size=2, max_size=3, unique=True)))
     clauses = tuple(
-        c.model_copy(update={"binds": draw(st.sampled_from(parties))})
+        c.model_copy(
+            update=dict(zip(("binds", "nation"), draw(st.permutations(parties)), strict=False))
+        )
+        if c.type in rx.PEACE_CLAUSES
+        else c.model_copy(update={"binds": draw(st.sampled_from(parties))})
         for c in draw(st.lists(agreement_clauses(), max_size=2))
     )
     return rx.Deal(
@@ -1270,6 +1278,12 @@ realism_payloads = st.one_of(
         rules=st.frozensets(st.sampled_from(Rule)),
     ),
     st.builds(ev.WarDeclared, war=wars()),
+    st.builds(
+        ev.WarEnded,
+        war_id=wars().map(lambda w: w.war_id),
+        on=in_world_dates,
+        agreement_id=st.none() | labels,
+    ),
     st.builds(ev.MapDeclared, map=world_maps),
     st.builds(
         ev.KindsDeclared,

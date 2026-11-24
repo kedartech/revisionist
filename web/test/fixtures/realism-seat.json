@@ -4841,7 +4841,8 @@
         "reason": "Held until Ilse Varg allows it.",
         "held": "1900-04-02",
         "asked": true,
-        "piece": "m35dfd73080046750681e78fb6ca37f7f"
+        "piece": "m35dfd73080046750681e78fb6ca37f7f",
+        "price": "You may send it anyway. It becomes an incident: Ilse Varg will be asked to back or disown it, and you may be relieved."
       },
       {
         "id": "01M7YNVKSZFHJ8A6SZVCZRT5E5",
@@ -4870,13 +4871,27 @@
           }
         ]
       }
+    ],
+    "incidents": [
+      {
+        "id": "MQ3D9V4K2A7N1XH5RZC8EWJ6TB",
+        "words": "Kara Lind: Sent an order without leave.",
+        "due": "1900-04-04",
+        "verdict": null,
+        "answers": [
+          "backed",
+          "disowned",
+          "dismissed"
+        ]
+      }
     ]
   },
   "lock_check": [
     {
       "check": "locked",
       "who": "Ilse Varg",
-      "reason": "Held until Ilse Varg allows it."
+      "reason": "Held until Ilse Varg allows it.",
+      "price": "You may send it anyway. It becomes an incident: Ilse Varg will be asked to back or disown it, and you may be relieved."
     },
     {
       "check": "allowed",

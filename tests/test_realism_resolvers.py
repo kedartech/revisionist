@@ -60,8 +60,10 @@ class Rig:
         self.campaign = campaign
         world = cmp.load_world(cmp.world_path(world_name))
         if not groups:  # the path a stored game or a world without groups keeps
+            # places weigh ground for groups, so the world check refuses them without groups
+            off = {Rule.GROUPS, Rule.PLACES}
             world = world.model_copy(
-                update={"rules": tuple(r for r in world.rules if r is not Rule.GROUPS)}
+                update={"rules": tuple(r for r in world.rules if r not in off)}
             )
         self.ids = resolve_keys(world, campaign)
         events = compile_world(world, campaign, cmp.versions())

@@ -1199,7 +1199,7 @@ def seat_realism(
     people = seat_people(state, seat, view, portraits)
     world = dossiers.world_key(log)
     shown = seat_map(view, forces, state.pipelines, people, state, place_keys or {}, withdrawable)
-    return {
+    out = {
         "documents": documents(view, read, flagged),
         "desk": _place_areas(state, desk(view, known)),
         "situation": situation(view),
@@ -1221,6 +1221,8 @@ def seat_realism(
         **_posts(state, seat),
         **_own_aim(state, seat),
     }
+    out["capitals"] = home_api.capitals(state, view, out, log)
+    return out
 
 
 def _posts(state: State, seat: SeatId) -> dict[str, Any]:

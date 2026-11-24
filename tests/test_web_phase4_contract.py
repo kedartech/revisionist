@@ -107,6 +107,7 @@ def test_the_web_fixture_has_the_api_shape(key: str, shape: Any) -> None:
         ("timeline", api.TimelinePoint),
         ("figures", api.FigureGroup),
         ("lock_check", api.LockCheck),
+        ("capitals", api.CapitalLine),
     ],
 )
 def test_the_web_fixture_lists_have_the_api_shape(key: str, shape: Any) -> None:

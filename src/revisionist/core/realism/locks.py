@@ -428,12 +428,22 @@ def seen_lock(state: "State", seat: SeatId, order: Order | Ask) -> Lock | None:
 
 def _hidden(state: "State", seat: SeatId, when: Condition | None) -> bool:
     """Whether the condition reads a fact outside the seat's view. A law's passed flags
-    are hidden unless their scope admits the seat. A posture is set by the seat's own
-    superiors, whose orders come down its chain, so the seat knows it."""  # [proposed]
+    are hidden unless their scope admits the seat, and from a commander held to his post
+    (PVW) unless public. A posture is set by the seat's own superiors, whose orders come
+    down its chain, so the seat knows it."""  # [proposed]
+    from revisionist.core.project import at_post
+    from revisionist.core.visibility import Visibility
+
     if not isinstance(when, LawNotInForce):
         return False
     read = laws.flags(state, when.clause)
-    return any(q.scope is None or not q.scope.visible_to(seat) for q in read)
+    post = at_post(state, seat)
+    return any(
+        q.scope is None
+        or not q.scope.visible_to(seat)
+        or (post and q.scope.visibility is not Visibility.PUBLIC)
+        for q in read
+    )
 
 
 def reason(view: "State | View", lock: Lock) -> str:

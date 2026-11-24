@@ -11,19 +11,23 @@ template, kept in ``FINDINGS`` below and in the world file's notes.
 
 import copy
 import importlib.util
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import yaml
 
+from revisionist.core import goals
 from revisionist.core.fold import replay
-from revisionist.core.ids import CampaignId
+from revisionist.core.ids import CampaignId, EntityId, SeatId, derived_id
+from revisionist.core.realism.groups import ABANDONED_TIMES
 from revisionist.core.state import MODEL_READ_RULES, Rule
-from revisionist.core.world import WorldFile
-from revisionist.core.world_compile import compile_world
+from revisionist.core.world import CardDecl, WorldFile
+from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
+from revisionist.engine import session_zero
+from revisionist.engine.store import MemoryStore, load_state
 
 ROOT = Path(__file__).resolve().parents[1]
 WORLD = ROOT / "worlds" / "civil-war-1862.yaml"
@@ -342,3 +346,155 @@ def test_each_finding_against_the_template_is_written_into_it() -> None:
     assert "## The second scenario's filling, written in" in text
     section = text.split("## The second scenario's filling, written in", 1)[1]
     assert [f for f in FINDINGS if f"**{f}.**" not in section] == []
+
+
+# --- Aims, contests, the election, places and history's clock ---------------------------
+
+SEASON_END = date(1862, 12, 15)
+"""The last deciding day: every contest decides on it and the season ends on it."""
+NOT_ISSUED: dict[str, tuple[int, str]] = {
+    "lincoln": (3, "seward"),
+    "davis": (3, "randolph"),
+    "stanton": (3, "lincoln"),
+    "randolph": (3, "davis"),
+    "mcclellan": (3, "halleck"),
+    "buell": (3, "halleck"),
+    "lee": (3, "davis"),
+    "bragg": (3, "davis"),
+}
+"""Each playable card's aim its own government would not issue: the aim's number and the
+member of the same government the card is set against over it (the card's ``opposes``)."""
+
+
+def playable(w: dict[str, Any]) -> list[str]:
+    return [c["person"] for c in w["cards"] if c.get("playable")]
+
+
+def cards(w: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {c["person"]: c for c in w["cards"]}
+
+
+def day_one(w: dict[str, Any]) -> dict[tuple[str, int], goals.AimStatus]:
+    """Each playable card's aim status on the start date with ``w``'s cards, every card on
+    the roster seated."""
+    doc = world().model_copy(
+        update={"cards": tuple(CardDecl.model_validate(c) for c in w["cards"])}
+    )
+    store = MemoryStore()
+    store.append_all(compile_world(doc, CAMPAIGN, cmp.versions()))
+    ids = resolve_keys(doc, CAMPAIGN)
+    key = {v: k for k, v in ids.items()}
+    for entry in doc.roster:
+        person = EntityId(ids[entry.entity])
+        name = load_state(store, CAMPAIGN).entities[person].name
+        session_zero.claim(store, CAMPAIGN, SeatId(derived_id(CAMPAIGN, "seat", person)), name)
+    state = load_state(store, CAMPAIGN)
+    out: dict[tuple[str, int], goals.AimStatus] = {}
+    for made in goals.aim_goals(state):
+        g = made.goal
+        assert g.person is not None and g.aim is not None
+        out[(key[g.person], g.aim)] = goals.aim_status(state, g)
+    return out
+
+
+def test_every_playable_card_holds_three_aims_each_with_a_rule_and_one_replaceable() -> None:
+    w = raw()
+    by_person = cards(w)
+    assert len(playable(w)) == len(NOT_ISSUED)
+    for person in playable(w):
+        card = by_person[person]
+        assert len(card["aims"]) == 3, person
+        rules = card["aim_rules"]
+        assert sorted(r["aim"] for r in rules) == [1, 2, 3], person
+        assert all(START < r["deadline"] <= SEASON_END for r in rules), person
+        assert sum(bool(r.get("replaceable")) for r in rules) == 1, person
+
+
+def test_each_playable_card_has_an_aim_its_own_government_would_not_issue() -> None:
+    w = raw()
+    by_person = cards(w)
+    assert set(NOT_ISSUED) == set(playable(w))
+    for person, (aim, against) in NOT_ISSUED.items():
+        card = by_person[person]
+        rule = next(r for r in card["aim_rules"] if r["aim"] == aim)
+        assert not rule.get("replaceable"), person  # an own aim may not drop it
+        assert against in {o["against"] for o in card.get("opposes", ())}, person
+        same = against in card["principals"] or person in by_person[against].get("principals", ())
+        assert same, person
+
+
+def test_each_post_the_world_has_has_aim_patterns_one_its_government_would_not_issue() -> None:
+    w = raw()
+    kinds = {c["post_kind"] for c in w["cards"] if c.get("playable") and c.get("post_kind")}
+    assert kinds == {"head_of_government", "military"}
+    for kind in kinds:
+        found = [p for p in w["aim_patterns"] if kind in p["posts"]]
+        assert len(found) >= 3, kind
+        assert any(p.get("government") is False for p in found), kind
+
+
+def test_every_aim_is_neither_met_nor_impossible_on_day_one() -> None:
+    found = day_one(raw())
+    assert len(found) == 3 * len(NOT_ISSUED)
+    assert {k: s for k, s in found.items() if s is not goals.AimStatus.AT_RISK} == {}
+
+
+def test_mutant_an_aim_already_met_at_the_start_is_caught() -> None:
+    w = raw()
+    lincoln = cards(w)["lincoln"]
+    lincoln["aim_rules"][0] = {
+        **lincoln["aim_rules"][0],
+        "condition": {"check": "holds_area", "area": "maryland", "holder": "usa"},
+    }
+    lincoln["aim_rules"][0].pop("opens", None)
+    found = day_one(w)
+    assert found[("lincoln", 1)] is goals.AimStatus.MET
+
+
+def test_at_most_three_contests_each_moved_and_decided_on_the_last_deciding_day() -> None:
+    w = raw()
+    contests = w["contests"]
+    assert 1 <= len(contests) <= 3
+    assert {k["key"] for k in contests} == {"border_states", "recognition", "eastern_war"}
+    for k in contests:
+        assert set(k["sides"]) == set(SIDES), k["key"]
+        assert START + timedelta(days=k["countdown_days"]) == SEASON_END, k["key"]
+        assert {m["toward"] for m in k["moves"]} == set(SIDES), k["key"]
+    assert w["settings"]["end_date"] == SEASON_END
+
+
+def test_the_union_lower_chamber_is_redrawn_by_an_election_inside_the_season() -> None:
+    w = raw()
+    found = [(e["nation"], tuple(e["chambers"]), e["day"]) for e in w["elections"]]
+    assert found == [("usa", ("house",), date(1862, 11, 4))]
+    assert START < found[0][2] < SEASON_END
+    house = [g for x in w["groups"] if x["nation"] == "usa" for g in x["groups"]]
+    assert sum(g.get("seats", 0) for g in house if g.get("chamber") == "house") > 0
+
+
+def test_each_side_has_places_of_weight_and_its_capital_is_one() -> None:
+    w = raw()
+    capitals = {e["key"]: e["capital"] for e in w["entities"] if e.get("capital")}
+    within = {e["key"]: e.get("within") for e in w["entities"]}
+    nation_groups = {x["nation"]: {g["key"] for g in x["groups"]} for x in w["groups"]}
+    places = w["places"]
+    for side in SIDES:
+        mine = [p for p in places if p["nation"] == side]
+        assert len(mine) >= 2, side
+        assert within[capitals[side]] in {p["territory"] for p in mine}, side
+        for p in mine:
+            assert set(p["moves"]) <= nation_groups[side], p
+            assert all(v < 0 for v in p["moves"].values()), p  # losing it costs support
+    assert ABANDONED_TIMES > 1  # abandoning a place costs more than losing it
+
+
+def test_history_is_a_dated_schedule_each_event_with_its_condition() -> None:
+    w = raw()
+    schedule = w["schedule"]
+    assert len(schedule) >= 6
+    for e in schedule:
+        assert START < e["on_date"] <= SEASON_END, e["key"]
+        assert e["condition"]["check"], e["key"]
+    assert max(e["on_date"] for e in schedule) == SEASON_END  # a wake falls on the last day
+    state = replay(compile_world(world(), CAMPAIGN, cmp.versions()))
+    assert len(state.scheduled) == len(schedule)

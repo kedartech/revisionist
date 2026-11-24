@@ -28,7 +28,10 @@ In a game where any order came from a suggested action, the report also counts t
 expected moves checked so far and how many held (FCK, ``forecast.judge``): counts only,
 never a seat, an order or a target. In a game with ``offers`` on, each wake also counts
 the offers made to blocs and the promises judged kept and broken while it was the latest
-wake opened (PRR): counts only, never a bloc, a price or a seat.
+wake opened (PRR): counts only, never a bloc, a price or a seat. In a game with ``office``
+on, each wake also counts the office questions opened, the sittings held and how many of
+them removed the holder and how many kept it: counts only, never a post, a person or a
+seat.
 
 An operator command (``revisionist db wake-report``) that prints counts and public
 board facts, and no record's content. Nothing a seat reaches imports it.
@@ -46,7 +49,16 @@ from revisionist.core.fold import apply, replay
 from revisionist.core.goals import AimStatus, aim_status, aims_on, holder_seat
 from revisionist.core.ids import CampaignId, EntityId, OrderId, SeatId
 from revisionist.core.ontology import Controller, EntityKind
-from revisionist.core.realism import agreement, battle, detect, economy, holders, locks, offers
+from revisionist.core.realism import (
+    agreement,
+    battle,
+    detect,
+    economy,
+    holders,
+    locks,
+    offers,
+    office,
+)
 from revisionist.core.realism.agreement import ClauseStatus
 from revisionist.core.state import State
 from revisionist.core.world_compile import object_id
@@ -182,6 +194,17 @@ class Offers:
 
 
 @dataclass(frozen=True)
+class Questions:
+    number: int
+    opened: int
+    """Office questions opened."""
+    removed: int
+    """Sittings that removed the holder."""
+    kept: int
+    """Sittings that kept the holder."""
+
+
+@dataclass(frozen=True)
 class Report:
     campaign_id: CampaignId | None
     wakes: tuple[WakeRow, ...]
@@ -207,6 +230,8 @@ class Report:
     game whose cards have no forms."""
     offers: tuple[Offers, ...] = ()
     """One per wake opened, in a game with ``offers`` on; else empty."""
+    questions: tuple[Questions, ...] = ()
+    """One per wake opened, in a game with ``office`` on; else empty."""
 
 
 @dataclass
@@ -284,6 +309,7 @@ def build(events: Sequence[Event]) -> Report:
         _forecasts(events, state),
         inert,
         _offers(events, state),
+        _questions(events, state),
     )
 
 
@@ -398,6 +424,25 @@ def _offers(events: Sequence[Event], state: State) -> tuple[Offers, ...]:
             elif p.standing is offers.OfferStanding.BROKEN:
                 counts[number][2] += 1
     return tuple(Offers(n, *c) for n, c in sorted(counts.items()))
+
+
+def _questions(events: Sequence[Event], state: State) -> tuple[Questions, ...]:
+    """Each wake's office questions opened and sittings held, by the latest wake opened
+    when each landed; empty with ``office`` off."""
+    if not office.on(state):
+        return ()
+    counts: dict[int, list[int]] = {}
+    number: int | None = None
+    for e in events:
+        p = e.payload
+        if isinstance(p, ev.WakeOpened):
+            number = p.wake
+            counts.setdefault(number, [0, 0, 0])
+        elif number is not None and isinstance(p, ev.OfficeQuestionOpened):
+            counts[number][0] += 1
+        elif number is not None and isinstance(p, ev.OfficeQuestionDecided):
+            counts[number][1 if p.removed else 2] += 1
+    return tuple(Questions(n, *c) for n, c in sorted(counts.items()))
 
 
 def _intelligence(events: Sequence[Event], state: State) -> tuple[Intelligence, ...]:
@@ -567,6 +612,7 @@ def render(report: Report) -> list[str]:
     aimed = {a.number: a for a in report.aims}
     locked = {x.number: x for x in report.locked}
     offered = {o.number: o for o in report.offers}
+    asked = {q.number: q for q in report.questions}
     for w in report.wakes:
         lines.append(f"  wake {w.number}: {w.how}")
         if w.number in held:
@@ -589,6 +635,12 @@ def render(report: Report) -> list[str]:
         if w.number in offered:
             o = offered[w.number]
             lines.append(f"    offers: {o.made} made; promises {o.kept} kept, {o.broken} broken")
+        if w.number in asked:
+            q = asked[w.number]
+            lines.append(
+                f"    office: {q.opened} opened; sittings {q.removed + q.kept},"
+                f" {q.removed} removed, {q.kept} kept"
+            )
     lines += [
         f"seat {s.name}: aide played {_plural(s.aide_wakes, 'wake')}; {_hours(s)}"
         for s in report.seats

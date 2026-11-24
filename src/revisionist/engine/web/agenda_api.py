@@ -10,9 +10,10 @@ fired; those are written as orders, never filed from the offer.
 """
 
 import re
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date
+from typing import Any
 
 from revisionist.core import events as ev
 from revisionist.core import history, record
@@ -29,7 +30,15 @@ from revisionist.core.ids import (
 )
 from revisionist.core.ontology import Controller
 from revisionist.core.project import project
-from revisionist.core.realism import advance, agreement, holders, mandates, pipelines, process
+from revisionist.core.realism import (
+    advance,
+    agreement,
+    holders,
+    mandates,
+    office,
+    pipelines,
+    process,
+)
 from revisionist.core.realism.agenda import Offer, Option, PlayStyle, TriggerKind
 from revisionist.core.realism.effect import Forecast, RoutedPart
 from revisionist.core.realism.pipeline import StepAction
@@ -604,6 +613,75 @@ def _due_posts(state: State, seat: SeatId) -> list[DueMatter]:
     return out
 
 
+CHOICE_FILED = "Your choice is sealed. No one sees it before the sitting."  # [proposed]
+
+
+def office_vote_args(
+    state: State, seat: SeatId, body: Mapping[str, Any]
+) -> tuple[dict[str, Any], str]:
+    """The checked arguments of an ``office-vote`` and its label. Raises ``ValueError``
+    with the seat's words when the seat does not decide that question."""
+    question = body.get("question")
+    remove = body.get("remove")
+    if not isinstance(question, str) or not isinstance(remove, bool):
+        raise ValueError("Name the question, and say remove as true or false.")
+    office.may_choose(state, seat, question)
+    return (
+        {"question": question, "remove": remove},
+        "Your choice at an office question: " + ("remove" if remove else "keep"),
+    )
+
+
+def office_vote(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, args: Mapping[str, Any]
+) -> str:
+    """Seal a checked choice; a later one replaces it. Raises ``ValueError`` when refused."""
+    realism_tick.choose_office(store, campaign_id, seat, args["question"], args["remove"])
+    return CHOICE_FILED
+
+
+OFFICE_HOLDER = "Your place as {office} is put to the office question"  # [proposed]
+OFFICE_MEMBER = (
+    "You are to choose, at the office question on {office}, whether {holder} stays"  # [proposed]
+)
+OFFICE_SITS = "The office question on {office} may sit when this wake closes"  # [proposed]
+
+
+def _office_matters(state: State, seat: SeatId, near: bool) -> list[DueMatter]:
+    """The questions open on the nation's posts that the seat's person is put to or
+    chooses in, due on their sitting day. A question that may sit when this wake closes is
+    the ``near`` kind; every other is the open kind."""
+    held = state.seats.get(seat)
+    if held is None or not office.on(state):
+        return []
+    out: list[DueMatter] = []
+    for q in sorted(state.office_questions.values(), key=lambda q: (q.sits, q.question_id)):
+        if seat not in office.seats(state, office.nation(state, q.post)):
+            continue
+        soon = office.wake_number(state) >= q.tick + office.WAKES_AHEAD - 1
+        if soon is not near:
+            continue
+        name = state.assets[q.post].name
+        if held.embodies == q.holder:
+            said = OFFICE_SITS if near else OFFICE_HOLDER
+        elif held.embodies in office.deciders(state, q):
+            said = OFFICE_SITS if near else OFFICE_MEMBER
+        else:
+            continue
+        what = said.format(office=name, holder=state.entities[q.holder].name)
+        kind = "sitting" if near else "office"
+        out.append(DueMatter(kind, q.question_id, what, None, q.sits.isoformat()))
+    return out
+
+
+def _due_office(state: State, seat: SeatId) -> list[DueMatter]:
+    return _office_matters(state, seat, False)
+
+
+def _due_sitting(state: State, seat: SeatId) -> list[DueMatter]:
+    return _office_matters(state, seat, True)
+
+
 DUE_KINDS: dict[str, DueKind] = {
     "post": _due_posts,
     "request": _due_requests,
@@ -614,6 +692,8 @@ DUE_KINDS: dict[str, DueKind] = {
     "vote": _due_votes,
     "ask": _due_asks,
     "promise": _due_promises,
+    "office": _due_office,
+    "sitting": _due_sitting,
 }
 """The registry of due kinds, in the order a notice lists them."""
 

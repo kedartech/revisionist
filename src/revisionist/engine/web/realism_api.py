@@ -1229,6 +1229,81 @@ class OfferPromise(TypedDict):
     """The world day the promise is read; None until the measure has passed."""
 
 
+class OfficeCount(TypedDict):
+    """A body's count on an office question as it would fall today."""
+
+    yeas: int
+    nays: int
+
+
+OfficeWay = Literal["vote", "council", "person", "term", "election"]
+"""Who decides an office question: a post that may never be removed has none."""
+
+
+class OfficeQuestionLine(TypedDict):
+    """An office question open on a post of the seat's own nation: sent to every seat of
+    that nation and to no other."""
+
+    question_id: str
+    office: str
+    holder: str
+    cause: str
+    sits: str
+    """The world day it sits."""
+    way: OfficeWay
+    """Who decides it: a body's vote, a council, one person, the end of a term, or, for a
+    question an election opened, the base of the post on the day."""
+    chamber: str | None
+    """The body that votes, for a question decided by ``vote``."""
+    deciders: list[str]
+    """The names of those who choose, for a council or one person; else empty."""
+    mine: bool
+    """Whether the seat's person is one of them."""
+    choice: bool | None
+    """The seat's own sealed choice, True to remove; None if none, or if it is not its to make."""
+    count: OfficeCount | None
+    """For a body's vote, the count as it would fall today; else None."""
+
+
+class BaseUnder(TypedDict):
+    """A post of the seat's person whose base stands under its line, before any question
+    opens on it."""
+
+    office: str
+    groups: list[str]
+    support: float
+    """The mean support of the groups it rests on."""
+    line: int
+    under: float
+    """How far under the line it stands."""
+    days: int
+    """World days running, today included."""
+    opens: str
+    """The day the question would open, if it stays under."""
+
+
+class ElectionBloc(TypedDict):
+    group: str
+    name: str
+    seats: int
+    would: int
+    """Its seats were the chamber redrawn today."""
+
+
+class ElectionChamber(TypedDict):
+    key: str
+    blocs: list[ElectionBloc]
+
+
+class ElectionAhead(TypedDict):
+    """An election of the seat's own nation that has not yet been held."""
+
+    day: str
+    office: str | None
+    """The post whose term ends that day, if any."""
+    chambers: list[ElectionChamber]
+
+
 class HomeBlock(TypedDict):
     """Groups at home and the floor as the seat sees them, with ``groups`` on (GPD). Only
     the seat's own nation's groups, chambers and themes are sent; another nation shows
@@ -1254,6 +1329,12 @@ class HomeBlock(TypedDict):
     """With ``offers`` on: each law of the nation whose bill is on its way, by law key."""
     promises: NotRequired[list[OfferPromise]]
     """With ``offers`` on: the offers the seat itself made, by filing day and id."""
+    office: NotRequired[list[OfficeQuestionLine]]
+    """With ``office`` on: each question open on a post of the seat's nation, by sitting day."""
+    turning: NotRequired[list[BaseUnder]]
+    """With ``office`` on: each post of the seat's person whose base stands under its line."""
+    elections: NotRequired[list[ElectionAhead]]
+    """With ``elections`` on: each election of the seat's nation ahead, by day."""
 
 
 class BattleRoundLine(TypedDict):

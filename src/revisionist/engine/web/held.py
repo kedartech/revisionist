@@ -293,6 +293,8 @@ def file_one(
             conferences_api.call(store, campaign_id, seat, args)
         elif action == "conference-vote":
             conferences_api.vote(store, campaign_id, seat, args)
+        elif action == "office-vote":
+            agenda_api.office_vote(store, campaign_id, seat, args)
         elif action == "ask":
             realism_tick.ask_order(store, campaign_id, seat, OrderId(args["order_id"]))
         elif action == "offer":

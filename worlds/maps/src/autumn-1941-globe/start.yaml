@@ -103,6 +103,13 @@ entities:
   - {key: brazil, kind: polity, name: Brazil}
   - {key: argentina, kind: polity, name: Argentina}
   - {key: chile_state, kind: polity, name: Chile}
+  # Africa and Arabia's new holders: Free France, Belgium's government in London, the restored Ethiopian
+  # emperor, Saudi Arabia (the Kingdom of Yemen folded in) and Liberia. [proposed]
+  - {key: free_france, kind: polity, name: Free France}
+  - {key: belgium, kind: polity, name: Belgium}
+  - {key: ethiopia_state, kind: polity, name: Ethiopia}
+  - {key: saudi_arabia, kind: polity, name: Saudi Arabia}
+  - {key: liberia_state, kind: polity, name: Liberia}
 
   # Rule 4: every place of today's world, restated with the area it lies in; a port names its sea zone
   # and a base its sides and domains (the code table in core/realism/bases.py: F sea, A land, R air).
@@ -179,6 +186,50 @@ entities:
   - {key: port_stanley, kind: location, name: Port Stanley, at: [-51.69, -57.86], theatre: Americas, within: falklands, base: {sides: [uk], domains: [land]}}
   - {key: port_of_spain, kind: location, name: Port of Spain, at: [10.65, -61.51], theatre: Americas, within: lesser_antilles, base: {sides: [uk], domains: [land]}}
   - {key: fort_de_france, kind: location, name: Fort-de-France, at: [14.56, -61.03], theatre: Americas, within: lesser_antilles, base: {sides: [french_state], domains: [land]}}
+  # Africa and Arabia's places, each a land base of the area's holder on 1 September 1941. [proposed]
+  - {key: dakar, kind: location, name: Dakar, at: [14.69, -17.44], theatre: Africa, within: french_west_africa, base: {sides: [french_state], domains: [land]}}
+  - {key: bamako, kind: location, name: Bamako, at: [12.64, -8.0], theatre: Africa, within: french_west_africa, base: {sides: [french_state], domains: [land]}}
+  - {key: freetown, kind: location, name: Freetown, at: [8.48, -13.23], theatre: Africa, within: british_west_africa, base: {sides: [uk], domains: [land]}}
+  - {key: lagos, kind: location, name: Lagos, at: [6.44, 3.37], theatre: Africa, within: british_west_africa, base: {sides: [uk], domains: [land]}}
+  - {key: takoradi, kind: location, name: Takoradi, at: [4.89, -1.75], theatre: Africa, within: british_west_africa, base: {sides: [uk], domains: [land]}}
+  - {key: brazzaville, kind: location, name: Brazzaville, at: [-4.27, 15.28], theatre: Africa, within: french_equatorial_africa, base: {sides: [free_france], domains: [land]}}
+  - {key: fort_lamy, kind: location, name: Fort-Lamy, at: [12.11, 15.04], theatre: Africa, within: french_equatorial_africa, base: {sides: [free_france], domains: [land]}}
+  - {key: leopoldville, kind: location, name: Leopoldville, at: [-4.32, 15.31], theatre: Africa, within: belgian_congo, base: {sides: [belgium], domains: [land]}}
+  - {key: elisabethville, kind: location, name: Elisabethville, at: [-11.66, 27.48], theatre: Africa, within: belgian_congo, base: {sides: [belgium], domains: [land]}}
+  - {key: khartoum, kind: location, name: Khartoum, at: [15.59, 32.53], theatre: Africa, within: sudan, base: {sides: [uk], domains: [land]}}
+  - {key: port_sudan, kind: location, name: Port Sudan, at: [19.62, 37.22], theatre: Africa, within: sudan, base: {sides: [uk], domains: [land]}}
+  - {key: addis_ababa, kind: location, name: Addis Ababa, at: [9.03, 38.74], theatre: Africa, within: ethiopia, base: {sides: [ethiopia_state], domains: [land]}}
+  - {key: dessie, kind: location, name: Dessie, at: [11.13, 39.63], theatre: Africa, within: ethiopia, base: {sides: [ethiopia_state], domains: [land]}}
+  - {key: gondar_town, kind: location, name: Gondar, at: [12.61, 37.47], theatre: Africa, within: gondar, base: {sides: [italy], domains: [land]}}
+  - {key: massawa, kind: location, name: Massawa, at: [15.63, 39.42], theatre: Africa, within: horn_of_africa, base: {sides: [uk], domains: [land]}}
+  - {key: mogadishu, kind: location, name: Mogadishu, at: [2.05, 45.32], theatre: Africa, within: horn_of_africa, base: {sides: [uk], domains: [land]}}
+  - {key: berbera, kind: location, name: Berbera, at: [10.44, 45.01], theatre: Africa, within: horn_of_africa, base: {sides: [uk], domains: [land]}}
+  - {key: djibouti, kind: location, name: Djibouti, at: [11.55, 43.12], theatre: Africa, within: french_somaliland, base: {sides: [french_state], domains: [land]}}
+  - {key: mombasa, kind: location, name: Mombasa, at: [-4.0, 39.69], theatre: Africa, within: british_east_africa, base: {sides: [uk], domains: [land]}}
+  - {key: dar_es_salaam, kind: location, name: Dar es Salaam, at: [-6.79, 39.21], theatre: Africa, within: british_east_africa, base: {sides: [uk], domains: [land]}}
+  - {key: luanda, kind: location, name: Luanda, at: [-8.84, 13.23], theatre: Africa, within: angola, base: {sides: [portugal], domains: [land]}}
+  - {key: lobito, kind: location, name: Lobito, at: [-12.35, 13.55], theatre: Africa, within: angola, base: {sides: [portugal], domains: [land]}}
+  - {key: lourenco_marques, kind: location, name: Lourenco Marques, at: [-25.95, 32.54], theatre: Africa, within: mozambique, base: {sides: [portugal], domains: [land]}}
+  - {key: beira, kind: location, name: Beira, at: [-19.82, 34.87], theatre: Africa, within: mozambique, base: {sides: [portugal], domains: [land]}}
+  - {key: salisbury, kind: location, name: Salisbury, at: [-17.83, 31.05], theatre: Africa, within: rhodesias, base: {sides: [uk], domains: [land]}}
+  - {key: broken_hill, kind: location, name: Broken Hill, at: [-14.45, 28.45], theatre: Africa, within: rhodesias, base: {sides: [uk], domains: [land]}}
+  - {key: cape_town, kind: location, name: Cape Town, at: [-33.92, 18.42], theatre: Africa, within: south_africa, base: {sides: [uk], domains: [land]}}
+  - {key: durban, kind: location, name: Durban, at: [-29.86, 31.02], theatre: Africa, within: south_africa, base: {sides: [uk], domains: [land]}}
+  - {key: diego_suarez, kind: location, name: Diego-Suarez, at: [-12.28, 49.29], theatre: Africa, within: madagascar, base: {sides: [french_state], domains: [land]}}
+  - {key: tananarive, kind: location, name: Tananarive, at: [-18.91, 47.54], theatre: Africa, within: madagascar, base: {sides: [french_state], domains: [land]}}
+  - {key: riyadh, kind: location, name: Riyadh, at: [24.71, 46.68], theatre: Middle East, within: arabia, base: {sides: [saudi_arabia], domains: [land]}}
+  - {key: jeddah, kind: location, name: Jeddah, at: [21.49, 39.19], theatre: Middle East, within: arabia, base: {sides: [saudi_arabia], domains: [land]}}
+  - {key: dhahran, kind: location, name: Dhahran, at: [26.29, 50.11], theatre: Middle East, within: arabia, base: {sides: [saudi_arabia], domains: [land]}}
+  - {key: aden, kind: location, name: Aden, at: [12.85, 45.03], theatre: Middle East, within: aden_gulf, base: {sides: [uk], domains: [land]}}
+  - {key: manama, kind: location, name: Manama, at: [26.23, 50.59], theatre: Middle East, within: aden_gulf, base: {sides: [uk], domains: [land]}}
+  - {key: kuwait_town, kind: location, name: Kuwait, at: [29.37, 47.98], theatre: Middle East, within: aden_gulf, base: {sides: [uk], domains: [land]}}
+  - {key: las_palmas, kind: location, name: Las Palmas, at: [28.12, -15.43], theatre: Africa, within: spanish_sahara, base: {sides: [spain], domains: [land]}}
+  - {key: monrovia, kind: location, name: Monrovia, at: [6.31, -10.76], theatre: Africa, within: liberia, base: {sides: [liberia_state], domains: [land]}}
+  - {key: bissau, kind: location, name: Bissau, at: [11.86, -15.6], theatre: Africa, within: portuguese_guinea, base: {sides: [portugal], domains: [land]}}
+  - {key: mindelo, kind: location, name: Mindelo, at: [16.89, -24.98], theatre: Africa, within: portuguese_guinea, base: {sides: [portugal], domains: [land]}}
+  - {key: santa_isabel, kind: location, name: Santa Isabel, at: [3.75, 8.78], theatre: Africa, within: spanish_guinea, base: {sides: [spain], domains: [land]}}
+  - {key: ponta_delgada, kind: location, name: Ponta Delgada, at: [37.74, -25.67], theatre: Africa, within: azores_madeira, base: {sides: [portugal], domains: [land]}}
+  - {key: lajes, kind: location, name: Lajes, at: [38.76, -27.09], theatre: Africa, within: azores_madeira, base: {sides: [portugal], domains: [land]}}
 
 # Rule 2: every land territory's holder on 1 September 1941. All gaps (no evidence record).
 holders:
@@ -292,6 +343,35 @@ holders:
   - {territory: philippines, holder: usa, gap: true}
   - {territory: hawaii, holder: usa, gap: true}
   - {territory: soviet_far_east, holder: ussr, gap: true}
+  # Africa and Arabia, each holder as the regions draft gives it (its sources named there; no evidence
+  # record): French West Africa, French Somaliland and Madagascar under Vichy; French Equatorial Africa
+  # with the Cameroons Free French since August 1940; the Belgian Congo under the government in London;
+  # the British colonies, mandates, protectorates and the Union of South Africa (a dominion, as Eastern
+  # Canada) the United Kingdom's; Eritrea and Italian Somaliland under British military administration;
+  # the Gondar garrison Italian until 27 November; Ethiopia its restored emperor's, with British
+  # military control a gap; the Portuguese and Spanish colonies and islands their own powers'.
+  - {territory: french_west_africa, holder: french_state, gap: true}
+  - {territory: british_west_africa, holder: uk, gap: true}
+  - {territory: french_equatorial_africa, holder: free_france, gap: true}
+  - {territory: belgian_congo, holder: belgium, gap: true}
+  - {territory: sudan, holder: uk, gap: true}
+  - {territory: ethiopia, holder: ethiopia_state, gap: true}
+  - {territory: gondar, holder: italy, gap: true}
+  - {territory: horn_of_africa, holder: uk, gap: true}
+  - {territory: french_somaliland, holder: french_state, gap: true}
+  - {territory: british_east_africa, holder: uk, gap: true}
+  - {territory: angola, holder: portugal, gap: true}
+  - {territory: mozambique, holder: portugal, gap: true}
+  - {territory: rhodesias, holder: uk, gap: true}
+  - {territory: south_africa, holder: uk, gap: true}
+  - {territory: madagascar, holder: french_state, gap: true}
+  - {territory: arabia, holder: saudi_arabia, gap: true}
+  - {territory: aden_gulf, holder: uk, gap: true}
+  - {territory: spanish_sahara, holder: spain, gap: true}
+  - {territory: liberia, holder: liberia_state, gap: true}
+  - {territory: portuguese_guinea, holder: portugal, gap: true}
+  - {territory: spanish_guinea, holder: spain, gap: true}
+  - {territory: azores_madeira, holder: portugal, gap: true}
 
 # Rule 6: the new forces. Strengths are tiers [proposed]; each opens at a base of its side.
 features:

@@ -1,12 +1,13 @@
-"""The whole-globe 1941 map: the Americas, Africa and inner Asia regions, read from the committed
-files only.
+"""The whole-globe 1941 map: the Americas, Africa, inner Asia and Australasia regions, read from the
+committed files only.
 
-Pins that the Americas recipe claims its thirteen territories, the Africa recipe its twenty-two and
-the inner Asia recipe its fourteen whole and leave the earlier regions' keys alone, that each
-region's sites lie in the territory that names them, that the cut lines of the earlier regions still
-give each side to the territory they name, that the map passes the scoped check against the newest
-staging world (which extends the earlier ones), that the Gondar cut gives each side to the territory
-it names, and that the start and yields files give each new territory a holder and a row. It reads
+Pins that the Americas recipe claims its thirteen territories, the Africa recipe its twenty-two, the
+inner Asia recipe its fourteen and the Australasia recipe its seven whole and leave the earlier
+regions' keys alone, that each region's sites lie in the territory that names them, that the cut
+lines of the earlier regions still give each side to the territory they name, that the map passes
+the scoped check against the newest staging world (which extends the earlier ones), that the Gondar
+cut gives each side to the territory it names, and that the start and yields files give each new
+territory a holder and a row. It reads
 the committed map, its recipes, staging worlds and objects; it needs neither the geometry tool nor
 the border data, so it runs in CI.
 """
@@ -36,8 +37,11 @@ AFRICA_PLACES = SRC / "africa.places.yaml"
 INNER_ASIA = SRC / "inner-asia.yaml"
 INNER_ASIA_STAGING = SRC / "inner-asia.world.yaml"
 INNER_ASIA_PLACES = SRC / "inner-asia.places.yaml"
+AUSTRALASIA = SRC / "australasia.yaml"
+AUSTRALASIA_STAGING = SRC / "australasia.world.yaml"
+AUSTRALASIA_PLACES = SRC / "australasia.places.yaml"
 # The newest region's staging world: the scoped check runs on it, and it extends the earlier ones.
-NEWEST = INNER_ASIA_STAGING
+NEWEST = AUSTRALASIA_STAGING
 PACIFIC_STAGING = SRC / "pacific.world.yaml"
 PACIFIC_PLACES = SRC / "pacific.places.yaml"
 START = SRC / "start.yaml"
@@ -46,7 +50,7 @@ EARLIER = tuple(
     SRC / f"{name}.yaml"
     for name in ("eastern-front", "europe", "atlantic", "mediterranean", "pacific")
 )
-RECIPES = (*EARLIER, AMERICAS, AFRICA, INNER_ASIA)
+RECIPES = (*EARLIER, AMERICAS, AFRICA, INNER_ASIA, AUSTRALASIA)
 STAGINGS = tuple(p.with_suffix(".world.yaml") for p in RECIPES)
 
 # The regions draft's thirteen territories, in the recipe's order.
@@ -336,6 +340,68 @@ INNER_ASIA_POLITIES = (
 )
 
 
+# The regions draft's seven Australasia and Pacific territories, in the recipe's order.
+AUSTRALASIA_TERRITORIES = (
+    "australia_west",
+    "australia_east",
+    "new_zealand",
+    "new_guinea",
+    "japanese_mandate",
+    "south_pacific",
+    "new_caledonia",
+)
+
+# Each present-day country or dependency the region takes whole, by the code prefix of its units,
+# and how many units the data gives it.
+AUSTRALASIA_WHOLE_COUNTRIES = {
+    "AUS": 11, "ATC": 1, "IOA": 2, "NFK": 1, "CSI": 1, "NZL": 24, "PNG": 20, "SLB": 10, "PLW": 16,
+    "FSM": 4, "MHL": 2, "MNP": 4, "FJI": 5, "TON": 5, "WSM": 11, "ASM": 5, "KIR": 2, "TUV": 1,
+    "NRU": 14, "COK": 11, "NIU": 1, "WLF": 3, "PYF": 5, "PCN": 1, "NCL": 3, "VUT": 6,
+}  # fmt: skip
+# Guam and the United States' minor islands (Wake, Midway and the rest) stay places in their sea
+# zones, unclaimed (the regions draft); Heard Island waits for the southern seas.
+AUSTRALASIA_UNCLAIMED = {
+    "GUM+00?", "UMI-5171", "UMI-5172", "UMI-5173", "UMI-5174", "UMI-5176", "UMI-5178", "UMI-5179",
+    "HMD+00?",
+}  # fmt: skip
+AUSTRALASIA_PART_UNITS = {
+    "australia_west": {"AUS-2650", "AUS-2651", "ATC+00?", "IOA-1928", "IOA-2652"},
+    "japanese_mandate": {"PLW-5249", "FSM-4942", "MHL-4969", "MNP-4939"},
+    "new_guinea": {"PNG-1250", "PNG-1254", "SLB-1263"},
+}
+
+# The region's sites: (lat, lon) as the places file gives them, and the territory each lies in.
+AUSTRALASIA_SITES = {
+    "darwin": ((-12.42, 130.88), "australia_west"),
+    "perth": ((-31.95, 115.86), "australia_west"),
+    "sydney": ((-33.87, 151.21), "australia_east"),
+    "melbourne": ((-37.81, 144.96), "australia_east"),
+    "brisbane": ((-27.47, 153.03), "australia_east"),
+    "wellington": ((-41.28, 174.75), "new_zealand"),
+    "auckland": ((-36.85, 174.76), "new_zealand"),
+    "port_moresby": ((-9.44, 147.18), "new_guinea"),
+    "rabaul": ((-4.2, 152.18), "new_guinea"),
+    "tulagi": ((-9.06, 160.17), "new_guinea"),
+    "saipan": ((15.18, 145.75), "japanese_mandate"),
+    "koror": ((7.34, 134.48), "japanese_mandate"),
+    "suva": ((-18.14, 178.44), "south_pacific"),
+    "pago_pago": ((-14.3, -170.74), "south_pacific"),
+    "papeete": ((-17.54, -149.57), "south_pacific"),
+    "noumea": ((-22.27, 166.44), "new_caledonia"),
+    "espiritu_santo": ((-15.51, 167.18), "new_caledonia"),
+}
+
+# The region's places at sea: atolls the simplified coast does not keep, each in its sea zone.
+AUSTRALASIA_SEA_PLACES = {
+    "truk": ((7.45, 151.85), "central_pacific"),
+    "kwajalein": ((8.72, 167.73), "central_pacific"),
+    "wake": ((19.28, 166.65), "central_pacific"),
+}
+
+# The holder with no seat that the region's territories name.
+AUSTRALASIA_POLITIES = ("free_france",)
+
+
 def _load() -> ModuleType:
     spec = importlib.util.spec_from_file_location("map_check", ROOT / "scripts" / "map_check.py")
     assert spec is not None and spec.loader is not None
@@ -406,7 +472,7 @@ def test_the_americas_region_has_its_territories() -> None:
         assert bool(t.get("terrain_source")) != bool(t.get("terrain_gap")), t["key"]
 
 
-def test_the_map_is_the_eight_regions_areas_and_no_others() -> None:
+def test_the_map_is_the_nine_regions_areas_and_no_others() -> None:
     keys = {
         str(a["key"])
         for recipe in RECIPES
@@ -428,7 +494,7 @@ def test_the_americas_take_the_units_left_of_a_shared_country(territory: str) ->
     assert PART_UNITS[territory] <= {str(c) for c in rows[territory]["provinces"]}
 
 
-def test_no_province_is_claimed_twice_across_the_eight_recipes() -> None:
+def test_no_province_is_claimed_twice_across_the_nine_recipes() -> None:
     claims = [c for recipe in RECIPES for c in _claims(recipe)]
     assert len(claims) == len(set(claims))
 
@@ -774,9 +840,8 @@ def test_the_inner_asia_staging_blocks_are_the_built_fragments() -> None:
     assert staged["adjacency"] == [e for e in fragment["adjacency"] if own & set(pair(e))]
 
 
-def test_the_inner_asia_staging_world_is_the_newest() -> None:
-    assert NEWEST == INNER_ASIA_STAGING
-    report = mc.check_region(INNER_ASIA_STAGING)
+def test_the_scoped_check_passes_on_the_newest_staging_world_with_inner_asia_in_scope() -> None:
+    report = mc.check_region(NEWEST)
     assert [str(p) for p in report.problems] == []
     assert not set(INNER_ASIA_SITES) & set(report.out_of_scope)
 
@@ -814,6 +879,147 @@ def test_each_inner_asia_territory_has_a_yields_row() -> None:
     sources = {str(s["key"]) for s in doc["sources"]}
     resources = [str(r["key"]) for r in _yaml(START)["resources"]]
     for t in INNER_ASIA_TERRITORIES:
+        row = rows[t]
+        assert set(row) == {"key", *resources}, t
+        for r in resources:
+            entry = row[r]
+            assert entry.get("gap") is True, (t, r)
+            assert entry["named_source"] in sources, (t, r)
+            assert str(entry.get("basis") or "").strip(), (t, r)
+        assert row["supply"]["amount"] == len(row["supply"].get("hubs") or []), t
+
+
+# ---------------------------------------------------------------- Australasia and the Pacific
+
+
+def test_the_australasia_region_has_its_territories() -> None:
+    staged = _yaml(AUSTRALASIA_STAGING)
+    assert [t["key"] for t in staged["territories"]] == list(AUSTRALASIA_TERRITORIES)
+    assert {t["region"] for t in staged["territories"]} == {"australasia"}
+    assert not staged.get("sea_zones")
+    assert set(AUSTRALASIA_TERRITORIES) <= set(_raw()["areas"])
+    recipe = _yaml(AUSTRALASIA)
+    assert recipe["cuts"] == []
+    for t in recipe["territories"]:
+        assert t.get("provinces"), t["key"]
+        assert t.get("terrain"), t["key"]
+        assert bool(t.get("terrain_source")) != bool(t.get("terrain_gap")), t["key"]
+
+
+@pytest.mark.parametrize("country", sorted(AUSTRALASIA_WHOLE_COUNTRIES))
+def test_australasia_takes_each_country_whole(country: str) -> None:
+    claimed = [c for c in _claims(AUSTRALASIA) if c.startswith(country)]
+    assert len(claimed) == AUSTRALASIA_WHOLE_COUNTRIES[country], country
+
+
+@pytest.mark.parametrize("territory", sorted(AUSTRALASIA_PART_UNITS))
+def test_australasia_puts_each_unit_in_its_territory(territory: str) -> None:
+    rows = {str(t["key"]): t for t in _yaml(AUSTRALASIA)["territories"]}
+    assert AUSTRALASIA_PART_UNITS[territory] <= {str(c) for c in rows[territory]["provinces"]}
+
+
+def test_guam_and_the_united_states_minor_islands_stay_unclaimed() -> None:
+    claims = {c for recipe in RECIPES for c in _claims(recipe)}
+    assert not AUSTRALASIA_UNCLAIMED & claims
+
+
+def test_new_guinea_has_no_cut_and_its_dutch_half_stays_in_the_indies() -> None:
+    claims = {c for recipe in RECIPES for c in _claims(recipe)}
+    cut = {str(c["province"]) for recipe in RECIPES for c in _yaml(recipe).get("cuts") or []}
+    assert not {c for c in cut if c.startswith(("PNG", "IDN"))}
+    pacific = {str(t["key"]): t for t in _yaml(SRC / "pacific.yaml")["territories"]}
+    indies = {str(c) for c in pacific["dutch_east_indies"]["provinces"]}
+    assert {c for c in claims if c.startswith("IDN")} <= indies
+
+
+def test_the_australasia_staging_world_lists_the_sites_of_each_territory() -> None:
+    sites = {
+        str(s): str(t["key"])
+        for t in _yaml(AUSTRALASIA_STAGING)["territories"]
+        for s in t.get("sites") or []
+    }
+    assert sites == {k: home for k, (_, home) in AUSTRALASIA_SITES.items()}
+
+
+@pytest.mark.parametrize("site", sorted({**AUSTRALASIA_SITES, **AUSTRALASIA_SEA_PLACES}))
+def test_each_australasia_site_lies_in_its_territory(site: str) -> None:
+    (lat, lon), home = {**AUSTRALASIA_SITES, **AUSTRALASIA_SEA_PLACES}[site]
+    inside, border = mc.locate(_raw(), float(lon), float(lat))
+    assert not border, site
+    assert inside == [home], site
+
+
+def test_the_australasia_places_file_extends_the_inner_asia_one() -> None:
+    assert _yaml(AUSTRALASIA_STAGING)["places_of"] == AUSTRALASIA_PLACES.name
+    here = _yaml(AUSTRALASIA_PLACES)["entities"]
+    earlier = _yaml(INNER_ASIA_PLACES)["entities"]
+    assert here[: len(earlier)] == earlier
+    new = {str(e["key"]): e for e in here[len(earlier) :]}
+    assert {k: tuple(e["at"]) for k, e in new.items()} == {
+        k: at for k, (at, _) in {**AUSTRALASIA_SITES, **AUSTRALASIA_SEA_PLACES}.items()
+    }
+
+
+def test_the_australasia_staging_world_extends_inner_asia() -> None:
+    parent = (AUSTRALASIA_STAGING.parent / _yaml(AUSTRALASIA_STAGING)["extends"]).resolve()
+    assert parent == INNER_ASIA_STAGING.resolve()
+
+
+def test_the_australasia_staging_blocks_are_the_built_fragments() -> None:
+    fragment, staged = _yaml(FRAGMENT), _yaml(AUSTRALASIA_STAGING)
+    assert staged["territories"] == [
+        a for a in fragment["territories"] if a["region"] == "australasia"
+    ]
+    own = {str(a["key"]) for a in staged["territories"]}
+
+    def pair(e: Any) -> tuple[str, str]:
+        return (e["a"], e["b"]) if isinstance(e, dict) else (e[0], e[1])
+
+    assert staged["adjacency"] == [e for e in fragment["adjacency"] if own & set(pair(e))]
+
+
+def test_the_australasia_staging_world_is_the_newest() -> None:
+    assert NEWEST == AUSTRALASIA_STAGING
+    report = mc.check_region(AUSTRALASIA_STAGING)
+    assert [str(p) for p in report.problems] == []
+    assert not {*AUSTRALASIA_SITES, *AUSTRALASIA_SEA_PLACES} & set(report.out_of_scope)
+
+
+def test_each_australasia_territory_has_a_holder_with_a_gap_or_a_source() -> None:
+    start = _yaml(START)
+    holders = {str(h["territory"]): h for h in start["holders"]}
+    keys = {str(e["key"]): e for e in start["entities"]}
+    seats = {"usa", "uk", "germany", "ussr", "japan", "italy", "china"}
+    for t in AUSTRALASIA_TERRITORIES:
+        h = holders[t]
+        assert h.get("gap") is True or h.get("source"), t
+        assert h["holder"] in seats or keys[h["holder"]]["kind"] == "polity", t
+    assert holders["japanese_mandate"]["holder"] == "japan"
+    assert holders["new_caledonia"]["holder"] == "free_france"
+
+
+def test_the_australasia_holders_are_polities() -> None:
+    keys = {str(e["key"]): e for e in _yaml(START)["entities"]}
+    for p in AUSTRALASIA_POLITIES:
+        assert keys[p]["kind"] == "polity", p
+    assert not set(AUSTRALASIA_POLITIES) & set(AUSTRALASIA_TERRITORIES)
+
+
+def test_each_australasia_site_is_a_place_of_the_start_within_its_territory() -> None:
+    keys = {str(e["key"]): e for e in _yaml(START)["entities"]}
+    for site, (at, home) in {**AUSTRALASIA_SITES, **AUSTRALASIA_SEA_PLACES}.items():
+        e = keys[site]
+        assert e["kind"] == "location", site
+        assert tuple(e["at"]) == at, site
+        assert e["within"] == home, site
+
+
+def test_each_australasia_territory_has_a_yields_row() -> None:
+    doc = _yaml(YIELDS)
+    rows = {str(r["key"]): r for r in doc["territories"]}
+    sources = {str(s["key"]) for s in doc["sources"]}
+    resources = [str(r["key"]) for r in _yaml(START)["resources"]]
+    for t in AUSTRALASIA_TERRITORIES:
         row = rows[t]
         assert set(row) == {"key", *resources}, t
         for r in resources:

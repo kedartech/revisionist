@@ -14,7 +14,7 @@
 # checker reads the place there (worlds/maps/README.md).
 extends: mediterranean.world.yaml
 places_of: pacific.places.yaml
-map: {coords: lonlat, file: autumn-1941-globe.json, sha256: afcd257ffb932123481e0908773bc33cc5da12305d9493506fe59fcd69e1b9df, box: [-126, -60, 234, 84]}
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: 4cec6c8f44764ce8152e4bce84b8a599e1927a71e18055e7378e9d567190f3f9, box: [-126, -60, 234, 84]}
 regions:
   - {key: pacific, name: China, Japan and the Pacific}
 territories:

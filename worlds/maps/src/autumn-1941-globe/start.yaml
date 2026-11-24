@@ -266,6 +266,26 @@ entities:
   - {key: hami, kind: location, name: Hami, at: [42.82, 93.52], theatre: Inner Asia, within: sinkiang, base: {sides: [china], domains: [land]}}
   - {key: ulan_bator, kind: location, name: Ulan Bator, at: [47.92, 106.92], theatre: Inner Asia, within: mongolia, base: {sides: [mongolia_state], domains: [land]}}
   - {key: kyzyl, kind: location, name: Kyzyl, at: [51.72, 94.45], theatre: Inner Asia, within: mongolia, base: {sides: [mongolia_state], domains: [land]}}
+  - {key: darwin, kind: location, name: Darwin, at: [-12.42, 130.88], theatre: Asia-Pacific, within: australia_west, base: {sides: [uk], domains: [land]}}
+  - {key: perth, kind: location, name: Perth, at: [-31.95, 115.86], theatre: Asia-Pacific, within: australia_west, base: {sides: [uk], domains: [land]}}
+  - {key: sydney, kind: location, name: Sydney, at: [-33.87, 151.21], theatre: Asia-Pacific, within: australia_east, base: {sides: [uk], domains: [land]}}
+  - {key: melbourne, kind: location, name: Melbourne, at: [-37.81, 144.96], theatre: Asia-Pacific, within: australia_east, base: {sides: [uk], domains: [land]}}
+  - {key: brisbane, kind: location, name: Brisbane, at: [-27.47, 153.03], theatre: Asia-Pacific, within: australia_east, base: {sides: [uk], domains: [land]}}
+  - {key: wellington, kind: location, name: Wellington, at: [-41.28, 174.75], theatre: Asia-Pacific, within: new_zealand, base: {sides: [uk], domains: [land]}}
+  - {key: auckland, kind: location, name: Auckland, at: [-36.85, 174.76], theatre: Asia-Pacific, within: new_zealand, base: {sides: [uk], domains: [land]}}
+  - {key: port_moresby, kind: location, name: Port Moresby, at: [-9.44, 147.18], theatre: Asia-Pacific, within: new_guinea, base: {sides: [uk], domains: [land]}}
+  - {key: rabaul, kind: location, name: Rabaul, at: [-4.2, 152.18], theatre: Asia-Pacific, within: new_guinea, base: {sides: [uk], domains: [land]}}
+  - {key: tulagi, kind: location, name: Tulagi, at: [-9.06, 160.17], theatre: Asia-Pacific, within: new_guinea, base: {sides: [uk], domains: [land]}}
+  - {key: saipan, kind: location, name: Saipan, at: [15.18, 145.75], theatre: Asia-Pacific, within: japanese_mandate, base: {sides: [japan], domains: [land]}}
+  - {key: koror, kind: location, name: Koror, at: [7.34, 134.48], theatre: Asia-Pacific, within: japanese_mandate, base: {sides: [japan], domains: [land]}}
+  - {key: suva, kind: location, name: Suva, at: [-18.14, 178.44], theatre: Asia-Pacific, within: south_pacific, base: {sides: [uk], domains: [land]}}
+  - {key: pago_pago, kind: location, name: Pago Pago, at: [-14.3, -170.74], theatre: Asia-Pacific, within: south_pacific, base: {sides: [usa], domains: [land]}}
+  - {key: papeete, kind: location, name: Papeete, at: [-17.54, -149.57], theatre: Asia-Pacific, within: south_pacific, base: {sides: [free_france], domains: [land]}}
+  - {key: noumea, kind: location, name: Nouméa, at: [-22.27, 166.44], theatre: Asia-Pacific, within: new_caledonia, base: {sides: [free_france], domains: [land]}}
+  - {key: espiritu_santo, kind: location, name: Espiritu Santo, at: [-15.51, 167.18], theatre: Asia-Pacific, within: new_caledonia, base: {sides: [free_france], domains: [land]}}
+  - {key: truk, kind: location, name: Truk, at: [7.45, 151.85], theatre: Asia-Pacific, within: central_pacific, base: {sides: [japan], domains: [sea, air]}}
+  - {key: kwajalein, kind: location, name: Kwajalein, at: [8.72, 167.73], theatre: Asia-Pacific, within: central_pacific, base: {sides: [japan], domains: [sea, air]}}
+  - {key: wake, kind: location, name: Wake Island, at: [19.28, 166.65], theatre: Asia-Pacific, within: central_pacific, base: {sides: [usa], domains: [sea, air]}}
 
 # Rule 2: every land territory's holder on 1 September 1941. All gaps (no evidence record).
 holders:
@@ -428,6 +448,13 @@ holders:
   - {territory: tibet_nepal, holder: tibet, gap: true}
   - {territory: sinkiang, holder: china, gap: true}
   - {territory: mongolia, holder: mongolia_state, gap: true}
+  - {territory: australia_west, holder: uk, gap: true}
+  - {territory: australia_east, holder: uk, gap: true}
+  - {territory: new_zealand, holder: uk, gap: true}
+  - {territory: new_guinea, holder: uk, gap: true}
+  - {territory: japanese_mandate, holder: japan, gap: true}
+  - {territory: south_pacific, holder: uk, gap: true}
+  - {territory: new_caledonia, holder: free_france, gap: true}
 
 # Rule 6: the new forces. Strengths are tiers [proposed]; each opens at a base of its side.
 features:

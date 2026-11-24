@@ -950,3 +950,45 @@ territories:
     oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
     supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Pearl Harbor]}
     prestige: {amount: 3, gap: true, named_source: lane_choice, basis: the Pacific Fleet's base}
+  - key: australia_west
+    industry: {amount: 0.05, gap: true, named_source: kennedy_1987, basis: the Western Australian goldfields' works}
+    manpower: {amount: 0.5, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.5 million people: Western Australia and the Northern Territory'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Perth, Darwin]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a dominion's state capital}
+  - key: australia_east
+    industry: {amount: 0.6, gap: true, named_source: kennedy_1987, basis: 'Australia''s war industry, counted in Britain''s share'}
+    manpower: {amount: 6.6, gap: true, named_source: lon_yearbook_1941, basis: 'about 6.6 million people: the eastern states'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 3, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Sydney, Melbourne, Brisbane]}
+    prestige: {amount: 5, gap: true, named_source: lane_choice, basis: 'Canberra, a dominion''s capital'}
+  - key: new_zealand
+    industry: {amount: 0.2, gap: true, named_source: kennedy_1987, basis: 'New Zealand''s works, counted in Britain''s share'}
+    manpower: {amount: 1.6, gap: true, named_source: lon_yearbook_1941, basis: 'about 1.6 million people: New Zealand'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Wellington, Auckland]}
+    prestige: {amount: 4, gap: true, named_source: lane_choice, basis: 'Wellington, a dominion''s capital'}
+  - key: new_guinea
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 1.5, gap: true, named_source: lon_yearbook_1941, basis: 'about 1.5 million people: Papua, the mandate of New Guinea and the Solomons'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Port Moresby, Rabaul]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a mandate's seat}
+  - key: japanese_mandate
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 0.13, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.13 million people: the South Seas mandate'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Saipan]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a mandate's seat}
+  - key: south_pacific
+    industry: {amount: 0, gap: true, named_source: kennedy_1987, basis: no works of note}
+    manpower: {amount: 0.5, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.5 million people: the South Pacific islands'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 2, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Suva, Pago Pago]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a colony's seat}
+  - key: new_caledonia
+    industry: {amount: 0.02, gap: true, named_source: kennedy_1987, basis: Nouméa's nickel works}
+    manpower: {amount: 0.1, gap: true, named_source: lon_yearbook_1941, basis: 'about 0.1 million people: New Caledonia and the New Hebrides'}
+    oil: {amount: 0, gap: true, named_source: lon_yearbook_1941, basis: no crude output of note}
+    supply: {amount: 1, gap: true, named_source: lane_choice, basis: the rail junctions and ports named, hubs: [Nouméa]}
+    prestige: {amount: 2, gap: true, named_source: lane_choice, basis: a colony's seat}

@@ -183,16 +183,31 @@ test('each place of political weight is a line with its holder; a threatened one
   assert.equal(sheet(block((h) => { h.places = []; })).querySelector('.rl-home-places'), null);
 });
 
-test('a threatened place is a line in what needs you that shows it on the map', () => {
-  const lines = needs.needLines(seat()).filter((l) => l.kind === 'place');
+/** The seat's view with the Norra Plain's area marked to fall on its map; `change` edits it after. */
+const falling = (change = () => {}) => seat((rv) => {
+  let area = rv.map.areas.find((a) => a.key === 'norra_plain');
+  if (!area) {
+    area = { ...structuredClone(rv.map.areas[0]), key: 'norra_plain', name: 'The Norra Plain' };
+    rv.map.areas.push(area);
+  }
+  area.falling = '1900-04-05';
+  change(rv);
+});
+
+test('a place only named by a report next door is no line in what needs you', () => {
+  assert.deepEqual(needs.needLines(seat()).filter((l) => l.kind === 'place'), []);
+});
+
+test('a place its map marks to fall is a line in what needs you that shows it on the map', () => {
+  const lines = needs.needLines(falling()).filter((l) => l.kind === 'place');
   assert.deepEqual(lines.map((l) => [l.key, l.action]), [['norra_plain', { word: 'Show on map', to: 'map', area: 'norra_plain' }]]);
   assert.match(lines[0].what, /The Norra Plain/);
-  assert.deepEqual(needs.needLines(seat((rv) => { rv.home.places[0].threatened = false; })).filter((l) => l.kind === 'place'), []);
-  assert.deepEqual(needs.needLines(seat((rv) => { rv.home = null; })).filter((l) => l.kind === 'place'), []);
+  assert.deepEqual(needs.needLines(falling((rv) => { rv.home.places[0].threatened = false; })).filter((l) => l.kind === 'place'), []);
+  assert.deepEqual(needs.needLines(falling((rv) => { rv.home = null; })).filter((l) => l.kind === 'place'), []);
 });
 
 test('the place\'s line in the room centres the map on it and opens its area', async () => {
-  const rv = seat();
+  const rv = falling();
   const { root } = room(rv);
   const row = root().querySelectorAll('li.rl-need').find((li) => li.getAttribute('data-kind') === 'place');
   assert.ok(row, 'the line is in the list');

@@ -18,6 +18,7 @@ from typing import Literal
 
 from revisionist.core.ids import EntityId, SeatId
 from revisionist.core.ontology import EntityKind
+from revisionist.core.project import at_post
 from revisionist.core.realism import economy, holders, territory, trade
 from revisionist.core.realism.kinds import Role
 from revisionist.core.realism.war import at_war
@@ -99,7 +100,7 @@ def _income(view: View, own: EntityId, day: date) -> list[EconomyIncome]:
     for t in board.territories if board is not None else ():
         if economy.holder(view, t.area) != own:
             continue
-        for key, amount in sorted(economy.yields_of(view, t.area).items()):
+        for key, amount in sorted(economy.working(view, t.area, day).items()):
             found = kinds.resources.get(key)
             if found is not None:
                 amounts[key] += amount * economy.factor(view, t.area, found.role, day)
@@ -115,9 +116,9 @@ def _income(view: View, own: EntityId, day: date) -> list[EconomyIncome]:
     ]
 
 
-def _pools(state: State, view: View, own: EntityId) -> EconomyPools:
+def _pools(state: State, view: View, own: EntityId, post: bool) -> EconomyPools:
     pools = view.economy.pools.get(own, economy.Pools())
-    out = EconomyPools(output=pools.output, manpower=pools.manpower)
+    out = EconomyPools() if post else EconomyPools(output=pools.output, manpower=pools.manpower)
     if trade.on(state):
         out["fuel"] = pools.fuel
     return out
@@ -145,7 +146,7 @@ def _territories(view: View, own: EntityId, day: date) -> list[EconomyTerritory]
         EconomyTerritory(
             area=t.key,
             name=t.name,
-            yields=economy.yields_of(view, t.area),
+            yields=economy.working(view, t.area, day),
             factors={role.value: economy.factor(view, t.area, role, day) for role in Role},
         )
         for t in sorted(held, key=lambda t: t.key)
@@ -163,19 +164,22 @@ def _figures(state: State, view: View, own: EntityId | None) -> list[EconomyFigu
 
 
 def block(state: State, view: View) -> EconomyBlock | None:
-    """The ``economy`` block; None with ``economy`` off."""
+    """The ``economy`` block; None with ``economy`` off. A commander held to his post gets
+    of his own nation its fuel stock and months of fuel only: its income, other pools and
+    territories' yields are his government's books."""
     day = view.in_world_date
     if not economy.on(state) or day is None:
         return None
     own = own_nation(view)
+    post = at_post(state, view.viewer)
     mine: EconomyOwn | None = None
     if own is not None:
         mine = EconomyOwn(
             nation=nation(state, own, own),
-            income=_income(view, own, day),
-            pools=_pools(state, view, own),
+            income=[] if post else _income(view, own, day),
+            pools=_pools(state, view, own, post),
             fuel_months=_fuel_months(state, view, own, day),
-            territories=_territories(view, own, day),
+            territories=[] if post else _territories(view, own, day),
         )
     return EconomyBlock(day=day.isoformat(), figures=_figures(state, view, own), own=mine)
 

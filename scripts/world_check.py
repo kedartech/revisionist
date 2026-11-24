@@ -244,7 +244,11 @@ def check(world: WorldFile, rows: Iterable[Row]) -> list[Line]:
             gaps = sum(seen.values())
             status = "gap" if gaps else "answered"
             lines.append(Line(row, status, found=len(seen), gaps=gaps))
-        elif row.needed is not None and (row.needed == () or on.intersection(row.needed)):
+        elif (
+            row.needed is not None
+            and row.standing == "on main"
+            and (row.needed == () or on.intersection(row.needed))
+        ):
             lines.append(Line(row, "required"))
         else:
             lines.append(Line(row, "absent"))
@@ -269,6 +273,27 @@ def report(name: str, lines: Sequence[Line]) -> list[str]:
     return out
 
 
+def without_groups(world: WorldFile) -> list[str]:
+    """The nations a playable card serves that declare no groups at home, in a world that
+    declares any: the home rules are off for each of them. Empty when the world has none."""
+    if not world.groups:
+        return []
+    have = {g.nation for g in world.groups}
+    by_key = {e.key: e for e in world.entities}
+
+    def nation(key: str | None) -> str | None:
+        seen: set[str] = set()
+        while key is not None and key in by_key and key not in seen:
+            seen.add(key)
+            if by_key[key].kind.value == "polity":
+                return key
+            key = by_key[key].parent
+        return None
+
+    served = {nation(c.person) for c in world.cards if c.playable}
+    return sorted(n for n in served if n is not None and n not in have)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Which of the template's questions a world answers."
@@ -288,8 +313,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     failed = False
     for name in args.worlds:
         path = world_path(name)
-        lines = check(load(path), rows)
+        world = load(path)
+        lines = check(world, rows)
         print("\n".join(report(name, lines)))
+        for nation in without_groups(world):
+            print(f"  {nation}: no groups at home, so the home rules are off for it")
         failed = failed or any(x.status == "required" for x in lines)
     return 1 if failed else 0
 

@@ -8,8 +8,10 @@ words. The ``check`` action answers, for a draft order, what filing it now would
 the filing itself (``realism_tick.form_filing``, ``realism_tick.written_filing``) on the
 game as it stands and logs nothing, so the check and the filing cannot differ. The lock
 the filing reads is ``locks.seen_lock``: a lock whose condition turns on a fact the seat
-cannot see holds nothing, so such an order checks as allowed. Nothing here makes a
-model call.
+cannot see holds nothing, so such an order checks as allowed. A draft offer to a bloc
+(PRR) is checked by the filing's own rule (``offers.offer``): allowed, or its refusal.
+With ``peace`` on, an ask to allow a nation's acceptance of an offer of peace carries the
+offer's terms in full (PER). Nothing here makes a model call.
 """
 
 from collections.abc import Sequence
@@ -17,9 +19,10 @@ from collections.abc import Sequence
 from revisionist.core import events as ev
 from revisionist.core.ids import CampaignId, EntityId, FeatureId, OrderId, SeatId, derived_id
 from revisionist.core.project import project
-from revisionist.core.realism import locks, territory
+from revisionist.core.realism import agreement, defiance, ladder, locks, offers, territory
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import words
+from revisionist.core.realism.effect import Appointment, RoutedOrder
 from revisionist.core.realism.resolvers.movement import FORCE
 from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
@@ -29,14 +32,29 @@ from revisionist.engine.web.realism_api import (
     AskForm,
     AskLine,
     HeldLine,
+    IncidentLine,
     LockCheck,
     LocksBlock,
+    OfferCheck,
 )
 
 ASK_DUE = "when you choose"  # [proposed]
 """The due words of an ask in the decider's list and wake notice: no clock ends it."""
 ASKED = "Asked {who} for it."  # [proposed]
 """The reply to the ``ask`` action."""
+PRICE = (
+    "You may send it anyway. It becomes an incident: {who} will be asked to back or "
+    "disown it, and you may be relieved."
+)  # [proposed]
+"""The price of sending a held order anyway, in the check and the held line (DFR)."""
+SENT_ANYWAY = "Sent without leave: {words}."  # [proposed]
+"""The reply to the ``send-anyway`` action."""
+SENT_WITHOUT_LEAVE = "Sent an order without leave"  # [proposed]
+"""The superior's words for an incident over an order sent anyway."""
+REFUSED_FROM_ABOVE = "Refused an order of yours"  # [proposed]
+"""The superior's words for an incident over a refused order from above."""
+ANSWERED_INCIDENT = "You have {verdict} {who}."  # [proposed]
+"""The reply to the ``answer`` action on an incident."""
 
 
 def ask_id(campaign_id: CampaignId, order_id: OrderId) -> str:
@@ -50,6 +68,8 @@ def who(view: View, decider: locks.Decider) -> str:
     names them."""
     if decider.person is not None:
         return _name(view, decider.person)
+    if decider.council is not None:
+        return f"the council under {_name(view, decider.council.head)}"
     assert decider.nation is not None
     chambers = " and ".join(c.replace("_", " ") for c in decider.chambers)
     return f"{_name(view, decider.nation)}'s {chambers}"
@@ -66,29 +86,147 @@ def block(state: State, seat: SeatId) -> LocksBlock | None:
         return None
     view = project(state, seat)
     held = [
-        HeldLine(
-            id=h.order_id,
-            words=locks.held_words(state, h),
-            who=who(view, h.decider),
-            reason=h.reason,
-            held=h.filed.isoformat(),
-            asked=h.order_id in view.asked,
-            piece=_piece(state, view, h),
+        _priced(
+            state,
+            seat,
+            view,
+            h,
+            HeldLine(
+                id=h.order_id,
+                words=locks.held_words(state, h),
+                who=who(view, h.decider),
+                reason=h.reason,
+                held=h.filed.isoformat(),
+                asked=h.order_id in view.asked,
+                piece=_piece(state, view, h),
+            ),
         )
         for h in sorted(view.held.values(), key=lambda h: (h.filed, h.order_id))
     ]
     asks = [
-        AskLine(
-            id=ask_id(state.campaign_id, a.order_id),
-            by=_name(view, a.by),
-            words=a.words,
-            asked=a.on.isoformat(),
-            forms=_forms(state, view, a),
+        _terms(
+            state,
+            view,
+            a.order_id,
+            AskLine(
+                id=ask_id(state.campaign_id, a.order_id),
+                by=_name(view, a.by),
+                words=a.words,
+                asked=a.on.isoformat(),
+                forms=_forms(state, view, a),
+            ),
         )
         for a in sorted(view.asked.values(), key=lambda a: (a.on, a.order_id))
         if a.seat == seat
     ]
-    return LocksBlock(held=held, asks=asks)
+    if not defiance.on(state):
+        return LocksBlock(held=held, asks=asks)
+    return LocksBlock(held=held, asks=asks, incidents=incidents(view))
+
+
+def _terms(state: State, view: View, order_id: OrderId, line: AskLine) -> AskLine:
+    """An ask to allow a nation's acceptance of an offer of peace carries the offer's
+    terms in full, so whoever decides reads every clause before allowing it (PER)."""
+    from revisionist.engine.web import agreements_api
+
+    if agreement.peace_on(state):
+        found = agreements_api.peace_terms(state, view, order_id)
+        if found is not None:
+            line["terms"] = found
+    return line
+
+
+def _priced(state: State, seat: SeatId, view: View, h: locks.HeldOrder, line: HeldLine) -> HeldLine:
+    said = price(state, seat, view, h)
+    if said is not None:
+        line["price"] = said
+    return line
+
+
+def price(state: State, seat: SeatId, view: View, held: locks.HeldOrder) -> str | None:
+    """The price of sending ``held`` anyway, named from the seat's own view, when its seat
+    may (``realism_tick.sendable``, the rule ``send-anyway`` files by); None otherwise."""
+    today = state.in_world_date
+    if today is None or not defiance.on(state) or held.order_id in state.aide_orders:
+        return None
+    try:
+        realism_tick.sendable(state, seat, held, today)
+    except ValueError:
+        return None
+    over = defiance.superior(held)
+    return PRICE.format(who=_name(view, over) if over is not None else who(view, held.decider))
+
+
+def _incident_words(view: View, incident: defiance.Incident) -> str:
+    if view.me.embodies != incident.superior:
+        return defiance.told(view, incident)
+    what = SENT_WITHOUT_LEAVE if incident.cause is defiance.Cause.DEFIED else REFUSED_FROM_ABOVE
+    if incident.verdict is not None:
+        return f"{_name(view, incident.commander)}: {what}. You {incident.verdict.value} it."
+    return f"{_name(view, incident.commander)}: {what}."
+
+
+def incidents(view: View) -> list[IncidentLine]:
+    """The incidents the seat is party to, oldest first, read from its own view: the
+    superior may answer an open one three ways; the commander sees it and its answer."""
+    out: list[IncidentLine] = []
+    for i in sorted(view.incidents.values(), key=lambda i: (i.opened, i.incident_id)):
+        mine = view.me.embodies == i.superior and i.verdict is None
+        out.append(
+            IncidentLine(
+                id=i.incident_id,
+                words=_incident_words(view, i),
+                due=i.due.isoformat(),
+                verdict=i.verdict.value if i.verdict is not None else None,
+                answers=[v.value for v in defiance.Verdict] if mine else [],
+            )
+        )
+    return out
+
+
+def incident_matter(view: View, incident: defiance.Incident) -> tuple[str, str]:
+    """The superior's due line for an open incident: its words and the commander's name."""
+    what = SENT_WITHOUT_LEAVE if incident.cause is defiance.Cause.DEFIED else REFUSED_FROM_ABOVE
+    return what, _name(view, incident.commander)
+
+
+def sent_reply(state: State, order_id: OrderId) -> str:
+    """The reply to ``send-anyway``: the order's words, read before it is sent."""
+    held = state.held.get(order_id)
+    words = locks.held_words(state, held) if held is not None else ""
+    return SENT_ANYWAY.format(words=words)
+
+
+def incident_label(state: State, seat: SeatId, item: str, verdict: str) -> str:
+    """The label of a held answer to an incident for the seat's held-orders list. Raises
+    ``ValueError`` with the seat's words as the answer would now."""
+    found = state.incidents.get(item) if defiance.on(state) else None
+    if (
+        found is None
+        or found.verdict is not None
+        or seat not in state.seats
+        or state.seats[seat].embodies != found.superior
+    ):
+        raise ValueError(defiance.NOT_YOURS)
+    try:
+        chosen = defiance.Verdict(verdict)
+    except ValueError:
+        raise ValueError(f"answer one of: {', '.join(v.value for v in defiance.Verdict)}") from None
+    commander = _name(project(state, seat), found.commander)
+    return f"Your answer to an incident: {chosen.value}, {commander}"  # [proposed]
+
+
+def send_label(state: State, seat: SeatId, order_id: str) -> str:
+    """The label of a held ``send-anyway`` for the seat's held-orders list. Raises
+    ``ValueError`` with the seat's words as sending would now."""
+    today = state.in_world_date
+    held = state.held.get(OrderId(order_id)) if locks.on(state) else None
+    if today is None or held is None or held.issuer != seat:
+        raise ValueError(locks.NOT_HELD)
+    if held.order_id in state.aide_orders:
+        raise ValueError(defiance.BY_AIDE)
+    realism_tick.sendable(state, seat, held, today)
+    return f"Send anyway: {locks.held_words(state, held)}"  # [proposed]
 
 
 def _piece(state: State, view: View, held: locks.HeldOrder) -> str | None:
@@ -136,9 +274,12 @@ def _beyond(reason: str) -> LockCheck:
 
 
 def _locked(state: State, seat: SeatId, hold: locks.HeldOrder) -> LockCheck:
-    return LockCheck(
-        check="locked", who=who(project(state, seat), hold.decider), reason=hold.reason
-    )
+    view = project(state, seat)
+    out = LockCheck(check="locked", who=who(view, hold.decider), reason=hold.reason)
+    said = price(state, seat, view, hold)
+    if said is not None:
+        out["price"] = said
+    return out
 
 
 def _held_in(landing: realism_tick.Landing) -> locks.HeldOrder | None:
@@ -164,7 +305,78 @@ def check_asks(state: State, seat: SeatId, asks: Sequence[Ask]) -> LockCheck:
         _, filed = realism_tick.written_filing(state, seat, asks)
     except ValueError as exc:
         return _beyond(str(exc))
-    return _locked(state, seat, filed) if isinstance(filed, locks.HeldOrder) else ALLOWED
+    if isinstance(filed, locks.HeldOrder):
+        return _locked(state, seat, filed)
+    return _moves(state, filed) if ladder.on(state) else ALLOWED
+
+
+QUESTION = "It would open the office question."  # [proposed]
+"""The check's words for a move of post that would take a seat's last authority (PPR)."""
+
+
+def _moves(state: State, filed: RoutedOrder) -> LockCheck:
+    """With ``posts`` on, a filed move of post that would take a seat's last authority
+    goes out and waits for the office question (PPR)."""
+    for part in filed.parts:
+        effect = part.effect
+        if not isinstance(effect, Appointment):
+            continue
+        post = ladder.post_named(state, effect.office)
+        if post is not None and ladder.takes_last(state, effect.person, post, effect.appoint):
+            return LockCheck(check="question", who=None, reason=QUESTION)
+    return ALLOWED
+
+
+NO_POST = "There is no such post."  # [proposed]
+NO_PERSON = "There is no such person."  # [proposed]
+MOVES = ("appoint", "relieve", "restore")
+
+
+def move_ask(state: State, seat: SeatId, person: str, post: str, move: str) -> Ask:
+    """The written order a move of post is: appoint or restore ``person`` to ``post``, or
+    relieve him of it. Raises ``ValueError`` in the seat's words for a post the ladder
+    does not hold or a person the seat does not know."""
+    found = ladder.post_named(state, post) if move in MOVES else None
+    if found is None:
+        raise ValueError(NO_POST)
+    who = project(state, seat).entities.get(EntityId(person))
+    if who is None or who.entity_id not in state.cards:
+        raise ValueError(NO_PERSON)
+    office = state.assets[found].name
+    verb = {"appoint": "Appoint", "relieve": "Relieve", "restore": "Restore"}[move]
+    words = (
+        f"{verb} {who.name}: {office}" if move != "relieve" else f"Relieve {who.name} of {office}"
+    )
+    effect = Appointment(person=who.entity_id, office=office, appoint=move != "relieve")
+    return Ask(ask=words, effect=effect)
+
+
+def check_move(state: State, seat: SeatId, person: str, post: str, move: str) -> LockCheck:
+    """What filing the move of post would do now, as the written order it is (PPR):
+    allowed; locked, with who decides; beyond, with the refusal; or the office question.
+    Logs nothing."""
+    try:
+        ask = move_ask(state, seat, person, post, move)
+    except ValueError as exc:
+        return _beyond(str(exc))
+    return check_asks(state, seat, (ask,))
+
+
+def check_offer(state: State, seat: SeatId, bloc: str, measure: str, key: str) -> LockCheck:
+    """What filing the seat's draft offer of price ``key`` to ``bloc`` for ``measure``
+    would do now (PRR rule 4): allowed, with each vote of the measure counted as it would
+    stand with the offer landed (PRB rule 2), or refused in the words filing gives. No
+    lock holds an offer. Logs nothing."""
+    today = state.in_world_date
+    if today is None:
+        return _beyond(offers.NOT_ON)
+    from revisionist.engine.web import home_api
+
+    try:
+        stands = home_api.would_stand(state, seat, bloc, measure, key)
+    except offers.OffersError as exc:
+        return _beyond(str(exc))
+    return OfferCheck(**ALLOWED, stands=stands)
 
 
 def ask_label(state: State, seat: SeatId, order_id: str) -> str:
@@ -191,5 +403,6 @@ __all__ = [
     "block",
     "check_asks",
     "check_form",
+    "check_offer",
     "who",
 ]

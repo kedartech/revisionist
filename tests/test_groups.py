@@ -132,6 +132,7 @@ def test_with_the_rule_off_the_world_has_no_groups_and_none_move(tmp_path: Path)
 def test_a_world_without_groups_pays_the_same_as_before(tmp_path: Path) -> None:
     def no_groups(w: World) -> None:
         w.pop("groups")
+        w.pop("places", None)
 
     plain = Logged(toy(tmp_path, ruled("holders", "economy"), no_groups), "ilse", "tomas")
     ruled_on = Logged(world(tmp_path, no_groups), "ilse", "tomas")

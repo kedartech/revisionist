@@ -326,8 +326,8 @@ def test_the_seat_fixture_carries_an_economy_block_in_the_snapshot_shape(
     shape([fixture["own"]], api.EconomyOwn)
     shape(fixture["own"]["income"], api.EconomyIncome)
     shape(fixture["own"]["territories"], api.EconomyTerritory)
-    assert set(fixture["own"]["pools"]) == api.EconomyPools.__required_keys__
-    assert api.EconomyPools.__optional_keys__ == {"fuel"}
+    assert set(fixture["own"]["pools"]) == {"output", "manpower"}
+    assert api.EconomyPools.__optional_keys__ == {"output", "manpower", "fuel"}
 
 
 def test_the_seat_fixture_carries_areas_with_holders_in_the_snapshot_shape(

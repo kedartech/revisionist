@@ -40,6 +40,24 @@ measure passed is ``daily_life_passed`` when the nation's law under the measure'
 touches daily life, else ``measure_passed`` (``passed``), so a group may weigh the two
 apart.
 
+Losses (LSS). With ``losses`` on, the steps a nation lost in a day's battle rounds are a
+happening of their own kind, ``battle_losses``, scaled by size: each group that names it
+moves by its amount times the steps, capped at ``LOSSES_DAY_CAP`` points a day over all
+the day's battles (``losses``). The kind is mixed unless the world classes it
+(``LOSSES_FELT``): the reported share lands that day, the felt share in equal parts over
+the ``FELT_DAYS`` days after (``landed``), held in state until it has landed. When a
+battle ends, what its winner lost in it counts half: the difference lands that day as a
+correction, and the felt share still held is halved. Losses at sea keep their own
+monthly kind. What is held is engine only; a seat reads its own groups' moves.
+
+Places (PLW). With ``places`` on, a world may weigh a handful of territories for a nation:
+each moves that nation's groups by listed amounts. A place it held that changes hands is
+lost (``place_lost``) by those amounts when a battle has ever opened there, else abandoned
+(``place_abandoned``) by ``ABANDONED_TIMES`` them, or ``STOOD_TIMES`` when a piece of the
+nation left it within ``STOOD_DAYS`` days; taken back (``place_retaken``) it moves them
+back by the amounts (``places``). The seat of government stays the world's ``capital``:
+a weighted seat raises ``capital_threatened`` and its own happening apart.
+
 Free writing (FWG). A world may list ``themes`` for a nation: a theme and the points it
 moves each of that nation's groups by. Writing that names a theme takes the moves from
 that table, in code (``named_theme``, ``theme_nudges``). Writing that names none may be
@@ -58,12 +76,13 @@ from typing import TYPE_CHECKING, Annotated, ClassVar
 from pydantic import Field, model_validator
 
 from revisionist.core._base import Label, Model
-from revisionist.core.ids import EntityId, SeatId
+from revisionist.core.ids import AssetId, EntityId, SeatId
 from revisionist.core.realism.effect import GROUP_DAY_CAP, ClauseKind, GroupNudge
 from revisionist.core.realism.offers import Price
 
 if TYPE_CHECKING:
-    from revisionist.core.events import GroupMoved, GroupProposed, Payload
+    from revisionist.core.events import GroupMoved, GroupProposed, LossesHeld, Payload
+    from revisionist.core.realism.battle import Battle
     from revisionist.core.state import State, View, _World
 
 MAX_GROUP_EFFECTS = 3  # [proposed] plan, FWG Defaults
@@ -84,6 +103,17 @@ STRIKE_LINE = 30  # [proposed] plan, GRP Defaults
 """Below this weighted support of the groups that feed output, output pays less."""
 STRIKE_SHARE = 0.9  # [proposed] plan, GRP Defaults
 """The share of output income paid below ``STRIKE_LINE``."""
+LOSSES_DAY_CAP = 3  # [proposed] plan, LSS Defaults
+"""The most one day's battle losses move one group, in points."""
+FELT_DAYS = 21  # [proposed] plan, LSS Defaults
+"""The days after a day's losses over which their felt share lands."""
+LOSSES_FELT = 0.5  # [proposed] LSS: the contract says mixed and names no share
+"""The share of battle losses that is felt when the world does not class the kind."""
+ABANDONED_TIMES = 2  # plan, PLW rule 3
+"""Abandoning a weighted place, with no battle opened there, against losing it."""
+STOOD_TIMES = 3  # [proposed] plan, PLW rule 3
+"""Abandoning it when a piece of the holder's left it within ``STOOD_DAYS`` days."""
+STOOD_DAYS = 7  # [proposed] plan, PLW rule 3
 TOP = 100
 
 Support = Annotated[int, Field(ge=0, le=TOP)]
@@ -123,6 +153,16 @@ class Happening(StrEnum):
     DAILY_LIFE_PASSED = "daily_life_passed"
     """With ``classes`` on, a measure passed that the world marks as touching daily life
     (HCL); with it off such a measure is a ``measure_passed``."""
+    BATTLE_LOSSES = "battle_losses"
+    """With ``losses`` on, the steps a nation lost in a day's battle rounds: a group moves
+    by its amount a step (LSS, ``losses``)."""
+    PLACE_LOST = "place_lost"
+    """With ``places`` on, a weighted place lost where a battle opened (PLW). Its amounts
+    are the world's ``places``, not a group's ``moved_by``; so for the two below."""
+    PLACE_ABANDONED = "place_abandoned"
+    """A weighted place that changed hands where no battle ever opened (PLW)."""
+    PLACE_RETAKEN = "place_retaken"
+    """A weighted place taken back by the nation it matters to (PLW)."""
 
 
 class Class(StrEnum):
@@ -154,7 +194,7 @@ class KindClass(Model):
         if "felt" not in data:
             return {**data, "felt": 1.0 if reach is Class.FELT else 0.0}
         felt = data["felt"]
-        if reach is Class.SECRET:
+        if reach is Class.SECRET and felt != 0:
             raise ValueError("a secret kind has no felt share")
         if reach is Class.FELT and felt != 1:
             raise ValueError("a felt kind is felt whole: a mixed kind is reported with a share")
@@ -189,6 +229,18 @@ class Cause(StrEnum):
     """A promise made to a bloc kept on its due day (PRC)."""
     PROMISE_BROKEN = "promise_broken"
     """A promise made to a bloc unmet on its due day (PRC)."""
+    BATTLE_LOSSES = "battle_losses"
+    """The reported share of a day's battle losses, that day (LSS)."""
+    LOSSES_FELT = "losses_felt"
+    """A part of the felt share of earlier battle losses arriving (LSS)."""
+    LOSSES_HALVED = "losses_halved"
+    """A battle won: what the nation lost in it counting half from the day it ended (LSS)."""
+    PLACE_LOST = "place_lost"
+    """A weighted place lost where a battle opened (PLW)."""
+    PLACE_ABANDONED = "place_abandoned"
+    """A weighted place abandoned with no battle opened there (PLW)."""
+    PLACE_RETAKEN = "place_retaken"
+    """A weighted place taken back (PLW)."""
 
 
 class BlocVote(Model):
@@ -263,6 +315,21 @@ class Theme(Model):
         return self
 
 
+class Place(Model):
+    """A place with political weight (PLW): a territory, the nation it matters to, and the
+    points each of that nation's groups moves when it is lost in a fight, signed."""
+
+    territory: EntityId
+    nation: EntityId
+    moves: dict[Label, int] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _moves(self) -> "Place":
+        if 0 in self.moves.values():
+            raise ValueError("a place moves each group it lists")
+        return self
+
+
 class NationGroups(Model):
     """One nation's groups at home, in the world file's order, and its themes."""
 
@@ -305,6 +372,37 @@ class Spent(Model):
     points: int = Field(ge=0)
 
 
+class HeldLoss(Model):
+    """One day's losses of a nation in one battle as they move one of its groups (LSS):
+    the reported share, which landed that day, and the felt share, which lands over the
+    ``FELT_DAYS`` days after. ``ended``: the battle has ended, so no correction is still to
+    come. Engine only."""
+
+    polity: EntityId
+    group: Label
+    area: EntityId
+    opened: date
+    """With ``area``, the battle: the day it opened."""
+    on: date
+    reported: int
+    felt: int
+    ended: bool = False
+
+    def key(self) -> tuple[EntityId, str, EntityId, date, date]:
+        return (self.polity, self.group, self.area, self.opened, self.on)
+
+
+class Election(Model):
+    """An election the world lists (ELE), with ``elections`` on: the nation, the chambers
+    it redraws, its day, and the post whose term ends that day, if any. Engine only: the
+    post's day is told by its office question's notice."""
+
+    nation: EntityId
+    chambers: tuple[Label, ...] = Field(min_length=1, max_length=4)
+    day: date
+    post: AssetId | None = None
+
+
 class Groups(Model):
     """Groups' truth. A seat sees its own nation's part only."""
 
@@ -321,8 +419,22 @@ class Groups(Model):
     classes: dict[Happening, KindClass] = Field(default_factory=dict)
     """With ``classes`` on, the class of each kind the world classes (``groups_declared``):
     public rules of the world. Read through ``cls``."""
+    held: tuple[HeldLoss, ...] = ()
+    """With ``losses`` on, battle losses whose felt share has still to land, or whose
+    battle has still to end (``losses_held``). Engine only."""
+    places: tuple[Place, ...] = ()
+    """With ``places`` on, the places with political weight, in the world file's order
+    (``groups_declared``). A seat sees its own nation's."""
+    left: dict[EntityId, dict[EntityId, date]] = Field(default_factory=dict)
+    """With ``places`` on, by weighted place, the last day a piece of each nation stepped
+    out of it (``piece_stepped``). Engine only."""
+    elections: tuple[Election, ...] = ()
+    """With ``elections`` on, the elections the world lists, in the world file's order
+    (``groups_declared``). Engine only."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"themes", "classes"})
+    late_fields: ClassVar[frozenset[str]] = frozenset(
+        {"themes", "classes", "held", "places", "left", "elections"}
+    )
 
 
 # --- reading ------------------------------------------------------------------------
@@ -347,12 +459,33 @@ def classes_on(state: "_World") -> bool:
     return Rule.CLASSES in rules
 
 
+def places_on(state: "_World") -> bool:
+    """Whether places with political weight move groups: the ``places`` rule on."""
+    from revisionist.core.state import Rule
+
+    rules: frozenset[Rule] = getattr(state, "rules", frozenset())
+    return Rule.PLACES in rules
+
+
+def losses_on(state: "_World") -> bool:
+    """Whether the size of battle losses moves groups: the ``losses`` rule on."""
+    from revisionist.core.state import Rule
+
+    rules: frozenset[Rule] = getattr(state, "rules", frozenset())
+    return Rule.LOSSES in rules
+
+
 def cls(state: "State | View", happening: Happening) -> KindClass:
     """The class of a kind of happening: the one place a rule reads it (HCL rule 4). With
     ``classes`` on, the world's class; a kind the world does not class, and every kind
-    with the rule off, is reported, felt by none."""
+    with the rule off, is reported, felt by none, except battle losses, which are mixed,
+    ``LOSSES_FELT`` of them felt (LSS rule 3)."""
     found = state.groups.classes.get(happening) if classes_on(state) else None
-    return found or KindClass(kind=happening, reach=Class.REPORTED)
+    if found is not None:
+        return found
+    if happening is Happening.BATTLE_LOSSES:
+        return KindClass(kind=happening, reach=Class.REPORTED, felt=LOSSES_FELT)
+    return KindClass(kind=happening, reach=Class.REPORTED)
 
 
 def _heard(state: "State | View", happening: Happening) -> bool:
@@ -429,10 +562,35 @@ def bloc_support(state: "State | View", polity: EntityId, chamber: str) -> dict[
     }
 
 
-def seen_by(state: "State", seat: SeatId) -> Groups:
+def _scaled(vote: BlocVote, old: int, new: int) -> BlocVote:
+    voting = min(new, (vote.voting * new + old // 2) // old)
+    return BlocVote(voting=voting, yeas=min(voting, (vote.yeas * new + old // 2) // old))
+
+
+def reseated(bloc: Group, seats: int) -> Group:
+    """A chamber's bloc with ``seats``, each row of its votes scaled by its new seats over
+    its old, to the nearest member, halves up (ELE)."""
+    old = bloc.seats
+    if old is None or old == seats:
+        return bloc
+    return bloc.model_copy(
+        update={
+            "seats": seats,
+            "votes": {
+                m: {v: _scaled(row, old, seats) for v, row in rows.items()}
+                for m, rows in bloc.votes.items()
+            },
+            "vote_default": {v: _scaled(row, old, seats) for v, row in bloc.vote_default.items()},
+        }
+    )
+
+
+def seen_by(state: "State", seat: SeatId, *, post: bool = False) -> Groups:
     """What ``seat`` sees of the groups: its own nation's groups, support and spent
     points, and the classes of happenings; no writing in waiting. Nothing for a seat of
-    no nation."""
+    no nation. With ``post`` (a commander held to his post, PVW): the classes of
+    happenings and its nation's places only; no group, theme, support or spent points,
+    since a group's declared start is its support until it first moves."""
     from revisionist.core.realism.war import polity_of
 
     me = state.seats.get(seat)
@@ -440,12 +598,15 @@ def seen_by(state: "State", seat: SeatId) -> Groups:
     if own is None:
         return Groups()
     g = state.groups
+    if post:
+        return Groups(classes=g.classes, places=tuple(p for p in g.places if p.nation == own))
     return Groups(
         declared={k: v for k, v in g.declared.items() if k == own},
         support={k: v for k, v in g.support.items() if k == own},
         spent={k: v for k, v in g.spent.items() if k == own},
         themes={k: v for k, v in g.themes.items() if k == own},
         classes=g.classes,
+        places=tuple(p for p in g.places if p.nation == own),
     )
 
 
@@ -590,7 +751,7 @@ def _chosen(proposals: Sequence[Proposal]) -> Proposal:
     return min(proposals, key=lambda p: (-abs(p.change), p.change, p.text_hash))
 
 
-def _shared(contributions: dict[SeatId, int], left: int) -> dict[SeatId, int]:
+def _shared[K: str | tuple[EntityId, date]](contributions: dict[K, int], left: int) -> dict[K, int]:
     """The contributions within ``left`` points: as they are when they fit, else ``left``
     shared in proportion to magnitude, in whole points by largest remainder, ties by seat
     key; each keeps its sign."""
@@ -640,6 +801,7 @@ def _held_happenings(
     happened to; ``start`` is the state before them."""
     from revisionist.core import events as ev
     from revisionist.core.realism import holders
+    from revisionist.core.realism.battle import Ending
 
     out: list[tuple[EntityId, Happening]] = []
     opened = dict(start.battles)
@@ -649,7 +811,7 @@ def _held_happenings(
             out += [(p.war.a, Happening.WAR_DECLARED), (p.war.b, Happening.WAR_DECLARED)]
         elif isinstance(p, ev.BattleOpened):
             opened[p.battle.area] = p.battle
-        elif isinstance(p, ev.BattleEnded):
+        elif isinstance(p, ev.BattleEnded) and p.ending is not Ending.CEASED:
             out.append((p.winner, Happening.BATTLE_WON))
             fought = opened.get(p.area)
             if fought is not None:
@@ -725,6 +887,193 @@ def react(
     return out
 
 
+def places(
+    state: "State", start: "State", payloads: Sequence["Payload"], day: date
+) -> list["GroupMoved"]:
+    """With ``places`` on, each weighted place that changes hands in ``payloads`` (a day's
+    events, in order; ``start`` is the state before them) moves the groups of the nation
+    it matters to (PLW rule 2), in the order of the changes, then the world's order of
+    groups: held by that nation and lost where a battle has opened, by the amounts; lost
+    where none has, abandoned, by ``ABANDONED_TIMES`` them, ``STOOD_TIMES`` when a piece
+    of the nation stepped out of it within ``STOOD_DAYS`` days; taken by that nation, back
+    by the amounts. A secret kind moves none."""
+    from revisionist.core import events as ev
+
+    if not on(state) or not state.groups.places:
+        return []
+    fought = set(start.fought)
+    left = {area: dict(by) for area, by in start.groups.left.items()}
+    found: list[tuple[Place, Happening, int]] = []
+    for p in payloads:
+        if isinstance(p, ev.BattleOpened):
+            fought.update(a for a in (p.battle.area, p.battle.second) if a is not None)
+        elif isinstance(p, ev.PieceStepped):
+            left.setdefault(p.left, {})[p.nation] = p.on
+        elif isinstance(p, ev.AreaHeld) and p.was is not None and p.was != p.holder:
+            for place in state.groups.places:
+                if place.territory != p.area:
+                    continue
+                if place.nation == p.holder:
+                    found.append((place, Happening.PLACE_RETAKEN, -1))
+                elif place.nation != p.was:
+                    continue
+                elif p.area in fought:
+                    found.append((place, Happening.PLACE_LOST, 1))
+                else:
+                    out_on = left.get(p.area, {}).get(p.was)
+                    stood = out_on is not None and (day - out_on).days <= STOOD_DAYS
+                    times = STOOD_TIMES if stood else ABANDONED_TIMES
+                    found.append((place, Happening.PLACE_ABANDONED, times))
+    now: dict[tuple[EntityId, str], int] = {}
+    out: list[GroupMoved] = []
+    for place, what, times in found:
+        if not _heard(state, what):
+            continue
+        for g in of(state, place.nation):
+            amount = place.moves.get(g.key, 0) * times
+            if not amount:
+                continue
+            was = now.get((place.nation, g.key), support(state, place.nation, g.key) or 0)
+            moved = _moved(was, place.nation, g.key, amount, Cause(what.value), day)
+            now[(place.nation, g.key)] = moved.support
+            if moved.change:
+                out.append(moved)
+    return out
+
+
+def landed(felt: int, days: int) -> int:
+    """The part of a felt share landed ``days`` days after the day of the losses: equal
+    parts over ``FELT_DAYS`` days, in whole points, rounded half away from zero."""
+    n = max(0, min(FELT_DAYS, days))
+    whole = (2 * abs(felt) * n + FELT_DAYS) // (2 * FELT_DAYS)
+    return whole if felt >= 0 else -whole
+
+
+def _half(points: int) -> int:
+    """Half of ``points``, rounded half away from zero: a loss never vanishes by halving."""
+    whole = (abs(points) + 1) // 2
+    return whole if points >= 0 else -whole
+
+
+def _fought(
+    start: "State", payloads: Sequence["Payload"]
+) -> tuple[list[tuple[EntityId, "Battle", int]], list[tuple["Battle", EntityId]]]:
+    """Each side's steps lost in ``payloads`` (a day's events, in order), by its leading
+    nation and battle, and each battle that ended with its winner; ``start`` is the state
+    before them."""
+    from revisionist.core import events as ev
+
+    opened = dict(start.battles)
+    rounds: list[tuple[EntityId, Battle, int]] = []
+    ended: list[tuple[Battle, EntityId]] = []
+    for p in payloads:
+        if isinstance(p, ev.BattleOpened):
+            opened[p.battle.area] = p.battle
+        elif isinstance(p, ev.BattleRound) and p.area in opened:
+            fought = opened[p.area]
+            for side, steps in ((fought.attacker, p.lost[0]), (fought.defender, p.lost[1])):
+                if steps:
+                    rounds.append((side.nation, fought, steps))
+        elif isinstance(p, ev.BattleEnded) and p.area in opened:
+            ended.append((opened[p.area], p.winner))
+    return rounds, ended
+
+
+def losses(
+    state: "State", start: "State", payloads: Sequence["Payload"], day: date
+) -> list["GroupMoved | LossesHeld"]:
+    """With ``groups`` and ``losses`` on, the day's battle losses at home (LSS): first the
+    felt shares held that fall due today (``losses_felt``); then each group that names
+    ``battle_losses`` moved by its amount times the steps its nation lost in each of the
+    day's rounds (``payloads``, the day's events; ``start``, the state before them), the
+    day's sum over all battles held to ``LOSSES_DAY_CAP`` and shared among them by size;
+    the reported share lands now (``battle_losses``) and every share is held
+    (``losses_held``). Last, for each battle that ended today, what its winner lost in it
+    counts half (``losses_halved``). A secret kind moves nobody and holds nothing."""
+    from revisionist.core import events as ev
+
+    if not on(state) or not losses_on(state) or not state.groups.declared:
+        return []
+    now: dict[tuple[EntityId, str], int] = {}
+    out: list[GroupMoved | LossesHeld] = []
+
+    def move(polity: EntityId, key: str, change: int, cause: Cause) -> None:
+        was = now.get((polity, key), support(state, polity, key))
+        if not change or was is None:
+            return
+        moved = _moved(was, polity, key, change, cause, day)
+        now[(polity, key)] = moved.support
+        if moved.change:
+            out.append(moved)
+
+    arriving: dict[tuple[EntityId, str], int] = {}
+    for h in state.groups.held:
+        after = (day - h.on).days
+        part = landed(h.felt, after) - landed(h.felt, after - 1)
+        if part:
+            arriving[(h.polity, h.group)] = arriving.get((h.polity, h.group), 0) + part
+    for (polity, key), part in sorted(arriving.items()):
+        move(polity, key, part, Cause.LOSSES_FELT)
+
+    kind = cls(state, Happening.BATTLE_LOSSES)
+    rounds, ended = _fought(start, payloads)
+    held: dict[tuple[EntityId, str, EntityId, date, date], HeldLoss] = {
+        h.key(): h for h in state.groups.held
+    }
+    changed: dict[tuple[EntityId, str, EntityId, date, date], HeldLoss] = {}
+    if kind.reach is not Class.SECRET:
+        cost: dict[tuple[EntityId, str], dict[tuple[EntityId, date], int]] = {}
+        for nation, fought, steps in rounds:
+            for g in of(state, nation):
+                amount = g.moved_by.get(Happening.BATTLE_LOSSES, 0) * steps
+                if amount:
+                    by = cost.setdefault((nation, g.key), {})
+                    at = (fought.area, fought.opened)
+                    by[at] = by.get(at, 0) + amount
+        for (polity, key), by_battle in sorted(cost.items()):
+            reported = 0
+            for (area, opened), points in sorted(_shared(by_battle, LOSSES_DAY_CAP).items()):
+                felt = int(round(points * kind.felt, 6))
+                one = HeldLoss(
+                    polity=polity,
+                    group=key,
+                    area=area,
+                    opened=opened,
+                    on=day,
+                    reported=points - felt,
+                    felt=felt,
+                )
+                held[one.key()] = changed[one.key()] = one
+                reported += one.reported
+            move(polity, key, reported, Cause.BATTLE_LOSSES)
+
+    back: dict[tuple[EntityId, str], int] = {}
+    for fought, winner in ended:
+        mine: dict[tuple[EntityId, str], list[HeldLoss]] = {}
+        for k, h in sorted(held.items()):
+            if (h.area, h.opened) != (fought.area, fought.opened) or h.ended:
+                continue
+            if h.polity == winner:
+                mine.setdefault((h.polity, h.group), []).append(h)
+            held[k] = changed[k] = h.model_copy(update={"ended": True})
+        for (polity, key), found in sorted(mine.items()):
+            target = _half(sum(h.reported + h.felt for h in found))
+            halved = [_half(h.felt) for h in found]
+            change = target - sum(halved) - sum(h.reported for h in found)
+            for h, felt in zip(found, halved, strict=True):
+                after = (day - h.on).days
+                change += landed(felt, after) - landed(h.felt, after)
+                held[h.key()] = changed[h.key()] = h.model_copy(
+                    update={"felt": felt, "ended": True}
+                )
+            back[(polity, key)] = back.get((polity, key), 0) + change
+    for (polity, key), change in sorted(back.items()):
+        move(polity, key, change, Cause.LOSSES_HALVED)
+    if changed:
+        out.append(ev.LossesHeld(on=day, held=tuple(v for _, v in sorted(changed.items()))))
+    return out
+
+
 def drift(state: "State", day: date) -> list["GroupMoved"]:
     """Each Monday, every group off its baseline moves ``DRIFT_POINTS`` toward it (rule 4)."""
     if not on(state) or day.weekday() != 0:
@@ -744,8 +1093,11 @@ def drift(state: "State", day: date) -> list["GroupMoved"]:
 __all__ = [
     "ABROAD_CAP",
     "DRIFT_POINTS",
+    "FELT_DAYS",
     "GROUP_DAY_CAP",
     "GROUP_WEEK_CAP",
+    "LOSSES_DAY_CAP",
+    "LOSSES_FELT",
     "MANPOWER_HIGH",
     "MANPOWER_LOW",
     "MAX_GROUP_EFFECTS",
@@ -760,6 +1112,7 @@ __all__ = [
     "Groups",
     "GroupsError",
     "Happening",
+    "HeldLoss",
     "KindClass",
     "NationGroups",
     "Proposal",
@@ -773,6 +1126,9 @@ __all__ = [
     "group",
     "happened",
     "home_standing",
+    "landed",
+    "losses",
+    "losses_on",
     "manpower_factor",
     "named_theme",
     "nudge_problem",

@@ -1,15 +1,17 @@
-"""The autumn-1941 realism world: it compiles, nobody is pre-seated, the nine
-playable cards are the roster, and every figure is cited or a gap."""
+"""The autumn-1941 realism world: it compiles, nobody is pre-seated, the playable cards
+(the eight leaders and the military cards flagged playable by hand) are the roster, and every
+figure is cited or a gap."""
 
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId
+from revisionist.core.realism.card import CardPath
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import check_history, compile_world
 from revisionist.engine import campaign as cmp
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 
-PLAYABLE = {
+LEADERS = {
     "roosevelt",
     "churchill",
     "stalin",
@@ -18,12 +20,19 @@ PLAYABLE = {
     "tojo",
     "mussolini",
     "chiang",
-    "king",  # KCD: the Atlantic Fleet's commander, flagged playable by hand
+    "ryti",
 }
+"""The eight leaders, and Finland's President (NFI), a political card beside them. The
+commanders the nation items add are read from the world file: each playable card beside
+these is a military card flagged playable by hand."""
 
 # Unsourced values a plan Josh approved puts in the world as [proposed], each marked
 # gap: true until a source is named (sealift plan, section 3).
-PROPOSED_VALUES = {"uk_sealift_grt": 300_000, "japan_sealift_grt": 200_000}
+PROPOSED_VALUES = {
+    "uk_sealift_grt": 300_000,
+    "japan_sealift_grt": 200_000,
+    "italy_sealift_grt": 150_000,
+}
 
 # Every value in the Phase 0b source note (SOURCES.md); a quantity may hold only these.
 SOURCED_VALUES = {
@@ -70,11 +79,13 @@ def test_it_compiles_with_no_seat_and_a_clean_draft() -> None:
     assert not state.seats and state.in_world_date == world.start_date
 
 
-def test_the_nine_playable_cards_are_the_roster() -> None:
+def test_the_playable_cards_are_the_roster() -> None:
     world = _world()
     playable = {c.person for c in world.cards if c.playable}
-    assert len(playable) == 9 == len(world.roster)
-    assert playable == PLAYABLE == {c.entity for c in world.roster}
+    commanders = {c.person for c in world.cards if c.playable and c.path is CardPath.MILITARY}
+    assert len(playable) == len(world.roster)
+    assert playable == LEADERS | commanders == {c.entity for c in world.roster}
+    assert not LEADERS & commanders
 
 
 def test_every_quantity_is_cited_a_gap_or_computed() -> None:
@@ -100,7 +111,7 @@ def test_no_quantity_holds_a_value_outside_the_source_note() -> None:
 def test_every_card_lever_names_a_resolver_and_a_card_pipeline() -> None:
     for c in _world().cards:
         assert all(lv.pipeline in c.pipelines for lv in c.levers), c.person
-    assert all(2 <= len(c.levers) <= 10 for c in _world().cards if c.playable)
+    assert all(2 <= len(c.levers) <= 11 for c in _world().cards if c.playable)
 
 
 def test_every_playable_card_has_authority_or_a_rank() -> None:

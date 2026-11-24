@@ -573,14 +573,15 @@ AUTUMN = ROOT / "worlds" / "autumn-1941.yaml"
 
 
 def _roster_of(n: int, **update: object) -> WorldFile:
-    """1941 with its roster grown or cut to ``n`` people."""
+    """1941 with its roster grown or cut to ``n`` people, and no ``roster_limit`` unless
+    ``update`` gives one."""
     world = cmp.load_world(AUTUMN)
     listed = {c.entity for c in world.roster}
     others = [d.key for d in world.entities if d.kind is EntityKind.PERSON and d.key not in listed]
     extra = tuple(CharacterDecl(entity=k, pitch="p", reach="r", composite=False) for k in others)
     roster = (*world.roster, *extra)[:n]
     assert len(roster) == n
-    return world.model_copy(update={"roster": roster, **update})
+    return world.model_copy(update={"roster": roster, "roster_limit": None, **update})
 
 
 def _roster_problems(world: WorldFile) -> list[str]:

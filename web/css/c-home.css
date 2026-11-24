@@ -42,6 +42,28 @@
 .rl-home-chamber h5 { margin: var(--space-3) 0 var(--space-1); font: 600 14px/1.35 var(--font-head); color: var(--fg-strong); }
 .rl-home-tokens { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .rl-home-token { padding: var(--space-1) var(--space-2); background: var(--surface-2); border: 1px solid var(--rule-strong); border-radius: var(--radius); font-variant-numeric: tabular-nums; max-width: 100%; }
+.rl-home-seatbar { margin: var(--space-1) 0 var(--space-2); }
+.rl-home-bar-box { display: block; width: 100%; height: 46px; border: 1px solid var(--rule-strong); border-radius: var(--radius); background: var(--surface-3); }
+.rl-home-seg { stroke: var(--surface); stroke-width: 1px; vector-effect: non-scaling-stroke; cursor: pointer; }
+.rl-home-seg:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-home-seg[aria-pressed="true"] { stroke: var(--focus); stroke-width: 3px; }
+.rl-home-seg.b0 { fill: var(--fg-strong); fill-opacity: 0.6; }
+.rl-home-seg.b1 { fill: var(--fg-muted); fill-opacity: 0.6; }
+.rl-home-seg.b2 { fill: var(--info); fill-opacity: 0.45; }
+.rl-home-seg.b3 { fill: var(--fg); fill-opacity: 0.3; }
+.rl-home-seg.b4 { fill: var(--rule-strong); }
+.rl-home-seg.b5 { fill: var(--intel); fill-opacity: 0.25; }
+.rl-home-seg.b6 { fill: var(--field-border); fill-opacity: 0.5; }
+.rl-home-carry { stroke: var(--warn); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+.rl-home-seatnote { font-size: 13px; color: var(--fg); font-variant-numeric: tabular-nums; }
+.rl-home-bloccard { margin-top: var(--space-2); }
+.rl-home-bloccard[hidden] { display: none; }
+.rl-home-votebar { display: block; width: 100%; padding: 0; background: none; border: 0; cursor: pointer; }
+.rl-home-votebar:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-home-vseg.yeas { fill: var(--fg-strong); fill-opacity: 0.7; }
+.rl-home-vseg.open { fill: var(--surface-3); }
+.rl-home-vseg.nays { fill: var(--fg-muted); fill-opacity: 0.6; }
+.rl-home-tokens[hidden] { display: none; }
 .rl-home-votename { color: var(--fg-muted); }
 .rl-home-line { color: var(--fg); }
 .rl-home-line strong { color: var(--fg-strong); }
@@ -53,3 +75,36 @@
 .rl-home-speak h3 { margin: 0 0 var(--space-1); font: 700 15px/1.35 var(--font-head); }
 .rl-home-speak ul { margin: var(--space-1) 0; padding-left: var(--space-4); }
 .rl-home-cap { color: var(--fg-strong); }
+
+/* What moved since the last wake: one line a group, its bar against the heaviest; a loss in red. */
+.rl-home-since ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.rl-home-since-btn { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); width: 100%; min-width: 0; min-height: 44px; padding: var(--space-1) var(--space-2); background: var(--surface-2); border: 1px solid var(--rule); border-radius: var(--radius); color: var(--fg); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.rl-home-since-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-home-since-line { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.rl-home-since-bar { display: block; flex: 0 0 100%; width: 100%; height: 6px; }
+.rl-home-since-fill { fill: var(--fg-muted); }
+.rl-home-since-row.up .rl-home-arrow { color: var(--ok); }
+.rl-home-since-row.down .rl-home-arrow, .rl-home-since-row.down .rl-home-since-fill { color: var(--danger); fill: var(--danger); }
+.rl-home-since-moves { margin: var(--space-1) 0 0 var(--space-3); padding: 0; list-style: none; font-size: 13px; }
+.rl-home-since-moves li.down { color: var(--danger); }
+.rl-home-since-moves[hidden] { display: none; }
+/* A count at the last wake above the count now; a bloc whose count moved is outlined. */
+.rl-home-then { margin: var(--space-1) 0; }
+.rl-home-thenbar { display: block; width: 100%; height: 10px; opacity: 0.6; }
+.rl-home-thenline, .rl-home-thenmoved { margin: var(--space-1) 0 0; font-size: 13px; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+.rl-home-token.moved { border-color: var(--fg-strong); border-style: dashed; }
+.rl-home-was { color: var(--fg-muted); }
+/* Places of weight: a threatened one in red. */
+.rl-home-places ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.rl-home-place { font-size: 13px; overflow-wrap: anywhere; }
+.rl-home-holder { color: var(--fg-muted); }
+.rl-home-place.threatened, .rl-home-place.threatened .rl-home-threat { color: var(--danger); }
+.rl-home-threat { font: 600 12px/1 var(--font-chrome); text-transform: uppercase; }
+
+/* The office block of the home sheet (realism-office.js): footing, each question in brief, the elections ahead. */
+.rl-home-office { display: grid; gap: var(--space-2); margin: var(--space-3) 0; }
+.rl-home-office .rl-office-footing { padding: var(--space-2) var(--space-3); border: 1px solid var(--rule-strong); border-radius: var(--radius); font-size: 13px; overflow-wrap: anywhere; }
+.rl-home-office .rl-office-foot { margin: 0; }
+.rl-home-office .rl-office-foot.under { border-left: 3px solid var(--warn); padding-left: var(--space-2); }
+.rl-office-brief, .rl-office-elections ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); font-size: 13px; overflow-wrap: anywhere; }
+.rl-office-elections h4 { margin: var(--space-2) 0 var(--space-1); }

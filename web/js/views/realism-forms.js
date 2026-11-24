@@ -204,15 +204,16 @@ function strengthStepper(item, param) {
 /**
  * A form's send that runs the server's check first (LKM): allowed, beyond or no answer, it is
  * sent as before; locked, the form shows the lock and two choices, File it to be held (`send`)
- * and Ask (`ask`), and nothing is sent until one is pressed.
+ * and Ask (`ask`), with Send it anyway (`anyway`) where the check carries a price, and nothing is
+ * sent until one is pressed.
  */
-function checkedSend(itemOf, check, send, ask) {
+function checkedSend(itemOf, check, send, ask, anyway = null) {
   return (v) => Promise.resolve(check(v)).catch(() => null).then((c) => {
     const item = itemOf();
     item.querySelector('.rl-lock-choice')?.remove();
     if (!isLocked(c)) return send(v);
     const done = (fn) => () => { item.querySelector('.rl-lock-choice')?.remove(); fn?.(v); };
-    const choice = lockedChoice(c, { file: done(send), ask: done(ask) });
+    const choice = lockedChoice(c, { file: done(send), ask: done(ask), send: anyway && done(anyway) });
     (item.querySelector('form') ?? item).append(choice);
     choice.querySelector('.rl-lock-file')?.focus?.();
     return null;
@@ -225,8 +226,8 @@ function checkedSend(itemOf, check, send, ask) {
  * `opts.force`: the force choice the form starts on, so the picker shows its days and reach.
  * `opts.onPlaces`: told the place picker's state (`placePicker`).
  */
-export function standardForm(lever, { force: chosen = null, onPlaces = null, check = null, onAsk = null, ...opts } = {}) {
-  if (check && opts.onSubmit) opts.onSubmit = checkedSend(() => item, check, opts.onSubmit, onAsk);
+export function standardForm(lever, { force: chosen = null, onPlaces = null, check = null, onAsk = null, onAnyway = null, ...opts } = {}) {
+  if (check && opts.onSubmit) opts.onSubmit = checkedSend(() => item, check, opts.onSubmit, onAsk, onAnyway);
   const item = instrument(lever, opts);
   const force = lever.params.find((p) => p.name === FORCE);
   const forceLabel = force?.label ?? 'the force';
@@ -244,12 +245,12 @@ export function standardForm(lever, { force: chosen = null, onPlaces = null, che
  * carries places drawn as a place picker, then the line "For anything a form does not
  * cover, write the order in your own words.". No levers: null.
  */
-export function standardForms(desk, { onSubmit, entities, check = null, onAsk = null }) {
+export function standardForms(desk, { onSubmit, entities, check = null, onAsk = null, onAnyway = null }) {
   const levers = desk.levers ?? [];
   if (!levers.length) return null;
   return h('details', { class: 'rl-forms' },
     h('summary', {}, formsSummary(levers)),
     h('ul', { class: 'rl-instruments', role: 'list' },
-      levers.map((lever) => standardForm(lever, { onSubmit, entities, check, onAsk }))),
+      levers.map((lever) => standardForm(lever, { onSubmit, entities, check, onAsk, onAnyway }))),
     h('p', { class: 'rl-forms-note' }, 'For anything a form does not cover, write the order in your own words.'));
 }

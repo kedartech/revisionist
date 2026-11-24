@@ -20,17 +20,24 @@ card's hidden rank, go to the seat's own chain and inner circle only; for anyone
 those keys are absent. A leader weighed against the seat gets a power meter from rank
 and the forces the seat's own pages place under them (approved; first-run change 14).
 The staff read on an order mirrors the pipeline policy without its draw.
+
+``posts_block`` is the seat's post as it sees it, with ``posts`` on (PPR): its post and
+ladder, who may move it, each change pending on it (sealed to it, as its notice is), the
+moves it may make on others with the rung each leads to, and with no post, the room it
+still has. No line says who is human.
 """
 
 from collections.abc import Mapping
 from datetime import date
 from typing import Literal
 
-from revisionist.core.ids import EntityId, SeatId
-from revisionist.core.ontology import EntityKind, EntityStatus, Relationship
-from revisionist.core.realism import opponents
+from revisionist.core.ids import AssetId, EntityId, SeatId
+from revisionist.core.ontology import EntityKind, EntityStatus, Relationship, regard_held
+from revisionist.core.project import project
+from revisionist.core.realism import ladder, opponents, posts
 from revisionist.core.realism.card import SeatCard, Tie, words
-from revisionist.core.realism.effect import Fidelity
+from revisionist.core.realism.document import DocumentKind
+from revisionist.core.realism.effect import EffectKind, Fidelity
 from revisionist.core.realism.geography import FORCES
 from revisionist.core.realism.pipeline import (
     ADVANCES,
@@ -49,15 +56,23 @@ from revisionist.core.realism.pipelines import (
 from revisionist.core.realism.reach import tie, transit_days
 from revisionist.core.realism.stance import RANK, Stance, band
 from revisionist.core.realism.war import polity_of
-from revisionist.core.state import State, View
+from revisionist.core.state import PostMove, State, View
 from revisionist.engine.web.destinations import latest_sightings
 from revisionist.engine.web.realism_api import (
+    LadderRung,
+    Letter,
+    PendingPost,
     People,
     PeopleMeter,
     PersonChannel,
     PersonHold,
     PersonLine,
     PersonTally,
+    PostMoveLine,
+    PostName,
+    PostRoom,
+    PostsBlock,
+    Through,
 )
 from revisionist.engine.web.threats import DATED_DAYS, FIRM_DAYS, _evidence
 
@@ -315,7 +330,7 @@ def _line(
 ) -> PersonLine:
     me = view.me.embodies
     history = state.stances.get(view.viewer, {}).get(person, ())
-    rel = next((r for r in view.relationships.values() if {r.a, r.b} == {person, me}), None)
+    rel = regard_held(view.relationships, person, me, either=True)
     seen: date | None = None
     if history or rel is not None:
         seen = _evidence(state, view, person, history[0].on if history else date.min)
@@ -398,4 +413,164 @@ def seat_people(
     return out
 
 
-__all__ = ["seat_people"]
+NEXT_WAKE = "at the close of the next wake"  # [proposed]
+THIS_WAKE = "at the close of this wake"  # [proposed]
+AT_SITTING = "only at the sitting of the office question"  # [proposed]
+"""When a pending change of post lands, in the words its line and the wake notice give."""
+LETTERS = 6
+"""The newest letters a seat with no post is shown [proposed]."""
+
+
+def _post(state: State, post: AssetId) -> PostName:
+    return PostName(id=post, name=state.assets[post].name)
+
+
+def _name(state: State, person: EntityId) -> str:
+    entity = state.entities.get(person)
+    return entity.name if entity is not None else person
+
+
+def _lands(state: State, m: PostMove) -> str:
+    if m.question:
+        return AT_SITTING
+    wake = state.wake
+    return THIS_WAKE if wake is not None and wake.number > m.wake else NEXT_WAKE
+
+
+def pending(state: State, seat: SeatId) -> list[PendingPost]:
+    """Each change of post pending on the person the seat plays, as sealed as its notice:
+    the person moved's seat alone reads it, and only while it waits."""
+    me = state.seats[seat].embodies
+    out: list[PendingPost] = []
+    for m in sorted(state.post_moves.values(), key=lambda m: (m.ordered, m.move_id)):
+        if m.person != me or m.seat != seat:
+            continue
+        lands_on = m.post if m.appoint else ladder.rung(state, m.post)
+        out.append(
+            PendingPost(
+                id=ladder.notice_id(state, m.move_id),
+                post=state.assets[m.post].name,
+                move="appoint" if m.appoint else "relieve",
+                lands=_lands(state, m),
+                wake=None if m.question else m.wake + 1,
+                rung=None if m.question or lands_on is None else state.assets[lands_on].name,
+            )
+        )
+    return out
+
+
+def _move(
+    state: State, person: EntityId, post: AssetId, appoint: bool, holder: EntityId | None
+) -> PostMoveLine:
+    """One move of post: who it puts down and the rung that person lands on, as landing
+    the move would put them now."""
+    down: EntityId | None
+    if not appoint:
+        down, lands_on = person, ladder.rung(state, post)
+    elif holder is not None:
+        down, lands_on = holder, ladder.rung(state, post, frozenset({person}))
+    else:
+        down, lands_on = None, None
+    own = state.cards[person].post
+    climbs = appoint and own is not None and own in _rungs(state, post)
+    falls = appoint and own is not None and post in _rungs(state, own)
+    if falls and down is None:
+        down, lands_on = person, post
+    return PostMoveLine(
+        person=person,
+        name=_name(state, person),
+        post=post,
+        office=state.assets[post].name,
+        move="relieve" if not appoint else "restore" if climbs else "appoint",
+        down=_name(state, down) if down is not None else None,
+        rung=state.assets[lands_on].name if lands_on is not None else None,
+        question=ladder.takes_last(state, person, post, appoint),
+    )
+
+
+def _rungs(state: State, post: AssetId) -> tuple[AssetId, ...]:
+    found = state.ladders.get(post)
+    return found.ladder if found is not None else ()
+
+
+def moves(state: State, seat: SeatId, view: View) -> list[PostMoveLine]:
+    """The moves the seat may make on others, when its card commands appointments: for
+    each post the world lets its post move, relieve its holder, and appoint any other
+    living person with a card the seat knows in its own polity; an appointment of
+    someone on a rung of that post's ladder is a restore."""
+    me = state.seats[seat].embodies
+    card = state.cards.get(me)
+    if card is None or not any(EffectKind.APPOINTMENT in d.effects for d in card.authority):
+        return []
+    polity = polity_of(state, me)
+    known = sorted(
+        p
+        for p, e in view.entities.items()
+        if p in state.cards
+        and p != me
+        and e.kind is EntityKind.PERSON
+        and e.status is not EntityStatus.DEAD
+        and polity_of(state, p) == polity
+    )
+    out: list[PostMoveLine] = []
+    for post in sorted(state.ladders, key=lambda a: state.assets[a].name):
+        if ladder.may_move(state, me, post) is not True:
+            continue
+        holder = posts.holder(state, post)
+        if holder is not None and holder != me:
+            out.append(_move(state, holder, post, False, holder))
+        out += [_move(state, p, post, True, holder) for p in known if p != holder]
+    return out
+
+
+def _room(state: State, view: View, card: SeatCard) -> PostRoom:
+    """What a seat with no post still has: its inner circle, its letters, its aims, and
+    those in its circle whose office commands something it may act through."""
+    circle = [c.person for c in card.inner_circle if c.person in state.entities]
+    letters = sorted(
+        (d for d in view.documents.values() if d.kind is DocumentKind.LETTER),
+        key=lambda d: (d.issued, d.doc_id),
+        reverse=True,
+    )[:LETTERS]
+    through = [
+        Through(
+            person=p,
+            name=_name(state, p),
+            authority=[d.name for d in state.cards[p].authority],
+        )
+        for p in circle
+        if p in state.cards and state.cards[p].authority
+    ]
+    return PostRoom(
+        inner_circle=[_name(state, p) for p in circle],
+        letters=[Letter(id=d.doc_id, title=d.title) for d in letters],
+        aims=list(card.aims),
+        through=through,
+    )
+
+
+def posts_block(state: State, seat: SeatId) -> PostsBlock | None:
+    """The seat's ``posts`` block (PPR); None with ``posts`` off, so a game without the
+    rule is sent what it was before."""
+    if not ladder.on(state):
+        return None
+    me = state.seats[seat].embodies
+    card = state.cards.get(me)
+    view = project(state, seat)
+    own = card.post if card is not None else None
+    block = PostsBlock(
+        post=_post(state, own) if own is not None and own in state.assets else None,
+        ladder=[
+            LadderRung(id=r, name=state.assets[r].name, free=posts.holder(state, r) is None)
+            for r in (_rungs(state, own) if own is not None else ())
+        ],
+        moved_by=[state.assets[m].name for m in (ladder.movers(state, own) if own else ())],
+        pending=pending(state, seat),
+        moves=moves(state, seat, view),
+    )
+    if own is None and card is not None:
+        block["room"] = _room(state, view, card)
+    return block
+
+
+__all__ = ["pending", "posts_block", "seat_people"]

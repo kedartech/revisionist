@@ -92,6 +92,8 @@ def _same_shapes(examples: list[Any], shape: Any) -> None:
         ("offer_reading", api.OfferReading),
         ("conferences", api.ConferencesBlock),
         ("locks", api.LocksBlock),
+        ("own_aim", api.OwnAimBlock),
+        ("aim_check", api.AimCheck),
     ],
 )
 def test_the_web_fixture_has_the_api_shape(key: str, shape: Any) -> None:
@@ -105,6 +107,7 @@ def test_the_web_fixture_has_the_api_shape(key: str, shape: Any) -> None:
         ("timeline", api.TimelinePoint),
         ("figures", api.FigureGroup),
         ("lock_check", api.LockCheck),
+        ("capitals", api.CapitalLine),
     ],
 )
 def test_the_web_fixture_lists_have_the_api_shape(key: str, shape: Any) -> None:

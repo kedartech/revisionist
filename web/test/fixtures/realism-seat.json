@@ -4363,6 +4363,7 @@
         "kind": "guild",
         "support": 50,
         "last_moved": null,
+        "since": [],
         "feeds": {
           "output": 1.0,
           "manpower": 1.0
@@ -4378,6 +4379,15 @@
           "change": 5,
           "on": "1900-04-02"
         },
+        "since": [
+          {
+            "cause": "battle_won",
+            "change": 5,
+            "on": "1900-04-02",
+            "why": "a battle won",
+            "reach": "reported"
+          }
+        ],
         "feeds": {
           "votes": 1.0,
           "standing": 1.0
@@ -4389,6 +4399,7 @@
         "kind": "party",
         "support": 30,
         "last_moved": null,
+        "since": [],
         "feeds": {
           "votes": 1.0
         }
@@ -4403,6 +4414,15 @@
           "change": -2,
           "on": "1900-04-04"
         },
+        "since": [
+          {
+            "cause": "territory_lost",
+            "change": -2,
+            "on": "1900-04-04",
+            "why": "territory lost",
+            "reach": "reported"
+          }
+        ],
         "feeds": {
           "standing": 3.0,
           "opinion": 1.0
@@ -4440,15 +4460,20 @@
                   {
                     "group": "greens",
                     "yeas": 71,
-                    "nays": 29
+                    "nays": 29,
+                    "then": null,
+                    "moved": false
                   },
                   {
                     "group": "greys",
                     "yeas": 20,
-                    "nays": 80
+                    "nays": 80,
+                    "then": null,
+                    "moved": false
                   }
                 ],
-                "carries": 101
+                "carries": 101,
+                "then": null
               }
             ]
           }
@@ -4489,6 +4514,157 @@
           "relation": "enemy"
         },
         "band": null
+      }
+    ],
+    "offers": [
+      {
+        "key": "barge_act",
+        "title": "The Barge Act",
+        "blocs": [
+          {
+            "group": "greens",
+            "name": "The Greens",
+            "prices": [
+              {
+                "key": "harbour_dues",
+                "sentence": "Set harbour dues lifted within ten days of the act.",
+                "points": 2,
+                "days": 10,
+                "loss": 6
+              },
+              {
+                "key": "guild_seat",
+                "sentence": "Set guild seat given within ten days of the act.",
+                "points": 3,
+                "days": 10,
+                "loss": 4
+              }
+            ],
+            "live": {
+              "price": "harbour_dues",
+              "points": 2,
+              "mine": true
+            }
+          }
+        ]
+      }
+    ],
+    "promises": [
+      {
+        "offer_id": "X2KJ18ER3BA2CCY8PKZ9SWZ0DX",
+        "group": "greens",
+        "name": "The Greens",
+        "measure": "barge_act",
+        "title": "The Barge Act",
+        "price": "harbour_dues",
+        "sentence": "Set harbour dues lifted within ten days of the act.",
+        "standing": "taken",
+        "filed": "1900-04-02",
+        "due": null
+      }
+    ],
+    "moved": [
+      {
+        "group": "greens",
+        "name": "The Greens",
+        "change": 5,
+        "line": "The Greens +5: a battle won"
+      },
+      {
+        "group": "public",
+        "name": "The Norra Public",
+        "change": -2,
+        "line": "The Norra Public -2: territory lost"
+      }
+    ],
+    "places": [
+      {
+        "key": "norra_plain",
+        "name": "The Norra Plain",
+        "holder": {
+          "key": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+          "name": "Norra",
+          "relation": "own"
+        },
+        "threatened": false
+      }
+    ],
+    "office": [
+      {
+        "question_id": "N41Q8WCZYVYASX886VRKB7XXA8",
+        "office": "General of the Norra Levy",
+        "holder": "Kara Lind",
+        "cause": "incident",
+        "sits": "1900-04-12",
+        "way": "vote",
+        "chamber": "assembly",
+        "deciders": [],
+        "mine": false,
+        "choice": null,
+        "count": {
+          "yeas": 40,
+          "nays": 10
+        }
+      }
+    ],
+    "turning": [
+      {
+        "office": "General of the Norra Levy",
+        "groups": [
+          "The Greens"
+        ],
+        "support": 20.0,
+        "line": 30,
+        "under": 10.0,
+        "days": 15,
+        "opens": "1900-04-22"
+      }
+    ],
+    "footing": [
+      {
+        "office": "General of the Norra Levy",
+        "groups": [
+          "The Greens"
+        ],
+        "support": 20.0,
+        "line": 30,
+        "days": 15,
+        "question": null
+      }
+    ],
+    "results": [
+      {
+        "question_id": "N41Q8WCZYVYASX886VRKB7XXA8",
+        "office": "General of the Norra Levy",
+        "holder": "Kara Lind",
+        "on": "1900-04-17",
+        "removed": false,
+        "rests_until": "1900-05-17"
+      }
+    ],
+    "elections": [
+      {
+        "day": "1900-05-01",
+        "office": "Chancellor of Norra",
+        "chambers": [
+          {
+            "key": "assembly",
+            "blocs": [
+              {
+                "group": "greens",
+                "name": "The Greens",
+                "seats": 60,
+                "would": 64
+              },
+              {
+                "group": "greys",
+                "name": "The Greys",
+                "seats": 40,
+                "would": 36
+              }
+            ]
+          }
+        ]
       }
     ]
   },
@@ -4580,6 +4756,75 @@
         "expires": "1900-04-06",
         "answers": [],
         "item": "4CB1HQP7RTP4J38MKTKDBK08VF"
+      },
+      {
+        "by": "Sudland",
+        "terms": {
+          "parties": [
+            "Sudland",
+            "Norra"
+          ],
+          "clauses": [
+            {
+              "text": "Sudland: an armistice with Norra for 10 days.",
+              "checked": true,
+              "interpretation": false
+            }
+          ],
+          "wording": "A truce for the harvest.",
+          "text": "Parties: Sudland, Norra. Clause 1: Sudland: an armistice with Norra for 10 days."
+        },
+        "filed": "1900-04-02",
+        "expires": "1900-04-06",
+        "answers": [],
+        "item": "4CB1HQP7RTP4J38MKTKDBK08VG",
+        "accept": {
+          "check": "locked",
+          "who": "the council under Ilse Varg",
+          "reason": "Held until the council under Ilse Varg allows it."
+        }
+      }
+    ],
+    "peace": [
+      {
+        "type": "armistice",
+        "label": "Armistice with a nation",
+        "nations": [
+          {
+            "key": "sudland",
+            "name": "Sudland"
+          }
+        ]
+      },
+      {
+        "type": "end_war",
+        "label": "End the war with a nation",
+        "nations": [
+          {
+            "key": "sudland",
+            "name": "Sudland"
+          }
+        ]
+      },
+      {
+        "type": "no_separate_peace",
+        "label": "No separate peace with a nation",
+        "nations": [
+          {
+            "key": "sudland",
+            "name": "Sudland"
+          }
+        ]
+      }
+    ],
+    "armistices": [
+      {
+        "agreement": "agr-1",
+        "nations": [
+          "Norra",
+          "Ostmark"
+        ],
+        "last_day": "1900-04-12"
       }
     ]
   },
@@ -4687,7 +4932,8 @@
         "reason": "Held until Ilse Varg allows it.",
         "held": "1900-04-02",
         "asked": true,
-        "piece": "m35dfd73080046750681e78fb6ca37f7f"
+        "piece": "m35dfd73080046750681e78fb6ca37f7f",
+        "price": "You may send it anyway. It becomes an incident: Ilse Varg will be asked to back or disown it, and you may be relieved."
       },
       {
         "id": "01M7YNVKSZFHJ8A6SZVCZRT5E5",
@@ -4716,13 +4962,27 @@
           }
         ]
       }
+    ],
+    "incidents": [
+      {
+        "id": "MQ3D9V4K2A7N1XH5RZC8EWJ6TB",
+        "words": "Kara Lind: Sent an order without leave.",
+        "due": "1900-04-04",
+        "verdict": null,
+        "answers": [
+          "backed",
+          "disowned",
+          "dismissed"
+        ]
+      }
     ]
   },
   "lock_check": [
     {
       "check": "locked",
       "who": "Ilse Varg",
-      "reason": "Held until Ilse Varg allows it."
+      "reason": "Held until Ilse Varg allows it.",
+      "price": "You may send it anyway. It becomes an incident: Ilse Varg will be asked to back or disown it, and you may be relieved."
     },
     {
       "check": "allowed",
@@ -4733,6 +4993,249 @@
       "check": "beyond",
       "who": null,
       "reason": "march takes exactly: force, to"
+    }
+  ],
+  "own_aim": {
+    "aim": 3,
+    "replaces": "Hold the plain.",
+    "patterns": [
+      {
+        "key": "keep_support",
+        "sentence": "Keep {group} at {line} or more.",
+        "blanks": [
+          {
+            "name": "group",
+            "values": [
+              {
+                "value": "smiths",
+                "label": "The Smiths' Guild"
+              },
+              {
+                "value": "greens",
+                "label": "The Greens"
+              },
+              {
+                "value": "greys",
+                "label": "The Greys"
+              },
+              {
+                "value": "public",
+                "label": "The Norra Public"
+              }
+            ]
+          },
+          {
+            "name": "line",
+            "values": [
+              {
+                "value": 55,
+                "label": "55"
+              },
+              {
+                "value": 65,
+                "label": "65"
+              },
+              {
+                "value": 75,
+                "label": "75"
+              }
+            ]
+          }
+        ],
+        "difficulty": 3,
+        "government": false
+      },
+      {
+        "key": "make_peace",
+        "sentence": "Make peace with {foe}.",
+        "blanks": [
+          {
+            "name": "foe",
+            "values": [
+              {
+                "value": "TZHP5CPZR27M6255484EX48TQ6",
+                "label": "Sudland"
+              }
+            ]
+          }
+        ],
+        "difficulty": 4,
+        "government": false
+      },
+      {
+        "key": "take_ground",
+        "sentence": "Take {place} for {nation}.",
+        "blanks": [
+          {
+            "name": "place",
+            "values": [
+              {
+                "value": "CDXQ7JQD821DB2N9ZT74ZX7Q73",
+                "label": "The Sudland Coast"
+              },
+              {
+                "value": "8G8AZ9CP6FGAQ40JKEY4K0V9BS",
+                "label": "The Isle"
+              }
+            ]
+          }
+        ],
+        "difficulty": 4,
+        "government": true
+      }
+    ]
+  },
+  "aim_check": {
+    "stands": true,
+    "text": "Take The Isle for Norra.",
+    "reasons": []
+  },
+  "capitals": [
+    {
+      "nation": {
+        "key": "6G3FWX2XAZN1W0GBGGRVZ8P0HJ",
+        "name": "Norra",
+        "relation": "own"
+      },
+      "place": {
+        "name": "Washington",
+        "lat": 38.9,
+        "lon": -77.0,
+        "theatre": "North America"
+      },
+      "questions": [
+        {
+          "kind": "measure",
+          "title": "Levy act",
+          "day": null,
+          "decider": {
+            "shape": "body",
+            "who": "assembly",
+            "members": [
+              "The Greens",
+              "The Greys"
+            ]
+          },
+          "at": "home.chambers",
+          "ref": "FJ608FQ7RMYERTFBREDWSDM5C8"
+        },
+        {
+          "kind": "offer",
+          "title": "Offers to the blocs on The Barge Act",
+          "day": null,
+          "decider": {
+            "shape": "body",
+            "who": "the voters",
+            "members": [
+              "The Greens",
+              "The Greys"
+            ]
+          },
+          "at": "home.offers",
+          "ref": "barge_act"
+        },
+        {
+          "kind": "office",
+          "title": "General of the Norra Levy",
+          "day": "1900-04-12",
+          "decider": {
+            "shape": "body",
+            "who": "assembly",
+            "members": [
+              "The Greens",
+              "The Greys"
+            ]
+          },
+          "at": "home.office",
+          "ref": "N41Q8WCZYVYASX886VRKB7XXA8"
+        },
+        {
+          "kind": "election",
+          "title": "Chancellor of Norra",
+          "day": "1900-05-01",
+          "decider": {
+            "shape": "body",
+            "who": "assembly",
+            "members": [
+              "assembly"
+            ]
+          },
+          "at": "home.elections",
+          "ref": "1900-05-01"
+        },
+        {
+          "kind": "held",
+          "title": "March (Force Norra levy, To Isle)",
+          "day": null,
+          "decider": {
+            "shape": "person",
+            "who": "Ilse Varg",
+            "members": [
+              "Ilse Varg"
+            ]
+          },
+          "at": "locks.held",
+          "ref": "01M7YNVKSY384MG2G9E0YC4RXY"
+        },
+        {
+          "kind": "ask",
+          "title": "March (Force Norra levy, To Isle)",
+          "day": null,
+          "decider": {
+            "shape": "council",
+            "who": "the council under Ilse Varg",
+            "members": [
+              "Ilse Varg",
+              "Kara Lind"
+            ]
+          },
+          "at": "locks.asks",
+          "ref": "MPPQKYR3D1W0FFVZ1QMH4YPXNQ"
+        },
+        {
+          "kind": "peace",
+          "title": "Peace offered by Sudland",
+          "day": "1900-04-06",
+          "decider": {
+            "shape": "person",
+            "who": "Ilse Varg",
+            "members": [
+              "Ilse Varg"
+            ]
+          },
+          "at": "agreements.offers",
+          "ref": "4CB1HQP7RTP4J38MKTKDBK08VG"
+        }
+      ]
+    },
+    {
+      "nation": {
+        "key": "TZHP5CPZR27M6255484EX48TQ6",
+        "name": "Sudland",
+        "relation": "enemy"
+      },
+      "place": {
+        "name": "Berlin",
+        "lat": 52.5,
+        "lon": 13.4,
+        "theatre": "Europe"
+      },
+      "questions": [
+        {
+          "kind": "result",
+          "title": "Marshal of Sudland",
+          "day": "1900-04-09",
+          "decider": {
+            "shape": "person",
+            "who": "Tomas Brand",
+            "members": [
+              "Tomas Brand"
+            ]
+          },
+          "at": "news",
+          "ref": "R6T2Q0Y8M1V4K7C3H9J5D0B2NA"
+        }
+      ]
     }
   ]
 }

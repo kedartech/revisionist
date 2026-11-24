@@ -18,16 +18,25 @@ start_date: 1941-09-01
 # groups (GRD): each nation's groups at home, declared under `groups`.
 # command and locks (KCD): Admiral King's card is a military card under the President, and
 # two of his naval orders are held by the locks declared under `locks`.
-rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks]
+# laws and ask_answers (LWD): the four American bills are the laws declared under `laws`; an ask to
+# a person no player holds is answered on its due day. deciders stays off until the world names a
+# council and the kinds of question its posts decide, which the world check requires with it on.
+# classes, losses and places (HFD): the class of each kind of happening under `happenings`, the
+# groups the size of a day's battle losses moves (`battle_losses` in their `moved_by`), and the
+# places with political weight under `places`.
+# posts, office and defiance (OFD): each card names its post; what each head's post rests on and
+# how its holder is removed, who may move each commander, his ladder and his acts without leave
+# are on the office assets under `assets`, from Ava's sourcing note or marked a gap.
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, own_aim, laws, ask_answers, deciders, offers, classes, losses, places, posts, office, defiance, peace]
 
 entities:
   # A polity's capital (PCW): a place in its own territory; a neutral's or an occupied nation's is its
   # territory itself where the map has no place for it, and Portugal, with no territory, has none.
   - {key: usa, kind: polity, name: United States, capital: washington}
-  - {key: uk, kind: polity, name: United Kingdom, capital: london}
-  - {key: japan, kind: polity, name: Japan, capital: tokyo}
+  - {key: uk, kind: polity, name: United Kingdom, capital: london, lift_pool: uk_sealift_grt}
+  - {key: japan, kind: polity, name: Japan, capital: tokyo, lift_pool: japan_sealift_grt}
   - {key: germany, kind: polity, name: Germany, capital: berlin}
-  - {key: italy, kind: polity, name: Italy, capital: rome}
+  - {key: italy, kind: polity, name: Italy, capital: rome, lift_pool: italy_sealift_grt}
   - {key: ussr, kind: polity, name: Soviet Union, capital: moscow}
   - {key: china, kind: polity, name: China, capital: chungking}
   # Holders with no seat: neutrals and co-belligerents the five wars leave out.
@@ -69,6 +78,11 @@ entities:
   - {key: moscow, kind: location, name: Moscow, at: [55.8, 37.6], theatre: Moscow front, within: moscow_area, base: {sides: [ussr], domains: [land, air]}}
   - {key: rome, kind: location, name: Rome, at: [41.9, 12.5], theatre: Europe, within: italy_south, base: {sides: [italy], domains: [land, air]}}
   - {key: chungking, kind: location, name: Chungking, at: [29.6, 106.6], theatre: Asia-Pacific, within: szechwan, base: {sides: [china], domains: [land, air]}}
+  # NFI: Finland's capital and the Commander-in-Chief's headquarters at Mikkeli, so that a
+  # Finnish army has a place in Finland to stand at, and a land base there to open on. Positions and
+  # base [proposed].
+  - {key: helsinki, kind: location, name: Helsinki, at: [60.2, 24.9], theatre: Northern front, within: finland}
+  - {key: mikkeli, kind: location, name: Mikkeli, at: [61.7, 27.3], theatre: Northern front, within: finland, base: {sides: [finland_state], domains: [land]}}
   - {key: north_atlantic, kind: location, name: North Atlantic, at: [55.0, -30.0], theatre: North Atlantic, within: mid_ocean_gap}
   - {key: norfolk, kind: location, name: Norfolk, at: [36.9, -76.3], theatre: North America, within: us_east, port_on: western_atlantic, base: {sides: [usa], domains: [sea, land, air]}}
   - {key: argentia, kind: location, name: Argentia, at: [47.3, -54.0], theatre: North America, within: western_atlantic, base: {sides: [usa], domains: [sea, air]}}
@@ -99,6 +113,7 @@ entities:
   - {key: bardia, kind: location, name: Bardia, at: [31.74, 25.07], theatre: Mediterranean, within: cyrenaica, port_on: eastern_mediterranean, base: {sides: [italy, germany], domains: [sea, land]}}
   - {key: tripoli, kind: location, name: Tripoli, at: [32.89, 13.19], theatre: Mediterranean, within: tripolitania, port_on: central_mediterranean, base: {sides: [italy], domains: [sea, land]}}
   - {key: taranto, kind: location, name: Taranto, at: [40.47, 17.24], theatre: Mediterranean, within: italy_south, port_on: central_mediterranean, base: {sides: [italy], domains: [sea]}}
+  - {key: piraeus, kind: location, name: Piraeus, at: [37.98, 23.72], theatre: Mediterranean, within: greece, port_on: aegean_sea}
   - {key: changsha, kind: location, name: Changsha, at: [28.2, 112.97], theatre: Asia-Pacific, within: hunan, base: {sides: [china], domains: [land]}}
   - {key: wuhan, kind: location, name: Wuhan, at: [30.58, 114.27], theatre: Asia-Pacific, within: wuhan_area, base: {sides: [japan], domains: [land]}}
   # United States
@@ -131,6 +146,7 @@ entities:
   - {key: halifax, kind: person, name: Lord Halifax, parent: uk}
   - {key: pound, kind: person, name: Sir Dudley Pound, parent: chiefs_of_staff}
   - {key: ismay, kind: person, name: Sir Hastings Ismay, parent: chiefs_of_staff}
+  - {key: tovey, kind: person, name: Sir John Tovey, parent: uk}
   - {key: menzies, kind: person, name: Sir Stewart Menzies, parent: uk}  # source: hinsley_1979
   - {key: dai_li, kind: person, name: Dai Li, parent: china}  # source: wakeman_2003
   - {key: uk_cipher_clerk, kind: person, name: Downing Street cipher clerk, parent: uk}
@@ -143,22 +159,30 @@ entities:
   - {key: kurusu, kind: person, name: Saburo Kurusu, parent: japan}
   - {key: sugiyama, kind: person, name: Hajime Sugiyama, parent: japan}
   - {key: nagano, kind: person, name: Osami Nagano, parent: japan}
+  - {key: yamamoto, kind: person, name: Isoroku Yamamoto, parent: japan}  # source: yamamoto_1941
   - {key: cabinet_clerk, kind: person, name: Cabinet Secretariat clerk, parent: japan}
   # Germany, Italy
   - {key: hitler, kind: person, name: Adolf Hitler, parent: germany}
   - {key: goering, kind: person, name: Hermann Goering, parent: germany}
   - {key: ribbentrop, kind: person, name: Joachim von Ribbentrop, parent: germany}
   - {key: raeder, kind: person, name: Erich Raeder, parent: kriegsmarine}
+  - {key: doenitz, kind: person, name: Karl Dönitz, parent: kriegsmarine}  # source: doenitz_1941
   - {key: jodl, kind: person, name: Alfred Jodl, parent: okw}
   - {key: mussolini, kind: person, name: Benito Mussolini, parent: italy}
   - {key: victor_emmanuel, kind: person, name: King Victor Emmanuel III, parent: italy}
   - {key: cavallero, kind: person, name: Ugo Cavallero, parent: comando_supremo}
+  - {key: iachino, kind: person, name: Angelo Iachino, parent: italy}  # source: iachino_1941
   # Soviet Union, China
   - {key: stalin, kind: person, name: Joseph Stalin, parent: ussr}
   - {key: molotov, kind: person, name: Vyacheslav Molotov, parent: ussr}
   - {key: shaposhnikov, kind: person, name: Boris Shaposhnikov, parent: stavka}
+  - {key: timoshenko, kind: person, name: Semyon Timoshenko, parent: ussr}  # source: timoshenko_1941
   - {key: chiang, kind: person, name: Chiang Kai-shek, parent: china}
   - {key: he_yingqin, kind: person, name: He Yingqin, parent: military_affairs_commission}
+  - {key: xue_yue, kind: person, name: Xue Yue, parent: military_affairs_commission}  # source: xue_yue_1941
+  # Finland (NFI): the President, and the Commander-in-Chief to whom he transferred command.
+  - {key: ryti, kind: person, name: Risto Ryti, parent: finland_state}  # source: finland_constitution_1919
+  - {key: mannerheim, kind: person, name: C. G. E. Mannerheim, parent: finland_state}  # source: mannerheim_foundation
   - {key: soong, kind: person, name: T. V. Soong, parent: china}
   - {key: washington_ledger, kind: org, name: "The Washington Ledger", parent: usa, tags: [press]}
   - {key: reichsbote, kind: org, name: "Der Reichsbote", parent: germany, tags: [press]}
@@ -670,6 +694,10 @@ intelligence:
     sources:
       - {source: contact, person: he_yingqin, channel: cable}
       - {source: agent, person: dai_li, channel: radio}  # Dai Li's service behind the Japanese lines
+  - nation: finland_state  # gap: true (Headquarters' intelligence department at Mikkeli; [proposed])
+    sources:
+      - {source: contact, person: mannerheim, channel: telephone}
+      - {source: agent, person: mannerheim, channel: telephone}
 
 # Each nation's groups at home on 1 September 1941 (GRD), with `groups` on. Each group's
 # `- key:` line carries its source or `gap: true`. Every starting support, baseline, weight,
@@ -684,7 +712,10 @@ intelligence:
 # Neutrality revision's rows (`vote_default`), as the module's borrowed rows do. The public
 # starts at the Gallup "about right" figure the world cites. Themes are the ones the
 # nations' writing already names: the address form's choices and the standing answers'
-# statements.
+# statements. With `losses` on, each nation's public and the groups that send or lead its
+# men move 1 point a step the nation loses in a day's battle (`battle_losses`); with
+# `classes` on, a law touching daily life passed (`daily_life_passed`) moves the groups a
+# measure passed moves, by the same amounts (HFD). [proposed]
 groups:
   - nation: usa
     groups:
@@ -696,7 +727,7 @@ groups:
         chamber: house
         seats: 267
         feeds: {votes: 1, standing: 1}
-        moved_by: {measure_passed: 1, war_declared: 5}
+        moved_by: {measure_passed: 1, war_declared: 5, daily_life_passed: 1}
         votes:
           neutrality_revision: {house: {voting: 239, yeas: 218}, concur: {voting: 241, yeas: 188}}
           draft_extension: {house: {voting: 246, yeas: 181}}
@@ -704,6 +735,25 @@ groups:
           arm_merchant_ships: {house: {voting: 239, yeas: 218}}
         vote_default: {house: {voting: 239, yeas: 218}, concur: {voting: 241, yeas: 188}}
         stances: {power: 1, limit: -1, money: 1}
+        prices:
+          - key: lend_lease_money  # gap: true (points, days and loss [proposed])
+            sentence: "The Lend-Lease money is law within thirty days of the act."
+            condition: {check: quantity_at, quantity: lend_lease_appropriation_passed, op: ge, value: 1}
+            days: 30
+            points: 3
+            loss: 5
+          - key: britain_supplied  # gap: true (points, days and loss [proposed])
+            sentence: "Britain is allotted Lend-Lease goods within thirty days of the act."
+            condition: {check: quantity_at, quantity: lend_lease_share_uk, op: ge, value: 1}
+            days: 30
+            points: 2
+            loss: 4
+          - key: presidents_word  # gap: true (points, days and loss [proposed])
+            sentence: "The President speaks to the country for the act within fourteen days."
+            condition: {check: ordered, person: roosevelt, effect: statement}
+            days: 14
+            points: 1
+            loss: 3
       - key: house_republicans  # source: congress_77th (seats); the rows: voteview
         name: House Republicans
         kind: party bloc
@@ -712,7 +762,7 @@ groups:
         chamber: house
         seats: 162
         feeds: {votes: 1, standing: 1}
-        moved_by: {measure_passed: -1, war_declared: 10}
+        moved_by: {measure_passed: -1, war_declared: 10, daily_life_passed: -1}
         votes:
           neutrality_revision: {house: {voting: 152, yeas: 39}, concur: {voting: 159, yeas: 22}}
           draft_extension: {house: {voting: 154, yeas: 21}}
@@ -720,6 +770,19 @@ groups:
           arm_merchant_ships: {house: {voting: 152, yeas: 39}}
         vote_default: {house: {voting: 152, yeas: 39}, concur: {voting: 159, yeas: 22}}
         stances: {power: -1, limit: 1, money: -1}
+        prices:
+          - key: no_shooting_war  # gap: true (points, days and loss [proposed])
+            sentence: "The Atlantic escort is still short of shooting on sight thirty days after the act."
+            condition: {check: quantity_at, quantity: us_atlantic_escort, op: le, value: 1}
+            days: 30
+            points: 3
+            loss: 6
+          - key: nothing_for_moscow  # gap: true (points, days and loss [proposed])
+            sentence: "No Lend-Lease goods are allotted to the Soviet Union thirty days after the act."
+            condition: {check: quantity_at, quantity: lend_lease_share_ussr, op: le, value: 0}
+            days: 30
+            points: 2
+            loss: 5
       - key: house_other  # source: voteview (six other members voting; the division counts five)
         name: House other members
         kind: party bloc
@@ -735,6 +798,19 @@ groups:
           lend_lease_appropriation: {house: {voting: 6, yeas: 3}}
           arm_merchant_ships: {house: {voting: 6, yeas: 2}}
         vote_default: {house: {voting: 6, yeas: 2}, concur: {voting: 6, yeas: 2}}
+        prices:
+          - key: aid_for_russia  # gap: true (points, days and loss [proposed])
+            sentence: "The Soviet Union is allotted Lend-Lease goods within thirty days of the act."
+            condition: {check: quantity_at, quantity: lend_lease_share_ussr, op: ge, value: 1}
+            days: 30
+            points: 2
+            loss: 4
+          - key: presidents_word  # gap: true (points, days and loss [proposed])
+            sentence: "The President speaks to the country for the act within fourteen days."
+            condition: {check: ordered, person: roosevelt, effect: statement}
+            days: 14
+            points: 1
+            loss: 3
       - key: senate_democrats  # source: congress_77th (seats); the rows: voteview
         name: Senate Democrats
         kind: party bloc
@@ -743,7 +819,7 @@ groups:
         chamber: senate
         seats: 66
         feeds: {votes: 1, standing: 1}
-        moved_by: {measure_passed: 1, war_declared: 5}
+        moved_by: {measure_passed: 1, war_declared: 5, daily_life_passed: 1}
         votes:
           neutrality_revision: {senate: {voting: 58, yeas: 43}}
           draft_extension: {senate: {voting: 54, yeas: 38}}
@@ -751,6 +827,25 @@ groups:
           arm_merchant_ships: {senate: {voting: 58, yeas: 43}}
         vote_default: {senate: {voting: 58, yeas: 43}}
         stances: {power: 1, limit: -1, money: 1}
+        prices:
+          - key: britain_supplied  # gap: true (points, days and loss [proposed])
+            sentence: "Britain is allotted Lend-Lease goods within thirty days of the act."
+            condition: {check: quantity_at, quantity: lend_lease_share_uk, op: ge, value: 1}
+            days: 30
+            points: 2
+            loss: 4
+          - key: terms_with_britain  # gap: true (points, days and loss [proposed])
+            sentence: "An agreement with Britain is in force sixty days after the act."
+            condition: {check: agreement_in_force, between: [usa, uk]}
+            days: 60
+            points: 2
+            loss: 4
+          - key: king_kept  # gap: true (points, days and loss [proposed])
+            sentence: "Admiral King still commands the Atlantic Fleet thirty days after the act."
+            condition: {check: holds_office, holder: king, office: atlantic_fleet_command}
+            days: 30
+            points: 1
+            loss: 2
       - key: senate_republicans  # source: congress_77th (seats); the rows: voteview
         name: Senate Republicans
         kind: party bloc
@@ -759,7 +854,7 @@ groups:
         chamber: senate
         seats: 28
         feeds: {votes: 1, standing: 1}
-        moved_by: {measure_passed: -1, war_declared: 10}
+        moved_by: {measure_passed: -1, war_declared: 10, daily_life_passed: -1}
         votes:
           neutrality_revision: {senate: {voting: 27, yeas: 6}}
           draft_extension: {senate: {voting: 20, yeas: 7}}
@@ -767,6 +862,19 @@ groups:
           arm_merchant_ships: {senate: {voting: 27, yeas: 6}}
         vote_default: {senate: {voting: 27, yeas: 6}}
         stances: {power: -1, limit: 1, money: -1}
+        prices:
+          - key: no_shooting_war  # gap: true (points, days and loss [proposed])
+            sentence: "The Atlantic escort is still short of shooting on sight thirty days after the act."
+            condition: {check: quantity_at, quantity: us_atlantic_escort, op: le, value: 1}
+            days: 30
+            points: 3
+            loss: 6
+          - key: nothing_for_moscow  # gap: true (points, days and loss [proposed])
+            sentence: "No Lend-Lease goods are allotted to the Soviet Union thirty days after the act."
+            condition: {check: quantity_at, quantity: lend_lease_share_ussr, op: le, value: 0}
+            days: 30
+            points: 2
+            loss: 5
       - key: senate_other  # source: congress_77th (seats); the rows: voteview
         name: Senate other members
         kind: party bloc
@@ -782,13 +890,26 @@ groups:
           lend_lease_appropriation: {senate: {voting: 2, yeas: 1}}
           arm_merchant_ships: {senate: {voting: 2, yeas: 1}}
         vote_default: {senate: {voting: 2, yeas: 1}}
+        prices:
+          - key: presidents_word  # gap: true (points, days and loss [proposed])
+            sentence: "The President speaks to the country for the act within fourteen days."
+            condition: {check: ordered, person: roosevelt, effect: statement}
+            days: 14
+            points: 1
+            loss: 3
+          - key: no_shooting_war  # gap: true (points, days and loss [proposed])
+            sentence: "The Atlantic escort is still short of shooting on sight thirty days after the act."
+            condition: {check: quantity_at, quantity: us_atlantic_escort, op: le, value: 1}
+            days: 30
+            points: 1
+            loss: 3
       - key: public  # source: gallup_1941 (the start: Roosevelt's course "about right")
         name: The American public
         kind: public
         start: 55
         baseline: 55
         feeds: {opinion: 1, standing: 2}
-        moved_by: {losses_at_sea: 1, war_declared: 10, battle_lost: -2, territory_lost: -3}
+        moved_by: {losses_at_sea: 1, war_declared: 10, battle_lost: -2, territory_lost: -3, battle_losses: -1}
         abroad: true
       - key: non_interventionists  # gap: true
         name: The non-interventionists
@@ -803,14 +924,14 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, output: 1}
-        moved_by: {measure_passed: 1, war_declared: 5}
+        moved_by: {measure_passed: 1, war_declared: 5, daily_life_passed: 1}
       - key: press  # gap: true
         name: The press
         kind: press
         start: 50
         baseline: 50
         feeds: {standing: 1}
-        moved_by: {losses_at_sea: 1, war_declared: 5}
+        moved_by: {losses_at_sea: 1, war_declared: 5, battle_losses: -1}
     themes:
       - {key: aid_to_allies, name: Aid to the Allies, moves: {public: 1, labour: 1, non_interventionists: -2}}
       - {key: freedom_of_the_seas, name: Freedom of the seas, moves: {public: 2, press: 1, non_interventionists: -1}}
@@ -824,21 +945,115 @@ groups:
         start: 70
         baseline: 70
         feeds: {standing: 2}
-        moved_by: {battle_won: 2, battle_lost: -3, territory_lost: -3}
+        moved_by: {battle_won: 2, battle_lost: -3, territory_lost: -3, battle_losses: -1}
+      # The Commons as a chamber (NUK): three blocs, with seats from the 1935 general election
+      # (Conservatives with their Liberal National, National Labour and National allies 429;
+      # Labour 154; the Liberals, the ILP, the Communist and independents 32), not corrected for
+      # the by-elections since. Every row, start and stance [proposed].
+      - key: commons_government  # gap: true
+        name: The government benches
+        kind: party bloc
+        start: 60
+        baseline: 60
+        chamber: commons
+        seats: 429
+        feeds: {votes: 1}
+        moved_by: {war_declared: 5}
+        votes:
+          national_service: {commons: {voting: 330, yeas: 328}}
+        vote_default: {commons: {voting: 330, yeas: 320}}
+        stances: {power: 1, limit: -1}
+        prices:
+          - key: prime_minister_kept  # gap: true (points, days and loss [proposed])
+            sentence: "Mr Churchill is still Prime Minister sixty days after the act."
+            condition: {check: holds_office, holder: churchill, office: uk_premiership}
+            days: 60
+            points: 2
+            loss: 4
+          - key: terms_with_america  # gap: true (points, days and loss [proposed])
+            sentence: "An agreement with the United States is in force sixty days after the act."
+            condition: {check: agreement_in_force, between: [uk, usa]}
+            days: 60
+            points: 2
+            loss: 4
+          - key: tovey_kept  # gap: true (points, days and loss [proposed])
+            sentence: "Admiral Tovey still commands the Home Fleet thirty days after the act."
+            condition: {check: holds_office, holder: tovey, office: home_fleet_command}
+            days: 30
+            points: 1
+            loss: 2
+      - key: commons_labour  # gap: true
+        name: The Labour benches
+        kind: party bloc
+        start: 55
+        baseline: 55
+        chamber: commons
+        seats: 154
+        feeds: {votes: 1}
+        moved_by: {war_declared: 5}
+        votes:
+          national_service: {commons: {voting: 120, yeas: 112}}
+        vote_default: {commons: {voting: 120, yeas: 100}}
+        stances: {power: 1, money: 1}
+        prices:
+          - key: supplies_for_russia  # gap: true (points, days and loss [proposed])
+            sentence: "Britain, the United States and the Soviet Union have a supply agreement in force sixty days after the act."
+            condition: {check: agreement_in_force, between: [ussr, uk, usa]}
+            days: 60
+            points: 3
+            loss: 5
+          - key: prime_ministers_word  # gap: true (points, days and loss [proposed])
+            sentence: "The Prime Minister speaks to the country for the act within fourteen days."
+            condition: {check: ordered, person: churchill, effect: statement}
+            days: 14
+            points: 1
+            loss: 3
+          - key: prime_minister_kept  # gap: true (points, days and loss [proposed])
+            sentence: "Mr Churchill is still Prime Minister sixty days after the act."
+            condition: {check: holds_office, holder: churchill, office: uk_premiership}
+            days: 60
+            points: 1
+            loss: 2
+      - key: commons_others  # gap: true
+        name: The Liberals and the other members
+        kind: party bloc
+        start: 45
+        baseline: 45
+        chamber: commons
+        seats: 32
+        feeds: {votes: 1}
+        moved_by: {war_declared: 5}
+        votes:
+          national_service: {commons: {voting: 22, yeas: 15}}
+        vote_default: {commons: {voting: 22, yeas: 14}}
+        stances: {power: -1, limit: 1}
+        prices:
+          - key: the_house_told  # gap: true (points, days and loss [proposed])
+            sentence: "The government tells the House what it has done under the act within thirty days."
+            condition: {check: ordered, person: churchill, effect: disclosure}
+            days: 30
+            points: 2
+            loss: 4
+          - key: prime_ministers_word  # gap: true (points, days and loss [proposed])
+            sentence: "The Prime Minister speaks to the country for the act within fourteen days."
+            condition: {check: ordered, person: churchill, effect: statement}
+            days: 14
+            points: 1
+            loss: 3
       - key: dominions  # gap: true
         name: The Dominions
         kind: dominions
         start: 45
         baseline: 45
         feeds: {manpower: 1, standing: 1}
-        moved_by: {battle_lost: -2, territory_lost: -3, capital_threatened: -5}
+        moved_by: {battle_lost: -2, territory_lost: -3, capital_threatened: -5, battle_losses: -1}
       - key: public  # gap: true
         name: The British public
         kind: public
         start: 65
         baseline: 65
         feeds: {opinion: 1, standing: 2}
-        moved_by: {battle_won: 2, battle_lost: -2, losses_at_sea: -1}
+        moved_by: {battle_won: 2, battle_lost: -2, losses_at_sea: -1, battle_losses: -1}
       - key: trade_unions  # gap: true
         name: The trade unions
         kind: union
@@ -857,6 +1072,10 @@ groups:
       - {key: an_appeal_to_america, name: an appeal to America, moves: {public: 1, press: 1}}
       - {key: malta_will_strike_the_libya_convoys, name: Malta will strike the Libya convoys, moves: {commons: 1, public: 1}}
       - {key: a_warning_to_japan_over_malaya, name: a warning to Japan over Malaya, moves: {dominions: 2, commons: 1}}
+      # The broadcast form's audiences, each a theme of its own. [proposed]
+      - {key: britain, name: a broadcast to Britain, moves: {public: 1, commons: 1}}
+      - {key: america, name: a broadcast to America, moves: {press: 1, dominions: 1}}
+      - {key: occupied_europe, name: a broadcast to occupied Europe, moves: {public: 1}}
   - nation: ussr
     groups:
       - key: party  # gap: true
@@ -872,7 +1091,7 @@ groups:
         start: 55
         baseline: 55
         feeds: {manpower: 1, standing: 1}
-        moved_by: {battle_won: 3, battle_lost: -3, territory_lost: -1}
+        moved_by: {battle_won: 3, battle_lost: -3, territory_lost: -1, battle_losses: -1}
       - key: evacuated_workers  # gap: true
         name: The evacuated workers
         kind: workers
@@ -886,14 +1105,14 @@ groups:
         start: 45
         baseline: 45
         feeds: {manpower: 1, output: 1}
-        moved_by: {battle_won: 1, territory_lost: -1}
+        moved_by: {battle_won: 1, territory_lost: -1, battle_losses: -1}
       - key: public  # gap: true
         name: The Soviet public
         kind: public
         start: 55
         baseline: 55
         feeds: {opinion: 1, standing: 1}
-        moved_by: {battle_won: 2, battle_lost: -2, capital_threatened: -4}
+        moved_by: {battle_won: 2, battle_lost: -2, capital_threatened: -4, battle_losses: -1}
     themes:
       - {key: russia_demands_a_second_front, name: Russia demands a second front, moves: {party: 1, red_army_command: 1, public: 1}}
   - nation: germany
@@ -911,14 +1130,14 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, standing: 1}
-        moved_by: {battle_won: 2, battle_lost: -3, war_declared: -2}
+        moved_by: {battle_won: 2, battle_lost: -3, war_declared: -2, battle_losses: -1}
       - key: public  # gap: true
         name: The German public
         kind: public
         start: 60
         baseline: 60
         feeds: {opinion: 1, standing: 1}
-        moved_by: {battle_won: 1, battle_lost: -2, territory_lost: -3, war_declared: -3}
+        moved_by: {battle_won: 1, battle_lost: -2, territory_lost: -3, war_declared: -3, battle_losses: -1}
       - key: industrialists  # gap: true
         name: The industrialists
         kind: industry
@@ -936,7 +1155,7 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, standing: 2}
-        moved_by: {battle_won: 2, battle_lost: -3, territory_taken: 1}
+        moved_by: {battle_won: 2, battle_lost: -3, territory_taken: 1, battle_losses: -1}
       - key: navy  # gap: true
         name: The Navy
         kind: military
@@ -964,13 +1183,16 @@ groups:
         start: 60
         baseline: 60
         feeds: {opinion: 1, standing: 1}
-        moved_by: {battle_won: 2, battle_lost: -2, war_declared: 3}
+        moved_by: {battle_won: 2, battle_lost: -2, war_declared: 3, battle_losses: -1}
     themes:
       - {key: the_cabinet_seeks_a_peaceful_settlement, name: the Cabinet seeks a peaceful settlement, moves: {court: 2, army: -2, public: 1}}
       - {key: the_cabinet_will_not_be_hurried_into_war, name: the Cabinet will not be hurried into war, moves: {court: 1, army: -1}}
       - {key: the_army_will_not_leave_china, name: the Army will not leave China, moves: {army: 2, court: -1}}
       - {key: the_deadline_for_the_talks_stands, name: the deadline for the talks stands, moves: {army: 1, navy: 1}}
       - {key: chungkings_appeals_abroad_will_not_save_it, name: "Chungking's appeals abroad will not save it", moves: {army: 1, public: 1}}
+      # The cabinet statement form's lines, each a theme of its own; saying nothing moves nobody. [proposed]
+      - {key: conciliatory, name: a conciliatory line, moves: {court: 1, army: -1}}
+      - {key: firm, name: a firm line, moves: {army: 1, court: -1}}
   - nation: italy
     groups:
       - key: fascist_party  # gap: true
@@ -986,14 +1208,14 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, standing: 1}
-        moved_by: {battle_won: 2, battle_lost: -3, territory_lost: -2}
+        moved_by: {battle_won: 2, battle_lost: -3, territory_lost: -2, battle_losses: -1}
       - key: crown  # gap: true
         name: The Crown
         kind: court
         start: 50
         baseline: 50
         feeds: {standing: 1}
-        moved_by: {battle_lost: -2, territory_lost: -3}
+        moved_by: {battle_lost: -2, territory_lost: -3, battle_losses: -1}
       - key: industrialists  # gap: true
         name: The industrialists
         kind: industry
@@ -1007,7 +1229,7 @@ groups:
         start: 45
         baseline: 45
         feeds: {opinion: 1, standing: 1}
-        moved_by: {battle_won: 1, battle_lost: -2, losses_at_sea: -1}
+        moved_by: {battle_won: 1, battle_lost: -2, losses_at_sea: -1, battle_losses: -1}
     themes:
       - {key: the_convoys_to_libya_will_sail, name: the convoys to Libya will sail, moves: {fascist_party: 1, army: 1}}
       - {key: italy_stands_beside_germany_in_the_east, name: Italy stands beside Germany in the East, moves: {fascist_party: 2, crown: -1}}
@@ -1026,14 +1248,14 @@ groups:
         start: 55
         baseline: 55
         feeds: {manpower: 1, standing: 1}
-        moved_by: {battle_won: 3, battle_lost: -3}
+        moved_by: {battle_won: 3, battle_lost: -3, battle_losses: -1}
       - key: regional_commanders  # gap: true
         name: The regional commanders
         kind: warlords
         start: 45
         baseline: 45
         feeds: {manpower: 1}
-        moved_by: {battle_lost: -2, territory_lost: -2}
+        moved_by: {battle_lost: -2, territory_lost: -2, battle_losses: -1}
       - key: communists  # gap: true
         name: The Communists
         kind: party
@@ -1047,10 +1269,65 @@ groups:
         start: 55
         baseline: 55
         feeds: {opinion: 1, standing: 1}
-        moved_by: {battle_won: 2, territory_lost: -2}
+        moved_by: {battle_won: 2, territory_lost: -2, battle_losses: -1}
     themes:
       - {key: china_will_not_be_sold_to_japan, name: China will not be sold to Japan, moves: {kuomintang: 1, communists: 1, public: 2}}
       - {key: no_peace_while_japan_holds_china, name: no peace while Japan holds China, moves: {central_army: 1, public: 1}}
+      # The appeal form's audiences, each a theme of its own. [proposed]
+      - {key: america, name: an appeal to America, moves: {kuomintang: 1, public: 1}}
+      - {key: britain, name: an appeal to Britain, moves: {kuomintang: 1}}
+
+# How each kind of happening reaches the groups at home, read with `classes` on (HFD), as the
+# design's first sort of events has it: a capital threatened is felt; a battle won or lost,
+# losses at sea, territory taken, war declared and an agreement broken are known by report;
+# territory lost and the size of a day's battle losses are mixed, half felt. A law touching
+# daily life passed is felt, any other measure reported. Each felt share is [proposed].
+happenings:
+  - {kind: capital_threatened, reach: felt}
+  - {kind: battle_won, reach: reported}
+  - {kind: battle_lost, reach: reported}
+  - {kind: losses_at_sea, reach: reported}
+  - {kind: territory_taken, reach: reported}
+  - {kind: war_declared, reach: reported}
+  - {kind: agreement_broken, reach: reported}
+  - {kind: territory_lost, reach: reported, felt: 0.5}
+  - {kind: battle_losses, reach: reported, felt: 0.5}
+  - {kind: measure_passed, reach: reported}
+  - {kind: daily_life_passed, reach: felt}
+
+# Places with political weight, read with `places` on (HFD): for each nation with groups, up to
+# five territories it holds on 1 September 1941 whose loss the record shows weighed at home,
+# with the points each of its groups moves when the place is lost after a fight (abandoning it
+# costs twice that, retaking it moves them back). Each line carries `gap: true`: no figure is
+# sourced. Every amount is [proposed]. A nation's seat stays its `capital`; a seat listed here
+# is also a weighted place.
+places:
+  - {territory: hawaii, nation: usa, moves: {public: -3, press: -2, house_democrats: -1, senate_democrats: -1}}  # gap: true (Pearl Harbor, the Pacific Fleet's base)
+  - {territory: philippines, nation: usa, moves: {public: -2, press: -1}}  # gap: true (the Commonwealth the United States had promised to defend)
+  - {territory: britain_south, nation: uk, moves: {commons: -5, public: -5, dominions: -3}}  # gap: true (London and the home island)
+  - {territory: egypt, nation: uk, moves: {commons: -3, dominions: -2, press: -2}}  # gap: true (Suez and the Nile army's base)
+  - {territory: british_islands, nation: uk, moves: {commons: -2, public: -1, press: -1}}  # gap: true (Malta, under siege)
+  - {territory: tobruk_area, nation: uk, moves: {commons: -2, dominions: -2, press: -2}}  # gap: true (the besieged garrison, Australian and British)
+  - {territory: malaya, nation: uk, moves: {commons: -3, dominions: -3, press: -2}}  # gap: true (Singapore, the Far East's fortress)
+  - {territory: moscow_area, nation: ussr, moves: {party: -5, public: -4, red_army_command: -3}}  # gap: true (the capital)
+  - {territory: leningrad_area, nation: ussr, moves: {party: -4, public: -3, evacuated_workers: -2}}  # gap: true (the city of the revolution, under siege)
+  - {territory: kiev_area, nation: ussr, moves: {party: -2, red_army_command: -2, public: -2}}  # gap: true (the Ukraine's capital)
+  - {territory: crimea, nation: ussr, moves: {red_army_command: -2, public: -1}}  # gap: true (Sevastopol and the Black Sea Fleet)
+  - {territory: caucasus, nation: ussr, moves: {party: -3, evacuated_workers: -2, red_army_command: -2}}  # gap: true (Baku's oil)
+  - {territory: germany_east, nation: germany, moves: {party: -5, public: -5, wehrmacht_command: -3}}  # gap: true (Berlin)
+  - {territory: germany_west, nation: germany, moves: {industrialists: -4, public: -3}}  # gap: true (the Ruhr)
+  - {territory: east_prussia, nation: germany, moves: {wehrmacht_command: -3, party: -2, public: -2}}  # gap: true (the Prussian heartland and the Führer's headquarters)
+  - {territory: japan_east, nation: japan, moves: {court: -5, public: -5, navy: -3, army: -3}}  # gap: true (Tokyo and the home islands)
+  - {territory: manchuria, nation: japan, moves: {army: -4, zaibatsu: -2, public: -2}}  # gap: true (Manchukuo, the Kwantung Army's charge)
+  - {territory: korea, nation: japan, moves: {army: -2, court: -2}}  # gap: true (a colony since 1910)
+  - {territory: formosa, nation: japan, moves: {navy: -2, court: -1}}  # gap: true (a colony since 1895)
+  - {territory: italy_south, nation: italy, moves: {crown: -5, fascist_party: -4, public: -4}}  # gap: true (Rome)
+  - {territory: tripolitania, nation: italy, moves: {fascist_party: -3, army: -2, public: -2}}  # gap: true (Tripoli, the colony's capital)
+  - {territory: cyrenaica, nation: italy, moves: {fascist_party: -2, army: -2}}  # gap: true (Benghazi, lost and retaken that year)
+  - {territory: dodecanese, nation: italy, moves: {fascist_party: -1, crown: -1}}  # gap: true (Rhodes and the Aegean islands)
+  - {territory: szechwan, nation: china, moves: {kuomintang: -5, public: -4, central_army: -3}}  # gap: true (Chungking, the wartime capital)
+  - {territory: hunan, nation: china, moves: {kuomintang: -2, central_army: -2, public: -2}}  # gap: true (Changsha, held against the Japanese attacks)
+  - {territory: northwest_china, nation: china, moves: {kuomintang: -1, communists: -2, public: -1}}  # gap: true (Sian and the road to the Soviet Union)
 
 # The wars in force on 1 September 1941. `a` began each.
 wars:
@@ -1059,6 +1336,10 @@ wars:
   - {a: germany, b: ussr, since: 1941-06-22, source: dgfp_d_xii}
   - {a: italy, b: ussr, since: 1941-06-22, gap: true}
   - {a: japan, b: china, since: 1937-07-07, declared: false, source: frus_japan_1931_1941}
+  # NFI: Soviet bombers struck Finnish towns on 25 June 1941 and Finland held itself at war.
+  # The day is read two ways (amendment 9): the night of 25 June (ziemke_1959) and 26 June
+  # (loc_finland_country_study). The world keeps the first; the second stays in the source.
+  - {a: ussr, b: finland_state, since: 1941-06-25, source: ziemke_1959}
 
 # Trade lines in force on 1 September 1941, in points a month (yields.yaml). All gaps.
 trade_lines:
@@ -1119,17 +1400,139 @@ outlets:
     name: "The Alpine Gazette"
     voice: "Neutral Swiss daily. Sober and even-handed; reports each side's claims as claims; says plainly what cannot be confirmed; watches trade, refugees and the Red Cross."
 
+# OFD: what each head's post rests on and how its holder is removed, who may move each
+# commander, his ladder and the acts he may do without leave, read with `posts`, `office`
+# and `defiance` on. Every line is from Ava's sourcing note (reports/2026-11-21-revisionist-
+# third-run-sourcing and its 1941 sheets; the sheet's question is named beside each line).
+# A line the note does not give is not written and is marked `# gap: true`: the rule reads
+# it as absent (no base, no question on the post, no ladder, no act without leave, and the
+# old rule for who moves the holder: an order from one of his principals). No ladder and no
+# act without leave is sourced for any commander.
 assets:
-  - {key: us_presidency, kind: office, name: President of the United States, tier: 5, controller: roosevelt}
-  - {key: uk_premiership, kind: office, name: Prime Minister of the United Kingdom, tier: 4, controller: churchill}
-  - {key: soviet_chairmanship, kind: office, name: Chairman of the Council of People's Commissars, tier: 5, controller: stalin}
-  - {key: reich_chancellorship, kind: office, name: Fuehrer and Reich Chancellor, tier: 5, controller: hitler}
-  - {key: japan_premiership, kind: office, name: Prime Minister of Japan, tier: 4, controller: konoe}
+  # U1, U2: elected by the Electoral College for a fixed term, removed by impeachment or at
+  # the term's end, noon on 20 January (Twentieth Amendment; the third term began 20 January
+  # 1941). The Electoral College is not in the world: rests_on gap: true. Impeachment (the
+  # House, then two thirds of the Senate) is not a way of removal the rule carries: the term
+  # is written.
+  - key: us_presidency
+    kind: office
+    name: President of the United States
+    tier: 5
+    controller: roosevelt
+    removed_by: {by: term, ends: 1945-01-20}
+  # K1, K2: the confidence of the Commons; by convention he resigns on losing it.
+  - key: uk_premiership
+    kind: office
+    name: Prime Minister of the United Kingdom
+    tier: 4
+    controller: churchill
+    rests_on: [commons]
+    removed_by: {by: vote, chamber: commons}
+  # S1, S2: the party (formally also the Supreme Soviet, which is not in the world). Formal
+  # removal lies with the Supreme Soviet, and no rule is found for the party post:
+  # removed_by gap: true.
+  - key: soviet_chairmanship
+    kind: office
+    name: Chairman of the Council of People's Commissars
+    tier: 5
+    controller: stalin
+    rests_on: [party]
+  # G1, G2: the party and the armed forces. The 1934 law names no term and no removing
+  # body, and no source states a way or that none existed: removed_by gap: true.
+  - key: reich_chancellorship
+    kind: office
+    name: Fuehrer and Reich Chancellor
+    tier: 5
+    controller: hitler
+    rests_on: [party, wehrmacht_command]
+  # J1, J2: the Emperor's mandate and the cooperation of the Army and the Navy; the Emperor
+  # appoints and dismisses (Meiji Constitution, arts. 10 and 55). Whether the Diet could vote
+  # a premier out is a gap.
+  - key: japan_premiership
+    kind: office
+    name: Prime Minister of Japan
+    tier: 4
+    controller: konoe
+    rests_on: [army, navy]
+    removed_by: {by: person, person: hirohito}
   - {key: army_ministry, kind: office, name: Army Minister of Japan, tier: 3, controller: tojo}
-  - {key: italian_premiership, kind: office, name: Prime Minister of Italy, tier: 3, controller: mussolini}
+  # I1, I2: the King and the Fascist Party; the King appoints and revokes (Statuto art. 65;
+  # law of 24 December 1925, n. 2263, art. 2).
+  - key: italian_premiership
+    kind: office
+    name: Prime Minister of Italy
+    tier: 3
+    controller: mussolini
+    rests_on: [crown, fascist_party]
+    removed_by: {by: person, person: victor_emmanuel}
+  # C1, C2: Chiang's standing rests on his four offices, not on a group: rests_on gap: true.
+  # Only the appointing bodies are sourced (the Council of State, on designation by the
+  # Supreme National Defense Council, which Chiang chaired); no removal procedure is found:
+  # removed_by gap: true.
   - {key: chinese_chairmanship, kind: office, name: Chairman of the Military Affairs Commission, tier: 4, controller: chiang}
   # KCD: the ninth playable card's post. The tier is [proposed], as Tojo's and Mussolini's are.
-  - {key: atlantic_fleet_command, kind: office, name: "Commander in Chief, Atlantic Fleet", tier: 3, controller: king}
+  # U3: the President relieves a fleet commander (Richardson, January 1941).
+  # ladder gap: true; without_leave gap: true.
+  - key: atlantic_fleet_command
+    kind: office
+    name: "Commander in Chief, Atlantic Fleet"
+    tier: 3
+    controller: king
+    moved_by: [us_presidency]
+  # NUK: the Home Fleet's commander's post. The tier is [proposed], as King's is.
+  # K3: in practice the Prime Minister decides a change of command (Wavell to Auchinleck,
+  # 5 July 1941). ladder gap: true; without_leave gap: true.
+  - key: home_fleet_command
+    kind: office
+    name: "Commander in Chief, Home Fleet"
+    tier: 3
+    controller: tovey
+    moved_by: [uk_premiership]
+  # NGE: the U-boat arm's commander's post. The tier is [proposed], as Tovey's is.
+  # G3: Hitler, personally, from 4 February 1938. ladder gap: true; without_leave gap: true
+  # (G8: the standing orders of summer 1941 forbid attacking US ships unless attacked).
+  - key: uboat_command
+    kind: office
+    name: Commander of U-boats
+    tier: 3
+    controller: doenitz
+    moved_by: [reich_chancellorship]
+  # NJP: the Combined Fleet's commander's post. The tier is [proposed], as Tovey's is.
+  # J3: in law the Emperor, who holds no post in the world; who arranged a relief in
+  # practice is a gap: moved_by gap: true; ladder gap: true; without_leave gap: true.
+  - {key: combined_fleet_command, kind: office, name: "Commander in Chief, Combined Fleet", tier: 3, controller: yamamoto}
+  # NIT: the Italian Battle Fleet's commander's post. The tier is [proposed], as Tovey's is.
+  # I3: in practice Mussolini (he removed Badoglio and appointed Cavallero); the formal
+  # instrument for a fleet commander is a gap. ladder gap: true; without_leave gap: true.
+  - key: battle_fleet_command
+    kind: office
+    name: "Commander in Chief, Battle Fleet"
+    tier: 3
+    controller: iachino
+    moved_by: [italian_premiership]
+  # NSU: the Western Front's commander's post. The tier is [proposed], as Tovey's is.
+  # S3, S8: in practice Stalin appointed and replaced front commanders (on paper the
+  # Presidium of the Supreme Soviet). ladder gap: true; without_leave gap: true.
+  - key: western_front_command
+    kind: office
+    name: "Commander, Western Front"
+    tier: 3
+    controller: timoshenko
+    moved_by: [soviet_chairmanship]
+  # NCH: the Ninth War Area's commander's post. The tier is [proposed], as Tovey's is.
+  # C3: no rule for appointing or relieving a war area commander is found: moved_by
+  # gap: true; ladder gap: true; without_leave gap: true.
+  - {key: ninth_war_area_command, kind: office, name: "Commander, Ninth War Area", tier: 3, controller: xue_yue}
+  # NFI: the President's office. The tier is [proposed], as Mussolini's is.
+  # F1, F2: chosen by a college of 300 electors, governing with a cabinet that has
+  # Parliament's confidence, neither in the world: rests_on gap: true. Removed at the end of
+  # Kallio's term or by impeachment on a three-fourths vote; the note gives no day the term
+  # ends, and Finland has no chamber in the world: removed_by gap: true.
+  - {key: finnish_presidency, kind: office, name: President of the Republic of Finland, tier: 3, controller: ryti}
+  # NFI: the Commander-in-Chief's post. The tier is [proposed], as Tovey's is.
+  # F3: who could relieve the Commander-in-Chief once the command was transferred is a gap:
+  # moved_by gap: true; ladder gap: true; without_leave gap: true.
+  - {key: finnish_supreme_command, kind: office, name: "Commander-in-Chief of the Finnish Armed Forces", tier: 3, controller: mannerheim}
 
 sources:
   - key: voteview
@@ -1182,6 +1585,22 @@ sources:
   - {key: deakin_storry_1966, title: "F. W. Deakin and G. R. Storry, The Case of Richard Sorge (Chatto and Windus, 1966): Sorge's radio reports to Red Army intelligence until his arrest on 18 October 1941", note: "Named citation; not read. Confirm the date and pages before release."}
   - {key: wakeman_2003, title: "Frederic Wakeman Jr., Spymaster: Dai Li and the Chinese Secret Service (University of California Press, 2003)", note: "For Dai Li's Military Statistics Bureau running agents in occupied China and reporting to Chiang. Named citation; not read. Confirm before release."}
   - {key: glantz_house_1995, title: "David M. Glantz and Jonathan M. House, When Titans Clashed (University Press of Kansas, 1995): the fall of Kiev on 19 September and of Kalinin on 14 October 1941", note: "Named citation; not read. Confirm the pages before release."}
+  - {key: national_service_1941, title: "National Service (No. 2) Act 1941: men liable to the age of 51, unmarried women from 20 to 30", note: "Announced to the Commons by the Prime Minister on 2 December 1941; Royal Assent 18 December 1941. Named citation; the lane had no network and read no edition or division list. Confirm the dates and the divisions before release."}
+  - {key: tovey_1941, title: "Admiral Sir John Tovey, Commander in Chief, Home Fleet, from December 1940 to May 1943, at Scapa Flow", note: "Named citation; not read. Confirm the dates before release."}
+  - {key: doenitz_1941, title: "Karl Dönitz, Befehlshaber der Unterseeboote (Commander of U-boats) from 1939, Vizeadmiral from September 1940, with his headquarters at Kernevel by Lorient from November 1940", note: "Named citation; the lane had no network and read no edition. Confirm the rank and dates before release."}
+  - {key: yamamoto_1941, title: "Admiral Isoroku Yamamoto, Commander in Chief of the Combined Fleet from August 1939, with his flagship in the Inland Sea by Kure", note: "Named citation; the lane had no network and read no edition. Confirm the rank and dates before release."}
+  - {key: iachino_1941, title: "Admiral Angelo Iachino, Commander in Chief of the Italian Battle Fleet (the Squadra Navale) from December 1940 to April 1943, with the fleet based at Taranto", note: "Named citation; the lane had no network and read no edition. Confirm the rank and dates before release."}
+  - {key: bragadin_1957, title: "Marc'Antonio Bragadin, The Italian Navy in World War II (United States Naval Institute, 1957): the battle fleet's sorties ordered from Rome through Supermarina", note: "Mussolini held the Ministry of the Navy; the sorties were held back for want of fuel and air cover. Named citation; not read. Confirm the chain of orders and the restrictions before release."}
+  - {key: timoshenko_1941, title: "Marshal Semyon Timoshenko, commanding the Soviet Western Front (and the Western Direction) from July to 12 September 1941", note: "Konev took the front on 12 September and Zhukov on 10 October. Named citation; the lane had no network and read no edition. Confirm the dates of each change of command before release."}
+  - {key: xue_yue_1941, title: "General Xue Yue, commanding the Chinese Ninth War Area (Hunan, Kiangsi and Hupeh south of the Yangtze) from 1939, with his headquarters at Changsha", note: "He held Changsha against the Japanese Eleventh Army in September 1939, September and October 1941, and December 1941 to January 1942. Named citation; the lane had no network and read no edition. Confirm the post and its dates before release."}
+  - {key: finland_constitution_1919, title: "The Form of Government of Finland, 1919: a President chosen by a college of 300 electors, commanding the armed forces, who may hand that command to another", note: "Read through the sourcing sheet of 21 Nov (USSR and Finland). Risto Ryti President from 19 December 1940; supreme command transferred to Mannerheim (Article 30). Who could relieve him, and how: not found, gap."}
+  - {key: mannerheim_foundation, title: "The Mannerheim Foundation (mannerheim.fi): Marshal C. G. E. Mannerheim, Commander-in-Chief of the Finnish forces from 30 November 1939", note: "Read through the sourcing sheet of 21 Nov. Says he was applauded for not leading the army against Leningrad and for not cutting the Murmansk railway, which the US Army history contradicts: both readings kept."}
+  - {key: ziemke_1959, title: "Earl F. Ziemke, The German Northern Theater of Operations, 1940-1945 (DA Pamphlet 20-271, 1959)", note: "Read (archive.org text) through the sourcing sheet of 21 Nov. At war from the night of 25 June 1941; the offensive from 10 July; the old border on the Isthmus by 2 September; on 1 September Mannerheim had Ryti's leave to cross it only as far as Sestroretsk-Agalatovo."}
+  - {key: loc_finland_country_study, title: "Library of Congress, Finland: A Country Study (1988): the Continuation War", note: "Read through the sourcing sheet of 21 Nov. Gives 26 June 1941 for the declaration of war, where the US Army history gives the night of 25 June: both readings kept (amendment 9)."}
+  - {key: van_de_ven_2003, title: "Hans van de Ven, War and Nationalism in China, 1925-1945 (RoutledgeCurzon, 2003): Chiang's orders to the war areas through the Military Affairs Commission", note: "Chiang directed the war area commanders himself, often over the head of the General Staff. Named citation; not read. Confirm that giving up a provincial capital waited on Chiang's word before release."}
+  - {key: erickson_1975, title: "John Erickson, The Road to Stalingrad (Harper and Row, 1975): Stalin's orders to the fronts through the Stavka and the General Staff", note: "Stalin refused or delayed leave to withdraw through 1941. Named citation; not read. Confirm that a front's withdrawal waited on Stalin's word before release."}
+  - {key: liaison_conference_1941, title: "The Liaison Conference of 1941: the Prime Minister, the Foreign, Army and Navy Ministers and the two Chiefs of Staff, deciding by consensus", note: "Named citation; not read. Confirm the membership and the rule of consensus before release."}
+  - {key: fuehrer_naval_17_sep_1941, title: "Fuehrer Conferences on Naval Affairs, 17 September 1941: Hitler orders the U-boats to avoid incidents with American ships", note: "Raeder asked leave to attack American escorts; Hitler refused until the campaign in the East is decided. Named citation; not read. Confirm the date and the wording before release."}
   - {key: neutrality_act_1939, title: "Neutrality Act of 4 November 1939 (54 Stat. 4), section 3, Combat Areas; with Proclamation 2376 of the same day defining the combat area", note: "Read (presidency.ucsb.edu, Proclamation 2376, which quotes section 3). Section 3(a): once the President defines combat areas it is unlawful for any citizen of the United States or any American vessel to proceed into or through them. The area: the waters round the British Isles out to 20 W, from the north coast of Spain to Norway."}
   - {key: fdr_1941_09_11, title: "Roosevelt's fireside chat of 11 September 1941 on the Greer: the Navy's patrols of the Atlantic and the order to shoot on sight", note: "Named citation; not read. Confirm the text before release."}
   - {key: lane_choice, title: "The lane's own choice: no published measure", note: "Hubs and prestige ranks chosen by the lane for play; kept as gaps for Josh to mark."}
@@ -1236,6 +1655,10 @@ quantities:
   - {key: draft_extension_senate_yeas, owner: senate, name: "Senate yeas on draft extension", unit: votes, computed: true, public: true}
   - {key: draft_extension_senate_nays, owner: senate, name: "Senate nays on draft extension", unit: votes, computed: true, public: true}
   - {key: draft_extension_passed, owner: usa, name: "Whether draft extension became law (1 yes, 0 no)", unit: flag, computed: true, public: true}
+  # The Commons' vote on the National Service bill (NUK), tallied from its blocs.
+  - {key: national_service_commons_yeas, owner: commons, name: "Commons yeas on National Service", unit: votes, computed: true, public: true}
+  - {key: national_service_commons_nays, owner: commons, name: "Commons nays on National Service", unit: votes, computed: true, public: true}
+  - {key: national_service_passed, owner: uk, name: "Whether National Service became law (1 yes, 0 no)", unit: flag, computed: true, public: true}
   - {key: uboat_losses_oct, name: "Allied merchant losses to U-boats, Oct 1941", unit: GRT, computed: true}
   - {key: uboat_losses_nov, name: "Allied merchant losses to U-boats, Nov 1941", unit: GRT, computed: true}
   - {key: soviet_lend_lease_eligible, owner: usa, name: "Soviet Union eligible for Lend-Lease (1 yes, 0 no)", unit: flag, computed: true}
@@ -1250,6 +1673,8 @@ quantities:
   - {key: uk_sealift_grt, owner: uk, name: British shipping free for troop lift, value: 300000, unit: GRT, gap: true}
   # [proposed] 200,000 GRT of Japanese shipping free for troop lift; unsourced.
   - {key: japan_sealift_grt, owner: japan, name: Japanese shipping free for troop lift, value: 200000, unit: GRT, gap: true}
+  # [proposed] 150,000 GRT of Italian shipping free for troop lift; unsourced.
+  - {key: italy_sealift_grt, owner: italy, name: Italian shipping free for troop lift, value: 150000, unit: GRT, gap: true}
 
 # The map. Positions and dates are approximate and unsourced (gap: true): a
 # force's legs are where the record has it if nobody orders it elsewhere.
@@ -1283,6 +1708,11 @@ features:
   - {key: hx_route, kind: route, name: HX convoys, side: uk, places: [halifax_port, north_atlantic, liverpool], gap: true}
   - {key: sc_route, kind: route, name: SC convoys, side: uk, places: [sydney_cb, north_atlantic, liverpool], gap: true}
   - {key: arctic_route, kind: route, name: Arctic convoys, side: uk, places: [reykjavik, archangel], gap: true}
+  # The Libya convoy form's routes. The map has no place at Benghazi: the Cyrenaica run ends at
+  # Bardia. [proposed], unsourced.
+  - {key: tripoli_route, kind: route, name: Convoys to Tripoli, side: italy, places: [taranto, tripoli], gap: true}
+  - {key: benghazi_route, kind: route, name: Convoys to Cyrenaica, side: italy, places: [taranto, bardia], gap: true}
+  - {key: greece_route, kind: route, name: Convoys to Greece, side: italy, places: [taranto, piraeus], gap: true}
   # Each stands at the base of its side and kind nearest where the record has it (the base
   # table in core/realism/bases.py). Strengths are tiers, not counts.
   - {key: hawaiian_department, kind: piece, piece: army, name: Hawaiian Department, side: usa, tier: 3, places: [pearl_harbor_base], gap: true}
@@ -1309,6 +1739,9 @@ features:
   - {key: afrika_korps, kind: piece, piece: army, name: Afrika Korps, side: germany, tier: 3, places: [bardia], gap: true}
   - {key: ninth_war_area, kind: piece, piece: army, name: Ninth War Area, side: china, tier: 3, places: [changsha], gap: true}
   - {key: eleventh_army, kind: piece, piece: army, name: Eleventh Army, side: japan, tier: 4, places: [wuhan], legs: [{since: 1941-09-17, places: [changsha]}, {since: 1941-10-06, places: [wuhan]}], gap: true}
+  # NFI: the Finnish field army, standing in Finland at the Commander-in-Chief's headquarters.
+  # Its strength and its place are [proposed]: gap: true.
+  - {key: finnish_army, kind: piece, piece: army, name: Finnish Army, side: finland_state, tier: 3, places: [mikkeli], gap: true}
   # Envoys (PCW): scripted missions, each a leg that sets the piece going on the day named. The record has
   # the Moscow mission leave London on 22 September and arrive on 28th; the map's route is longer than the
   # real one, so the leg starts on 16 September [proposed] to bring it to Moscow on the record's day.
@@ -1333,6 +1766,7 @@ feeds:
   - {key: stavka_situation, name: General Staff situation reports, author: shaposhnikov, kind: report, channel: courier, classification: secret, reports: [soviet_lend_lease_eligible, lend_lease_share_ussr], sights: [soviet_western_front, army_group_centre, eastern_front], every_days: 3, latency_days: 0, assumed: true, gap: true}
   - {key: comando_supremo_reports, name: Comando Supremo reports, author: cavallero, kind: report, channel: courier, classification: secret, sights: [italian_fleet, italian_army_libya, italian_army, afrika_korps, mediterranean_fleet, western_desert_force], every_days: 3, latency_days: 1, assumed: true, gap: true}
   - {key: mac_reports, name: Military Affairs Commission reports, author: he_yingqin, kind: report, channel: courier, classification: secret, sights: [chinese_army, ninth_war_area, eleventh_army], every_days: 3, latency_days: 1, assumed: true, gap: true}
+  - {key: finnish_hq_reports, name: Finnish Headquarters reports, author: mannerheim, kind: report, channel: courier, classification: secret, sights: [finnish_army, leningrad_front], every_days: 3, latency_days: 1, assumed: true, gap: true}
 
 pipelines:
   - key: executive_order
@@ -1365,6 +1799,63 @@ pipelines:
     gap: true
     steps:
       - {person: king, kind: clerical, days: 1, assumed: true}
+  # Tovey's own forms (NUK): through his own staff, with no step above him. The step is his.
+  - key: home_fleet_staff
+    name: Through the Home Fleet's staff
+    gap: true
+    steps:
+      - {person: tovey, kind: clerical, days: 1, assumed: true}
+  # Dönitz's own forms (NGE): through his own staff at Kernevel, with no step above him. The step
+  # is his.
+  - key: bdu_staff
+    name: Through the U-boat command's staff
+    gap: true
+    steps:
+      - {person: doenitz, kind: clerical, days: 1, assumed: true}
+  # Yamamoto's own forms (NJP): through the Combined Fleet's staff in his flagship, with no step
+  # above him. The step is his.
+  - key: combined_fleet_staff
+    name: Through the Combined Fleet's staff
+    gap: true
+    steps:
+      - {person: yamamoto, kind: clerical, days: 1, assumed: true}
+  # Iachino's own forms (NIT): through the Battle Fleet's staff in his flagship, with no step
+  # above him. The step is his.
+  - key: battle_fleet_staff
+    name: Through the Battle Fleet's staff
+    gap: true
+    steps:
+      - {person: iachino, kind: clerical, days: 1, assumed: true}
+  # Timoshenko's own form (NSU): through the Western Front's staff at his headquarters, with no
+  # step above him. The step is his. His forms are a move and a concealment of the front (an
+  # engagement his domain holds). He has no detach form: a side may keep no army detachment in
+  # play (detachments.DETACHMENTS_PER_SIDE), so a split of the front would change nothing.
+  - key: western_front_staff
+    name: Through the Western Front's staff
+    gap: true
+    steps:
+      - {person: timoshenko, kind: clerical, days: 1, assumed: true}
+  # Xue Yue's own form (NCH): through the Ninth War Area's headquarters at Changsha, with no
+  # step above him. The step is his. His forms are a move and a concealment of the area (an
+  # engagement his domain holds); a side may keep no army detachment in play, so he has no
+  # detach form.
+  - key: ninth_war_area_hq
+    name: Through the Ninth War Area's headquarters
+    gap: true
+    steps:
+      - {person: xue_yue, kind: clerical, days: 1, assumed: true}
+  # Ryti's orders to the army (NFI): through the Commander-in-Chief, to whom he handed command.
+  - key: through_the_commander_in_chief
+    name: Through the Commander-in-Chief
+    gap: true
+    steps:
+      - {person: mannerheim, kind: clerical, days: 1, assumed: true}
+  # Mannerheim's own forms (NFI): through his headquarters at Mikkeli, with no step above him.
+  - key: finnish_headquarters
+    name: Through Headquarters at Mikkeli
+    gap: true
+    steps:
+      - {person: mannerheim, kind: clerical, days: 1, assumed: true}
   - key: cable_to_churchill
     name: A cable to the Prime Minister
     gap: true
@@ -1395,6 +1886,13 @@ pipelines:
     steps:
       - {person: uk_cipher_clerk, kind: clerical, days: 1, assumed: true}
       - {person: roosevelt, kind: decision, days: 2, assumed: true, allowed: [pass, expedite, stall, leak, refuse]}
+  # The Prime Minister led the House himself in 1941; announced 2 Dec, Royal Assent 18 Dec.
+  # The division is the votes resolver's, not a step.
+  - key: bill_through_commons
+    name: A bill through the Commons
+    source: national_service_1941
+    steps:
+      - {person: churchill, kind: decision, days: 16, allowed: [pass, refuse]}
   - key: press_broadcast
     name: A broadcast to the nation
     gap: true
@@ -1483,6 +1981,60 @@ topics:
   - {key: finance, name: Credit and the Treasury, words: [credit, dollars, finance, treasury, gold, loan]}
   - {key: embargo, name: Embargo and freezing of assets, words: [embargo, oil, freeze, sanctions, exports]}
 
+# The player's own aim (OWD), read with own_aim on: patterns a player may fill to replace
+# his card's replaceable aim, by kind of post (a card's post_kind). No pattern names a place:
+# a place or a nation is a blank resolved from the seat's view, and a line is a closed list
+# none of whose values any group meets on the first day (support 25 to 75 at the start).
+# government: whether the person's own government would issue the aim. The list, the posts
+# each suits, the lines and the government marks are a balance decision. [proposed]
+aim_patterns:
+  - key: take_ground
+    posts: [head_of_government, war_minister, fleet_commander, army_commander]
+    sentence: Take {place} for {nation}.
+    condition: {check: holds_area, area: $place, holder: $nation}
+    blanks:
+      - {name: place, kind: territory_not_held}
+  - key: hold_and_take
+    posts: [war_minister, fleet_commander, army_commander]
+    sentence: Hold {held} and take {place}.
+    condition:
+      check: all_of
+      conditions:
+        - {check: holds_area, area: $held, holder: $nation}
+        - {check: holds_area, area: $place, holder: $nation}
+    blanks:
+      - {name: held, kind: territory_held}
+      - {name: place, kind: territory_not_held}
+  - key: war_with
+    posts: [head_of_government, war_minister, fleet_commander, army_commander]
+    sentence: Bring {nation} into the war against {foe}.
+    condition: {check: at_war, a: $nation, b: $foe}
+    blanks:
+      - {name: foe, kind: other_nation}
+    government: false
+  - key: raise_group
+    posts: [head_of_government, war_minister, fleet_commander, army_commander]
+    sentence: Lift {group} to {line} or more.
+    condition: {check: support_at, nation: $nation, group: $group, op: ge, value: $line}
+    blanks:
+      - {name: group, kind: own_group}
+      - {name: line, values: [80, 90]}
+    government: false
+  - key: weaken_group
+    posts: [head_of_government, war_minister]
+    sentence: Bring {group} down to {line} or less.
+    condition: {check: support_at, nation: $nation, group: $group, op: le, value: $line}
+    blanks:
+      - {name: group, kind: own_group}
+      - {name: line, values: [20, 10]}
+    government: false
+  - key: make_agreement
+    posts: [head_of_government]
+    sentence: Bring {other} into an agreement with {nation} and keep it in force.
+    condition: {check: agreement_in_force, between: [$nation, $other]}
+    blanks:
+      - {name: other, kind: other_nation}
+
 cards:
   # --- the eight playable cards ---
   # opposes: who each head is set against and over what (shown in the Opponents list).
@@ -1493,6 +2045,8 @@ cards:
   # the head's own forms, or a typed effect inside their authority. helps: costs no
   # regard. until: a history item that retires the answer.
   - person: roosevelt
+    post: us_presidency  # OFD
+    post_kind: head_of_government
     allies: [uk, china]
     opposes:
       - {against: germany, over: "U-boat war on the Atlantic convoys"}
@@ -1570,6 +2124,7 @@ cards:
         params:
           - {name: order, kind: enum, choices: [escort_convoys, shoot_on_sight, hold_in_port], label: "The order", choice_labels: ["Escort the convoys", "Shoot on sight", "Hold in port"]}
           - {name: zone, kind: enum, choices: [western_atlantic, iceland_route, pacific], label: "Where", choice_labels: ["Western Atlantic", "The Iceland route", "The Pacific"]}
+        escort_level: {order: {escort_convoys: 1, shoot_on_sight: 2, hold_in_port: 0}}  # the levels shipping's ESCORT_LEVEL gives these words
       - name: move_fleet
         pipeline: naval_order
         resolver: movement
@@ -1684,6 +2239,8 @@ cards:
         summary: "Decide how the aid programme is shared out."
     reach: {rank: 5, chain: [usa], heads: true}
   - person: churchill
+    post: uk_premiership  # OFD
+    post_kind: head_of_government
     allies: [usa, ussr]
     opposes:
       - {against: germany, over: "the war at sea and the bombing of Britain", irreducible: true}
@@ -1805,6 +2362,14 @@ cards:
         summary: "Give Bletchley Park what it asks for: 'Action this day'."
         params:
           - {name: intel, kind: enum, choices: [codebreaking]}
+      - name: send_bill  # source: national_service_1941
+        pipeline: bill_through_commons
+        resolver: votes
+        label: "Put a bill to the Commons"
+        summary: "Bring a government bill before the House of Commons; it becomes law if the House passes it."
+        params:
+          - {name: bill, kind: enum, choices: [national_service], label: "Which bill", choice_labels: ["National Service"]}
+          - {name: urgency, kind: enum, choices: [ordinary, urgent], label: "How hard to press", choice_labels: ["In the ordinary way", "As a matter of urgency"]}
     inner_circle:
       - {person: roosevelt, channel: cable}
       - {person: eden, channel: in_person}
@@ -1813,7 +2378,7 @@ cards:
       - {person: halifax, channel: cable}
       - {person: stalin, channel: cable}
     feeds: [admiralty_reports]
-    pipelines: [cos_directive, cable_to_roosevelt, press_broadcast]
+    pipelines: [cos_directive, cable_to_roosevelt, press_broadcast, bill_through_commons]
     constraints:
       - keeps the confidence of the Commons
       - orders go through the Chiefs of Staff Committee
@@ -1853,6 +2418,8 @@ cards:
         summary: "Treat with other governments, through the Foreign Secretary."
     reach: {rank: 5, chain: [uk], heads: true}
   - person: stalin
+    post: soviet_chairmanship  # OFD
+    post_kind: head_of_government
     allies: [uk]
     opposes:
       - {against: germany, over: "the invasion of the Soviet Union", irreducible: true}
@@ -1975,6 +2542,8 @@ cards:
         summary: "Treat with other governments, through the Commissar for Foreign Affairs."
     reach: {rank: 5, chain: [ussr], heads: true}
   - person: hitler
+    post: reich_chancellorship  # OFD
+    post_kind: head_of_government
     allies: [italy, japan]
     opposes:
       - {against: ussr, over: "the war in the East", irreducible: true}
@@ -2122,6 +2691,8 @@ cards:
         summary: "Treat with other governments, through the Foreign Minister."
     reach: {rank: 5, chain: [germany], heads: true}
   - person: konoe
+    post: japan_premiership  # OFD
+    post_kind: head_of_government
     allies: [germany, italy]
     opposes:
       - {against: china, over: "the China Incident"}
@@ -2225,6 +2796,7 @@ cards:
         summary: "Negotiate with the United States, through the Ambassador in Washington."
     reach: {rank: 4, chain: [japan]}
   - person: tojo
+    post_kind: war_minister
     allies: [germany, italy]
     opposes:
       - {against: china, over: "the Army's gains in China", irreducible: true}
@@ -2353,6 +2925,8 @@ cards:
         summary: "Speak for the Army's position."
     reach: {rank: 3, chain: [japan]}
   - person: mussolini
+    post: italian_premiership  # OFD
+    post_kind: head_of_government
     allies: [germany, japan]
     opposes:
       - {against: uk, over: "Malta, Libya and the Mediterranean"}
@@ -2385,7 +2959,7 @@ cards:
         label: "Run convoys to Libya"
         summary: "Send supply convoys across the Mediterranean by a chosen route."
         params:
-          - {name: route, kind: enum, choices: [tripoli, benghazi, greece], label: "Which route", choice_labels: ["To Tripoli", "To Benghazi", "To Greece"]}
+          - {name: route, kind: enum, choices: [tripoli_route, benghazi_route, greece_route], label: "Which route", choice_labels: ["To Tripoli", "To Benghazi", "To Greece"]}
       - name: production_priority
         pipeline: comando_supremo_order
         resolver: production
@@ -2441,8 +3015,9 @@ cards:
     interests: [keep pace with Germany, hold North Africa]
     authority:
       - name: supreme_command
-        effects: [engagement]
+        effects: [move_force, engagement]
         executor: cavallero
+        forces: [italian_fleet, italian_army, italian_army_libya]
         summary: "Orders to the armed forces, carried out through the Comando Supremo."
       - name: war_economy
         effects: [allocate]
@@ -2455,6 +3030,8 @@ cards:
         summary: "Appoint and dismiss ministers and commanders."
     reach: {rank: 4, chain: [italy], heads: true}
   - person: chiang
+    post: chinese_chairmanship  # OFD
+    post_kind: head_of_government
     allies: [usa]
     opposes:
       - {against: japan, over: "the invasion of China", irreducible: true}
@@ -2540,8 +3117,9 @@ cards:
     interests: [American aid, keep Japan tied down in China]
     authority:
       - name: military_affairs
-        effects: [engagement]
+        effects: [move_force, engagement]
         executor: he_yingqin
+        forces: [chinese_army, ninth_war_area]
         summary: "Orders to the armies, carried out through the Military Affairs Commission."
       - name: arsenals
         effects: [allocate]
@@ -2672,6 +3250,8 @@ cards:
   # step above him; the President's naval order still crosses his desk. His aims and their
   # conditions are written from his office: every line [proposed] (values sheet).
   - person: king
+    post: atlantic_fleet_command  # OFD
+    post_kind: fleet_commander
     office: Commander in Chief, Atlantic Fleet
     voice: "Gruff and curt; gives orders, not reasons, and expects them carried out at once."
     addressed_as: "Admiral King"
@@ -2713,6 +3293,7 @@ cards:
         params:
           - {name: order, kind: enum, choices: [escort_convoys, shoot_on_sight, hold_in_port], label: "The order", choice_labels: ["Escort the convoys", "Shoot on sight", "Hold in port"]}
           - {name: zone, kind: enum, choices: [western_atlantic, iceland_route, war_zone], label: "Where", choice_labels: ["Western Atlantic", "The Iceland route", "Beyond Iceland, into the war zone"]}
+        escort_level: {order: {escort_convoys: 1, shoot_on_sight: 2, hold_in_port: 0}}  # the levels shipping's ESCORT_LEVEL gives these words
     loyalty: 0
     competence: 4
     wants: [naval_engagement, fleet_movements]
@@ -2732,6 +3313,474 @@ cards:
         effects: [move_force, engagement]
         forces: [us_atlantic_fleet]
         summary: "Command of the Atlantic Fleet: where it goes, what it detaches, how it fights."
+  # The tenth playable card (NUK): a military card, flagged playable by hand, under the First Sea
+  # Lord and so under the Prime Minister, whose own order over the Home Fleet stands. His own forms
+  # go through his own staff (home_fleet_staff), with no step above him. Aims 1 and 2 are the fleet
+  # commander's patterns filled in (hold_and_take, raise_group); aim 3 is the default an own aim
+  # replaces. source: tovey_1941 for the post; every other line gap: true, [proposed].
+  - person: tovey
+    post: home_fleet_command  # OFD
+    post_kind: fleet_commander
+    office: Commander in Chief, Home Fleet
+    voice: "Blunt and stubborn; argues his case to the Admiralty in plain terms and will not be hurried."
+    addressed_as: "Admiral Tovey"
+    playable: true
+    path: military
+    principals: [pound]
+    powers: [command the Home Fleet, cover the convoys to Russia, watch the northern exits]
+    inner_circle:
+      - {person: pound, channel: cable}
+      - {person: churchill, channel: cable}
+    feeds: [admiralty_reports]
+    pipelines: [home_fleet_staff]
+    levers:
+      - name: home_fleet_move
+        pipeline: home_fleet_staff
+        resolver: movement
+        label: "Move the fleet"
+        summary: "Send the Home Fleet to another base. Your staff carries it out."
+        params:
+          - {name: force, kind: enum, choices: [home_fleet], label: "Which fleet", choice_labels: ["The Home Fleet"]}
+          - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool"]}
+      - name: home_fleet_detach
+        pipeline: home_fleet_staff
+        resolver: movement
+        label: "Detach part of the fleet"
+        summary: "Send part of the Home Fleet's strength to another base; the rest stays where it is."
+        params:
+          - {name: force, kind: enum, choices: [home_fleet], label: "Which fleet", choice_labels: ["The Home Fleet"]}
+          - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool"]}
+          - {name: strength, kind: int, lo: 1, hi: 4, label: "How much of its strength"}
+    loyalty: 0
+    competence: 4
+    wants: [naval_engagement, fleet_movements]
+    holds_to: [atlantic_escort]
+    reach: {rank: 2}
+    horizon_days: 7
+    aims:
+      - "Hold Iceland and take Norway."
+      - "Lift the British public to 80 or more."
+      - "Put the National Service bill into law."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Iceland stays British, and Norway is taken from Germany.", condition: {check: all_of, conditions: [{check: holds_area, area: iceland, holder: uk}, {check: holds_area, area: norway, holder: uk}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "The British public's support is at 80 or more.", condition: {check: support_at, nation: uk, group: public, op: ge, value: 80}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "The National Service bill becomes law.", condition: {check: quantity_at, quantity: national_service_passed, op: ge, value: 1}}
+    authority:
+      - name: home_fleet
+        effects: [move_force, engagement]
+        forces: [home_fleet]
+        summary: "Command of the Home Fleet: where it goes, what it detaches, how it fights."
+  # The eleventh playable card (NGE): a military card, flagged playable by hand, under the Navy's
+  # commander in chief and so under Hitler, whose own order over the U-boat arm stands. His own
+  # forms go through his own staff (bdu_staff), with no step above him. Aims 1 and 2 are the fleet
+  # commander's patterns filled in (hold_and_take, war_with); aim 3 is the default an own aim
+  # replaces. Germany has no body or council that decides: Hitler decides alone. source:
+  # doenitz_1941 for the post; every other line gap: true, [proposed].
+  - person: doenitz
+    post: uboat_command  # OFD
+    post_kind: fleet_commander
+    office: Commander of U-boats
+    voice: "Clipped and exact; argues for more boats and a free hand in plain figures of tonnage sunk."
+    addressed_as: "Herr Vizeadmiral"
+    playable: true
+    path: military
+    principals: [raeder]
+    powers: [command the U-boat arm, dispose the boats against the convoys, report tonnage sunk]
+    inner_circle:
+      - {person: raeder, channel: cable}
+      - {person: hitler, channel: cable}
+    feeds: [german_naval_reports]
+    pipelines: [bdu_staff]
+    levers:
+      - name: uboat_move
+        pipeline: bdu_staff
+        resolver: movement
+        label: "Move the U-boats"
+        summary: "Send the U-boat arm to other waters. Your staff carries it out."
+        params:
+          - {name: force, kind: enum, choices: [uboat_arm], label: "Which boats", choice_labels: ["The U-boat arm"]}
+          - {name: to, kind: enum, choices: [lorient, north_atlantic, argentia], label: "To", choice_labels: ["Lorient", "The North Atlantic", "Off Argentia"]}
+      - name: uboat_detach
+        pipeline: bdu_staff
+        resolver: movement
+        label: "Detach part of the U-boats"
+        summary: "Send part of the U-boat arm to other waters; the rest stays where it is."
+        params:
+          - {name: force, kind: enum, choices: [uboat_arm], label: "Which boats", choice_labels: ["The U-boat arm"]}
+          - {name: to, kind: enum, choices: [lorient, north_atlantic, argentia], label: "To", choice_labels: ["Lorient", "The North Atlantic", "Off Argentia"]}
+          - {name: strength, kind: int, lo: 1, hi: 2, label: "How much of its strength"}
+    loyalty: 1
+    competence: 4
+    wants: [naval_engagement, fleet_movements]
+    reach: {rank: 2}
+    horizon_days: 7
+    aims:
+      - "Hold Occupied France and take Iceland."
+      - "Bring Germany into the war against the United States."
+      - "Sink 150,000 tons of Allied shipping in November."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Occupied France stays German, and Iceland is taken from Britain.", condition: {check: all_of, conditions: [{check: holds_area, area: occupied_france, holder: germany}, {check: holds_area, area: iceland, holder: germany}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "Germany is at war with the United States.", condition: {check: at_war, a: germany, b: usa}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "Allied merchant losses to U-boats in November reach 150,000 GRT or more.", condition: {check: quantity_at, quantity: uboat_losses_nov, op: ge, value: 150000}}
+    authority:
+      - name: uboat_arm
+        effects: [move_force, engagement]
+        forces: [uboat_arm]
+        summary: "Command of the U-boat arm: where the boats go, what is detached, how they fight."
+  # The twelfth playable card (NJP): a military card, flagged playable by hand, under the Chief
+  # of the Navy General Staff and so under the Emperor. His own forms go through his own staff
+  # (combined_fleet_staff), with no step above him. Aims 1 and 2 are the fleet commander's
+  # patterns filled in (hold_and_take, raise_group); aim 3 is the default an own aim replaces.
+  # Opening hostilities is the Liaison Conference's to decide, as a council; gathering the fleet
+  # is the Navy chief's. source: yamamoto_1941 for the post, prange_1981 for his quarrel with the
+  # Navy General Staff over the Hawaii operation; every other line gap: true, [proposed].
+  - person: yamamoto
+    post: combined_fleet_command  # OFD
+    post_kind: fleet_commander
+    office: Commander in Chief, Combined Fleet
+    voice: "Laconic and wry, with a gambler's candour; warns that he can run wild for six months and no longer."
+    addressed_as: "Admiral Yamamoto"
+    playable: true
+    path: military
+    principals: [nagano]
+    opposes:
+      - {against: nagano, over: "the Hawaii operation the Naval General Staff opposed"}
+    powers: [command the Combined Fleet, plan the fleet's operations, sail the strike force]
+    inner_circle:
+      - {person: nagano, channel: cable}
+    feeds: []
+    pipelines: [combined_fleet_staff]
+    levers:
+      - name: combined_fleet_move
+        pipeline: combined_fleet_staff
+        resolver: movement
+        label: "Move the fleet"
+        summary: "Send the Combined Fleet to other waters. Your staff carries it out."
+        params:
+          - {name: force, kind: enum, choices: [combined_fleet], label: "Which fleet", choice_labels: ["The Combined Fleet"]}
+          - {name: to, kind: enum, choices: [kure, hitokappu_bay, pearl_harbor_base], label: "To", choice_labels: ["Kure", "Hitokappu Bay", "Pearl Harbor"]}
+      - name: combined_fleet_detach
+        pipeline: combined_fleet_staff
+        resolver: movement
+        label: "Detach part of the fleet"
+        summary: "Send part of the Combined Fleet's strength to other waters; the rest stays where it is."
+        params:
+          - {name: force, kind: enum, choices: [combined_fleet], label: "Which fleet", choice_labels: ["The Combined Fleet"]}
+          - {name: to, kind: enum, choices: [kure, hitokappu_bay, pearl_harbor_base], label: "To", choice_labels: ["Kure", "Hitokappu Bay", "Pearl Harbor"]}
+          - {name: strength, kind: int, lo: 1, hi: 4, label: "How much of its strength"}
+    loyalty: 0
+    competence: 4
+    wants: [naval_engagement, fleet_movements]
+    reach: {rank: 2}
+    horizon_days: 7
+    aims:
+      - "Hold Japan West and take Hawaii."
+      - "Lift the Navy to 80 or more."
+      - "Take Malaya and British Borneo in the southern operation."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Japan West stays Japanese, and Hawaii is taken from the United States.", condition: {check: all_of, conditions: [{check: holds_area, area: japan_west, holder: japan}, {check: holds_area, area: hawaii, holder: japan}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "The Navy's support in Japan is at 80 or more.", condition: {check: support_at, nation: japan, group: navy, op: ge, value: 80}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "Japan holds Malaya and British Borneo.", condition: {check: holds_area, area: malaya, holder: japan}}
+    authority:
+      - name: combined_fleet
+        effects: [move_force, engagement]
+        forces: [combined_fleet]
+        summary: "Command of the Combined Fleet: where it goes, what it detaches, how it fights."
+  # The thirteenth playable card (NIT): a military card, flagged playable by hand, under the
+  # Chief of the Comando Supremo and so under Mussolini, whose own order over the battle fleet
+  # stands. His own forms go through his own staff (battle_fleet_staff), with no step above him.
+  # Aims 1 and 2 are the fleet commander's patterns filled in (hold_and_take, take_ground); aim 3
+  # is the default an own aim replaces. A sortie east of the Sicilian narrows is Mussolini's to
+  # permit; Italy has no body or council that decides. source: iachino_1941 for the post,
+  # bragadin_1957 for the sorties ordered from Rome; every other line gap: true, [proposed].
+  - person: iachino
+    post: battle_fleet_command  # OFD
+    post_kind: fleet_commander
+    office: Commander in Chief, Battle Fleet
+    voice: "Correct and cautious; argues from fuel stocks and air cover, and wants his orders from Rome in writing before he risks the battleships."
+    addressed_as: "Signor Ammiraglio"
+    playable: true
+    path: military
+    principals: [cavallero]
+    powers: [command the Battle Fleet, cover the convoys to Libya, give battle at sea]
+    inner_circle:
+      - {person: cavallero, channel: cable}
+    feeds: [comando_supremo_reports]
+    pipelines: [battle_fleet_staff]
+    levers:
+      - name: battle_fleet_move
+        pipeline: battle_fleet_staff
+        resolver: movement
+        label: "Move the fleet"
+        summary: "Send the Italian Battle Fleet to other waters. Your staff carries it out."
+        params:
+          - {name: force, kind: enum, choices: [italian_fleet], label: "Which fleet", choice_labels: ["The Italian Battle Fleet"]}
+          - {name: to, kind: enum, choices: [taranto, tripoli, bardia], label: "To", choice_labels: ["Taranto", "Tripoli", "Bardia"]}
+      - name: battle_fleet_detach
+        pipeline: battle_fleet_staff
+        resolver: movement
+        label: "Detach part of the fleet"
+        summary: "Send part of the Italian Battle Fleet's strength to other waters; the rest stays where it is."
+        params:
+          - {name: force, kind: enum, choices: [italian_fleet], label: "Which fleet", choice_labels: ["The Italian Battle Fleet"]}
+          - {name: to, kind: enum, choices: [taranto, tripoli, bardia], label: "To", choice_labels: ["Taranto", "Tripoli", "Bardia"]}
+          - {name: strength, kind: int, lo: 1, hi: 3, label: "How much of its strength"}
+    loyalty: 1
+    competence: 3
+    wants: [naval_engagement, fleet_movements]
+    reach: {rank: 2}
+    horizon_days: 7
+    aims:
+      - "Hold Tripolitania and the Fezzan and take Malta and Cyprus."
+      - "Take the Tobruk enclave for Italy."
+      - "Keep Cyrenaica Italian, supplied by sea."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Tripolitania and the Fezzan stay Italian, and Malta and Cyprus are taken from Britain.", condition: {check: all_of, conditions: [{check: holds_area, area: tripolitania, holder: italy}, {check: holds_area, area: british_islands, holder: italy}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "Italy holds the Tobruk enclave.", condition: {check: holds_area, area: tobruk_area, holder: italy}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "Italy holds Cyrenaica.", condition: {check: holds_area, area: cyrenaica, holder: italy}}
+    authority:
+      - name: battle_fleet
+        effects: [move_force, engagement]
+        forces: [italian_fleet]
+        summary: "Command of the Italian Battle Fleet: where it goes, what it detaches, how it fights."
+  # The fourteenth playable card (NSU): a military card, flagged playable by hand, under the
+  # Chief of the General Staff and so under Stalin, whose own order over the front stands (his
+  # military_operations name it). His own forms go through his own staff (western_front_staff),
+  # with no step above him: a move to the places Stalin's own form reaches, and a concealment. Aims 1 and 2 are the army
+  # commander's patterns filled in (hold_and_take, take_ground); aim 3 is the default an own aim
+  # replaces. A withdrawal behind the Mozhaisk line is Stalin's to permit; the Soviet Union has
+  # no body or council that decides. The card is the man in post on 1 September; Konev and then
+  # Zhukov took the front inside the season, a change left to the ladder of posts. source:
+  # timoshenko_1941 for the post, erickson_1975 for the orders through the Stavka; every other
+  # line gap: true, [proposed].
+  - person: timoshenko
+    post: western_front_command  # OFD
+    post_kind: army_commander
+    office: Commander, Western Front
+    voice: "Heavy, plain and stubborn; reports losses without softening them and asks the Stavka for men before he asks for leave to give ground."
+    addressed_as: "Comrade Marshal"
+    playable: true
+    path: military
+    principals: [shaposhnikov]
+    powers: [command the Western Front, counter-attack on the Smolensk axis, hold the road to Moscow]
+    inner_circle:
+      - {person: shaposhnikov, channel: telephone}
+    feeds: [stavka_situation]
+    pipelines: [western_front_staff]
+    levers:
+      - name: western_front_move
+        pipeline: western_front_staff
+        resolver: movement
+        label: "Move the front"
+        summary: "Order the Western Front to stand on a new line. Your staff carries it out."
+        params:
+          - {name: force, kind: enum, choices: [soviet_western_front], label: "Which front", choice_labels: ["The Western Front"]}
+          - {name: to, kind: enum, choices: [vyazma, mozhaisk, moscow], label: "To", choice_labels: ["Vyazma", "Mozhaisk", "Moscow"]}
+      - name: western_front_conceal  # gap: true
+        pipeline: western_front_staff
+        resolver: intel
+        label: "Hide the front's moves"
+        summary: "Hide where the front's armies stand: night marches, camouflage and radio silence."
+        params:
+          - {name: intel, kind: enum, choices: [conceal]}
+          - {name: piece, kind: enum, choices: [soviet_western_front], label: "Which front", choice_labels: ["The Western Front"]}
+          - {name: concealed, kind: enum, choices: ["yes", "no"], label: "Hidden", choice_labels: ["Hide it", "Stop hiding it"]}
+    loyalty: 2
+    competence: 3
+    wants: [aid_soviet, europe_first]
+    reach: {rank: 2}
+    horizon_days: 7
+    aims:
+      - "Hold Moscow and take Smolensk back."
+      - "Take Belorussia back for the Soviet Union."
+      - "Keep Kalinin Soviet, the front's right flank."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "The Soviet Union holds the Moscow area and takes Smolensk back from Germany.", condition: {check: all_of, conditions: [{check: holds_area, area: moscow_area, holder: ussr}, {check: holds_area, area: smolensk_area, holder: ussr}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "The Soviet Union holds Belorussia.", condition: {check: holds_area, area: belorussia, holder: ussr}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "The Soviet Union holds Kalinin.", condition: {check: holds_area, area: kalinin_area, holder: ussr}}
+    authority:
+      - name: western_front
+        effects: [move_force, engagement]
+        forces: [soviet_western_front]
+        summary: "Command of the Western Front: where it stands, how it fights and what it hides."
+  # The fifteenth playable card (NCH): a military card, flagged playable by hand, under the
+  # Chief of the General Staff and so under Chiang, whose own order over the area stands (his
+  # military_affairs name it). His own forms go through his own headquarters
+  # (ninth_war_area_hq), with no step above him: a move to the places Chiang's own form reaches,
+  # and a concealment. Aims 1 and 2 are the army commander's patterns filled in (hold_and_take,
+  # take_ground); aim 3 is the default an own aim replaces. Giving up Changsha without a fight
+  # is Chiang's to permit; China has no body or council that decides. source: xue_yue_1941 for
+  # the post, van_de_ven_2003 for the orders through the Commission; every other line gap:
+  # true, [proposed].
+  - person: xue_yue
+    post: ninth_war_area_command  # OFD
+    post_kind: army_commander
+    office: Commander, Ninth War Area
+    voice: "Quick, proud and combative; promises to hold Changsha before he is asked, and reports a retreat as a trap laid for the enemy."
+    addressed_as: "General Xue"
+    playable: true
+    path: military
+    principals: [he_yingqin]
+    powers: [command the Ninth War Area, defend Changsha, strike the Eleventh Army's flanks]
+    inner_circle:
+      - {person: he_yingqin, channel: telephone}
+    feeds: [mac_reports]
+    pipelines: [ninth_war_area_hq]
+    levers:
+      - name: ninth_war_area_move
+        pipeline: ninth_war_area_hq
+        resolver: movement
+        label: "Move the war area's armies"
+        summary: "Order the Ninth War Area's armies to stand at a new place. Your headquarters carries it out."
+        params:
+          - {name: force, kind: enum, choices: [ninth_war_area], label: "Which army", choice_labels: ["The Ninth War Area"]}
+          - {name: to, kind: enum, choices: [chungking, changsha, wuhan], label: "To", choice_labels: ["Chungking", "Changsha", "Wuhan"]}
+      - name: ninth_war_area_conceal  # gap: true
+        pipeline: ninth_war_area_hq
+        resolver: intel
+        label: "Hide the war area's moves"
+        summary: "Hide where the war area's armies stand: night marches, broken roads and the hills south of the Hsinchiang."
+        params:
+          - {name: intel, kind: enum, choices: [conceal]}
+          - {name: piece, kind: enum, choices: [ninth_war_area], label: "Which army", choice_labels: ["The Ninth War Area"]}
+          - {name: concealed, kind: enum, choices: ["yes", "no"], label: "Hidden", choice_labels: ["Hide it", "Stop hiding it"]}
+    loyalty: 1
+    competence: 4
+    wants: [aid_china]
+    reach: {rank: 2}
+    horizon_days: 7
+    aims:
+      - "Hold Changsha and take Wuhan back."
+      - "Take the South China Coast back for China."
+      - "Keep Free South China Chinese, the war area's southern flank."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "China holds Hunan and Kiangsi and takes the Wuhan Area back from Japan.", condition: {check: all_of, conditions: [{check: holds_area, area: hunan, holder: china}, {check: holds_area, area: wuhan_area, holder: china}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "China holds the South China Coast.", condition: {check: holds_area, area: south_china_coast, holder: china}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "China holds Free South China.", condition: {check: holds_area, area: south_china, holder: china}}
+    authority:
+      - name: ninth_war_area
+        effects: [move_force, engagement]
+        forces: [ninth_war_area]
+        summary: "Command of the Ninth War Area: where its armies stand, how they fight and what they hide."
+  # The sixteenth and seventeenth playable cards (NFI): Finland's President, a political card,
+  # and the Commander-in-Chief, a military card under him. Ryti handed command of the armed
+  # forces to Mannerheim and did not command himself, so his order over the army goes through
+  # Mannerheim (executor). Mannerheim's own forms go through his own headquarters, with no step
+  # above him. Crossing the 1939 border towards Leningrad is Ryti's to permit; Finland's
+  # Parliament does not decide it. Finland has no home groups: no source gives them, so the
+  # home rules are off for Finland. source: finland_constitution_1919, mannerheim_foundation,
+  # ziemke_1959; every other line gap: true, [proposed].
+  - person: ryti
+    post: finnish_presidency  # OFD
+    post_kind: head_of_government
+    office: President of the Republic of Finland
+    voice: "A banker's dry precision; weighs every step by what it costs Finland with Berlin, London and Washington, and says less than he knows."
+    addressed_as: "Mr President"
+    playable: true
+    principals: []
+    allies: [germany]
+    opposes:
+      - {against: ussr, over: "the lands lost in the Winter War"}
+    powers: [head of state, supreme command handed to the Commander-in-Chief, appoint the government]
+    inner_circle:
+      - {person: mannerheim, channel: telephone}
+    feeds: [finnish_hq_reports]
+    pipelines: [through_the_commander_in_chief]
+    levers:
+      - name: finnish_army_order
+        pipeline: through_the_commander_in_chief
+        resolver: movement
+        label: "Order the army"
+        summary: "Tell the Commander-in-Chief where the Finnish Army is to stand. He carries it out."
+        params:
+          - {name: force, kind: enum, choices: [finnish_army], label: "Which army", choice_labels: ["The Finnish Army"]}
+          - {name: to, kind: enum, choices: [mikkeli, helsinki, leningrad], label: "To", choice_labels: ["Mikkeli", "Helsinki", "Leningrad"]}
+      # A public statement would act only through home groups, which Finland has none of (no
+      # source), so the President's second form is the intelligence his headquarters ran. [proposed]
+      - name: finnish_agent  # gap: true
+        pipeline: through_the_commander_in_chief
+        resolver: intel
+        label: "Place an agent"
+        summary: "Have Headquarters' intelligence put an agent behind the Soviet lines at Leningrad."
+        params:
+          - {name: intel, kind: enum, choices: [agent]}
+          - {name: area, kind: enum, choices: [leningrad_area], label: "Where", choice_labels: ["Leningrad"]}
+    constraints:
+      - the government needs Parliament's confidence
+      - Parliament may impeach him by three votes in four
+    loyalty: 0
+    competence: 4
+    horizon_days: 14
+    aims:
+      - "Keep Finland Finnish."
+      - "Keep an agreement with Germany in force."
+      - "Win back the Karelian lands, east to the Svir."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Finland holds Finland.", condition: {check: holds_area, area: finland, holder: finland_state}}
+      - {aim: 2, deadline: 1941-12-07, rule: "An agreement between Finland and Germany is in force.", condition: {check: agreement_in_force, between: [finland_state, germany]}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "Finland holds the North.", condition: {check: holds_area, area: the_north, holder: finland_state}}
+    authority:
+      - name: supreme_command
+        effects: [move_force, engagement]
+        executor: mannerheim
+        forces: [finnish_army]
+        summary: "Orders to the army, carried out through the Commander-in-Chief."
+      - name: headquarters_intelligence
+        effects: [investigate]
+        executor: mannerheim
+        summary: "Agents behind the Soviet lines, placed by Headquarters' intelligence department."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the nation."
+  - person: mannerheim
+    post: finnish_supreme_command  # OFD
+    post_kind: army_commander
+    office: Commander-in-Chief of the Finnish Armed Forces
+    voice: "Aloof, formal and exact; an old cavalryman who measures every advance against the day the war ends, and will not be hurried by Berlin."
+    addressed_as: "Marshal"
+    playable: true
+    path: military
+    principals: [ryti]
+    powers: [command the Finnish Army, set where it halts, refuse an advance he thinks unwise]
+    inner_circle:
+      - {person: ryti, channel: telephone}
+    feeds: [finnish_hq_reports]
+    pipelines: [finnish_headquarters]
+    levers:
+      - name: finnish_army_move
+        pipeline: finnish_headquarters
+        resolver: movement
+        label: "Move the army"
+        summary: "Order the Finnish Army to stand at a new place. Your headquarters carries it out."
+        params:
+          - {name: force, kind: enum, choices: [finnish_army], label: "Which army", choice_labels: ["The Finnish Army"]}
+          - {name: to, kind: enum, choices: [mikkeli, helsinki, leningrad], label: "To", choice_labels: ["Mikkeli", "Helsinki", "Leningrad"]}
+      - name: finnish_army_conceal  # gap: true
+        pipeline: finnish_headquarters
+        resolver: intel
+        label: "Hide the army's moves"
+        summary: "Hide where the Finnish Army stands: forest roads, night marches and the lakes of Karelia."
+        params:
+          - {name: intel, kind: enum, choices: [conceal]}
+          - {name: piece, kind: enum, choices: [finnish_army], label: "Which army", choice_labels: ["The Finnish Army"]}
+          - {name: concealed, kind: enum, choices: ["yes", "no"], label: "Hidden", choice_labels: ["Hide it", "Stop hiding it"]}
+    loyalty: 2
+    competence: 4
+    reach: {rank: 2}
+    horizon_days: 7
+    aims:
+      - "Hold Finland and take the Karelian lands to the Svir."
+      - "Take the North for Finland."
+      - "Keep Finland Finnish, the army's base."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Finland holds Finland and takes the North from the Soviet Union.", condition: {check: all_of, conditions: [{check: holds_area, area: finland, holder: finland_state}, {check: holds_area, area: the_north, holder: finland_state}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "Finland holds the North.", condition: {check: holds_area, area: the_north, holder: finland_state}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "Finland holds Finland.", condition: {check: holds_area, area: finland, holder: finland_state}}
+    authority:
+      - name: finnish_army
+        effects: [move_force, engagement]
+        forces: [finnish_army]
+        summary: "Command of the Finnish Army: where it stands and how it fights."
   - person: kramer
     office: Navy communications intelligence translator
     voice: "Precise translator's register; marks the urgent passage and adds one short note of his own."
@@ -3196,6 +4245,88 @@ mandates:
     condition: {check: ordered, person: king, effect: engagement}
     days: 14
     text: "After the Greer, the Chief of Naval Operations wants the fleet escorting the HX convoys toward Iceland."
+  # NUK: the Home Fleet covered the convoys to northern Russia from the autumn (the PQ series, from
+  # 29 September). Tied here to the American finding that opens Lend-Lease to the Soviet Union.
+  # Named, not read: gap: true, [proposed].
+  - key: arctic_cover
+    kind: order
+    issuer: pound
+    trigger: {"on": history, history: soviet_lend_lease_finding}
+    to: [tovey]
+    condition: {check: ordered, person: tovey, effect: move_force}
+    days: 14
+    text: "The convoys to Russia are to run every ten days: the First Sea Lord wants the Home Fleet placed to cover them."
+  # NGE: after the Greer, Hitler ordered the U-boats to avoid incidents with American ships (17
+  # September), and the Naval Staff passed the order down. Named, not read: gap: true, [proposed].
+  # source: fuehrer_naval_17_sep_1941
+  - key: uboats_clear_of_americans
+    kind: order
+    issuer: raeder
+    trigger: {"on": history, history: greer_incident}
+    to: [doenitz]
+    condition: {check: ordered, person: doenitz, effect: move_force}
+    days: 14
+    text: "The Fuehrer wants no incident with American ships: the Naval Staff wants the boats disposed clear of the American escorts."
+  # NJP: the Imperial Conference of 5 November set early December for war if the talks failed,
+  # and the Navy General Staff ordered the Combined Fleet to make ready. Named, not read:
+  # gap: true, [proposed]. source: prange_1981
+  - key: combined_fleet_ready
+    kind: order
+    issuer: nagano
+    trigger: {"on": history, history: tojo_cabinet}
+    to: [yamamoto]
+    condition: {check: ordered, person: yamamoto, effect: move_force}
+    days: 21
+    text: "The new Cabinet holds to early December if the talks fail: the Navy General Staff wants the Combined Fleet made ready."
+  # NIT: when Italian shipping is at sea for Libya, the Comando Supremo wants the battle fleet
+  # placed to cover the convoys, as it was sent out in November and December 1941. Named, not
+  # read: gap: true, [proposed]. source: bragadin_1957
+  - key: battle_fleet_covers_the_convoys
+    kind: order
+    issuer: cavallero
+    trigger: {"on": quantity, quantity: italy_sealift_grt, op: le, value: 140000}
+    to: [iachino]
+    condition: {check: ordered, person: iachino, effect: move_force}
+    days: 14
+    text: "Italian shipping is at sea for Libya: the Comando Supremo wants the battle fleet placed to cover the convoys."
+  # NSU: a front moved by its own commander answered to the Stavka for the road to Moscow.
+  # Blowback on his own move, so it fires only in a game where he is held and moves the front.
+  # gap: true, [proposed]. source: erickson_1975
+  - key: western_front_holds_the_road
+    kind: blowback
+    trigger: {"on": act, effect: move_force}
+    to: [timoshenko]
+    condition: {check: holds_area, area: moscow_area, holder: ussr}
+    days: 14
+    text: "You have moved the front: the Stavka holds you to the road to Moscow."
+  # NCH: a war area moved by its own commander answered to the Generalissimo for Changsha.
+  # Blowback on his own move, so it fires only in a game where he is held and moves the area.
+  # gap: true, [proposed]. source: van_de_ven_2003
+  - key: ninth_war_area_holds_changsha
+    kind: blowback
+    trigger: {"on": act, effect: move_force}
+    to: [xue_yue]
+    condition: {check: holds_area, area: hunan, holder: china}
+    days: 14
+    text: "You have moved the war area's armies: the Generalissimo holds you to Changsha."
+  # NFI: the Finnish Army moved by its own commander answers to the President for Finland's
+  # own ground; the President's word abroad answers to Parliament for the same. Blowback on
+  # each one's own act, so each fires only in a game where he is held and acts. gap: true,
+  # [proposed].
+  - key: finnish_army_holds_finland
+    kind: blowback
+    trigger: {"on": act, effect: move_force}
+    to: [mannerheim]
+    condition: {check: holds_area, area: finland, holder: finland_state}
+    days: 14
+    text: "You have moved the army: the President holds you to Finland's own ground."
+  - key: finland_kept_out_of_the_wider_war
+    kind: blowback
+    trigger: {"on": act, effect: statement}
+    to: [ryti]
+    condition: {check: holds_area, area: finland, holder: finland_state}
+    days: 14
+    text: "You have spoken for Finland: Parliament holds you to Finland's own war, and no wider one."
   # The Commons pressed for the Atlantic convoys through the autumn.
   - key: commons_convoys
     kind: order
@@ -3257,6 +4388,10 @@ mandates:
 
 seats: []
 
+# The roster's bounds (NUK) [proposed]: room for the people this run's nation items add, a
+# commander for each of six nations and Finland's two, beside the nine before them.
+roster_limit: [8, 24]
+
 roster:
   - entity: roosevelt
     pitch: Third-term President steering a neutral nation toward the Allies.
@@ -3305,6 +4440,50 @@ roster:
     reach: The Atlantic Fleet, what it may do under the President, and a cable to him.
     composite: false
     sides: [{contest: neutrality_revision, side: interventionists}]
+  - entity: tovey
+    pitch: Admiral commanding the Home Fleet at Scapa Flow, between the German heavy ships and the convoys.
+    reach: The Home Fleet, what it may do under the Admiralty, and a cable to the Prime Minister.
+    composite: false
+    sides: [{contest: atlantic_war, side: uk}]
+  - entity: doenitz
+    pitch: Admiral commanding the U-boats from Lorient, held back from American ships by Hitler's order.
+    reach: The U-boat arm, what it may do under the Navy's commander in chief, and a cable to Hitler.
+    composite: false
+    sides: [{contest: atlantic_war, side: germany}]
+  - entity: yamamoto
+    pitch: Admiral commanding the Combined Fleet, who planned the blow at Pearl Harbor against a war he did not want.
+    reach: The Combined Fleet, what it may do under the Navy General Staff, and a cable to its Chief.
+    composite: false
+    sides: [{contest: us_japan_talks, side: japan}]
+  - entity: iachino
+    pitch: Admiral commanding the Italian Battle Fleet from Taranto, short of fuel and sent to sea from Rome.
+    reach: The Italian Battle Fleet, what it may do under the Comando Supremo, and a cable to its Chief.
+    composite: false
+    sides: [{contest: atlantic_war, side: italy}]
+  - entity: timoshenko
+    pitch: Marshal holding the Western Front before Moscow, with orders to counter-attack and no leave to fall back.
+    reach: The Western Front, what it may do under the General Staff, and a telephone to its Chief.
+    composite: false
+    sides: [{contest: atlantic_war, side: ussr}]
+  - entity: xue_yue
+    pitch: General holding Changsha and the Ninth War Area against the Japanese Eleventh Army, with no leave to give the city up.
+    reach: The Ninth War Area, what it may do under the General Staff, and a telephone to its Chief.
+    composite: false
+    sides: [{contest: us_japan_talks, side: china}]
+
+  # Finland (NFI) stands on Germany's side in the war in Europe: it fought the Soviet Union
+  # beside Germany as a co-belligerent, not an ally, and Britain declared war on it only on 6
+  # December 1941 (mannerheim_foundation). The character rule needs a side in some contest.
+  - entity: ryti
+    pitch: President of a small nation fighting beside Germany for the lands it lost, not for Germany's war.
+    reach: The Finnish Army through his Commander-in-Chief, and Finland's word abroad.
+    composite: false
+    sides: [{contest: atlantic_war, side: germany}]
+  - entity: mannerheim
+    pitch: Marshal commanding the Finnish Army, who took command on condition he never lead it against Leningrad.
+    reach: The Finnish Army, where it halts, and a telephone to the President.
+    composite: false
+    sides: [{contest: atlantic_war, side: germany}]
 
 # Starting regard [proposed] (SHT, 14 Nov sheet), -2 to 2: between Roosevelt and
 # each of his people, and between each pair of the eight leaders. Public, as the
@@ -3407,8 +4586,9 @@ contests:
 # Production keys (PRL): what the production rules read instead of names of their own. The
 # finding is Roosevelt's Lend-Lease form: it draws on the second appropriation, writes each
 # recipient's share, and a finding naming the Soviet Union makes it eligible. The priority is
-# the production-priority form; merchant ships grow a nation's lift pool on each 1st (a nation
-# with no lift_pool, as every nation here, grows none). The values are the rules' own before PRL.
+# the production-priority form; merchant ships grow a nation's lift pool on each 1st (Britain's
+# and Japan's are named on their entities; a nation with no lift_pool grows none). The values are
+# the rules' own before PRL.
 production:
   findings:
     - form: lend_lease_finding
@@ -3416,6 +4596,58 @@ production:
       shares: {uk: lend_lease_share_uk, ussr: lend_lease_share_ussr, china: lend_lease_share_china}
       eligible: {ussr: soviet_lend_lease_eligible}
   priority: {form: production_priority, grows_lift_on: merchant_ships}
+
+# Laws (LWD): the four American bills the season's votes are taken on, read with the laws rule on.
+# Each key is the key the blocs' rows under `groups` and the send-bill form carry, and each passed
+# flag is the one the blocs' tally writes. Titles and clauses are the votes rule's own [proposed]
+# (its clause on Lend-Lease money is the March act's 7,000,000,000; the October appropriation was
+# 5,985,000,000, `lend_lease_second_appropriation`). What each does is [proposed], from the two
+# effects the rules know: a law whose clause arms merchant ships arms them, and the draft adds 3 to
+# the manpower pool, the effects the shipping and economy rules give the clauses' words with the
+# rule off.
+laws:
+  - key: neutrality_revision  # source: hjr237_timeline (the Senate's text, House concurrence 13 Nov, signed 17 Nov)
+    title: Neutrality Act revision
+    nation: usa
+    clauses:
+      - {kind: power, subject: arm merchant ships}
+      - {kind: limit, subject: war zones closed to American ships}  # source: neutrality_act_1939, section 3
+    passed: neutrality_revision_passed
+    does: {kind: arms_merchant_ships}
+    daily_life: false  # [proposed]
+  - key: draft_extension  # source: voteview (the House's 203 to 202 of 12 Aug, `draft_extension_yeas`)
+    title: Selective Service extension
+    nation: usa
+    clauses:
+      - {kind: power, subject: hold draftees beyond twelve months}
+    passed: draft_extension_passed
+    does: {kind: adds_manpower, amount: 3}  # gap: true, [proposed] (plan, SHP Defaults)
+    daily_life: true  # [proposed]: holds the draftees in the army beyond their year
+  - key: lend_lease_appropriation  # source: lend_lease_appropriations
+    title: Lend-Lease appropriation
+    nation: usa
+    clauses:
+      - {kind: money, subject: lend-lease supplies, amount: 7000000000}  # gap: true, [proposed]
+    passed: lend_lease_appropriation_passed
+    daily_life: false  # [proposed]
+  - key: arm_merchant_ships  # source: hjr237_timeline (the House's bill of 17 Oct: section 6 repealed)
+    title: Arming of merchant ships
+    nation: usa
+    clauses:
+      - {kind: power, subject: arm merchant ships}
+    passed: arm_merchant_ships_passed
+    does: {kind: arms_merchant_ships}
+    daily_life: false  # [proposed]
+  # NUK: the National Service bill, which the Commons passed in December 1941. Its clause and what
+  # it does are [proposed]: it adds 3 to Britain's manpower, as the draft does for the United States.
+  - key: national_service  # source: national_service_1941
+    title: National Service bill
+    nation: uk
+    clauses:
+      - {kind: power, subject: call up unmarried women and men to fifty-one}
+    passed: national_service_passed
+    does: {kind: adds_manpower, amount: 3}  # gap: true, [proposed]
+    daily_life: true  # [proposed]
 
 # Locks (KCD): which of King's orders need whose decision, and while what holds.
 locks:
@@ -3434,6 +4666,144 @@ locks:
     order: {form: fleet_naval_order, params: {order: escort_convoys, zone: war_zone}}
     when: {check: law_not_in_force, clause: "war zones closed to American ships"}
     decider: {nation: usa, chambers: [house, senate], head: roosevelt}
+  # NUK. Lending the Home Fleet's strength to the Western Approaches, at Liverpool: the balance
+  # between home waters and the Atlantic is the Prime Minister's, so the order is held until he
+  # has made the Atlantic the first priority for the HX convoys. gap: true, [proposed].
+  - key: home_fleet_to_the_atlantic
+    order: {form: home_fleet_detach, params: {to: liverpool}}
+    when: {check: posture_not_set, form: convoy_orders, where: {route: hx_route}, posture: {priority: atlantic}}
+    decider: {person: churchill}
+  # NUK. Basing the Home Fleet at Iceland for the season: held while the National Service bill is
+  # not law, and the Commons decides, with the Prime Minister answering for it. No Act of Parliament
+  # held a Home Fleet order in 1941; that this one waits on the men the bill calls up is the game's
+  # reading. gap: true, [proposed].
+  - key: home_fleet_based_at_iceland
+    order: {form: home_fleet_move, params: {to: reykjavik}}
+    when: {check: law_not_in_force, clause: call up unmarried women and men to fifty-one}
+    decider: {nation: uk, chambers: [commons], head: churchill}
+  # NGE. Attacking American ships in the western Atlantic: the U-boats sent off Argentia, where
+  # the American escorts took over the HX convoys, or a detachment sent there, are held until
+  # Hitler has set the U-boats' posture in the North Atlantic to attack American ships, and Hitler
+  # decides alone: Germany has no body or council that answers for it. His order of 17 September
+  # held the boats from American ships. source: fuehrer_naval_17_sep_1941; gap: true, [proposed].
+  - key: uboats_against_american_ships
+    order: {form: uboat_move, params: {to: argentia}}
+    when: {check: posture_not_set, form: uboat_directive, where: {theatre: north_atlantic}, posture: {posture: attack_us_shipping}}
+    decider: {person: hitler}
+  - key: uboat_detachment_against_american_ships
+    order: {form: uboat_detach, params: {to: argentia}}
+    when: {check: posture_not_set, form: uboat_directive, where: {theatre: north_atlantic}, posture: {posture: attack_us_shipping}}
+    decider: {person: hitler}
+  # NJP. Opening hostilities against the United States: the Combined Fleet sent against Pearl
+  # Harbor, or part of it, is a question of war for the Liaison Conference, a council of the
+  # cards that sat on it (the Prime Minister, the War Minister and the two Chiefs of Staff; the
+  # Foreign and Navy Ministers have no card), all of whom must agree, as the conference decided
+  # by consensus. The Prime Minister is the head an ask goes to. No condition: only the
+  # conference's grant opens it. source: liaison_conference_1941; members and count [proposed],
+  # gap: true.
+  - key: pearl_harbor_strike
+    question: war
+    order: {form: combined_fleet_move, params: {to: pearl_harbor_base}}
+    decider: {council: {members: [konoe, tojo, sugiyama, nagano], needed: 4, head: konoe}}
+  - key: pearl_harbor_detachment
+    question: war
+    order: {form: combined_fleet_detach, params: {to: pearl_harbor_base}}
+    decider: {council: {members: [konoe, tojo, sugiyama, nagano], needed: 4, head: konoe}}
+  # NJP. Gathering the fleet, or part of it, at Hitokappu Bay, where the strike force assembled
+  # in November, waits on the permission of the Chief of the Navy General Staff, whose staff
+  # ordered the fleet's operations. source: prange_1981; gap: true, [proposed].
+  - key: hitokappu_bay_gathering
+    question: permission
+    order: {form: combined_fleet_move, params: {to: hitokappu_bay}}
+    decider: {person: nagano}
+  - key: hitokappu_bay_detachment
+    question: permission
+    order: {form: combined_fleet_detach, params: {to: hitokappu_bay}}
+    decider: {person: nagano}
+  # NIT. A sortie of the battle fleet east of the Sicilian narrows: the fleet sent to Bardia on
+  # the eastern Mediterranean, or part of it, where it would meet the Mediterranean Fleet from
+  # Alexandria, waits on Mussolini's permission. He held the Ministry of the Navy, and the
+  # fleet's sorties were ordered from Rome. No condition: only his grant opens it. Italy has no
+  # body or council that decides. source: bragadin_1957; the place, gap: true, [proposed].
+  - key: battle_fleet_sortie_east
+    question: permission
+    order: {form: battle_fleet_move, params: {to: bardia}}
+    decider: {person: mussolini}
+  - key: battle_fleet_detachment_east
+    question: permission
+    order: {form: battle_fleet_detach, params: {to: bardia}}
+    decider: {person: mussolini}
+  # NSU. A withdrawal of the Western Front behind the Mozhaisk line: the front sent back to
+  # Moscow waits on Stalin's permission. Through 1941 he held the fronts to their
+  # lines and gave leave to fall back late or not at all. No condition: only his grant opens it.
+  # The Soviet Union has no body or council that decides. source: erickson_1975; the line, gap:
+  # true, [proposed].
+  - key: western_front_withdrawal
+    question: permission
+    order: {form: western_front_move, params: {to: moscow}}
+    decider: {person: stalin}
+  # NCH. Giving up Changsha without a fight: the Ninth War Area sent back to Chungking waits on
+  # Chiang's permission. He directed the war areas himself through the Military Affairs
+  # Commission, and Changsha was the city he meant the area to hold. No condition: only his
+  # grant opens it. China has no body or council that decides. source: van_de_ven_2003; the
+  # place, gap: true, [proposed].
+  - key: changsha_given_up
+    question: permission
+    order: {form: ninth_war_area_move, params: {to: chungking}}
+    decider: {person: chiang}
+  # NFI. Crossing the 1939 border: the Finnish Army sent on to Leningrad waits on Ryti's
+  # permission. Mannerheim took command on condition he never lead an offensive against
+  # Leningrad, and on 1 September 1941 had Ryti's leave to cross the old border on the Isthmus
+  # only as far as Sestroretsk-Agalatovo. No condition: only his grant opens it. Parliament does
+  # not decide it. source: ziemke_1959; the place, gap: true, [proposed].
+  - key: finnish_army_beyond_the_border
+    question: permission
+    order: {form: finnish_army_move, params: {to: leningrad}}
+    decider: {person: ryti}
+  # Peace (PED): who allows each nation with a seat to accept an armistice or an end to a war.
+  # A row of the kind peace holds no order and has no condition. No sheet sources who may make
+  # peace for any of the eight, so every row is gap: true, [proposed]; each comment names the
+  # record the row is drawn from, to be read before release.
+  # The President, who negotiates and signs. A treaty of peace also needs two thirds of the
+  # Senate present (Constitution, Art. II s.2), which no peace row carries. gap: true, [proposed].
+  - key: usa_peace
+    question: peace
+    decider: {person: roosevelt}
+  # The Prime Minister: peace is made under the Crown's prerogative on ministers' advice, and the
+  # War Cabinet sat under him. gap: true, [proposed].
+  - key: uk_peace
+    question: peace
+    decider: {person: churchill}
+  # Stalin. Formally the Presidium of the Supreme Soviet ratifies treaties (1936 Constitution,
+  # Art. 49), which is not in the world. gap: true, [proposed].
+  - key: ussr_peace
+    question: peace
+    decider: {person: stalin}
+  # Hitler, as head of state and of government; the Reichstag was not asked. gap: true,
+  # [proposed].
+  - key: germany_peace
+    question: peace
+    decider: {person: hitler}
+  # The Emperor, who makes peace and concludes treaties (Meiji Constitution, Art. 13), on the
+  # advice of the cabinet and the Imperial Conference. gap: true, [proposed].
+  - key: japan_peace
+    question: peace
+    decider: {person: hirohito}
+  # The King, who makes treaties of peace (Statuto, Art. 5), not the Duce. gap: true,
+  # [proposed].
+  - key: italy_peace
+    question: peace
+    decider: {person: victor_emmanuel}
+  # Chiang, as Chairman of the Military Affairs Commission; China has no body that decides it.
+  # gap: true, [proposed].
+  - key: china_peace
+    question: peace
+    decider: {person: chiang}
+  # The President, who decides on peace with the consent of Parliament (1919 Form of Government,
+  # s.33); Parliament is not in the world. gap: true, [proposed].
+  - key: finland_peace
+    question: peace
+    decider: {person: ryti}
 
 # Pacts in force on 1 September 1941 (PCW). The clause chosen for each is [proposed]: the rules judge
 # what they can, and wording they cannot express is kept and marked unchecked.
@@ -3457,9 +4827,11 @@ pacts:
     public: true
     wording: Neither government will negotiate or conclude an armistice or treaty of peace with Germany except by mutual agreement.
     source: anglo_soviet_1941
+    # Each party is barred a separate peace with Germany (PED): the clause rests on the pact's
+    # named citation, which no lane has read. gap: true, [proposed].
     clauses:
-      - {type: unchecked, binds: uk, text: "Negotiate or conclude no armistice or peace with Germany except by mutual agreement."}
-      - {type: unchecked, binds: ussr, text: "Negotiate or conclude no armistice or peace with Germany except by mutual agreement."}
+      - {type: no_separate_peace, binds: uk, nation: germany}
+      - {type: no_separate_peace, binds: ussr, nation: germany}
   - key: soviet_japanese_neutrality
     name: The Soviet-Japanese Neutrality Pact
     parties: [ussr, japan]

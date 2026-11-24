@@ -1,6 +1,6 @@
 """1941 aims as conditions, and what moves each contest (AMC).
 
-Autumn 1941 switches on ``contests`` and ``aims``. Each of the eight playable cards gives
+Autumn 1941 switches on ``contests`` and ``aims``. Each playable card gives
 each of its three aims a condition over what the rules move, a success rule in plain words
 and a deadline; two aims are from the post and one is marked ``replaceable``, the default
 a player's own aim would replace. Each of the three contests names its moves.
@@ -131,10 +131,11 @@ def test_the_world_switches_on_contests_and_aims() -> None:
     assert {Rule.CONTESTS, Rule.AIMS} <= set(w.rules)
 
 
-def test_nine_playable_cards_hold_twenty_seven_aims() -> None:
+def test_every_playable_card_holds_three_aims() -> None:
     doc = raw()
-    assert len(playable(doc)) == 9
-    assert sum(len(cards(doc)[p]["aims"]) for p in playable(doc)) == 27
+    flagged = [c["person"] for c in doc["cards"] if c.get("playable")]
+    assert sorted(playable(doc)) == sorted(flagged)
+    assert [p for p in playable(doc) if len(cards(doc)[p]["aims"]) != 3] == []
 
 
 def test_every_aim_has_a_condition_a_rule_can_change() -> None:

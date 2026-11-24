@@ -199,7 +199,9 @@ class LockRow(Model):
     which decision, from whom."""
 
     key: Label
-    order: OrderMatch
+    order: OrderMatch | None
+    """None only for a row of the kind peace, which holds no order: it names who allows a
+    nation's acceptance of an armistice or an end to a war (PEA)."""
     when: Condition | None = None
     """None: the order always needs the decision."""
     decider: Decider
@@ -207,6 +209,12 @@ class LockRow(Model):
     """With ``deciders`` on, the kind of question the row puts (QKD); None: the row names
     none, reads as a question of permission and behaves as it did before deciders. Left out
     of the dump while None, so a stored row hashes as before."""
+
+    @model_validator(mode="after")
+    def _shape(self) -> "LockRow":
+        if self.order is None and (self.question is not Question.PEACE or self.when is not None):
+            raise ValueError("only a row of the kind peace names no order, and no condition")
+        return self
 
 
 class Lock(Model):
@@ -284,7 +292,7 @@ def lock_for(
         return None
     issuer = state.seats[seat].embodies
     for row in state.locks:
-        if row.key in opened or row.decider.person == issuer:
+        if row.key in opened or row.decider.person == issuer or row.order is None:
             continue
         if not _matches(state, row.order, order):
             continue
@@ -420,15 +428,25 @@ def seen_lock(state: "State", seat: SeatId, order: Order | Ask) -> Lock | None:
 
 def _hidden(state: "State", seat: SeatId, when: Condition | None) -> bool:
     """Whether the condition reads a fact outside the seat's view. A law's passed flags
-    are hidden unless their scope admits the seat. A posture is set by the seat's own
-    superiors, whose orders come down its chain, so the seat knows it."""  # [proposed]
+    are hidden unless their scope admits the seat, and from a commander held to his post
+    (PVW) unless public. A posture is set by the seat's own superiors, whose orders come
+    down its chain, so the seat knows it."""  # [proposed]
+    from revisionist.core.project import at_post
+    from revisionist.core.visibility import Visibility
+
     if not isinstance(when, LawNotInForce):
         return False
     read = laws.flags(state, when.clause)
-    return any(q.scope is None or not q.scope.visible_to(seat) for q in read)
+    post = at_post(state, seat)
+    return any(
+        q.scope is None
+        or not q.scope.visible_to(seat)
+        or (post and q.scope.visibility is not Visibility.PUBLIC)
+        for q in read
+    )
 
 
-def reason(view: "View", lock: Lock) -> str:
+def reason(view: "State | View", lock: Lock) -> str:
     """What the seat is told of its held order, from its own view: who can allow it, and
     nothing of the condition behind it."""
     decider = lock.decider
@@ -443,7 +461,7 @@ def reason(view: "View", lock: Lock) -> str:
     return f"Held until {who} allows it."  # [proposed]
 
 
-def _name(view: "View", who: EntityId) -> str:
+def _name(view: "State | View", who: EntityId) -> str:
     found = view.entities.get(who)
     return found.name if found is not None else "whoever decides it"
 
@@ -589,14 +607,23 @@ def ask(state: "State", seat: SeatId, order_id: OrderId, day: date) -> Asked:
         raise ValueError(NOT_HELD)
     if order_id in state.asked:
         raise ValueError(ASKED_ALREADY)
+    found = asked_for(state, held, day)
+    if found is None:
+        raise ValueError(NOBODY_TO_ASK)
+    return found
+
+
+def asked_for(state: "State", held: HeldOrder, day: date) -> Asked | None:
+    """The ask for ``held`` by its own seat, dated ``day``; None when nobody can be asked."""
+    seat = held.issuer
     to = asked_of(held.decider)
     if to is None:
-        raise ValueError(NOBODY_TO_ASK)
+        return None
     at = next((s for s, x in sorted(state.seats.items()) if x.embodies == to), None)
     council = held.decider.council if deciders_on(state) else None
     members = set(council.members) if council is not None else set()
     return Asked(
-        order_id=order_id,
+        order_id=held.order_id,
         asker=seat,
         by=state.seats[seat].embodies,
         to=to,
@@ -661,6 +688,13 @@ def rows_on(state: "State", nation: EntityId, question: Question) -> list[LockRo
         for r in state.locks
         if (r.question or Question.PERMISSION) is question and nation_of(state, r.decider) == nation
     ]
+
+
+def peace_row(state: "State", nation: EntityId) -> LockRow | None:
+    """The row that names who allows ``nation`` to accept an armistice or an end to a war:
+    its first row of the kind peace (PEA). None with ``deciders`` off, or for a nation with
+    no such row, which cannot accept one."""
+    return next(iter(rows_on(state, nation, Question.PEACE)), None)
 
 
 def by_kind(state: "State", row: LockRow) -> bool:
@@ -800,6 +834,7 @@ __all__ = [
     "Question",
     "aims",
     "ask",
+    "asked_for",
     "asked_of",
     "by_kind",
     "choosers",
@@ -816,6 +851,7 @@ __all__ = [
     "on",
     "open_now",
     "opened_by_grant",
+    "peace_row",
     "posture_set",
     "reason",
     "replaced",

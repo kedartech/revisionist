@@ -113,6 +113,17 @@ def bill(key: str) -> Effect:
     return HISTORICAL[key].model_dump(mode="json")
 
 
+NATIONAL_SERVICE: Effect = {
+    "kind": "measure",
+    "title": "National Service",
+    "clauses": [
+        {"kind": "power", "subject": "call up unmarried women and men to fifty-one", "amount": None}
+    ],
+}
+"""Britain's law as a written bill: the code table has no row for it, so the Commons' blocs count it
+by the key its title's words make."""
+
+
 def approach(target: str) -> Effect:
     return {"target": target}
 
@@ -303,6 +314,13 @@ NINETEEN_41: tuple[Case, ...] = (
         "Fund Bletchley Park.",
         codes("uk"),
     ),
+    f41(
+        "churchill",
+        "send_bill",
+        {"bill": "national_service", "urgency": "ordinary"},
+        "Put the National Service bill to the Commons.",
+        NATIONAL_SERVICE,
+    ),
     # Stalin
     f41(
         "stalin",
@@ -459,7 +477,7 @@ NINETEEN_41: tuple[Case, ...] = (
     f41(
         "mussolini",
         "libya_convoys",
-        {"route": "tripoli"},
+        {"route": "tripoli_route"},
         "Run the Libya convoys to Tripoli.",
         engage("tripoli", "escort"),
     ),
@@ -539,9 +557,131 @@ NINETEEN_41: tuple[Case, ...] = (
         naval("king", "fleet_naval_order", "escort_convoys", zone, "us_atlantic_fleet")
         for zone in ("western_atlantic", "iceland_route", "war_zone")
     ),
+    # Admiral Tovey: the moves no lock holds
+    f41(
+        "tovey",
+        "home_fleet_move",
+        {"force": "home_fleet", "to": "liverpool"},
+        "Take the Home Fleet to Liverpool.",
+        move("home_fleet", "liverpool"),
+    ),
+    f41(
+        "tovey",
+        "home_fleet_detach",
+        {"force": "home_fleet", "to": "reykjavik", "strength": "2"},
+        "Send two of the fleet's squadrons on to Reykjavik.",
+        move("home_fleet", "reykjavik"),
+    ),
+    # Admiral Dönitz: the moves no lock holds
+    f41(
+        "doenitz",
+        "uboat_move",
+        {"force": "uboat_arm", "to": "lorient"},
+        "Bring the U-boats in to Lorient.",
+        move("uboat_arm", "lorient"),
+    ),
+    f41(
+        "doenitz",
+        "uboat_detach",
+        {"force": "uboat_arm", "to": "lorient", "strength": "2"},
+        "Send two of the U-boat flotillas in to Lorient.",
+        move("uboat_arm", "lorient"),
+    ),
+    # Admiral Yamamoto: the moves no lock holds
+    f41(
+        "yamamoto",
+        "combined_fleet_move",
+        {"force": "combined_fleet", "to": "kure"},
+        "Bring the Combined Fleet in to Kure.",
+        move("combined_fleet", "kure"),
+    ),
+    f41(
+        "yamamoto",
+        "combined_fleet_detach",
+        {"force": "combined_fleet", "to": "kure", "strength": "2"},
+        "Send two of the fleet's divisions in to Kure.",
+        move("combined_fleet", "kure"),
+    ),
+    # Admiral Iachino: the moves no lock holds
+    f41(
+        "iachino",
+        "battle_fleet_move",
+        {"force": "italian_fleet", "to": "tripoli"},
+        "Take the battle fleet to Tripoli.",
+        move("italian_fleet", "tripoli"),
+    ),
+    f41(
+        "iachino",
+        "battle_fleet_detach",
+        {"force": "italian_fleet", "to": "tripoli", "strength": "2"},
+        "Send two of the fleet's divisions on to Tripoli.",
+        move("italian_fleet", "tripoli"),
+    ),
+    # Marshal Timoshenko: the move no lock holds, and the concealment
+    f41(
+        "timoshenko",
+        "western_front_move",
+        {"force": "soviet_western_front", "to": "vyazma"},
+        "Move the Western Front up to Vyazma.",
+        move("soviet_western_front", "vyazma"),
+    ),
+    f41(
+        "timoshenko",
+        "western_front_conceal",
+        {"intel": "conceal", "piece": "soviet_western_front", "concealed": "yes"},
+        "Hide the Western Front.",
+        hide("soviet_western_front"),
+    ),
+    # General Xue: the move no lock holds, and the concealment
+    f41(
+        "xue_yue",
+        "ninth_war_area_move",
+        {"force": "ninth_war_area", "to": "wuhan"},
+        "Move the Ninth War Area's armies up to Wuhan.",
+        move("ninth_war_area", "wuhan"),
+    ),
+    f41(
+        "xue_yue",
+        "ninth_war_area_conceal",
+        {"intel": "conceal", "piece": "ninth_war_area", "concealed": "yes"},
+        "Hide the Ninth War Area's armies.",
+        hide("ninth_war_area"),
+    ),
+    # President Ryti: the army order and the agent, both through the Commander-in-Chief
+    f41(
+        "ryti",
+        "finnish_army_order",
+        {"force": "finnish_army", "to": "helsinki"},
+        "The Finnish Army is to stand at Helsinki.",
+        move("finnish_army", "helsinki"),
+    ),
+    f41(
+        "ryti",
+        "finnish_agent",
+        {"intel": "agent", "area": "leningrad_area"},
+        "Put an agent behind the lines at Leningrad.",
+        agent("leningrad_area"),
+    ),
+    # Marshal Mannerheim: the move no lock holds, and the concealment
+    f41(
+        "mannerheim",
+        "finnish_army_move",
+        {"force": "finnish_army", "to": "helsinki"},
+        "Move the Finnish Army to Helsinki.",
+        move("finnish_army", "helsinki"),
+    ),
+    f41(
+        "mannerheim",
+        "finnish_army_conceal",
+        {"intel": "conceal", "piece": "finnish_army", "concealed": "yes"},
+        "Hide the Finnish Army.",
+        hide("finnish_army"),
+    ),
 )
 """Every form on every playable card of Autumn 1941; Admiral King's naval order once in
-each zone it names, the war zone included."""
+each zone it names, the war zone included; Admiral Tovey's, Admiral Dönitz's, Admiral
+Yamamoto's, Admiral Iachino's two forms, Marshal Timoshenko's two, General Xue's two and
+Marshal Mannerheim's two where no lock holds them, and President Ryti's two."""
 
 
 # --- Salt Strait -------------------------------------------------------------------------
@@ -589,53 +729,123 @@ def _salt(
     )
 
 
+def fsalt(person: str, lever: str, params: dict[str, str], sentence: str, *reading: Effect) -> Case:
+    return Case("salt", person, lever, params, sentence, tuple(reading))
+
+
+SALT_WATCH = {"intel": "patrol", "piece": "varda_galleys", "order": "guard", "zone": "strait"}
+SALT_CONVOY_ACT: Effect = {
+    "kind": "measure",
+    "title": "Salt Convoy Act",
+    "clauses": [{"kind": "power", "subject": "arm the salt convoys", "amount": None}],
+}
+"""Varda's own law as a written bill: its title's words are the key the form's bill names."""
+
 SALT_STRAIT: tuple[Case, ...] = (
     *_salt("oren_vale", "varda", "ostrel", "harrow_pass", "kesh_shore", "varda_saltworks"),
     *_salt("general_aske", "ostrel", "varda", "harrow_pass", "kesh_shore", "harrow_pass"),
+    fsalt(
+        "oren_vale",
+        "set_watch",
+        SALT_WATCH,
+        "Put the galleys on watch on the strait.",
+        patrol("varda_galleys"),
+    ),
+    fsalt(
+        "oren_vale",
+        "send_bill",
+        {"bill": "salt_convoy_act", "urgency": "ordinary"},
+        "Send the Salt Convoy Act to the Salt Assembly.",
+        SALT_CONVOY_ACT,
+    ),
+    fsalt(
+        "oren_vale",
+        "move_galleys",
+        {"force": "varda_galleys", "to": "saltworks"},
+        "Send the galleys to the Saltworks.",
+        move("varda_galleys", "saltworks"),
+    ),
+    fsalt(
+        "brask",
+        "galley_watch",
+        SALT_WATCH,
+        "Put the galleys on watch on the strait.",
+        patrol("varda_galleys"),
+    ),
+    fsalt(
+        "brask",
+        "sail",
+        {"force": "varda_galleys", "to": "free_port"},
+        "Sail the galleys to the Free Port.",
+        move("varda_galleys", "free_port"),
+    ),
 )
 """Every form on every playable card of Salt Strait."""
 
 # --- the open differences ----------------------------------------------------------------
 
 AUTHORITY = "data lane fix item: a card's authority covers every order its forms give"
+STAMP = (
+    "core lane fix item: a written engagement that sets no force's rule leaves the dates of"
+    " the forces its domain names as they were"
+)
 INERT = "core lane fix item for the forms that change nothing (EFD's list)"
+AUDIENCE = (
+    "core lane fix item: a written statement to another nation lands as its form does"
+    " (the form is heard at home through its audience's theme)"
+)
+PRODUCTION = (
+    "core lane fix item: a written production order lands as its form does"
+    " (the form builds a step, mobilises, or brings the aid another nation let through)"
+)
+MESSAGE = (
+    "core lane fix item: a written message lands as its form does"
+    " (the form raises the regard of the person abroad who let it through)"
+)
+SHIPPING = (
+    "core lane fix item: a written shipping order lands as its form does"
+    " (the form acts through escort levels, losses and the lift pool)"
+)
 
 FIXES: dict[str, str] = {
-    "1941.roosevelt.naval_order": INERT,
-    "1941.roosevelt.public_address": INERT,
+    "1941.roosevelt.naval_order": SHIPPING,
+    "1941.roosevelt.cable_to_churchill": MESSAGE,
     "1941.roosevelt.fly_recon": AUTHORITY,
-    "1941.churchill.convoy_orders": INERT,
+    "1941.churchill.convoy_orders": SHIPPING,
     "1941.churchill.production_priority": AUTHORITY,
     "1941.churchill.move_army": AUTHORITY,
-    "1941.churchill.broadcast": INERT,
+    "1941.churchill.broadcast": AUDIENCE,
     "1941.churchill.fly_recon": AUTHORITY,
     "1941.churchill.send_an_agent": AUTHORITY,
     "1941.churchill.fund_the_codebreakers": AUTHORITY,
-    "1941.stalin.state_defence_order": INERT,
+    "1941.stalin.state_defence_order": PRODUCTION,
+    "1941.stalin.aid_request": PRODUCTION,
     "1941.stalin.send_on_patrol": AUTHORITY,
     "1941.stalin.send_an_agent": AUTHORITY,
-    "1941.hitler.uboat_directive": INERT,
+    "1941.hitler.uboat_directive": SHIPPING,
     "1941.hitler.production_priority": AUTHORITY,
     "1941.hitler.fly_recon": AUTHORITY,
-    "1941.konoe.requisition_shipping": INERT,
-    "1941.konoe.mobilisation_plan": INERT,
+    "1941.konoe.requisition_shipping": SHIPPING,
+    "1941.konoe.mobilisation_plan": PRODUCTION,
     "1941.konoe.send_an_agent": AUTHORITY,
-    "1941.tojo.requisition_shipping": INERT,
-    "1941.tojo.mobilisation_plan": INERT,
+    "1941.tojo.requisition_shipping": SHIPPING,
+    "1941.tojo.mobilisation_plan": PRODUCTION,
     "1941.tojo.fly_recon": AUTHORITY,
     "1941.tojo.send_on_patrol": AUTHORITY,
     "1941.tojo.send_an_agent": AUTHORITY,
     "1941.tojo.hide_a_force": AUTHORITY,
-    "1941.mussolini.production_priority": INERT,
+    "1941.mussolini.libya_convoys": STAMP,
+    "1941.mussolini.production_priority": PRODUCTION,
     "1941.mussolini.move_fleet": AUTHORITY,
     "1941.mussolini.move_army": AUTHORITY,
     "1941.mussolini.send_on_patrol": AUTHORITY,
-    "1941.chiang.arsenal_output": INERT,
-    "1941.chiang.appeal_abroad": INERT,
+    "1941.chiang.arsenal_output": PRODUCTION,
+    "1941.chiang.appeal_abroad": AUDIENCE,
     "1941.chiang.move_army": AUTHORITY,
     "1941.chiang.send_an_agent": AUTHORITY,
-    "1941.king.fleet_naval_order.western_atlantic": INERT,
-    "1941.king.fleet_naval_order.iceland_route": INERT,
+    "1941.king.fleet_naval_order.western_atlantic": SHIPPING,
+    "1941.king.fleet_naval_order.iceland_route": SHIPPING,
+    "1941.king.fleet_naval_order.war_zone": SHIPPING,
 }
 """Each case whose written order and form still differ, and the fix item that owns the
 difference: the first one found, where a case has more than one."""

@@ -59,7 +59,8 @@ Channels, where a row says "a channel": `in_person`, `telephone`, `cable`, `lett
 5. No part assumes a legislature, a press, a single capital, a monthly budget, three armed
    services, or a state that pays its troops.
 6. A world on real coordinates (`map.coords: lonlat`) covers the whole globe; the grain may be
-   coarse away from where the scenario is fought.
+   coarse away from where the scenario is fought. Its map says `cover: whole` (60 S to 84 N, no
+   backdrop), and `check --world` fails one that does not. A world on flat coordinates is exempt.
 
 ## The world check
 
@@ -92,7 +93,7 @@ as well.
 |---|---|---|---|---|---|---|
 | The world's file name and its title | `world`, `name` | a slug of lowercase letters, digits, `_` and `-`; free wording | - | the loader refuses the file | always | on main |
 | Which ruleset the world plays | `ruleset` | `legacy`, `realism` | - | the older ruleset | - | on main |
-| Which rules are switched on | `rules` | `territories`, `holders`, `economy`, `supply`, `fuel`, `battles`, `reports`, `groups`, `agreements`, `conference`, `contests`, `aims`, `aid`, `writing`, `clause_reader`, `written_orders`, `command`, `locks`; `holders` needs `territories`, `economy` needs `holders`, `fuel` needs `economy` | - | none of the territory game's rules is on | - | on main |
+| Which rules are switched on | `rules` | `territories`, `holders`, `economy`, `supply`, `fuel`, `battles`, `reports`, `groups`, `agreements`, `conference`, `contests`, `aims`, `aid`, `writing`, `clause_reader`, `written_orders`, `command`, `locks`, `laws`, `ask_answers`, `deciders`, `own_aim`, `offers`, `classes`, `losses`, `places`, `posts`, `office`, `elections`, `defiance`; `holders` needs `territories`, `economy` needs `holders`, `fuel` needs `economy`, `office` needs `posts`, `elections` needs `groups`, `defiance` needs `posts` and `locks` | - | none of the territory game's rules is on | - | on main |
 | Where and when the game opens | `start`, `start_date` | free wording; a date | - | no opening in history: Session Zero is not offered and no contest is needed | - | on main |
 | The season: the day it ends and its length in real days | `settings.{end_date, real_days}` | a date; 1 to 365 days | - | a fixed number of turns | - | on main |
 | How long a turn and a shared wake last | `settings.{tick_hours, world_days_per_tick, wake_hours}` | 1 to 168 hours; world days of one or more | - | a 24-hour turn of 7 world days, and a 12-hour wake | - | on main |
@@ -121,7 +122,7 @@ as well.
 | The places on the map: where each lies, its theatre, the area it lies in, the sea a port opens on, and the sides and domains a base serves | `entities.{at, theatre, location, within, port_on, base}`, `entities.base.{sides, domains}` | latitude and longitude, or `[y, x]` on a flat map; area keys; `domains`: `land`, `sea`, `air` | `territories`, `supply` | the place is not on the board; with no base, no piece is supplied from it | - | on main |
 | The seat of government for each nation: the place where its government sits, kept apart from places with political weight | `entities.capital` | a place within a territory, or the territory itself | `holders` | no seat: no wake's notice before the nation's capital falls, and "capital threatened" never moves a group | - | on main |
 | Whether the government's seat moves with a named person or body | `entities.seat_moves` | yes, with the person or body; no | `holders` | the seat stays where the world puts it | - | parked |
-| Places with political weight, and for which audience (a group, a nation, a faith), with the cost of abandoning each against losing it in a fight | `places` | a territory, the nation it matters to, the groups it moves and by how much; abandoning costs twice a loss, three times when the holder's piece stood there within 7 days | `places` | no place is weighted: losing ground moves groups only as "territory lost" | - | this run: places with political weight |
+| Places with political weight, and for which audience (a group, a nation, a faith), with the cost of abandoning each against losing it in a fight | `places`, `places.{territory, nation, moves}` | a territory, the nation it matters to, the groups it moves and by how much; abandoning costs twice a loss, three times when the holder's piece stood there within 7 days; retaking it moves them back by the amounts | `places`, with `groups` and `holders` | no place is weighted: losing ground moves groups only as "territory lost" | - | on main |
 | The kinds of piece the world names, how fast each moves by terrain, its strength, fuel, reach and what it carries | `piece_kinds`, `piece_kinds.{key, name, domain, days_per_step, max_strength, fuel_per_step, range_steps, carries}` | `domain`: `land`, `sea`, `air`, `envoy`; days per step for every terrain its domain enters; reach only for an air kind | `territories` | every force is one of the five fixed kinds of feature | - | on main |
 | How well a kind of piece sees and hides | `piece_kinds.{detect, conceal}` | 0 to 100 | `reports` | it sees nothing beyond contact and hides nothing | - | on main |
 | A kind's own figures in battle and its picture | `piece_kinds.{attack, defence, on_terrain, against, strike_steps, covers, may_attack, holds_ground, picture}` | figures 1 to 5; a picture from the fixed list | `kinds_in_battle` | every kind fights with the rules' one arithmetic | - | this run: a kind of piece carries its own figures |
@@ -144,11 +145,11 @@ as well.
 | Who is above each person: the superior who prevails, and who decides an order outside his domains | `cards.principals` | person keys | `command`, `locks` | nobody is above him: no superior prevails, and an order outside his domains has no one to allow it | with `command`, `locks` | on main |
 | Who decides each kind of question: war, peace, money, posts, the office | `locks.question` | `permission`, `war`, `peace`, `money`, `posts`, `office`; with `deciders` off every row is a question of permission | `deciders` | every lock is a question of permission | with `deciders` | on main |
 | Who sits on a council that decides, and how many must agree | `locks.decider.council`, `locks.decider.council.{members, needed, head}` | `members`: person keys, each with a card; `needed`: a count from 1 to the membership; `head`: the person key an ask goes to. With `deciders` off the head decides alone | `deciders` | no council: a lock's decider is one person or a body | with `deciders` | on main |
-| Who decides to accept an armistice or an end to a war | `locks.question` | the lock row of kind `peace` | `peace` | the nation cannot accept a peace | with `peace` | this run: peace: an armistice and terms |
+| Who decides to accept an armistice or an end to a war | `locks.question` | a lock row of kind `peace`, with no `order` and no `when`: its decider allows the nation's acceptance | `peace` | the nation cannot accept a peace | with `peace` | on main |
 | The laws each nation has, what each binds and what it does | `laws`, `laws.{key, title, nation, clauses, passed, does, daily_life}`, `laws.does.{kind, amount}` | a key; free wording; a polity key; clauses each a `kind` (`money`, `power`, `limit`), a `subject` and, for money, an `amount`; the key of the quantity that reads 1 once the law has passed; `does.kind`: `arms_merchant_ships`, or `adds_manpower` with a whole `amount`; `daily_life`: true or false | `laws` | the locks read the rules' own table of laws; votes and shipping read that table until they read the world's laws | - | on main |
-| The pacts in force on the start date | `pacts`, `pacts.{key, name, parties, wording, clauses, public}`, `pacts.clauses.{type, binds, on, force, area, region, present, nation, days, form, share, text}` | polity keys; `type`: `place`, `keep_out`, `no_war`, `no_attack`, `defend`, `form`, `aid`, `vote`, `unchecked` | `agreements` | no agreement in force on the first day | - | on main |
+| The pacts in force on the start date | `pacts`, `pacts.{key, name, parties, wording, clauses, public}`, `pacts.clauses.{type, binds, on, force, area, region, present, nation, days, form, share, text}` | polity keys; `type`: `place`, `keep_out`, `no_war`, `no_attack`, `defend`, `form`, `aid`, `vote`, `unchecked`, and with `peace` on `no_separate_peace` | `agreements` | no agreement in force on the first day | - | on main |
 | The conferences the world schedules | `conferences`, `conferences.{key, caller, invited, wording, clauses, opens, voting_day, public, unanimous}`, `conferences.clauses.{type, binds, on, force, area, region, present, nation, days, form, share, text}` | polity keys, the caller among the invited; clauses as a pact's | `conference` | no conference opens unless a seat calls one | - | on main |
-| Election dates inside or near the season, which chamber each redraws, and whose term ends | `elections` | the nation, the chamber or chambers, the day, and optionally a post | `elections` | no chamber is redrawn | - | this run: elections redraw a chamber |
+| Election dates inside or near the season, which chamber each redraws, and whose term ends | `elections`, `elections.{nation, chambers, day, post}` | a polity key; one to four of its chambers that have blocs with seats; a day after the start date; an office asset key. On the day each bloc gains or loses 1% of the chamber's seats per 5 points of support off its baseline, scaled back to the total, and its vote rows by new seats over old; the post is put to the office question sitting that day, its holder removed when what it rests on is under 50; written by hand, never offered to a model | `elections`, with `groups`; a post with `office` | no chamber is redrawn | - | on main |
 | Whether an armed body holds a veto over the government | `armed_bodies.veto` | yes, and which body; no | - | no veto | - | parked |
 | Whether a nation can be chosen by a player | `cards.playable` | a nation can be chosen when a person of it has a playable card | - | nobody can be claimed: every person is run by code | - | on main |
 | What the nation may break into: the units that can leave it, each a region or a faction led by a person | `breaks_into` | regions or factions with their leader | - | the nation cannot break | - | parked |
@@ -160,12 +161,12 @@ as well.
 |---|---|---|---|---|---|---|
 | Each nation's groups at home: key, name, a free label for its kind, starting and baseline support | `groups`, `groups.{nation, groups, themes}`, `groups.groups.{key, name, kind, start, baseline}` | a polity key; support 0 to 100 | `groups` | the nation has no groups: the home rules are off for it | - | on main |
 | What each group feeds, with a weight | `groups.groups.feeds` | `votes`, `standing`, `manpower`, `output`, `opinion` | `groups` | the group feeds nothing | - | on main |
-| What moves each group, and by how much | `groups.groups.moved_by` | `battle_won`, `battle_lost`, `territory_taken`, `territory_lost`, `capital_threatened`, `losses_at_sea`, `agreement_broken`, `measure_passed`, `war_declared`, and with `classes` on `daily_life_passed` (a law touching daily life passed); signed points | `groups` | nothing moves the group | - | on main |
+| What moves each group, and by how much | `groups.groups.moved_by` | `battle_won`, `battle_lost`, `territory_taken`, `territory_lost`, `capital_threatened`, `losses_at_sea`, `agreement_broken`, `measure_passed`, `war_declared`, and with `classes` on `daily_life_passed` (a law touching daily life passed), and with `losses` on `battle_losses` (points a step lost); signed points | `groups` | nothing moves the group | - | on main |
 | The chambers: each bloc's chamber and its seats | `groups.groups.{chamber, seats}` | a chamber key and one or more seats, given together | `groups` | the group is not a bloc: no chamber counts it | - | on main |
 | A bloc's part of each vote, its default, and its stance on each kind of clause | `groups.groups.{votes, vote_default, stances}`, `groups.groups.votes.{voting, yeas}`, `groups.groups.vote_default.{voting, yeas}` | members voting and yeas among them, by measure and vote; stances on `money`, `power`, `limit` in points | `groups` | the bloc's part of a vote is read from the rules' own default | - | on main |
 | Whether a group hears another nation's writing | `groups.groups.abroad` | true or false | `writing` | it hears only its own nation's | - | on main |
 | The themes a nation's writing may name, and how far each moves each group | `groups.themes`, `groups.themes.{key, name, moves}` | by group key, signed points within the day's cap | `writing` | writing names no theme | - | on main |
-| The size of losses as a happening, and how far it moves each group | `groups.groups.losses` | points a step lost, capped by the day | `losses` | losses move no group except at sea | - | this run: the size of losses moves the mood at home |
+| The size of losses as a happening, and how far it moves each group | `groups.groups.moved_by` | `battle_losses`: signed points a step lost, capped at 3 a group a day; mixed unless `happenings` classes it, half felt, the felt share landing over the 21 days after; a battle won counts half | `losses`, with `groups` | losses move no group except at sea | - | on main |
 | A bloc's price list | `groups.groups.prices`, `groups.groups.prices.{key, sentence, condition, days, points, loss}` | a key, once in the bloc; free wording; a condition built from the checks aims use, holding at least one check an act changes (`ordered`, `quantity_at`, `holds_office`, `agreement_in_force`); days from 1 to 366 after the measure passes; points of yes share from 1 to 20; the support lost if unmet, 0 to 100. Only a chamber's bloc has prices, and a measure is a law of the bloc's nation (`laws`) | `offers`, with `groups` and `laws` | no bloc can be offered a price | - | on main |
 | Whether a group is a service of the armed forces, and which posts see it | `groups.groups.service` | yes, with the posts; no | - | every group is seen by its nation | - | parked |
 
@@ -178,9 +179,10 @@ as well.
 | Each domain of authority: what it covers, who carries its orders out, and which forces it commands | `cards.authority`, `cards.authority.{name, effects, executor, forces, summary}` | effect kinds; person and force keys | `command`, `locks` | the person commands nothing outright | - | on main |
 | Who succeeds the holder | `cards.successor` | a person key | - | nobody is named to succeed | - | on main |
 | The post a person holds, apart from the person | `cards.post` | an office asset's key, an office the person controls, no other card's post | `posts` | the card is its person's alone, as today | - | on main |
-| What a post rests on, and how its holder is removed | `cards.post.{rests_on, removed_by}` | one or two groups or bodies; a body's vote, a council, one person, the end of a term, or not at all | `office` | the holder faces no question on his office | - | this run: the office question as a formal sitting |
+| What a post rests on, and how its holder is removed | `assets.{rests_on, removed_by}` on an office, `assets.removed_by.{by, chamber, vote, members, needed, person, ends}` | `rests_on`: one or two group keys or person keys; `removed_by.by`: `vote` (with `chamber`, and `vote`, the row key, the chamber's name if not given), `council` (`members`, up to 24, and `needed`), `person` (`person`), `term` (`ends`, a date) or `never`; written by hand, never offered to a model | `office`, with `posts` | the holder faces no question on his office | - | on main |
 | The support line and the days under it at which the base turns on the holder | `cards.post.turn_below` | a support line, and days for the warning and for the question | `office` | 30, 14 days and 21 days | - | this run: blocs turn on the leader |
-| The ladder below a post, and who may move its holder | `cards.post.{ladder, moved_by}` | post keys, never in a loop | `posts` | a dismissal leaves the holder with no post, and only a decider's grant moves him | - | this run: the ladder of posts |
+| The ladder below a post, and who may move its holder | `assets.{ladder, moved_by}` on an office | office keys, up to 8 each; no post on its own ladder; written by hand, never offered to a model | `posts` | a dismissal leaves the holder with no post, and the lock rows decide who moves him | - | on main |
+| The acts a post's holder may do unbidden, without permission | `assets.without_leave` on an office | `border`, `fire_first`, each once; a blockade is not on the list (no order cuts a trade line by force); written by hand, never offered to a model | `defiance`, with `posts` | no post may act without leave; a held order waits for its decider | - | on main |
 | Which kinds of question a post decides outright | `cards.post.decides` | `permission`, `war`, `peace`, `money`, `posts`, `office` | `deciders` | the post decides only through the lock rows | with `deciders` | this run: player, person and post kept apart |
 
 ## 6. Armed bodies and forces
@@ -270,3 +272,26 @@ above:
 4. **A holder that is a person or a faction** (part 3): parked. Today a territory's holder must
    be a polity: the compiler refuses any other kind of entity
    (`src/revisionist/core/world_compile.py`, the check of each territory's holder).
+
+## The second scenario's filling, written in
+
+The second scenario's world, a civil war joined a year and more before its start date, was
+filled from the rows above with no rule change. What it could not say with the keys that exist:
+
+1. **Occupation inside a territory.** One side's armies held cities and districts inside
+   territories the other side held. A territory has one holder (part 2), so each keeps its holder
+   of the start date and the occupying forces are left out.
+2. **A territory that joins the lands of several holders.** A coarse map territory far from the
+   fighting can cover several nations of the start date. It stands with no holder; a holder per
+   part of a territory is not a row.
+3. **Forces raised by the states.** Part 6, "who raised each force", is parked: every force is
+   the centre's.
+4. **A nation that broke in two.** Part 3, "what the nation may break into", is parked: the
+   world states the two nations as they stood on the start date, the break already made.
+5. **Ports on a coarse coastline.** A port at its true coordinates can fall in the sea or river
+   zone of a coarse map. The world moves it inland until it lies in its territory and says so in
+   a comment; no row says how far a place may be moved.
+
+The three lines the paper test said this world cannot stress (armies paid by their commander, a
+world with no press, a seat that moves with a person) are absent from it on purpose: the check
+prints each as absent.

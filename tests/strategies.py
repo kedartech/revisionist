@@ -81,7 +81,7 @@ from revisionist.core.realism.quantity import RESOLVER_KEYS, Quantity
 from revisionist.core.realism.trade import TradeLine
 from revisionist.core.realism.war import War, war_id_for
 from revisionist.core.settings import Settings
-from revisionist.core.state import Rule
+from revisionist.core.state import Ladder, OfficeQuestion, PostMove, QuestionCause, Rule
 from revisionist.core.visibility import Scope, Visibility
 
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
@@ -929,6 +929,19 @@ proposals = st.builds(
 )
 
 
+held_losses = st.builds(
+    rgrp.HeldLoss,
+    polity=entity_ids,
+    group=labels,
+    area=entity_ids,
+    opened=in_world_dates,
+    on=in_world_dates,
+    reported=st.integers(-3, 3),
+    felt=st.integers(-3, 3),
+    ended=st.booleans(),
+)
+
+
 @st.composite
 def agreement_clauses(draw: st.DrawFn) -> rx.AgreementClause:
     """A clause of an agreement (AGR), with the fields its type needs."""
@@ -960,6 +973,10 @@ def agreement_clauses(draw: st.DrawFn) -> rx.AgreementClause:
         fields["share"] = draw(st.integers(1, 100))
     if kind in (rx.ClauseType.VOTE, rx.ClauseType.UNCHECKED):
         fields["text"] = draw(st.text(min_size=1, max_size=300))
+    if kind in (*rx.PEACE_CLAUSES, rx.ClauseType.NO_SEPARATE_PEACE):
+        fields["nation"] = draw(entity_ids.filter(lambda n: n != fields["binds"]))
+    if kind is rx.ClauseType.ARMISTICE:
+        fields["days"] = draw(st.integers(1, 60))
     return rx.AgreementClause(**fields)
 
 
@@ -968,7 +985,11 @@ def agreement_deals(draw: st.DrawFn) -> rx.Deal:
     """An offer of an agreement (AGR): parties, wording and clauses binding the parties."""
     parties = tuple(draw(st.lists(entity_ids, min_size=2, max_size=3, unique=True)))
     clauses = tuple(
-        c.model_copy(update={"binds": draw(st.sampled_from(parties))})
+        c.model_copy(
+            update=dict(zip(("binds", "nation"), draw(st.permutations(parties)), strict=False))
+        )
+        if c.type in rx.PEACE_CLAUSES
+        else c.model_copy(update={"binds": draw(st.sampled_from(parties))})
         for c in draw(st.lists(agreement_clauses(), max_size=2))
     )
     return rx.Deal(
@@ -1257,6 +1278,12 @@ realism_payloads = st.one_of(
         rules=st.frozensets(st.sampled_from(Rule)),
     ),
     st.builds(ev.WarDeclared, war=wars()),
+    st.builds(
+        ev.WarEnded,
+        war_id=wars().map(lambda w: w.war_id),
+        on=in_world_dates,
+        agreement_id=st.none() | labels,
+    ),
     st.builds(ev.MapDeclared, map=world_maps),
     st.builds(
         ev.KindsDeclared,
@@ -1348,6 +1375,11 @@ realism_payloads = st.one_of(
         on=in_world_dates,
     ),
     st.builds(ev.GroupProposed, proposal=proposals),
+    st.builds(
+        ev.LossesHeld,
+        on=in_world_dates,
+        held=st.lists(held_losses, min_size=1, max_size=3).map(tuple),
+    ),
     st.builds(ev.OfferMade, offer=priced_offers),
     offer_settlements(),
     st.builds(
@@ -1357,6 +1389,67 @@ realism_payloads = st.one_of(
         to=st.none(),
         on=in_world_dates,
         cause=st.sampled_from(list(rc.PostCause)),
+    ),
+    st.builds(
+        ev.LaddersDeclared,
+        ladders=st.lists(
+            st.builds(Ladder, post=asset_ids, ladder=st.tuples(asset_ids), moved_by=st.tuples()),
+            min_size=1,
+            max_size=2,
+        ).map(tuple),
+    ),
+    st.builds(
+        ev.PostMoveOrdered,
+        move=st.builds(
+            PostMove,
+            move_id=labels,
+            person=entity_ids,
+            seat=st.none(),
+            by=entity_ids,
+            post=asset_ids,
+            appoint=st.booleans(),
+            ordered=in_world_dates,
+            wake=st.integers(0, 6),
+            question=st.booleans(),
+        ),
+    ),
+    st.builds(ev.PostMoveSettled, move_id=labels, seat=st.none(), on=in_world_dates),
+    st.builds(
+        ev.OfficeQuestionOpened,
+        question=st.builds(
+            OfficeQuestion,
+            question_id=labels,
+            post=asset_ids,
+            holder=entity_ids,
+            cause=st.sampled_from(QuestionCause),
+            move_id=st.none() | labels,
+            opened=in_world_dates,
+            tick=st.integers(0, 6),
+            sits=in_world_dates,
+        ),
+    ),
+    st.builds(
+        ev.OfficeChoiceFiled,
+        question_id=labels,
+        seat_id=seat_ids,
+        remove=st.booleans(),
+        on=in_world_dates,
+    ),
+    st.builds(
+        ev.OfficeQuestionDecided,
+        question_id=labels,
+        post=asset_ids,
+        holder=entity_ids,
+        on=in_world_dates,
+        removed=st.booleans(),
+        rests_until=st.none() | in_world_dates,
+    ),
+    st.builds(
+        ev.SeatsRedrawn,
+        polity=entity_ids,
+        chamber=labels,
+        seats=st.dictionaries(labels, st.integers(1, 600), min_size=1, max_size=4),
+        on=in_world_dates,
     ),
     st.builds(ev.AgreementOffered, offer=agreement_offers()),
     st.builds(ev.AgreementMade, agreement=agreements()),

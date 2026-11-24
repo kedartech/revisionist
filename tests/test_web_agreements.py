@@ -21,6 +21,7 @@ import pytest
 
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, OrderId, SeatId
+from revisionist.core.project import project
 from revisionist.core.realism import agreement, process
 from revisionist.core.realism.agreement import ClauseStatus
 from revisionist.core.realism.effect import ClauseType, Deal
@@ -29,6 +30,8 @@ from revisionist.engine.store import MemoryStore
 from revisionist.engine.web import agenda_api, agreements_api
 from revisionist.engine.web import realism_api as api
 from revisionist.engine.web import realism_snapshot as rs
+from tests import test_agreements
+from tests import test_peace as tp
 from tests.test_adjacency_moves import START, Logged
 from tests.test_agreements import (
     ILSE,
@@ -48,6 +51,7 @@ from tests.test_agreements import (
     in_force,
     judged,
     made,
+    of,
     offer,
     world,
 )
@@ -420,8 +424,16 @@ def test_the_seat_fixture_carries_the_block_and_an_offer_reading() -> None:
         "pending",
         "unchecked",
     }
-    assert [o["item"] is None for o in shown["offers"]] == [True, False]
+    assert [o["item"] is None for o in shown["offers"]] == [True, False, False]
     assert shown["offers"][0]["answers"] and shown["offers"][1]["answers"] == []
+    (peace,) = [o for o in shown["offers"] if "accept" in o]
+    assert set(peace["accept"]) == set(api.LockCheck.__required_keys__)
+    assert [c["type"] for c in shown["peace"]] == [t for t, _ in agreements_api.PEACE_LABELS]
+    for c in shown["peace"]:
+        assert set(c) == set(api.PeaceClause.__annotations__) and c["nations"]
+        assert all(set(n) == set(api.WarNation.__annotations__) for n in c["nations"])
+    (line,) = shown["armistices"]
+    assert set(line) == set(api.ArmisticeLine.__annotations__)
     reading = fixture["offer_reading"]
     assert set(reading) == set(api.OfferReading.__annotations__)
     assert reading["terms"]["clauses"] and reading["terms"]["wording"]
@@ -550,3 +562,160 @@ def _append(game_: Realism, payload: ev.Payload) -> None:
         realism_tick._append(store, state, payload, SeatId(""), PUBLIC)
     finally:
         store.close()
+
+
+# --- Peace as the seat sees it (PER) ---------------------------------------------------
+
+
+def peace_block(g: Logged, who: SeatId) -> dict[str, Any]:
+    out = block(g, who)
+    assert out is not None
+    return out
+
+
+def test_with_peace_off_the_block_is_as_before(tmp_path: Path) -> None:
+    g = tp.game(tmp_path, rules=tp.RULES[:-1])
+    tp.put_in_force(g, tp.armistice(10))
+    assert set(peace_block(g, ILSE)) == {"agreements", "offers"}
+
+
+def test_the_builder_offers_each_peace_clause_with_the_nations_at_war_with_the_seats(
+    tmp_path: Path,
+) -> None:
+    g = tp.game(tmp_path, tp.ostmark_at_war)
+    norra = peace_block(g, ILSE)["peace"]
+    assert [c["type"] for c in norra] == ["armistice", "end_war", "no_separate_peace"]
+    assert all(c["nations"] == [{"key": SUDLAND, "name": "Sudland"}] for c in norra)
+    sudland = peace_block(g, TOMAS)["peace"]
+    assert all([n["name"] for n in c["nations"]] == ["Norra", "Ostmark"] for c in sudland)
+
+
+def test_a_nation_at_war_with_nobody_may_name_nobody(tmp_path: Path) -> None:
+    g = tp.game(tmp_path)
+    assert all(c["nations"] == [] for c in peace_block(g, OLAF)["peace"])
+
+
+def test_the_decider_reads_every_clause_of_the_peace_before_allowing_it(
+    tmp_path: Path,
+) -> None:
+    from revisionist.engine.web import locks_api
+
+    g = tp.game(tmp_path, tp.council(3))
+    oid, due = tp.accepted_by_tomas(g)
+    g.walk(day(1), due)
+    found = g.state.agreements.offers[oid]
+    out = locks_api.block(g.state, TOMAS)
+    assert out is not None
+    (ask,) = out["asks"]
+    assert ask["terms"] == agreements_api.offer_terms(g.state, found)
+    assert len(ask["terms"]["clauses"]) == len(found.clauses) == 2
+    assert ask["terms"]["text"] == agreement.render_terms(g.state, found)
+
+
+def accept_check(g: Logged, who: SeatId) -> dict[str, Any]:
+    (line,) = peace_block(g, who)["offers"]
+    assert line["item"] is not None
+    return dict(line["accept"])
+
+
+def offered(g: Logged) -> tuple[OrderId, Any]:
+    oid = tp.peace_offer(g, tp.ends_war(), tp.ends_war(SUDLAND, NORRA))
+    g.walk(day(1), day(1))
+    return oid, due_day(g, oid)
+
+
+def test_the_check_says_an_acceptance_the_seat_may_give_goes_out(tmp_path: Path) -> None:
+    g = tp.game(tmp_path)
+    oid, due = offered(g)
+    assert accept_check(g, TOMAS) == {"check": "allowed", "who": None, "reason": ""}
+    (own,) = peace_block(g, ILSE)["offers"]
+    assert "accept" not in own
+    test_agreements.answer(g, oid, TOMAS, True)
+    out = g.walk(day(2), due)
+    assert of(out, ev.AgreementMade) and not of(out, ev.OrderHeld)
+
+
+def test_the_check_says_who_holds_an_acceptance_as_accepting_then_holds_it(
+    tmp_path: Path,
+) -> None:
+    from revisionist.engine.web import locks_api
+
+    g = tp.game(tmp_path, tp.council(3))
+    oid, due = offered(g)
+    check = accept_check(g, TOMAS)
+    test_agreements.answer(g, oid, TOMAS, True)
+    out = g.walk(day(2), due)
+    (held,) = of(out, ev.OrderHeld)
+    view = project(g.state, TOMAS)
+    assert check == {
+        "check": "locked",
+        "who": locks_api.who(view, held.held.decider),
+        "reason": held.held.reason,
+    }
+    assert check["who"] == "the council under Tomas Brand"
+
+
+def test_the_check_says_an_acceptance_beyond_the_seat_lapses_the_peace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from revisionist.core.realism import locks
+
+    g = tp.game(tmp_path)
+    oid, due = offered(g)
+    real = locks.peace_row
+    monkeypatch.setattr(locks, "peace_row", lambda s, n: None if n == SUDLAND else real(s, n))
+    check = accept_check(g, TOMAS)
+    assert check == {
+        "check": "beyond",
+        "who": None,
+        "reason": "No one in Sudland may accept a peace.",
+    }
+    test_agreements.answer(g, oid, TOMAS, True)
+    out = g.walk(day(2), due)
+    assert not of(out, ev.AgreementMade)
+    titles = [p.document.title for p in of(out, ev.DocumentIssued)]
+    assert "An offer of agreement lapsed" in titles
+
+
+def test_an_offer_that_is_no_peace_carries_no_check(tmp_path: Path) -> None:
+    g = tp.game(tmp_path)
+    offer(g, deal(keep_out()))
+    g.walk(day(1), day(1))
+    (line,) = peace_block(g, TOMAS)["offers"]
+    assert "accept" not in line
+
+
+def test_an_unpublished_peace_offer_is_nowhere_in_a_third_nations_data(
+    tmp_path: Path,
+) -> None:
+    g = tp.game(tmp_path)
+    offered(g)
+    third = rs.seat_realism(g.state, OLAF, set(), set(), None, events=g.log)
+    text = json.dumps(third, default=str)
+    assert "Peace between Norra and Sudland." not in text
+    assert peace_block(g, OLAF)["offers"] == []
+    assert "Peace between Norra and Sudland." in json.dumps(peace_block(g, TOMAS))
+
+
+def test_an_armistice_in_force_and_its_last_day_reach_its_parties_only_until_published(
+    tmp_path: Path,
+) -> None:
+    g = tp.game(tmp_path)
+    x = tp.put_in_force(g, tp.armistice(10))
+    line = {
+        "agreement": x.agreement_id,
+        "nations": ["Norra", "Sudland"],
+        "last_day": (START + timedelta(days=10)).isoformat(),
+    }
+    assert peace_block(g, ILSE)["armistices"] == [line]
+    assert peace_block(g, TOMAS)["armistices"] == [line]
+    assert peace_block(g, OLAF)["armistices"] == []
+    g.add([ev.AgreementPublished(agreement_id=x.agreement_id, by=NORRA, on=START)])
+    assert peace_block(g, OLAF)["armistices"] == [line]
+
+
+def test_an_armistice_whose_days_ran_out_is_not_listed(tmp_path: Path) -> None:
+    g = tp.game(tmp_path)
+    tp.put_in_force(g, tp.armistice(3))
+    g.walk(day(1), day(4))
+    assert peace_block(g, ILSE)["armistices"] == []

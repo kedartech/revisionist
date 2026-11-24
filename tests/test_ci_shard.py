@@ -45,6 +45,13 @@ def test_every_repo_test_file_lands_in_exactly_one_shard(total: int) -> None:
     assert all(s for s in shards)
 
 
+def test_the_recorded_times_cover_most_of_the_repo_test_files() -> None:
+    m = shard()
+    files = m.test_files(ROOT)
+    timed = [f for f in files if f in m.load_timings(m.TIMINGS)]
+    assert len(timed) * 4 >= len(files) * 3, f"{len(timed)} of {len(files)} test files have a time"
+
+
 def test_the_files_are_the_ones_pytest_collects(tmp_path: Path) -> None:
     root = tree(
         tmp_path,

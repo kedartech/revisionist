@@ -36,6 +36,15 @@ class War(Model):
     late_fields: ClassVar[frozenset[str]] = frozenset({"declared"})
 
 
+class WarEnd(Model):
+    """A war that ended by an agreement's terms (PEA): the war as it stood, the day it
+    ended and the agreement that ended it."""
+
+    war: War
+    on: date
+    agreement_id: Label | None = None
+
+
 class NewsTopic(StrEnum):
     WAR_DECLARED = "war_declared"
     STATEMENT = "statement"
@@ -85,6 +94,20 @@ def war_id_for(a: EntityId, b: EntityId) -> Label:
 
 def at_war(world: "State | View", a: EntityId, b: EntityId) -> bool:
     return war_id_for(a, b) in world.wars
+
+
+def hostile(state: "State", a: EntityId, b: EntityId) -> bool:
+    """Whether ``a`` and ``b`` fight: at war, and no armistice between them in force (PEA)."""
+    from revisionist.core.realism import agreement
+
+    return at_war(state, a, b) and not agreement.armistice(state, a, b)
+
+
+def broke_peace(world: "State | View", war: War) -> EntityId | None:
+    """Who broke the peace a war ended by terms had made: the nation that declared this
+    war after an earlier war between the same two ended (PEA); None for any other war."""
+    ended = [e for e in world.ended_wars if e.war.war_id == war.war_id and e.on <= war.since]
+    return war.a if ended else None
 
 
 def polity_of(state: "State", entity: EntityId) -> EntityId | None:
@@ -144,7 +167,10 @@ __all__ = [
     "NewsTopic",
     "Outlet",
     "War",
+    "WarEnd",
     "at_war",
+    "broke_peace",
+    "hostile",
     "outlet_for",
     "paper_of",
     "polity_of",

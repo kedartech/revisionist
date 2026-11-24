@@ -125,6 +125,7 @@ WARS_1941 = {
     (frozenset({"germany", "ussr"}), "1941-06-22"),
     (frozenset({"italy", "ussr"}), "1941-06-22"),
     (frozenset({"japan", "china"}), "1937-07-07"),
+    (frozenset({"ussr", "finland_state"}), "1941-06-25"),
 }
 
 

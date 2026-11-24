@@ -1,0 +1,144 @@
+/* The opening of a ready-made game: the three steps, the seats left, and the cards of the
+   step being chosen, under .rl-op (js/views/realism-opening.js). */
+
+.rl-op { display: grid; gap: var(--space-4); justify-items: center; margin: 0 0 var(--space-5); }
+
+.rl-op-steps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-chrome);
+  font-size: 0.75rem;
+}
+
+.rl-op-step {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 0.7rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 1rem;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  white-space: normal;
+}
+
+.rl-op-step.current { border-color: var(--fg-strong); color: var(--fg-strong); }
+.rl-op-step.done { color: var(--fg-strong); }
+button.rl-op-step { min-height: 2.75rem; cursor: pointer; }
+button.rl-op-step:hover { border-color: var(--accent); }
+
+.rl-op-seats {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2rem;
+  padding: 0 0.7rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 1rem;
+  color: var(--fg-muted);
+}
+
+.rl-op-seat-pips, .rl-op-pips { display: inline-flex; gap: 2px; }
+.rl-op-seat, .rl-op-pip { width: 6px; height: 10px; border: 1px solid var(--fg-muted); }
+.rl-op-seat.on, .rl-op-pip.on { border-color: var(--fg); background: var(--fg); }
+
+.rl-op-body { display: grid; gap: var(--space-4); justify-items: center; width: 100%; }
+
+.rl-op-grid { display: grid; gap: var(--space-3); width: min(100%, 54rem); }
+.rl-op-nations { grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); }
+.rl-op-paths { grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); width: min(100%, 32rem); }
+.rl-op-persons { grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr)); }
+
+.rl-op-card {
+  box-sizing: border-box;
+  min-width: 0;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--fg);
+}
+
+button.rl-op-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  height: auto;
+  min-height: 2.75rem;
+  padding: 0.9rem 0.5rem;
+  font-family: var(--font-read);
+  white-space: normal;
+  cursor: pointer;
+}
+
+button.rl-op-card:hover { border-color: var(--accent); }
+.rl-op-step:focus-visible, .rl-op-card:focus-visible, .rl-op-back:focus-visible, .rl-op-everyone:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.rl-op-name { color: var(--fg-strong); font-weight: 600; font-size: 0.9rem; text-align: center; }
+.rl-op-path .rl-op-name { font-size: 1.05rem; }
+.rl-op-line { color: var(--fg-muted); font-size: 0.75rem; line-height: 1.35; text-align: center; }
+.rl-op-count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--fg-muted);
+  font-family: var(--font-chrome);
+  font-size: 0.72rem;
+}
+
+.rl-op-person { display: grid; grid-template-columns: 5.25rem 1fr; gap: var(--space-3); padding: 0.75rem; text-align: left; }
+.rl-op-person.taken { opacity: 0.6; }
+.rl-op-media { min-width: 0; }
+.rl-op-figure { margin: 0; }
+.rl-op-figure .portrait-frame { display: block; width: 5.25rem; aspect-ratio: 3 / 4; }
+.rl-op-portrait { display: block; width: 100%; height: 100%; object-fit: cover; }
+.rl-op-credit { display: none; }
+.rl-op-mono {
+  display: grid;
+  place-items: center;
+  width: 5.25rem;
+  aspect-ratio: 3 / 4;
+  border: 1px solid var(--rule);
+  background: var(--surface-2);
+  color: var(--fg-muted);
+  font-family: var(--font-head);
+  font-size: 1.4rem;
+}
+
+.rl-op-text { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.rl-op-who { margin: 0; color: var(--fg-strong); font-family: var(--font-read); font-size: 1rem; line-height: 1.25; }
+.rl-op-office { color: var(--fg-muted); font-family: var(--font-chrome); font-size: 0.72rem; line-height: 1.3; }
+.rl-op-pitch { font-family: var(--font-read); font-size: 0.85rem; line-height: 1.45; }
+.rl-op-reach { color: var(--fg-muted); font-family: var(--font-read); font-size: 0.78rem; line-height: 1.4; }
+.rl-op-taken {
+  align-self: flex-start;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--rule-strong);
+  border-radius: 1rem;
+  color: var(--fg-muted);
+  font-family: var(--font-chrome);
+  font-size: 0.72rem;
+}
+
+.rl-op-acts { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-1); }
+.rl-op-acts button, .rl-op-back, .rl-op-everyone { min-height: 2.75rem; }
+
+.rl-op-note { max-width: 40rem; margin: 0; padding: 0.5rem 0.75rem; border: 1px dashed var(--rule-strong); border-radius: var(--radius); text-align: center; }
+.rl-op-none { margin: 0; color: var(--fg-muted); }
+.rl-op-holder { display: grid; justify-items: center; gap: var(--space-3); }
+
+@media (max-width: 30rem) {
+  .rl-op-nations { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rl-op-persons { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rl-op * { transition: none; animation: none; }
+}

@@ -17,7 +17,13 @@ named here become steps:
 - its own held orders (``order_held``, ``held_order_ended``): held, and how each ended,
   landed, failed with the stored reason, replaced by its later order, or withdrawn. Only
   the issuer's seat is given these lines, here as well as at the seam; the decider learns
-  of an ask only from its own list, as before.
+  of an ask only from its own list, as before;
+- its own nation's groups as they move (``group_moved``, HFR), worded from the move alone
+  as the home block words it, each followed by the count of every vote on the seat's own
+  measures on their way that the move changed: the votes rule's count
+  (``votes.floor_counts``) with each group at the support the feed last gave it, a group
+  the feed has not yet moved at the support before its first fed move, or where it stands
+  now if the feed never moves it. A move of another nation's group is never a step.
 
 Commit and close events, hand-overs and who played a seat are never fed by the seam
 and are refused here too. A dateless event takes the day of the step before it in its
@@ -29,14 +35,17 @@ from datetime import date
 
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, OrderId, SeatId
-from revisionist.core.project import project
-from revisionist.core.realism import apply, locks
+from revisionist.core.project import project, untold_goals
+from revisionist.core.realism import apply, groups, locks
 from revisionist.core.realism.pipelines import order_words
+from revisionist.core.realism.resolvers import votes
 from revisionist.core.state import State, View
-from revisionist.engine.catchup import SeatEvent
-from revisionist.engine.web import economy_api, map_api
+from revisionist.engine.catchup import GOAL_NEWS, SeatEvent
+from revisionist.engine.web import economy_api, home_api, map_api
 from revisionist.engine.web.realism_api import (
     MapNation,
+    PlaybackCount,
+    PlaybackGroup,
     PlaybackHalt,
     PlaybackHeld,
     PlaybackHolder,
@@ -68,6 +77,7 @@ STEP_KINDS: frozenset[str] = frozenset(
         "goal_undone",
         "order_held",
         "held_order_ended",
+        "group_moved",
     }
 )
 """The event kinds that make a step. Every other kind makes none."""
@@ -75,7 +85,7 @@ STEP_KINDS: frozenset[str] = frozenset(
 HELD = "{reason}: {words}."  # [proposed]
 """A held order, as its seat was told when it was held, with its words."""
 LANDED = "Your held order went ahead: {words}."  # [proposed]
-FAILED = "Your held order failed: {reason}."  # [proposed]
+FAILED = "Your held order failed: {reason}: {words}."  # [proposed]
 REPLACED = "Your held order was replaced by a later one: {words}."  # [proposed]
 WITHDRAWN = "Your held order was withdrawn: {words}."  # [proposed]
 AN_ORDER = "an order"  # [proposed]
@@ -95,6 +105,10 @@ class _Names:
             self.areas = {t.area: t.key for t in board.territories}
             self.areas |= {z.area: z.key for z in board.sea_zones}
         self.own = economy_api.own_nation(view)
+        self.support: dict[str, int] = {}
+        """Each own group's support as the feed last gave it (``moved``)."""
+        self.counts: dict[tuple[str, str], tuple[str, str, int, int]] | None = None
+        """Each vote's count as the steps last showed it, by order and vote."""
 
     def area(self, area: EntityId) -> str:
         return self.areas.get(area, "")
@@ -144,7 +158,7 @@ def _day(p: ev.Payload) -> date | None:
             return p.document.arrives
         case ev.OrderHeld():
             return p.held.filed
-        case ev.HeldOrderEnded():
+        case ev.HeldOrderEnded() | ev.GroupMoved():
             return p.on
     return None
 
@@ -157,8 +171,65 @@ def _steps(p: ev.Payload, on: str, names: _Names) -> list[PlaybackStep]:
             PlaybackOrder(kind="order", on=on, order=_token(f"{oid}.{n}"), what="filed")
             for n in range(len(p.order.parts))
         ]
+    if isinstance(p, ev.GroupMoved):
+        return _moved(p, on, names)
     one = _step(p, on, names)
     return [] if one is None else [one]
+
+
+def _counted(names: _Names) -> dict[tuple[str, str], tuple[str, str, int, int]]:
+    """Each vote on the seat's own measures on their way as the votes rule counts it with
+    the own groups at ``names.support``: by order and vote, its key, title, yeas and nays."""
+    own, g = names.own, names.state.groups
+    if own is None:
+        return {}
+    support = {**g.support, own: {**g.support.get(own, {}), **names.support}}
+    state = names.state.model_copy(update={"groups": g.model_copy(update={"support": support})})
+    out: dict[tuple[str, str], tuple[str, str, int, int]] = {}
+    for order, key, title in home_api.open_measures(state, names.view, own):
+        for _, vote, parts in votes.floor_counts(state, own, order, key, order.measure):
+            yeas, nays = sum(y for _, y, _ in parts), sum(n for _, _, n in parts)
+            out[(str(order.order_id), vote)] = (key, title, yeas, nays)
+    return out
+
+
+def _moved(p: ev.GroupMoved, on: str, names: _Names) -> list[PlaybackStep]:
+    """A move of one of the seat's own nation's groups, and each count it changed."""
+    found = groups.group(names.view, p.polity, p.group)
+    if names.own is None or p.polity != names.own or not p.change or found is None:
+        return []
+    out: list[PlaybackStep] = [
+        PlaybackGroup(
+            kind="group",
+            on=on,
+            group=p.group,
+            name=found.name,
+            change=p.change,
+            support=p.support,
+            why=home_api.WHY[p.cause.value],
+            reach=home_api.reach(names.view, p.cause.value),
+        )
+    ]
+    before = names.counts if names.counts is not None else _counted(names)
+    names.support[p.group] = p.support
+    names.counts = _counted(names)
+    for (order_id, vote), (key, title, yeas, nays) in names.counts.items():
+        was = before.get((order_id, vote))
+        if was is not None and was[2:] != (yeas, nays):
+            out.append(
+                PlaybackCount(
+                    kind="count",
+                    on=on,
+                    order_id=order_id,
+                    key=key,
+                    title=title,
+                    vote=vote,
+                    yeas=yeas,
+                    nays=nays,
+                    was=[was[2], was[3]],
+                )
+            )
+    return out
 
 
 def _step(p: ev.Payload, on: str, names: _Names) -> PlaybackStep | None:
@@ -249,7 +320,7 @@ def _held(p: ev.OrderHeld | ev.HeldOrderEnded, on: str, names: _Names) -> Playba
             own = names.words(p.order_id)
             line = LANDED.format(words=own if own != AN_ORDER else names.words(p.by))
         case locks.HeldEnd.FAILED:
-            line = FAILED.format(reason=_plain(p.reason))
+            line = FAILED.format(reason=_plain(p.reason), words=names.words(p.order_id))
         case locks.HeldEnd.REPLACED:
             line = REPLACED.format(words=names.words(p.by))
         case locks.HeldEnd.WITHDRAWN:
@@ -274,6 +345,11 @@ def steps(
         if isinstance(f.event.payload, ev.OrderHeld) and f.event.payload.held.issuer == seat:
             holds[f.event.payload.held.order_id] = f.event.payload.held
     names = _Names(state, project(state, seat), holds)
+    untold = untold_goals(state, seat)
+    for f in ordered:
+        p = f.event.payload
+        if isinstance(p, ev.GroupMoved) and p.polity == names.own:
+            names.support.setdefault(p.group, p.support - p.change)
     first: dict[int, date] = {}
     for f in ordered:
         p = f.event.payload
@@ -287,6 +363,8 @@ def steps(
     for f in ordered:
         p = f.event.payload
         if f.event.kind not in STEP_KINDS:
+            continue
+        if isinstance(p, GOAL_NEWS) and p.goal_id in untold:
             continue
         day = _day(p) or today.get(f.wake) or first.get(f.wake)
         if day is None:

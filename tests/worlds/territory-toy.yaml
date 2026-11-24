@@ -155,7 +155,7 @@ groups:
         start: 40
         baseline: 45
         feeds: {standing: 3, opinion: 1}
-        moved_by: {territory_taken: 3, territory_lost: -3, losses_at_sea: -2}
+        moved_by: {territory_taken: 3, territory_lost: -3, losses_at_sea: -2, battle_losses: -1}
   - nation: sudland
     groups:
       - key: farmers
@@ -164,7 +164,7 @@ groups:
         start: 30
         baseline: 35
         feeds: {output: 1}
-        moved_by: {territory_taken: 2, battle_lost: -3}
+        moved_by: {territory_taken: 2, battle_lost: -3, battle_losses: -1}
 
 # How each kind of happening reaches the groups, read with the `classes` rule on: felt,
 # reported or secret. A kind not listed is reported; a mixed kind is reported with the
@@ -173,6 +173,18 @@ happenings:
   - {kind: capital_threatened, reach: felt}
   - {kind: battle_lost, reach: reported, felt: 0.4}
   - {kind: agreement_broken, reach: secret}
+
+# Places with political weight, read with the `places` rule on: a territory, the nation
+# it matters to, and the points each of that nation's groups moves when it is lost after
+# a fight. Abandoning it costs twice that; retaking it moves them back.
+places:
+  - {territory: norra_plain, nation: norra, moves: {greys: -4, public: -2}}
+
+# Elections, read with the `elections` rule on: each redraws its chambers by support; one
+# that names a post (`post: <office key>`) removes its holder when what the post rests on
+# is under the line that day.
+elections:
+  - {nation: norra, chambers: [assembly], day: 1900-05-01}
 
 # The player's own aim, read with the own_aim rule on: patterns a player may fill to
 # replace his card's replaceable aim. `$name` in a condition is a blank the sentence names
@@ -208,9 +220,16 @@ aim_patterns:
       - {name: foe, values: [norra, sudland]}
 
 # The chancellery is an office the chancellor holds: with the posts rule on, her card's
-# post, which may pass to another person while she plays on.
+# post, which may pass to another person while she plays on. Its ladder (LDR): a
+# chancellor put out of office falls to the council of state, if its seat is free.
 assets:
-  - {key: norra_chancellery, kind: office, name: Chancellor of Norra, tier: 4, controller: ilse}
+  - key: norra_chancellery
+    kind: office
+    name: Chancellor of Norra
+    tier: 4
+    controller: ilse
+    ladder: [norra_council_seat]
+  - {key: norra_council_seat, kind: office, name: Councillor of State, tier: 2, controller: norra}
 
 cards:
   - person: ilse

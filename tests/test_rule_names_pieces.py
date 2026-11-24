@@ -29,7 +29,7 @@ from tests.test_rule_names import BASELINE_1941, THIRD_RUN, _docstrings
 PIECES = ("kinds_in_battle", "weather", "raising")
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 TOY = Path(__file__).parent / "worlds" / "territory-toy.yaml"
-STORED_SCHEMA = "74"
+STORED_SCHEMA = "82"
 """The schema number before the three names: a game stored under it must load."""
 
 

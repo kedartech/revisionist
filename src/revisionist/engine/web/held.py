@@ -99,12 +99,15 @@ def _rows(store: EventStore, sql: str, args: tuple[Any, ...]) -> list[tuple[Any,
 def closing(store: EventStore, campaign_id: CampaignId) -> bool:
     """A close of the campaign's wake is running: some session holds its mark
     (``marking_close``). A leave, a join or a scheduler pass that closes nothing holds
-    the game's lock but not the mark. Read from ``pg_locks``, so it takes nothing."""
+    the game's lock but not the mark. Read from ``pg_locks``, so it takes nothing; only
+    this database's marks count, since ``pg_locks`` lists the whole cluster's and a
+    campaign id may recur in another database."""
     conn = _conn(store)
     if conn is None:
         return False
     row = conn.execute(
         "SELECT EXISTS (SELECT 1 FROM pg_locks WHERE locktype = 'advisory' AND granted"
+        " AND database = (SELECT oid FROM pg_database WHERE datname = current_database())"
         " AND classid = %s::oid AND objid = hashtext(%s)::oid AND objsubid = 2)",
         (CLOSE_CLASS, campaign_id),
     ).fetchone()
@@ -200,6 +203,10 @@ def held_battles(store: EventStore, campaign_id: CampaignId, seat: SeatId) -> se
     return out
 
 
+NOT_OFFERED = "You cannot do that with this order."  # [proposed]
+"""The refusal of a step action the seat was not offered, the same for every action."""
+
+
 def _line(label: str, why: str) -> str:
     return f"{label} was not filed: {why}"
 
@@ -268,9 +275,15 @@ def file_one(
             directive.sign(store, campaign_id, seat, proposal)
         elif action == "step":
             taken = StepAction(args["action"])
-            realism_tick.take_step(
-                store, campaign_id, seat, args["order_id"], taken, args["params"]
-            )
+            try:
+                realism_tick.take_step(
+                    store, campaign_id, seat, args["order_id"], taken, args["params"]
+                )
+            except ValueError as exc:  # the step moved on since it was held
+                said = str(exc)
+                return (
+                    said if said in (realism_tick.NOT_YOURS, realism_tick.NO_AMEND) else NOT_OFFERED
+                )
         elif action in ("option", "file", "battle", "contingency", "agreement-publish"):
             asks = tuple(Ask.model_validate(a) for a in args["asks"])
             told = args.get("forecast")
@@ -286,8 +299,21 @@ def file_one(
             conferences_api.call(store, campaign_id, seat, args)
         elif action == "conference-vote":
             conferences_api.vote(store, campaign_id, seat, args)
+        elif action == "office-vote":
+            agenda_api.office_vote(store, campaign_id, seat, args)
         elif action == "ask":
             realism_tick.ask_order(store, campaign_id, seat, OrderId(args["order_id"]))
+        elif action == "offer":
+            realism_tick.make_offer(
+                store, campaign_id, seat, args["bloc"], args["measure"], args["price"]
+            )
+        elif action == "send-anyway":
+            realism_tick.send_anyway(store, campaign_id, seat, OrderId(args["order_id"]))
+        elif action == "answer" and "verdict" in args:  # an incident (DFR)
+            done = agenda_api.answer_incident(
+                store, campaign_id, seat, args["item"], args["verdict"]
+            )
+            return done["reply"] if done["refused"] else None
         elif action == "answer":
             done = agenda_api.answer(store, campaign_id, seat, args["item"], args["accept"])
             return done["reply"] if done["refused"] else None

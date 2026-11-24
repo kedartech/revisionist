@@ -34,6 +34,11 @@
 .rl-dp-on { font-size: 12px; }
 .rl-dp-due { font-weight: 600; color: var(--fg-strong); }
 .rl-dp-result { font-weight: 700; color: var(--fg-strong); }
+.rl-dp-accept { margin: var(--space-2) 0; padding: var(--space-2) var(--space-3); border-left: 4px solid var(--rule-strong); background: var(--surface-2); }
+.rl-dp-accept-locked { border-left-color: var(--warn); background: var(--warn-soft); }
+.rl-dp-accept-beyond { border-left-color: var(--danger); border-left-style: double; background: var(--danger-soft); }
+.rl-dp-armistice { padding: var(--space-2) var(--space-3); background: var(--surface-2); border: 1px solid var(--rule); border-left: 4px solid var(--fg-muted); border-radius: var(--radius); }
+.rl-dp-quietline { padding-left: var(--space-2); border-left: 3px dotted var(--fg-muted); }
 .rl-dp-yours { color: var(--fg-strong); }
 
 .rl-dp-btn { min-height: 44px; min-width: 44px; }

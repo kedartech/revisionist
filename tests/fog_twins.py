@@ -5,7 +5,8 @@ by its own ``App``, built the same way through the engine's public entry points 
 world file, a claim, the wake's opening, the server's own actions) except for one hidden
 fact, which only the second game (``hidden=True``) carries. ``reads`` collects every
 read the viewing seat can make and ``refusals`` every refusal it can provoke by naming
-the hidden thing, each as the bytes the server would send. The sweep
+the hidden thing, each as the bytes the server would send, with the seat's view and its
+agent's prompt as a model is given them. The sweep
 (``tests/test_fog_sweep.py``) compares the two games' bytes; another item's test may
 import ``PAIRS``, ``Side``, ``reads`` and ``refusals`` and run them with its own rule on.
 
@@ -32,20 +33,24 @@ import yaml
 from revisionist.core import events as ev
 from revisionist.core.fold import state_hash
 from revisionist.core.ids import DocumentId, EntityId, SeatId, derived_id
+from revisionist.core.project import project
 from revisionist.core.realism.card import ChannelKind
 from revisionist.core.realism.document import BodyField, DocumentKind, DocumentTruth, DocumentView
 from revisionist.core.visibility import private_to
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import compile_world, resolve_keys
 from revisionist.engine import campaign as cmp
-from revisionist.engine import counsel, directive, emit, notice, realism_tick, session_zero
+from revisionist.engine import catchup, counsel, directive, emit, notice, realism_tick, session_zero
 from revisionist.engine import wake as wk
-from revisionist.engine.store import load_state
+from revisionist.engine.advise import advise
+from revisionist.engine.llm import Reply, Request
+from revisionist.engine.store import MemoryStore, load_state
 from revisionist.engine.web import wake_api
 from revisionist.engine.web.accounts import Account, WebSeats
 from revisionist.engine.web.server import ApiError
 from tests import test_realism_locks as toy_locks
 from tests.pg import Cluster, PgDb
+from tests.test_ask_answers import answers_on, hostile
 from tests.test_session_zero_steps import Table
 from tests.test_territory_model import CAMPAIGN, written
 from tests.test_web import Web
@@ -137,6 +142,8 @@ class Side:
     decl: WorldFile
     accounts: dict[str, Account] = field(default_factory=dict)
     counts: Counter[str] = field(default_factory=Counter)
+    hosting: str = ""
+    """Who hosts the game, once ``host`` has run."""
 
     @property
     def app(self) -> Any:
@@ -184,6 +191,7 @@ class Side:
 
     def host(self, who: str) -> None:
         account = self.accounts[who]
+        self.hosting = who
 
         def insert(store: Any) -> None:
             store.conn.execute(
@@ -212,6 +220,18 @@ class Side:
         """``/api/me`` as ``who``'s account reads it, through ``App``."""
         with drawn_from(self.counts):
             out: dict[str, Any] = self.app.state_for(self.accounts[who])
+        return out
+
+    def new(self, who: str, action: str) -> dict[str, Any]:
+        """``/api/new/<action>`` as ``who``'s account sends it, through ``App``."""
+        with drawn_from(self.counts):
+            out: dict[str, Any] = self.app.new_game(self.accounts[who], action, {})
+        return out
+
+    def game(self, who: str, action: str) -> dict[str, Any]:
+        """``/api/game/<action>`` as ``who``'s account sends it, through ``App``."""
+        with drawn_from(self.counts):
+            out: dict[str, Any] = self.app.game(self.accounts[who], action, {})
         return out
 
 
@@ -284,10 +304,15 @@ SALT_READS = (
 READS = {"toy": TOY_READS, "salt": SALT_READS}
 
 
-def reads(s: Side, who: str, probes: tuple[Probe, ...]) -> dict[str, bytes]:
+def reads(
+    s: Side, who: str, probes: tuple[Probe, ...], seam: bool = False, apart: bool = False
+) -> dict[str, bytes]:
     """Every read ``who`` can make: the snapshot (every sheet's data is in it), each
-    page it holds, the map, catch-up, the check and the odds, and the wake notice."""
-    out = {"me": _call(lambda: s.me(who))}
+    page it holds, the map, catch-up, the opening's list of people, the check and the
+    odds, the wake notice, the seat's view and the prompt a model is sent. With ``seam``,
+    also the catch-up seam itself and the seat's own record of its asks. With ``apart``,
+    the view and the prompt leave out who is seated (``_unseated``)."""
+    out = {"me": _call(lambda: s.me(who)), "opening": opening(s, who)}
     me = json.loads(out["me"])
     realism = ((me.get("game") or {}).get("view") or {}).get("realism") or {}
     listing = realism.get("documents") or {}
@@ -303,13 +328,69 @@ def reads(s: Side, who: str, probes: tuple[Probe, ...]) -> dict[str, bytes]:
         out["notice"] = _bytes(notice.compose(state, s.seat(who), None, name))
     except ValueError as exc:
         out["notice"] = _bytes({"error": str(exc)})
+    if seam:
+        out["seam"] = _bytes(s.run(partial(_fed, s.seat(who))))
+        asked = project(state, s.seat(who)).asked.values()
+        out["asked"] = _bytes(sorted((a.model_dump(mode="json") for a in asked), key=str))
+    view = project(state, s.seat(who))
+    out["view"] = view.model_dump_json().encode()
+    out["prompt"] = advice_prompt(s, who)
+    if apart:
+        out["view"], out["prompt"] = _unseated(view, out["view"], out["prompt"])
     return out
 
 
-def truth(s: Side) -> tuple[str, list[Any]]:
-    """What the game holds, whoever may see it: the state's hash and every order held
-    for the next wake. The two games of a pair must differ here, or the pair hides
-    nothing."""
+def _unseated(view: Any, raw: bytes, prompt: bytes) -> tuple[bytes, bytes]:
+    """``raw`` (the view) and ``prompt`` with the roster's claims and the seat faces left
+    out: they tell any person a seat holds from one the code runs, the "person or code"
+    pair's finding, so a pair whose games seat different people reads past them."""
+    shown = json.loads(raw)
+    shown["roster"] = {k: {**c, "claimed_by": None} for k, c in shown["roster"].items()}
+    shown["seats"] = {}
+    faces = view.model_dump_json(include={"seats"}, exclude_none=True)[1:-1].encode()
+    assert faces in prompt, "the prompt no longer carries the seat faces as the view dumps them"
+    return _bytes(shown), prompt.replace(faces, b'"seats":{}')
+
+
+class _Asked:
+    """A transport that keeps the request it is sent and answers nothing."""
+
+    def __init__(self) -> None:
+        self.requests: list[Request] = []
+
+    def call(self, request: Request) -> Reply:
+        self.requests.append(request)
+        return Reply({"text": ""}, request.model, 0, 0, 0, 0.0)
+
+
+def advice_prompt(s: Side, who: str) -> bytes:
+    """The prompt ``who``'s agent would be sent for a question: the seat's view as a
+    model reads it, and so as the adviser, the narrator and the agent are given it."""
+    t = _Asked()
+    copy = MemoryStore()  # the call logs its cost: on a copy, so the game is untouched
+    copy.append_all(s.run(lambda store: list(store.read(CAMPAIGN))))
+    advise(copy, CAMPAIGN, s.seat(who), "What now?", t)
+    (req,) = t.requests
+    return req.prompt.encode()
+
+
+def opening(s: Side, who: str) -> bytes:
+    """``/api/new/opening`` as ``who`` reads it: the people of the game, who is taken,
+    and the seats left."""
+    return _call(lambda: s.new(who, "opening"))
+
+
+def _fed(seat: SeatId, store: Any) -> list[Any]:
+    """Every event the catch-up seam feeds ``seat``, by wake, kind and payload: what any
+    feed built on it may draw, whether or not one draws it yet."""
+    fed = catchup.seat_events(store, CAMPAIGN, seat, 0, 999)
+    return [(f.wake, f.event.kind, f.event.payload.model_dump(mode="json")) for f in fed]
+
+
+def truth(s: Side) -> tuple[str, list[Any], list[Any]]:
+    """What the game holds, whoever may see it: the state's hash, every order held for
+    the next wake and who filed each player report. The two games of a pair must differ
+    here, or the pair hides nothing."""
 
     def held(store: Any) -> list[Any]:
         rows = store.conn.execute(
@@ -317,7 +398,13 @@ def truth(s: Side) -> tuple[str, list[Any]]:
         ).fetchall()
         return [tuple(r) for r in rows]
 
-    return state_hash(s.state()), s.run(held)
+    def filed(store: Any) -> list[Any]:
+        rows = store.conn.execute(
+            "SELECT seat_id, kind FROM player_reports ORDER BY report_id"
+        ).fetchall()
+        return [tuple(r) for r in rows]
+
+    return state_hash(s.state()), s.run(held), s.run(filed)
 
 
 def where(key: str, x: bytes, y: bytes) -> str:
@@ -364,7 +451,16 @@ class Pair:
     names: Callable[[Side], tuple[Probe, ...]] = lambda s: ()
     unseated: str | None = None
     """A person seated by an account in the first game and left to code in the second."""
+    swapped: str | None = None
+    """A person left to code in the first game only, so both games seat as many people."""
+    host: str | None = None
+    """Who hosts both games; the world's usual host when None."""
     wakes: int = 1
+    seam: bool = False
+    """Also compare the catch-up seam and the seat's record of its asks (``reads``)."""
+    apart: bool = False
+    """The two games seat different people: the view and the prompt are read without who
+    is seated (``reads``), which the "person or code" pair holds as its own finding."""
 
     @property
     def id(self) -> str:
@@ -372,7 +468,8 @@ class Pair:
 
     def seated(self, hidden: bool) -> tuple[str, ...]:
         every = TOY_SEATS if self.world == "toy" else SALT_SEATS
-        return tuple(p for p in every if not (hidden and p == self.unseated))
+        coded = self.unseated if hidden else self.swapped
+        return tuple(p for p in every if p != coded)
 
 
 def build(pair: Pair, db: PgDb, tmp: Path, hidden: bool) -> Side:
@@ -382,7 +479,7 @@ def build(pair: Pair, db: PgDb, tmp: Path, hidden: bool) -> Side:
     s = side(db, tmp / "game", decl)
     for who in pair.seated(hidden):
         s.claim(who)
-    s.host(HOSTS[pair.world])
+    s.host(pair.host or HOSTS[pair.world])
     s.begin()
     pair.act(s, hidden)
     return s
@@ -393,7 +490,7 @@ HOSTS = {"toy": "ilse", "salt": "oren_vale"}
 
 def close_wake(s: Side) -> None:
     """The host closes the open wake, as its "close the wake now" does."""
-    out = s.act(HOSTS[s_world(s)], "close")
+    out = s.act(s.hosting or HOSTS[s_world(s)], "close")
     assert not out.get("refused"), out
 
 
@@ -442,11 +539,41 @@ def toy_held(s: Side, hidden: bool) -> None:
         _done(s.act("kara", "ask", order_id=held_id))
 
 
+def toy_unplayed_decider(w: World, hidden: bool) -> None:
+    """Both games: asks are answered, and the march to the Isle is held for Sven Hald, a
+    councillor of Norra with a card, no written answers and no seat."""
+    w["rules"] = sorted({*w["rules"], "ask_answers"})
+    w["entities"].append({"key": "sven", "kind": "person", "name": "Sven Hald", "parent": "norra"})
+    w["cards"].append({"person": "sven", "office": "Councillor of Norra", "horizon_days": 14})
+    _find(w["locks"], "island_march")["decider"] = {"person": "sven"}
+
+
+def toy_ask_unplayed(s: Side, hidden: bool) -> None:
+    """Kara's march to the Isle, held for Sven, in both games; Kara asks him for it in one."""
+    _done(s.act("kara", "lever", lever="march", params={"force": "norra_levy", "to": "isle"}))
+    if hidden:
+        (held_id,) = list(s.state().held)
+        _done(s.act("kara", "ask", order_id=held_id))
+
+
 def toy_held_names(s: Side) -> tuple[Probe, ...]:
     ids = list(s.state().held) or ["no-such-order"]
     return tuple(Probe(a, {"order_id": str(i)}) for i in ids for a in ("ask", "withdraw")) + tuple(
         Probe("step", {"order_id": str(i), "action": "pass"}) for i in ids
     )
+
+
+def toy_declined(w: World, hidden: bool) -> None:
+    """Asks answered, and Ilse cold to Kara and holding to the Isle, so her card declines."""
+    answers_on(w)
+    hostile(w)
+
+
+def toy_asked(s: Side, hidden: bool) -> None:
+    """Kara's march to the Isle, held for Ilse, and Kara's ask of her, in both games."""
+    _done(s.act("kara", "lever", lever="march", params={"force": "norra_levy", "to": "isle"}))
+    (held_id,) = list(s.state().held)
+    _done(s.act("kara", "ask", order_id=held_id))
 
 
 def toy_aims(w: World, hidden: bool) -> None:
@@ -618,6 +745,27 @@ def salt_aims(w: World, hidden: bool) -> None:
         }
 
 
+def leaves(who: str) -> Act:
+    """``who``'s player leaves the game in the open wake, as the game menu's leave does:
+    the leader is the code's from the close."""
+
+    def act(s: Side, hidden: bool) -> None:
+        if hidden:
+            _done(s.game(who, "leave"))
+
+    return act
+
+
+REPORT_WORDS = "The toll on my desk reads 9 and the map says 8."
+INBOX = (Probe("reports", {"inbox": True}),)
+
+
+def report_author(s: Side, hidden: bool) -> None:
+    """The same words filed as a report by Kara, or (hidden) by Tomas of the other side:
+    the host reads them in the inbox, and must not learn whose they are."""
+    _done(s.act("tomas" if hidden else "kara", "report", kind="bug", text=REPORT_WORDS))
+
+
 SALT_PIECE_NAMES = (
     Probe("odds", {"force": "varda_levy", "to": "harrow_pass"}),
     Probe("odds", {"force": "varda_balloons", "to": "harrow_pass"}),
@@ -637,6 +785,13 @@ PAIRS: tuple[Pair, ...] = (
     Pair("held order and ask", "toy", ("olaf", "tomas"), act=toy_held, names=toy_held_names),
     Pair("other aims", "toy", ("kara", "tomas"), change=toy_aims),
     Pair(
+        "ask to a person with no seat",
+        "toy",
+        ("olaf", "tomas"),
+        change=toy_unplayed_decider,
+        act=toy_ask_unplayed,
+    ),
+    Pair(
         "report not arrived",
         "toy",
         ("ilse",),
@@ -644,7 +799,23 @@ PAIRS: tuple[Pair, ...] = (
         names=unarrived_names,
         wakes=0,
     ),
+    Pair("report author", "toy", ("ilse",), act=report_author, names=lambda s: INBOX),
     Pair("person or code", "toy", ("ilse", "kara"), unseated="tomas"),
+    Pair("pending leave", "toy", ("ilse", "kara"), act=leaves("tomas")),
+    Pair(
+        "person or code answering an ask",
+        "toy",
+        ("kara",),
+        change=toy_declined,
+        act=toy_asked,
+        names=toy_held_names,
+        unseated="ilse",
+        swapped="tomas",
+        host="olaf",
+        wakes=2,
+        seam=True,
+        apart=True,
+    ),
     Pair("hidden law", "toy", ("kara", "tomas"), change=toy_law),
     Pair(
         "written order awaiting the close",
@@ -677,6 +848,7 @@ PAIRS: tuple[Pair, ...] = (
         wakes=0,
     ),
     Pair("person or code", "salt", ("oren_vale",), unseated="general_aske"),
+    Pair("pending leave", "salt", ("oren_vale",), act=leaves("general_aske")),
     Pair(
         "written order awaiting the close",
         "salt",
@@ -694,7 +866,10 @@ NOT_BUILT: dict[str, str] = {
     "toy-sealed-vote": "the toy world has no conference or vote a seat files",
     "toy-private-agreement": "the toy world's two nations are at war and there is no third",
     "salt-held-order-and-ask": "Salt Strait declares no locks, so no order is ever held",
+    "salt-person-or-code-answering-an-ask": "Salt Strait declares no locks, so nothing is asked",
     "salt-hidden-law": "Salt Strait declares no law",
+    "salt-ask-to-a-person-with-no-seat": "Salt Strait declares no locks, so nothing is asked",
+    "salt-report-author": "Salt Strait seats one player besides the host, so no second author",
 }
 """Kinds that cannot be built in a world through its public entry points, left for the
 security review."""

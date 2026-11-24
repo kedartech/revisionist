@@ -17,7 +17,9 @@ With ``ask_answers`` on, the same people answer an ask (AAK): an ask for a held 
 to a person no seat with a desk holds falls due ``ANSWER_DAYS`` world days after it was
 made, and on that day the person's card grants or declines it from state, once. A grant
 opens nothing itself: the person files their own order through today's routing, and the
-lock opens from state once that order has taken effect.
+lock opens from state once that order has taken effect. A person a seat holds is never
+answered for, so the asker is told neither the card's answer (``told``) nor who holds
+the decider (``as_asked``): it learns only what the decider's own order does.
 """
 
 from collections.abc import Iterable, Iterator, Mapping
@@ -27,6 +29,7 @@ from typing import NamedTuple
 from revisionist.core import events as ev
 from revisionist.core.goals import Ordered
 from revisionist.core.ids import EntityId, MandateId, OrderId, SeatId, derived_id
+from revisionist.core.ontology import regard_held
 from revisionist.core.realism import actors, laws, locks, opponents
 from revisionist.core.realism.agenda import (
     MANDATE_CAP,
@@ -38,7 +41,7 @@ from revisionist.core.realism.agenda import (
 )
 from revisionist.core.realism.answer import ENTITY_FIELDS, Answer, AnswerWhen
 from revisionist.core.realism.apply import shift
-from revisionist.core.realism.card import Lever, ParamKind, words
+from revisionist.core.realism.card import Lever, ParamKind, superiors, words
 from revisionist.core.realism.effect import (
     Deal,
     Effect,
@@ -387,16 +390,41 @@ def asks_due(state: State, day: date) -> list[locks.Asked]:
     )
 
 
-def ask_deciders(state: State, day: date) -> list[EntityId]:
-    """The people who answer an ask on ``day``, so each has a seat to file from."""
-    return sorted({a.to for a in asks_due(state, day)})
+def askable(state: State) -> list[EntityId]:
+    """The unplayed people with a card whom an ask could go to, in id order: the person
+    each lock row's decider sends it to, and every card with authority up another card's
+    chain of principals (a derived decider). None with asks off. Read from the rows and
+    cards alone, never from an ask, so a seat made for one of them tells nobody that an
+    ask was made."""
+    if not asks_on(state):
+        return []
+    rows = {locks.asked_of(r.decider) for r in state.locks}
+    above = {up for p in state.cards for up in superiors(state.cards, p)}
+    could = rows | {p for p in above if p in state.cards and state.cards[p].authority}
+    return sorted(p for p in could if p is not None and p in state.cards and not _played(state, p))
+
+
+def told(state: State, row: str | None) -> bool:
+    """Whether the answer to an ask on the lock row keyed ``row`` is told to the asker:
+    only on a row decided by its kind of question (``locks.by_kind``), which is answered
+    on its due day whoever holds the decider. On any other row a person a seat holds is
+    never answered for, so a card's answer told would say the decider is run by code."""
+    found = next((r for r in state.locks if r.key == row), None)
+    return found is not None and locks.by_kind(state, found)
+
+
+def as_asked(state: State, asked: locks.Asked, seat: SeatId) -> locks.Asked:
+    """``asked`` as ``seat`` holds it. With ``ask_answers`` on, the asker's own record
+    names no seat it went before and no answer, the same whether a person or code holds
+    the decider; a seat the ask was put before holds it whole."""
+    if not asks_on(state) or seat != asked.asker or seat in (asked.seat, *asked.seats):
+        return asked
+    return asked.model_copy(update={"seat": None, "seats": (), "answered": None, "granted": None})
 
 
 def _regard(state: State, one: EntityId, other: EntityId) -> int:
-    return next(
-        (r.disposition for r in state.relationships.values() if {r.a, r.b} == {one, other}),
-        0,
-    )
+    found = regard_held(state.relationships, one, other, either=True)
+    return 0 if found is None else found.disposition
 
 
 def _words(*texts: object) -> set[str]:
@@ -412,8 +440,19 @@ def _touches(state: State, held: locks.HeldOrder, keys: Iterable[str]) -> bool:
         return any(t.touched(form.lever, (), _words(*form.params.values())) for t in topics)
     effects = [a.effect for a in held.asks if a.effect is not None]
     kinds = {e.kind for e in effects}
-    said = _words(*(v for e in effects for v in e.model_dump(mode="json").values()))
+    said = _words(*(v for e in effects for v in _typed(e)))
     return any(t.touched(None, kinds, said) for t in topics)
+
+
+def _typed(effect: Effect) -> list[object]:
+    """The values of ``effect`` a topic may be touched by. For a deal, its clause types
+    and the nations it names: never its wording, a clause's text, or its offer and ask,
+    which the offering seat writes."""
+    if isinstance(effect, Deal):
+        named = {effect.counterparty, *effect.parties}
+        named |= {n for c in effect.clauses for n in (c.binds, c.nation) if n is not None}
+        return [*sorted(named), *(c.type.value for c in effect.clauses)]
+    return list(effect.model_dump(mode="json").values())
 
 
 def _carried(state: State, person: EntityId) -> int:
@@ -566,12 +605,14 @@ __all__ = [
     "acts_on",
     "answer_ask",
     "answerers",
-    "ask_deciders",
+    "as_asked",
     "ask_score",
+    "askable",
     "asks_due",
     "asks_on",
     "grants",
     "make",
     "matches",
     "plan",
+    "told",
 ]

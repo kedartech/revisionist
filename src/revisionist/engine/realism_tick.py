@@ -812,6 +812,20 @@ def ask_order(
     return asked
 
 
+def sendable(
+    state: State, seat: SeatId, h: locks.HeldOrder, today: date
+) -> tuple[tuple[defiance.Act, ...], ev.OrderDrafted | ev.OrderRouted]:
+    """Whether the seat's held order ``h`` may be sent anyway today, as ``send_anyway``
+    rules it: its acts and the landing. Raises ``ValueError`` with the seat's words. The
+    check before sending reads the same rule, so the price it names and the send agree."""
+    acts = defiance.may_send(state, seat, h)
+    landed_id = OrderId(derived_id(state.campaign_id, "defied", h.order_id))
+    landing, refusal = _relanded(state, h, landed_id, today)
+    if landing is None:
+        raise ValueError(refusal[:300] or NOBODY)
+    return acts, landing
+
+
 def send_anyway(
     store: EventStore, campaign_id: CampaignId, seat: SeatId, order_id: OrderId
 ) -> ev.OrderDefied:
@@ -825,11 +839,8 @@ def send_anyway(
         raise ValueError(locks.NOT_HELD)
     if order_id in state.aide_orders:
         raise ValueError(defiance.BY_AIDE)
-    acts = defiance.may_send(state, seat, h)
+    acts, landing = sendable(state, seat, h, today)
     landed_id = OrderId(derived_id(state.campaign_id, "defied", order_id))
-    landing, refusal = _relanded(state, h, landed_id, today)
-    if landing is None:
-        raise ValueError(refusal[:300] or NOBODY)
     sent = ev.OrderDefied(
         defied=defiance.Defied(
             order_id=order_id,

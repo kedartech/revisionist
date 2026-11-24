@@ -19,7 +19,7 @@ import pytest
 
 from revisionist.core import events as ev
 from revisionist.core.fold import FoldError, apply
-from revisionist.core.ids import AssetId, OrderId, derived_id
+from revisionist.core.ids import AssetId, EventId, OrderId, derived_id
 from revisionist.core.realism import defiance, locks
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.defiance import Act, Cause, Incident, Verdict
@@ -411,6 +411,75 @@ def test_dismissed_a_step_down_the_commanders_ladder_by_its_rules(tmp_path: Path
     answer(store, incident, "dismissed")
     (move,) = [p.move for p in logged(store, ev.PostMoveOrdered)]
     assert (move.person, move.post, move.appoint, move.by) == (KARA, COMMAND, False, ILSE)
+
+
+def _log(store: MemoryStore, payload: Any) -> None:
+    """``payload`` logged after the store's last event, in its scope."""
+    last = list(store.read(CAMPAIGN))[-1]
+    seq = last.seq + 1
+    event_id = EventId(derived_id(CAMPAIGN, "test", str(seq)))
+    store.append_all(
+        [last.model_copy(update={"payload": payload, "seq": seq, "event_id": event_id})]
+    )
+
+
+def two_on_one_day(tmp: Path) -> tuple[MemoryStore, Incident, Incident]:
+    """Kara's incident, and a second against her opened the same day on another order."""
+    store, first = sent_and_carried(tmp)
+    second = first.model_copy(
+        update={
+            "incident_id": derived_id(CAMPAIGN, "incident", "second"),
+            "order_id": OrderId(derived_id(CAMPAIGN, "order", "second")),
+        }
+    )
+    _log(store, ev.IncidentOpened(incident=second))
+    return store, first, second
+
+
+def test_two_incidents_dismissed_on_one_day_order_one_step_down(tmp_path: Path) -> None:
+    store, first, second = two_on_one_day(tmp_path)
+    answer(store, first, "dismissed")
+    done = answer(store, second, "dismissed")
+    assert done.verdict is Verdict.DISMISSED
+    (move,) = [p.move for p in logged(store, ev.PostMoveOrdered)]
+    assert (move.person, move.post, move.appoint) == (KARA, COMMAND, False)
+
+
+def test_the_card_dismissing_twice_on_one_day_leaves_the_walk_going(tmp_path: Path) -> None:
+    from revisionist.core.realism import ladder
+
+    store, first, second = two_on_one_day(tmp_path)
+    state = load_state(store, CAMPAIGN)
+    for lowered in ladder.regard(
+        state, ILSE, KARA, regard(store, ILSE, KARA) - defiance.DISMISS_AT
+    ):
+        _log(store, lowered)
+    state = tick_until(store, lambda s: all(i.verdict for i in s.incidents.values()), ticks=6)
+    assert [state.incidents[i.incident_id].verdict for i in (first, second)] == [
+        Verdict.DISMISSED,
+        Verdict.DISMISSED,
+    ]
+    assert len(logged(store, ev.PostMoveOrdered)) == 1
+    day = state.in_world_date
+    after = tick_until(store, lambda s: s.in_world_date != day, ticks=1)
+    assert after.in_world_date is not None and day is not None and after.in_world_date > day
+
+
+def test_an_answer_the_log_refuses_is_told_in_words_and_stores_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store, incident = sent_and_carried(tmp_path)
+    answered = defiance.answer
+
+    def twice(*args: Any, **kw: Any) -> list[Any]:
+        out = answered(*args, **kw)
+        return [*out, out[0]]
+
+    monkeypatch.setattr(defiance, "answer", twice)
+    before = len(list(store.read(CAMPAIGN)))
+    with pytest.raises(ValueError, match=f"^{defiance.NOT_LANDED}$"):
+        answer(store, incident, "dismissed")
+    assert len(list(store.read(CAMPAIGN))) == before
 
 
 def test_abroad_the_incident_names_the_nation_it_was_done_to(tmp_path: Path) -> None:

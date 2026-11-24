@@ -146,7 +146,7 @@ def test_every_force_is_a_piece_standing_in_an_area() -> None:
     assert board is not None
     areas = set(board.areas())
     forces = _forces(r)
-    assert len(forces) == 29
+    assert len(forces) == 30
     assert [key_of(r, f.feature_id) for f in forces if f.kind is not FeatureKind.PIECE] == []
     assert [key_of(r, f.feature_id) for f in forces if f.places[0] not in areas] == []
 

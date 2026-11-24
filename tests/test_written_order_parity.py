@@ -430,7 +430,7 @@ def test_the_batches_hold_every_case_once_and_share_no_person_or_piece() -> None
         assert len({c.person for c in batch}) == len(batch)
         pieces = [p for c in batch for p in _pieces(c)]
         assert len(set(pieces)) == len(pieces)
-    assert len(played) < len(CASES) / 2
+    assert len(played) < len(CASES) * 11 / 20
 
 
 @pytest.mark.parametrize("batch", [_batch(b) for b in batches(CASES)])

@@ -32,7 +32,7 @@ from datetime import date
 from revisionist.core import events as ev
 from revisionist.core.events import Event
 from revisionist.core.ids import CampaignId, DocumentId, OrderId, SeatId
-from revisionist.core.project import project
+from revisionist.core.project import project, untold_goals
 from revisionist.core.realism import answering
 from revisionist.core.realism.document import DocumentTruth
 from revisionist.core.realism.effect import RoutedOrder
@@ -255,6 +255,10 @@ NEVER: frozenset[str] = frozenset(
 )
 
 
+GOAL_NEWS = (ev.GoalProgressed, ev.GoalMet, ev.GoalUndone)
+"""The news of a goal: none is told of one in ``untold_goals``."""
+
+
 @dataclass(frozen=True)
 class SeatEvent:
     wake: int
@@ -360,6 +364,7 @@ def feed(
 ) -> tuple[SeatEvent, ...]:
     """``seat_events`` over a log already read, ``state`` being its fold."""
     view = project(state, seat)
+    untold = untold_goals(state, seat)
     log = list(events)
     opened: list[tuple[int, date]] = []
     rows: dict[OrderId, str | None] = {}
@@ -384,6 +389,8 @@ def feed(
         elif isinstance(p, ev.WakeOpened):
             current = p.wake
         if e.kind not in FEED_KINDS or not _visible(e, view):
+            continue
+        if isinstance(p, GOAL_NEWS) and p.goal_id in untold:
             continue
         if isinstance(p, ev.AskAnswered) and not answering.told(state, rows.get(p.order_id)):
             continue

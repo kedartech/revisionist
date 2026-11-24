@@ -33,7 +33,7 @@ from collections.abc import Mapping
 from typing import Protocol
 
 from revisionist.core.aim_patterns import OwnAim
-from revisionist.core.goals import Goal, aim_rule, sees_goal
+from revisionist.core.goals import Goal, aim_rule, hidden_at_post, sees_goal
 from revisionist.core.goals import at_post as goal_at_post
 from revisionist.core.ids import (
     AssetId,
@@ -130,6 +130,18 @@ def _goals(state: State, seat: SeatId, post: bool) -> dict[GoalId, Goal]:
     if not post:
         return seen
     return {k: goal_at_post(g, aim_rule(state, g)) for k, g in seen.items()}
+
+
+def untold_goals(state: State, seat: SeatId) -> frozenset[GoalId]:
+    """The goals in ``seat``'s view whose met, undone and progress it is not told: held to
+    his post, each ``goals.at_post`` blanks. The feed and the playback both read this."""
+    if not at_post(state, seat):
+        return frozenset()
+    return frozenset(
+        k
+        for k, g in state.goals.items()
+        if sees_goal(state, g, seat) and hidden_at_post(g, aim_rule(state, g))
+    )
 
 
 def _quantities(state: State, seat: SeatId, post: bool) -> dict[QuantityId, Quantity]:

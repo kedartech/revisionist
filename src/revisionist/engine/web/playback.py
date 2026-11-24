@@ -35,12 +35,12 @@ from datetime import date
 
 from revisionist.core import events as ev
 from revisionist.core.ids import EntityId, OrderId, SeatId
-from revisionist.core.project import project
+from revisionist.core.project import project, untold_goals
 from revisionist.core.realism import apply, groups, locks
 from revisionist.core.realism.pipelines import order_words
 from revisionist.core.realism.resolvers import votes
 from revisionist.core.state import State, View
-from revisionist.engine.catchup import SeatEvent
+from revisionist.engine.catchup import GOAL_NEWS, SeatEvent
 from revisionist.engine.web import economy_api, home_api, map_api
 from revisionist.engine.web.realism_api import (
     MapNation,
@@ -345,6 +345,7 @@ def steps(
         if isinstance(f.event.payload, ev.OrderHeld) and f.event.payload.held.issuer == seat:
             holds[f.event.payload.held.order_id] = f.event.payload.held
     names = _Names(state, project(state, seat), holds)
+    untold = untold_goals(state, seat)
     for f in ordered:
         p = f.event.payload
         if isinstance(p, ev.GroupMoved) and p.polity == names.own:
@@ -362,6 +363,8 @@ def steps(
     for f in ordered:
         p = f.event.payload
         if f.event.kind not in STEP_KINDS:
+            continue
+        if isinstance(p, GOAL_NEWS) and p.goal_id in untold:
             continue
         day = _day(p) or today.get(f.wake) or first.get(f.wake)
         if day is None:

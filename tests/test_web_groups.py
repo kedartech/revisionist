@@ -347,3 +347,303 @@ def test_the_seat_fixture_carries_the_home_block_in_the_snapshot_shape(tmp_path:
     shape(fixture["moved"], api.HomeMoved)
     shape(fixture["places"], api.HomePlace)
     shape([m for g in fixture["groups"] for m in g["since"]], api.HomeMove)
+
+
+# --- A capital's live questions, as the seat may know them --------------------------------
+
+
+def sent_to(state: Any, who: Any, log: list[Any]) -> dict[str, Any]:
+    return rs.seat_realism(state, who, set(), set(), None, events=log)
+
+
+def capital(sent: dict[str, Any], name: str) -> list[dict[str, Any]]:
+    """The questions of the nation ``name`` in the seat's ``capitals``."""
+    (found,) = [c for c in sent["capitals"] if c["nation"]["name"] == name]
+    return list(found["questions"])
+
+
+REFS = {
+    "home.chambers": lambda s: [
+        m["order_id"] for c in s["home"]["chambers"] for m in c["measures"]
+    ],
+    "home.offers": lambda s: [o["key"] for o in s["home"]["offers"]],
+    "home.office": lambda s: [q["question_id"] for q in s["home"]["office"]],
+    "home.elections": lambda s: [e["day"] for e in s["home"]["elections"]],
+    "locks.asks": lambda s: [a["id"] for a in s["locks"]["asks"]],
+    "locks.held": lambda s: [h["id"] for h in s["locks"]["held"]],
+    "agreements.offers": lambda s: [o["item"] for o in s["agreements"]["offers"]],
+    "agreements.agreements": lambda s: [a["id"] for a in s["agreements"]["agreements"]],
+    "conferences.conferences": lambda s: [c["key"] for c in s["conferences"]["conferences"]],
+}
+
+
+def points_home(sent: dict[str, Any], log: list[Any]) -> None:
+    """Rule 4: each line points at data the seat is already sent, or, for a sitting's
+    result, at the public news of it in the log."""
+    decided = {
+        e.payload.question_id
+        for e in log
+        if isinstance(e.payload, ev.OfficeQuestionDecided) and e.scope.visibility.value == "public"
+    }
+    for line in sent["capitals"]:
+        for q in line["questions"]:
+            assert set(q) == set(api.CapitalQuestion.__annotations__)
+            assert set(q["decider"]) == set(api.CapitalDecider.__annotations__)
+            if q["at"] == "news":
+                assert q["ref"] in decided, q
+            else:
+                assert q["ref"] in REFS[q["at"]](sent), q
+
+
+def test_the_seats_own_capital_comes_first_and_lists_a_measure_before_its_chamber(
+    tmp_path: Path,
+) -> None:
+    g = fixture_game(tmp_path)
+    sent = realism(g)
+    own, other = sent["capitals"]
+    assert own["nation"]["relation"] == "own" and own["nation"]["name"] == "Norra"
+    assert other["nation"]["name"] == "Sudland"
+    (q,) = own["questions"]
+    assert (q["kind"], q["title"], q["day"], q["at"]) == (
+        "measure",
+        "Levy act",
+        None,
+        "home.chambers",
+    )
+    assert q["decider"] == {
+        "shape": "body",
+        "who": "assembly",
+        "members": ["The Greens", "The Greys"],
+    }
+    assert other["questions"] == []
+    points_home(sent, g.log)
+
+
+def test_another_nations_measure_is_not_in_its_capital(tmp_path: Path) -> None:
+    g = fixture_game(tmp_path)
+    assert capital(realism(g, "tomas"), "Norra") == []
+
+
+def office_game(tmp: Path, *changes: Callable[[World], None]) -> Any:
+    from tests.test_blocs_turn import greens_at
+    from tests.test_web_office import built
+
+    g = built(tmp, *changes, greens_at(60))
+    g.ask()
+    return g
+
+
+@pytest.mark.parametrize(
+    ("way", "shape", "who", "members"),
+    [
+        ({"by": "vote", "chamber": "assembly"}, "body", "assembly", ["The Greens", "The Greys"]),
+        (
+            {"by": "council", "members": ["ilse", "kara"], "needed": 1},
+            "council",
+            "the council",
+            ["Ilse Varg", "Kara Lind"],
+        ),
+        ({"by": "person", "person": "ilse"}, "person", "Ilse Varg", ["Ilse Varg"]),
+    ],
+)
+def test_an_office_sitting_says_the_shape_of_who_decides_it(
+    tmp_path: Path, way: dict[str, Any], shape: str, who: str, members: list[str]
+) -> None:
+    from tests.test_office_question import office_on
+    from tests.test_posts import ILSE
+
+    g = office_game(tmp_path, office_on(way))
+    log = list(g.store.read(CAMPAIGN))
+    sent = sent_to(g.state, seat_of_(g, ILSE), log)
+    (q,) = [q for q in capital(sent, "Norra") if q["kind"] == "office"]
+    (line,) = sent["home"]["office"]
+    assert (q["title"], q["day"], q["at"], q["ref"]) == (
+        line["office"],
+        line["sits"],
+        "home.office",
+        line["question_id"],
+    )
+    assert (q["decider"]["shape"], q["decider"]["who"], q["decider"]["members"]) == (
+        shape,
+        who,
+        members,
+    )
+    points_home(sent, log)
+
+
+def seat_of_(g: Any, who: Any) -> Any:
+    from tests.test_office_question import seat_of
+
+    return seat_of(g.state, who)
+
+
+def test_an_election_ahead_is_listed_before_its_chambers(tmp_path: Path) -> None:
+    from tests.test_elections import DAY, support, with_post
+    from tests.test_posts import ILSE
+    from tests.test_web_office import built
+
+    g = built(tmp_path, support(80, 10), with_post)
+    log = list(g.store.read(CAMPAIGN))
+    sent = sent_to(g.state, seat_of_(g, ILSE), log)
+    (q,) = [q for q in capital(sent, "Norra") if q["kind"] == "election"]
+    assert (q["day"], q["at"], q["ref"]) == (DAY.isoformat(), "home.elections", DAY.isoformat())
+    assert q["decider"] == {"shape": "body", "who": "assembly", "members": ["assembly"]}
+    points_home(sent, log)
+
+
+def test_a_foreign_capital_lists_a_sittings_result_once_it_is_news(tmp_path: Path) -> None:
+    from tests.test_office_question import BY_PERSON, office_on
+    from tests.test_posts import ILSE, TOMAS
+
+    g = office_game(tmp_path, office_on(BY_PERSON))
+    log = list(g.store.read(CAMPAIGN))
+    assert capital(sent_to(g.state, seat_of_(g, TOMAS), log), "Norra") == []
+    g.choose(ILSE, False)
+    g.until_decided()
+    log = list(g.store.read(CAMPAIGN))
+    sent = sent_to(g.state, seat_of_(g, TOMAS), log)
+    (q,) = capital(sent, "Norra")
+    assert (q["kind"], q["at"], q["title"]) == ("result", "news", "General of the Norra Levy")
+    assert q["decider"] == {"shape": "person", "who": "Ilse Varg", "members": ["Ilse Varg"]}
+    points_home(sent, log)
+    assert capital(sent, "Sudland") == []
+
+
+def test_a_foreign_capital_is_the_same_whatever_its_private_questions(tmp_path: Path) -> None:
+    """The fog: twin games, one with an office question open on Norra's command, read the
+    same to Sudland's seat, byte for byte, in Norra's capital and in its whole list."""
+    from tests.test_blocs_turn import greens_at
+    from tests.test_office_question import BY_PERSON, office_on
+    from tests.test_posts import ILSE, TOMAS
+    from tests.test_web_office import built
+
+    (tmp_path / "a").mkdir()
+    (tmp_path / "b").mkdir()
+    plain = built(tmp_path / "a", office_on(BY_PERSON), greens_at(60))
+    asked = office_game(tmp_path / "b", office_on(BY_PERSON))
+    sent = [
+        sent_to(g.state, seat_of_(g, TOMAS), list(g.store.read(CAMPAIGN))) for g in (plain, asked)
+    ]
+    assert json.dumps(sent[0]["capitals"]) == json.dumps(sent[1]["capitals"])
+    mine = sent_to(asked.state, seat_of_(asked, ILSE), list(asked.store.read(CAMPAIGN)))
+    assert [q["kind"] for q in capital(mine, "Norra")] == ["office"]
+
+
+def test_a_peace_before_the_seat_is_listed_with_who_may_accept_it(tmp_path: Path) -> None:
+    from tests import test_peace as tp
+    from tests.test_agreements import ILSE, TOMAS
+    from tests.test_web_agreements import offered
+
+    g = tp.game(tmp_path)
+    offered(g)
+    sent = sent_to(g.state, TOMAS, g.log)
+    (q,) = capital(sent, "Sudland")
+    (line,) = sent["agreements"]["offers"]
+    assert (q["kind"], q["at"], q["ref"], q["day"]) == (
+        "peace",
+        "agreements.offers",
+        line["item"],
+        line["expires"],
+    )
+    assert q["title"] == "Peace offered by Norra"
+    assert q["decider"] == {"shape": "person", "who": "Tomas Brand", "members": ["Tomas Brand"]}
+    points_home(sent, g.log)
+    assert capital(sent_to(g.state, ILSE, g.log), "Norra") == []
+
+
+def test_an_offer_that_carries_no_peace_is_not_a_peace_before_the_seat(tmp_path: Path) -> None:
+    from tests import test_peace as tp
+    from tests.test_agreements import TOMAS, day, deal, offer
+    from tests.test_web_agreements import keep_out
+
+    g = tp.game(tmp_path)
+    offer(g, deal(keep_out()))
+    g.walk(day(1), day(1))
+    sent = sent_to(g.state, TOMAS, g.log)
+    assert [o["item"] is not None for o in sent["agreements"]["offers"]] == [True]
+    assert capital(sent, "Sudland") == []
+
+
+def test_a_peace_held_for_a_council_is_listed_before_the_council(tmp_path: Path) -> None:
+    from tests import test_peace as tp
+    from tests.test_agreements import TOMAS
+    from tests.test_web_agreements import offered
+
+    g = tp.game(tmp_path, tp.council(3))
+    offered(g)
+    (q,) = capital(sent_to(g.state, TOMAS, g.log), "Sudland")
+    assert q["decider"] == {
+        "shape": "council",
+        "who": "the council under Tomas Brand",
+        "members": ["Tomas Brand", "Sven Dahl"],
+    }
+
+
+def test_an_ask_before_a_council_and_the_seats_own_held_order_are_listed(tmp_path: Path) -> None:
+    from tests import test_peace as tp
+    from tests.test_agreements import TOMAS, day
+
+    g = tp.game(tmp_path, tp.council(3))
+    _, due = tp.accepted_by_tomas(g)
+    g.walk(day(1), due)
+    sent = sent_to(g.state, TOMAS, g.log)
+    kinds = {q["kind"]: q for q in capital(sent, "Sudland")}
+    assert kinds["ask"]["decider"]["shape"] == "council"
+    assert kinds["ask"]["at"] == "locks.asks"
+    points_home(sent, g.log)
+
+
+def test_a_foreign_capital_lists_a_published_agreement_and_no_private_one(tmp_path: Path) -> None:
+    from tests.test_agreements import ILSE, OLAF, game, in_force
+    from tests.test_web_agreements import keep_out
+
+    g = game(tmp_path, rules=("agreements",))
+    in_force(g, keep_out())
+    private = sent_to(g.state, OLAF, g.log)
+    assert capital(private, "Norra") == capital(private, "Sudland") == []
+    party = sent_to(g.state, ILSE, g.log)
+    assert [a["published"] for a in party["agreements"]["agreements"]] == [None]
+    assert capital(party, "Sudland") == []
+    x = in_force(g, keep_out(), public=True)
+    sent = sent_to(g.state, OLAF, g.log)
+    for name in ("Norra", "Sudland"):
+        (q,) = capital(sent, name)
+        assert (q["kind"], q["ref"], q["at"]) == (
+            "agreement",
+            x.agreement_id,
+            "agreements.agreements",
+        )
+        assert q["decider"] == {
+            "shape": "council",
+            "who": "Norra and Sudland",
+            "members": ["Norra", "Sudland"],
+        }
+    points_home(sent, g.log)
+
+
+def test_a_foreign_capital_lists_a_public_vote_once_reported(tmp_path: Path) -> None:
+    from tests.test_conference import NORRA, OSTMARK, TOMAS, game, run_until_tallied
+
+    g = game(tmp_path)
+    g.open()
+    g.call(invited=(NORRA, OSTMARK), public=True)
+    assert capital(sent_to(g.state, TOMAS, g.log), "Ostmark") == []
+    run_until_tallied(g)
+    sent = sent_to(g.state, TOMAS, g.log)
+    (q,) = capital(sent, "Ostmark")
+    assert (q["kind"], q["at"]) == ("vote", "conferences.conferences")
+    assert q["decider"]["shape"] == "council" and q["decider"]["members"] == ["Norra", "Ostmark"]
+    assert capital(sent, "Norra") == [q]
+    points_home(sent, g.log)
+
+
+def test_a_private_vote_is_in_no_foreign_capital_even_for_a_nation_invited(tmp_path: Path) -> None:
+    from tests.test_conference import ILSE, NORRA, OSTMARK, game, run_until_tallied
+
+    g = game(tmp_path)
+    g.open()
+    g.call(invited=(NORRA, OSTMARK))
+    run_until_tallied(g)
+    sent = sent_to(g.state, ILSE, g.log)
+    assert [c["tallied"] is not None for c in sent["conferences"]["conferences"]] == [True]
+    assert capital(sent, "Ostmark") == []

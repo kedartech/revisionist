@@ -50,6 +50,7 @@ from revisionist.core.ontology import (
     Controller,
     EntityStatus,
     ScheduleSource,
+    regard_held,
 )
 from revisionist.core.realism.card import ParamValue
 from revisionist.core.realism.effect import EffectKind
@@ -522,7 +523,7 @@ def _in_force(world: State | View, c: AgreementInForce) -> bool:
 
 def _regard(world: State | View, a: EntityId, b: EntityId) -> int:
     """The disposition between ``a`` and ``b``, either way round; 0 with none."""
-    found = next((r for r in world.relationships.values() if {r.a, r.b} == {a, b}), None)
+    found = regard_held(world.relationships, a, b, either=True)
     return 0 if found is None else found.disposition
 
 

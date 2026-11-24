@@ -310,6 +310,7 @@ def _abroad(
     from revisionist.core.realism.conference import head
     from revisionist.core.realism.ladder import regard
     from revisionist.core.realism.war import polity_of
+    from revisionist.core.state import seat_of_person
 
     if nation is None:
         return []
@@ -318,9 +319,11 @@ def _abroad(
     theirs = head(state, nation)
     if ours is None or theirs is None or ours == theirs:
         return []
+    held = (seat_of_person(state, p) for p in (ours, theirs))
+    seats = frozenset(s.seat_id for s in held if s is not None)
     return [
-        regard(state, ours, theirs, INCIDENT_REGARD),
-        regard(state, theirs, ours, INCIDENT_REGARD),
+        *regard(state, ours, theirs, INCIDENT_REGARD, seats),
+        *regard(state, theirs, ours, INCIDENT_REGARD, seats),
     ]
 
 
@@ -334,14 +337,9 @@ def due(state: "State", day: date) -> list[Label]:
 
 def card_verdict(state: "State", incident: Incident) -> Verdict:
     """The superior's card's answer, by how he regards the commander [proposed]."""
-    regard = next(
-        (
-            r.disposition
-            for r in state.relationships.values()
-            if r.a == incident.superior and r.b == incident.commander
-        ),
-        0,
-    )
+    from revisionist.core.realism.ladder import regard_of
+
+    regard = regard_of(state.relationships, incident.superior, incident.commander)
     if regard >= BACK_AT:
         return Verdict.BACKED
     if regard <= DISMISS_AT:
@@ -375,9 +373,10 @@ def answer(
             force = state.features.get(fid)
             if force is not None and force.engagement != rule:
                 out.append(ev.FeatureSet(feature=force.model_copy(update={"engagement": rule})))
+        seats = frozenset(incident.seats)
         out += [
-            ladder.regard(state, c, s, INCIDENT_REGARD),
-            ladder.regard(state, s, c, INCIDENT_REGARD),
+            *ladder.regard(state, c, s, INCIDENT_REGARD, seats),
+            *ladder.regard(state, s, c, INCIDENT_REGARD, seats),
         ]
     elif verdict is Verdict.DISMISSED:
         card = state.cards.get(c)

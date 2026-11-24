@@ -416,6 +416,8 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return office.choice_scope(payload.seat_id)  # OFQ: sealed to the seat that chose
     if isinstance(payload, ev.DocumentIssued):
         return payload.document.scope
+    if isinstance(payload, ev.RelationshipSet):
+        return payload.relationship.scope
     if isinstance(payload, ev.OrderExecuted | ev.EffectsApplied | ev.InfluenceDecided):
         return private_to(state.routed[payload.order_id].issuer)
     if isinstance(payload, ev.MandateIssued):
@@ -914,7 +916,7 @@ def choose_office(
     state = load_state(store, campaign_id)
     today = state.in_world_date
     if today is None:
-        raise ValueError(office.NOT_OPEN)
+        raise ValueError(office.NOT_YOURS)
     chosen = office.choose(state, seat, question_id, remove, today)
     _append_all(store, state, [(chosen, office.choice_scope(seat))], seat)
 

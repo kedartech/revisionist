@@ -24,6 +24,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
+import { capitalLines } from './capital-line.js';
 import { installDom, words } from './dom-fake.js';
 
 installDom();
@@ -103,6 +104,7 @@ function seat(n = 3, change = () => {}) {
   }] };
   rv.stakes = { ...structuredClone(fixture.stakes), contests: [structuredClone(fixture.stakes.contests[0])], mandates: [structuredClone(fixture.stakes.mandates[0])] };
   change(rv);
+  rv.capitals = capitalLines(rv);
   return rv;
 }
 

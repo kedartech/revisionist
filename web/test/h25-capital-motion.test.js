@@ -14,6 +14,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { beforeEach, mock, test } from 'node:test';
 
+import { capitalLines } from './capital-line.js';
 import { installDom, words } from './dom-fake.js';
 
 const proto = Object.getPrototypeOf(installDom().createElement('div'));
@@ -81,6 +82,7 @@ function seat(change = () => {}) {
     promises: [],
   };
   change(rv);
+  rv.capitals = capitalLines(rv);
   return rv;
 }
 

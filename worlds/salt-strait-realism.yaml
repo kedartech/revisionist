@@ -11,7 +11,9 @@
 # a trade line, groups at home, intelligence, a pact, a conference, a contest and aims of
 # its own; and the commander's seat, locks, laws, deciders by kind of question, answers to
 # asks and the player's own aim (SSO); and prices on the Salt Assembly's blocs, classes for
-# happenings with one secret, the size of losses, and one weighted place a nation (SSH).
+# happenings with one secret, the size of losses, and one weighted place a nation (SSH);
+# and an office for each head that says what it rests on and how its holder is removed, a
+# ladder and the acts each military post may attempt, and the Lune Moot's election (SSF).
 # The three rules read by a live model (`writing`,
 # `clause_reader`, `written_orders`) stay off, as in every shipped world.
 # `worlds/salt-strait.yaml` and `worlds/salt-strait-duo.yaml` are separate worlds and are
@@ -23,7 +25,7 @@ ruleset: realism
 start: "The Salt Strait, spring 1900"
 start_date: 1900-04-02
 
-rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, laws, ask_answers, deciders, own_aim, offers, classes, losses, places]
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, laws, ask_answers, deciders, own_aim, offers, classes, losses, places, posts, office, elections, defiance]
 
 entities:
   # polities
@@ -136,12 +138,58 @@ features:
   - {key: lune_galleys, kind: piece, piece: galley, name: The Lune Galleys, side: lune, tier: 2, places: [lune_haven], source: salt_strait}
   - {key: lune_levy, kind: piece, piece: levy, name: The Harbour Levy, side: lune, tier: 2, places: [free_port], source: salt_strait}
 
-# The playable leaders' offices: a person of the roster controls one (the character rule,
-# with contests on).
+# The offices: a person of the roster controls one (the character rule, with contests on).
+# Each head's office is his post (SSF), read with `posts` on: what it rests on and how its
+# holder is removed (`office`), one way a nation: Varda's First Minister by a vote of the
+# Salt Assembly, the Abbess by Tam Orrin, the Keeper of the Temple orders, the Lune Admiral
+# at the end of his term, on the day the Moot is elected, and Ostrel's Marshal never. A
+# military post names the lesser post its holder falls to, who may move him, and the acts
+# he may attempt without leave (`defiance`); nobody moves a head by order. [proposed]
 assets:
-  - {key: varda_first_ministry, kind: office, name: First Minister of Varda, tier: 3, controller: oren_vale}
-  - {key: ostrel_marshalcy, kind: office, name: Marshal of Ostrel, tier: 3, controller: general_aske}
-  - {key: varda_galley_command, kind: office, name: Commodore of the Varda Galleys, tier: 2, controller: brask}
+  - key: varda_first_ministry
+    kind: office
+    name: First Minister of Varda
+    tier: 3
+    controller: oren_vale
+    rests_on: [free_traders, salt_guilds]
+    removed_by: {by: vote, chamber: salt_assembly}
+  - key: ostrel_marshalcy
+    kind: office
+    name: Marshal of Ostrel
+    tier: 3
+    controller: general_aske
+    rests_on: [marshals_staff]
+    removed_by: {by: never}
+    ladder: [kael_garrison]
+    without_leave: [border, fire_first]
+  - key: kesh_high_pulpit
+    kind: office
+    name: Abbess of the High Pulpit
+    tier: 3
+    controller: abbess_ren
+    rests_on: [temple_orders]
+    removed_by: {by: person, person: tam_orrin}
+  - key: lune_admiralty
+    kind: office
+    name: Admiral of the Lune Isles
+    tier: 3
+    controller: admiral_quell
+    rests_on: [isle_captains, harbour_factors]
+    removed_by: {by: term, ends: 1900-06-25}
+    ladder: [free_port_watch]
+    without_leave: [fire_first]
+  - key: varda_galley_command
+    kind: office
+    name: Commodore of the Varda Galleys
+    tier: 2
+    controller: brask
+    ladder: [varda_harbour_watch]
+    moved_by: [varda_first_ministry]
+    without_leave: [fire_first]
+  # The lesser posts a dismissed commander falls to: nobody holds them at the start.
+  - {key: varda_harbour_watch, kind: office, name: Captain of the Esk Harbour Watch, tier: 1, controller: varda, location: esk_harbour}
+  - {key: kael_garrison, kind: office, name: Commander of the Kael Garrison, tier: 1, controller: ostrel, location: kael}
+  - {key: free_port_watch, kind: office, name: Captain of the Free Port Watch, tier: 1, controller: lune, location: free_port}
 
 # One trade line (SSG): Kesh sells fodder to Ostrel across the Outer Sea, a month. [proposed]
 trade_lines:
@@ -286,6 +334,9 @@ groups:
         baseline: 50
         feeds: {manpower: 1, standing: 1}
         moved_by: {battle_won: 2, battle_lost: -3, losses_at_sea: -2, battle_losses: -1}
+        # The Isle Moot's two blocs (SSF), redrawn by support at its election. [proposed]
+        chamber: isle_moot
+        seats: 30
       - key: harbour_factors
         name: The harbour factors
         kind: traders
@@ -293,6 +344,8 @@ groups:
         baseline: 50
         feeds: {output: 1}
         moved_by: {losses_at_sea: -3, agreement_broken: -2}
+        chamber: isle_moot
+        seats: 20
     themes:
       - {key: free_waters, name: Free waters, moves: {isle_captains: 1, harbour_factors: 2}}
 
@@ -305,6 +358,13 @@ happenings:
   - {kind: battle_lost, reach: reported, felt: 0.4}
   - {kind: battle_losses, reach: reported, felt: 0.5}
   - {kind: agreement_broken, reach: secret}
+
+# The Lune Isles elect their Moot inside the season (SSF), read with `elections` on: each
+# bloc's seats redrawn by its support, and the Admiral's term ends that day. Put to the
+# office question when the season opens, the post sits on the day; the Admiral is removed
+# while what it rests on stands under 50. [proposed]
+elections:
+  - {nation: lune, chambers: [isle_moot], day: 1900-06-25, post: lune_admiralty}
 
 # One place per nation with political weight, read with `places` on (SSH): the territory,
 # the nation it matters to, and the points each of that nation's groups moves when it is
@@ -447,6 +507,7 @@ pipelines:
 cards:
   - person: oren_vale
     office: First Minister of Varda
+    post: varda_first_ministry
     playable: true
     principals: [varda]
     authority:
@@ -562,6 +623,7 @@ cards:
       - {aim: 3, deadline: 1900-07-31, replaceable: true, rule: "Varda is not at war with Ostrel, and the Salt Guilds' support is 50 or more.", condition: {check: all_of, conditions: [{check: at_war, a: varda, b: ostrel, war: false}, {check: support_at, nation: varda, group: salt_guilds, op: ge, value: 50}]}}
   - person: general_aske
     office: Marshal of Ostrel
+    post: ostrel_marshalcy
     playable: true
     principals: [ostrel]
     authority:
@@ -650,6 +712,7 @@ cards:
   # crosses his desk. Every line [proposed].
   - person: brask
     office: Commodore of the Varda Galleys
+    post: varda_galley_command
     playable: true
     path: military
     principals: [mira]
@@ -707,6 +770,7 @@ cards:
     horizon_days: 14
   - person: abbess_ren
     office: Abbess of the High Pulpit
+    post: kesh_high_pulpit
     principals: [kesh]
     levers:
       - name: move_force
@@ -723,6 +787,7 @@ cards:
     horizon_days: 14
   - person: admiral_quell
     office: Admiral of the Lune Isles
+    post: lune_admiralty
     principals: [lune]
     levers:
       - name: move_force

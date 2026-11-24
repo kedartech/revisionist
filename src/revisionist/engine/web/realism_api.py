@@ -1229,6 +1229,81 @@ class OfferPromise(TypedDict):
     """The world day the promise is read; None until the measure has passed."""
 
 
+class OfficeCount(TypedDict):
+    """A body's count on an office question as it would fall today."""
+
+    yeas: int
+    nays: int
+
+
+OfficeWay = Literal["vote", "council", "person", "term", "election"]
+"""Who decides an office question: a post that may never be removed has none."""
+
+
+class OfficeQuestionLine(TypedDict):
+    """An office question open on a post of the seat's own nation: sent to every seat of
+    that nation and to no other."""
+
+    question_id: str
+    office: str
+    holder: str
+    cause: str
+    sits: str
+    """The world day it sits."""
+    way: OfficeWay
+    """Who decides it: a body's vote, a council, one person, the end of a term, or, for a
+    question an election opened, the base of the post on the day."""
+    chamber: str | None
+    """The body that votes, for a question decided by ``vote``."""
+    deciders: list[str]
+    """The names of those who choose, for a council or one person; else empty."""
+    mine: bool
+    """Whether the seat's person is one of them."""
+    choice: bool | None
+    """The seat's own sealed choice, True to remove; None if none, or if it is not its to make."""
+    count: OfficeCount | None
+    """For a body's vote, the count as it would fall today; else None."""
+
+
+class BaseUnder(TypedDict):
+    """A post of the seat's person whose base stands under its line, before any question
+    opens on it."""
+
+    office: str
+    groups: list[str]
+    support: float
+    """The mean support of the groups it rests on."""
+    line: int
+    under: float
+    """How far under the line it stands."""
+    days: int
+    """World days running, today included."""
+    opens: str
+    """The day the question would open, if it stays under."""
+
+
+class ElectionBloc(TypedDict):
+    group: str
+    name: str
+    seats: int
+    would: int
+    """Its seats were the chamber redrawn today."""
+
+
+class ElectionChamber(TypedDict):
+    key: str
+    blocs: list[ElectionBloc]
+
+
+class ElectionAhead(TypedDict):
+    """An election of the seat's own nation that has not yet been held."""
+
+    day: str
+    office: str | None
+    """The post whose term ends that day, if any."""
+    chambers: list[ElectionChamber]
+
+
 class HomeBlock(TypedDict):
     """Groups at home and the floor as the seat sees them, with ``groups`` on (GPD). Only
     the seat's own nation's groups, chambers and themes are sent; another nation shows
@@ -1254,6 +1329,12 @@ class HomeBlock(TypedDict):
     """With ``offers`` on: each law of the nation whose bill is on its way, by law key."""
     promises: NotRequired[list[OfferPromise]]
     """With ``offers`` on: the offers the seat itself made, by filing day and id."""
+    office: NotRequired[list[OfficeQuestionLine]]
+    """With ``office`` on: each question open on a post of the seat's nation, by sitting day."""
+    turning: NotRequired[list[BaseUnder]]
+    """With ``office`` on: each post of the seat's person whose base stands under its line."""
+    elections: NotRequired[list[ElectionAhead]]
+    """With ``elections`` on: each election of the seat's nation ahead, by day."""
 
 
 class BattleRoundLine(TypedDict):
@@ -1683,12 +1764,97 @@ class LocksBlock(TypedDict):
 class LockCheck(TypedDict):
     """The check before sending (LKD rule 2): what filing the draft would do now."""
 
-    check: Literal["allowed", "locked", "beyond"]
-    """``allowed``: it goes out; ``locked``: a lock holds it; ``beyond``: it is refused."""
+    check: Literal["allowed", "locked", "beyond", "question"]
+    """``allowed``: it goes out; ``locked``: a lock holds it; ``beyond``: it is refused;
+    ``question``: with ``posts`` on, a move of post that would take a seat's last
+    authority, so it goes out and waits for the office question's sitting (PPR)."""
     who: str | None
     """For ``locked``, who can allow it; None otherwise."""
     reason: str
-    """For ``locked``, what the seat would be told; for ``beyond``, today's refusal."""
+    """For ``locked`` and ``question``, what the seat would be told; for ``beyond``,
+    today's refusal."""
+
+
+class PostName(TypedDict):
+    """A post: the office asset's id and name."""
+
+    id: str
+    name: str
+
+
+class LadderRung(TypedDict):
+    """One rung of the seat's own ladder, in order; ``free`` when nobody holds it."""
+
+    id: str
+    name: str
+    free: bool
+
+
+class PendingPost(TypedDict):
+    """A change of post pending on the seat (LDR), sealed to it until it lands."""
+
+    id: str
+    """The notice the seat was sent, a document it holds."""
+    post: str
+    move: Literal["appoint", "relieve"]
+    lands: str
+    """When it lands, in words."""
+    wake: int | None
+    """The wake at whose close it lands; None when it waits for the office question."""
+    rung: str | None
+    """The post the seat lands on; None for none or while it waits for the question."""
+
+
+class PostMoveLine(TypedDict):
+    """A move the seat may make on another person: appoint, relieve or restore, with the
+    rung the person it puts down lands on."""
+
+    person: str
+    name: str
+    post: str
+    office: str
+    move: Literal["appoint", "relieve", "restore"]
+    down: str | None
+    """Who the move puts down, by name; None for no one."""
+    rung: str | None
+    """The post that person lands on; None for none."""
+    question: bool
+    """It would take a seat's last authority: it waits for the office question."""
+
+
+class Through(TypedDict):
+    """Someone in the seat's inner circle whose card holds an authority."""
+
+    person: str
+    name: str
+    authority: list[str]
+
+
+class Letter(TypedDict):
+    id: str
+    title: str
+
+
+class PostRoom(TypedDict):
+    """What a seat with no post may still do."""
+
+    inner_circle: list[str]
+    letters: list[Letter]
+    aims: list[str]
+    through: list[Through]
+
+
+class PostsBlock(TypedDict):
+    """The seat's post as it sees it, with ``posts`` on (PPR): its post and ladder, who
+    may move it, each change pending on it, the moves it may make on others, and with no
+    post, the room it still has. Absent with the rule off."""
+
+    post: PostName | None
+    ladder: list[LadderRung]
+    moved_by: list[str]
+    pending: list[PendingPost]
+    moves: list[PostMoveLine]
+    room: NotRequired[PostRoom]
 
 
 class StandingVote(FloorVote):
@@ -2226,6 +2392,8 @@ __all__ = [
     "HomeMoved",
     "HomePlace",
     "HomeTheme",
+    "LadderRung",
+    "Letter",
     "LeverChoice",
     "LeverLine",
     "LeverParam",
@@ -2271,6 +2439,7 @@ __all__ = [
     "OrderTrack",
     "OrderTracker",
     "OwnAimBlock",
+    "PendingPost",
     "People",
     "PeopleMeter",
     "PersonChannel",
@@ -2293,6 +2462,10 @@ __all__ = [
     "PlaybackPaper",
     "PlaybackStake",
     "PlaybackStep",
+    "PostMoveLine",
+    "PostName",
+    "PostRoom",
+    "PostsBlock",
     "PublicWar",
     "ReachContact",
     "ReachGroups",
@@ -2321,6 +2494,7 @@ __all__ = [
     "StrengthRange",
     "TermClause",
     "Threat",
+    "Through",
     "TimelinePoint",
     "WakeHeader",
     "WarNation",

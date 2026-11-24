@@ -63,7 +63,7 @@ from revisionist.engine.web.destinations import (
     place_choices,
     reported,
 )
-from revisionist.engine.web.people import seat_people
+from revisionist.engine.web.people import posts_block, seat_people
 from revisionist.engine.web.realism_api import (
     BodyLine,
     Clock,
@@ -1218,8 +1218,16 @@ def seat_realism(
         "agreements": agreements_api.block(state, seat, view, log),
         "conferences": conferences_api.block(state, seat, view),
         **_locks(state, seat),
+        **_posts(state, seat),
         **_own_aim(state, seat),
     }
+
+
+def _posts(state: State, seat: SeatId) -> dict[str, Any]:
+    """The seat's ``posts`` block (PPR); no key at all with ``posts`` off, so a game
+    without the rule is sent what it was before."""
+    found = posts_block(state, seat)
+    return {} if found is None else {"posts": found}
 
 
 def _locks(state: State, seat: SeatId) -> dict[str, Any]:

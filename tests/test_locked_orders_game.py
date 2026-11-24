@@ -32,6 +32,7 @@ from revisionist.core.realism import locks, process
 from revisionist.core.realism.pipeline import ADVANCES, OrderStatus, StepAction
 from revisionist.core.realism.pipelines import REPLACED
 from revisionist.core.realism.resolvers import qid
+from revisionist.core.state import Rule
 from revisionist.core.world_compile import object_id
 from revisionist.engine.web.stakes import seat_stakes
 from tests.locked_orders_script import (
@@ -125,9 +126,13 @@ def test_lock_1_the_naval_order_crosses_the_middle_step_then_the_commanders_desk
     assert middle.action in ADVANCES and middle.on == order.filed + timedelta(days=days)
     assert desk.person == cast.entity(cast.commander) and desk.action is StepAction.PASS
     # The commander kept his choice in the wake the order reached his desk. He tried to
-    # refuse it first: an order from up his chain may only be passed or stalled.
+    # refuse it first: an order from up his chain may only be passed or stalled, unless
+    # his world lets a post refuse one (defiance), and his pass that wake stands over it.
     assert p.desk_taken == middle.on
-    assert len(p.refusals) == 1 and p.refusals[0] != ""
+    if Rule.DEFIANCE in g.state.rules:
+        assert p.refusals == [""]
+    else:
+        assert len(p.refusals) == 1 and p.refusals[0] != ""
 
 
 @each_cast

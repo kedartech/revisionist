@@ -4588,6 +4588,62 @@
         },
         "threatened": false
       }
+    ],
+    "office": [
+      {
+        "question_id": "N41Q8WCZYVYASX886VRKB7XXA8",
+        "office": "General of the Norra Levy",
+        "holder": "Kara Lind",
+        "cause": "incident",
+        "sits": "1900-04-12",
+        "way": "vote",
+        "chamber": "assembly",
+        "deciders": [],
+        "mine": false,
+        "choice": null,
+        "count": {
+          "yeas": 40,
+          "nays": 10
+        }
+      }
+    ],
+    "turning": [
+      {
+        "office": "General of the Norra Levy",
+        "groups": [
+          "The Greens"
+        ],
+        "support": 20.0,
+        "line": 30,
+        "under": 10.0,
+        "days": 15,
+        "opens": "1900-04-22"
+      }
+    ],
+    "elections": [
+      {
+        "day": "1900-05-01",
+        "office": "Chancellor of Norra",
+        "chambers": [
+          {
+            "key": "assembly",
+            "blocs": [
+              {
+                "group": "greens",
+                "name": "The Greens",
+                "seats": 60,
+                "would": 64
+              },
+              {
+                "group": "greys",
+                "name": "The Greys",
+                "seats": 40,
+                "would": 36
+              }
+            ]
+          }
+        ]
+      }
     ]
   },
   "agreements": {

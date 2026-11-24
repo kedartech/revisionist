@@ -2,7 +2,9 @@
 parity with 1941: yields, a trade line, groups, a pact, intelligence and aims (SSG), and
 keeping parity with the third run's world data: a law of its own and the body that passes
 it, a council that decides one question and a person who decides another, aim patterns
-for its posts, and a second military card under Varda's head of government (SSO).
+for its posts, and a second military card under Varda's head of government (SSO); and
+an office for each head that says what it rests on and how its holder is removed, a ladder
+and the acts each military post may attempt, and an election for a chamber (SSF).
 
 ``worlds/salt-strait-realism.yaml`` plays the four polities of Salt Strait under the
 current ruleset, on a flat map written by hand straight into the committed format
@@ -27,6 +29,7 @@ from revisionist.core import aim_patterns
 from revisionist.core import events as ev
 from revisionist.core.fold import replay
 from revisionist.core.ids import (
+    AssetId,
     CampaignId,
     EntityId,
     EventId,
@@ -35,12 +38,12 @@ from revisionist.core.ids import (
     SeatId,
     derived_id,
 )
-from revisionist.core.realism import economy, groups, laws, locks
+from revisionist.core.realism import economy, groups, laws, locks, office, posts
 from revisionist.core.realism.kinds import Domain, Role
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.resolvers import apply_changes, intel, movement, qid, votes
 from revisionist.core.realism.territory import StepCause
-from revisionist.core.state import MODEL_READ_RULES, Rule, State
+from revisionist.core.state import MODEL_READ_RULES, QuestionCause, RemovalWay, Rule, State
 from revisionist.core.visibility import PUBLIC
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import compile_world, resolve_keys
@@ -86,11 +89,16 @@ RULES = {
     Rule.CLASSES,
     Rule.LOSSES,
     Rule.PLACES,
+    Rule.POSTS,
+    Rule.OFFICE,
+    Rule.ELECTIONS,
+    Rule.DEFIANCE,
 }
 """Every rule name the engine had when Salt Strait reached parity (SSG), less the three read
 by a live model, which stay off in a shipped world; the commander's seat, locks, laws,
-answers to asks, deciders and the player's own aim (SSO); and a bloc's prices, the classes
-of happenings, the size of losses and places with political weight (SSH)."""
+answers to asks, deciders and the player's own aim (SSO); a bloc's prices, the classes
+of happenings, the size of losses and places with political weight (SSH); and posts, the
+office question, elections and acting without leave (SSF)."""
 
 
 def _map_check() -> ModuleType:
@@ -722,8 +730,6 @@ ABSENT_ON_PURPOSE = {
     "wars": "the season opens at peace; a war is declared in play",
     "groups.groups.abroad": "writing is read by a live model and stays off",
     "cards.successor": "nobody is named to succeed in one season",
-    "cards.post": "posts stay off: each card is its person's alone",
-    "assets.ladder": "posts stay off: no office has a ladder or movers",
     "features.legs": "the season opens on its first day: no force has moved yet",
     "cards.reach": "every person keeps rank 0 and no chain",
     "cards.allies": "nobody stands with or against anyone but by the contest",
@@ -822,3 +828,128 @@ def test_one_place_per_nation_carries_political_weight_over_its_own_ground() -> 
     assert {(pl.territory, pl.nation) for pl in state.groups.places} == {
         (entity(p.territory), entity(p.nation)) for p in places
     }
+
+
+# --- Stage 4 parity: offices, a ladder, an election (SSF) --------------------------------
+
+HEADS = {
+    "varda": ("oren_vale", "varda_first_ministry"),
+    "ostrel": ("general_aske", "ostrel_marshalcy"),
+    "kesh": ("abbess_ren", "kesh_high_pulpit"),
+    "lune": ("admiral_quell", "lune_admiralty"),
+}
+"""Each nation's head and the office that is his post."""
+WAYS = {
+    "varda": RemovalWay.VOTE,
+    "ostrel": RemovalWay.NEVER,
+    "kesh": RemovalWay.PERSON,
+    "lune": RemovalWay.TERM,
+}
+"""How each head is removed: four of the five ways, one a nation; a council is left out."""
+MILITARY = {
+    "varda_galley_command": "varda_harbour_watch",
+    "ostrel_marshalcy": "kael_garrison",
+    "lune_admiralty": "free_port_watch",
+}
+"""The posts that command forces in the field, each with the lesser post it falls to."""
+ELECTION_DAY = date(1900, 6, 25)
+"""The Isle Moot's election, and the day the Admiral's term ends."""
+SEASON_END = date(1900, 7, 31)
+"""The last day of the season: the deadline of every aim."""
+STAGE_4_KEYS = {
+    "cards.post": "answered",
+    "assets.rests_on": "answered",
+    "assets.ladder": "answered",
+    "assets.without_leave": "answered",
+    "elections": "answered",
+    "cards.post.turn_below": "absent",
+    "cards.post.decides": "absent",
+    "cards.post.attempts": "absent",
+}
+"""The stage-4 questions by the first key of their row: answered, or absent on purpose
+(the line's default stands: the 30, 14 and 21 days; a post decides only through the lock
+rows; what a commander may do is his office's list of acts)."""
+
+
+def _decl(key: str) -> Any:
+    return next(a for a in world().assets if a.key == key)
+
+
+def _post(key: str) -> AssetId:
+    return AssetId(ids()[key])
+
+
+@pytest.mark.parametrize("nation", list(HEADS))
+def test_each_head_holds_his_office_as_his_post(nation: str) -> None:
+    person, key = HEADS[nation]
+    state = compiled()
+    assert _decl(key).kind.value == "office" and _decl(key).controller == person
+    assert posts.holder(state, _post(key)) == entity(person)
+
+
+@pytest.mark.parametrize("nation", list(HEADS))
+def test_each_heads_post_rests_on_groups_of_its_own_nation(nation: str) -> None:
+    _, key = HEADS[nation]
+    held = compiled().ladders[_post(key)]
+    own = {g.key for d in world().groups if d.nation == nation for g in d.groups}
+    assert 1 <= len(held.rests_on) <= 2
+    assert set(held.rests_on) <= own
+
+
+def test_four_ways_remove_the_four_heads_and_a_council_is_left_out() -> None:
+    state = compiled()
+    got = {}
+    for nation, (_, key) in HEADS.items():
+        removal = state.ladders[_post(key)].removed_by
+        assert removal is not None
+        got[nation] = removal
+    assert {n: r.way for n, r in got.items()} == WAYS
+    assert len(set(WAYS.values())) == 4 and RemovalWay.COUNCIL not in WAYS.values()
+    assert got["varda"].chamber == "salt_assembly"
+    assert got["kesh"].person == entity("tam_orrin")
+    assert got["lune"].ends == ELECTION_DAY
+
+
+@pytest.mark.parametrize("key", list(MILITARY))
+def test_each_military_post_names_a_ladder_and_the_acts_it_may_attempt(key: str) -> None:
+    state = compiled()
+    held = state.ladders[_post(key)]
+    assert held.ladder == (_post(MILITARY[key]),)
+    assert posts.holder(state, _post(MILITARY[key])) is None
+    assert held.without_leave and {a.value for a in held.without_leave} <= {"border", "fire_first"}
+
+
+def test_the_first_minister_moves_the_commodore_and_nobody_moves_a_head_by_order() -> None:
+    state = compiled()
+    assert state.ladders[_post("varda_galley_command")].moved_by == (_post("varda_first_ministry"),)
+    for _, key in HEADS.values():
+        held = state.ladders.get(_post(key))
+        assert held is None or held.moved_by == ()
+
+
+def test_the_lune_isles_elect_their_moot_inside_the_season() -> None:
+    state = compiled()
+    lune = entity("lune")
+    seated = {g.key: g.seats for d in world().groups if d.nation == "lune" for g in d.groups}
+    chambers = {g.chamber for d in world().groups if d.nation == "lune" for g in d.groups}
+    assert chambers == {"isle_moot"} and all(seated.values())
+    (election,) = state.groups.elections
+    assert election.nation == lune and election.chambers == ("isle_moot",)
+    assert START < election.day == ELECTION_DAY <= SEASON_END
+    assert election.post == _post("lune_admiralty")
+
+
+def test_the_election_puts_the_admirals_post_to_a_sitting_on_its_day() -> None:
+    store = opened()
+    run_realism_tick(store, CAMPAIGN)
+    state = load_state(store, CAMPAIGN)
+    q = office.open_on(state, _post("lune_admiralty"))
+    assert q is not None and q.cause is QuestionCause.ELECTION
+    assert q.sits == ELECTION_DAY and q.holder == entity("admiral_quell")
+
+
+def test_the_world_check_answers_every_stage_4_question_or_leaves_it_on_purpose() -> None:
+    check = _world_check()
+    lines = check.check(world(), check.parse_template(TEMPLATE.read_text()))
+    got = {x.row.keys[0]: x.status for x in lines if x.row.keys[0] in STAGE_4_KEYS}
+    assert got == STAGE_4_KEYS

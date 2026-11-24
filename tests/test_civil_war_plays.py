@@ -18,10 +18,14 @@ from revisionist.core import events as ev
 from revisionist.core.ids import SeatId
 from revisionist.core.ontology import Phase
 from revisionist.core.realism import territory
+from revisionist.core.realism.agenda import Ask
+from revisionist.core.realism.card import PostCause
+from revisionist.core.realism.effect import Appointment
 from tests import test_salt_strait_plays as ssp
 from tests.async_table import answer_days, digest, papers
 from tests.commanders_script import Game, Nation, Script
-from tests.locked_orders_script import shipped
+from tests.locked_orders_script import World, shipped
+from tests.the_fall_script import Fall
 
 WORLD = "civil-war-1862"
 
@@ -89,6 +93,75 @@ def test_the_election_redraws_the_chamber(union: Game) -> None:
 def test_aims_are_scored_at_the_seasons_end(union: Game) -> None:
     assert union.logged(ev.GoalSet)
     assert union.logged(ev.GoalMet)
+
+
+# --- the head relieves the general, who plays on ---------------------------------------
+
+POTOMAC = "potomac_command"
+DEFENCES = "washington_defences"
+"""McClellan's office and the one below it on its ladder, as the shipped world has them."""
+
+
+def lincoln_appoints(w: World) -> None:
+    """Lincoln's card names no appointments authority on the shipped world, though the
+    presidency moves the Potomac command; the test's copy gives him one."""
+    for card in w["cards"]:
+        if card["person"] == "lincoln":
+            card["authority"].append(
+                {
+                    "name": "appointments",
+                    "effects": ["appointment"],
+                    "summary": "Appoint and relieve the generals commanding the armies.",
+                }
+            )
+
+
+class UnionFall(Fall):
+    people = ("mcclellan", "halleck", "lincoln")
+
+
+def appointment(g: Fall, appoint: bool) -> Ask:
+    verb = "Restore" if appoint else "Relieve"
+    return Ask(
+        ask=f"{verb} General McClellan: the Army of the Potomac.",
+        effect=Appointment(
+            person=g.entity("mcclellan"), office=str(g.post(POTOMAC)), appoint=appoint
+        ),
+    )
+
+
+@pytest.fixture(scope="module")
+def relieved(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Fall]:
+    """Lincoln relieves McClellan; McClellan, at the Washington defences, writes to him;
+    Lincoln restores him. The 1941 relief's acts, through ``Fall``, on this world."""
+    with pytest.MonkeyPatch.context() as m:
+        g = UnionFall(
+            UNION, tmp_path_factory.mktemp("relief"), m, world=shipped(WORLD, (lincoln_appoints,))
+        )
+        f = g.fallen
+        g._tick(None)
+        assert g.head is not None
+        f.relieved = g.commit(g.head, [appointment(g, False)], "head:relieve")
+        f.relieved_wake = g.wake_number
+        g.until(lambda: g.holder(DEFENCES) == "mcclellan", POTOMAC)
+        plays_on = Ask(ask="Man the forts on the Maryland shore.", target=g.entity("lincoln"))
+        f.played_on.append(g.commit(g.commander, [plays_on], "commander:plays-on"))
+        f.restored = g.commit(g.head, [appointment(g, True)], "head:restore")
+        g.until(lambda: g.holder(POTOMAC) == "mcclellan", POTOMAC)
+        yield g
+
+
+def test_the_head_relieves_the_general_who_plays_on_and_is_restored(relieved: Fall) -> None:
+    g, f = relieved, relieved.fallen
+    moves = [e.move for e in g.logged(ev.PostMoveOrdered)]
+    mcclellan, lincoln = g.entity("mcclellan"), g.entity("lincoln")
+    relief = next(m for m in moves if not m.appoint)
+    assert relief.person == mcclellan and relief.by == lincoln
+    changed = [(p.post, p.to, p.cause) for p in g.logged(ev.PostChanged)]
+    assert (g.post(DEFENCES), mcclellan, PostCause.APPOINTED) in changed
+    assert f.played_on and g.state.routed[f.played_on[0]].issuer == g.commander
+    assert g.holder(POTOMAC) == "mcclellan"
+    assert g.state.seats[g.commander].embodies == mcclellan
 
 
 # --- Rule 3: invariants 2, 3 and 4 on the Civil War ------------------------------------

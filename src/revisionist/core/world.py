@@ -135,6 +135,25 @@ class EntityDecl(Model):
     ``holders`` on, that territory falls only after a whole wake's notice. Written by hand."""
 
 
+class RemovalDecl(Model):
+    """How an office's holder is removed (OFQ): ``by`` a body's ``vote``, a ``council``,
+    one ``person``, at the end of a ``term``, or ``never``."""
+
+    by: Literal["vote", "council", "person", "term", "never"]
+    chamber: Label | None = None
+    """``vote``: the chamber whose blocs vote."""
+    vote: Label | None = None
+    """``vote``: the vote's key in the blocs' rows; the chamber's name when not given."""
+    members: tuple[Key, ...] = Field(default=(), max_length=24)
+    """``council``: person keys."""
+    needed: int = Field(default=0, ge=0)
+    """``council``: how many must choose removal."""
+    person: Key | None = None
+    """``person``: who decides."""
+    ends: date | None = None
+    """``term``: the day the term ends."""
+
+
 class AssetDecl(Model):
     key: Key
     kind: AssetKind
@@ -152,6 +171,12 @@ class AssetDecl(Model):
     """For an office, read with ``posts`` on (LDR): the offices whose holders may appoint
     to it or dismiss from it on their own order. None named: the old rule, an order from
     one of its holder's principals. Written by hand: not offered to a model."""
+    rests_on: SkipJsonSchema[tuple[Key, ...]] = Field(default=(), max_length=2)
+    """For an office, read with ``office`` on (OFQ): the one or two groups (by key) or
+    bodies (entity keys) of its nation it rests on. Written by hand."""
+    removed_by: SkipJsonSchema[RemovalDecl | None] = None
+    """For an office, read with ``office`` on (OFQ): how its holder is removed. None: he
+    faces no question on it. Written by hand: not offered to a model."""
 
 
 class RelationshipDecl(Model):
@@ -1303,6 +1328,7 @@ __all__ = [
     "QuantityDecl",
     "RegionDecl",
     "RelationshipDecl",
+    "RemovalDecl",
     "ScopeDecl",
     "ScopeSpec",
     "SeaZoneDecl",

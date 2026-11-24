@@ -8324,6 +8324,26 @@
           "post": {
             "title": "Post",
             "type": "string"
+          },
+          "removed_by": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Removal"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "rests_on": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Rests On",
+            "type": "array"
           }
         },
         "required": [
@@ -9725,6 +9745,184 @@
         "title": "OfferStanding",
         "type": "string"
       },
+      "OfficeChoiceFiled": {
+        "additionalProperties": false,
+        "description": "A member's sealed choice on an office question before its sitting (OFQ): True to\nremove the holder. A later choice replaces it. Sealed to the seat that chose; never\nfed, and the sitting counts it without saying who chose what.",
+        "properties": {
+          "kind": {
+            "const": "office_choice_filed",
+            "default": "office_choice_filed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "question_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Question Id",
+            "type": "string"
+          },
+          "remove": {
+            "title": "Remove",
+            "type": "boolean"
+          },
+          "seat_id": {
+            "title": "Seat Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question_id",
+          "seat_id",
+          "remove",
+          "on"
+        ],
+        "title": "OfficeChoiceFiled",
+        "type": "object"
+      },
+      "OfficeQuestion": {
+        "additionalProperties": false,
+        "description": "An office question open on a post (OFQ): its cause, the day it opened and its\nsitting, dated ahead. It sits on ``sits`` or the first day after it in the walk of the\nsecond wake the seats told can act in. Told to every seat of the holder's nation.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/QuestionCause"
+          },
+          "holder": {
+            "title": "Holder",
+            "type": "string"
+          },
+          "move_id": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Move Id"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          },
+          "question_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Question Id",
+            "type": "string"
+          },
+          "sits": {
+            "format": "date",
+            "title": "Sits",
+            "type": "string"
+          },
+          "tick": {
+            "minimum": 0,
+            "title": "Tick",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "question_id",
+          "post",
+          "holder",
+          "cause",
+          "opened",
+          "tick",
+          "sits"
+        ],
+        "title": "OfficeQuestion",
+        "type": "object"
+      },
+      "OfficeQuestionDecided": {
+        "additionalProperties": false,
+        "description": "The office question decided at its sitting (OFQ): the holder removed, his post\ngoing on by ``post_changed``, or kept, and then no question on that post opens before\n``rests_until``. Public: it is news.",
+        "properties": {
+          "holder": {
+            "title": "Holder",
+            "type": "string"
+          },
+          "kind": {
+            "const": "office_question_decided",
+            "default": "office_question_decided",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          },
+          "question_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Question Id",
+            "type": "string"
+          },
+          "removed": {
+            "title": "Removed",
+            "type": "boolean"
+          },
+          "rests_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Rests Until"
+          }
+        },
+        "required": [
+          "question_id",
+          "post",
+          "holder",
+          "on",
+          "removed"
+        ],
+        "title": "OfficeQuestionDecided",
+        "type": "object"
+      },
+      "OfficeQuestionOpened": {
+        "additionalProperties": false,
+        "description": "An office question opens on a post (OFQ): its cause, and its sitting dated ahead.\nSealed to every seat of the holder's nation, whoever plays it, with one paper saying\nso: a person, the aide or code is told the same day the same thing.",
+        "properties": {
+          "kind": {
+            "const": "office_question_opened",
+            "default": "office_question_opened",
+            "title": "Kind",
+            "type": "string"
+          },
+          "question": {
+            "$ref": "#/$defs/OfficeQuestion"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "OfficeQuestionOpened",
+        "type": "object"
+      },
       "OperationOpened": {
         "additionalProperties": false,
         "properties": {
@@ -10918,7 +11116,8 @@
         "enum": [
           "appointed",
           "succeeded",
-          "vacated"
+          "vacated",
+          "removed"
         ],
         "title": "PostCause",
         "type": "string"
@@ -11743,6 +11942,17 @@
         "title": "Question",
         "type": "string"
       },
+      "QuestionCause": {
+        "description": "Why an office question opened (OFQ).",
+        "enum": [
+          "base",
+          "incident",
+          "order",
+          "term"
+        ],
+        "title": "QuestionCause",
+        "type": "string"
+      },
       "Reach": {
         "additionalProperties": false,
         "description": "What reach is derived from (spec \u00a78.1). Whether a meeting is taken is computed\nin code from rank, disposition and standing; nothing here is a whitelist.",
@@ -11997,6 +12207,100 @@
         ],
         "title": "RelationshipTagSet",
         "type": "object"
+      },
+      "Removal": {
+        "additionalProperties": false,
+        "description": "How a post's holder is removed (OFQ): the way, and what it names. Public: world\ndata.",
+        "properties": {
+          "chamber": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Chamber"
+          },
+          "ends": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ends"
+          },
+          "members": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 24,
+            "title": "Members",
+            "type": "array"
+          },
+          "needed": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Needed",
+            "type": "integer"
+          },
+          "person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Person"
+          },
+          "vote": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Vote"
+          },
+          "way": {
+            "$ref": "#/$defs/RemovalWay"
+          }
+        },
+        "required": [
+          "way"
+        ],
+        "title": "Removal",
+        "type": "object"
+      },
+      "RemovalWay": {
+        "description": "How a post's holder is removed at the office question's sitting (OFQ).",
+        "enum": [
+          "vote",
+          "council",
+          "person",
+          "term",
+          "never"
+        ],
+        "title": "RemovalWay",
+        "type": "string"
       },
       "Report": {
         "additionalProperties": false,
@@ -15840,6 +16144,9 @@
             "news_reported": "#/$defs/NewsReported",
             "offer_made": "#/$defs/OfferMade",
             "offer_settled": "#/$defs/OfferSettled",
+            "office_choice_filed": "#/$defs/OfficeChoiceFiled",
+            "office_question_decided": "#/$defs/OfficeQuestionDecided",
+            "office_question_opened": "#/$defs/OfficeQuestionOpened",
             "operation_opened": "#/$defs/OperationOpened",
             "operation_resolved": "#/$defs/OperationResolved",
             "opponents_ranked": "#/$defs/OpponentsRanked",
@@ -16128,6 +16435,15 @@
           },
           {
             "$ref": "#/$defs/PostMoveSettled"
+          },
+          {
+            "$ref": "#/$defs/OfficeQuestionOpened"
+          },
+          {
+            "$ref": "#/$defs/OfficeChoiceFiled"
+          },
+          {
+            "$ref": "#/$defs/OfficeQuestionDecided"
           },
           {
             "$ref": "#/$defs/PieceStepped"
@@ -21645,6 +21961,26 @@
           "post": {
             "title": "Post",
             "type": "string"
+          },
+          "removed_by": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Removal"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "rests_on": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Rests On",
+            "type": "array"
           }
         },
         "required": [
@@ -22596,6 +22932,68 @@
         ],
         "title": "OfferStanding",
         "type": "string"
+      },
+      "OfficeQuestion": {
+        "additionalProperties": false,
+        "description": "An office question open on a post (OFQ): its cause, the day it opened and its\nsitting, dated ahead. It sits on ``sits`` or the first day after it in the walk of the\nsecond wake the seats told can act in. Told to every seat of the holder's nation.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/QuestionCause"
+          },
+          "holder": {
+            "title": "Holder",
+            "type": "string"
+          },
+          "move_id": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Move Id"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          },
+          "question_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Question Id",
+            "type": "string"
+          },
+          "sits": {
+            "format": "date",
+            "title": "Sits",
+            "type": "string"
+          },
+          "tick": {
+            "minimum": 0,
+            "title": "Tick",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "question_id",
+          "post",
+          "holder",
+          "cause",
+          "opened",
+          "tick",
+          "sits"
+        ],
+        "title": "OfficeQuestion",
+        "type": "object"
       },
       "Order": {
         "additionalProperties": false,
@@ -24019,6 +24417,17 @@
         "title": "Question",
         "type": "string"
       },
+      "QuestionCause": {
+        "description": "Why an office question opened (OFQ).",
+        "enum": [
+          "base",
+          "incident",
+          "order",
+          "term"
+        ],
+        "title": "QuestionCause",
+        "type": "string"
+      },
       "Reach": {
         "additionalProperties": false,
         "description": "What reach is derived from (spec \u00a78.1). Whether a meeting is taken is computed\nin code from rank, disposition and standing; nothing here is a whitelist.",
@@ -24175,6 +24584,100 @@
         ],
         "title": "Relationship",
         "type": "object"
+      },
+      "Removal": {
+        "additionalProperties": false,
+        "description": "How a post's holder is removed (OFQ): the way, and what it names. Public: world\ndata.",
+        "properties": {
+          "chamber": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Chamber"
+          },
+          "ends": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ends"
+          },
+          "members": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 24,
+            "title": "Members",
+            "type": "array"
+          },
+          "needed": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Needed",
+            "type": "integer"
+          },
+          "person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Person"
+          },
+          "vote": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Vote"
+          },
+          "way": {
+            "$ref": "#/$defs/RemovalWay"
+          }
+        },
+        "required": [
+          "way"
+        ],
+        "title": "Removal",
+        "type": "object"
+      },
+      "RemovalWay": {
+        "description": "How a post's holder is removed at the office question's sitting (OFQ).",
+        "enum": [
+          "vote",
+          "council",
+          "person",
+          "term",
+          "never"
+        ],
+        "title": "RemovalWay",
+        "type": "string"
       },
       "Report": {
         "additionalProperties": false,
@@ -27242,6 +27745,39 @@
         },
         "title": "Offers",
         "type": "array"
+      },
+      "office_base_fell": {
+        "additionalProperties": {
+          "format": "date",
+          "type": "string"
+        },
+        "title": "Office Base Fell",
+        "type": "object"
+      },
+      "office_choices": {
+        "additionalProperties": {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "type": "object"
+        },
+        "title": "Office Choices",
+        "type": "object"
+      },
+      "office_questions": {
+        "additionalProperties": {
+          "$ref": "#/$defs/OfficeQuestion"
+        },
+        "title": "Office Questions",
+        "type": "object"
+      },
+      "office_rests": {
+        "additionalProperties": {
+          "format": "date",
+          "type": "string"
+        },
+        "title": "Office Rests",
+        "type": "object"
       },
       "opponents": {
         "additionalProperties": {

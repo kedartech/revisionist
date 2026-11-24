@@ -20,7 +20,8 @@ ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
 VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
 OrderAsked, AskAnswered, MatterChosen, AimPatternsDeclared, OwnAimSet, OfferMade,
-OfferSettled, LossesHeld, PostChanged``, and
+OfferSettled, LossesHeld, PostChanged, OfficeQuestionOpened, OfficeChoiceFiled,
+OfficeQuestionDecided``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -119,7 +120,7 @@ from revisionist.core.realism.trade import TradeLine
 from revisionist.core.realism.war import NewsEvent, Outlet, War
 from revisionist.core.resolution import FeasibilityBand, OutcomeTier, RejectionReason, TickStage
 from revisionist.core.settings import Settings
-from revisionist.core.state import Ladder, PostMove, Rule, Ruleset
+from revisionist.core.state import Ladder, OfficeQuestion, PostMove, Rule, Ruleset
 from revisionist.core.visibility import Scope
 
 
@@ -877,6 +878,41 @@ class PostMoveSettled(Model):
     landed: bool
 
 
+class OfficeQuestionOpened(Model):
+    """An office question opens on a post (OFQ): its cause, and its sitting dated ahead.
+    Sealed to every seat of the holder's nation, whoever plays it, with one paper saying
+    so: a person, the aide or code is told the same day the same thing."""
+
+    kind: Literal["office_question_opened"] = "office_question_opened"
+    question: OfficeQuestion
+
+
+class OfficeChoiceFiled(Model):
+    """A member's sealed choice on an office question before its sitting (OFQ): True to
+    remove the holder. A later choice replaces it. Sealed to the seat that chose; never
+    fed, and the sitting counts it without saying who chose what."""
+
+    kind: Literal["office_choice_filed"] = "office_choice_filed"
+    question_id: str = Field(min_length=1, max_length=80)
+    seat_id: SeatId
+    remove: bool
+    on: date
+
+
+class OfficeQuestionDecided(Model):
+    """The office question decided at its sitting (OFQ): the holder removed, his post
+    going on by ``post_changed``, or kept, and then no question on that post opens before
+    ``rests_until``. Public: it is news."""
+
+    kind: Literal["office_question_decided"] = "office_question_decided"
+    question_id: str = Field(min_length=1, max_length=80)
+    post: AssetId
+    holder: EntityId
+    on: date
+    removed: bool
+    rests_until: date | None = None
+
+
 class PieceStepped(Model):
     """A piece entered an area: one step, by order, by the record, or forced. Sealed to the
     seats of the piece's own nation, who know it by its mark (``territory.mark_key``), not
@@ -1613,6 +1649,9 @@ Payload = Annotated[
     | LaddersDeclared
     | PostMoveOrdered
     | PostMoveSettled
+    | OfficeQuestionOpened
+    | OfficeChoiceFiled
+    | OfficeQuestionDecided
     | PieceStepped
     | AreaHeld
     | CaptureCounted
@@ -1729,6 +1768,9 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "ladders_declared",
         "post_move_ordered",
         "post_move_settled",
+        "office_question_opened",
+        "office_choice_filed",
+        "office_question_decided",
         "piece_stepped",
         "area_held",
         "capture_counted",

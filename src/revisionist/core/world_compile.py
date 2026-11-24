@@ -143,7 +143,7 @@ from revisionist.core.realism.pipeline import Pipeline, Step
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.trade import TradeLine
 from revisionist.core.realism.war import Outlet, War, war_id_for
-from revisionist.core.state import Ladder, Rule, State
+from revisionist.core.state import Ladder, Removal, RemovalWay, Rule, State
 from revisionist.core.visibility import PUBLIC, Scope, Visibility, private_to
 from revisionist.core.world import (
     CardDecl,
@@ -161,6 +161,7 @@ from revisionist.core.world import (
     MandateDecl,
     PactClauseDecl,
     PieceKindDecl,
+    RemovalDecl,
     ScopeDecl,
     ScopeSpec,
     SeaZoneDecl,
@@ -543,6 +544,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_aim_patterns(world, sections, problems)
     _check_command(world, problems)
     _check_posts(world, sections, problems)
+    _check_office(world, sections, problems)
     _check_laws(world, problems)
     _check_locks(world, sections, problems)
     for seat in world.seats:
@@ -1939,16 +1941,76 @@ def _check_posts(world: WorldFile, sections: Mapping[str, str], problems: list[s
                 todo.extend(below.get(k, ()))
 
 
+def _check_office(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
+    """With ``office`` on (OFQ): it needs ``posts``; what an office rests on is a group
+    or a body, and how its holder is removed names what its way needs. With it off, neither
+    is read."""
+    if Rule.OFFICE not in world.rules:
+        return
+    if Rule.POSTS not in world.rules:
+        problems.append("rules: office needs the posts rule")
+    group_keys = {g.key for n in world.groups for g in n.groups}
+    chambers = {g.chamber for n in world.groups for g in n.groups if g.chamber is not None}
+    for a in world.assets:
+        if not (a.rests_on or a.removed_by):
+            continue
+        where = f"asset {a.key}"
+        if a.kind is not AssetKind.OFFICE:
+            problems.append(f"{where}: only an office rests on a base or has removed_by")
+        for k in a.rests_on:
+            if k not in group_keys:
+                _ref(problems, f"{where}: rests_on", k, "entity", sections)
+        r = a.removed_by
+        if r is None:
+            continue
+        if r.by == "vote":
+            if Rule.GROUPS not in world.rules:
+                problems.append(f"{where}: removed by a vote needs the groups rule")
+            if r.chamber is None or r.chamber not in chambers:
+                problems.append(f"{where}: removed by a vote names no chamber a bloc sits in")
+        elif r.by == "council":
+            for m in r.members:
+                _ref(problems, f"{where}: removed_by member", m, "entity", sections)
+            if len(set(r.members)) != len(r.members):
+                problems.append(f"{where}: a council names a member twice")
+            if not 1 <= r.needed <= len(r.members):
+                problems.append(f"{where}: a council needs 1 to {len(r.members)} of its members")
+        elif r.by == "person":
+            if r.person is None:
+                problems.append(f"{where}: removed by a person names no person")
+            _ref(problems, f"{where}: removed_by person", r.person, "entity", sections)
+        elif r.by == "term" and r.ends is None:
+            problems.append(f"{where}: removed at a term's end names no day")
+
+
+def _removal(r: RemovalDecl, ids: Mapping[str, str]) -> Removal:
+    """How an office's holder is removed, keys bound to ids (OFQ)."""
+    return Removal(
+        way=RemovalWay(r.by),
+        chamber=r.chamber,
+        vote=(r.vote or r.chamber) if r.by == "vote" else None,
+        members=tuple(EntityId(ids[k]) for k in r.members) if r.by == "council" else (),
+        needed=r.needed if r.by == "council" else 0,
+        person=EntityId(ids[r.person]) if r.by == "person" and r.person else None,
+        ends=r.ends if r.by == "term" else None,
+    )
+
+
 def _ladders(world: WorldFile, ids: Mapping[str, str]) -> ev.LaddersDeclared | None:
-    """Each office's ladder and movers, keys bound to ids, in the world's order (LDR)."""
+    """Each office's ladder and movers, keys bound to ids, in the world's order (LDR);
+    with ``office`` on, what it rests on and how its holder is removed (OFQ)."""
+    office = Rule.OFFICE in world.rules
+
     found = tuple(
         Ladder(
             post=AssetId(ids[a.key]),
             ladder=tuple(AssetId(ids[k]) for k in a.ladder),
             moved_by=tuple(AssetId(ids[k]) for k in a.moved_by),
+            rests_on=tuple(ids.get(k, k) for k in a.rests_on) if office else (),
+            removed_by=_removal(a.removed_by, ids) if office and a.removed_by else None,
         )
         for a in world.assets
-        if a.ladder or a.moved_by
+        if a.ladder or a.moved_by or (office and (a.rests_on or a.removed_by))
     )
     return ev.LaddersDeclared(ladders=found) if found else None
 

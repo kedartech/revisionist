@@ -427,6 +427,8 @@ class PostCause(StrEnum):
     """The post's designated successor took it when it fell vacant."""
     VACATED = "vacated"
     """Its holder left it to take another post."""
+    REMOVED = "removed"
+    """Its holder was removed at the office question's sitting (OFQ)."""
 
 
 class PostPart(Model):

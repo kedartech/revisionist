@@ -81,7 +81,7 @@ from revisionist.core.realism.quantity import RESOLVER_KEYS, Quantity
 from revisionist.core.realism.trade import TradeLine
 from revisionist.core.realism.war import War, war_id_for
 from revisionist.core.settings import Settings
-from revisionist.core.state import Ladder, PostMove, Rule
+from revisionist.core.state import Ladder, OfficeQuestion, PostMove, QuestionCause, Rule
 from revisionist.core.visibility import Scope, Visibility
 
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
@@ -1400,6 +1400,36 @@ realism_payloads = st.one_of(
         ),
     ),
     st.builds(ev.PostMoveSettled, move_id=labels, seat=st.none(), on=in_world_dates),
+    st.builds(
+        ev.OfficeQuestionOpened,
+        question=st.builds(
+            OfficeQuestion,
+            question_id=labels,
+            post=asset_ids,
+            holder=entity_ids,
+            cause=st.sampled_from(QuestionCause),
+            move_id=st.none() | labels,
+            opened=in_world_dates,
+            tick=st.integers(0, 6),
+            sits=in_world_dates,
+        ),
+    ),
+    st.builds(
+        ev.OfficeChoiceFiled,
+        question_id=labels,
+        seat_id=seat_ids,
+        remove=st.booleans(),
+        on=in_world_dates,
+    ),
+    st.builds(
+        ev.OfficeQuestionDecided,
+        question_id=labels,
+        post=asset_ids,
+        holder=entity_ids,
+        on=in_world_dates,
+        removed=st.booleans(),
+        rests_until=st.none() | in_world_dates,
+    ),
     st.builds(ev.AgreementOffered, offer=agreement_offers()),
     st.builds(ev.AgreementMade, agreement=agreements()),
     st.builds(

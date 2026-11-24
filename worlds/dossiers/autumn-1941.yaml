@@ -335,3 +335,35 @@ people:
     fact: His defence drew the attackers into the hills round Changsha and struck their flanks, a tactic he called the heavenly furnace.
     portrait: null
     credit: null
+  ryti:
+    bio: Risto Ryti, once Governor of the Bank of Finland and Prime Minister in the Winter War, was
+      chosen President in December 1940. Since June 1941 Finland has fought the Soviet Union again,
+      beside Germany but not allied to it, to win back what the peace of 1940 took.
+    arena: Your arena is Finland's war and its word abroad. Command of the army you handed to the
+      Commander-in-Chief, so your orders to it go through him; leave to send it on past the 1939
+      border towards Leningrad is yours to give. Your government needs Parliament's confidence.
+    history:
+    - Governor of the Bank of Finland from 1923.
+    - Prime Minister through the Winter War, and signed the peace of March 1940.
+    - Chosen President on 19 December 1940.
+    quote: null
+    source: null
+    fact: The President of Finland was chosen not by the voters but by a college of 300 electors.
+    portrait: null
+    credit: null
+  mannerheim:
+    bio: Marshal C. G. E. Mannerheim has commanded Finland's forces since the Soviet attack of
+      November 1939. In September 1941 his armies stand on the Svir and on the old border across the
+      Karelian Isthmus, a few miles from Leningrad.
+    arena: Your arena is the Finnish Army. You decide where it stands and where it halts, and the
+      President's order over it stands over yours. Crossing the 1939 border towards Leningrad waits
+      on the President's leave; no chamber answers for it.
+    history:
+    - Served as an officer of the Russian Imperial Army until 1917.
+    - Led the Whites in the Finnish Civil War of 1918, and was Regent of Finland in 1918-1919.
+    - Took command of the armed forces on 30 November 1939, the day the Winter War began.
+    quote: null
+    source: null
+    fact: He took command only on condition he would never have to lead an offensive against Leningrad.
+    portrait: null
+    credit: null

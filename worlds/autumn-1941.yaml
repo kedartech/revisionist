@@ -72,6 +72,11 @@ entities:
   - {key: moscow, kind: location, name: Moscow, at: [55.8, 37.6], theatre: Moscow front, within: moscow_area, base: {sides: [ussr], domains: [land, air]}}
   - {key: rome, kind: location, name: Rome, at: [41.9, 12.5], theatre: Europe, within: italy_south, base: {sides: [italy], domains: [land, air]}}
   - {key: chungking, kind: location, name: Chungking, at: [29.6, 106.6], theatre: Asia-Pacific, within: szechwan, base: {sides: [china], domains: [land, air]}}
+  # NFI: Finland's capital and the Commander-in-Chief's headquarters at Mikkeli, so that a
+  # Finnish army has a place in Finland to stand at, and a land base there to open on. Positions and
+  # base [proposed].
+  - {key: helsinki, kind: location, name: Helsinki, at: [60.2, 24.9], theatre: Northern front, within: finland}
+  - {key: mikkeli, kind: location, name: Mikkeli, at: [61.7, 27.3], theatre: Northern front, within: finland, base: {sides: [finland_state], domains: [land]}}
   - {key: north_atlantic, kind: location, name: North Atlantic, at: [55.0, -30.0], theatre: North Atlantic, within: mid_ocean_gap}
   - {key: norfolk, kind: location, name: Norfolk, at: [36.9, -76.3], theatre: North America, within: us_east, port_on: western_atlantic, base: {sides: [usa], domains: [sea, land, air]}}
   - {key: argentia, kind: location, name: Argentia, at: [47.3, -54.0], theatre: North America, within: western_atlantic, base: {sides: [usa], domains: [sea, air]}}
@@ -169,6 +174,9 @@ entities:
   - {key: chiang, kind: person, name: Chiang Kai-shek, parent: china}
   - {key: he_yingqin, kind: person, name: He Yingqin, parent: military_affairs_commission}
   - {key: xue_yue, kind: person, name: Xue Yue, parent: military_affairs_commission}  # source: xue_yue_1941
+  # Finland (NFI): the President, and the Commander-in-Chief to whom he transferred command.
+  - {key: ryti, kind: person, name: Risto Ryti, parent: finland_state}  # source: finland_constitution_1919
+  - {key: mannerheim, kind: person, name: C. G. E. Mannerheim, parent: finland_state}  # source: mannerheim_foundation
   - {key: soong, kind: person, name: T. V. Soong, parent: china}
   - {key: washington_ledger, kind: org, name: "The Washington Ledger", parent: usa, tags: [press]}
   - {key: reichsbote, kind: org, name: "Der Reichsbote", parent: germany, tags: [press]}
@@ -680,6 +688,10 @@ intelligence:
     sources:
       - {source: contact, person: he_yingqin, channel: cable}
       - {source: agent, person: dai_li, channel: radio}  # Dai Li's service behind the Japanese lines
+  - nation: finland_state  # gap: true (Headquarters' intelligence department at Mikkeli; [proposed])
+    sources:
+      - {source: contact, person: mannerheim, channel: telephone}
+      - {source: agent, person: mannerheim, channel: telephone}
 
 # Each nation's groups at home on 1 September 1941 (GRD), with `groups` on. Each group's
 # `- key:` line carries its source or `gap: true`. Every starting support, baseline, weight,
@@ -1122,6 +1134,10 @@ wars:
   - {a: germany, b: ussr, since: 1941-06-22, source: dgfp_d_xii}
   - {a: italy, b: ussr, since: 1941-06-22, gap: true}
   - {a: japan, b: china, since: 1937-07-07, declared: false, source: frus_japan_1931_1941}
+  # NFI: Soviet bombers struck Finnish towns on 25 June 1941 and Finland held itself at war.
+  # The day is read two ways (amendment 9): the night of 25 June (ziemke_1959) and 26 June
+  # (loc_finland_country_study). The world keeps the first; the second stays in the source.
+  - {a: ussr, b: finland_state, since: 1941-06-25, source: ziemke_1959}
 
 # Trade lines in force on 1 September 1941, in points a month (yields.yaml). All gaps.
 trade_lines:
@@ -1205,6 +1221,10 @@ assets:
   - {key: western_front_command, kind: office, name: "Commander, Western Front", tier: 3, controller: timoshenko}
   # NCH: the Ninth War Area's commander's post. The tier is [proposed], as Tovey's is.
   - {key: ninth_war_area_command, kind: office, name: "Commander, Ninth War Area", tier: 3, controller: xue_yue}
+  # NFI: the President's office. The tier is [proposed], as Mussolini's is.
+  - {key: finnish_presidency, kind: office, name: President of the Republic of Finland, tier: 3, controller: ryti}
+  # NFI: the Commander-in-Chief's post. The tier is [proposed], as Tovey's is.
+  - {key: finnish_supreme_command, kind: office, name: "Commander-in-Chief of the Finnish Armed Forces", tier: 3, controller: mannerheim}
 
 sources:
   - key: voteview
@@ -1265,6 +1285,10 @@ sources:
   - {key: bragadin_1957, title: "Marc'Antonio Bragadin, The Italian Navy in World War II (United States Naval Institute, 1957): the battle fleet's sorties ordered from Rome through Supermarina", note: "Mussolini held the Ministry of the Navy; the sorties were held back for want of fuel and air cover. Named citation; not read. Confirm the chain of orders and the restrictions before release."}
   - {key: timoshenko_1941, title: "Marshal Semyon Timoshenko, commanding the Soviet Western Front (and the Western Direction) from July to 12 September 1941", note: "Konev took the front on 12 September and Zhukov on 10 October. Named citation; the lane had no network and read no edition. Confirm the dates of each change of command before release."}
   - {key: xue_yue_1941, title: "General Xue Yue, commanding the Chinese Ninth War Area (Hunan, Kiangsi and Hupeh south of the Yangtze) from 1939, with his headquarters at Changsha", note: "He held Changsha against the Japanese Eleventh Army in September 1939, September and October 1941, and December 1941 to January 1942. Named citation; the lane had no network and read no edition. Confirm the post and its dates before release."}
+  - {key: finland_constitution_1919, title: "The Form of Government of Finland, 1919: a President chosen by a college of 300 electors, commanding the armed forces, who may hand that command to another", note: "Read through the sourcing sheet of 21 Nov (USSR and Finland). Risto Ryti President from 19 December 1940; supreme command transferred to Mannerheim (Article 30). Who could relieve him, and how: not found, gap."}
+  - {key: mannerheim_foundation, title: "The Mannerheim Foundation (mannerheim.fi): Marshal C. G. E. Mannerheim, Commander-in-Chief of the Finnish forces from 30 November 1939", note: "Read through the sourcing sheet of 21 Nov. Says he was applauded for not leading the army against Leningrad and for not cutting the Murmansk railway, which the US Army history contradicts: both readings kept."}
+  - {key: ziemke_1959, title: "Earl F. Ziemke, The German Northern Theater of Operations, 1940-1945 (DA Pamphlet 20-271, 1959)", note: "Read (archive.org text) through the sourcing sheet of 21 Nov. At war from the night of 25 June 1941; the offensive from 10 July; the old border on the Isthmus by 2 September; on 1 September Mannerheim had Ryti's leave to cross it only as far as Sestroretsk-Agalatovo."}
+  - {key: loc_finland_country_study, title: "Library of Congress, Finland: A Country Study (1988): the Continuation War", note: "Read through the sourcing sheet of 21 Nov. Gives 26 June 1941 for the declaration of war, where the US Army history gives the night of 25 June: both readings kept (amendment 9)."}
   - {key: van_de_ven_2003, title: "Hans van de Ven, War and Nationalism in China, 1925-1945 (RoutledgeCurzon, 2003): Chiang's orders to the war areas through the Military Affairs Commission", note: "Chiang directed the war area commanders himself, often over the head of the General Staff. Named citation; not read. Confirm that giving up a provincial capital waited on Chiang's word before release."}
   - {key: erickson_1975, title: "John Erickson, The Road to Stalingrad (Harper and Row, 1975): Stalin's orders to the fronts through the Stavka and the General Staff", note: "Stalin refused or delayed leave to withdraw through 1941. Named citation; not read. Confirm that a front's withdrawal waited on Stalin's word before release."}
   - {key: liaison_conference_1941, title: "The Liaison Conference of 1941: the Prime Minister, the Foreign, Army and Navy Ministers and the two Chiefs of Staff, deciding by consensus", note: "Named citation; not read. Confirm the membership and the rule of consensus before release."}
@@ -1407,6 +1431,9 @@ features:
   - {key: afrika_korps, kind: piece, piece: army, name: Afrika Korps, side: germany, tier: 3, places: [bardia], gap: true}
   - {key: ninth_war_area, kind: piece, piece: army, name: Ninth War Area, side: china, tier: 3, places: [changsha], gap: true}
   - {key: eleventh_army, kind: piece, piece: army, name: Eleventh Army, side: japan, tier: 4, places: [wuhan], legs: [{since: 1941-09-17, places: [changsha]}, {since: 1941-10-06, places: [wuhan]}], gap: true}
+  # NFI: the Finnish field army, standing in Finland at the Commander-in-Chief's headquarters.
+  # Its strength and its place are [proposed]: gap: true.
+  - {key: finnish_army, kind: piece, piece: army, name: Finnish Army, side: finland_state, tier: 3, places: [mikkeli], gap: true}
   # Envoys (PCW): scripted missions, each a leg that sets the piece going on the day named. The record has
   # the Moscow mission leave London on 22 September and arrive on 28th; the map's route is longer than the
   # real one, so the leg starts on 16 September [proposed] to bring it to Moscow on the record's day.
@@ -1431,6 +1458,7 @@ feeds:
   - {key: stavka_situation, name: General Staff situation reports, author: shaposhnikov, kind: report, channel: courier, classification: secret, reports: [soviet_lend_lease_eligible, lend_lease_share_ussr], sights: [soviet_western_front, army_group_centre, eastern_front], every_days: 3, latency_days: 0, assumed: true, gap: true}
   - {key: comando_supremo_reports, name: Comando Supremo reports, author: cavallero, kind: report, channel: courier, classification: secret, sights: [italian_fleet, italian_army_libya, italian_army, afrika_korps, mediterranean_fleet, western_desert_force], every_days: 3, latency_days: 1, assumed: true, gap: true}
   - {key: mac_reports, name: Military Affairs Commission reports, author: he_yingqin, kind: report, channel: courier, classification: secret, sights: [chinese_army, ninth_war_area, eleventh_army], every_days: 3, latency_days: 1, assumed: true, gap: true}
+  - {key: finnish_hq_reports, name: Finnish Headquarters reports, author: mannerheim, kind: report, channel: courier, classification: secret, sights: [finnish_army, leningrad_front], every_days: 3, latency_days: 1, assumed: true, gap: true}
 
 pipelines:
   - key: executive_order
@@ -1508,6 +1536,18 @@ pipelines:
     gap: true
     steps:
       - {person: xue_yue, kind: clerical, days: 1, assumed: true}
+  # Ryti's orders to the army (NFI): through the Commander-in-Chief, to whom he handed command.
+  - key: through_the_commander_in_chief
+    name: Through the Commander-in-Chief
+    gap: true
+    steps:
+      - {person: mannerheim, kind: clerical, days: 1, assumed: true}
+  # Mannerheim's own forms (NFI): through his headquarters at Mikkeli, with no step above him.
+  - key: finnish_headquarters
+    name: Through Headquarters at Mikkeli
+    gap: true
+    steps:
+      - {person: mannerheim, kind: clerical, days: 1, assumed: true}
   - key: cable_to_churchill
     name: A cable to the Prime Minister
     gap: true
@@ -3285,6 +3325,123 @@ cards:
         effects: [move_force, engagement]
         forces: [ninth_war_area]
         summary: "Command of the Ninth War Area: where its armies stand, how they fight and what they hide."
+  # The sixteenth and seventeenth playable cards (NFI): Finland's President, a political card,
+  # and the Commander-in-Chief, a military card under him. Ryti handed command of the armed
+  # forces to Mannerheim and did not command himself, so his order over the army goes through
+  # Mannerheim (executor). Mannerheim's own forms go through his own headquarters, with no step
+  # above him. Crossing the 1939 border towards Leningrad is Ryti's to permit; Finland's
+  # Parliament does not decide it. Finland has no home groups: no source gives them, so the
+  # home rules are off for Finland. source: finland_constitution_1919, mannerheim_foundation,
+  # ziemke_1959; every other line gap: true, [proposed].
+  - person: ryti
+    post_kind: head_of_government
+    office: President of the Republic of Finland
+    voice: "A banker's dry precision; weighs every step by what it costs Finland with Berlin, London and Washington, and says less than he knows."
+    addressed_as: "Mr President"
+    playable: true
+    principals: []
+    allies: [germany]
+    opposes:
+      - {against: ussr, over: "the lands lost in the Winter War"}
+    powers: [head of state, supreme command handed to the Commander-in-Chief, appoint the government]
+    inner_circle:
+      - {person: mannerheim, channel: telephone}
+    feeds: [finnish_hq_reports]
+    pipelines: [through_the_commander_in_chief]
+    levers:
+      - name: finnish_army_order
+        pipeline: through_the_commander_in_chief
+        resolver: movement
+        label: "Order the army"
+        summary: "Tell the Commander-in-Chief where the Finnish Army is to stand. He carries it out."
+        params:
+          - {name: force, kind: enum, choices: [finnish_army], label: "Which army", choice_labels: ["The Finnish Army"]}
+          - {name: to, kind: enum, choices: [mikkeli, helsinki, leningrad], label: "To", choice_labels: ["Mikkeli", "Helsinki", "Leningrad"]}
+      # A public statement would act only through home groups, which Finland has none of (no
+      # source), so the President's second form is the intelligence his headquarters ran. [proposed]
+      - name: finnish_agent  # gap: true
+        pipeline: through_the_commander_in_chief
+        resolver: intel
+        label: "Place an agent"
+        summary: "Have Headquarters' intelligence put an agent behind the Soviet lines at Leningrad."
+        params:
+          - {name: intel, kind: enum, choices: [agent]}
+          - {name: area, kind: enum, choices: [leningrad_area], label: "Where", choice_labels: ["Leningrad"]}
+    constraints:
+      - the government needs Parliament's confidence
+      - Parliament may impeach him by three votes in four
+    loyalty: 0
+    competence: 4
+    horizon_days: 14
+    aims:
+      - "Keep Finland Finnish."
+      - "Keep an agreement with Germany in force."
+      - "Win back the Karelian lands, east to the Svir."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Finland holds Finland.", condition: {check: holds_area, area: finland, holder: finland_state}}
+      - {aim: 2, deadline: 1941-12-07, rule: "An agreement between Finland and Germany is in force.", condition: {check: agreement_in_force, between: [finland_state, germany]}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "Finland holds the North.", condition: {check: holds_area, area: the_north, holder: finland_state}}
+    authority:
+      - name: supreme_command
+        effects: [move_force, engagement]
+        executor: mannerheim
+        forces: [finnish_army]
+        summary: "Orders to the army, carried out through the Commander-in-Chief."
+      - name: headquarters_intelligence
+        effects: [investigate]
+        executor: mannerheim
+        summary: "Agents behind the Soviet lines, placed by Headquarters' intelligence department."
+      - name: public_word
+        effects: [statement]
+        summary: "Speak to the nation."
+  - person: mannerheim
+    post_kind: army_commander
+    office: Commander-in-Chief of the Finnish Armed Forces
+    voice: "Aloof, formal and exact; an old cavalryman who measures every advance against the day the war ends, and will not be hurried by Berlin."
+    addressed_as: "Marshal"
+    playable: true
+    path: military
+    principals: [ryti]
+    powers: [command the Finnish Army, set where it halts, refuse an advance he thinks unwise]
+    inner_circle:
+      - {person: ryti, channel: telephone}
+    feeds: [finnish_hq_reports]
+    pipelines: [finnish_headquarters]
+    levers:
+      - name: finnish_army_move
+        pipeline: finnish_headquarters
+        resolver: movement
+        label: "Move the army"
+        summary: "Order the Finnish Army to stand at a new place. Your headquarters carries it out."
+        params:
+          - {name: force, kind: enum, choices: [finnish_army], label: "Which army", choice_labels: ["The Finnish Army"]}
+          - {name: to, kind: enum, choices: [mikkeli, helsinki, leningrad], label: "To", choice_labels: ["Mikkeli", "Helsinki", "Leningrad"]}
+      - name: finnish_army_conceal  # gap: true
+        pipeline: finnish_headquarters
+        resolver: intel
+        label: "Hide the army's moves"
+        summary: "Hide where the Finnish Army stands: forest roads, night marches and the lakes of Karelia."
+        params:
+          - {name: intel, kind: enum, choices: [conceal]}
+          - {name: piece, kind: enum, choices: [finnish_army], label: "Which army", choice_labels: ["The Finnish Army"]}
+          - {name: concealed, kind: enum, choices: ["yes", "no"], label: "Hidden", choice_labels: ["Hide it", "Stop hiding it"]}
+    loyalty: 2
+    competence: 4
+    reach: {rank: 2}
+    horizon_days: 7
+    aims:
+      - "Hold Finland and take the Karelian lands to the Svir."
+      - "Take the North for Finland."
+      - "Keep Finland Finnish, the army's base."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "Finland holds Finland and takes the North from the Soviet Union.", condition: {check: all_of, conditions: [{check: holds_area, area: finland, holder: finland_state}, {check: holds_area, area: the_north, holder: finland_state}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "Finland holds the North.", condition: {check: holds_area, area: the_north, holder: finland_state}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "Finland holds Finland.", condition: {check: holds_area, area: finland, holder: finland_state}}
+    authority:
+      - name: finnish_army
+        effects: [move_force, engagement]
+        forces: [finnish_army]
+        summary: "Command of the Finnish Army: where it stands and how it fights."
   - person: kramer
     office: Navy communications intelligence translator
     voice: "Precise translator's register; marks the urgent passage and adds one short note of his own."
@@ -3813,6 +3970,24 @@ mandates:
     condition: {check: holds_area, area: hunan, holder: china}
     days: 14
     text: "You have moved the war area's armies: the Generalissimo holds you to Changsha."
+  # NFI: the Finnish Army moved by its own commander answers to the President for Finland's
+  # own ground; the President's word abroad answers to Parliament for the same. Blowback on
+  # each one's own act, so each fires only in a game where he is held and acts. gap: true,
+  # [proposed].
+  - key: finnish_army_holds_finland
+    kind: blowback
+    trigger: {"on": act, effect: move_force}
+    to: [mannerheim]
+    condition: {check: holds_area, area: finland, holder: finland_state}
+    days: 14
+    text: "You have moved the army: the President holds you to Finland's own ground."
+  - key: finland_kept_out_of_the_wider_war
+    kind: blowback
+    trigger: {"on": act, effect: statement}
+    to: [ryti]
+    condition: {check: holds_area, area: finland, holder: finland_state}
+    days: 14
+    text: "You have spoken for Finland: Parliament holds you to Finland's own war, and no wider one."
   # The Commons pressed for the Atlantic convoys through the autumn.
   - key: commons_convoys
     kind: order
@@ -3956,6 +4131,20 @@ roster:
     reach: The Ninth War Area, what it may do under the General Staff, and a telephone to its Chief.
     composite: false
     sides: [{contest: us_japan_talks, side: china}]
+
+  # Finland (NFI) stands on Germany's side in the war in Europe: it fought the Soviet Union
+  # beside Germany as a co-belligerent, not an ally, and Britain declared war on it only on 6
+  # December 1941 (mannerheim_foundation). The character rule needs a side in some contest.
+  - entity: ryti
+    pitch: President of a small nation fighting beside Germany for the lands it lost, not for Germany's war.
+    reach: The Finnish Army through his Commander-in-Chief, and Finland's word abroad.
+    composite: false
+    sides: [{contest: atlantic_war, side: germany}]
+  - entity: mannerheim
+    pitch: Marshal commanding the Finnish Army, who took command on condition he never lead it against Leningrad.
+    reach: The Finnish Army, where it halts, and a telephone to the President.
+    composite: false
+    sides: [{contest: atlantic_war, side: germany}]
 
 # Starting regard [proposed] (SHT, 14 Nov sheet), -2 to 2: between Roosevelt and
 # each of his people, and between each pair of the eight leaders. Public, as the
@@ -4219,6 +4408,15 @@ locks:
     question: permission
     order: {form: ninth_war_area_move, params: {to: chungking}}
     decider: {person: chiang}
+  # NFI. Crossing the 1939 border: the Finnish Army sent on to Leningrad waits on Ryti's
+  # permission. Mannerheim took command on condition he never lead an offensive against
+  # Leningrad, and on 1 September 1941 had Ryti's leave to cross the old border on the Isthmus
+  # only as far as Sestroretsk-Agalatovo. No condition: only his grant opens it. Parliament does
+  # not decide it. source: ziemke_1959; the place, gap: true, [proposed].
+  - key: finnish_army_beyond_the_border
+    question: permission
+    order: {form: finnish_army_move, params: {to: leningrad}}
+    decider: {person: ryti}
 
 # Pacts in force on 1 September 1941 (PCW). The clause chosen for each is [proposed]: the rules judge
 # what they can, and wording they cannot express is kept and marked unchecked.

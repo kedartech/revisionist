@@ -347,7 +347,7 @@ def land_effect(
     """One effect landed on ``on`` as a written order's part lands it: the path a form
     takes to the same rules. ``aide``: the aide filed it, and its limits hold here too."""
     issuer = state.seats[issuer_seat].embodies
-    kept = detect.aide_may(effect) if aide else effect
+    kept = _aide_lands(state, issuer_seat, effect) if aide else effect
     if kept is None:
         return []
     return _landed(PassWorld(state), kept, issuer_seat, issuer, on, issuer, ref)[0]
@@ -407,8 +407,16 @@ def _carried(state: State, order: RoutedOrder, part: RoutedPart) -> list[Estimat
         # A rebuffed approach can still sour a relation.
         effects += [e for e in part.estimated if isinstance(e, ShiftDisposition)]
     if order.order_id in state.aide_orders:
-        effects = [e for e in map(detect.aide_may, effects) if e is not None]
+        kept = (_aide_lands(state, order.issuer, e) for e in effects)
+        effects = [e for e in kept if e is not None]
     return effects
+
+
+def _aide_lands(state: State, seat: SeatId, effect: EstimatedEffect) -> EstimatedEffect | None:
+    """What an effect the aide filed for ``seat`` lands: nothing if it is on the aide's
+    bar under the seat's standing order as it stands today, else as the aide may carry it."""
+    standing = state.standing.get(seat, frozenset())
+    return None if detect.barred(effect, standing) is not None else detect.aide_may(effect)
 
 
 def _words(part: RoutedPart) -> str:

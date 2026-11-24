@@ -284,7 +284,18 @@ class ClauseType(StrEnum):
     conference item, never here."""
     UNCHECKED = "unchecked"
     """Wording that fits no type: kept, and never judged."""
+    ARMISTICE = "armistice"
+    """No battle between the bound party and a named nation for ``days`` (PEA)."""
+    END_WAR = "end_war"
+    """The war between the bound party and a named nation ends; the bound party's pieces
+    leave that nation's ground (PEA)."""
+    NO_SEPARATE_PEACE = "no_separate_peace"
+    """For a pact: no peace with a named enemy while another party's war with it goes on
+    (PEA)."""
 
+
+PEACE_CLAUSES = frozenset({ClauseType.ARMISTICE, ClauseType.END_WAR})
+"""The clauses whose acceptance is a question of peace (PEA)."""
 
 _CLAUSE_NEEDS: dict[ClauseType, tuple[str, ...]] = {
     ClauseType.PLACE: ("force", "on"),
@@ -296,6 +307,9 @@ _CLAUSE_NEEDS: dict[ClauseType, tuple[str, ...]] = {
     ClauseType.AID: ("nation", "share"),
     ClauseType.VOTE: ("text",),
     ClauseType.UNCHECKED: ("text",),
+    ClauseType.ARMISTICE: ("nation", "days"),
+    ClauseType.END_WAR: ("nation",),
+    ClauseType.NO_SEPARATE_PEACE: ("nation",),
 }
 
 
@@ -325,6 +339,11 @@ class AgreementClause(Model):
             raise ValueError(f"a {self.type.value} clause names its {', '.join(missing)}")
         if self.type is ClauseType.PLACE and (self.area is None) == (self.region is None):
             raise ValueError("a place clause names an area or a region")
+        peace = (*PEACE_CLAUSES, ClauseType.NO_SEPARATE_PEACE)
+        if self.type in peace and self.nation == self.binds:
+            raise ValueError("a peace clause names another nation than the one it binds")
+        if self.type is ClauseType.ARMISTICE and not self.days:
+            raise ValueError("an armistice names its days")
         return self
 
 
@@ -369,6 +388,8 @@ class Deal(Model):
                 raise ValueError("an agreement has wording or clauses")
             if any(c.binds not in self.parties for c in self.clauses):
                 raise ValueError("a clause binds one of the parties")
+            if any(c.type in PEACE_CLAUSES and c.nation not in self.parties for c in self.clauses):
+                raise ValueError("an armistice or an end to a war is between parties")
             if self.offer or self.ask or self.accept:
                 raise ValueError("an agreement is offered by its clauses alone")
             return self
@@ -710,6 +731,7 @@ __all__ = [
     "GROUP_DAY_CAP",
     "IRREVERSIBLE",
     "MAX_PARTIES",
+    "PEACE_CLAUSES",
     "REFUSAL_LOYALTY",
     "AgreementClause",
     "Allocate",

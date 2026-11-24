@@ -170,6 +170,9 @@ class Ending(StrEnum):
     """No attacker is left, or the attacker broke."""
     LULL = "lull"
     """The attacker stopped pressing for ``LULL_DAYS`` days and went back."""
+    CEASED = "ceased"
+    """The two powers stopped fighting, by an armistice or an end to their war (PEA): each
+    side holds where it stands, and neither has won."""
 
 
 # --- the pure rule ----------------------------------------------------------------
@@ -446,7 +449,7 @@ def meetings(state: "State", movers: Sequence[tuple["Feature", EntityId, EntityI
     order of the lowest piece id moving across each (rule 5); one with an area already in a
     battle, or in a meeting settled before it, is no meeting and its pieces move as moves
     do. Filing order is read nowhere."""
-    from revisionist.core.realism.war import at_war
+    from revisionist.core.realism.war import hostile
 
     if not on(state):
         return []
@@ -465,7 +468,7 @@ def meetings(state: "State", movers: Sequence[tuple["Feature", EntityId, EntityI
                 (m, o)
                 for m in ms
                 for o in ms
-                if o[1] != m[1] and at_war(state, nation[m[0].feature_id], nation[o[0].feature_id])
+                if o[1] != m[1] and hostile(state, nation[m[0].feature_id], nation[o[0].feature_id])
             ),
             None,
         )
@@ -547,16 +550,17 @@ def _opening(
     before: "State", state: "State", area: EntityId, here: Sequence["Feature"], day: date
 ) -> Battle | None:
     """The battle that opens in ``area`` today, or None when no two powers there are at
-    war. The attacker is the nation of the first piece (in id order) that stepped in today
-    with an enemy there that did not; with none, the first nation (in id order) at war
-    with the area's holder, else the nation of the first piece. The defender is the
-    nation of the first enemy piece that stood there, else of the first enemy piece. Each
-    side takes the pieces of nations at war with the other side and not with it."""
+    war with no armistice between them (PEA). The attacker is the nation of the first piece
+    (in id order) that stepped in today with an enemy there that did not; with none, the
+    first nation (in id order) at war with the area's holder, else the nation of the first
+    piece. The defender is the nation of the first enemy piece that stood there, else of the
+    first enemy piece. Each side takes the pieces of nations at war with the other side and
+    not with it."""
     from revisionist.core.realism import territory
-    from revisionist.core.realism.war import at_war
+    from revisionist.core.realism.war import hostile
 
     nation = {f.feature_id: _nation(state, f) for f in here}
-    if not any(at_war(state, a, b) for a in nation.values() for b in nation.values()):
+    if not any(hostile(state, a, b) for a in nation.values() for b in nation.values()):
         return None
     was = {
         f.feature_id: _area(before, b)
@@ -569,17 +573,17 @@ def _opening(
         (
             nation[f.feature_id]
             for f in entered
-            if any(at_war(state, nation[f.feature_id], nation[g.feature_id]) for g in stood)
+            if any(hostile(state, nation[f.feature_id], nation[g.feature_id]) for g in stood)
         ),
         None,
     )
     if attacker is None:
         held = territory.holder(state, area)
         foes = sorted(
-            n for n in set(nation.values()) if held is not None and at_war(state, n, held)
+            n for n in set(nation.values()) if held is not None and hostile(state, n, held)
         )
         attacker = foes[0] if foes else nation[here[0].feature_id]
-    enemies = [f for f in here if at_war(state, attacker, nation[f.feature_id])]
+    enemies = [f for f in here if hostile(state, attacker, nation[f.feature_id])]
     if not enemies:
         return None
     defender = nation[([f for f in enemies if f in stood] or enemies)[0].feature_id]
@@ -609,9 +613,9 @@ def _opening(
 def _with(state: "State", n: EntityId, own: EntityId, other: EntityId) -> bool:
     """Whether nation ``n`` fights on ``own``'s side against ``other``: it is ``own``, or
     at war with ``other`` and not with ``own``."""
-    from revisionist.core.realism.war import at_war
+    from revisionist.core.realism.war import hostile
 
-    return n == own or (at_war(state, n, other) and not at_war(state, n, own))
+    return n == own or (hostile(state, n, other) and not hostile(state, n, own))
 
 
 def _present(state: "State", battle: Battle, side: BattleSide) -> list["Feature"]:
@@ -772,10 +776,10 @@ def _went_back(state: "State", battle: Battle, piece: "Feature") -> EntityId | N
 
 def _open_to(state: "State", piece: "Feature", to: EntityId) -> bool:
     """Whether an area holds no piece at war with ``piece``'s side that can fight there."""
-    from revisionist.core.realism.war import at_war
+    from revisionist.core.realism.war import hostile
 
     own = _nation(state, piece)
-    return not any(at_war(state, own, _nation(state, f)) for f in fighting(state).get(to, []))
+    return not any(hostile(state, own, _nation(state, f)) for f in fighting(state).get(to, []))
 
 
 def _sent_back(
@@ -820,6 +824,7 @@ def _news(state: "State", battle: Battle, day: date, ending: Ending | None) -> "
         Ending.WON: f"Battle at {place} ends: {a} has won",
         Ending.HELD: f"Battle at {place} ends: {d} holds",
         Ending.LULL: f"Battle at {place} ends: {a} draws off",
+        Ending.CEASED: f"Battle at {place} ends: {a} and {d} cease fighting",
     }[ending]
     return ev.NewsReported(
         news=NewsEvent(
@@ -1492,6 +1497,8 @@ def won(
         if not isinstance(p, ev.BattleEnded):
             continue
         fought = known.pop(p.area, None)
+        if p.ending is Ending.CEASED:
+            continue
         if fought is not None and fought.meeting:
             out.append(
                 (_side_area(fought, 0 if p.winner == fought.defender.nation else 1), p.winner)
@@ -1537,8 +1544,19 @@ def walk(before: "State", state: "State", day: date, met: Sequence[Meet] = ()) -
                     features[p.feature.feature_id] = p.feature
                 out += _day(state.model_copy(update={"features": features}), battle, day)
                 continue
+        elif _ceased(state, battle):
+            out += _end(state, battle, day, Ending.CEASED)
+            continue
         out += _day(state, battle, day)
     return out
+
+
+def _ceased(state: "State", battle: Battle) -> bool:
+    """Whether an open battle's two powers no longer fight: an armistice between them is
+    in force, or their war has ended (PEA). Each side holds where it stands."""
+    from revisionist.core.realism.war import hostile
+
+    return not hostile(state, battle.attacker.nation, battle.defender.nation)
 
 
 __all__ = [

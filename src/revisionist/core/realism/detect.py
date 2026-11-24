@@ -799,6 +799,47 @@ def aide_may[E: Model](effect: E) -> E | None:
     return effect
 
 
+class Barred(StrEnum):
+    """An act the aide never does for an absent seat, whatever a standing order says.
+
+    Most are seat actions the aide has no path to; ``barred`` tells the two an order's
+    typed effect can carry. A breakaway, a plot and a purge are listed by name ahead of
+    any rule that lets a seat do one."""
+
+    SEND_HELD = "send a held order anyway"
+    REFUSE = "refuse an order from above"
+    ASK_HELD = "ask for a held order"
+    ANSWER = "answer an ask or a matter as a decider or a council member"
+    BLOC_OFFER = "make an offer to a bloc"
+    OFFICE_VOTE = "vote at a sitting on an office"
+    ACCEPT = "accept an agreement, a peace among them"
+    APPOINT = "appoint or dismiss anyone not named in a standing order"
+    BREAKAWAY = "break away"
+    PLOT = "launch a plot"
+    PURGE = "order a purge"
+
+
+AIDE_BAR: frozenset[Barred] = frozenset(Barred)
+"""The aide's bar: checked where the aide's orders are chosen and again where each lands."""
+
+BAR_RULES: frozenset[str] = frozenset({"appointment"})
+"""Irreversible effect kinds the bar rules on, ahead of the standing-order rule."""
+
+
+def barred[E: Model](effect: E, standing: frozenset[str]) -> Barred | None:
+    """The act on the bar ``effect`` would do for an absent seat whose standing order
+    names the effect kinds ``standing``, or None. A standing order names kinds, not
+    people, so one naming appointments names every appointment."""
+    from revisionist.core.realism.effect import Appointment, Deal, EffectKind
+
+    act = None
+    if isinstance(effect, Deal) and effect.accept:
+        act = Barred.ACCEPT
+    elif isinstance(effect, Appointment) and EffectKind.APPOINTMENT not in standing:
+        act = Barred.APPOINT
+    return act if act in AIDE_BAR else None
+
+
 _TITLES = {
     Source.CONTACT: "Contact report",
     Source.AIR: "Air reconnaissance report",
@@ -884,6 +925,8 @@ __all__ = [
     "AGENTS_MAX",
     "AGENT_CHANCE",
     "AGENT_DAYS",
+    "AIDE_BAR",
+    "BAR_RULES",
     "CODEBREAKING_CHANCE",
     "CODE_COST",
     "CODE_DAYS",
@@ -894,6 +937,7 @@ __all__ = [
     "WRONG_BASE",
     "WRONG_PER_COMPETENCE",
     "Agent",
+    "Barred",
     "Confidence",
     "Informant",
     "IntelError",
@@ -904,6 +948,7 @@ __all__ = [
     "Sighting",
     "Source",
     "aide_may",
+    "barred",
     "code_cost",
     "conceal",
     "concealed",

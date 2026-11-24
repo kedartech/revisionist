@@ -1683,12 +1683,97 @@ class LocksBlock(TypedDict):
 class LockCheck(TypedDict):
     """The check before sending (LKD rule 2): what filing the draft would do now."""
 
-    check: Literal["allowed", "locked", "beyond"]
-    """``allowed``: it goes out; ``locked``: a lock holds it; ``beyond``: it is refused."""
+    check: Literal["allowed", "locked", "beyond", "question"]
+    """``allowed``: it goes out; ``locked``: a lock holds it; ``beyond``: it is refused;
+    ``question``: with ``posts`` on, a move of post that would take a seat's last
+    authority, so it goes out and waits for the office question's sitting (PPR)."""
     who: str | None
     """For ``locked``, who can allow it; None otherwise."""
     reason: str
-    """For ``locked``, what the seat would be told; for ``beyond``, today's refusal."""
+    """For ``locked`` and ``question``, what the seat would be told; for ``beyond``,
+    today's refusal."""
+
+
+class PostName(TypedDict):
+    """A post: the office asset's id and name."""
+
+    id: str
+    name: str
+
+
+class LadderRung(TypedDict):
+    """One rung of the seat's own ladder, in order; ``free`` when nobody holds it."""
+
+    id: str
+    name: str
+    free: bool
+
+
+class PendingPost(TypedDict):
+    """A change of post pending on the seat (LDR), sealed to it until it lands."""
+
+    id: str
+    """The notice the seat was sent, a document it holds."""
+    post: str
+    move: Literal["appoint", "relieve"]
+    lands: str
+    """When it lands, in words."""
+    wake: int | None
+    """The wake at whose close it lands; None when it waits for the office question."""
+    rung: str | None
+    """The post the seat lands on; None for none or while it waits for the question."""
+
+
+class PostMoveLine(TypedDict):
+    """A move the seat may make on another person: appoint, relieve or restore, with the
+    rung the person it puts down lands on."""
+
+    person: str
+    name: str
+    post: str
+    office: str
+    move: Literal["appoint", "relieve", "restore"]
+    down: str | None
+    """Who the move puts down, by name; None for no one."""
+    rung: str | None
+    """The post that person lands on; None for none."""
+    question: bool
+    """It would take a seat's last authority: it waits for the office question."""
+
+
+class Through(TypedDict):
+    """Someone in the seat's inner circle whose card holds an authority."""
+
+    person: str
+    name: str
+    authority: list[str]
+
+
+class Letter(TypedDict):
+    id: str
+    title: str
+
+
+class PostRoom(TypedDict):
+    """What a seat with no post may still do."""
+
+    inner_circle: list[str]
+    letters: list[Letter]
+    aims: list[str]
+    through: list[Through]
+
+
+class PostsBlock(TypedDict):
+    """The seat's post as it sees it, with ``posts`` on (PPR): its post and ladder, who
+    may move it, each change pending on it, the moves it may make on others, and with no
+    post, the room it still has. Absent with the rule off."""
+
+    post: PostName | None
+    ladder: list[LadderRung]
+    moved_by: list[str]
+    pending: list[PendingPost]
+    moves: list[PostMoveLine]
+    room: NotRequired[PostRoom]
 
 
 class StandingVote(FloorVote):
@@ -2226,6 +2311,8 @@ __all__ = [
     "HomeMoved",
     "HomePlace",
     "HomeTheme",
+    "LadderRung",
+    "Letter",
     "LeverChoice",
     "LeverLine",
     "LeverParam",
@@ -2271,6 +2358,7 @@ __all__ = [
     "OrderTrack",
     "OrderTracker",
     "OwnAimBlock",
+    "PendingPost",
     "People",
     "PeopleMeter",
     "PersonChannel",
@@ -2293,6 +2381,10 @@ __all__ = [
     "PlaybackPaper",
     "PlaybackStake",
     "PlaybackStep",
+    "PostMoveLine",
+    "PostName",
+    "PostRoom",
+    "PostsBlock",
     "PublicWar",
     "ReachContact",
     "ReachGroups",
@@ -2321,6 +2413,7 @@ __all__ = [
     "StrengthRange",
     "TermClause",
     "Threat",
+    "Through",
     "TimelinePoint",
     "WakeHeader",
     "WarNation",

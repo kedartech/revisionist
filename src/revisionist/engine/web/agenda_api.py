@@ -18,7 +18,15 @@ from revisionist.core import events as ev
 from revisionist.core import history, record
 from revisionist.core.canary import scan_text
 from revisionist.core.events import Event
-from revisionist.core.ids import CampaignId, EntityId, MandateId, OrderId, SeatId, derived_id
+from revisionist.core.ids import (
+    CampaignId,
+    DocumentId,
+    EntityId,
+    MandateId,
+    OrderId,
+    SeatId,
+    derived_id,
+)
 from revisionist.core.ontology import Controller
 from revisionist.core.project import project
 from revisionist.core.realism import advance, agreement, holders, mandates, pipelines, process
@@ -580,7 +588,24 @@ def _due_promises(state: State, seat: SeatId) -> list[DueMatter]:
     ]
 
 
+def _due_posts(state: State, seat: SeatId) -> list[DueMatter]:
+    """Each change of post pending on the person the seat plays (PPR), named by
+    the notice it was sent, with when it lands; first, at the head of what needs it."""
+    from revisionist.engine.web import people
+
+    view = project(state, seat)
+    out: list[DueMatter] = []
+    for line in people.pending(state, seat):
+        page = view.documents.get(DocumentId(line["id"]))
+        if page is not None:
+            out.append(
+                DueMatter("post", line["id"], page.title, _name(view, page.author), line["lands"])
+            )
+    return out
+
+
 DUE_KINDS: dict[str, DueKind] = {
+    "post": _due_posts,
     "request": _due_requests,
     "offer": _due_offers,
     "decision": _due_decisions,

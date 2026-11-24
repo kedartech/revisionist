@@ -271,6 +271,7 @@ ROWS: tuple[Row, ...] = (
     Row("realism", "aim-check", PLAY, _fixed(key="take_ground", values={"place": "isle"})),
     Row("realism", "aim-set", PLAY, _fixed(key="take_ground", values={"place": "isle"})),
     Row("realism", "offer", PLAY, _fixed(bloc="greens", measure="barge_act", price="dues")),
+    Row("realism", "move", PLAY, _fixed(person="kara", post="norra_levy", move="relieve")),
 )
 
 

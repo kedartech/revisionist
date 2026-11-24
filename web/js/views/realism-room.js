@@ -1168,6 +1168,7 @@ export function realismRoom(ctx) {
       return;
     }
     if (action.to === 'ask-for') return askFor(action.id);
+    if (action.to === 'capital') return capitalAt(action.q);
     if (action.to === 'ask') {
       ui.ask = action.id;
       openSheet(ui, 'ask', { need: line.key });
@@ -1505,6 +1506,10 @@ export function realismRoom(ctx) {
     speak,
     full: (on) => { setFull(on); root.querySelector('.rl-cap button.rl-cap-full')?.focus(); },
     offerCheck: (body) => api.realism('check', body),
+    officeVote: (body) => work('Sealing your choice…', async () => {
+      const r = await api.realism('office-vote', body);
+      ui.said = r.reply || null;
+    }),
     offer: (body) => work('Making the offer…', async () => {
       const r = await api.realism('offer', body);
       ui.said = r.reply || null;

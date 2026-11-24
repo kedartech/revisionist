@@ -37,7 +37,7 @@ export const api = {
   signout: () => call('POST', '/api/signout', {}),
   /** A seat command; resolves to { reply, refused }. */
   seat: (action, body = {}) => call('POST', `/api/seat/${action}`, body),
-  /** A realism call: read (resolves to a document page), flag (to { flagged }), directive (to { reply, refused, proposal }), aide (to { reply, refused, brief }), help (to { reply, refused, help }), order (to { reply, refused, proposal }), consult, sign, lever, aim-check and aim-set with { key, values } (to { reply, refused, aim: { stands, text, reasons } }), step, advance, commit, close, style, option, file (to { reply, refused }). */
+  /** A realism call: read (resolves to a document page), flag (to { flagged }), directive (to { reply, refused, proposal }), aide (to { reply, refused, brief }), help (to { reply, refused, help }), order (to { reply, refused, proposal }), consult, sign, lever, aim-check and aim-set with { key, values } (to { reply, refused, aim: { stands, text, reasons } }), step, advance, commit, close, style, option, file, office-vote with { question, remove } (to { reply, refused }). */
   realism: (action, body = {}) => call('POST', `/api/realism/${action}`, body),
   /** The shapes of a territory game's map: resolves to { reply, refused, file, map }, the map file its stored hash names. */
   map: () => api.realism('map'),

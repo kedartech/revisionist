@@ -170,3 +170,24 @@
 /* The count at the last wake: the same track, dimmed; a bloc whose count moved is outlined now. */
 .rl-cap-trackbox.then { opacity: 0.6; }
 .rl-cap-yea.moved { stroke: var(--fg-strong); stroke-width: 0.6; stroke-dasharray: 1 1; }
+
+/* The office question (realism-office.js): the holder's footing across the top of the board, the
+   question's panel by who decides it, the member's own sealed choice, and the result in its place. */
+.rl-cap:has(> .rl-office-footing) { grid-template-rows: auto auto minmax(0, 1fr); }
+.rl-office-footing { grid-column: 1 / -1; display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--rule-strong); background: var(--surface); font-size: 13px; overflow-wrap: anywhere; }
+.rl-office-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin: 0; color: var(--fg); }
+.rl-office-foot.under { border-left: 3px solid var(--warn); padding-left: var(--space-2); }
+.rl-office-groups { color: var(--fg-muted); }
+.rl-office-foot-q, .rl-office-choice button { min-height: 44px; }
+.rl-office-panel p, .rl-office-result p { margin: var(--space-2) 0; font-size: 14px; color: var(--fg); }
+.rl-office-members { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
+.rl-office-members li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--rule); border-radius: var(--radius); }
+.rl-office-choice { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.rl-office-choice button[aria-pressed="true"] { background: var(--accent-bg); color: var(--on-accent); border-color: var(--accent-bg); }
+.rl-office-mine { flex: 1 1 100%; margin: 0; font-size: 13px; color: var(--fg-strong); }
+.rl-office-result { border-left: 3px solid var(--fg-strong); padding-left: var(--space-3); }
+
+@media (max-width: 767px) {
+  .rl-office-choice { flex-direction: column; align-items: stretch; }
+  .rl-office-members li { flex-direction: column; }
+}

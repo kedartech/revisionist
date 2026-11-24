@@ -11,6 +11,7 @@ import { boxOf, holderRelation, territoryProjection } from '../realism-rules.js'
 import { DONE_HINT, dayKey, dayWords, itemHeading } from './realism-wake.js';
 import { floorMeasures, promisesMade } from './realism-home.js';
 import { askLines, heldLines, lockTag } from './realism-locks.js';
+import { WAY_WORDS, officeQuestions } from './realism-office.js';
 import { postRoom } from './realism-figure.js';
 
 /** The list's heading and its empty line [proposed]. */
@@ -121,6 +122,13 @@ addNeedKind('held', (rv) => heldLines(rv).map((l) => ({
 addNeedKind('ask', (rv) => askLines(rv).map((a) => ({
   key: a.id, label: 'Asks your leave', what: a.words, from: a.by, due: null, arrived: a.asked || null,
   action: { word: 'Open', to: 'ask', id: a.id },
+})));
+
+// an office question the seat's person decides and has not yet chosen on (OFB): due the day it sits
+addNeedKind('office', (rv) => officeQuestions(rv.home).filter((x) => !x.result && x.q.mine && x.q.choice === null).map(({ q }) => ({
+  key: q.question_id, label: 'Office question', what: `Whether ${q.holder} stays as ${q.office}`,
+  from: WAY_WORDS[q.way] ?? q.way, due: q.sits, arrived: null,
+  action: { word: 'Open', to: 'capital', q: `office:${q.question_id}` },
 })));
 
 // a promise the seat made a bloc for its votes (PRB), once its measure has passed and set its due

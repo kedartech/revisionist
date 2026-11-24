@@ -22,6 +22,7 @@ import { flagBadge } from '../flags.js';
 import { askedForFull, browserFull } from '../map/view.js';
 import { worldDate } from '../rules.js';
 import { moveWords, movedSince, promiseWords, promisesMade, sinceWords, supportStep, themesFor } from './realism-home.js';
+import { WAY_WORDS, footingOf, footingStrip, footingWords, officePanel, officeQuestions } from './realism-office.js';
 import { personToken } from './realism-people.js';
 import { daysBetween } from './realism-timeline.js';
 import { DUE_FLASH, MARK_MS, along, cameDue, lastDrawn, play, runCount, slideMarker, stated, track as stepTrack } from './realism-tracks.js';
@@ -118,7 +119,35 @@ export function capitalQuestions(rv) {
   (rv?.stakes?.mandates ?? []).forEach((s, i) => {
     out.push({ key: `mandate:${i}`, kind: 'mandate', kindWords: 'Your mandate', title: s.text, decides: 'You', count: null, days: s.days_left ?? null, mandate: s });
   });
+  // the office questions of the seat's nation, each drawn by who decides it, then the holder's own
+  // posts with none open on them, so his office always stands in the list
+  for (const entry of officeQuestions(home)) {
+    const { q, result } = entry;
+    const id = (q ?? result).question_id;
+    out.push({
+      key: `office:${id}`, kind: 'office', kindWords: 'An office question', title: (q ?? result).office,
+      decides: result ? 'Decided' : officeDeciders(q), count: null,
+      days: !result && today && q.sits ? daysBetween(today, q.sits) : null, office: entry,
+    });
+  }
+  for (const f of footingOf(home).filter((x) => !x.question)) {
+    out.push({ key: `footing:${f.office}`, kind: 'footing', kindWords: 'Your office', title: f.office, decides: 'no one yet: no question is open on it', count: null, days: null, footing: f });
+  }
   return out;
+}
+
+/** Who decides an office question, by the shape the server sends. */
+function officeDeciders(q) {
+  if (q.way === 'vote') return chamberName(q.chamber);
+  if (q.way === 'council' || q.way === 'person') return (q.deciders ?? []).join(', ') || WAY_WORDS[q.way];
+  return WAY_WORDS[q.way] ?? q.way;
+}
+
+/** The holder's own post with no question open: its footing, and what would open one. */
+function footingMiddle(q) {
+  return h('section', { class: 'rl-office-panel w-footing', 'aria-label': `Your footing as ${q.footing.office}` },
+    h('p', {}, footingWords(q.footing)),
+    q.footing.groups?.length ? h('p', { class: 'muted' }, `It rests on ${q.footing.groups.join(', ')}.`) : null);
 }
 
 /** Whether the board has anything to show: with nothing, the switch is not drawn. */
@@ -677,7 +706,7 @@ function fullControl(onToggle) {
 export function capitalBoard(rv, state, on = {}) {
   const section = h('section', { class: 'rl-cap', 'aria-label': 'The Capital', tabindex: '-1' });
   const draw = (focus) => {
-    section.replaceChildren(...parts());
+    section.replaceChildren(...parts().filter(Boolean));
     if (focus) section.querySelector(`[data-key="${focus}"]`)?.focus();
   };
   const set = (change, focus) => { Object.assign(state, change); draw(focus); };
@@ -717,6 +746,7 @@ export function capitalBoard(rv, state, on = {}) {
     openAsk: (a) => on.openAsk?.(a),
     conference: (c) => on.conference?.(c),
     speak: () => on.speak?.(),
+    officeVote: (body) => on.officeVote?.(body),
   };
   function parts() {
     const home = ownHome(rv);
@@ -738,9 +768,12 @@ export function capitalBoard(rv, state, on = {}) {
           : q.kind === 'held' ? heldMiddle(rv, q, ctx)
             : q.kind === 'ask' ? askMiddle(rv, q, ctx)
               : q.kind === 'conference' ? conferenceMiddle(rv, q, ctx)
-                : stakeMiddle(q);
+                : q.kind === 'office' ? officePanel(q.office, ctx)
+                  : q.kind === 'footing' ? footingMiddle(q)
+                    : stakeMiddle(q);
     return [
       head,
+      footingStrip(home, { onQuestion: (key) => set({ q: key, vote: 0, pick: null, offer: null }, key) }),
       h('nav', { class: 'rl-cap-list', 'aria-label': 'Questions: the ground you hold or lose' },
         h('h3', { class: 'rl-cap-h' }, 'Questions: the ground you hold or lose'),
         h('ul', { role: 'list' }, qs.map((x) => questionRow(x, !chamberPick && x.key === q?.key, (key) => set({ q: key, vote: 0, pick: null, offer: null }, key))))),

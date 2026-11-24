@@ -518,7 +518,7 @@ def _clauses_judged(state: "State", conf: Conference, result: Tally) -> list["Pa
             rows = [("Clause", agreement.render_clause(state, c)), ("Finding", why)]
             key = ("judged", x.agreement_id, str(n), status.value, "None", result.on.isoformat())
             title = agreement.title_of(status)
-            out += agreement.papers(state, x.parties, key, result.on, title, rows)
+            out += agreement.papers(state, x.parties, key, result.on, title, rows, x)
             if status is ClauseStatus.BROKEN:
                 out += agreement.broken_costs(state, x, n, result.on)
     return out

@@ -8,6 +8,7 @@ from hypothesis import given
 from hypothesis import settings as h_settings
 from hypothesis import strategies as st
 
+from revisionist.core import events as ev
 from revisionist.core.fold import replay
 from revisionist.core.goals import (
     AimRule,
@@ -22,11 +23,11 @@ from revisionist.core.goals import (
     post_sees,
 )
 from revisionist.core.goals import at_post as goal_at_post
-from revisionist.core.ids import EntityId, GoalId, QuantityId, SeatId
+from revisionist.core.ids import EntityId, GoalId, OrderId, QuantityId, SeatId
 from revisionist.core.ontology import Controller, SeatStatus
-from revisionist.core.project import HasScope, at_post, project
+from revisionist.core.project import HasScope, at_post, project, untold_goals
 from revisionist.core.realism import agreement, detect, economy, groups
-from revisionist.core.realism.agreement import Agreement, Agreements
+from revisionist.core.realism.agreement import Agreement, AgreementOffer, Agreements
 from revisionist.core.realism.detect import Confidence, Picture, Report, Source
 from revisionist.core.realism.economy import Pools
 from revisionist.core.realism.effect import AgreementClause, ClauseType
@@ -325,3 +326,110 @@ def test_the_score_post_cannot_tell_whether_an_aim_on_his_nations_facts_holds() 
     legacy = goal.model_copy(update={"person": None, "source": None, "aim": None})
     assert goal_at_post(legacy, None).holding is True
     assert sudland != norra
+
+
+def test_the_post_gets_an_agreements_paper_only_where_his_view_has_it(tmp_path: Path) -> None:
+    """Mutant: a paper sent to every seat of a party, as before PVF, reaches the general
+    for the secret agreement and the offer."""
+    on = _post_game(tmp_path / "on", "post_view")
+    off = _post_game(tmp_path / "off")
+    norra, sudland = toy_locks.NORRA, toy_locks.key_id("sudland")
+    kara, ilse = toy_locks.seat(toy_locks.KARA), toy_locks.seat(toy_locks.ILSE)
+    day = on.in_world_date
+    assert day is not None
+    secret = Agreement(agreement_id="truce", version="1", parties=(norra, sudland), made=day)
+    public = secret.model_copy(update={"agreement_id": "border", "published": day})
+    placed = AgreementClause(
+        type=ClauseType.PLACE, binds=norra, force=toy_locks.LEVY, area=norra, on=day
+    )
+    levy = secret.model_copy(update={"agreement_id": "levy", "clauses": (placed,)})
+    offer = AgreementOffer(
+        offer_id=OrderId("offer"),
+        version="1",
+        parties=(norra, sudland),
+        by=norra,
+        filed=day,
+        expires=day,
+    )
+
+    def told(state: State, about: Agreement | AgreementOffer | None) -> set[SeatId]:
+        sent = agreement.papers(state, (norra, sudland), ("t", "k"), day, "T", [("R", "r")], about)
+        return {
+            s for p in sent if isinstance(p, ev.DocumentIssued) for s in p.document.scope.known_by
+        }
+
+    for about in (secret, offer):
+        assert ilse in told(on, about) and kara not in told(on, about)
+        assert kara in told(off, about)
+    for shown in (public, levy, None):
+        assert {ilse, kara} <= told(on, shown)
+
+
+def _aim_goal(seat: SeatId, condition: Any) -> Goal:
+    return Goal(
+        goal_id=GoalId("aim"),
+        seat_id=seat,
+        text="t",
+        condition=condition,
+        kind=GoalKind.UNDOABLE,
+        clock_id=None,
+        met_tick=None,
+        holding=False,
+        scope=Scope(visibility=Visibility.PUBLIC),
+        person=toy_locks.KARA,
+        source=GoalSource.POST,
+        aim=1,
+    )
+
+
+def test_the_post_is_not_told_the_news_of_an_aim_his_view_blanks(tmp_path: Path) -> None:
+    """Mutant: a feed that passed goal news on the goal being in view alone tells the
+    general his aim is met though his view says neither whether it holds nor when."""
+    from revisionist.engine.catchup import SeatEvent, feed
+    from revisionist.engine.web.playback import steps
+    from tests.test_war_contract import event
+
+    on = _post_game(tmp_path / "on", "post_view")
+    off = _post_game(tmp_path / "off")
+    kara, ilse = toy_locks.seat(toy_locks.KARA), toy_locks.seat(toy_locks.ILSE)
+    support = SupportAt(nation=toy_locks.NORRA, group="greys", op="ge", value=50)
+    goal = _aim_goal(kara, support)
+
+    def news(state: State, seat: SeatId) -> tuple[list[str], bool]:
+        """The goal news ``seat``'s feed carries, and whether its playback, given every
+        event unfiltered, shows a stake."""
+        state = state.model_copy(update={"goals": {**state.goals, goal.goal_id: goal}})
+        assert state.in_world_date is not None
+        payloads: list[ev.Payload] = [
+            ev.DateAdvanced(to=state.in_world_date),
+            ev.GoalProgressed(goal_id=goal.goal_id, parts_met=1),
+            ev.GoalMet(goal_id=goal.goal_id),
+            ev.GoalUndone(goal_id=goal.goal_id),
+        ]
+        log = [
+            event(p, state).model_copy(update={"seq": state.last_seq + 1 + n})
+            for n, p in enumerate(payloads)
+        ]
+        fed = feed(state, log, seat, 0, 99)
+        every = [SeatEvent(wake=0, event=e) for e in log]
+        shown = [s["kind"] for wake in steps(every, state, seat).values() for s in wake]
+        return [f.event.kind for f in fed if f.event.kind.startswith("goal_")], "stake" in shown
+
+    told = (["goal_progressed", "goal_met", "goal_undone"], True)
+    assert untold_goals(on, kara) == frozenset()
+    assert news(on, kara) == ([], False)
+    assert news(off, kara) == told
+    assert news(on, ilse) == told
+    held = HoldsArea(area=toy_locks.ISLE, holder=toy_locks.NORRA)
+    card = on.cards[toy_locks.KARA]
+    for condition, sees, untold in (
+        (support, Exposure.OWN, {goal.goal_id}),
+        (held, Exposure.PUBLIC, set()),
+    ):
+        rule = AimRule(condition=condition, rule="r", sees=(sees,))
+        ruled = card.model_copy(update={"aim_rules": (rule,)})
+        aim = _aim_goal(kara, condition)
+        state = on.model_copy(
+            update={"goals": {aim.goal_id: aim}, "cards": {**on.cards, toy_locks.KARA: ruled}}
+        )
+        assert untold_goals(state, kara) == untold

@@ -660,17 +660,20 @@ def post_sees(condition: WinCondition, sees: tuple[Exposure, ...]) -> tuple[Expo
     )
 
 
-def at_post(goal: Goal, rule: AimRule | None) -> Goal:
-    """``goal`` as a commander held to his post holds it (PVW): where a leaf he no longer
-    sees could decide it, whether it holds and the tick it was met are not his to know.
-    A goal not made from an aim is returned as it is."""
+def hidden_at_post(goal: Goal, rule: AimRule | None) -> bool:
+    """Whether a leaf a commander held to his post no longer sees could decide ``goal``
+    (PVW). A goal not made from an aim never is."""
     if goal.person is None:
-        return goal
+        return False
     if rule is None or len(rule.sees) != len(leaves(goal.condition)):
-        hidden = True
-    else:
-        hidden = post_sees(goal.condition, rule.sees) != rule.sees
-    if not hidden:
+        return True
+    return post_sees(goal.condition, rule.sees) != rule.sees
+
+
+def at_post(goal: Goal, rule: AimRule | None) -> Goal:
+    """``goal`` as a commander held to his post holds it (PVW): where ``hidden_at_post``,
+    whether it holds and the tick it was met are not his to know."""
+    if not hidden_at_post(goal, rule):
         return goal
     return goal.model_copy(update={"holding": False, "met_tick": None})
 

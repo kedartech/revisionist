@@ -19,13 +19,15 @@ import pytest
 
 from revisionist.core import events as ev
 from revisionist.core.fold import FoldError, apply
-from revisionist.core.ids import AssetId, EventId, OrderId, derived_id
-from revisionist.core.realism import defiance, locks
+from revisionist.core.ids import AssetId, EventId, FeatureId, OrderId, derived_id
+from revisionist.core.realism import defiance, detect, locks
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.defiance import Act, Cause, Incident, Verdict
+from revisionist.core.realism.detect import Confidence, Picture, Report, Source
 from revisionist.core.realism.effect import Engagement, MoveForce, RoutedOrder, SetEngagement
 from revisionist.core.realism.resolvers import friction
 from revisionist.core.realism.route import REFUSE_PCT, carry_out
+from revisionist.core.state import State
 from revisionist.core.visibility import Visibility
 from revisionist.core.world_compile import WorldError, compile_world, object_id
 from revisionist.engine import campaign as cmp
@@ -39,6 +41,7 @@ from tests.test_realism_locks import (
     ISLE,
     KARA,
     LEVY,
+    NORRA,
     OLAF,
     World,
     commit,
@@ -222,6 +225,55 @@ def test_a_held_order_on_the_posts_list_is_sent_anyway_once_by_its_own_seat(tmp_
     ]
     with pytest.raises(ValueError, match=f"^{locks.NOT_HELD}$"):
         send(store, held)
+
+
+SUDLAND_LEVY = FeatureId(object_id(CAMPAIGN, "feature", "sudland_levy"))
+
+
+def reporting(w: World) -> None:
+    w["rules"] = sorted({*w["rules"], "territories", "reports"})
+
+
+def known_in_the_gulf(state: State) -> State:
+    """``state`` with a report reaching Norra that places Sudland's levy in the gulf."""
+    day = state.in_world_date
+    assert day is not None
+    key = detect.report_key(state, NORRA, SUDLAND_LEVY)
+    report = Report(
+        key=key,
+        area=GULF,
+        seen=day,
+        source=Source.CONTACT,
+        rank=0,
+        confidence=Confidence.A,
+        arrives=day,
+    )
+    return state.model_copy(update={"reports": {NORRA: Picture(delivered={key: report})}})
+
+
+def test_the_price_and_the_refusal_follow_what_the_seat_knows_of_the_zone(tmp_path: Path) -> None:
+    """Two games alike but for a report of a neutral force in the gulf: the order to
+    shoot on sight there is priced and sent in the one, refused for want of leave in
+    the other. Mutant: acts read from every force in the true state price both."""
+    from revisionist.core.project import project
+    from revisionist.engine.web.locks_api import price
+
+    store = played(tmp_path, isle_move, defiant("fire_first"), reporting)
+    shoot = written(SetEngagement(force=LEVY, zone=GULF, rule=Engagement.SHOOT_ON_SIGHT))
+    order = held_march(store).model_copy(update={"asks": (shoot,)})
+    unseen = load_state(store, CAMPAIGN)
+    seen = known_in_the_gulf(unseen)
+    today = unseen.in_world_date
+    assert today is not None
+    kara = seat(KARA)
+    assert defiance.acts(seen, kara, (shoot,)) == frozenset({Act.FIRE_FIRST})
+    assert defiance.acts(unseen, kara, (shoot,)) == frozenset()
+    acts, _ = realism_tick.sendable(seen, kara, order, today)
+    assert acts == (Act.FIRE_FIRST,)
+    assert price(seen, kara, project(seen, kara), order) is not None
+    with pytest.raises(ValueError, match=f"^{defiance.NOT_WITHOUT_LEAVE}$"):
+        realism_tick.sendable(unseen, kara, order, today)
+    assert price(unseen, kara, project(unseen, kara), order) is None
 
 
 def test_the_order_sent_anyway_is_told_to_its_own_seat_alone(tmp_path: Path) -> None:

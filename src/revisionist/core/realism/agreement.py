@@ -658,16 +658,31 @@ def papers(
     day: date,
     title: str,
     rows: list[tuple[str, str]],
+    about: "Agreement | AgreementOffer | None" = None,
 ) -> list["Payload"]:
+    """A paper to every seat of each of ``parties``. One ``about`` an offer or an agreement
+    skips a seat held to his post that would not see it (``seen_by`` with ``post``)."""
+    from revisionist.core.project import at_post
     from revisionist.core.realism.holders import holding_seats
 
     out: list[Payload] = []
     for party in parties:
         for seat in holding_seats(state, party):
+            if about is not None and at_post(state, seat) and not _post_sees(state, seat, about):
+                continue
             paper = _paper(state, seat, key, day, title, rows)
             if paper is not None:
                 out.append(paper)
     return out
+
+
+def _post_sees(state: "State", seat: SeatId, about: "Agreement | AgreementOffer") -> bool:
+    """Whether a commander held to his post sees ``about``: no offer, and an agreement
+    only when published or naming a force he commands, as ``seen_by`` has it."""
+    if not isinstance(about, Agreement):
+        return False
+    own = _nation(state, seat)
+    return about.public or (own is not None and _names_his_force(state, seat, own, about))
 
 
 def statuses(clauses: Sequence[AgreementClause]) -> tuple[ClauseStatus, ...]:
@@ -786,6 +801,7 @@ def _offer_day(
             day,
             "An offer of agreement lapsed",
             [("Why", "Not every named nation accepted it."), *terms],
+            offer,
         )
     return out
 
@@ -802,12 +818,18 @@ def made_now(
     if done is not None and _ends_ended(state, offer, done):
         rows = [("Why", WAR_ENDED), *term_rows(state, offer)]
         title = "An offer of agreement lapsed"
-        return papers(state, offer.parties, ("lapsed", offer.offer_id), day, title, rows)
+        return papers(state, offer.parties, ("lapsed", offer.offer_id), day, title, rows, offer)
     made = _made(state, offer, day)
     out: list[Payload] = [ev.AgreementMade(agreement=made)]
     terms = term_rows(state, offer)
     out += papers(
-        state, offer.parties, ("made", made.agreement_id), day, "An agreement is in force", terms
+        state,
+        offer.parties,
+        ("made", made.agreement_id),
+        day,
+        "An agreement is in force",
+        terms,
+        made,
     )
     if done is None:
         return out + wars_ended(state, made, day)
@@ -880,7 +902,7 @@ def _peace_close(
     if held is None:
         why = [("Why", NOT_ALLOWED), *terms]
         title = "An offer of agreement lapsed"
-        return papers(state, offer.parties, ("lapsed", offer.offer_id), day, title, why)
+        return papers(state, offer.parties, ("lapsed", offer.offer_id), day, title, why, offer)
     if not held:
         return made_now(state, offer, day, done)
     deal = _offer_of(routed)
@@ -891,7 +913,7 @@ def _peace_close(
     if any(s is None for s in seats.values()):
         why = [("Why", NOT_ALLOWED), *terms]
         title = "An offer of agreement lapsed"
-        return papers(state, offer.parties, ("lapsed", offer.offer_id), day, title, why)
+        return papers(state, offer.parties, ("lapsed", offer.offer_id), day, title, why, offer)
     for nation in held:
         row = locks.peace_row(state, nation)
         seat = seats[nation]
@@ -981,7 +1003,7 @@ def peace_due(state: "State", day: date) -> list["Payload"]:
             ]
             rows = [("Why", why), *term_rows(state, offer)]
             title = "An offer of agreement lapsed"
-            out += papers(state, offer.parties, ("lapsed", offer.offer_id), day, title, rows)
+            out += papers(state, offer.parties, ("lapsed", offer.offer_id), day, title, rows, offer)
     return out + _separate_peaces(state, done, day)
 
 
@@ -1116,6 +1138,7 @@ def _undelivered(state: "State", routed: "RoutedOrder", deal: Deal, day: date) -
         day,
         "An offer of agreement lapsed",
         [("Why", why), *term_rows(state, offer)],
+        offer,
     )
     return out
 
@@ -1419,7 +1442,7 @@ def _judged(
     if when is not None:
         rows.append(("War due by", _day(when)))
     key = ("judged", x.agreement_id, str(n), status.value, str(against), day.isoformat())
-    out += papers(state, x.parties, key, day, _TITLES[status], rows)
+    out += papers(state, x.parties, key, day, _TITLES[status], rows, x)
     if status is ClauseStatus.BROKEN:
         out += broken_costs(state, x, n, day)
     return out

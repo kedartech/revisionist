@@ -71,6 +71,7 @@ def test_the_world_switches_on_the_territory_rules() -> None:
         "laws",
         "ask_answers",
         "deciders",
+        "offers",
     ]
     assert Rig().state.rules == frozenset(
         {
@@ -93,6 +94,7 @@ def test_the_world_switches_on_the_territory_rules() -> None:
             Rule.LAWS,
             Rule.ASK_ANSWERS,
             Rule.DECIDERS,
+            Rule.OFFERS,
         }
     )
 

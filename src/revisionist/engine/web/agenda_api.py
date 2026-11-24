@@ -425,6 +425,26 @@ def answer(
     return Reply(reply=said[accept].format(issuer=asked.issuer), refused=False)
 
 
+def answer_incident(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, item: str, verdict: str
+) -> Reply:
+    """The superior's seat answers the incident ``item`` names (DFR): backed, disowned or
+    dismissed, by ``realism_tick.answer_incident``. Refused in the seat's words."""
+    from revisionist.engine.web import locks_api
+
+    try:
+        done = realism_tick.answer_incident(store, campaign_id, seat, item, verdict)
+    except ValueError as exc:
+        return Reply(reply=str(exc), refused=True)
+    state = load_state(store, campaign_id)
+    found = state.incidents[done.incident_id]
+    who = project(state, seat).entities.get(found.commander)
+    said = locks_api.ANSWERED_INCIDENT.format(
+        verdict=done.verdict.value, who=who.name if who is not None else "him"
+    )
+    return Reply(reply=said, refused=False)
+
+
 def seat_style(state: State, seat: SeatId) -> str:
     """The seat's own ``PlayStyle`` value, from its own view."""
     style = project(state, seat).style
@@ -682,6 +702,23 @@ def _due_sitting(state: State, seat: SeatId) -> list[DueMatter]:
     return _office_matters(state, seat, True)
 
 
+def _due_incidents(state: State, seat: SeatId) -> list[DueMatter]:
+    """Each open incident before the seat as the superior who answers it (DFR): what the
+    commander did and his name, read from its own view, due on its day."""
+    from revisionist.core.realism import defiance
+    from revisionist.engine.web import locks_api
+
+    if not defiance.on(state):
+        return []
+    view = project(state, seat)
+    out: list[DueMatter] = []
+    for i in sorted(view.incidents.values(), key=lambda i: (i.opened, i.incident_id)):
+        if i.verdict is None and i.superior == view.me.embodies:
+            what, who = locks_api.incident_matter(view, i)
+            out.append(DueMatter("incident", i.incident_id, what, who, i.due.isoformat()))
+    return out
+
+
 DUE_KINDS: dict[str, DueKind] = {
     "post": _due_posts,
     "request": _due_requests,
@@ -691,6 +728,7 @@ DUE_KINDS: dict[str, DueKind] = {
     "battle": _due_battles,
     "vote": _due_votes,
     "ask": _due_asks,
+    "incident": _due_incidents,
     "promise": _due_promises,
     "office": _due_office,
     "sitting": _due_sitting,
@@ -721,6 +759,7 @@ __all__ = [
     "DueMatter",
     "agenda",
     "answer",
+    "answer_incident",
     "due_matters",
     "offered",
     "offers",

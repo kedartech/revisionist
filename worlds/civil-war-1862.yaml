@@ -763,10 +763,14 @@ happenings:
 elections:
   - {nation: usa, chambers: [house], day: 1862-11-04}
 
-# Places whose loss is felt beyond their yield. The figures are [proposed].
+# Places whose loss is felt beyond their yield. The figures are [proposed]. Each
+# capital's state weighs most; abandoning a place costs more than losing it in a fight.
 places:
   - {territory: maryland, nation: usa, moves: {republicans: -5, unionists: -4}}
+  - {territory: kentucky, nation: usa, moves: {republicans: -3, unionists: -3}}
+  - {territory: pennsylvania, nation: usa, moves: {republicans: -3, northern_workers: -3}}
   - {territory: virginia, nation: csa, moves: {planters: -5, yeomen: -3}}
+  - {territory: tennessee, nation: csa, moves: {planters: -3, yeomen: -3}}
 
 # The war under way on the start date. The United States never declared war on the
 # Confederacy, which it held to be in rebellion (mcpherson_1988).
@@ -809,6 +813,21 @@ aim_patterns:
     condition: {check: holds_area, area: $place, holder: $nation}
     blanks:
       - {name: place, kind: territory_not_held}
+  - key: cw_keep_support
+    posts: [head_of_government, military]
+    sentence: Keep {group} at {line} or more.
+    condition: {check: support_at, nation: $nation, group: $group, op: ge, value: $line}
+    blanks:
+      - {name: group, kind: own_group}
+      - {name: line, values: [55, 65, 75]}
+    government: false
+  - key: cw_keep_peace
+    posts: [head_of_government]
+    sentence: Stay at peace with {foe}.
+    condition: {check: at_war, a: $nation, b: $foe, war: false}
+    blanks:
+      - {name: foe, kind: other_nation}
+    government: false
 
 sources:
   - key: mcpherson_1988
@@ -941,11 +960,13 @@ cards:
     aims:
       - "Keep Maryland, Kentucky and Missouri in the Union."
       - "Keep Britain and France from recognising the Confederacy."
-      - "Hold Washington's state."
+      - "Put an emancipation measure through Congress."
     aim_rules:
-      - {aim: 1, deadline: 1862-12-15, rule: "The United States holds Maryland, Kentucky and Missouri.", condition: {check: all_of, conditions: [{check: holds_area, area: maryland, holder: usa}, {check: holds_area, area: kentucky, holder: usa}, {check: holds_area, area: missouri, holder: usa}]}}
-      - {aim: 2, deadline: 1862-12-15, rule: "The United States is not at war with Britain.", condition: {check: at_war, a: usa, b: uk, war: false}}
-      - {aim: 3, deadline: 1862-12-15, rule: "The United States holds Maryland.", condition: {check: holds_area, area: maryland, holder: usa}}
+      - {aim: 1, opens: 1862-12-15, deadline: 1862-12-15, rule: "The United States holds Maryland, Kentucky and Missouri on 15 December.", condition: {check: all_of, conditions: [{check: holds_area, area: maryland, holder: usa}, {check: holds_area, area: kentucky, holder: usa}, {check: holds_area, area: missouri, holder: usa}]}}
+      - {aim: 2, deadline: 1862-12-15, replaceable: true, rule: "The contest over recognition abroad is decided for the United States.", condition: {check: contest_won, contest: recognition, side: usa}}
+      - {aim: 3, deadline: 1862-12-15, rule: "The emancipation measure has passed both chambers.", condition: {check: quantity_at, quantity: us_emancipation_measure_passed, op: ge, value: 1}}
+    opposes:
+      - {against: seward, over: "emancipation pressed before a victory and the elections"}
   - person: davis
     office: President of the Confederate States
     post: cs_presidency
@@ -994,12 +1015,14 @@ cards:
     post_kind: head_of_government
     aims:
       - "Hold Virginia and Tennessee."
-      - "Take Kentucky for the Confederacy."
-      - "Take Maryland for the Confederacy."
+      - "Win Britain's and France's recognition."
+      - "Bring Maryland and Kentucky over to the Confederacy."
     aim_rules:
-      - {aim: 1, deadline: 1862-12-15, rule: "The Confederacy holds Virginia and Tennessee.", condition: {check: all_of, conditions: [{check: holds_area, area: virginia, holder: csa}, {check: holds_area, area: tennessee, holder: csa}]}}
-      - {aim: 2, deadline: 1862-12-15, rule: "The Confederacy holds Kentucky.", condition: {check: holds_area, area: kentucky, holder: csa}}
-      - {aim: 3, deadline: 1862-12-15, rule: "The Confederacy holds Maryland.", condition: {check: holds_area, area: maryland, holder: csa}}
+      - {aim: 1, opens: 1862-12-15, deadline: 1862-12-15, rule: "The Confederacy holds Virginia and Tennessee on 15 December.", condition: {check: all_of, conditions: [{check: holds_area, area: virginia, holder: csa}, {check: holds_area, area: tennessee, holder: csa}]}}
+      - {aim: 2, deadline: 1862-12-15, replaceable: true, rule: "The contest over recognition abroad is decided for the Confederacy.", condition: {check: contest_won, contest: recognition, side: csa}}
+      - {aim: 3, deadline: 1862-12-15, rule: "The contest over the border states is decided for the Confederacy.", condition: {check: contest_won, contest: border_states, side: csa}}
+    opposes:
+      - {against: randolph, over: "the armies sent north, not west of the Mississippi"}
   - person: seward
     office: Secretary of State
     principals: [lincoln]
@@ -1016,12 +1039,14 @@ cards:
     horizon_days: 14
     aims:
       - "Keep Washington's state."
-      - "Hold Kentucky."
-      - "Take Tennessee."
+      - "Win the war in the East."
+      - "Take the Army of the Potomac out of McClellan's hands."
     aim_rules:
-      - {aim: 1, deadline: 1862-12-15, rule: "Keep Washington's state.", condition: {check: holds_area, area: maryland, holder: usa}}
-      - {aim: 2, deadline: 1862-12-15, rule: "Hold Kentucky.", condition: {check: holds_area, area: kentucky, holder: usa}}
-      - {aim: 3, deadline: 1862-12-15, rule: "Take Tennessee.", condition: {check: holds_area, area: tennessee, holder: usa}}
+      - {aim: 1, opens: 1862-12-15, deadline: 1862-12-15, rule: "The United States holds Maryland on 15 December.", condition: {check: holds_area, area: maryland, holder: usa}}
+      - {aim: 2, deadline: 1862-12-15, replaceable: true, rule: "The contest over the war in the East is decided for the United States.", condition: {check: contest_won, contest: eastern_war, side: usa}}
+      - {aim: 3, deadline: 1862-12-15, rule: "The general-in-chief holds the Potomac command.", condition: {check: holds_office, holder: halleck, office: potomac_command}}
+    opposes:
+      - {against: lincoln, over: "keeping McClellan in command of the Army of the Potomac"}
   - person: chase
     office: Secretary of the Treasury
     principals: [lincoln]
@@ -1071,12 +1096,14 @@ cards:
     post_kind: military
     aims:
       - "Drive the Confederate army out of Maryland."
-      - "Keep Pennsylvania safe."
-      - "Take Virginia."
+      - "Win the war in the East."
+      - "Keep the Army of the Potomac."
     aim_rules:
-      - {aim: 1, deadline: 1862-12-15, rule: "Drive the Confederate army out of Maryland.", condition: {check: holds_area, area: maryland, holder: usa}}
-      - {aim: 2, deadline: 1862-12-15, rule: "Keep Pennsylvania safe.", condition: {check: holds_area, area: pennsylvania, holder: usa}}
-      - {aim: 3, deadline: 1862-12-15, rule: "Take Virginia.", condition: {check: holds_area, area: virginia, holder: usa}}
+      - {aim: 1, opens: 1862-12-15, deadline: 1862-12-15, rule: "The United States holds Maryland on 15 December.", condition: {check: holds_area, area: maryland, holder: usa}}
+      - {aim: 2, deadline: 1862-12-15, replaceable: true, rule: "The contest over the war in the East is decided for the United States.", condition: {check: contest_won, contest: eastern_war, side: usa}}
+      - {aim: 3, opens: 1862-12-15, deadline: 1862-12-15, rule: "McClellan still holds the Potomac command on 15 December.", condition: {check: holds_office, holder: mcclellan, office: potomac_command}}
+    opposes:
+      - {against: halleck, over: "the pace of the advance after the army leaves Maryland"}
   - person: buell
     office: Commander of the Army of the Ohio
     post: ohio_command
@@ -1103,12 +1130,14 @@ cards:
     post_kind: military
     aims:
       - "Hold Kentucky."
-      - "Keep Ohio safe."
-      - "Take Tennessee."
+      - "Keep Kentucky and Maryland in the Union."
+      - "Keep the Army of the Ohio."
     aim_rules:
-      - {aim: 1, deadline: 1862-12-15, rule: "Hold Kentucky.", condition: {check: holds_area, area: kentucky, holder: usa}}
-      - {aim: 2, deadline: 1862-12-15, rule: "Keep Ohio safe.", condition: {check: holds_area, area: ohio, holder: usa}}
-      - {aim: 3, deadline: 1862-12-15, rule: "Take Tennessee.", condition: {check: holds_area, area: tennessee, holder: usa}}
+      - {aim: 1, opens: 1862-12-15, deadline: 1862-12-15, rule: "The United States holds Kentucky on 15 December.", condition: {check: holds_area, area: kentucky, holder: usa}}
+      - {aim: 2, deadline: 1862-12-15, replaceable: true, rule: "The contest over the border states is decided for the United States.", condition: {check: contest_won, contest: border_states, side: usa}}
+      - {aim: 3, opens: 1862-12-15, deadline: 1862-12-15, rule: "Buell still holds the Ohio command on 15 December.", condition: {check: holds_office, holder: buell, office: ohio_command}}
+    opposes:
+      - {against: halleck, over: "the slow advance into East Tennessee"}
   - person: benjamin
     office: Secretary of State
     principals: [davis]
@@ -1125,12 +1154,14 @@ cards:
     horizon_days: 14
     aims:
       - "Hold Virginia."
-      - "Hold Tennessee."
-      - "Take Kentucky."
+      - "Pass the draft law."
+      - "Carry the war west of the Mississippi into Missouri."
     aim_rules:
-      - {aim: 1, deadline: 1862-12-15, rule: "Hold Virginia.", condition: {check: holds_area, area: virginia, holder: csa}}
-      - {aim: 2, deadline: 1862-12-15, rule: "Hold Tennessee.", condition: {check: holds_area, area: tennessee, holder: csa}}
-      - {aim: 3, deadline: 1862-12-15, rule: "Take Kentucky.", condition: {check: holds_area, area: kentucky, holder: csa}}
+      - {aim: 1, opens: 1862-12-15, deadline: 1862-12-15, rule: "The Confederacy holds Virginia on 15 December.", condition: {check: holds_area, area: virginia, holder: csa}}
+      - {aim: 2, deadline: 1862-12-15, replaceable: true, rule: "The draft law has passed both chambers.", condition: {check: quantity_at, quantity: cs_draft_law_passed, op: ge, value: 1}}
+      - {aim: 3, deadline: 1862-12-15, rule: "The Confederacy holds Missouri.", condition: {check: holds_area, area: missouri, holder: csa}}
+    opposes:
+      - {against: davis, over: "who orders the armies on either bank of the Mississippi"}
   - person: mallory
     office: Secretary of the Navy
     principals: [davis]
@@ -1163,12 +1194,14 @@ cards:
     post_kind: military
     aims:
       - "Hold Virginia."
-      - "Carry the war into Maryland."
-      - "Keep North Carolina safe."
+      - "Win the war in the East."
+      - "Carry the war into Pennsylvania."
     aim_rules:
-      - {aim: 1, deadline: 1862-12-15, rule: "Hold Virginia.", condition: {check: holds_area, area: virginia, holder: csa}}
-      - {aim: 2, deadline: 1862-12-15, rule: "Carry the war into Maryland.", condition: {check: holds_area, area: maryland, holder: csa}}
-      - {aim: 3, deadline: 1862-12-15, rule: "Keep North Carolina safe.", condition: {check: holds_area, area: north_carolina, holder: csa}}
+      - {aim: 1, opens: 1862-12-15, deadline: 1862-12-15, rule: "The Confederacy holds Virginia on 15 December.", condition: {check: holds_area, area: virginia, holder: csa}}
+      - {aim: 2, deadline: 1862-12-15, replaceable: true, rule: "The contest over the war in the East is decided for the Confederacy.", condition: {check: contest_won, contest: eastern_war, side: csa}}
+      - {aim: 3, deadline: 1862-12-15, rule: "The Confederacy holds Pennsylvania.", condition: {check: holds_area, area: pennsylvania, holder: csa}}
+    opposes:
+      - {against: davis, over: "invading the free states instead of defending the South"}
   - person: bragg
     office: Commander of the Army of the Mississippi
     post: mississippi_command
@@ -1194,13 +1227,15 @@ cards:
     horizon_days: 7
     post_kind: military
     aims:
-      - "Take Kentucky."
       - "Hold Tennessee."
-      - "Keep Georgia safe."
+      - "Bring Maryland and Kentucky over to the Confederacy."
+      - "Carry the war across the Ohio."
     aim_rules:
-      - {aim: 1, deadline: 1862-12-15, rule: "Take Kentucky.", condition: {check: holds_area, area: kentucky, holder: csa}}
-      - {aim: 2, deadline: 1862-12-15, rule: "Hold Tennessee.", condition: {check: holds_area, area: tennessee, holder: csa}}
-      - {aim: 3, deadline: 1862-12-15, rule: "Keep Georgia safe.", condition: {check: holds_area, area: georgia, holder: csa}}
+      - {aim: 1, opens: 1862-12-15, deadline: 1862-12-15, rule: "The Confederacy holds Tennessee on 15 December.", condition: {check: holds_area, area: tennessee, holder: csa}}
+      - {aim: 2, deadline: 1862-12-15, replaceable: true, rule: "The contest over the border states is decided for the Confederacy.", condition: {check: contest_won, contest: border_states, side: csa}}
+      - {aim: 3, deadline: 1862-12-15, rule: "The Confederacy holds Ohio.", condition: {check: holds_area, area: ohio, holder: csa}}
+    opposes:
+      - {against: davis, over: "crossing the Ohio instead of holding Kentucky"}
 seats: []
 
 # The roster: each head, each war secretary and the general of each main army. [proposed]
@@ -1244,3 +1279,81 @@ contests:
       - {kind: battle, toward: csa, region: eastern_theatre}
       - {kind: battle, toward: usa, region: eastern_theatre}
       - {kind: holder, toward: csa, territory: maryland}
+      - {kind: flag, toward: usa, quantity: us_emancipation_measure_passed}
+  # The war in the East: the two armies between the capitals. [proposed]
+  - key: eastern_war
+    kind: rivalry
+    name: The war in the East
+    prize: Whether the war between Washington and Richmond goes the Union's way.
+    sides: [usa, csa]
+    countdown_days: 105
+    moves:
+      - {kind: battle, toward: usa, region: eastern_theatre}
+      - {kind: battle, toward: csa, region: eastern_theatre}
+      - {kind: holder, toward: usa, territory: virginia}
+      - {kind: holder, toward: csa, territory: maryland}
+      - {kind: holder, toward: csa, territory: pennsylvania}
+
+# History's clock: what followed the start date, each item still happening while its
+# condition holds (an act_of holds while nobody plays the person). Dates from
+# mcpherson_1988, not checked against a copy in this item; the conditions are [proposed].
+schedule:
+  - key: antietam
+    name: Lee and McClellan fight at Antietam Creek (17 Sep)
+    on_date: 1862-09-17
+    condition: {check: act_of, person: lee}
+    weight: 3
+    headline: Lee's and McClellan's armies fight at Antietam Creek
+    subject: lee
+    obj: mcclellan
+  - key: preliminary_emancipation
+    name: Lincoln issues the preliminary emancipation proclamation (22 Sep)
+    on_date: 1862-09-22
+    condition: {check: act_of, person: lincoln}
+    weight: 3
+    headline: Lincoln proclaims the rebel states' slaves free
+    subject: lincoln
+  - key: perryville
+    name: Buell and Bragg fight at Perryville (8 Oct)
+    on_date: 1862-10-08
+    condition: {check: act_of, person: bragg}
+    weight: 2
+    headline: Buell's and Bragg's armies fight at Perryville
+    subject: bragg
+    obj: buell
+  - key: buell_relieved
+    name: Buell relieved of the Army of the Ohio (24 Oct)
+    on_date: 1862-10-24
+    condition: {check: act_of, person: lincoln}
+    weight: 2
+    headline: Buell is relieved of the Army of the Ohio
+    subject: buell
+  - key: mcclellan_relieved
+    name: McClellan relieved of the Army of the Potomac (7 Nov)
+    on_date: 1862-11-07
+    condition: {check: act_of, person: lincoln}
+    weight: 3
+    headline: McClellan is relieved of the Army of the Potomac
+    subject: mcclellan
+  - key: randolph_resigns
+    name: Randolph resigns the War Department (15 Nov)
+    on_date: 1862-11-15
+    condition: {check: act_of, person: randolph}
+    weight: 2
+    headline: Randolph resigns as Confederate Secretary of War
+    subject: randolph
+  - key: fredericksburg
+    name: The Union army is beaten at Fredericksburg (13 Dec)
+    on_date: 1862-12-13
+    condition: {check: act_of, person: lee}
+    weight: 3
+    headline: The Union assaults at Fredericksburg are beaten back
+    subject: lee
+    obj: usa
+  - key: rappahannock_withdrawal
+    name: The Union army withdraws over the Rappahannock (15 Dec)
+    on_date: 1862-12-15
+    condition: {check: act_of, person: lee}
+    weight: 2
+    headline: The Union army withdraws back across the Rappahannock
+    subject: usa

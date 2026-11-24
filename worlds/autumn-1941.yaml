@@ -21,7 +21,10 @@ start_date: 1941-09-01
 # laws and ask_answers (LWD): the four American bills are the laws declared under `laws`; an ask to
 # a person no player holds is answered on its due day. deciders stays off until the world names a
 # council and the kinds of question its posts decide, which the world check requires with it on.
-rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, own_aim, laws, ask_answers, deciders]
+# classes, losses and places (HFD): the class of each kind of happening under `happenings`, the
+# groups the size of a day's battle losses moves (`battle_losses` in their `moved_by`), and the
+# places with political weight under `places`.
+rules: [territories, holders, economy, supply, fuel, aid, battles, reports, agreements, conference, groups, contests, aims, command, locks, own_aim, laws, ask_answers, deciders, classes, losses, places]
 
 entities:
   # A polity's capital (PCW): a place in its own territory; a neutral's or an occupied nation's is its
@@ -706,7 +709,10 @@ intelligence:
 # Neutrality revision's rows (`vote_default`), as the module's borrowed rows do. The public
 # starts at the Gallup "about right" figure the world cites. Themes are the ones the
 # nations' writing already names: the address form's choices and the standing answers'
-# statements.
+# statements. With `losses` on, each nation's public and the groups that send or lead its
+# men move 1 point a step the nation loses in a day's battle (`battle_losses`); with
+# `classes` on, a law touching daily life passed (`daily_life_passed`) moves the groups a
+# measure passed moves, by the same amounts (HFD). [proposed]
 groups:
   - nation: usa
     groups:
@@ -718,7 +724,7 @@ groups:
         chamber: house
         seats: 267
         feeds: {votes: 1, standing: 1}
-        moved_by: {measure_passed: 1, war_declared: 5}
+        moved_by: {measure_passed: 1, war_declared: 5, daily_life_passed: 1}
         votes:
           neutrality_revision: {house: {voting: 239, yeas: 218}, concur: {voting: 241, yeas: 188}}
           draft_extension: {house: {voting: 246, yeas: 181}}
@@ -734,7 +740,7 @@ groups:
         chamber: house
         seats: 162
         feeds: {votes: 1, standing: 1}
-        moved_by: {measure_passed: -1, war_declared: 10}
+        moved_by: {measure_passed: -1, war_declared: 10, daily_life_passed: -1}
         votes:
           neutrality_revision: {house: {voting: 152, yeas: 39}, concur: {voting: 159, yeas: 22}}
           draft_extension: {house: {voting: 154, yeas: 21}}
@@ -765,7 +771,7 @@ groups:
         chamber: senate
         seats: 66
         feeds: {votes: 1, standing: 1}
-        moved_by: {measure_passed: 1, war_declared: 5}
+        moved_by: {measure_passed: 1, war_declared: 5, daily_life_passed: 1}
         votes:
           neutrality_revision: {senate: {voting: 58, yeas: 43}}
           draft_extension: {senate: {voting: 54, yeas: 38}}
@@ -781,7 +787,7 @@ groups:
         chamber: senate
         seats: 28
         feeds: {votes: 1, standing: 1}
-        moved_by: {measure_passed: -1, war_declared: 10}
+        moved_by: {measure_passed: -1, war_declared: 10, daily_life_passed: -1}
         votes:
           neutrality_revision: {senate: {voting: 27, yeas: 6}}
           draft_extension: {senate: {voting: 20, yeas: 7}}
@@ -810,7 +816,7 @@ groups:
         start: 55
         baseline: 55
         feeds: {opinion: 1, standing: 2}
-        moved_by: {losses_at_sea: 1, war_declared: 10, battle_lost: -2, territory_lost: -3}
+        moved_by: {losses_at_sea: 1, war_declared: 10, battle_lost: -2, territory_lost: -3, battle_losses: -1}
         abroad: true
       - key: non_interventionists  # gap: true
         name: The non-interventionists
@@ -825,14 +831,14 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, output: 1}
-        moved_by: {measure_passed: 1, war_declared: 5}
+        moved_by: {measure_passed: 1, war_declared: 5, daily_life_passed: 1}
       - key: press  # gap: true
         name: The press
         kind: press
         start: 50
         baseline: 50
         feeds: {standing: 1}
-        moved_by: {losses_at_sea: 1, war_declared: 5}
+        moved_by: {losses_at_sea: 1, war_declared: 5, battle_losses: -1}
     themes:
       - {key: aid_to_allies, name: Aid to the Allies, moves: {public: 1, labour: 1, non_interventionists: -2}}
       - {key: freedom_of_the_seas, name: Freedom of the seas, moves: {public: 2, press: 1, non_interventionists: -1}}
@@ -846,7 +852,7 @@ groups:
         start: 70
         baseline: 70
         feeds: {standing: 2}
-        moved_by: {battle_won: 2, battle_lost: -3, territory_lost: -3}
+        moved_by: {battle_won: 2, battle_lost: -3, territory_lost: -3, battle_losses: -1}
       # The Commons as a chamber (NUK): three blocs, with seats from the 1935 general election
       # (Conservatives with their Liberal National, National Labour and National allies 429;
       # Labour 154; the Liberals, the ILP, the Communist and independents 32), not corrected for
@@ -896,14 +902,14 @@ groups:
         start: 45
         baseline: 45
         feeds: {manpower: 1, standing: 1}
-        moved_by: {battle_lost: -2, territory_lost: -3, capital_threatened: -5}
+        moved_by: {battle_lost: -2, territory_lost: -3, capital_threatened: -5, battle_losses: -1}
       - key: public  # gap: true
         name: The British public
         kind: public
         start: 65
         baseline: 65
         feeds: {opinion: 1, standing: 2}
-        moved_by: {battle_won: 2, battle_lost: -2, losses_at_sea: -1}
+        moved_by: {battle_won: 2, battle_lost: -2, losses_at_sea: -1, battle_losses: -1}
       - key: trade_unions  # gap: true
         name: The trade unions
         kind: union
@@ -941,7 +947,7 @@ groups:
         start: 55
         baseline: 55
         feeds: {manpower: 1, standing: 1}
-        moved_by: {battle_won: 3, battle_lost: -3, territory_lost: -1}
+        moved_by: {battle_won: 3, battle_lost: -3, territory_lost: -1, battle_losses: -1}
       - key: evacuated_workers  # gap: true
         name: The evacuated workers
         kind: workers
@@ -955,14 +961,14 @@ groups:
         start: 45
         baseline: 45
         feeds: {manpower: 1, output: 1}
-        moved_by: {battle_won: 1, territory_lost: -1}
+        moved_by: {battle_won: 1, territory_lost: -1, battle_losses: -1}
       - key: public  # gap: true
         name: The Soviet public
         kind: public
         start: 55
         baseline: 55
         feeds: {opinion: 1, standing: 1}
-        moved_by: {battle_won: 2, battle_lost: -2, capital_threatened: -4}
+        moved_by: {battle_won: 2, battle_lost: -2, capital_threatened: -4, battle_losses: -1}
     themes:
       - {key: russia_demands_a_second_front, name: Russia demands a second front, moves: {party: 1, red_army_command: 1, public: 1}}
   - nation: germany
@@ -980,14 +986,14 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, standing: 1}
-        moved_by: {battle_won: 2, battle_lost: -3, war_declared: -2}
+        moved_by: {battle_won: 2, battle_lost: -3, war_declared: -2, battle_losses: -1}
       - key: public  # gap: true
         name: The German public
         kind: public
         start: 60
         baseline: 60
         feeds: {opinion: 1, standing: 1}
-        moved_by: {battle_won: 1, battle_lost: -2, territory_lost: -3, war_declared: -3}
+        moved_by: {battle_won: 1, battle_lost: -2, territory_lost: -3, war_declared: -3, battle_losses: -1}
       - key: industrialists  # gap: true
         name: The industrialists
         kind: industry
@@ -1005,7 +1011,7 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, standing: 2}
-        moved_by: {battle_won: 2, battle_lost: -3, territory_taken: 1}
+        moved_by: {battle_won: 2, battle_lost: -3, territory_taken: 1, battle_losses: -1}
       - key: navy  # gap: true
         name: The Navy
         kind: military
@@ -1033,7 +1039,7 @@ groups:
         start: 60
         baseline: 60
         feeds: {opinion: 1, standing: 1}
-        moved_by: {battle_won: 2, battle_lost: -2, war_declared: 3}
+        moved_by: {battle_won: 2, battle_lost: -2, war_declared: 3, battle_losses: -1}
     themes:
       - {key: the_cabinet_seeks_a_peaceful_settlement, name: the Cabinet seeks a peaceful settlement, moves: {court: 2, army: -2, public: 1}}
       - {key: the_cabinet_will_not_be_hurried_into_war, name: the Cabinet will not be hurried into war, moves: {court: 1, army: -1}}
@@ -1058,14 +1064,14 @@ groups:
         start: 50
         baseline: 50
         feeds: {manpower: 1, standing: 1}
-        moved_by: {battle_won: 2, battle_lost: -3, territory_lost: -2}
+        moved_by: {battle_won: 2, battle_lost: -3, territory_lost: -2, battle_losses: -1}
       - key: crown  # gap: true
         name: The Crown
         kind: court
         start: 50
         baseline: 50
         feeds: {standing: 1}
-        moved_by: {battle_lost: -2, territory_lost: -3}
+        moved_by: {battle_lost: -2, territory_lost: -3, battle_losses: -1}
       - key: industrialists  # gap: true
         name: The industrialists
         kind: industry
@@ -1079,7 +1085,7 @@ groups:
         start: 45
         baseline: 45
         feeds: {opinion: 1, standing: 1}
-        moved_by: {battle_won: 1, battle_lost: -2, losses_at_sea: -1}
+        moved_by: {battle_won: 1, battle_lost: -2, losses_at_sea: -1, battle_losses: -1}
     themes:
       - {key: the_convoys_to_libya_will_sail, name: the convoys to Libya will sail, moves: {fascist_party: 1, army: 1}}
       - {key: italy_stands_beside_germany_in_the_east, name: Italy stands beside Germany in the East, moves: {fascist_party: 2, crown: -1}}
@@ -1098,14 +1104,14 @@ groups:
         start: 55
         baseline: 55
         feeds: {manpower: 1, standing: 1}
-        moved_by: {battle_won: 3, battle_lost: -3}
+        moved_by: {battle_won: 3, battle_lost: -3, battle_losses: -1}
       - key: regional_commanders  # gap: true
         name: The regional commanders
         kind: warlords
         start: 45
         baseline: 45
         feeds: {manpower: 1}
-        moved_by: {battle_lost: -2, territory_lost: -2}
+        moved_by: {battle_lost: -2, territory_lost: -2, battle_losses: -1}
       - key: communists  # gap: true
         name: The Communists
         kind: party
@@ -1119,13 +1125,65 @@ groups:
         start: 55
         baseline: 55
         feeds: {opinion: 1, standing: 1}
-        moved_by: {battle_won: 2, territory_lost: -2}
+        moved_by: {battle_won: 2, territory_lost: -2, battle_losses: -1}
     themes:
       - {key: china_will_not_be_sold_to_japan, name: China will not be sold to Japan, moves: {kuomintang: 1, communists: 1, public: 2}}
       - {key: no_peace_while_japan_holds_china, name: no peace while Japan holds China, moves: {central_army: 1, public: 1}}
       # The appeal form's audiences, each a theme of its own. [proposed]
       - {key: america, name: an appeal to America, moves: {kuomintang: 1, public: 1}}
       - {key: britain, name: an appeal to Britain, moves: {kuomintang: 1}}
+
+# How each kind of happening reaches the groups at home, read with `classes` on (HFD), as the
+# design's first sort of events has it: a capital threatened is felt; a battle won or lost,
+# losses at sea, territory taken, war declared and an agreement broken are known by report;
+# territory lost and the size of a day's battle losses are mixed, half felt. A law touching
+# daily life passed is felt, any other measure reported. Each felt share is [proposed].
+happenings:
+  - {kind: capital_threatened, reach: felt}
+  - {kind: battle_won, reach: reported}
+  - {kind: battle_lost, reach: reported}
+  - {kind: losses_at_sea, reach: reported}
+  - {kind: territory_taken, reach: reported}
+  - {kind: war_declared, reach: reported}
+  - {kind: agreement_broken, reach: reported}
+  - {kind: territory_lost, reach: reported, felt: 0.5}
+  - {kind: battle_losses, reach: reported, felt: 0.5}
+  - {kind: measure_passed, reach: reported}
+  - {kind: daily_life_passed, reach: felt}
+
+# Places with political weight, read with `places` on (HFD): for each nation with groups, up to
+# five territories it holds on 1 September 1941 whose loss the record shows weighed at home,
+# with the points each of its groups moves when the place is lost after a fight (abandoning it
+# costs twice that, retaking it moves them back). Each line carries `gap: true`: no figure is
+# sourced. Every amount is [proposed]. A nation's seat stays its `capital`; a seat listed here
+# is also a weighted place.
+places:
+  - {territory: hawaii, nation: usa, moves: {public: -3, press: -2, house_democrats: -1, senate_democrats: -1}}  # gap: true (Pearl Harbor, the Pacific Fleet's base)
+  - {territory: philippines, nation: usa, moves: {public: -2, press: -1}}  # gap: true (the Commonwealth the United States had promised to defend)
+  - {territory: britain_south, nation: uk, moves: {commons: -5, public: -5, dominions: -3}}  # gap: true (London and the home island)
+  - {territory: egypt, nation: uk, moves: {commons: -3, dominions: -2, press: -2}}  # gap: true (Suez and the Nile army's base)
+  - {territory: british_islands, nation: uk, moves: {commons: -2, public: -1, press: -1}}  # gap: true (Malta, under siege)
+  - {territory: tobruk_area, nation: uk, moves: {commons: -2, dominions: -2, press: -2}}  # gap: true (the besieged garrison, Australian and British)
+  - {territory: malaya, nation: uk, moves: {commons: -3, dominions: -3, press: -2}}  # gap: true (Singapore, the Far East's fortress)
+  - {territory: moscow_area, nation: ussr, moves: {party: -5, public: -4, red_army_command: -3}}  # gap: true (the capital)
+  - {territory: leningrad_area, nation: ussr, moves: {party: -4, public: -3, evacuated_workers: -2}}  # gap: true (the city of the revolution, under siege)
+  - {territory: kiev_area, nation: ussr, moves: {party: -2, red_army_command: -2, public: -2}}  # gap: true (the Ukraine's capital)
+  - {territory: crimea, nation: ussr, moves: {red_army_command: -2, public: -1}}  # gap: true (Sevastopol and the Black Sea Fleet)
+  - {territory: caucasus, nation: ussr, moves: {party: -3, evacuated_workers: -2, red_army_command: -2}}  # gap: true (Baku's oil)
+  - {territory: germany_east, nation: germany, moves: {party: -5, public: -5, wehrmacht_command: -3}}  # gap: true (Berlin)
+  - {territory: germany_west, nation: germany, moves: {industrialists: -4, public: -3}}  # gap: true (the Ruhr)
+  - {territory: east_prussia, nation: germany, moves: {wehrmacht_command: -3, party: -2, public: -2}}  # gap: true (the Prussian heartland and the Führer's headquarters)
+  - {territory: japan_east, nation: japan, moves: {court: -5, public: -5, navy: -3, army: -3}}  # gap: true (Tokyo and the home islands)
+  - {territory: manchuria, nation: japan, moves: {army: -4, zaibatsu: -2, public: -2}}  # gap: true (Manchukuo, the Kwantung Army's charge)
+  - {territory: korea, nation: japan, moves: {army: -2, court: -2}}  # gap: true (a colony since 1910)
+  - {territory: formosa, nation: japan, moves: {navy: -2, court: -1}}  # gap: true (a colony since 1895)
+  - {territory: italy_south, nation: italy, moves: {crown: -5, fascist_party: -4, public: -4}}  # gap: true (Rome)
+  - {territory: tripolitania, nation: italy, moves: {fascist_party: -3, army: -2, public: -2}}  # gap: true (Tripoli, the colony's capital)
+  - {territory: cyrenaica, nation: italy, moves: {fascist_party: -2, army: -2}}  # gap: true (Benghazi, lost and retaken that year)
+  - {territory: dodecanese, nation: italy, moves: {fascist_party: -1, crown: -1}}  # gap: true (Rhodes and the Aegean islands)
+  - {territory: szechwan, nation: china, moves: {kuomintang: -5, public: -4, central_army: -3}}  # gap: true (Chungking, the wartime capital)
+  - {territory: hunan, nation: china, moves: {kuomintang: -2, central_army: -2, public: -2}}  # gap: true (Changsha, held against the Japanese attacks)
+  - {territory: northwest_china, nation: china, moves: {kuomintang: -1, communists: -2, public: -1}}  # gap: true (Sian and the road to the Soviet Union)
 
 # The wars in force on 1 September 1941. `a` began each.
 wars:
@@ -4275,6 +4333,7 @@ laws:
       - {kind: limit, subject: war zones closed to American ships}  # source: neutrality_act_1939, section 3
     passed: neutrality_revision_passed
     does: {kind: arms_merchant_ships}
+    daily_life: false  # [proposed]
   - key: draft_extension  # source: voteview (the House's 203 to 202 of 12 Aug, `draft_extension_yeas`)
     title: Selective Service extension
     nation: usa
@@ -4282,12 +4341,14 @@ laws:
       - {kind: power, subject: hold draftees beyond twelve months}
     passed: draft_extension_passed
     does: {kind: adds_manpower, amount: 3}  # gap: true, [proposed] (plan, SHP Defaults)
+    daily_life: true  # [proposed]: holds the draftees in the army beyond their year
   - key: lend_lease_appropriation  # source: lend_lease_appropriations
     title: Lend-Lease appropriation
     nation: usa
     clauses:
       - {kind: money, subject: lend-lease supplies, amount: 7000000000}  # gap: true, [proposed]
     passed: lend_lease_appropriation_passed
+    daily_life: false  # [proposed]
   - key: arm_merchant_ships  # source: hjr237_timeline (the House's bill of 17 Oct: section 6 repealed)
     title: Arming of merchant ships
     nation: usa
@@ -4295,6 +4356,7 @@ laws:
       - {kind: power, subject: arm merchant ships}
     passed: arm_merchant_ships_passed
     does: {kind: arms_merchant_ships}
+    daily_life: false  # [proposed]
   # NUK: the National Service bill, which the Commons passed in December 1941. Its clause and what
   # it does are [proposed]: it adds 3 to Britain's manpower, as the draft does for the United States.
   - key: national_service  # source: national_service_1941

@@ -83,6 +83,7 @@ FINGERPRINTS: dict[str, str] = {
     "77": "3b320af1e768069b2fc0b41a0fecd61c937cc5a43d0860f01f3bd566c204e25d",
     "78": "56beccffbba8275df8488f3d8176327677c895e93665baaaceecd1190da681c5",
     "79": "a3ded821eab06553ace1e34ef7099a8b9db8ba6a82bfd432b66b16285276ab67",
+    "80": "9ed2755b0421504538fb792f4ebbca1bc61ac66ba620ba53a4e37c7324fdd129",
 }
 
 

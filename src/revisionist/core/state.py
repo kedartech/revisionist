@@ -63,6 +63,7 @@ from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
 from revisionist.core.realism.card import CardFace, Desk, Post, SeatCard, Topic
 from revisionist.core.realism.conference import Conferences
+from revisionist.core.realism.defiance import Act, Defied, Incident
 from revisionist.core.realism.detect import Intelligence, Picture, Report
 from revisionist.core.realism.document import Document, DocumentView, Feed
 from revisionist.core.realism.economy import Economy
@@ -206,6 +207,8 @@ class Ladder(Model):
     rests on, by key. TUR reads it."""
     removed_by: Removal | None = Field(default=None, exclude_if=lambda v: v is None)
     """With ``office`` on (OFQ): how its holder is removed. None: he faces no question."""
+    without_leave: tuple[Act, ...] = Field(default=(), max_length=2, exclude_if=lambda v: not v)
+    """With ``defiance`` on (DFY): the acts its holder may attempt without leave."""
 
 
 class QuestionCause(StrEnum):
@@ -410,6 +413,12 @@ class State(_World):
     asked: dict[OrderId, Asked] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """Each held order its seat has asked for, by its id, until it ends (ASK). The asker
     and the seat asked see it."""
+    defied: dict[OrderId, Defied] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``defiance`` on, each order sent anyway, by the id it landed as (DFY). Its
+    issuer sees it."""
+    incidents: dict[Label, Incident] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``defiance`` on, every incident by its id, one per order, answered or not
+    (DFY). The commander's seat and the superior's see it."""
     posts: dict[AssetId, Post] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """With ``posts`` on, every post that has changed hands, by its office asset
     (``post_changed``): who holds it and its part of the card (PPP). Engine only; a post
@@ -559,6 +568,8 @@ class View(_World):
     """The viewer's own held orders only (LCK)."""
     asked: dict[OrderId, Asked] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """The asks the viewer made, and those put before the viewer's seat (ASK)."""
+    incidents: dict[Label, Incident] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """The incidents on the viewer's person, and those put before him to answer (DFY)."""
     style: PlayStyle | None = None
     """The viewer's own play style. None: free."""
     reports: dict[Label, Report] = Field(default_factory=dict)

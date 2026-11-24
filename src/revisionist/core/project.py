@@ -34,6 +34,7 @@ from revisionist.core.realism import (
     agreement,
     answering,
     conference,
+    defiance,
     detect,
     economy,
     groups,
@@ -164,6 +165,7 @@ def project(state: State, seat: SeatId) -> View:
             for k, a in state.asked.items()
             if seat in (a.asker, a.seat, *a.seats)
         },
+        incidents=defiance.as_seen(state.incidents, seat),
         style=state.styles.get(seat),
         reports={
             **detect.seen_by(state, polity_of(state, me.embodies)),

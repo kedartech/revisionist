@@ -547,6 +547,7 @@ def _check_realism(world: WorldFile, sections: Mapping[str, str], problems: list
     _check_command(world, problems)
     _check_posts(world, sections, problems)
     _check_office(world, sections, problems)
+    _check_defiance(world, problems)
     _check_laws(world, problems)
     _check_locks(world, sections, problems)
     for seat in world.seats:
@@ -1985,6 +1986,19 @@ def _check_posts(world: WorldFile, sections: Mapping[str, str], problems: list[s
                 todo.extend(below.get(k, ()))
 
 
+def _check_defiance(world: WorldFile, problems: list[str]) -> None:
+    """With ``defiance`` on (DFY): it needs ``posts`` and ``locks``, and only an office
+    names acts without leave. With it off, no asset's list is read."""
+    if Rule.DEFIANCE not in world.rules:
+        return
+    for rule in (Rule.POSTS, Rule.LOCKS):
+        if rule not in world.rules:
+            problems.append(f"rules: defiance needs the {rule.value} rule")
+    for a in world.assets:
+        if a.without_leave and a.kind is not AssetKind.OFFICE:
+            problems.append(f"asset {a.key}: only an office names acts without leave")
+
+
 def _check_office(world: WorldFile, sections: Mapping[str, str], problems: list[str]) -> None:
     """With ``office`` on (OFQ): it needs ``posts``; what an office rests on is a group
     or a body, and how its holder is removed names what its way needs. With it off, neither
@@ -2044,6 +2058,7 @@ def _ladders(world: WorldFile, ids: Mapping[str, str]) -> ev.LaddersDeclared | N
     """Each office's ladder and movers, keys bound to ids, in the world's order (LDR);
     with ``office`` on, what it rests on and how its holder is removed (OFQ)."""
     office = Rule.OFFICE in world.rules
+    defiance = Rule.DEFIANCE in world.rules
 
     found = tuple(
         Ladder(
@@ -2052,9 +2067,13 @@ def _ladders(world: WorldFile, ids: Mapping[str, str]) -> ev.LaddersDeclared | N
             moved_by=tuple(AssetId(ids[k]) for k in a.moved_by),
             rests_on=tuple(ids.get(k, k) for k in a.rests_on) if office else (),
             removed_by=_removal(a.removed_by, ids) if office and a.removed_by else None,
+            without_leave=a.without_leave if defiance else (),
         )
         for a in world.assets
-        if a.ladder or a.moved_by or (office and (a.rests_on or a.removed_by))
+        if a.ladder
+        or a.moved_by
+        or (office and (a.rests_on or a.removed_by))
+        or (defiance and a.without_leave)
     )
     return ev.LaddersDeclared(ladders=found) if found else None
 

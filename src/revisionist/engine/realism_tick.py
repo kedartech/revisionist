@@ -54,6 +54,7 @@ from revisionist.core.realism import (
     battle,
     conference,
     contests,
+    defiance,
     detect,
     economy,
     elections,
@@ -431,6 +432,15 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return _asked_scope(payload.asked)
     if isinstance(payload, ev.AskAnswered):
         return private_to(payload.asker)
+    if isinstance(payload, ev.OrderDefied):
+        return private_to(payload.defied.issuer)
+    if isinstance(payload, ev.IncidentOpened | ev.IncidentAnswered):
+        seats = payload.incident.seats if isinstance(payload, ev.IncidentOpened) else payload.seats
+        return (
+            Scope(visibility=Visibility.RESTRICTED, known_by=frozenset(seats))
+            if seats
+            else (ladder.scope_of(state, None))
+        )
     if isinstance(payload, ev.AnswerPlanned | ev.AnswerMade):
         seat = actors.seat_of(state, payload.figure)
         return private_to(seat) if seat is not None else PUBLIC
@@ -622,8 +632,16 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(elections.walk(state, day))  # ELE: a post's election told, put, and chambers redrawn
         add(posts.walk(state, day))  # PPP: a vacant post to its successor, before any step
         add(offers.batch(state, day))  # PRC: the wake's offers, settled before a vote
+        for incident in defiance.due(state, day):  # DFY: an incident unanswered, by the card
+            found = state.incidents[incident]
+            add(
+                defiance.answer(
+                    state, found, defiance.card_verdict(state, found), day, by_card=True
+                )
+            )
         steps = run_pipelines(state, day, seed_for_day(state.campaign_id, day))
         add(steps)
+        add(defiance.arising(state, steps, day))  # DFY: a step from above refused
         settled = history.settle(state, day)
         add(settled)
         add(history.news(state, settled, day))
@@ -631,7 +649,9 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(drawn)
         add(history.news(state, drawn, day))
         add(apply.developed(state, drawn, day))
-        add(due_executions(state, day))
+        executed = due_executions(state, day)
+        add(executed)
+        add(defiance.arising(state, executed, day))  # DFY: an order sent anyway, carried out
         add(process.open_processes(state, day))
         add(process.influence_due(state, day))
         add(agreement.offers_due(state, day))  # AGR: before a part's effect could land
@@ -790,6 +810,70 @@ def ask_order(
     asked = locks.ask(state, seat, order_id, today)
     _append_all(store, state, [(ev.OrderAsked(asked=asked), _asked_scope(asked))], seat)
     return asked
+
+
+def send_anyway(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, order_id: OrderId
+) -> ev.OrderDefied:
+    """The seat sends its own held order anyway, once (DFY): when every act it does is on
+    its post's list, it is re-checked against today's refusals and lands as an ordinary
+    order dated today, marked defiant. Raises ``ValueError`` with the seat's words."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    h = state.held.get(order_id) if locks.on(state) else None
+    if today is None or h is None or h.issuer != seat or seat not in state.seats:
+        raise ValueError(locks.NOT_HELD)
+    if order_id in state.aide_orders:
+        raise ValueError(defiance.BY_AIDE)
+    acts = defiance.may_send(state, seat, h)
+    landed_id = OrderId(derived_id(state.campaign_id, "defied", order_id))
+    landing, refusal = _relanded(state, h, landed_id, today)
+    if landing is None:
+        raise ValueError(refusal[:300] or NOBODY)
+    sent = ev.OrderDefied(
+        defied=defiance.Defied(
+            order_id=order_id,
+            landed=landed_id,
+            issuer=seat,
+            acts=acts,
+            on=today,
+            superior=defiance.superior(h),
+            abroad=defiance.abroad(state, seat, h.asks),
+            kept=defiance.kept(state, h.asks),
+        )
+    )
+    end = ev.HeldOrderEnded(
+        order_id=order_id, issuer=seat, on=today, end=locks.HeldEnd.LANDED, by=landed_id
+    )
+    _append_all(store, state, [(p, _scope_of(state, p)) for p in (sent, landing, end)], seat)
+    return sent
+
+
+def answer_incident(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, incident_id: str, verdict: str
+) -> ev.IncidentAnswered:
+    """The superior's seat answers an open incident before its due day passes (DFY):
+    backed, disowned or dismissed. Raises ``ValueError`` with the seat's words."""
+    state = load_state(store, campaign_id)
+    today = state.in_world_date
+    found = state.incidents.get(incident_id) if defiance.on(state) else None
+    if (
+        today is None
+        or found is None
+        or found.verdict is not None
+        or seat not in state.seats
+        or state.seats[seat].embodies != found.superior
+    ):
+        raise ValueError(defiance.NOT_YOURS)
+    try:
+        chosen = defiance.Verdict(verdict)
+    except ValueError:
+        raise ValueError(f"answer one of: {', '.join(v.value for v in defiance.Verdict)}") from None
+    landed = defiance.answer(state, found, chosen, max(today, found.opened), by_card=False)
+    _append_all(store, state, [(p, _scope_of(state, p)) for p in landed], seat)
+    first = landed[0]
+    assert isinstance(first, ev.IncidentAnswered)
+    return first
 
 
 def choose_matter(

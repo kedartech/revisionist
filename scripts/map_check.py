@@ -40,6 +40,10 @@ MIN_AREA = {"lonlat": 0.05, "flat": 25.0}
 """The smallest area: square degrees, or square units on a flat map. [proposed]"""
 MIN_SHARED = {"lonlat": 0.1, "flat": 2.0}
 """The shortest shared border that makes two areas adjacent: degrees, or units. [proposed]"""
+WHOLE_LAT = (-60, 84)
+"""A whole map on real coordinates runs from 60 S to 84 N: Antarctica is left off. [proposed]"""
+NOT_WHOLE_YET = ("autumn-1941", "civil-war-1862")
+"""Worlds on real coordinates still allowed a map with a backdrop, until each is converted."""
 EPS = 1e-9
 
 Pt = tuple[int, int]
@@ -92,6 +96,7 @@ class Map:
     box: tuple[int, int, int, int]
     faces: list[Face]
     labels: dict[str, Pt]
+    whole: bool = False
 
     def area_face(self, key: str) -> Face:
         for f in self.faces:
@@ -142,6 +147,10 @@ def _structure(raw: Any) -> list[Problem]:
         out.append(bad("map", "box is not [west, south, east, north]"))
     elif not (box[0] < box[2] and box[1] < box[3]):
         out.append(bad("map", "box has west >= east or south >= north"))
+    if raw.get("cover", "whole") != "whole":
+        out.append(
+            bad("map", f"cover is {raw.get('cover')!r}; the one cover a map may give is whole")
+        )
     verts = raw.get("vertices")
     if not (isinstance(verts, list) and all(_pair(v) for v in verts)):
         return [*out, bad("map", "vertices is not a list of [x, y] pairs")]
@@ -205,7 +214,7 @@ def parse(raw: Any) -> Map:
         faces.append(face)
     w, s, e, n = (q(c) for c in raw["box"])
     labels = {str(k): (q(a["label"][0]), q(a["label"][1])) for k, a in raw["areas"].items()}
-    return Map(raw["coords"], (w, s, e, n), faces, labels)
+    return Map(raw["coords"], (w, s, e, n), faces, labels, raw.get("cover") == "whole")
 
 
 # ---------------------------------------------------------------- exact geometry
@@ -337,7 +346,7 @@ def check(raw: Any) -> list[Problem]:
         # Faces that tile the box (every edge matched, the box edges covered) cannot overlap,
         # so the search for which faces overlap runs only when the cover is broken.
         out += _overlaps(m, {(p.face, p.text) for p in out if p.code == "overlap"})
-    out += covered + _small(m) + _labels(m)
+    out += covered + _small(m) + _labels(m) + _whole(m)
     return _dedupe(out)
 
 
@@ -624,6 +633,31 @@ def _small(m: Map) -> list[Problem]:
             out.append(
                 Problem("small", f.name, f"its area {size:g} is below the minimum {least:g}")
             )
+    return out
+
+
+def _whole(m: Map) -> list[Problem]:
+    """A map that says ``cover: whole`` has no backdrop, and on real coordinates spans the globe."""
+    if not m.whole:
+        return []
+    out = [
+        Problem(
+            "whole", f.name, "a whole map leaves nothing out: this face is no territory or sea zone"
+        )
+        for f in m.faces
+        if not f.playable
+    ]
+    w, s, e, n = m.box
+    south, north = (q(c) for c in WHOLE_LAT)
+    if m.coords == "lonlat" and (e - w != q(360) or s != south or n != north):
+        out.append(
+            Problem(
+                "whole",
+                "box",
+                f"a whole map runs the full turn of longitude from {-WHOLE_LAT[0]} S "
+                f"to {WHOLE_LAT[1]} N; this box is {[unq(c) for c in m.box]}",
+            )
+        )
     return out
 
 
@@ -971,7 +1005,12 @@ def check_world(path: Path) -> Report:
     """The strict check: the whole world against its map."""
     report = Report()
     data = _read_yaml(path)
-    _check_against_map([(Path(path), data)], _places(data.get("entities")), report)
+    m = _check_against_map([(Path(path), data)], _places(data.get("entities")), report)
+    name = Path(path).name.split(".")[0]
+    if m is not None and m.coords == "lonlat" and not m.whole and name not in NOT_WHOLE_YET:
+        report.problems.append(
+            Problem("whole", "map", "a world on real coordinates uses a whole map (cover: whole)")
+        )
     return report
 
 

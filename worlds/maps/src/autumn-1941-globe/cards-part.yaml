@@ -1,0 +1,111 @@
+# The Mediterranean and China feeds and move forms for the territory world of autumn 1941: the reports
+# that sight the forces the 1941 start adds (start.yaml), and the forms that move them. A staging
+# file: the item that converts the world (FLP) folds it into worlds/autumn-1941.yaml, so the game
+# plays as today until then. The tests (tests/test_world_new_forms.py) read it against today's world
+# file, the start and the map's world fragment.
+#
+# Two blocks:
+# - `feeds`: each shaped as the world file has a feed. A key today's world already has is that feed
+#   restated whole, and replaces it; any other key is a new feed.
+# - `cards`: a part of one card each: `feeds` the card gains (added to its own), and `levers`, each
+#   shaped as the world file has a lever. A lever name the card already has is that lever restated
+#   whole, and replaces it; any other name is a new form on the card.
+#
+# Fog: a feed sights a force of its author's nation, of a nation at war with it, or of an ally (not at
+# war with it, and at war with a common enemy), by the start's wars. So the Military Affairs
+# Commission sights no Italian piece.
+#
+# [proposed]: the two new feeds' cadence and latency (every 3 days, a day late; the plan's default),
+# their classification and what each sights, and every new destination on a form. A form's new
+# destinations are places of the start; a fleet's are ports. Today's destinations on a restated form
+# stay as they are, for FLP to place.
+#
+# For FLP and the forms review. Churchill's detach form names a strength; on the territory board an
+# order that names a strength moves no piece today (resolvers/movement.py, `_piece_order`), so the
+# Mediterranean Fleet on that form does nothing there until the detachment rule reaches pieces. No
+# authority domain is changed here: the written orders' domains for the new forces are left to the
+# item that matches written orders to forms.
+
+feeds:
+  # Rule 1: the two new feeds.
+  - {key: comando_supremo_reports, name: Comando Supremo reports, author: cavallero, kind: report, channel: courier, classification: secret, sights: [italian_fleet, italian_army_libya, italian_army, afrika_korps, mediterranean_fleet, western_desert_force], every_days: 3, latency_days: 1, assumed: true, gap: true}
+  - {key: mac_reports, name: Military Affairs Commission reports, author: he_yingqin, kind: report, channel: courier, classification: secret, sights: [chinese_army, ninth_war_area, eleventh_army], every_days: 3, latency_days: 1, assumed: true, gap: true}
+  # Rule 1: the Admiralty and OKW reports, restated with the Mediterranean forces after today's sights.
+  - {key: admiralty_reports, name: Admiralty reports, author: pound, kind: report, channel: courier, classification: secret, reports: [uboat_losses_sep, uboat_losses_oct, uboat_losses_nov, uk_sealift_grt], sights: [home_fleet, uboat_arm, hx_route, sc_route, arctic_route, mediterranean_fleet, western_desert_force, italian_fleet, italian_army_libya, afrika_korps], every_days: 7, latency_days: 1, assumed: true, gap: true}
+  - {key: okw_situation, name: OKW situation reports, author: jodl, kind: report, channel: courier, classification: secret, sights: [army_group_centre, soviet_western_front, eastern_front, afrika_korps, italian_army_libya, italian_fleet, western_desert_force, mediterranean_fleet], every_days: 3, latency_days: 1, assumed: true, gap: true}
+
+cards:
+  # Rule 2: Mussolini's fleet and army forms, on the Comando Supremo's path.
+  - person: mussolini
+    feeds: [comando_supremo_reports]
+    levers:
+      - name: move_fleet
+        pipeline: comando_supremo_order
+        resolver: movement
+        label: "Move the fleet"
+        summary: "Tell the Comando Supremo where the battle fleet is to base."
+        params:
+          - {name: force, kind: enum, choices: [italian_fleet], label: "Which fleet", choice_labels: ["The Italian Battle Fleet"]}
+          - {name: to, kind: enum, choices: [taranto, tripoli, bardia], label: "To", choice_labels: ["Taranto", "Tripoli", "Bardia"]}
+      - name: move_army
+        pipeline: comando_supremo_order
+        resolver: movement
+        label: "Move an army"
+        summary: "Tell the Comando Supremo where an army is to stand; across the sea it sails on Italy's shipping."
+        params:
+          - {name: force, kind: enum, choices: [italian_army, italian_army_libya], label: "Which army", choice_labels: ["The Royal Italian Army", "The Italian Army in Libya"]}
+          - {name: to, kind: enum, choices: [rome, tripoli, bardia, tobruk, alexandria], label: "To", choice_labels: ["Rome", "Tripoli", "Bardia", "Tobruk", "Alexandria"]}
+
+  # Rule 2: Chiang's army form, on the Military Affairs Commission's path.
+  - person: chiang
+    feeds: [mac_reports]
+    levers:
+      - name: move_army
+        pipeline: mac_order
+        resolver: movement
+        label: "Move an army"
+        summary: "Tell the Military Affairs Commission where an army is to stand."
+        params:
+          - {name: force, kind: enum, choices: [chinese_army, ninth_war_area], label: "Which army", choice_labels: ["The National Revolutionary Army", "The Ninth War Area"]}
+          - {name: to, kind: enum, choices: [chungking, changsha, wuhan], label: "To", choice_labels: ["Chungking", "Changsha", "Wuhan"]}
+
+  # Rule 2: Churchill's move forms, restated with the Mediterranean forces and ports after today's.
+  - person: churchill
+    levers:
+      - name: move_fleet
+        pipeline: cos_directive
+        resolver: movement
+        label: "Move a fleet"
+        summary: "Tell the Admiralty where a fleet is to base."
+        params:
+          - {name: force, kind: enum, choices: [home_fleet, mediterranean_fleet], label: "Which fleet", choice_labels: ["The Home Fleet", "The Mediterranean Fleet"]}
+          - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool, alexandria, malta, tobruk], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool", "Alexandria", "Malta", "Tobruk"]}
+      - name: detach_fleet
+        pipeline: cos_directive
+        resolver: movement
+        label: "Detach part of a fleet"
+        summary: "Tell the Admiralty to send part of a fleet to another place; the rest stays where it is."
+        params:
+          - {name: force, kind: enum, choices: [home_fleet, mediterranean_fleet], label: "Which fleet", choice_labels: ["The Home Fleet", "The Mediterranean Fleet"]}
+          - {name: to, kind: enum, choices: [scapa_flow, reykjavik, liverpool, alexandria, malta, tobruk], label: "To", choice_labels: ["Scapa Flow", "Reykjavik", "Liverpool", "Alexandria", "Malta", "Tobruk"]}
+          - {name: strength, kind: int, lo: 1, hi: 4, label: "How much of its strength"}
+      - name: move_army
+        pipeline: cos_directive
+        resolver: movement
+        label: "Move an army"
+        summary: "Tell the Chiefs of Staff where an army is to stand; across the sea it sails on Britain's shipping."
+        params:
+          - {name: force, kind: enum, choices: [home_forces, western_desert_force], label: "Which army", choice_labels: ["Home Forces", "The Western Desert Force"]}
+          - {name: to, kind: enum, choices: [london, liverpool, reykjavik, alexandria, tobruk, bardia], label: "To", choice_labels: ["London", "Liverpool", "Reykjavik", "Alexandria", "Tobruk", "Bardia"]}
+
+  # Rule 2: Hitler's army form, on the army path (okw_army_directive), with the Afrika Korps.
+  - person: hitler
+    levers:
+      - name: move_army
+        pipeline: okw_army_directive
+        resolver: movement
+        label: "Move an army"
+        summary: "Direct Army Group Centre or the Afrika Korps on a new objective."
+        params:
+          - {name: force, kind: enum, choices: [army_group_centre, afrika_korps], label: "Which army", choice_labels: ["Army Group Centre", "The Afrika Korps"]}
+          - {name: to, kind: enum, choices: [smolensk, vyazma, kalinin, mozhaisk, moscow, bardia, tobruk, tripoli, alexandria], label: "To", choice_labels: ["Smolensk", "Vyazma", "Kalinin", "Mozhaisk", "Moscow", "Bardia", "Tobruk", "Tripoli", "Alexandria"]}

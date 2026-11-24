@@ -683,6 +683,7 @@ class App:
                     args, _ = agenda_api.office_vote_args(state, seat, body)
                     reply = agenda_api.office_vote(store, cid, seat, args)
                 elif action == "offer":
+                    home_api.refuse_at_post(state, seat)
                     priced = realism_tick.make_offer(store, cid, seat, *_offer_args(body))
                     reply = home_api.offered(state, priced)
                 else:

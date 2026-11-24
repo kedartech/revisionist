@@ -1757,6 +1757,23 @@ class AskLine(TypedDict):
     """The seat's own forms that would allow it; empty where it has none."""
 
 
+class WaitLine(TypedDict):
+    """One line of the aide's note of what waits (ABN): something the seat left alone
+    while away, read from its own view at the moment it reads the note."""
+
+    kind: str
+    """``held`` (its own held order not asked for), ``bloc`` (a bloc that would take an
+    offer on a measure on its way), ``aim`` (its own aim still open), or a due kind's
+    name (``agenda_api.DUE_KINDS``)."""
+    what: str
+    """The line in plain words."""
+    who: str | None
+    """Who it is from or who can allow it, by name; None where no one is named."""
+    day: str
+    """Its day: the world day it was held, the day it falls due, or a phrase such as
+    "at this wake's close"."""
+
+
 class LocksBlock(TypedDict):
     """The seat's locks, with ``locks`` on: its own held orders and the asks put
     before it. Absent with the rule off."""
@@ -2524,6 +2541,7 @@ __all__ = [
     "Threat",
     "Through",
     "TimelinePoint",
+    "WaitLine",
     "WakeHeader",
     "WarNation",
 ]

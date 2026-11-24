@@ -263,15 +263,19 @@ def _fall(
 
 
 def _regard(state: State, of: EntityId, toward: EntityId) -> ev.RelationshipSet:
+    return regard(state, of, toward, REGARD_COST)
+
+
+def regard(state: State, of: EntityId, toward: EntityId, cost: int) -> ev.RelationshipSet:
+    """``of``'s regard for ``toward`` lowered by ``cost``, from nothing when he has none:
+    a moved post's cost here, and an incident's (DFY)."""
     now = next(
         (r for r in state.relationships.values() if r.a == of and r.b == toward),
         None,
     )
     if now is not None:
         return ev.RelationshipSet(
-            relationship=now.model_copy(
-                update={"disposition": max(-5, now.disposition - REGARD_COST)}
-            )
+            relationship=now.model_copy(update={"disposition": max(-5, now.disposition - cost)})
         )
     seat = seat_of_person(state, of)
     scope = scope_of(state, seat.seat_id if seat is not None else None)
@@ -280,7 +284,7 @@ def _regard(state: State, of: EntityId, toward: EntityId) -> ev.RelationshipSet:
             relationship_id=RelationshipId(derived_id(state.campaign_id, "rel", of, toward)),
             a=of,
             b=toward,
-            disposition=-REGARD_COST,
+            disposition=-cost,
             scope=scope,
         )
     )
@@ -303,6 +307,7 @@ __all__ = [
     "movers",
     "order",
     "post_named",
+    "regard",
     "rung",
     "scope_of",
     "takes_last",

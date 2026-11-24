@@ -315,7 +315,8 @@ class GoalSource(StrEnum):
     PLAYER = "player"
     """The player's own aim, filled from a world's pattern (OWC)."""
     REPLACEMENT = "replacement"
-    """An aim given in place of one the person can no longer pursue. Declared; unused."""
+    """One of the two aims a replacement person must both hold (RPL): his card's aims
+    that are not replaceable."""
 
 
 class Exposure(StrEnum):
@@ -586,13 +587,15 @@ def check(state: State) -> list[GoalProgressed | GoalMet | GoalUndone]:
     """What changed for every goal since the last check, in goal order.
 
     Runs at the end of APPLY, so a goal is met when its condition holds at the
-    end of a tick. A Lasting goal stops being checked once met.
+    end of a tick. A Lasting goal stops being checked once met. A replaced person's
+    goals are not checked: they stay as they stood when he was replaced (RPL).
     """
     from revisionist.core.events import GoalMet, GoalProgressed, GoalUndone  # events imports us
 
     out: list[GoalProgressed | GoalMet | GoalUndone] = []
+    gone = set(state.replaced.values())
     for goal in sorted(state.goals.values(), key=lambda g: g.goal_id):
-        if goal.holding and goal.kind is GoalKind.LASTING:
+        if (goal.holding and goal.kind is GoalKind.LASTING) or goal.person in gone:
             continue
         if goal.person is not None and not judged(state, goal):
             continue
@@ -704,6 +707,8 @@ def holder_seat(state: State, goal: Goal) -> SeatId | None:
     legacy goal, its own seat."""
     if goal.person is None:
         return goal.seat_id
+    if goal.person in state.replaced.values():
+        return None
     from revisionist.core.state import seat_of_person  # state imports us
 
     seat = seat_of_person(state, goal.person)
@@ -728,11 +733,27 @@ def aim_goal_id(campaign_id: str, person: EntityId, aim: int) -> GoalId:
     return GoalId(derived_id(campaign_id, "aim-goal", person, aim))
 
 
+REPLACEMENT_AIMS = 2
+"""The aims a replacement person is given, every one required (RPL)."""
+
+
+def replacement_aims(rules: tuple[AimRule | None, ...], aims: int) -> tuple[int, ...]:
+    """The aims, numbered from 1, a replacement person is given: the first two of his
+    card's ``aims`` with a rule that are not replaceable; none when he has fewer."""
+    found = tuple(
+        i
+        for i, rule in enumerate(rules[:aims], start=1)
+        if rule is not None and not rule.replaceable
+    )
+    return found[:REPLACEMENT_AIMS] if len(found) >= REPLACEMENT_AIMS else ()
+
+
 def aim_goals(state: State) -> list[GoalSet]:
     """With ``aims`` on, a ``GoalSet`` for each aim with a rule on the card of each
     person a human seat holds whose aims have no goals yet, in seat order: once per
     person, so a claim and a hand-over make them and a later seat for the same person
-    makes none. A code seat's person gets none."""
+    makes none. A code seat's person gets none. A replacement person gets two, from
+    ``replacement_aims``, with the source ``replacement`` and never his own aim."""
     from revisionist.core.events import GoalSet  # events imports us
     from revisionist.core.visibility import private_to
 
@@ -748,9 +769,11 @@ def aim_goals(state: State) -> list[GoalSet]:
         if card is None:
             continue
         has.add(person)
-        own = state.own_aims.get(person)
+        stand_in = person in state.replaced
+        own = None if stand_in else state.own_aims.get(person)
+        given = replacement_aims(card.aim_rules, len(card.aims))
         for i, rule in enumerate(card.aim_rules, start=1):
-            if rule is None or i > len(card.aims):
+            if rule is None or i > len(card.aims) or (stand_in and i not in given):
                 continue
             mine = own is not None and own.aim == i
             condition = own.rule.condition if own is not None and mine else rule.condition
@@ -765,7 +788,13 @@ def aim_goals(state: State) -> list[GoalSet]:
                         clock_id=None,
                         scope=private_to(seat.seat_id),
                         person=person,
-                        source=GoalSource.PLAYER if mine else GoalSource.POST,
+                        source=(
+                            GoalSource.REPLACEMENT
+                            if stand_in
+                            else GoalSource.PLAYER
+                            if mine
+                            else GoalSource.POST
+                        ),
                         aim=i,
                     )
                 )
@@ -776,7 +805,8 @@ def aim_goals(state: State) -> list[GoalSet]:
 def season_winners(state: State) -> frozenset[SeatId]:
     """Every seat that wins at season end (decision 36). With ``aims`` on, the human
     seats holding a person with two of his aims holding, or all of them when his card
-    has fewer than two; any number win, or none. Otherwise any seat whose goal holds."""
+    has fewer than two (a replacement person has two goals, so both); any number win, or
+    none. A replaced person's goals count for no seat. Otherwise any seat whose goal holds."""
     if not aims_on(state):
         return frozenset(g.seat_id for g in state.goals.values() if g.holding)
     holding: dict[EntityId, int] = {}

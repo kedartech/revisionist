@@ -14,6 +14,7 @@ from revisionist.core.ids import EntityId, SeatId
 from revisionist.core.realism import ladder, locks
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import Domain, SeatCard
+from revisionist.core.realism.defiance import DEFIANT_LOYALTY, defiant
 from revisionist.core.realism.effect import (
     REFUSAL_LOYALTY,
     Appointment,
@@ -199,7 +200,8 @@ def carry_out(state: State, order: RoutedOrder, part: int) -> tuple[Fidelity | N
     if unlawful:
         return None, unlawful
     inputs = fidelity_inputs(state, routed.executor)
-    if inputs.loyalty <= REFUSAL_LOYALTY:
+    line = DEFIANT_LOYALTY if defiant(state, order.order_id) else REFUSAL_LOYALTY
+    if inputs.loyalty <= line:
         if friction(state, order.order_id, part, "refuse", n=100) < REFUSE_PCT:
             who = _name(state, routed.executor).split()[-1]
             return None, f"loyalty {inputs.loyalty}: {who} will not carry it out"

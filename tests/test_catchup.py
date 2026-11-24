@@ -785,6 +785,57 @@ def test_a_cards_answer_to_an_ask_is_fed_to_the_asker_only() -> None:
     assert seen("mine") and not seen("hers") and not seen("other")
 
 
+def test_an_order_sent_anyway_is_fed_to_its_own_seat_only() -> None:
+    # DFY: sealed to the issuer's seat, whatever the envelope says.
+    from revisionist.core.realism.defiance import Act, Defied
+
+    assert "order_defied" in catchup.FEED_KINDS
+    sent = ev.OrderDefied(
+        defied=Defied(
+            order_id=OrderId("held"),
+            landed=OrderId("landed"),
+            issuer=SeatId("mine"),
+            acts=(Act.BORDER,),
+            on=date(1941, 9, 1),
+            superior=EntityId("ilse"),
+        )
+    )
+
+    def seen(viewer: str) -> bool:
+        return catchup._named(sent, typing.cast(View, SimpleNamespace(viewer=SeatId(viewer))))
+
+    assert seen("mine") and not seen("hers") and not seen("other")
+
+
+def test_an_incident_and_its_answer_are_fed_to_the_commander_and_the_superior() -> None:
+    # DFY: sealed to the commander's seat and the superior's, whatever the envelope says.
+    from revisionist.core.realism.defiance import Cause, Incident, Verdict
+
+    assert {"incident_opened", "incident_answered"} <= catchup.FEED_KINDS
+    seats = (SeatId("mine"), SeatId("hers"))
+    opened = ev.IncidentOpened(
+        incident=Incident(
+            incident_id="incident",
+            order_id=OrderId("landed"),
+            cause=Cause.DEFIED,
+            commander=EntityId("kara"),
+            superior=EntityId("ilse"),
+            seats=seats,
+            opened=date(1941, 9, 2),
+            due=date(1941, 9, 4),
+        )
+    )
+    answered = ev.IncidentAnswered(
+        incident_id="incident", verdict=Verdict.BACKED, on=date(1941, 9, 3), seats=seats
+    )
+    for payload in (opened, answered):
+
+        def seen(viewer: str, p: ev.Payload = payload) -> bool:
+            return catchup._named(p, typing.cast(View, SimpleNamespace(viewer=SeatId(viewer))))
+
+        assert seen("mine") and seen("hers") and not seen("other")
+
+
 def test_an_offer_to_a_bloc_and_where_it_stands_are_fed_to_the_seats_that_see_it() -> None:
     # PRC: sealed to the seats of the bloc's nation, and kept only while the offer is in
     # the seat's view; a seat of another nation never reads it, whatever the envelope says.

@@ -601,10 +601,26 @@ NINETEEN_41: tuple[Case, ...] = (
         "Hide the Western Front.",
         hide("soviet_western_front"),
     ),
+    # General Xue: the move no lock holds, and the concealment
+    f41(
+        "xue_yue",
+        "ninth_war_area_move",
+        {"force": "ninth_war_area", "to": "wuhan"},
+        "Move the Ninth War Area's armies up to Wuhan.",
+        move("ninth_war_area", "wuhan"),
+    ),
+    f41(
+        "xue_yue",
+        "ninth_war_area_conceal",
+        {"intel": "conceal", "piece": "ninth_war_area", "concealed": "yes"},
+        "Hide the Ninth War Area's armies.",
+        hide("ninth_war_area"),
+    ),
 )
 """Every form on every playable card of Autumn 1941; Admiral King's naval order once in
 each zone it names, the war zone included; Admiral Tovey's, Admiral Dönitz's, Admiral
-Yamamoto's, Admiral Iachino's two forms and Marshal Timoshenko's two where no lock holds them."""
+Yamamoto's, Admiral Iachino's two forms, Marshal Timoshenko's two and General Xue's two where no
+lock holds them."""
 
 
 # --- Salt Strait -------------------------------------------------------------------------

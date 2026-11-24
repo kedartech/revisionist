@@ -19,9 +19,9 @@ TradeSet, BattleOpened, BattleRound, BattleEnded, BattleDecided, IntelligenceDec
 ReportMade, AgentSet, CodebreakingSet, GroupsDeclared, GroupMoved, GroupProposed,
 AgreementOffered, AgreementMade, ClauseJudged, AgreementPublished, ConferenceCalled,
 VoteSealed, ConferenceTallied, LocksDeclared, LawsDeclared, OrderHeld, HeldOrderEnded,
-OrderAsked, AskAnswered, MatterChosen, AimPatternsDeclared, OwnAimSet, OfferMade,
-OfferSettled, LossesHeld, PostChanged, OfficeQuestionOpened, OfficeChoiceFiled,
-OfficeQuestionDecided, SeatsRedrawn``, and
+OrderAsked, AskAnswered, OrderDefied, IncidentOpened, IncidentAnswered, MatterChosen,
+AimPatternsDeclared, OwnAimSet, OfferMade, OfferSettled, LossesHeld, PostChanged,
+OfficeQuestionOpened, OfficeChoiceFiled, OfficeQuestionDecided, SeatsRedrawn``, and
 under engine v2 ``OrderRouted, OrderExecuted,
 EffectsEstimated, EffectsApplied, InfluenceDecided, MandateIssued, MandateSettled, WakeOpened,
 WakeCommitted, WakeClosed, PlayStyleSet, SeatHandover, RequestAnswered, StepChosen``.
@@ -94,6 +94,7 @@ from revisionist.core.realism.card import (
     Topic,
 )
 from revisionist.core.realism.conference import Conference, Tally, Vote
+from revisionist.core.realism.defiance import Defied, Incident, Verdict
 from revisionist.core.realism.detect import Agent, Intelligence, Report, Shift
 from revisionist.core.realism.document import DocumentTruth, DocumentView, Feed
 from revisionist.core.realism.economy import Amount, Pools
@@ -771,6 +772,34 @@ class OrderAsked(Model):
 
     kind: Literal["order_asked"] = "order_asked"
     asked: Asked
+
+
+class OrderDefied(Model):
+    """A seat sends its held order anyway (DFY): it lands as an ordinary order, marked
+    defiant. Sealed to the issuer's seat."""
+
+    kind: Literal["order_defied"] = "order_defied"
+    defied: Defied
+
+
+class IncidentOpened(Model):
+    """An order sent anyway was carried out, or a step on an order from above refused
+    (DFY): a question on the commander before his superior. Sealed to their seats."""
+
+    kind: Literal["incident_opened"] = "incident_opened"
+    incident: Incident
+
+
+class IncidentAnswered(Model):
+    """The superior's answer to an incident, by his seat or his card, once (DFY). Sealed
+    to the commander's seat and the superior's."""
+
+    kind: Literal["incident_answered"] = "incident_answered"
+    incident_id: Label
+    verdict: Verdict
+    on: date
+    by_card: bool = False
+    seats: tuple[SeatId, ...] = Field(default=(), max_length=2)
 
 
 class AskAnswered(Model):
@@ -1546,11 +1575,15 @@ class SeatHandover(Model):
     """A leader changes hands at the next wake boundary: ``HUMAN`` when a new player
     takes up a leader nobody plays, ``AI`` when the leader's player leaves. The fold holds
     the change in ``State.handovers`` and applies it when the open wake closes. Sealed to
-    the seat that changes hands: how a seat is run is never shown."""
+    the seat that changes hands: how a seat is run is never shown.
+
+    ``replaces`` names the person a player can no longer play whom ``entity_id`` takes
+    the place of (RPL): his own hand-over to the code lands first, in the same step."""
 
     kind: Literal["seat_handover"] = "seat_handover"
     entity_id: EntityId
     controller: Controller
+    replaces: EntityId | None = Field(default=None, exclude_if=lambda v: v is None)
 
 
 class OptionsOffered(Model):
@@ -1664,6 +1697,9 @@ Payload = Annotated[
     | HeldOrderEnded
     | OrderAsked
     | AskAnswered
+    | OrderDefied
+    | IncidentOpened
+    | IncidentAnswered
     | MatterChosen
     | OfferMade
     | OfferSettled
@@ -1784,6 +1820,9 @@ MUTATING_KINDS: frozenset[str] = frozenset(
         "held_order_ended",
         "order_asked",
         "ask_answered",
+        "order_defied",
+        "incident_opened",
+        "incident_answered",
         "matter_chosen",
         "offer_made",
         "offer_settled",

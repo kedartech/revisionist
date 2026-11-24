@@ -11,6 +11,7 @@ import { boxOf, holderRelation, territoryProjection } from '../realism-rules.js'
 import { DONE_HINT, dayKey, dayWords, itemHeading } from './realism-wake.js';
 import { floorMeasures, promisesMade } from './realism-home.js';
 import { askLines, heldLines, lockTag } from './realism-locks.js';
+import { postRoom } from './realism-figure.js';
 
 /** The list's heading and its empty line [proposed]. */
 export const NEEDS_TITLE = 'What needs you';
@@ -51,6 +52,15 @@ const itemLine = (item, label, word) => ({
   due: item.deadline || null, arrived: item.issued || null, paper: SEALED.has(item.kind) ? item.id : null,
   action: { word, to: 'matter', id: item.id },
 });
+
+// a change of post pending on the seat (view.realism.posts.pending): sealed to the person moved,
+// and listed ahead of every dated matter, since it lands whether or not the seat answers
+const POST_VERB = { appoint: 'appointed', relieve: 'relieved as' };
+addNeedKind('post', (rv) => (rv.posts?.pending ?? []).map((p) => ({
+  key: p.id, head: true, label: 'Change of post', from: (rv.posts.moved_by ?? []).join(', ') || 'Those who may move you',
+  what: `You are to be ${POST_VERB[p.move] ?? p.move} ${p.post}${p.move === 'relieve' && p.rung ? `, down to ${p.rung}` : ''}`,
+  lands: p.lands, wake: p.wake ?? null,
+})));
 
 // a mandate on the seat's own agenda: from its principal, or the state of the world
 addNeedKind('agenda', (rv) => items(rv).filter((i) => !OWN_LINE.has(i.kind))
@@ -163,12 +173,13 @@ export function needLines(rv) {
     }
   }
   return out.map((line, n) => [line, n])
-    .sort(([a, i], [b, j]) => later(a.due) - later(b.due) || later(a.arrived) - later(b.arrived) || i - j)
+    .sort(([a, i], [b, j]) => Number(Boolean(b.head)) - Number(Boolean(a.head)) || later(a.due) - later(b.due) || later(a.arrived) - later(b.arrived) || i - j)
     .map(([line]) => line);
 }
 
 /** By when, in words: "Due 22 October 1941", "Due at this wake's close", or "No set day". */
 export function dueWords(line) {
+  if (line.lands) return `Lands ${line.lands}${line.wake ? ` (wake ${line.wake})` : ''}`;
   if (!line.due) return NO_DAY;
   return line.at === 'close' ? AT_CLOSE : `Due ${dayWords(line.due)}`;
 }
@@ -214,6 +225,7 @@ const KIND_MARKS = {
   floor: 'M2 14h12M3 6h10M4 6v8M8 6v8M12 6v8M2 6l6-4 6 4',
   place: 'M8 14s-5-4.5-5-8a5 5 0 0 1 10 0c0 3.5-5 8-5 8zM8 4v3M8 9v.5',
   held: 'M4 7h8v7H4zM6 7V5a2 2 0 0 1 4 0v2',
+  post: 'M8 2l2 4h4l-3 3 1 5-4-3-4 3 1-5-3-3h4z',
 };
 
 /** The mark for a line's kind: a small drawing, for the eye; the row's words name the kind. */
@@ -297,7 +309,8 @@ export function needsList(rv, lines, { open = false, onAction, onDone, onClose, 
     h('button', { type: 'button', class: 'rl-btn rl-needs-close', onclick: () => onClose?.() }, 'Close')),
   comeBack ? h('p', { class: 'rl-comeback' }, comeBack) : null,
   rows.length ? h('ul', { class: 'rl-needs-lines', role: 'list' }, rows) : null,
-  lines.length ? null : h('p', { class: 'rl-needs-none' }, NEEDS_NONE),
+  // a seat with no post never opens on an empty list: it is shown what it can still do
+  lines.length ? null : rv.posts && !rv.posts.post ? postRoom(rv.posts.room) : h('p', { class: 'rl-needs-none' }, NEEDS_NONE),
   rest.length
     ? h('details', { class: 'rl-needs-more' },
       h('summary', {}, `${MORE} (${rest.length})`),

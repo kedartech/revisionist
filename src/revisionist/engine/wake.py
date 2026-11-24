@@ -10,11 +10,11 @@ import logging
 from datetime import date, datetime, timedelta
 
 from revisionist.core import events as ev
-from revisionist.core import record
+from revisionist.core import record, roster
 from revisionist.core.fold import replay
 from revisionist.core.ids import CampaignId, EntityId, EventId, OrderId, SeatId, derived_id
 from revisionist.core.ontology import Controller, Phase
-from revisionist.core.realism import battle, conference, detect
+from revisionist.core.realism import battle, conference, detect, posts
 from revisionist.core.realism.agenda import STANDING_DEFAULT, Ask
 from revisionist.core.realism.effect import IRREVERSIBLE, Deal
 from revisionist.core.state import State, controller_after, seat_of_person
@@ -37,18 +37,29 @@ def _land(
 ) -> None:
     """Fold the event on ``state``, then store it: an event the fold refuses raises
     ``FoldError`` here and is never stored, so it cannot stop the game loading."""
-    event = ev.Event(
-        event_id=EventId(new_id()),
-        campaign_id=state.campaign_id,
-        seq=state.last_seq + 1,
-        tick=state.tick,
-        actor=actor,
-        scope=scope,
-        payload=payload,
-        versions=cmp.versions(),
-    )
-    replay([event], initial=state)
-    store.append_all([event])
+    _land_all(store, state, [(payload, actor, scope)])
+
+
+def _land_all(
+    store: EventStore, state: State, items: list[tuple[ev.Payload, SeatId | None, Scope]]
+) -> None:
+    """Fold the events on ``state`` in order, then store them together: when the fold
+    refuses any of them, none is stored."""
+    events = [
+        ev.Event(
+            event_id=EventId(new_id()),
+            campaign_id=state.campaign_id,
+            seq=state.last_seq + 1 + i,
+            tick=state.tick,
+            actor=actor,
+            scope=scope,
+            payload=payload,
+            versions=cmp.versions(),
+        )
+        for i, (payload, actor, scope) in enumerate(items)
+    ]
+    replay(events, initial=state)
+    store.append_all(events)
 
 
 def _open(state: State) -> bool:
@@ -165,6 +176,49 @@ def hand_over(store: EventStore, campaign_id: CampaignId, person: EntityId) -> S
     handover = ev.SeatHandover(entity_id=person, controller=Controller.HUMAN)
     _land(store, state, handover, None, private_to(seat))
     return seat
+
+
+def replacements(state: State, seat: SeatId) -> tuple[roster.Candidate, ...]:
+    """The people ``seat`` may take in place of a person it can no longer play (RPL):
+    while a wake is open, for a seat a player holds whose person is dead or cannot act,
+    once a season; ``roster.replacements`` gives them."""
+    held = state.seats.get(seat)
+    if not _open(state) or held is None or held.controller is not Controller.HUMAN:
+        return ()
+    person = held.embodies
+    if controller_after(state, person) is not Controller.HUMAN or person in state.replaced:
+        return ()
+    if not posts.needs_replacement(state, person):
+        return ()
+    return roster.replacements(state, person)
+
+
+def replace(
+    store: EventStore, campaign_id: CampaignId, seat: SeatId, person: EntityId, now: datetime
+) -> SeatId:
+    """``seat``'s player takes ``person`` in place of the one it can no longer play, from
+    the next close; returns the seat they will hold. The old person goes to the code in
+    the same step, so the seats a player holds stay as many, and the open wake is sealed
+    for the old seat. Raises ``ValueError`` for a person not on the seat's offer."""
+    state = load_state(store, campaign_id)
+    if person not in [c.person for c in replacements(state, seat)]:
+        raise ValueError("That person cannot be taken in this seat's place.")
+    old = state.seats[seat].embodies
+    new = seat_for(state, person)
+    _land_all(
+        store,
+        state,
+        [
+            (ev.SeatHandover(entity_id=old, controller=Controller.AI), seat, private_to(seat)),
+            (
+                ev.SeatHandover(entity_id=person, controller=Controller.HUMAN, replaces=old),
+                None,
+                private_to(new),
+            ),
+        ],
+    )
+    commit(store, campaign_id, seat, now)
+    return new
 
 
 def _person_of(state: State, seat: SeatId) -> EntityId | None:
@@ -301,6 +355,8 @@ __all__ = [
     "leave",
     "offer_all",
     "open_wake",
+    "replace",
+    "replacements",
     "seal_vote",
     "seat_for",
     "set_hours",

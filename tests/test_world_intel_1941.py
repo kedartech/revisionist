@@ -179,6 +179,7 @@ def test_the_leaders_who_gave_such_orders_have_the_forms() -> None:
         "mussolini": {"patrol"},
         "chiang": {"agent"},
         "timoshenko": {"conceal"},
+        "xue_yue": {"conceal"},
     }
 
 
@@ -201,7 +202,7 @@ def test_a_form_names_only_its_own_nations_pieces_and_areas_of_the_board() -> No
     areas = {a["key"] for a in [*doc["territories"], *doc["sea_zones"]]}
     holds = {"konoe": "japan", "tojo": "japan", "chiang": "china", "mussolini": "italy"}
     holds |= {"roosevelt": "usa", "churchill": "uk", "stalin": "ussr", "hitler": "germany"}
-    holds |= {"timoshenko": "ussr"}
+    holds |= {"timoshenko": "ussr", "xue_yue": "china"}
     for person, lever in intel_forms():
         params = {p["name"]: p for p in lever["params"]}
         (form,) = params["intel"]["choices"]
@@ -248,8 +249,9 @@ def _order(state: State, person: str, lever: str, n: int) -> Order:
 
 @pytest.fixture(scope="module")
 def opened() -> State:
-    """The game on 1 September with every leader and the Western Front's commander seated."""
-    g = Logged(cmp.load_world(WORLD), *LEADERS, "timoshenko")
+    """The game on 1 September with every leader and the Western Front's and the Ninth War Area's
+    commanders seated."""
+    g = Logged(cmp.load_world(WORLD), *LEADERS, "timoshenko", "xue_yue")
     g.add([ev.EconomySet(polity=entity(n), pools=Pools(output=100.0), on=START) for n in SEVEN])
     return g.state
 

@@ -30,6 +30,7 @@ from revisionist.core.goals import (
     aim_rule,
     aims_on,
     goal_kind,
+    replacement_aims,
     season_winners,
 )
 from revisionist.core.ids import AssetId, CampaignId, EntityId, SeatId, derived_id
@@ -312,6 +313,51 @@ def _order_asked(state: State, p: ev.OrderAsked) -> State:
         if _need(state.seats, s, "seat").embodies not in members:
             raise FoldError(f"seat {s} holds no member of the council asked")
     return state.model_copy(update={"asked": _put(state.asked, a.order_id, a)})
+
+
+def _order_defied(state: State, p: ev.OrderDefied) -> State:
+    """A seat sends its own held order anyway, once, with ``defiance`` on (DFY). The order
+    it lands as and the held order's end follow it."""
+    if Rule.DEFIANCE not in state.rules:
+        raise FoldError("order_defied needs the defiance rule")
+    d = p.defied
+    h = _need(state.held, d.order_id, "held order")
+    if h.issuer != d.issuer:
+        raise FoldError(f"held order {d.order_id} is not that seat's")
+    if d.landed in state.defied or d.landed in state.routed:
+        raise FoldError(f"order {d.landed} is sent already")
+    if d.on < h.filed:
+        raise FoldError(f"held order {d.order_id} is sent before it was held")
+    if d.order_id in state.aide_orders:
+        raise FoldError(f"held order {d.order_id} is the aide's: the aide never sends one anyway")
+    return state.model_copy(update={"defied": {**state.defied, d.landed: d}})
+
+
+def _incident_opened(state: State, p: ev.IncidentOpened) -> State:
+    """An incident opens, once per order, with ``defiance`` on (DFY)."""
+    if Rule.DEFIANCE not in state.rules:
+        raise FoldError("incident_opened needs the defiance rule")
+    i = p.incident
+    if i.verdict is not None or i.answered is not None:
+        raise FoldError(f"incident {i.incident_id} opens answered")
+    if i.incident_id in state.incidents or any(
+        o.order_id == i.order_id for o in state.incidents.values()
+    ):
+        raise FoldError(f"order {i.order_id} has an incident already")
+    _need(state.entities, i.commander, "entity")
+    _need(state.entities, i.superior, "entity")
+    return state.model_copy(update={"incidents": {**state.incidents, i.incident_id: i}})
+
+
+def _incident_answered(state: State, p: ev.IncidentAnswered) -> State:
+    """The superior's answer to an open incident, once (DFY)."""
+    i = _need(state.incidents, p.incident_id, "incident")
+    if i.verdict is not None:
+        raise FoldError(f"incident {i.incident_id} is answered already")
+    if p.on < i.opened:
+        raise FoldError(f"incident {i.incident_id} is answered before it opened")
+    done = i.model_copy(update={"verdict": p.verdict, "answered": p.on, "by_card": p.by_card})
+    return state.model_copy(update={"incidents": {**state.incidents, i.incident_id: done}})
 
 
 def _ask_answered(state: State, p: ev.AskAnswered) -> State:
@@ -1231,6 +1277,9 @@ def _mutate(state: State, event: Event) -> State:
             | ev.HeldOrderEnded()
             | ev.OrderAsked()
             | ev.AskAnswered()
+            | ev.OrderDefied()
+            | ev.IncidentOpened()
+            | ev.IncidentAnswered()
             | ev.MatterChosen()
             | ev.OfferMade()
             | ev.OfferSettled()
@@ -1683,6 +1732,12 @@ def _realism(state: State, p: ev.Payload) -> State:
             return _order_asked(state, p)
         case ev.AskAnswered():
             return _ask_answered(state, p)
+        case ev.OrderDefied():
+            return _order_defied(state, p)
+        case ev.IncidentOpened():
+            return _incident_opened(state, p)
+        case ev.IncidentAnswered():
+            return _incident_answered(state, p)
         case ev.MatterChosen():
             return _matter_chosen(state, p)
         case ev.OfferMade():
@@ -2070,7 +2125,11 @@ def _engine_v2(state: State, p: ev.Payload) -> State:
                 if len(after) >= state.settings.max_human_seats:
                     raise FoldError("every human seat is taken")
             handovers = _put(state.handovers, p.entity_id, p.controller)
-            return state.model_copy(update={"handovers": handovers})
+            if p.replaces is None:
+                return state.model_copy(update={"handovers": handovers})
+            _replacement(state, p.entity_id, p.replaces, p.controller)
+            replaced = _put(state.replaced, p.entity_id, p.replaces)
+            return state.model_copy(update={"handovers": handovers, "replaced": replaced})
         case _:
             raise FoldError(f"kind {p.kind!r} is not an engine-v2 record")
 
@@ -2098,8 +2157,35 @@ def _aim_goal(state: State, g: Goal, seat: Seat) -> None:
     rule = aim_rule(state, g)
     if rule is None or rule.condition != g.condition:
         raise FoldError(f"goal {g.goal_id}: not an aim on {g.person}'s card")
+    stand_in = g.person in state.replaced
+    if stand_in != (g.source is GoalSource.REPLACEMENT):
+        raise FoldError(
+            f"goal {g.goal_id}: a replacement person's goals, and only his, are replacement"
+        )
+    card = state.cards[seat.embodies]
+    if stand_in and g.aim not in replacement_aims(card.aim_rules, len(card.aims)):
+        raise FoldError(f"goal {g.goal_id}: aim {g.aim} is not one a replacement person holds")
     if any(o.person == g.person and o.aim == g.aim for o in state.goals.values()):
         raise FoldError(f"goal {g.goal_id}: {g.person}'s aim {g.aim} already has a goal")
+
+
+def _replacement(state: State, person: EntityId, old: EntityId, controller: Controller) -> None:
+    """A player takes ``person`` in place of ``old`` (RPL): ``old`` can no longer act and
+    is already handed to the code, has not himself replaced anyone this season, and
+    ``person`` has the two aims he must hold."""
+    if controller is not Controller.HUMAN:
+        raise FoldError("replaces: only a player takes a replacement")
+    if state.handovers.get(old) is not Controller.AI or not posts.needs_replacement(state, old):
+        raise FoldError(f"replaces: {old} is not a person his player can no longer play")
+    if old in state.replaced:
+        raise FoldError(
+            f"replaces: a seat is replaced once a season, and {old} was its replacement"
+        )
+    if old in state.replaced.values() or person in state.replaced.values():
+        raise FoldError(f"replaces: {old} or {person} has been replaced already")
+    card = state.cards[person]
+    if not replacement_aims(card.aim_rules, len(card.aims)):
+        raise FoldError(f"replaces: {person} has no two aims he must hold")
 
 
 def _hand_over(state: State) -> State:

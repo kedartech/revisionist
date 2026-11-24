@@ -168,6 +168,7 @@ entities:
   - {key: timoshenko, kind: person, name: Semyon Timoshenko, parent: ussr}  # source: timoshenko_1941
   - {key: chiang, kind: person, name: Chiang Kai-shek, parent: china}
   - {key: he_yingqin, kind: person, name: He Yingqin, parent: military_affairs_commission}
+  - {key: xue_yue, kind: person, name: Xue Yue, parent: military_affairs_commission}  # source: xue_yue_1941
   - {key: soong, kind: person, name: T. V. Soong, parent: china}
   - {key: washington_ledger, kind: org, name: "The Washington Ledger", parent: usa, tags: [press]}
   - {key: reichsbote, kind: org, name: "Der Reichsbote", parent: germany, tags: [press]}
@@ -1202,6 +1203,8 @@ assets:
   - {key: battle_fleet_command, kind: office, name: "Commander in Chief, Battle Fleet", tier: 3, controller: iachino}
   # NSU: the Western Front's commander's post. The tier is [proposed], as Tovey's is.
   - {key: western_front_command, kind: office, name: "Commander, Western Front", tier: 3, controller: timoshenko}
+  # NCH: the Ninth War Area's commander's post. The tier is [proposed], as Tovey's is.
+  - {key: ninth_war_area_command, kind: office, name: "Commander, Ninth War Area", tier: 3, controller: xue_yue}
 
 sources:
   - key: voteview
@@ -1261,6 +1264,8 @@ sources:
   - {key: iachino_1941, title: "Admiral Angelo Iachino, Commander in Chief of the Italian Battle Fleet (the Squadra Navale) from December 1940 to April 1943, with the fleet based at Taranto", note: "Named citation; the lane had no network and read no edition. Confirm the rank and dates before release."}
   - {key: bragadin_1957, title: "Marc'Antonio Bragadin, The Italian Navy in World War II (United States Naval Institute, 1957): the battle fleet's sorties ordered from Rome through Supermarina", note: "Mussolini held the Ministry of the Navy; the sorties were held back for want of fuel and air cover. Named citation; not read. Confirm the chain of orders and the restrictions before release."}
   - {key: timoshenko_1941, title: "Marshal Semyon Timoshenko, commanding the Soviet Western Front (and the Western Direction) from July to 12 September 1941", note: "Konev took the front on 12 September and Zhukov on 10 October. Named citation; the lane had no network and read no edition. Confirm the dates of each change of command before release."}
+  - {key: xue_yue_1941, title: "General Xue Yue, commanding the Chinese Ninth War Area (Hunan, Kiangsi and Hupeh south of the Yangtze) from 1939, with his headquarters at Changsha", note: "He held Changsha against the Japanese Eleventh Army in September 1939, September and October 1941, and December 1941 to January 1942. Named citation; the lane had no network and read no edition. Confirm the post and its dates before release."}
+  - {key: van_de_ven_2003, title: "Hans van de Ven, War and Nationalism in China, 1925-1945 (RoutledgeCurzon, 2003): Chiang's orders to the war areas through the Military Affairs Commission", note: "Chiang directed the war area commanders himself, often over the head of the General Staff. Named citation; not read. Confirm that giving up a provincial capital waited on Chiang's word before release."}
   - {key: erickson_1975, title: "John Erickson, The Road to Stalingrad (Harper and Row, 1975): Stalin's orders to the fronts through the Stavka and the General Staff", note: "Stalin refused or delayed leave to withdraw through 1941. Named citation; not read. Confirm that a front's withdrawal waited on Stalin's word before release."}
   - {key: liaison_conference_1941, title: "The Liaison Conference of 1941: the Prime Minister, the Foreign, Army and Navy Ministers and the two Chiefs of Staff, deciding by consensus", note: "Named citation; not read. Confirm the membership and the rule of consensus before release."}
   - {key: fuehrer_naval_17_sep_1941, title: "Fuehrer Conferences on Naval Affairs, 17 September 1941: Hitler orders the U-boats to avoid incidents with American ships", note: "Raeder asked leave to attack American escorts; Hitler refused until the campaign in the East is decided. Named citation; not read. Confirm the date and the wording before release."}
@@ -1494,6 +1499,15 @@ pipelines:
     gap: true
     steps:
       - {person: timoshenko, kind: clerical, days: 1, assumed: true}
+  # Xue Yue's own form (NCH): through the Ninth War Area's headquarters at Changsha, with no
+  # step above him. The step is his. His forms are a move and a concealment of the area (an
+  # engagement his domain holds); a side may keep no army detachment in play, so he has no
+  # detach form.
+  - key: ninth_war_area_hq
+    name: Through the Ninth War Area's headquarters
+    gap: true
+    steps:
+      - {person: xue_yue, kind: clerical, days: 1, assumed: true}
   - key: cable_to_churchill
     name: A cable to the Prime Minister
     gap: true
@@ -2733,8 +2747,9 @@ cards:
     interests: [American aid, keep Japan tied down in China]
     authority:
       - name: military_affairs
-        effects: [engagement]
+        effects: [move_force, engagement]
         executor: he_yingqin
+        forces: [chinese_army, ninth_war_area]
         summary: "Orders to the armies, carried out through the Military Affairs Commission."
       - name: arsenals
         effects: [allocate]
@@ -3212,6 +3227,64 @@ cards:
         effects: [move_force, engagement]
         forces: [soviet_western_front]
         summary: "Command of the Western Front: where it stands, how it fights and what it hides."
+  # The fifteenth playable card (NCH): a military card, flagged playable by hand, under the
+  # Chief of the General Staff and so under Chiang, whose own order over the area stands (his
+  # military_affairs name it). His own forms go through his own headquarters
+  # (ninth_war_area_hq), with no step above him: a move to the places Chiang's own form reaches,
+  # and a concealment. Aims 1 and 2 are the army commander's patterns filled in (hold_and_take,
+  # take_ground); aim 3 is the default an own aim replaces. Giving up Changsha without a fight
+  # is Chiang's to permit; China has no body or council that decides. source: xue_yue_1941 for
+  # the post, van_de_ven_2003 for the orders through the Commission; every other line gap:
+  # true, [proposed].
+  - person: xue_yue
+    post_kind: army_commander
+    office: Commander, Ninth War Area
+    voice: "Quick, proud and combative; promises to hold Changsha before he is asked, and reports a retreat as a trap laid for the enemy."
+    addressed_as: "General Xue"
+    playable: true
+    path: military
+    principals: [he_yingqin]
+    powers: [command the Ninth War Area, defend Changsha, strike the Eleventh Army's flanks]
+    inner_circle:
+      - {person: he_yingqin, channel: telephone}
+    feeds: [mac_reports]
+    pipelines: [ninth_war_area_hq]
+    levers:
+      - name: ninth_war_area_move
+        pipeline: ninth_war_area_hq
+        resolver: movement
+        label: "Move the war area's armies"
+        summary: "Order the Ninth War Area's armies to stand at a new place. Your headquarters carries it out."
+        params:
+          - {name: force, kind: enum, choices: [ninth_war_area], label: "Which army", choice_labels: ["The Ninth War Area"]}
+          - {name: to, kind: enum, choices: [chungking, changsha, wuhan], label: "To", choice_labels: ["Chungking", "Changsha", "Wuhan"]}
+      - name: ninth_war_area_conceal  # gap: true
+        pipeline: ninth_war_area_hq
+        resolver: intel
+        label: "Hide the war area's moves"
+        summary: "Hide where the war area's armies stand: night marches, broken roads and the hills south of the Hsinchiang."
+        params:
+          - {name: intel, kind: enum, choices: [conceal]}
+          - {name: piece, kind: enum, choices: [ninth_war_area], label: "Which army", choice_labels: ["The Ninth War Area"]}
+          - {name: concealed, kind: enum, choices: ["yes", "no"], label: "Hidden", choice_labels: ["Hide it", "Stop hiding it"]}
+    loyalty: 1
+    competence: 4
+    wants: [aid_china]
+    reach: {rank: 2}
+    horizon_days: 7
+    aims:
+      - "Hold Changsha and take Wuhan back."
+      - "Take the South China Coast back for China."
+      - "Keep Free South China Chinese, the war area's southern flank."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "China holds Hunan and Kiangsi and takes the Wuhan Area back from Japan.", condition: {check: all_of, conditions: [{check: holds_area, area: hunan, holder: china}, {check: holds_area, area: wuhan_area, holder: china}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "China holds the South China Coast.", condition: {check: holds_area, area: south_china_coast, holder: china}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "China holds Free South China.", condition: {check: holds_area, area: south_china, holder: china}}
+    authority:
+      - name: ninth_war_area
+        effects: [move_force, engagement]
+        forces: [ninth_war_area]
+        summary: "Command of the Ninth War Area: where its armies stand, how they fight and what they hide."
   - person: kramer
     office: Navy communications intelligence translator
     voice: "Precise translator's register; marks the urgent passage and adds one short note of his own."
@@ -3730,6 +3803,16 @@ mandates:
     condition: {check: holds_area, area: moscow_area, holder: ussr}
     days: 14
     text: "You have moved the front: the Stavka holds you to the road to Moscow."
+  # NCH: a war area moved by its own commander answered to the Generalissimo for Changsha.
+  # Blowback on his own move, so it fires only in a game where he is held and moves the area.
+  # gap: true, [proposed]. source: van_de_ven_2003
+  - key: ninth_war_area_holds_changsha
+    kind: blowback
+    trigger: {"on": act, effect: move_force}
+    to: [xue_yue]
+    condition: {check: holds_area, area: hunan, holder: china}
+    days: 14
+    text: "You have moved the war area's armies: the Generalissimo holds you to Changsha."
   # The Commons pressed for the Atlantic convoys through the autumn.
   - key: commons_convoys
     kind: order
@@ -3868,6 +3951,11 @@ roster:
     reach: The Western Front, what it may do under the General Staff, and a telephone to its Chief.
     composite: false
     sides: [{contest: atlantic_war, side: ussr}]
+  - entity: xue_yue
+    pitch: General holding Changsha and the Ninth War Area against the Japanese Eleventh Army, with no leave to give the city up.
+    reach: The Ninth War Area, what it may do under the General Staff, and a telephone to its Chief.
+    composite: false
+    sides: [{contest: us_japan_talks, side: china}]
 
 # Starting regard [proposed] (SHT, 14 Nov sheet), -2 to 2: between Roosevelt and
 # each of his people, and between each pair of the eight leaders. Public, as the
@@ -4122,6 +4210,15 @@ locks:
     question: permission
     order: {form: western_front_move, params: {to: moscow}}
     decider: {person: stalin}
+  # NCH. Giving up Changsha without a fight: the Ninth War Area sent back to Chungking waits on
+  # Chiang's permission. He directed the war areas himself through the Military Affairs
+  # Commission, and Changsha was the city he meant the area to hold. No condition: only his
+  # grant opens it. China has no body or council that decides. source: van_de_ven_2003; the
+  # place, gap: true, [proposed].
+  - key: changsha_given_up
+    question: permission
+    order: {form: ninth_war_area_move, params: {to: chungking}}
+    decider: {person: chiang}
 
 # Pacts in force on 1 September 1941 (PCW). The clause chosen for each is [proposed]: the rules judge
 # what they can, and wording they cannot express is kept and marked unchecked.

@@ -106,6 +106,12 @@ FEED_KINDS: frozenset[str] = frozenset(
         # The answer to an ask (AAK, QKD): sealed to the asker's seat alone, and fed only on
         # a row answered on its due day whoever holds the decider (``answering.told``).
         "ask_answered",
+        # An order sent anyway (DFY): sealed to the issuer's seat alone.
+        "order_defied",
+        # An incident and its answer (DFY): sealed to the commander's seat and the
+        # superior's, and fed to both.
+        "incident_opened",
+        "incident_answered",
         # An offer of a price to a bloc and where it stands (PRC): sealed to the seats of
         # the bloc's nation, and kept only while the offer is in the seat's view.
         "offer_made",
@@ -270,6 +276,12 @@ def _named(p: ev.Payload, view: View) -> bool:
             return p.issuer == view.viewer
         case ev.OrderAsked():
             return view.viewer in (p.asked.asker, p.asked.seat, *p.asked.seats)
+        case ev.OrderDefied():
+            return p.defied.issuer == view.viewer
+        case ev.IncidentOpened():
+            return view.viewer in p.incident.seats
+        case ev.IncidentAnswered():
+            return view.viewer in p.seats
         case ev.AskAnswered():
             return p.asker == view.viewer
         case ev.OfferMade():

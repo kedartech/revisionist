@@ -680,7 +680,7 @@ export function realismRoom(ctx) {
         withCostStrips(standardForms(rv.desk, {
           onSubmit: (v) => act('Sending it…', 'lever', v),
           entities: entityChoices(rv.desk),
-          check: sendCheck(), onAsk: fileAndAsk,
+          check: sendCheck(), onAsk: fileAndAsk, onAnyway: fileAndSend,
         }), rv.desk?.levers, rv.court),
         hasDiplomacy(rv) ? h('section', { class: 'rl-dp-desk', 'aria-labelledby': 'rl-dp-desk-h' },
           h('h2', { id: 'rl-dp-desk-h' }, DIPLOMACY_TITLE), diplomacy()) : null,
@@ -1168,6 +1168,8 @@ export function realismRoom(ctx) {
       return;
     }
     if (action.to === 'ask-for') return askFor(action.id);
+    if (action.to === 'send-anyway') return act('Sending it anyway…', 'send-anyway', { order_id: action.id });
+    if (action.to === 'incident') return act('Answering…', 'answer', { item: action.id, verdict: action.verdict });
     if (action.to === 'capital') return capitalAt(action.q);
     if (action.to === 'ask') {
       ui.ask = action.id;
@@ -1215,15 +1217,16 @@ export function realismRoom(ctx) {
   const askFor = (id) => act('Asking…', 'ask', { order_id: id });
 
   /**
-   * File a locked order to be held, then ask for it (LKM): the order the server newly holds is the
-   * one held line in the re-read room that was not there before; if the server held none (the seat
-   * is done for today, or it went out after all), its own reply stands and nothing is asked.
+   * File a locked order to be held, then ask for it (LKM), or send it anyway (DFB, `then` action
+   * `send-anyway`): the order the server newly holds is the one held line in the re-read room that
+   * was not there before; if the server held none (the seat is done for today, or it went out after
+   * all), its own reply stands and nothing more is sent.
    */
-  function fileAndAsk(v, then) {
+  function fileAndThen(busy, action, v, then) {
     ui.sheetForms = forgetForm(ui.sheetForms, v.lever);
     markFiled(root, v.lever);
     const before = new Set(heldLines(rv).map((l) => l.id));
-    return work('Filing it and asking…', async () => {
+    return work(busy, async () => {
       const r = await api.realism('lever', v);
       ui.said = r.reply || null;
       then?.(r);
@@ -1231,13 +1234,16 @@ export function realismRoom(ctx) {
       const now = (await api.me())?.game?.view?.realism;
       const fresh = heldLines(now).filter((l) => !before.has(l.id) && !l.asked);
       if (fresh.length !== 1) return;
-      const asked = await api.realism('ask', { order_id: fresh[0].id });
-      ui.said = [r.reply, asked.reply].filter(Boolean).join(' ') || null;
+      const next = await api.realism(action, { order_id: fresh[0].id });
+      ui.said = [r.reply, next.reply].filter(Boolean).join(' ') || null;
     });
   }
+  const fileAndAsk = (v, then) => fileAndThen('Filing it and asking…', 'ask', v, then);
+  const fileAndSend = (v, then) => fileAndThen('Sending it anyway…', 'send-anyway', v, then);
 
   /** The board's calls: a form is filed through the sheet's bookkeeping, a locked one filed and asked for. */
-  const boardAct = (m, a, b, t) => (a === 'lever' ? fileLever(b, t) : a === 'lever-ask' ? fileAndAsk(b, t) : act(m, a, b, t));
+  const boardAct = (m, a, b, t) => (a === 'lever' ? fileLever(b, t) : a === 'lever-ask' ? fileAndAsk(b, t)
+    : a === 'lever-anyway' ? fileAndSend(b, t) : act(m, a, b, t));
 
   /** A pick in the map-first room: a force opens its sheet, the map's switches redraw it, a person stays on the Court. */
   function pickOnMap(p) {
@@ -1310,7 +1316,7 @@ export function realismRoom(ctx) {
       return panel;
     }
     if (name === 'forms') {
-      const forms = standardForms(rv.desk, { onSubmit: fileLever, entities: entityChoices(rv.desk), check: sendCheck(), onAsk: fileAndAsk });
+      const forms = standardForms(rv.desk, { onSubmit: fileLever, entities: entityChoices(rv.desk), check: sendCheck(), onAsk: fileAndAsk, onAnyway: fileAndSend });
       if (forms) forms.open = true;
       const find = formSearch(withCostStrips(forms, rv.desk?.levers, rv.court), rv.desk?.levers, ui.formQuery, (q) => { ui.formQuery = q; });
       return [h('p', { class: 'hint rl-write-hint' }, WRITE_HINT), writeBlock(), find, stylePicker(rv.style, { act })];
@@ -1368,7 +1374,7 @@ export function realismRoom(ctx) {
     if (!found.length) return null;
     const items = found.map(({ lever, param, value }) => {
       const item = standardForm(lever, {
-        force: param === 'force' ? value : null, onSubmit: fileLever, entities: entityChoices(rv.desk), check: sendCheck(), onAsk: fileAndAsk,
+        force: param === 'force' ? value : null, onSubmit: fileLever, entities: entityChoices(rv.desk), check: sendCheck(), onAsk: fileAndAsk, onAnyway: fileAndSend,
       });
       const field = item.querySelector(`select[name="${param}"]`);
       if (field) field.value = value;
@@ -1671,7 +1677,7 @@ export function realismRoom(ctx) {
       viewSwitch(ui, pick),
       ...(ui.view === 'board' ? [
         newsBlock(whatChanged(rv.documents), (id) => readPress({ id })),
-        boardView(rv, ui, { pick, act: (m, a, b, t) => (a === 'lever-ask' ? fileAndAsk(b, t) : act(m, a, b, t)), write: writeBlock(), open, ...ownAimHooks() }),
+        boardView(rv, ui, { pick, act: (m, a, b, t) => (a === 'lever-ask' || a === 'lever-anyway' ? boardAct(m, a, b, t) : act(m, a, b, t)), write: writeBlock(), open, ...ownAimHooks() }),
       ] : [
         summaryTiles(rv, pick),
         newsBlock(whatChanged(rv.documents), (id) => readPress({ id })),

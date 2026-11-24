@@ -10,7 +10,7 @@ import { worldDate } from '../rules.js';
 import { boxOf, holderRelation, territoryProjection } from '../realism-rules.js';
 import { DONE_HINT, dayKey, dayWords, itemHeading } from './realism-wake.js';
 import { floorMeasures, promisesMade } from './realism-home.js';
-import { askLines, heldLines, lockTag } from './realism-locks.js';
+import { ANYWAY, anywayChoice, askLines, heldLines, incidentLines, lockTag, outcomeWords, verdictWord } from './realism-locks.js';
 import { WAY_WORDS, officeQuestions } from './realism-office.js';
 import { postRoom } from './realism-figure.js';
 
@@ -116,6 +116,15 @@ addNeedKind('held', (rv) => heldLines(rv).map((l) => ({
   key: l.id, label: 'Held order', what: l.words, lock: l.who, status: l.asked ? 'Asked' : 'Not asked',
   from: `Your own order, held ${worldDate(l.held)}`, due: null, arrived: l.held || null,
   action: l.asked ? null : { word: 'Ask', to: 'ask-for', id: l.id },
+  ...(l.price ? { price: l.price, anyway: { word: ANYWAY, to: 'send-anyway', id: l.id } } : {}),
+})));
+
+// an incident the seat is party to (DFB): before the superior, the answers the server offers; to
+// the commander, what he is told and its outcome. Due the day the server names
+addNeedKind('incident', (rv) => incidentLines(rv).map((i) => ({
+  key: i.id, label: 'Incident', what: i.words, from: null, due: i.due || null, arrived: null,
+  answers: (i.answers ?? []).map((v) => ({ word: verdictWord(v), to: 'incident', id: i.id, verdict: v })),
+  outcome: (i.answers ?? []).length ? null : outcomeWords(i),
 })));
 
 // an ask put before the seat (LKM): opened on the order's words and the seat's own forms that would allow it
@@ -233,6 +242,7 @@ const KIND_MARKS = {
   floor: 'M2 14h12M3 6h10M4 6v8M8 6v8M12 6v8M2 6l6-4 6 4',
   place: 'M8 14s-5-4.5-5-8a5 5 0 0 1 10 0c0 3.5-5 8-5 8zM8 4v3M8 9v.5',
   held: 'M4 7h8v7H4zM6 7V5a2 2 0 0 1 4 0v2',
+  incident: 'M8 2l6 12H2zM8 6v4M8 11.5v.5',
   post: 'M8 2l2 4h4l-3 3 1 5-4-3-4 3 1-5-3-3h4z',
 };
 
@@ -270,6 +280,13 @@ function needRow({ kind, key, what, due, urgent: hot = false, detail, onKeydown 
   return h('li', { class: `rl-need${hot ? ' urgent' : ''}`, 'data-kind': kind, 'data-need': key }, head, body);
 }
 
+/** A held order's third choice in its row: the server's price, and Send it anyway with its confirm step. */
+function anywayRow(l, onAction) {
+  const acts = h('div', { class: 'rl-lock-acts' });
+  const price = anywayChoice(l.price, () => onAction?.({ ...l, action: l.anyway }), acts);
+  return h('div', { class: 'rl-lock-choice rl-need-anyway' }, price, acts);
+}
+
 /** The first-day card as the list's first row: its steps and Dismiss, which Escape also does. */
 function firstRow(first) {
   return needRow({
@@ -297,11 +314,17 @@ export function needsList(rv, lines, { open = false, onAction, onDone, onClose, 
     detail: [
       h('p', { class: 'rl-need-top' }, h('span', { class: 'rl-need-kind' }, l.label)),
       l.lock ? h('p', { class: 'rl-need-lock' }, lockTag(l.lock), l.status ? h('span', { class: `rl-need-status${l.status === 'Asked' ? ' asked' : ''}` }, l.status) : null) : null,
-      h('p', { class: 'rl-need-from' }, `From ${l.from}`),
+      l.from ? h('p', { class: 'rl-need-from' }, `From ${l.from}`) : null,
+      l.outcome ? h('p', { class: 'rl-need-outcome' }, l.outcome) : null,
       l.action ? h('button', {
         type: 'button', class: 'rl-btn rl-need-act', 'data-need': l.key, 'aria-label': `${l.action.word}: ${l.what}`,
         onclick: () => onAction?.(l),
       }, l.action.word) : null,
+      l.answers?.length ? h('div', { class: 'rl-lock-acts rl-need-answers', role: 'group', 'aria-label': `Answer: ${l.what}` },
+        l.answers.map((a) => h('button', {
+          type: 'button', class: 'rl-btn rl-need-answer', 'aria-label': `${a.word}: ${l.what}`, onclick: () => onAction?.({ ...l, action: a }),
+        }, a.word))) : null,
+      l.anyway ? anywayRow(l, onAction) : null,
     ],
   });
   const shown = top === null ? lines : lines.slice(0, top);

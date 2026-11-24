@@ -60,7 +60,19 @@ UNREAD = tuple(n for n in THIRD_RUN if n not in READ)
 
 SHIPPED_ON: dict[str, frozenset[str]] = {
     "autumn-1941": frozenset(
-        {"own_aim", "laws", "ask_answers", "deciders", "offers", "classes", "losses", "places"}
+        {
+            "own_aim",
+            "laws",
+            "ask_answers",
+            "deciders",
+            "offers",
+            "classes",
+            "losses",
+            "places",
+            "posts",
+            "office",
+            "defiance",
+        }
     ),
     "salt-strait-realism": frozenset(
         {

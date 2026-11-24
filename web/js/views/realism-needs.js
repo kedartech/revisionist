@@ -122,11 +122,14 @@ addNeedKind('promise', (rv) => promisesMade(rv.home).filter((p) => p.standing !=
   action: { word: 'Show the floor', to: 'sheet', sheet: 'home' },
 })));
 
-// a place of political weight of the seat's nation its map shows threatened, as the home block
-// sends it; shown on the map, and left to the paper's line where a paper already warns of it
+// a place of political weight of the seat's nation its map marks to fall, as the home block sends
+// it; shown on the map, and left to the paper's line where a paper already warns of it. A place
+// only named by a report next door stays a mark on the map and on the home sheet: that is a standing
+// state of a war, not a matter that waits on the seat, and it would keep the list from ever being quiet
 addNeedKind('place', (rv) => {
   const papered = new Set((KINDS.get('paper')?.(rv) ?? []).map((l) => l.action.area));
-  return (rv.home?.places ?? []).filter((p) => p.threatened && !papered.has(p.key)).map((p) => ({
+  const falling = new Set((rv.map?.areas ?? []).filter((a) => a.falling).map((a) => a.key));
+  return (rv.home?.places ?? []).filter((p) => p.threatened && falling.has(p.key) && !papered.has(p.key)).map((p) => ({
     key: p.key, label: 'Place under threat', what: `${p.name} is threatened`,
     from: p.holder?.name ? `Held by ${p.holder.name}` : 'Held by no one', due: null, arrived: null,
     action: { word: 'Show on map', to: 'map', area: p.key },

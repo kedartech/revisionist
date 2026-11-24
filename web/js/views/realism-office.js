@@ -10,10 +10,10 @@ import { worldDate } from '../rules.js';
 
 /** Why a question opened, in words [proposed]. */
 export const CAUSE_WORDS = Object.freeze({
-  base: 'the groups his post rests on turned on him',
+  base: 'the groups the post rests on turned on its holder',
   incident: 'an incident put it in doubt',
-  order: 'an order would take his last authority',
-  term: 'his term ended',
+  order: 'an order would take the holder\'s last authority',
+  term: 'the holder\'s term ended',
   election: 'an election names the post',
 });
 
@@ -26,8 +26,8 @@ export const WAY_WORDS = Object.freeze({
   election: 'The election',
 });
 
-export const KEEP = 'Keep him';
-export const REMOVE = 'Remove him';
+export const KEEP = 'Keep';
+export const REMOVE = 'Remove';
 export const NOT_FILED = 'Your choice: not filed';
 export const SEALED = 'Sealed until the sitting';
 
@@ -69,7 +69,7 @@ export function footingStrip(home, { onQuestion } = {}) {
   if (!lines.length) return null;
   return h('section', { class: 'rl-office-footing', 'aria-label': 'Your footing' },
     lines.map((f) => h('p', { class: `rl-office-foot${f.days > 0 ? ' under' : ''}`, 'data-office': f.office },
-      h('strong', {}, f.office), ': ', footingWords(f),
+      h('span', {}, h('strong', {}, f.office), ': ', footingWords(f)), // one flex item: the colon stays by its office
       f.groups?.length ? h('span', { class: 'rl-office-groups' }, ` · rests on ${f.groups.join(', ')}`) : null,
       f.question ? h('button', {
         type: 'button', class: 'rl-btn rl-office-foot-q', 'data-key': `office:${f.question}`,

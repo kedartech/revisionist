@@ -257,6 +257,13 @@ test('at phone width the panel and the footing keep to one column', () => {
   assert.match(css, /\.rl-office-footing[^{]*\{[^}]*overflow-wrap:\s*anywhere/);
 });
 
+test('the choice and the causes name no sex: a holder may be a woman (Kara Lind, Sefa Marr)', () => {
+  const said = [office.KEEP, office.REMOVE, ...Object.values(office.CAUSE_WORDS)].join(' | ');
+  assert.doesNotMatch(said, /\b(him|his|he|her|she)\b/i);
+  assert.equal(office.KEEP, 'Keep');
+  assert.equal(office.REMOVE, 'Remove');
+});
+
 test('the client sends office-vote by the one generic call and names it', () => {
   assert.match(read('js/api.js'), /office-vote/);
 });

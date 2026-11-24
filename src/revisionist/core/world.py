@@ -54,6 +54,7 @@ from revisionist.core.ontology import (
 from revisionist.core.realism.agenda import MandateKind, TriggerKind
 from revisionist.core.realism.answer import Answer, ParamValue
 from revisionist.core.realism.card import Address, Aim, CardPath, ChannelKind, ParamSpec, WarNeed
+from revisionist.core.realism.defiance import Act
 from revisionist.core.realism.detect import Source as IntelSource
 from revisionist.core.realism.document import Bias, Classification, DocumentKind
 from revisionist.core.realism.effect import (
@@ -177,6 +178,9 @@ class AssetDecl(Model):
     removed_by: SkipJsonSchema[RemovalDecl | None] = None
     """For an office, read with ``office`` on (OFQ): how its holder is removed. None: he
     faces no question on it. Written by hand: not offered to a model."""
+    without_leave: SkipJsonSchema[tuple[Act, ...]] = Field(default=(), max_length=2)
+    """For an office, read with ``defiance`` on (DFY): the acts its holder may attempt
+    without leave, from a closed list. Written by hand: not offered to a model."""
 
 
 class RelationshipDecl(Model):

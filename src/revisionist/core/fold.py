@@ -314,6 +314,51 @@ def _order_asked(state: State, p: ev.OrderAsked) -> State:
     return state.model_copy(update={"asked": _put(state.asked, a.order_id, a)})
 
 
+def _order_defied(state: State, p: ev.OrderDefied) -> State:
+    """A seat sends its own held order anyway, once, with ``defiance`` on (DFY). The order
+    it lands as and the held order's end follow it."""
+    if Rule.DEFIANCE not in state.rules:
+        raise FoldError("order_defied needs the defiance rule")
+    d = p.defied
+    h = _need(state.held, d.order_id, "held order")
+    if h.issuer != d.issuer:
+        raise FoldError(f"held order {d.order_id} is not that seat's")
+    if d.landed in state.defied or d.landed in state.routed:
+        raise FoldError(f"order {d.landed} is sent already")
+    if d.on < h.filed:
+        raise FoldError(f"held order {d.order_id} is sent before it was held")
+    if d.order_id in state.aide_orders:
+        raise FoldError(f"held order {d.order_id} is the aide's: the aide never sends one anyway")
+    return state.model_copy(update={"defied": {**state.defied, d.landed: d}})
+
+
+def _incident_opened(state: State, p: ev.IncidentOpened) -> State:
+    """An incident opens, once per order, with ``defiance`` on (DFY)."""
+    if Rule.DEFIANCE not in state.rules:
+        raise FoldError("incident_opened needs the defiance rule")
+    i = p.incident
+    if i.verdict is not None or i.answered is not None:
+        raise FoldError(f"incident {i.incident_id} opens answered")
+    if i.incident_id in state.incidents or any(
+        o.order_id == i.order_id for o in state.incidents.values()
+    ):
+        raise FoldError(f"order {i.order_id} has an incident already")
+    _need(state.entities, i.commander, "entity")
+    _need(state.entities, i.superior, "entity")
+    return state.model_copy(update={"incidents": {**state.incidents, i.incident_id: i}})
+
+
+def _incident_answered(state: State, p: ev.IncidentAnswered) -> State:
+    """The superior's answer to an open incident, once (DFY)."""
+    i = _need(state.incidents, p.incident_id, "incident")
+    if i.verdict is not None:
+        raise FoldError(f"incident {i.incident_id} is answered already")
+    if p.on < i.opened:
+        raise FoldError(f"incident {i.incident_id} is answered before it opened")
+    done = i.model_copy(update={"verdict": p.verdict, "answered": p.on, "by_card": p.by_card})
+    return state.model_copy(update={"incidents": {**state.incidents, i.incident_id: done}})
+
+
 def _ask_answered(state: State, p: ev.AskAnswered) -> State:
     """The card's answer to an ask, once, with ``ask_answers`` on, for a person no seat
     with a desk holds (AAK); or, with ``deciders`` on, a matter's answer on its due day
@@ -1231,6 +1276,9 @@ def _mutate(state: State, event: Event) -> State:
             | ev.HeldOrderEnded()
             | ev.OrderAsked()
             | ev.AskAnswered()
+            | ev.OrderDefied()
+            | ev.IncidentOpened()
+            | ev.IncidentAnswered()
             | ev.MatterChosen()
             | ev.OfferMade()
             | ev.OfferSettled()
@@ -1683,6 +1731,12 @@ def _realism(state: State, p: ev.Payload) -> State:
             return _order_asked(state, p)
         case ev.AskAnswered():
             return _ask_answered(state, p)
+        case ev.OrderDefied():
+            return _order_defied(state, p)
+        case ev.IncidentOpened():
+            return _incident_opened(state, p)
+        case ev.IncidentAnswered():
+            return _incident_answered(state, p)
         case ev.MatterChosen():
             return _matter_chosen(state, p)
         case ev.OfferMade():

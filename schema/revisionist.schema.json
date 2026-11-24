@@ -1,6 +1,15 @@
 {
   "event": {
     "$defs": {
+      "Act": {
+        "description": "An act a post's holder may attempt without leave: a closed list.",
+        "enum": [
+          "border",
+          "fire_first"
+        ],
+        "title": "Act",
+        "type": "string"
+      },
       "ActOf": {
         "additionalProperties": false,
         "description": "``person`` did their historical act. Met when no human plays them (history\nfollows the record); else only when an order that human filed has got there.",
@@ -3033,34 +3042,6 @@
         "title": "CardsDeclared",
         "type": "object"
       },
-      "Cause": {
-        "description": "Why support moved: a happening, writing, or the Monday drift.",
-        "enum": [
-          "battle_won",
-          "battle_lost",
-          "territory_taken",
-          "territory_lost",
-          "capital_threatened",
-          "losses_at_sea",
-          "agreement_broken",
-          "measure_passed",
-          "war_declared",
-          "daily_life_passed",
-          "writing",
-          "drift",
-          "offer_taken",
-          "promise_kept",
-          "promise_broken",
-          "battle_losses",
-          "losses_felt",
-          "losses_halved",
-          "place_lost",
-          "place_abandoned",
-          "place_retaken"
-        ],
-        "title": "Cause",
-        "type": "string"
-      },
       "ChannelKind": {
         "description": "How words travel. Each trades speed against exposure (direction, channels table).",
         "enum": [
@@ -4881,6 +4862,85 @@
         ],
         "title": "Decision",
         "type": "string"
+      },
+      "Defied": {
+        "additionalProperties": false,
+        "description": "A held order sent anyway: the held order, the order it landed as, its seat, the\nacts it does, and the day; the person who could have allowed it, the nation it is\ndone to when abroad, and the rule each force it sets a rule for held before. Sealed\nto the issuer's seat.",
+        "properties": {
+          "abroad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Abroad"
+          },
+          "acts": {
+            "items": {
+              "$ref": "#/$defs/Act"
+            },
+            "maxItems": 2,
+            "minItems": 1,
+            "title": "Acts",
+            "type": "array"
+          },
+          "issuer": {
+            "title": "Issuer",
+            "type": "string"
+          },
+          "kept": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Engagement"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Kept",
+            "type": "object"
+          },
+          "landed": {
+            "title": "Landed",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "superior": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Superior"
+          }
+        },
+        "required": [
+          "order_id",
+          "landed",
+          "issuer",
+          "acts",
+          "on"
+        ],
+        "title": "Defied",
+        "type": "object"
       },
       "DeltaApplied": {
         "additionalProperties": false,
@@ -7367,7 +7427,7 @@
         "description": "A nation's group's support moved (GRP): to ``support``, by ``change`` after the\nclamp to 0 to 100, for ``cause``, on world day ``on``. ``used``: the writing points\nthe day's batch spent toward the week cap (absolute, never restored); 0 for any other\ncause. Sealed to the nation's seats: true support.",
         "properties": {
           "cause": {
-            "$ref": "#/$defs/Cause"
+            "$ref": "#/$defs/revisionist__core__realism__groups__Cause"
           },
           "change": {
             "title": "Change",
@@ -7824,6 +7884,169 @@
           "office"
         ],
         "title": "HoldsOffice",
+        "type": "object"
+      },
+      "Incident": {
+        "additionalProperties": false,
+        "description": "An order sent anyway and carried out, or a step on an order from above refused:\nthe question on the commander before his superior, and, once given, its answer.\nSealed to the commander's seat and the superior's.",
+        "properties": {
+          "abroad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Abroad"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Answered"
+          },
+          "by_card": {
+            "default": false,
+            "title": "By Card",
+            "type": "boolean"
+          },
+          "cause": {
+            "$ref": "#/$defs/revisionist__core__realism__defiance__Cause"
+          },
+          "commander": {
+            "title": "Commander",
+            "type": "string"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          },
+          "incident_id": {
+            "maxLength": 60,
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "seats": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Seats",
+            "type": "array"
+          },
+          "superior": {
+            "title": "Superior",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Verdict"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "incident_id",
+          "order_id",
+          "cause",
+          "commander",
+          "superior",
+          "opened",
+          "due"
+        ],
+        "title": "Incident",
+        "type": "object"
+      },
+      "IncidentAnswered": {
+        "additionalProperties": false,
+        "description": "The superior's answer to an incident, by his seat or his card, once (DFY). Sealed\nto the commander's seat and the superior's.",
+        "properties": {
+          "by_card": {
+            "default": false,
+            "title": "By Card",
+            "type": "boolean"
+          },
+          "incident_id": {
+            "maxLength": 60,
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "incident_answered",
+            "default": "incident_answered",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "seats": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Seats",
+            "type": "array"
+          },
+          "verdict": {
+            "$ref": "#/$defs/Verdict"
+          }
+        },
+        "required": [
+          "incident_id",
+          "verdict",
+          "on"
+        ],
+        "title": "IncidentAnswered",
+        "type": "object"
+      },
+      "IncidentOpened": {
+        "additionalProperties": false,
+        "description": "An order sent anyway was carried out, or a step on an order from above refused\n(DFY): a question on the commander before his superior. Sealed to their seats.",
+        "properties": {
+          "incident": {
+            "$ref": "#/$defs/Incident"
+          },
+          "kind": {
+            "const": "incident_opened",
+            "default": "incident_opened",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident"
+        ],
+        "title": "IncidentOpened",
         "type": "object"
       },
       "IncomeAt": {
@@ -8395,6 +8618,15 @@
             },
             "maxItems": 2,
             "title": "Rests On",
+            "type": "array"
+          },
+          "without_leave": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Act"
+            },
+            "maxItems": 2,
+            "title": "Without Leave",
             "type": "array"
           }
         },
@@ -10298,6 +10530,26 @@
           "asked"
         ],
         "title": "OrderAsked",
+        "type": "object"
+      },
+      "OrderDefied": {
+        "additionalProperties": false,
+        "description": "A seat sends its held order anyway (DFY): it lands as an ordinary order, marked\ndefiant. Sealed to the issuer's seat.",
+        "properties": {
+          "defied": {
+            "$ref": "#/$defs/Defied"
+          },
+          "kind": {
+            "const": "order_defied",
+            "default": "order_defied",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "defied"
+        ],
+        "title": "OrderDefied",
         "type": "object"
       },
       "OrderDrafted": {
@@ -15445,6 +15697,16 @@
         "title": "Verb",
         "type": "string"
       },
+      "Verdict": {
+        "description": "How the person who could have allowed it answers an incident.",
+        "enum": [
+          "backed",
+          "disowned",
+          "dismissed"
+        ],
+        "title": "Verdict",
+        "type": "string"
+      },
       "Versions": {
         "additionalProperties": false,
         "properties": {
@@ -16083,6 +16345,15 @@
         "title": "Domain",
         "type": "object"
       },
+      "revisionist__core__realism__defiance__Cause": {
+        "description": "What an incident is about.",
+        "enum": [
+          "defied",
+          "refused"
+        ],
+        "title": "Cause",
+        "type": "string"
+      },
       "revisionist__core__realism__effect__Clause": {
         "additionalProperties": false,
         "description": "One clause of a measure. The votes resolver scores each bloc against each.",
@@ -16123,6 +16394,34 @@
           "limit"
         ],
         "title": "ClauseKind",
+        "type": "string"
+      },
+      "revisionist__core__realism__groups__Cause": {
+        "description": "Why support moved: a happening, writing, or the Monday drift.",
+        "enum": [
+          "battle_won",
+          "battle_lost",
+          "territory_taken",
+          "territory_lost",
+          "capital_threatened",
+          "losses_at_sea",
+          "agreement_broken",
+          "measure_passed",
+          "war_declared",
+          "daily_life_passed",
+          "writing",
+          "drift",
+          "offer_taken",
+          "promise_kept",
+          "promise_broken",
+          "battle_losses",
+          "losses_felt",
+          "losses_halved",
+          "place_lost",
+          "place_abandoned",
+          "place_retaken"
+        ],
+        "title": "Cause",
         "type": "string"
       },
       "revisionist__core__realism__kinds__Domain": {
@@ -16225,6 +16524,8 @@
             "group_proposed": "#/$defs/GroupProposed",
             "groups_declared": "#/$defs/GroupsDeclared",
             "held_order_ended": "#/$defs/HeldOrderEnded",
+            "incident_answered": "#/$defs/IncidentAnswered",
+            "incident_opened": "#/$defs/IncidentOpened",
             "influence_decided": "#/$defs/InfluenceDecided",
             "intelligence_declared": "#/$defs/IntelligenceDeclared",
             "intent_filed": "#/$defs/IntentFiled",
@@ -16251,6 +16552,7 @@
             "opponents_ranked": "#/$defs/OpponentsRanked",
             "options_offered": "#/$defs/OptionsOffered",
             "order_asked": "#/$defs/OrderAsked",
+            "order_defied": "#/$defs/OrderDefied",
             "order_drafted": "#/$defs/OrderDrafted",
             "order_executed": "#/$defs/OrderExecuted",
             "order_held": "#/$defs/OrderHeld",
@@ -16516,6 +16818,15 @@
             "$ref": "#/$defs/AskAnswered"
           },
           {
+            "$ref": "#/$defs/OrderDefied"
+          },
+          {
+            "$ref": "#/$defs/IncidentOpened"
+          },
+          {
+            "$ref": "#/$defs/IncidentAnswered"
+          },
+          {
             "$ref": "#/$defs/MatterChosen"
           },
           {
@@ -16745,6 +17056,15 @@
   },
   "state": {
     "$defs": {
+      "Act": {
+        "description": "An act a post's holder may attempt without leave: a closed list.",
+        "enum": [
+          "border",
+          "fire_first"
+        ],
+        "title": "Act",
+        "type": "string"
+      },
       "ActOf": {
         "additionalProperties": false,
         "description": "``person`` did their historical act. Met when no human plays them (history\nfollows the record); else only when an order that human filed has got there.",
@@ -18837,6 +19157,15 @@
         "title": "CardPath",
         "type": "string"
       },
+      "Cause": {
+        "description": "What an incident is about.",
+        "enum": [
+          "defied",
+          "refused"
+        ],
+        "title": "Cause",
+        "type": "string"
+      },
       "ChannelKind": {
         "description": "How words travel. Each trades speed against exposure (direction, channels table).",
         "enum": [
@@ -19881,6 +20210,85 @@
         ],
         "title": "Decision",
         "type": "string"
+      },
+      "Defied": {
+        "additionalProperties": false,
+        "description": "A held order sent anyway: the held order, the order it landed as, its seat, the\nacts it does, and the day; the person who could have allowed it, the nation it is\ndone to when abroad, and the rule each force it sets a rule for held before. Sealed\nto the issuer's seat.",
+        "properties": {
+          "abroad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Abroad"
+          },
+          "acts": {
+            "items": {
+              "$ref": "#/$defs/Act"
+            },
+            "maxItems": 2,
+            "minItems": 1,
+            "title": "Acts",
+            "type": "array"
+          },
+          "issuer": {
+            "title": "Issuer",
+            "type": "string"
+          },
+          "kept": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Engagement"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Kept",
+            "type": "object"
+          },
+          "landed": {
+            "title": "Landed",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "superior": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Superior"
+          }
+        },
+        "required": [
+          "order_id",
+          "landed",
+          "issuer",
+          "acts",
+          "on"
+        ],
+        "title": "Defied",
+        "type": "object"
       },
       "DevelopmentCategory": {
         "enum": [
@@ -21742,6 +22150,103 @@
         "title": "HoldsOffice",
         "type": "object"
       },
+      "Incident": {
+        "additionalProperties": false,
+        "description": "An order sent anyway and carried out, or a step on an order from above refused:\nthe question on the commander before his superior, and, once given, its answer.\nSealed to the commander's seat and the superior's.",
+        "properties": {
+          "abroad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Abroad"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Answered"
+          },
+          "by_card": {
+            "default": false,
+            "title": "By Card",
+            "type": "boolean"
+          },
+          "cause": {
+            "$ref": "#/$defs/Cause"
+          },
+          "commander": {
+            "title": "Commander",
+            "type": "string"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          },
+          "incident_id": {
+            "maxLength": 60,
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "seats": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Seats",
+            "type": "array"
+          },
+          "superior": {
+            "title": "Superior",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Verdict"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "incident_id",
+          "order_id",
+          "cause",
+          "commander",
+          "superior",
+          "opened",
+          "due"
+        ],
+        "title": "Incident",
+        "type": "object"
+      },
       "IncomeAt": {
         "additionalProperties": false,
         "description": "A nation's war-economy figure (YLD), 0 to 100, against a line. Public.",
@@ -22135,6 +22640,15 @@
             },
             "maxItems": 2,
             "title": "Rests On",
+            "type": "array"
+          },
+          "without_leave": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Act"
+            },
+            "maxItems": 2,
+            "title": "Without Leave",
             "type": "array"
           }
         },
@@ -27145,6 +27659,16 @@
         "title": "Verb",
         "type": "string"
       },
+      "Verdict": {
+        "description": "How the person who could have allowed it answers an incident.",
+        "enum": [
+          "backed",
+          "disowned",
+          "dismissed"
+        ],
+        "title": "Verdict",
+        "type": "string"
+      },
       "Visibility": {
         "enum": [
           "public",
@@ -27708,6 +28232,13 @@
         "title": "Contests",
         "type": "object"
       },
+      "defied": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Defied"
+        },
+        "title": "Defied",
+        "type": "object"
+      },
       "divergence": {
         "default": 0,
         "minimum": 0,
@@ -27812,6 +28343,16 @@
         ],
         "default": null,
         "title": "In World Date"
+      },
+      "incidents": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Incident"
+        },
+        "propertyNames": {
+          "maxLength": 60
+        },
+        "title": "Incidents",
+        "type": "object"
       },
       "intelligence": {
         "additionalProperties": {
@@ -29666,6 +30207,15 @@
           "military"
         ],
         "title": "CardPath",
+        "type": "string"
+      },
+      "Cause": {
+        "description": "What an incident is about.",
+        "enum": [
+          "defied",
+          "refused"
+        ],
+        "title": "Cause",
         "type": "string"
       },
       "ChannelKind": {
@@ -32225,6 +32775,103 @@
           "office"
         ],
         "title": "HoldsOffice",
+        "type": "object"
+      },
+      "Incident": {
+        "additionalProperties": false,
+        "description": "An order sent anyway and carried out, or a step on an order from above refused:\nthe question on the commander before his superior, and, once given, its answer.\nSealed to the commander's seat and the superior's.",
+        "properties": {
+          "abroad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Abroad"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Answered"
+          },
+          "by_card": {
+            "default": false,
+            "title": "By Card",
+            "type": "boolean"
+          },
+          "cause": {
+            "$ref": "#/$defs/Cause"
+          },
+          "commander": {
+            "title": "Commander",
+            "type": "string"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          },
+          "incident_id": {
+            "maxLength": 60,
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "seats": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Seats",
+            "type": "array"
+          },
+          "superior": {
+            "title": "Superior",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Verdict"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "incident_id",
+          "order_id",
+          "cause",
+          "commander",
+          "superior",
+          "opened",
+          "due"
+        ],
+        "title": "Incident",
         "type": "object"
       },
       "IncomeAt": {
@@ -36116,6 +36763,16 @@
         "title": "Verb",
         "type": "string"
       },
+      "Verdict": {
+        "description": "How the person who could have allowed it answers an incident.",
+        "enum": [
+          "backed",
+          "disowned",
+          "dismissed"
+        ],
+        "title": "Verdict",
+        "type": "string"
+      },
       "Visibility": {
         "enum": [
           "public",
@@ -36704,6 +37361,16 @@
         ],
         "default": null,
         "title": "In World Date"
+      },
+      "incidents": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Incident"
+        },
+        "propertyNames": {
+          "maxLength": 60
+        },
+        "title": "Incidents",
+        "type": "object"
       },
       "kinds": {
         "anyOf": [

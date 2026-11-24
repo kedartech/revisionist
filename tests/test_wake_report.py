@@ -763,3 +763,137 @@ def test_the_report_counts_the_forms_that_change_nothing(tmp_path: Path) -> None
     assert report.inert == len([f for f in wake_report.inert_forms() if f[0] in here]) == 0
     assert "forms that change nothing: 0" in wake_report.render(report)
     assert wake_report.build([]).inert is None
+
+
+# --- PRR rule 6: per wake, the offers made and the promises kept and broken --------------
+
+
+def offers_log(tmp: Path, keep: bool) -> list[Event]:
+    """The priced move's toy (``tests/test_offers.py``). Wake 0: Ilse and Kara each offer
+    the Greens a price for the Barge Act, and the day's batch takes one. Wake 1: the act
+    passes and the promise falls due, kept when ``keep`` sets the guild's seat. Wake 2 is
+    open."""
+    from tests import test_offers as to
+
+    g = to.game(tmp)
+    at = T0
+    g.add([ev.WakeOpened(wake=0, deadline=at + 12 * HOUR, opened_at=at)])
+    to.bill(g)
+    to.offer(g, to.ILSE, to.DUES)
+    to.offer(g, to.KARA, to.GUILD)
+    g.walk(to.day(1), to.day(1))
+    for n in (0, 1):
+        at += 12 * HOUR
+        g.add(
+            [
+                ev.WakeClosed(wake=n, how="deadline"),
+                ev.WakeOpened(wake=n + 1, deadline=at + 12 * HOUR, opened_at=at),
+            ]
+        )
+        if n == 0:
+            if keep:
+                to.flag(g, to.GUILD_FLAG, 1, to.day(2))
+            g.walk(to.day(2), to.DUE)
+    return g.log
+
+
+def test_each_wake_counts_the_offers_made_and_the_promises_kept_and_broken(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "broken").mkdir()
+    (tmp_path / "kept").mkdir()
+    broken = wake_report.build(offers_log(tmp_path / "broken", keep=False))
+    assert [(o.number, o.made, o.kept, o.broken) for o in broken.offers] == [
+        (0, 2, 0, 0),
+        (1, 0, 0, 1),
+        (2, 0, 0, 0),
+    ]
+    kept = wake_report.build(offers_log(tmp_path / "kept", keep=True))
+    assert [(o.number, o.made, o.kept, o.broken) for o in kept.offers] == [
+        (0, 2, 0, 0),
+        (1, 0, 1, 0),
+        (2, 0, 0, 0),
+    ]
+    out = wake_report.render(broken)
+    assert (
+        out[out.index("  wake 0: deadline") + 1] == "    offers: 2 made; promises 0 kept, 0 broken"
+    )
+    assert (
+        out[out.index("  wake 1: deadline") + 1] == "    offers: 0 made; promises 0 kept, 1 broken"
+    )
+
+
+def test_a_game_without_offers_prints_no_offer_lines(tmp_path: Path) -> None:
+    report = wake_report.build(territory_log(tmp_path))
+    assert report.offers == ()
+    assert not any(x.strip().startswith("offers:") for x in wake_report.render(report))
+
+
+# --- OFR rule 6: per wake, the office questions opened and the sittings held ----------
+
+
+def office_log(tmp: Path, removes: bool) -> list[Event]:
+    """The toy of ``tests/test_office_question.py``. Wake 0: a question opens on the
+    command. Wake 1: Ilse's choice is filed, the sitting falls, and it removes the holder
+    when ``removes``, else keeps her. Wake 2 is open."""
+    from revisionist.core.visibility import PUBLIC
+    from revisionist.engine import campaign as cmp
+    from revisionist.engine.emit import Emitter
+    from tests.test_office_question import BY_PERSON, office_on, sitting
+    from tests.test_posts import ILSE
+
+    g = sitting(tmp, office_on(BY_PERSON))
+    at = T0
+
+    def wakes(n: int) -> None:
+        nonlocal at
+        em = Emitter(g.store, g.state, cmp.versions())
+        made: list[Any] = [ev.WakeClosed(wake=n - 1, how="deadline")] if n else []
+        made.append(ev.WakeOpened(wake=n, deadline=at + 12 * HOUR, opened_at=at))
+        em.commit([em.event(m, scope=PUBLIC) for m in made])
+        at += 12 * HOUR
+
+    wakes(0)
+    g.ask()
+    wakes(1)
+    g.choose(ILSE, removes)
+    g.until_decided()
+    wakes(2)
+    return list(g.store.read(TOY_CAMPAIGN))
+
+
+def test_each_wake_counts_the_questions_opened_and_the_sittings_held_and_how_each_fell(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "removed").mkdir()
+    (tmp_path / "kept").mkdir()
+    removed = wake_report.build(office_log(tmp_path / "removed", removes=True))
+    assert [(q.number, q.opened, q.removed, q.kept) for q in removed.questions] == [
+        (0, 1, 0, 0),
+        (1, 0, 1, 0),
+        (2, 0, 0, 0),
+    ]
+    kept = wake_report.build(office_log(tmp_path / "kept", removes=False))
+    assert [(q.number, q.opened, q.removed, q.kept) for q in kept.questions] == [
+        (0, 1, 0, 0),
+        (1, 0, 0, 1),
+        (2, 0, 0, 0),
+    ]
+    out = wake_report.render(removed)
+    first, second = out.index("  wake 0: deadline"), out.index("  wake 1: deadline")
+    assert (
+        "    office: 1 opened; sittings 0, 0 removed, 0 kept" in out[first : first + 3]
+    )  # [proposed]
+    assert "    office: 0 opened; sittings 1, 1 removed, 0 kept" in out[second : second + 3]
+
+
+def test_the_report_names_no_post_person_or_seat_of_a_question(tmp_path: Path) -> None:
+    out = "\n".join(wake_report.render(wake_report.build(office_log(tmp_path, removes=True))))
+    for name in ("Kara", "Ilse", "General of the Norra Levy", "Greens"):
+        assert name not in out
+
+
+def test_a_game_without_office_prints_no_office_lines(tmp_path: Path) -> None:
+    report = wake_report.build(territory_log(tmp_path))
+    assert report.questions == ()
+    assert not any(x.strip().startswith("office:") for x in wake_report.render(report))

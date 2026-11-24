@@ -61,8 +61,9 @@ from revisionist.core.realism.agenda import Mandate, MandateTemplate, PlayStyle
 from revisionist.core.realism.agreement import Agreements
 from revisionist.core.realism.answer import AnswerLog
 from revisionist.core.realism.battle import Battle
-from revisionist.core.realism.card import CardFace, Desk, SeatCard, Topic
+from revisionist.core.realism.card import CardFace, Desk, Post, SeatCard, Topic
 from revisionist.core.realism.conference import Conferences
+from revisionist.core.realism.defiance import Act, Defied, Incident
 from revisionist.core.realism.detect import Intelligence, Picture, Report
 from revisionist.core.realism.document import Document, DocumentView, Feed
 from revisionist.core.realism.economy import Economy
@@ -73,6 +74,7 @@ from revisionist.core.realism.holders import Capture, Holding
 from revisionist.core.realism.kinds import Kinds
 from revisionist.core.realism.laws import Law
 from revisionist.core.realism.locks import Asked, HeldOrder, LockRow
+from revisionist.core.realism.offers import PricedOffer
 from revisionist.core.realism.pipeline import Order, Pipeline
 from revisionist.core.realism.quantity import Quantity
 from revisionist.core.realism.stance import Standing
@@ -158,6 +160,110 @@ class Wake(Model):
     closed: bool = False
 
 
+class RemovalWay(StrEnum):
+    """How a post's holder is removed at the office question's sitting (OFQ)."""
+
+    VOTE = "vote"
+    """A body's vote: its blocs' default rows on the chamber's vote."""
+    COUNCIL = "council"
+    """A council: removed when as many members as it needs choose so."""
+    PERSON = "person"
+    """One person's choice."""
+    TERM = "term"
+    """At the end of a term, and only then."""
+    NEVER = "never"
+    """Not at all: the post faces no question."""
+
+
+class Removal(Model):
+    """How a post's holder is removed (OFQ): the way, and what it names. Public: world
+    data."""
+
+    way: RemovalWay
+    chamber: str | None = Field(default=None, min_length=1, max_length=40)
+    """``vote``: the chamber whose blocs vote."""
+    vote: str | None = Field(default=None, min_length=1, max_length=40)
+    """``vote``: the vote's key in the blocs' rows."""
+    members: tuple[EntityId, ...] = Field(default=(), max_length=24)
+    """``council``: who sits on it."""
+    needed: int = Field(default=0, ge=0)
+    """``council``: how many must choose removal."""
+    person: EntityId | None = None
+    """``person``: who decides."""
+    ends: date | None = None
+    """``term``: the day the term ends."""
+
+
+class Ladder(Model):
+    """A post's ladder (LDR), with ``posts`` on: the lesser posts its holder can fall to,
+    in order, and the posts whose holders may move him on their own order. Public: world
+    data, set once by ``ladders_declared``."""
+
+    post: AssetId
+    ladder: tuple[AssetId, ...] = Field(default=(), max_length=8)
+    moved_by: tuple[AssetId, ...] = Field(default=(), max_length=8)
+    rests_on: tuple[str, ...] = Field(default=(), max_length=2, exclude_if=lambda v: not v)
+    """With ``office`` on (OFQ): the one or two groups or bodies of its nation the post
+    rests on, by key. TUR reads it."""
+    removed_by: Removal | None = Field(default=None, exclude_if=lambda v: v is None)
+    """With ``office`` on (OFQ): how its holder is removed. None: he faces no question."""
+    without_leave: tuple[Act, ...] = Field(default=(), max_length=2, exclude_if=lambda v: not v)
+    """With ``defiance`` on (DFY): the acts its holder may attempt without leave."""
+
+
+class QuestionCause(StrEnum):
+    """Why an office question opened (OFQ)."""
+
+    BASE = "base"
+    """The base the post rests on turned on its holder (TUR)."""
+    INCIDENT = "incident"
+    ORDER = "order"
+    """An order would take the holder's last authority (LDR's question move)."""
+    TERM = "term"
+    """The holder's term ended."""
+    ELECTION = "election"
+    """An election names the post (ELE)."""
+
+
+class OfficeQuestion(Model):
+    """An office question open on a post (OFQ): its cause, the day it opened and its
+    sitting, dated ahead. It sits on ``sits`` or the first day after it in the walk of the
+    second wake the seats told can act in. Told to every seat of the holder's nation."""
+
+    question_id: str = Field(min_length=1, max_length=80)
+    post: AssetId
+    holder: EntityId
+    cause: QuestionCause
+    move_id: str | None = Field(default=None, max_length=80)
+    """``order``: the pending change of post that stands as its cause."""
+    opened: date
+    tick: int = Field(ge=0)
+    """The first wake (tick) the seats told can act in."""
+    sits: date
+
+
+class PostMove(Model):
+    """A change of post ordered and waiting to land (LDR): the pending change. ``appoint``
+    puts ``person`` in ``post``; a dismissal takes him off it. It lands at the close of the
+    wake after ``wake``, the one it was ordered in. ``question``: it would take a seat's
+    last authority, so it is not done on order; it stands as the office question's cause
+    (OFQ) and never lands by itself. Engine side: sealed to the seat of the person moved."""
+
+    move_id: str = Field(min_length=1, max_length=80)
+    person: EntityId
+    seat: SeatId | None = None
+    """The seat that plays the person moved, when the move was ordered: the one seat that
+    reads it."""
+    by: EntityId
+    """Who ordered it."""
+    post: AssetId
+    appoint: bool = True
+    ordered: date
+    wake: int = Field(ge=-1)
+    """The wake it was ordered in; -1 before the first wake opens."""
+    question: bool = False
+
+
 class _World(Model):
     """Fields common to truth and view."""
 
@@ -222,8 +328,13 @@ class _World(Model):
     groups: Groups = Field(default_factory=Groups)
     """With ``groups`` on, each nation's groups at home as the world declares them
     (``groups_declared``), their support (``group_moved``) and the writing in waiting
-    (``group_proposed``) (GRP). True support: a view holds its own nation's groups only,
-    and never the writing in waiting."""
+    (``group_proposed``) (GRP); with ``losses`` on, the battle losses held
+    (``losses_held``) (LSS). True support: a view holds its own nation's groups only, and
+    never the writing in waiting or the losses held."""
+    offers: tuple[PricedOffer, ...] = ()
+    """With ``offers`` on, every offer of a price to a bloc and where it stands
+    (``offer_made``, ``offer_settled``) (PRC). A view holds those to its own nation's
+    blocs only."""
     agreements: Agreements = Field(default_factory=Agreements)
     """With ``agreements`` on, the offers (``agreement_offered``) and the agreements in
     force (``agreement_made``), with each clause's status (``clause_judged``) (AGR). A view
@@ -237,6 +348,7 @@ class _World(Model):
     late_fields: ClassVar[frozenset[str]] = frozenset(
         {
             "groups",
+            "offers",
             "agreements",
             "conferences",
             "goals",
@@ -301,6 +413,40 @@ class State(_World):
     asked: dict[OrderId, Asked] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """Each held order its seat has asked for, by its id, until it ends (ASK). The asker
     and the seat asked see it."""
+    defied: dict[OrderId, Defied] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``defiance`` on, each order sent anyway, by the id it landed as (DFY). Its
+    issuer sees it."""
+    incidents: dict[Label, Incident] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``defiance`` on, every incident by its id, one per order, answered or not
+    (DFY). The commander's seat and the superior's see it."""
+    posts: dict[AssetId, Post] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``posts`` on, every post that has changed hands, by its office asset
+    (``post_changed``): who holds it and its part of the card (PPP). Engine only; a post
+    that never moved is read from its holder's card."""
+    ladders: dict[AssetId, Ladder] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``posts`` on, each post's ladder and who may move its holder, by its office
+    asset (``ladders_declared``, LDR). World data, the same in every view."""
+    post_moves: dict[str, PostMove] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``posts`` on, each change of post ordered and not yet settled, by its id
+    (``post_move_ordered``, until ``post_move_settled``), LDR. Engine only: the seat of
+    the person moved reads it from its paper and its feed."""
+    office_questions: dict[str, OfficeQuestion] = Field(
+        default_factory=dict, exclude_if=lambda v: not v
+    )
+    """With ``office`` on, each office question open, by its id (``office_question_opened``,
+    until ``office_question_decided``), OFQ. Engine only: the seats told read it from their
+    paper and their feed."""
+    office_choices: dict[str, dict[SeatId, bool]] = Field(
+        default_factory=dict, exclude_if=lambda v: not v
+    )
+    """Each open question's sealed choices, by question and seat: True to remove
+    (``office_choice_filed``, OFQ). Engine only: no seat learns another's."""
+    office_rests: dict[AssetId, date] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """Each post whose holder was kept at a sitting, and the day before which no question
+    on it opens again (OFQ)."""
+    office_base_fell: dict[AssetId, date] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """Each post resting on a base, and the day its base last fell under its line (OFQ;
+    the turn below writes and reads it)."""
     chosen: dict[OrderId, dict[SeatId, bool]] = Field(
         default_factory=dict, exclude_if=lambda v: not v
     )
@@ -362,8 +508,13 @@ class State(_World):
     aim_shut: frozenset[EntityId] = frozenset()
     """With own aims on, each person a player held when a wake closed: his own aim may no
     longer be set (OWC). Engine only."""
+    replaced: dict[EntityId, EntityId] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """With ``posts`` on, each replacement person and the person he took the place of
+    (RPL). Engine only: how a seat is run is never shown."""
     late_fields: ClassVar[frozenset[str]] = _World.late_fields | {
         "aim_shut",
+        "replaced",
+        "posts",
         "held",
         "asked",
         "chosen",
@@ -421,6 +572,8 @@ class View(_World):
     """The viewer's own held orders only (LCK)."""
     asked: dict[OrderId, Asked] = Field(default_factory=dict, exclude_if=lambda v: not v)
     """The asks the viewer made, and those put before the viewer's seat (ASK)."""
+    incidents: dict[Label, Incident] = Field(default_factory=dict, exclude_if=lambda v: not v)
+    """The incidents on the viewer's person, and those put before him to answer (DFY)."""
     style: PlayStyle | None = None
     """The viewer's own play style. None: free."""
     reports: dict[Label, Report] = Field(default_factory=dict)

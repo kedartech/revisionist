@@ -259,6 +259,7 @@ ROWS: tuple[Row, ...] = (
     Row("realism", "agreement-publish", PLAY, _fixed(agreement="norra_sudland_pact")),
     Row("realism", "conference-call", PLAY, _fixed(conference="strait")),
     Row("realism", "conference-vote", PLAY, _fixed(conference="strait", vote="for")),
+    Row("realism", "office-vote", PLAY, _fixed(question="q", remove=True)),
     Row("realism", "report", PLAY, _fixed(kind="bug", text="The map is blank.")),
     Row("realism", "reports", PLAY, _fixed(inbox=True)),
     Row(
@@ -270,6 +271,8 @@ ROWS: tuple[Row, ...] = (
     ),
     Row("realism", "aim-check", PLAY, _fixed(key="take_ground", values={"place": "isle"})),
     Row("realism", "aim-set", PLAY, _fixed(key="take_ground", values={"place": "isle"})),
+    Row("realism", "offer", PLAY, _fixed(bloc="greens", measure="barge_act", price="dues")),
+    Row("realism", "move", PLAY, _fixed(person="kara", post="norra_levy", move="relieve")),
 )
 
 

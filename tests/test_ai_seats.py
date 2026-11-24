@@ -11,8 +11,8 @@ from revisionist.core import events as ev
 from revisionist.core.ids import CampaignId, DocumentId, EntityId, FeatureId, SeatId, derived_id
 from revisionist.core.ontology import Controller, SeatKind
 from revisionist.core.project import project
-from revisionist.core.realism import actors
-from revisionist.core.realism.card import ChannelKind
+from revisionist.core.realism import actors, answering
+from revisionist.core.realism.card import ChannelKind, superiors
 from revisionist.core.realism.document import (
     BodyField,
     Classification,
@@ -28,10 +28,16 @@ from revisionist.core.visibility import PUBLIC, private_to
 from revisionist.core.world_compile import compile_world, object_id, resolve_keys
 from revisionist.engine import campaign as cmp
 from revisionist.engine import realism_tick
+from revisionist.engine.advise import advise
 from revisionist.engine.emit import Emitter
 from revisionist.engine.prose import Author, Written, template_prose
 from revisionist.engine.realism_tick import file_order, run_realism_tick
 from revisionist.engine.store import EventStore, MemoryStore, load_state
+from tests import fog_twins as ft
+from tests import test_ask_answers as aa
+from tests import test_realism_locks as toy
+from tests.test_advise import FakeTransport
+from tests.test_territory_model import CAMPAIGN as TOY
 
 CAMPAIGN = CampaignId("01ARZ3NDEKTSV4RRFFQ69G5FAV")
 WORLD = "autumn-1941"
@@ -230,3 +236,62 @@ def test_an_ai_seat_gets_no_report_of_its_own_forces_and_no_newspaper() -> None:
     for e in list(store.read(CAMPAIGN))[start:]:
         if e.payload.kind not in OWN_ORDERS:
             assert not (made & e.scope.known_by), getattr(e.payload, "document", e.payload)
+
+
+# --- an ask to a person nobody plays: no seat appears on its due day -----------------
+
+
+def _toy(tmp: Path, ask: bool, *changes: Any) -> MemoryStore:
+    """The ask tests' toy game (Kara and Olaf claimed, Ilse left to her card, which
+    writes no answers), with Kara's march to the Isle held for Ilse; Kara asks for it
+    only with ``ask``. Ids are drawn from what they name, so the two games match."""
+    with ft.drawn_from(Counter()):
+        store = aa.unplayed(tmp, *changes, aa.hostile)
+        order = toy.file(store, "isle")
+        if ask:
+            aa.ask(store, order.order_id)
+        aa.tick_until(store, lambda s: False, ticks=4)
+    return store
+
+
+def _prompt(store: MemoryStore, seat: SeatId) -> str:
+    t = FakeTransport({"text": "Wait."})
+    advise(store, TOY, seat, "Who sits at the table?", t)
+    (req,) = t.requests
+    return req.prompt
+
+
+def test_an_ask_to_a_person_nobody_plays_shows_no_other_seat_a_new_seat(tmp_path: Path) -> None:
+    quiet = _toy(tmp_path / "a", False, aa.answers_on)
+    asked = _toy(tmp_path / "b", True, aa.answers_on)
+    assert aa.answered(asked) and not aa.answered(quiet)
+    other = toy.seat(toy.OLAF)
+    a, b = (project(load_state(s, TOY), other) for s in (quiet, asked))
+    assert a.seats == b.seats
+    assert a.model_dump(mode="json") == b.model_dump(mode="json")
+    assert _prompt(quiet, other) == _prompt(asked, other)
+    for store in (quiet, asked):
+        assert actors.seat_of(load_state(store, TOY), toy.ILSE) is not None
+
+
+def test_with_ask_answers_off_nobody_unplayed_is_seated_for_an_ask(tmp_path: Path) -> None:
+    state = load_state(_toy(tmp_path, True), TOY)
+    assert actors.seat_of(state, toy.ILSE) is None
+    assert answering.askable(state) == []
+
+
+def test_who_could_be_asked_is_each_rows_decider_and_each_card_with_authority_above_another(
+    tmp_path: Path,
+) -> None:
+    state = load_state(aa.unplayed(tmp_path, aa.answers_on), TOY)
+    assert answering.askable(state) == [toy.ILSE]
+    no_rows = state.model_copy(update={"locks": ()})
+    assert answering.askable(no_rows) == [toy.ILSE]
+    bare = state.cards[toy.ILSE].model_copy(update={"authority": ()})
+    no_authority = state.model_copy(update={"cards": {**state.cards, toy.ILSE: bare}})
+    assert answering.askable(no_authority) == [toy.ILSE]
+    assert answering.askable(no_rows.model_copy(update={"cards": no_authority.cards})) == []
+    assert toy.ILSE in superiors(state.cards, toy.KARA)
+    kara = state.cards[toy.KARA].model_copy(update={"principals": ()})
+    nobody_above = no_rows.model_copy(update={"cards": {**state.cards, toy.KARA: kara}})
+    assert answering.askable(nobody_above) == []

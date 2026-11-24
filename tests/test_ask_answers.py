@@ -249,7 +249,9 @@ def test_declined_the_order_is_still_held_at_the_seasons_end(tmp_path: Path) -> 
         ask(store, order.order_id)
 
 
-def test_the_answer_is_told_to_the_asker_alone_in_one_paper(tmp_path: Path) -> None:
+def test_the_answer_is_sealed_to_the_asker_and_fed_to_no_seat(tmp_path: Path) -> None:
+    # A person a seat holds is never answered for, so the card's answer is not fed even
+    # to the asker, whose record of the ask shows no answer (catch-up's ``told``).
     from revisionist.core.project import project
 
     store = unplayed(tmp_path, answers_on, hostile)
@@ -262,10 +264,11 @@ def test_the_answer_is_told_to_the_asker_alone_in_one_paper(tmp_path: Path) -> N
     def fed(person: SeatId) -> list[str]:
         return [f.event.kind for f in catchup.seat_events(store, CAMPAIGN, person, 0, 99)]
 
-    assert fed(seat(KARA)).count("ask_answered") == 1
+    assert "ask_answered" not in fed(seat(KARA))
     assert "ask_answered" not in fed(seat(OLAF))
     state = load_state(store, CAMPAIGN)
-    assert project(state, seat(KARA)).asked[order.order_id].granted is False
+    assert state.asked[order.order_id].granted is False
+    assert project(state, seat(KARA)).asked[order.order_id].granted is None
     assert order.order_id not in project(state, seat(OLAF)).asked
 
 

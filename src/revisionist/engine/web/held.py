@@ -293,8 +293,14 @@ def file_one(
             conferences_api.call(store, campaign_id, seat, args)
         elif action == "conference-vote":
             conferences_api.vote(store, campaign_id, seat, args)
+        elif action == "office-vote":
+            agenda_api.office_vote(store, campaign_id, seat, args)
         elif action == "ask":
             realism_tick.ask_order(store, campaign_id, seat, OrderId(args["order_id"]))
+        elif action == "offer":
+            realism_tick.make_offer(
+                store, campaign_id, seat, args["bloc"], args["measure"], args["price"]
+            )
         elif action == "answer":
             done = agenda_api.answer(store, campaign_id, seat, args["item"], args["accept"])
             return done["reply"] if done["refused"] else None

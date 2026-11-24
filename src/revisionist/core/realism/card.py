@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Annotated, ClassVar
 from pydantic import Field, StringConstraints, model_validator
 
 from revisionist.core._base import Label, Model
-from revisionist.core.ids import EntityId, FeatureId, FeedId, PipelineId
+from revisionist.core.ids import AssetId, EntityId, FeatureId, FeedId, PipelineId
 from revisionist.core.realism.answer import Answer, ParamValue
 from revisionist.core.realism.effect import EffectKind
 from revisionist.core.realism.quantity import ResolverKey
@@ -209,8 +209,12 @@ class CardFace(Model):
     path: CardPath = CardPath.POLITICAL
     """Political, or military: a commander who orders his own force (CMD). A card
     without it is political, and a stored card has none."""
+    post: AssetId | None = Field(default=None, exclude_if=lambda v: v is None)
+    """With ``posts`` on, the office asset the person holds (PPP): the office, and with it
+    the part of the card that goes with the office. None: no post, and the card is all
+    the person's own."""
 
-    late_fields: ClassVar[frozenset[str]] = frozenset({"path"})
+    late_fields: ClassVar[frozenset[str]] = frozenset({"path", "post"})
 
 
 class Tie(StrEnum):
@@ -369,7 +373,12 @@ class SeatCard(Desk):
     """What makes each aim a goal (AIM), by the aims' index: None for an aim with no
     condition. Read with the ``aims`` rule on."""
 
+    own: "PostPart | None" = Field(default=None, exclude_if=lambda v: v is None)
+    """With ``posts`` on, what of the post's kind the person had before he took his post,
+    given back when he leaves it (PPP). None: nothing."""
+
     late_fields: ClassVar[frozenset[str]] = Desk.late_fields | {
+        "own",
         "competence",
         "allies",
         "opposes",
@@ -405,6 +414,115 @@ class SeatCard(Desk):
         return Desk.model_validate(self.model_dump(include=set(Desk.model_fields)))
 
 
+NO_POST = "Without office"
+"""The office line of a card whose person holds no post and had none of his own. [proposed]"""
+
+
+class PostCause(StrEnum):
+    """Why a post changed hands (PPP)."""
+
+    APPOINTED = "appointed"
+    """An order named the new holder, or nobody."""
+    SUCCEEDED = "succeeded"
+    """The post's designated successor took it when it fell vacant."""
+    VACATED = "vacated"
+    """Its holder left it to take another post."""
+    REMOVED = "removed"
+    """Its holder was removed at the office question's sitting (OFQ)."""
+
+
+class PostPart(Model):
+    """The part of a card that goes with its post (PPP): the office's name, its powers,
+    authority, forms, pipelines and feeds, the bodies that answer its summons, whom it
+    answers to and its designated successor. The rest of the card is the person's own.
+    [proposed]"""
+
+    office: Label = NO_POST
+    powers: tuple[Label, ...] = ()
+    authority: tuple[Domain, ...] = ()
+    levers: tuple[Lever, ...] = ()
+    pipelines: tuple[PipelineId, ...] = ()
+    feeds: tuple[FeedId, ...] = ()
+    chain: tuple[EntityId, ...] = ()
+    principals: tuple[EntityId, ...] = ()
+    successor: EntityId | None = None
+
+    def is_empty(self) -> bool:
+        return self == PostPart()
+
+
+class Post(Model):
+    """A post that has changed hands, as the fold keeps it (PPP). Engine only."""
+
+    holder: EntityId | None
+    """Who holds it now; None: nobody, and its office is the nation's."""
+    part: PostPart
+    last: EntityId | None = None
+    """While nobody holds it, the last holder: the steps and executors that still name him
+    name whoever takes the post next."""
+
+
+def post_part(card: Desk) -> PostPart:
+    """The fields of the post's kind as ``card`` carries them."""
+    return PostPart(
+        office=card.office,
+        powers=card.powers,
+        authority=card.authority,
+        levers=card.levers,
+        pipelines=card.pipelines,
+        feeds=card.feeds,
+        chain=card.reach.chain,
+        principals=card.principals,
+        successor=card.successor,
+    )
+
+
+def _union[T](own: tuple[T, ...], more: tuple[T, ...]) -> tuple[T, ...]:
+    return (*own, *(x for x in more if x not in own))
+
+
+def _named[T: Lever | Domain](own: tuple[T, ...], more: tuple[T, ...]) -> tuple[T, ...]:
+    """``more`` over ``own``, one per name: the post's form or domain where both name one."""
+    names: set[str] = {x.name for x in more}
+    kept: tuple[T, ...] = tuple(x for x in own if x.name not in names)
+    return kept + more
+
+
+def with_part(card: SeatCard, part: PostPart, post: AssetId | None) -> SeatCard:
+    """``card`` holding ``part`` over the person's own, which it keeps aside in ``own``.
+    With ``post`` None, the card left with ``part`` alone: what was the person's own (PPP)."""
+    if post is None:
+        return card.model_copy(update={**_fields(card, part), "post": None, "own": None})
+    own = post_part(card)
+    merged = PostPart(
+        office=part.office,
+        powers=_union(own.powers, part.powers),
+        authority=_named(own.authority, part.authority),
+        levers=_named(own.levers, part.levers),
+        pipelines=_union(own.pipelines, part.pipelines),
+        feeds=_union(own.feeds, part.feeds),
+        chain=_union(own.chain, part.chain),
+        principals=_union(own.principals, part.principals),
+        successor=part.successor,
+    )
+    kept = None if own.is_empty() else own
+    return card.model_copy(update={**_fields(card, merged), "post": post, "own": kept})
+
+
+def _fields(card: Desk, part: PostPart) -> dict[str, object]:
+    return {
+        "office": part.office,
+        "powers": part.powers,
+        "authority": part.authority,
+        "levers": part.levers,
+        "pipelines": part.pipelines,
+        "feeds": part.feeds,
+        "principals": part.principals,
+        "successor": part.successor,
+        "reach": card.reach.model_copy(update={"chain": part.chain}),
+    }
+
+
 def superiors(cards: Mapping[EntityId, Desk], person: EntityId) -> tuple[EntityId, ...]:
     """The chain of ``principals`` above ``person``, nearest first: each principal,
     then each principal's own, as far as cards go. A principal with no card (an
@@ -425,6 +543,7 @@ def superiors(cards: Mapping[EntityId, Desk], person: EntityId) -> tuple[EntityI
 
 __all__ = [
     "CHANNELS",
+    "NO_POST",
     "Aim",
     "CardFace",
     "CardPath",
@@ -437,11 +556,16 @@ __all__ = [
     "ParamKind",
     "ParamSpec",
     "ParamValue",
+    "Post",
+    "PostCause",
+    "PostPart",
     "Reach",
     "SeatCard",
     "Tie",
     "Topic",
+    "post_part",
     "superiors",
+    "with_part",
     "words",
 ]
 

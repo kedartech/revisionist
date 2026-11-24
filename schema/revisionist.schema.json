@@ -1,6 +1,15 @@
 {
   "event": {
     "$defs": {
+      "Act": {
+        "description": "An act a post's holder may attempt without leave: a closed list.",
+        "enum": [
+          "border",
+          "fire_first"
+        ],
+        "title": "Act",
+        "type": "string"
+      },
       "ActOf": {
         "additionalProperties": false,
         "description": "``person`` did their historical act. Met when no human plays them (history\nfollows the record); else only when an order that human filed has got there.",
@@ -3033,24 +3042,6 @@
         "title": "CardsDeclared",
         "type": "object"
       },
-      "Cause": {
-        "description": "Why support moved: a happening, writing, or the Monday drift.",
-        "enum": [
-          "battle_won",
-          "battle_lost",
-          "territory_taken",
-          "territory_lost",
-          "capital_threatened",
-          "losses_at_sea",
-          "agreement_broken",
-          "measure_passed",
-          "war_declared",
-          "writing",
-          "drift"
-        ],
-        "title": "Cause",
-        "type": "string"
-      },
       "ChannelKind": {
         "description": "How words travel. Each trades speed against exposure (direction, channels table).",
         "enum": [
@@ -3258,6 +3249,16 @@
         ],
         "title": "ClarificationAsked",
         "type": "object"
+      },
+      "Class": {
+        "description": "How a kind of happening reaches the groups at home (HCL).",
+        "enum": [
+          "felt",
+          "reported",
+          "secret"
+        ],
+        "title": "Class",
+        "type": "string"
       },
       "Classification": {
         "enum": [
@@ -4862,6 +4863,85 @@
         "title": "Decision",
         "type": "string"
       },
+      "Defied": {
+        "additionalProperties": false,
+        "description": "A held order sent anyway: the held order, the order it landed as, its seat, the\nacts it does, and the day; the person who could have allowed it, the nation it is\ndone to when abroad, and the rule each force it sets a rule for held before. Sealed\nto the issuer's seat.",
+        "properties": {
+          "abroad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Abroad"
+          },
+          "acts": {
+            "items": {
+              "$ref": "#/$defs/Act"
+            },
+            "maxItems": 2,
+            "minItems": 1,
+            "title": "Acts",
+            "type": "array"
+          },
+          "issuer": {
+            "title": "Issuer",
+            "type": "string"
+          },
+          "kept": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Engagement"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Kept",
+            "type": "object"
+          },
+          "landed": {
+            "title": "Landed",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "superior": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Superior"
+          }
+        },
+        "required": [
+          "order_id",
+          "landed",
+          "issuer",
+          "acts",
+          "on"
+        ],
+        "title": "Defied",
+        "type": "object"
+      },
       "DeltaApplied": {
         "additionalProperties": false,
         "properties": {
@@ -5789,6 +5869,50 @@
           "part"
         ],
         "title": "EffectsEstimated",
+        "type": "object"
+      },
+      "Election": {
+        "additionalProperties": false,
+        "description": "An election the world lists (ELE), with ``elections`` on: the nation, the chambers\nit redraws, its day, and the post whose term ends that day, if any. Engine only: the\npost's day is told by its office question's notice.",
+        "properties": {
+          "chambers": {
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Chambers",
+            "type": "array"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "post": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Post"
+          }
+        },
+        "required": [
+          "nation",
+          "chambers",
+          "day"
+        ],
+        "title": "Election",
         "type": "object"
       },
       "Ending": {
@@ -7224,6 +7348,14 @@
             "title": "Name",
             "type": "string"
           },
+          "prices": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Price"
+            },
+            "title": "Prices",
+            "type": "array"
+          },
           "seats": {
             "anyOf": [
               {
@@ -7295,7 +7427,7 @@
         "description": "A nation's group's support moved (GRP): to ``support``, by ``change`` after the\nclamp to 0 to 100, for ``cause``, on world day ``on``. ``used``: the writing points\nthe day's batch spent toward the week cap (absolute, never restored); 0 for any other\ncause. Sealed to the nation's seats: true support.",
         "properties": {
           "cause": {
-            "$ref": "#/$defs/Cause"
+            "$ref": "#/$defs/revisionist__core__realism__groups__Cause"
           },
           "change": {
             "title": "Change",
@@ -7403,6 +7535,22 @@
         "additionalProperties": false,
         "description": "Each nation's groups at home as the world declares them (GRP), by nation, in the\nworld file's order. Engine only: a seat reads its own nation's groups from its own\ndata; once, at creation.",
         "properties": {
+          "classes": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/KindClass"
+            },
+            "title": "Classes",
+            "type": "array"
+          },
+          "elections": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Election"
+            },
+            "title": "Elections",
+            "type": "array"
+          },
           "kind": {
             "const": "groups_declared",
             "default": "groups_declared",
@@ -7415,6 +7563,14 @@
               "$ref": "#/$defs/NationGroups"
             },
             "title": "Nations",
+            "type": "array"
+          },
+          "places": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Place"
+            },
+            "title": "Places",
             "type": "array"
           }
         },
@@ -7432,7 +7588,12 @@
           "losses_at_sea",
           "agreement_broken",
           "measure_passed",
-          "war_declared"
+          "war_declared",
+          "daily_life_passed",
+          "battle_losses",
+          "place_lost",
+          "place_abandoned",
+          "place_retaken"
         ],
         "title": "Happening",
         "type": "string"
@@ -7485,6 +7646,59 @@
         ],
         "title": "HeldEnd",
         "type": "string"
+      },
+      "HeldLoss": {
+        "additionalProperties": false,
+        "description": "One day's losses of a nation in one battle as they move one of its groups (LSS):\nthe reported share, which landed that day, and the felt share, which lands over the\n``FELT_DAYS`` days after. ``ended``: the battle has ended, so no correction is still to\ncome. Engine only.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "ended": {
+            "default": false,
+            "title": "Ended",
+            "type": "boolean"
+          },
+          "felt": {
+            "title": "Felt",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "reported": {
+            "title": "Reported",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "polity",
+          "group",
+          "area",
+          "opened",
+          "on",
+          "reported",
+          "felt"
+        ],
+        "title": "HeldLoss",
+        "type": "object"
       },
       "HeldOrder": {
         "additionalProperties": false,
@@ -7670,6 +7884,169 @@
           "office"
         ],
         "title": "HoldsOffice",
+        "type": "object"
+      },
+      "Incident": {
+        "additionalProperties": false,
+        "description": "An order sent anyway and carried out, or a step on an order from above refused:\nthe question on the commander before his superior, and, once given, its answer.\nSealed to the commander's seat and the superior's.",
+        "properties": {
+          "abroad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Abroad"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Answered"
+          },
+          "by_card": {
+            "default": false,
+            "title": "By Card",
+            "type": "boolean"
+          },
+          "cause": {
+            "$ref": "#/$defs/revisionist__core__realism__defiance__Cause"
+          },
+          "commander": {
+            "title": "Commander",
+            "type": "string"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          },
+          "incident_id": {
+            "maxLength": 60,
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "seats": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Seats",
+            "type": "array"
+          },
+          "superior": {
+            "title": "Superior",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Verdict"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "incident_id",
+          "order_id",
+          "cause",
+          "commander",
+          "superior",
+          "opened",
+          "due"
+        ],
+        "title": "Incident",
+        "type": "object"
+      },
+      "IncidentAnswered": {
+        "additionalProperties": false,
+        "description": "The superior's answer to an incident, by his seat or his card, once (DFY). Sealed\nto the commander's seat and the superior's.",
+        "properties": {
+          "by_card": {
+            "default": false,
+            "title": "By Card",
+            "type": "boolean"
+          },
+          "incident_id": {
+            "maxLength": 60,
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "kind": {
+            "const": "incident_answered",
+            "default": "incident_answered",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "seats": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Seats",
+            "type": "array"
+          },
+          "verdict": {
+            "$ref": "#/$defs/Verdict"
+          }
+        },
+        "required": [
+          "incident_id",
+          "verdict",
+          "on"
+        ],
+        "title": "IncidentAnswered",
+        "type": "object"
+      },
+      "IncidentOpened": {
+        "additionalProperties": false,
+        "description": "An order sent anyway was carried out, or a step on an order from above refused\n(DFY): a question on the commander before his superior. Sealed to their seats.",
+        "properties": {
+          "incident": {
+            "$ref": "#/$defs/Incident"
+          },
+          "kind": {
+            "const": "incident_opened",
+            "default": "incident_opened",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident"
+        ],
+        "title": "IncidentOpened",
         "type": "object"
       },
       "IncomeAt": {
@@ -8096,6 +8473,31 @@
         "type": "object"
       },
       "JsonValue": {},
+      "KindClass": {
+        "additionalProperties": false,
+        "description": "The class the world gives a kind of happening (HCL), and the share of it that is\nfelt: 1 for a felt kind, 0 for a reported one unless the world gives a share, which\nmakes the kind mixed (that share felt, the rest reported). A secret kind has none.",
+        "properties": {
+          "felt": {
+            "default": 0.0,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Felt",
+            "type": "number"
+          },
+          "kind": {
+            "$ref": "#/$defs/Happening"
+          },
+          "reach": {
+            "$ref": "#/$defs/Class"
+          }
+        },
+        "required": [
+          "kind",
+          "reach"
+        ],
+        "title": "KindClass",
+        "type": "object"
+      },
       "KindsDeclared": {
         "additionalProperties": false,
         "description": "The world's own piece kinds and resources, in the world file's order. Public; once,\nat creation, before any feature is set.",
@@ -8170,6 +8572,93 @@
           "seats"
         ],
         "title": "KnowledgeGrant",
+        "type": "object"
+      },
+      "Ladder": {
+        "additionalProperties": false,
+        "description": "A post's ladder (LDR), with ``posts`` on: the lesser posts its holder can fall to,\nin order, and the posts whose holders may move him on their own order. Public: world\ndata, set once by ``ladders_declared``.",
+        "properties": {
+          "ladder": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Ladder",
+            "type": "array"
+          },
+          "moved_by": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Moved By",
+            "type": "array"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          },
+          "removed_by": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Removal"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "rests_on": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Rests On",
+            "type": "array"
+          },
+          "without_leave": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Act"
+            },
+            "maxItems": 2,
+            "title": "Without Leave",
+            "type": "array"
+          }
+        },
+        "required": [
+          "post"
+        ],
+        "title": "Ladder",
+        "type": "object"
+      },
+      "LaddersDeclared": {
+        "additionalProperties": false,
+        "description": "Each post's ladder and the posts whose holders may move it (LDR), in the world\nfile's order. World data; once, at creation, with ``posts`` on and a ladder or a\n``moved_by`` declared.",
+        "properties": {
+          "kind": {
+            "const": "ladders_declared",
+            "default": "ladders_declared",
+            "title": "Kind",
+            "type": "string"
+          },
+          "ladders": {
+            "items": {
+              "$ref": "#/$defs/Ladder"
+            },
+            "minItems": 1,
+            "title": "Ladders",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ladders"
+        ],
+        "title": "LaddersDeclared",
         "type": "object"
       },
       "Law": {
@@ -8576,6 +9065,37 @@
           "rows"
         ],
         "title": "LocksDeclared",
+        "type": "object"
+      },
+      "LossesHeld": {
+        "additionalProperties": false,
+        "description": "Battle losses held at home (LSS): each one day's losses of a nation in one battle as\nthey move one of its groups, added or replaced (the felt share halved, or the battle\nended). Entries whose battle has ended and whose felt share has landed by ``on`` are\ndropped. Engine only: it carries the nation's steps lost by the points they move.",
+        "properties": {
+          "held": {
+            "items": {
+              "$ref": "#/$defs/HeldLoss"
+            },
+            "minItems": 1,
+            "title": "Held",
+            "type": "array"
+          },
+          "kind": {
+            "const": "losses_held",
+            "default": "losses_held",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          }
+        },
+        "required": [
+          "on",
+          "held"
+        ],
+        "title": "LossesHeld",
         "type": "object"
       },
       "MakeStatement": {
@@ -9430,6 +9950,263 @@
         "title": "Offer",
         "type": "object"
       },
+      "OfferMade": {
+        "additionalProperties": false,
+        "description": "A seat offers one price to one bloc of its own nation for one measure whose bill is\non its way (PRC). It waits for the next day's batch, which takes or refuses it by\ncontent. Sealed to the seats of the bloc's nation.",
+        "properties": {
+          "kind": {
+            "const": "offer_made",
+            "default": "offer_made",
+            "title": "Kind",
+            "type": "string"
+          },
+          "offer": {
+            "$ref": "#/$defs/PricedOffer"
+          }
+        },
+        "required": [
+          "offer"
+        ],
+        "title": "OfferMade",
+        "type": "object"
+      },
+      "OfferSettled": {
+        "additionalProperties": false,
+        "description": "Where an offer now stands (PRC): taken or refused by its day's batch, lapsed when\nits measure did not pass, due once it passed, then kept or broken on its due day.\nSealed to the seats of the bloc's nation.",
+        "properties": {
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due"
+          },
+          "kind": {
+            "const": "offer_settled",
+            "default": "offer_settled",
+            "title": "Kind",
+            "type": "string"
+          },
+          "offer_id": {
+            "maxLength": 60,
+            "title": "Offer Id",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "standing": {
+            "$ref": "#/$defs/OfferStanding"
+          }
+        },
+        "required": [
+          "offer_id",
+          "standing",
+          "on"
+        ],
+        "title": "OfferSettled",
+        "type": "object"
+      },
+      "OfferStanding": {
+        "description": "Where an offer stands.",
+        "enum": [
+          "filed",
+          "taken",
+          "refused",
+          "lapsed",
+          "due",
+          "kept",
+          "broken"
+        ],
+        "title": "OfferStanding",
+        "type": "string"
+      },
+      "OfficeChoiceFiled": {
+        "additionalProperties": false,
+        "description": "A member's sealed choice on an office question before its sitting (OFQ): True to\nremove the holder. A later choice replaces it. Sealed to the seat that chose; never\nfed, and the sitting counts it without saying who chose what.",
+        "properties": {
+          "kind": {
+            "const": "office_choice_filed",
+            "default": "office_choice_filed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "question_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Question Id",
+            "type": "string"
+          },
+          "remove": {
+            "title": "Remove",
+            "type": "boolean"
+          },
+          "seat_id": {
+            "title": "Seat Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question_id",
+          "seat_id",
+          "remove",
+          "on"
+        ],
+        "title": "OfficeChoiceFiled",
+        "type": "object"
+      },
+      "OfficeQuestion": {
+        "additionalProperties": false,
+        "description": "An office question open on a post (OFQ): its cause, the day it opened and its\nsitting, dated ahead. It sits on ``sits`` or the first day after it in the walk of the\nsecond wake the seats told can act in. Told to every seat of the holder's nation.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/QuestionCause"
+          },
+          "holder": {
+            "title": "Holder",
+            "type": "string"
+          },
+          "move_id": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Move Id"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          },
+          "question_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Question Id",
+            "type": "string"
+          },
+          "sits": {
+            "format": "date",
+            "title": "Sits",
+            "type": "string"
+          },
+          "tick": {
+            "minimum": 0,
+            "title": "Tick",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "question_id",
+          "post",
+          "holder",
+          "cause",
+          "opened",
+          "tick",
+          "sits"
+        ],
+        "title": "OfficeQuestion",
+        "type": "object"
+      },
+      "OfficeQuestionDecided": {
+        "additionalProperties": false,
+        "description": "The office question decided at its sitting (OFQ): the holder removed, his post\ngoing on by ``post_changed``, or kept, and then no question on that post opens before\n``rests_until``. Public: it is news.",
+        "properties": {
+          "holder": {
+            "title": "Holder",
+            "type": "string"
+          },
+          "kind": {
+            "const": "office_question_decided",
+            "default": "office_question_decided",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          },
+          "question_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Question Id",
+            "type": "string"
+          },
+          "removed": {
+            "title": "Removed",
+            "type": "boolean"
+          },
+          "rests_until": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Rests Until"
+          }
+        },
+        "required": [
+          "question_id",
+          "post",
+          "holder",
+          "on",
+          "removed"
+        ],
+        "title": "OfficeQuestionDecided",
+        "type": "object"
+      },
+      "OfficeQuestionOpened": {
+        "additionalProperties": false,
+        "description": "An office question opens on a post (OFQ): its cause, and its sitting dated ahead.\nSealed to every seat of the holder's nation, whoever plays it, with one paper saying\nso: a person, the aide or code is told the same day the same thing.",
+        "properties": {
+          "kind": {
+            "const": "office_question_opened",
+            "default": "office_question_opened",
+            "title": "Kind",
+            "type": "string"
+          },
+          "question": {
+            "$ref": "#/$defs/OfficeQuestion"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "OfficeQuestionOpened",
+        "type": "object"
+      },
       "OperationOpened": {
         "additionalProperties": false,
         "properties": {
@@ -9753,6 +10530,26 @@
           "asked"
         ],
         "title": "OrderAsked",
+        "type": "object"
+      },
+      "OrderDefied": {
+        "additionalProperties": false,
+        "description": "A seat sends its held order anyway (DFY): it lands as an ordinary order, marked\ndefiant. Sealed to the issuer's seat.",
+        "properties": {
+          "defied": {
+            "$ref": "#/$defs/Defied"
+          },
+          "kind": {
+            "const": "order_defied",
+            "default": "order_defied",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "defied"
+        ],
+        "title": "OrderDefied",
         "type": "object"
       },
       "OrderDrafted": {
@@ -10408,7 +11205,7 @@
       },
       "PieceStepped": {
         "additionalProperties": false,
-        "description": "A piece entered an area: one step, by order, by the record, or forced. Sealed to the\nseats of the piece's own nation, who know it by its mark (``territory.mark_key``), not\nits id. A record: the ``feature_set`` beside it moves the piece.",
+        "description": "A piece entered an area: one step, by order, by the record, or forced. Sealed to the\nseats of the piece's own nation, who know it by its mark (``territory.mark_key``), not\nits id. The ``feature_set`` beside it moves the piece; with ``places`` on, a step out\nof a weighted place is kept as the day the nation's piece left it (PLW).",
         "properties": {
           "cause": {
             "$ref": "#/$defs/StepCause"
@@ -10481,6 +11278,38 @@
           "steps"
         ],
         "title": "Pipeline",
+        "type": "object"
+      },
+      "Place": {
+        "additionalProperties": false,
+        "description": "A place with political weight (PLW): a territory, the nation it matters to, and the\npoints each of that nation's groups moves when it is lost in a fight, signed.",
+        "properties": {
+          "moves": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Moves",
+            "type": "object"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "territory": {
+            "title": "Territory",
+            "type": "string"
+          }
+        },
+        "required": [
+          "territory",
+          "nation",
+          "moves"
+        ],
+        "title": "Place",
         "type": "object"
       },
       "Plausibility": {
@@ -10586,6 +11415,287 @@
         "title": "Port",
         "type": "object"
       },
+      "PostCause": {
+        "description": "Why a post changed hands (PPP).",
+        "enum": [
+          "appointed",
+          "succeeded",
+          "vacated",
+          "removed"
+        ],
+        "title": "PostCause",
+        "type": "string"
+      },
+      "PostChanged": {
+        "additionalProperties": false,
+        "description": "A post moved from one person to another, or to nobody (PPP), with the ``posts``\nrule on. The office asset's controller changes and the post's part of the card goes\nwith it; every pipeline step and executor that named the old holder names the new\none. Public: a change of office is news to every seat. It never carries the post's\npart.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/PostCause"
+          },
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder"
+          },
+          "kind": {
+            "const": "post_changed",
+            "default": "post_changed",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To"
+          }
+        },
+        "required": [
+          "post",
+          "holder",
+          "to",
+          "on",
+          "cause"
+        ],
+        "title": "PostChanged",
+        "type": "object"
+      },
+      "PostMove": {
+        "additionalProperties": false,
+        "description": "A change of post ordered and waiting to land (LDR): the pending change. ``appoint``\nputs ``person`` in ``post``; a dismissal takes him off it. It lands at the close of the\nwake after ``wake``, the one it was ordered in. ``question``: it would take a seat's\nlast authority, so it is not done on order; it stands as the office question's cause\n(OFQ) and never lands by itself. Engine side: sealed to the seat of the person moved.",
+        "properties": {
+          "appoint": {
+            "default": true,
+            "title": "Appoint",
+            "type": "boolean"
+          },
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "move_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Move Id",
+            "type": "string"
+          },
+          "ordered": {
+            "format": "date",
+            "title": "Ordered",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          },
+          "question": {
+            "default": false,
+            "title": "Question",
+            "type": "boolean"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seat"
+          },
+          "wake": {
+            "minimum": -1,
+            "title": "Wake",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "move_id",
+          "person",
+          "by",
+          "post",
+          "ordered",
+          "wake"
+        ],
+        "title": "PostMove",
+        "type": "object"
+      },
+      "PostMoveOrdered": {
+        "additionalProperties": false,
+        "description": "A change of post ordered (LDR): the pending change, landing at the close of the\nwake after the one it was ordered in, or the office question's cause when it would\ntake a seat's last authority. Sealed to the seat of the person moved.",
+        "properties": {
+          "kind": {
+            "const": "post_move_ordered",
+            "default": "post_move_ordered",
+            "title": "Kind",
+            "type": "string"
+          },
+          "move": {
+            "$ref": "#/$defs/PostMove"
+          }
+        },
+        "required": [
+          "move"
+        ],
+        "title": "PostMoveOrdered",
+        "type": "object"
+      },
+      "PostMoveSettled": {
+        "additionalProperties": false,
+        "description": "A pending change of post settled (LDR): ``landed`` when its post changes landed\nwith it, else void (the person or the post was no longer as it was ordered). Sealed\nto the seat of the person moved.",
+        "properties": {
+          "kind": {
+            "const": "post_move_settled",
+            "default": "post_move_settled",
+            "title": "Kind",
+            "type": "string"
+          },
+          "landed": {
+            "title": "Landed",
+            "type": "boolean"
+          },
+          "move_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Move Id",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seat"
+          }
+        },
+        "required": [
+          "move_id",
+          "on",
+          "landed"
+        ],
+        "title": "PostMoveSettled",
+        "type": "object"
+      },
+      "PostPart": {
+        "additionalProperties": false,
+        "description": "The part of a card that goes with its post (PPP): the office's name, its powers,\nauthority, forms, pipelines and feeds, the bodies that answer its summons, whom it\nanswers to and its designated successor. The rest of the card is the person's own.\n[proposed]",
+        "properties": {
+          "authority": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/revisionist__core__realism__card__Domain"
+            },
+            "title": "Authority",
+            "type": "array"
+          },
+          "chain": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Chain",
+            "type": "array"
+          },
+          "feeds": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Feeds",
+            "type": "array"
+          },
+          "levers": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Lever"
+            },
+            "title": "Levers",
+            "type": "array"
+          },
+          "office": {
+            "default": "Without office",
+            "maxLength": 60,
+            "title": "Office",
+            "type": "string"
+          },
+          "pipelines": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Pipelines",
+            "type": "array"
+          },
+          "powers": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Powers",
+            "type": "array"
+          },
+          "principals": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Principals",
+            "type": "array"
+          },
+          "successor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Successor"
+          }
+        },
+        "title": "PostPart",
+        "type": "object"
+      },
       "Posture": {
         "enum": [
           "patrol",
@@ -10681,6 +11791,218 @@
           }
         },
         "title": "PostureNotSet",
+        "type": "object"
+      },
+      "Price": {
+        "additionalProperties": false,
+        "description": "One thing a bloc will take for its votes on a measure (PRC rule 1).",
+        "properties": {
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
+                "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
+                "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "days": {
+            "maximum": 366,
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "loss": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Loss",
+            "type": "integer"
+          },
+          "points": {
+            "maximum": 20,
+            "minimum": 1,
+            "title": "Points",
+            "type": "integer"
+          },
+          "sentence": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Sentence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "sentence",
+          "condition",
+          "days",
+          "points",
+          "loss"
+        ],
+        "title": "Price",
+        "type": "object"
+      },
+      "PricedOffer": {
+        "additionalProperties": false,
+        "description": "One seat's offer of one price to one bloc for one measure.",
+        "properties": {
+          "bill": {
+            "title": "Bill",
+            "type": "string"
+          },
+          "bloc": {
+            "maxLength": 60,
+            "title": "Bloc",
+            "type": "string"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due"
+          },
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "measure": {
+            "maxLength": 60,
+            "title": "Measure",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "offer_id": {
+            "maxLength": 60,
+            "title": "Offer Id",
+            "type": "string"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "On"
+          },
+          "price": {
+            "maxLength": 60,
+            "title": "Price",
+            "type": "string"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "string"
+          },
+          "standing": {
+            "$ref": "#/$defs/OfferStanding",
+            "default": "filed"
+          }
+        },
+        "required": [
+          "offer_id",
+          "seat",
+          "nation",
+          "bloc",
+          "measure",
+          "price",
+          "bill",
+          "filed"
+        ],
+        "title": "PricedOffer",
         "type": "object"
       },
       "Production": {
@@ -10922,6 +12244,18 @@
           "office"
         ],
         "title": "Question",
+        "type": "string"
+      },
+      "QuestionCause": {
+        "description": "Why an office question opened (OFQ).",
+        "enum": [
+          "base",
+          "incident",
+          "order",
+          "term",
+          "election"
+        ],
+        "title": "QuestionCause",
         "type": "string"
       },
       "Reach": {
@@ -11178,6 +12512,100 @@
         ],
         "title": "RelationshipTagSet",
         "type": "object"
+      },
+      "Removal": {
+        "additionalProperties": false,
+        "description": "How a post's holder is removed (OFQ): the way, and what it names. Public: world\ndata.",
+        "properties": {
+          "chamber": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Chamber"
+          },
+          "ends": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ends"
+          },
+          "members": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 24,
+            "title": "Members",
+            "type": "array"
+          },
+          "needed": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Needed",
+            "type": "integer"
+          },
+          "person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Person"
+          },
+          "vote": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Vote"
+          },
+          "way": {
+            "$ref": "#/$defs/RemovalWay"
+          }
+        },
+        "required": [
+          "way"
+        ],
+        "title": "Removal",
+        "type": "object"
+      },
+      "RemovalWay": {
+        "description": "How a post's holder is removed at the office question's sitting (OFQ).",
+        "enum": [
+          "vote",
+          "council",
+          "person",
+          "term",
+          "never"
+        ],
+        "title": "RemovalWay",
+        "type": "string"
       },
       "Report": {
         "additionalProperties": false,
@@ -12612,6 +14040,17 @@
             "title": "Opposes",
             "type": "array"
           },
+          "own": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PostPart"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "path": {
             "$ref": "#/$defs/CardPath",
             "default": "political"
@@ -12641,6 +14080,18 @@
             "default": false,
             "title": "Playable",
             "type": "boolean"
+          },
+          "post": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Post"
           },
           "powers": {
             "default": [],
@@ -12724,7 +14175,7 @@
       },
       "SeatHandover": {
         "additionalProperties": false,
-        "description": "A leader changes hands at the next wake boundary: ``HUMAN`` when a new player\ntakes up a leader nobody plays, ``AI`` when the leader's player leaves. The fold holds\nthe change in ``State.handovers`` and applies it when the open wake closes. Sealed to\nthe seat that changes hands: how a seat is run is never shown.",
+        "description": "A leader changes hands at the next wake boundary: ``HUMAN`` when a new player\ntakes up a leader nobody plays, ``AI`` when the leader's player leaves. The fold holds\nthe change in ``State.handovers`` and applies it when the open wake closes. Sealed to\nthe seat that changes hands: how a seat is run is never shown.\n\n``replaces`` names the person a player can no longer play whom ``entity_id`` takes\nthe place of (RPL): his own hand-over to the code lands first, in the same step.",
         "properties": {
           "controller": {
             "$ref": "#/$defs/Controller"
@@ -12738,6 +14189,18 @@
             "default": "seat_handover",
             "title": "Kind",
             "type": "string"
+          },
+          "replaces": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Replaces"
           }
         },
         "required": [
@@ -12832,6 +14295,52 @@
           "cause"
         ],
         "title": "SeatStatusSet",
+        "type": "object"
+      },
+      "SeatsRedrawn": {
+        "additionalProperties": false,
+        "description": "An election redrew a nation's chamber (ELE): each of its blocs' seats after it, by\ngroup key, the chamber's total kept; each row of a bloc's votes is scaled by its new\nseats over its old. Public: the seats of a chamber are known to all.",
+        "properties": {
+          "chamber": {
+            "maxLength": 60,
+            "title": "Chamber",
+            "type": "string"
+          },
+          "kind": {
+            "const": "seats_redrawn",
+            "default": "seats_redrawn",
+            "title": "Kind",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "seats": {
+            "additionalProperties": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Seats",
+            "type": "object"
+          }
+        },
+        "required": [
+          "polity",
+          "chamber",
+          "seats",
+          "on"
+        ],
+        "title": "SeatsRedrawn",
         "type": "object"
       },
       "SessionZeroClosed": {
@@ -14200,6 +15709,16 @@
         "title": "Verb",
         "type": "string"
       },
+      "Verdict": {
+        "description": "How the person who could have allowed it answers an incident.",
+        "enum": [
+          "backed",
+          "disowned",
+          "dismissed"
+        ],
+        "title": "Verdict",
+        "type": "string"
+      },
       "Versions": {
         "additionalProperties": false,
         "properties": {
@@ -14838,6 +16357,15 @@
         "title": "Domain",
         "type": "object"
       },
+      "revisionist__core__realism__defiance__Cause": {
+        "description": "What an incident is about.",
+        "enum": [
+          "defied",
+          "refused"
+        ],
+        "title": "Cause",
+        "type": "string"
+      },
       "revisionist__core__realism__effect__Clause": {
         "additionalProperties": false,
         "description": "One clause of a measure. The votes resolver scores each bloc against each.",
@@ -14878,6 +16406,34 @@
           "limit"
         ],
         "title": "ClauseKind",
+        "type": "string"
+      },
+      "revisionist__core__realism__groups__Cause": {
+        "description": "Why support moved: a happening, writing, or the Monday drift.",
+        "enum": [
+          "battle_won",
+          "battle_lost",
+          "territory_taken",
+          "territory_lost",
+          "capital_threatened",
+          "losses_at_sea",
+          "agreement_broken",
+          "measure_passed",
+          "war_declared",
+          "daily_life_passed",
+          "writing",
+          "drift",
+          "offer_taken",
+          "promise_kept",
+          "promise_broken",
+          "battle_losses",
+          "losses_felt",
+          "losses_halved",
+          "place_lost",
+          "place_abandoned",
+          "place_retaken"
+        ],
+        "title": "Cause",
         "type": "string"
       },
       "revisionist__core__realism__kinds__Domain": {
@@ -14980,13 +16536,17 @@
             "group_proposed": "#/$defs/GroupProposed",
             "groups_declared": "#/$defs/GroupsDeclared",
             "held_order_ended": "#/$defs/HeldOrderEnded",
+            "incident_answered": "#/$defs/IncidentAnswered",
+            "incident_opened": "#/$defs/IncidentOpened",
             "influence_decided": "#/$defs/InfluenceDecided",
             "intelligence_declared": "#/$defs/IntelligenceDeclared",
             "intent_filed": "#/$defs/IntentFiled",
             "intent_rejected": "#/$defs/IntentRejected",
             "kinds_declared": "#/$defs/KindsDeclared",
+            "ladders_declared": "#/$defs/LaddersDeclared",
             "laws_declared": "#/$defs/LawsDeclared",
             "locks_declared": "#/$defs/LocksDeclared",
+            "losses_held": "#/$defs/LossesHeld",
             "mandate_issued": "#/$defs/MandateIssued",
             "mandate_settled": "#/$defs/MandateSettled",
             "map_declared": "#/$defs/MapDeclared",
@@ -14994,11 +16554,17 @@
             "meter_created": "#/$defs/MeterCreated",
             "narration_written": "#/$defs/NarrationWritten",
             "news_reported": "#/$defs/NewsReported",
+            "offer_made": "#/$defs/OfferMade",
+            "offer_settled": "#/$defs/OfferSettled",
+            "office_choice_filed": "#/$defs/OfficeChoiceFiled",
+            "office_question_decided": "#/$defs/OfficeQuestionDecided",
+            "office_question_opened": "#/$defs/OfficeQuestionOpened",
             "operation_opened": "#/$defs/OperationOpened",
             "operation_resolved": "#/$defs/OperationResolved",
             "opponents_ranked": "#/$defs/OpponentsRanked",
             "options_offered": "#/$defs/OptionsOffered",
             "order_asked": "#/$defs/OrderAsked",
+            "order_defied": "#/$defs/OrderDefied",
             "order_drafted": "#/$defs/OrderDrafted",
             "order_executed": "#/$defs/OrderExecuted",
             "order_held": "#/$defs/OrderHeld",
@@ -15009,6 +16575,9 @@
             "own_aim_set": "#/$defs/OwnAimSet",
             "piece_stepped": "#/$defs/PieceStepped",
             "play_style_set": "#/$defs/PlayStyleSet",
+            "post_changed": "#/$defs/PostChanged",
+            "post_move_ordered": "#/$defs/PostMoveOrdered",
+            "post_move_settled": "#/$defs/PostMoveSettled",
             "quantity_set": "#/$defs/QuantitySet",
             "relationship_set": "#/$defs/RelationshipSet",
             "report_made": "#/$defs/ReportMade",
@@ -15022,6 +16591,7 @@
             "seat_created": "#/$defs/SeatCreated",
             "seat_handover": "#/$defs/SeatHandover",
             "seat_status_set": "#/$defs/SeatStatusSet",
+            "seats_redrawn": "#/$defs/SeatsRedrawn",
             "session_zero_closed": "#/$defs/SessionZeroClosed",
             "session_zero_opened": "#/$defs/SessionZeroOpened",
             "settings_set": "#/$defs/SettingsSet",
@@ -15260,7 +16830,46 @@
             "$ref": "#/$defs/AskAnswered"
           },
           {
+            "$ref": "#/$defs/OrderDefied"
+          },
+          {
+            "$ref": "#/$defs/IncidentOpened"
+          },
+          {
+            "$ref": "#/$defs/IncidentAnswered"
+          },
+          {
             "$ref": "#/$defs/MatterChosen"
+          },
+          {
+            "$ref": "#/$defs/OfferMade"
+          },
+          {
+            "$ref": "#/$defs/OfferSettled"
+          },
+          {
+            "$ref": "#/$defs/PostChanged"
+          },
+          {
+            "$ref": "#/$defs/LaddersDeclared"
+          },
+          {
+            "$ref": "#/$defs/PostMoveOrdered"
+          },
+          {
+            "$ref": "#/$defs/PostMoveSettled"
+          },
+          {
+            "$ref": "#/$defs/OfficeQuestionOpened"
+          },
+          {
+            "$ref": "#/$defs/OfficeChoiceFiled"
+          },
+          {
+            "$ref": "#/$defs/OfficeQuestionDecided"
+          },
+          {
+            "$ref": "#/$defs/SeatsRedrawn"
           },
           {
             "$ref": "#/$defs/PieceStepped"
@@ -15315,6 +16924,9 @@
           },
           {
             "$ref": "#/$defs/GroupProposed"
+          },
+          {
+            "$ref": "#/$defs/LossesHeld"
           },
           {
             "$ref": "#/$defs/AgreementOffered"
@@ -15456,6 +17068,15 @@
   },
   "state": {
     "$defs": {
+      "Act": {
+        "description": "An act a post's holder may attempt without leave: a closed list.",
+        "enum": [
+          "border",
+          "fire_first"
+        ],
+        "title": "Act",
+        "type": "string"
+      },
       "ActOf": {
         "additionalProperties": false,
         "description": "``person`` did their historical act. Met when no human plays them (history\nfollows the record); else only when an order that human filed has got there.",
@@ -17548,6 +19169,15 @@
         "title": "CardPath",
         "type": "string"
       },
+      "Cause": {
+        "description": "What an incident is about.",
+        "enum": [
+          "defied",
+          "refused"
+        ],
+        "title": "Cause",
+        "type": "string"
+      },
       "ChannelKind": {
         "description": "How words travel. Each trades speed against exposure (direction, channels table).",
         "enum": [
@@ -17652,6 +19282,16 @@
         ],
         "title": "CharacterSide",
         "type": "object"
+      },
+      "Class": {
+        "description": "How a kind of happening reaches the groups at home (HCL).",
+        "enum": [
+          "felt",
+          "reported",
+          "secret"
+        ],
+        "title": "Class",
+        "type": "string"
       },
       "Classification": {
         "enum": [
@@ -18583,6 +20223,85 @@
         "title": "Decision",
         "type": "string"
       },
+      "Defied": {
+        "additionalProperties": false,
+        "description": "A held order sent anyway: the held order, the order it landed as, its seat, the\nacts it does, and the day; the person who could have allowed it, the nation it is\ndone to when abroad, and the rule each force it sets a rule for held before. Sealed\nto the issuer's seat.",
+        "properties": {
+          "abroad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Abroad"
+          },
+          "acts": {
+            "items": {
+              "$ref": "#/$defs/Act"
+            },
+            "maxItems": 2,
+            "minItems": 1,
+            "title": "Acts",
+            "type": "array"
+          },
+          "issuer": {
+            "title": "Issuer",
+            "type": "string"
+          },
+          "kept": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Engagement"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Kept",
+            "type": "object"
+          },
+          "landed": {
+            "title": "Landed",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "superior": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Superior"
+          }
+        },
+        "required": [
+          "order_id",
+          "landed",
+          "issuer",
+          "acts",
+          "on"
+        ],
+        "title": "Defied",
+        "type": "object"
+      },
       "DevelopmentCategory": {
         "enum": [
           "technology",
@@ -18904,6 +20623,50 @@
         ],
         "title": "EffectKind",
         "type": "string"
+      },
+      "Election": {
+        "additionalProperties": false,
+        "description": "An election the world lists (ELE), with ``elections`` on: the nation, the chambers\nit redraws, its day, and the post whose term ends that day, if any. Engine only: the\npost's day is told by its office question's notice.",
+        "properties": {
+          "chambers": {
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Chambers",
+            "type": "array"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "post": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Post"
+          }
+        },
+        "required": [
+          "nation",
+          "chambers",
+          "day"
+        ],
+        "title": "Election",
+        "type": "object"
       },
       "Engagement": {
         "enum": [
@@ -19902,6 +21665,14 @@
             "title": "Name",
             "type": "string"
           },
+          "prices": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Price"
+            },
+            "title": "Prices",
+            "type": "array"
+          },
           "seats": {
             "anyOf": [
               {
@@ -20006,6 +21777,16 @@
         "additionalProperties": false,
         "description": "Groups' truth. A seat sees its own nation's part only.",
         "properties": {
+          "classes": {
+            "additionalProperties": {
+              "$ref": "#/$defs/KindClass"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Happening"
+            },
+            "title": "Classes",
+            "type": "object"
+          },
           "declared": {
             "additionalProperties": {
               "items": {
@@ -20015,6 +21796,41 @@
             },
             "title": "Declared",
             "type": "object"
+          },
+          "elections": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Election"
+            },
+            "title": "Elections",
+            "type": "array"
+          },
+          "held": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/HeldLoss"
+            },
+            "title": "Held",
+            "type": "array"
+          },
+          "left": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "format": "date",
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Left",
+            "type": "object"
+          },
+          "places": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Place"
+            },
+            "title": "Places",
+            "type": "array"
           },
           "proposed": {
             "default": [],
@@ -20080,7 +21896,12 @@
           "losses_at_sea",
           "agreement_broken",
           "measure_passed",
-          "war_declared"
+          "war_declared",
+          "daily_life_passed",
+          "battle_losses",
+          "place_lost",
+          "place_abandoned",
+          "place_retaken"
         ],
         "title": "Happening",
         "type": "string"
@@ -20121,6 +21942,59 @@
           "action"
         ],
         "title": "HeldChoice",
+        "type": "object"
+      },
+      "HeldLoss": {
+        "additionalProperties": false,
+        "description": "One day's losses of a nation in one battle as they move one of its groups (LSS):\nthe reported share, which landed that day, and the felt share, which lands over the\n``FELT_DAYS`` days after. ``ended``: the battle has ended, so no correction is still to\ncome. Engine only.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "ended": {
+            "default": false,
+            "title": "Ended",
+            "type": "boolean"
+          },
+          "felt": {
+            "title": "Felt",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "reported": {
+            "title": "Reported",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "polity",
+          "group",
+          "area",
+          "opened",
+          "on",
+          "reported",
+          "felt"
+        ],
+        "title": "HeldLoss",
         "type": "object"
       },
       "HeldOrder": {
@@ -20286,6 +22160,103 @@
           "office"
         ],
         "title": "HoldsOffice",
+        "type": "object"
+      },
+      "Incident": {
+        "additionalProperties": false,
+        "description": "An order sent anyway and carried out, or a step on an order from above refused:\nthe question on the commander before his superior, and, once given, its answer.\nSealed to the commander's seat and the superior's.",
+        "properties": {
+          "abroad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Abroad"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Answered"
+          },
+          "by_card": {
+            "default": false,
+            "title": "By Card",
+            "type": "boolean"
+          },
+          "cause": {
+            "$ref": "#/$defs/Cause"
+          },
+          "commander": {
+            "title": "Commander",
+            "type": "string"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          },
+          "incident_id": {
+            "maxLength": 60,
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "seats": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Seats",
+            "type": "array"
+          },
+          "superior": {
+            "title": "Superior",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Verdict"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "incident_id",
+          "order_id",
+          "cause",
+          "commander",
+          "superior",
+          "opened",
+          "due"
+        ],
+        "title": "Incident",
         "type": "object"
       },
       "IncomeAt": {
@@ -20584,6 +22555,31 @@
         "type": "object"
       },
       "JsonValue": {},
+      "KindClass": {
+        "additionalProperties": false,
+        "description": "The class the world gives a kind of happening (HCL), and the share of it that is\nfelt: 1 for a felt kind, 0 for a reported one unless the world gives a share, which\nmakes the kind mixed (that share felt, the rest reported). A secret kind has none.",
+        "properties": {
+          "felt": {
+            "default": 0.0,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Felt",
+            "type": "number"
+          },
+          "kind": {
+            "$ref": "#/$defs/Happening"
+          },
+          "reach": {
+            "$ref": "#/$defs/Class"
+          }
+        },
+        "required": [
+          "kind",
+          "reach"
+        ],
+        "title": "KindClass",
+        "type": "object"
+      },
       "Kinds": {
         "additionalProperties": false,
         "description": "The world's piece kinds and resources, by key, in the world file's order.",
@@ -20610,6 +22606,68 @@
           }
         },
         "title": "Kinds",
+        "type": "object"
+      },
+      "Ladder": {
+        "additionalProperties": false,
+        "description": "A post's ladder (LDR), with ``posts`` on: the lesser posts its holder can fall to,\nin order, and the posts whose holders may move him on their own order. Public: world\ndata, set once by ``ladders_declared``.",
+        "properties": {
+          "ladder": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Ladder",
+            "type": "array"
+          },
+          "moved_by": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 8,
+            "title": "Moved By",
+            "type": "array"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          },
+          "removed_by": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Removal"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "rests_on": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Rests On",
+            "type": "array"
+          },
+          "without_leave": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Act"
+            },
+            "maxItems": 2,
+            "title": "Without Leave",
+            "type": "array"
+          }
+        },
+        "required": [
+          "post"
+        ],
+        "title": "Ladder",
         "type": "object"
       },
       "Law": {
@@ -21542,6 +23600,82 @@
         "title": "NewsTopic",
         "type": "string"
       },
+      "OfferStanding": {
+        "description": "Where an offer stands.",
+        "enum": [
+          "filed",
+          "taken",
+          "refused",
+          "lapsed",
+          "due",
+          "kept",
+          "broken"
+        ],
+        "title": "OfferStanding",
+        "type": "string"
+      },
+      "OfficeQuestion": {
+        "additionalProperties": false,
+        "description": "An office question open on a post (OFQ): its cause, the day it opened and its\nsitting, dated ahead. It sits on ``sits`` or the first day after it in the walk of the\nsecond wake the seats told can act in. Told to every seat of the holder's nation.",
+        "properties": {
+          "cause": {
+            "$ref": "#/$defs/QuestionCause"
+          },
+          "holder": {
+            "title": "Holder",
+            "type": "string"
+          },
+          "move_id": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Move Id"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          },
+          "question_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Question Id",
+            "type": "string"
+          },
+          "sits": {
+            "format": "date",
+            "title": "Sits",
+            "type": "string"
+          },
+          "tick": {
+            "minimum": 0,
+            "title": "Tick",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "question_id",
+          "post",
+          "holder",
+          "cause",
+          "opened",
+          "tick",
+          "sits"
+        ],
+        "title": "OfficeQuestion",
+        "type": "object"
+      },
       "Order": {
         "additionalProperties": false,
         "properties": {
@@ -22146,6 +24280,38 @@
         "title": "Pipeline",
         "type": "object"
       },
+      "Place": {
+        "additionalProperties": false,
+        "description": "A place with political weight (PLW): a territory, the nation it matters to, and the\npoints each of that nation's groups moves when it is lost in a fight, signed.",
+        "properties": {
+          "moves": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Moves",
+            "type": "object"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "territory": {
+            "title": "Territory",
+            "type": "string"
+          }
+        },
+        "required": [
+          "territory",
+          "nation",
+          "moves"
+        ],
+        "title": "Place",
+        "type": "object"
+      },
       "Plausibility": {
         "enum": [
           "strict",
@@ -22213,6 +24379,193 @@
           "sea"
         ],
         "title": "Port",
+        "type": "object"
+      },
+      "Post": {
+        "additionalProperties": false,
+        "description": "A post that has changed hands, as the fold keeps it (PPP). Engine only.",
+        "properties": {
+          "holder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Holder"
+          },
+          "last": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Last"
+          },
+          "part": {
+            "$ref": "#/$defs/PostPart"
+          }
+        },
+        "required": [
+          "holder",
+          "part"
+        ],
+        "title": "Post",
+        "type": "object"
+      },
+      "PostMove": {
+        "additionalProperties": false,
+        "description": "A change of post ordered and waiting to land (LDR): the pending change. ``appoint``\nputs ``person`` in ``post``; a dismissal takes him off it. It lands at the close of the\nwake after ``wake``, the one it was ordered in. ``question``: it would take a seat's\nlast authority, so it is not done on order; it stands as the office question's cause\n(OFQ) and never lands by itself. Engine side: sealed to the seat of the person moved.",
+        "properties": {
+          "appoint": {
+            "default": true,
+            "title": "Appoint",
+            "type": "boolean"
+          },
+          "by": {
+            "title": "By",
+            "type": "string"
+          },
+          "move_id": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Move Id",
+            "type": "string"
+          },
+          "ordered": {
+            "format": "date",
+            "title": "Ordered",
+            "type": "string"
+          },
+          "person": {
+            "title": "Person",
+            "type": "string"
+          },
+          "post": {
+            "title": "Post",
+            "type": "string"
+          },
+          "question": {
+            "default": false,
+            "title": "Question",
+            "type": "boolean"
+          },
+          "seat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Seat"
+          },
+          "wake": {
+            "minimum": -1,
+            "title": "Wake",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "move_id",
+          "person",
+          "by",
+          "post",
+          "ordered",
+          "wake"
+        ],
+        "title": "PostMove",
+        "type": "object"
+      },
+      "PostPart": {
+        "additionalProperties": false,
+        "description": "The part of a card that goes with its post (PPP): the office's name, its powers,\nauthority, forms, pipelines and feeds, the bodies that answer its summons, whom it\nanswers to and its designated successor. The rest of the card is the person's own.\n[proposed]",
+        "properties": {
+          "authority": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/revisionist__core__realism__card__Domain"
+            },
+            "title": "Authority",
+            "type": "array"
+          },
+          "chain": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Chain",
+            "type": "array"
+          },
+          "feeds": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Feeds",
+            "type": "array"
+          },
+          "levers": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Lever"
+            },
+            "title": "Levers",
+            "type": "array"
+          },
+          "office": {
+            "default": "Without office",
+            "maxLength": 60,
+            "title": "Office",
+            "type": "string"
+          },
+          "pipelines": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Pipelines",
+            "type": "array"
+          },
+          "powers": {
+            "default": [],
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "title": "Powers",
+            "type": "array"
+          },
+          "principals": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Principals",
+            "type": "array"
+          },
+          "successor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Successor"
+          }
+        },
+        "title": "PostPart",
         "type": "object"
       },
       "Posture": {
@@ -22310,6 +24663,218 @@
           }
         },
         "title": "PostureNotSet",
+        "type": "object"
+      },
+      "Price": {
+        "additionalProperties": false,
+        "description": "One thing a bloc will take for its votes on a measure (PRC rule 1).",
+        "properties": {
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
+                "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
+                "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "days": {
+            "maximum": 366,
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "loss": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Loss",
+            "type": "integer"
+          },
+          "points": {
+            "maximum": 20,
+            "minimum": 1,
+            "title": "Points",
+            "type": "integer"
+          },
+          "sentence": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Sentence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "sentence",
+          "condition",
+          "days",
+          "points",
+          "loss"
+        ],
+        "title": "Price",
+        "type": "object"
+      },
+      "PricedOffer": {
+        "additionalProperties": false,
+        "description": "One seat's offer of one price to one bloc for one measure.",
+        "properties": {
+          "bill": {
+            "title": "Bill",
+            "type": "string"
+          },
+          "bloc": {
+            "maxLength": 60,
+            "title": "Bloc",
+            "type": "string"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due"
+          },
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "measure": {
+            "maxLength": 60,
+            "title": "Measure",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "offer_id": {
+            "maxLength": 60,
+            "title": "Offer Id",
+            "type": "string"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "On"
+          },
+          "price": {
+            "maxLength": 60,
+            "title": "Price",
+            "type": "string"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "string"
+          },
+          "standing": {
+            "$ref": "#/$defs/OfferStanding",
+            "default": "filed"
+          }
+        },
+        "required": [
+          "offer_id",
+          "seat",
+          "nation",
+          "bloc",
+          "measure",
+          "price",
+          "bill",
+          "filed"
+        ],
+        "title": "PricedOffer",
         "type": "object"
       },
       "Production": {
@@ -22533,6 +25098,18 @@
         "title": "Question",
         "type": "string"
       },
+      "QuestionCause": {
+        "description": "Why an office question opened (OFQ).",
+        "enum": [
+          "base",
+          "incident",
+          "order",
+          "term",
+          "election"
+        ],
+        "title": "QuestionCause",
+        "type": "string"
+      },
       "Reach": {
         "additionalProperties": false,
         "description": "What reach is derived from (spec \u00a78.1). Whether a meeting is taken is computed\nin code from rank, disposition and standing; nothing here is a whitelist.",
@@ -22689,6 +25266,100 @@
         ],
         "title": "Relationship",
         "type": "object"
+      },
+      "Removal": {
+        "additionalProperties": false,
+        "description": "How a post's holder is removed (OFQ): the way, and what it names. Public: world\ndata.",
+        "properties": {
+          "chamber": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Chamber"
+          },
+          "ends": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ends"
+          },
+          "members": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 24,
+            "title": "Members",
+            "type": "array"
+          },
+          "needed": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Needed",
+            "type": "integer"
+          },
+          "person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Person"
+          },
+          "vote": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Vote"
+          },
+          "way": {
+            "$ref": "#/$defs/RemovalWay"
+          }
+        },
+        "required": [
+          "way"
+        ],
+        "title": "Removal",
+        "type": "object"
+      },
+      "RemovalWay": {
+        "description": "How a post's holder is removed at the office question's sitting (OFQ).",
+        "enum": [
+          "vote",
+          "council",
+          "person",
+          "term",
+          "never"
+        ],
+        "title": "RemovalWay",
+        "type": "string"
       },
       "Report": {
         "additionalProperties": false,
@@ -23854,6 +26525,17 @@
             "title": "Opposes",
             "type": "array"
           },
+          "own": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/PostPart"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
           "path": {
             "$ref": "#/$defs/CardPath",
             "default": "political"
@@ -23883,6 +26565,18 @@
             "default": false,
             "title": "Playable",
             "type": "boolean"
+          },
+          "post": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Post"
           },
           "powers": {
             "default": [],
@@ -24977,6 +27671,16 @@
         "title": "Verb",
         "type": "string"
       },
+      "Verdict": {
+        "description": "How the person who could have allowed it answers an incident.",
+        "enum": [
+          "backed",
+          "disowned",
+          "dismissed"
+        ],
+        "title": "Verdict",
+        "type": "string"
+      },
       "Visibility": {
         "enum": [
           "public",
@@ -25540,6 +28244,13 @@
         "title": "Contests",
         "type": "object"
       },
+      "defied": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Defied"
+        },
+        "title": "Defied",
+        "type": "object"
+      },
       "divergence": {
         "default": 0,
         "minimum": 0,
@@ -25645,6 +28356,16 @@
         "default": null,
         "title": "In World Date"
       },
+      "incidents": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Incident"
+        },
+        "propertyNames": {
+          "maxLength": 60
+        },
+        "title": "Incidents",
+        "type": "object"
+      },
       "intelligence": {
         "additionalProperties": {
           "$ref": "#/$defs/Intelligence"
@@ -25662,6 +28383,13 @@
           }
         ],
         "default": null
+      },
+      "ladders": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Ladder"
+        },
+        "title": "Ladders",
+        "type": "object"
       },
       "last_seq": {
         "default": -1,
@@ -25719,6 +28447,47 @@
         "title": "News",
         "type": "object"
       },
+      "offers": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/PricedOffer"
+        },
+        "title": "Offers",
+        "type": "array"
+      },
+      "office_base_fell": {
+        "additionalProperties": {
+          "format": "date",
+          "type": "string"
+        },
+        "title": "Office Base Fell",
+        "type": "object"
+      },
+      "office_choices": {
+        "additionalProperties": {
+          "additionalProperties": {
+            "type": "boolean"
+          },
+          "type": "object"
+        },
+        "title": "Office Choices",
+        "type": "object"
+      },
+      "office_questions": {
+        "additionalProperties": {
+          "$ref": "#/$defs/OfficeQuestion"
+        },
+        "title": "Office Questions",
+        "type": "object"
+      },
+      "office_rests": {
+        "additionalProperties": {
+          "format": "date",
+          "type": "string"
+        },
+        "title": "Office Rests",
+        "type": "object"
+      },
       "opponents": {
         "additionalProperties": {
           "items": {
@@ -25768,6 +28537,20 @@
         "title": "Pipelines",
         "type": "object"
       },
+      "post_moves": {
+        "additionalProperties": {
+          "$ref": "#/$defs/PostMove"
+        },
+        "title": "Post Moves",
+        "type": "object"
+      },
+      "posts": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Post"
+        },
+        "title": "Posts",
+        "type": "object"
+      },
       "quantities": {
         "additionalProperties": {
           "$ref": "#/$defs/Quantity"
@@ -25780,6 +28563,13 @@
           "$ref": "#/$defs/Relationship"
         },
         "title": "Relationships",
+        "type": "object"
+      },
+      "replaced": {
+        "additionalProperties": {
+          "type": "string"
+        },
+        "title": "Replaced",
         "type": "object"
       },
       "reports": {
@@ -27400,6 +30190,18 @@
             "title": "Playable",
             "type": "boolean"
           },
+          "post": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Post"
+          },
           "powers": {
             "default": [],
             "items": {
@@ -27424,6 +30226,15 @@
           "military"
         ],
         "title": "CardPath",
+        "type": "string"
+      },
+      "Cause": {
+        "description": "What an incident is about.",
+        "enum": [
+          "defied",
+          "refused"
+        ],
+        "title": "Cause",
         "type": "string"
       },
       "ChannelKind": {
@@ -27530,6 +30341,16 @@
         ],
         "title": "CharacterSide",
         "type": "object"
+      },
+      "Class": {
+        "description": "How a kind of happening reaches the groups at home (HCL).",
+        "enum": [
+          "felt",
+          "reported",
+          "secret"
+        ],
+        "title": "Class",
+        "type": "string"
       },
       "Classification": {
         "enum": [
@@ -28522,6 +31343,18 @@
             "title": "Playable",
             "type": "boolean"
           },
+          "post": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Post"
+          },
           "powers": {
             "default": [],
             "items": {
@@ -28806,6 +31639,50 @@
         ],
         "title": "EffectKind",
         "type": "string"
+      },
+      "Election": {
+        "additionalProperties": false,
+        "description": "An election the world lists (ELE), with ``elections`` on: the nation, the chambers\nit redraws, its day, and the post whose term ends that day, if any. Engine only: the\npost's day is told by its office question's notice.",
+        "properties": {
+          "chambers": {
+            "items": {
+              "maxLength": 60,
+              "type": "string"
+            },
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Chambers",
+            "type": "array"
+          },
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "post": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Post"
+          }
+        },
+        "required": [
+          "nation",
+          "chambers",
+          "day"
+        ],
+        "title": "Election",
+        "type": "object"
       },
       "Engagement": {
         "enum": [
@@ -29456,6 +32333,14 @@
             "title": "Name",
             "type": "string"
           },
+          "prices": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Price"
+            },
+            "title": "Prices",
+            "type": "array"
+          },
           "seats": {
             "anyOf": [
               {
@@ -29526,6 +32411,16 @@
         "additionalProperties": false,
         "description": "Groups' truth. A seat sees its own nation's part only.",
         "properties": {
+          "classes": {
+            "additionalProperties": {
+              "$ref": "#/$defs/KindClass"
+            },
+            "propertyNames": {
+              "$ref": "#/$defs/Happening"
+            },
+            "title": "Classes",
+            "type": "object"
+          },
           "declared": {
             "additionalProperties": {
               "items": {
@@ -29535,6 +32430,41 @@
             },
             "title": "Declared",
             "type": "object"
+          },
+          "elections": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Election"
+            },
+            "title": "Elections",
+            "type": "array"
+          },
+          "held": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/HeldLoss"
+            },
+            "title": "Held",
+            "type": "array"
+          },
+          "left": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "format": "date",
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "title": "Left",
+            "type": "object"
+          },
+          "places": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/Place"
+            },
+            "title": "Places",
+            "type": "array"
           },
           "proposed": {
             "default": [],
@@ -29600,7 +32530,12 @@
           "losses_at_sea",
           "agreement_broken",
           "measure_passed",
-          "war_declared"
+          "war_declared",
+          "daily_life_passed",
+          "battle_losses",
+          "place_lost",
+          "place_abandoned",
+          "place_retaken"
         ],
         "title": "Happening",
         "type": "string"
@@ -29641,6 +32576,59 @@
           "action"
         ],
         "title": "HeldChoice",
+        "type": "object"
+      },
+      "HeldLoss": {
+        "additionalProperties": false,
+        "description": "One day's losses of a nation in one battle as they move one of its groups (LSS):\nthe reported share, which landed that day, and the felt share, which lands over the\n``FELT_DAYS`` days after. ``ended``: the battle has ended, so no correction is still to\ncome. Engine only.",
+        "properties": {
+          "area": {
+            "title": "Area",
+            "type": "string"
+          },
+          "ended": {
+            "default": false,
+            "title": "Ended",
+            "type": "boolean"
+          },
+          "felt": {
+            "title": "Felt",
+            "type": "integer"
+          },
+          "group": {
+            "maxLength": 60,
+            "title": "Group",
+            "type": "string"
+          },
+          "on": {
+            "format": "date",
+            "title": "On",
+            "type": "string"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "polity": {
+            "title": "Polity",
+            "type": "string"
+          },
+          "reported": {
+            "title": "Reported",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "polity",
+          "group",
+          "area",
+          "opened",
+          "on",
+          "reported",
+          "felt"
+        ],
+        "title": "HeldLoss",
         "type": "object"
       },
       "HeldOrder": {
@@ -29806,6 +32794,103 @@
           "office"
         ],
         "title": "HoldsOffice",
+        "type": "object"
+      },
+      "Incident": {
+        "additionalProperties": false,
+        "description": "An order sent anyway and carried out, or a step on an order from above refused:\nthe question on the commander before his superior, and, once given, its answer.\nSealed to the commander's seat and the superior's.",
+        "properties": {
+          "abroad": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Abroad"
+          },
+          "answered": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Answered"
+          },
+          "by_card": {
+            "default": false,
+            "title": "By Card",
+            "type": "boolean"
+          },
+          "cause": {
+            "$ref": "#/$defs/Cause"
+          },
+          "commander": {
+            "title": "Commander",
+            "type": "string"
+          },
+          "due": {
+            "format": "date",
+            "title": "Due",
+            "type": "string"
+          },
+          "incident_id": {
+            "maxLength": 60,
+            "title": "Incident Id",
+            "type": "string"
+          },
+          "opened": {
+            "format": "date",
+            "title": "Opened",
+            "type": "string"
+          },
+          "order_id": {
+            "title": "Order Id",
+            "type": "string"
+          },
+          "seats": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2,
+            "title": "Seats",
+            "type": "array"
+          },
+          "superior": {
+            "title": "Superior",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/Verdict"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "incident_id",
+          "order_id",
+          "cause",
+          "commander",
+          "superior",
+          "opened",
+          "due"
+        ],
+        "title": "Incident",
         "type": "object"
       },
       "IncomeAt": {
@@ -30021,6 +33106,31 @@
         "type": "object"
       },
       "JsonValue": {},
+      "KindClass": {
+        "additionalProperties": false,
+        "description": "The class the world gives a kind of happening (HCL), and the share of it that is\nfelt: 1 for a felt kind, 0 for a reported one unless the world gives a share, which\nmakes the kind mixed (that share felt, the rest reported). A secret kind has none.",
+        "properties": {
+          "felt": {
+            "default": 0.0,
+            "maximum": 1,
+            "minimum": 0,
+            "title": "Felt",
+            "type": "number"
+          },
+          "kind": {
+            "$ref": "#/$defs/Happening"
+          },
+          "reach": {
+            "$ref": "#/$defs/Class"
+          }
+        },
+        "required": [
+          "kind",
+          "reach"
+        ],
+        "title": "KindClass",
+        "type": "object"
+      },
       "Kinds": {
         "additionalProperties": false,
         "description": "The world's piece kinds and resources, by key, in the world file's order.",
@@ -30756,6 +33866,20 @@
         "title": "NationVote",
         "type": "object"
       },
+      "OfferStanding": {
+        "description": "Where an offer stands.",
+        "enum": [
+          "filed",
+          "taken",
+          "refused",
+          "lapsed",
+          "due",
+          "kept",
+          "broken"
+        ],
+        "title": "OfferStanding",
+        "type": "string"
+      },
       "Order": {
         "additionalProperties": false,
         "properties": {
@@ -31468,6 +34592,38 @@
         "title": "PieceKind",
         "type": "object"
       },
+      "Place": {
+        "additionalProperties": false,
+        "description": "A place with political weight (PLW): a territory, the nation it matters to, and the\npoints each of that nation's groups moves when it is lost in a fight, signed.",
+        "properties": {
+          "moves": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "minProperties": 1,
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "title": "Moves",
+            "type": "object"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "territory": {
+            "title": "Territory",
+            "type": "string"
+          }
+        },
+        "required": [
+          "territory",
+          "nation",
+          "moves"
+        ],
+        "title": "Place",
+        "type": "object"
+      },
       "Plausibility": {
         "enum": [
           "strict",
@@ -31632,6 +34788,218 @@
           }
         },
         "title": "PostureNotSet",
+        "type": "object"
+      },
+      "Price": {
+        "additionalProperties": false,
+        "description": "One thing a bloc will take for its votes on a measure (PRC rule 1).",
+        "properties": {
+          "condition": {
+            "discriminator": {
+              "mapping": {
+                "act_of": "#/$defs/ActOf",
+                "agreement_in_force": "#/$defs/AgreementInForce",
+                "all_of": "#/$defs/AllOf",
+                "any_of": "#/$defs/AnyOf",
+                "at_war": "#/$defs/AtWar",
+                "commitment_in_force": "#/$defs/CommitmentInForce",
+                "contest_won": "#/$defs/ContestWon",
+                "controls_asset": "#/$defs/ControlsAsset",
+                "disposition_at": "#/$defs/DispositionAt",
+                "entity_is": "#/$defs/EntityIs",
+                "holds_area": "#/$defs/HoldsArea",
+                "holds_office": "#/$defs/HoldsOffice",
+                "income_at": "#/$defs/IncomeAt",
+                "meter_at": "#/$defs/MeterAt",
+                "ordered": "#/$defs/Ordered",
+                "quantity_at": "#/$defs/QuantityAt",
+                "regard_at": "#/$defs/RegardAt",
+                "support_at": "#/$defs/SupportAt"
+              },
+              "propertyName": "check"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/HoldsOffice"
+              },
+              {
+                "$ref": "#/$defs/ControlsAsset"
+              },
+              {
+                "$ref": "#/$defs/EntityIs"
+              },
+              {
+                "$ref": "#/$defs/MeterAt"
+              },
+              {
+                "$ref": "#/$defs/CommitmentInForce"
+              },
+              {
+                "$ref": "#/$defs/DispositionAt"
+              },
+              {
+                "$ref": "#/$defs/ActOf"
+              },
+              {
+                "$ref": "#/$defs/Ordered"
+              },
+              {
+                "$ref": "#/$defs/QuantityAt"
+              },
+              {
+                "$ref": "#/$defs/HoldsArea"
+              },
+              {
+                "$ref": "#/$defs/IncomeAt"
+              },
+              {
+                "$ref": "#/$defs/SupportAt"
+              },
+              {
+                "$ref": "#/$defs/AgreementInForce"
+              },
+              {
+                "$ref": "#/$defs/ContestWon"
+              },
+              {
+                "$ref": "#/$defs/AtWar"
+              },
+              {
+                "$ref": "#/$defs/RegardAt"
+              },
+              {
+                "$ref": "#/$defs/AllOf"
+              },
+              {
+                "$ref": "#/$defs/AnyOf"
+              }
+            ],
+            "title": "Condition"
+          },
+          "days": {
+            "maximum": 366,
+            "minimum": 1,
+            "title": "Days",
+            "type": "integer"
+          },
+          "key": {
+            "maxLength": 60,
+            "title": "Key",
+            "type": "string"
+          },
+          "loss": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Loss",
+            "type": "integer"
+          },
+          "points": {
+            "maximum": 20,
+            "minimum": 1,
+            "title": "Points",
+            "type": "integer"
+          },
+          "sentence": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Sentence",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "sentence",
+          "condition",
+          "days",
+          "points",
+          "loss"
+        ],
+        "title": "Price",
+        "type": "object"
+      },
+      "PricedOffer": {
+        "additionalProperties": false,
+        "description": "One seat's offer of one price to one bloc for one measure.",
+        "properties": {
+          "bill": {
+            "title": "Bill",
+            "type": "string"
+          },
+          "bloc": {
+            "maxLength": 60,
+            "title": "Bloc",
+            "type": "string"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Due"
+          },
+          "filed": {
+            "format": "date",
+            "title": "Filed",
+            "type": "string"
+          },
+          "measure": {
+            "maxLength": 60,
+            "title": "Measure",
+            "type": "string"
+          },
+          "nation": {
+            "title": "Nation",
+            "type": "string"
+          },
+          "offer_id": {
+            "maxLength": 60,
+            "title": "Offer Id",
+            "type": "string"
+          },
+          "on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "On"
+          },
+          "price": {
+            "maxLength": 60,
+            "title": "Price",
+            "type": "string"
+          },
+          "seat": {
+            "title": "Seat",
+            "type": "string"
+          },
+          "standing": {
+            "$ref": "#/$defs/OfferStanding",
+            "default": "filed"
+          }
+        },
+        "required": [
+          "offer_id",
+          "seat",
+          "nation",
+          "bloc",
+          "measure",
+          "price",
+          "bill",
+          "filed"
+        ],
+        "title": "PricedOffer",
         "type": "object"
       },
       "Production": {
@@ -33414,6 +36782,16 @@
         "title": "Verb",
         "type": "string"
       },
+      "Verdict": {
+        "description": "How the person who could have allowed it answers an incident.",
+        "enum": [
+          "backed",
+          "disowned",
+          "dismissed"
+        ],
+        "title": "Verdict",
+        "type": "string"
+      },
       "Visibility": {
         "enum": [
           "public",
@@ -34003,6 +37381,16 @@
         "default": null,
         "title": "In World Date"
       },
+      "incidents": {
+        "additionalProperties": {
+          "$ref": "#/$defs/Incident"
+        },
+        "propertyNames": {
+          "maxLength": 60
+        },
+        "title": "Incidents",
+        "type": "object"
+      },
       "kinds": {
         "anyOf": [
           {
@@ -34057,6 +37445,14 @@
         },
         "title": "Meters",
         "type": "object"
+      },
+      "offers": {
+        "default": [],
+        "items": {
+          "$ref": "#/$defs/PricedOffer"
+        },
+        "title": "Offers",
+        "type": "array"
       },
       "orders": {
         "additionalProperties": {

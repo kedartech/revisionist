@@ -557,3 +557,56 @@ def test_a_digest_goes_once_a_day_and_a_failed_send_is_not_marked(
         assert notice.send_digest(conn, box, "op@example.test", DAY, {}) is False
     (line,) = sent(outbox)
     assert line["to"] == "op@example.test" and line["subject"].startswith("Revisionist: 4 reports")
+
+
+# --- OFR rule 4: the office question in the notice -------------------------------------
+
+
+BY_ILSE = {"by": "person", "person": "ilse"}
+"""Ilse decides; Kara, the holder, is the one put to the question."""
+
+
+def _office_text(g: Any, who: Any) -> str:
+    from tests.test_due_matters import opened
+    from tests.test_office_question import seat_of
+
+    return notice.compose(opened(g.state), seat_of(g.state, who), None, GAME)[1]
+
+
+def test_the_notice_tells_the_holder_and_each_member_that_the_question_is_open() -> None:
+    """[proposed] wording: the holder is told her place is put to the question, each member
+    that he is to choose whether the holder stays."""
+    import tempfile
+
+    from tests.test_office_question import office_on, sitting
+    from tests.test_posts import ILSE, KARA, TOMAS
+
+    with tempfile.TemporaryDirectory() as tmp:
+        g = sitting(Path(tmp), office_on(BY_ILSE))
+        before = {w: _office_text(g, w) for w in (KARA, ILSE, TOMAS)}
+        g.ask()
+        post = "General of the Norra Levy"
+        assert f"Your place as {post} is put to the office question" in _office_text(g, KARA)
+        assert f"You are to choose, at the office question on {post}, whether" in _office_text(
+            g, ILSE
+        )
+        assert _office_text(g, TOMAS) == before[TOMAS]  # another nation's seat: no line
+
+
+def test_the_notice_says_when_the_sitting_is_near_and_never_the_choice_filed() -> None:
+    import tempfile
+
+    from tests.test_office_question import office_on, sitting
+    from tests.test_posts import ILSE, KARA, TOMAS
+
+    with tempfile.TemporaryDirectory() as tmp:
+        g = sitting(Path(tmp), office_on(BY_ILSE))
+        g.ask()
+        g.tick()  # the sitting, ten days on, is now inside the next wake
+        near = "The office question on General of the Norra Levy may sit when this wake closes"
+        for who in (KARA, ILSE):
+            assert near in _office_text(g, who)
+        assert near not in _office_text(g, TOMAS)
+        before = {w: _office_text(g, w) for w in (KARA, ILSE)}
+        g.choose(ILSE, True)
+        assert {w: _office_text(g, w) for w in (KARA, ILSE)} == before

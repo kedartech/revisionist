@@ -8,8 +8,9 @@ words. The ``check`` action answers, for a draft order, what filing it now would
 the filing itself (``realism_tick.form_filing``, ``realism_tick.written_filing``) on the
 game as it stands and logs nothing, so the check and the filing cannot differ. The lock
 the filing reads is ``locks.seen_lock``: a lock whose condition turns on a fact the seat
-cannot see holds nothing, so such an order checks as allowed. Nothing here makes a
-model call.
+cannot see holds nothing, so such an order checks as allowed. A draft offer to a bloc
+(PRR) is checked by the filing's own rule (``offers.offer``): allowed, or its refusal.
+Nothing here makes a model call.
 """
 
 from collections.abc import Sequence
@@ -17,9 +18,10 @@ from collections.abc import Sequence
 from revisionist.core import events as ev
 from revisionist.core.ids import CampaignId, EntityId, FeatureId, OrderId, SeatId, derived_id
 from revisionist.core.project import project
-from revisionist.core.realism import locks, territory
+from revisionist.core.realism import ladder, locks, offers, territory
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.card import words
+from revisionist.core.realism.effect import Appointment, RoutedOrder
 from revisionist.core.realism.resolvers.movement import FORCE
 from revisionist.core.state import State, View
 from revisionist.core.world_compile import object_id
@@ -31,6 +33,7 @@ from revisionist.engine.web.realism_api import (
     HeldLine,
     LockCheck,
     LocksBlock,
+    OfferCheck,
 )
 
 ASK_DUE = "when you choose"  # [proposed]
@@ -164,7 +167,78 @@ def check_asks(state: State, seat: SeatId, asks: Sequence[Ask]) -> LockCheck:
         _, filed = realism_tick.written_filing(state, seat, asks)
     except ValueError as exc:
         return _beyond(str(exc))
-    return _locked(state, seat, filed) if isinstance(filed, locks.HeldOrder) else ALLOWED
+    if isinstance(filed, locks.HeldOrder):
+        return _locked(state, seat, filed)
+    return _moves(state, filed) if ladder.on(state) else ALLOWED
+
+
+QUESTION = "It would open the office question."  # [proposed]
+"""The check's words for a move of post that would take a seat's last authority (PPR)."""
+
+
+def _moves(state: State, filed: RoutedOrder) -> LockCheck:
+    """With ``posts`` on, a filed move of post that would take a seat's last authority
+    goes out and waits for the office question (PPR)."""
+    for part in filed.parts:
+        effect = part.effect
+        if not isinstance(effect, Appointment):
+            continue
+        post = ladder.post_named(state, effect.office)
+        if post is not None and ladder.takes_last(state, effect.person, post, effect.appoint):
+            return LockCheck(check="question", who=None, reason=QUESTION)
+    return ALLOWED
+
+
+NO_POST = "There is no such post."  # [proposed]
+NO_PERSON = "There is no such person."  # [proposed]
+MOVES = ("appoint", "relieve", "restore")
+
+
+def move_ask(state: State, seat: SeatId, person: str, post: str, move: str) -> Ask:
+    """The written order a move of post is: appoint or restore ``person`` to ``post``, or
+    relieve him of it. Raises ``ValueError`` in the seat's words for a post the ladder
+    does not hold or a person the seat does not know."""
+    found = ladder.post_named(state, post) if move in MOVES else None
+    if found is None:
+        raise ValueError(NO_POST)
+    who = project(state, seat).entities.get(EntityId(person))
+    if who is None or who.entity_id not in state.cards:
+        raise ValueError(NO_PERSON)
+    office = state.assets[found].name
+    verb = {"appoint": "Appoint", "relieve": "Relieve", "restore": "Restore"}[move]
+    words = (
+        f"{verb} {who.name}: {office}" if move != "relieve" else f"Relieve {who.name} of {office}"
+    )
+    effect = Appointment(person=who.entity_id, office=office, appoint=move != "relieve")
+    return Ask(ask=words, effect=effect)
+
+
+def check_move(state: State, seat: SeatId, person: str, post: str, move: str) -> LockCheck:
+    """What filing the move of post would do now, as the written order it is (PPR):
+    allowed; locked, with who decides; beyond, with the refusal; or the office question.
+    Logs nothing."""
+    try:
+        ask = move_ask(state, seat, person, post, move)
+    except ValueError as exc:
+        return _beyond(str(exc))
+    return check_asks(state, seat, (ask,))
+
+
+def check_offer(state: State, seat: SeatId, bloc: str, measure: str, key: str) -> LockCheck:
+    """What filing the seat's draft offer of price ``key`` to ``bloc`` for ``measure``
+    would do now (PRR rule 4): allowed, with each vote of the measure counted as it would
+    stand with the offer landed (PRB rule 2), or refused in the words filing gives. No
+    lock holds an offer. Logs nothing."""
+    today = state.in_world_date
+    if today is None:
+        return _beyond(offers.NOT_ON)
+    from revisionist.engine.web import home_api
+
+    try:
+        stands = home_api.would_stand(state, seat, bloc, measure, key)
+    except offers.OffersError as exc:
+        return _beyond(str(exc))
+    return OfferCheck(**ALLOWED, stands=stands)
 
 
 def ask_label(state: State, seat: SeatId, order_id: str) -> str:
@@ -191,5 +265,6 @@ __all__ = [
     "block",
     "check_asks",
     "check_form",
+    "check_offer",
     "who",
 ]

@@ -124,6 +124,7 @@ SEALED_BY_COMMIT = frozenset(
         "ask",
         "offer",
         "move",
+        "office-vote",
     }
 )
 """Actions that file or change an order, or answer another seat's request: held for the
@@ -191,6 +192,7 @@ REALISM_ACTIONS = (
     "aim-check",
     "aim-set",
     "offer",
+    "office-vote",
 )
 """Every ``/api/realism/<action>``: ``App.realism`` answers any other as no such call."""
 
@@ -667,6 +669,9 @@ class App:
                 elif action == "conference-vote":
                     args, _ = conferences_api.vote_args(state, seat, body)
                     reply = conferences_api.vote(store, cid, seat, args)
+                elif action == "office-vote":
+                    args, _ = agenda_api.office_vote_args(state, seat, body)
+                    reply = agenda_api.office_vote(store, cid, seat, args)
                 elif action == "offer":
                     priced = realism_tick.make_offer(store, cid, seat, *_offer_args(body))
                     reply = home_api.offered(state, priced)
@@ -1258,6 +1263,8 @@ def _held_args(
         return conferences_api.call_args(state, seat, body)
     if action == "conference-vote":
         return conferences_api.vote_args(state, seat, body)
+    if action == "office-vote":
+        return agenda_api.office_vote_args(state, seat, body)
     if action == "ask":
         order_id = _text(body, "order_id", 64)
         return {"order_id": order_id}, locks_api.ask_label(state, seat, order_id)

@@ -25,21 +25,26 @@ threat its area shows on the seat's map.
 """
 
 from collections.abc import Iterable, Sequence
-from typing import Literal
+from datetime import date, timedelta
+from typing import Literal, cast
 
 from revisionist.core import events as ev
 from revisionist.core.events import Event
 from revisionist.core.fold import replay
-from revisionist.core.ids import EntityId, SeatId
+from revisionist.core.ids import EntityId, OrderId, SeatId
 from revisionist.core.ontology import Controller, EntityKind
 from revisionist.core.project import project
-from revisionist.core.realism import groups, offers
+from revisionist.core.realism import elections, groups, offers, office, posts
 from revisionist.core.realism.pipeline import Order, OrderStatus
 from revisionist.core.realism.resolvers import resolver_for, votes
-from revisionist.core.state import State, View
+from revisionist.core.state import QuestionCause, RemovalWay, State, View
 from revisionist.engine.web import economy_api
 from revisionist.engine.web.realism_api import (
+    BaseUnder,
     BlocCount,
+    ElectionAhead,
+    ElectionBloc,
+    ElectionChamber,
     FloorBloc,
     FloorChamber,
     FloorVote,
@@ -57,6 +62,9 @@ from revisionist.engine.web.realism_api import (
     OfferMeasure,
     OfferPrice,
     OfferPromise,
+    OfficeCount,
+    OfficeQuestionLine,
+    OfficeWay,
     OpenMeasure,
     StandingVote,
 )
@@ -460,13 +468,115 @@ def would_stand(
     ]
 
 
+def _office(state: State, view: View, own: EntityId) -> list[OfficeQuestionLine]:
+    """Each office question open on a post of ``own``'s nation, as every seat of it sees
+    it: the body's count as it falls today, never another member's choice. The seat's own
+    choice is its own to see."""
+    out: list[OfficeQuestionLine] = []
+    for q in office.questions(state, own):
+        way = office.removal(state, q.post)
+        if way is None:
+            continue
+        who = office.deciders(state, q)
+        voted = q.cause is not QuestionCause.ELECTION and way.way is RemovalWay.VOTE
+        count = None
+        if voted and way.chamber is not None and way.vote is not None:
+            yeas, nays = votes.bloc_tally(
+                state, own, way.chamber, office.MEASURE, way.vote, OrderId(q.question_id)
+            )
+            count = OfficeCount(yeas=yeas, nays=nays)
+        mine = view.me.embodies in who
+        out.append(
+            OfficeQuestionLine(
+                question_id=q.question_id,
+                office=state.assets[q.post].name,
+                holder=state.entities[q.holder].name,
+                cause=q.cause.value,
+                sits=q.sits.isoformat(),
+                way="election"
+                if q.cause is QuestionCause.ELECTION
+                else cast(OfficeWay, way.way.value),
+                chamber=way.chamber if voted else None,
+                deciders=[state.entities[m].name for m in who],
+                mine=mine,
+                choice=state.office_choices.get(q.question_id, {}).get(view.viewer)
+                if mine
+                else None,
+                count=count,
+            )
+        )
+    return out
+
+
+def _turning(state: State, view: View, today: date) -> list[BaseUnder]:
+    """Each post the seat's person holds whose base stands under its line, with no
+    question yet open on it: how far under, for how long, and the day one would open."""
+    out: list[BaseUnder] = []
+    for post, fell in office.base_fell(state, today).items():
+        mean = office.base_support(state, post)
+        if (
+            mean is None
+            or posts.holder(state, post) != view.me.embodies
+            or office.removal(state, post) is None
+            or office.open_on(state, post) is not None
+        ):
+            continue
+        out.append(
+            BaseUnder(
+                office=state.assets[post].name,
+                groups=[g.name for g in office.base(state, post)],
+                support=round(mean, 1),
+                line=office.TURN_LINE,
+                under=round(office.TURN_LINE - mean, 1),
+                days=(today - fell).days + 1,
+                opens=(fell + timedelta(days=office.TURN_DAYS - 1)).isoformat(),
+            )
+        )
+    return out
+
+
+def _elections(state: State, own: EntityId, today: date) -> list[ElectionAhead]:
+    """Each election of ``own``'s nation not yet held, by day, with each chamber's seats
+    as they would be redrawn today."""
+    ahead = sorted(
+        (e for e in state.groups.elections if e.nation == own and e.day >= today),
+        key=lambda e: e.day,
+    )
+    out: list[ElectionAhead] = []
+    for e in ahead:
+        chambers: list[ElectionChamber] = []
+        for chamber in e.chambers:
+            drawn = elections.redrawn(state, own, chamber)
+            chambers.append(
+                ElectionChamber(
+                    key=chamber,
+                    blocs=[
+                        ElectionBloc(
+                            group=g.key, name=g.name, seats=g.seats or 0, would=drawn[g.key]
+                        )
+                        for g in elections.blocs(state, own, chamber)
+                    ],
+                )
+            )
+        out.append(
+            ElectionAhead(
+                day=e.day.isoformat(),
+                office=state.assets[e.post].name if e.post is not None else None,
+                chambers=chambers,
+            )
+        )
+    return out
+
+
 def block(
     state: State, view: View, events: Iterable[Event] = (), areas: Sequence[MapArea] = ()
 ) -> HomeBlock | None:
     """The ``home`` block with ``groups`` on: the seat's own nation's groups, its chambers
     with the seat's open measures counted by bloc, its themes, its standing as a figure,
     and every nation's standing as a band; with ``offers`` on, each measure on its way with
-    what its blocs would take, and the seat's own promises. The groups, chambers, themes
+    what its blocs would take, and the seat's own promises; with ``office`` on, the office
+    questions open in its own nation and the posts it holds whose base has turned; with
+    ``elections`` on, its nation's elections ahead. The groups, chambers, themes
     and offers are read from the seat's ``View``, which holds its own nation's and no
     other's. ``areas`` are the seat's map areas, which mark a threatened place. None with
     the rule off and for a seat of no nation."""
@@ -507,4 +617,9 @@ def block(
     if offers.on(state):
         out["offers"] = _on_offer(state, view, own)
         out["promises"] = promises(view)
+    if office.on(state):
+        out["office"] = _office(state, view, own)
+        out["turning"] = _turning(state, view, today)
+    if elections.on(state):
+        out["elections"] = _elections(state, own, today)
     return out

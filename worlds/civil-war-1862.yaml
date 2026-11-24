@@ -1,0 +1,1246 @@
+# The Civil War on 1 September 1862, written from worlds/TEMPLATE.md.
+#
+# The two nations stand as they stood on the start date: the United States and the
+# Confederate States, each holding the states that had kept to it or left it. A state the
+# armies of the other side occupied in part (Tennessee, Louisiana, Virginia's west) is held
+# by the nation it belonged to that day; a territory has one holder, so occupation inside a
+# territory is a finding against the template, not a rule here. Forces raised by the states
+# and a nation that broke in two are parked (the item's Unclear line).
+#
+# Every territory outside the two nations is held by its start-date holder, a nation nobody
+# plays, tagged with its standing to the war. A map territory that joins the lands of
+# several holders (Central America, the German States, China and the rest) stands with no
+# holder: that is a finding too.
+#
+# Forces are tiers, not counts. Every tier, yield, support figure and seat count is
+# [proposed] and the row carries gap: true until a source gives it. A person is named only
+# with a source; each person's source sits in the dossier (worlds/dossiers/civil-war-1862.yaml).
+# The sources below have not been checked against a copy in this item: verified is false.
+world: civil-war-1862
+name: The Civil War
+ruleset: realism
+start: "North America, 1 September 1862"
+start_date: 1862-09-01
+
+# The season ends on 15 December 1862 (the item's default). [proposed]
+settings: {end_date: 1862-12-15}
+
+# Every rule but the playable rule (its report goes to Josh first), the three a live model
+# reads (writing, clause_reader, written_orders), and the three no code reads yet (aide_note,
+# peace, post_view): a shipped world names a rule once its reader is built.
+rules: [territories, holders, economy, supply, fuel, battles, reports, groups, agreements, conference, contests, aims, aid, command, locks, laws, ask_answers, deciders, own_aim, offers, classes, losses, places, posts, office, elections, defiance]
+
+entities:
+  # The two nations nobody can leave out. source: mcpherson_1988
+  - {key: usa, kind: polity, name: The United States, tags: [union, standing_at_war], capital: washington}
+  - {key: csa, kind: polity, name: The Confederate States, tags: [confederacy, standing_at_war], capital: richmond}
+  # Start-date holders of the territories abroad: nations nobody plays, each with its
+  # standing to the war. Britain and France proclaimed neutrality in May and June 1861 and
+  # recognised the Confederacy as a belligerent, not as a nation (jones_2010). Russia stood
+  # friendly to the Union (jones_2010). Mexico was at war with France from April 1862 and
+  # took no side in the American war (jones_2010). Denmark, Austria, the Ottoman Empire and
+  # Japan took no part: [proposed], gap.
+  - {key: uk, kind: polity, name: The United Kingdom, tags: [standing_neutral, belligerent_rights_granted]}
+  - {key: french_empire, kind: polity, name: France, tags: [standing_neutral, belligerent_rights_granted]}
+  - {key: russia, kind: polity, name: The Russian Empire, tags: [standing_friendly_to_union]}
+  - {key: mexican_republic, kind: polity, name: Mexico, tags: [standing_neutral, at_war_with_france]}
+  - {key: denmark, kind: polity, name: Denmark, tags: [standing_none]}
+  - {key: austrian_empire, kind: polity, name: The Austrian Empire, tags: [standing_none]}
+  - {key: ottoman, kind: polity, name: The Ottoman Empire, tags: [standing_none]}
+  - {key: japan_shogunate, kind: polity, name: Japan, tags: [standing_none]}
+
+  # People: real ones only, each with a source in the dossier.
+  # The United States. Lincoln, Hamlin, Seward, Chase, Stanton and Welles held their posts on
+  # the start date (mcpherson_1988). Halleck had been general-in-chief since 23 July 1862
+  # (mcpherson_1988). McClellan commanded the Army of the Potomac, Buell the Army of the Ohio
+  # (mcpherson_1988). Farragut commanded the West Gulf Blockading Squadron and Du Pont the
+  # South Atlantic (ors_navies).
+  - {key: lincoln, kind: person, name: Abraham Lincoln, parent: usa}
+  - {key: hamlin, kind: person, name: Hannibal Hamlin, parent: usa}
+  - {key: seward, kind: person, name: William H. Seward, parent: usa}
+  - {key: chase, kind: person, name: Salmon P. Chase, parent: usa}
+  - {key: stanton, kind: person, name: Edwin M. Stanton, parent: usa}
+  - {key: welles, kind: person, name: Gideon Welles, parent: usa}
+  - {key: halleck, kind: person, name: Henry W. Halleck, parent: usa, tags: [chief_of_staff]}
+  - {key: mcclellan, kind: person, name: George B. McClellan, parent: usa}
+  - {key: buell, kind: person, name: Don Carlos Buell, parent: usa}
+  - {key: farragut, kind: person, name: David G. Farragut, parent: usa}
+  - {key: du_pont, kind: person, name: Samuel F. Du Pont, parent: usa}
+  # The Confederate States. Davis, Stephens, Benjamin (State, from March 1862), Randolph
+  # (War, March to November 1862), Mallory and Memminger held their posts on the start date
+  # (mcpherson_1988). Lee commanded the Army of Northern Virginia from 1 June 1862, Bragg the
+  # army that left Chattanooga for Kentucky on 28 August, Kirby Smith the column that took
+  # Lexington, Kentucky, at the start of September (mcpherson_1988).
+  - {key: davis, kind: person, name: Jefferson Davis, parent: csa}
+  - {key: stephens, kind: person, name: Alexander H. Stephens, parent: csa}
+  - {key: benjamin, kind: person, name: Judah P. Benjamin, parent: csa}
+  - {key: randolph, kind: person, name: George W. Randolph, parent: csa, tags: [chief_of_staff]}
+  - {key: mallory, kind: person, name: Stephen R. Mallory, parent: csa}
+  - {key: memminger, kind: person, name: Christopher G. Memminger, parent: csa}
+  - {key: lee, kind: person, name: Robert E. Lee, parent: csa}
+  - {key: bragg, kind: person, name: Braxton Bragg, parent: csa}
+  - {key: kirby_smith, kind: person, name: Edmund Kirby Smith, parent: csa}
+
+  # Places: the two capitals the map names as sites, and the places the forces stand. A
+# port on the coarse map is moved inland until it lies inside its territory.
+  - {key: washington, kind: location, name: Washington, at: [38.8951, -77.0364], within: maryland, port_on: chesapeake}
+  - {key: richmond, kind: location, name: Richmond, at: [37.5407, -77.4360], within: virginia, port_on: chesapeake}
+  - {key: fort_monroe, kind: location, name: Fort Monroe, at: [37.0, -76.36], within: virginia, port_on: chesapeake, base: {sides: [usa], domains: [sea, land]}}
+  - {key: port_royal, kind: location, name: Port Royal, at: [32.2, -80.73], within: south_carolina, port_on: south_atlantic_coast, base: {sides: [usa], domains: [sea, land]}}
+  - {key: key_west, kind: location, name: Key West, at: [24.5551, -81.78], within: florida, port_on: florida_straits, base: {sides: [usa], domains: [sea]}}
+  - {key: new_orleans, kind: location, name: New Orleans, at: [29.9511, -90.0715], within: louisiana, port_on: western_gulf, base: {sides: [usa], domains: [sea, land]}}
+  - {key: cairo, kind: location, name: Cairo, at: [37.1, -89.18], within: illinois, port_on: mississippi_river, base: {sides: [usa], domains: [sea, land]}}
+  - {key: halifax, kind: location, name: Halifax, at: [44.65, -63.63], within: british_north_america, port_on: northern_waters, base: {sides: [uk], domains: [sea]}}
+  - {key: veracruz, kind: location, name: Veracruz, at: [19.1738, -96.1342], within: mexico, port_on: western_gulf, base: {sides: [french_empire], domains: [sea]}}
+  - {key: manassas, kind: location, name: Manassas, at: [38.7509, -77.4753], within: virginia}
+  - {key: nashville, kind: location, name: Nashville, at: [36.1627, -86.7816], within: tennessee}
+  - {key: chattanooga, kind: location, name: Chattanooga, at: [35.0456, -85.3097], within: tennessee}
+  - {key: lexington_ky, kind: location, name: Lexington, at: [38.0406, -84.5037], within: kentucky}
+
+# The areas and borders are the map's, copied from worlds/maps/civil-war-1862.world.yaml
+# unchanged; only holders, yields and citations are added here.
+map: {coords: lonlat, file: civil-war-1862.json, sha256: 1b4d10c926637a30fbda1128b03c5319265fa4509afdec7c21a903724ef73d73, box: [-180, -60, 180, 84]}
+
+# Terrain kinds the map names. Defence values are [proposed].
+terrain:
+  - {key: plain, kind: land}
+  - {key: forest, kind: land, defence: 1}
+  - {key: marsh, kind: land, defence: 1}
+  - {key: mountain, kind: land, defence: 2}
+  - {key: sea, kind: sea}
+  - {key: river, kind: sea}
+
+regions:
+  - {key: eastern_theatre, name: The Eastern Theatre}
+  - {key: western_theatre, name: The Western Theatre}
+  - {key: the_coast, name: The Coast and the River}
+  - {key: the_world, name: The World Beyond}
+
+# Holders follow the states' allegiance on the start date (mcpherson_1988): the border
+# states and the West with the Union; the eleven seceded states with the Confederacy. The
+# Indian Territory is held by the Confederacy by its 1861 treaties with the nations there
+# (mcpherson_1988); New Mexico and Arizona by the Union after Glorieta Pass. Every yield is
+# [proposed]: a row carries one citation, so the row is gap: true while its yields are.
+territories:
+  - {key: new_england, name: New England, region: eastern_theatre, terrain: forest, holder: usa, yields: {output: 4, manpower: 3, coal: 1, roads: 2, standing: 1}, gap: true}
+  - {key: new_york, name: New York, region: eastern_theatre, terrain: forest, holder: usa, yields: {output: 5, manpower: 4, coal: 1, roads: 2, standing: 1}, gap: true}
+  - {key: new_jersey, name: New Jersey, region: eastern_theatre, terrain: plain, holder: usa, yields: {output: 2, manpower: 1, coal: 0, roads: 1, standing: 0}, gap: true}
+  - {key: pennsylvania, name: Pennsylvania, region: eastern_theatre, terrain: mountain, holder: usa, yields: {output: 4, manpower: 3, coal: 3, roads: 2, standing: 1}, gap: true}
+  - {key: maryland, name: 'Maryland, Delaware and Washington', region: eastern_theatre, terrain: plain, holder: usa, sites: [washington], yields: {output: 1, manpower: 1, coal: 0, roads: 1, standing: 2}, gap: true}
+  - {key: virginia, name: Virginia, region: eastern_theatre, terrain: forest, holder: csa, sites: [richmond], yields: {output: 2, manpower: 2, coal: 1, roads: 1, standing: 2}, gap: true}
+  - {key: north_carolina, name: North Carolina, region: eastern_theatre, terrain: forest, holder: csa, yields: {output: 1, manpower: 2, coal: 0, roads: 1, standing: 0}, gap: true}
+  - {key: south_carolina, name: South Carolina, region: eastern_theatre, terrain: marsh, holder: csa, yields: {output: 1, manpower: 1, coal: 0, roads: 1, standing: 1}, gap: true}
+  - {key: ohio, name: Ohio, region: western_theatre, terrain: plain, holder: usa, yields: {output: 3, manpower: 3, coal: 1, roads: 2, standing: 0}, gap: true}
+  - {key: indiana, name: Indiana, region: western_theatre, terrain: plain, holder: usa, yields: {output: 2, manpower: 2, coal: 0, roads: 1, standing: 0}, gap: true}
+  - {key: illinois, name: Illinois, region: western_theatre, terrain: plain, holder: usa, yields: {output: 2, manpower: 2, coal: 1, roads: 2, standing: 0}, gap: true}
+  - {key: upper_lakes, name: 'Michigan, Wisconsin and Minnesota', region: western_theatre, terrain: forest, holder: usa, yields: {output: 2, manpower: 2, coal: 0, roads: 1, standing: 0}, gap: true}
+  - {key: kentucky, name: Kentucky, region: western_theatre, terrain: forest, holder: usa, yields: {output: 1, manpower: 1, coal: 0, roads: 1, standing: 2}, gap: true}
+  - {key: tennessee, name: Tennessee, region: western_theatre, terrain: forest, holder: csa, yields: {output: 1, manpower: 2, coal: 0, roads: 1, standing: 1}, gap: true}
+  - {key: georgia, name: Georgia, region: western_theatre, terrain: forest, holder: csa, yields: {output: 2, manpower: 2, coal: 0, roads: 1, standing: 0}, gap: true}
+  - {key: florida, name: Florida, region: western_theatre, terrain: marsh, holder: csa, yields: {output: 0, manpower: 0, coal: 0, roads: 0, standing: 0}, gap: true}
+  - {key: alabama, name: Alabama, region: western_theatre, terrain: forest, holder: csa, yields: {output: 1, manpower: 2, coal: 1, roads: 1, standing: 0}, gap: true}
+  - {key: mississippi, name: Mississippi, region: western_theatre, terrain: forest, holder: csa, yields: {output: 1, manpower: 1, coal: 0, roads: 1, standing: 1}, gap: true}
+  - {key: louisiana, name: Louisiana, region: western_theatre, terrain: marsh, holder: csa, yields: {output: 1, manpower: 1, coal: 0, roads: 1, standing: 1}, gap: true}
+  - {key: missouri, name: Missouri, region: western_theatre, terrain: forest, holder: usa, yields: {output: 1, manpower: 1, coal: 0, roads: 1, standing: 1}, gap: true}
+  - {key: arkansas, name: Arkansas, region: western_theatre, terrain: forest, holder: csa, yields: {output: 0, manpower: 1, coal: 0, roads: 0, standing: 0}, gap: true}
+  - {key: texas, name: Texas, region: western_theatre, terrain: plain, holder: csa, yields: {output: 1, manpower: 1, coal: 0, roads: 0, standing: 0}, gap: true}
+  - {key: plains, name: 'Iowa, Nebraska and Kansas', region: western_theatre, terrain: plain, holder: usa, yields: {output: 1, manpower: 1, coal: 0, roads: 0, standing: 0}, gap: true}
+  - {key: indian_territory, name: The Indian Territory, region: western_theatre, terrain: plain, holder: csa, yields: {output: 0, manpower: 0, coal: 0, roads: 0, standing: 0}, gap: true}
+  - {key: new_mexico, name: New Mexico and Arizona, region: western_theatre, terrain: mountain, holder: usa, yields: {output: 0, manpower: 0, coal: 0, roads: 0, standing: 0}, gap: true}
+  - {key: pacific_states, name: 'California, Oregon and Washington', region: western_theatre, terrain: mountain, holder: usa, yields: {output: 1, manpower: 1, coal: 0, roads: 0, standing: 0}, gap: true}
+  - {key: western_territories, name: 'Utah, Colorado and Dakota', region: western_theatre, terrain: mountain, holder: usa, yields: {output: 0, manpower: 0, coal: 0, roads: 0, standing: 0}, gap: true}
+  # Abroad: start-date holders. A territory with no single holder stands with none.
+  - {key: british_north_america, name: British North America, region: the_world, terrain: forest, holder: uk, gap: true}
+  - {key: russian_america, name: Russian America, region: the_world, terrain: forest, holder: russia, gap: true}
+  - {key: greenland_iceland, name: 'Greenland, Iceland and the Faroes', region: the_world, terrain: mountain, holder: denmark, gap: true}
+  - {key: mexico, name: Mexico, region: the_world, terrain: mountain, holder: mexican_republic, gap: true}
+  - {key: central_america, name: Central America, region: the_world, terrain: forest, gap: true}
+  - {key: caribbean, name: The West Indies and Bermuda, region: the_world, terrain: forest, gap: true}
+  - {key: new_granada, name: 'New Granada, Venezuela and Ecuador', region: the_world, terrain: mountain, gap: true}
+  - {key: brazil_guianas, name: Brazil and the Guianas, region: the_world, terrain: forest, gap: true}
+  - {key: andes, name: 'Peru, Bolivia and Chile', region: the_world, terrain: mountain, gap: true}
+  - {key: la_plata, name: The River Plate and Patagonia, region: the_world, terrain: plain, gap: true}
+  - {key: british_isles, name: The British Isles, region: the_world, terrain: plain, holder: uk, gap: true}
+  - {key: france, name: France, region: the_world, terrain: plain, holder: french_empire, gap: true}
+  - {key: iberia, name: Spain and Portugal, region: the_world, terrain: mountain, gap: true}
+  - {key: german_states, name: The German States and the Low Countries, region: the_world, terrain: plain, gap: true}
+  - {key: scandinavia, name: Scandinavia, region: the_world, terrain: forest, gap: true}
+  - {key: austria, name: The Austrian Empire, region: the_world, terrain: mountain, holder: austrian_empire, gap: true}
+  - {key: italy, name: Italy, region: the_world, terrain: mountain, gap: true}
+  - {key: european_russia, name: European Russia, region: the_world, terrain: forest, holder: russia, gap: true}
+  - {key: balkans, name: The Balkans, region: the_world, terrain: mountain, gap: true}
+  - {key: ottoman_asia, name: The Ottoman East, region: the_world, terrain: mountain, holder: ottoman, gap: true}
+  - {key: arabia_persia, name: Arabia and Persia, region: the_world, terrain: mountain, gap: true}
+  - {key: central_asia, name: Central Asia, region: the_world, terrain: plain, gap: true}
+  - {key: north_africa, name: North Africa, region: the_world, terrain: plain, gap: true}
+  - {key: west_central_africa, name: West and Central Africa, region: the_world, terrain: forest, gap: true}
+  - {key: east_africa, name: East Africa, region: the_world, terrain: mountain, gap: true}
+  - {key: southern_africa, name: Southern Africa, region: the_world, terrain: plain, gap: true}
+  - {key: siberia, name: Siberia, region: the_world, terrain: forest, holder: russia, gap: true}
+  - {key: india, name: India, region: the_world, terrain: plain, holder: uk, gap: true}
+  - {key: china, name: 'China, Korea and Mongolia', region: the_world, terrain: mountain, gap: true}
+  - {key: japan, name: Japan, region: the_world, terrain: mountain, holder: japan_shogunate, gap: true}
+  - {key: southeast_asia, name: Southeast Asia and the Indies, region: the_world, terrain: forest, gap: true}
+  - {key: australasia, name: Australasia, region: the_world, terrain: plain, holder: uk, gap: true}
+  - {key: pacific_islands, name: Hawaii and the Pacific Islands, region: the_world, terrain: forest, gap: true}
+
+# Copied from the map fragment unchanged.
+sea_zones:
+  - {key: northern_waters, name: The Northern Waters, region: the_coast, terrain: sea}
+  - {key: chesapeake, name: The Chesapeake and Hampton Roads, region: the_coast, terrain: sea}
+  - {key: carolina_sounds, name: The Carolina Sounds, region: the_coast, terrain: sea}
+  - {key: south_atlantic_coast, name: The South Atlantic Coast, region: the_coast, terrain: sea}
+  - {key: florida_straits, name: The Florida Straits, region: the_coast, terrain: sea}
+  - {key: eastern_gulf, name: The Eastern Gulf, region: the_coast, terrain: sea}
+  - {key: western_gulf, name: The Western Gulf, region: the_coast, terrain: sea}
+  - {key: arctic_ocean, name: The Arctic Ocean, region: the_world, terrain: sea}
+  - {key: north_atlantic, name: The North Atlantic, region: the_world, terrain: sea}
+  - {key: central_atlantic, name: The Central Atlantic and the Caribbean, region: the_world, terrain: sea}
+  - {key: south_atlantic, name: The South Atlantic, region: the_world, terrain: sea}
+  - {key: northern_seas, name: The North Sea and the Baltic, region: the_world, terrain: sea}
+  - {key: mediterranean, name: The Mediterranean, region: the_world, terrain: sea}
+  - {key: black_sea_caspian, name: The Black Sea and the Caspian, region: the_world, terrain: sea}
+  - {key: indian_west, name: The Western Indian Ocean, region: the_world, terrain: sea}
+  - {key: indian_east, name: The Eastern Indian Ocean, region: the_world, terrain: sea}
+  - {key: north_pacific_west, name: The Western North Pacific, region: the_world, terrain: sea}
+  - {key: north_pacific_east, name: The Eastern North Pacific, region: the_world, terrain: sea}
+  - {key: south_pacific_west, name: The Western South Pacific, region: the_world, terrain: sea}
+  - {key: south_pacific_east, name: The Eastern South Pacific, region: the_world, terrain: sea}
+  - {key: mississippi_river, name: The Mississippi, region: the_coast, terrain: river}
+adjacency:
+  - [alabama, eastern_gulf]
+  - [alabama, florida]
+  - [alabama, georgia]
+  - [alabama, mississippi]
+  - [alabama, tennessee]
+  - [andes, brazil_guianas]
+  - [andes, la_plata]
+  - [andes, new_granada]
+  - [andes, south_atlantic]
+  - [andes, south_pacific_east]
+  - [arabia_persia, black_sea_caspian]
+  - [arabia_persia, central_asia]
+  - [arabia_persia, european_russia]
+  - [arabia_persia, india]
+  - [arabia_persia, indian_west]
+  - [arabia_persia, ottoman_asia]
+  - [arctic_ocean, british_north_america]
+  - [arctic_ocean, european_russia]
+  - [arctic_ocean, greenland_iceland]
+  - [arctic_ocean, north_atlantic]
+  - [arctic_ocean, north_pacific_east]
+  - [arctic_ocean, northern_seas]
+  - [arctic_ocean, russian_america]
+  - [arctic_ocean, scandinavia]
+  - [arctic_ocean, siberia]
+  - [arkansas, indian_territory]
+  - [arkansas, louisiana]
+  - [arkansas, mississippi_river]
+  - [arkansas, missouri]
+  - [arkansas, texas]
+  - [australasia, indian_east]
+  - [australasia, south_pacific_east]
+  - [australasia, south_pacific_west]
+  - [australasia, southeast_asia]
+  - [austria, balkans]
+  - [austria, european_russia]
+  - [austria, german_states]
+  - [austria, italy]
+  - [austria, mediterranean]
+  - [balkans, black_sea_caspian]
+  - [balkans, european_russia]
+  - [balkans, mediterranean]
+  - [balkans, ottoman_asia]
+  - [black_sea_caspian, central_asia]
+  - [black_sea_caspian, european_russia]
+  - [black_sea_caspian, mediterranean]
+  - [black_sea_caspian, ottoman_asia]
+  - [brazil_guianas, central_atlantic]
+  - [brazil_guianas, la_plata]
+  - [brazil_guianas, new_granada]
+  - [brazil_guianas, south_atlantic]
+  - [british_isles, north_atlantic]
+  - [british_isles, northern_seas]
+  - [british_north_america, new_england]
+  - [british_north_america, new_york]
+  - [british_north_america, north_atlantic]
+  - [british_north_america, north_pacific_east]
+  - [british_north_america, northern_waters]
+  - [british_north_america, ohio]
+  - [british_north_america, pacific_states]
+  - [british_north_america, pennsylvania]
+  - [british_north_america, russian_america]
+  - [british_north_america, upper_lakes]
+  - [british_north_america, western_territories]
+  - [caribbean, central_atlantic]
+  - [caribbean, florida_straits]
+  - [carolina_sounds, central_atlantic]
+  - [carolina_sounds, north_carolina]
+  - [carolina_sounds, northern_waters]
+  - [carolina_sounds, south_atlantic_coast]
+  - [carolina_sounds, south_carolina]
+  - [carolina_sounds, virginia]
+  - [central_america, central_atlantic]
+  - [central_america, mexico]
+  - [central_america, new_granada]
+  - [central_america, north_pacific_east]
+  - [central_asia, china]
+  - [central_asia, european_russia]
+  - [central_asia, india]
+  - [central_asia, siberia]
+  - [central_atlantic, eastern_gulf]
+  - [central_atlantic, florida_straits]
+  - [central_atlantic, iberia]
+  - [central_atlantic, mediterranean]
+  - [central_atlantic, mexico]
+  - [central_atlantic, new_granada]
+  - [central_atlantic, north_africa]
+  - [central_atlantic, north_atlantic]
+  - [central_atlantic, north_pacific_east]
+  - [central_atlantic, northern_waters]
+  - [central_atlantic, south_atlantic]
+  - [central_atlantic, south_atlantic_coast]
+  - [central_atlantic, west_central_africa]
+  - [chesapeake, maryland]
+  - [chesapeake, northern_waters]
+  - [chesapeake, virginia]
+  - [china, india]
+  - [china, north_pacific_west]
+  - [china, siberia]
+  - [china, southeast_asia]
+  - [east_africa, indian_west]
+  - [east_africa, north_africa]
+  - [east_africa, southern_africa]
+  - [east_africa, west_central_africa]
+  - [eastern_gulf, florida]
+  - [eastern_gulf, florida_straits]
+  - [eastern_gulf, mexico]
+  - [eastern_gulf, mississippi]
+  - [eastern_gulf, western_gulf]
+  - [european_russia, german_states]
+  - [european_russia, northern_seas]
+  - [european_russia, ottoman_asia]
+  - [european_russia, scandinavia]
+  - [european_russia, siberia]
+  - [florida, florida_straits]
+  - [florida, georgia]
+  - [florida, south_atlantic_coast]
+  - [florida_straits, south_atlantic_coast]
+  - [france, german_states]
+  - [france, iberia]
+  - [france, italy]
+  - [france, mediterranean]
+  - [france, north_atlantic]
+  - [france, northern_seas]
+  - [georgia, north_carolina]
+  - [georgia, south_atlantic_coast]
+  - [georgia, south_carolina]
+  - [georgia, tennessee]
+  - [german_states, italy]
+  - [german_states, northern_seas]
+  - [german_states, scandinavia]
+  - [greenland_iceland, north_atlantic]
+  - [iberia, mediterranean]
+  - [iberia, north_africa]
+  - [iberia, north_atlantic]
+  - [illinois, indiana]
+  - [illinois, kentucky]
+  - [illinois, mississippi_river]
+  - [illinois, plains]
+  - [illinois, upper_lakes]
+  - [india, indian_east]
+  - [india, indian_west]
+  - [india, southeast_asia]
+  - [indian_east, indian_west]
+  - [indian_east, north_pacific_west]
+  - [indian_east, south_pacific_west]
+  - [indian_east, southeast_asia]
+  - [indian_east, southern_africa]
+  - [indian_territory, missouri]
+  - [indian_territory, new_mexico]
+  - [indian_territory, plains]
+  - [indian_territory, texas]
+  - [indian_territory, western_territories]
+  - [indian_west, north_africa]
+  - [indian_west, ottoman_asia]
+  - [indian_west, south_atlantic]
+  - [indian_west, southern_africa]
+  - [indiana, kentucky]
+  - [indiana, ohio]
+  - [indiana, upper_lakes]
+  - [italy, mediterranean]
+  - [japan, north_pacific_west]
+  - [kentucky, mississippi_river]
+  - [kentucky, ohio]
+  - [kentucky, tennessee]
+  - [kentucky, virginia]
+  - [la_plata, south_atlantic]
+  - [la_plata, south_pacific_east]
+  - [louisiana, mississippi]
+  - [louisiana, mississippi_river]
+  - [louisiana, texas]
+  - [louisiana, western_gulf]
+  - [maryland, northern_waters]
+  - [maryland, pennsylvania]
+  - [maryland, virginia]
+  - [mediterranean, north_africa]
+  - [mediterranean, ottoman_asia]
+  - [mexico, new_mexico]
+  - [mexico, north_pacific_east]
+  - [mexico, pacific_states]
+  - [mexico, texas]
+  - [mexico, western_gulf]
+  - [mississippi, mississippi_river]
+  - [mississippi, tennessee]
+  - [mississippi, western_gulf]
+  - [mississippi_river, missouri]
+  - [mississippi_river, tennessee]
+  - [missouri, plains]
+  - [new_england, new_york]
+  - [new_england, northern_waters]
+  - [new_granada, north_pacific_east]
+  - [new_granada, south_pacific_east]
+  - [new_jersey, new_york]
+  - [new_jersey, northern_waters]
+  - [new_jersey, pennsylvania]
+  - [new_mexico, pacific_states]
+  - [new_mexico, texas]
+  - [new_mexico, western_territories]
+  - [new_york, northern_waters]
+  - [new_york, pennsylvania]
+  - [north_africa, ottoman_asia]
+  - [north_africa, west_central_africa]
+  - [north_atlantic, northern_seas]
+  - [north_atlantic, northern_waters]
+  - [north_carolina, south_carolina]
+  - [north_carolina, tennessee]
+  - [north_carolina, virginia]
+  - [north_pacific_east, pacific_islands]
+  - [north_pacific_east, pacific_states]
+  - [north_pacific_east, russian_america]
+  - [north_pacific_east, siberia]
+  - [north_pacific_east, south_pacific_east]
+  - [north_pacific_west, pacific_islands]
+  - [north_pacific_west, russian_america]
+  - [north_pacific_west, siberia]
+  - [north_pacific_west, south_pacific_west]
+  - [north_pacific_west, southeast_asia]
+  - [northern_seas, scandinavia]
+  - [northern_seas, siberia]
+  - [northern_waters, pennsylvania]
+  - [northern_waters, virginia]
+  - [ohio, pennsylvania]
+  - [ohio, upper_lakes]
+  - [ohio, virginia]
+  - [pacific_islands, south_pacific_east]
+  - [pacific_islands, south_pacific_west]
+  - [pacific_states, western_territories]
+  - [pennsylvania, virginia]
+  - [plains, upper_lakes]
+  - [plains, western_territories]
+  - [scandinavia, south_atlantic]
+  - [south_atlantic, south_pacific_east]
+  - [south_atlantic, southern_africa]
+  - [south_atlantic, west_central_africa]
+  - [south_atlantic_coast, south_carolina]
+  - [south_pacific_west, southeast_asia]
+  - [southern_africa, west_central_africa]
+  - [tennessee, virginia]
+  - [texas, western_gulf]
+  - [upper_lakes, western_territories]
+  - {a: arkansas, b: mississippi, crossing: across the Mississippi}
+  - {a: arkansas, b: tennessee, crossing: across the Mississippi}
+  - {a: illinois, b: missouri, crossing: across the Mississippi}
+  - {a: kentucky, b: missouri, crossing: across the Mississippi}
+  - {a: mississippi_river, b: western_gulf, crossing: the lower river past New Orleans}
+  - {a: missouri, b: tennessee, crossing: across the Mississippi}
+  - {a: north_pacific_east, b: north_pacific_west, crossing: across the date line}
+  - {a: south_pacific_east, b: south_pacific_west, crossing: across the date line}
+
+# What the land yields. Every figure is [proposed]; see the territory rows.
+resources:
+  - {key: output, name: Manufactures, unit: loads, role: output}
+  - {key: manpower, name: Men of military age, unit: regiments, role: manpower}
+  - {key: coal, name: Coal, unit: tons, role: fuel}
+  - {key: roads, name: Railroads and roads, unit: lines, role: supply}
+  - {key: standing, name: Standing, unit: marks, role: prestige}
+
+# The kinds of piece the world has when this item lands: an army, a fleet and an envoy, as
+# the 1941 world has them. Kinds of the Civil War's own (a river flotilla, cavalry, the
+# raising places) are KSC's. Days per step are [proposed].
+piece_kinds:
+  - {key: army, name: Army, domain: land, days_per_step: {plain: 5, forest: 7, marsh: 8, mountain: 10}, detect: 0, conceal: 0}
+  - {key: fleet, name: Fleet, domain: sea, days_per_step: {sea: 3, river: 2}, carries: [army], detect: 60, conceal: 0}
+  - {key: envoy, name: Envoy, domain: envoy, days_per_step: {plain: 3, forest: 4, marsh: 4, mountain: 5, sea: 4, river: 2}, detect: 0, conceal: 0}
+
+# The forces on the start date, as tiers (1 to 5). Who commanded each and where it stood is
+# from the record; every tier is [proposed], so every row is gap: true. The Union forces at
+# Corinth and New Orleans stand in ground the one-holder territory gives the Confederacy:
+# they are left out and recorded as a finding (occupation inside a territory).
+features:
+  # The Army of the Potomac, falling back on Washington after Second Manassas (mcpherson_1988).
+  - {key: army_of_the_potomac, kind: piece, piece: army, name: The Army of the Potomac, side: usa, tier: 4, places: [washington], gap: true}
+  # The Army of the Ohio at Nashville (mcpherson_1988).
+  - {key: army_of_the_ohio, kind: piece, piece: army, name: The Army of the Ohio, side: usa, tier: 3, places: [nashville], gap: true}
+  - {key: north_atlantic_squadron, kind: piece, piece: fleet, name: The North Atlantic Blockading Squadron, side: usa, tier: 3, places: [fort_monroe], gap: true}
+  - {key: south_atlantic_squadron, kind: piece, piece: fleet, name: The South Atlantic Blockading Squadron, side: usa, tier: 3, places: [port_royal], gap: true}
+  - {key: east_gulf_squadron, kind: piece, piece: fleet, name: The East Gulf Blockading Squadron, side: usa, tier: 2, places: [key_west], gap: true}
+  - {key: west_gulf_squadron, kind: piece, piece: fleet, name: The West Gulf Blockading Squadron, side: usa, tier: 3, places: [new_orleans], gap: true}
+  - {key: western_flotilla, kind: piece, piece: fleet, name: The Western Flotilla, side: usa, tier: 2, places: [cairo], gap: true}
+  # The Army of Northern Virginia near Manassas after the battle of 28 to 30 August (mcpherson_1988).
+  - {key: army_of_northern_virginia, kind: piece, piece: army, name: The Army of Northern Virginia, side: csa, tier: 4, places: [manassas], gap: true}
+  # Bragg's army, marched out of Chattanooga on 28 August (mcpherson_1988).
+  - {key: army_of_mississippi, kind: piece, piece: army, name: The Army of the Mississippi, side: csa, tier: 3, places: [chattanooga], gap: true}
+  # Kirby Smith's Army of Kentucky at Lexington (mcpherson_1988).
+  - {key: army_of_kentucky, kind: piece, piece: army, name: The Army of Kentucky, side: csa, tier: 2, places: [lexington_ky], gap: true}
+  - {key: james_river_squadron, kind: piece, piece: fleet, name: The James River Squadron, side: csa, tier: 1, places: [richmond], gap: true}
+  # Squadrons the record puts on the American coast. The Royal Navy's North America and West
+  # Indies station, and the French squadron in the Gulf with the Mexican expedition
+  # (jones_2010). Where each stood on the start date and its strength are not sourced.
+  - {key: royal_navy_station, kind: piece, piece: fleet, name: The North America and West Indies Station, side: uk, tier: 3, places: [halifax], gap: true}
+  - {key: french_gulf_squadron, kind: piece, piece: fleet, name: The French Gulf squadron, side: french_empire, tier: 2, places: [veracruz], gap: true}
+
+# The posts and their holders. A head's post rests on its blocs and its holder leaves at the
+# end of his term: Lincoln's on 4 March 1865, Davis's six-year term, begun 22 February 1862,
+# on 22 February 1868 (mcpherson_1988). A general's post names the lesser post he falls to
+# and who may move him, so the head can relieve a general. The tiers and the lesser posts
+# are [proposed].
+assets:
+  - key: us_presidency
+    kind: office
+    name: President of the United States
+    tier: 3
+    controller: lincoln
+    rests_on: [republicans, unionists]
+    removed_by: {by: term, ends: 1865-03-04}
+  - key: cs_presidency
+    kind: office
+    name: President of the Confederate States
+    tier: 3
+    controller: davis
+    rests_on: [administration_men, planters]
+    removed_by: {by: term, ends: 1868-02-22}
+  - key: us_general_in_chief
+    kind: office
+    name: General-in-Chief of the Armies of the United States
+    tier: 2
+    controller: halleck
+    moved_by: [us_presidency]
+  - key: us_war_department
+    kind: office
+    name: Secretary of War of the United States
+    tier: 2
+    controller: stanton
+    moved_by: [us_presidency]
+  - key: cs_war_department
+    kind: office
+    name: Secretary of War of the Confederate States
+    tier: 2
+    controller: randolph
+    moved_by: [cs_presidency]
+  - key: potomac_command
+    kind: office
+    name: Commander of the Army of the Potomac
+    tier: 2
+    controller: mcclellan
+    ladder: [washington_defences]
+    moved_by: [us_presidency]
+  - key: ohio_command
+    kind: office
+    name: Commander of the Army of the Ohio
+    tier: 2
+    controller: buell
+    ladder: [nashville_garrison]
+    moved_by: [us_presidency]
+  - key: northern_virginia_command
+    kind: office
+    name: Commander of the Army of Northern Virginia
+    tier: 2
+    controller: lee
+    ladder: [richmond_defences]
+    moved_by: [cs_presidency]
+  - key: mississippi_command
+    kind: office
+    name: Commander of the Army of the Mississippi
+    tier: 2
+    controller: bragg
+    ladder: [chattanooga_garrison]
+    moved_by: [cs_presidency]
+  # The lesser posts a relieved general falls to: nobody holds them at the start.
+  - {key: washington_defences, kind: office, name: Commander of the Defences of Washington, tier: 1, controller: usa, location: washington}
+  - {key: nashville_garrison, kind: office, name: Commander at Nashville, tier: 1, controller: usa, location: nashville}
+  - {key: richmond_defences, kind: office, name: Commander of the Defences of Richmond, tier: 1, controller: csa, location: richmond}
+  - {key: chattanooga_garrison, kind: office, name: Commander at Chattanooga, tier: 1, controller: csa, location: chattanooga}
+quantities:
+  - {key: us_emancipation_measure_passed, owner: usa, name: The emancipation measure passed, unit: flag, computed: true, public: true}
+  - {key: us_emancipation_measure_house_yeas, owner: usa, name: House ayes on the emancipation measure, unit: votes, computed: true, public: true}
+  - {key: us_emancipation_measure_house_nays, owner: usa, name: House noes on the emancipation measure, unit: votes, computed: true, public: true}
+  - {key: us_emancipation_measure_senate_yeas, owner: usa, name: Senate ayes on the emancipation measure, unit: votes, computed: true, public: true}
+  - {key: us_emancipation_measure_senate_nays, owner: usa, name: Senate noes on the emancipation measure, unit: votes, computed: true, public: true}
+  - {key: cs_draft_law_passed, owner: csa, name: The draft law passed, unit: flag, computed: true, public: true}
+  - {key: cs_draft_law_cs_house_yeas, owner: csa, name: House ayes on the draft law, unit: votes, computed: true, public: true}
+  - {key: cs_draft_law_cs_house_nays, owner: csa, name: House noes on the draft law, unit: votes, computed: true, public: true}
+  - {key: cs_draft_law_cs_senate_yeas, owner: csa, name: Senate ayes on the draft law, unit: votes, computed: true, public: true}
+  - {key: cs_draft_law_cs_senate_nays, owner: csa, name: Senate noes on the draft law, unit: votes, computed: true, public: true}
+
+# Each side's named law, the contract's default: an emancipation measure for the Union and
+# a draft law for the Confederacy, each passed by both chambers. The wording and the
+# manpower are [proposed]; neither is the act of the record.
+laws:
+  - key: us_emancipation_measure
+    title: The emancipation measure
+    nation: usa
+    clauses:
+      - {kind: power, subject: free the slaves held in the states in rebellion}
+    passed: us_emancipation_measure_passed
+  - key: cs_draft_law
+    title: The draft law
+    nation: csa
+    clauses:
+      - {kind: power, subject: extend conscription to men of 35 to 45}
+    passed: cs_draft_law_passed
+    does: {kind: adds_manpower, amount: 2}
+
+# Each nation's intelligence. The channels are [proposed]: a letter is the mail, a courier a
+# rider, in person the cabinet room. The telegraph is not a channel the world has yet.
+intelligence:
+  - nation: usa
+    sources:
+      - {source: contact, person: halleck, channel: letter}
+      - {source: patrol, person: welles, channel: letter}
+      - {source: agent, person: stanton, channel: letter}
+  - nation: csa
+    sources:
+      - {source: contact, person: randolph, channel: letter}
+      - {source: patrol, person: mallory, channel: letter}
+      - {source: agent, person: benjamin, channel: courier}
+
+# The groups at home. Each side's deciding body is its Congress, a House and a Senate, each
+# with two blocs; the rest are the classes the war moves. Kinds, feeds, support figures, seat
+# counts and vote rows are all [proposed], gap until sourced.
+groups:
+  - nation: usa
+    groups:
+      - key: republicans
+        name: The Republicans of the House
+        kind: party
+        start: 55
+        baseline: 55
+        chamber: house
+        seats: 105
+        feeds: {votes: 1, standing: 1}
+        vote_default: {house: {voting: 105, yeas: 95}}
+        moved_by: {battle_won: 2, battle_lost: -3, territory_lost: -2, capital_threatened: -3}
+        stances: {power: 1, money: 1}
+      - key: democrats
+        name: The Democrats and border Unionists of the House
+        kind: party
+        start: 40
+        baseline: 40
+        chamber: house
+        seats: 73
+        feeds: {votes: 1}
+        vote_default: {house: {voting: 73, yeas: 10}}
+        moved_by: {battle_lost: 2, battle_losses: 1, measure_passed: -1}
+        stances: {limit: 2}
+      - key: republican_senators
+        name: The Republicans of the Senate
+        kind: party
+        start: 55
+        baseline: 55
+        chamber: senate
+        seats: 31
+        feeds: {votes: 1}
+        vote_default: {senate: {voting: 31, yeas: 28}}
+        moved_by: {battle_lost: -2, territory_lost: -2}
+        stances: {power: 1}
+      - key: democratic_senators
+        name: The Democrats and border Unionists of the Senate
+        kind: party
+        start: 40
+        baseline: 40
+        chamber: senate
+        seats: 17
+        feeds: {votes: 1}
+        vote_default: {senate: {voting: 17, yeas: 3}}
+        moved_by: {battle_lost: 2, measure_passed: -1}
+        stances: {limit: 2}
+      - key: unionists
+        name: The border-state Unionists at home
+        kind: class
+        start: 50
+        baseline: 50
+        feeds: {manpower: 1, standing: 1}
+        moved_by: {territory_lost: -3, measure_passed: -2, capital_threatened: -2}
+      - key: northern_workers
+        name: The workers of the northern cities
+        kind: townsmen
+        start: 50
+        baseline: 50
+        feeds: {output: 1, manpower: 1}
+        moved_by: {battle_losses: -2, battle_lost: -1, battle_won: 1}
+    themes:
+      - {key: the_union, name: The Union preserved, moves: {republicans: 2, unionists: 2}}
+      - {key: peace_now, name: Peace now, moves: {democrats: 2, republicans: -1}}
+  - nation: csa
+    groups:
+      - key: administration_men
+        name: The administration men of the House
+        kind: party
+        start: 55
+        baseline: 55
+        chamber: cs_house
+        seats: 60
+        feeds: {votes: 1, standing: 1}
+        vote_default: {cs_house: {voting: 60, yeas: 50}}
+        moved_by: {battle_won: 2, battle_lost: -2, capital_threatened: -2}
+        stances: {power: 1, money: 1}
+      - key: state_rights_men
+        name: The state-rights men of the House
+        kind: faction
+        start: 45
+        baseline: 45
+        chamber: cs_house
+        seats: 46
+        feeds: {votes: 1}
+        vote_default: {cs_house: {voting: 46, yeas: 12}}
+        moved_by: {measure_passed: -2, capital_threatened: -1}
+        stances: {limit: 2}
+      - key: administration_senators
+        name: The administration men of the Senate
+        kind: party
+        start: 55
+        baseline: 55
+        chamber: cs_senate
+        seats: 14
+        feeds: {votes: 1}
+        vote_default: {cs_senate: {voting: 14, yeas: 12}}
+        moved_by: {battle_lost: -2, territory_lost: -2}
+        stances: {power: 1}
+      - key: state_rights_senators
+        name: The state-rights men of the Senate
+        kind: faction
+        start: 45
+        baseline: 45
+        chamber: cs_senate
+        seats: 12
+        feeds: {votes: 1}
+        vote_default: {cs_senate: {voting: 12, yeas: 4}}
+        moved_by: {measure_passed: -1}
+        stances: {limit: 2}
+      - key: planters
+        name: The planters
+        kind: class
+        start: 60
+        baseline: 60
+        feeds: {output: 1, standing: 2}
+        moved_by: {territory_lost: -3, losses_at_sea: -2, battle_won: 1}
+      - key: yeomen
+        name: The yeoman farmers
+        kind: peasantry
+        start: 55
+        baseline: 55
+        feeds: {manpower: 2}
+        moved_by: {battle_won: 2, battle_lost: -2, battle_losses: -2, measure_passed: -1}
+    themes:
+      - {key: southern_independence, name: Southern independence, moves: {planters: 2, yeomen: 1}}
+      - {key: carry_the_war_north, name: Carry the war north, moves: {yeomen: 1, state_rights_men: -1}}
+
+happenings:
+  - {kind: capital_threatened, reach: felt}
+  - {kind: battle_lost, reach: reported, felt: 0.4}
+  - {kind: battle_won, reach: reported, felt: 0.4}
+  - {kind: battle_losses, reach: reported, felt: 0.5}
+  - {kind: agreement_broken, reach: secret}
+  - {kind: territory_taken, reach: reported, felt: 0.5}
+  - {kind: territory_lost, reach: felt}
+  - {kind: losses_at_sea, reach: reported, felt: 0.3}
+  - {kind: measure_passed, reach: reported, felt: 0.5}
+  - {kind: war_declared, reach: felt}
+
+# The House elections of 1862 were held on different days state by state, from September
+# to November (mcpherson_1988). One day stands for them: 4 November, [proposed].
+elections:
+  - {nation: usa, chambers: [house], day: 1862-11-04}
+
+# Places whose loss is felt beyond their yield. The figures are [proposed].
+places:
+  - {territory: maryland, nation: usa, moves: {republicans: -5, unionists: -4}}
+  - {territory: virginia, nation: csa, moves: {planters: -5, yeomen: -3}}
+
+# The war under way on the start date. The United States never declared war on the
+# Confederacy, which it held to be in rebellion (mcpherson_1988).
+wars:
+  - {a: csa, b: usa, since: 1861-04-12, declared: false, source: mcpherson_1988}
+
+# Who decides. Each lock row names a decider who holds a card; the rows themselves are
+# [proposed] game rules, not claims about the record.
+locks:
+  - key: cross_the_potomac
+    question: permission
+    order: {form: advance, params: {to: washington}}
+    decider: {person: davis}
+  # The Army of the Potomac advances only once the President has set the eastern posture.
+  - key: potomac_advance
+    order: {form: march, params: {to: manassas}}
+    when: {check: posture_not_set, form: set_campaign, where: {theatre: eastern_theatre}, posture: {order: advance}}
+    decider: {person: lincoln}
+  # Bragg carries the war into Kentucky only once the draft law is in force; the
+  # Confederate Congress decides.
+  - key: kentucky_invasion
+    order: {form: invade, params: {to: lexington_ky}}
+    when: {check: law_not_in_force, clause: extend conscription to men of 35 to 45}
+    decider: {nation: csa, chambers: [cs_house, cs_senate], head: davis}
+  - key: war_on_britain
+    question: war
+    order: {form: declare_war, params: {target: uk}}
+    decider: {council: {members: [lincoln, seward, stanton, chase, welles], needed: 3, head: lincoln}}
+
+aim_patterns:
+  - key: cw_hold_ground
+    posts: [head_of_government, military]
+    sentence: Hold {place} for {nation}.
+    condition: {check: holds_area, area: $place, holder: $nation}
+    blanks:
+      - {name: place, kind: territory_held}
+  - key: cw_take_ground
+    posts: [head_of_government, military]
+    sentence: Take {place} for {nation}.
+    condition: {check: holds_area, area: $place, holder: $nation}
+    blanks:
+      - {name: place, kind: territory_not_held}
+
+sources:
+  - key: mcpherson_1988
+    title: "James M. McPherson, Battle Cry of Freedom: The Civil War Era (Oxford University Press, 1988)"
+    note: Posts, commands and the armies' movements in August and September 1862. Not checked against a copy in this item.
+  - key: ors_navies
+    title: "Official Records of the Union and Confederate Navies in the War of the Rebellion, series I (1894-1922)"
+    note: Squadron commands in 1862. Not checked against a copy in this item.
+  - key: jones_2010
+    title: "Howard Jones, Blue and Gray Diplomacy: A History of Union and Confederate Foreign Relations (University of North Carolina Press, 2010)"
+    note: The powers' neutrality and standing, and the French expedition to Mexico. Not checked against a copy in this item.
+
+feeds:
+  - {key: union_returns, name: The War Department's returns, author: halleck, kind: report, channel: letter, every_days: 7, latency_days: 2, sights: [army_of_the_potomac, army_of_the_ohio], gap: true}
+  - {key: union_navy_returns, name: The Navy Department's returns, author: welles, kind: report, channel: letter, every_days: 7, latency_days: 3, sights: [north_atlantic_squadron, south_atlantic_squadron, east_gulf_squadron, west_gulf_squadron, western_flotilla], gap: true}
+  - {key: confederate_returns, name: The War Department's returns, author: randolph, kind: report, channel: letter, every_days: 7, latency_days: 3, sights: [army_of_northern_virginia, army_of_mississippi, army_of_kentucky], gap: true}
+
+pipelines:
+  - key: union_order
+    name: An order through the War Department
+    gap: true
+    steps:
+      - {person: halleck, kind: clerical, days: 1}
+  - key: union_navy_order
+    name: An order through the Navy Department
+    gap: true
+    steps:
+      - {person: welles, kind: clerical, days: 1}
+  - key: congress_bill
+    name: A bill before Congress
+    gap: true
+    steps:
+      - {person: seward, kind: clerical, days: 2}
+  - key: cs_congress_bill
+    name: A bill before the Confederate Congress
+    gap: true
+    steps:
+      - {person: benjamin, kind: clerical, days: 2}
+  - key: ohio_staff
+    name: Through the staff of the Army of the Ohio
+    gap: true
+    steps:
+      - {person: buell, kind: clerical, days: 1}
+  - key: mississippi_staff
+    name: Through the staff of the Army of the Mississippi
+    gap: true
+    steps:
+      - {person: bragg, kind: clerical, days: 1}
+  - key: confederate_order
+    name: An order through the War Department in Richmond
+    gap: true
+    steps:
+      - {person: randolph, kind: clerical, days: 1}
+  - key: potomac_staff
+    name: Through the staff of the Army of the Potomac
+    gap: true
+    steps:
+      - {person: mcclellan, kind: clerical, days: 1}
+  - key: northern_virginia_staff
+    name: Through the staff of the Army of Northern Virginia
+    gap: true
+    steps:
+      - {person: lee, kind: clerical, days: 1}
+
+cards:
+  - person: lincoln
+    office: President of the United States
+    post: us_presidency
+    playable: true
+    principals: [usa]
+    authority:
+      - name: army
+        effects: [move_force, engagement, investigate, allocate]
+        executor: halleck
+        forces: [army_of_the_potomac, army_of_the_ohio, north_atlantic_squadron, south_atlantic_squadron, east_gulf_squadron, west_gulf_squadron, western_flotilla]
+        summary: "Orders to the Union armies and squadrons, carried out by the general-in-chief."
+      - name: public_word
+        effects: [statement, measure]
+        summary: "Speak to the nation and to the powers abroad."
+    levers:
+      - name: move_force
+        pipeline: union_order
+        resolver: movement
+        label: "Move a force"
+        params:
+          - {name: force, kind: enum, choices: [army_of_the_potomac, army_of_the_ohio, north_atlantic_squadron, south_atlantic_squadron, east_gulf_squadron, west_gulf_squadron, western_flotilla], label: "Force"}
+          - {name: to, kind: enum, choices: [washington, richmond, manassas, nashville, chattanooga, lexington_ky, fort_monroe, port_royal, key_west, new_orleans, cairo], label: "To"}
+      - name: declare_war
+        pipeline: union_order
+        resolver: war
+        label: "Declare war"
+        summary: "Ask Congress for a declaration of war on a foreign power."
+        params:
+          - {name: target, kind: enum, choices: [uk, french_empire], label: "On whom"}
+      - name: place_a_spy
+        pipeline: union_order
+        resolver: intel
+        label: "Place a spy"
+        summary: "Put a spy in place to report what moves there."
+        params:
+          - {name: intel, kind: enum, choices: [agent]}
+      - name: send_bill
+        pipeline: congress_bill
+        resolver: votes
+        label: "Send a bill to Congress"
+        summary: "Put a bill before the House and the Senate."
+        params:
+          - {name: bill, kind: enum, choices: [us_emancipation_measure], label: "Which bill", choice_labels: ["The emancipation measure"]}
+          - {name: urgency, kind: enum, choices: [ordinary, urgent], label: "How soon"}
+      - name: set_campaign
+        pipeline: union_order
+        resolver: intel
+        label: "Set the campaign posture"
+        summary: "Tell an army whether to hold or to advance in its theatre."
+        params:
+          - {name: intel, kind: enum, choices: [patrol]}
+          - {name: piece, kind: enum, choices: [army_of_the_potomac, army_of_the_ohio], label: "Which army"}
+          - {name: order, kind: enum, choices: [hold, advance], label: "The posture", choice_labels: ["Hold", "Advance"]}
+          - {name: theatre, kind: enum, choices: [eastern_theatre, western_theatre], label: "Where", choice_labels: ["The Eastern Theatre", "The Western Theatre"]}
+    inner_circle:
+      - {person: seward, channel: in_person}
+      - {person: stanton, channel: in_person}
+      - {person: halleck, channel: in_person}
+      - {person: chase, channel: in_person}
+      - {person: welles, channel: in_person}
+    feeds: [union_returns, union_navy_returns]
+    pipelines: [union_order, union_navy_order, congress_bill]
+    horizon_days: 14
+    post_kind: head_of_government
+    aims:
+      - "Keep Maryland, Kentucky and Missouri in the Union."
+      - "Keep Britain and France from recognising the Confederacy."
+      - "Hold Washington's state."
+    aim_rules:
+      - {aim: 1, deadline: 1862-12-15, rule: "The United States holds Maryland, Kentucky and Missouri.", condition: {check: all_of, conditions: [{check: holds_area, area: maryland, holder: usa}, {check: holds_area, area: kentucky, holder: usa}, {check: holds_area, area: missouri, holder: usa}]}}
+      - {aim: 2, deadline: 1862-12-15, rule: "The United States is not at war with Britain.", condition: {check: at_war, a: usa, b: uk, war: false}}
+      - {aim: 3, deadline: 1862-12-15, rule: "The United States holds Maryland.", condition: {check: holds_area, area: maryland, holder: usa}}
+  - person: davis
+    office: President of the Confederate States
+    post: cs_presidency
+    playable: true
+    principals: [csa]
+    authority:
+      - name: army
+        effects: [move_force, engagement, investigate, allocate]
+        executor: randolph
+        forces: [army_of_northern_virginia, army_of_mississippi, army_of_kentucky, james_river_squadron]
+        summary: "Orders to the Confederate armies, carried out by the Secretary of War."
+      - name: public_word
+        effects: [statement, measure]
+        summary: "Speak to the Confederacy and to the powers abroad."
+    levers:
+      - name: move_force
+        pipeline: confederate_order
+        resolver: movement
+        label: "Move a force"
+        params:
+          - {name: force, kind: enum, choices: [army_of_northern_virginia, army_of_mississippi, army_of_kentucky, james_river_squadron], label: "Force"}
+          - {name: to, kind: enum, choices: [washington, richmond, manassas, nashville, chattanooga, lexington_ky, fort_monroe, port_royal, key_west, new_orleans, cairo], label: "To"}
+      - name: place_a_spy
+        pipeline: confederate_order
+        resolver: intel
+        label: "Place a spy"
+        summary: "Put a spy in place to report what moves there."
+        params:
+          - {name: intel, kind: enum, choices: [agent]}
+      - name: send_bill
+        pipeline: cs_congress_bill
+        resolver: votes
+        label: "Send a bill to Congress"
+        summary: "Put a bill before the Confederate House and Senate."
+        params:
+          - {name: bill, kind: enum, choices: [cs_draft_law], label: "Which bill", choice_labels: ["The draft law"]}
+          - {name: urgency, kind: enum, choices: [ordinary, urgent], label: "How soon"}
+    inner_circle:
+      - {person: benjamin, channel: in_person}
+      - {person: randolph, channel: in_person}
+      - {person: lee, channel: letter}
+      - {person: bragg, channel: letter}
+    feeds: [confederate_returns]
+    pipelines: [confederate_order, cs_congress_bill]
+    horizon_days: 14
+    post_kind: head_of_government
+    aims:
+      - "Hold Virginia and Tennessee."
+      - "Take Kentucky for the Confederacy."
+      - "Take Maryland for the Confederacy."
+    aim_rules:
+      - {aim: 1, deadline: 1862-12-15, rule: "The Confederacy holds Virginia and Tennessee.", condition: {check: all_of, conditions: [{check: holds_area, area: virginia, holder: csa}, {check: holds_area, area: tennessee, holder: csa}]}}
+      - {aim: 2, deadline: 1862-12-15, rule: "The Confederacy holds Kentucky.", condition: {check: holds_area, area: kentucky, holder: csa}}
+      - {aim: 3, deadline: 1862-12-15, rule: "The Confederacy holds Maryland.", condition: {check: holds_area, area: maryland, holder: csa}}
+  - person: seward
+    office: Secretary of State
+    principals: [lincoln]
+    inner_circle:
+      - {person: lincoln, channel: in_person}
+    horizon_days: 14
+  - person: stanton
+    office: Secretary of War
+    post: us_war_department
+    playable: true
+    principals: [lincoln]
+    inner_circle:
+      - {person: lincoln, channel: in_person}
+    horizon_days: 14
+    aims:
+      - "Keep Washington's state."
+      - "Hold Kentucky."
+      - "Take Tennessee."
+    aim_rules:
+      - {aim: 1, deadline: 1862-12-15, rule: "Keep Washington's state.", condition: {check: holds_area, area: maryland, holder: usa}}
+      - {aim: 2, deadline: 1862-12-15, rule: "Hold Kentucky.", condition: {check: holds_area, area: kentucky, holder: usa}}
+      - {aim: 3, deadline: 1862-12-15, rule: "Take Tennessee.", condition: {check: holds_area, area: tennessee, holder: usa}}
+  - person: chase
+    office: Secretary of the Treasury
+    principals: [lincoln]
+    inner_circle:
+      - {person: lincoln, channel: in_person}
+    horizon_days: 14
+  - person: welles
+    office: Secretary of the Navy
+    principals: [lincoln]
+    inner_circle:
+      - {person: lincoln, channel: in_person}
+    pipelines: [union_navy_order]
+    horizon_days: 14
+  - person: halleck
+    office: General-in-Chief
+    post: us_general_in_chief
+    principals: [lincoln]
+    inner_circle:
+      - {person: lincoln, channel: in_person}
+      - {person: stanton, channel: in_person}
+      - {person: mcclellan, channel: letter}
+      - {person: buell, channel: letter}
+    horizon_days: 14
+  - person: mcclellan
+    office: Commander of the Army of the Potomac
+    post: potomac_command
+    path: military
+    playable: true
+    principals: [halleck]
+    inner_circle:
+      - {person: halleck, channel: letter}
+    pipelines: [potomac_staff]
+    levers:
+      - name: march
+        pipeline: potomac_staff
+        resolver: movement
+        label: "March the army"
+        params:
+          - {name: force, kind: enum, choices: [army_of_the_potomac], label: "Which army"}
+          - {name: to, kind: enum, choices: [washington, richmond, manassas, nashville, chattanooga, lexington_ky, fort_monroe, port_royal, key_west, new_orleans, cairo], label: "To"}
+    authority:
+      - name: the_army
+        effects: [move_force, engagement, investigate]
+        forces: [army_of_the_potomac]
+        summary: "Command of the Army of the Potomac."
+    horizon_days: 7
+    post_kind: military
+    aims:
+      - "Drive the Confederate army out of Maryland."
+      - "Keep Pennsylvania safe."
+      - "Take Virginia."
+    aim_rules:
+      - {aim: 1, deadline: 1862-12-15, rule: "Drive the Confederate army out of Maryland.", condition: {check: holds_area, area: maryland, holder: usa}}
+      - {aim: 2, deadline: 1862-12-15, rule: "Keep Pennsylvania safe.", condition: {check: holds_area, area: pennsylvania, holder: usa}}
+      - {aim: 3, deadline: 1862-12-15, rule: "Take Virginia.", condition: {check: holds_area, area: virginia, holder: usa}}
+  - person: buell
+    office: Commander of the Army of the Ohio
+    post: ohio_command
+    path: military
+    playable: true
+    principals: [halleck]
+    inner_circle:
+      - {person: halleck, channel: letter}
+    pipelines: [ohio_staff]
+    levers:
+      - name: march_west
+        pipeline: ohio_staff
+        resolver: movement
+        label: "March the army"
+        params:
+          - {name: force, kind: enum, choices: [army_of_the_ohio], label: "Which army"}
+          - {name: to, kind: enum, choices: [washington, richmond, manassas, nashville, chattanooga, lexington_ky, fort_monroe, port_royal, key_west, new_orleans, cairo], label: "To"}
+    authority:
+      - name: the_army
+        effects: [move_force, engagement, investigate]
+        forces: [army_of_the_ohio]
+        summary: "Command of the Army of the Ohio."
+    horizon_days: 7
+    post_kind: military
+    aims:
+      - "Hold Kentucky."
+      - "Keep Ohio safe."
+      - "Take Tennessee."
+    aim_rules:
+      - {aim: 1, deadline: 1862-12-15, rule: "Hold Kentucky.", condition: {check: holds_area, area: kentucky, holder: usa}}
+      - {aim: 2, deadline: 1862-12-15, rule: "Keep Ohio safe.", condition: {check: holds_area, area: ohio, holder: usa}}
+      - {aim: 3, deadline: 1862-12-15, rule: "Take Tennessee.", condition: {check: holds_area, area: tennessee, holder: usa}}
+  - person: benjamin
+    office: Secretary of State
+    principals: [davis]
+    inner_circle:
+      - {person: davis, channel: in_person}
+    horizon_days: 14
+  - person: randolph
+    office: Secretary of War
+    post: cs_war_department
+    playable: true
+    principals: [davis]
+    inner_circle:
+      - {person: davis, channel: in_person}
+    horizon_days: 14
+    aims:
+      - "Hold Virginia."
+      - "Hold Tennessee."
+      - "Take Kentucky."
+    aim_rules:
+      - {aim: 1, deadline: 1862-12-15, rule: "Hold Virginia.", condition: {check: holds_area, area: virginia, holder: csa}}
+      - {aim: 2, deadline: 1862-12-15, rule: "Hold Tennessee.", condition: {check: holds_area, area: tennessee, holder: csa}}
+      - {aim: 3, deadline: 1862-12-15, rule: "Take Kentucky.", condition: {check: holds_area, area: kentucky, holder: csa}}
+  - person: mallory
+    office: Secretary of the Navy
+    principals: [davis]
+    inner_circle:
+      - {person: davis, channel: in_person}
+    horizon_days: 14
+  - person: lee
+    office: Commander of the Army of Northern Virginia
+    post: northern_virginia_command
+    path: military
+    playable: true
+    principals: [davis]
+    inner_circle:
+      - {person: davis, channel: letter}
+    pipelines: [northern_virginia_staff]
+    levers:
+      - name: advance
+        pipeline: northern_virginia_staff
+        resolver: movement
+        label: "Advance the army"
+        params:
+          - {name: force, kind: enum, choices: [army_of_northern_virginia], label: "Which army"}
+          - {name: to, kind: enum, choices: [washington, richmond, manassas, nashville, chattanooga, lexington_ky, fort_monroe, port_royal, key_west, new_orleans, cairo], label: "To"}
+    authority:
+      - name: the_army
+        effects: [move_force, engagement, investigate]
+        forces: [army_of_northern_virginia]
+        summary: "Command of the Army of Northern Virginia."
+    horizon_days: 7
+    post_kind: military
+    aims:
+      - "Hold Virginia."
+      - "Carry the war into Maryland."
+      - "Keep North Carolina safe."
+    aim_rules:
+      - {aim: 1, deadline: 1862-12-15, rule: "Hold Virginia.", condition: {check: holds_area, area: virginia, holder: csa}}
+      - {aim: 2, deadline: 1862-12-15, rule: "Carry the war into Maryland.", condition: {check: holds_area, area: maryland, holder: csa}}
+      - {aim: 3, deadline: 1862-12-15, rule: "Keep North Carolina safe.", condition: {check: holds_area, area: north_carolina, holder: csa}}
+  - person: bragg
+    office: Commander of the Army of the Mississippi
+    post: mississippi_command
+    path: military
+    playable: true
+    principals: [davis]
+    inner_circle:
+      - {person: davis, channel: letter}
+    pipelines: [mississippi_staff]
+    levers:
+      - name: invade
+        pipeline: mississippi_staff
+        resolver: movement
+        label: "Carry the army north"
+        params:
+          - {name: force, kind: enum, choices: [army_of_mississippi], label: "Which army"}
+          - {name: to, kind: enum, choices: [washington, richmond, manassas, nashville, chattanooga, lexington_ky, fort_monroe, port_royal, key_west, new_orleans, cairo], label: "To"}
+    authority:
+      - name: the_army
+        effects: [move_force, engagement, investigate]
+        forces: [army_of_mississippi]
+        summary: "Command of the Army of the Mississippi."
+    horizon_days: 7
+    post_kind: military
+    aims:
+      - "Take Kentucky."
+      - "Hold Tennessee."
+      - "Keep Georgia safe."
+    aim_rules:
+      - {aim: 1, deadline: 1862-12-15, rule: "Take Kentucky.", condition: {check: holds_area, area: kentucky, holder: csa}}
+      - {aim: 2, deadline: 1862-12-15, rule: "Hold Tennessee.", condition: {check: holds_area, area: tennessee, holder: csa}}
+      - {aim: 3, deadline: 1862-12-15, rule: "Keep Georgia safe.", condition: {check: holds_area, area: georgia, holder: csa}}
+seats: []
+
+# The roster: each head, each war secretary and the general of each main army. [proposed]
+roster:
+  - {entity: lincoln, pitch: The President who must keep the border states and the powers out of the war., reach: The Union armies and squadrons., composite: false}
+  - {entity: davis, pitch: The President who means to carry the war into Maryland and Kentucky., reach: The Confederate armies., composite: false}
+  - {entity: stanton, pitch: The Secretary of War who runs the Union's war machine., reach: The War Department., composite: false}
+  - {entity: randolph, pitch: The Secretary of War who must find the Confederacy its men., reach: The Confederate War Department., composite: false}
+  - {entity: mcclellan, pitch: The general who must stop Lee in Maryland., reach: The Army of the Potomac., composite: false}
+  - {entity: buell, pitch: The general who must stop Bragg in Kentucky., reach: The Army of the Ohio., composite: false}
+  - {entity: lee, pitch: The general who carries the war across the Potomac., reach: The Army of Northern Virginia., composite: false}
+  - {entity: bragg, pitch: The general who carries the war into Kentucky., reach: The Army of the Mississippi., composite: false}
+roster_limit: [2, 8]
+
+contests:
+  - key: border_states
+    kind: rivalry
+    name: The border states
+    prize: Whether Maryland and Kentucky stay with the Union or go with the Confederacy.
+    sides: [usa, csa]
+    countdown_days: 105
+    moves:
+      - {kind: holder, toward: csa, territory: maryland}
+      - {kind: holder, toward: csa, territory: kentucky}
+      - {kind: holder, toward: usa, territory: tennessee}
+      - {kind: battle, toward: usa, region: eastern_theatre}
+      - {kind: battle, toward: csa, region: eastern_theatre}
+      - {kind: battle, toward: usa, region: western_theatre}
+      - {kind: battle, toward: csa, region: western_theatre}
+  # Britain and France have no seat at the table; the contest is what can turn them.
+  # [proposed]
+  - key: recognition
+    kind: rivalry
+    name: Recognition abroad
+    prize: Whether Britain and France recognise the Confederacy as a nation.
+    sides: [usa, csa]
+    countdown_days: 105
+    moves:
+      - {kind: agreement_made, toward: csa, between: [csa, uk]}
+      - {kind: agreement_made, toward: csa, between: [csa, french_empire]}
+      - {kind: battle, toward: csa, region: eastern_theatre}
+      - {kind: battle, toward: usa, region: eastern_theatre}
+      - {kind: holder, toward: csa, territory: maryland}

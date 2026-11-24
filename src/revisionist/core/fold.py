@@ -103,7 +103,15 @@ from revisionist.core.realism.pipeline import (
 )
 from revisionist.core.realism.territory import holder as territory_holder
 from revisionist.core.realism.war import at_war, polity_of
-from revisionist.core.state import Ladder, Rule, State, Wake, controller_after, seat_of_person
+from revisionist.core.state import (
+    Ladder,
+    QuestionCause,
+    Rule,
+    State,
+    Wake,
+    controller_after,
+    seat_of_person,
+)
 from revisionist.core.visibility import PUBLIC, Scope
 
 
@@ -584,9 +592,23 @@ def _office_question_opened(state: State, p: ev.OfficeQuestionOpened) -> State:
         raise FoldError(f"office_question_opened: {q.question_id} sits too soon")
     if q.tick not in (office.first_wake(state, False), office.first_wake(state, True)):
         raise FoldError(f"office_question_opened: {q.question_id} names another tick")
-    return state.model_copy(
-        update={"office_questions": _put(state.office_questions, q.question_id, q)}
-    )
+    update: dict[str, object] = {"office_questions": _put(state.office_questions, q.question_id, q)}
+    if q.cause is QuestionCause.BASE and q.post in state.office_base_fell:
+        update["office_base_fell"] = _put(
+            state.office_base_fell, q.post, q.opened + timedelta(days=1)
+        )
+    return state.model_copy(update=update)
+
+
+def _rebased(state: State, day: date | None) -> State:
+    """The day each post's base fell under its line, read again after what it rests on
+    moved (TUR): kept while it stays under, cleared at or above the line."""
+    if day is None or not office.on(state):
+        return state
+    fell = office.base_fell(state, day)
+    if fell == state.office_base_fell:
+        return state
+    return state.model_copy(update={"office_base_fell": fell})
 
 
 def _office_choice_filed(state: State, p: ev.OfficeChoiceFiled) -> State:
@@ -1634,7 +1656,7 @@ def _realism(state: State, p: ev.Payload) -> State:
         case ev.PostChanged():
             return _post_changed(state, p)
         case ev.LaddersDeclared():
-            return _ladders_declared(state, p)
+            return _rebased(_ladders_declared(state, p), state.in_world_date)
         case ev.PostMoveOrdered():
             return _post_move_ordered(state, p)
         case ev.PostMoveSettled():
@@ -1690,11 +1712,11 @@ def _realism(state: State, p: ev.Payload) -> State:
                 update={"intelligence": _put(state.intelligence, p.nation, intel)}
             )
         case ev.GroupsDeclared():
-            return _groups_declared(state, p)
+            return _rebased(_groups_declared(state, p), state.in_world_date)
         case ev.PieceStepped():
             return _piece_stepped(state, p)
         case ev.GroupMoved():
-            return _group_moved(state, p)
+            return _rebased(_group_moved(state, p), p.on)
         case ev.GroupProposed():
             wrote = p.proposal
             if not groups.on(state):

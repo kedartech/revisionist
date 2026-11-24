@@ -662,6 +662,7 @@ def _walk(em: Emitter, events: Sequence[Event], before: date, until: date) -> li
         add(groups.losses(state, day_from, today, day))  # LSS: the day's losses, by size
         add(groups.batch(state, day))  # GRP: the day's writing, settled in one batch
         add(groups.drift(state, day))  # GRP: on a Monday, toward the baseline
+        add(office.turning(state, day))  # TUR: a base under its line warns, then asks
         add(offers.walk(state, day))  # PRC: a measure decided, a promise on its due day
         read = [e.payload for e in out[walk_mark:]]
         add(contests.moves(state, walk_from, read, day - timedelta(days=1), day))  # CON

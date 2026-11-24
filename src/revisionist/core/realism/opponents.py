@@ -14,7 +14,7 @@ from typing import NamedTuple
 
 from revisionist.core import events as ev
 from revisionist.core.ids import ContestId, EntityId, OrderId, SeatId
-from revisionist.core.ontology import ContestKind
+from revisionist.core.ontology import ContestKind, regard_held
 from revisionist.core.realism import actors
 from revisionist.core.realism.card import Conflict
 from revisionist.core.realism.stance import OPPOSED, Stance, StanceCause, Standing, step
@@ -89,10 +89,8 @@ def _regard(state: State, figure: EntityId, person: EntityId) -> int:
     card = state.cards[figure]
     if person in card.principals:
         return card.loyalty
-    return next(
-        (r.disposition for r in state.relationships.values() if {r.a, r.b} == {figure, person}),
-        0,
-    )
+    found = regard_held(state.relationships, figure, person, either=True)
+    return 0 if found is None else found.disposition
 
 
 def conflicts(state: State, figure: EntityId, person: EntityId) -> tuple[Conflict, ...]:

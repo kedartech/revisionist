@@ -100,3 +100,11 @@
 .rl-home-holder { color: var(--fg-muted); }
 .rl-home-place.threatened, .rl-home-place.threatened .rl-home-threat { color: var(--danger); }
 .rl-home-threat { font: 600 12px/1 var(--font-chrome); text-transform: uppercase; }
+
+/* The office block of the home sheet (realism-office.js): footing, each question in brief, the elections ahead. */
+.rl-home-office { display: grid; gap: var(--space-2); margin: var(--space-3) 0; }
+.rl-home-office .rl-office-footing { padding: var(--space-2) var(--space-3); border: 1px solid var(--rule-strong); border-radius: var(--radius); font-size: 13px; overflow-wrap: anywhere; }
+.rl-home-office .rl-office-foot { margin: 0; }
+.rl-home-office .rl-office-foot.under { border-left: 3px solid var(--warn); padding-left: var(--space-2); }
+.rl-office-brief, .rl-office-elections ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); font-size: 13px; overflow-wrap: anywhere; }
+.rl-office-elections h4 { margin: var(--space-2) 0 var(--space-1); }

@@ -24,6 +24,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
+import { capitalLines } from './capital-line.js';
 import { installDom, words } from './dom-fake.js';
 
 installDom();
@@ -68,6 +69,8 @@ function seat(n = 3, change = () => {}) {
   const outside = { key: 'press', name: 'The Press', kind: 'press', support: 45, last_moved: { cause: 'writing', change: 2, on: '1900-04-08' }, feeds: { opinion: 1 } };
   rv.home = {
     ...structuredClone(fixture.home),
+    // the office question has its own tests (h07-office.test.js): none here, so the list is the board's own
+    office: [], footing: [], results: [], elections: [],
     groups: [...assembly.map((b) => ({ key: b.group, name: b.name, kind: 'party', support: b.support, last_moved: null, feeds: { votes: 1 } })),
       { key: 's0', name: 'Senate Right', kind: 'party', support: 40, last_moved: null, feeds: { votes: 1 } },
       { key: 's1', name: 'Senate Left', kind: 'party', support: 60, last_moved: null, feeds: { votes: 1 } }, outside],
@@ -101,6 +104,7 @@ function seat(n = 3, change = () => {}) {
   }] };
   rv.stakes = { ...structuredClone(fixture.stakes), contests: [structuredClone(fixture.stakes.contests[0])], mandates: [structuredClone(fixture.stakes.mandates[0])] };
   change(rv);
+  rv.capitals = capitalLines(rv);
   return rv;
 }
 

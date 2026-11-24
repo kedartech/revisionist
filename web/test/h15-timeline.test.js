@@ -45,6 +45,8 @@ function seat(change = () => {}) {
   rv.style = 'free';
   rv.wake = { ...rv.wake, deadline: '2999-01-01T00:00:00+00:00', you_committed: false, humans: 1, committed: 0 };
   rv.battles = [];
+  // the fixture's incident is a dated line of the list too; these marks count the rest
+  delete rv.locks.incidents;
   rv.conferences = { conferences: [{
     key: 'moscow', called_by: 'United Kingdom', invited: ['United Kingdom', 'United States'], text: 'Supply for Moscow', clauses: [],
     unanimous: false, called: '1941-10-25', voting_day: '1941-10-30', public: true, vote: null, can_vote: true, tallied: null, result: null, votes: [], agreement: null,

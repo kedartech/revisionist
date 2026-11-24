@@ -17,6 +17,10 @@ are printed, for reading, not asserted.
 
 With ``offers`` on, the blocs carry their prices, and the scripted orders make no offer:
 no bloc's count moves by a price, so the bands read as with ``offers`` off.
+
+With ``peace`` on (PED), each nation with a seat has a row naming who may accept a peace,
+and the scripted orders offer none: no war ends and no clause against a separate peace is
+judged, so the bands read as with ``peace`` off.
 """
 
 from collections.abc import Iterable

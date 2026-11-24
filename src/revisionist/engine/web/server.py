@@ -125,6 +125,7 @@ SEALED_BY_COMMIT = frozenset(
         "offer",
         "move",
         "office-vote",
+        "send-anyway",
     }
 )
 """Actions that file or change an order, or answer another seat's request: held for the
@@ -193,6 +194,7 @@ REALISM_ACTIONS = (
     "aim-set",
     "offer",
     "office-vote",
+    "send-anyway",
 )
 """Every ``/api/realism/<action>``: ``App.realism`` answers any other as no such call."""
 
@@ -600,6 +602,10 @@ class App:
                 elif action == "option":
                     done = agenda_api.pick_option(store, cid, seat, _text(body, "pick", 120))
                     return snapshot.checked(state, seat, dict(done))
+                elif action == "answer" and "verdict" in body:  # an incident (DFR)
+                    item, verdict = _text(body, "item", 64), _text(body, "verdict", 20)
+                    done = agenda_api.answer_incident(store, cid, seat, item, verdict)
+                    return snapshot.checked(state, seat, dict(done))
                 elif action == "answer":
                     accept = body.get("accept")
                     if not isinstance(accept, bool):
@@ -650,6 +656,10 @@ class App:
                     held_id = OrderId(_text(body, "order_id", 64))
                     made = realism_tick.ask_order(store, cid, seat, held_id)
                     reply = locks_api.asked_reply(state, seat, made)
+                elif action == "send-anyway":  # a held order sent without leave (DFR)
+                    held_id = OrderId(_text(body, "order_id", 64))
+                    reply = locks_api.sent_reply(state, held_id)
+                    realism_tick.send_anyway(store, cid, seat, held_id)
                 elif action in ("battle", "contingency"):
                     asks, label = _battle_asks(state, seat, action, body)
                     realism_tick.commit_order(store, cid, seat, asks)
@@ -673,6 +683,7 @@ class App:
                     args, _ = agenda_api.office_vote_args(state, seat, body)
                     reply = agenda_api.office_vote(store, cid, seat, args)
                 elif action == "offer":
+                    home_api.refuse_at_post(state, seat)
                     priced = realism_tick.make_offer(store, cid, seat, *_offer_args(body))
                     reply = home_api.offered(state, priced)
                 else:
@@ -1268,6 +1279,9 @@ def _held_args(
     if action == "ask":
         order_id = _text(body, "order_id", 64)
         return {"order_id": order_id}, locks_api.ask_label(state, seat, order_id)
+    if action == "send-anyway":
+        order_id = _text(body, "order_id", 64)
+        return {"order_id": order_id}, locks_api.send_label(state, seat, order_id)
     if action == "offer":
         bloc, measure, price = _offer_args(body)
         label = home_api.offer_label(state, seat, bloc, measure, price)
@@ -1278,6 +1292,10 @@ def _held_args(
         who = reading.shown["person"]
         label = f"Your order to {who}" if who else "Your order"
         return {"asks": [a.model_dump(mode="json") for a in reading.asks]}, label
+    if "verdict" in body:  # an incident (DFR)
+        item, verdict = _text(body, "item", 64), _text(body, "verdict", 20)
+        label = locks_api.incident_label(state, seat, item, verdict)
+        return {"item": item, "verdict": verdict}, label
     accept = body.get("accept")
     if not isinstance(accept, bool):
         raise ValueError("accept is true or false.")

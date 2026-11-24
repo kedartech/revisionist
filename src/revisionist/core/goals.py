@@ -50,6 +50,7 @@ from revisionist.core.ontology import (
     Controller,
     EntityStatus,
     ScheduleSource,
+    regard_held,
 )
 from revisionist.core.realism.card import ParamValue
 from revisionist.core.realism.effect import EffectKind
@@ -522,7 +523,7 @@ def _in_force(world: State | View, c: AgreementInForce) -> bool:
 
 def _regard(world: State | View, a: EntityId, b: EntityId) -> int:
     """The disposition between ``a`` and ``b``, either way round; 0 with none."""
-    found = next((r for r in world.relationships.values() if {r.a, r.b} == {a, b}), None)
+    found = regard_held(world.relationships, a, b, either=True)
     return 0 if found is None else found.disposition
 
 
@@ -644,6 +645,37 @@ def aim_rule(state: State, goal: Goal) -> AimRule | None:
     if card is None or goal.aim > len(card.aim_rules):
         return None
     return card.aim_rules[goal.aim - 1]
+
+
+def post_sees(condition: WinCondition, sees: tuple[Exposure, ...]) -> tuple[Exposure, ...]:
+    """``sees`` as a commander held to his post reads it (PVW): a leaf on his own nation's
+    facts is hidden from him, unless it is a regard he is party to; public leaves stay
+    public. ``sees`` is returned as given when it does not match ``condition``."""
+    found = leaves(condition)
+    if len(sees) != len(found):
+        return sees
+    return tuple(
+        Exposure.HIDDEN if e is Exposure.OWN and not isinstance(leaf, RegardAt) else e
+        for leaf, e in zip(found, sees, strict=True)
+    )
+
+
+def hidden_at_post(goal: Goal, rule: AimRule | None) -> bool:
+    """Whether a leaf a commander held to his post no longer sees could decide ``goal``
+    (PVW). A goal not made from an aim never is."""
+    if goal.person is None:
+        return False
+    if rule is None or len(rule.sees) != len(leaves(goal.condition)):
+        return True
+    return post_sees(goal.condition, rule.sees) != rule.sees
+
+
+def at_post(goal: Goal, rule: AimRule | None) -> Goal:
+    """``goal`` as a commander held to his post holds it (PVW): where ``hidden_at_post``,
+    whether it holds and the tick it was met are not his to know."""
+    if not hidden_at_post(goal, rule):
+        return goal
+    return goal.model_copy(update={"holding": False, "met_tick": None})
 
 
 def judged(state: State, goal: Goal) -> bool:

@@ -46,6 +46,7 @@ DEFIANT_LOYALTY = 0  # [proposed] an executor at or below this loyalty may refus
 NOT_ON = "Nothing may be sent without leave in this game."  # [proposed]
 NOT_WITHOUT_LEAVE = "Your post gives no leave to send that order without permission."  # [proposed]
 NOT_YOURS = "No incident of yours is open to answer."  # [proposed]
+NOT_LANDED = "That answer could not be given; nothing has changed."  # [proposed]
 BY_AIDE = "The aide never sends an order anyway."
 
 INCIDENT_DAYS = 2  # [proposed] world days the person who could have allowed it has to answer
@@ -130,11 +131,13 @@ def allowed(state: "State", person: EntityId) -> frozenset[Act]:
 
 
 def acts(state: "State", seat: SeatId, asks: Iterable[Ask]) -> frozenset[Act]:
-    """The acts a written order's asks do, told from their typed effects alone."""
+    """The acts a written order's asks do, told from their typed effects and what ``seat``
+    knows of the forces near them (``_known_forces``)."""
     from revisionist.core.realism.war import polity_of
 
     issuer = state.seats[seat].embodies if seat in state.seats else None
     home = polity_of(state, issuer) if issuer is not None else None
+    known = _known_forces(state, seat, home)
     found: set[Act] = set()
     for ask in asks:
         effect = ask.effect
@@ -144,14 +147,14 @@ def acts(state: "State", seat: SeatId, asks: Iterable[Ask]) -> frozenset[Act]:
                 found.add(Act.BORDER)
             if effect.posture is Posture.ATTACK:
                 at = effect.to if effect.to is not None else _place(state, effect.force)
-                if at is not None and _peaceful_near(state, mover, at):
+                if at is not None and _peaceful_near(state, known, mover, at):
                     found.add(Act.FIRE_FIRST)
         elif isinstance(effect, SetEngagement) and effect.rule is Engagement.SHOOT_ON_SIGHT:
             from revisionist.core.realism.locks import zone_of
 
             mover = (_side(state, effect.force) if effect.force is not None else None) or home
             zone = zone_of(state, effect.zone)
-            if zone is not None and _peaceful_near(state, mover, zone):
+            if zone is not None and _peaceful_near(state, known, mover, zone):
                 found.add(Act.FIRE_FIRST)
     return frozenset(found)
 
@@ -310,6 +313,7 @@ def _abroad(
     from revisionist.core.realism.conference import head
     from revisionist.core.realism.ladder import regard
     from revisionist.core.realism.war import polity_of
+    from revisionist.core.state import seat_of_person
 
     if nation is None:
         return []
@@ -318,9 +322,11 @@ def _abroad(
     theirs = head(state, nation)
     if ours is None or theirs is None or ours == theirs:
         return []
+    held = (seat_of_person(state, p) for p in (ours, theirs))
+    seats = frozenset(s.seat_id for s in held if s is not None)
     return [
-        regard(state, ours, theirs, INCIDENT_REGARD),
-        regard(state, theirs, ours, INCIDENT_REGARD),
+        *regard(state, ours, theirs, INCIDENT_REGARD, seats),
+        *regard(state, theirs, ours, INCIDENT_REGARD, seats),
     ]
 
 
@@ -334,14 +340,9 @@ def due(state: "State", day: date) -> list[Label]:
 
 def card_verdict(state: "State", incident: Incident) -> Verdict:
     """The superior's card's answer, by how he regards the commander [proposed]."""
-    regard = next(
-        (
-            r.disposition
-            for r in state.relationships.values()
-            if r.a == incident.superior and r.b == incident.commander
-        ),
-        0,
-    )
+    from revisionist.core.realism.ladder import regard_of
+
+    regard = regard_of(state.relationships, incident.superior, incident.commander)
     if regard >= BACK_AT:
         return Verdict.BACKED
     if regard <= DISMISS_AT:
@@ -375,15 +376,19 @@ def answer(
             force = state.features.get(fid)
             if force is not None and force.engagement != rule:
                 out.append(ev.FeatureSet(feature=force.model_copy(update={"engagement": rule})))
+        seats = frozenset(incident.seats)
         out += [
-            ladder.regard(state, c, s, INCIDENT_REGARD),
-            ladder.regard(state, s, c, INCIDENT_REGARD),
+            *ladder.regard(state, c, s, INCIDENT_REGARD, seats),
+            *ladder.regard(state, s, c, INCIDENT_REGARD, seats),
         ]
     elif verdict is Verdict.DISMISSED:
         card = state.cards.get(c)
         post = card.post if card is not None else None
         moved = ladder.order(state, c, post, False, s, day) if post is not None else None
-        out += moved or []
+        first = moved[0] if moved else None
+        # A dismissal already ordered this day for another incident is the same step down.
+        if isinstance(first, ev.PostMoveOrdered) and first.move.move_id not in state.post_moves:
+            out += moved or []
     return out
 
 
@@ -430,19 +435,54 @@ def _foreign(state: "State", mover: EntityId | None, other: EntityId | None) -> 
     )
 
 
-def _peaceful_near(state: "State", mover: EntityId | None, area: EntityId) -> bool:
-    """Whether a polity not at war with ``mover`` holds ``area`` or keeps a force there."""
-    from revisionist.core.realism import territory
+def _known_forces(
+    state: "State", seat: SeatId, home: EntityId | None
+) -> list[tuple[EntityId, EntityId]]:
+    """Each force ``seat`` knows of, as its nation and the place it is known at. With
+    ``reports`` on, those of its own nation where they stand and any other's only where a
+    report in its view places it; with it off, the seat's map shows every force where it
+    stands. A force it does not know of makes no act; the order is judged on what it knows."""
+    from revisionist.core.project import at_post
+    from revisionist.core.realism import detect, territory
 
-    if _foreign(state, mover, _held_by(state, area)):
-        return True
+    fog = detect.on(state)
+    reports = (
+        {**detect.seen_by(state, seat, post=at_post(state, seat)), **detect.envoys(state, seat)}
+        if fog and seat in state.seats
+        else {}
+    )
+    out: list[tuple[EntityId, EntityId]] = []
     for f in state.features.values():
         side = territory.nation(state, f.side)
         if side is None or not f.places:
             continue
-        here = territory.area_of(state, f.places[0], Domain.LAND)
-        sea = territory.area_of(state, f.places[0], Domain.SEA)
-        if area in (here, sea, f.places[0]) and _foreign(state, mover, side):
+        if side == home or not fog:
+            out.append((side, f.places[0]))
+            continue
+        if home is None:
+            continue
+        seen = reports.get(detect.report_key(state, home, f.feature_id))
+        if seen is not None and seen.area is not None:
+            out.append((side, seen.area))
+    return out
+
+
+def _peaceful_near(
+    state: "State",
+    known: Sequence[tuple[EntityId, EntityId]],
+    mover: EntityId | None,
+    area: EntityId,
+) -> bool:
+    """Whether a polity not at war with ``mover`` holds ``area`` or keeps one of the
+    ``known`` forces there."""
+    from revisionist.core.realism import territory
+
+    if _foreign(state, mover, _held_by(state, area)):
+        return True
+    for side, place in known:
+        here = territory.area_of(state, place, Domain.LAND)
+        sea = territory.area_of(state, place, Domain.SEA)
+        if area in (here, sea, place) and _foreign(state, mover, side):
             return True
     return False
 
@@ -466,6 +506,7 @@ __all__ = [
     "DISMISS_AT",
     "INCIDENT_DAYS",
     "INCIDENT_REGARD",
+    "NOT_LANDED",
     "NOT_ON",
     "NOT_WITHOUT_LEAVE",
     "NOT_YOURS",

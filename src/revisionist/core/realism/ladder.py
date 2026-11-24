@@ -15,11 +15,12 @@ price: the person moved down thinks the worse of the one who moved him, by
 ``order`` is called where an appointment lands, ``due`` and ``land`` by the day's walk.
 """
 
+from collections.abc import Mapping
 from datetime import date
 
 from revisionist.core import events as ev
 from revisionist.core.ids import AssetId, DocumentId, EntityId, RelationshipId, SeatId, derived_id
-from revisionist.core.ontology import EntityStatus, Relationship
+from revisionist.core.ontology import EntityStatus, Relationship, regard_held
 from revisionist.core.realism import posts
 from revisionist.core.realism.card import ChannelKind, PostCause
 from revisionist.core.realism.document import (
@@ -225,9 +226,11 @@ def land(state: State, move_id: str, day: date) -> list[ev.Payload]:
         # The world moved under it: it would now take a seat's last authority, so it is
         # not done on order but stands, a fresh pending change, as the question's cause.
         wake = state.wake.number if state.wake is not None else -1
+        seat = seat_of_person(state, m.person)
         stand = m.model_copy(
             update={
                 "move_id": derived_id(state.campaign_id, "move-stands", m.move_id),
+                "seat": seat.seat_id if seat is not None else None,
                 "ordered": day,
                 "wake": wake,
                 "question": True,
@@ -246,7 +249,7 @@ def land(state: State, move_id: str, day: date) -> list[ev.Payload]:
         )
         out += _fall(state, m.person, m.post, frozenset(), day)
     if down is not None and down != m.by:
-        out.append(_regard(state, down, m.by))
+        out += _regard(state, down, m.by)
     return [*out, settled.model_copy(update={"landed": True})]
 
 
@@ -262,32 +265,71 @@ def _fall(
     return [ev.PostChanged(post=step, holder=was, to=person, on=day, cause=PostCause.APPOINTED)]
 
 
-def _regard(state: State, of: EntityId, toward: EntityId) -> ev.RelationshipSet:
-    return regard(state, of, toward, REGARD_COST)
+def regard_of(
+    relationships: Mapping[RelationshipId, Relationship], of: EntityId, toward: EntityId
+) -> int:
+    """``of``'s regard for ``toward`` as ``regard_held`` reads it; nothing when he has none."""
+    held = regard_held(relationships, of, toward)
+    return held.disposition if held is not None else 0
 
 
-def regard(state: State, of: EntityId, toward: EntityId, cost: int) -> ev.RelationshipSet:
+def _regard(state: State, of: EntityId, toward: EntityId) -> list[ev.Payload]:
+    return list(regard(state, of, toward, REGARD_COST))
+
+
+def regard(
+    state: State,
+    of: EntityId,
+    toward: EntityId,
+    cost: int,
+    seats: frozenset[SeatId] | None = None,
+) -> list[ev.RelationshipSet]:
     """``of``'s regard for ``toward`` lowered by ``cost``, from nothing when he has none:
-    a moved post's cost here, and an incident's (DFY)."""
-    now = next(
-        (r for r in state.relationships.values() if r.a == of and r.b == toward),
-        None,
-    )
+    a moved post's cost here, and an incident's.
+
+    Without ``seats`` every record of it is lowered, each in its own scope. With ``seats``
+    the change is known to those seats alone: a regard others can see is left as it
+    stands and the lowered one is kept apart, sealed to ``seats``, so no other seat learns
+    from it that anything passed between the two."""
+    if seats is None:
+        found = [r for r in state.relationships.values() if r.a == of and r.b == toward]
+        if found:
+            return [
+                ev.RelationshipSet(
+                    relationship=r.model_copy(update={"disposition": max(-5, r.disposition - cost)})
+                )
+                for r in found
+            ]
+        seat = seat_of_person(state, of)
+        scope = scope_of(state, seat.seat_id if seat is not None else None)
+        rid = RelationshipId(derived_id(state.campaign_id, "rel", of, toward))
+        return [_lowered(rid, of, toward, 0, cost, scope)]
+    now = regard_held(state.relationships, of, toward)
+    scope = _sealed(state, seats)
+    rid = RelationshipId(derived_id(state.campaign_id, "rel", of, toward))
     if now is not None:
-        return ev.RelationshipSet(
-            relationship=now.model_copy(update={"disposition": max(-5, now.disposition - cost)})
-        )
-    seat = seat_of_person(state, of)
-    scope = scope_of(state, seat.seat_id if seat is not None else None)
+        if now.scope.visibility is Visibility.RESTRICTED and now.scope.known_by <= scope.known_by:
+            scope, rid = now.scope, now.relationship_id
+        else:
+            rid = RelationshipId(derived_id(state.campaign_id, "rel", of, toward, "sealed"))
+    return [_lowered(rid, of, toward, now.disposition if now is not None else 0, cost, scope)]
+
+
+def _lowered(
+    rid: RelationshipId, of: EntityId, toward: EntityId, was: int, cost: int, scope: Scope
+) -> ev.RelationshipSet:
     return ev.RelationshipSet(
         relationship=Relationship(
-            relationship_id=RelationshipId(derived_id(state.campaign_id, "rel", of, toward)),
-            a=of,
-            b=toward,
-            disposition=-cost,
-            scope=scope,
+            relationship_id=rid, a=of, b=toward, disposition=max(-5, was - cost), scope=scope
         )
     )
+
+
+def _sealed(state: State, seats: frozenset[SeatId]) -> Scope:
+    if seats:
+        return Scope(visibility=Visibility.RESTRICTED, known_by=seats)
+    held = SeatId(derived_id(state.campaign_id, "engine-only", "regard"))
+    return Scope(visibility=Visibility.RESTRICTED, known_by=frozenset({held}))
 
 
 def scope_of(state: State, seat: SeatId | None) -> Scope:
@@ -308,6 +350,7 @@ __all__ = [
     "order",
     "post_named",
     "regard",
+    "regard_of",
     "rung",
     "scope_of",
     "takes_last",

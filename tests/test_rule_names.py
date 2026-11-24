@@ -53,14 +53,46 @@ READ = frozenset(
         "office",
         "elections",
         "defiance",
+        "peace",
     }
 )
 """The names whose reader has been built: a world that names one is no longer as with it off."""
 UNREAD = tuple(n for n in THIRD_RUN if n not in READ)
 
 SHIPPED_ON: dict[str, frozenset[str]] = {
-    "autumn-1941": frozenset({"own_aim", "laws", "ask_answers", "deciders", "offers"}),
+    "autumn-1941": frozenset(
+        {
+            "own_aim",
+            "laws",
+            "ask_answers",
+            "deciders",
+            "offers",
+            "classes",
+            "losses",
+            "places",
+            "posts",
+            "office",
+            "defiance",
+            "peace",
+        }
+    ),
     "salt-strait-realism": frozenset(
+        {
+            "laws",
+            "ask_answers",
+            "deciders",
+            "own_aim",
+            "offers",
+            "classes",
+            "losses",
+            "places",
+            "posts",
+            "office",
+            "elections",
+            "defiance",
+        }
+    ),
+    "civil-war-1862": frozenset(
         {
             "laws",
             "ask_answers",

@@ -19,6 +19,12 @@ Detection adds one: a seat sees enemy pieces only as the reports that have reach
 nation (``View.reports``); a pending report, and the piece a report is about, never. Every
 other nation's envoy is public, an exact report of today (ENV).
 
+A commander held to his post (PVW, ``post_view`` on, a military card) sees what the post
+would: none of his nation's groups, their support or spent points; of its pools
+the fuel stock only, published agreements only, no offers to its blocs, public
+quantities only, and of his aims neither whether one holds nor when it was met where a
+leaf on his own nation's facts could decide it.
+
 A development is the engine's until it fires: its window, chance, condition, effects
 and asks are not in a view before then, and a skipped one never is.
 """
@@ -27,8 +33,17 @@ from collections.abc import Mapping
 from typing import Protocol
 
 from revisionist.core.aim_patterns import OwnAim
-from revisionist.core.goals import sees_goal
-from revisionist.core.ids import AssetId, DocumentId, EntityId, ScheduledEventId, SeatId
+from revisionist.core.goals import Goal, aim_rule, hidden_at_post, sees_goal
+from revisionist.core.goals import at_post as goal_at_post
+from revisionist.core.ids import (
+    AssetId,
+    DocumentId,
+    EntityId,
+    GoalId,
+    QuantityId,
+    ScheduledEventId,
+    SeatId,
+)
 from revisionist.core.ontology import Asset, Controller, ScheduledEvent, ScheduleSource, Seat
 from revisionist.core.realism import (
     agreement,
@@ -40,11 +55,11 @@ from revisionist.core.realism import (
     groups,
     offers,
 )
-from revisionist.core.realism.card import CardFace, SeatCard
+from revisionist.core.realism.card import CardFace, CardPath, SeatCard
 from revisionist.core.realism.document import DocumentView
-from revisionist.core.realism.war import polity_of
-from revisionist.core.state import SeatFace, State, View, seat_of_person
-from revisionist.core.visibility import Scope
+from revisionist.core.realism.quantity import Quantity
+from revisionist.core.state import Rule, SeatFace, State, View, seat_of_person
+from revisionist.core.visibility import Scope, Visibility
 
 
 class HasScope(Protocol):
@@ -100,12 +115,53 @@ def _face(card: SeatCard, assets: Mapping[AssetId, Asset]) -> CardFace:
     return face
 
 
+def at_post(state: State, seat: SeatId) -> bool:
+    """Whether ``seat`` sees only what its post would (PVW): ``post_view`` on and the
+    person it holds on a military card."""
+    if Rule.POST_VIEW not in state.rules or seat not in state.seats:
+        return False
+    card = state.cards.get(state.seats[seat].embodies)
+    return card is not None and card.path is CardPath.MILITARY
+
+
+def _goals(state: State, seat: SeatId, post: bool) -> dict[GoalId, Goal]:
+    """The goals ``seat`` sees; held to his post, each as ``goals.at_post`` leaves it."""
+    seen = {k: g for k, g in state.goals.items() if sees_goal(state, g, seat)}
+    if not post:
+        return seen
+    return {k: goal_at_post(g, aim_rule(state, g)) for k, g in seen.items()}
+
+
+def untold_goals(state: State, seat: SeatId) -> frozenset[GoalId]:
+    """The goals in ``seat``'s view whose met, undone and progress it is not told: held to
+    his post, each ``goals.at_post`` blanks. The feed and the playback both read this."""
+    if not at_post(state, seat):
+        return frozenset()
+    return frozenset(
+        k
+        for k, g in state.goals.items()
+        if sees_goal(state, g, seat) and hidden_at_post(g, aim_rule(state, g))
+    )
+
+
+def _quantities(state: State, seat: SeatId, post: bool) -> dict[QuantityId, Quantity]:
+    """The quantities ``seat`` sees; held to his post, the public ones only."""
+    return {
+        k: q
+        for k, q in state.quantities.items()
+        if q.scope is not None
+        and q.scope.visible_to(seat)
+        and (not post or q.scope.visibility is Visibility.PUBLIC)
+    }
+
+
 def project(state: State, seat: SeatId) -> View:
     if seat not in state.seats:
         raise KeyError(f"unknown seat {seat!r}")
     me = state.seats[seat]
     card = state.cards.get(me.embodies)
     assets = _visible(state.assets, seat)
+    post = at_post(state, seat)
     return View(
         viewer=seat,
         campaign_id=state.campaign_id,
@@ -119,7 +175,7 @@ def project(state: State, seat: SeatId) -> View:
         facts=_visible(state.facts, seat),
         scheduled=_scheduled(state.scheduled, seat),
         commitments=_visible(state.commitments, seat),
-        goals={k: g for k, g in state.goals.items() if sees_goal(state, g, seat)},
+        goals=_goals(state, seat, post),
         mandates=_visible(state.mandates, seat),
         wars=dict(state.wars),
         ended_wars=state.ended_wars,
@@ -130,10 +186,10 @@ def project(state: State, seat: SeatId) -> View:
         aim_patterns=state.aim_patterns,
         own_aims=_own_aims(state, seat),
         holders=dict(state.holders),
-        economy=economy.seen_by(state, seat),
-        groups=groups.seen_by(state, seat),
-        offers=offers.seen_by(state, seat),
-        agreements=agreement.seen_by(state, seat),
+        economy=economy.seen_by(state, seat, post=post),
+        groups=groups.seen_by(state, seat, post=post),
+        offers=() if post else offers.seen_by(state, seat),
+        agreements=agreement.seen_by(state, seat, post=post),
         conferences=conference.seen_by(state, seat),
         wake=state.wake,
         phase=state.phase,
@@ -154,11 +210,7 @@ def project(state: State, seat: SeatId) -> View:
             for k, o in state.orders.items()
             if o.issuer == seat
         },
-        quantities={
-            k: q
-            for k, q in state.quantities.items()
-            if q.scope is not None and q.scope.visible_to(seat)
-        },
+        quantities=_quantities(state, seat, post),
         routed={k: o.view() for k, o in state.routed.items() if o.issuer == seat},
         held={k: h for k, h in state.held.items() if h.issuer == seat},
         asked={
@@ -169,7 +221,7 @@ def project(state: State, seat: SeatId) -> View:
         incidents=defiance.as_seen(state.incidents, seat),
         style=state.styles.get(seat),
         reports={
-            **detect.seen_by(state, polity_of(state, me.embodies)),
-            **detect.envoys(state, polity_of(state, me.embodies)),
+            **detect.seen_by(state, seat, post=post),
+            **detect.envoys(state, seat),
         },
     )

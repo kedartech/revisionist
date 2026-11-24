@@ -19,13 +19,16 @@ import pytest
 
 from revisionist.core import events as ev
 from revisionist.core.fold import FoldError, apply
-from revisionist.core.ids import AssetId, OrderId, derived_id
-from revisionist.core.realism import defiance, locks
+from revisionist.core.ids import AssetId, EventId, FeatureId, OrderId, derived_id
+from revisionist.core.realism import defiance, detect, locks
 from revisionist.core.realism.agenda import Ask
 from revisionist.core.realism.defiance import Act, Cause, Incident, Verdict
+from revisionist.core.realism.detect import Confidence, Picture, Report, Source
 from revisionist.core.realism.effect import Engagement, MoveForce, RoutedOrder, SetEngagement
 from revisionist.core.realism.resolvers import friction
 from revisionist.core.realism.route import REFUSE_PCT, carry_out
+from revisionist.core.state import State
+from revisionist.core.visibility import Visibility
 from revisionist.core.world_compile import WorldError, compile_world, object_id
 from revisionist.engine import campaign as cmp
 from revisionist.engine import realism_tick
@@ -38,6 +41,7 @@ from tests.test_realism_locks import (
     ISLE,
     KARA,
     LEVY,
+    NORRA,
     OLAF,
     World,
     commit,
@@ -223,6 +227,55 @@ def test_a_held_order_on_the_posts_list_is_sent_anyway_once_by_its_own_seat(tmp_
         send(store, held)
 
 
+SUDLAND_LEVY = FeatureId(object_id(CAMPAIGN, "feature", "sudland_levy"))
+
+
+def reporting(w: World) -> None:
+    w["rules"] = sorted({*w["rules"], "territories", "reports"})
+
+
+def known_in_the_gulf(state: State) -> State:
+    """``state`` with a report reaching Norra that places Sudland's levy in the gulf."""
+    day = state.in_world_date
+    assert day is not None
+    key = detect.report_key(state, NORRA, SUDLAND_LEVY)
+    report = Report(
+        key=key,
+        area=GULF,
+        seen=day,
+        source=Source.CONTACT,
+        rank=0,
+        confidence=Confidence.A,
+        arrives=day,
+    )
+    return state.model_copy(update={"reports": {NORRA: Picture(delivered={key: report})}})
+
+
+def test_the_price_and_the_refusal_follow_what_the_seat_knows_of_the_zone(tmp_path: Path) -> None:
+    """Two games alike but for a report of a neutral force in the gulf: the order to
+    shoot on sight there is priced and sent in the one, refused for want of leave in
+    the other. Mutant: acts read from every force in the true state price both."""
+    from revisionist.core.project import project
+    from revisionist.engine.web.locks_api import price
+
+    store = played(tmp_path, isle_move, defiant("fire_first"), reporting)
+    shoot = written(SetEngagement(force=LEVY, zone=GULF, rule=Engagement.SHOOT_ON_SIGHT))
+    order = held_march(store).model_copy(update={"asks": (shoot,)})
+    unseen = load_state(store, CAMPAIGN)
+    seen = known_in_the_gulf(unseen)
+    today = unseen.in_world_date
+    assert today is not None
+    kara = seat(KARA)
+    assert defiance.acts(seen, kara, (shoot,)) == frozenset({Act.FIRE_FIRST})
+    assert defiance.acts(unseen, kara, (shoot,)) == frozenset()
+    acts, _ = realism_tick.sendable(seen, kara, order, today)
+    assert acts == (Act.FIRE_FIRST,)
+    assert price(seen, kara, project(seen, kara), order) is not None
+    with pytest.raises(ValueError, match=f"^{defiance.NOT_WITHOUT_LEAVE}$"):
+        realism_tick.sendable(unseen, kara, order, today)
+    assert price(unseen, kara, project(unseen, kara), order) is None
+
+
 def test_the_order_sent_anyway_is_told_to_its_own_seat_alone(tmp_path: Path) -> None:
     store = played(tmp_path, isle_move, defiant("border"))
     send(store, held_march(store))
@@ -334,10 +387,9 @@ def answer(store: MemoryStore, incident: Incident, verdict: str, person: Any = I
 
 
 def regard(store: MemoryStore, of: Any, toward: Any) -> int:
-    state = load_state(store, CAMPAIGN)
-    return next(
-        (r.disposition for r in state.relationships.values() if r.a == of and r.b == toward), 0
-    )
+    from revisionist.core.realism import ladder
+
+    return ladder.regard_of(load_state(store, CAMPAIGN).relationships, of, toward)
 
 
 def test_an_order_sent_anyway_and_carried_out_opens_one_incident_before_the_superior(
@@ -413,9 +465,195 @@ def test_dismissed_a_step_down_the_commanders_ladder_by_its_rules(tmp_path: Path
     assert (move.person, move.post, move.appoint, move.by) == (KARA, COMMAND, False, ILSE)
 
 
+def _log(store: MemoryStore, payload: Any) -> None:
+    """``payload`` logged after the store's last event, in its scope."""
+    last = list(store.read(CAMPAIGN))[-1]
+    seq = last.seq + 1
+    event_id = EventId(derived_id(CAMPAIGN, "test", str(seq)))
+    store.append_all(
+        [last.model_copy(update={"payload": payload, "seq": seq, "event_id": event_id})]
+    )
+
+
+def two_on_one_day(tmp: Path) -> tuple[MemoryStore, Incident, Incident]:
+    """Kara's incident, and a second against her opened the same day on another order."""
+    store, first = sent_and_carried(tmp)
+    second = first.model_copy(
+        update={
+            "incident_id": derived_id(CAMPAIGN, "incident", "second"),
+            "order_id": OrderId(derived_id(CAMPAIGN, "order", "second")),
+        }
+    )
+    _log(store, ev.IncidentOpened(incident=second))
+    return store, first, second
+
+
+def test_two_incidents_dismissed_on_one_day_order_one_step_down(tmp_path: Path) -> None:
+    store, first, second = two_on_one_day(tmp_path)
+    answer(store, first, "dismissed")
+    done = answer(store, second, "dismissed")
+    assert done.verdict is Verdict.DISMISSED
+    (move,) = [p.move for p in logged(store, ev.PostMoveOrdered)]
+    assert (move.person, move.post, move.appoint) == (KARA, COMMAND, False)
+
+
+def test_the_card_dismissing_twice_on_one_day_leaves_the_walk_going(tmp_path: Path) -> None:
+    from revisionist.core.realism import ladder
+
+    store, first, second = two_on_one_day(tmp_path)
+    state = load_state(store, CAMPAIGN)
+    for lowered in ladder.regard(
+        state, ILSE, KARA, regard(store, ILSE, KARA) - defiance.DISMISS_AT
+    ):
+        _log(store, lowered)
+    state = tick_until(store, lambda s: all(i.verdict for i in s.incidents.values()), ticks=6)
+    assert [state.incidents[i.incident_id].verdict for i in (first, second)] == [
+        Verdict.DISMISSED,
+        Verdict.DISMISSED,
+    ]
+    assert len(logged(store, ev.PostMoveOrdered)) == 1
+    day = state.in_world_date
+    after = tick_until(store, lambda s: s.in_world_date != day, ticks=1)
+    assert after.in_world_date is not None and day is not None and after.in_world_date > day
+
+
+def test_an_answer_the_log_refuses_is_told_in_words_and_stores_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store, incident = sent_and_carried(tmp_path)
+    answered = defiance.answer
+
+    def twice(*args: Any, **kw: Any) -> list[Any]:
+        out = answered(*args, **kw)
+        return [*out, out[0]]
+
+    monkeypatch.setattr(defiance, "answer", twice)
+    before = len(list(store.read(CAMPAIGN)))
+    with pytest.raises(ValueError, match=f"^{defiance.NOT_LANDED}$"):
+        answer(store, incident, "dismissed")
+    assert len(list(store.read(CAMPAIGN))) == before
+
+
 def test_abroad_the_incident_names_the_nation_it_was_done_to(tmp_path: Path) -> None:
     _, incident = sent_and_carried(tmp_path)
     assert incident.abroad == key_id("sudland")
+
+
+def regarded(w: World) -> None:
+    """Public regard, as a world declares it, between Ilse and Kara and between the two
+    nations' heads, Ilse and Tomas."""
+    w["relationships"] = [
+        *w.get("relationships", []),
+        *(
+            {"key": f"{a}_{b}", "a": a, "b": b, "disposition": 0}
+            for a, b in (("ilse", "kara"), ("kara", "ilse"), ("ilse", "tomas"), ("tomas", "ilse"))
+        ),
+    ]
+
+
+def third_seat(store: MemoryStore) -> tuple[Any, list[Any]]:
+    """What Olaf, party to no incident, holds of the game: his view's relationships and
+    every event the catch-up seam feeds him."""
+    from revisionist.core.project import project
+    from revisionist.engine import catchup
+
+    view = project(load_state(store, CAMPAIGN), seat(OLAF))
+    fed = catchup.seat_events(store, CAMPAIGN, seat(OLAF), 0, 999)
+    return view.relationships, [
+        (f.event.kind, f.event.payload.model_dump(mode="json")) for f in fed
+    ]
+
+
+def test_twin_games_answered_two_ways_read_the_same_to_a_third_seat(tmp_path: Path) -> None:
+    from collections import Counter
+
+    from tests.fog_twins import drawn_from
+
+    seen, held = [], []
+    for verdict in ("backed", "disowned"):
+        with drawn_from(Counter()):
+            store, incident = sent_and_carried(tmp_path / verdict, regarded)
+            answer(store, incident, verdict)
+        seen.append(third_seat(store))
+        held.append((regard(store, ILSE, KARA), regard(store, KARA, ILSE)))
+    assert held[1] == tuple(b - defiance.INCIDENT_REGARD for b in held[0])
+    assert seen[0] == seen[1]
+
+
+def test_an_incidents_change_of_regard_is_sealed_to_the_two_parties(tmp_path: Path) -> None:
+    from revisionist.core.project import project
+
+    store, incident = sent_and_carried(tmp_path, regarded)
+    answer(store, incident, "disowned")
+    changed = [
+        e
+        for e in store.read(CAMPAIGN)
+        if isinstance(e.payload, ev.RelationshipSet)
+        and {e.payload.relationship.a, e.payload.relationship.b} == {ILSE, KARA}
+        and e.payload.relationship.disposition < 0
+    ]
+    assert len(changed) == 2
+    for e in changed:
+        assert isinstance(e.payload, ev.RelationshipSet)
+        assert (
+            e.scope.known_by == frozenset(incident.seats) == e.payload.relationship.scope.known_by
+        )
+    state = load_state(store, CAMPAIGN)
+    for person in (ILSE, KARA):
+        mine = project(state, seat(person)).relationships.values()
+        sealed = {
+            (r.a, r.disposition)
+            for r in mine
+            if {r.a, r.b} == {ILSE, KARA} and r.scope.visibility is not Visibility.PUBLIC
+        }
+        assert sealed == {(ILSE, -defiance.INCIDENT_REGARD), (KARA, -defiance.INCIDENT_REGARD)}
+
+
+def test_the_engine_reads_the_sealed_regard_and_a_third_seat_the_world_s(
+    tmp_path: Path,
+) -> None:
+    from revisionist.core import goals
+    from revisionist.core.project import project
+    from revisionist.core.realism.ladder import regard_of
+
+    store, incident = sent_and_carried(tmp_path, regarded)
+    answer(store, incident, "disowned")
+    state = load_state(store, CAMPAIGN)
+    fell = -defiance.INCIDENT_REGARD
+    assert regard_of(state.relationships, ILSE, KARA) == fell
+    assert goals._regard(state, KARA, ILSE) == fell
+    assert goals._regard(project(state, seat(ILSE)), ILSE, KARA) == fell
+    assert goals._regard(project(state, seat(OLAF)), ILSE, KARA) == 0
+
+
+def test_a_later_public_fall_lowers_the_sealed_regard_as_well(tmp_path: Path) -> None:
+    from revisionist.core.realism import ladder
+
+    store, incident = sent_and_carried(tmp_path, regarded)
+    answer(store, incident, "disowned")
+    state = load_state(store, CAMPAIGN)
+    moved = ladder.regard(state, ILSE, KARA, 1)
+    fell = {e.relationship.scope.visibility: e.relationship.disposition for e in moved}
+    assert fell == {Visibility.PUBLIC: -1, Visibility.RESTRICTED: -defiance.INCIDENT_REGARD - 1}
+
+
+def test_abroad_the_heads_change_of_regard_is_sealed_to_their_seats(tmp_path: Path) -> None:
+    store, _ = sent_and_carried(tmp_path, regarded)
+    heads = {ILSE, key_id("tomas")}
+    fallen = [
+        e
+        for e in store.read(CAMPAIGN)
+        if isinstance(e.payload, ev.RelationshipSet)
+        and {e.payload.relationship.a, e.payload.relationship.b} == heads
+        and e.payload.relationship.disposition < 0
+    ]
+    assert len(fallen) == 2
+    assert all(not e.scope.visible_to(seat(OLAF)) for e in fallen)
+    relationships, fed = third_seat(store)
+    assert all(r.disposition == 0 for r in relationships.values() if {r.a, r.b} == heads)
+    assert not [
+        p for k, p in fed if k == "relationship_set" and p["relationship"]["disposition"] < 0
+    ]
 
 
 def test_only_the_superiors_seat_answers_and_only_once(tmp_path: Path) -> None:
@@ -451,7 +689,8 @@ def test_the_card_answers_by_how_the_superior_regards_the_commander(tmp_path: Pa
     base = regard(store, ILSE, KARA)
 
     def at(n: int) -> Verdict:
-        moved = apply(state, _event(store, ladder.regard(state, ILSE, KARA, base - n)))
+        (lowered,) = ladder.regard(state, ILSE, KARA, base - n)
+        moved = apply(state, _event(store, lowered))
         return defiance.card_verdict(moved, incident)
 
     assert at(defiance.BACK_AT) is Verdict.BACKED
@@ -587,8 +826,8 @@ def _king(*, defy: bool = True) -> tuple[Any, Any]:
     from tests.test_commander_step_actions import _at_king
 
     r, order = _at_king()
-    if defy:
-        r.state = r.state.model_copy(update={"rules": r.state.rules | {Rule.DEFIANCE}})
+    rules = r.state.rules | {Rule.DEFIANCE} if defy else r.state.rules - {Rule.DEFIANCE}
+    r.state = r.state.model_copy(update={"rules": rules})
     return r, order
 
 

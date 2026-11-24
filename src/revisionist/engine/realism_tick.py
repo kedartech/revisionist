@@ -416,6 +416,8 @@ def _scope_of(state: State, payload: ev.Payload) -> Scope:
         return office.choice_scope(payload.seat_id)  # OFQ: sealed to the seat that chose
     if isinstance(payload, ev.DocumentIssued):
         return payload.document.scope
+    if isinstance(payload, ev.RelationshipSet):
+        return payload.relationship.scope
     if isinstance(payload, ev.OrderExecuted | ev.EffectsApplied | ev.InfluenceDecided):
         return private_to(state.routed[payload.order_id].issuer)
     if isinstance(payload, ev.MandateIssued):
@@ -815,6 +817,20 @@ def ask_order(
     return asked
 
 
+def sendable(
+    state: State, seat: SeatId, h: locks.HeldOrder, today: date
+) -> tuple[tuple[defiance.Act, ...], ev.OrderDrafted | ev.OrderRouted]:
+    """Whether the seat's held order ``h`` may be sent anyway today, as ``send_anyway``
+    rules it: its acts and the landing. Raises ``ValueError`` with the seat's words. The
+    check before sending reads the same rule, so the price it names and the send agree."""
+    acts = defiance.may_send(state, seat, h)
+    landed_id = OrderId(derived_id(state.campaign_id, "defied", h.order_id))
+    landing, refusal = _relanded(state, h, landed_id, today)
+    if landing is None:
+        raise ValueError(refusal[:300] or NOBODY)
+    return acts, landing
+
+
 def send_anyway(
     store: EventStore, campaign_id: CampaignId, seat: SeatId, order_id: OrderId
 ) -> ev.OrderDefied:
@@ -828,11 +844,8 @@ def send_anyway(
         raise ValueError(locks.NOT_HELD)
     if order_id in state.aide_orders:
         raise ValueError(defiance.BY_AIDE)
-    acts = defiance.may_send(state, seat, h)
+    acts, landing = sendable(state, seat, h, today)
     landed_id = OrderId(derived_id(state.campaign_id, "defied", order_id))
-    landing, refusal = _relanded(state, h, landed_id, today)
-    if landing is None:
-        raise ValueError(refusal[:300] or NOBODY)
     sent = ev.OrderDefied(
         defied=defiance.Defied(
             order_id=order_id,
@@ -873,7 +886,11 @@ def answer_incident(
     except ValueError:
         raise ValueError(f"answer one of: {', '.join(v.value for v in defiance.Verdict)}") from None
     landed = defiance.answer(state, found, chosen, max(today, found.opened), by_card=False)
-    _append_all(store, state, [(p, _scope_of(state, p)) for p in landed], seat)
+    try:
+        _append_all(store, state, [(p, _scope_of(state, p)) for p in landed], seat)
+    except FoldError as exc:
+        log.warning("incident %s not answered: %s", incident_id, exc)
+        raise ValueError(defiance.NOT_LANDED) from None
     first = landed[0]
     assert isinstance(first, ev.IncidentAnswered)
     return first
@@ -903,7 +920,7 @@ def choose_office(
     state = load_state(store, campaign_id)
     today = state.in_world_date
     if today is None:
-        raise ValueError(office.NOT_OPEN)
+        raise ValueError(office.NOT_YOURS)
     chosen = office.choose(state, seat, question_id, remove, today)
     _append_all(store, state, [(chosen, office.choice_scope(seat))], seat)
 

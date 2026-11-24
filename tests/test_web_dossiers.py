@@ -25,9 +25,18 @@ READY = ["autumn-1941", "engine-v2-slice-1941"]
 
 def awaiting_portrait(world: str) -> list[str]:
     """Playable people whose portrait waits on a licence-cleared file, read from the world file:
-    the military cards flagged playable by hand. The client draws a monogram."""
+    the military cards flagged playable by hand, and the political cards named in
+    POLITICAL_AWAITING. The client draws a monogram."""
     decl = cmp.load_world(cmp.world_path(world))
-    return sorted(c.person for c in decl.cards if c.playable and c.path is CardPath.MILITARY)
+    return sorted(
+        c.person
+        for c in decl.cards
+        if c.playable and (c.path is CardPath.MILITARY or c.person in POLITICAL_AWAITING)
+    )
+
+
+POLITICAL_AWAITING = frozenset({"ryti"})
+"""Political cards whose portrait is not yet cleared: Finland's President (NFI) came without one."""
 
 
 def sidecar(tmp: Path, people: dict[str, Any] | None = None, **setting: Any) -> Path:

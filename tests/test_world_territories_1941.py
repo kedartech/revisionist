@@ -72,6 +72,13 @@ def test_the_world_switches_on_the_territory_rules() -> None:
         "ask_answers",
         "deciders",
         "offers",
+        "classes",
+        "losses",
+        "places",
+        "posts",
+        "office",
+        "defiance",
+        "peace",
     ]
     assert Rig().state.rules == frozenset(
         {
@@ -95,6 +102,13 @@ def test_the_world_switches_on_the_territory_rules() -> None:
             Rule.ASK_ANSWERS,
             Rule.DECIDERS,
             Rule.OFFERS,
+            Rule.CLASSES,
+            Rule.LOSSES,
+            Rule.PLACES,
+            Rule.POSTS,
+            Rule.OFFICE,
+            Rule.DEFIANCE,
+            Rule.PEACE,
         }
     )
 
@@ -146,7 +160,7 @@ def test_every_force_is_a_piece_standing_in_an_area() -> None:
     assert board is not None
     areas = set(board.areas())
     forces = _forces(r)
-    assert len(forces) == 29
+    assert len(forces) == 30
     assert [key_of(r, f.feature_id) for f in forces if f.kind is not FeatureKind.PIECE] == []
     assert [key_of(r, f.feature_id) for f in forces if f.places[0] not in areas] == []
 

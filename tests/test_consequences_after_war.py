@@ -30,9 +30,10 @@ class War:
         self.store = MemoryStore()
         decl = cmp.load_world(cmp.world_path(world))
         if not groups:  # the Gallup questions are read only with groups off
-            decl = decl.model_copy(
-                update={"rules": tuple(r for r in decl.rules if r is not Rule.GROUPS)}
-            )
+            # places weigh ground for groups, so the world check refuses them without groups;
+            # a post removed by a vote needs a chamber's blocs, so office goes with them
+            off = {Rule.GROUPS, Rule.PLACES, Rule.OFFICE}
+            decl = decl.model_copy(update={"rules": tuple(r for r in decl.rules if r not in off)})
         self.store.append_all(compile_world(decl, CAMPAIGN, cmp.versions()))
         self.ids = resolve_keys(decl, CAMPAIGN)
         self.fdr = SeatId(derived_id(CAMPAIGN, "seat", self.ids["roosevelt"]))

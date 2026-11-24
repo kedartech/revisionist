@@ -111,6 +111,17 @@ def bill(key: str) -> Effect:
     return HISTORICAL[key].model_dump(mode="json")
 
 
+NATIONAL_SERVICE: Effect = {
+    "kind": "measure",
+    "title": "National Service",
+    "clauses": [
+        {"kind": "power", "subject": "call up unmarried women and men to fifty-one", "amount": None}
+    ],
+}
+"""Britain's law as a written bill: the code table has no row for it, so the Commons' blocs count it
+by the key its title's words make."""
+
+
 def approach(target: str) -> Effect:
     return {"target": target}
 
@@ -289,6 +300,13 @@ NINETEEN_41: tuple[Case, ...] = (
         {"intel": "codebreaking"},
         "Fund Bletchley Park.",
         codes("uk"),
+    ),
+    f41(
+        "churchill",
+        "send_bill",
+        {"bill": "national_service", "urgency": "ordinary"},
+        "Put the National Service bill to the Commons.",
+        NATIONAL_SERVICE,
     ),
     # Stalin
     f41(
@@ -616,11 +634,41 @@ NINETEEN_41: tuple[Case, ...] = (
         "Hide the Ninth War Area's armies.",
         hide("ninth_war_area"),
     ),
+    # President Ryti: the army order and the agent, both through the Commander-in-Chief
+    f41(
+        "ryti",
+        "finnish_army_order",
+        {"force": "finnish_army", "to": "helsinki"},
+        "The Finnish Army is to stand at Helsinki.",
+        move("finnish_army", "helsinki"),
+    ),
+    f41(
+        "ryti",
+        "finnish_agent",
+        {"intel": "agent", "area": "leningrad_area"},
+        "Put an agent behind the lines at Leningrad.",
+        agent("leningrad_area"),
+    ),
+    # Marshal Mannerheim: the move no lock holds, and the concealment
+    f41(
+        "mannerheim",
+        "finnish_army_move",
+        {"force": "finnish_army", "to": "helsinki"},
+        "Move the Finnish Army to Helsinki.",
+        move("finnish_army", "helsinki"),
+    ),
+    f41(
+        "mannerheim",
+        "finnish_army_conceal",
+        {"intel": "conceal", "piece": "finnish_army", "concealed": "yes"},
+        "Hide the Finnish Army.",
+        hide("finnish_army"),
+    ),
 )
 """Every form on every playable card of Autumn 1941; Admiral King's naval order once in
 each zone it names, the war zone included; Admiral Tovey's, Admiral Dönitz's, Admiral
-Yamamoto's, Admiral Iachino's two forms, Marshal Timoshenko's two and General Xue's two where no
-lock holds them."""
+Yamamoto's, Admiral Iachino's two forms, Marshal Timoshenko's two, General Xue's two and
+Marshal Mannerheim's two where no lock holds them, and President Ryti's two."""
 
 
 # --- Salt Strait -------------------------------------------------------------------------

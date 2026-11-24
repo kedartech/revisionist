@@ -416,6 +416,63 @@ def test_the_promise_broken_on_its_due_day(tmp_path: Path) -> None:
     assert support(g) == 55 - 6
 
 
+FERRY = "ferry_act"
+
+
+def ferry(w: World) -> None:
+    """A second law of Norra's, the Ferry Act, which Ilse may send as well."""
+    w["quantities"].append(_flag(f"{FERRY}_passed", "Ferry Act passed"))
+    barge = next(x for x in w["laws"] if x["key"] == MEASURE)
+    w["laws"].append({**barge, "key": FERRY, "title": "The Ferry Act", "passed": f"{FERRY}_passed"})
+    card(w, "ilse")["levers"][0]["params"][0]["choices"] = [MEASURE, FERRY]
+
+
+def _both_due(g: Game) -> None:
+    """Both acts sent on the start day, the Greens offered a price on each by Ilse."""
+    for n, measure in ((1, MEASURE), (2, FERRY)):
+        order = Order(
+            order_id=OrderId(derived_id(CAMPAIGN, "bill", n)),
+            issuer=seat(ILSE),
+            lever="propose",
+            pipeline=PipelineId(object_id(CAMPAIGN, "pipeline", "clerks")),
+            params={"bill": measure},
+            filed=DAY,
+        )
+        g.add([ev.OrderDrafted(order=order)])
+    g.add([offers.offer(g.state, seat(ILSE), "greens", MEASURE, DUES, DAY)])
+    g.add([offers.offer(g.state, seat(ILSE), "greens", FERRY, GUILD, DAY)])
+
+
+def test_two_promises_to_one_bloc_due_on_one_day_both_move_its_support(tmp_path: Path) -> None:
+    g = game(tmp_path, ferry)
+    _both_due(g)
+    flag(g, GUILD_FLAG, 1, day(5))
+    out = g.walk(day(1), DUE)
+    assert sorted((o.price, o.standing, o.due) for o in g.state.offers) == [
+        (GUILD, OfferStanding.KEPT, DUE),
+        (DUES, OfferStanding.BROKEN, DUE),
+    ]
+    kept, broken = moved(out, Cause.PROMISE_KEPT), moved(out, Cause.PROMISE_BROKEN)
+    assert [m.change for m in kept + broken] == [offers.KEPT_POINTS, -6]
+    assert support(g) == 55 + offers.KEPT_POINTS - 6
+
+
+def test_two_promises_broken_on_one_day_near_the_floor_move_from_where_the_first_left_it(
+    tmp_path: Path,
+) -> None:
+    def low(w: World) -> None:
+        ferry(w)
+        _bloc(w, "greens").update(start=3, baseline=3)
+        _bloc(w, "greens")["vote_default"] = {"assembly": {"voting": 50, "yeas": 50}}
+
+    g = game(tmp_path, low)
+    _both_due(g)
+    out = g.walk(day(1), DUE)
+    broken = moved(out, Cause.PROMISE_BROKEN)
+    assert [(m.change, m.support) for m in broken] == [(-3, 0), (0, 0)]
+    assert support(g) == 0
+
+
 def test_the_promise_is_read_from_state_on_its_due_day_not_when_the_offer_was_made(
     tmp_path: Path,
 ) -> None:

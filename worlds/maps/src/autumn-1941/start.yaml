@@ -7,7 +7,7 @@
 #
 # Blocks shaped as the world file has them: `sources`, `wars`, `terrain`, `resources`, `piece_kinds`,
 # `entities` (new polities, and every place restated with `within`, a port's `port_on` and a base's
-# `base`), `features` (the seven new forces). Blocks of this file's own, for FLP to fold in:
+# `base`), `features` (the eight new forces). Blocks of this file's own, for FLP to fold in:
 # - `holders`: each land territory's holder on 1 September 1941 (the territory's `holder`), with a
 #   source or `gap: true`. Every holder here is a gap: the lane had no network and no evidence record.
 # - `forces`: every force, today's and the new, with its piece kind, its side, the area it stands in at
@@ -142,6 +142,8 @@ entities:
   - {key: tripoli, kind: location, name: Tripoli, at: [32.89, 13.19], within: tripolitania, port_on: central_mediterranean, base: {sides: [italy], domains: [sea, land]}}
   - {key: taranto, kind: location, name: Taranto, at: [40.47, 17.24], within: italy_south, port_on: central_mediterranean, base: {sides: [italy], domains: [sea]}}
   - {key: changsha, kind: location, name: Changsha, at: [28.2, 112.97], within: hunan, base: {sides: [china], domains: [land]}}
+  # NFI: Mikkeli, the Finnish Commander-in-Chief's headquarters, a land base for the Finnish Army. [proposed]
+  - {key: mikkeli, kind: location, name: Mikkeli, at: [61.7, 27.3], theatre: Northern front, within: finland, base: {sides: [finland_state], domains: [land]}}
   - {key: wuhan, kind: location, name: Wuhan, at: [30.58, 114.27], within: wuhan_area, base: {sides: [japan], domains: [land]}}
 
 # Rule 2: every land territory's holder on 1 September 1941. All gaps (no evidence record).
@@ -249,6 +251,7 @@ features:
   - {key: italian_army_libya, kind: piece, piece: army, name: Italian Army in Libya, side: italy, tier: 3, places: [tripoli], gap: true}
   - {key: afrika_korps, kind: piece, piece: army, name: Afrika Korps, side: germany, tier: 3, places: [bardia], gap: true}
   - {key: ninth_war_area, kind: piece, piece: army, name: Ninth War Area, side: china, tier: 3, places: [changsha], gap: true}
+  - {key: finnish_army, kind: piece, piece: army, name: Finnish Army, side: finland_state, tier: 3, places: [mikkeli], gap: true}
   - key: eleventh_army
     kind: piece
     piece: army
@@ -293,6 +296,8 @@ forces:
   - {key: baltic_fleet, piece: fleet, side: ussr, area: baltic_sea}
   - {key: northern_fleet, piece: fleet, side: ussr, area: white_sea}
   - {key: leningrad_front, piece: army, side: ussr, area: leningrad_area}
+  # NFI: the Finnish Army, at Mikkeli in Finland. [proposed]
+  - {key: finnish_army, piece: army, side: finland_state, area: finland}
   - {key: italian_army, piece: army, side: italy, area: italy_south}
   - {key: chinese_army, piece: army, side: china, area: szechwan}
   - {key: mediterranean_fleet, piece: fleet, side: uk, area: eastern_mediterranean}

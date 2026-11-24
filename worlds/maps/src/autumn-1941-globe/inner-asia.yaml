@@ -1,0 +1,200 @@
+# The 1941 map, eighth region: India, Central Asia and Siberia. Built by scripts/map_build.py together
+# with the earlier regions (see worlds/maps/README.md); the provinces are Natural Earth 1:10m admin-1
+# codes (worlds/maps/SOURCES.md). Every value here is [proposed]: the territory list and names, which
+# provinces make each territory and every terrain. The list is the regions draft's (thirteen core
+# territories at its grain and one small piece the holders of 1 September 1941 set apart: Goa).
+#
+# Build it with the earlier regions, naming the recipe files:
+#   python scripts/map_build.py build worlds/maps/src/autumn-1941-globe/eastern-front.yaml \
+#     worlds/maps/src/autumn-1941-globe/europe.yaml worlds/maps/src/autumn-1941-globe/atlantic.yaml \
+#     worlds/maps/src/autumn-1941-globe/mediterranean.yaml worlds/maps/src/autumn-1941-globe/pacific.yaml \
+#     worlds/maps/src/autumn-1941-globe/americas.yaml worlds/maps/src/autumn-1941-globe/africa.yaml \
+#     worlds/maps/src/autumn-1941-globe/inner-asia.yaml --slug autumn-1941-globe
+#
+# What it claims. The 35 Russian units the earlier regions left (Kalmykia to Kirov on the Volga, the
+# Urals, Siberia up to the Soviet Far East's line, and Tuva); Kazakhstan with Baykonur;
+# the four Central Asian republics; Afghanistan; Pakistan, Bangladesh, Sri Lanka, Nepal, Bhutan,
+# Mongolia and the Indian units; Xizang and Xinjiang. With it Russia's 86 units are all claimed, and
+# India's 36 but one. The earlier regions' territories are not touched; each border this region shares
+# with one of them is that territory's own line. The Andaman and Nicobar Islands stay unclaimed: the
+# Andaman Sea zone's western edge crosses the Nicobars, and claiming them leaves a gap of one grid step
+# between the zone, the backdrop and the islands where that edge meets the coast, which the build's
+# check fails. They are left for the sea-zone item, which can move that edge.
+#
+# Cut lines. None. The Soviet republics' lines of 1941 differ from the present ones (the Kalmyk ASSR,
+# Astrakhan, the Kazakh-Uzbek line after the Karakalpak ASSR moved in 1936), but each such line falls
+# between two territories the Soviet Union holds, so the present lines stand, a gap. Xinjiang, Xizang
+# and Tuva are whole admin-1 units: present Xizang against the 1941 Lhasa-held line (the Xikang border
+# with Sichuan and Qinghai) is a gap, not a cut the data can make without a source. Aksai Chin lies
+# in Xinjiang in the data, against a 1941 line that was never fixed, a gap. Arunachal Pradesh goes
+# with Bengal, against Tibet's administration of Tawang in 1941, a gap.
+#
+# One area, several holders. The Indus and the North-West, the Ganges plain and Southern India fold in
+# the princely states with British India; Southern India takes Ceylon, and French India's Puducherry
+# unit, a gap; the Indus takes Daman and Diu, Portuguese, inside the Dadra unit, a gap. Tibet takes
+# Nepal and Bhutan; Mongolia takes Tannu Tuva. Each has one holder in start.yaml, a gap.
+map:
+  box: [-126, -60, 234, 84]
+regions:
+  - {key: inner_asia, name: India, Central Asia and Siberia}
+territories:
+  - key: middle_volga
+    name: The Middle Volga
+    region: inner_asia
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Volga steppe and the Kama country; no source cited"
+    sites: [kuibyshev, kazan, astrakhan]
+    provinces: [
+      RUS-2384, RUS-2385, RUS-2387, RUS-2388, RUS-2390, RUS-2392, RUS-2394, RUS-2395
+    ]
+  - key: urals
+    name: The Urals
+    region: inner_asia
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Ural range with its forest and steppe flanks; no source cited"
+    sites: [sverdlovsk, magnitogorsk]
+    provinces: [
+      RUS-2378, RUS-2379, RUS-2380, RUS-2381, RUS-2383, RUS-2386, RUS-2391, RUS-3200
+    ]
+  - key: western_siberia
+    name: Western Siberia
+    region: inner_asia
+    terrain: marsh
+    terrain_gap: true
+    terrain_note: "the West Siberian marshes, with the Kuznetsk basin and the Altai; no source cited"
+    sites: [novosibirsk, stalinsk]
+    provinces: [
+      "RUS+99?", RUS-2167, RUS-2382, RUS-2396, RUS-2397, RUS-2398, RUS-2399, RUS-2400, RUS-2401,
+      RUS-2403
+    ]
+  - key: kazakhstan
+    name: Kazakhstan
+    region: inner_asia
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Kazakh steppe and desert; no source cited"
+    sites: [alma_ata, karaganda]
+    provinces: [
+      "KAB+00?", KAZ-3195, KAZ-3196, KAZ-3197, KAZ-3198, KAZ-3201, KAZ-3202, KAZ-3203, KAZ-3204,
+      KAZ-3205, KAZ-3206, KAZ-3207, KAZ-3236, KAZ-3251, KAZ-3252, KAZ-4829, KAZ-4830
+    ]
+  - key: eastern_siberia
+    name: Eastern Siberia
+    region: inner_asia
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the taiga from the Yenisei to Kamchatka; no source cited"
+    sites: [krasnoyarsk, irkutsk]
+    provinces: [
+      RUS-2321, RUS-2402, RUS-2602, RUS-2603, RUS-2606, RUS-2612, RUS-2615, RUS-3468
+    ]
+  - key: turkestan
+    name: Turkestan
+    region: inner_asia
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Tien Shan and the Pamirs over the Kara Kum; no source cited"
+    sites: [tashkent, krasnovodsk]
+    provinces: [
+      KGZ-1115, KGZ-1116, KGZ-1117, KGZ-1118, KGZ-1119, KGZ-1120, KGZ-1121, KGZ-1122, TJK-366,
+      TJK-367, TJK-368, TJK-369, TJK-5491, TKM-351, TKM-352, TKM-353, TKM-359, TKM-360, UZB-354,
+      UZB-355, UZB-356, UZB-357, UZB-358, UZB-361, UZB-362, UZB-363, UZB-364, UZB-365, UZB-370,
+      UZB-371, UZB-372, UZB-4828
+    ]
+  - key: afghanistan
+    name: Afghanistan
+    region: inner_asia
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Hindu Kush; no source cited"
+    sites: [kabul]
+    provinces: [
+      AFG-1741, AFG-1742, AFG-1743, AFG-1744, AFG-1745, AFG-1746, AFG-1747, AFG-1748, AFG-1749,
+      AFG-1750, AFG-1751, AFG-1752, AFG-1753, AFG-1754, AFG-1755, AFG-1757, AFG-1758, AFG-1759,
+      AFG-1760, AFG-1761, AFG-1762, AFG-1763, AFG-1764, AFG-1765, AFG-1766, AFG-1767, AFG-1768,
+      AFG-1769, AFG-1770, AFG-1771, AFG-1772, AFG-1773, AFG-1774, AFG-3413
+    ]
+  - key: indus_northwest
+    name: The Indus and the North-West
+    region: inner_asia
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Indus plain and the Punjab under the frontier hills; no source cited"
+    sites: [karachi, lahore, rawalpindi]
+    provinces: [
+      IND-20012, IND-2427, IND-2429, IND-2430, IND-2431, IND-2445, IND-3249, IND-3250, IND-3264,
+      "KAS+00?", PAK-1108, PAK-1109, PAK-1110, PAK-1111, PAK-1112, PAK-1113, PAK-1114, PAK-1123
+    ]
+  - key: ganges_bengal
+    name: The Ganges Plain and Bengal
+    region: inner_asia
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Ganges plain and the delta; no source cited"
+    sites: [new_delhi, calcutta]
+    provinces: [
+      BGD-1806, BGD-2432, BGD-2475, BGD-2476, BGD-2488, BGD-3255, BGD-5492, IND-2428, IND-2444,
+      IND-2477, IND-2478, IND-2479, IND-2489, IND-3253, IND-3254, IND-3256, IND-3257, IND-3258,
+      IND-3259, IND-3260, IND-3261, IND-3299, IND-3300, IND-3301
+    ]
+  - key: southern_india
+    name: Southern India and Ceylon
+    region: inner_asia
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Deccan and its coasts; no source cited"
+    sites: [bombay, madras, trincomalee, colombo]
+    provinces: [
+      IND-20011, IND-2441, IND-2442, IND-2443, IND-2446, IND-2447, IND-3262, IND-3263, LKA-2448,
+      LKA-2449, LKA-2450, LKA-2451, LKA-2452, LKA-2453, LKA-2454, LKA-2455, LKA-2456, LKA-2457,
+      LKA-2458, LKA-2459, LKA-2460, LKA-2461, LKA-2462, LKA-2463, LKA-2464, LKA-2465, LKA-2466,
+      LKA-2467, LKA-2468, LKA-2469, LKA-2470, LKA-2471, LKA-2472
+    ]
+  - key: portuguese_india
+    name: Goa
+    region: inner_asia
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Konkan coast; no source cited"
+    sites: [nova_goa]
+    provinces: [
+      IND-3265
+    ]
+  - key: tibet_nepal
+    name: Tibet, Nepal and Bhutan
+    region: inner_asia
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Tibetan plateau and the Himalaya; no source cited"
+    sites: [lhasa]
+    provinces: [
+      BTN-2433, BTN-2434, BTN-2435, BTN-2436, BTN-2437, BTN-2438, BTN-2439, BTN-2440, BTN-2480,
+      BTN-2481, BTN-2482, BTN-2483, BTN-2484, BTN-2485, BTN-2486, BTN-2487, BTN-2490, BTN-2491,
+      BTN-2492, BTN-2493, CHN-1662, NPL-1095, NPL-1124, NPL-1125, NPL-1126, NPL-1127, NPL-1128,
+      NPL-1129, NPL-1130, NPL-1131, NPL-1132, NPL-1133, NPL-1134, NPL-1135, NPL-373
+    ]
+  - key: sinkiang
+    name: Sinkiang
+    region: inner_asia
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Tarim basin ringed by the Tien Shan and the Kunlun; no source cited"
+    sites: [urumchi, hami]
+    provinces: [
+      CHN-1756
+    ]
+  - key: mongolia
+    name: Mongolia and Tannu Tuva
+    region: inner_asia
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the Mongolian steppe and the Gobi; no source cited"
+    sites: [ulan_bator, kyzyl]
+    provinces: [
+      MNG-3208, MNG-3297, MNG-3298, MNG-3315, MNG-3316, MNG-3317, MNG-3318, MNG-3319, MNG-3320,
+      MNG-3321, MNG-3322, MNG-3323, MNG-3324, MNG-3325, MNG-3326, MNG-3327, MNG-3328, MNG-3329,
+      MNG-3330, MNG-3331, MNG-3332, MNG-3333, RUS-2605
+    ]
+cuts: []

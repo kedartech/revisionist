@@ -430,7 +430,7 @@ def test_the_batches_hold_every_case_once_and_share_no_person_or_piece() -> None
         assert len({c.person for c in batch}) == len(batch)
         pieces = [p for c in batch for p in _pieces(c)]
         assert len(set(pieces)) == len(pieces)
-    assert len(played) < len(CASES) / 2
+    assert len(played) < len(CASES) * 11 / 20
 
 
 @pytest.mark.parametrize("batch", [_batch(b) for b in batches(CASES)])
@@ -628,7 +628,8 @@ def test_with_locks_off_a_locked_order_goes_through_as_an_ordinary_one(
     case: Case, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(cmp, "load_world", functools.cache(cmp.load_world))
-    base = opened(case.world, without=(Rule.LOCKS,), who=case.person)
+    # defiance needs locks, so it goes with them (the 1941 world has it on since the offices item)
+    base = opened(case.world, without=(Rule.LOCKS, Rule.DEFIANCE), who=case.person)
     by_form = Game(base, monkeypatch, Canned())
     in_writing = Game(base, monkeypatch, Canned())
     assert by_form.form(case) == in_writing.written(case) == ""

@@ -2,8 +2,9 @@
 // `locks` block: its own held orders and the asks put before it. Whether an order would be held is
 // the server's to say: each check is the `check` call's answer (allowed, locked or beyond), kept for
 // the room's data it was asked under, so a re-read of the room asks again. The client works nothing
-// out. A held order and an ask are drawn from the block alone, as text. Nothing here touches the
-// page on import.
+// out. A held order and an ask are drawn from the block alone, as text. With `defiance` on, a check
+// or held order the seat may send anyway carries the server's price, and the block lists the
+// incidents the seat is party to (DFB). Nothing here touches the page on import.
 
 import { api } from '../api.js';
 import { h, svg } from '../dom.js';
@@ -100,9 +101,14 @@ export function lockCheck(rv, body, onArrive, { fresh = false } = {}) {
   return entry.answer;
 }
 
-const answerOf = (r) => (r && !r.refused && typeof r.check === 'string' ? { check: r.check, who: r.who ?? null, reason: r.reason ?? '' } : null);
+const answerOf = (r) => (r && !r.refused && typeof r.check === 'string'
+  ? { check: r.check, who: r.who ?? null, reason: r.reason ?? '', ...(typeof r.price === 'string' && r.price ? { price: r.price } : {}) }
+  : null);
 
-/** Ask the server's check of filing `body` now: a promise of `{ check, who, reason }`, or of null when it failed. */
+/**
+ * Ask the server's check of filing `body` now: a promise of `{ check, who, reason }`, with `price`
+ * where the server offers sending it anyway, or of null when it failed.
+ */
 export function checkNow(body) {
   return Promise.resolve()
     .then(() => api.realism('check', { lever: body.lever, params: { ...(body.params ?? {}) } }))
@@ -119,20 +125,63 @@ export const keptCheck = (rv, body) => (body?.lever ? checked.get(rv)?.get(keyOf
 /** Whether a check says a lock holds the order. */
 export const isLocked = (c) => c?.check === 'locked';
 
-// --- choosing a locked order: file it to be held, or ask ---------------------------------------
+// --- choosing a locked order: file it to be held, ask, or send it anyway -------------------------
+
+/** The third choice's words, and the confirm step's question [proposed]. */
+export const ANYWAY = 'Send it anyway';
+export const ANYWAY_SURE = 'Send it without leave? This cannot be taken back.';
+
+/**
+ * The price of sending anyway as the server worded it (`price`), a Send it anyway button beside
+ * `acts`, and its confirm step: the first press puts the question and Send it anyway, Back in place
+ * of `acts`'s buttons; only the second calls `send()`. Nothing when the server sent no price or
+ * there is no `send`: the client never offers what the server did not.
+ */
+export function anywayChoice(price, send, acts, esc = {}) {
+  if (typeof price !== 'string' || !price || !send) return null;
+  const choices = [...acts.childNodes];
+  const back = () => { acts.replaceChildren(...choices); acts.querySelector('.rl-lock-anyway')?.focus?.(); };
+  const sure = () => {
+    acts.replaceChildren(h('div', { class: 'rl-lock-confirm', role: 'group', 'aria-label': ANYWAY },
+      h('p', { class: 'rl-lock-sure' }, ANYWAY_SURE),
+      h('button', { type: 'button', class: 'primary rl-lock-yes', onclick: send, ...esc }, ANYWAY),
+      h('button', { type: 'button', class: 'rl-lock-back', onclick: back, ...esc }, 'Back')));
+    acts.querySelector('.rl-lock-yes')?.focus?.();
+  };
+  const button = h('button', { type: 'button', class: 'rl-lock-anyway', onclick: sure, ...esc }, ANYWAY);
+  acts.append(button);
+  choices.push(button);
+  return h('p', { class: 'rl-lock-price' }, price);
+}
 
 /**
  * What a locked order offers: the reason the seat would be told, and two buttons, File it to be
- * held (`file()`) and Ask (`ask()`). `esc` is spread on each button.
+ * held (`file()`) and Ask (`ask()`); where the server's check carries a price, a third, Send it
+ * anyway, with that price and a confirm step before `send()`. `esc` is spread on each button.
  */
-export function lockedChoice(c, { file, ask, esc = {} }) {
+export function lockedChoice(c, { file, ask, send = null, esc = {} }) {
+  const acts = h('div', { class: 'rl-lock-acts' },
+    h('button', { type: 'button', class: 'primary rl-lock-file', onclick: file, ...esc }, 'File it to be held'),
+    h('button', { type: 'button', class: 'rl-lock-ask', onclick: ask, ...esc }, `Ask ${c.who}`));
+  const price = anywayChoice(c.price, send, acts, esc);
   return h('div', { class: 'rl-lock-choice', role: 'group', 'aria-label': lockWords(c) },
     h('p', { class: 'rl-lock-line' }, lockTag(c.who)),
     c.reason ? h('p', { class: 'rl-lock-reason' }, c.reason) : null,
-    h('div', { class: 'rl-lock-acts' },
-      h('button', { type: 'button', class: 'primary rl-lock-file', onclick: file, ...esc }, 'File it to be held'),
-      h('button', { type: 'button', class: 'rl-lock-ask', onclick: ask, ...esc }, `Ask ${c.who}`)));
+    price,
+    acts);
 }
+
+// --- the incident: an order sent without leave, before the superior and told to the commander ----
+
+/** The incidents the seat is party to, as the server sent them (with `defiance` on). */
+export const incidentLines = (rv) => rv?.locks?.incidents ?? [];
+
+/** Each answer's button word, by the verdict the server names [proposed]; an unknown one shows as sent. */
+const VERDICT_WORDS = { backed: 'Back it', disowned: 'Disown it', dismissed: 'Dismiss it' };
+export const verdictWord = (v) => VERDICT_WORDS[v] ?? v;
+
+/** An incident's outcome in words: its answer, or that none has come [proposed]. */
+export const outcomeWords = (i) => (i.verdict ? `Answered: ${i.verdict}` : 'Not answered yet');
 
 // --- the ask, as the decider opens it ------------------------------------------------------------
 

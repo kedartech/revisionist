@@ -20,9 +20,11 @@ LEADERS = {
     "tojo",
     "mussolini",
     "chiang",
+    "ryti",
 }
-"""The eight leaders. The commanders the nation items add are read from the world file: each
-playable card beside these is a military card flagged playable by hand."""
+"""The eight leaders, and Finland's President (NFI), a political card beside them. The
+commanders the nation items add are read from the world file: each playable card beside
+these is a military card flagged playable by hand."""
 
 # Unsourced values a plan Josh approved puts in the world as [proposed], each marked
 # gap: true until a source is named (sealift plan, section 3).
@@ -109,7 +111,7 @@ def test_no_quantity_holds_a_value_outside_the_source_note() -> None:
 def test_every_card_lever_names_a_resolver_and_a_card_pipeline() -> None:
     for c in _world().cards:
         assert all(lv.pipeline in c.pipelines for lv in c.levers), c.person
-    assert all(2 <= len(c.levers) <= 10 for c in _world().cards if c.playable)
+    assert all(2 <= len(c.levers) <= 11 for c in _world().cards if c.playable)
 
 
 def test_every_playable_card_has_authority_or_a_rank() -> None:

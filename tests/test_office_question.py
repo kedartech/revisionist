@@ -18,14 +18,14 @@ from revisionist.core import events as ev
 from revisionist.core import sealing
 from revisionist.core.fold import FoldError, state_hash
 from revisionist.core.ids import EntityId, SeatId
-from revisionist.core.realism import actors, office
+from revisionist.core.realism import actors, ladder, office
 from revisionist.core.resolution import TickStage
 from revisionist.core.state import QuestionCause, State
 from revisionist.core.visibility import PUBLIC, Visibility
 from revisionist.core.world import WorldFile
 from revisionist.core.world_compile import WorldError, compile_world
 from revisionist.engine import campaign as cmp
-from revisionist.engine import catchup, realism_tick, session_zero
+from revisionist.engine import catchup, realism_tick, session_zero, wake
 from revisionist.engine.emit import Emitter
 from revisionist.engine.store import MemoryStore, load_state
 from tests.test_ladder import Ladders
@@ -344,6 +344,26 @@ def test_an_order_taking_the_last_authority_opens_the_question_and_waits(tmp_pat
     assert made.removed and move.move_id not in g.state.post_moves
     (settled,) = g.payloads(ev.PostMoveSettled)
     assert settled.landed
+
+
+def test_a_dismissal_ordered_before_she_is_played_stands_on_her_new_seat(tmp_path: Path) -> None:
+    """Nobody plays Kara when Ilse dismisses her, so the order names no seat. A player
+    takes her up in the next wake; at its close the move would take her last authority
+    and stands as the question's cause, sealed to her new seat with its notice, and the
+    walks after it go on."""
+    g = sitting(tmp_path, office_on(BY_PERSON), claimed=(ILSE, TOMAS))
+    g.open(0)
+    g.order(KARA, COMMAND, appoint=False)
+    g.close(0)
+    g.open(1)
+    hers = wake.hand_over(g.store, CAMPAIGN, KARA)
+    g.close(1)
+    (stand,) = [p.move for p in g.walk() if isinstance(p, ev.PostMoveOrdered)]
+    assert stand.question and stand.seat == hers == seat_of(g.state, KARA)
+    assert ladder.notice_id(g.state, stand.move_id) in g.state.documents
+    g.tick()
+    (opened,) = g.payloads(ev.OfficeQuestionOpened)
+    assert opened.question.move_id == stand.move_id
 
 
 def test_with_office_off_the_order_stands_and_no_question_opens(tmp_path: Path) -> None:

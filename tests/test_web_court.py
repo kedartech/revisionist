@@ -177,6 +177,7 @@ def test_a_pipeline_on_the_card_that_no_form_uses_is_not_a_path() -> None:
     assert [p["name"] for p in court["paths"]] == [
         "A Chiefs of Staff directive",
         "A broadcast to the nation",
+        "A bill through the Commons",
     ]
 
 

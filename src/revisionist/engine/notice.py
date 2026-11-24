@@ -38,6 +38,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from revisionist.core import events as ev
 from revisionist.core.ids import CampaignId, SeatId
+from revisionist.core.project import at_post
 from revisionist.core.state import State
 from revisionist.engine import campaign as cmp
 from revisionist.engine.store import EventStore, load_state
@@ -55,6 +56,12 @@ DIGEST_TO_ENV = "REVISIONIST_REPORTS_DIGEST_TO"
 DEFAULT_ZONE = "America/New_York"
 """[proposed] The zone a notice's close time is given in when the account set none."""
 AIDE_CLAUSE = "If you have not pressed Done by then, your aide plays your seat."
+POST_CLAUSE = (
+    "You see what your post would: your forces, their supply and the public figures,"
+    " not your government's own books."
+)
+"""Told once, on a commander's first wake, when ``post_view`` holds him to his post. The
+wording is proposed."""
 ADDRESS_MAX = 254
 _ADDRESS = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
@@ -88,7 +95,8 @@ def compose(state: State, seat: SeatId, zone: str | None, game: str) -> tuple[st
     """The subject and text of ``seat``'s notice for the open wake.
 
     Reads the wake's number and deadline, the world date and what waits on the seat:
-    nothing about any other seat's commit, presence or aide play."""
+    nothing about any other seat's commit, presence or aide play. A commander held to
+    his post is told so on the first wake."""
     wake = state.wake
     if wake is None:
         raise ValueError("no wake has opened")
@@ -108,6 +116,8 @@ def compose(state: State, seat: SeatId, zone: str | None, game: str) -> tuple[st
         lines.append("Nothing from another player waits on you.")
     lines.append("")
     lines.append(AIDE_CLAUSE)
+    if wake.number == 1 and at_post(state, seat):
+        lines += ["", POST_CLAUSE]
     return f"{game}: wake {wake.number} is open", "\n".join(lines)
 
 

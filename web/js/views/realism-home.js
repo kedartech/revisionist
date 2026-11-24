@@ -16,6 +16,7 @@
 
 import { h, svg } from '../dom.js';
 import { worldDate } from '../rules.js';
+import { homeOffice } from './realism-office.js';
 
 /** The home sheet's title in the map-first room. */
 export const HOME_TITLE = 'At home';
@@ -376,6 +377,7 @@ export function homeSheet(home, { onSpeak, days = null } = {}) {
       moved.length
         ? h('ul', {}, moved.map((g) => h('li', { 'data-group': g.key }, h('strong', {}, g.name), ' ', moveLine(g.last_moved))))
         : h('p', { class: 'muted' }, 'Nothing moved at the last close.')) : null,
+    homeOffice(home),
     placesSection(home),
     h('h4', {}, 'Groups'),
     h('ul', { class: 'rl-home-groups' }, (home.groups ?? []).map((g) => groupToken(home, g))),

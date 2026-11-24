@@ -60,6 +60,7 @@ ACTIONS: dict[str, Barred | str] = {
     "file": AIDE_FILES,
     "withdraw": OWN_STEP,
     "ask": Barred.ASK_HELD,
+    "send-anyway": Barred.SEND_HELD,
     "battle": BATTLE,
     "contingency": BATTLE,
     "agreement-publish": NO_DEAL,
@@ -116,7 +117,6 @@ KINDS: dict[EffectKind, Barred | str] = {
 """Every effect kind an order can carry, by what holds the aide to it."""
 
 ACTS_WITH_NO_ACTION = {
-    Barred.SEND_HELD: "a held order is sent anyway only by its own seat (defiance.BY_AIDE)",
     Barred.BREAKAWAY: "no rule lets a seat break away yet",
     Barred.PLOT: "no rule lets a seat launch a plot yet",
     Barred.PURGE: "no rule lets a seat order a purge yet",

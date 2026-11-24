@@ -77,8 +77,9 @@ MEASURE = "office_question"
 default row for the vote."""
 
 NOT_ON = "there is no office question in this game"
-NOT_OPEN = "no such office question is open"
-NOT_A_MEMBER = "you do not decide this office question"
+# One wording for a question that is not open, another nation's, and one the seat does not
+# decide: a seat must not learn from the refusal whether a question is open abroad.
+NOT_YOURS = "That office question is not before you."  # [proposed]
 
 
 def on(state: State) -> bool:
@@ -240,10 +241,10 @@ def may_choose(state: State, seat: SeatId, question_id: str) -> None:
         raise ValueError(NOT_ON)
     q = state.office_questions.get(question_id)
     if q is None:
-        raise ValueError(NOT_OPEN)
+        raise ValueError(NOT_YOURS)
     held = state.seats.get(seat)
     if held is None or held.embodies not in deciders(state, q):
-        raise ValueError(NOT_A_MEMBER)
+        raise ValueError(NOT_YOURS)
 
 
 def choose(state: State, seat: SeatId, question_id: str, remove: bool, today: date) -> ev.Payload:
@@ -259,11 +260,9 @@ def choice_scope(seat: SeatId) -> Scope:
 def card_choice(state: State, member: EntityId, holder: EntityId) -> bool:
     """A member who filed no choice: his card decides on the day, to remove a holder he
     regards ill (a regard below nothing), else to keep him. [proposed]"""
-    regard = next(
-        (r.disposition for r in state.relationships.values() if r.a == member and r.b == holder),
-        0,
-    )
-    return regard < 0
+    from revisionist.core.realism.ladder import regard_of
+
+    return regard_of(state.relationships, member, holder) < 0
 
 
 def _choice(state: State, q: OfficeQuestion, member: EntityId) -> bool:
@@ -473,9 +472,8 @@ def turning(state: State, today: date) -> list[ev.Payload]:
 __all__ = [
     "ELECTION_LINE",
     "MEASURE",
-    "NOT_A_MEMBER",
     "NOT_ON",
-    "NOT_OPEN",
+    "NOT_YOURS",
     "REST_DAYS",
     "SITTING_DAYS",
     "TURN_DAYS",

@@ -78,6 +78,7 @@ other nation's ground."""
 NOT_ON = "Agreements are not part of this game."
 NO_PEACE = "Peace is not part of this game."  # [proposed]
 NOT_ALLOWED = "Not every named nation allowed the peace."  # [proposed]
+WAR_ENDED = "Another agreement ended the war it would end, the same day."  # [proposed]
 TERMS = "Terms are in force."  # [proposed]
 ACCEPT_PEACE = "Accept the terms of peace."  # [proposed]
 ALONE = "An offer of an agreement goes in an order of its own."
@@ -303,16 +304,36 @@ def render_terms(state: "State", agreement: Agreement | AgreementOffer) -> str:
     return " ".join(f"{label}: {text}" for label, text in term_rows(state, agreement))
 
 
-def seen_by(state: "State", seat: SeatId) -> Agreements:
+def seen_by(state: "State", seat: SeatId, *, post: bool = False) -> Agreements:
     """What ``seat`` sees: the offers and agreements its nation is a party to, and every
-    published agreement."""
+    published agreement. With ``post`` (a commander held to his post, PVW): the published
+    agreements and any naming a force he commands, no offers."""
     own = _nation(state, seat)
     a = state.agreements
+    if post:
+        return Agreements(
+            made={
+                k: x
+                for k, x in a.made.items()
+                if x.public or (own is not None and _names_his_force(state, seat, own, x))
+            }
+        )
     return Agreements(
         offers={k: o for k, o in a.offers.items() if own is not None and own in o.parties},
         made={
             k: x for k, x in a.made.items() if x.public or (own is not None and own in x.parties)
         },
+    )
+
+
+def _names_his_force(state: "State", seat: SeatId, own: EntityId, agreement: Agreement) -> bool:
+    """Whether a clause of ``agreement`` binding ``own`` names a force ``seat`` commands."""
+    from revisionist.core.realism.war_rules import commanders
+
+    return any(
+        c.force is not None and seat in {s for s, _ in commanders(state, c.force)}
+        for c in agreement.clauses
+        if c.binds == own
     )
 
 
@@ -637,16 +658,31 @@ def papers(
     day: date,
     title: str,
     rows: list[tuple[str, str]],
+    about: "Agreement | AgreementOffer | None" = None,
 ) -> list["Payload"]:
+    """A paper to every seat of each of ``parties``. One ``about`` an offer or an agreement
+    skips a seat held to his post that would not see it (``seen_by`` with ``post``)."""
+    from revisionist.core.project import at_post
     from revisionist.core.realism.holders import holding_seats
 
     out: list[Payload] = []
     for party in parties:
         for seat in holding_seats(state, party):
+            if about is not None and at_post(state, seat) and not _post_sees(state, seat, about):
+                continue
             paper = _paper(state, seat, key, day, title, rows)
             if paper is not None:
                 out.append(paper)
     return out
+
+
+def _post_sees(state: "State", seat: SeatId, about: "Agreement | AgreementOffer") -> bool:
+    """Whether a commander held to his post sees ``about``: no offer, and an agreement
+    only when published or naming a force he commands, as ``seen_by`` has it."""
+    if not isinstance(about, Agreement):
+        return False
+    own = _nation(state, seat)
+    return about.public or (own is not None and _names_his_force(state, seat, own, about))
 
 
 def statuses(clauses: Sequence[AgreementClause]) -> tuple[ClauseStatus, ...]:
@@ -704,10 +740,11 @@ def offers_due(state: "State", day: date) -> list["Payload"]:
     from revisionist.core import events as ev
 
     out: list[Payload] = []
+    done: set[str] = set()
     for routed in sorted(state.routed.values(), key=lambda o: (o.filed, o.order_id)):
         deal = _offer_of(routed)
         if deal is not None:
-            out += _offer_day(state, routed, deal, day)
+            out += _offer_day(state, routed, deal, day, done)
             continue
         for i, part in enumerate(routed.parts):
             if not is_publish(part) or part.applied is not None or part.executed is None:
@@ -725,10 +762,12 @@ def offers_due(state: "State", day: date) -> list["Payload"]:
                     )
                 )
             out.append(ev.EffectsApplied(order_id=routed.order_id, part=i, on=day))
-    return out
+    return out + _separate_peaces(state, done, day)
 
 
-def _offer_day(state: "State", routed: "RoutedOrder", deal: Deal, day: date) -> list["Payload"]:
+def _offer_day(
+    state: "State", routed: "RoutedOrder", deal: Deal, day: date, done: set[str]
+) -> list["Payload"]:
     from revisionist.core import events as ev
 
     out: list[Payload] = []
@@ -751,9 +790,9 @@ def _offer_day(state: "State", routed: "RoutedOrder", deal: Deal, day: date) -> 
     terms = term_rows(state, offer)
     if all(p.accepted for _, p in parts):
         if carries_peace(offer) and peace_on(state):
-            out += _peace_close(state, routed, offer, day)
+            out += _peace_close(state, routed, offer, day, done)
         else:
-            out += made_now(state, offer, day)
+            out += made_now(state, offer, day, done)
     else:
         out += papers(
             state,
@@ -762,22 +801,53 @@ def _offer_day(state: "State", routed: "RoutedOrder", deal: Deal, day: date) -> 
             day,
             "An offer of agreement lapsed",
             [("Why", "Not every named nation accepted it."), *terms],
+            offer,
         )
     return out
 
 
-def made_now(state: "State", offer: AgreementOffer, day: date) -> list["Payload"]:
+def made_now(
+    state: "State", offer: AgreementOffer, day: date, done: set[str] | None = None
+) -> list["Payload"]:
     """The agreement made from ``offer`` on ``day``, with a paper to every party's seats,
-    and, with ``peace`` on, each war its terms end (``wars_ended``)."""
+    and, with ``peace`` on, each war its terms end (``wars_ended``). Within a pass that
+    carries ``done``, the wars ended already that day, an offer that would end one of
+    them lapses instead, and the separate peaces are left to the end of the pass."""
     from revisionist.core import events as ev
 
+    if done is not None and _ends_ended(state, offer, done):
+        rows = [("Why", WAR_ENDED), *term_rows(state, offer)]
+        title = "An offer of agreement lapsed"
+        return papers(state, offer.parties, ("lapsed", offer.offer_id), day, title, rows, offer)
     made = _made(state, offer, day)
     out: list[Payload] = [ev.AgreementMade(agreement=made)]
     terms = term_rows(state, offer)
     out += papers(
-        state, offer.parties, ("made", made.agreement_id), day, "An agreement is in force", terms
+        state,
+        offer.parties,
+        ("made", made.agreement_id),
+        day,
+        "An agreement is in force",
+        terms,
+        made,
     )
-    return out + wars_ended(state, made, day)
+    if done is None:
+        return out + wars_ended(state, made, day)
+    return out + wars_ended(state, made, day, done, separate=False)
+
+
+def _ends_ended(state: "State", offer: AgreementOffer, done: set[str]) -> bool:
+    """Whether an end-to-the-war clause of ``offer`` names a war in ``done``."""
+    from revisionist.core.realism.war import war_id_for
+
+    if not peace_on(state):
+        return False
+    return any(
+        c.type is ClauseType.END_WAR
+        and c.nation is not None
+        and war_id_for(c.binds, c.nation) in done
+        for c in offer.clauses
+    )
 
 
 # --- peace: the held acceptance (PEA rule 4) -------------------------------------------
@@ -816,7 +886,7 @@ def _held_nations(state: "State", routed: "RoutedOrder") -> list[EntityId] | Non
 
 
 def _peace_close(
-    state: "State", routed: "RoutedOrder", offer: AgreementOffer, day: date
+    state: "State", routed: "RoutedOrder", offer: AgreementOffer, day: date, done: set[str]
 ) -> list["Payload"]:
     """Every nation accepted an offer of peace: the agreement is made at once when each
     nation's row of the kind peace names the person who accepted; else each other
@@ -832,9 +902,9 @@ def _peace_close(
     if held is None:
         why = [("Why", NOT_ALLOWED), *terms]
         title = "An offer of agreement lapsed"
-        return papers(state, offer.parties, ("lapsed", offer.offer_id), day, title, why)
+        return papers(state, offer.parties, ("lapsed", offer.offer_id), day, title, why, offer)
     if not held:
-        return made_now(state, offer, day)
+        return made_now(state, offer, day, done)
     deal = _offer_of(routed)
     assert deal is not None
     accepted = dict(_acceptors(state, routed))
@@ -843,7 +913,7 @@ def _peace_close(
     if any(s is None for s in seats.values()):
         why = [("Why", NOT_ALLOWED), *terms]
         title = "An offer of agreement lapsed"
-        return papers(state, offer.parties, ("lapsed", offer.offer_id), day, title, why)
+        return papers(state, offer.parties, ("lapsed", offer.offer_id), day, title, why, offer)
     for nation in held:
         row = locks.peace_row(state, nation)
         seat = seats[nation]
@@ -880,14 +950,15 @@ def is_peace_hold(state: "State", held: "HeldOrder") -> bool:
 def peace_due(state: "State", day: date) -> list["Payload"]:
     """With ``peace`` on, each offer of peace whose acceptances are held, once a day after
     the day's asks are answered: made when every held acceptance is allowed; lapsed, with a
-    paper to every party's seats, when one is declined or taken back. Each held acceptance
-    ends either way."""
+    paper to every party's seats, when one is declined or taken back, or when another
+    offer ended its war earlier in the pass. Each held acceptance ends either way."""
     if not peace_on(state):
         return []
     from revisionist.core import events as ev
     from revisionist.core.realism.locks import HeldEnd
 
     out: list[Payload] = []
+    done: set[str] = set()
     for offer in sorted(state.agreements.offers.values(), key=lambda o: (o.filed, o.offer_id)):
         routed = state.routed.get(offer.offer_id)
         if routed is None or not carries_peace(offer):
@@ -905,7 +976,8 @@ def peace_due(state: "State", day: date) -> list["Payload"]:
         answers = [
             state.asked[h.order_id].granted if h.order_id in state.asked else None for h in present
         ]
-        if present and len(present) == len(ids) and all(answers):
+        allowed = bool(present) and len(present) == len(ids) and all(answers)
+        if allowed and not _ends_ended(state, offer, done):
             out += [
                 ev.HeldOrderEnded(
                     order_id=h.order_id,
@@ -916,22 +988,23 @@ def peace_due(state: "State", day: date) -> list["Payload"]:
                 )
                 for h in present
             ]
-            out += made_now(state, offer, day)
-        elif len(present) < len(ids) or False in answers:
+            out += made_now(state, offer, day, done)
+        elif allowed or len(present) < len(ids) or False in answers:
+            why = WAR_ENDED if allowed else NOT_ALLOWED
             out += [
                 ev.HeldOrderEnded(
                     order_id=h.order_id,
                     issuer=h.issuer,
                     on=day,
                     end=HeldEnd.FAILED,
-                    reason=NOT_ALLOWED,
+                    reason=why,
                 )
                 for h in present
             ]
-            rows = [("Why", NOT_ALLOWED), *term_rows(state, offer)]
+            rows = [("Why", why), *term_rows(state, offer)]
             title = "An offer of agreement lapsed"
-            out += papers(state, offer.parties, ("lapsed", offer.offer_id), day, title, rows)
-    return out
+            out += papers(state, offer.parties, ("lapsed", offer.offer_id), day, title, rows, offer)
+    return out + _separate_peaces(state, done, day)
 
 
 # --- peace: wars ended, the armistice and the separate peace (PEA rules 2, 3, 5) --------
@@ -953,11 +1026,16 @@ def armistice(state: "State", a: EntityId, b: EntityId) -> bool:
 
 
 def wars_ended(
-    state: "State", x: Agreement, day: date, done: set[str] | None = None
+    state: "State",
+    x: Agreement,
+    day: date,
+    done: set[str] | None = None,
+    separate: bool = True,
 ) -> list["Payload"]:
     """With ``peace`` on, each war in force since before ``x`` was made that a standing
     end-to-the-war clause of ``x`` ends, once (``done`` holds the wars ended already in
-    the same pass), then every pact's clause against a separate peace that it breaks."""
+    the same pass), then, when ``separate``, every pact's clause against a separate peace
+    that it breaks."""
     from revisionist.core import events as ev
     from revisionist.core.realism.war import war_id_for
 
@@ -977,7 +1055,15 @@ def wars_ended(
         done.add(found.war_id)
         pairs.append((c.binds, c.nation))
         out.append(ev.WarEnded(war_id=found.war_id, on=day, agreement_id=x.agreement_id))
+    if not separate:
+        return out
     return out + _separate_peace(state, pairs, day)
+
+
+def _separate_peaces(state: "State", done: set[str], day: date) -> list["Payload"]:
+    """The separate peaces broken by every war a pass ended (``done``), judged once."""
+    pairs = [(state.wars[w].a, state.wars[w].b) for w in sorted(done)]
+    return _separate_peace(state, pairs, day) if pairs else []
 
 
 def _separate_peace(
@@ -1052,6 +1138,7 @@ def _undelivered(state: "State", routed: "RoutedOrder", deal: Deal, day: date) -
         day,
         "An offer of agreement lapsed",
         [("Why", why), *term_rows(state, offer)],
+        offer,
     )
     return out
 
@@ -1246,19 +1333,16 @@ def _verdict(
     return out
 
 
-def _regard(state: "State", breaker: EntityId, wronged: EntityId) -> "Payload | None":
+def _regard(state: "State", breaker: EntityId, wronged: EntityId) -> "list[Payload]":
     from revisionist.core import events as ev
     from revisionist.core.ids import RelationshipId
     from revisionist.core.ontology import Relationship
 
     a, b = speaker(state, wronged), speaker(state, breaker)
     if a is None or b is None or a == b:
-        return None
-    found = next(
-        (r for r in state.relationships.values() if {r.a, r.b} == {a, b}),
-        None,
-    )
-    if found is None:
+        return []
+    found = [r for r in state.relationships.values() if {r.a, r.b} == {a, b}]
+    if not found:
         rel = Relationship(
             relationship_id=RelationshipId(derived_id(state.campaign_id, "rel", a, b)),
             a=a,
@@ -1266,10 +1350,17 @@ def _regard(state: "State", breaker: EntityId, wronged: EntityId) -> "Payload | 
             disposition=max(REGARD_FLOOR, BREAK_REGARD),
             scope=parties_scope(state, (wronged, breaker)),
         )
-    else:
-        moved = max(REGARD_FLOOR, min(REGARD_TOP, found.disposition + BREAK_REGARD))
-        rel = found.model_copy(update={"disposition": moved})
-    return ev.RelationshipSet(relationship=rel)
+        return [ev.RelationshipSet(relationship=rel)]
+    return [
+        ev.RelationshipSet(
+            relationship=r.model_copy(
+                update={
+                    "disposition": max(REGARD_FLOOR, min(REGARD_TOP, r.disposition + BREAK_REGARD))
+                }
+            )
+        )
+        for r in found
+    ]
 
 
 def broken_costs(state: "State", x: Agreement, n: int, day: date) -> list["Payload"]:
@@ -1283,9 +1374,7 @@ def broken_costs(state: "State", x: Agreement, n: int, day: date) -> list["Paylo
     for party in x.parties:
         if party == breaker:
             continue
-        moved = _regard(state, breaker, party)
-        if moved is not None:
-            out.append(moved)
+        out += _regard(state, breaker, party)
     if x.public and groups.on(state):
         out += groups.happened(state, breaker, Happening.AGREEMENT_BROKEN, day)
     return out
@@ -1353,7 +1442,7 @@ def _judged(
     if when is not None:
         rows.append(("War due by", _day(when)))
     key = ("judged", x.agreement_id, str(n), status.value, str(against), day.isoformat())
-    out += papers(state, x.parties, key, day, _TITLES[status], rows)
+    out += papers(state, x.parties, key, day, _TITLES[status], rows, x)
     if status is ClauseStatus.BROKEN:
         out += broken_costs(state, x, n, day)
     return out

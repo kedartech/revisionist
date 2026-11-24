@@ -1,0 +1,218 @@
+# The 1941 map, sixth region: the Americas. Built by scripts/map_build.py together with the earlier
+# regions (see worlds/maps/README.md); the provinces are Natural Earth 1:10m admin-1 codes
+# (worlds/maps/SOURCES.md). Every value here is [proposed]: the territory list and names, which
+# provinces make each territory and every terrain. The list is the regions draft's (thirteen
+# territories at its grain, split wherever the holder of 1 September 1941 differed).
+#
+# Build it with the earlier regions, naming the recipe files:
+#   python scripts/map_build.py build worlds/maps/src/autumn-1941-globe/eastern-front.yaml \
+#     worlds/maps/src/autumn-1941-globe/europe.yaml worlds/maps/src/autumn-1941-globe/atlantic.yaml \
+#     worlds/maps/src/autumn-1941-globe/mediterranean.yaml worlds/maps/src/autumn-1941-globe/pacific.yaml \
+#     worlds/maps/src/autumn-1941-globe/americas.yaml --slug autumn-1941-globe
+#
+# What it claims. The western hemisphere's land the Atlantic region left: Alaska, Canada west of
+# Ontario with the Arctic islands, Mexico, Central and South America, the Falklands with South
+# Georgia, and the Lesser Antilles with Trinidad, the Dutch islands, the Caymans and the Turks and
+# Caicos. The Atlantic region's North American and Caribbean territories are not touched; each
+# border this region shares with one of them is that territory's own line. Bermuda, Saint Pierre and
+# Miquelon, Clipperton, Navassa and the Guantanamo base stay unclaimed: each is a site in a sea zone
+# or inside an existing territory, for the sea-zone and whole-globe items.
+#
+# The seam. The box's west edge, 126 W, runs through British Columbia and the Yukon: the build takes
+# each unit's part on both sides, so Western Canada has a part at the map's west edge (the coast at
+# Vancouver and the prairies) and one at its east edge (the northern coast and the Yukon), beside
+# Alaska, which the map draws a whole turn east as it does Hawaii.
+#
+# Cut lines. None. At this grain every border of 1 September 1941 in the region is a present-day
+# country or admin-1 line: the Peru-Ecuador line then differed from today's, but both sides fall in
+# one territory here; Newfoundland's Labrador line is the Atlantic region's.
+#
+# One area, several holders. Central America (five republics, British Honduras and the Canal Zone),
+# Colombia and Venezuela, the Guianas (British, Dutch and Vichy French), the Andes (Ecuador, Peru and
+# Bolivia), the River Plate (Argentina, Uruguay and Paraguay) and the Lesser Antilles (mostly
+# British; Martinique and Guadeloupe Vichy; Aruba and Curacao Dutch) each have one holder in
+# start.yaml, a gap, as the draft gives them.
+map:
+  box: [-126, -60, 234, 84]
+regions:
+  - {key: americas, name: The Americas}
+territories:
+  - key: alaska
+    name: Alaska
+    region: americas
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Alaska Range and the Aleutians; no source cited"
+    sites: [dutch_harbor]
+    provinces: [
+      USA-3563
+    ]
+  - key: western_canada
+    name: Western Canada and the Arctic
+    region: americas
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the boreal forest, the prairies and the Arctic islands; no source cited"
+    sites: [vancouver, winnipeg]
+    provinces: [
+      CAN-630, CAN-631, CAN-632, CAN-633, CAN-634, CAN-635, CAN-636
+    ]
+  - key: mexico
+    name: Mexico
+    region: americas
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Sierra Madre and the central plateau; no source cited"
+    sites: [mexico_city, tampico]
+    provinces: [
+      "MEX+99?", MEX-2706, MEX-2707, MEX-2708, MEX-2709, MEX-2710, MEX-2711, MEX-2712, MEX-2713,
+      MEX-2714, MEX-2715, MEX-2716, MEX-2717, MEX-2718, MEX-2719, MEX-2720, MEX-2721, MEX-2722,
+      MEX-2723, MEX-2724, MEX-2725, MEX-2726, MEX-2727, MEX-2728, MEX-2729, MEX-2730, MEX-2731,
+      MEX-2732, MEX-2733, MEX-2734, MEX-2735, MEX-2736, MEX-2737
+    ]
+  - key: central_america
+    name: Central America
+    region: americas
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the isthmus from Guatemala to Panama; no source cited"
+    sites: [guatemala_city, balboa]
+    provinces: [
+      BLZ-1323, BLZ-1324, BLZ-1325, BLZ-1326, BLZ-1355, BLZ-1356, CRI-1327, CRI-1328, CRI-1329,
+      CRI-1330, CRI-1331, CRI-1333, CRI-1334, GTM-1942, GTM-1943, GTM-1944, GTM-1945, GTM-1946,
+      GTM-1947, GTM-1948, GTM-1949, GTM-1950, GTM-1951, GTM-1952, GTM-1953, GTM-1954, GTM-1955,
+      GTM-1956, GTM-1957, GTM-1959, GTM-1960, GTM-1961, GTM-1962, GTM-1963, GTM-3467, HND-637,
+      HND-638, HND-639, HND-640, HND-641, HND-642, HND-643, HND-645, HND-646, HND-647, HND-648,
+      HND-649, HND-650, HND-651, HND-652, HND-653, HND-661, HND-662, NIC-24, NIC-4800, NIC-644,
+      NIC-654, NIC-655, NIC-656, NIC-657, NIC-658, NIC-659, NIC-660, NIC-663, NIC-664, NIC-665,
+      NIC-666, NIC-667, NIC-668, NIC-669, PAN-1332, PAN-1336, PAN-1337, PAN-1338, PAN-1339,
+      PAN-1340, PAN-1341, PAN-1418, PAN-1419, PAN-1958, PAN-3454, PAN-3455, SLV-1343, SLV-1344,
+      SLV-1345, SLV-1346, SLV-1347, SLV-1348, SLV-1349, SLV-1350, SLV-1351, SLV-1352, SLV-1353,
+      SLV-1354, SLV-1357, SLV-1358
+    ]
+  - key: colombia_venezuela
+    name: Colombia and Venezuela
+    region: americas
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the northern Andes, the llanos and Lake Maracaibo; no source cited"
+    sites: [maracaibo, bogota]
+    provinces: [
+      "COL+99?", COL-1283, COL-1314, COL-1315, COL-1316, COL-1317, COL-1318, COL-1342, COL-1397,
+      COL-1398, COL-1399, COL-1400, COL-1401, COL-1402, COL-1403, COL-1404, COL-1405, COL-1406,
+      COL-1407, COL-1408, COL-1412, COL-1413, COL-1414, COL-1415, COL-1416, COL-1417, COL-1420,
+      COL-1421, COL-1422, COL-1423, COL-1424, COL-1425, COL-1426, COL-1427, "VEN+99?", VEN-23,
+      VEN-25, VEN-26, VEN-27, VEN-28, VEN-29, VEN-31, VEN-32, VEN-33, VEN-34, VEN-35, VEN-36,
+      VEN-38, VEN-39, VEN-40, VEN-41, VEN-42, VEN-43, VEN-44, VEN-45, VEN-46, VEN-47, VEN-48,
+      VEN-49, VEN-65
+    ]
+  - key: guianas
+    name: The Guianas
+    region: americas
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the coastal plain and the Guiana forest; no source cited"
+    sites: [georgetown, paramaribo]
+    provinces: [
+      FRA-2000, GUY-671, GUY-672, GUY-673, GUY-674, GUY-675, GUY-676, GUY-677, GUY-678, GUY-679,
+      GUY-680, SUR-37, SUR-66, SUR-67, SUR-68, SUR-69, SUR-70, SUR-71, SUR-72, SUR-73, SUR-74
+    ]
+  - key: andes
+    name: The Andes
+    region: americas
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the central Andes and the Pacific coast; no source cited"
+    sites: [lima, guayaquil]
+    provinces: [
+      BOL-1291, BOL-1292, BOL-1293, BOL-1936, BOL-1937, BOL-1938, BOL-1939, BOL-1940, BOL-1941,
+      ECU-1266, ECU-1267, ECU-1268, ECU-1269, ECU-1270, ECU-1277, ECU-1278, ECU-1279, ECU-1280,
+      ECU-1281, ECU-1282, ECU-1284, ECU-1285, ECU-1286, ECU-1287, ECU-1288, ECU-1289, ECU-1290,
+      ECU-1335, ECU-1409, ECU-1410, ECU-1411, ECU-5507, ECU-5508, PER-3505, PER-566, PER-567,
+      PER-568, PER-569, PER-570, PER-571, PER-572, PER-573, PER-574, PER-575, PER-577, PER-578,
+      PER-579, PER-580, PER-581, PER-582, PER-583, PER-584, PER-585, PER-586, PER-587, PER-588,
+      PER-589, PER-590, PER-591
+    ]
+  - key: brazil_north
+    name: Northern Brazil
+    region: americas
+    terrain: forest
+    terrain_gap: true
+    terrain_note: "the Amazon basin and the northeast; no source cited"
+    sites: [natal, recife]
+    provinces: [
+      BRA-1313, BRA-576, BRA-592, BRA-593, BRA-594, BRA-595, BRA-596, BRA-621, BRA-622, BRA-623,
+      BRA-624, BRA-626, BRA-628, BRA-629, BRA-670, BRA-681
+    ]
+  - key: brazil_south
+    name: Southern Brazil
+    region: americas
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the plateau of the south and the centre; no source cited"
+    sites: [rio_de_janeiro, santos]
+    provinces: [
+      BRA-1294, BRA-1311, BRA-599, BRA-600, BRA-601, BRA-602, BRA-612, BRA-613, BRA-614,
+      BRA-625, BRA-627
+    ]
+  - key: river_plate
+    name: The River Plate
+    region: americas
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "the pampas and the Chaco; no source cited"
+    sites: [buenos_aires, montevideo]
+    provinces: [
+      ARG-1271, ARG-1272, ARG-1273, ARG-1274, ARG-1275, ARG-1276, ARG-1295, ARG-1296, ARG-1297,
+      ARG-1298, ARG-1299, ARG-1300, ARG-1301, ARG-1302, ARG-1303, ARG-1304, ARG-1305, ARG-1306,
+      ARG-1307, ARG-1308, ARG-1309, ARG-1310, ARG-1312, ARG-5493, PRY-4837, PRY-597, PRY-598,
+      PRY-603, PRY-604, PRY-605, PRY-606, PRY-607, PRY-608, PRY-609, PRY-610, PRY-611, PRY-615,
+      PRY-616, PRY-617, PRY-618, PRY-619, PRY-620, URY-10, URY-11, URY-12, URY-13, URY-14,
+      URY-15, URY-16, URY-17, URY-18, URY-19, URY-20, URY-21, URY-22, URY-4, URY-5, URY-6,
+      URY-7, URY-8, URY-9
+    ]
+  - key: chile
+    name: Chile
+    region: americas
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "the Andes' western slope; no source cited"
+    sites: [valparaiso, punta_arenas]
+    provinces: [
+      CHL-20010, CHL-2691, CHL-2692, CHL-2693, CHL-2694, CHL-2695, CHL-2696, CHL-2697, CHL-2698,
+      CHL-2699, CHL-2700, CHL-2701, CHL-2702, CHL-2703, CHL-2704, CHL-2705
+    ]
+  - key: falklands
+    name: The Falkland Islands
+    region: americas
+    terrain: plain
+    terrain_gap: true
+    terrain_note: "moorland islands; South Georgia with them; no source cited"
+    sites: [port_stanley]
+    provinces: [
+      FLK-5152, "SGS+00?"
+    ]
+  - key: lesser_antilles
+    name: The Lesser Antilles and Trinidad
+    region: americas
+    terrain: mountain
+    terrain_gap: true
+    terrain_note: "volcanic islands from the Virgin Islands to Trinidad, with the Dutch islands, Cayman and Turks; no source cited"
+    sites: [port_of_spain, fort_de_france]
+    provinces: [
+      ABW-5150, "AIA+99?", AIA-5114, AIA-5115, AIA-5116, AIA-5117, AIA-5118, AIA-5119, AIA-5120,
+      AIA-5121, AIA-5122, AIA-5123, AIA-5124, AIA-5125, AIA-5126, AIA-5127, ATG-5091, ATG-5092,
+      ATG-5093, ATG-5094, ATG-5095, ATG-5096, ATG-5097, ATG-5098, BLM-5113, BRB-1989, BRB-1990,
+      BRB-1991, BRB-1992, BRB-1993, BRB-1994, BRB-1995, BRB-1996, BRB-1997, BRB-1998, BRB-1999,
+      CUW-5151, "CYM+00?", DMA-1432, DMA-1433, DMA-1434, DMA-1435, DMA-1436, DMA-1437, DMA-1438,
+      DMA-1439, DMA-1440, DMA-1441, FRA-1442, FRA-4603, GRD-5069, GRD-5070, GRD-5071, GRD-5072,
+      GRD-5073, GRD-5074, GRD-5075, KNA-5099, KNA-5100, KNA-5101, KNA-5102, KNA-5103, KNA-5104,
+      KNA-5105, KNA-5106, KNA-5107, KNA-5108, KNA-5109, KNA-5110, KNA-5111, KNA-5112, LCA-5076,
+      LCA-5077, LCA-5078, LCA-5079, LCA-5080, LCA-5081, LCA-5082, LCA-5083, LCA-5084, LCA-5085,
+      LCA-5086, MAF-5145, MSR-5087, MSR-5088, MSR-5089, NLD-5147, NLD-5148, NLD-5149, SXM-5146,
+      TCA-5003, TCA-5004, TCA-5005, TCA-5006, TCA-5007, TCA-5008, TTO-50, TTO-5090, TTO-51,
+      TTO-52, TTO-53, TTO-54, TTO-55, TTO-56, TTO-57, TTO-58, TTO-59, TTO-60, TTO-61, TTO-62,
+      TTO-63, TTO-64, VCT-5063, VCT-5064, VCT-5065, VCT-5066, VCT-5067, VCT-5068, "VGB+00?",
+      VIR-4868, VIR-4869, VIR-4870
+    ]
+cuts: []

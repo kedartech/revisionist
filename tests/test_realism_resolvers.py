@@ -60,8 +60,9 @@ class Rig:
         self.campaign = campaign
         world = cmp.load_world(cmp.world_path(world_name))
         if not groups:  # the path a stored game or a world without groups keeps
-            # places weigh ground for groups, so the world check refuses them without groups
-            off = {Rule.GROUPS, Rule.PLACES}
+            # places weigh ground for groups, so the world check refuses them without groups;
+            # a post removed by a vote needs a chamber's blocs, so office goes with them
+            off = {Rule.GROUPS, Rule.PLACES, Rule.OFFICE}
             world = world.model_copy(
                 update={"rules": tuple(r for r in world.rules if r not in off)}
             )

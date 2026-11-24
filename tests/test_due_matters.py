@@ -139,6 +139,7 @@ def test_every_kind_reads_only_state_and_seat(tmp_path: Path) -> None:
         "battle",
         "vote",
         "ask",
+        "incident",
         "promise",
         "office",
         "sitting",

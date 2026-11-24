@@ -375,6 +375,16 @@ def shown(state: State, seat: SeatId) -> dict[str, dict[str, object]]:
     return {t["name"]: dict(t) for t in seat_threats(state, seat, project(state, seat))}
 
 
+def warmed_finn(state: State, keys: dict[str, EntityId], seat: SeatId) -> State:
+    """Finland's Commander-in-Chief warmed toward Churchill, so his name, sorting early, leaves
+    the shown list once the seat hears from him."""
+    return regard(state, keys["mannerheim"], keys["churchill"], 5, seat)
+
+
+def heard_finn(state: State, keys: dict[str, EntityId], seat: SeatId) -> State:
+    return letter_from(state, keys["mannerheim"], seat, date(1941, 9, 6))
+
+
 def on_day(state: State, day: date) -> State:
     return state.model_copy(update={"in_world_date": day})
 
@@ -399,7 +409,13 @@ def test_the_seat_is_shown_its_opponents_as_they_stood_at_the_start() -> None:
     store, seat, keys = begun()
     state = load_state(store, CAMPAIGN)
     got = shown(state, seat)
-    assert list(got) == ["Adolf Hitler", "Angelo Iachino", "Benito Mussolini", "Karl Dönitz"]
+    # Finland's Commander-in-Chief stands on Germany's side too and takes the fourth place by name
+    assert list(got) == [
+        "Adolf Hitler",
+        "Angelo Iachino",
+        "Benito Mussolini",
+        "C. G. E. Mannerheim",
+    ]
     hitler = got["Adolf Hitler"]
     assert hitler == {
         "person": keys["hitler"],
@@ -422,6 +438,7 @@ def test_a_turn_the_seat_has_no_evidence_of_is_not_shown_until_evidence_comes() 
     state = load_state(store, CAMPAIGN)
     stalin = keys["stalin"]
     warmed = regard(state, keys["iachino"], keys["churchill"], 5, seat)  # makes room
+    warmed = warmed_finn(warmed, keys, seat)
     soured = regard(warmed, stalin, keys["churchill"], -4, seat)
     (rel,) = (r for r in soured.relationships.values() if r.a == stalin)
     theirs: list[ev.Payload] = [  # another seat's order did it
@@ -435,6 +452,7 @@ def test_a_turn_the_seat_has_no_evidence_of_is_not_shown_until_evidence_comes() 
     assert turned.stances[seat][stalin][-1].order is not None
     assert "Joseph Stalin" not in shown(on_day(turned, date(1941, 9, 8)), seat)
     heard = letter_from(on_day(turned, date(1941, 9, 8)), stalin, seat, date(1941, 9, 6))
+    heard = heard_finn(heard, keys, seat)
     line = shown(heard, seat)["Joseph Stalin"]
     assert (line["stance"], line["trend"], line["as_of"]) == ("obstructing", "worse", "1941-09-06")
     assert line["cause"] == "Cause not known."
@@ -469,14 +487,15 @@ def test_a_turn_the_seats_own_order_brought_on_is_shown_with_its_cause() -> None
         parts=(RoutedPart(route=Route.INFLUENCE, target=stalin),),
     )
     state = state.model_copy(update={"routed": {order.order_id: order}})
-    soured = regard(state, stalin, keys["churchill"], -4, seat)
-    rel = next(iter(soured.relationships.values()))
+    roomy = warmed_finn(state, keys, seat)  # makes room
+    soured = regard(roomy, stalin, keys["churchill"], -4, seat)
+    (rel,) = (r for r in soured.relationships.values() if r.a == stalin)
     landed: list[ev.Payload] = [
         ev.RelationshipSet(relationship=rel),
         ev.EffectsApplied(order_id=order.order_id, part=0, on=date(1941, 9, 5)),
     ]
     turned = on_day(settled(soured, date(1941, 9, 5), landed=landed), date(1941, 9, 6))
-    line = shown(turned, seat)["Joseph Stalin"]
+    line = shown(heard_finn(turned, keys, seat), seat)["Joseph Stalin"]
     assert (line["stance"], line["trend"], line["as_of"]) == ("obstructing", "worse", "1941-09-05")
     assert line["cause"] == "After your order of 3 September 1941."
 
@@ -543,20 +562,22 @@ def test_a_war_is_named_as_the_cause_only_for_a_change_it_caused() -> None:
     store, seat, keys = begun()
     state = load_state(store, CAMPAIGN)
     uk, japan, konoe = keys["uk"], keys["japan"], keys["konoe"]
+    state = warmed_finn(state, keys, seat)  # makes room
     fought = at_war_with(state, uk, japan, keys["churchill"], date(1941, 9, 5))
     turned = on_day(settled(fought, date(1941, 9, 5)), date(1941, 9, 6))
     assert turned.stances[seat][konoe][-1].cause is StanceCause.SIDES
-    line = shown(turned, seat)["Fumimaro Konoe"]
+    line = shown(heard_finn(turned, keys, seat), seat)["Fumimaro Konoe"]
     assert (line["as_of"], line["cause"]) == ("1941-09-05", "Your countries went to war.")
     # a turn that came of something else, with a war only later
     crossed = settled(rivals(state, uk, japan), date(1941, 9, 5))
     assert crossed.stances[seat][konoe][-1].cause is StanceCause.SIDES
     heard = letter_from(on_day(crossed, date(1941, 9, 8)), konoe, seat, date(1941, 9, 6))
-    assert shown(heard, seat)["Fumimaro Konoe"]["cause"] == "Cause not known."
-    later = at_war_with(crossed, uk, japan, keys["churchill"], date(1941, 9, 20))
-    assert shown(on_day(later, date(1941, 9, 25)), seat)["Fumimaro Konoe"]["cause"] == (
+    assert shown(heard_finn(heard, keys, seat), seat)["Fumimaro Konoe"]["cause"] == (
         "Cause not known."
     )
+    later = at_war_with(crossed, uk, japan, keys["churchill"], date(1941, 9, 20))
+    late = heard_finn(on_day(later, date(1941, 9, 25)), keys, seat)
+    assert shown(late, seat)["Fumimaro Konoe"]["cause"] == ("Cause not known.")
 
 
 def test_a_change_of_regard_today_is_the_cause_even_if_the_sides_moved_before() -> None:

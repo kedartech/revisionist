@@ -59,7 +59,8 @@ Channels, where a row says "a channel": `in_person`, `telephone`, `cable`, `lett
 5. No part assumes a legislature, a press, a single capital, a monthly budget, three armed
    services, or a state that pays its troops.
 6. A world on real coordinates (`map.coords: lonlat`) covers the whole globe; the grain may be
-   coarse away from where the scenario is fought.
+   coarse away from where the scenario is fought. Its map says `cover: whole` (60 S to 84 N, no
+   backdrop), and `check --world` fails one that does not. A world on flat coordinates is exempt.
 
 ## The world check
 

@@ -36,6 +36,9 @@ nothing imports the geometry tool.
   drawn; the label lies inside the area.
 - `backdrop`: rings of land and water that are drawn and not in play. They have no key and no rule
   reads them.
+- `cover` (optional): `whole` marks a map that leaves nothing out: every face in its box is a territory
+  or a sea zone, so its backdrop is empty. On `lonlat` its box runs the full turn of longitude and from
+  60 S to 84 N; Antarctica is the one land left off. A map without the mark is checked as before.
 
 Rings, for every reader: a face (an area, or one part of the backdrop) is one or more parts; each part
 is an outer ring running counter-clockwise (x right, y up), followed by its holes running clockwise. A
@@ -62,13 +65,17 @@ Three commands:
   edge use: each interior edge is used once in each direction, each box edge once); a vertex that lies
   on another face's edge without being one of its vertices (a border that only looks shared); a vertex
   outside the box; an area smaller than the minimum (0.05 square degrees, or 25 square units); a label
-  outside its area or on its border.
+  outside its area or on its border. On a map that says `cover: whole` it also fails each backdrop face,
+  and, on `lonlat`, a box that is not the full turn from 60 S to 84 N.
 - `python scripts/map_check.py check --world WORLD.yaml` is the strict check of a whole world: every check
   above on the map the world names, and it fails when the world's `sha256`, `coords` or `box` differ from
   the file; when the map's area keys differ from the world's territories and sea zones; when the world's
   `adjacency` list has a pair the adjacency predicate rejects and no `crossing` names, or lacks a pair it
   accepts; when a place lies in no area, in more than one, or on a border (a failure, not a tie); when a
   place lies outside the area it is `within`; or when a territory lists a site that lies elsewhere.
+  A world on `lonlat` must use a whole map; the worlds not yet converted (`NOT_WHOLE_YET` in the
+  checker) are let through until their own items move them to one. A world on `flat` coordinates is
+  not held to it: its box is its world.
 - `python scripts/map_check.py check --region STAGING.yaml` is the scoped check of a staging world, for a
   region built before the whole world is converted. The staging world carries a `map` block, the region's
   `regions`, `territories`, `sea_zones` and `adjacency`, and the sites in scope as `location` entities
@@ -121,6 +128,7 @@ there in name order and joins their lists:
 
 ```yaml
 map: {box: [west, south, east, north]}   # in at least one file; every file that gives it agrees
+                                         # add `cover: whole` for a map that leaves nothing out
 regions:
   - {key: baltic, name: The Baltic}
 territories:
@@ -162,7 +170,10 @@ What the build does, in order, refusing with a message that names the file, prov
    units (within its polygon when it gives one), taken from the land of those units, so the river
    parts its two banks and each bank shares a border with it; a pair that shares no border fails, as
    do two river zones over the same land. A river zone is listed with the sea zones. Land and water
-   no recipe claims become the backdrop, so the areas and the backdrop cover the box exactly.
+   no recipe claims become the backdrop, so the areas and the backdrop cover the box exactly. On a map
+   that says `cover: whole` there is no backdrop: the build fails listing each province in the box no
+   recipe claims (code and name), and fails on water no sea zone takes; an island no province holds goes
+   to the territory nearest it, and one under 0.005 square degrees is dropped as water.
 5. Nodes every border with every other, then simplifies all of them together, so neighbours keep one
    shared border: with the tool's `coverage_simplify` when it has one (GEOS 3.12 or later), and
    otherwise by splitting the borders into arcs at their junctions and simplifying each arc once

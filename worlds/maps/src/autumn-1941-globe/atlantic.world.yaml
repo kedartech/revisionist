@@ -1,0 +1,107 @@
+# The scoped check's staging world for the 1941 map's third region (the Atlantic, Britain and North
+# America):
+#   python scripts/map_check.py check --region worlds/maps/src/autumn-1941-globe/atlantic.world.yaml
+# It extends the Europe region's staging world, which extends the pilot's, so the check reads all
+# three: the map block here is the newest, the territories, sea zones, adjacency and sites in scope
+# are the three files' lists joined. Its blocks are the build's world fragment
+# (worlds/maps/autumn-1941-globe.world.yaml) as built, the Atlantic region's areas and every adjacency pair
+# that names one of them (a declared crossing included); the earlier files keep the pairs inside
+# their own regions. The sites in scope are the places today's world file has in the region, their
+# coordinates copied from it (that file is not edited here). Rebuild the map, then copy the
+# fragment's blocks into the three staging worlds; the test pins the hash.
+#
+# `ports` (read by the test, not by the checker) names, for each port of the region, the territory
+# that holds it and the sea zone it lies in or opens on. Liverpool, Argentia and Scapa Flow lie in
+# the water of the data (see the recipe), so each is a place in its zone and no territory's site;
+# the others are sites on land. London and Washington are inland and have no port entry.
+extends: europe.world.yaml
+places_of: ../../../autumn-1941.yaml
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: a14b82214f8a80d86ed7e9fe2ffb5e264969dfb656ae6095cd7ac96941269efb, box: [-126, -60, 234, 84]}
+regions:
+  - {key: atlantic, name: The Atlantic}
+territories:
+  - {key: britain_south, name: England and Wales, region: atlantic, terrain: plain, sites: [london]}
+  - {key: britain_north, name: Scotland and Ulster, region: atlantic, terrain: mountain}
+  - {key: ireland, name: Ireland, region: atlantic, terrain: plain}
+  - {key: iceland, name: Iceland, region: atlantic, terrain: mountain, sites: [reykjavik]}
+  - {key: greenland, name: Greenland, region: atlantic, terrain: mountain}
+  - {key: newfoundland, name: Newfoundland and Labrador, region: atlantic, terrain: forest}
+  - {key: eastern_canada, name: Eastern Canada, region: atlantic, terrain: forest, sites: [halifax_port, sydney_cb]}
+  - {key: us_east, name: The Eastern United States, region: atlantic, terrain: forest, sites: [washington, norfolk]}
+  - {key: us_central, name: The Central United States, region: atlantic, terrain: plain}
+  - {key: us_west, name: The Western United States, region: atlantic, terrain: mountain}
+  - {key: caribbean, name: The Caribbean, region: atlantic, terrain: forest}
+sea_zones:
+  - {key: english_channel, name: The English Channel, region: atlantic, terrain: sea}
+  - {key: western_approaches_area, name: The Western Approaches, region: atlantic, terrain: sea}
+  - {key: mid_ocean_gap, name: The Mid-Ocean Gap, region: atlantic, terrain: sea}
+  - {key: western_atlantic, name: The Western Atlantic, region: atlantic, terrain: sea}
+  - {key: labrador_sea, name: The Labrador Sea, region: atlantic, terrain: sea}
+  - {key: denmark_strait, name: The Denmark Strait, region: atlantic, terrain: sea}
+  - {key: arctic_route_area, name: The Arctic Route, region: atlantic, terrain: sea}
+  - {key: caribbean_sea, name: The Caribbean and the Gulf of Mexico, region: atlantic, terrain: sea}
+adjacency:
+  - [arctic_route_area, denmark_strait]
+  - [arctic_route_area, greenland]
+  - [arctic_route_area, iceland]
+  - [arctic_route_area, mid_ocean_gap]
+  - [arctic_route_area, north_sea]
+  - [arctic_route_area, norway]
+  - [arctic_route_area, western_approaches_area]
+  - [arctic_route_area, white_sea]
+  - [bay_of_biscay, english_channel]
+  - [bay_of_biscay, mid_ocean_gap]
+  - [britain_north, britain_south]
+  - [britain_north, ireland]
+  - [britain_north, north_sea]
+  - [britain_north, western_approaches_area]
+  - [britain_south, english_channel]
+  - [britain_south, north_sea]
+  - [britain_south, western_approaches_area]
+  - [caribbean, caribbean_sea]
+  - [caribbean_sea, us_central]
+  - [caribbean_sea, us_east]
+  - [caribbean_sea, western_atlantic]
+  - [denmark_strait, greenland]
+  - [denmark_strait, mid_ocean_gap]
+  - [eastern_canada, labrador_sea]
+  - [eastern_canada, newfoundland]
+  - [eastern_canada, us_central]
+  - [eastern_canada, us_east]
+  - [eastern_canada, western_atlantic]
+  - [english_channel, mid_ocean_gap]
+  - [english_channel, occupied_france]
+  - [english_channel, western_approaches_area]
+  - [greenland, labrador_sea]
+  - [greenland, mid_ocean_gap]
+  - [ireland, western_approaches_area]
+  - [labrador_sea, mid_ocean_gap]
+  - [labrador_sea, newfoundland]
+  - [labrador_sea, western_atlantic]
+  - [mid_ocean_gap, western_approaches_area]
+  - [mid_ocean_gap, western_atlantic]
+  - [newfoundland, western_atlantic]
+  - [north_sea, western_approaches_area]
+  - [us_central, us_east]
+  - [us_central, us_west]
+  - [us_east, western_atlantic]
+  - {a: english_channel, b: north_sea, crossing: the Strait of Dover}
+ports:
+  - {port: norfolk, territory: us_east, sea_zone: western_atlantic}
+  - {port: argentia, territory: newfoundland, sea_zone: western_atlantic}
+  - {port: halifax_port, territory: eastern_canada, sea_zone: western_atlantic}
+  - {port: sydney_cb, territory: eastern_canada, sea_zone: western_atlantic}
+  - {port: reykjavik, territory: iceland, sea_zone: arctic_route_area}
+  - {port: liverpool, territory: britain_south, sea_zone: western_approaches_area}
+  - {port: scapa_flow, territory: britain_north, sea_zone: north_sea}
+entities:
+  - {key: washington, kind: location, name: Washington, at: [38.9, -77.0]}
+  - {key: london, kind: location, name: London, at: [51.5, -0.1]}
+  - {key: norfolk, kind: location, name: Norfolk, at: [36.9, -76.3]}
+  - {key: argentia, kind: location, name: Argentia, at: [47.3, -54.0]}
+  - {key: halifax_port, kind: location, name: Halifax, at: [44.6, -63.6]}
+  - {key: sydney_cb, kind: location, name: 'Sydney, Cape Breton', at: [46.1, -60.2]}
+  - {key: reykjavik, kind: location, name: Reykjavik, at: [64.1, -21.9]}
+  - {key: liverpool, kind: location, name: Liverpool, at: [53.4, -3.0]}
+  - {key: scapa_flow, kind: location, name: Scapa Flow, at: [58.9, -3.1]}
+  - {key: north_atlantic, kind: location, name: North Atlantic, at: [55.0, -30.0]}

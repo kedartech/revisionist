@@ -1,0 +1,409 @@
+# Built by scripts/map_build.py from the recipe autumn-1941-globe; simplify coverage, tolerance 0.05.
+# Do not edit by hand: change the recipe and build again.
+map: {coords: lonlat, file: autumn-1941-globe.json, sha256: a14b82214f8a80d86ed7e9fe2ffb5e264969dfb656ae6095cd7ac96941269efb, box: [-126, -60, 234, 84]}
+regions:
+  - {key: eastern_front, name: The Eastern Front}
+  - {key: europe, name: Europe}
+  - {key: atlantic, name: The Atlantic}
+  - {key: mediterranean, name: The Mediterranean and the Middle East}
+  - {key: pacific, name: China}
+territories:
+  - {key: the_north, name: The North, region: eastern_front, terrain: forest, sites: [archangel]}
+  - {key: leningrad_area, name: Leningrad, region: eastern_front, terrain: forest, sites: [leningrad]}
+  - {key: baltic_states, name: The Baltic States, region: eastern_front, terrain: plain}
+  - {key: belorussia, name: Belorussia, region: eastern_front, terrain: marsh}
+  - {key: kalinin_area, name: Kalinin, region: eastern_front, terrain: forest, sites: [kalinin]}
+  - {key: smolensk_area, name: Smolensk, region: eastern_front, terrain: forest, sites: [smolensk, vyazma]}
+  - {key: moscow_area, name: Moscow, region: eastern_front, terrain: forest, sites: [moscow, mozhaisk]}
+  - {key: upper_volga, name: Gorky and the Upper Volga, region: eastern_front, terrain: forest}
+  - {key: western_ukraine, name: Western Ukraine, region: eastern_front, terrain: plain}
+  - {key: kiev_area, name: Kiev, region: eastern_front, terrain: plain, sites: [kiev]}
+  - {key: odessa_area, name: Odessa and Bessarabia, region: eastern_front, terrain: plain, sites: [odessa]}
+  - {key: kharkov_area, name: Kharkov and Poltava, region: eastern_front, terrain: plain, sites: [poltava, kharkov]}
+  - {key: donbas, name: The Donbas and Rostov, region: eastern_front, terrain: plain, sites: [taganrog]}
+  - {key: crimea, name: The Crimea, region: eastern_front, terrain: plain}
+  - {key: voronezh, name: 'Orel, Kursk and Voronezh', region: eastern_front, terrain: plain}
+  - {key: stalingrad, name: Stalingrad and Saratov, region: eastern_front, terrain: plain}
+  - {key: germany_east, name: Berlin and the East, region: europe, terrain: plain, sites: [berlin]}
+  - {key: germany_west, name: The Ruhr and the West, region: europe, terrain: plain}
+  - {key: germany_south, name: 'Bavaria, Austria and Bohemia', region: europe, terrain: forest}
+  - {key: east_prussia, name: East Prussia, region: europe, terrain: plain}
+  - {key: occupied_poland, name: The General Government, region: europe, terrain: plain}
+  - {key: denmark, name: Denmark, region: europe, terrain: plain}
+  - {key: low_countries, name: The Low Countries, region: europe, terrain: plain}
+  - {key: occupied_france, name: Occupied France, region: europe, terrain: plain}
+  - {key: vichy_france, name: Vichy France, region: europe, terrain: mountain}
+  - {key: norway, name: Norway, region: europe, terrain: mountain}
+  - {key: sweden_area, name: Sweden, region: europe, terrain: forest}
+  - {key: finland, name: Finland, region: europe, terrain: forest}
+  - {key: hungary_slovakia, name: Hungary and Slovakia, region: europe, terrain: plain}
+  - {key: romania, name: Romania and Ploesti, region: europe, terrain: plain}
+  - {key: balkans, name: The Balkans, region: europe, terrain: mountain}
+  - {key: italy_north, name: Northern Italy, region: europe, terrain: plain}
+  - {key: italy_south, name: Rome and the South, region: europe, terrain: mountain, sites: [rome, taranto]}
+  - {key: iberia, name: Spain and Portugal, region: europe, terrain: mountain}
+  - {key: switzerland_area, name: Switzerland, region: europe, terrain: mountain}
+  - {key: britain_south, name: England and Wales, region: atlantic, terrain: plain, sites: [london]}
+  - {key: britain_north, name: Scotland and Ulster, region: atlantic, terrain: mountain}
+  - {key: ireland, name: Ireland, region: atlantic, terrain: plain}
+  - {key: iceland, name: Iceland, region: atlantic, terrain: mountain, sites: [reykjavik]}
+  - {key: greenland, name: Greenland, region: atlantic, terrain: mountain}
+  - {key: newfoundland, name: Newfoundland and Labrador, region: atlantic, terrain: forest}
+  - {key: eastern_canada, name: Eastern Canada, region: atlantic, terrain: forest, sites: [halifax_port, sydney_cb]}
+  - {key: us_east, name: The Eastern United States, region: atlantic, terrain: forest, sites: [washington, norfolk]}
+  - {key: us_central, name: The Central United States, region: atlantic, terrain: plain}
+  - {key: us_west, name: The Western United States, region: atlantic, terrain: mountain}
+  - {key: caribbean, name: The Caribbean, region: atlantic, terrain: forest}
+  - {key: french_north_africa, name: French North Africa, region: mediterranean, terrain: mountain}
+  - {key: tunisia, name: Tunisia, region: mediterranean, terrain: plain}
+  - {key: tripolitania, name: Tripolitania and the Fezzan, region: mediterranean, terrain: plain, sites: [tripoli]}
+  - {key: cyrenaica, name: Cyrenaica, region: mediterranean, terrain: mountain, sites: [bardia]}
+  - {key: tobruk_area, name: The Tobruk enclave, region: mediterranean, terrain: plain, sites: [tobruk]}
+  - {key: egypt, name: Egypt, region: mediterranean, terrain: plain, sites: [alexandria]}
+  - {key: levant, name: Palestine and Transjordan, region: mediterranean, terrain: plain}
+  - {key: syria, name: Syria and Lebanon, region: mediterranean, terrain: plain}
+  - {key: iraq, name: Iraq, region: mediterranean, terrain: plain}
+  - {key: iran, name: Iran, region: mediterranean, terrain: mountain}
+  - {key: turkey, name: Turkey, region: mediterranean, terrain: mountain}
+  - {key: caucasus, name: The Caucasus, region: mediterranean, terrain: mountain}
+  - {key: greece, name: Greece and Crete, region: mediterranean, terrain: mountain}
+  - {key: dodecanese, name: The Dodecanese, region: mediterranean, terrain: mountain}
+  - {key: british_islands, name: Malta and Cyprus, region: mediterranean, terrain: plain, sites: [malta]}
+  - {key: japan_east, name: Japan East, region: pacific, terrain: mountain, sites: [tokyo, hitokappu_bay]}
+  - {key: japan_west, name: Japan West, region: pacific, terrain: mountain, sites: [kure]}
+  - {key: formosa, name: Formosa, region: pacific, terrain: mountain}
+  - {key: korea, name: Korea, region: pacific, terrain: mountain}
+  - {key: manchuria, name: Manchuria, region: pacific, terrain: plain}
+  - {key: north_china, name: Occupied North China, region: pacific, terrain: plain}
+  - {key: wuhan_area, name: The Wuhan Area and the Lower Yangtze, region: pacific, terrain: plain, sites: [wuhan]}
+  - {key: hunan, name: Hunan and Kiangsi, region: pacific, terrain: mountain, sites: [changsha]}
+  - {key: szechwan, name: Szechwan and the Southwest, region: pacific, terrain: mountain, sites: [chungking]}
+  - {key: northwest_china, name: The Northwest and Loyang, region: pacific, terrain: mountain}
+  - {key: south_china, name: Free South China, region: pacific, terrain: mountain}
+  - {key: south_china_coast, name: The South China Coast, region: pacific, terrain: plain}
+  - {key: hong_kong, name: Hong Kong, region: pacific, terrain: mountain}
+  - {key: indochina, name: French Indochina, region: pacific, terrain: forest}
+  - {key: thailand, name: Thailand, region: pacific, terrain: plain}
+  - {key: malaya, name: Malaya and British Borneo, region: pacific, terrain: forest}
+  - {key: burma, name: Burma, region: pacific, terrain: forest}
+  - {key: dutch_east_indies, name: The Dutch East Indies, region: pacific, terrain: forest}
+  - {key: philippines, name: The Philippines, region: pacific, terrain: forest}
+  - {key: hawaii, name: Hawaii, region: pacific, terrain: mountain, sites: [pearl_harbor_base]}
+  - {key: soviet_far_east, name: The Soviet Far East, region: pacific, terrain: forest}
+sea_zones:
+  - {key: baltic_sea, name: The Baltic Sea, region: eastern_front, terrain: sea}
+  - {key: black_sea, name: The Black Sea, region: eastern_front, terrain: sea}
+  - {key: white_sea, name: The White Sea and the Barents, region: eastern_front, terrain: sea}
+  - {key: north_sea, name: The North Sea, region: europe, terrain: sea}
+  - {key: danish_straits, name: The Kattegat and the Western Baltic, region: europe, terrain: sea}
+  - {key: gulf_of_bothnia, name: The Gulf of Bothnia, region: europe, terrain: sea}
+  - {key: bay_of_biscay, name: The Bay of Biscay, region: europe, terrain: sea}
+  - {key: english_channel, name: The English Channel, region: atlantic, terrain: sea}
+  - {key: western_approaches_area, name: The Western Approaches, region: atlantic, terrain: sea}
+  - {key: mid_ocean_gap, name: The Mid-Ocean Gap, region: atlantic, terrain: sea}
+  - {key: western_atlantic, name: The Western Atlantic, region: atlantic, terrain: sea}
+  - {key: labrador_sea, name: The Labrador Sea, region: atlantic, terrain: sea}
+  - {key: denmark_strait, name: The Denmark Strait, region: atlantic, terrain: sea}
+  - {key: arctic_route_area, name: The Arctic Route, region: atlantic, terrain: sea}
+  - {key: caribbean_sea, name: The Caribbean and the Gulf of Mexico, region: atlantic, terrain: sea}
+  - {key: gibraltar_approaches, name: The Gibraltar Approaches, region: mediterranean, terrain: sea}
+  - {key: western_mediterranean, name: The Western Mediterranean, region: mediterranean, terrain: sea}
+  - {key: central_mediterranean, name: The Central Mediterranean, region: mediterranean, terrain: sea}
+  - {key: eastern_mediterranean, name: The Eastern Mediterranean, region: mediterranean, terrain: sea}
+  - {key: aegean_sea, name: The Aegean Sea, region: mediterranean, terrain: sea}
+  - {key: sea_of_japan, name: The Sea of Japan, region: pacific, terrain: sea}
+  - {key: east_china_sea, name: The East China Sea and the Yellow Sea, region: pacific, terrain: sea}
+  - {key: south_china_sea, name: The South China Sea, region: pacific, terrain: sea}
+  - {key: andaman_sea, name: The Andaman Sea and the Strait of Malacca, region: pacific, terrain: sea}
+  - {key: java_sea, name: The Java Sea and the Seas of the Indies, region: pacific, terrain: sea}
+  - {key: philippine_sea, name: The Philippine Sea, region: pacific, terrain: sea}
+  - {key: north_pacific, name: The North Pacific, region: pacific, terrain: sea}
+  - {key: central_pacific, name: The Central Pacific, region: pacific, terrain: sea}
+  - {key: eastern_pacific, name: The Eastern Pacific, region: pacific, terrain: sea}
+adjacency:
+  - [aegean_sea, central_mediterranean]
+  - [aegean_sea, dodecanese]
+  - [aegean_sea, eastern_mediterranean]
+  - [aegean_sea, greece]
+  - [aegean_sea, turkey]
+  - [andaman_sea, burma]
+  - [andaman_sea, dutch_east_indies]
+  - [andaman_sea, malaya]
+  - [andaman_sea, south_china_sea]
+  - [andaman_sea, thailand]
+  - [arctic_route_area, denmark_strait]
+  - [arctic_route_area, greenland]
+  - [arctic_route_area, iceland]
+  - [arctic_route_area, mid_ocean_gap]
+  - [arctic_route_area, north_sea]
+  - [arctic_route_area, norway]
+  - [arctic_route_area, western_approaches_area]
+  - [arctic_route_area, white_sea]
+  - [balkans, black_sea]
+  - [balkans, central_mediterranean]
+  - [balkans, germany_south]
+  - [balkans, greece]
+  - [balkans, hungary_slovakia]
+  - [balkans, italy_north]
+  - [balkans, romania]
+  - [balkans, turkey]
+  - [baltic_sea, baltic_states]
+  - [baltic_sea, danish_straits]
+  - [baltic_sea, east_prussia]
+  - [baltic_sea, finland]
+  - [baltic_sea, germany_east]
+  - [baltic_sea, gulf_of_bothnia]
+  - [baltic_sea, leningrad_area]
+  - [baltic_sea, sweden_area]
+  - [baltic_states, belorussia]
+  - [baltic_states, east_prussia]
+  - [baltic_states, leningrad_area]
+  - [bay_of_biscay, english_channel]
+  - [bay_of_biscay, gibraltar_approaches]
+  - [bay_of_biscay, iberia]
+  - [bay_of_biscay, mid_ocean_gap]
+  - [bay_of_biscay, occupied_france]
+  - [belorussia, east_prussia]
+  - [belorussia, kiev_area]
+  - [belorussia, leningrad_area]
+  - [belorussia, occupied_poland]
+  - [belorussia, smolensk_area]
+  - [belorussia, western_ukraine]
+  - [black_sea, caucasus]
+  - [black_sea, crimea]
+  - [black_sea, donbas]
+  - [black_sea, odessa_area]
+  - [black_sea, romania]
+  - [black_sea, turkey]
+  - [britain_north, britain_south]
+  - [britain_north, ireland]
+  - [britain_north, north_sea]
+  - [britain_north, western_approaches_area]
+  - [britain_south, english_channel]
+  - [britain_south, north_sea]
+  - [britain_south, western_approaches_area]
+  - [british_islands, central_mediterranean]
+  - [british_islands, eastern_mediterranean]
+  - [burma, indochina]
+  - [burma, szechwan]
+  - [burma, thailand]
+  - [caribbean, caribbean_sea]
+  - [caribbean_sea, us_central]
+  - [caribbean_sea, us_east]
+  - [caribbean_sea, western_atlantic]
+  - [caucasus, donbas]
+  - [caucasus, iran]
+  - [caucasus, turkey]
+  - [central_mediterranean, cyrenaica]
+  - [central_mediterranean, eastern_mediterranean]
+  - [central_mediterranean, greece]
+  - [central_mediterranean, italy_north]
+  - [central_mediterranean, italy_south]
+  - [central_mediterranean, tripolitania]
+  - [central_mediterranean, tunisia]
+  - [central_mediterranean, western_mediterranean]
+  - [central_pacific, eastern_pacific]
+  - [central_pacific, hawaii]
+  - [central_pacific, japan_east]
+  - [central_pacific, north_pacific]
+  - [central_pacific, philippine_sea]
+  - [crimea, odessa_area]
+  - [cyrenaica, eastern_mediterranean]
+  - [cyrenaica, egypt]
+  - [cyrenaica, tobruk_area]
+  - [cyrenaica, tripolitania]
+  - [danish_straits, denmark]
+  - [danish_straits, germany_east]
+  - [danish_straits, germany_west]
+  - [danish_straits, north_sea]
+  - [danish_straits, sweden_area]
+  - [denmark, germany_west]
+  - [denmark, north_sea]
+  - [denmark_strait, greenland]
+  - [denmark_strait, mid_ocean_gap]
+  - [dodecanese, eastern_mediterranean]
+  - [donbas, kharkov_area]
+  - [donbas, odessa_area]
+  - [donbas, stalingrad]
+  - [donbas, voronezh]
+  - [dutch_east_indies, java_sea]
+  - [dutch_east_indies, malaya]
+  - [dutch_east_indies, philippine_sea]
+  - [dutch_east_indies, south_china_sea]
+  - [east_china_sea, formosa]
+  - [east_china_sea, japan_west]
+  - [east_china_sea, korea]
+  - [east_china_sea, manchuria]
+  - [east_china_sea, north_china]
+  - [east_china_sea, philippine_sea]
+  - [east_china_sea, sea_of_japan]
+  - [east_china_sea, south_china]
+  - [east_china_sea, south_china_sea]
+  - [east_china_sea, wuhan_area]
+  - [east_prussia, germany_east]
+  - [east_prussia, occupied_poland]
+  - [eastern_canada, labrador_sea]
+  - [eastern_canada, newfoundland]
+  - [eastern_canada, us_central]
+  - [eastern_canada, us_east]
+  - [eastern_canada, western_atlantic]
+  - [eastern_mediterranean, egypt]
+  - [eastern_mediterranean, greece]
+  - [eastern_mediterranean, levant]
+  - [eastern_mediterranean, syria]
+  - [eastern_mediterranean, tobruk_area]
+  - [eastern_mediterranean, turkey]
+  - [eastern_pacific, north_pacific]
+  - [egypt, levant]
+  - [english_channel, mid_ocean_gap]
+  - [english_channel, occupied_france]
+  - [english_channel, western_approaches_area]
+  - [finland, gulf_of_bothnia]
+  - [finland, leningrad_area]
+  - [finland, norway]
+  - [finland, sweden_area]
+  - [finland, the_north]
+  - [finland, white_sea]
+  - [formosa, philippine_sea]
+  - [formosa, south_china_sea]
+  - [french_north_africa, gibraltar_approaches]
+  - [french_north_africa, tripolitania]
+  - [french_north_africa, tunisia]
+  - [french_north_africa, western_mediterranean]
+  - [germany_east, germany_south]
+  - [germany_east, germany_west]
+  - [germany_east, hungary_slovakia]
+  - [germany_east, occupied_poland]
+  - [germany_south, germany_west]
+  - [germany_south, hungary_slovakia]
+  - [germany_south, italy_north]
+  - [germany_south, switzerland_area]
+  - [germany_west, low_countries]
+  - [germany_west, north_sea]
+  - [germany_west, occupied_france]
+  - [germany_west, switzerland_area]
+  - [gibraltar_approaches, iberia]
+  - [gibraltar_approaches, mid_ocean_gap]
+  - [greece, turkey]
+  - [greenland, labrador_sea]
+  - [greenland, mid_ocean_gap]
+  - [gulf_of_bothnia, sweden_area]
+  - [hong_kong, south_china_coast]
+  - [hong_kong, south_china_sea]
+  - [hunan, south_china]
+  - [hunan, szechwan]
+  - [hunan, wuhan_area]
+  - [hungary_slovakia, occupied_poland]
+  - [hungary_slovakia, romania]
+  - [hungary_slovakia, western_ukraine]
+  - [iberia, occupied_france]
+  - [iberia, vichy_france]
+  - [iberia, western_mediterranean]
+  - [indochina, south_china]
+  - [indochina, south_china_sea]
+  - [indochina, szechwan]
+  - [indochina, thailand]
+  - [iran, iraq]
+  - [iran, turkey]
+  - [iraq, levant]
+  - [iraq, syria]
+  - [iraq, turkey]
+  - [ireland, western_approaches_area]
+  - [italy_north, italy_south]
+  - [italy_north, switzerland_area]
+  - [italy_north, vichy_france]
+  - [italy_north, western_mediterranean]
+  - [italy_south, western_mediterranean]
+  - [japan_east, japan_west]
+  - [japan_east, north_pacific]
+  - [japan_east, philippine_sea]
+  - [japan_east, sea_of_japan]
+  - [japan_east, soviet_far_east]
+  - [japan_west, philippine_sea]
+  - [japan_west, sea_of_japan]
+  - [java_sea, malaya]
+  - [java_sea, philippine_sea]
+  - [java_sea, philippines]
+  - [java_sea, south_china_sea]
+  - [kalinin_area, leningrad_area]
+  - [kalinin_area, moscow_area]
+  - [kalinin_area, smolensk_area]
+  - [kalinin_area, the_north]
+  - [kalinin_area, upper_volga]
+  - [kharkov_area, kiev_area]
+  - [kharkov_area, odessa_area]
+  - [kharkov_area, smolensk_area]
+  - [kharkov_area, voronezh]
+  - [kiev_area, odessa_area]
+  - [kiev_area, smolensk_area]
+  - [kiev_area, western_ukraine]
+  - [korea, manchuria]
+  - [korea, sea_of_japan]
+  - [korea, soviet_far_east]
+  - [labrador_sea, mid_ocean_gap]
+  - [labrador_sea, newfoundland]
+  - [labrador_sea, western_atlantic]
+  - [leningrad_area, smolensk_area]
+  - [leningrad_area, the_north]
+  - [levant, syria]
+  - [low_countries, north_sea]
+  - [low_countries, occupied_france]
+  - [malaya, philippine_sea]
+  - [malaya, south_china_sea]
+  - [malaya, thailand]
+  - [manchuria, north_china]
+  - [manchuria, soviet_far_east]
+  - [mid_ocean_gap, western_approaches_area]
+  - [mid_ocean_gap, western_atlantic]
+  - [moscow_area, smolensk_area]
+  - [moscow_area, upper_volga]
+  - [moscow_area, voronezh]
+  - [newfoundland, western_atlantic]
+  - [north_china, northwest_china]
+  - [north_china, wuhan_area]
+  - [north_pacific, philippine_sea]
+  - [north_pacific, sea_of_japan]
+  - [north_pacific, soviet_far_east]
+  - [north_sea, norway]
+  - [north_sea, occupied_france]
+  - [north_sea, sweden_area]
+  - [north_sea, western_approaches_area]
+  - [northwest_china, szechwan]
+  - [northwest_china, wuhan_area]
+  - [norway, sweden_area]
+  - [norway, white_sea]
+  - [occupied_france, switzerland_area]
+  - [occupied_france, vichy_france]
+  - [occupied_poland, western_ukraine]
+  - [odessa_area, romania]
+  - [odessa_area, western_ukraine]
+  - [philippine_sea, philippines]
+  - [philippine_sea, south_china_sea]
+  - [philippines, south_china_sea]
+  - [romania, western_ukraine]
+  - [sea_of_japan, soviet_far_east]
+  - [smolensk_area, voronezh]
+  - [south_china, south_china_coast]
+  - [south_china, south_china_sea]
+  - [south_china, szechwan]
+  - [south_china, wuhan_area]
+  - [south_china_coast, south_china_sea]
+  - [south_china_sea, thailand]
+  - [stalingrad, upper_volga]
+  - [stalingrad, voronezh]
+  - [switzerland_area, vichy_france]
+  - [syria, turkey]
+  - [szechwan, wuhan_area]
+  - [the_north, upper_volga]
+  - [the_north, white_sea]
+  - [tripolitania, tunisia]
+  - [tunisia, western_mediterranean]
+  - [upper_volga, voronezh]
+  - [us_central, us_east]
+  - [us_central, us_west]
+  - [us_east, western_atlantic]
+  - [vichy_france, western_mediterranean]
+  - {a: aegean_sea, b: black_sea, crossing: the Turkish Straits}
+  - {a: eastern_pacific, b: us_west, crossing: the box's seam at 126 W}
+  - {a: english_channel, b: north_sea, crossing: the Strait of Dover}
+  - {a: gibraltar_approaches, b: western_mediterranean, crossing: the Strait of Gibraltar}

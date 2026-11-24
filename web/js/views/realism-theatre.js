@@ -44,11 +44,25 @@ const asking = new Map();
 export const shapesFor = (file) => shapesBy.get(file?.sha256) ?? null;
 
 /**
- * Fetch the shapes for `file` once: a promise while one is out, null once they are here or
- * when there is no file. A refusal or a reply for another hash keeps none (the next draw asks
- * again); a reply that fails to arrive is asked for again on the next draw too.
+ * The map object for `hash`, fetched by its hash so the service worker can keep it, as a `map`
+ * reply; null when the server does not give it.
  */
-export function loadShapes(file, ask = api.map) {
+async function byHash(hash) {
+  if (!/^[0-9a-f]{64}$/.test(hash)) return null;
+  const res = await fetch(`/maps/${hash}.json`, { credentials: 'same-origin' });
+  const map = res.ok ? await res.json() : null;
+  return map?.areas && typeof map.areas === 'object' ? { refused: false, file: { sha256: hash }, map } : null;
+}
+
+const byHashOrAction = async (hash) => (await byHash(hash).catch(() => null)) ?? api.map();
+
+/**
+ * Fetch the shapes for `file` once: a promise while one is out, null once they are here or
+ * when there is no file. They are asked for by their hash, and of the `map` action when the
+ * server does not give them so. A refusal or a reply for another hash keeps none (the next draw
+ * asks again); a reply that fails to arrive is asked for again on the next draw too.
+ */
+export function loadShapes(file, ask = () => byHashOrAction(file.sha256)) {
   const hash = file?.sha256;
   if (!hash || shapesBy.has(hash)) return null;
   if (asking.has(hash)) return asking.get(hash);

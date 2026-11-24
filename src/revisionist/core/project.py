@@ -28,9 +28,18 @@ from typing import Protocol
 
 from revisionist.core.aim_patterns import OwnAim
 from revisionist.core.goals import sees_goal
-from revisionist.core.ids import DocumentId, EntityId, ScheduledEventId, SeatId
-from revisionist.core.ontology import Controller, ScheduledEvent, ScheduleSource, Seat
-from revisionist.core.realism import agreement, conference, detect, economy, groups
+from revisionist.core.ids import AssetId, DocumentId, EntityId, ScheduledEventId, SeatId
+from revisionist.core.ontology import Asset, Controller, ScheduledEvent, ScheduleSource, Seat
+from revisionist.core.realism import (
+    agreement,
+    answering,
+    conference,
+    detect,
+    economy,
+    groups,
+    offers,
+)
+from revisionist.core.realism.card import CardFace, SeatCard
 from revisionist.core.realism.document import DocumentView
 from revisionist.core.realism.war import polity_of
 from revisionist.core.state import SeatFace, State, View, seat_of_person
@@ -82,18 +91,27 @@ def _own_aims(state: State, seat: SeatId) -> dict[EntityId, OwnAim]:
     }
 
 
+def _face(card: SeatCard, assets: Mapping[AssetId, Asset]) -> CardFace:
+    """The card's public face; its post named only where the seat sees the office (PPP)."""
+    face = card.face()
+    if face.post is not None and face.post not in assets:
+        return face.model_copy(update={"post": None})
+    return face
+
+
 def project(state: State, seat: SeatId) -> View:
     if seat not in state.seats:
         raise KeyError(f"unknown seat {seat!r}")
     me = state.seats[seat]
     card = state.cards.get(me.embodies)
+    assets = _visible(state.assets, seat)
     return View(
         viewer=seat,
         campaign_id=state.campaign_id,
         tick=state.tick,
         settings=state.settings,
         entities=dict(state.entities),
-        assets=_visible(state.assets, seat),
+        assets=assets,
         relationships=_visible(state.relationships, seat),
         meters=_visible(state.meters, seat),
         clocks=_visible(state.clocks, seat),
@@ -112,6 +130,7 @@ def project(state: State, seat: SeatId) -> View:
         holders=dict(state.holders),
         economy=economy.seen_by(state, seat),
         groups=groups.seen_by(state, seat),
+        offers=offers.seen_by(state, seat),
         agreements=agreement.seen_by(state, seat),
         conferences=conference.seen_by(state, seat),
         wake=state.wake,
@@ -124,7 +143,7 @@ def project(state: State, seat: SeatId) -> View:
         me=me,
         seats={k: face(v) for k, v in state.seats.items()},
         own_pending=tuple(i for i in state.pending.values() if i.actor == seat),
-        cards={k: c.face() for k, c in state.cards.items()},
+        cards={k: _face(c, assets) for k, c in state.cards.items()},
         desk=card.desk() if card is not None else None,
         documents=_arrived(state, seat),
         # The holder's kept choice at a step is engine side until its due day (SHS).
@@ -140,7 +159,11 @@ def project(state: State, seat: SeatId) -> View:
         },
         routed={k: o.view() for k, o in state.routed.items() if o.issuer == seat},
         held={k: h for k, h in state.held.items() if h.issuer == seat},
-        asked={k: a for k, a in state.asked.items() if seat in (a.asker, a.seat, *a.seats)},
+        asked={
+            k: answering.as_asked(state, a, seat)
+            for k, a in state.asked.items()
+            if seat in (a.asker, a.seat, *a.seats)
+        },
         style=state.styles.get(seat),
         reports={
             **detect.seen_by(state, polity_of(state, me.embodies)),

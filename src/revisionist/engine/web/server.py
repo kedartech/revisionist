@@ -68,6 +68,7 @@ from revisionist.engine.web import (
     destinations,
     dossiers,
     guard,
+    home_api,
     limits,
     locks_api,
     map_api,
@@ -81,6 +82,7 @@ from revisionist.engine.web import (
     snapshot,
     stakes,
     wake_api,
+    worker,
 )
 from revisionist.engine.web import (
     held as held_orders,
@@ -120,6 +122,8 @@ SEALED_BY_COMMIT = frozenset(
         "conference-call",
         "conference-vote",
         "ask",
+        "offer",
+        "move",
     }
 )
 """Actions that file or change an order, or answer another seat's request: held for the
@@ -178,6 +182,7 @@ REALISM_ACTIONS = (
     "battle",
     "contingency",
     "agreement-publish",
+    "move",
     "conference-call",
     "conference-vote",
     "report",
@@ -185,6 +190,7 @@ REALISM_ACTIONS = (
     "report-mark",
     "aim-check",
     "aim-set",
+    "offer",
 )
 """Every ``/api/realism/<action>``: ``App.realism`` answers any other as no such call."""
 
@@ -646,6 +652,11 @@ class App:
                     asks, label = _battle_asks(state, seat, action, body)
                     realism_tick.commit_order(store, cid, seat, asks)
                     reply = f"Sent: {label}."  # [proposed]
+                elif action == "move":  # a move of post (PPR)
+                    ask = locks_api.move_ask(state, seat, *_move_args(body))
+                    check = locks_api.check_asks(state, seat, (ask,))
+                    realism_tick.commit_order(store, cid, seat, (ask,))
+                    reply = check["reason"] if check["check"] != "allowed" else f"Sent: {ask.ask}."
                 elif action == "agreement-publish":
                     asks, label = agreements_api.publish_asks(state, seat, body)
                     realism_tick.commit_order(store, cid, seat, asks)
@@ -656,6 +667,9 @@ class App:
                 elif action == "conference-vote":
                     args, _ = conferences_api.vote_args(state, seat, body)
                     reply = conferences_api.vote(store, cid, seat, args)
+                elif action == "offer":
+                    priced = realism_tick.make_offer(store, cid, seat, *_offer_args(body))
+                    reply = home_api.offered(state, priced)
                 else:
                     raise ApiError(HTTPStatus.NOT_FOUND, "No such call.")
             except (ValueError, KeyError, NotInPlayError, counsel.CounselRefusedError) as exc:
@@ -671,10 +685,14 @@ class App:
             store.close()
 
     def _check(self, state: State, seat: SeatId, body: dict[str, Any]) -> api.LockCheck:
-        """The check before sending (LKD): a form's lever and terms, or else the seat's
-        latest reading of a written order. Files nothing."""
+        """The check before sending (LKD): a form's lever and terms, a draft offer to a bloc
+        (PRR), or else the seat's latest reading of a written order. Files nothing."""
         if "lever" in body:
             return locks_api.check_form(state, seat, _text(body, "lever", 120), _params(body))
+        if "price" in body:  # a draft offer to a bloc (PRR)
+            return locks_api.check_offer(state, seat, *_offer_args(body))
+        if "move" in body:  # a move of post (PPR)
+            return locks_api.check_move(state, seat, *_move_args(body))
         with self._lock:
             reading = self._readings.get((state.campaign_id, seat))
         if reading is not None and reading.vote is not None:
@@ -720,7 +738,8 @@ class App:
             with self._lock:
                 reading = self._readings.get((cid, seat))
         args, label = _held_args(store, state, seat, action, body, reading)
-        held_id = held_orders.hold(store, cid, seat, wake.number, action, args, label)
+        kept = "file" if action == "move" else action  # a move of post is a written order
+        held_id = held_orders.hold(store, cid, seat, wake.number, kept, args, label)
         if held_id is None:
             return {"reply": SEALED, "refused": True}
         if action == "file":
@@ -1232,6 +1251,9 @@ def _held_args(
     if action == "agreement-publish":
         asks, label = agreements_api.publish_asks(state, seat, body)
         return {"asks": [a.model_dump(mode="json") for a in asks]}, label
+    if action == "move":
+        ask = locks_api.move_ask(state, seat, *_move_args(body))
+        return {"asks": [ask.model_dump(mode="json")]}, ask.ask
     if action == "conference-call":
         return conferences_api.call_args(state, seat, body)
     if action == "conference-vote":
@@ -1239,6 +1261,10 @@ def _held_args(
     if action == "ask":
         order_id = _text(body, "order_id", 64)
         return {"order_id": order_id}, locks_api.ask_label(state, seat, order_id)
+    if action == "offer":
+        bloc, measure, price = _offer_args(body)
+        label = home_api.offer_label(state, seat, bloc, measure, price)
+        return {"bloc": bloc, "measure": measure, "price": price}, label
     if action == "file":
         if reading is None or not reading.asks:
             raise ValueError(orders_reader.NOTHING)
@@ -1260,6 +1286,16 @@ def _battle_asks(
         asks, label, _ = battles_api.battle_asks(state, seat, body)
         return asks, label
     return battles_api.contingency_asks(state, seat, body)
+
+
+def _offer_args(body: dict[str, Any]) -> tuple[str, str, str]:
+    """The bloc, the measure and the price of an ``offer`` or a draft offer's check."""
+    return _text(body, "bloc", 64), _text(body, "measure", 64), _text(body, "price", 64)
+
+
+def _move_args(body: dict[str, Any]) -> tuple[str, str, str]:
+    """The person, the post and the move of a ``move`` or a move's check (PPR)."""
+    return _text(body, "person", 64), _text(body, "post", 64), _text(body, "move", 20)
 
 
 def _refused_note(reason: str) -> str:
@@ -1697,6 +1733,8 @@ def make_handler(app: App) -> type[BaseHTTPRequestHandler]:
                     raise ApiError(HTTPStatus.NOT_FOUND, "Not found.")
                 target = app.static / "index.html"
             data = target.read_bytes()
+            if path == "/sw.js":
+                data = worker.script(app.static, data)
             kind = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
             if kind.startswith("text/") or kind in ("application/javascript",):
                 kind += "; charset=utf-8"

@@ -18,7 +18,15 @@ from revisionist.core import events as ev
 from revisionist.core import history, record
 from revisionist.core.canary import scan_text
 from revisionist.core.events import Event
-from revisionist.core.ids import CampaignId, EntityId, MandateId, OrderId, SeatId, derived_id
+from revisionist.core.ids import (
+    CampaignId,
+    DocumentId,
+    EntityId,
+    MandateId,
+    OrderId,
+    SeatId,
+    derived_id,
+)
 from revisionist.core.ontology import Controller
 from revisionist.core.project import project
 from revisionist.core.realism import advance, agreement, holders, mandates, pipelines, process
@@ -559,7 +567,45 @@ def _due_asks(state: State, seat: SeatId) -> list[DueMatter]:
     return [DueMatter("ask", a["id"], a["words"], a["by"], locks_api.ASK_DUE) for a in asks]
 
 
+PROMISE = "Your promise to {bloc}: {sentence}"  # [proposed]
+
+
+def _due_promises(state: State, seat: SeatId) -> list[DueMatter]:
+    """Each promise the seat made whose measure has passed, due on the day it is read
+    (PRR rule 5), from the seat's own view: only its own offers."""
+    from revisionist.engine.web import home_api
+
+    return [
+        DueMatter(
+            "promise",
+            p["offer_id"],
+            PROMISE.format(bloc=p["name"], sentence=p["sentence"].rstrip(".")),
+            None,
+            p["due"],
+        )
+        for p in home_api.promises(project(state, seat))
+        if p["standing"] == "due" and p["due"] is not None
+    ]
+
+
+def _due_posts(state: State, seat: SeatId) -> list[DueMatter]:
+    """Each change of post pending on the person the seat plays (PPR), named by
+    the notice it was sent, with when it lands; first, at the head of what needs it."""
+    from revisionist.engine.web import people
+
+    view = project(state, seat)
+    out: list[DueMatter] = []
+    for line in people.pending(state, seat):
+        page = view.documents.get(DocumentId(line["id"]))
+        if page is not None:
+            out.append(
+                DueMatter("post", line["id"], page.title, _name(view, page.author), line["lands"])
+            )
+    return out
+
+
 DUE_KINDS: dict[str, DueKind] = {
+    "post": _due_posts,
     "request": _due_requests,
     "offer": _due_offers,
     "decision": _due_decisions,
@@ -567,6 +613,7 @@ DUE_KINDS: dict[str, DueKind] = {
     "battle": _due_battles,
     "vote": _due_votes,
     "ask": _due_asks,
+    "promise": _due_promises,
 }
 """The registry of due kinds, in the order a notice lists them."""
 

@@ -9,8 +9,9 @@ import { h, svg } from '../dom.js';
 import { worldDate } from '../rules.js';
 import { boxOf, holderRelation, territoryProjection } from '../realism-rules.js';
 import { DONE_HINT, dayKey, dayWords, itemHeading } from './realism-wake.js';
-import { floorMeasures } from './realism-home.js';
+import { floorMeasures, promisesMade } from './realism-home.js';
 import { askLines, heldLines, lockTag } from './realism-locks.js';
+import { postRoom } from './realism-figure.js';
 
 /** The list's heading and its empty line [proposed]. */
 export const NEEDS_TITLE = 'What needs you';
@@ -51,6 +52,15 @@ const itemLine = (item, label, word) => ({
   due: item.deadline || null, arrived: item.issued || null, paper: SEALED.has(item.kind) ? item.id : null,
   action: { word, to: 'matter', id: item.id },
 });
+
+// a change of post pending on the seat (view.realism.posts.pending): sealed to the person moved,
+// and listed ahead of every dated matter, since it lands whether or not the seat answers
+const POST_VERB = { appoint: 'appointed', relieve: 'relieved as' };
+addNeedKind('post', (rv) => (rv.posts?.pending ?? []).map((p) => ({
+  key: p.id, head: true, label: 'Change of post', from: (rv.posts.moved_by ?? []).join(', ') || 'Those who may move you',
+  what: `You are to be ${POST_VERB[p.move] ?? p.move} ${p.post}${p.move === 'relieve' && p.rung ? `, down to ${p.rung}` : ''}`,
+  lands: p.lands, wake: p.wake ?? null,
+})));
 
 // a mandate on the seat's own agenda: from its principal, or the state of the world
 addNeedKind('agenda', (rv) => items(rv).filter((i) => !OWN_LINE.has(i.kind))
@@ -113,6 +123,29 @@ addNeedKind('ask', (rv) => askLines(rv).map((a) => ({
   action: { word: 'Open', to: 'ask', id: a.id },
 })));
 
+// a promise the seat made a bloc for its votes (PRB), once its measure has passed and set its due
+// day: due on that day; once judged, kept or broken (one still waiting on its measure owes nothing yet)
+const JUDGED = { kept: 'Promise kept to', broken: 'Promise broken to' };
+addNeedKind('promise', (rv) => promisesMade(rv.home).filter((p) => p.standing !== 'taken').map((p) => ({
+  key: p.offer_id, label: 'Your promise', what: `${JUDGED[p.standing] ?? 'Promise to'} ${p.name}: ${p.sentence}`,
+  from: p.title, due: p.due ?? null, arrived: p.filed || null,
+  action: { word: 'Show the floor', to: 'sheet', sheet: 'home' },
+})));
+
+// a place of political weight of the seat's nation its map marks to fall, as the home block sends
+// it; shown on the map, and left to the paper's line where a paper already warns of it. A place
+// only named by a report next door stays a mark on the map and on the home sheet: that is a standing
+// state of a war, not a matter that waits on the seat, and it would keep the list from ever being quiet
+addNeedKind('place', (rv) => {
+  const papered = new Set((KINDS.get('paper')?.(rv) ?? []).map((l) => l.action.area));
+  const falling = new Set((rv.map?.areas ?? []).filter((a) => a.falling).map((a) => a.key));
+  return (rv.home?.places ?? []).filter((p) => p.threatened && falling.has(p.key) && !papered.has(p.key)).map((p) => ({
+    key: p.key, label: 'Place under threat', what: `${p.name} is threatened`,
+    from: p.holder?.name ? `Held by ${p.holder.name}` : 'Held by no one', due: null, arrived: null,
+    action: { word: 'Show on map', to: 'map', area: p.key },
+  }));
+});
+
 /** The papers that only acknowledge an order, and the papers an order's receipt names. */
 function receipts(rv) {
   const out = new Set((rv.documents?.documents ?? []).filter((d) => d.ack).map((d) => d.id));
@@ -140,12 +173,13 @@ export function needLines(rv) {
     }
   }
   return out.map((line, n) => [line, n])
-    .sort(([a, i], [b, j]) => later(a.due) - later(b.due) || later(a.arrived) - later(b.arrived) || i - j)
+    .sort(([a, i], [b, j]) => Number(Boolean(b.head)) - Number(Boolean(a.head)) || later(a.due) - later(b.due) || later(a.arrived) - later(b.arrived) || i - j)
     .map(([line]) => line);
 }
 
 /** By when, in words: "Due 22 October 1941", "Due at this wake's close", or "No set day". */
 export function dueWords(line) {
+  if (line.lands) return `Lands ${line.lands}${line.wake ? ` (wake ${line.wake})` : ''}`;
   if (!line.due) return NO_DAY;
   return line.at === 'close' ? AT_CLOSE : `Due ${dayWords(line.due)}`;
 }
@@ -189,7 +223,9 @@ const KIND_MARKS = {
   vote: 'M3 7h10v7H3zM6 7l2-4 4 2-1 2',
   battle: 'M3 3l10 10M13 3L3 13M3 11v2h2M13 11v2h-2',
   floor: 'M2 14h12M3 6h10M4 6v8M8 6v8M12 6v8M2 6l6-4 6 4',
+  place: 'M8 14s-5-4.5-5-8a5 5 0 0 1 10 0c0 3.5-5 8-5 8zM8 4v3M8 9v.5',
   held: 'M4 7h8v7H4zM6 7V5a2 2 0 0 1 4 0v2',
+  post: 'M8 2l2 4h4l-3 3 1 5-4-3-4 3 1-5-3-3h4z',
 };
 
 /** The mark for a line's kind: a small drawing, for the eye; the row's words name the kind. */
@@ -273,7 +309,8 @@ export function needsList(rv, lines, { open = false, onAction, onDone, onClose, 
     h('button', { type: 'button', class: 'rl-btn rl-needs-close', onclick: () => onClose?.() }, 'Close')),
   comeBack ? h('p', { class: 'rl-comeback' }, comeBack) : null,
   rows.length ? h('ul', { class: 'rl-needs-lines', role: 'list' }, rows) : null,
-  lines.length ? null : h('p', { class: 'rl-needs-none' }, NEEDS_NONE),
+  // a seat with no post never opens on an empty list: it is shown what it can still do
+  lines.length ? null : rv.posts && !rv.posts.post ? postRoom(rv.posts.room) : h('p', { class: 'rl-needs-none' }, NEEDS_NONE),
   rest.length
     ? h('details', { class: 'rl-needs-more' },
       h('summary', {}, `${MORE} (${rest.length})`),

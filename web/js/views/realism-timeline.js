@@ -7,6 +7,7 @@
 
 import { h, svg } from '../dom.js';
 import { markKey, shortDate } from '../realism-rules.js';
+import { DUE_FLASH, MARK_MS, cameDue, play } from './realism-tracks.js';
 import { dayKey } from './realism-wake.js';
 
 /** The strip's words [proposed]. */
@@ -115,12 +116,20 @@ function shape(kind) {
 const markCls = (m) => `rl-tl-mark k-${m.kind}${m.due ? ' due' : ''}`;
 const pct = (days, span) => `${span > 0 ? Math.min(100, (100 * days) / span).toFixed(2) : 0}%`;
 
+/** One mark on the line; a promise's mark that came due since the strip last drew marks itself once. */
+function axisMark(m, span, today) {
+  const due = m.key.startsWith('need:promise:') && cameDue(`tl:${m.key}`, m.day, today);
+  const el = svg('svg', { class: markCls(m), x: pct(m.days, span), y: '50%', overflow: 'visible', 'data-tl-key': m.key, 'data-came-due': due }, shape(m.kind));
+  if (due) play(el, DUE_FLASH, MARK_MS);
+  return el;
+}
+
 /** The line: today's tick, then one mark per dated thing at its share of the span. */
-function axis(found) {
+function axis(found, today) {
   return svg('svg', { class: 'rl-tl-axis', 'aria-hidden': 'true', focusable: 'false' },
     svg('line', { class: 'rl-tl-rule', x1: '0', x2: '100%', y1: '50%', y2: '50%' }),
     svg('svg', { class: 'rl-tl-today', x: '0', y: '50%', overflow: 'visible' }, svg('rect', { x: -1, y: -9, width: 2, height: 18 })),
-    found.marks.map((m) => svg('svg', { class: markCls(m), x: pct(m.days, found.span), y: '50%', overflow: 'visible', 'data-tl-key': m.key }, shape(m.kind))));
+    found.marks.map((m) => axisMark(m, found.span, today)));
 }
 
 const rowMark = (m) => svg('svg', { class: markCls(m), viewBox: '-7 -7 14 14', width: 14, height: 14, 'aria-hidden': 'true', focusable: 'false' }, shape(m.kind));
@@ -167,7 +176,7 @@ export function timelineStrip(rv, lines, { open = false, onToggle, onOpen } = {}
       'aria-label': `${TIMELINE_TITLE}: ${n} dated ${n === 1 ? 'thing' : 'things'}, ${said}`, onclick: () => onToggle?.(),
     },
     h('span', { class: `rl-tl-cap${found.ended ? '' : ' no-end'}` }, cap),
-    axis(found),
+    axis(found, rv.clock?.world_date ?? null),
     h('span', { class: 'rl-tl-chev', 'aria-hidden': 'true' }, open ? '▾' : '▴')),
     open ? h('div', { class: 'rl-tl-body', id },
       ticks(found.span),

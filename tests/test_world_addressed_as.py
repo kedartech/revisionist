@@ -31,7 +31,7 @@ def _amended(store: EventStore) -> list[ev.CardAmended]:
 def test_every_autumn_1941_card_says_how_its_holder_is_addressed() -> None:
     unaddressed = [c.person for c in DECL.cards if not (c.addressed_as or "").strip()]
     assert unaddressed == []
-    assert len(DECL.cards) == 56
+    assert len(DECL.cards) == 57
     state = _fresh()
     assert {state.cards[KEYS[c.person]].addressed_as for c in DECL.cards} == {
         c.addressed_as for c in DECL.cards

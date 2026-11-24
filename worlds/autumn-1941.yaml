@@ -165,6 +165,7 @@ entities:
   - {key: stalin, kind: person, name: Joseph Stalin, parent: ussr}
   - {key: molotov, kind: person, name: Vyacheslav Molotov, parent: ussr}
   - {key: shaposhnikov, kind: person, name: Boris Shaposhnikov, parent: stavka}
+  - {key: timoshenko, kind: person, name: Semyon Timoshenko, parent: ussr}  # source: timoshenko_1941
   - {key: chiang, kind: person, name: Chiang Kai-shek, parent: china}
   - {key: he_yingqin, kind: person, name: He Yingqin, parent: military_affairs_commission}
   - {key: soong, kind: person, name: T. V. Soong, parent: china}
@@ -1199,6 +1200,8 @@ assets:
   - {key: combined_fleet_command, kind: office, name: "Commander in Chief, Combined Fleet", tier: 3, controller: yamamoto}
   # NIT: the Italian Battle Fleet's commander's post. The tier is [proposed], as Tovey's is.
   - {key: battle_fleet_command, kind: office, name: "Commander in Chief, Battle Fleet", tier: 3, controller: iachino}
+  # NSU: the Western Front's commander's post. The tier is [proposed], as Tovey's is.
+  - {key: western_front_command, kind: office, name: "Commander, Western Front", tier: 3, controller: timoshenko}
 
 sources:
   - key: voteview
@@ -1257,6 +1260,8 @@ sources:
   - {key: yamamoto_1941, title: "Admiral Isoroku Yamamoto, Commander in Chief of the Combined Fleet from August 1939, with his flagship in the Inland Sea by Kure", note: "Named citation; the lane had no network and read no edition. Confirm the rank and dates before release."}
   - {key: iachino_1941, title: "Admiral Angelo Iachino, Commander in Chief of the Italian Battle Fleet (the Squadra Navale) from December 1940 to April 1943, with the fleet based at Taranto", note: "Named citation; the lane had no network and read no edition. Confirm the rank and dates before release."}
   - {key: bragadin_1957, title: "Marc'Antonio Bragadin, The Italian Navy in World War II (United States Naval Institute, 1957): the battle fleet's sorties ordered from Rome through Supermarina", note: "Mussolini held the Ministry of the Navy; the sorties were held back for want of fuel and air cover. Named citation; not read. Confirm the chain of orders and the restrictions before release."}
+  - {key: timoshenko_1941, title: "Marshal Semyon Timoshenko, commanding the Soviet Western Front (and the Western Direction) from July to 12 September 1941", note: "Konev took the front on 12 September and Zhukov on 10 October. Named citation; the lane had no network and read no edition. Confirm the dates of each change of command before release."}
+  - {key: erickson_1975, title: "John Erickson, The Road to Stalingrad (Harper and Row, 1975): Stalin's orders to the fronts through the Stavka and the General Staff", note: "Stalin refused or delayed leave to withdraw through 1941. Named citation; not read. Confirm that a front's withdrawal waited on Stalin's word before release."}
   - {key: liaison_conference_1941, title: "The Liaison Conference of 1941: the Prime Minister, the Foreign, Army and Navy Ministers and the two Chiefs of Staff, deciding by consensus", note: "Named citation; not read. Confirm the membership and the rule of consensus before release."}
   - {key: fuehrer_naval_17_sep_1941, title: "Fuehrer Conferences on Naval Affairs, 17 September 1941: Hitler orders the U-boats to avoid incidents with American ships", note: "Raeder asked leave to attack American escorts; Hitler refused until the campaign in the East is decided. Named citation; not read. Confirm the date and the wording before release."}
   - {key: neutrality_act_1939, title: "Neutrality Act of 4 November 1939 (54 Stat. 4), section 3, Combat Areas; with Proclamation 2376 of the same day defining the combat area", note: "Read (presidency.ucsb.edu, Proclamation 2376, which quotes section 3). Section 3(a): once the President defines combat areas it is unlawful for any citizen of the United States or any American vessel to proceed into or through them. The area: the waters round the British Isles out to 20 W, from the north coast of Spain to Norway."}
@@ -1480,6 +1485,15 @@ pipelines:
     gap: true
     steps:
       - {person: iachino, kind: clerical, days: 1, assumed: true}
+  # Timoshenko's own form (NSU): through the Western Front's staff at his headquarters, with no
+  # step above him. The step is his. His forms are a move and a concealment of the front (an
+  # engagement his domain holds). He has no detach form: a side may keep no army detachment in
+  # play (detachments.DETACHMENTS_PER_SIDE), so a split of the front would change nothing.
+  - key: western_front_staff
+    name: Through the Western Front's staff
+    gap: true
+    steps:
+      - {person: timoshenko, kind: clerical, days: 1, assumed: true}
   - key: cable_to_churchill
     name: A cable to the Prime Minister
     gap: true
@@ -3139,6 +3153,65 @@ cards:
         effects: [move_force, engagement]
         forces: [italian_fleet]
         summary: "Command of the Italian Battle Fleet: where it goes, what it detaches, how it fights."
+  # The fourteenth playable card (NSU): a military card, flagged playable by hand, under the
+  # Chief of the General Staff and so under Stalin, whose own order over the front stands (his
+  # military_operations name it). His own forms go through his own staff (western_front_staff),
+  # with no step above him: a move to the places Stalin's own form reaches, and a concealment. Aims 1 and 2 are the army
+  # commander's patterns filled in (hold_and_take, take_ground); aim 3 is the default an own aim
+  # replaces. A withdrawal behind the Mozhaisk line is Stalin's to permit; the Soviet Union has
+  # no body or council that decides. The card is the man in post on 1 September; Konev and then
+  # Zhukov took the front inside the season, a change left to the ladder of posts. source:
+  # timoshenko_1941 for the post, erickson_1975 for the orders through the Stavka; every other
+  # line gap: true, [proposed].
+  - person: timoshenko
+    post_kind: army_commander
+    office: Commander, Western Front
+    voice: "Heavy, plain and stubborn; reports losses without softening them and asks the Stavka for men before he asks for leave to give ground."
+    addressed_as: "Comrade Marshal"
+    playable: true
+    path: military
+    principals: [shaposhnikov]
+    powers: [command the Western Front, counter-attack on the Smolensk axis, hold the road to Moscow]
+    inner_circle:
+      - {person: shaposhnikov, channel: telephone}
+    feeds: [stavka_situation]
+    pipelines: [western_front_staff]
+    levers:
+      - name: western_front_move
+        pipeline: western_front_staff
+        resolver: movement
+        label: "Move the front"
+        summary: "Order the Western Front to stand on a new line. Your staff carries it out."
+        params:
+          - {name: force, kind: enum, choices: [soviet_western_front], label: "Which front", choice_labels: ["The Western Front"]}
+          - {name: to, kind: enum, choices: [vyazma, mozhaisk, moscow], label: "To", choice_labels: ["Vyazma", "Mozhaisk", "Moscow"]}
+      - name: western_front_conceal  # gap: true
+        pipeline: western_front_staff
+        resolver: intel
+        label: "Hide the front's moves"
+        summary: "Hide where the front's armies stand: night marches, camouflage and radio silence."
+        params:
+          - {name: intel, kind: enum, choices: [conceal]}
+          - {name: piece, kind: enum, choices: [soviet_western_front], label: "Which front", choice_labels: ["The Western Front"]}
+          - {name: concealed, kind: enum, choices: ["yes", "no"], label: "Hidden", choice_labels: ["Hide it", "Stop hiding it"]}
+    loyalty: 2
+    competence: 3
+    wants: [aid_soviet, europe_first]
+    reach: {rank: 2}
+    horizon_days: 7
+    aims:
+      - "Hold Moscow and take Smolensk back."
+      - "Take Belorussia back for the Soviet Union."
+      - "Keep Kalinin Soviet, the front's right flank."
+    aim_rules:
+      - {aim: 1, deadline: 1941-12-07, rule: "The Soviet Union holds the Moscow area and takes Smolensk back from Germany.", condition: {check: all_of, conditions: [{check: holds_area, area: moscow_area, holder: ussr}, {check: holds_area, area: smolensk_area, holder: ussr}]}}
+      - {aim: 2, deadline: 1941-12-07, rule: "The Soviet Union holds Belorussia.", condition: {check: holds_area, area: belorussia, holder: ussr}}
+      - {aim: 3, deadline: 1941-12-07, replaceable: true, rule: "The Soviet Union holds Kalinin.", condition: {check: holds_area, area: kalinin_area, holder: ussr}}
+    authority:
+      - name: western_front
+        effects: [move_force, engagement]
+        forces: [soviet_western_front]
+        summary: "Command of the Western Front: where it stands, how it fights and what it hides."
   - person: kramer
     office: Navy communications intelligence translator
     voice: "Precise translator's register; marks the urgent passage and adds one short note of his own."
@@ -3647,6 +3720,16 @@ mandates:
     condition: {check: ordered, person: iachino, effect: move_force}
     days: 14
     text: "Italian shipping is at sea for Libya: the Comando Supremo wants the battle fleet placed to cover the convoys."
+  # NSU: a front moved by its own commander answered to the Stavka for the road to Moscow.
+  # Blowback on his own move, so it fires only in a game where he is held and moves the front.
+  # gap: true, [proposed]. source: erickson_1975
+  - key: western_front_holds_the_road
+    kind: blowback
+    trigger: {"on": act, effect: move_force}
+    to: [timoshenko]
+    condition: {check: holds_area, area: moscow_area, holder: ussr}
+    days: 14
+    text: "You have moved the front: the Stavka holds you to the road to Moscow."
   # The Commons pressed for the Atlantic convoys through the autumn.
   - key: commons_convoys
     kind: order
@@ -3780,6 +3863,11 @@ roster:
     reach: The Italian Battle Fleet, what it may do under the Comando Supremo, and a cable to its Chief.
     composite: false
     sides: [{contest: atlantic_war, side: italy}]
+  - entity: timoshenko
+    pitch: Marshal holding the Western Front before Moscow, with orders to counter-attack and no leave to fall back.
+    reach: The Western Front, what it may do under the General Staff, and a telephone to its Chief.
+    composite: false
+    sides: [{contest: atlantic_war, side: ussr}]
 
 # Starting regard [proposed] (SHT, 14 Nov sheet), -2 to 2: between Roosevelt and
 # each of his people, and between each pair of the eight leaders. Public, as the
@@ -4025,6 +4113,15 @@ locks:
     question: permission
     order: {form: battle_fleet_detach, params: {to: bardia}}
     decider: {person: mussolini}
+  # NSU. A withdrawal of the Western Front behind the Mozhaisk line: the front sent back to
+  # Moscow waits on Stalin's permission. Through 1941 he held the fronts to their
+  # lines and gave leave to fall back late or not at all. No condition: only his grant opens it.
+  # The Soviet Union has no body or council that decides. source: erickson_1975; the line, gap:
+  # true, [proposed].
+  - key: western_front_withdrawal
+    question: permission
+    order: {form: western_front_move, params: {to: moscow}}
+    decider: {person: stalin}
 
 # Pacts in force on 1 September 1941 (PCW). The clause chosen for each is [proposed]: the rules judge
 # what they can, and wording they cannot express is kept and marked unchecked.

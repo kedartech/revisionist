@@ -60,6 +60,7 @@ from revisionist.core.realism import (
     groups,
     locks,
     offers,
+    office,
     posts,
     trade,
 )
@@ -527,6 +528,14 @@ def _ladders_declared(state: State, p: ev.LaddersDeclared) -> State:
             raise FoldError(f"ladders_declared: {ladder.post}'s ladder repeats a post")
         if ladder.post in ladder.moved_by:
             raise FoldError(f"ladders_declared: {ladder.post} may not move itself")
+        if (ladder.rests_on or ladder.removed_by) and Rule.OFFICE not in state.rules:
+            raise FoldError("ladders_declared: what a post rests on needs the office rule")
+        way = ladder.removed_by
+        for person in (
+            *(way.members if way else ()),
+            *([way.person] if way and way.person else []),
+        ):
+            _need(state.entities, person, "entity")
         out[ladder.post] = ladder
     return state.model_copy(update={"ladders": out})
 
@@ -556,6 +565,60 @@ def _post_move_settled(state: State, p: ev.PostMoveSettled) -> State:
     moves = dict(state.post_moves)
     del moves[p.move_id]
     return state.model_copy(update={"post_moves": moves})
+
+
+def _office_question_opened(state: State, p: ev.OfficeQuestionOpened) -> State:
+    """An office question opens, with ``office`` on (OFQ): its id once, one open on a
+    post at a time, its holder holding the post, its post one a holder may be removed
+    from, not inside a kept holder's rest, its sitting dated ahead."""
+    if not office.on(state):
+        raise FoldError("office_question_opened needs the office and posts rules")
+    q = p.question
+    _fresh(state.office_questions, q.question_id, "office question")
+    why = office.refusal(state, q.post, q.opened)
+    if why:
+        raise FoldError(f"office_question_opened: {q.post}: {why}")
+    if posts.holder(state, q.post) != q.holder:
+        raise FoldError(f"office_question_opened: {q.holder} does not hold {q.post}")
+    if q.sits < q.opened + timedelta(days=office.SITTING_DAYS):
+        raise FoldError(f"office_question_opened: {q.question_id} sits too soon")
+    if q.tick not in (office.first_wake(state, False), office.first_wake(state, True)):
+        raise FoldError(f"office_question_opened: {q.question_id} names another tick")
+    return state.model_copy(
+        update={"office_questions": _put(state.office_questions, q.question_id, q)}
+    )
+
+
+def _office_choice_filed(state: State, p: ev.OfficeChoiceFiled) -> State:
+    """A member's sealed choice on an open office question (OFQ); a later one replaces it."""
+    try:
+        office.may_choose(state, p.seat_id, p.question_id)
+    except ValueError as exc:
+        raise FoldError(f"office_choice_filed: {p.seat_id} on {p.question_id}: {exc}") from exc
+    kept = _put(state.office_choices.get(p.question_id, {}), p.seat_id, p.remove)
+    return state.model_copy(
+        update={"office_choices": _put(state.office_choices, p.question_id, kept)}
+    )
+
+
+def _office_question_decided(state: State, p: ev.OfficeQuestionDecided) -> State:
+    """The sitting decides the question (OFQ): never before its day, and once; a holder
+    kept rests until ``rests_until``."""
+    q = _need(state.office_questions, p.question_id, "office question")
+    if (p.post, p.holder) != (q.post, q.holder):
+        raise FoldError(f"office_question_decided: {p.question_id} names another post or holder")
+    if not office.sits(state, q, p.on):
+        raise FoldError(f"office_question_decided: {p.question_id} is decided before its day")
+    if p.removed == (p.rests_until is not None):
+        raise FoldError("office_question_decided: a holder kept rests, and only he")
+    open_now = {k: v for k, v in state.office_questions.items() if k != p.question_id}
+    choices = {k: v for k, v in state.office_choices.items() if k != p.question_id}
+    rests = dict(state.office_rests)
+    if p.rests_until is not None:
+        rests[p.post] = p.rests_until
+    return state.model_copy(
+        update={"office_questions": open_now, "office_choices": choices, "office_rests": rests}
+    )
 
 
 def _post_changed(state: State, p: ev.PostChanged) -> State:
@@ -1118,6 +1181,9 @@ def _mutate(state: State, event: Event) -> State:
             | ev.LaddersDeclared()
             | ev.PostMoveOrdered()
             | ev.PostMoveSettled()
+            | ev.OfficeQuestionOpened()
+            | ev.OfficeChoiceFiled()
+            | ev.OfficeQuestionDecided()
             | ev.PieceStepped()
             | ev.AreaHeld()
             | ev.CaptureCounted()
@@ -1573,6 +1639,12 @@ def _realism(state: State, p: ev.Payload) -> State:
             return _post_move_ordered(state, p)
         case ev.PostMoveSettled():
             return _post_move_settled(state, p)
+        case ev.OfficeQuestionOpened():
+            return _office_question_opened(state, p)
+        case ev.OfficeChoiceFiled():
+            return _office_choice_filed(state, p)
+        case ev.OfficeQuestionDecided():
+            return _office_question_decided(state, p)
         case ev.IntelligenceDeclared():
             if Rule.REPORTS not in state.rules:
                 raise FoldError("intelligence_declared needs the reports rule")

@@ -26,6 +26,8 @@ SIDECARS = (
     ROOT / "worlds" / "dossiers" / "autumn-1941.yaml",
     ROOT / "worlds" / "developments" / "autumn-1941.yaml",
 )
+CIVIL_WAR = ROOT / "worlds" / "civil-war-1862.yaml"
+CIVIL_WAR_SIDECARS = (ROOT / "worlds" / "dossiers" / "civil-war-1862.yaml",)
 ALLOW = Path(__file__).with_name("fixed_names_allow.txt")
 SCANNED = ("src/revisionist/core", "src/revisionist/engine")
 
@@ -55,6 +57,15 @@ NOT_RULES = {
 }
 """Files that spell world names as data, not as rules. A file here must still hold such a
 literal, so the exemption cannot go stale."""
+
+SHARED_WORDS = {
+    "advance": "a Civil War lever; also the host's command to run the next tick",
+    "march": "a Civil War lever; also the verb a refusal uses for an army",
+    "move_force": "a Civil War lever; also the effect every move order carries",
+}
+"""Lever names a world shares with the engine's own words. The engine spelled them before any
+world did, so the spelling ties no rule to the world. Each must still be declared by a world, so
+the exemption cannot go stale."""
 
 PATH_ROOTS = ("core/realism/territory.py", "core/realism/kinds.py")
 """The modules that define the territory path; any module importing one is on it too."""
@@ -97,8 +108,12 @@ def declared_names(world: Mapping[str, Any], sidecars: Sequence[Mapping[str, Any
 
 
 def load_declared() -> set[str]:
-    world = yaml.safe_load(WORLD.read_text())
-    return declared_names(world, [yaml.safe_load(p.read_text()) for p in SIDECARS])
+    """The names both history worlds declare: 1941 and the Civil War."""
+    out: set[str] = set()
+    for world, sidecars in ((WORLD, SIDECARS), (CIVIL_WAR, CIVIL_WAR_SIDECARS)):
+        declared = yaml.safe_load(world.read_text())
+        out |= declared_names(declared, [yaml.safe_load(p.read_text()) for p in sidecars])
+    return out
 
 
 # ------------------------------------------------------------------- literals in rule code
@@ -288,7 +303,7 @@ def allow() -> dict[tuple[str, str], str]:
 
 
 def _found(files: Mapping[str, str], names: set[str]) -> set[tuple[str, str]]:
-    return {t for t in ties(files, names) if t[0] not in NOT_RULES}
+    return {t for t in ties(files, names) if t[0] not in NOT_RULES and t[1] not in SHARED_WORDS}
 
 
 def test_the_world_names_are_collected(names: set[str]) -> None:
@@ -308,6 +323,38 @@ def test_the_world_names_are_collected(names: set[str]) -> None:
         "dev_duquesne_trial",  # the developments sidecar
     ):
         assert name in names, name
+
+
+def test_the_civil_war_names_are_collected_too(names: set[str]) -> None:
+    """The guard reads every shipped world but the invented one, so a rule spelling a Civil
+    War name is tied to that world as much as one spelling a 1941 name."""
+    for name in (
+        "csa",  # entity key
+        "lexington_ky",  # a place
+        "The Confederate States",  # entity name
+        "army_of_the_potomac",  # feature key
+        "cs_draft_law_passed",  # quantity key
+        "mississippi_staff",  # pipeline key
+        "invade",  # lever name
+        "cs_draft_law",  # a bill, from a lever's choices
+        "perryville",  # a schedule item
+        "mississippi_command",  # a post
+        "farragut",  # the dossier sidecar
+    ):
+        assert name in names, name
+
+
+def test_a_shared_word_is_still_a_world_name(names: set[str]) -> None:
+    """Each word exempt as the engine's own is still declared by a shipped world."""
+    assert sorted(w for w in SHARED_WORDS if w not in names) == []
+
+
+def test_a_civil_war_name_added_to_a_rule_is_caught(files: dict[str, str], names: set[str]) -> None:
+    """A Civil War place spelled in a rule module is a tie the list does not cover."""
+    path = "src/revisionist/core/realism/kinds.py"
+    changed = {**files, path: files[path] + '\n_TIE = "lexington_ky"\n'}
+    allow = read_allow(ALLOW.read_text())
+    assert unlisted(_found(changed, names), allow) == [(path, "lexington_ky")]
 
 
 def test_no_rule_names_a_world_key_outside_the_list(

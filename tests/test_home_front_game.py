@@ -27,7 +27,7 @@ import pytest
 from revisionist.core import events as ev
 from revisionist.core.project import project
 from revisionist.core.realism import groups
-from revisionist.core.realism.groups import Cause, Happening
+from revisionist.core.realism.groups import Cause, Class, Happening
 from revisionist.core.realism.offers import OfferStanding
 from revisionist.core.state import State
 from revisionist.engine import catchup
@@ -157,6 +157,9 @@ def test_battle_losses_are_held_and_felt_later(runs: Runs) -> None:
         held = [h for e in g.logged(ev.LossesHeld) for h in e.held if h.polity == nation]
         assert held and all(h.group in moved_by(g, Happening.BATTLE_LOSSES) for h in held)
         assert g.moved(Cause.LOSSES_FELT)
+        # both worlds class battle losses as reported, half felt later (`happenings:`)
+        assert any(h.felt for h in held)
+        assert all(h.felt == int(round((h.reported + h.felt) * 0.5, 6)) for h in held)
 
 
 def test_losses_at_sea_move_the_groups_monthly_by_their_sign(runs: Runs) -> None:
@@ -167,6 +170,24 @@ def test_losses_at_sea_move_the_groups_monthly_by_their_sign(runs: Runs) -> None
     assert {m.group for m in moves} <= set(named)
     assert all(m.on.day == 1 for m in moves)
     assert all((m.change < 0) == (named[m.group] < 0) for m in moves if m.change)
+
+
+# what reaches the leader of how each kind of happening lands at home (`happenings:`)
+CLASSED: dict[str, dict[Happening, Class]] = {
+    "usa": {Happening.DAILY_LIFE_PASSED: Class.FELT, Happening.BATTLE_LOSSES: Class.REPORTED},
+    "varda": {Happening.AGREEMENT_BROKEN: Class.SECRET, Happening.WAR_DECLARED: Class.FELT},
+}
+
+
+@pytest.mark.parametrize("name", ["kept", "ss_kept"])
+def test_the_leader_sees_how_each_kind_of_happening_reaches_his_groups(
+    runs: Runs, name: str
+) -> None:
+    g = runs(name)
+    seen = project(g.state, g.leader).groups.classes
+    for happening, reach in CLASSED[g.home.nation].items():
+        assert seen[happening].reach is reach
+    assert seen[Happening.BATTLE_LOSSES].felt == 0.5
 
 
 def test_the_world_as_shipped_lets_no_loss_reach_a_chamber_bloc(runs: Runs) -> None:

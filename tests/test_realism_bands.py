@@ -14,6 +14,9 @@ With ``contests`` and ``aims`` on (AMC), the walk runs on to the last deciding d
 day the contests take their moves and are decided on their day, and every aim on the
 nine playable cards is checked from state. Each aim's status and each contest's end
 are printed, for reading, not asserted.
+
+With ``offers`` on, the blocs carry their prices, and the scripted orders make no offer:
+no bloc's count moves by a price, so the bands read as with ``offers`` off.
 """
 
 from collections.abc import Iterable

@@ -441,8 +441,19 @@ def _touches(state: State, held: locks.HeldOrder, keys: Iterable[str]) -> bool:
         return any(t.touched(form.lever, (), _words(*form.params.values())) for t in topics)
     effects = [a.effect for a in held.asks if a.effect is not None]
     kinds = {e.kind for e in effects}
-    said = _words(*(v for e in effects for v in e.model_dump(mode="json").values()))
+    said = _words(*(v for e in effects for v in _typed(e)))
     return any(t.touched(None, kinds, said) for t in topics)
+
+
+def _typed(effect: Effect) -> list[object]:
+    """The values of ``effect`` a topic may be touched by. For a deal, its clause types
+    and the nations it names: never its wording, a clause's text, or its offer and ask,
+    which the offering seat writes."""
+    if isinstance(effect, Deal):
+        named = {effect.counterparty, *effect.parties}
+        named |= {n for c in effect.clauses for n in (c.binds, c.nation) if n is not None}
+        return [*sorted(named), *(c.type.value for c in effect.clauses)]
+    return list(effect.model_dump(mode="json").values())
 
 
 def _carried(state: State, person: EntityId) -> int:

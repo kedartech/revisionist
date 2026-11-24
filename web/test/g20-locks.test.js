@@ -399,3 +399,124 @@ test('model text reaches the page as text only', () => {
   assert.equal(sheet.querySelectorAll('script').length + sheet.querySelectorAll('i').length, 0);
   assert.match(words(sheet), /<script>bad\(\)<\/script>/);
 });
+
+// --- send it anyway (DFB): a third choice with the server's price, and a confirm step -----------
+
+const PRICE = fixture.lock_check[0].price;
+const PRICED = { ...LOCKED, price: PRICE };
+const ANYWAY = 'Send it anyway';
+
+test('a form whose check offers sending anyway shows a third choice with the server\'s price, sent only after the confirm', async () => {
+  const anyway = [];
+  const item = standardForm(WATCH, {
+    onSubmit: () => {}, check: async () => PRICED, onAsk: () => {}, onAnyway: (v) => anyway.push(v), entities: [],
+  });
+  document.body.append(item);
+  submit(item);
+  await settle();
+  const choice = item.querySelector('.rl-lock-choice');
+  assert.deepEqual(buttonsOf(choice.querySelector('.rl-lock-acts')), ['File it to be held', 'Ask Ilse Varg', ANYWAY]);
+  assert.equal(words(choice.querySelector('.rl-lock-price')), PRICE, 'the price as the server worded it');
+  choice.querySelector('.rl-lock-anyway').click();
+  assert.equal(anyway.length, 0, 'the first press sends nothing');
+  const confirm = choice.querySelector('.rl-lock-confirm');
+  assert.ok(confirm, 'it asks to be sure');
+  assert.match(words(confirm), /without leave/);
+  confirm.querySelector('.rl-lock-back').click();
+  assert.equal(choice.querySelector('.rl-lock-confirm'), null, 'Back leaves the three choices');
+  assert.deepEqual(buttonsOf(choice.querySelector('.rl-lock-acts')), ['File it to be held', 'Ask Ilse Varg', ANYWAY]);
+  choice.querySelector('.rl-lock-anyway').click();
+  choice.querySelector('.rl-lock-confirm .rl-lock-yes').click();
+  assert.equal(anyway.length, 1, 'sent once, after the confirm');
+  assert.equal(anyway[0].lever, 'set_watch');
+  assert.equal(item.querySelector('.rl-lock-choice'), null, 'and the choice goes');
+  item.remove();
+});
+
+test('no third choice is drawn when the server did not offer sending anyway', async () => {
+  const item = standardForm(WATCH, {
+    onSubmit: () => {}, check: async () => LOCKED, onAsk: () => {}, onAnyway: () => {}, entities: [],
+  });
+  document.body.append(item);
+  submit(item);
+  await settle();
+  const choice = item.querySelector('.rl-lock-choice');
+  assert.deepEqual(buttonsOf(choice.querySelector('.rl-lock-acts')), ['File it to be held', 'Ask Ilse Varg']);
+  assert.equal(choice.querySelector('.rl-lock-price'), null);
+  item.remove();
+  const bare = locks.lockedChoice({ ...LOCKED, price: '' }, { file: () => {}, ask: () => {}, send: () => {} });
+  assert.equal(bare.querySelector('.rl-lock-anyway'), null, 'an empty price offers nothing');
+});
+
+test('a locked move the server lets the seat send anyway offers it on the chip, filed as lever-anyway after the confirm', async () => {
+  stubApi((b) => (b.params.to === 'isle' ? PRICED : ALLOWED));
+  const r = await room(seat());
+  await pickLevy(r);
+  litArea(r.view, 'isle').click();
+  await settle();
+  const c = chip(r.view);
+  assert.deepEqual(buttonsOf(c.querySelector('.rl-lock-acts')), ['File it to be held', 'Ask Ilse Varg', ANYWAY]);
+  assert.equal(words(c.querySelector('.rl-lock-price')), PRICE);
+  c.querySelector('.rl-lock-anyway').click();
+  assert.deepEqual(r.acts, [], 'nothing before the confirm');
+  c.querySelector('.rl-lock-confirm .rl-lock-yes').click();
+  assert.deepEqual(r.acts.map((a) => [a.action, a.body]), [['lever-anyway', { lever: 'move_piece', params: { force: 'norra_levy', to: 'isle' } }]]);
+});
+
+test('a held order the seat may send anyway carries the price in its line, and sends only after the confirm', () => {
+  const rv = seat();
+  const [priced, plain] = rv.locks.held;
+  const seen = [];
+  const list = needsList(rv, needLines(rv), { onAction: (line) => seen.push(line.action) });
+  const row = (id) => list.querySelectorAll('li.rl-need').find((li) => li.getAttribute('data-kind') === 'held' && li.getAttribute('data-need') === id);
+  assert.equal(row(plain.id).querySelector('.rl-lock-choice'), null, 'no price, no third choice');
+  const r = row(priced.id);
+  assert.equal(words(r.querySelector('.rl-lock-price')), PRICE);
+  r.querySelector('.rl-lock-anyway').click();
+  assert.deepEqual(seen, []);
+  r.querySelector('.rl-lock-confirm .rl-lock-yes').click();
+  assert.deepEqual(seen, [{ word: ANYWAY, to: 'send-anyway', id: priced.id }]);
+});
+
+// --- the incident (DFB rule 2): the superior's three answers, the commander's outcome -----------
+
+const incidentRow = (list, id) => list.querySelectorAll('li.rl-need').find((li) => li.getAttribute('data-kind') === 'incident' && li.getAttribute('data-need') === id);
+
+test('an open incident is in the superior\'s list with its three answers, each sent as the server names it', () => {
+  const rv = seat();
+  const [inc] = rv.locks.incidents;
+  const [line] = needLines(rv).filter((l) => l.kind === 'incident');
+  assert.equal(line.key, inc.id);
+  assert.equal(line.what, inc.words);
+  assert.equal(line.due, inc.due);
+  const seen = [];
+  const list = needsList(rv, needLines(rv), { onAction: (l) => seen.push(l.action) });
+  const r = incidentRow(list, inc.id);
+  assert.ok(r, 'the incident is a row');
+  assert.match(words(r), /Kara Lind: Sent an order without leave\./);
+  assert.equal(r.querySelector('.rl-need-from'), null, 'the incident names its sender in its own words');
+  const acts = r.querySelectorAll('button.rl-need-answer');
+  assert.deepEqual(acts.map((b) => words(b)), ['Back it', 'Disown it', 'Dismiss it']);
+  acts[1].click();
+  assert.deepEqual(seen, [{ word: 'Disown it', to: 'incident', id: inc.id, verdict: 'disowned' }]);
+});
+
+test('the commander\'s incident shows with its outcome and nothing to press', () => {
+  const told = { id: 'INC2', words: 'Ilse Varg was asked to answer for your order sent without leave.', due: '1900-04-04', verdict: 'backed', answers: [] };
+  const waiting = { ...told, id: 'INC3', verdict: null };
+  const rv = seat((x) => { x.locks.incidents = [told, waiting]; });
+  const list = needsList(rv, needLines(rv), {});
+  const done = incidentRow(list, 'INC2');
+  assert.match(words(done), /was asked to answer/);
+  assert.match(words(done.querySelector('.rl-need-outcome')), /backed/);
+  assert.equal(done.querySelectorAll('button.rl-need-answer').length, 0);
+  assert.match(words(incidentRow(list, 'INC3').querySelector('.rl-need-outcome')), /Not answered yet/);
+});
+
+test('answers are drawn only as the server sends them: an incident with none offers none', () => {
+  const rv = seat((x) => { x.locks.incidents[0].answers = ['backed']; });
+  const list = needsList(rv, needLines(rv), {});
+  assert.deepEqual(incidentRow(list, rv.locks.incidents[0].id).querySelectorAll('button.rl-need-answer').map((b) => words(b)), ['Back it']);
+  const off = seat((x) => { delete x.locks.incidents; });
+  assert.equal(needLines(off).filter((l) => l.kind === 'incident').length, 0, 'no incidents block, no line');
+});

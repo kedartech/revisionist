@@ -20,11 +20,14 @@ from pathlib import Path
 from typing import Any
 
 from revisionist import cli
-from revisionist.core.state import MODEL_READ_RULES, Rule
-from revisionist.core.world import LockDecl, PactClauseDecl, PactDecl, WarDecl, WorldFile
+from revisionist.core.ids import CampaignId
+from revisionist.core.state import MODEL_READ_RULES, QuestionCause, Rule
+from revisionist.core.world import CardDecl, LockDecl, PactClauseDecl, PactDecl, WarDecl, WorldFile
 from revisionist.engine import campaign as cmp
+from revisionist.engine import realism_tick
 from revisionist.engine import timeline as tl
 from revisionist.engine.llm import Reply, Request
+from revisionist.engine.store import EventStore, load_state
 from revisionist.engine.web import limits, map_api, new_game_api, server
 
 SMOKE_SIGNUPS = 50
@@ -197,23 +200,77 @@ def _set_up(feature: Any) -> Any:
     return feature.model_copy(update=update)
 
 
+GARRISON = "kael_garrison"
+"""The Ostrel post the smoke's office question is put on: the Commander of the Kael Garrison,
+held by Sefa Marr from the first day (a card of her own, with nothing to act on), resting on the
+Marshal's staff and removed by the Marshal alone, so the smoke's seat decides the question (OFB)."""
+GARRISON_NAME = "Commander of the Kael Garrison"
+GARRISON_HOLDER = "sefa"
+
+
+def _garrison(asset: Any) -> Any:
+    """The Kael garrison as Sefa Marr's, which the Marshal removes; any other asset as it is."""
+    if asset.key != GARRISON:
+        return asset
+    return type(asset).model_validate(
+        {
+            **asset.model_dump(),
+            "controller": GARRISON_HOLDER,
+            "rests_on": ("marshals_staff",),
+            "removed_by": {"by": "person", "person": "general_aske"},
+        }
+    )
+
+
+def _garrison_card() -> CardDecl:
+    """Sefa Marr's card: she holds the Kael garrison and has no lever, aim or feed."""
+    return CardDecl(
+        person=GARRISON_HOLDER,
+        office=GARRISON_NAME,
+        horizon_days=7,
+        post=GARRISON,
+    )
+
+
+def _ask_the_garrison(store: EventStore, campaign_id: CampaignId) -> None:
+    """In a Salt Strait game, an office question opens on the Kael garrison the day play opens,
+    for the Marshal to decide; any other game is left as it is."""
+    state = load_state(store, campaign_id)
+    post = next((k for k, a in state.assets.items() if a.name == GARRISON_NAME), None)
+    if post is None or Rule.OFFICE not in state.rules:
+        return
+    realism_tick.open_office_question(store, campaign_id, post, QuestionCause.INCIDENT)
+
+
+_OPEN_PLAY = realism_tick.open_play
+
+
+def _open_play(store: EventStore, campaign_id: CampaignId) -> None:
+    _OPEN_PLAY(store, campaign_id)
+    _ask_the_garrison(store, campaign_id)
+
+
 def _salted(world: WorldFile) -> WorldFile:
     """Salt Strait as the smoke walks it, playing the Marshal: Varda and Ostrel at war from
     the start, the Ostrel levy standing in Harrow Pass a step from Varda's coast and Varda's
-    levy, so the first march meets it; the three model-read rules on; and a secret pact of
-    Ostrel and Kesh for the Marshal to publish. Any other world as it is."""
+    levy, so the first march meets it; the three model-read rules on; a secret pact of
+    Ostrel and Kesh for the Marshal to publish; and the Kael garrison removed by the Marshal
+    (``_garrison``). Any other world as it is."""
     if world.world != SALT_STRAIT:
         return world
     features = tuple(_set_up(f) for f in world.features)
     names = {f.key: f.name for f in world.features}
-    cards = tuple(
-        c.model_copy(
-            update={
-                "levers": tuple(_named_forces(lv, names) for lv in c.levers),
-                **({"horizon_days": 1} if c.person == "general_aske" else {}),
-            }
-        )
-        for c in world.cards
+    cards = (
+        *(
+            c.model_copy(
+                update={
+                    "levers": tuple(_named_forces(lv, names) for lv in c.levers),
+                    **({"horizon_days": 1} if c.person == "general_aske" else {}),
+                }
+            )
+            for c in world.cards
+        ),
+        _garrison_card(),
     )
     accord = PactDecl(
         key="salt_accord",
@@ -237,6 +294,7 @@ def _salted(world: WorldFile) -> WorldFile:
             "cards": cards,
             "wars": (WarDecl(a="ostrel", b="varda", since=date(1900, 3, 1), source="salt_strait"),),
             "pacts": (*world.pacts, accord),
+            "assets": tuple(_garrison(a) for a in world.assets),
         }
     )
 
@@ -255,10 +313,12 @@ if __name__ == "__main__":
     limits.ADDRESS_LINES = {**address_lines, "signup": SMOKE_SIGNUPS}
     unoffer = _offer_salt_strait()
     cmp.load_world = _load_world  # every caller reads it through the module (LKM)
+    realism_tick.open_play = _open_play  # the server calls it through the module (OFB)
     sys.argv = ["revisionist", "web", "serve", "--offline-prose", "--port", *sys.argv[1:2]]
     try:
         cli.app()
     finally:
         cmp.load_world = _LOAD_WORLD  # a run inside another process leaves no lock behind
+        realism_tick.open_play = _OPEN_PLAY
         limits.ADDRESS_LINES = address_lines
         unoffer()

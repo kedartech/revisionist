@@ -30,7 +30,15 @@
 .rl-need-what { margin: 0; font-weight: 600; color: var(--fg-strong); }
 .rl-need-from { margin: 0; font-size: 13px; color: var(--fg-muted); }
 .rl-need-act { justify-self: start; min-height: 44px; }
-.rl-need-act:focus-visible, .rl-needs-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-need-act:focus-visible, .rl-needs-btn:focus-visible, .rl-need-answer:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rl-need-answers .rl-need-answer { min-height: 44px; }
+.rl-need-outcome { margin: 0; font-size: 13px; font-weight: 600; color: var(--fg-muted); }
+.rl-need-anyway { margin-top: var(--space-1); }
+.rl-lock-price { font-weight: 600; color: var(--fg-strong); overflow-wrap: anywhere; }
+.rl-lock-anyway { border-style: dashed; }
+.rl-lock-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.rl-lock-confirm .rl-lock-sure { flex-basis: 100%; margin: 0; font-weight: 600; }
+.rl-lock-confirm button, .rl-need-anyway button { min-height: 44px; }
 .rl-needs-none { margin: 0; padding: var(--space-4) var(--space-3); color: var(--fg-muted); }
 .rl-needs-done { display: grid; gap: var(--space-2); padding: var(--space-3); border-top: 1px solid var(--rule); background: var(--surface-2); }
 .rl-needs-done .hint { margin: 0; font-size: 13px; color: var(--fg-muted); }

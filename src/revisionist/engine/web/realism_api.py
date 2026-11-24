@@ -980,8 +980,9 @@ class EconomyTerritory(TypedDict):
 
 
 class EconomyPools(TypedDict):
-    output: float
-    manpower: float
+    output: NotRequired[float]
+    manpower: NotRequired[float]
+    """Output and manpower: not sent to a commander held to his post."""
     fuel: NotRequired[float]
     """The fuel stock; sent only in a game with ``fuel`` on."""
 
@@ -1282,6 +1283,35 @@ class BaseUnder(TypedDict):
     """The day the question would open, if it stays under."""
 
 
+class FootingLine(TypedDict):
+    """A post of the seat's person that may be put to an office question: the base it
+    rests on as it stands today, at, above or under its line."""
+
+    office: str
+    groups: list[str]
+    support: float
+    """The mean support of the groups it rests on."""
+    line: int
+    days: int
+    """World days running, today included, its base has stood under the line; 0 when at
+    or above it."""
+    question: str | None
+    """The office question open on it, if any."""
+
+
+class OfficeResult(TypedDict):
+    """An office question of the seat's own nation decided at its sitting: public news,
+    kept in the home block for ``home_api.RESULT_DAYS`` world days."""
+
+    question_id: str
+    office: str
+    holder: str
+    on: str
+    removed: bool
+    rests_until: str | None
+    """For a holder kept, the day before which no question on the post opens."""
+
+
 class ElectionBloc(TypedDict):
     group: str
     name: str
@@ -1333,8 +1363,72 @@ class HomeBlock(TypedDict):
     """With ``office`` on: each question open on a post of the seat's nation, by sitting day."""
     turning: NotRequired[list[BaseUnder]]
     """With ``office`` on: each post of the seat's person whose base stands under its line."""
+    footing: NotRequired[list[FootingLine]]
+    """With ``office`` on: each post of the seat's person that may be put to a question."""
+    results: NotRequired[list[OfficeResult]]
+    """With ``office`` on: each question of the seat's nation decided lately, by day."""
     elections: NotRequired[list[ElectionAhead]]
     """With ``elections`` on: each election of the seat's nation ahead, by day."""
+
+
+CapitalShape = Literal["body", "council", "person"]
+"""The shape of who decides a capital's question, so the client draws a track of blocs, a
+table of members or one person."""
+
+
+class CapitalDecider(TypedDict):
+    """Who decides a question in a capital: a body (its blocs or chambers), a council (its
+    members) or one person (``members`` that person alone)."""
+
+    shape: CapitalShape
+    who: str
+    members: list[str]
+
+
+CapitalKind = Literal[
+    "measure", "offer", "office", "election", "held", "ask", "peace", "agreement", "vote", "result"
+]
+"""What a capital's question is: in the seat's own nation, a measure on its way, offers to
+its blocs on one, a sitting on an office, an election ahead, an order held for a decider,
+an ask or matter before the seat, a peace before it to answer; in another, a published
+agreement, a reported vote, a public sitting's result."""
+
+CapitalAt = Literal[
+    "home.chambers",
+    "home.offers",
+    "home.office",
+    "home.elections",
+    "locks.held",
+    "locks.asks",
+    "agreements.offers",
+    "agreements.agreements",
+    "conferences.conferences",
+    "news",
+]
+"""Where the question's own data already sits in the seat's payload; ``news`` is the
+public news of a sitting's result."""
+
+
+class CapitalQuestion(TypedDict):
+    """One live question of a capital: nothing in it the seat is not already sent."""
+
+    kind: CapitalKind
+    title: str
+    day: str | None
+    """The world day it falls on, sits, lapses or was decided; None for none."""
+    decider: CapitalDecider
+    at: CapitalAt
+    ref: str
+    """The key of the line at ``at``: an order id, a measure key, a question id, an
+    election's day, an ask's token, an offer's item, an agreement's id, a conference's key."""
+
+
+class CapitalLine(TypedDict):
+    """A nation's capital as the seat may know it: its own nation's live questions, or
+    only what another nation's public record gives."""
+
+    nation: MapNation
+    questions: list[CapitalQuestion]
 
 
 class BattleRoundLine(TypedDict):
@@ -1654,6 +1748,29 @@ class OfferLine(TypedDict):
     item: str | None
     """An offer before the seat to answer: the id of its "Offer" item on the agenda, which
     the ``answer`` action takes. None once answered on its due day, and for its own offer."""
+    accept: NotRequired["LockCheck"]
+    """With ``peace`` on, for an offer of peace before the seat to answer: what accepting
+    it would do (PER rule 3): ``allowed``, the acceptance stands; ``locked``, it is held
+    for who decides, with the reason the seat would be told; ``beyond``, his nation has no
+    one who may accept a peace, so accepting lapses the offer. Absent otherwise."""
+
+
+class PeaceClause(TypedDict):
+    """One clause of peace the offer builder may add (PER rule 1), with the nations the
+    seat may name in it: those at war with its nation, as its view holds them."""
+
+    type: Literal["armistice", "end_war", "no_separate_peace"]
+    label: str
+    nations: list[WarNation]
+
+
+class ArmisticeLine(TypedDict):
+    """An armistice in force (PER rule 4): the agreement, the two nations, and the world
+    day its days run out."""
+
+    agreement: str
+    nations: list[str]
+    last_day: str
 
 
 class AgreementsBlock(TypedDict):
@@ -1663,6 +1780,11 @@ class AgreementsBlock(TypedDict):
 
     agreements: list[AgreementLine]
     offers: list[OfferLine]
+    peace: NotRequired[list[PeaceClause]]
+    """With ``peace`` on, the clauses of peace the offer builder adds (PER). Absent off."""
+    armistices: NotRequired[list[ArmisticeLine]]
+    """With ``peace`` on, each armistice in force among the agreements the seat sees: its
+    nation's, and once published, every one (PER). Absent off."""
 
 
 class ConferenceVoteLine(TypedDict):
@@ -1755,6 +1877,9 @@ class AskLine(TypedDict):
     """The world day it was asked."""
     forms: list[AskForm]
     """The seat's own forms that would allow it; empty where it has none."""
+    terms: NotRequired["OfferTerms"]
+    """For a nation's held acceptance of an offer of peace, the offer's terms in full, as
+    its parties read them before accepting (PER rule 2). Absent otherwise."""
 
 
 class WaitLine(TypedDict):
@@ -2388,6 +2513,7 @@ __all__ = [
     "AimCheck",
     "AimPatternLine",
     "AimValue",
+    "ArmisticeLine",
     "AskForm",
     "AskLine",
     "BattlePiece",
@@ -2484,6 +2610,7 @@ __all__ = [
     "OrderTrack",
     "OrderTracker",
     "OwnAimBlock",
+    "PeaceClause",
     "PendingPost",
     "People",
     "PeopleMeter",
